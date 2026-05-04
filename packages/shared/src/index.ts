@@ -7,6 +7,9 @@
 // Core type definitions
 export * from "./types";
 
+// Channel.credentials envelope encryption (api, workers, seed all use this)
+export * from "./channelCredentialsCrypto";
+
 // Error handling
 export * from "./errors";
 

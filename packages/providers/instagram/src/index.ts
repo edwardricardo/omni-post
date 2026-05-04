@@ -1,20 +1,19 @@
 /**
  * @file index.ts
- * @description Public entry point for the Instagram provider — exports the
- *              class-based InstagramAdapter, the API client + media processor
- *              (consumed by the worker that lives in `apps/workers/`), and the
- *              shared adapter instance.
+ * @description Instagram provider package barrel export. Composition root
+ *   constructs the adapter via `createInstagramAdapter({ logger })`. Lower-level
+ *   building blocks (API client, media processor) are also exported for the
+ *   worker entry point in `apps/workers/`.
  * @layer infrastructure
  */
 
-// Export class and instance
-export { InstagramAdapter, instagramAdapter } from "./InstagramAdapter.js";
+export {
+  InstagramAdapter,
+  createInstagramAdapter,
+  type InstagramAdapterDeps,
+  type InstagramApiClientFactory,
+} from "./InstagramAdapter.js";
 
-// Lower-level building blocks reused by the worker entry point in apps/workers
 export { InstagramApiClient } from "./apiClient.js";
 export type { InstagramCredentials } from "./apiClient.js";
 export { InstagramMediaProcessor } from "./mediaProcessor.js";
-
-// Default export
-import { instagramAdapter } from "./InstagramAdapter.js";
-export default instagramAdapter;

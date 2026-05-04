@@ -5,7 +5,7 @@
  */
 
 import { randomBytes } from "node:crypto";
-import argon2 from "argon2";
+import { hashPassword, verifyPassword } from "../../auth/passwordHashing.js";
 import { type Result, ok, err } from "@shared/types";
 import { UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import type {
@@ -35,7 +35,7 @@ async function generateApiKey(): Promise<{
   const secretBytes = randomBytes(KEY_SECRET_LENGTH).toString("hex");
   const prefix = `${PREFIX_HEADER}_${prefixBytes}`;
   const rawKey = `${prefix}_${secretBytes}`;
-  const keyHash = await argon2.hash(rawKey);
+  const keyHash = await hashPassword(rawKey);
   return { rawKey, prefix, keyHash };
 }
 
@@ -187,7 +187,7 @@ export class ValidateApiKeyUseCase {
       }
 
       // Verify argon2id hash (expensive — do last)
-      const valid = await argon2.verify(key.keyHash, input.rawKey);
+      const valid = await verifyPassword(key.keyHash, input.rawKey);
       if (!valid) {
         return err(new UseCaseError("Invalid API key", USE_CASE_ERRORS.UNAUTHORIZED));
       }

@@ -9,7 +9,7 @@ import { type Result, ok, err } from "@shared/types";
 import type { CustomerUserRepository } from "../../domain/repositories/CustomerUserRepository.js";
 import type { AccountRepositoryPort } from "../../domain/repositories/AccountRepository.js";
 import { AccountId } from "../../domain/value-objects/EntityId.js";
-import argon2 from "argon2";
+import { hashPassword, verifyPassword, needsRehash } from "../../auth/passwordHashing.js";
 import { randomBytes } from "crypto";
 import { signCustomerAccessToken, signCustomerRefreshToken } from "../../auth/customerJwt.js";
 
@@ -86,7 +86,7 @@ export class LoginCustomerUseCase {
       }
 
       // Verify password
-      const passwordValid = await argon2.verify(targetUser.passwordHash, input.password);
+      const passwordValid = await verifyPassword(targetUser.passwordHash, input.password);
       if (!passwordValid) {
         return err("INVALID_CREDENTIALS");
       }
@@ -94,6 +94,18 @@ export class LoginCustomerUseCase {
       // Check active
       if (!targetUser.isActive) {
         return err("USER_INACTIVE");
+      }
+
+      // Transparent rehash: if the stored hash uses parameters weaker than
+      // the current canon (e.g. after a server-side cost bump), upgrade it
+      // silently while we still have the plaintext on the stack. Failure
+      // here is non-fatal — the user logs in successfully either way. The
+      // upgraded hash is persisted via the repository; the in-memory entity
+      // keeps its original `passwordHash` field (readonly) since the user
+      // is about to be released back to the caller.
+      if (needsRehash(targetUser.passwordHash)) {
+        const upgraded = await hashPassword(input.password);
+        await this.customerUserRepo.updatePasswordHash(targetUser.id, upgraded);
       }
 
       // Record login

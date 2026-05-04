@@ -1,11 +1,11 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "dist",
+    "noEmit": true,
     "skipLibCheck": true,
     "incremental": true,
     "tsBuildInfoFile": ".tsbuildinfo"
   },
   "include": ["src", "tests", "../../packages/*/src/**/*", "../../infra/*/src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist", "build", ".turbo", ".next", "coverage"]
 }

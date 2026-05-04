@@ -10,6 +10,7 @@ import { TOKENS } from "./types.js";
 import { prisma } from "@infra/prisma";
 import { PrismaSamlConfigurationRepository } from "../repositories/PrismaSamlConfigurationRepository.js";
 import { PrismaOidcConfigurationRepository } from "../repositories/PrismaOidcConfigurationRepository.js";
+import type { EncryptionService } from "../../security/EncryptionService.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import type { AccountQueryRepositoryPort } from "../../domain/repositories/AccountQueryRepository.js";
 import { ConfigureSamlUseCase } from "../../application/auth/ConfigureSamlUseCase.js";
@@ -60,17 +61,29 @@ export function setupSamlUseCases(container: Container): void {
 
   // ── OIDC ──────────────────────────────────────────────────────────────────
 
-  const oidcRepo = new PrismaOidcConfigurationRepository(prisma);
-  container.registerInstance(TOKENS.OidcConfigurationRepository, oidcRepo);
+  // Lazy registration so EncryptionService doesn't have to be wired before
+  // this setup function runs — keeps tests and bootstrap order flexible.
+  container.register(
+    TOKENS.OidcConfigurationRepository,
+    () =>
+      new PrismaOidcConfigurationRepository(
+        prisma,
+        container.resolve<EncryptionService>(TOKENS.EncryptionService)
+      ),
+    true
+  );
+  const resolveOidcRepo = () =>
+    container.resolve<PrismaOidcConfigurationRepository>(TOKENS.OidcConfigurationRepository);
 
-  container.registerInstance(
+  container.register(
     TOKENS.ConfigureOidcUseCase,
-    new ConfigureOidcUseCase(oidcRepo, resolveUoW())
+    () => new ConfigureOidcUseCase(resolveOidcRepo(), resolveUoW()),
+    true
   );
 
   container.register(
     TOKENS.EnableOidcSsoUseCase,
-    () => new EnableOidcSsoUseCase(oidcRepo, resolveAccountQueryRepo()),
+    () => new EnableOidcSsoUseCase(resolveOidcRepo(), resolveAccountQueryRepo()),
     true
   );
 
@@ -80,8 +93,9 @@ export function setupSamlUseCases(container: Container): void {
     true
   );
 
-  container.registerInstance(
+  container.register(
     TOKENS.GetOidcConfigurationQuery,
-    new GetOidcConfigurationQuery(oidcRepo)
+    () => new GetOidcConfigurationQuery(resolveOidcRepo()),
+    true
   );
 }

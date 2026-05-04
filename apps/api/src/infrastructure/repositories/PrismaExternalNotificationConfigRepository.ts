@@ -1,7 +1,9 @@
 /**
  * @file PrismaExternalNotificationConfigRepository.ts
  * @description Infrastructure adapter implementing ExternalNotificationConfigRepository
- *   using Prisma ORM for PostgreSQL persistence.
+ *   using Prisma ORM for PostgreSQL persistence. Webhook URLs are wrapped via
+ *   EncryptionService — they often embed bearer tokens, so plaintext-at-rest
+ *   is treated as a credential leak risk.
  * @layer infrastructure
  */
 
@@ -13,15 +15,17 @@ import {
   type NotificationChannel,
 } from "../../domain/repositories/ExternalNotificationConfigRepository.js";
 import { type DomainError, EntityNotFoundError } from "../../domain/errors/index.js";
+import type { EncryptionService } from "../../security/EncryptionService.js";
 
 /**
  * @class PrismaExternalNotificationConfigRepository
  * @description Prisma adapter for external notification config persistence.
  */
-export class PrismaExternalNotificationConfigRepository
-  implements ExternalNotificationConfigRepository
-{
-  constructor(private readonly prisma: PrismaClient) {}
+export class PrismaExternalNotificationConfigRepository implements ExternalNotificationConfigRepository {
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly encryption: EncryptionService
+  ) {}
 
   /**
    * @method save
@@ -31,20 +35,31 @@ export class PrismaExternalNotificationConfigRepository
     config: ExternalNotificationConfigData
   ): Promise<Result<ExternalNotificationConfigData, DomainError>> {
     try {
+      const encrypted = this.encryption.encrypt(config.webhookUrl, {
+        fieldName: "ExternalNotificationConfig.webhookUrl",
+        recordId: config.id,
+        caller: "PrismaExternalNotificationConfigRepository.save",
+      });
       const record = await this.prisma.externalNotificationConfig.upsert({
         where: { id: config.id },
         create: {
           id: config.id,
           projectId: config.projectId,
           channel: config.channel,
-          webhookUrl: config.webhookUrl,
+          webhookUrlCiphertext: encrypted.encryptedValue,
+          webhookUrlIv: encrypted.iv,
+          webhookUrlAuthTag: encrypted.authTag,
+          webhookUrlKeyVersion: encrypted.keyVersion,
           label: config.label,
           events: config.events,
           isActive: config.isActive,
         },
         update: {
           channel: config.channel,
-          webhookUrl: config.webhookUrl,
+          webhookUrlCiphertext: encrypted.encryptedValue,
+          webhookUrlIv: encrypted.iv,
+          webhookUrlAuthTag: encrypted.authTag,
+          webhookUrlKeyVersion: encrypted.keyVersion,
           label: config.label,
           events: config.events,
           isActive: config.isActive,
@@ -130,24 +145,40 @@ export class PrismaExternalNotificationConfigRepository
   }
 
   /**
-   * Maps a Prisma record to the domain data shape.
+   * Maps a Prisma record to the domain data shape, decrypting the webhook URL.
    */
   private toData(record: {
     id: string;
     projectId: string;
     channel: string;
-    webhookUrl: string;
+    webhookUrlCiphertext: string;
+    webhookUrlIv: string;
+    webhookUrlAuthTag: string;
+    webhookUrlKeyVersion: number;
     label: string;
     events: string[];
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
   }): ExternalNotificationConfigData {
+    const webhookUrl = this.encryption.decrypt(
+      {
+        encryptedValue: record.webhookUrlCiphertext,
+        iv: record.webhookUrlIv,
+        authTag: record.webhookUrlAuthTag,
+        keyVersion: record.webhookUrlKeyVersion,
+      },
+      {
+        fieldName: "ExternalNotificationConfig.webhookUrl",
+        recordId: record.id,
+        caller: "PrismaExternalNotificationConfigRepository.toData",
+      }
+    );
     return {
       id: record.id,
       projectId: record.projectId,
       channel: record.channel as NotificationChannel,
-      webhookUrl: record.webhookUrl,
+      webhookUrl,
       label: record.label,
       events: record.events,
       isActive: record.isActive,

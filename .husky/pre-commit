@@ -1,1 +1,21 @@
+#!/usr/bin/env bash
+# Pre-commit hook — defense-in-depth for secrets + lint + format.
+#
+# Order matters:
+#   1. gitleaks scans STAGED diff before any other tool runs (catches secrets
+#      before they enter local git history). Graceful skip when binary is not
+#      installed — CI still hard-fails so dev onboarding is not blocked.
+#   2. lint-staged runs the file-glob pipelines: eslint --fix, prettier
+#      --write, secretlint over staged files.
+
+set -e
+
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --redact --no-banner
+else
+  echo "⚠️  gitleaks not installed — skipping pre-commit secret scan."
+  echo "   Install: https://github.com/gitleaks/gitleaks#installation"
+  echo "   CI will still scan, so this is a local-feedback warning only."
+fi
+
 npx lint-staged

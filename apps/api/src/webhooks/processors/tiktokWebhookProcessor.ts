@@ -275,21 +275,16 @@ export class TikTokWebhookProcessor extends AbstractWebhookProcessor {
     const userId = content.user_id || content.author_id || normalizedData.userId;
     const videoId = content.video_id || normalizedData.videoId;
 
-    // Find channel by TikTok user ID
+    // Find channel by TikTok user/open ID via the dedicated `providerAccountId`
+    // column. Both `user_id` and `open_id` from incoming webhooks must be
+    // mapped to the same column at OAuth-callback time.
+    if (!userId) {
+      return {};
+    }
     const channel = await prisma.channel.findFirst({
       where: {
         provider: "TIKTOK",
-        // Look for TikTok user ID in credentials
-        OR: [
-          {
-            // Prisma JSON path filter — no typed alternative available
-            credentials: { path: ["user_id"], equals: userId, array_contains: null } as object,
-          },
-          {
-            // Prisma JSON path filter — no typed alternative available
-            credentials: { path: ["open_id"], equals: userId, array_contains: null } as object,
-          },
-        ],
+        providerAccountId: userId as string,
       },
       include: {
         project: {
@@ -514,23 +509,18 @@ export class TikTokWebhookProcessor extends AbstractWebhookProcessor {
     const channelId = entities.channelId as string | undefined;
 
     if (channelId) {
-      // Update channel credentials to mark as revoked
-      const channel = await prisma.channel.findUnique({ where: { id: channelId } });
-      if (channel) {
-        const existingCreds = (channel.credentials ?? {}) as Record<string, unknown>;
-        await prisma.channel.update({
-          where: { id: channelId },
-          data: {
-            credentials: {
-              ...existingCreds,
-              revoked_at: String(data.revokedAt ?? ""),
-              revoke_reason: String(data.reason ?? ""),
-            },
-          },
-        });
-      }
-
-      // Future: notify owner, fail scheduled posts, and deactivate channel
+      // Mark the channel as needing re-auth instead of mutating the
+      // encrypted credentials envelope. Revocation metadata (when, why)
+      // belongs on the dedicated `authFailedAt` / `authFailureReason`
+      // columns the schema already provides for this lifecycle.
+      await prisma.channel.update({
+        where: { id: channelId },
+        data: {
+          needsReauth: true,
+          authFailedAt: new Date(),
+          authFailureReason: `Provider revoked auth (${String(data.reason ?? "unknown")})`,
+        },
+      });
     }
   }
 

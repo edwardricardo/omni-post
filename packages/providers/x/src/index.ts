@@ -1,25 +1,20 @@
 /**
  * @file index.ts
- * @description Public entry point for the X/Twitter provider — exports XAdapter and helper
- *              fetchXAnalytics for metrics retrieval.
+ * @description X/Twitter provider package barrel export. Composition root constructs
+ *   the adapter via `createXAdapter({ logger })`.
  * @layer infrastructure
  */
 
-import { xAdapter as xAdapterInstance } from "./XAdapter.js";
+export { XAdapter, createXAdapter, type XAdapterDeps, type XApiClientFactory } from "./XAdapter.js";
 
-// Export class and instance
-export { XAdapter, xAdapter } from "./XAdapter.js";
-
-/**
- * Fetch X/Twitter analytics via API v2 public_metrics
- */
-export async function fetchXAnalytics(channelId: string, since?: Date, until?: Date) {
-  return xAdapterInstance.fetchAnalytics({
-    channelId,
-    ...(since && { since }),
-    ...(until && { until }),
-  });
-}
-
-// Default export
-export default xAdapterInstance;
+export { XApiClient } from "./apiClient.js";
+export type {
+  XCredentials,
+  XTweetResponse,
+  XUploadResponse,
+  XUserResponse,
+  XAnalyticsResponse,
+  XSearchReplyResult,
+  XSearchRepliesResponse,
+  XPollOptions,
+} from "./apiClient.js";

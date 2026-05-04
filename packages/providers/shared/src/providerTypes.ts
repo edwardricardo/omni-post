@@ -1,8 +1,9 @@
 /**
- * @file AbstractProviderAdapterTypes.ts
- * @description Type definitions for the AbstractProviderAdapter base class.
- * Consumed by AbstractProviderAdapter.ts and any module that extends or
- * interacts with provider adapters.
+ * @file providerTypes.ts
+ * @description Shared type definitions used across provider adapter packages —
+ *   metadata, constraints, content validation results, preview shape, media
+ *   upload helpers, capabilities, and account/health-check return types.
+ * @layer infrastructure
  */
 
 import type { ProviderId } from "@ports/core";

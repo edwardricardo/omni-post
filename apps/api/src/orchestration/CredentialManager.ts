@@ -10,6 +10,7 @@ import Redis from "ioredis";
 import type { CachePort } from "@ports/core";
 import type { ProviderId } from "../providers/providerAdapter.interface";
 import { OrchestrationResult } from "@shared/orchestration";
+import type { ChannelCredentialsCrypto } from "../security/ChannelCredentialsCrypto.js";
 
 interface ProviderCredentials {
   channelId: string;
@@ -33,11 +34,18 @@ export class CredentialManager {
   private prisma: PrismaClient;
   private redis: Redis;
   private cache: CachePort | undefined;
+  private credentialsCrypto: ChannelCredentialsCrypto;
   private static readonly CACHE_TTL_SECONDS = 300;
 
-  constructor(dependencies: { prisma: PrismaClient; redis: Redis; cache?: CachePort }) {
+  constructor(dependencies: {
+    prisma: PrismaClient;
+    redis: Redis;
+    credentialsCrypto: ChannelCredentialsCrypto;
+    cache?: CachePort;
+  }) {
     this.prisma = dependencies.prisma;
     this.redis = dependencies.redis;
+    this.credentialsCrypto = dependencies.credentialsCrypto;
     this.cache = dependencies.cache;
   }
 
@@ -91,8 +99,16 @@ export class CredentialManager {
         };
       }
 
-      // Parse credentials from JSON field
-      const credentialsData = channel.credentials as Record<string, unknown>;
+      // Decrypt the credentials envelope before reading.
+      const credentialsData = this.credentialsCrypto.decrypt(
+        {
+          credentialsCiphertext: channel.credentialsCiphertext,
+          credentialsIv: channel.credentialsIv,
+          credentialsAuthTag: channel.credentialsAuthTag,
+          credentialsKeyVersion: channel.credentialsKeyVersion,
+        },
+        { recordId: channel.id, caller: "CredentialManager.getCredentials" }
+      );
       const accessToken =
         typeof credentialsData.accessToken === "string" ? credentialsData.accessToken : "";
       const refreshToken =
@@ -165,8 +181,18 @@ export class CredentialManager {
         };
       }
 
-      // Merge with existing credentials
-      const currentCredentials = channel.credentials as Record<string, unknown>;
+      // Decrypt-merge-encrypt round-trip: read existing creds, apply diff,
+      // re-encrypt with the active key version, write all four envelope
+      // columns back. The plaintext only lives on the local stack here.
+      const currentCredentials = this.credentialsCrypto.decrypt(
+        {
+          credentialsCiphertext: channel.credentialsCiphertext,
+          credentialsIv: channel.credentialsIv,
+          credentialsAuthTag: channel.credentialsAuthTag,
+          credentialsKeyVersion: channel.credentialsKeyVersion,
+        },
+        { recordId: channel.id, caller: "CredentialManager.updateCredentials.read" }
+      );
       const updatedCredentials = {
         ...currentCredentials,
         ...(updates.accessToken !== undefined && { accessToken: updates.accessToken }),
@@ -174,12 +200,19 @@ export class CredentialManager {
         ...(updates.expiresAt !== undefined && { expiresAt: updates.expiresAt.toISOString() }),
         ...(updates.scopes !== undefined && { scopes: updates.scopes }),
       };
+      const enc = this.credentialsCrypto.encrypt(updatedCredentials, {
+        recordId: channel.id,
+        caller: "CredentialManager.updateCredentials.write",
+      });
 
       // Update in database
       await this.prisma.channel.update({
         where: { id: channelId },
         data: {
-          credentials: updatedCredentials,
+          credentialsCiphertext: enc.credentialsCiphertext,
+          credentialsIv: enc.credentialsIv,
+          credentialsAuthTag: enc.credentialsAuthTag,
+          credentialsKeyVersion: enc.credentialsKeyVersion,
         },
       });
 

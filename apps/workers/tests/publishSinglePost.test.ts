@@ -9,7 +9,7 @@ import { createTestDeps, createTestRenderedPost, createTestPublishReceipt } from
 import { PublishHandler } from "../src/publishHandler.js";
 import type { PublishHandlerDeps, PublishProvider } from "../src/publishHandler.js";
 
-describe("PublishHandler.publishSinglePost", { concurrency: 1 }, () => {
+describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
   let deps: PublishHandlerDeps;
   let handler: PublishHandler;
   /** Shortcut to the "x" mock provider in the registry. */

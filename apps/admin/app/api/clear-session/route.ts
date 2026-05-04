@@ -6,13 +6,12 @@
  */
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { env } from "../../../lib/env";
 
 export async function GET() {
   const cookieStore = await cookies();
   cookieStore.delete("admin-session");
   cookieStore.delete("admin-refresh");
   cookieStore.delete("admin-csrf");
-  return NextResponse.redirect(
-    new URL("/login", process.env.NEXT_PUBLIC_URL || "http://localhost:3100")
-  );
+  return NextResponse.redirect(new URL("/login", env.NEXT_PUBLIC_URL || "http://localhost:3100"));
 }

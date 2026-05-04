@@ -58,7 +58,11 @@ describe("PlatformCredentialService", () => {
       const result = await service.setCredential("STRIPE", "secretKey", "sk_test_123", "admin-1");
 
       expect(result.ok).toBe(true);
-      expect(mockEncryption.encrypt).toHaveBeenCalledWith("sk_test_123");
+      expect(mockEncryption.encrypt).toHaveBeenCalledWith("sk_test_123", {
+        fieldName: "PlatformCredential",
+        recordId: "STRIPE:secretKey",
+        caller: "PlatformCredentialService.setCredential",
+      });
       expect(mockPrisma.platformCredential.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           create: expect.objectContaining({
@@ -117,11 +121,19 @@ describe("PlatformCredentialService", () => {
 
       const result = await service.getCredential("STRIPE", "secretKey");
 
-      expect(mockEncryption.decrypt).toHaveBeenCalledWith({
-        encryptedValue: "stored_encrypted",
-        iv: "stored_iv",
-        authTag: "stored_tag",
-      });
+      expect(mockEncryption.decrypt).toHaveBeenCalledWith(
+        {
+          encryptedValue: "stored_encrypted",
+          iv: "stored_iv",
+          authTag: "stored_tag",
+          keyVersion: undefined,
+        },
+        {
+          fieldName: "PlatformCredential",
+          recordId: "STRIPE:secretKey",
+          caller: "PlatformCredentialService.getCredential",
+        }
+      );
       expect(result.ok).toBe(true);
       if (result.ok) expect(result.value).toBe("decrypted_plaintext");
     });
@@ -213,7 +225,11 @@ describe("PlatformCredentialService", () => {
         "sk-abc"
       );
       expect(result.ok).toBe(true);
-      expect(mockEncryption.encrypt).toHaveBeenCalledWith("sk-abc");
+      expect(mockEncryption.encrypt).toHaveBeenCalledWith("sk-abc", {
+        fieldName: "AccountCredential",
+        recordId: "acc-1:AI_BYOK:openaiApiKey",
+        caller: "PlatformCredentialService.setAccountCredential",
+      });
       expect(mockPrisma.accountCredential.upsert).toHaveBeenCalled();
     });
 

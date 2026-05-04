@@ -2,19 +2,75 @@
  * @file PinterestAdapter.test.ts
  * @description Unit tests for PinterestAdapter covering metadata, render,
  *              publish, validateCredentials, fetchAnalytics, and error handling.
+ *              Adapter is stateless w.r.t. credentials — tests inject a fake
+ *              apiClientFactory and pass credentials per-call.
  *              All tests are Tier 0 (no network, no DB, no Redis).
  * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { PinterestAdapter } from "../src/PinterestAdapter.js";
+import { PinterestAdapter, type PinterestApiClientFactory } from "../src/PinterestAdapter.js";
+import type { PinterestApiClient, PinterestCredentials } from "../src/apiClient.js";
 import type { CanonicalPost, RenderedPost } from "@shared/types";
 import type { PublishInput } from "@ports/core";
 
 // ============================================================================
 // Test helpers
 // ============================================================================
+
+interface FakeApiClient {
+  createPin: ReturnType<typeof vi.fn>;
+  getUserAccount: ReturnType<typeof vi.fn>;
+  getPinAnalytics: ReturnType<typeof vi.fn>;
+}
+
+function makeFakeApiClient(overrides: Partial<FakeApiClient> = {}): FakeApiClient {
+  return {
+    createPin: vi.fn(async () => ({
+      id: "pin-12345",
+      title: "Test Pin",
+      description: "Test description",
+      link: "",
+      board_id: "board-001",
+      created_at: "2024-06-01T12:00:00Z",
+      media: { media_type: "image" as const },
+    })),
+    getUserAccount: vi.fn(async () => ({
+      username: "testuser",
+      account_type: "BUSINESS" as const,
+      profile_image: "https://example.com/avatar.jpg",
+      pin_count: 42,
+      board_count: 5,
+    })),
+    getPinAnalytics: vi.fn(async () => ({
+      all: {
+        lifetime_metrics: {
+          IMPRESSION: 1500,
+          SAVE: 30,
+          PIN_CLICK: 120,
+          OUTBOUND_CLICK: 45,
+        },
+      },
+    })),
+    ...overrides,
+  };
+}
+
+function makeAdapter(client: FakeApiClient = makeFakeApiClient()): {
+  adapter: PinterestAdapter;
+  client: FakeApiClient;
+} {
+  const factory: PinterestApiClientFactory = () => client as unknown as PinterestApiClient;
+  const adapter = new PinterestAdapter({ apiClientFactory: factory });
+  return { adapter, client };
+}
+
+const VALID_CREDS: PinterestCredentials = {
+  accessToken: "test-token",
+  refreshToken: "test-refresh",
+  boardId: "board-001",
+};
 
 function makeCanonicalPost(overrides?: Partial<CanonicalPost>): CanonicalPost {
   return {
@@ -53,18 +109,17 @@ function makePublishInput(overrides?: Partial<PublishInput>): PublishInput {
 // ============================================================================
 
 describe("PinterestAdapter - Metadata", { concurrency: 1 }, () => {
-  let adapter: PinterestAdapter;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new PinterestAdapter();
   });
 
   it("returns correct provider ID", () => {
+    const { adapter } = makeAdapter();
     assert.strictEqual(adapter.id, "pinterest");
   });
 
   it("returns correct metadata fields", () => {
+    const { adapter } = makeAdapter();
     assert.strictEqual(adapter.metadata.id, "pinterest");
     assert.strictEqual(adapter.metadata.name, "pinterest");
     assert.strictEqual(adapter.metadata.displayName, "Pinterest");
@@ -75,6 +130,7 @@ describe("PinterestAdapter - Metadata", { concurrency: 1 }, () => {
   });
 
   it("returns correct limits", () => {
+    const { adapter } = makeAdapter();
     assert.strictEqual(adapter.limits.maxChars, 500);
     assert.strictEqual(adapter.limits.maxMediaPerPost, 1);
     assert.strictEqual(adapter.limits.threadingSupported, false);
@@ -84,6 +140,7 @@ describe("PinterestAdapter - Metadata", { concurrency: 1 }, () => {
   });
 
   it("returns correct capabilities", () => {
+    const { adapter } = makeAdapter();
     assert.strictEqual(adapter.capabilities.publish, true);
     assert.strictEqual(adapter.capabilities.schedule, true);
     assert.strictEqual(adapter.capabilities.analytics, true);
@@ -93,6 +150,7 @@ describe("PinterestAdapter - Metadata", { concurrency: 1 }, () => {
   });
 
   it("has correct required scopes", () => {
+    const { adapter } = makeAdapter();
     assert.deepStrictEqual(adapter.metadata.requiredScopes, [
       "boards:read",
       "boards:write",
@@ -103,13 +161,15 @@ describe("PinterestAdapter - Metadata", { concurrency: 1 }, () => {
   });
 
   it("has businessAccountRequired set to false", () => {
+    const { adapter } = makeAdapter();
     assert.strictEqual(adapter.constraints.businessAccountRequired, false);
   });
 
-  it("exports a singleton instance", async () => {
-    const { pinterestAdapter } = await import("../src/PinterestAdapter.js");
-    assert.ok(pinterestAdapter instanceof PinterestAdapter);
-    assert.strictEqual(pinterestAdapter.id, "pinterest");
+  it("exports a factory function", async () => {
+    const { createPinterestAdapter } = await import("../src/PinterestAdapter.js");
+    const adapter = createPinterestAdapter();
+    assert.ok(adapter instanceof PinterestAdapter);
+    assert.strictEqual(adapter.id, "pinterest");
   });
 });
 
@@ -118,14 +178,12 @@ describe("PinterestAdapter - Metadata", { concurrency: 1 }, () => {
 // ============================================================================
 
 describe("PinterestAdapter - Render", { concurrency: 1 }, () => {
-  let adapter: PinterestAdapter;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new PinterestAdapter();
   });
 
   it("returns VALIDATION_ERROR when no media is provided", () => {
+    const { adapter } = makeAdapter();
     const post = makeCanonicalPost({ media: [] });
     const result = adapter.render(post);
 
@@ -136,6 +194,7 @@ describe("PinterestAdapter - Render", { concurrency: 1 }, () => {
   });
 
   it("returns VALIDATION_ERROR when media is undefined", () => {
+    const { adapter } = makeAdapter();
     const post = makeCanonicalPost({ media: undefined });
     const result = adapter.render(post);
 
@@ -146,6 +205,7 @@ describe("PinterestAdapter - Render", { concurrency: 1 }, () => {
   });
 
   it("returns UNSUPPORTED_MEDIA for gif media type", () => {
+    const { adapter } = makeAdapter();
     const post = makeCanonicalPost({
       media: [{ id: "m1", type: "gif", url: "https://example.com/image.gif" }],
     });
@@ -158,6 +218,7 @@ describe("PinterestAdapter - Render", { concurrency: 1 }, () => {
   });
 
   it("renders correctly for image media", () => {
+    const { adapter } = makeAdapter();
     const post = makeCanonicalPost({
       body: "My pin title\nDetailed description of the pin",
       media: [
@@ -186,6 +247,7 @@ describe("PinterestAdapter - Render", { concurrency: 1 }, () => {
   });
 
   it("renders correctly for video media", () => {
+    const { adapter } = makeAdapter();
     const post = makeCanonicalPost({
       body: "Video pin",
       media: [{ id: "m1", type: "video", url: "https://example.com/video.mp4" }],
@@ -200,6 +262,7 @@ describe("PinterestAdapter - Render", { concurrency: 1 }, () => {
   });
 
   it("extracts title from first line when short enough", () => {
+    const { adapter } = makeAdapter();
     const post = makeCanonicalPost({
       body: "Short Title\nLonger description follows here",
       media: [{ id: "m1", type: "image", url: "https://example.com/image.jpg" }],
@@ -216,6 +279,7 @@ describe("PinterestAdapter - Render", { concurrency: 1 }, () => {
   });
 
   it("truncates title when first line exceeds 100 chars", () => {
+    const { adapter } = makeAdapter();
     const longFirstLine =
       "This is a very long first line that exceeds the maximum title length of one hundred characters and keeps going further";
     const post = makeCanonicalPost({
@@ -234,6 +298,7 @@ describe("PinterestAdapter - Render", { concurrency: 1 }, () => {
   });
 
   it("sets altText in meta when media has alt", () => {
+    const { adapter } = makeAdapter();
     const post = makeCanonicalPost({
       body: "Pin with alt text",
       media: [
@@ -256,6 +321,7 @@ describe("PinterestAdapter - Render", { concurrency: 1 }, () => {
   });
 
   it("sets pinType to image for image media", () => {
+    const { adapter } = makeAdapter();
     const post = makeCanonicalPost({
       body: "Image pin",
       media: [{ id: "m1", type: "image", url: "https://example.com/image.jpg" }],
@@ -275,52 +341,13 @@ describe("PinterestAdapter - Render", { concurrency: 1 }, () => {
 // ============================================================================
 
 describe("PinterestAdapter - Publish", { concurrency: 1 }, () => {
-  let adapter: PinterestAdapter;
-  let mockCreatePin: ReturnType<typeof vi.fn>;
-  let mockGetUserAccount: ReturnType<typeof vi.fn>;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new PinterestAdapter();
-
-    mockCreatePin = vi.fn(async () => ({
-      id: "pin-12345",
-      title: "Test Pin",
-      description: "Test description",
-      link: "",
-      board_id: "board-001",
-      created_at: "2024-06-01T12:00:00Z",
-      media: { media_type: "image" as const },
-    }));
-
-    mockGetUserAccount = vi.fn(async () => ({
-      username: "testuser",
-      account_type: "BUSINESS" as const,
-      profile_image: "https://example.com/avatar.jpg",
-      pin_count: 42,
-      board_count: 5,
-    }));
-
-    // Override createApiClient to return our mock
-    (adapter as any).createApiClient = () => ({
-      createPin: mockCreatePin,
-      getUserAccount: mockGetUserAccount,
-    });
-
-    // Override getCredentials to return valid creds
-    (adapter as any).getCredentials = vi.fn(async () => ({
-      ok: true,
-      value: {
-        accessToken: "test-token",
-        refreshToken: "test-refresh",
-        boardId: "board-001",
-      },
-    }));
   });
 
   it("publishes image pin successfully and returns receipt", async () => {
-    const input = makePublishInput();
-    const result = await adapter.publish(input);
+    const { adapter } = makeAdapter();
+    const result = await adapter.publish(makePublishInput(), VALID_CREDS);
 
     assert.ok(result.ok, "Publish should succeed");
     if (result.ok) {
@@ -331,15 +358,16 @@ describe("PinterestAdapter - Publish", { concurrency: 1 }, () => {
   });
 
   it("calls createPin with correct board_id from credentials", async () => {
-    const input = makePublishInput();
-    await adapter.publish(input);
+    const { adapter, client } = makeAdapter();
+    await adapter.publish(makePublishInput(), VALID_CREDS);
 
-    assert.strictEqual(mockCreatePin.mock.calls.length, 1);
-    const callArgs = mockCreatePin.mock.calls[0]?.[0] as Record<string, unknown>;
+    assert.strictEqual(client.createPin.mock.calls.length, 1);
+    const callArgs = client.createPin.mock.calls[0]?.[0] as Record<string, unknown>;
     assert.strictEqual(callArgs.board_id, "board-001");
   });
 
   it("passes title from meta to createPin", async () => {
+    const { adapter, client } = makeAdapter();
     const input = makePublishInput({
       post: {
         body: "Pin desc",
@@ -349,23 +377,24 @@ describe("PinterestAdapter - Publish", { concurrency: 1 }, () => {
       },
     });
 
-    await adapter.publish(input);
+    await adapter.publish(input, VALID_CREDS);
 
-    const callArgs = mockCreatePin.mock.calls[0]?.[0] as Record<string, unknown>;
+    const callArgs = client.createPin.mock.calls[0]?.[0] as Record<string, unknown>;
     assert.strictEqual(callArgs.title, "My Pin Title");
   });
 
   it("uses image_url source type for image media", async () => {
-    const input = makePublishInput();
-    await adapter.publish(input);
+    const { adapter, client } = makeAdapter();
+    await adapter.publish(makePublishInput(), VALID_CREDS);
 
-    const callArgs = mockCreatePin.mock.calls[0]?.[0] as Record<string, unknown>;
+    const callArgs = client.createPin.mock.calls[0]?.[0] as Record<string, unknown>;
     const mediaSource = callArgs.media_source as Record<string, unknown>;
     assert.strictEqual(mediaSource.source_type, "image_url");
     assert.strictEqual(mediaSource.url, "https://example.com/image.jpg");
   });
 
   it("uses video_id source type for video media", async () => {
+    const { adapter, client } = makeAdapter();
     const input = makePublishInput({
       post: {
         body: "Video pin",
@@ -375,15 +404,16 @@ describe("PinterestAdapter - Publish", { concurrency: 1 }, () => {
       },
     });
 
-    await adapter.publish(input);
+    await adapter.publish(input, VALID_CREDS);
 
-    const callArgs = mockCreatePin.mock.calls[0]?.[0] as Record<string, unknown>;
+    const callArgs = client.createPin.mock.calls[0]?.[0] as Record<string, unknown>;
     const mediaSource = callArgs.media_source as Record<string, unknown>;
     assert.strictEqual(mediaSource.source_type, "video_id");
     assert.strictEqual(mediaSource.media_id, "video-media-id-123");
   });
 
   it("returns VALIDATION error when post has no media URL", async () => {
+    const { adapter } = makeAdapter();
     const input = makePublishInput({
       post: {
         body: "No media post",
@@ -393,7 +423,7 @@ describe("PinterestAdapter - Publish", { concurrency: 1 }, () => {
       },
     });
 
-    const result = await adapter.publish(input);
+    const result = await adapter.publish(input, VALID_CREDS);
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -401,14 +431,22 @@ describe("PinterestAdapter - Publish", { concurrency: 1 }, () => {
     }
   });
 
-  it("returns AUTH error when credentials are invalid", async () => {
-    (adapter as any).getCredentials = vi.fn(async () => ({
-      ok: false,
-      error: "AUTH",
-    }));
+  it("returns AUTH error when credentials are missing", async () => {
+    const { adapter } = makeAdapter();
+    const result = await adapter.publish(makePublishInput(), undefined);
 
-    const input = makePublishInput();
-    const result = await adapter.publish(input);
+    assert.strictEqual(result.ok, false);
+    if (!result.ok) {
+      assert.strictEqual(result.error, "AUTH");
+    }
+  });
+
+  it("returns AUTH error when credentials lack accessToken", async () => {
+    const { adapter } = makeAdapter();
+    const result = await adapter.publish(makePublishInput(), {
+      refreshToken: "x",
+      boardId: "y",
+    });
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -417,16 +455,13 @@ describe("PinterestAdapter - Publish", { concurrency: 1 }, () => {
   });
 
   it("returns NETWORK error when circuit breaker is open", async () => {
-    mockCreatePin = vi.fn(async () => {
-      throw new Error("Circuit breaker is OPEN for pinterest-api");
+    const client = makeFakeApiClient({
+      createPin: vi.fn(async () => {
+        throw new Error("Circuit breaker is OPEN for pinterest-api");
+      }),
     });
-    (adapter as any).createApiClient = () => ({
-      createPin: mockCreatePin,
-      getUserAccount: mockGetUserAccount,
-    });
-
-    const input = makePublishInput();
-    const result = await adapter.publish(input);
+    const { adapter } = makeAdapter(client);
+    const result = await adapter.publish(makePublishInput(), VALID_CREDS);
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -436,16 +471,13 @@ describe("PinterestAdapter - Publish", { concurrency: 1 }, () => {
 
   it("returns RATE_LIMIT error on 429 status", async () => {
     const rateLimitError = Object.assign(new Error("Rate limited"), { status: 429 });
-    mockCreatePin = vi.fn(async () => {
-      throw rateLimitError;
+    const client = makeFakeApiClient({
+      createPin: vi.fn(async () => {
+        throw rateLimitError;
+      }),
     });
-    (adapter as any).createApiClient = () => ({
-      createPin: mockCreatePin,
-      getUserAccount: mockGetUserAccount,
-    });
-
-    const input = makePublishInput();
-    const result = await adapter.publish(input);
+    const { adapter } = makeAdapter(client);
+    const result = await adapter.publish(makePublishInput(), VALID_CREDS);
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -453,18 +485,15 @@ describe("PinterestAdapter - Publish", { concurrency: 1 }, () => {
     }
   });
 
-  it("returns mapped error for server errors (500+)", async () => {
+  it("returns NETWORK error on 500 status", async () => {
     const serverError = Object.assign(new Error("Server Error"), { status: 500 });
-    mockCreatePin = vi.fn(async () => {
-      throw serverError;
+    const client = makeFakeApiClient({
+      createPin: vi.fn(async () => {
+        throw serverError;
+      }),
     });
-    (adapter as any).createApiClient = () => ({
-      createPin: mockCreatePin,
-      getUserAccount: mockGetUserAccount,
-    });
-
-    const input = makePublishInput();
-    const result = await adapter.publish(input);
+    const { adapter } = makeAdapter(client);
+    const result = await adapter.publish(makePublishInput(), VALID_CREDS);
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -478,45 +507,21 @@ describe("PinterestAdapter - Publish", { concurrency: 1 }, () => {
 // ============================================================================
 
 describe("PinterestAdapter - ValidateCredentials", { concurrency: 1 }, () => {
-  let adapter: PinterestAdapter;
-  let mockGetUserAccount: ReturnType<typeof vi.fn>;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new PinterestAdapter();
-
-    mockGetUserAccount = vi.fn(async () => ({
-      username: "testuser",
-      account_type: "BUSINESS" as const,
-      profile_image: "https://example.com/avatar.jpg",
-    }));
-
-    (adapter as any).createApiClient = () => ({
-      getUserAccount: mockGetUserAccount,
-    });
   });
 
   it("returns ok with valid credentials", async () => {
-    const creds = {
-      accessToken: "valid-token",
-      refreshToken: "valid-refresh",
-      boardId: "board-001",
-    };
-
-    const result = await adapter.validateCredentials(creds);
+    const { adapter, client } = makeAdapter();
+    const result = await adapter.validateCredentials(VALID_CREDS);
 
     assert.ok(result.ok, "Validation should succeed");
-    assert.strictEqual(mockGetUserAccount.mock.calls.length, 1);
+    assert.strictEqual(client.getUserAccount.mock.calls.length, 1);
   });
 
   it("returns AUTH_INVALID when accessToken is missing", async () => {
-    const creds = {
-      accessToken: "",
-      refreshToken: "valid-refresh",
-      boardId: "board-001",
-    };
-
-    const result = await adapter.validateCredentials(creds);
+    const { adapter } = makeAdapter();
+    const result = await adapter.validateCredentials({ ...VALID_CREDS, accessToken: "" });
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -525,13 +530,8 @@ describe("PinterestAdapter - ValidateCredentials", { concurrency: 1 }, () => {
   });
 
   it("returns AUTH_INVALID when refreshToken is missing", async () => {
-    const creds = {
-      accessToken: "valid-token",
-      refreshToken: "",
-      boardId: "board-001",
-    };
-
-    const result = await adapter.validateCredentials(creds);
+    const { adapter } = makeAdapter();
+    const result = await adapter.validateCredentials({ ...VALID_CREDS, refreshToken: "" });
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -540,13 +540,8 @@ describe("PinterestAdapter - ValidateCredentials", { concurrency: 1 }, () => {
   });
 
   it("returns AUTH_INVALID when boardId is missing", async () => {
-    const creds = {
-      accessToken: "valid-token",
-      refreshToken: "valid-refresh",
-      boardId: "",
-    };
-
-    const result = await adapter.validateCredentials(creds);
+    const { adapter } = makeAdapter();
+    const result = await adapter.validateCredentials({ ...VALID_CREDS, boardId: "" });
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -556,20 +551,13 @@ describe("PinterestAdapter - ValidateCredentials", { concurrency: 1 }, () => {
 
   it("returns AUTH_EXPIRED when API returns 401", async () => {
     const authError = Object.assign(new Error("Unauthorized"), { status: 401 });
-    mockGetUserAccount = vi.fn(async () => {
-      throw authError;
+    const client = makeFakeApiClient({
+      getUserAccount: vi.fn(async () => {
+        throw authError;
+      }),
     });
-    (adapter as any).createApiClient = () => ({
-      getUserAccount: mockGetUserAccount,
-    });
-
-    const creds = {
-      accessToken: "expired-token",
-      refreshToken: "valid-refresh",
-      boardId: "board-001",
-    };
-
-    const result = await adapter.validateCredentials(creds);
+    const { adapter } = makeAdapter(client);
+    const result = await adapter.validateCredentials(VALID_CREDS);
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -578,20 +566,13 @@ describe("PinterestAdapter - ValidateCredentials", { concurrency: 1 }, () => {
   });
 
   it("returns AUTH_INVALID when API throws generic error", async () => {
-    mockGetUserAccount = vi.fn(async () => {
-      throw new Error("Connection failed");
+    const client = makeFakeApiClient({
+      getUserAccount: vi.fn(async () => {
+        throw new Error("Connection failed");
+      }),
     });
-    (adapter as any).createApiClient = () => ({
-      getUserAccount: mockGetUserAccount,
-    });
-
-    const creds = {
-      accessToken: "valid-token",
-      refreshToken: "valid-refresh",
-      boardId: "board-001",
-    };
-
-    const result = await adapter.validateCredentials(creds);
+    const { adapter } = makeAdapter(client);
+    const result = await adapter.validateCredentials(VALID_CREDS);
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -605,41 +586,20 @@ describe("PinterestAdapter - ValidateCredentials", { concurrency: 1 }, () => {
 // ============================================================================
 
 describe("PinterestAdapter - FetchAnalytics", { concurrency: 1 }, () => {
-  let adapter: PinterestAdapter;
-  let mockGetUserAccount: ReturnType<typeof vi.fn>;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new PinterestAdapter();
-
-    mockGetUserAccount = vi.fn(async () => ({
-      username: "testuser",
-      account_type: "BUSINESS" as const,
-      profile_image: "https://example.com/avatar.jpg",
-      pin_count: 42,
-      board_count: 5,
-    }));
-
-    (adapter as any).createApiClient = () => ({
-      getUserAccount: mockGetUserAccount,
-    });
-
-    (adapter as any).getCredentials = vi.fn(async () => ({
-      ok: true,
-      value: {
-        accessToken: "test-token",
-        refreshToken: "test-refresh",
-        boardId: "board-001",
-      },
-    }));
   });
 
   it("returns analytics data with correct metrics mapping", async () => {
-    const result = await adapter.fetchAnalytics({
-      channelId: "channel-001",
-      since: new Date("2024-01-01"),
-      until: new Date("2024-01-31"),
-    });
+    const { adapter } = makeAdapter();
+    const result = await adapter.fetchAnalytics(
+      {
+        channelId: "channel-001",
+        since: new Date("2024-01-01"),
+        until: new Date("2024-01-31"),
+      },
+      VALID_CREDS
+    );
 
     assert.ok(result.ok, "FetchAnalytics should succeed");
     if (result.ok) {
@@ -654,7 +614,8 @@ describe("PinterestAdapter - FetchAnalytics", { concurrency: 1 }, () => {
   });
 
   it("uses default 30-day range when no dates provided", async () => {
-    const result = await adapter.fetchAnalytics({ channelId: "channel-001" });
+    const { adapter } = makeAdapter();
+    const result = await adapter.fetchAnalytics({ channelId: "channel-001" }, VALID_CREDS);
 
     assert.ok(result.ok);
     if (result.ok) {
@@ -666,13 +627,9 @@ describe("PinterestAdapter - FetchAnalytics", { concurrency: 1 }, () => {
     }
   });
 
-  it("returns AUTH error when credentials are invalid", async () => {
-    (adapter as any).getCredentials = vi.fn(async () => ({
-      ok: false,
-      error: "AUTH",
-    }));
-
-    const result = await adapter.fetchAnalytics({ channelId: "channel-001" });
+  it("returns AUTH error when credentials are missing", async () => {
+    const { adapter } = makeAdapter();
+    const result = await adapter.fetchAnalytics({ channelId: "channel-001" }, undefined);
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -681,14 +638,13 @@ describe("PinterestAdapter - FetchAnalytics", { concurrency: 1 }, () => {
   });
 
   it("returns NETWORK error when API call fails", async () => {
-    mockGetUserAccount = vi.fn(async () => {
-      throw new Error("API unavailable");
+    const client = makeFakeApiClient({
+      getUserAccount: vi.fn(async () => {
+        throw new Error("API unavailable");
+      }),
     });
-    (adapter as any).createApiClient = () => ({
-      getUserAccount: mockGetUserAccount,
-    });
-
-    const result = await adapter.fetchAnalytics({ channelId: "channel-001" });
+    const { adapter } = makeAdapter(client);
+    const result = await adapter.fetchAnalytics({ channelId: "channel-001" }, VALID_CREDS);
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -697,11 +653,15 @@ describe("PinterestAdapter - FetchAnalytics", { concurrency: 1 }, () => {
   });
 
   it("includes dateRange formatted as YYYY-MM-DD strings", async () => {
-    const result = await adapter.fetchAnalytics({
-      channelId: "channel-001",
-      since: new Date("2024-06-01T00:00:00Z"),
-      until: new Date("2024-06-30T00:00:00Z"),
-    });
+    const { adapter } = makeAdapter();
+    const result = await adapter.fetchAnalytics(
+      {
+        channelId: "channel-001",
+        since: new Date("2024-06-01T00:00:00Z"),
+        until: new Date("2024-06-30T00:00:00Z"),
+      },
+      VALID_CREDS
+    );
 
     assert.ok(result.ok);
     if (result.ok) {
@@ -718,14 +678,12 @@ describe("PinterestAdapter - FetchAnalytics", { concurrency: 1 }, () => {
 // ============================================================================
 
 describe("PinterestAdapter - Threading", { concurrency: 1 }, () => {
-  let adapter: PinterestAdapter;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new PinterestAdapter();
   });
 
   it("planThread returns THREAD_PLANNING_FAILED error", () => {
+    const { adapter } = makeAdapter();
     const post = makeCanonicalPost();
     const result = adapter.planThread(post);
 
@@ -736,87 +694,25 @@ describe("PinterestAdapter - Threading", { concurrency: 1 }, () => {
   });
 
   it("publishThread returns VALIDATION error", async () => {
-    const result = await adapter.publishThread({
-      channelId: "channel-001",
-      threadPlan: {
-        strategy: "AUTO",
-        tweets: [],
-        totalChars: 0,
-        estimatedReach: 0,
-        needsThreading: false,
+    const { adapter } = makeAdapter();
+    const result = await adapter.publishThread(
+      {
+        channelId: "channel-001",
+        threadPlan: {
+          strategy: "AUTO",
+          tweets: [],
+          totalChars: 0,
+          estimatedReach: 0,
+          needsThreading: false,
+        },
+        dedupeKey: "dedupe-001",
       },
-      dedupeKey: "dedupe-001",
-    });
+      VALID_CREDS
+    );
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
       assert.strictEqual(result.error, "VALIDATION");
     }
-  });
-});
-
-// ============================================================================
-// 7. GetCredentialsFromEnvironment Tests
-// ============================================================================
-
-describe("PinterestAdapter - GetCredentialsFromEnvironment", { concurrency: 1 }, () => {
-  let adapter: PinterestAdapter;
-  const _originalEnv = { ...process.env };
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    adapter = new PinterestAdapter();
-    // Clear relevant env vars
-    delete process.env.PINTEREST_ACCESS_TOKEN;
-    delete process.env.PINTEREST_REFRESH_TOKEN;
-    delete process.env.PINTEREST_BOARD_ID;
-  });
-
-  afterEach(() => {
-    process.env = { ..._originalEnv };
-  });
-
-  it("returns AUTH error when env vars are placeholders", () => {
-    const result = (adapter as any).getCredentialsFromEnvironment();
-
-    assert.strictEqual(result.ok, false);
-    if (!result.ok) {
-      assert.strictEqual(result.error, "AUTH");
-    }
-  });
-
-  it("returns ok with credentials when all env vars are set", () => {
-    process.env.PINTEREST_ACCESS_TOKEN = "real-token";
-    process.env.PINTEREST_REFRESH_TOKEN = "real-refresh";
-    process.env.PINTEREST_BOARD_ID = "real-board-id";
-
-    const result = (adapter as any).getCredentialsFromEnvironment();
-
-    assert.ok(result.ok, "Should succeed with valid env vars");
-    if (result.ok) {
-      assert.strictEqual(result.value.accessToken, "real-token");
-      assert.strictEqual(result.value.refreshToken, "real-refresh");
-      assert.strictEqual(result.value.boardId, "real-board-id");
-    }
-
-    // Cleanup
-    delete process.env.PINTEREST_ACCESS_TOKEN;
-    delete process.env.PINTEREST_REFRESH_TOKEN;
-    delete process.env.PINTEREST_BOARD_ID;
-  });
-
-  it("returns AUTH error when only some env vars are set", () => {
-    process.env.PINTEREST_ACCESS_TOKEN = "real-token";
-    // PINTEREST_REFRESH_TOKEN and PINTEREST_BOARD_ID remain unset
-
-    const result = (adapter as any).getCredentialsFromEnvironment();
-
-    assert.strictEqual(result.ok, false);
-    if (!result.ok) {
-      assert.strictEqual(result.error, "AUTH");
-    }
-
-    // Cleanup
-    delete process.env.PINTEREST_ACCESS_TOKEN;
   });
 });

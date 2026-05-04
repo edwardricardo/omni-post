@@ -1,17 +1,16 @@
 /**
  * @file InstagramAdapter.ts
- * @description Instagram provider adapter. Extends AbstractProviderAdapter to
- *              publish posts, carousels, stories, reels, and handle comments.
- *              Content helpers extracted to contentHelpers.ts for maintainability.
+ * @description Instagram provider adapter. Implements the ProviderAdapter port from
+ *   @ports/core directly (no inheritance). Stateless w.r.t. credentials —
+ *   credentials are passed per-call by the application layer. Routes content
+ *   between feed posts, carousels, Stories, and Reels via Instagram Graph API
+ *   container-then-publish pattern; supports user-level analytics, comment
+ *   fetch (with threaded replies), and reply posting.
  * @layer infrastructure
  */
 
-import {
-  AbstractProviderAdapter,
-  type ProviderMetadata,
-  type ProviderConstraints,
-} from "@providers/shared";
 import type {
+  ProviderAdapter,
   ProviderId,
   ProviderLimits,
   PublishInput,
@@ -32,6 +31,13 @@ import type {
   ThreadError,
 } from "@shared/types";
 import { ok, err, AppError } from "@shared/types";
+import {
+  validateCredentialStructure,
+  mapErrorToPublishError,
+  type ProviderMetadata,
+  type ProviderConstraints,
+} from "@providers/shared";
+import pino, { type Logger } from "pino";
 import { InstagramApiClient, type InstagramCredentials } from "./apiClient.js";
 import { InstagramMediaProcessor } from "./mediaProcessor.js";
 import {
@@ -41,6 +47,45 @@ import {
   optimizeHashtags,
   planCarousel,
 } from "./contentHelpers.js";
+
+const REQUIRED_FIELDS: (keyof InstagramCredentials)[] = ["accessToken", "userId"];
+
+const INSTAGRAM_LIMITS: ProviderLimits = {
+  maxChars: 2200,
+  maxHashtags: 30,
+  allowedMedia: ["image", "video"],
+  aspectRatios: ["1:1", "4:5", "9:16", "16:9"],
+  maxPostsPerThread: 20,
+  maxMediaPerPost: 20,
+  threadingSupported: true,
+  rateLimitHints: { burst: 25, perSeconds: 86400 },
+};
+
+const INSTAGRAM_METADATA: ProviderMetadata = {
+  id: "instagram",
+  name: "instagram",
+  displayName: "Instagram",
+  description: "Share photos, videos, stories and reels on Instagram",
+  icon: "/providers/instagram-icon.svg",
+  color: "#E4405F",
+  website: "https://instagram.com",
+  authType: "oauth",
+  requiredScopes: ["instagram_basic", "instagram_content_publish"],
+  status: "active",
+};
+
+const INSTAGRAM_CAPABILITIES = {
+  publish: true,
+  schedule: false,
+  analytics: true,
+  comments: true,
+  replies: true,
+  threading: true,
+};
+
+const INSTAGRAM_CONSTRAINTS: ProviderConstraints = {
+  businessAccountRequired: true,
+};
 
 /**
  * @function waitForContainer
@@ -71,94 +116,96 @@ async function waitForContainer(
   throw AppError.externalService("instagram", "Media container timeout");
 }
 
-// ============================================================
-// Instagram Adapter Class
-// ============================================================
+/**
+ * Factory for creating InstagramApiClient instances. Injected so tests can
+ * supply a fake. Defaults to constructing a real `InstagramApiClient`.
+ */
+export type InstagramApiClientFactory = (credentials: InstagramCredentials) => InstagramApiClient;
 
-export class InstagramAdapter extends AbstractProviderAdapter<InstagramCredentials> {
+const defaultClientFactory: InstagramApiClientFactory = (credentials) =>
+  new InstagramApiClient(credentials);
+
+const defaultMediaProcessorFactory = (): InstagramMediaProcessor => new InstagramMediaProcessor();
+
+export interface InstagramAdapterDeps {
+  /** Logger instance. Default: pino at level "info". */
+  logger?: Logger;
+  /** Factory that constructs an InstagramApiClient given credentials. Default: real client. */
+  apiClientFactory?: InstagramApiClientFactory;
+  /** Media processor used for Reels validation/optimization. Default: real processor. */
+  mediaProcessor?: InstagramMediaProcessor;
+}
+
+/**
+ * @class InstagramAdapter
+ * @description Publishes content to Instagram via Graph API.
+ */
+export class InstagramAdapter implements ProviderAdapter {
   readonly id: ProviderId = "instagram";
+  readonly limits: ProviderLimits = INSTAGRAM_LIMITS;
+  readonly capabilities = INSTAGRAM_CAPABILITIES;
+  readonly metadata: ProviderMetadata = INSTAGRAM_METADATA;
+  readonly constraints: ProviderConstraints = INSTAGRAM_CONSTRAINTS;
+
+  private readonly logger: Logger;
+  private readonly apiClientFactory: InstagramApiClientFactory;
   private readonly mediaProcessor: InstagramMediaProcessor;
 
-  constructor() {
-    super();
-    this.mediaProcessor = new InstagramMediaProcessor();
+  constructor(deps: InstagramAdapterDeps = {}) {
+    this.logger = deps.logger ?? pino({ name: "instagram-adapter", level: "info" });
+    this.apiClientFactory = deps.apiClientFactory ?? defaultClientFactory;
+    this.mediaProcessor = deps.mediaProcessor ?? defaultMediaProcessorFactory();
   }
 
-  readonly metadata: ProviderMetadata = {
-    id: "instagram",
-    name: "instagram",
-    displayName: "Instagram",
-    description: "Share photos, videos, stories and reels on Instagram",
-    icon: "/providers/instagram-icon.svg",
-    color: "#E4405F",
-    website: "https://instagram.com",
-    authType: "oauth",
-    requiredScopes: ["instagram_basic", "instagram_content_publish"],
-    status: "active",
-  };
-
-  readonly constraints: ProviderConstraints = {
-    businessAccountRequired: true,
-  };
-
-  readonly limits: ProviderLimits = {
-    maxChars: 2200, // Instagram caption limit
-    maxHashtags: 30, // Instagram allows up to 30 hashtags per post
-    allowedMedia: ["image", "video"],
-    aspectRatios: ["1:1", "4:5", "9:16", "16:9"], // Instagram supported ratios
-    maxPostsPerThread: 20, // Carousel limit (Instagram's threading equivalent)
-    maxMediaPerPost: 20, // Maximum items in carousel
-    threadingSupported: true, // Via carousels
-    rateLimitHints: { burst: 25, perSeconds: 86400 }, // 25 posts per day
-  };
-
-  readonly capabilities = {
-    publish: true,
-    schedule: false, // Instagram Graph API doesn't support scheduling
-    analytics: true,
-    comments: true,
-    replies: true,
-    threading: true, // Via carousels
-  };
-  protected readonly requiredCredentialFields: (keyof InstagramCredentials)[] = [
-    "accessToken",
-    "userId",
-  ];
-
-  protected getCredentialsFromEnvironment(): Result<InstagramCredentials, "AUTH"> {
-    const credentials: InstagramCredentials = {
-      accessToken: process.env.INSTAGRAM_ACCESS_TOKEN || "placeholder",
-      userId: process.env.INSTAGRAM_USER_ID || "placeholder",
-      ...(process.env.INSTAGRAM_APP_ID && { appId: process.env.INSTAGRAM_APP_ID }),
-      ...(process.env.INSTAGRAM_APP_SECRET && { appSecret: process.env.INSTAGRAM_APP_SECRET }),
-    };
-
-    if (credentials.accessToken === "placeholder" || credentials.userId === "placeholder") {
-      return err("AUTH");
+  /**
+   * @method validateCredentials
+   * @description Verifies that supplied credentials are well-formed and
+   *   the underlying account is BUSINESS or CREATOR (Instagram API requirement).
+   */
+  async validateCredentials(
+    credentials: unknown
+  ): Promise<Result<void, "AUTH_INVALID" | "AUTH_EXPIRED">> {
+    const validation = validateCredentialStructure<InstagramCredentials>(
+      credentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
+      return err("AUTH_INVALID");
     }
 
-    return ok(credentials);
-  }
+    try {
+      const apiClient = this.apiClientFactory(validation.value);
+      const userInfo = await apiClient.validateCredentials();
 
-  protected createApiClient(credentials: InstagramCredentials): InstagramApiClient {
-    return new InstagramApiClient(credentials);
-  }
-
-  protected override async testCredentials(apiClient: InstagramApiClient): Promise<void> {
-    const userInfo = await apiClient.validateCredentials();
-
-    // Check if it's a Business or Creator account (required for API access)
-    if (userInfo.account_type === "PERSONAL") {
-      throw AppError.badRequest("Instagram API requires Business or Creator account");
+      if (userInfo.account_type === "PERSONAL") {
+        return err("AUTH_INVALID");
+      }
+      return ok(undefined);
+    } catch (error: unknown) {
+      this.logger.error({
+        provider: this.id,
+        operation: "validateCredentials",
+        error: error instanceof Error ? error.message : String(error),
+      });
+      if (
+        error instanceof Error &&
+        "status" in error &&
+        (error as Record<string, unknown>).status === 401
+      ) {
+        return err("AUTH_EXPIRED");
+      }
+      return err("AUTH_INVALID");
     }
   }
 
   /**
-   * Render canonical post for Instagram
-   * Handles both single posts and carousels
+   * @method render
+   * @description Renders canonical post for Instagram, switching between
+   *   single feed post and carousel based on length / media count.
    */
-  override render(canonical: CanonicalPost): Result<RenderedContent, RenderError> {
-    // Instagram handles "threading" via carousels, so we need to adapt the concept
+  render(canonical: CanonicalPost): Result<RenderedContent, RenderError> {
     const useCarousel = shouldCreateCarousel(canonical);
 
     if (useCarousel) {
@@ -176,59 +223,64 @@ export class InstagramAdapter extends AbstractProviderAdapter<InstagramCredentia
           estimatedReach: carouselPlan.value.estimatedReach,
         },
       });
-    } else {
-      // Single post
-      const optimizedContent = optimizeInstagramContent(canonical.body);
-      const optimizedHashtags = optimizeHashtags(canonical.body);
-
-      // Combine content and hashtags
-      const finalContent = `${optimizedContent}\n\n${optimizedHashtags}`.trim();
-
-      if (this.limits.maxChars && finalContent.length > this.limits.maxChars) {
-        return err("CONTENT_TOO_LONG");
-      }
-
-      return ok({
-        type: "single",
-        content: {
-          body: finalContent,
-          text: finalContent,
-          ...(canonical.media && canonical.media.length > 0 ? { media: canonical.media } : {}),
-          meta: {
-            postType: "feed",
-            mediaType: canonical.media?.[0]?.type === "video" ? "video" : "image",
-          },
-        },
-        ...(Object.keys({}).length > 0 ? { meta: {} } : {}),
-      });
     }
+
+    const optimizedContent = optimizeInstagramContent(canonical.body);
+    const optimizedHashtags = optimizeHashtags(canonical.body);
+
+    const finalContent = `${optimizedContent}\n\n${optimizedHashtags}`.trim();
+
+    if (this.limits.maxChars && finalContent.length > this.limits.maxChars) {
+      return err("CONTENT_TOO_LONG");
+    }
+
+    return ok({
+      type: "single",
+      content: {
+        body: finalContent,
+        text: finalContent,
+        ...(canonical.media && canonical.media.length > 0 ? { media: canonical.media } : {}),
+        meta: {
+          postType: "feed",
+          mediaType: canonical.media?.[0]?.type === "video" ? "video" : "image",
+        },
+      },
+    });
   }
 
   /**
-   * Plan thread for Instagram (carousel)
+   * @method planThread
+   * @description Plans a carousel as Instagram's threading equivalent.
    */
-  override planThread(canonical: CanonicalPost): Result<ThreadPlan, ThreadError> {
-    // For Instagram, "threading" means carousel posts
+  planThread(canonical: CanonicalPost): Result<ThreadPlan, ThreadError> {
     return planCarousel(canonical, this.limits);
   }
 
   /**
-   * Publish single post, carousel, story, or reel to Instagram
+   * @method publish
+   * @description Routes to feed, carousel, story, or reel publishing based on
+   *   detected content type. Caller must pass resolved credentials.
    */
-  override async publish(input: PublishInput): Promise<Result<PublishReceipt, PublishError>> {
-    const credentials = await this.getCredentials(input.channelId);
-    if (!credentials.ok) {
+  async publish(
+    input: PublishInput,
+    credentials: unknown
+  ): Promise<Result<PublishReceipt, PublishError>> {
+    const validation = validateCredentialStructure<InstagramCredentials>(
+      credentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
       return err("AUTH");
     }
 
     try {
-      const apiClient = this.createApiClient(credentials.value);
+      const apiClient = this.apiClientFactory(validation.value);
       const post = input.post;
 
-      // Detect content type
       const contentType = detectContentType(post);
 
-      // Route to appropriate publishing method based on content type
       switch (contentType) {
         case "STORY":
           return await this.publishStory(apiClient, post);
@@ -246,17 +298,16 @@ export class InstagramAdapter extends AbstractProviderAdapter<InstagramCredentia
     } catch (error: unknown) {
       this.logError("publish", error, { channelId: input.channelId });
 
-      // Handle circuit breaker specific error
       if (error instanceof Error && error.message?.includes("Circuit breaker is OPEN")) {
         return err("NETWORK");
       }
 
-      return err(this.mapErrorToPublishError(error));
+      return err(mapErrorToPublishError(error));
     }
   }
 
   /**
-   * Publish a regular feed post
+   * Publish a regular feed post.
    */
   private async publishFeedPost(
     apiClient: InstagramApiClient,
@@ -272,7 +323,6 @@ export class InstagramAdapter extends AbstractProviderAdapter<InstagramCredentia
     const caption = post.text || post.body;
     const container = await apiClient.createMediaContainer(mediaUrl, caption, mediaType);
 
-    // Wait for container to be ready
     await waitForContainer(apiClient, container.id);
 
     const result = await apiClient.publishMedia(container.id);
@@ -285,7 +335,7 @@ export class InstagramAdapter extends AbstractProviderAdapter<InstagramCredentia
   }
 
   /**
-   * Publish an Instagram Story
+   * Publish an Instagram Story.
    */
   private async publishStory(
     apiClient: InstagramApiClient,
@@ -302,13 +352,10 @@ export class InstagramAdapter extends AbstractProviderAdapter<InstagramCredentia
 
     const mediaType = media.type === "video" ? "VIDEO" : "IMAGE";
 
-    // Create Stories container
     const container = await apiClient.createStoriesContainer(media.url, mediaType);
 
-    // Wait for container to be ready
     await waitForContainer(apiClient, container.id);
 
-    // Publish the story
     const result = await apiClient.publishMedia(container.id);
 
     return ok({
@@ -319,7 +366,7 @@ export class InstagramAdapter extends AbstractProviderAdapter<InstagramCredentia
   }
 
   /**
-   * Publish an Instagram Reel
+   * Publish an Instagram Reel.
    */
   private async publishReel(
     apiClient: InstagramApiClient,
@@ -334,7 +381,6 @@ export class InstagramAdapter extends AbstractProviderAdapter<InstagramCredentia
       return err("VALIDATION");
     }
 
-    // Validate video for Reels (max 90 seconds)
     const validationResult = await this.mediaProcessor.validateVideo(media.url, "REELS");
     if (!validationResult.valid) {
       this.logError(
@@ -345,23 +391,14 @@ export class InstagramAdapter extends AbstractProviderAdapter<InstagramCredentia
       return err("VALIDATION");
     }
 
-    // Optimize video if needed
     const optimizedVideoUrl = await this.mediaProcessor.optimizeForReels(media.url);
 
     const caption = post.text || post.body;
 
-    // Create Reels container
-    const container = await apiClient.createReelsContainer(
-      optimizedVideoUrl,
-      caption,
-      true, // shareToFeed
-      true // enableRemixing
-    );
+    const container = await apiClient.createReelsContainer(optimizedVideoUrl, caption, true, true);
 
-    // Wait for container to be ready (Reels may take longer to process)
-    await waitForContainer(apiClient, container.id, 180000); // 3 minutes timeout
+    await waitForContainer(apiClient, container.id, 180000);
 
-    // Publish the reel
     const result = await apiClient.publishMedia(container.id);
 
     return ok({
@@ -372,7 +409,7 @@ export class InstagramAdapter extends AbstractProviderAdapter<InstagramCredentia
   }
 
   /**
-   * Publish an Instagram Carousel
+   * Publish an Instagram Carousel.
    */
   private async publishCarousel(
     apiClient: InstagramApiClient,
@@ -390,7 +427,6 @@ export class InstagramAdapter extends AbstractProviderAdapter<InstagramCredentia
     const caption = post.text || post.body;
     const container = await apiClient.createCarouselContainer(carouselItems, caption);
 
-    // Wait for container to be ready
     await waitForContainer(apiClient, container.id);
 
     const result = await apiClient.publishMedia(container.id);
@@ -403,21 +439,27 @@ export class InstagramAdapter extends AbstractProviderAdapter<InstagramCredentia
   }
 
   /**
-   * Publish thread (carousel) to Instagram
+   * @method publishThread
+   * @description Publishes a thread plan as a carousel post.
    */
-  override async publishThread(
-    input: ThreadPublishInput
+  async publishThread(
+    input: ThreadPublishInput,
+    credentials: unknown
   ): Promise<Result<ThreadReceipt, PublishError>> {
-    const credentials = await this.getCredentials(input.channelId);
-    if (!credentials.ok) {
+    const validation = validateCredentialStructure<InstagramCredentials>(
+      credentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
       return err("AUTH");
     }
 
     try {
-      const apiClient = this.createApiClient(credentials.value);
+      const apiClient = this.apiClientFactory(validation.value);
       const threadPlan = input.threadPlan;
 
-      // Create carousel items from thread slides
       const carouselItems = threadPlan.tweets.map((tweet, index) => {
         const media = tweet.media?.[0];
         if (!media?.url) {
@@ -431,12 +473,10 @@ export class InstagramAdapter extends AbstractProviderAdapter<InstagramCredentia
         };
       });
 
-      // Use the first slide's text as the main caption
       const mainCaption = threadPlan.tweets[0]?.text || "";
 
       const container = await apiClient.createCarouselContainer(carouselItems, mainCaption);
 
-      // Wait for container to be ready
       await waitForContainer(apiClient, container.id);
 
       const result = await apiClient.publishMedia(container.id);
@@ -451,39 +491,42 @@ export class InstagramAdapter extends AbstractProviderAdapter<InstagramCredentia
             publishedAt: new Date(result.timestamp),
           },
         ],
-        totalTweets: 1, // Carousel counts as one post
+        totalTweets: 1,
       };
 
       return ok(receipt);
     } catch (error: unknown) {
       this.logError("publishThread", error, { channelId: input.channelId });
 
-      // Handle circuit breaker specific error
       if (error instanceof Error && error.message?.includes("Circuit breaker is OPEN")) {
         return err("NETWORK");
       }
 
-      return err(this.mapErrorToPublishError(error));
+      return err(mapErrorToPublishError(error));
     }
   }
 
   /**
-   * Fetch analytics from Instagram
+   * @method fetchAnalytics
+   * @description Retrieves user-level insights and recent media engagement.
    */
-  override async fetchAnalytics(q: {
-    channelId: string;
-    since?: Date;
-    until?: Date;
-  }): Promise<Result<unknown, "AUTH" | "NETWORK">> {
-    const credentials = await this.getCredentials(q.channelId);
-    if (!credentials.ok) {
+  async fetchAnalytics(
+    q: { channelId: string; since?: Date; until?: Date },
+    credentials: unknown
+  ): Promise<Result<unknown, "AUTH" | "NETWORK">> {
+    const validation = validateCredentialStructure<InstagramCredentials>(
+      credentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
       return err("AUTH");
     }
 
     try {
-      const apiClient = this.createApiClient(credentials.value);
+      const apiClient = this.apiClientFactory(validation.value);
 
-      // Get user insights
       const userInsights = await apiClient.getUserInsights(
         ["impressions", "reach", "profile_views"],
         "days_28",
@@ -491,7 +534,6 @@ export class InstagramAdapter extends AbstractProviderAdapter<InstagramCredentia
         q.until
       );
 
-      // Get recent media for additional metrics
       const userMedia = await apiClient.getUserMedia(10);
 
       const mediaMetrics = {
@@ -519,14 +561,11 @@ export class InstagramAdapter extends AbstractProviderAdapter<InstagramCredentia
       return err("NETWORK");
     }
   }
-  // ----------------------------------------------------------
-  // Social Inbox: getComments & postReply
-  // ----------------------------------------------------------
 
   /**
    * @method getComments
-   * @description Fetches comments on an Instagram media post via GET /{media-id}/comments.
-   *              Includes threaded replies via field expansion.
+   * @description Fetches comments on an Instagram media post via
+   *   GET /{media-id}/comments. Includes threaded replies via field expansion.
    */
   async getComments(params: {
     channelCredentials: unknown;
@@ -539,9 +578,18 @@ export class InstagramAdapter extends AbstractProviderAdapter<InstagramCredentia
       return ok({ comments: [] });
     }
 
+    const validation = validateCredentialStructure<InstagramCredentials>(
+      params.channelCredentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
+      return err("AUTH");
+    }
+
     try {
-      const credentials = params.channelCredentials as InstagramCredentials;
-      const apiClient = this.createApiClient(credentials);
+      const apiClient = this.apiClientFactory(validation.value);
 
       const result = await apiClient.getMediaComments(
         params.postExternalId,
@@ -560,7 +608,6 @@ export class InstagramAdapter extends AbstractProviderAdapter<InstagramCredentia
           createdAt: new Date(c.timestamp),
         });
 
-        // Include threaded replies
         if (c.replies?.data) {
           for (const reply of c.replies.data) {
             comments.push({
@@ -594,9 +641,18 @@ export class InstagramAdapter extends AbstractProviderAdapter<InstagramCredentia
     inReplyToProviderMessageId: string;
     body: string;
   }): Promise<Result<ProviderReplyResult, "AUTH" | "NETWORK" | "RATE_LIMIT">> {
+    const validation = validateCredentialStructure<InstagramCredentials>(
+      params.channelCredentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
+      return err("AUTH");
+    }
+
     try {
-      const credentials = params.channelCredentials as InstagramCredentials;
-      const apiClient = this.createApiClient(credentials);
+      const apiClient = this.apiClientFactory(validation.value);
 
       const result = await apiClient.replyToComment(params.inReplyToProviderMessageId, params.body);
 
@@ -614,7 +670,24 @@ export class InstagramAdapter extends AbstractProviderAdapter<InstagramCredentia
       return err("NETWORK");
     }
   }
+
+  private logError(operation: string, error: unknown, context: Record<string, unknown> = {}): void {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    this.logger.error({
+      provider: this.id,
+      operation,
+      error: errorMessage,
+      ...context,
+    });
+  }
 }
 
-// Export singleton instance for backward compatibility
-export const instagramAdapter = new InstagramAdapter();
+/**
+ * @function createInstagramAdapter
+ * @description Factory used by the composition root to instantiate the adapter
+ *   with explicit dependencies (logger, optional client factory and media
+ *   processor for tests).
+ */
+export function createInstagramAdapter(deps: InstagramAdapterDeps = {}): InstagramAdapter {
+  return new InstagramAdapter(deps);
+}

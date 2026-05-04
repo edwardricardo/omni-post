@@ -14,8 +14,9 @@
 
 import { useEffect } from "react";
 import { useNotificationStore } from "@/lib/stores/notificationStore";
+import { env } from "../lib/env";
 
-const SSE_URL = `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"}/notifications/stream`;
+const SSE_URL = `${env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"}/notifications/stream`;
 const RECONNECT_DELAY_MS = 3_000;
 
 /**

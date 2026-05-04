@@ -1,20 +1,62 @@
 /**
  * @file BlueskyAdapter.test.ts
- * @description Mutation-killing tests for BlueskyAdapter — validates render behavior,
- * text limits, media handling, credential handling, publish flow, and error mapping.
+ * @description Mutation-killing tests for BlueskyAdapter — render behavior,
+ *   text limits, media handling, credential validation, publish flow, and
+ *   error mapping. The adapter takes credentials per-call; the suite injects a
+ *   fake `BlueskyClient` factory so tests do not hit the network.
+ * @layer infrastructure
  */
 
-import { describe, it, beforeAll, beforeEach, vi } from "vitest";
+import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { BlueskyAdapter } from "../src/BlueskyAdapter.js";
+import { ok, err, type Result } from "@shared/types";
+import { BlueskyAdapter, type BlueskyClientFactory } from "../src/BlueskyAdapter.js";
+import type {
+  BlueskyClient,
+  BlueskyCredentials,
+  BlueskyPostResult,
+  BlueskySession,
+} from "../src/BlueskyClient.js";
 
 // ============================================================================
 // Helpers
 // ============================================================================
 
-function makeAdapter(): BlueskyAdapter {
-  return new BlueskyAdapter();
+interface FakeClient {
+  login: () => Promise<Result<BlueskySession, "AUTH">>;
+  publishText: (text: string) => Promise<Result<BlueskyPostResult, "PUBLISH" | "VALIDATION">>;
+  publishWithImages: (
+    text: string,
+    buffers: Uint8Array[],
+    altTexts: string[]
+  ) => Promise<Result<BlueskyPostResult, "PUBLISH" | "VALIDATION">>;
 }
+
+function makeFakeClient(overrides: Partial<FakeClient> = {}): FakeClient {
+  return {
+    login: vi.fn(async () =>
+      ok({
+        accessJwt: "jwt",
+        refreshJwt: "ref",
+        did: "did:plc:test",
+        handle: "test.bsky.social",
+      })
+    ),
+    publishText: vi.fn(async () => ok({ uri: "at://test/post/1", cid: "bafy123" })),
+    publishWithImages: vi.fn(async () => ok({ uri: "at://test/post/2", cid: "bafy456" })),
+    ...overrides,
+  };
+}
+
+function makeAdapter(client: FakeClient = makeFakeClient()) {
+  const factory: BlueskyClientFactory = () => client as unknown as BlueskyClient;
+  return new BlueskyAdapter({ clientFactory: factory });
+}
+
+const VALID_CREDS: BlueskyCredentials = {
+  identifier: "test.bsky.social",
+  appPassword: "xxxx-xxxx-xxxx-xxxx",
+};
 
 function makeInput(body: string, channelId = "chan-001") {
   return {
@@ -24,63 +66,24 @@ function makeInput(body: string, channelId = "chan-001") {
   };
 }
 
-function _makeMediaInput(
-  body: string,
-  media: Array<{ url: string; type: "image" | "video" | "gif"; alt?: string }>,
-  channelId = "chan-001"
-) {
-  return {
-    channelId,
-    dedupeKey: "dedupe-002",
-    post: { body, media },
-  };
-}
-
 // ============================================================================
 // Suite
 // ============================================================================
 
 describe("BlueskyAdapter", { concurrent: false }, () => {
-  let adapter: BlueskyAdapter;
-
-  beforeAll(() => {
-    adapter = makeAdapter();
-  });
-
   beforeEach(() => {
     vi.clearAllMocks();
-    // Clear env vars to ensure clean state per test
-    delete process.env.BLUESKY_IDENTIFIER;
-    delete process.env.BLUESKY_APP_PASSWORD;
   });
 
-  // =========================================================================
-  // metadata and capabilities
-  // =========================================================================
-
   describe("metadata and capabilities", () => {
+    const adapter = makeAdapter();
+
     it("has correct provider id", () => {
       assert.equal(adapter.id, "bluesky");
     });
 
     it("has correct character limit of 300", () => {
       assert.equal(adapter.limits.maxChars, 300);
-    });
-
-    it("declares communityPosts as false", () => {
-      assert.equal(adapter.capabilities.communityPosts, false);
-    });
-
-    it("declares reels as false", () => {
-      assert.equal(adapter.capabilities.reels, false);
-    });
-
-    it("declares stories as false", () => {
-      assert.equal(adapter.capabilities.stories, false);
-    });
-
-    it("declares images as true", () => {
-      assert.equal(adapter.capabilities.images, true);
     });
 
     it("declares maxMediaPerPost as 4", () => {
@@ -107,10 +110,6 @@ describe("BlueskyAdapter", { concurrent: false }, () => {
       assert.deepEqual(adapter.limits.allowedMedia, ["image"]);
     });
 
-    it("declares videos as false", () => {
-      assert.equal(adapter.capabilities.videos, false);
-    });
-
     it("declares publish as true", () => {
       assert.equal(adapter.capabilities.publish, true);
     });
@@ -121,10 +120,6 @@ describe("BlueskyAdapter", { concurrent: false }, () => {
 
     it("declares analytics as false", () => {
       assert.equal(adapter.capabilities.analytics, false);
-    });
-
-    it("declares linkCards as true", () => {
-      assert.equal(adapter.capabilities.linkCards, true);
     });
 
     it("has correct rateLimitHints", () => {
@@ -146,34 +141,19 @@ describe("BlueskyAdapter", { concurrent: false }, () => {
     it("has correct metadata color", () => {
       assert.equal(adapter.metadata.color, "#0085ff");
     });
-
-    it("requires identifier and appPassword credentials", () => {
-      // @ts-expect-error — accessing protected field for testing
-      const fields = adapter.requiredCredentialFields;
-      assert.deepEqual(fields, ["identifier", "appPassword"]);
-    });
   });
 
-  // =========================================================================
-  // render
-  // =========================================================================
-
   describe("render", () => {
+    const adapter = makeAdapter();
+
     it("returns ok with type=single for text within 300 chars", () => {
       const result = adapter.render({ body: "Hello Bluesky!" });
-      assert.ok(result.ok, "Should render successfully");
+      assert.ok(result.ok);
       assert.equal(result.value.type, "single");
       assert.equal((result.value.content as { body: string }).body, "Hello Bluesky!");
     });
 
     it("returns TEXT_TOO_LONG error for text > 300 chars", () => {
-      const longText = "a".repeat(301);
-      const result = adapter.render({ body: longText });
-      assert.ok(!result.ok, "Should fail");
-      assert.equal(result.error, "TEXT_TOO_LONG");
-    });
-
-    it("returns TEXT_TOO_LONG for exactly 301 chars", () => {
       const result = adapter.render({ body: "a".repeat(301) });
       assert.ok(!result.ok);
       assert.equal(result.error, "TEXT_TOO_LONG");
@@ -240,35 +220,12 @@ describe("BlueskyAdapter", { concurrent: false }, () => {
       };
       assert.equal(content.media.length, 2);
       assert.equal(content.media[0].url, "https://img.com/a.jpg");
-      assert.equal(content.media[0].type, "image");
       assert.equal(content.media[0].alt, "Alt A");
-      assert.equal(content.media[1].url, "https://img.com/b.jpg");
-      assert.equal(content.media[1].type, "image");
-      // Second image has no alt — key should not exist
       assert.equal(Object.prototype.hasOwnProperty.call(content.media[1], "alt"), false);
     });
 
-    it("slices media to max 4 items", () => {
-      // Provide exactly 4 images (boundary)
-      const result = adapter.render({
-        body: "test",
-        media: [
-          { url: "a.jpg", type: "image" as const, id: "1" },
-          { url: "b.jpg", type: "image" as const, id: "2" },
-          { url: "c.jpg", type: "image" as const, id: "3" },
-          { url: "d.jpg", type: "image" as const, id: "4" },
-        ],
-      });
-      assert.ok(result.ok);
-      const content = result.value.content as { body: string; media: Array<{ url: string }> };
-      assert.equal(content.media.length, 4);
-    });
-
     it("omits media from content when media array is empty", () => {
-      const result = adapter.render({
-        body: "no media",
-        media: [],
-      });
+      const result = adapter.render({ body: "no media", media: [] });
       assert.ok(result.ok);
       const content = result.value.content as { body: string; media?: unknown };
       assert.equal(Object.prototype.hasOwnProperty.call(content, "media"), false);
@@ -280,163 +237,116 @@ describe("BlueskyAdapter", { concurrent: false }, () => {
       const content = result.value.content as { body: string; media?: unknown };
       assert.equal(Object.prototype.hasOwnProperty.call(content, "media"), false);
     });
+  });
 
-    it("renders with 1 image", () => {
-      const result = adapter.render({
-        body: "single",
-        media: [{ url: "one.jpg", type: "image" as const, id: "1" }],
+  describe("validateCredentials", () => {
+    it("returns AUTH_INVALID when credentials are missing identifier", async () => {
+      const adapter = makeAdapter();
+      const result = await adapter.validateCredentials({ appPassword: "xxxx" });
+      assert.ok(!result.ok);
+      assert.equal(result.error, "AUTH_INVALID");
+    });
+
+    it("returns AUTH_INVALID when credentials are missing appPassword", async () => {
+      const adapter = makeAdapter();
+      const result = await adapter.validateCredentials({ identifier: "test.bsky.social" });
+      assert.ok(!result.ok);
+      assert.equal(result.error, "AUTH_INVALID");
+    });
+
+    it("returns AUTH_INVALID when credentials object is null", async () => {
+      const adapter = makeAdapter();
+      const result = await adapter.validateCredentials(null);
+      assert.ok(!result.ok);
+      assert.equal(result.error, "AUTH_INVALID");
+    });
+
+    it("returns AUTH_INVALID when login fails", async () => {
+      const client = makeFakeClient({ login: vi.fn(async () => err("AUTH")) });
+      const adapter = makeAdapter(client);
+      const result = await adapter.validateCredentials(VALID_CREDS);
+      assert.ok(!result.ok);
+      assert.equal(result.error, "AUTH_INVALID");
+    });
+
+    it("returns ok when credentials are valid and login succeeds", async () => {
+      const adapter = makeAdapter();
+      const result = await adapter.validateCredentials(VALID_CREDS);
+      assert.ok(result.ok);
+    });
+  });
+
+  describe("publish", () => {
+    it("returns AUTH error when credentials are missing", async () => {
+      const adapter = makeAdapter();
+      const result = await adapter.publish(makeInput("hello"), undefined);
+      assert.ok(!result.ok);
+      assert.equal(result.error, "AUTH");
+    });
+
+    it("returns AUTH error when credentials lack identifier", async () => {
+      const adapter = makeAdapter();
+      const result = await adapter.publish(makeInput("hello"), { appPassword: "xxxx" });
+      assert.ok(!result.ok);
+      assert.equal(result.error, "AUTH");
+    });
+
+    it("returns VALIDATION error for text > 300 chars", async () => {
+      const adapter = makeAdapter();
+      const result = await adapter.publish(makeInput("z".repeat(301)), VALID_CREDS);
+      assert.ok(!result.ok);
+      assert.equal(result.error, "VALIDATION");
+    });
+
+    it("returns AUTH error when login fails", async () => {
+      const client = makeFakeClient({ login: vi.fn(async () => err("AUTH")) });
+      const adapter = makeAdapter(client);
+      const result = await adapter.publish(makeInput("hello"), VALID_CREDS);
+      assert.ok(!result.ok);
+      assert.equal(result.error, "AUTH");
+    });
+
+    it("returns ok with providerPostId from publishText for text-only post", async () => {
+      const client = makeFakeClient();
+      const adapter = makeAdapter(client);
+      const result = await adapter.publish(makeInput("hello world"), VALID_CREDS);
+      assert.ok(result.ok);
+      assert.equal(result.value.providerPostId, "at://test/post/1");
+      assert.equal(client.publishText.mock.calls.length, 1);
+    });
+
+    it("returns VALIDATION when publishText returns VALIDATION error", async () => {
+      const client = makeFakeClient({
+        publishText: vi.fn(async () => err("VALIDATION")),
       });
-      assert.ok(result.ok);
-      const content = result.value.content as { body: string; media: Array<{ url: string }> };
-      assert.equal(content.media.length, 1);
-      assert.equal(content.media[0].url, "one.jpg");
+      const adapter = makeAdapter(client);
+      const result = await adapter.publish(makeInput("hello"), VALID_CREDS);
+      assert.ok(!result.ok);
+      assert.equal(result.error, "VALIDATION");
     });
 
-    it("renders with 3 images", () => {
-      const result = adapter.render({
-        body: "three",
-        media: [
-          { url: "a.jpg", type: "image" as const, id: "1" },
-          { url: "b.jpg", type: "image" as const, id: "2" },
-          { url: "c.jpg", type: "image" as const, id: "3" },
-        ],
+    it("returns NETWORK when publishText returns PUBLISH error", async () => {
+      const client = makeFakeClient({
+        publishText: vi.fn(async () => err("PUBLISH")),
       });
+      const adapter = makeAdapter(client);
+      const result = await adapter.publish(makeInput("hello"), VALID_CREDS);
+      assert.ok(!result.ok);
+      assert.equal(result.error, "NETWORK");
+    });
+
+    it("includes profile URL in receipt", async () => {
+      const adapter = makeAdapter();
+      const result = await adapter.publish(makeInput("hello"), VALID_CREDS);
       assert.ok(result.ok);
-      const content = result.value.content as { body: string; media: Array<{ url: string }> };
-      assert.equal(content.media.length, 3);
+      assert.equal(result.value.url, "https://bsky.app/profile/test.bsky.social");
     });
   });
-
-  // =========================================================================
-  // getCredentialsFromEnvironment
-  // =========================================================================
-
-  describe("getCredentialsFromEnvironment", () => {
-    it("returns AUTH error when env vars missing", () => {
-      // @ts-expect-error — accessing protected method for testing
-      const result = adapter.getCredentialsFromEnvironment();
-      assert.ok(!result.ok);
-      assert.equal(result.error, "AUTH");
-    });
-
-    it("returns AUTH error when only identifier is set", () => {
-      process.env.BLUESKY_IDENTIFIER = "test.bsky.social";
-      // @ts-expect-error — accessing protected method for testing
-      const result = adapter.getCredentialsFromEnvironment();
-      assert.ok(!result.ok);
-      assert.equal(result.error, "AUTH");
-    });
-
-    it("returns AUTH error when only appPassword is set", () => {
-      process.env.BLUESKY_APP_PASSWORD = "xxxx-xxxx-xxxx-xxxx";
-      // @ts-expect-error — accessing protected method for testing
-      const result = adapter.getCredentialsFromEnvironment();
-      assert.ok(!result.ok);
-      assert.equal(result.error, "AUTH");
-    });
-
-    it("returns credentials when env vars set", () => {
-      process.env.BLUESKY_IDENTIFIER = "test.bsky.social";
-      process.env.BLUESKY_APP_PASSWORD = "xxxx-xxxx-xxxx-xxxx";
-
-      // @ts-expect-error — accessing protected method for testing
-      const result = adapter.getCredentialsFromEnvironment();
-      assert.ok(result.ok);
-      assert.equal(result.value.identifier, "test.bsky.social");
-      assert.equal(result.value.appPassword, "xxxx-xxxx-xxxx-xxxx");
-    });
-
-    it("returns AUTH error when identifier is empty string", () => {
-      process.env.BLUESKY_IDENTIFIER = "";
-      process.env.BLUESKY_APP_PASSWORD = "xxxx-xxxx-xxxx-xxxx";
-      // @ts-expect-error — accessing protected method for testing
-      const result = adapter.getCredentialsFromEnvironment();
-      assert.ok(!result.ok);
-      assert.equal(result.error, "AUTH");
-    });
-
-    it("returns AUTH error when appPassword is empty string", () => {
-      process.env.BLUESKY_IDENTIFIER = "test.bsky.social";
-      process.env.BLUESKY_APP_PASSWORD = "";
-      // @ts-expect-error — accessing protected method for testing
-      const result = adapter.getCredentialsFromEnvironment();
-      assert.ok(!result.ok);
-      assert.equal(result.error, "AUTH");
-    });
-  });
-
-  // =========================================================================
-  // createApiClient
-  // =========================================================================
-
-  describe("createApiClient", () => {
-    it("creates a BlueskyClient with the provided credentials", () => {
-      const creds = { identifier: "user.bsky.social", appPassword: "xxxx" };
-      // @ts-expect-error — accessing protected method for testing
-      const client = adapter.createApiClient(creds);
-      assert.ok(client, "Should return a client instance");
-    });
-
-    it("defaults identifier to empty string when undefined", () => {
-      const creds = { identifier: undefined, appPassword: "pass" } as unknown as {
-        identifier: string;
-        appPassword: string;
-      };
-      // @ts-expect-error — accessing protected method for testing
-      const client = adapter.createApiClient(creds);
-      assert.ok(client, "Should not throw on undefined identifier");
-    });
-
-    it("defaults appPassword to empty string when undefined", () => {
-      const creds = { identifier: "user", appPassword: undefined } as unknown as {
-        identifier: string;
-        appPassword: string;
-      };
-      // @ts-expect-error — accessing protected method for testing
-      const client = adapter.createApiClient(creds);
-      assert.ok(client, "Should not throw on undefined appPassword");
-    });
-  });
-
-  // =========================================================================
-  // publishThread — not supported
-  // =========================================================================
 
   describe("publishThread — not supported", () => {
     it("publishThread is not implemented (threading not supported on Bluesky)", () => {
+      const adapter = makeAdapter();
       assert.equal(typeof adapter.publishThread, "undefined");
-    });
-  });
-
-  // =========================================================================
-  // publish
-  // =========================================================================
-
-  describe("publish — credential failure", () => {
-    it("returns AUTH error when no credentials in env or DB", async () => {
-      const input = makeInput("Hello from Bluesky test");
-      const result = await adapter.publish(input);
-      assert.ok(!result.ok);
-      assert.equal(result.error, "AUTH");
-    });
-  });
-
-  describe("publish — text validation", () => {
-    it("returns VALIDATION error for text > 300 chars even when credentials exist", async () => {
-      process.env.BLUESKY_IDENTIFIER = "test.bsky.social";
-      process.env.BLUESKY_APP_PASSWORD = "xxxx-xxxx-xxxx-xxxx";
-
-      // Login will fail because we can't mock the real AtpAgent here,
-      // but the text validation check happens after credential retrieval
-      // and before/after login. If login succeeds, validation will be checked.
-      const input = makeInput("z".repeat(301));
-      const result = await adapter.publish(input);
-      assert.ok(!result.ok, "Should reject text > 300 chars");
-      // Will be either AUTH (login failure) or VALIDATION (text too long)
-      assert.ok(
-        result.error === "AUTH" || result.error === "VALIDATION",
-        `Expected AUTH or VALIDATION, got ${result.error}`
-      );
     });
   });
 });

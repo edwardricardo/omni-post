@@ -1,17 +1,15 @@
 /**
  * @file ThreadsAdapter.test.ts
  * @description Test suite for the Threads (Meta) provider adapter — covers
- *              metadata + limits + capabilities, render (single + media), the
- *              two-step container publish flow (text / image / video / carousel),
- *              fetchAnalytics aggregation, getComments listing, postReply, and
- *              error / auth paths. All tests are tier-0 (mocked fetch, no DB,
- *              no network).
+ *   metadata, render (single + media), the two-step container publish flow
+ *   (text / image / video / carousel), fetchAnalytics aggregation, getComments
+ *   listing, postReply, and error / auth paths. Adapter is stateless w.r.t.
+ *   credentials; tests pass `MOCK_CREDENTIALS` per call. Tier 0 (mocked fetch).
  * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
 import { ThreadsAdapter } from "../src/ThreadsAdapter.js";
-import { ok, err } from "@shared/types";
 import type { CanonicalPost } from "@shared/types";
 import type { PublishInput } from "@ports/core";
 
@@ -87,12 +85,6 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function mockCreds(adapter: ThreadsAdapter) {
-  vi.spyOn(adapter as never as { getCredentials: unknown }, "getCredentials").mockImplementation(
-    async () => ok(MOCK_CREDENTIALS)
-  );
-}
-
 // ---------------------------------------------------------------------------
 // metadata + limits + capabilities (smoke)
 // ---------------------------------------------------------------------------
@@ -122,6 +114,34 @@ describe("ThreadsAdapter — metadata", () => {
     expect(adapter.capabilities.replies).toBe(true);
     expect(adapter.capabilities.threading).toBe(false);
     expect(adapter.capabilities.schedule).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// validateCredentials
+// ---------------------------------------------------------------------------
+
+describe("ThreadsAdapter — validateCredentials", () => {
+  it("returns ok when credentials carry the required fields", async () => {
+    const adapter = new ThreadsAdapter();
+    const result = await adapter.validateCredentials(MOCK_CREDENTIALS);
+    expect(result.ok).toBe(true);
+  });
+
+  it("returns AUTH_INVALID when accessToken is missing", async () => {
+    const adapter = new ThreadsAdapter();
+    const result = await adapter.validateCredentials({ userId: "u" });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toBe("AUTH_INVALID");
+  });
+
+  it("returns AUTH_INVALID when credentials are null", async () => {
+    const adapter = new ThreadsAdapter();
+    const result = await adapter.validateCredentials(null);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toBe("AUTH_INVALID");
   });
 });
 
@@ -163,13 +183,17 @@ describe("ThreadsAdapter — render", () => {
 // ---------------------------------------------------------------------------
 
 describe("ThreadsAdapter — publish", () => {
-  it("returns AUTH when getCredentials fails", async () => {
+  it("returns AUTH when credentials are missing required fields", async () => {
     const adapter = new ThreadsAdapter();
-    vi.spyOn(adapter as never as { getCredentials: unknown }, "getCredentials").mockImplementation(
-      async () => err("AUTH")
-    );
+    const result = await adapter.publish(makePublishInput(), { accessToken: "" });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toBe("AUTH");
+  });
 
-    const result = await adapter.publish(makePublishInput());
+  it("returns AUTH when credentials are null", async () => {
+    const adapter = new ThreadsAdapter();
+    const result = await adapter.publish(makePublishInput(), null);
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error).toBe("AUTH");
@@ -177,12 +201,11 @@ describe("ThreadsAdapter — publish", () => {
 
   it("publishes a text-only post via the 2-step container flow", async () => {
     const adapter = new ThreadsAdapter();
-    mockCreds(adapter);
 
     queueResponse({ id: "container-A" });
     queueResponse({ id: "post-A" });
 
-    const result = await adapter.publish(makePublishInput({ body: "Hi" }));
+    const result = await adapter.publish(makePublishInput({ body: "Hi" }), MOCK_CREDENTIALS);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.providerPostId).toBe("post-A");
@@ -196,7 +219,6 @@ describe("ThreadsAdapter — publish", () => {
 
   it("waits for the media container before publishing an image post", async () => {
     const adapter = new ThreadsAdapter();
-    mockCreds(adapter);
 
     queueResponse({ id: "container-img" });
     queueResponse({ status: "FINISHED" });
@@ -206,7 +228,8 @@ describe("ThreadsAdapter — publish", () => {
       makePublishInput({
         body: "with image",
         media: [{ url: "https://cdn/photo.jpg" }],
-      })
+      }),
+      MOCK_CREDENTIALS
     );
 
     expect(result.ok).toBe(true);
@@ -221,14 +244,14 @@ describe("ThreadsAdapter — publish", () => {
 
   it("uses the VIDEO media type when the URL ends in .mp4", async () => {
     const adapter = new ThreadsAdapter();
-    mockCreds(adapter);
 
     queueResponse({ id: "container-vid" });
     queueResponse({ status: "FINISHED" });
     queueResponse({ id: "post-vid" });
 
     const result = await adapter.publish(
-      makePublishInput({ media: [{ url: "https://cdn/clip.mp4" }] })
+      makePublishInput({ media: [{ url: "https://cdn/clip.mp4" }] }),
+      MOCK_CREDENTIALS
     );
 
     expect(result.ok).toBe(true);
@@ -239,7 +262,6 @@ describe("ThreadsAdapter — publish", () => {
 
   it("creates carousel item containers + parent for multi-media posts", async () => {
     const adapter = new ThreadsAdapter();
-    mockCreds(adapter);
 
     queueResponse({ id: "item-1" });
     queueResponse({ id: "item-2" });
@@ -250,7 +272,8 @@ describe("ThreadsAdapter — publish", () => {
     const result = await adapter.publish(
       makePublishInput({
         media: [{ url: "https://cdn/a.jpg" }, { url: "https://cdn/b.mp4" }],
-      })
+      }),
+      MOCK_CREDENTIALS
     );
 
     expect(result.ok).toBe(true);
@@ -262,12 +285,11 @@ describe("ThreadsAdapter — publish", () => {
 
   it("returns NETWORK when the publish step rejects with !ok", async () => {
     const adapter = new ThreadsAdapter();
-    mockCreds(adapter);
 
     queueResponse({ id: "container-x" });
     queueResponse({ error: { message: "Bad request" } }, false, 400);
 
-    const result = await adapter.publish(makePublishInput());
+    const result = await adapter.publish(makePublishInput(), MOCK_CREDENTIALS);
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error).toBe("NETWORK");
@@ -281,7 +303,6 @@ describe("ThreadsAdapter — publish", () => {
 describe("ThreadsAdapter — fetchAnalytics", () => {
   it("aggregates per-post insights into a metrics array", async () => {
     const adapter = new ThreadsAdapter();
-    mockCreds(adapter);
 
     queueResponse({ data: [{ id: "post-1", timestamp: "2026-04-01T00:00:00Z" }] });
     queueResponse({
@@ -294,34 +315,30 @@ describe("ThreadsAdapter — fetchAnalytics", () => {
       ],
     });
 
-    const result = await adapter.fetchAnalytics({ channelId: "channel-tr-1" });
+    const result = await adapter.fetchAnalytics({ channelId: "channel-tr-1" }, MOCK_CREDENTIALS);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const data = result.value as { metrics: Array<{ postId: string; shares: number }> };
     expect(data.metrics).toHaveLength(1);
     expect(data.metrics[0]!.postId).toBe("post-1");
-    expect(data.metrics[0]!.shares).toBe(3); // reposts + quotes
+    expect(data.metrics[0]!.shares).toBe(3);
   });
 
   it("returns NETWORK when the posts list request fails", async () => {
     const adapter = new ThreadsAdapter();
-    mockCreds(adapter);
 
     queueResponse({}, false, 500);
 
-    const result = await adapter.fetchAnalytics({ channelId: "channel-tr-1" });
+    const result = await adapter.fetchAnalytics({ channelId: "channel-tr-1" }, MOCK_CREDENTIALS);
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error).toBe("NETWORK");
   });
 
-  it("returns AUTH when credentials are unavailable", async () => {
+  it("returns AUTH when credentials are missing required fields", async () => {
     const adapter = new ThreadsAdapter();
-    vi.spyOn(adapter as never as { getCredentials: unknown }, "getCredentials").mockImplementation(
-      async () => err("AUTH")
-    );
 
-    const result = await adapter.fetchAnalytics({ channelId: "channel-tr-1" });
+    const result = await adapter.fetchAnalytics({ channelId: "channel-tr-1" }, { accessToken: "" });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error).toBe("AUTH");

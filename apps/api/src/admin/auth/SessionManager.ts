@@ -19,6 +19,7 @@ import type {
 } from "./adminAuthTypes";
 import { adminAuthConfig } from "./adminAuthConfig";
 import { TokenService } from "./TokenService";
+import { hashRefreshToken } from "../../auth/refreshTokenHash.js";
 
 export class SessionManager {
   private tokenService: TokenService;
@@ -40,10 +41,21 @@ export class SessionManager {
     const expirationDays = rememberMe ? 30 : 7;
     const expiresAt = new Date(Date.now() + expirationDays * 24 * 60 * 60 * 1000);
 
-    // Create session in database - build data object conditionally
-    const sessionData: Record<string, unknown> = {
+    // Pre-allocate session id so we can mint the refresh token (which embeds
+    // the session id) before the row exists. The hash goes into the row at
+    // create time — never a placeholder, since the column is `@unique`.
+    const sessionId = crypto.randomUUID();
+    const refreshToken = this.tokenService.generateRefreshToken(
       userId,
-      refreshToken: "", // Will be updated after generating
+      sessionId,
+      rememberMe,
+      device.deviceId
+    );
+
+    const sessionData: Record<string, unknown> = {
+      id: sessionId,
+      userId,
+      refreshTokenHash: hashRefreshToken(refreshToken),
       csrfToken,
       ipAddress: device.ipAddress,
       userAgent: device.userAgent,
@@ -61,20 +73,6 @@ export class SessionManager {
 
     const session = await prisma.adminSession.create({
       data: sessionData as Parameters<typeof prisma.adminSession.create>[0]["data"],
-    });
-
-    // Generate tokens
-    const refreshToken = this.tokenService.generateRefreshToken(
-      userId,
-      session.id,
-      rememberMe,
-      device.deviceId
-    );
-
-    // Update session with refresh token
-    await prisma.adminSession.update({
-      where: { id: session.id },
-      data: { refreshToken },
     });
 
     // Get user for access token

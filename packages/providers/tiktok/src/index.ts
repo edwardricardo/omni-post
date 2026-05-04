@@ -1,13 +1,18 @@
 /**
  * @file index.ts
- * @description Public entry point for the TikTok provider — exports the class-based
- *              TikTokAdapter and its shared instance.
+ * @description TikTok provider package barrel export. Composition root constructs
+ *   the adapter via `createTikTokAdapter({ logger, ... })`.
  * @layer infrastructure
  */
 
-// Export class and instance
-export { TikTokAdapter, tiktokAdapter } from "./TikTokAdapter.js";
-
-// Default export
-import { tiktokAdapter } from "./TikTokAdapter.js";
-export default tiktokAdapter;
+export {
+  TikTokAdapter,
+  createTikTokAdapter,
+  type TikTokAdapterDeps,
+  type TikTokApiClientFactory,
+  type ResearchClientFactory,
+  type MarketingClientFactory,
+  type TikTokProviderCredentials,
+} from "./TikTokAdapter.js";
+export { TikTokApiClient } from "./apiClient.js";
+export type { TikTokCredentials } from "./apiClient.js";

@@ -340,6 +340,57 @@ export class AuditService extends BaseService {
       }
     );
   }
+
+  /**
+   * @method logCredentialDecrypt
+   * @description Emit an audit event for every credential decryption.
+   *   Implements OWASP ASVS V16.3.2 (L3): "logging when sensitive data is
+   *   accessed (without logging the sensitive data itself)". The plaintext
+   *   never reaches this method — only the structured context. Read-side
+   *   audit only; encrypts are not audited (the *write* of an encrypted
+   *   value is its own create/update event, audited via repos elsewhere).
+   *
+   *   Request-scoped fields (userId, ipAddress, userAgent, correlationId)
+   *   are auto-enriched from `decryptAuditContext` AsyncLocalStorage when
+   *   running inside a Fastify request. Workers / cron / tests run outside
+   *   any request scope — in those cases the audit row carries only the
+   *   field/record/caller, which honestly reflects "system-initiated decrypt".
+   * @param event - Structured context provided by EncryptionService.
+   *   `success: false` indicates AAD mismatch or auth tag failure.
+   */
+  async logCredentialDecrypt(event: {
+    fieldName: string;
+    recordId: string;
+    caller?: string;
+    success: boolean;
+    error?: string;
+  }): Promise<void> {
+    // Lazy import to avoid a circular dep — the security layer imports from
+    // the audit layer when wiring DI, but the audit module is loaded during
+    // the request lifecycle so the AsyncLocalStorage value is available.
+    const { getRequestAuditContext } = await import("../security/decryptAuditContext.js");
+    const ctx = getRequestAuditContext();
+
+    const params: CreateAuditLogParams = {
+      action: AuditActions.CREDENTIAL_DECRYPTED,
+      resource: event.fieldName,
+      resourceId: event.recordId,
+      success: event.success,
+      details: {
+        fieldName: event.fieldName,
+        ...(event.caller !== undefined && { caller: event.caller }),
+        ...(ctx?.correlationId !== undefined && { correlationId: ctx.correlationId }),
+      },
+      ...(ctx?.userId !== undefined && { userId: ctx.userId }),
+      ...(ctx?.ipAddress !== undefined && { ipAddress: ctx.ipAddress }),
+      ...(ctx?.userAgent !== undefined && { userAgent: ctx.userAgent }),
+      ...(event.error !== undefined && { error: event.error }),
+    };
+
+    // Fire-and-forget at the EncryptionService layer; here we just await
+    // so the test surface can assert on the persistence behaviour.
+    await this.log(params);
+  }
 }
 
 // Singleton instance
@@ -391,6 +442,10 @@ export const AuditActions = {
   API_KEY_GENERATED: "API_KEY_GENERATED",
   MFA_ENABLED: "MFA_ENABLED",
   MFA_DISABLED: "MFA_DISABLED",
+  // Sensitive-data access (ASVS V16.3.2): every credential decrypt emits
+  // this action with fieldName + recordId + (optional) caller in details.
+  // The plaintext NEVER reaches the audit row.
+  CREDENTIAL_DECRYPTED: "CREDENTIAL_DECRYPTED",
 } as const;
 
 // Resources

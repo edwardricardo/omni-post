@@ -8,7 +8,7 @@ import { ok, err, AppError, type Result } from "@shared/types";
 import { type InstagramCredentials } from "./apiClient.js";
 import { InstagramMediaProcessor, type VideoSplitOptions } from "./mediaProcessor.js";
 import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
-import { createBullMQQueueAdapter } from "@adapters/queue-bullmq";
+import { createBullMQQueueAdapter, QUEUE_NAMES } from "@adapters/queue-bullmq";
 import client from "prom-client";
 import { createLogger } from "@observability/logger";
 
@@ -60,7 +60,7 @@ const registry = new client.Registry();
 const circuitBreaker = createExternalApiCircuitBreaker(registry, process.env.REDIS_URL);
 
 export class InstagramSchedulingService {
-  private queueAdapter = createBullMQQueueAdapter();
+  private queueAdapter = createBullMQQueueAdapter({ queueName: QUEUE_NAMES.PUBLISH });
   private mediaProcessor: InstagramMediaProcessor;
 
   constructor() {

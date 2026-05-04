@@ -1,11 +1,13 @@
 /**
  * @file index.ts
- * @description Public entry point for the Threads (Meta) provider — exports ThreadsAdapter
- *              and its shared instance.
+ * @description Threads (Meta) provider package barrel export. Composition root
+ *   constructs the adapter via `createThreadsAdapter({ logger })`.
  * @layer infrastructure
  */
 
-export { ThreadsAdapter, threadsAdapter } from "./ThreadsAdapter.js";
-
-import { threadsAdapter } from "./ThreadsAdapter.js";
-export default threadsAdapter;
+export {
+  ThreadsAdapter,
+  createThreadsAdapter,
+  type ThreadsAdapterDeps,
+  type ThreadsCredentials,
+} from "./ThreadsAdapter.js";

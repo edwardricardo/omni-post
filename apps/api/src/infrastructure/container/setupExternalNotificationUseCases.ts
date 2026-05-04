@@ -29,7 +29,11 @@ export function setupExternalNotificationUseCases(container: Container): void {
   // Repository
   container.register<ExternalNotificationConfigRepository>(
     TOKENS.ExternalNotificationConfigRepository,
-    () => new PrismaExternalNotificationConfigRepository(container.resolve(TOKENS.PrismaClient)),
+    () =>
+      new PrismaExternalNotificationConfigRepository(
+        container.resolve(TOKENS.PrismaClient),
+        container.resolve(TOKENS.EncryptionService)
+      ),
     true
   );
 

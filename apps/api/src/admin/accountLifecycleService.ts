@@ -21,7 +21,7 @@ const adminLogger = logger.child({ module: "admin" });
 import type { AdminSession } from "@infra/prisma";
 import type { AdminUserDto } from "../domain/repositories/ReadModelDtos.js";
 import { AuditableService } from "../services/AuditableService.js";
-import argon2 from "argon2";
+import { hashPassword } from "../auth/passwordHashing.js";
 import type { AdminUserRepositoryPort } from "../domain/repositories/AdminUserRepository.js";
 import type {
   AccountProfile,
@@ -75,12 +75,7 @@ export class AccountLifecycleService extends AuditableService {
       }
 
       // Hash password
-      const passwordHash = await argon2.hash(data.password, {
-        type: argon2.argon2id,
-        memoryCost: 65536,
-        timeCost: 3,
-        parallelism: 4,
-      });
+      const passwordHash = await hashPassword(data.password);
 
       // Create user with audit logging
       const user = await this.executeWithAudit(

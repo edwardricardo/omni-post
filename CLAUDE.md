@@ -456,23 +456,33 @@ Full caching architecture rationale: `docs/architecture/caching.md`.
 
 ## Secrets and Environment
 
-**All env access in `apps/api/src/**`MUST go through the typed`env`constant from`apps/api/src/config/env.ts`— never`process.env.X`directly, never a`process.env.X || "fallback"` pattern.\*\*
+**All env access MUST go through a typed `env` constant — never `process.env.X` directly, never a `process.env.X || "fallback"` pattern.**
 
-The schema lives at `apps/api/src/config/env.ts` and defines every variable the API and workers consume. It is parsed once at module load via Zod; if any required key is missing or malformed, the API refuses to boot with a precise error. There is no warn-and-continue — the previous `getRequiredSecret(name, devFallback)` helper was retired.
+Three apps, three env modules — same shape:
 
-| Scope                                  | Pattern                                                                                          |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Read a value                           | `import { env } from ".../config/env.js"; env.MY_VAR`                                            |
-| Add a new var                          | Add to `envSchema` with `(required \| optional \| default)`, then update `.env.example`          |
-| Conditional secret (e.g. Stripe)       | Schema marks optional; factory throws at construction if the toggle requires it                  |
-| Test fixture                           | Set in `.env.test` at root; tests should not mutate `process.env` at runtime                     |
-| Runtime-mutable allowlist (non-secret) | Extract to a factory function that takes the allowlist as a parameter (cf. `makeMediaUrlSchema`) |
+| App / package     | Env module                   | Library                    | Notes                                                   |
+| ----------------- | ---------------------------- | -------------------------- | ------------------------------------------------------- |
+| `apps/api/src/**` | `apps/api/src/config/env.ts` | `@t3-oss/env-core` + Zod   | Server-only env; consumed by Fastify + workers.         |
+| `apps/admin/**`   | `apps/admin/lib/env.ts`      | `@t3-oss/env-nextjs` + Zod | Server/client split via `clientPrefix: "NEXT_PUBLIC_"`. |
+| `apps/client/**`  | `apps/client/lib/env.ts`     | `@t3-oss/env-nextjs` + Zod | Same pattern as admin.                                  |
 
-- **Fail-fast required, no fallbacks for secrets** (CWE-798). CI fitness greps #15 + #16 enforce this in `apps/api/src` and `apps/workers/src`.
+Every module parses `process.env` once at module load. If any required key is missing or malformed, the app refuses to boot with a precise error. There is no warn-and-continue.
+
+| Scope                                  | Pattern                                                                                                                                |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Read a value                           | `import { env } from ".../env.js"; env.MY_VAR`                                                                                         |
+| Add a new var (api)                    | Add to `server: {...}` block in `apps/api/src/config/env.ts`; update `.env.example`                                                    |
+| Add a new var (Next.js)                | Server-only → `server: {...}`. Browser-exposed → `client: {...}` (key MUST start with `NEXT_PUBLIC_`); also add to `runtimeEnv: {...}` |
+| Conditional secret (e.g. Stripe)       | Schema marks optional; factory throws at construction if the toggle requires it                                                        |
+| Test fixture                           | Set in `.env.test` at root; tests should not mutate `process.env` at runtime                                                           |
+| Runtime-mutable allowlist (non-secret) | Extract to a factory function that takes the allowlist as a parameter (cf. `makeMediaUrlSchema`)                                       |
+
+- **Fail-fast required, no fallbacks for secrets** (CWE-798). CI fitness greps #15 + #16 + #17 enforce this in `apps/api/src`, `apps/workers/src`, and the Next.js apps respectively.
 - **Single source of truth on disk**: root `.env` for dev, root `.env.test` for tests. Per-app `.env`s were removed.
-- **`packages/providers/*` are out of scope** — they still read `process.env` directly (~25 occurrences). The canonical fix is constructor injection (PR-40 backlog), not a wider env-import refactor.
+- **Browser bundle leak prevention**: Next.js `clientPrefix: "NEXT_PUBLIC_"` enforced — referencing a server-only env var (e.g. `env.SENTRY_DSN`) from a client component throws at runtime via `onInvalidAccess`, surfacing the leak before it reaches users.
 
 Full secrets architecture rationale: `docs/architecture/secrets-and-env.md`.
+Operational reference (where every secret lives + how to rotate it): `docs/security/SECRETS.md`.
 
 ---
 
@@ -809,7 +819,7 @@ All comments in **English**.
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request`. Threshold: **hard-zero** for all 16 — any new occurrence fails the workflow with an `::error` annotation. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request`. Threshold: **hard-zero** for all 18 — any new occurrence fails the workflow with an `::error` annotation. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 ```bash
 # 1. No Prisma singleton imports in routes
@@ -842,10 +852,13 @@ grep -rn "prisma\." apps/api/src/cqrs/handlers/ --include="*.ts" | wc -l
 grep -rn "dedupeKey.*randomUUID\|dedupeKey.*Math.random" \
   apps/api/src/ packages/ --include="*.ts" | wc -l
 
-# 8. No sprint references in source comments (repo-wide, excluding test sandboxes)
-grep -rn "Part of Sprint\|Phase.*Sprint\|Sprint [0-9]" apps/ packages/ \
-  --include="*.ts" --include="*.tsx" | \
-  grep -vE "node_modules|dist|\.next|\.stryker-tmp|\.stryker|reports/mutation" | wc -l
+# 8. No sprint/phase references in source comments (repo-wide, excluding test sandboxes
+# and Prisma's generated client mirror). Catches: "Sprint N", "Sprint X", "Phase N",
+# "Part of Sprint X", and the legacy "T0A_" / "T0-A" task-batch prefixes used during
+# remediation. All belong in git history, not source comments where they rot.
+grep -rnE "Part of Sprint|Phase.*Sprint|Sprint [0-9A-Z]|Phase [0-9]|T0A_|T0-A" \
+  apps/ packages/ infra/ --include="*.ts" --include="*.tsx" --include="*.prisma" | \
+  grep -vE "node_modules|dist|\.next|\.stryker-tmp|\.stryker|reports/mutation|infra/prisma/generated/" | wc -l
 
 # 9. No files missing @file header (all repo, target: 0).
 # Excludes Next.js auto-generated `next-env.d.ts` (regenerated on every build,
@@ -893,16 +906,17 @@ grep -rnE "^import pino\b|^const \w+ = pino\(" apps/api/src --include="*.ts" | \
 grep -rnE "^\s+private \w*[Cc]ache.*= new Map" apps/api/src --include="*.ts" | \
   grep -v "\.test\.\|/tests/" | wc -l
 
-# 15. No insecure secret fallbacks (CWE-798) in apps/api/src + apps/workers/src.
+# 15. No insecure secret fallbacks (CWE-798) in apps/api/src + apps/workers/src
+# + packages/providers/*/src.
 # Reason: `process.env.X || "dev-only-..."`, `... ?? ""`, `... || generated()`
 # patterns let the app boot with hard-coded / empty / per-restart secrets,
 # masking misconfiguration in dev and shipping insecurely to prod. The fix
-# is the typed env constant from apps/api/src/config/env.ts (Zod fail-fast).
-# Scope is apps/* only — packages/providers/* still has ~25 occurrences
-# (PR-40 backlog: provider constructor injection refactor).
+# is the typed env constant from apps/api/src/config/env.ts (Zod fail-fast)
+# in app code, and constructor injection of secrets into provider apiClients.
+# Excludes `_template` (scaffolding example).
 grep -rnE "process\.env\.[A-Z_]*(SECRET|KEY|PASSWORD|TOKEN|CREDENTIAL)[A-Z_]*\s*(\|\||\?\?)" \
-  apps/api/src apps/workers/src --include="*.ts" | \
-  grep -v "node_modules\|\.test\.\|/tests/\|\.stryker\|/dist/\|config/env\.ts" | wc -l
+  apps/api/src apps/workers/src packages/providers --include="*.ts" | \
+  grep -v "node_modules\|\.test\.\|/tests/\|\.stryker\|/dist/\|config/env\.ts\|providers/_template/" | wc -l
 
 # 16. No direct `process.env.*` in apps/api/src outside config/env.ts.
 # Reason: forces every consumer to go through the Zod-validated `env` constant
@@ -912,6 +926,42 @@ grep -rnE "process\.env\.[A-Z_]*(SECRET|KEY|PASSWORD|TOKEN|CREDENTIAL)[A-Z_]*\s*
 # runtime-readable everywhere (libraries, tests) and Zod still validates it.
 grep -rn "process\.env\." apps/api/src --include="*.ts" | \
   grep -v "config/env\.ts\|/tests/\|\.test\.\|process\.env\.NODE_ENV\b" | wc -l
+
+# 17. No direct `process.env.*` in Next.js apps outside lib/env.ts.
+# Reason: Webpack DefinePlugin inlines client `process.env` reads at build time
+# — a `process.env.SECRET` referenced in a client component leaks the value
+# into the browser bundle. Routing every consumer through `lib/env.ts`
+# (@t3-oss/env-nextjs) enforces server/client split via the `clientPrefix`
+# convention and fails build when a server secret is referenced from client
+# code. Exception: process.env.NODE_ENV (Node ecosystem) + playwright config
+# (runs outside Next bundle).
+grep -rnE "process\.env\." \
+    apps/admin/{app,components,hooks,lib,providers} \
+    apps/client/{app,components,hooks,lib,providers} \
+    --include="*.ts" --include="*.tsx" | \
+  grep -v "lib/env\.ts\|process\.env\.NODE_ENV\b\|/tests/\|\.test\." | wc -l
+
+# 19. No `process.env.*` reads inside provider Adapter classes
+# (`packages/providers/*/src/*Adapter.ts`). Reason: provider adapters are
+# stateless and receive credentials per-call from the application layer's
+# CredentialResolver. Any env read inside the adapter file reintroduces the
+# CWE-798 anti-pattern by smuggling secrets through the module rather than via
+# constructor / parameter injection. Operational config (REDIS_URL, etc.) that
+# legitimately lives in the apiClient layer is allowed there but NOT in the
+# adapter file. Excludes `_template`.
+grep -rnE "process\.env\." packages/providers/*/src/*Adapter.ts 2>/dev/null | \
+  grep -v "providers/_template/\|\.stryker\|/dist/" | wc -l
+
+# 18. No direct `argon2.hash` / `argon2.verify` outside the canonical helper
+# (`apps/api/src/auth/passwordHashing.ts`). Reason: every password / API-key /
+# backup-code hash must use identical Argon2id parameters (RFC 9106 second-
+# recommended: m=64MiB, t=3, p=4, hashLength=32, type=argon2id). Direct calls
+# scattered across files cause drift — one site uses lib defaults, another
+# passes weaker params, none use `needsRehash` for transparent rehash on
+# login. Route everything through `hashPassword` / `verifyPassword` /
+# `needsRehash` from the helper.
+grep -rnE "argon2\.(hash|verify)\(" apps/api/src --include="*.ts" | \
+  grep -v "passwordHashing\.ts\|/tests/\|\.test\." | wc -l
 ```
 
 **Extending the suite.** Adding a new fitness check requires three coordinated edits, in order:

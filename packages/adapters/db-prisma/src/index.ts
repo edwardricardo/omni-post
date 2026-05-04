@@ -67,6 +67,12 @@ export {
 
 export function createPrismaRepoAdapter(options?: {
   scheduler?: BackgroundTaskScheduler;
+  decryptChannelCredentials?: (envelope: {
+    credentialsCiphertext: string;
+    credentialsIv: string;
+    credentialsAuthTag: string;
+    credentialsKeyVersion: number;
+  }) => Record<string, unknown>;
 }): RepoPort & {
   getDatabaseHealthMetrics(): DatabaseHealthMetrics;
   close(): Promise<void>;
@@ -133,7 +139,11 @@ export function createPrismaRepoAdapter(options?: {
   const accountRepo = createAccountRepository(readOperationBreaker, writeOperationBreaker);
   const projectRepo = createProjectRepository();
   const postRepo = createPostRepository(transactionBreaker);
-  const channelRepo = createChannelRepository();
+  const channelRepo = createChannelRepository(
+    options?.decryptChannelCredentials
+      ? { decryptCredentials: options.decryptChannelCredentials }
+      : {}
+  );
   const publishLogRepo = createPublishLogRepository();
   const analyticsRepo = createAnalyticsRepository();
   const threadRepo = createThreadRepository();

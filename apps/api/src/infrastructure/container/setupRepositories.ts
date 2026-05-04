@@ -123,7 +123,11 @@ export function setupRepositories(container: Container): void {
 
   container.register<ChannelRepository>(
     TOKENS.ChannelRepository,
-    () => new PrismaChannelRepository(container.resolve(TOKENS.PrismaClient)),
+    () =>
+      new PrismaChannelRepository(
+        container.resolve(TOKENS.PrismaClient),
+        container.resolve(TOKENS.ChannelCredentialsCrypto)
+      ),
     true
   );
 

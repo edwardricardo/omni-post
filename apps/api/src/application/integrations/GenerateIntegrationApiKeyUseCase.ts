@@ -8,7 +8,7 @@
  */
 
 import { randomBytes } from "node:crypto";
-import argon2 from "argon2";
+import { hashPassword } from "../../auth/passwordHashing.js";
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import type { IntegrationApiKeyRepository } from "../../domain/repositories/IntegrationApiKeyRepository.js";
@@ -79,7 +79,7 @@ export class GenerateIntegrationApiKeyUseCase implements UseCase<
       const plainKey = `${keyPrefixStr}${randomPart}`;
 
       // Compute hash and prefix
-      const keyHash = await argon2.hash(plainKey);
+      const keyHash = await hashPassword(plainKey);
       const keyPrefix = plainKey.substring(0, KEY_PREFIX_VISIBLE_LENGTH);
 
       // Create domain entity

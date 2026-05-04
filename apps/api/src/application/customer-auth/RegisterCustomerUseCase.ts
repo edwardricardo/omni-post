@@ -12,7 +12,7 @@ import type { AccountRepositoryPort } from "../../domain/repositories/AccountRep
 import { Account, type SubscriptionTierValue } from "../../domain/entities/Account.js";
 import { CustomerUser, CUSTOMER_ROLE } from "../../domain/entities/CustomerUser.js";
 import { randomBytes } from "crypto";
-import argon2 from "argon2";
+import { hashPassword } from "../../auth/passwordHashing.js";
 import type { AccountSubscriptionPort } from "../../domain/repositories/AccountSubscriptionPort.js";
 import type { EmailPort } from "../../domain/repositories/EmailPort.js";
 import type { PlatformCredentialService } from "../../security/PlatformCredentialService.js";
@@ -94,12 +94,7 @@ export class RegisterCustomerUseCase {
     const account = accountResult.value;
 
     // Hash password (application layer responsibility)
-    const passwordHash = await argon2.hash(input.password, {
-      type: argon2.argon2id,
-      memoryCost: 65536,
-      timeCost: 3,
-      parallelism: 4,
-    });
+    const passwordHash = await hashPassword(input.password);
 
     // Create CustomerUser domain entity
     const userId = randomBytes(12).toString("hex");

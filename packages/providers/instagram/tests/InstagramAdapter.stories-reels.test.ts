@@ -474,10 +474,13 @@ describe("InstagramAdapter - Stories and Reels Publishing", () => {
   });
 
   describe("Integration Points", () => {
-    it("should integrate with InstagramApiClient", () => {
-      // Adapter creates API client with credentials
-      // API client methods: createStoriesContainer, createReelsContainer, etc.
-      assert.ok((adapter as any).createApiClient, "Should have createApiClient method");
+    it("should accept an injected apiClientFactory dependency", () => {
+      // Composition root injects a factory that constructs InstagramApiClient
+      // from credentials. Verifies the constructor accepts the dep without throwing.
+      const customAdapter = new InstagramAdapter({
+        apiClientFactory: (() => ({}) as never) as never,
+      });
+      assert.ok(customAdapter, "Should accept apiClientFactory in constructor");
     });
 
     it("should integrate with InstagramMediaProcessor", () => {

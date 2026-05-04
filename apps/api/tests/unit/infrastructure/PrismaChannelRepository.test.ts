@@ -1,7 +1,6 @@
 /**
  * Infrastructure Layer - Prisma Channel Repository Unit Tests
  *
- * Part of FASE H4b / H12: Hexagonal Architecture - Prisma Adapters + Soft Delete
  * Tests PrismaChannelRepository in isolation using a mocked PrismaClient.
  * Tier 0: No database required.
  *
@@ -11,18 +10,41 @@
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";
+import { randomBytes } from "node:crypto";
 import { PrismaChannelRepository } from "../../../src/infrastructure/repositories/PrismaChannelRepository.js";
+import { ChannelCredentialsCrypto } from "../../../src/security/ChannelCredentialsCrypto.js";
+import { EncryptionService } from "../../../src/security/EncryptionService.js";
 import { ChannelId, ProjectId } from "../../../src/domain/index.js";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
+const TEST_KEY = randomBytes(32).toString("base64");
+const sharedEncryption = new EncryptionService({
+  activeKeyBase64: TEST_KEY,
+  activeKeyVersion: 1,
+});
+const sharedCrypto = new ChannelCredentialsCrypto(sharedEncryption);
+
+/**
+ * Builds a Channel row with credentials already encrypted via the shared
+ * crypto helper, so `repo.findById` returns a valid Channel domain entity.
+ */
 function baseRow() {
+  // Match the recordId the repository uses on read (`row.id`).
+  const enc = sharedCrypto.encrypt(
+    { accessToken: "tok_123", refreshToken: "ref_456" },
+    { recordId: "f0000000-0000-4000-8000-000000000001" }
+  );
   return {
     id: "f0000000-0000-4000-8000-000000000001",
     projectId: "b0000000-0000-4000-8000-000000000001",
     provider: "X",
     handle: "@myaccount",
-    credentials: { accessToken: "tok_123", refreshToken: "ref_456" },
+    credentialsCiphertext: enc.credentialsCiphertext,
+    credentialsIv: enc.credentialsIv,
+    credentialsAuthTag: enc.credentialsAuthTag,
+    credentialsKeyVersion: enc.credentialsKeyVersion,
+    isPrimary: false,
     createdAt: new Date("2026-01-01"),
     updatedAt: new Date("2026-01-01"),
   };
@@ -50,7 +72,7 @@ describe("PrismaChannelRepository", () => {
 
   beforeEach(() => {
     prisma = makeMockPrisma();
-    repo = new PrismaChannelRepository(prisma as never);
+    repo = new PrismaChannelRepository(prisma as never, sharedCrypto);
   });
 
   describe("findById", () => {

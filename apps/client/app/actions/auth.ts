@@ -13,10 +13,11 @@ import { redirect } from "next/navigation";
 import { ConsoleLoggerAdapter } from "@observability/browser-logger";
 
 import { setSessionCookie, setRefreshCookie, readAuthTokens } from "@/lib/auth/sessionCookie";
+import { env } from "../../lib/env";
 
 const log = new ConsoleLoggerAdapter("client.auth-actions", { alwaysEmit: true });
 
-const API_URL = process.env.API_URL || "http://localhost:3000";
+const API_URL = env.API_URL || "http://localhost:3000";
 
 // Action state type
 export interface AuthActionState {

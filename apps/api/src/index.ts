@@ -33,7 +33,6 @@ import Fastify, { FastifyInstance, FastifyRequest, FastifyReply } from "fastify"
 import { z } from "zod";
 import { serializerCompiler, validatorCompiler, ZodTypeProvider } from "fastify-type-provider-zod";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
-import { setChannelCredentialsRepository } from "@providers/shared";
 import { closeDatabaseConnections, prisma } from "@infra/prisma";
 import type { QueuePortRegistry } from "@ports/core";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
@@ -231,11 +230,6 @@ async function createApp(): Promise<FastifyInstance> {
   const queueAdapter = queueRegistry.forQueue(QUEUE_NAMES.PUBLISH);
   const storageAdapter = createStorageAdapter();
 
-  // Wire the channel-credentials port so provider adapters (which live in
-  // `@providers/*`) can resolve channel credentials from the database without
-  // importing `@adapters/db-prisma` themselves.
-  setChannelCredentialsRepository(repoAdapter);
-
   // Initialize dead letter queue
   const _deadLetterQueue = createDeadLetterQueue({
     redisUrl: getRedisUrl(),
@@ -398,6 +392,26 @@ async function createApp(): Promise<FastifyInstance> {
   // IP allowlist enforcement (reads SecuritySettings from DB, 60s cache)
   const { createIpAllowlistMiddleware } = await import("./security/ipAllowlistMiddleware.js");
   typedApp.addHook("onRequest", createIpAllowlistMiddleware(prisma));
+
+  // Bind request-scoped audit context to AsyncLocalStorage so every
+  // EncryptionService.decrypt() invocation triggered by this request
+  // emits an AuditLog row enriched with userId / ipAddress / correlationId.
+  // Workers and cron run outside any request scope and emit decrypt audit
+  // events without these fields — which honestly reflects "system-initiated".
+  const { withRequestAuditContext } = await import("./security/decryptAuditContext.js");
+  typedApp.addHook("onRequest", (request, _reply, done) => {
+    const ctx = {
+      ...(request.id !== undefined && { correlationId: String(request.id) }),
+      ...(request.ip !== undefined && { ipAddress: request.ip }),
+      ...(request.headers["user-agent"] !== undefined && {
+        userAgent: String(request.headers["user-agent"]),
+      }),
+      // userId is populated post-auth — auth middleware sets request.user
+      // before any decrypt happens; we read it lazily inside the audit
+      // emitter so the latest value flows through.
+    };
+    withRequestAuditContext(ctx, () => done());
+  });
 
   // CSRF token validation on state-changing admin requests
   const { createCsrfMiddleware } = await import("./security/csrfMiddleware.js");

@@ -168,31 +168,31 @@ model AdminUser {
 }
 
 model AdminSession {
-  id             String    @id @default(uuid())
-  userId         String
-  refreshToken   String    @unique
-  accessToken    String? // Optional - can store for tracking
-  ipAddress      String?
-  userAgent      String?
-  isActive       Boolean   @default(true)
-  expiresAt      DateTime  @db.Timestamptz(6)
-  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
-  revokedAt      DateTime? @db.Timestamptz(6)
-  csrfToken      String    @unique @default(uuid())
-  deviceId       String?
-  deviceName     String?
-  location       Json?
-  lastActivityAt DateTime  @default(now()) @db.Timestamptz(6)
-  revokedBy      String?
-  revokeReason   String?
+  id String @id @default(uuid())
+  userId String
+  // SHA-256 hex digest of the refresh JWT. Plaintext token only exists in
+  // the user's cookie / Authorization header; lookups hash the incoming
+  // value and compare against this column. Same canonical pattern as
+  // ApiKey.keyHash — protects against DB exfiltration leaking live tokens.
+  refreshTokenHash String   @unique
+  ipAddress        String?
+  userAgent        String?
+  isActive         Boolean  @default(true)
+  expiresAt        DateTime @db.Timestamptz(6)
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  revokedAt        DateTime? @db.Timestamptz(6)
+  csrfToken        String   @unique @default(uuid())
+  deviceId         String?
+  deviceName       String?
+  location         Json?
+  lastActivityAt   DateTime @default(now()) @db.Timestamptz(6)
+  revokedBy        String?
+  revokeReason     String?
 
   // Relationships
   user AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, isActive])
-  // @@index([refreshToken]) - REMOVED: Already unique indexed
-  // @@index([expiresAt]) - REMOVED: Covered by [isActive, expiresAt]
-  // @@index([createdAt]) - REMOVED: Low value for sessions
   @@index([isActive, expiresAt])
   @@index([deviceId])
   @@index([lastActivityAt])
@@ -620,7 +620,7 @@ model Post {
   projectId                 String
   status                    String                    @default("DRAFT")
   scheduledAt               DateTime?                 @db.Timestamptz(6)
-  publishedAt               DateTime?                 @db.Timestamptz(6) // ✅ Phase 1: Added missing field referenced in code
+  publishedAt               DateTime?                 @db.Timestamptz(6)
   createdAt                 DateTime                  @default(now()) @db.Timestamptz(6)
   updatedAt                 DateTime                  @updatedAt @db.Timestamptz(6)
   project                   Project                   @relation(fields: [projectId], references: [id])
@@ -630,8 +630,8 @@ model Post {
   publishingQueue           PublishingQueue[]
   contentVersions           ContentVersion[]
   webhookEvents             WebhookEvent[]
-  analytics                 Analytics[] // ✅ Phase 1: Added relationship (fixes N+1 queries)
-  publishLogs               PublishLog[] // ✅ Phase 1: Added relationship (fixes N+1 queries)
+  analytics                 Analytics[]
+  publishLogs               PublishLog[]
   approvalRequests          ApprovalRequest[]
   comments                  PostComment[]
   socialMessages            SocialMessage[]
@@ -696,11 +696,25 @@ model PostMedia {
 }
 
 model Channel {
-  id                        String                    @id @default(uuid())
-  projectId                 String
-  provider                  Provider
-  handle                    String
-  credentials               Json
+  id        String   @id @default(uuid())
+  projectId String
+  provider  Provider
+  handle    String
+  // Provider-side account ID (Facebook page_id, Instagram account_id, X user_id, etc.).
+  // Non-secret — kept as a queryable column so webhook processors can resolve a
+  // channel by provider-supplied entity ID without needing to decrypt the
+  // credentials envelope. Populated alongside credentials at OAuth-callback time.
+  providerAccountId String?
+  // OAuth tokens + per-provider metadata, wrapped via EncryptionService
+  // (AES-256-GCM). Plaintext only exists in-memory at request time —
+  // ChannelService decrypts on read, encrypts on write. Stored as a
+  // JSON-serialised envelope: the original credentials object is
+  // canonicalised, encrypted, and the ciphertext + IV + auth tag live
+  // in separate columns alongside the key version that wrapped them.
+  credentialsCiphertext String
+  credentialsIv         String
+  credentialsAuthTag    String
+  credentialsKeyVersion Int                       @default(1)
   isPrimary                 Boolean                   @default(false)
   createdAt                 DateTime                  @default(now()) @db.Timestamptz(6)
   updatedAt                 DateTime                  @updatedAt @db.Timestamptz(6)
@@ -727,6 +741,8 @@ model Channel {
   @@index([createdAt], where: { deletedAt: null })
   @@index([deletedAt])
   @@index([needsReauth], where: { needsReauth: true }, map: "Channel_needsReauth_idx")
+  @@index([credentialsKeyVersion])
+  @@index([provider, providerAccountId], where: { deletedAt: null })
 }
 
 model TrackedLink {
@@ -783,15 +799,15 @@ model PublishLog {
   dedupeKey String    @unique
   createdAt DateTime  @default(now()) @db.Timestamptz(6)
   status    LogStatus
-  post      Post?     @relation(fields: [postId], references: [id], onDelete: SetNull) // ✅ Phase 1: Added relationship
-  channel   Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade) // ✅ Phase 1: Added relationship
+  post      Post?     @relation(fields: [postId], references: [id], onDelete: SetNull)
+  channel   Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
   // @@index([createdAt]) - REMOVED: Covered by composite indexes above
 
   @@index([channelId, status, createdAt])
   @@index([postId, provider, createdAt])
   @@index([status, createdAt])
   @@index([provider, createdAt])
-  @@index([postId, createdAt]) // ✅ Phase 4: For post publish history queries
+  @@index([postId, createdAt])
 }
 
 model Analytics {
@@ -804,8 +820,8 @@ model Analytics {
   comments   Int?     @default(0)
   shares     Int?     @default(0)
   capturedAt DateTime @default(now()) @db.Timestamptz(6)
-  post       Post?    @relation(fields: [postId], references: [id], onDelete: Cascade) // ✅ Phase 1: Added relationship (CRITICAL for N+1 fix)
-  channel    Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade) // ✅ Phase 1: Added relationship
+  post       Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  channel    Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
 
   @@index([postId, provider, capturedAt])
   @@index([channelId, capturedAt])
@@ -1113,7 +1129,7 @@ model ContentVersion {
   @@index([approvedAt])
   @@index([createdAt])
   @@index([updatedAt])
-  @@index([postId, createdAt]) // ✅ Phase 4: For version history queries sorted by creation
+  @@index([postId, createdAt])
 }
 
 enum Provider {
@@ -1606,7 +1622,7 @@ model WebhookDeadLetter {
   @@index([resolvedAt])
 }
 
-// ─── Outbox Dead Letter (Sprint D) ──────────────────────────────────────────
+// ─── Outbox Dead Letter ─────────────────────────────────────────────────────
 
 model OutboxDeadLetter {
   id              String    @id @default(cuid())
@@ -2086,7 +2102,7 @@ model SagaInstance {
   @@index([completedAt])
 }
 
-// Social Inbox - Phase 2
+// Social Inbox
 
 enum SocialMessageType {
   COMMENT
@@ -2223,7 +2239,7 @@ model SocialOutboundReply {
 }
 
 // ============================================================================
-// Phase 3: Analytics & Reporting
+// Analytics & Reporting
 // ============================================================================
 
 model Campaign {
@@ -2330,23 +2346,30 @@ model ScheduledReport {
 }
 
 // =============================================
-// Phase 4: Platform Expansion + Quick Wins
+// Platform Expansion + Quick Wins
 // =============================================
 
 model ExternalNotificationConfig {
-  id         String   @id @default(uuid())
-  projectId  String
-  channel    String // "slack" | "teams"
-  webhookUrl String
-  label      String
-  events     String[]
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
+  id        String @id @default(uuid())
+  projectId String
+  channel   String // "slack" | "teams"
+  // Webhook URLs frequently embed bearer tokens (Slack incoming-webhook tokens,
+  // Teams connector tokens). Wrapped via EncryptionService — plaintext only
+  // exists in-memory at notification dispatch time.
+  webhookUrlCiphertext String
+  webhookUrlIv         String
+  webhookUrlAuthTag    String
+  webhookUrlKeyVersion Int      @default(1)
+  label                String
+  events               String[]
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime @updatedAt @db.Timestamptz(6)
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId, isActive])
+  @@index([webhookUrlKeyVersion])
 }
 
 model FirstComment {
@@ -2557,18 +2580,25 @@ model SamlSession {
 }
 
 model OidcConfiguration {
-  id               String   @id @default(cuid())
-  accountId        String   @unique
-  issuerUrl        String
-  clientId         String
-  clientSecret     String
-  scopes           String[] @default(["openid", "email", "profile"])
-  attributeMapping Json
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt        DateTime @updatedAt @db.Timestamptz(6)
+  id        String @id @default(cuid())
+  accountId String @unique
+  issuerUrl String
+  clientId  String
+  // OIDC client secret — wrapped via EncryptionService (AES-256-GCM).
+  // Plaintext never persisted; the OAuth handshake decrypts on demand.
+  clientSecretCiphertext String
+  clientSecretIv         String
+  clientSecretAuthTag    String
+  clientSecretKeyVersion Int      @default(1)
+  scopes                 String[] @default(["openid", "email", "profile"])
+  attributeMapping       Json
+  isActive               Boolean  @default(true)
+  createdAt              DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime @updatedAt @db.Timestamptz(6)
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([clientSecretKeyVersion])
 }
 
 // ── Custom Reports ──────────────────────────────────────────────────────────
@@ -2807,7 +2837,7 @@ model AssetTagOnAsset {
   @@id([assetId, tagId])
 }
 
-// ─── Provider-Based Billing (Sprint 8) ──────────────────────────────────────
+// ─── Provider-Based Billing ─────────────────────────────────────────────────
 
 model ProviderPricingTier {
   id                    String   @id @default(cuid())
@@ -2996,7 +3026,7 @@ enum BillingCycle {
   YEARLY
 }
 
-// ─── Gateway Switching (Sprint B) ───────────────────────────────────────────
+// ─── Gateway Switching ──────────────────────────────────────────────────────
 
 enum GatewayProvider {
   STRIPE
@@ -3055,7 +3085,7 @@ model BillingEvent {
   @@index([gatewayProvider, createdAt])
 }
 
-// ─── Compliance (Sprint C — GDPR/LGPD/CCPA/PIPEDA) ─────────────────────────
+// ─── Compliance (GDPR/LGPD/CCPA/PIPEDA) ─────────────────────────────────────
 
 enum DpoType {
   INTERNAL
@@ -3184,7 +3214,7 @@ model DataBreachReport {
   updatedAt            DateTime  @updatedAt @db.Timestamptz(6)
 }
 
-// ─── Referral Program (Sprint 8) ────────────────────────────────────────────
+// ─── Referral Program ───────────────────────────────────────────────────────
 
 model ReferralCode {
   id          String   @id @default(cuid())
@@ -3222,7 +3252,7 @@ enum ReferralStatus {
   EXPIRED
 }
 
-// ─── Autonomous Post Repurposing (Sprint 9) ─────────────────────────────────
+// ─── Autonomous Post Repurposing ────────────────────────────────────────────
 
 model RepurposeProposal {
   id                   String          @id @default(cuid())
@@ -3268,7 +3298,7 @@ enum RepurposeStatus {
   PUBLISHED
 }
 
-// ─── AI Inbox Triage (Sprint 9) ─────────────────────────────────────────────
+// ─── AI Inbox Triage ────────────────────────────────────────────────────────
 
 enum MessagePriority {
   URGENT
@@ -3277,7 +3307,7 @@ enum MessagePriority {
   LOW
 }
 
-// ─── Trend Radar (Sprint 9) ─────────────────────────────────────────────────
+// ─── Trend Radar ────────────────────────────────────────────────────────────
 
 model TrendRadarResult {
   id             String       @id @default(cuid())
@@ -3312,12 +3342,18 @@ model PlatformCredential {
   encryptedValue String
   iv             String
   authTag        String
+  // KEK version that wrapped this row's ciphertext. Lets the EncryptionService
+  // dispatch to the correct key when reading; lets re-wrap scripts identify
+  // rows still on a prior key. Defaults to 1 — the steady-state value before
+  // the first rotation.
+  keyVersion     Int             @default(1)
   isActive       Boolean         @default(true)
   updatedAt      DateTime        @updatedAt @db.Timestamptz(6)
   updatedBy      String?
 
   @@unique([group, key])
   @@index([group])
+  @@index([keyVersion])
 }
 
 model AccountCredential {
@@ -3328,6 +3364,8 @@ model AccountCredential {
   encryptedValue String
   iv             String
   authTag        String
+  // KEK version that wrapped this row's ciphertext (see PlatformCredential.keyVersion).
+  keyVersion     Int                    @default(1)
   isActive       Boolean                @default(true)
   createdAt      DateTime               @default(now()) @db.Timestamptz(6)
   updatedAt      DateTime               @updatedAt @db.Timestamptz(6)
@@ -3336,6 +3374,7 @@ model AccountCredential {
 
   @@unique([accountId, group, key])
   @@index([accountId, group])
+  @@index([keyVersion])
 }
 
 model PlatformEncryptionKey {

@@ -38,8 +38,9 @@ import {
   clearAuthCookies,
   persistTokensFromAuthResponse,
 } from "@/lib/auth/sessionCookie";
+import { env } from "../../../../lib/env";
 
-const API_URL = process.env.API_URL ?? "http://localhost:3000";
+const API_URL = env.API_URL ?? "http://localhost:3000";
 
 // Auth paths that require special cookie handling (CustomerUser endpoints)
 const AUTH_LOGIN_PATH = "auth/customer/login";

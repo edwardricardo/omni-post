@@ -75,6 +75,17 @@ export interface ProviderReplyResult {
   createdAt: Date;
 }
 
+/**
+ * Provider adapter port. Adapters implement this interface and are stateless
+ * w.r.t. credentials — every method that needs credentials receives them
+ * explicitly. The application layer resolves credentials per-channel via
+ * `CredentialResolver` and passes the resolved credentials into the adapter.
+ *
+ * Canon: Cockburn hexagonal — adapter is a pure transformation, no global
+ * state, no environment reads, no DB access. Composition root wires concrete
+ * implementations (XAdapter, TelegramAdapter, etc.) with their dependencies
+ * (apiClient, logger).
+ */
 export interface ProviderAdapter {
   readonly id: ProviderId;
   readonly limits: ProviderLimits;
@@ -87,22 +98,45 @@ export interface ProviderAdapter {
     threading: boolean;
   };
 
-  validateCredentials(creds: unknown): Promise<Result<void, "AUTH_INVALID" | "AUTH_EXPIRED">>;
+  /**
+   * Validate that the supplied credentials are well-formed and accepted by
+   * the provider. Used by `ConnectChannel` use case before persisting a
+   * channel; not called from `publish`.
+   */
+  validateCredentials(credentials: unknown): Promise<Result<void, "AUTH_INVALID" | "AUTH_EXPIRED">>;
+
+  /**
+   * Render a canonical post to provider-specific text/thread structure.
+   * Pure transformation, no I/O, no credentials needed.
+   */
   render(canonical: CanonicalPost): Result<RenderedContent, RenderError>;
-  publish(input: PublishInput): Promise<Result<PublishReceipt, PublishError>>;
+
+  /**
+   * Publish a single post. Caller must pass resolved credentials —
+   * adapter does NOT fetch credentials internally.
+   */
+  publish(input: PublishInput, credentials: unknown): Promise<Result<PublishReceipt, PublishError>>;
 
   // Threading-specific methods
   planThread?(canonical: CanonicalPost): Result<ThreadPlan, ThreadError>;
-  publishThread?(input: ThreadPublishInput): Promise<Result<ThreadReceipt, PublishError>>;
+  publishThread?(
+    input: ThreadPublishInput,
+    credentials: unknown
+  ): Promise<Result<ThreadReceipt, PublishError>>;
 
-  fetchAnalytics?(q: {
-    channelId: string;
-    since?: Date;
-    until?: Date;
-  }): Promise<Result<unknown, "AUTH" | "NETWORK">>;
+  fetchAnalytics?(
+    query: { channelId: string; since?: Date; until?: Date },
+    credentials: unknown
+  ): Promise<Result<unknown, "AUTH" | "NETWORK">>;
+
+  /**
+   * Webhook payloads are signed by the provider with a shared HMAC secret
+   * stored on `WebhookSubscription`, NOT with the channel's OAuth credentials —
+   * so this method takes no `credentials` argument.
+   */
   handleWebhook?(payload: unknown): Promise<Result<unknown, "IGNORE" | "PARSE_ERROR">>;
 
-  // Social Inbox methods
+  // Social Inbox methods (already credential-explicit)
   getComments?(params: {
     channelCredentials: unknown;
     postExternalId?: string;

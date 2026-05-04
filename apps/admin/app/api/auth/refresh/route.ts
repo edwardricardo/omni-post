@@ -16,9 +16,10 @@ import {
   clearAuthCookies,
   setSessionCookie,
 } from "@/lib/auth/sessionCookie";
+import { env } from "../../../../lib/env";
 
-const API_URL = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
-const APP_URL = process.env.NEXT_PUBLIC_URL ?? "http://localhost:3100";
+const API_URL = env.API_URL ?? env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+const APP_URL = env.NEXT_PUBLIC_URL ?? "http://localhost:3100";
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const cookieStore = await cookies();

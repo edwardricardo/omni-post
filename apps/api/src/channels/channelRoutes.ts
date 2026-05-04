@@ -20,6 +20,7 @@ import {
 import type { ChannelCredentials } from "../domain/entities/Channel.js";
 import type { ChannelRepository } from "../domain/repositories/ChannelRepository.js";
 import type { ProjectRepositoryPort } from "../domain/repositories/ProjectRepository.js";
+import type { ChannelCredentialsCrypto } from "../security/ChannelCredentialsCrypto.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "../auth/rbacService.js";
@@ -99,7 +100,8 @@ class ChannelRouteHandler extends BaseRouteHandler {
     private readonly channelRepo: ChannelRepository,
     private readonly projectRepo: ProjectRepositoryPort,
     private readonly prismaClient: PrismaClient,
-    private readonly setPrimaryUseCase: SetPrimaryChannelUseCase
+    private readonly setPrimaryUseCase: SetPrimaryChannelUseCase,
+    private readonly credentialsCrypto: ChannelCredentialsCrypto
   ) {
     super();
   }
@@ -307,10 +309,10 @@ class ChannelRouteHandler extends BaseRouteHandler {
     const { handle } = loginResult.value;
 
     // Store channel with raw Bluesky credentials in the JSON field.
-    // We bypass the domain Channel entity here because ChannelCredentials.accessToken
-    // is designed for OAuth tokens, but Bluesky uses identifier + appPassword.
-    // The AbstractProviderAdapter.getCredentialsFromDatabase() reads raw JSON from Prisma
-    // and casts directly to BlueskyCredentials, so this shape is correct for the adapter.
+    // The domain Channel entity expects an OAuth-style accessToken; Bluesky
+    // instead authenticates with identifier + appPassword, so we persist the
+    // raw shape directly. CredentialResolver returns this JSON blob unchanged
+    // and BlueskyAdapter validates the shape at runtime via the helper.
     try {
       const existing = await this.prismaClient.channel.findFirst({
         where: { projectId, provider: "BLUESKY", handle, deletedAt: null },
@@ -319,6 +321,10 @@ class ChannelRouteHandler extends BaseRouteHandler {
 
       const channelId = existing?.id ?? ChannelId.generate().value;
 
+      const enc = this.credentialsCrypto.encrypt(
+        { identifier, appPassword },
+        { recordId: channelId, caller: "channelRoutes.connectBluesky" }
+      );
       await this.prismaClient.channel.upsert({
         where: { id: channelId },
         create: {
@@ -326,12 +332,20 @@ class ChannelRouteHandler extends BaseRouteHandler {
           projectId,
           provider: "BLUESKY",
           handle,
-          credentials: { identifier, appPassword },
+          providerAccountId: identifier,
+          credentialsCiphertext: enc.credentialsCiphertext,
+          credentialsIv: enc.credentialsIv,
+          credentialsAuthTag: enc.credentialsAuthTag,
+          credentialsKeyVersion: enc.credentialsKeyVersion,
           createdAt: new Date(),
           updatedAt: new Date(),
         },
         update: {
-          credentials: { identifier, appPassword },
+          providerAccountId: identifier,
+          credentialsCiphertext: enc.credentialsCiphertext,
+          credentialsIv: enc.credentialsIv,
+          credentialsAuthTag: enc.credentialsAuthTag,
+          credentialsKeyVersion: enc.credentialsKeyVersion,
           updatedAt: new Date(),
         },
       });
@@ -428,12 +442,16 @@ export const channelRoutes: FastifyPluginAsync = async (fastify) => {
   const setPrimaryUseCase = container.resolve<SetPrimaryChannelUseCase>(
     TOKENS.SetPrimaryChannelUseCase
   );
+  const credentialsCrypto = container.resolve<ChannelCredentialsCrypto>(
+    TOKENS.ChannelCredentialsCrypto
+  );
 
   const handler = new ChannelRouteHandler(
     channelRepo,
     projectRepo,
     prismaClient,
-    setPrimaryUseCase
+    setPrimaryUseCase,
+    credentialsCrypto
   );
 
   fastify.post(

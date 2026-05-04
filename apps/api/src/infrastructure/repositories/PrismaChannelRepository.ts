@@ -7,7 +7,6 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import { Prisma } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
 import {
   Channel,
@@ -19,12 +18,26 @@ import {
 import type { ChannelCredentials } from "../../domain/entities/Channel.js";
 import { CONNECTION_STATUS } from "../../domain/entities/Channel.js";
 import type { ChannelRepository } from "../../domain/repositories/ChannelRepository.js";
+import type { ChannelCredentialsCrypto } from "../../security/ChannelCredentialsCrypto.js";
+
+interface ChannelRow {
+  id: string;
+  projectId: string;
+  provider: string;
+  handle: string;
+  credentialsCiphertext: string;
+  credentialsIv: string;
+  credentialsAuthTag: string;
+  credentialsKeyVersion: number;
+  isPrimary: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 /**
- * Maps a raw JSON credentials blob from Prisma to the typed ChannelCredentials
+ * Maps a decrypted JSON credentials blob to the typed ChannelCredentials.
  */
-function parseCredentials(raw: unknown): ChannelCredentials {
-  const blob = raw as Record<string, unknown>;
+function parseCredentials(blob: Record<string, unknown>): ChannelCredentials {
   return {
     accessToken: String(blob.accessToken ?? ""),
     ...(blob.refreshToken !== undefined && { refreshToken: String(blob.refreshToken) }),
@@ -32,43 +45,6 @@ function parseCredentials(raw: unknown): ChannelCredentials {
     ...(blob.tokenType !== undefined && { tokenType: String(blob.tokenType) }),
     ...(Array.isArray(blob.scope) && { scope: (blob.scope as unknown[]).map(String) }),
   };
-}
-
-/**
- * Maps a Prisma Channel row to the Channel domain entity
- */
-function toDomain(row: {
-  id: string;
-  projectId: string;
-  provider: string;
-  handle: string;
-  credentials: unknown;
-  isPrimary: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}): Channel {
-  const id = ChannelId.fromStringUnsafe(row.id);
-  const projectId = ProjectId.fromStringUnsafe(row.projectId);
-  const providerResult = Provider.fromString(row.provider);
-
-  if (!providerResult.ok) {
-    // If provider is unknown, use a placeholder so the channel can still be loaded.
-    // This is defensive — the DB enforces a valid Provider enum so this path is unlikely.
-    throw new Error(`Invalid provider value "${row.provider}" for channel ${row.id}`);
-  }
-
-  return Channel.reconstitute(id, {
-    projectId,
-    provider: providerResult.value,
-    handle: row.handle,
-    credentials: parseCredentials(row.credentials),
-    isPrimary: row.isPrimary,
-    // Status, errorCount, etc. are not persisted — default to healthy state
-    status: CONNECTION_STATUS.CONNECTED,
-    errorCount: 0,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-  });
 }
 
 /**
@@ -82,7 +58,41 @@ function toDomain(row: {
  * const result = await repo.findById(ChannelId.fromString("..."));
  */
 export class PrismaChannelRepository implements ChannelRepository {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly credentialsCrypto: ChannelCredentialsCrypto
+  ) {}
+
+  /**
+   * Maps a Prisma Channel row to the Channel domain entity, decrypting
+   * the credentials envelope through the injected crypto helper.
+   */
+  private toDomain(row: ChannelRow): Channel {
+    const id = ChannelId.fromStringUnsafe(row.id);
+    const projectId = ProjectId.fromStringUnsafe(row.projectId);
+    const providerResult = Provider.fromString(row.provider);
+
+    if (!providerResult.ok) {
+      throw new Error(`Invalid provider value "${row.provider}" for channel ${row.id}`);
+    }
+
+    const decrypted = this.credentialsCrypto.decrypt(row, {
+      recordId: row.id,
+      caller: "PrismaChannelRepository.toDomain",
+    });
+    return Channel.reconstitute(id, {
+      projectId,
+      provider: providerResult.value,
+      handle: row.handle,
+      credentials: parseCredentials(decrypted),
+      isPrimary: row.isPrimary,
+      // Status, errorCount, etc. are not persisted — default to healthy state
+      status: CONNECTION_STATUS.CONNECTED,
+      errorCount: 0,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    });
+  }
 
   /**
    * Find a channel by its ID (excludes soft-deleted channels)
@@ -96,7 +106,7 @@ export class PrismaChannelRepository implements ChannelRepository {
       return err(new EntityNotFoundError("Channel", id.value));
     }
 
-    return ok(toDomain(row));
+    return ok(this.toDomain(row));
   }
 
   /**
@@ -108,7 +118,7 @@ export class PrismaChannelRepository implements ChannelRepository {
       orderBy: { createdAt: "asc" },
     });
 
-    return rows.map(toDomain);
+    return rows.map((r) => this.toDomain(r));
   }
 
   /**
@@ -124,7 +134,7 @@ export class PrismaChannelRepository implements ChannelRepository {
       orderBy: { createdAt: "asc" },
     });
 
-    return rows.map(toDomain);
+    return rows.map((r) => this.toDomain(r));
   }
 
   /**
@@ -147,15 +157,16 @@ export class PrismaChannelRepository implements ChannelRepository {
       return err(new EntityNotFoundError("Channel", `${projectId.value}/${provider.type}/primary`));
     }
 
-    return ok(toDomain(row));
+    return ok(this.toDomain(row));
   }
 
   /**
-   * Save a channel (create or update via upsert)
+   * Save a channel (create or update via upsert). Credentials are encrypted
+   * before persistence — plaintext never touches the upsert payload.
    */
   async save(channel: Channel): Promise<Result<void, Error>> {
     try {
-      const credentialsData: Record<string, Prisma.InputJsonValue> = {
+      const plaintextCreds: Record<string, unknown> = {
         accessToken: channel.credentials.accessToken,
         ...(channel.credentials.refreshToken !== undefined && {
           refreshToken: channel.credentials.refreshToken,
@@ -167,10 +178,13 @@ export class PrismaChannelRepository implements ChannelRepository {
           tokenType: channel.credentials.tokenType,
         }),
         ...(channel.credentials.scope !== undefined && {
-          scope: channel.credentials.scope as Prisma.InputJsonValue,
+          scope: channel.credentials.scope,
         }),
       };
-      const credentials = credentialsData as Prisma.InputJsonValue;
+      const enc = this.credentialsCrypto.encrypt(plaintextCreds, {
+        recordId: channel.id.value,
+        caller: "PrismaChannelRepository.save",
+      });
 
       await this.prisma.channel.upsert({
         where: { id: channel.id.value },
@@ -179,14 +193,20 @@ export class PrismaChannelRepository implements ChannelRepository {
           projectId: channel.projectId.value,
           provider: channel.provider.type as import("@infra/prisma").Provider,
           handle: channel.handle,
-          credentials,
+          credentialsCiphertext: enc.credentialsCiphertext,
+          credentialsIv: enc.credentialsIv,
+          credentialsAuthTag: enc.credentialsAuthTag,
+          credentialsKeyVersion: enc.credentialsKeyVersion,
           isPrimary: channel.isPrimary,
           createdAt: channel.createdAt,
           updatedAt: channel.updatedAt,
         },
         update: {
           handle: channel.handle,
-          credentials,
+          credentialsCiphertext: enc.credentialsCiphertext,
+          credentialsIv: enc.credentialsIv,
+          credentialsAuthTag: enc.credentialsAuthTag,
+          credentialsKeyVersion: enc.credentialsKeyVersion,
           isPrimary: channel.isPrimary,
           updatedAt: channel.updatedAt,
         },

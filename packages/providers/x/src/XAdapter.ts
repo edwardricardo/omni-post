@@ -1,16 +1,22 @@
 /**
  * @file XAdapter.ts
- * @description X/Twitter provider adapter extending AbstractProviderAdapter with tweet publishing,
- *              threading, media upload, and public-metrics analytics via twitter-api-v2.
+ * @description X/Twitter provider adapter. Implements the ProviderAdapter port
+ *   from @ports/core directly (no inheritance). Stateless w.r.t. credentials —
+ *   credentials are passed per-call by the application layer. Supports tweet
+ *   publishing, threading, media upload, polls, quote tweets, replies, and
+ *   public-metrics analytics via twitter-api-v2.
  * @layer infrastructure
  */
 
-import {
-  AbstractProviderAdapter,
-  type ProviderMetadata,
-  type ProviderConstraints,
-} from "@providers/shared";
-import type { ProviderId, ProviderLimits, PublishInput, PublishReceipt } from "@ports/core";
+import type {
+  ProviderAdapter,
+  ProviderId,
+  ProviderLimits,
+  PublishInput,
+  PublishReceipt,
+  ProviderComment,
+  ProviderReplyResult,
+} from "@ports/core";
 import type {
   CanonicalPost,
   RenderedContent,
@@ -23,96 +29,96 @@ import type {
   ThreadError,
 } from "@shared/types";
 import { ok, err, type Err } from "@shared/types";
-import type { ProviderComment, ProviderReplyResult } from "@ports/core";
+import {
+  validateCredentialStructure,
+  mapErrorToPublishError,
+  type ProviderMetadata,
+  type ProviderConstraints,
+} from "@providers/shared";
+import pino, { type Logger } from "pino";
 import { planThread } from "../../../core/threading/src/threadPlanner.js";
 import { XApiClient, type XCredentials, type XPollOptions } from "./apiClient.js";
 
+const REQUIRED_FIELDS: (keyof XCredentials)[] = ["apiKey", "apiSecret", "bearerToken"];
+
+const X_LIMITS: ProviderLimits = {
+  maxChars: 280,
+  allowedMedia: ["image", "video", "gif"],
+  aspectRatios: ["16:9", "1:1", "4:5", "9:16"],
+  maxPostsPerThread: 25,
+  maxMediaPerPost: 4,
+  threadingSupported: true,
+  rateLimitHints: { burst: 300, perSeconds: 10800 },
+};
+
+const X_METADATA: ProviderMetadata = {
+  id: "x",
+  name: "x",
+  displayName: "X (Twitter)",
+  description: "Post tweets and threads to X (formerly Twitter)",
+  icon: "/providers/x-icon.svg",
+  color: "#000000",
+  website: "https://x.com",
+  authType: "oauth",
+  requiredScopes: ["tweet.read", "tweet.write", "users.read"],
+  status: "active",
+};
+
+const X_CAPABILITIES = {
+  publish: true,
+  schedule: true,
+  analytics: true,
+  comments: true,
+  replies: true,
+  threading: true,
+  media: true,
+  images: true,
+  videos: true,
+};
+
 /**
- * X/Twitter Provider Adapter
+ * Factory for creating XApiClient instances. Injected so tests can supply a
+ * fake. Defaults to constructing a real `XApiClient`.
  */
-export class XAdapter extends AbstractProviderAdapter<XCredentials> {
+export type XApiClientFactory = (credentials: XCredentials) => XApiClient;
+
+const defaultClientFactory: XApiClientFactory = (credentials) => new XApiClient(credentials);
+
+export interface XAdapterDeps {
+  /** Logger instance. Default: pino at level "info". */
+  logger?: Logger;
+  /** Factory that constructs an XApiClient given credentials. Default: real client. */
+  apiClientFactory?: XApiClientFactory;
+}
+
+/**
+ * @class XAdapter
+ * @description Provider adapter for publishing tweets, threads, media, polls,
+ *   quote tweets, and replies to X (formerly Twitter) via twitter-api-v2.
+ */
+export class XAdapter implements ProviderAdapter {
   readonly id: ProviderId = "x";
-
-  readonly metadata: ProviderMetadata = {
-    id: "x",
-    name: "x",
-    displayName: "X (Twitter)",
-    description: "Post tweets and threads to X (formerly Twitter)",
-    icon: "/providers/x-icon.svg",
-    color: "#000000",
-    website: "https://x.com",
-    authType: "oauth",
-    requiredScopes: ["tweet.read", "tweet.write", "users.read"],
-    status: "active",
-  };
-
+  readonly limits: ProviderLimits = X_LIMITS;
+  readonly capabilities = X_CAPABILITIES;
+  readonly metadata: ProviderMetadata = X_METADATA;
   readonly constraints: ProviderConstraints = {};
 
-  readonly limits: ProviderLimits = {
-    maxChars: 280,
-    allowedMedia: ["image", "video", "gif"],
-    aspectRatios: ["16:9", "1:1", "4:5", "9:16"],
-    maxPostsPerThread: 25,
-    maxMediaPerPost: 4,
-    threadingSupported: true,
-    rateLimitHints: { burst: 300, perSeconds: 10800 }, // 300 tweets per 3 hours
-  };
+  private readonly logger: Logger;
+  private readonly apiClientFactory: XApiClientFactory;
 
-  readonly capabilities = {
-    publish: true,
-    schedule: true,
-    analytics: true,
-    comments: true,
-    replies: true,
-    threading: true,
-    media: true, // Supports media uploads
-    images: true, // Supports images
-    videos: true, // Supports videos
-  };
-
-  protected readonly requiredCredentialFields: (keyof XCredentials)[] = [
-    "apiKey",
-    "apiSecret",
-    "bearerToken",
-  ];
-
-  /**
-   * Get credentials from environment variables
-   */
-  protected getCredentialsFromEnvironment(): Result<XCredentials, "AUTH"> {
-    const credentials: XCredentials = {
-      apiKey: process.env.X_API_KEY || "placeholder",
-      apiSecret: process.env.X_API_SECRET || "placeholder",
-      accessToken: process.env.X_ACCESS_TOKEN || "placeholder",
-      accessTokenSecret: process.env.X_ACCESS_TOKEN_SECRET || "placeholder",
-      bearerToken: process.env.X_BEARER_TOKEN || "placeholder",
-    };
-
-    if (credentials.apiKey === "placeholder" || credentials.bearerToken === "placeholder") {
-      return err("AUTH");
-    }
-
-    return ok(credentials);
-  }
-
-  /**
-   * Create X API client
-   */
-  protected createApiClient(credentials: XCredentials): XApiClient {
-    return new XApiClient(credentials);
+  constructor(deps: XAdapterDeps = {}) {
+    this.logger = deps.logger ?? pino({ name: "x-adapter", level: "info" });
+    this.apiClientFactory = deps.apiClientFactory ?? defaultClientFactory;
   }
 
   /**
    * @method render
-   * @description Renders canonical post for X/Twitter.
-   *              Detects poll tags (poll:DURATION:question|option1|option2|...)
-   *              and quote tweet references.
+   * @description Renders canonical post for X/Twitter. Detects poll tags
+   *   (poll:DURATION:question|option1|option2|...) and quote tweet references.
    */
-  override render(canonical: CanonicalPost): Result<RenderedContent, RenderError> {
-    // Detect poll tag
+  render(canonical: CanonicalPost): Result<RenderedContent, RenderError> {
     const pollConfig = this.parsePollTag(canonical.tags);
 
-    // Check if content needs threading
     const threadPlan = planThread(canonical, "AUTO", {
       ...(this.limits.maxChars && { maxCharsPerTweet: this.limits.maxChars }),
       ...(this.limits.maxPostsPerThread && {
@@ -125,7 +131,6 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
       return err((threadPlan as Err<ThreadError>).error);
     }
 
-    // Return appropriate rendered content
     if (threadPlan.value.needsThreading) {
       return ok({
         type: "thread",
@@ -135,44 +140,44 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
           ...(pollConfig ? { poll: pollConfig } : {}),
         },
       });
-    } else {
-      // Single tweet
-      const singleTweet = threadPlan.value.tweets[0];
-      if (!singleTweet) {
-        return err("THREAD_PLANNING_FAILED");
-      }
-
-      // Detect quote tweet reference from tags
-      const quoteTweetId = this.parseQuoteTweetTag(canonical.tags);
-
-      return ok({
-        type: "single",
-        content: {
-          body: singleTweet.text,
-          ...(canonical.media &&
-            canonical.media.length > 0 && {
-              media: canonical.media.map((m) => ({
-                url: m.url,
-                type: m.type,
-                ...(m.alt && { alt: m.alt }),
-              })),
-            }),
-          meta: {
-            sequence: 1,
-            totalTweets: 1,
-            ...(pollConfig ? { poll: pollConfig } : {}),
-            ...(quoteTweetId ? { quoteTweetId } : {}),
-          },
-        },
-        meta: {},
-      });
     }
+
+    const singleTweet = threadPlan.value.tweets[0];
+    if (!singleTweet) {
+      return err("THREAD_PLANNING_FAILED");
+    }
+
+    const quoteTweetId = this.parseQuoteTweetTag(canonical.tags);
+
+    return ok({
+      type: "single",
+      content: {
+        body: singleTweet.text,
+        ...(canonical.media &&
+          canonical.media.length > 0 && {
+            media: canonical.media.map((m) => ({
+              url: m.url,
+              type: m.type,
+              ...(m.alt && { alt: m.alt }),
+            })),
+          }),
+        meta: {
+          sequence: 1,
+          totalTweets: 1,
+          ...(pollConfig ? { poll: pollConfig } : {}),
+          ...(quoteTweetId ? { quoteTweetId } : {}),
+        },
+      },
+      meta: {},
+    });
   }
 
   /**
-   * Plan thread for X/Twitter
+   * @method planThread
+   * @description Plans a thread structure for the canonical post given the
+   *   provider's char/post limits.
    */
-  override planThread(canonical: CanonicalPost): Result<ThreadPlan, ThreadError> {
+  planThread(canonical: CanonicalPost): Result<ThreadPlan, ThreadError> {
     return planThread(canonical, "AUTO", {
       ...(this.limits.maxChars && { maxCharsPerTweet: this.limits.maxChars }),
       ...(this.limits.maxPostsPerThread && {
@@ -183,19 +188,68 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
   }
 
   /**
-   * @method publish
-   * @description Publishes a single tweet. Supports media, polls, and quote tweets.
+   * @method validateCredentials
+   * @description Verifies credential structure and that the API accepts them
+   *   via the v2/users/me endpoint.
    */
-  override async publish(input: PublishInput): Promise<Result<PublishReceipt, PublishError>> {
-    const credentials = await this.getCredentials(input.channelId);
-    if (!credentials.ok) {
+  async validateCredentials(
+    credentials: unknown
+  ): Promise<Result<void, "AUTH_INVALID" | "AUTH_EXPIRED">> {
+    const validation = validateCredentialStructure<XCredentials>(
+      credentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
+      return err("AUTH_INVALID");
+    }
+
+    try {
+      const apiClient = this.apiClientFactory(validation.value);
+      await apiClient.validateCredentials();
+      return ok(undefined);
+    } catch (error: unknown) {
+      this.logger.error({
+        provider: this.id,
+        operation: "validateCredentials",
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      if (
+        error instanceof Error &&
+        "status" in error &&
+        (error as Record<string, unknown>).status === 401
+      ) {
+        return err("AUTH_EXPIRED");
+      }
+
+      return err("AUTH_INVALID");
+    }
+  }
+
+  /**
+   * @method publish
+   * @description Publishes a single tweet. Supports media, polls, and quote
+   *   tweets via the meta payload.
+   */
+  async publish(
+    input: PublishInput,
+    credentials: unknown
+  ): Promise<Result<PublishReceipt, PublishError>> {
+    const validation = validateCredentialStructure<XCredentials>(
+      credentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
       return err("AUTH");
     }
 
     try {
-      const apiClient = this.createApiClient(credentials.value);
+      const apiClient = this.apiClientFactory(validation.value);
 
-      // Upload media
       const mediaIds: string[] = [];
       if (input.post.media && input.post.media.length > 0) {
         for (const media of input.post.media) {
@@ -204,7 +258,6 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
         }
       }
 
-      // Extract poll and quote tweet from meta
       const meta = (input.post.meta || {}) as Record<string, unknown>;
       const pollConfig = meta.poll as XPollOptions | undefined;
       const quoteTweetId = typeof meta.quoteTweetId === "string" ? meta.quoteTweetId : undefined;
@@ -223,25 +276,37 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
         publishedAt: new Date(result.data.created_at || new Date().toISOString()),
       });
     } catch (error: unknown) {
-      this.logError("publish", error, { channelId: input.channelId });
+      this.logger.error({
+        provider: this.id,
+        operation: "publish",
+        channelId: input.channelId,
+        error: error instanceof Error ? error.message : String(error),
+      });
 
       if (error instanceof Error && error.message?.includes("Circuit breaker is OPEN")) {
         return err("NETWORK");
       }
 
-      return err(this.mapErrorToPublishError(error));
+      return err(mapErrorToPublishError(error));
     }
   }
 
   /**
-   * Publish thread
+   * @method publishThread
+   * @description Publishes a multi-tweet thread by chaining each tweet as a
+   *   reply to the previous one.
    */
-  override async publishThread(
-    input: ThreadPublishInput
+  async publishThread(
+    input: ThreadPublishInput,
+    credentials: unknown
   ): Promise<Result<ThreadReceipt, PublishError>> {
-    // Get credentials using base class method
-    const credentials = await this.getCredentials(input.channelId);
-    if (!credentials.ok) {
+    const validation = validateCredentialStructure<XCredentials>(
+      credentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
       return err("AUTH");
     }
 
@@ -249,11 +314,9 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
     let parentTweetId: string | null = null;
 
     try {
-      const apiClient = this.createApiClient(credentials.value);
+      const apiClient = this.apiClientFactory(validation.value);
 
-      // Publish each tweet in sequence
       for (const tweetFragment of input.threadPlan.tweets) {
-        // Upload media for this tweet
         const mediaIds: string[] = [];
         if (tweetFragment.media && tweetFragment.media.length > 0) {
           for (const media of tweetFragment.media) {
@@ -262,7 +325,6 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
           }
         }
 
-        // Post the tweet with circuit breaker protection
         const result = await apiClient.postTweet(
           tweetFragment.text,
           mediaIds,
@@ -276,10 +338,8 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
           publishedAt: new Date(result.data.created_at || new Date().toISOString()),
         });
 
-        // Set this tweet as parent for the next one
         parentTweetId = result.data.id;
 
-        // Small delay between tweets to respect rate limits
         if (tweetFragment.sequence < input.threadPlan.tweets.length) {
           await new Promise((resolve) => setTimeout(resolve, 1000));
         }
@@ -291,9 +351,13 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
         totalTweets: publishedTweets.length,
       });
     } catch (error: unknown) {
-      this.logError("publishThread", error, { channelId: input.channelId });
+      this.logger.error({
+        provider: this.id,
+        operation: "publishThread",
+        channelId: input.channelId,
+        error: error instanceof Error ? error.message : String(error),
+      });
 
-      // If we fail mid-thread, this could be partially published
       if (
         publishedTweets.length > 0 &&
         error instanceof Error &&
@@ -304,45 +368,41 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
         return err("THREAD_INTERRUPTED");
       }
 
-      // Handle circuit breaker specific error
       if (error instanceof Error && error.message?.includes("Circuit breaker is OPEN")) {
         return err("NETWORK");
       }
 
-      return err(this.mapErrorToPublishError(error));
+      return err(mapErrorToPublishError(error));
     }
   }
 
   /**
-   * Fetch analytics from X API v2 using public_metrics.
-   *
-   * Maps X metrics to canonical format:
-   * - views = impression_count (not available in public_metrics, estimated from engagement)
-   * - likes = like_count
-   * - shares = retweet_count + quote_count
-   * - comments = reply_count
+   * @method fetchAnalytics
+   * @description Fetches analytics from X API v2 using public_metrics and maps
+   *   them to canonical engagement counters.
    */
-  override async fetchAnalytics(q: {
-    channelId: string;
-    since?: Date;
-    until?: Date;
-  }): Promise<Result<unknown, "AUTH" | "NETWORK">> {
-    const credentials = await this.getCredentials(q.channelId);
-    if (!credentials.ok) {
+  async fetchAnalytics(
+    q: { channelId: string; since?: Date; until?: Date },
+    credentials: unknown
+  ): Promise<Result<unknown, "AUTH" | "NETWORK">> {
+    const validation = validateCredentialStructure<XCredentials>(
+      credentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
       return err("AUTH");
     }
 
     try {
-      const apiClient = this.createApiClient(credentials.value);
+      const apiClient = this.apiClientFactory(validation.value);
 
-      // Use the user's tweets endpoint to get recent tweets with metrics
       const userResponse = await apiClient.validateCredentials();
       const userId = userResponse.data.id;
 
-      // Fetch user's recent tweets with public metrics via twitter-api-v2
       const tweetsResponse = await apiClient.getTweetAnalytics([userId]);
 
-      // Aggregate metrics across all tweets
       let totalLikes = 0;
       let totalRetweets = 0;
       let totalReplies = 0;
@@ -360,7 +420,7 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
         ...(q.since && { since: q.since }),
         ...(q.until && { until: q.until }),
         metrics: {
-          views: totalLikes + totalRetweets + totalReplies + totalQuotes, // Estimated engagement
+          views: totalLikes + totalRetweets + totalReplies + totalQuotes,
           likes: totalLikes,
           shares: totalRetweets + totalQuotes,
           comments: totalReplies,
@@ -368,7 +428,12 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
         tweetCount: tweetsResponse.data.length,
       });
     } catch (error: unknown) {
-      this.logError("fetchAnalytics", error, { channelId: q.channelId });
+      this.logger.error({
+        provider: this.id,
+        operation: "fetchAnalytics",
+        channelId: q.channelId,
+        error: error instanceof Error ? error.message : String(error),
+      });
 
       if (error instanceof Error && error.message?.includes("Circuit breaker is OPEN")) {
         return err("NETWORK");
@@ -393,7 +458,6 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
    * @method getComments
    * @description Fetches replies to a tweet via conversation_id search.
    *              Requires X API Basic tier ($100/mo) or higher.
-   * @param params - Query parameters including channelCredentials and postExternalId
    */
   async getComments(params: {
     channelCredentials: unknown;
@@ -408,7 +472,7 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
 
     try {
       const credentials = params.channelCredentials as XCredentials;
-      const apiClient = this.createApiClient(credentials);
+      const apiClient = this.apiClientFactory(credentials);
 
       const result = await apiClient.searchReplies(
         params.postExternalId,
@@ -430,7 +494,11 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
         ...(result.meta?.next_token ? { nextCursor: result.meta.next_token } : {}),
       });
     } catch (error: unknown) {
-      this.logError("getComments", error);
+      this.logger.error({
+        provider: this.id,
+        operation: "getComments",
+        error: error instanceof Error ? error.message : String(error),
+      });
 
       if (
         error instanceof Error &&
@@ -445,9 +513,7 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
 
   /**
    * @method postReply
-   * @description Posts a reply to a tweet using the existing postTweet method
-   *              with replyToTweetId parameter.
-   * @param params - Reply parameters including credentials, tweet ID, and body
+   * @description Posts a reply to a tweet via postTweet with replyToTweetId.
    */
   async postReply(params: {
     channelCredentials: unknown;
@@ -456,7 +522,7 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
   }): Promise<Result<ProviderReplyResult, "AUTH" | "NETWORK" | "RATE_LIMIT">> {
     try {
       const credentials = params.channelCredentials as XCredentials;
-      const apiClient = this.createApiClient(credentials);
+      const apiClient = this.apiClientFactory(credentials);
 
       const result = await apiClient.postTweet(params.body, [], params.inReplyToProviderMessageId);
 
@@ -465,7 +531,11 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
         createdAt: new Date(result.data.created_at || new Date().toISOString()),
       });
     } catch (error: unknown) {
-      this.logError("postReply", error);
+      this.logger.error({
+        provider: this.id,
+        operation: "postReply",
+        error: error instanceof Error ? error.message : String(error),
+      });
 
       if (error instanceof Error && error.message?.includes("429")) {
         return err("RATE_LIMIT");
@@ -504,11 +574,11 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
     const questionAndOptions = parts.slice(2).join(":");
     const segments = questionAndOptions.split("|");
 
-    if (!durationStr || segments.length < 3) return undefined; // question + at least 2 options
+    if (!durationStr || segments.length < 3) return undefined;
 
     const durationMinutes = parseInt(durationStr, 10);
     if (isNaN(durationMinutes) || durationMinutes < 5 || durationMinutes > 10080) {
-      return undefined; // X polls: 5 minutes to 7 days
+      return undefined;
     }
 
     const options = segments.slice(1).filter((o) => o.trim().length > 0);
@@ -533,5 +603,11 @@ export class XAdapter extends AbstractProviderAdapter<XCredentials> {
   }
 }
 
-// Export singleton instance for backward compatibility
-export const xAdapter = new XAdapter();
+/**
+ * @function createXAdapter
+ * @description Factory used by the composition root to instantiate the adapter
+ *   with explicit dependencies (logger, optional apiClient factory for tests).
+ */
+export function createXAdapter(deps: XAdapterDeps = {}): XAdapter {
+  return new XAdapter(deps);
+}

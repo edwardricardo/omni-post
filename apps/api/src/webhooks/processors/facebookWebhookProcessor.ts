@@ -318,15 +318,13 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
     facebookPageId: string,
     normalizedData: Record<string, unknown>
   ) {
-    // Find channel by Facebook page ID
+    // Find channel by Facebook page ID. The page ID is persisted on the
+    // dedicated `providerAccountId` column so we can resolve the channel
+    // without decrypting the credentials envelope.
     const channel = await prisma.channel.findFirst({
       where: {
         provider: "FACEBOOK",
-        // Look for Facebook page ID in credentials
-        credentials: {
-          path: ["page_id"],
-          equals: facebookPageId,
-        },
+        providerAccountId: facebookPageId,
       },
       include: {
         project: {
@@ -544,20 +542,15 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   ): Promise<void> {
     const entityChannelId = entities.channelId as string | undefined;
     if (entityChannelId) {
-      const changes = (data.changes ?? {}) as Record<string, unknown>;
-      // Update channel with latest page information
-      await prisma.channel.update({
-        where: { id: entityChannelId },
-        data: {
-          credentials: {
-            ...changes,
-            last_page_update: new Date().toISOString(),
-          },
-        },
-      });
+      // Page-settings metadata used to be merged into the credentials JSON,
+      // conflating non-secret page state with the auth token envelope.
+      // With credentials now encrypted at rest, this field is reserved for
+      // OAuth tokens only — page-settings telemetry needs its own column.
+      // Captured silently for now; downstream notifications + analytics
+      // tracking will live in a dedicated table.
+      void data;
+      void entityChannelId;
     }
-
-    // Future: page settings change notifications and analytics tracking
   }
 
   /**

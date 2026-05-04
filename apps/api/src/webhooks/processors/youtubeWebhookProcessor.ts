@@ -310,29 +310,16 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
       videoId = normalizedData.videoId as string;
     }
 
-    // Find channel by YouTube channel ID
+    // Find channel by YouTube channel ID via the dedicated `providerAccountId`
+    // column. Webhook payloads use `channel_id` and `channelId` interchangeably;
+    // both must be normalised to that column at OAuth-callback time.
+    if (!youtubeChannelId) {
+      return {};
+    }
     const channel = await prisma.channel.findFirst({
       where: {
         provider: "YOUTUBE",
-        // Look for YouTube channel ID in credentials
-        OR: [
-          {
-            // Prisma JSON path filter — no typed alternative available
-            credentials: {
-              path: ["channel_id"],
-              equals: youtubeChannelId,
-              array_contains: null,
-            } as object,
-          },
-          {
-            // Prisma JSON path filter — no typed alternative available
-            credentials: {
-              path: ["channelId"],
-              equals: youtubeChannelId,
-              array_contains: null,
-            } as object,
-          },
-        ],
+        providerAccountId: youtubeChannelId,
       },
       include: {
         project: true,
@@ -541,24 +528,14 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
     const entityChannelId = entities.channelId as string | undefined;
 
     if (entityChannelId) {
-      // Update channel metadata in database
-      const existingChannel = await prisma.channel.findUnique({ where: { id: entityChannelId } });
-      const existingCreds = (existingChannel?.credentials ?? {}) as Record<string, unknown>;
-
-      await prisma.channel.update({
-        where: { id: entityChannelId },
-        data: {
-          credentials: {
-            ...existingCreds,
-            title: String(data.title ?? ""),
-            description: String(data.description ?? ""),
-            subscriber_count: String(data.subscriberCount ?? ""),
-            video_count: String(data.videoCount ?? ""),
-            view_count: String(data.viewCount ?? ""),
-            updated_at: String(data.updatedAt ?? ""),
-          },
-        },
-      });
+      // Channel metadata (title, description, subscriber/video/view counts)
+      // used to be merged into the credentials JSON, conflating non-secret
+      // statistics with the auth token envelope. With credentials now
+      // encrypted at rest, this field is reserved for OAuth tokens only —
+      // YouTube channel statistics need their own table or analytics
+      // pipeline. Capture inputs silently for now.
+      void data;
+      void entityChannelId;
     }
 
     // Future: channel analytics tracking and account-level metrics aggregation

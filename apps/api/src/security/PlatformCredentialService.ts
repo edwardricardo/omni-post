@@ -40,7 +40,11 @@ export class PlatformCredentialService {
     updatedBy: string
   ): Promise<Result<void, CredentialError>> {
     try {
-      const encrypted = this.encryption.encrypt(value);
+      const encrypted = this.encryption.encrypt(value, {
+        fieldName: "PlatformCredential",
+        recordId: `${group}:${key}`,
+        caller: "PlatformCredentialService.setCredential",
+      });
 
       await this.prisma.platformCredential.upsert({
         where: { group_key: { group, key } },
@@ -50,12 +54,14 @@ export class PlatformCredentialService {
           encryptedValue: encrypted.encryptedValue,
           iv: encrypted.iv,
           authTag: encrypted.authTag,
+          keyVersion: encrypted.keyVersion,
           updatedBy,
         },
         update: {
           encryptedValue: encrypted.encryptedValue,
           iv: encrypted.iv,
           authTag: encrypted.authTag,
+          keyVersion: encrypted.keyVersion,
           updatedBy,
         },
       });
@@ -96,11 +102,19 @@ export class PlatformCredentialService {
 
       if (!record) return ok(null);
 
-      const plaintext = this.encryption.decrypt({
-        encryptedValue: record.encryptedValue,
-        iv: record.iv,
-        authTag: record.authTag,
-      });
+      const plaintext = this.encryption.decrypt(
+        {
+          encryptedValue: record.encryptedValue,
+          iv: record.iv,
+          authTag: record.authTag,
+          keyVersion: record.keyVersion,
+        },
+        {
+          fieldName: "PlatformCredential",
+          recordId: `${group}:${key}`,
+          caller: "PlatformCredentialService.getCredential",
+        }
+      );
 
       return ok(plaintext);
     } catch {
@@ -122,11 +136,19 @@ export class PlatformCredentialService {
 
       const result: Record<string, string> = {};
       for (const record of records) {
-        result[record.key] = this.encryption.decrypt({
-          encryptedValue: record.encryptedValue,
-          iv: record.iv,
-          authTag: record.authTag,
-        });
+        result[record.key] = this.encryption.decrypt(
+          {
+            encryptedValue: record.encryptedValue,
+            iv: record.iv,
+            authTag: record.authTag,
+            keyVersion: record.keyVersion,
+          },
+          {
+            fieldName: "PlatformCredential",
+            recordId: `${group}:${record.key}`,
+            caller: "PlatformCredentialService.getGroup",
+          }
+        );
       }
 
       return ok(result);
@@ -220,7 +242,11 @@ export class PlatformCredentialService {
     value: string
   ): Promise<Result<void, CredentialError>> {
     try {
-      const encrypted = this.encryption.encrypt(value);
+      const encrypted = this.encryption.encrypt(value, {
+        fieldName: "AccountCredential",
+        recordId: `${accountId}:${group}:${key}`,
+        caller: "PlatformCredentialService.setAccountCredential",
+      });
 
       await this.prisma.accountCredential.upsert({
         where: { accountId_group_key: { accountId, group, key } },
@@ -231,11 +257,13 @@ export class PlatformCredentialService {
           encryptedValue: encrypted.encryptedValue,
           iv: encrypted.iv,
           authTag: encrypted.authTag,
+          keyVersion: encrypted.keyVersion,
         },
         update: {
           encryptedValue: encrypted.encryptedValue,
           iv: encrypted.iv,
           authTag: encrypted.authTag,
+          keyVersion: encrypted.keyVersion,
         },
       });
 
@@ -268,11 +296,19 @@ export class PlatformCredentialService {
 
       if (!record) return ok(null);
 
-      const plaintext = this.encryption.decrypt({
-        encryptedValue: record.encryptedValue,
-        iv: record.iv,
-        authTag: record.authTag,
-      });
+      const plaintext = this.encryption.decrypt(
+        {
+          encryptedValue: record.encryptedValue,
+          iv: record.iv,
+          authTag: record.authTag,
+          keyVersion: record.keyVersion,
+        },
+        {
+          fieldName: "AccountCredential",
+          recordId: `${accountId}:${group}:${key}`,
+          caller: "PlatformCredentialService.getAccountCredential",
+        }
+      );
 
       return ok(plaintext);
     } catch {

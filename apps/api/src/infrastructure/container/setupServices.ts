@@ -55,6 +55,8 @@ import { SagaManagerImpl } from "../../saga/SagaManager.js";
 import type { IntegrationEventPublisher } from "../integration-events/IntegrationEventPort.js";
 import { EventSchemaRegistry } from "../integration-events/EventSchemaRegistry.js";
 import { EncryptionService } from "../../security/EncryptionService.js";
+import { ChannelCredentialsCrypto } from "../../security/ChannelCredentialsCrypto.js";
+import type { AuditService } from "../../audit/auditService.js";
 import { PlatformCredentialService } from "../../security/PlatformCredentialService.js";
 import { SettingsService } from "../../settings/SettingsService.js";
 import { UpcasterChain } from "../integration-events/EventUpcaster.js";
@@ -421,6 +423,9 @@ export function setupServices(
       return new CredentialManager({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
+        credentialsCrypto: container.resolve<ChannelCredentialsCrypto>(
+          TOKENS.ChannelCredentialsCrypto
+        ),
         cache: container.resolve<CachePort>(TOKENS.CachePort),
       });
     },
@@ -538,9 +543,21 @@ export function setupServices(
   );
 
   // Register Platform Encryption Services
+  // AuditService singleton (registered earlier in this setup) is reused as
+  // the decrypt-audit port for EncryptionService — every decrypt() emits
+  // an audit event via this port.
   container.register<EncryptionService>(
     TOKENS.EncryptionService,
-    () => new EncryptionService(),
+    () =>
+      new EncryptionService({
+        auditPort: container.resolve<AuditService>(TOKENS.AuditService),
+      }),
+    true
+  );
+  container.register<ChannelCredentialsCrypto>(
+    TOKENS.ChannelCredentialsCrypto,
+    () =>
+      new ChannelCredentialsCrypto(container.resolve<EncryptionService>(TOKENS.EncryptionService)),
     true
   );
   container.register<PlatformCredentialService>(

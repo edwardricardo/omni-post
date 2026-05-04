@@ -19,7 +19,7 @@ import {
 import { PublishHandler } from "../src/publishHandler.js";
 import type { PublishHandlerDeps, PublishProvider } from "../src/publishHandler.js";
 
-describe("PublishHandler.handleJob", { concurrency: 1 }, () => {
+describe("PublishHandler.handleJob", { sequential: true }, () => {
   let deps: PublishHandlerDeps;
   let handler: PublishHandler;
   /** Shortcut to the "x" mock provider in the registry. */

@@ -10,7 +10,7 @@
     "./*": "./src/*"
   },
   "scripts": {
-    "build": "tsc --build",
+    "build": "tsc --noEmit",
     "clean": "tsc --build --clean",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

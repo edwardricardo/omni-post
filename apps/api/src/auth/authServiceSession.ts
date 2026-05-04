@@ -26,6 +26,7 @@ import {
   deleteActiveSessionsKey,
 } from "./redisSessionHelpers.js";
 import { hashFingerprint } from "./deviceFingerprint.js";
+import { hashRefreshToken } from "./refreshTokenHash.js";
 import type { AuthServiceCore } from "./authServiceCore.js";
 import { authLogger } from "../lib/logger.js";
 
@@ -77,7 +78,7 @@ export class AuthServiceSession {
       const decoded = jwt.verify(refreshToken, this.core.refreshSecret, jwtOptions) as TokenPayload;
 
       const session = await prisma.adminSession.findUnique({
-        where: { refreshToken },
+        where: { refreshTokenHash: hashRefreshToken(refreshToken) },
         include: { user: true },
       });
 
@@ -128,7 +129,10 @@ export class AuthServiceSession {
 
       await prisma.adminSession.update({
         where: { id: session.id },
-        data: { refreshToken: newTokens.refreshToken, expiresAt: newTokens.expiresAt },
+        data: {
+          refreshTokenHash: hashRefreshToken(newTokens.refreshToken),
+          expiresAt: newTokens.expiresAt,
+        },
       });
 
       await this.core.logUserActionPublic(decoded.userId, {
@@ -221,7 +225,7 @@ export class AuthServiceSession {
   ): Promise<Result<void, "SESSION_NOT_FOUND" | "DATABASE_ERROR">> {
     try {
       const session = await prisma.adminSession.findUnique({
-        where: { refreshToken },
+        where: { refreshTokenHash: hashRefreshToken(refreshToken) },
       });
 
       if (!session) return err("SESSION_NOT_FOUND");

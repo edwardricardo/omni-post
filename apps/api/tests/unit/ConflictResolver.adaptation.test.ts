@@ -60,7 +60,14 @@ describe("ConflictResolver - Content Adaptation", () => {
             maxMediaPerPost: 4,
             allowedMedia: ["image", "video"],
           },
-          validateContent: mockValidateContent,
+          capabilities: {
+            publish: true,
+            schedule: false,
+            analytics: false,
+            comments: false,
+            replies: false,
+            threading: false,
+          },
         };
       }
       return undefined;
@@ -128,27 +135,21 @@ describe("ConflictResolver - Content Adaptation", () => {
   });
 
   it("should set requiresManualReview when validation fails", async () => {
-    // Mock adapter to return validation errors
-    mockValidateContent.mockImplementation(
-      async (): Promise<ContentValidationResult> => ({
-        valid: false,
-        errors: [{ field: "content", message: "Invalid", severity: "error" }],
-        suggestions: [],
-        adaptations: [],
-      })
-    );
-
-    const content = createTestCanonicalPost();
+    // Twitter's allowedMedia is image+video. Attaching an unsupported "audio"
+    // media item produces an error from validateContentForLimits that no
+    // adaptation rule fixes, forcing manual review.
+    const content = createTestCanonicalPost({
+      media: [{ url: "https://example.com/clip.mp3", type: "audio" as never, id: "m-1" }],
+    });
 
     const result = await resolver.adaptContentForProvider(content, "twitter" as ProviderId, [
-      "TEXT_TOO_LONG",
+      "MEDIA_UNSUPPORTED",
     ]);
 
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.requiresManualReview).toBe(true);
     }
-    // No need to reset — beforeEach creates fresh mocks for each test
   });
 
   it("should handle missing provider adapter", async () => {

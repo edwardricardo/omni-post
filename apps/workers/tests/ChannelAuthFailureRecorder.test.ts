@@ -33,8 +33,9 @@ function createMockPrisma(opts: { txThrows?: Error } = {}): {
       }),
     },
   };
+  type TxClient = typeof tx;
   const prisma = {
-    $transaction: vi.fn(async (callback: (tx: typeof tx) => Promise<void>): Promise<void> => {
+    $transaction: vi.fn(async (callback: (tx: TxClient) => Promise<void>): Promise<void> => {
       await callback(tx);
       if (opts.txThrows) {
         // Simulate Prisma rolling back: reset the captured ops.

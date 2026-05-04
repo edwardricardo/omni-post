@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-import argon2 from "argon2";
+import { hashPassword } from "../../auth/passwordHashing.js";
 import crypto from "crypto";
 import { authenticator } from "otplib";
 import QRCode from "qrcode";
@@ -46,7 +46,7 @@ export class MfaService {
     );
 
     // Hash backup codes for storage
-    const hashedBackupCodes = await Promise.all(backupCodes.map((code) => argon2.hash(code)));
+    const hashedBackupCodes = await Promise.all(backupCodes.map((code) => hashPassword(code)));
 
     // Save to database (not enabled yet - user must verify)
     await prisma.adminUser.update({

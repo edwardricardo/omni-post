@@ -95,11 +95,14 @@ export class IngestChannelAnalyticsUseCase {
     const since = input.since ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const until = new Date();
 
-    const analyticsResult = await adapter.fetchAnalytics({
-      channelId: input.channelId,
-      since,
-      until,
-    });
+    const analyticsResult = await adapter.fetchAnalytics(
+      {
+        channelId: input.channelId,
+        since,
+        until,
+      },
+      channel.credentials
+    );
 
     if (!analyticsResult.ok) {
       const errorType = analyticsResult.error;

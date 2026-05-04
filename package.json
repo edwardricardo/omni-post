@@ -15,7 +15,6 @@
     "format": "prettier -w .",
     "format:check": "prettier -c .",
     "typecheck": "turbo run typecheck",
-    "typecheck:packages": "tsc --build",
     "typecheck:apps": "pnpm --filter @apps/api --filter @apps/admin --filter @apps/client --filter @apps/workers typecheck",
     "build": "turbo run build",
     "dev:api": "pnpm --filter @apps/api dev",
@@ -49,12 +48,14 @@
     "knip:fix": "knip --fix",
     "check:dead-code": "knip",
     "check:duplicates": "jscpd apps/ packages/",
-    "check:circular": "madge --circular --extensions ts,tsx --exclude 'generated|node_modules|dist' apps/api/src/ packages/"
+    "check:circular": "madge --circular --extensions ts,tsx --exclude 'generated|node_modules|dist' apps/api/src/ packages/",
+    "secret:scan": "secretlint --secretlintrc .secretlintrc.json --secretlintignore .secretlintignore 'apps/**/*' 'packages/**/*' 'infra/**/*' '.env*' '*.{ts,tsx,js,jsx,json,md,yml,yaml,toml,sh}'"
   },
   "devDependencies": {
     "@ast-grep/cli": "0.42.0",
     "@axe-core/playwright": "4.10.2",
     "@eslint/js": "9.36.0",
+    "@secretlint/secretlint-rule-preset-recommend": "^12.3.1",
     "@size-limit/preset-app": "^12.1.0",
     "@stryker-mutator/core": "9.6.0",
     "@stryker-mutator/vitest-runner": "9.6.0",
@@ -83,6 +84,7 @@
     "prettier": "3.8.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "secretlint": "^12.3.1",
     "size-limit": "^12.1.0",
     "tsx": "4.21.0",
     "turbo": "2.8.21",
@@ -114,6 +116,9 @@
     ],
     "*.{json,md,yaml,yml}": [
       "prettier --write"
+    ],
+    "*": [
+      "secretlint --secretlintrc .secretlintrc.json --secretlintignore .secretlintignore"
     ]
   },
   "size-limit": [
@@ -141,5 +146,9 @@
       "limit": "300 KB",
       "gzip": true
     }
-  ]
+  ],
+  "dependencies": {
+    "@t3-oss/env-core": "^0.13.11",
+    "@t3-oss/env-nextjs": "^0.13.11"
+  }
 }

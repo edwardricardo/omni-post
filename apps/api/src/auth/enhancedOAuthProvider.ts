@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-import { randomBytes, createHash, createCipheriv, createDecipheriv } from "crypto";
+import { randomBytes, randomUUID, createHash, createCipheriv, createDecipheriv } from "crypto";
 import { URLSearchParams } from "url";
 import Redis from "ioredis";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
@@ -14,7 +14,7 @@ import type { ProviderConnection, Provider as PrismaProvider } from "@infra/pris
 import { prisma as globalPrisma } from "@infra/prisma";
 import type { ApiMetrics } from "../metrics/apiMetrics.js";
 import { AuditableService } from "../services/AuditableService.js";
-import { AppError } from "../lib/errors/AppError.js";
+import { AppError, ErrorCode } from "../lib/errors/AppError.js";
 import { env } from "../config/env.js";
 
 /**
@@ -111,22 +111,56 @@ export interface EnhancedOAuthProvider {
   validateTokenScopes(token: string, requiredScopes: string[]): Promise<boolean>;
 }
 
+/**
+ * Per-call context for OAuth token encrypt/decrypt. Bound as AAD so a
+ * leaked ciphertext cannot be replayed across providers or connections.
+ * Mirrors `EncryptionContext` from EncryptionService — kept local to
+ * avoid coupling this file to the platform-encryption helper (different
+ * KEK, different on-the-wire format).
+ */
+interface OAuthTokenContext {
+  readonly fieldName: "ProviderConnection.accessToken" | "ProviderConnection.refreshToken";
+  readonly recordId: string;
+  readonly caller?: string;
+}
+
+interface OAuthDecryptAuditPort {
+  logCredentialDecrypt(event: {
+    fieldName: string;
+    recordId: string;
+    caller?: string;
+    success: boolean;
+    error?: string;
+  }): Promise<void>;
+}
+
+function canonicaliseOAuthContext(ctx: OAuthTokenContext): Buffer {
+  return Buffer.from(`${ctx.fieldName}\x1f${ctx.recordId}`, "utf8");
+}
+
 export class EnhancedOAuthService extends AuditableService {
   private readonly redis: Redis;
   private readonly metrics: ApiMetrics;
   private readonly encryptionKey: Buffer;
   private readonly db: OAuthPrismaClient;
+  private readonly auditPort: OAuthDecryptAuditPort | undefined;
 
   // Redis key prefixes
   private readonly OAUTH_STATE_PREFIX = "oauth:state:";
   private readonly OAUTH_TOKENS_PREFIX = "oauth:tokens:";
   private readonly OAUTH_ATTEMPTS_PREFIX = "oauth:attempts:";
 
-  constructor(redis: Redis, metrics: ApiMetrics, prismaClient?: OAuthPrismaClient) {
+  constructor(
+    redis: Redis,
+    metrics: ApiMetrics,
+    prismaClient?: OAuthPrismaClient,
+    auditPort?: OAuthDecryptAuditPort
+  ) {
     super("EnhancedOAuthService");
     this.redis = redis;
     this.metrics = metrics;
     this.db = prismaClient ?? (globalPrisma as unknown as OAuthPrismaClient);
+    this.auditPort = auditPort;
 
     this.encryptionKey = Buffer.from(env.OAUTH_ENCRYPTION_KEY, "hex");
 
@@ -326,7 +360,11 @@ export class EnhancedOAuthService extends AuditableService {
       }
 
       // Decrypt refresh token
-      const refreshToken = this.decryptToken(connection!.refreshToken);
+      const refreshToken = this.decryptToken(connection!.refreshToken, {
+        fieldName: "ProviderConnection.refreshToken",
+        recordId: connectionId,
+        caller: "EnhancedOAuthService.refreshTokens",
+      });
 
       // Request new tokens
       const tokenResponse = await provider.refreshAccessToken(refreshToken);
@@ -335,9 +373,17 @@ export class EnhancedOAuthService extends AuditableService {
       await this.db.providerConnection.update({
         where: { id: connectionId },
         data: {
-          accessToken: this.encryptToken(tokenResponse.accessToken),
+          accessToken: this.encryptToken(tokenResponse.accessToken, {
+            fieldName: "ProviderConnection.accessToken",
+            recordId: connectionId,
+            caller: "EnhancedOAuthService.refreshTokens",
+          }),
           ...(tokenResponse.refreshToken && {
-            refreshToken: this.encryptToken(tokenResponse.refreshToken),
+            refreshToken: this.encryptToken(tokenResponse.refreshToken, {
+              fieldName: "ProviderConnection.refreshToken",
+              recordId: connectionId,
+              caller: "EnhancedOAuthService.refreshTokens",
+            }),
           }),
           ...(tokenResponse.expiresIn && {
             expiresAt: new Date(Date.now() + tokenResponse.expiresIn * 1000),
@@ -387,7 +433,11 @@ export class EnhancedOAuthService extends AuditableService {
         // Revoke tokens with provider (if supported)
         try {
           if (connection!.accessToken) {
-            const _accessToken = this.decryptToken(connection!.accessToken);
+            const _accessToken = this.decryptToken(connection!.accessToken, {
+              fieldName: "ProviderConnection.accessToken",
+              recordId: connectionId,
+              caller: "EnhancedOAuthService.revokeConnection",
+            });
             // Note: Actual revocation would depend on provider's revocation endpoint
             this.logWarning(
               { operation: "revokeConnection", accountId },
@@ -511,11 +561,30 @@ export class EnhancedOAuthService extends AuditableService {
       },
     });
 
-    const connectionData = {
-      accessToken: this.encryptToken(tokenResponse.accessToken),
-      ...(tokenResponse.refreshToken && {
-        refreshToken: this.encryptToken(tokenResponse.refreshToken),
+    // Determine the connection id BEFORE encrypting — recordId is bound as
+    // AAD into the auth tag, so the same id used here must be persisted on
+    // the row. For existing rows reuse their id; for new rows pre-generate
+    // a UUID app-side rather than letting Prisma's `@default(uuid())` pick
+    // one (we can't bind an id we don't know yet).
+    const connectionId = existingConnection ? existingConnection.id : randomUUID();
+
+    const buildEncrypted = () => ({
+      accessToken: this.encryptToken(tokenResponse.accessToken, {
+        fieldName: "ProviderConnection.accessToken",
+        recordId: connectionId,
+        caller: "EnhancedOAuthService.upsertProviderConnection",
       }),
+      ...(tokenResponse.refreshToken && {
+        refreshToken: this.encryptToken(tokenResponse.refreshToken, {
+          fieldName: "ProviderConnection.refreshToken",
+          recordId: connectionId,
+          caller: "EnhancedOAuthService.upsertProviderConnection",
+        }),
+      }),
+    });
+
+    const connectionData = {
+      ...buildEncrypted(),
       ...(tokenResponse.expiresIn && {
         expiresAt: new Date(Date.now() + tokenResponse.expiresIn * 1000),
       }),
@@ -538,9 +607,11 @@ export class EnhancedOAuthService extends AuditableService {
       });
       return { connection, isNewConnection: false };
     } else {
-      // Create new connection
+      // Create new connection — pass `id: connectionId` so the row's primary
+      // key matches the AAD recordId we just bound.
       const connection = await this.db.providerConnection.create({
         data: {
+          id: connectionId,
           accountId,
           projectId: accountId, // For now, use same as accountId - this should be passed as parameter
           providerId: providerId.toUpperCase() as PrismaProvider,
@@ -557,12 +628,13 @@ export class EnhancedOAuthService extends AuditableService {
     return requestedScopes.filter((scope) => allowedScopes.includes(scope));
   }
 
-  private encryptToken(token: string): string {
+  private encryptToken(token: string, context: OAuthTokenContext): string {
     if (!token) return token;
 
     try {
       const iv = randomBytes(16);
       const cipher = createCipheriv("aes-256-gcm", this.encryptionKey, iv, { authTagLength: 16 });
+      cipher.setAAD(canonicaliseOAuthContext(context));
 
       let encrypted = cipher.update(token, "utf8", "hex");
       encrypted += cipher.final("hex");
@@ -573,15 +645,27 @@ export class EnhancedOAuthService extends AuditableService {
     } catch (error) {
       this.logWarning(
         { operation: "encryptToken" },
-        `Token encryption error: ${error instanceof Error ? error.message : "Unknown error"}`
+        `CRITICAL: Token encryption failed: ${error instanceof Error ? error.message : "Unknown error"}`
       );
-      return token; // Fallback to unencrypted
+      throw new AppError(ErrorCode.INTERNAL_SERVER_ERROR, 500, "Failed to encrypt OAuth token");
     }
   }
 
-  private decryptToken(encryptedToken: string): string {
-    if (!encryptedToken || !encryptedToken.includes(":")) {
-      return encryptedToken; // Assume unencrypted
+  private decryptToken(encryptedToken: string, context: OAuthTokenContext): string {
+    if (!encryptedToken) return encryptedToken;
+
+    if (!encryptedToken.includes(":")) {
+      this.logWarning(
+        { operation: "decryptToken" },
+        "CRITICAL: Refusing to read OAuth token — stored value is not in encrypted format. " +
+          "Re-authentication is required for this connection."
+      );
+      this.emitDecryptAudit(context, false, "stored token not in encrypted format");
+      throw new AppError(
+        ErrorCode.AUTH_TOKEN_INVALID,
+        401,
+        "Stored OAuth token is not encrypted; re-authentication required"
+      );
     }
 
     try {
@@ -602,18 +686,43 @@ export class EnhancedOAuthService extends AuditableService {
         authTagLength: 16,
       });
       decipher.setAuthTag(authTag);
+      decipher.setAAD(canonicaliseOAuthContext(context));
 
       let decrypted = decipher.update(encrypted, "hex", "utf8");
       decrypted += decipher.final("utf8");
 
+      this.emitDecryptAudit(context, true);
       return decrypted;
     } catch (error) {
       this.logWarning(
         { operation: "decryptToken" },
-        `Token decryption error: ${error instanceof Error ? error.message : "Unknown error"}`
+        `CRITICAL: Token decryption failed: ${error instanceof Error ? error.message : "Unknown error"}`
       );
-      return encryptedToken; // Fallback to encrypted value
+      this.emitDecryptAudit(
+        context,
+        false,
+        error instanceof Error ? error.message : "decrypt failed"
+      );
+      throw new AppError(ErrorCode.INTERNAL_SERVER_ERROR, 500, "Failed to decrypt OAuth token");
     }
+  }
+
+  /**
+   * Fire-and-forget audit emission for OAuth token decryption. Failure to
+   * log NEVER fails the decrypt — audit is best-effort.
+   */
+  private emitDecryptAudit(context: OAuthTokenContext, success: boolean, error?: string): void {
+    if (!this.auditPort) return;
+    const event = {
+      fieldName: context.fieldName,
+      recordId: context.recordId,
+      ...(context.caller !== undefined && { caller: context.caller }),
+      success,
+      ...(error !== undefined && { error }),
+    };
+    void this.auditPort.logCredentialDecrypt(event).catch(() => {
+      // Audit failures must never propagate.
+    });
   }
 
   /**

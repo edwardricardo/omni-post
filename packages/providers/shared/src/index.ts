@@ -1,23 +1,26 @@
 /**
  * @file index.ts
- * @description Barrel exports for the shared provider helpers — AbstractProviderAdapter,
- *              ProviderError, credential types, and validation helpers.
+ * @description Barrel exports for the shared provider package: composition
+ *   helpers, structured errors, and shared metadata/credential types used by
+ *   concrete provider adapters.
  * @layer infrastructure
  */
-// Abstract Provider Adapter (class-based architecture)
-export { AbstractProviderAdapter } from "./AbstractProviderAdapter.js";
 
-// Channel credentials port — apps wire the Prisma-backed implementation at
-// startup so the providers package itself stays free of infrastructure imports.
+// Composition helpers (stateless functions used by concrete adapters)
 export {
-  setChannelCredentialsRepository,
-  type ChannelCredentialsRepository,
-} from "./channelCredentialsRepository.js";
+  validateCredentialStructure,
+  uploadMediaWithRetry,
+  uploadMediaBatch,
+  mapErrorToPublishError,
+  validateApiResponse,
+  validateContentForLimits,
+  generateProviderPreview,
+} from "./helpers.js";
 
 // Structured provider errors
 export { ProviderError, ProviderErrorCode } from "./ProviderError.js";
 
-// Export types from AbstractProviderAdapter
+// Shared metadata and credential types
 export type {
   ProviderCredentials,
   MediaUploadResult,
@@ -31,4 +34,4 @@ export type {
   ProviderCapabilities,
   HealthCheckResult,
   AccountInfo,
-} from "./AbstractProviderAdapter.js";
+} from "./providerTypes.js";

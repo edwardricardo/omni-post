@@ -6,8 +6,9 @@
  */
 
 import jwt from "jsonwebtoken";
-import argon2 from "argon2";
 import { randomBytes } from "crypto";
+import { hashRefreshToken } from "./refreshTokenHash.js";
+import { hashPassword, verifyPassword, needsRehash } from "./passwordHashing.js";
 import { ok, err, type Result } from "@shared/types";
 import { prisma } from "@infra/prisma";
 import { env } from "../config/env.js";
@@ -178,6 +179,24 @@ export class AuthServiceCore extends AuditableService {
 
       const user = userResult.value;
       const isPasswordValid = await this.verifyPassword(credentials.password, user.passwordHash);
+
+      // Transparent rehash on successful login: if the stored hash uses
+      // parameters weaker than the current canon, upgrade it silently. The
+      // plaintext is still on the stack at this point, so the upgrade has
+      // no extra cost beyond a second `argon2.hash` call. Failure is
+      // non-fatal — login proceeds either way.
+      if (isPasswordValid && needsRehash(user.passwordHash)) {
+        try {
+          const upgraded = await hashPassword(credentials.password);
+          await prisma.adminUser.update({
+            where: { id: user.id },
+            data: { passwordHash: upgraded },
+          });
+        } catch {
+          // Swallow — login should not fail on rehash failure.
+        }
+      }
+
       if (!isPasswordValid) {
         await this.logUserAction(user.id, {
           action: "USER_LOGIN",
@@ -344,7 +363,7 @@ export class AuthServiceCore extends AuditableService {
     const session = await prisma.adminSession.create({
       data: {
         userId: user.id,
-        refreshToken: tempToken,
+        refreshTokenHash: hashRefreshToken(tempToken),
         ipAddress: fingerprint.ipAddress || "",
         userAgent: fingerprint.userAgent || "",
         expiresAt: new Date(Date.now() + this.refreshTokenTtl * 1000),
@@ -362,7 +381,7 @@ export class AuthServiceCore extends AuditableService {
 
     await prisma.adminSession.update({
       where: { id: session.id },
-      data: { refreshToken: tokens.refreshToken },
+      data: { refreshTokenHash: hashRefreshToken(tokens.refreshToken) },
     });
 
     if (this.hasRedis) {
@@ -422,16 +441,11 @@ export class AuthServiceCore extends AuditableService {
   }
 
   async hashPassword(password: string): Promise<string> {
-    return argon2.hash(password, {
-      type: argon2.argon2id,
-      memoryCost: 65536,
-      timeCost: 3,
-      parallelism: 4,
-    });
+    return hashPassword(password);
   }
 
   async verifyPassword(password: string, hash: string): Promise<boolean> {
-    return argon2.verify(hash, password);
+    return verifyPassword(hash, password);
   }
 
   mapUserToAuthenticatedUser(user: AdminUserDto): AuthenticatedUser {

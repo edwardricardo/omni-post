@@ -471,6 +471,7 @@ export const TOKENS = {
 
   // Platform Encryption
   EncryptionService: Symbol.for("EncryptionService"),
+  ChannelCredentialsCrypto: Symbol.for("ChannelCredentialsCrypto"),
   PlatformCredentialService: Symbol.for("PlatformCredentialService"),
 
   // Settings

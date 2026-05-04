@@ -9,7 +9,11 @@ import {
   InstagramMediaProcessor,
   type InstagramCredentials,
 } from "@providers/instagram";
-import { createBullMQConsumerAdapter, createBullMQQueueAdapter } from "@adapters/queue-bullmq";
+import {
+  createBullMQConsumerAdapter,
+  createBullMQQueueAdapter,
+  QUEUE_NAMES,
+} from "@adapters/queue-bullmq";
 import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import {
@@ -83,8 +87,13 @@ const registry = new client.Registry();
 const circuitBreaker = createExternalApiCircuitBreaker(registry, process.env.REDIS_URL);
 
 export class InstagramPublishingWorker {
-  private consumerAdapter = createBullMQConsumerAdapter();
-  private queueAdapter = createBullMQQueueAdapter();
+  private consumerAdapter = createBullMQConsumerAdapter({
+    queueName: QUEUE_NAMES.PUBLISH,
+    concurrency: 3,
+    removeOnComplete: { count: 100 },
+    removeOnFail: { count: 50 },
+  });
+  private queueAdapter = createBullMQQueueAdapter({ queueName: QUEUE_NAMES.PUBLISH });
   private repoAdapter = createPrismaRepoAdapter();
   private mediaProcessor: InstagramMediaProcessor;
   private isRunning = false;
@@ -108,16 +117,9 @@ export class InstagramPublishingWorker {
     try {
       logger.info("Starting Instagram publishing worker");
 
-      await this.consumerAdapter.subscribe(
-        {
-          concurrency: 3, // Process up to 3 Instagram jobs concurrently
-          removeOnComplete: 100,
-          removeOnFail: 50,
-        },
-        async (job) => {
-          await this.processJob(job);
-        }
-      );
+      await this.consumerAdapter.subscribe(async (job) => {
+        await this.processJob(job);
+      });
 
       this.isRunning = true;
       logger.info("Instagram publishing worker started successfully");

@@ -5,42 +5,40 @@
  * @layer infrastructure
  */
 
-import argon2 from "argon2";
 import crypto from "crypto";
 import { prisma } from "@infra/prisma";
 import { ok, err, type Result } from "@shared/types";
 import type { AuthErrorCode, PasswordValidation, SecurityEventType } from "./adminAuthTypes";
 import { validatePasswordStrength } from "./adminAuthSchemas";
 import { adminAuthConfig } from "./adminAuthConfig";
+import {
+  hashPassword as argonHashPassword,
+  verifyPassword as argonVerifyPassword,
+  needsRehash,
+} from "../../auth/passwordHashing.js";
 
 export class PasswordService {
   /**
-   * Hash password using Argon2id
+   * Hash password using the canonical Argon2id parameters.
    */
   async hashPassword(password: string): Promise<{ hash: string; algorithm: "argon2id" }> {
-    const hash = await argon2.hash(password, {
-      type: argon2.argon2id,
-      memoryCost: 65536, // 64 MB
-      timeCost: 3,
-      parallelism: 4,
-    });
+    const hash = await argonHashPassword(password);
     return { hash, algorithm: "argon2id" };
   }
 
   /**
-   * Verify password against an argon2id hash
+   * Verify password against an argon2id hash. `needsMigration` is true when
+   * the stored hash uses parameters weaker than the current canon, so callers
+   * can transparently re-hash on the next successful login.
    */
   async verifyPassword(
     password: string,
     storedHash: string,
     _algorithm?: string
   ): Promise<{ valid: boolean; needsMigration: boolean }> {
-    try {
-      const valid = await argon2.verify(storedHash, password);
-      return { valid, needsMigration: false };
-    } catch {
-      return { valid: false, needsMigration: false };
-    }
+    const valid = await argonVerifyPassword(storedHash, password);
+    if (!valid) return { valid: false, needsMigration: false };
+    return { valid: true, needsMigration: needsRehash(storedHash) };
   }
 
   /**

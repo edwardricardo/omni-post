@@ -15,7 +15,7 @@ import {
 import { PublishHandler } from "../src/publishHandler.js";
 import type { PublishHandlerDeps, PublishProvider } from "../src/publishHandler.js";
 
-describe("PublishHandler.publishThreadPost", { concurrency: 1 }, () => {
+describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
   let deps: PublishHandlerDeps;
   let handler: PublishHandler;
   /** Shortcut to the "x" mock provider in the registry. */

@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import client from "prom-client";
 import { WorkerMetrics } from "../src/metrics/workerMetrics.js";
 
-describe("WorkerMetrics", { concurrency: 1 }, () => {
+describe("WorkerMetrics", { sequential: true }, () => {
   let registry: client.Registry;
   let metrics: WorkerMetrics;
 
@@ -17,7 +17,7 @@ describe("WorkerMetrics", { concurrency: 1 }, () => {
     metrics = new WorkerMetrics(registry);
   });
 
-  describe("constructor", { concurrency: 1 }, () => {
+  describe("constructor", { sequential: true }, () => {
     it("should create all expected metric collectors", () => {
       const m = metrics.metrics;
 
@@ -62,7 +62,7 @@ describe("WorkerMetrics", { concurrency: 1 }, () => {
     });
   });
 
-  describe("generateCorrelationId", { concurrency: 1 }, () => {
+  describe("generateCorrelationId", { sequential: true }, () => {
     it("should return a UUID string", () => {
       const id = metrics.generateCorrelationId("test-key");
       // UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
@@ -92,7 +92,7 @@ describe("WorkerMetrics", { concurrency: 1 }, () => {
     });
   });
 
-  describe("removeCorrelationId", { concurrency: 1 }, () => {
+  describe("removeCorrelationId", { sequential: true }, () => {
     it("should remove the tracked correlation ID", () => {
       metrics.generateCorrelationId("key-remove");
       assert.ok(metrics.getCorrelationId("key-remove"));
@@ -120,7 +120,7 @@ describe("WorkerMetrics", { concurrency: 1 }, () => {
     });
   });
 
-  describe("recordJobStart", { concurrency: 1 }, () => {
+  describe("recordJobStart", { sequential: true }, () => {
     it("should increment jobsActive gauge", async () => {
       metrics.recordJobStart();
 
@@ -161,7 +161,7 @@ describe("WorkerMetrics", { concurrency: 1 }, () => {
     });
   });
 
-  describe("recordThreadStart", { concurrency: 1 }, () => {
+  describe("recordThreadStart", { sequential: true }, () => {
     it("should increment threadsInProgress gauge for provider", async () => {
       metrics.recordThreadStart("x");
 
@@ -183,7 +183,7 @@ describe("WorkerMetrics", { concurrency: 1 }, () => {
     });
   });
 
-  describe("recordError", { concurrency: 1 }, () => {
+  describe("recordError", { sequential: true }, () => {
     it("should increment errorsByType counter with correct labels", async () => {
       metrics.recordError("publisher", "provider_error", true);
 
@@ -210,7 +210,7 @@ describe("WorkerMetrics", { concurrency: 1 }, () => {
     });
   });
 
-  describe("getTweetCountRange", { concurrency: 1 }, () => {
+  describe("getTweetCountRange", { sequential: true }, () => {
     it("should return '1-2' for counts 1 and 2", () => {
       assert.strictEqual(metrics.getTweetCountRange(1), "1-2");
       assert.strictEqual(metrics.getTweetCountRange(2), "1-2");
@@ -238,7 +238,7 @@ describe("WorkerMetrics", { concurrency: 1 }, () => {
     });
   });
 
-  describe("setHealthy / setUnhealthy", { concurrency: 1 }, () => {
+  describe("setHealthy / setUnhealthy", { sequential: true }, () => {
     it("should set health gauge to 1 when healthy", async () => {
       metrics.setUnhealthy(); // first set unhealthy
       metrics.setHealthy();
@@ -255,7 +255,7 @@ describe("WorkerMetrics", { concurrency: 1 }, () => {
     });
   });
 
-  describe("updateQueueDepth", { concurrency: 1 }, () => {
+  describe("updateQueueDepth", { sequential: true }, () => {
     it("should set queue depth gauge to given value", async () => {
       metrics.updateQueueDepth(42);
 
@@ -272,7 +272,7 @@ describe("WorkerMetrics", { concurrency: 1 }, () => {
     });
   });
 
-  describe("recordRetry", { concurrency: 1 }, () => {
+  describe("recordRetry", { sequential: true }, () => {
     it("should increment retry attempts counter", async () => {
       metrics.recordRetry("publisher", "rate_limit");
 
@@ -285,7 +285,7 @@ describe("WorkerMetrics", { concurrency: 1 }, () => {
     });
   });
 
-  describe("recordCircuitBreakerTrip", { concurrency: 1 }, () => {
+  describe("recordCircuitBreakerTrip", { sequential: true }, () => {
     it("should increment circuit breaker trips counter", async () => {
       metrics.recordCircuitBreakerTrip("database", "write_breaker");
 
@@ -298,7 +298,7 @@ describe("WorkerMetrics", { concurrency: 1 }, () => {
     });
   });
 
-  describe("getRegistry", { concurrency: 1 }, () => {
+  describe("getRegistry", { sequential: true }, () => {
     it("should return the registry passed in constructor", () => {
       const returned = metrics.getRegistry();
       assert.strictEqual(returned, registry);

@@ -13,8 +13,8 @@ function makeLogger(): QueryClientLogger & {
   error: ReturnType<typeof vi.fn>;
 } {
   return {
-    warn: vi.fn(),
-    error: vi.fn(),
+    warn: vi.fn<(message: string, data?: Record<string, unknown>) => void>(),
+    error: vi.fn<(message: string, error?: unknown, data?: Record<string, unknown>) => void>(),
   };
 }
 

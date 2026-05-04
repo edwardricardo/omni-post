@@ -1,23 +1,9 @@
 /**
- * XAdapter Test Helpers
- *
- * Shared mock factories, fixtures, and utility functions used across all
- * XAdapter test files. Centralising these here avoids duplication and
- * ensures every split test file exercises the same mock contract.
- *
- * Exports:
- * - createMockApiClient()       -- minimal X API client mock (happy path)
- * - createFailingApiClient()    -- API client that throws on all operations
- * - createTestCanonicalPost()   -- factory for CanonicalPost
- * - createTestPublishInput()    -- factory for PublishInput
- * - createTestThreadPlan()      -- factory for ThreadPlan (multi-tweet)
- * - createTestThreadPublishInput() -- factory for ThreadPublishInput
- * - MOCK_CREDENTIALS            -- standard valid mock credential object
- * - PLACEHOLDER_CREDENTIALS     -- credentials with "placeholder" values
- * - SHORT_BODY / LONG_BODY      -- pre-built body strings for common tests
- *
  * @file XAdapter.test-helpers.ts
- * @description Test helpers for xadapter test helpers
+ * @description Test helpers for XAdapter test suites. Centralises mock API
+ *   client factories, fixtures, and post/thread input builders so every split
+ *   test file exercises the same mock contract. The adapter takes credentials
+ *   per-call; helpers below construct adapters via injected fake apiClientFactory.
  * @layer infrastructure
  */
 
@@ -30,28 +16,21 @@ import type {
   ThreadPublishInput,
   TweetFragment,
 } from "@shared/types";
+import { XAdapter, type XApiClientFactory } from "../src/XAdapter.js";
+import type { XApiClient, XCredentials } from "../src/apiClient.js";
 
 // ============================================================================
 // Credential fixtures
 // ============================================================================
 
 /** Standard mock credentials for happy-path tests. */
-export const MOCK_CREDENTIALS = {
+export const MOCK_CREDENTIALS: XCredentials = {
   apiKey: "test-api-key",
   apiSecret: "test-api-secret",
   accessToken: "test-access-token",
   accessTokenSecret: "test-access-token-secret",
   bearerToken: "test-bearer-token",
-} as const;
-
-/** Placeholder credentials -- simulates env vars not configured. */
-export const PLACEHOLDER_CREDENTIALS = {
-  apiKey: "placeholder",
-  apiSecret: "placeholder",
-  accessToken: "placeholder",
-  accessTokenSecret: "placeholder",
-  bearerToken: "placeholder",
-} as const;
+};
 
 // ============================================================================
 // Pre-built body strings
@@ -62,7 +41,7 @@ export const SHORT_BODY = "Hello from OmniPost! This is a test tweet.";
 
 /**
  * Long body that exceeds 280 chars and will trigger threading.
- * ~600 chars -- enough to split into 3 tweets.
+ * ~600 chars — enough to split into 3 tweets.
  */
 export const LONG_BODY =
   "This is a long-form content piece that needs to be split into a thread. " +
@@ -127,10 +106,15 @@ export function createMockApiClient() {
     deleteTweet: vi.fn(async (_tweetId: string) => ({
       data: { deleted: true },
     })),
+    searchReplies: vi.fn(async () => ({ data: [], meta: { result_count: 0 } })),
     getCircuitBreakerStatus: vi.fn(() => ({})),
     clearCache: vi.fn(() => undefined),
+    forceCircuitBreakerOpen: vi.fn(() => true),
+    forceCircuitBreakerClose: vi.fn(() => true),
   };
 }
+
+export type MockApiClient = ReturnType<typeof createMockApiClient>;
 
 /**
  * Create an API client that throws on all operations.
@@ -161,20 +145,33 @@ export function createFailingApiClient(errorMessage = "API error", statusCode?: 
     deleteTweet: vi.fn(async () => {
       throw makeError();
     }),
+    searchReplies: vi.fn(async () => {
+      throw makeError();
+    }),
     getCircuitBreakerStatus: vi.fn(() => ({})),
     clearCache: vi.fn(() => undefined),
+    forceCircuitBreakerOpen: vi.fn(() => true),
+    forceCircuitBreakerClose: vi.fn(() => true),
   };
+}
+
+// ============================================================================
+// Adapter factory — wires the fake client through dependency injection
+// ============================================================================
+
+/**
+ * Build an `XAdapter` whose `apiClientFactory` returns the supplied fake.
+ * Returns both the adapter and the client so tests can assert on the client.
+ */
+export function makeAdapter(client: MockApiClient = createMockApiClient()) {
+  const factory: XApiClientFactory = () => client as unknown as XApiClient;
+  return { adapter: new XAdapter({ apiClientFactory: factory }), client };
 }
 
 // ============================================================================
 // CanonicalPost / PublishInput / ThreadPlan factories
 // ============================================================================
 
-/**
- * Build a CanonicalPost for use in XAdapter tests.
- *
- * @param overrides - Partial fields merged into the default post.
- */
 export function createTestCanonicalPost(overrides: Partial<CanonicalPost> = {}): CanonicalPost {
   return {
     id: `post-${Date.now()}`,
@@ -185,9 +182,6 @@ export function createTestCanonicalPost(overrides: Partial<CanonicalPost> = {}):
   };
 }
 
-/**
- * Build a minimal RenderedPost for use in PublishInput.
- */
 export function createTestRenderedPost(overrides: Partial<RenderedPost> = {}): RenderedPost {
   return {
     body: SHORT_BODY,
@@ -196,9 +190,6 @@ export function createTestRenderedPost(overrides: Partial<RenderedPost> = {}): R
   };
 }
 
-/**
- * Build a minimal PublishInput for use in XAdapter tests.
- */
 export function createTestPublishInput(postOverrides: Partial<RenderedPost> = {}): PublishInput {
   return {
     channelId: "channel-x-123",
@@ -207,9 +198,6 @@ export function createTestPublishInput(postOverrides: Partial<RenderedPost> = {}
   };
 }
 
-/**
- * Build a ThreadPlan with the given number of tweets.
- */
 export function createTestThreadPlan(tweetCount = 3): ThreadPlan {
   const tweets: TweetFragment[] = [];
   for (let i = 1; i <= tweetCount; i++) {
@@ -230,9 +218,6 @@ export function createTestThreadPlan(tweetCount = 3): ThreadPlan {
   };
 }
 
-/**
- * Build a ThreadPublishInput for use in XAdapter tests.
- */
 export function createTestThreadPublishInput(tweetCount = 3): ThreadPublishInput {
   return {
     channelId: "channel-x-123",

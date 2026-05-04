@@ -1,13 +1,16 @@
 /**
  * @file FacebookAdapter.comments.test.ts
- * @description Unit tests for Facebook getComments, postReply, and scheduling.
- *              All tests are Tier 0 (no network, no DB, no Redis).
+ * @description Unit tests for Facebook getComments, postReply, and capability flags.
+ *   The adapter takes credentials per-call; the suite injects a fake
+ *   `FacebookApiClient` factory so tests do not hit the network.
+ *   All tests are Tier 0 (no network, no DB, no Redis).
  * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { FacebookAdapter } from "../src/FacebookAdapter.js";
+import { FacebookAdapter, type FacebookApiClientFactory } from "../src/FacebookAdapter.js";
+import type { FacebookApiClient, FacebookCredentials } from "../src/apiClient.js";
 
 // ============================================================================
 // Mock factories
@@ -39,12 +42,6 @@ function makeMockApiClient() {
     replyToComment: vi.fn(async () => ({
       id: "reply-fb-new-001",
     })),
-    postScheduled: vi.fn(async () => ({
-      id: "scheduled-post-001",
-    })),
-    postWithLink: vi.fn(async () => ({
-      id: "link-post-001",
-    })),
     validateCredentials: vi.fn(async () => ({
       id: "page-001",
       name: "Test Page",
@@ -67,11 +64,17 @@ function makeMockApiClient() {
     postToPage: vi.fn(async () => ({
       id: "post-001",
     })),
-    makeApiRequest: vi.fn(async () => ({ json: async () => ({}) })),
   };
 }
 
-const TEST_CREDENTIALS = {
+type MockApiClient = ReturnType<typeof makeMockApiClient>;
+
+function makeAdapter(client: MockApiClient = makeMockApiClient()) {
+  const factory: FacebookApiClientFactory = () => client as unknown as FacebookApiClient;
+  return new FacebookAdapter({ apiClientFactory: factory });
+}
+
+const TEST_CREDENTIALS: FacebookCredentials = {
   accessToken: "test-token",
   pageId: "page-001",
   appId: "app-001",
@@ -83,18 +86,13 @@ const TEST_CREDENTIALS = {
 // ============================================================================
 
 describe("FacebookAdapter - getComments", { concurrency: 1 }, () => {
-  let adapter: FacebookAdapter;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new FacebookAdapter();
   });
 
   it("returns comments with threading info", async () => {
     const mockClient = makeMockApiClient();
-    const createClientMock = vi
-      .spyOn(adapter as never, "createApiClient" as never)
-      .mockImplementation(() => mockClient as never);
+    const adapter = makeAdapter(mockClient);
 
     const result = await adapter.getComments({
       channelCredentials: TEST_CREDENTIALS,
@@ -116,11 +114,10 @@ describe("FacebookAdapter - getComments", { concurrency: 1 }, () => {
     assert.strictEqual(second.providerParentId, "comment-fb-001");
 
     assert.strictEqual(result.value.nextCursor, "cursor-next");
-
-    createClientMock.mockRestore();
   });
 
   it("returns empty when no postExternalId", async () => {
+    const adapter = makeAdapter();
     const result = await adapter.getComments({
       channelCredentials: TEST_CREDENTIALS,
     });
@@ -129,15 +126,23 @@ describe("FacebookAdapter - getComments", { concurrency: 1 }, () => {
     assert.strictEqual(result.value.comments.length, 0);
   });
 
+  it("returns AUTH error when credentials missing required fields", async () => {
+    const adapter = makeAdapter();
+    const result = await adapter.getComments({
+      channelCredentials: { accessToken: "only-token" },
+      postExternalId: "post-001",
+    });
+
+    assert.ok(!result.ok);
+    assert.strictEqual(result.error, "AUTH");
+  });
+
   it("returns NETWORK error on failure", async () => {
     const mockClient = makeMockApiClient();
     mockClient.getPostComments = vi.fn(async () => {
       throw new Error("API error");
     });
-
-    const createClientMock = vi
-      .spyOn(adapter as never, "createApiClient" as never)
-      .mockImplementation(() => mockClient as never);
+    const adapter = makeAdapter(mockClient);
 
     const result = await adapter.getComments({
       channelCredentials: TEST_CREDENTIALS,
@@ -146,8 +151,6 @@ describe("FacebookAdapter - getComments", { concurrency: 1 }, () => {
 
     assert.ok(!result.ok);
     assert.strictEqual(result.error, "NETWORK");
-
-    createClientMock.mockRestore();
   });
 });
 
@@ -156,18 +159,13 @@ describe("FacebookAdapter - getComments", { concurrency: 1 }, () => {
 // ============================================================================
 
 describe("FacebookAdapter - postReply", { concurrency: 1 }, () => {
-  let adapter: FacebookAdapter;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new FacebookAdapter();
   });
 
   it("posts a reply to a comment", async () => {
     const mockClient = makeMockApiClient();
-    const createClientMock = vi
-      .spyOn(adapter as never, "createApiClient" as never)
-      .mockImplementation(() => mockClient as never);
+    const adapter = makeAdapter(mockClient);
 
     const result = await adapter.postReply({
       channelCredentials: TEST_CREDENTIALS,
@@ -183,8 +181,18 @@ describe("FacebookAdapter - postReply", { concurrency: 1 }, () => {
     assert.ok(call);
     assert.strictEqual(call[0], "comment-fb-001");
     assert.strictEqual(call[1], "Thanks for the feedback!");
+  });
 
-    createClientMock.mockRestore();
+  it("returns AUTH error when credentials missing", async () => {
+    const adapter = makeAdapter();
+    const result = await adapter.postReply({
+      channelCredentials: {},
+      inReplyToProviderMessageId: "comment-fb-001",
+      body: "reply",
+    });
+
+    assert.ok(!result.ok);
+    assert.strictEqual(result.error, "AUTH");
   });
 
   it("returns RATE_LIMIT on rate limit error", async () => {
@@ -192,10 +200,7 @@ describe("FacebookAdapter - postReply", { concurrency: 1 }, () => {
     mockClient.replyToComment = vi.fn(async () => {
       throw new Error("Facebook Rate Limit Error");
     });
-
-    const createClientMock = vi
-      .spyOn(adapter as never, "createApiClient" as never)
-      .mockImplementation(() => mockClient as never);
+    const adapter = makeAdapter(mockClient);
 
     const result = await adapter.postReply({
       channelCredentials: TEST_CREDENTIALS,
@@ -205,8 +210,6 @@ describe("FacebookAdapter - postReply", { concurrency: 1 }, () => {
 
     assert.ok(!result.ok);
     assert.strictEqual(result.error, "RATE_LIMIT");
-
-    createClientMock.mockRestore();
   });
 });
 
@@ -214,7 +217,7 @@ describe("FacebookAdapter - postReply", { concurrency: 1 }, () => {
 // 3. Capabilities Test
 // ============================================================================
 
-describe("FacebookAdapter - Updated Capabilities", { concurrency: 1 }, () => {
+describe("FacebookAdapter - Capabilities", { concurrency: 1 }, () => {
   it("reports replies as true", () => {
     const adapter = new FacebookAdapter();
     assert.strictEqual(adapter.capabilities.replies, true);

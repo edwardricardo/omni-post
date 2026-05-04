@@ -1,13 +1,15 @@
 /**
  * @file index.ts
- * @description Public entry point for the Facebook provider — exports the class-based
- *              FacebookAdapter and its shared instance.
+ * @description Facebook provider package barrel export. Composition root constructs
+ *   the adapter via `createFacebookAdapter({ logger })`.
  * @layer infrastructure
  */
 
-// Export class and instance
-export { FacebookAdapter, facebookAdapter } from "./FacebookAdapter.js";
-
-// Default export
-import { facebookAdapter } from "./FacebookAdapter.js";
-export default facebookAdapter;
+export {
+  FacebookAdapter,
+  createFacebookAdapter,
+  type FacebookAdapterDeps,
+  type FacebookApiClientFactory,
+} from "./FacebookAdapter.js";
+export { FacebookApiClient } from "./apiClient.js";
+export type { FacebookCredentials } from "./apiClient.js";

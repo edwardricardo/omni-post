@@ -246,15 +246,12 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
     instagramPageId: string,
     normalizedData: Record<string, unknown>
   ) {
-    // Find channel by Instagram page ID
+    // Find channel by Instagram page ID via the dedicated `providerAccountId`
+    // column (no decryption needed for the lookup).
     const channel = await prisma.channel.findFirst({
       where: {
         provider: "INSTAGRAM",
-        // Look for Instagram page ID in credentials
-        credentials: {
-          path: ["page_id"],
-          equals: instagramPageId,
-        },
+        providerAccountId: instagramPageId,
       },
       include: {
         project: {

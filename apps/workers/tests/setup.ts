@@ -235,6 +235,9 @@ export function createTestDeps(overrides?: Partial<PublishHandlerDeps>): Publish
   return {
     repo: createMockRepo(),
     providerRegistry: createMockProviderRegistry(),
+    credentialResolver: {
+      resolve: async () => ({ ok: true, value: { accessToken: "test-token" } }),
+    },
     workerMetrics: createTestWorkerMetrics(),
     logger: createSilentLogger(),
     instrumentation: createMockInstrumentation(),

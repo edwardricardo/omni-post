@@ -16,7 +16,7 @@ import { createTestDeps, createTestPublishReceipt, createMockProvider } from "./
 import { PublishHandler } from "../src/publishHandler.js";
 import type { PublishHandlerDeps, PublishJobInput } from "../src/publishHandler.js";
 
-describe("PublishHandler.handleJob edge cases", { concurrency: 1 }, () => {
+describe("PublishHandler.handleJob edge cases", { sequential: true }, () => {
   let deps: PublishHandlerDeps;
   let handler: PublishHandler;
 

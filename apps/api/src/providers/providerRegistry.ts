@@ -5,17 +5,17 @@
  * @layer infrastructure
  */
 import type { ProviderAdapter } from "@ports/core";
-import { xAdapter } from "@providers/x";
-import { instagramAdapter } from "@providers/instagram";
-import { facebookAdapter } from "@providers/facebook";
-import { tiktokAdapter } from "@providers/tiktok";
-import { youtubeAdapter } from "@providers/youtube";
-import { snapchatAdapter } from "@providers/snapchat";
-import { telegramAdapter } from "@providers/telegram";
-import { pinterestAdapter } from "@providers/pinterest";
-import { linkedInAdapter } from "@providers/linkedin";
-import { blueskyAdapter } from "@providers/bluesky";
-import { threadsAdapter } from "@providers/threads";
+import { createXAdapter } from "@providers/x";
+import { createInstagramAdapter } from "@providers/instagram";
+import { createFacebookAdapter } from "@providers/facebook";
+import { createTikTokAdapter } from "@providers/tiktok";
+import { createYouTubeAdapter } from "@providers/youtube";
+import { createSnapchatAdapter } from "@providers/snapchat";
+import { createTelegramAdapter } from "@providers/telegram";
+import { createPinterestAdapter } from "@providers/pinterest";
+import { createLinkedInAdapter } from "@providers/linkedin";
+import { createBlueskyAdapter } from "@providers/bluesky";
+import { createThreadsAdapter } from "@providers/threads";
 import { providerLogger } from "../lib/logger.js";
 import {
   PROVIDER_CONFIGS,
@@ -50,18 +50,17 @@ class ProviderRegistryService {
    * Now uses class-based adapters (singleton instances)
    */
   private registerBuiltInAdapters() {
-    // Register all provider adapters (class-based singletons)
-    this.adapters.set("x", xAdapter);
-    this.adapters.set("instagram", instagramAdapter);
-    this.adapters.set("facebook", facebookAdapter);
-    this.adapters.set("tiktok", tiktokAdapter);
-    this.adapters.set("youtube", youtubeAdapter);
-    this.adapters.set("snapchat", snapchatAdapter);
-    this.adapters.set("telegram", telegramAdapter);
-    this.adapters.set("pinterest", pinterestAdapter);
-    this.adapters.set("linkedin", linkedInAdapter);
-    this.adapters.set("bluesky", blueskyAdapter);
-    this.adapters.set("threads", threadsAdapter);
+    this.adapters.set("x", createXAdapter());
+    this.adapters.set("instagram", createInstagramAdapter());
+    this.adapters.set("facebook", createFacebookAdapter());
+    this.adapters.set("tiktok", createTikTokAdapter());
+    this.adapters.set("youtube", createYouTubeAdapter());
+    this.adapters.set("snapchat", createSnapchatAdapter());
+    this.adapters.set("telegram", createTelegramAdapter());
+    this.adapters.set("pinterest", createPinterestAdapter());
+    this.adapters.set("linkedin", createLinkedInAdapter());
+    this.adapters.set("bluesky", createBlueskyAdapter());
+    this.adapters.set("threads", createThreadsAdapter());
   }
 
   /**

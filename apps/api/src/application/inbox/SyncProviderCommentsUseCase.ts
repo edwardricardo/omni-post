@@ -97,7 +97,7 @@ export class SyncProviderCommentsUseCase implements UseCase<
         return ok({ synced: 0, skipped: 0 });
       }
 
-      // Phase 1 — fetch all paginated comments outside any DB transaction.
+      // Step 1: fetch all paginated comments outside any DB transaction.
       // Holding a transaction open across HTTP round-trips would pin a
       // connection per channel and risk pool starvation on busy accounts.
       type ProviderComment = {
@@ -140,7 +140,7 @@ export class SyncProviderCommentsUseCase implements UseCase<
         cursor = commentsResult.value.nextCursor;
       } while (cursor);
 
-      // Phase 2 — ingest each comment. `IngestSocialMessageUseCase` is
+      // Step 2: ingest each comment. `IngestSocialMessageUseCase` is
       // idempotent (dedupes by `providerMessageId`) and runs its own UoW
       // per message, so the outer flow does not need an enclosing
       // transaction — keeping external HTTP fully outside DB locking.

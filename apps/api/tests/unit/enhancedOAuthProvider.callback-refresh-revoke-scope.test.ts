@@ -186,9 +186,26 @@ describe("EnhancedOAuthService - Token Refresh", () => {
   it("should refresh tokens successfully", async (_t) => {
     const provider = createMockProvider();
 
+    // Stored refresh token must be in encrypted format (`iv:authTag:cipher`)
+    // and bound to the same connection id used at decrypt time (AAD binding).
+    type EncFn = (
+      token: string,
+      ctx: {
+        fieldName: "ProviderConnection.accessToken" | "ProviderConnection.refreshToken";
+        recordId: string;
+      }
+    ) => string;
+    const encryptedRefreshToken = (service as unknown as { encryptToken: EncFn }).encryptToken(
+      "old-refresh-token",
+      {
+        fieldName: "ProviderConnection.refreshToken",
+        recordId: "conn-123",
+      }
+    );
+
     mocks.mockPrisma.providerConnection.findUnique = vi.fn(async () => ({
       id: "conn-123",
-      refreshToken: "old-refresh-token",
+      refreshToken: encryptedRefreshToken,
       accountId: "acc-123",
       providerId: "X",
     }));
@@ -225,9 +242,24 @@ describe("EnhancedOAuthService - Token Refresh", () => {
   it("should update expiration date with new tokens", async (_t) => {
     const provider = createMockProvider();
 
+    type EncFn2 = (
+      token: string,
+      ctx: {
+        fieldName: "ProviderConnection.accessToken" | "ProviderConnection.refreshToken";
+        recordId: string;
+      }
+    ) => string;
+    const encryptedRefreshToken = (service as unknown as { encryptToken: EncFn2 }).encryptToken(
+      "refresh-token",
+      {
+        fieldName: "ProviderConnection.refreshToken",
+        recordId: "conn-123",
+      }
+    );
+
     mocks.mockPrisma.providerConnection.findUnique = vi.fn(async () => ({
       id: "conn-123",
-      refreshToken: "refresh-token",
+      refreshToken: encryptedRefreshToken,
       accountId: "acc-123",
       providerId: "X",
     }));

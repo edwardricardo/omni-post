@@ -1,322 +1,236 @@
 /**
- * XAdapter - Publish & Thread Publishing Test Suite
- *
- * Tests validated here:
- * 1. Publish Single Tweet (6 tests) -- successful publish, media upload,
- *    auth failure, circuit breaker error, rate limit, general API error
- * 2. PublishThread (7 tests)        -- successful thread, sequential chaining,
- *    mid-thread failure (THREAD_INTERRUPTED), circuit breaker error, media
- *    in thread tweets, single-tweet thread, delay between tweets
- * 3. FetchAnalytics (3 tests)       -- returns ok with metrics, auth failure,
- *    accepts date range parameters
- *
- * All tests are Tier 0 (no network, no DB, no Redis).
- *
  * @file XAdapter.publish.test.ts
- * @description Tests for XAdapter - publish()
+ * @description Publish + thread publishing test suite for XAdapter. The
+ *   adapter is constructed via the injected fake apiClientFactory and
+ *   credentials are passed per-call. Tier 0: no network, no DB, no Redis.
  * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { XAdapter } from "../src/XAdapter.js";
-import { ok, err } from "@shared/types";
 import {
   createMockApiClient,
   createFailingApiClient,
   createTestPublishInput,
   createTestThreadPublishInput,
   createTestThreadPlan,
+  makeAdapter,
   MOCK_CREDENTIALS,
 } from "./XAdapter.test-helpers.js";
 
 // ============================================================================
-// 1. Publish Single Tweet Tests (6 tests)
+// 1. Publish Single Tweet Tests
 // ============================================================================
 
 describe("XAdapter - publish()", { concurrent: false }, () => {
-  let adapter: XAdapter;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new XAdapter();
   });
 
   it("should publish a single tweet successfully", async () => {
-    const mockClient = createMockApiClient();
-    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue(ok(MOCK_CREDENTIALS));
-    vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
+    const { adapter, client } = makeAdapter();
 
     const input = createTestPublishInput({ body: "Hello world!" });
-    const result = await adapter.publish(input);
+    const result = await adapter.publish(input, MOCK_CREDENTIALS);
 
     assert.ok(result.ok, "Publish should succeed");
     const val = result.value;
     assert.ok(val.providerPostId, "Should have providerPostId");
     assert.ok(val.url?.startsWith("https://x.com/i/status/"), "URL should be a valid X status URL");
     assert.ok(val.publishedAt instanceof Date, "publishedAt should be a Date");
-    assert.strictEqual(
-      mockClient.postTweet.mock.calls.length,
-      1,
-      "postTweet should be called once"
-    );
+    assert.strictEqual(client.postTweet.mock.calls.length, 1);
   });
 
   it("should upload media before posting tweet", async () => {
-    const mockClient = createMockApiClient();
-    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue(ok(MOCK_CREDENTIALS));
-    vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
+    const { adapter, client } = makeAdapter();
 
     const input = createTestPublishInput({
       body: "Tweet with media",
       media: [
-        {
-          type: "image",
-          url: "https://example.com/image1.jpg",
-        },
-        {
-          type: "image",
-          url: "https://example.com/image2.jpg",
-        },
+        { type: "image", url: "https://example.com/image1.jpg" },
+        { type: "image", url: "https://example.com/image2.jpg" },
       ],
     });
 
-    const result = await adapter.publish(input);
+    const result = await adapter.publish(input, MOCK_CREDENTIALS);
 
     assert.ok(result.ok, "Publish should succeed");
-    assert.strictEqual(
-      mockClient.uploadMedia.mock.calls.length,
-      2,
-      "uploadMedia should be called twice (one per image)"
-    );
-    assert.strictEqual(
-      mockClient.postTweet.mock.calls.length,
-      1,
-      "postTweet should be called once"
-    );
+    assert.strictEqual(client.uploadMedia.mock.calls.length, 2);
+    assert.strictEqual(client.postTweet.mock.calls.length, 1);
 
-    // Verify media IDs were passed to postTweet
-    const postTweetCall = mockClient.postTweet.mock.calls[0];
+    const postTweetCall = client.postTweet.mock.calls[0];
     assert.ok(postTweetCall, "postTweet should have been called");
     const mediaIdsArg = postTweetCall[1];
     assert.ok(Array.isArray(mediaIdsArg), "Media IDs should be passed as array");
-    assert.strictEqual(mediaIdsArg.length, 2, "Should have 2 media IDs");
+    assert.strictEqual(mediaIdsArg.length, 2);
   });
 
-  it("should return AUTH error when credentials fail", async () => {
-    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue(err("AUTH"));
-
+  it("should return AUTH error when credentials are missing required fields", async () => {
+    const { adapter } = makeAdapter();
     const input = createTestPublishInput();
-    const result = await adapter.publish(input);
+    const result = await adapter.publish(input, { apiKey: "k" });
 
     assert.strictEqual(result.ok, false, "Publish should fail");
-    assert.strictEqual((result as any).error, "AUTH", "Error should be AUTH");
+    assert.strictEqual((result as { error: string }).error, "AUTH");
+  });
+
+  it("should return AUTH error when credentials are null", async () => {
+    const { adapter } = makeAdapter();
+    const input = createTestPublishInput();
+    const result = await adapter.publish(input, null);
+
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual((result as { error: string }).error, "AUTH");
   });
 
   it("should return NETWORK error when circuit breaker is open", async () => {
     const cbError = new Error("Circuit breaker is OPEN for x-api/post-tweet");
-    const mockClient = {
-      ...createMockApiClient(),
-      postTweet: vi.fn(async () => {
-        throw cbError;
-      }),
-    };
-    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue(ok(MOCK_CREDENTIALS));
-    vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
+    const client = createMockApiClient();
+    client.postTweet = vi.fn(async () => {
+      throw cbError;
+    });
+    const { adapter } = makeAdapter(client);
 
     const input = createTestPublishInput();
-    const result = await adapter.publish(input);
+    const result = await adapter.publish(input, MOCK_CREDENTIALS);
 
-    assert.strictEqual(result.ok, false, "Publish should fail");
-    assert.strictEqual(
-      (result as any).error,
-      "NETWORK",
-      "Error should be NETWORK for circuit breaker"
-    );
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual((result as { error: string }).error, "NETWORK");
   });
 
   it("should return RATE_LIMIT error on 429 status", async () => {
-    const mockClient = createFailingApiClient("Rate limit exceeded", 429);
-    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue(ok(MOCK_CREDENTIALS));
-    vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
+    const failingClient = createFailingApiClient("Rate limit exceeded", 429);
+    const { adapter } = makeAdapter(failingClient);
 
     const input = createTestPublishInput();
-    const result = await adapter.publish(input);
+    const result = await adapter.publish(input, MOCK_CREDENTIALS);
 
-    assert.strictEqual(result.ok, false, "Publish should fail");
-    assert.strictEqual((result as any).error, "RATE_LIMIT", "Error should be RATE_LIMIT");
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual((result as { error: string }).error, "RATE_LIMIT");
   });
 
   it("should return AUTH error on 401 status", async () => {
-    const mockClient = createFailingApiClient("Unauthorized", 401);
-    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue(ok(MOCK_CREDENTIALS));
-    vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
+    const failingClient = createFailingApiClient("Unauthorized", 401);
+    const { adapter } = makeAdapter(failingClient);
 
     const input = createTestPublishInput();
-    const result = await adapter.publish(input);
+    const result = await adapter.publish(input, MOCK_CREDENTIALS);
 
-    assert.strictEqual(result.ok, false, "Publish should fail");
-    assert.strictEqual((result as any).error, "AUTH", "Error should be AUTH for 401");
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual((result as { error: string }).error, "AUTH");
   });
 });
 
 // ============================================================================
-// 2. PublishThread Tests (7 tests)
+// 2. PublishThread Tests
 // ============================================================================
 
 describe("XAdapter - publishThread()", { concurrent: false }, () => {
-  let adapter: XAdapter;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new XAdapter();
   });
 
   it("should publish a thread successfully with sequential tweets", async () => {
-    const mockClient = createMockApiClient();
-    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue(ok(MOCK_CREDENTIALS));
-    vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
+    const { adapter } = makeAdapter();
 
     const input = createTestThreadPublishInput(3);
-    const result = await adapter.publishThread(input);
+    const result = await adapter.publishThread(input, MOCK_CREDENTIALS);
 
     assert.ok(result.ok, "PublishThread should succeed");
-    assert.strictEqual(result.value.totalTweets, 3, "Should have 3 tweets");
-    assert.strictEqual(result.value.tweets.length, 3, "tweets array should have 3 entries");
-    assert.strictEqual(result.value.threadId, input.dedupeKey, "threadId should match dedupeKey");
+    assert.strictEqual(result.value.totalTweets, 3);
+    assert.strictEqual(result.value.tweets.length, 3);
+    assert.strictEqual(result.value.threadId, input.dedupeKey);
 
-    // Verify each tweet has required fields
     for (const tweet of result.value.tweets) {
       assert.ok(tweet.providerTweetId, "Each tweet should have providerTweetId");
-      assert.ok(
-        tweet.url?.startsWith("https://x.com/i/status/"),
-        "Each tweet should have a valid URL"
-      );
-      assert.ok(tweet.publishedAt instanceof Date, "Each tweet should have publishedAt Date");
+      assert.ok(tweet.url?.startsWith("https://x.com/i/status/"));
+      assert.ok(tweet.publishedAt instanceof Date);
     }
   });
 
   it("should chain tweets with parentTweetId (reply threading)", async () => {
-    const mockClient = createMockApiClient();
-    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue(ok(MOCK_CREDENTIALS));
-    vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
+    const { adapter, client } = makeAdapter();
 
     const input = createTestThreadPublishInput(3);
-    await adapter.publishThread(input);
+    await adapter.publishThread(input, MOCK_CREDENTIALS);
 
-    const calls = mockClient.postTweet.mock.calls;
-    assert.strictEqual(calls.length, 3, "postTweet should be called 3 times");
+    const calls = client.postTweet.mock.calls;
+    assert.strictEqual(calls.length, 3);
 
-    // First tweet should NOT have a replyToTweetId
     const firstCall = calls[0];
-    assert.ok(firstCall, "First call should exist");
+    assert.ok(firstCall);
     assert.strictEqual(firstCall[2], undefined, "First tweet should not have replyToTweetId");
 
-    // Second tweet should reply to the first tweet's ID
     const secondCall = calls[1];
-    assert.ok(secondCall, "Second call should exist");
+    assert.ok(secondCall);
     assert.ok(secondCall[2], "Second tweet should have replyToTweetId");
 
-    // Third tweet should reply to the second tweet's ID
     const thirdCall = calls[2];
-    assert.ok(thirdCall, "Third call should exist");
+    assert.ok(thirdCall);
     assert.ok(thirdCall[2], "Third tweet should have replyToTweetId");
-    assert.notStrictEqual(
-      thirdCall[2],
-      secondCall[2],
-      "Third tweet's parent should differ from second tweet's parent"
-    );
+    assert.notStrictEqual(thirdCall[2], secondCall[2]);
   });
 
-  it("should return AUTH error when credentials fail for thread", async () => {
-    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue(err("AUTH"));
-
+  it("should return AUTH error when credentials are missing for thread", async () => {
+    const { adapter } = makeAdapter();
     const input = createTestThreadPublishInput(2);
-    const result = await adapter.publishThread(input);
+    const result = await adapter.publishThread(input, { apiKey: "" });
 
-    assert.strictEqual(result.ok, false, "Should fail");
-    assert.strictEqual((result as any).error, "AUTH");
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual((result as { error: string }).error, "AUTH");
   });
 
   it("should return THREAD_INTERRUPTED on mid-thread 4xx failure", async () => {
     let callCount = 0;
-    const mockClient = {
-      ...createMockApiClient(),
-      postTweet: vi.fn(async (text: string) => {
-        callCount++;
-        if (callCount === 2) {
-          // Second tweet fails with 4xx client error
-          const error = new Error("Bad Request") as Error & {
-            status: number;
-          };
-          error.status = 400;
-          throw error;
-        }
-        return {
-          data: {
-            id: `tweet-${callCount}`,
-            text,
-            created_at: new Date().toISOString(),
-          },
-        };
-      }),
-    };
-    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue(ok(MOCK_CREDENTIALS));
-    vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
+    const client = createMockApiClient();
+    client.postTweet = vi.fn(async (text: string) => {
+      callCount++;
+      if (callCount === 2) {
+        const error = new Error("Bad Request") as Error & { status: number };
+        error.status = 400;
+        throw error;
+      }
+      return {
+        data: {
+          id: `tweet-${callCount}`,
+          text,
+          created_at: new Date().toISOString(),
+        },
+      };
+    });
+    const { adapter } = makeAdapter(client);
 
     const input = createTestThreadPublishInput(3);
-    const result = await adapter.publishThread(input);
+    const result = await adapter.publishThread(input, MOCK_CREDENTIALS);
 
-    assert.strictEqual(result.ok, false, "Should fail");
-    assert.strictEqual(
-      (result as any).error,
-      "THREAD_INTERRUPTED",
-      "Error should be THREAD_INTERRUPTED for mid-thread 4xx failure"
-    );
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual((result as { error: string }).error, "THREAD_INTERRUPTED");
   });
 
   it("should return NETWORK when circuit breaker is open during thread", async () => {
     const cbError = new Error("Circuit breaker is OPEN for x-api/post-tweet");
-    const mockClient = {
-      ...createMockApiClient(),
-      postTweet: vi.fn(async () => {
-        throw cbError;
-      }),
-    };
-    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue(ok(MOCK_CREDENTIALS));
-    vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
+    const client = createMockApiClient();
+    client.postTweet = vi.fn(async () => {
+      throw cbError;
+    });
+    const { adapter } = makeAdapter(client);
 
     const input = createTestThreadPublishInput(2);
-    const result = await adapter.publishThread(input);
+    const result = await adapter.publishThread(input, MOCK_CREDENTIALS);
 
-    assert.strictEqual(result.ok, false, "Should fail");
-    assert.strictEqual(
-      (result as any).error,
-      "NETWORK",
-      "Error should be NETWORK for circuit breaker"
-    );
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual((result as { error: string }).error, "NETWORK");
   });
 
   it("should upload media for each tweet in the thread", async () => {
-    const mockClient = createMockApiClient();
-    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue(ok(MOCK_CREDENTIALS));
-    vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
+    const { adapter, client } = makeAdapter();
 
-    // Create a thread plan with media on tweets
     const threadPlan = createTestThreadPlan(2);
     threadPlan.tweets[0]!.media = [
-      {
-        id: "m1",
-        type: "image",
-        url: "https://example.com/img1.jpg",
-      },
+      { id: "m1", type: "image", url: "https://example.com/img1.jpg" },
     ];
     threadPlan.tweets[1]!.media = [
-      {
-        id: "m2",
-        type: "image",
-        url: "https://example.com/img2.jpg",
-      },
+      { id: "m2", type: "image", url: "https://example.com/img2.jpg" },
     ];
 
     const input = {
@@ -325,28 +239,20 @@ describe("XAdapter - publishThread()", { concurrent: false }, () => {
       dedupeKey: `thread-media-${Date.now()}`,
     };
 
-    const result = await adapter.publishThread(input);
+    const result = await adapter.publishThread(input, MOCK_CREDENTIALS);
 
     assert.ok(result.ok, "PublishThread should succeed");
-    assert.strictEqual(
-      mockClient.uploadMedia.mock.calls.length,
-      2,
-      "uploadMedia should be called for each media item"
-    );
+    assert.strictEqual(client.uploadMedia.mock.calls.length, 2);
   });
 
   it("should handle single-tweet thread plan", async () => {
-    const mockClient = createMockApiClient();
-    vi.spyOn(adapter as any, "getCredentials").mockResolvedValue(ok(MOCK_CREDENTIALS));
-    vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
+    const { adapter } = makeAdapter();
 
     const input = createTestThreadPublishInput(1);
-    const result = await adapter.publishThread(input);
+    const result = await adapter.publishThread(input, MOCK_CREDENTIALS);
 
     assert.ok(result.ok, "Should succeed");
     assert.strictEqual(result.value.totalTweets, 1);
     assert.strictEqual(result.value.tweets.length, 1);
   });
 });
-
-// fetchAnalytics tests removed — method stubbed pending X API v2 analytics integration

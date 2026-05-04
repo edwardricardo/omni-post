@@ -14,26 +14,35 @@ import {
   businessKPITracker,
 } from "./telemetry/initialization.js";
 
-import { xAdapter } from "@providers/x";
-import { instagramAdapter } from "@providers/instagram";
-import { facebookAdapter } from "@providers/facebook";
-import { youtubeAdapter } from "@providers/youtube";
-import { tiktokAdapter } from "@providers/tiktok";
-import { snapchatAdapter } from "@providers/snapchat";
-import { telegramAdapter } from "@providers/telegram";
-import { pinterestAdapter } from "@providers/pinterest";
-import { linkedInAdapter } from "@providers/linkedin";
-import { blueskyAdapter } from "@providers/bluesky";
-import { threadsAdapter } from "@providers/threads";
-import { setChannelCredentialsRepository } from "@providers/shared";
+import { createXAdapter } from "@providers/x";
+import { createInstagramAdapter } from "@providers/instagram";
+import { createFacebookAdapter } from "@providers/facebook";
+import { createYouTubeAdapter } from "@providers/youtube";
+import { createTikTokAdapter } from "@providers/tiktok";
+import { createSnapchatAdapter } from "@providers/snapchat";
+import { createTelegramAdapter } from "@providers/telegram";
+import { createPinterestAdapter } from "@providers/pinterest";
+import { createLinkedInAdapter } from "@providers/linkedin";
+import { createBlueskyAdapter } from "@providers/bluesky";
+import { createThreadsAdapter } from "@providers/threads";
 import { createBullMQConsumerAdapter, QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { registerGracefulShutdown } from "./lib/gracefulShutdown.js";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
+import { decryptChannelCredentials } from "@shared/types";
+import { CredentialResolver } from "./CredentialResolver.js";
 
-// Wire the channel-credentials port so AbstractProviderAdapter can read
-// credentials from the database without importing `@adapters/db-prisma`
-// inside the providers package.
-setChannelCredentialsRepository(createPrismaRepoAdapter());
+// PLATFORM_ENCRYPTION_KEY is required for decrypting Channel.credentials.
+// Workers fail fast if missing — no plaintext fallback.
+const platformEncryptionKey = process.env.PLATFORM_ENCRYPTION_KEY;
+if (!platformEncryptionKey) {
+  throw new Error("PLATFORM_ENCRYPTION_KEY is required for the publish worker");
+}
+const decryptCredentialsForWorker = (envelope: {
+  credentialsCiphertext: string;
+  credentialsIv: string;
+  credentialsAuthTag: string;
+  credentialsKeyVersion: number;
+}) => decryptChannelCredentials(envelope, platformEncryptionKey);
 import { DefaultBackgroundTaskScheduler } from "@observability/background-scheduler";
 import client from "prom-client";
 import http from "http";
@@ -52,7 +61,10 @@ const scheduler = new DefaultBackgroundTaskScheduler({
     debug: (msg, data) => logger.debug({ data }, msg),
   },
 });
-const repo = createPrismaRepoAdapter({ scheduler });
+const repo = createPrismaRepoAdapter({
+  scheduler,
+  decryptChannelCredentials: decryptCredentialsForWorker,
+});
 
 /**
  * Registry of provider adapters indexed by provider name.
@@ -63,18 +75,20 @@ const repo = createPrismaRepoAdapter({ scheduler });
  * for backwards compatibility with existing jobs in the queue.
  */
 const providerRegistry: Record<string, PublishProvider> = {
-  x: xAdapter,
-  instagram: instagramAdapter,
-  facebook: facebookAdapter,
-  youtube: youtubeAdapter,
-  tiktok: tiktokAdapter,
-  snapchat: snapchatAdapter,
-  telegram: telegramAdapter,
-  pinterest: pinterestAdapter,
-  linkedin: linkedInAdapter,
-  bluesky: blueskyAdapter,
-  threads: threadsAdapter,
+  x: createXAdapter({ logger }),
+  instagram: createInstagramAdapter({ logger }),
+  facebook: createFacebookAdapter({ logger }),
+  youtube: createYouTubeAdapter({ logger }),
+  tiktok: createTikTokAdapter({ logger }),
+  snapchat: createSnapchatAdapter({ logger }),
+  telegram: createTelegramAdapter({ logger }),
+  pinterest: createPinterestAdapter({ logger }),
+  linkedin: createLinkedInAdapter({ logger }),
+  bluesky: createBlueskyAdapter({ logger }),
+  threads: createThreadsAdapter({ logger }),
 };
+
+const credentialResolver = new CredentialResolver(repo);
 
 // Enhanced Metrics
 const registry = new client.Registry();
@@ -95,6 +109,7 @@ notifyRedis.on("error", () => {
 const handler = new PublishHandler({
   repo,
   providerRegistry,
+  credentialResolver,
   workerMetrics,
   logger,
   instrumentation: publishingInstrumentation,
