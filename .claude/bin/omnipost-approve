@@ -1,0 +1,210 @@
+#!/usr/bin/env bash
+# omnipost-approve — comando exclusivo de Edward para aprobar planes y eliminaciones
+# Uso:
+#   omnipost-approve plan       — aprueba el plan actual
+#   omnipost-approve deletion   — aprueba la justification de eliminación actual
+#   omnipost-approve status     — muestra qué está aprobado y qué no
+#
+# Validaciones:
+#   - 'plan': verifica que current-batch-plan.md tiene las claves obligatorias
+#   - 'deletion': verifica que las 3 preguntas están respondidas
+#
+# Este script vive en .claude/bin/. CC NO puede ejecutarlo (pre-bash bloquea
+# cualquier touch/echo sobre .approved files), pero por convención también
+# debería ejecutarse desde la shell de Edward, no desde dentro de CC.
+
+set -euo pipefail
+
+REPO_ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+
+usage() {
+  cat <<EOF
+Uso: omnipost-approve <subcomando>
+
+Subcomandos:
+  plan        Aprueba .claude/current-batch-plan.md
+              Crea .claude/current-batch-plan.approved
+              Validez: 2h desde aprobación
+
+  deletion    Aprueba .claude/current-deletion-justification.yml
+              Crea .claude/current-deletion-justification.approved
+              Validez: 30 min desde aprobación
+
+  status      Muestra el estado actual de aprobaciones
+
+Ejemplo:
+  \$ omnipost-approve plan
+  ✓ Plan aprobado: B12-billing-gateway-switch-dunning
+  ✓ Válido hasta 2026-05-04T16:30:00 (2h)
+
+EOF
+  exit 1
+}
+
+approve_plan() {
+  local plan="$REPO_ROOT/.claude/current-batch-plan.md"
+  local approved="$REPO_ROOT/.claude/current-batch-plan.approved"
+
+  if [[ ! -f "$plan" ]]; then
+    echo "❌ No existe $plan" >&2
+    echo "   CC debe producirlo antes de pedir aprobación." >&2
+    exit 1
+  fi
+
+  # Validar claves obligatorias del preflight
+  local required_keys=(
+    "batch_id:"
+    "scope_summary:"
+    "scope_loc_estimate:"
+    "estimated_duration_min:"
+    "canon_index_checked:"
+    "files_to_modify:"
+    "acceptance_criteria:"
+    "rollback_plan:"
+  )
+
+  local missing=()
+  for key in "${required_keys[@]}"; do
+    if ! grep -q "^[[:space:]]*$key" "$plan"; then
+      missing+=("$key")
+    fi
+  done
+
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    echo "❌ Plan incompleto. Faltan claves:" >&2
+    for k in "${missing[@]}"; do echo "   - $k" >&2; done
+    echo "" >&2
+    echo "   Pedile a CC que complete el plan antes de re-intentar la aprobación." >&2
+    exit 1
+  fi
+
+  # Mostrar resumen del plan antes de aprobar
+  echo "═══ Plan a aprobar ═══"
+  grep -E "^[[:space:]]*(batch_id|scope_summary|scope_loc_estimate|estimated_duration_min):" "$plan" | sed 's/^/  /'
+  echo ""
+  read -rp "Confirmar aprobación? [y/N] " confirm
+  if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+    echo "Aprobación cancelada."
+    exit 0
+  fi
+
+  # Crear el .approved
+  touch "$approved"
+
+  echo ""
+  echo "✓ Plan aprobado"
+  echo "  Archivo: $approved"
+  echo "  Válido hasta: $(date -d '+2 hours' -Iseconds 2>/dev/null || date -v+2H -Iseconds 2>/dev/null || echo '+2h')"
+  echo ""
+  echo "Si CC modifica el plan después de esta aprobación, será automáticamente invalidada."
+}
+
+approve_deletion() {
+  local just="$REPO_ROOT/.claude/current-deletion-justification.yml"
+  local approved="$REPO_ROOT/.claude/current-deletion-justification.approved"
+
+  if [[ ! -f "$just" ]]; then
+    echo "❌ No existe $just" >&2
+    echo "   CC debe producir la justification de eliminación antes de pedir aprobación." >&2
+    exit 1
+  fi
+
+  # Validar las 3 preguntas + scope
+  local required_keys=(
+    "scope:"
+    "question_1_what:"
+    "question_2_what_does_it_do:"
+    "question_3_existing_replacement:"
+    "reversibility:"
+  )
+
+  local missing=()
+  for key in "${required_keys[@]}"; do
+    if ! grep -q "^[[:space:]]*$key" "$just"; then
+      missing+=("$key")
+    fi
+  done
+
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    echo "❌ Justification incompleta. Faltan claves:" >&2
+    for k in "${missing[@]}"; do echo "   - $k" >&2; done
+    exit 1
+  fi
+
+  # Validación adicional: question_3 debe declarar consumers_migrated
+  if ! grep -q "consumers_migrated:" "$just"; then
+    echo "❌ question_3_existing_replacement debe incluir 'consumers_migrated: yes|no'" >&2
+    echo "   Sin esto no podés saber si hay código que aún consume lo que estás eliminando." >&2
+    exit 1
+  fi
+
+  # Mostrar resumen
+  echo "═══ Justification de eliminación ═══"
+  echo "Scope:"
+  awk '/^scope:/{flag=1;next} /^[a-z]/{flag=0} flag' "$just" | sed 's/^/  /'
+  echo ""
+  echo "Pregunta 3 (replacement existente):"
+  awk '/^question_3_existing_replacement:/{flag=1;next} /^[a-z]/{flag=0} flag' "$just" | sed 's/^/  /'
+  echo ""
+  read -rp "Confirmar aprobación de eliminación? [y/N] " confirm
+  if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+    echo "Aprobación cancelada."
+    exit 0
+  fi
+
+  touch "$approved"
+
+  echo ""
+  echo "✓ Eliminación aprobada"
+  echo "  Archivo: $approved"
+  echo "  Válido por 30 min — la justification es de uso único."
+}
+
+show_status() {
+  local plan="$REPO_ROOT/.claude/current-batch-plan.md"
+  local plan_approved="$REPO_ROOT/.claude/current-batch-plan.approved"
+  local just="$REPO_ROOT/.claude/current-deletion-justification.yml"
+  local just_approved="$REPO_ROOT/.claude/current-deletion-justification.approved"
+
+  echo "═══ Estado de aprobaciones ═══"
+  echo ""
+  echo "Plan:"
+  if [[ -f "$plan" ]]; then
+    echo "  ✓ Existe ($(stat -c '%y' "$plan" 2>/dev/null || stat -f '%Sm' "$plan"))"
+  else
+    echo "  ✗ No existe"
+  fi
+  if [[ -f "$plan_approved" ]]; then
+    if [[ "$plan" -nt "$plan_approved" ]]; then
+      echo "  ⚠ Aprobación INVÁLIDA: el plan fue modificado después de aprobado"
+    else
+      echo "  ✓ Aprobado ($(stat -c '%y' "$plan_approved" 2>/dev/null || stat -f '%Sm' "$plan_approved"))"
+    fi
+  else
+    echo "  ✗ No aprobado"
+  fi
+
+  echo ""
+  echo "Justification de eliminación:"
+  if [[ -f "$just" ]]; then
+    echo "  ✓ Existe"
+    if [[ -f "$just_approved" ]]; then
+      if [[ "$just" -nt "$just_approved" ]]; then
+        echo "  ⚠ Aprobación INVÁLIDA: la justification fue modificada después"
+      else
+        echo "  ✓ Aprobada"
+      fi
+    else
+      echo "  ✗ No aprobada"
+    fi
+  else
+    echo "  · Sin justification activa (no hay eliminación pendiente)"
+  fi
+}
+
+case "${1:-}" in
+  plan)     approve_plan ;;
+  deletion) approve_deletion ;;
+  status)   show_status ;;
+  *)        usage ;;
+esac

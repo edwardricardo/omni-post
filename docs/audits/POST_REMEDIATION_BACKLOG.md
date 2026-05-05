@@ -2517,7 +2517,7 @@ Funcionan correctamente — `reset` sigue siendo soportado en v16.2+. La migraci
 
 **Plan derivado.** Asignado a Fase 4 del plan de reparación, dividido en 2 sub-batches:
 
-- **PR-50.1** — Escribir `docs/development/testing-policy.md` con criterios canónicos: cuándo `vi.mock` (mock simple de función/módulo), cuándo MSW (network-level intercept, response shaping, multipart/streams/websocket/GraphQL). Incluir ejemplos de cada caso + decisión tree.
+- **PR-50.1** ✅ **FIXED** (2026-05-05 — Edward escribió `.claude/standards/testing-policy.md` con regla base "MSW para clientes HTTP, vi.mock para todo lo demás" + tabla por capa + 5 reglas estrictas incluyendo `onUnhandledRequest: 'error'` + lección B-tools-2 sobre choque MSW global ↔ vi.mock fetch). Path final del file: `.claude/standards/testing-policy.md` (no `docs/development/` como inicialmente propuesto — Edward decidió ubicarlo bajo `.claude/standards/` para canon-as-config-with-hooks).
 - **PR-50.2** — Reinstalar MSW + scaffolding opt-in (handlers/server por app, sin `setupFiles` global). Cada test que use MSW importa el helper localmente Y NO usa vi.mock fetch en ese test (lección de B-tools-2).
 
 ---

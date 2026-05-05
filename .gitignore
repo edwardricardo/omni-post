@@ -132,3 +132,17 @@ docker-compose.local.yml
 .claude/run-batches.sh
 .claude/run-tiktok-stryker.sh
 .claude/run-tiktok-stryker-final.sh
+
+# Workflow batch ephemeral state (regenerated each batch by Claude Code)
+.claude/current-batch-plan.md
+.claude/current-batch-closeout.yml
+.claude/current-batch-plan.approved
+.claude/current-deletion-justification.yml
+.claude/current-deletion-justification.approved
+.claude/hooks.log
+.claude/session-b-progress.log
+.claude/stryker-api-run.log
+.claude/stryker-tiktok-final.log
+.claude/stryker-tiktok-run.log
+.claude/agent-memory/
+.claude/worktrees/
