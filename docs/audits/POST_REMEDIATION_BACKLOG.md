@@ -1916,7 +1916,7 @@ grep -nE "Float\??\s*$|Float\s+@" infra/prisma/schema.prisma
 
 - `Invoice.amountDue Float` (línea 2890) — already L-538 (T4-U scope, BLOCKED_BY T0-A originally; clarification 2026-05-01: T0-A is procedural-defensive gate, not technical block).
 - `Invoice.amountPaid Float @default(0)` (línea 2891) — same as above (L-538).
-- `TemplateAnalytics.revenueGenerated Float?` (línea 1969) — **NEW finding**, missed by T4-T scope. Same anti-pattern as L-538 in different table.
+- `TemplateAnalytics.revenueGenerated Float?` (línea 2001 — backlog original citaba 1969 erróneamente) — ✅ **FIXED** (2026-05-05 PR-38-A ejecutivo). Migration `20260505050405_templateanalytics_revenuegenerated_decimal` ALTER TABLE TYPE numeric(19,4). Cero data loss (tabla 0 rows). Same anti-pattern as L-538 corregido.
 
 **Grupo B — Rates/scores as Float (7 sites; canon: `Decimal(10,6)` for rates / `Decimal(5,2)` for percentages 0-100):**
 
@@ -1934,7 +1934,7 @@ grep -nE "Float\??\s*$|Float\s+@" infra/prisma/schema.prisma
 
 **Plan estructurado:**
 
-- **38-A** (QUICK, ~2h, AUTO): TemplateAnalytics.revenueGenerated → `Decimal(19,4)`. Single-field migration (the model is currently dead but the schema bug persists).
+- **38-A** ✅ **FIXED** (2026-05-05 PR-38-A ejecutivo): `TemplateAnalytics.revenueGenerated Float? → Decimal(19,4)`. Migration `20260505050405_templateanalytics_revenuegenerated_decimal` con `ALTER TABLE ... TYPE numeric(19, 4) USING ::numeric(19, 4)`. Cero data loss (tabla con 0 rows pre-migration verificado). Schema.prisma actualizado con doc comment `/// Money: Decimal(19,4) — canon T4-U`. Typecheck verde post-regenerate Prisma client.
 - **38-B** (MEDIUM, NEEDS_EDWARD per scale): 7 rate/score fields. Each needs scale verification (0-1, 0-100, ratio?) — without callers the canonical precision is unknowable. Same NEEDS_EDWARD pattern as PR-37.
 - **38-C** (verify): document `storageGb` Float decision in `schema-conventions.md`.
 
@@ -2345,7 +2345,19 @@ Estos NO son el mismo pattern que SettingsService:
 - Cuando se quiera reforzar el SLA del API (cada request handler con bounded latency garantizado).
 - Pre-launch hardening pass.
 
-**Estado:** PENDING (surfaced 2026-05-04 durante T1-J L-632 broad-pattern re-audit).
+**Estado:** PENDING — sub-batches en progreso (Decisión Edward 2026-05-05: migración total a HttpClientPort).
+
+**Decisión Edward 2026-05-05.**
+
+A) Migración total a `HttpClientPort` (canon arquitectural completo) en lugar de solo agregar `AbortSignal` inline. 30 fetch sites repo-wide divididos en 7 sub-batches:
+
+- **PR-45.0** ✅ **FIXED** (2026-05-05) — Extender `HttpClientPort` con `get/head/put/delete` (5 verbs total) + alias back-compat `HttpPostOptions` + `FetchHttpClient` refactorizado con `request()` helper privado (DRY) + 12 tests passing (7 viejos `.post()` + 5 nuevos). Desbloquea sub-batches 45.A→F.
+- **PR-45.A** — Migrar 4 sites en `infrastructure/adapters/` (Slack, Resend, Teams, GA4) a HttpClientPort.
+- **PR-45.B** — Migrar ~17 sites en `auth/providerOAuthConfigs.ts` (token POST + user GET por provider).
+- **PR-45.C** — Migrar 2 sites: `auth/enhancedOAuthProvider.ts` + `admin/auth/adminAuthRoutes.ts` (turnstile).
+- **PR-45.D** — Migrar 4 sites en `settings/SettingsService.ts` (Stripe, Paddle, Resend domains, webhook test).
+- **PR-45.E** — Migrar 2 sites en `ai/providers/perplexity.ts`.
+- **PR-45.F** — Migrar 1 site en `video/uploadPipeline.ts`.
 
 ---
 

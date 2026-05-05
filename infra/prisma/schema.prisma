@@ -1998,7 +1998,8 @@ model TemplateAnalytics {
   // Performance metrics
   avgEngagement    Float?
   conversionRate   Float?
-  revenueGenerated Float?
+  /// Money: Decimal(19,4) — canon T4-U para precisión financiera.
+  revenueGenerated Decimal? @db.Decimal(19, 4)
 
   // Time-based metrics
   period    String // 'daily', 'weekly', 'monthly'
