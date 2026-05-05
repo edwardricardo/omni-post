@@ -129,3 +129,38 @@ Fuentes externas validadas por batch. Consultar ANTES de cualquier nuevo researc
 - **URL:** internal — `~/.claude/projects/.../memory/feedback_three_questions_before_delete.md`
 - **Resumen:** ANTES de declarar código huérfano y removerlo, responder explícitamente: **(Q1)** ¿Qué es? (tipo, propósito declarado en JSDoc, signature). **(Q2)** ¿Para qué se supone que fue creado? (intent original, business value). **(Q3)** ¿Existe algo actualmente que haga lo que se supone que hace? (consumers reales + funcionalidad alternativa + feature roadmap). Decision rule: Q3=NO+sin roadmap → safe remove; Q3=NO+podría-ser-feature-pendiente → AskUserQuestion; Q3=SÍ → no es dead.
 - **Consumido por:** T2-H revisitado canon (2026-05-04) — Edward agregó al preflight `pre_delete_gate`. Aplicado evitó remove erróneo de 4 fields que resultaron ser features planeadas para client (migrate hecho + 3 backlog entries en lugar de delete).
+
+---
+
+## Verification Audit Log
+
+### Verification-by-fetch 2026-05-04 (retroactive)
+
+Los 4 batches T2-E/F/G/H del 2026-05-04 fueron atestados como `r2_canon_exhaustive: yes` SIN haber hecho fetch real de las URLs canónicas — fue uso de conocimiento general, NO consulta directa. Edward detectó el fallo de proceso y solicitó verificación retroactiva. Los fetches se ejecutaron post-commit `e36e8aa` y los hallazgos quedan documentados acá para transparencia + reglas 2/3 honestas a futuro.
+
+| Canon URL                                              | Fetch result             | Cita exacta confirmada                                                                                                    | Notas                                                                                                                                           |
+| ------------------------------------------------------ | ------------------------ | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| nextjs.org/docs/app/api-reference/functions/use-router | ✅ v16.2.4 vigente       | YES — `<Link>` recommended, useRouter para programmatic                                                                   | Sin patrones nuevos disruptivos                                                                                                                 |
+| react.dev/learn/managing-state                         | 🟡 implícito             | NO — guía no prohíbe explícitamente alert/prompt/confirm                                                                  | Mi atestación fue interpretación canónica, no quote literal del doc oficial                                                                     |
+| w3.org/WAI/ARIA/apg/patterns/dialog-modal/             | ✅ vigente               | YES — role/aria-modal/labelledby/focus-trap/Escape/return                                                                 | ARIA 1.1 establecido, sin updates post-2024                                                                                                     |
+| turborepo.dev/docs/reference/configuration             | ✅ + 🆕                  | YES — per-task env, globalEnv, outputs[]                                                                                  | **NUEVO no documentado en T2-F:** `globalConfiguration`, `filterUsingTasks`, `watchUsingTaskInputs`, OTEL observability experimental            |
+| docs.github.com/en/actions/.../caching-dependencies    | ✅ patrón básico         | YES — hashFiles + restore-keys                                                                                            | Doc fetch no menciona immutable cache/attestations — pueden existir en otros chunks                                                             |
+| github.com/ai/size-limit                               | ✅ + 🟡                  | YES — `\|\| true` neutraliza enforcement                                                                                  | **Mi fix de separar fail-check del JSON capture es decisión beyond docs** (interpretación correcta del spirit, no patrón documentado en README) |
+| github.com/supermacro/neverthrow                       | ✅ vigente               | YES — Result<T,E>, boundary throws OK                                                                                     | v8.2.0 Feb 2025, sin breaking. APIs estables                                                                                                    |
+| nngroup.com/articles/empty-state-interface-design/     | 🟡 3 pilares confirmados | PARCIAL — guía 3 pilares (status + contextual + CTA) confirmada; "no fake metrics/scores" NO está explícito en el article | Article es Kaplan 2021, sin updates posteriores. Mi atestación de "guidance contra fake metrics" fue interpretación canónica del spirit         |
+
+### Turborepo future flags — backlog candidate
+
+- **Detectado durante verification 2026-05-04:** turborepo.dev/docs documenta features que NO consideré en T2-F:
+  - `globalConfiguration`: experimental flag para shared task config
+  - `filterUsingTasks`: filter dependency graph by task patterns
+  - `watchUsingTaskInputs`: watch mode con input granularity
+  - **OTEL observability** experimental
+- **Acción sugerida:** abrir backlog entry para evaluar adopción de flags relevantes (especialmente OTEL que conecta con observability stack del repo).
+- **Estado:** documentado acá. No tracked como PR todavía — esperar decisión Edward.
+
+### Process correction — going forward
+
+- **Antes de declarar `r2_canon_exhaustive: yes`** en cualquier batch futuro: ejecutar WebFetch real de cada URL citada. Resumir cita exacta vs interpretación.
+- **Atestación honesta:** distinguir "cita literal del canon" vs "interpretación canónica del spirit". Ambas pueden ser válidas, pero deben marcarse distinto.
+- **Cuando WebFetch revele drift** (canon nuevo, breaking changes, dead URLs): documentar acá + abrir backlog entry si requiere adopción.
