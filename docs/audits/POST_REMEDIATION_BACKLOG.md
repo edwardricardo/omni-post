@@ -1856,19 +1856,40 @@ T4-T scope was the L-\* entry names (2 sites). Strict pattern audit shows ~20. P
 
 ---
 
-### PR-37 — `sentimentScore` Decimal precision verification (0 callers)
+### PR-37 — `sentimentScore` Decimal CHECK constraint (canon T4-T defense-in-depth)
 
 **Fecha de surfacing:** 2026-05-01 (deferred from T4-T)
 **Severidad:** trivial
-**Tipo:** decision NEEDS_EDWARD (low priority)
+**Tipo:** AUTO fix técnico
 
-**Contexto.** T4-T standardizó 8 de 9 Decimal sites. El 9no, `sentimentScore? @db.Decimal(3, 2)` (RepurposeProposal model línea 2126), tiene 0 callers en `apps/` y `packages/`. Sin callers la scale no es verificable (¿0-1 normalized? ¿-1 to +1 polarity? ¿0-100 percentage?).
+**Contexto.** T4-T standardizó 8 de 9 Decimal sites. El 9no, `sentimentScore? @db.Decimal(3, 2)`, fue audit'ado durante PR-37 ejecutivo (2026-05-05) — la cita original del backlog ("RepurposeProposal model línea 2126, 0 callers") era INCORRECTA. Audit pre-batch reveló:
 
-**Por qué no se cerró en T4-T.** Cambiar precision sin saber scale puede romper future wiring. Per strict mandate "verify caller behavior, not file description" — no callers means no verifiable behavior.
+- **Modelo real:** `SocialMessage` línea 2153 (NO `RepurposeProposal`)
+- **Callers reales (NO 0):** `TriageInboxMessageUseCase.ts:204` (producer LLM-scored, valida `Math.max(-1, Math.min(1, ...))`), `PrismaTriageMessageAdapter.ts:61` (persistor), `triageInboxMessage.test.ts:71-72` (tests enforce -1..1)
+- **Range lógico:** `[-1.00, 1.00]` (sentiment polarity)
+- **Mismatch detectado:** DB column `numeric(3, 2)` permitía `[-9.99, 9.99]` — código enforcía rango, DB no.
 
-**Plan**: cuando feature wire-up suceda → determine scale → apply canon precision + range CHECK.
+**Fix aplicado (PR-37 ejecutivo 2026-05-05).**
 
-**Estado:** PENDING — low priority (surfaced del T4-T 2026-05-01).
+Migration `20260505043443_socialmessage_sentimentscore_check`:
+
+```sql
+ALTER TABLE "SocialMessage"
+  ADD CONSTRAINT "SocialMessage_sentimentScore_range_check"
+  CHECK ("sentimentScore" IS NULL OR "sentimentScore" BETWEEN -1.00 AND 1.00);
+```
+
+**Defense-in-depth:** código + DB ambos enforcen el rango. Protege contra raw SQL INSERT/UPDATE bypassing application layer.
+
+**Verificación:**
+
+- Migration aplicada limpia (`pnpm db:migrate`)
+- Constraint visible: `pg_get_constraintdef → CHECK ((("sentimentScore" IS NULL) OR (...)))`
+- Smoke INSERT con `sentimentScore = 5.50` → FALLA con CHECK constraint violation ✓
+- Smoke INSERT con `sentimentScore = 0.75` → pasa CHECK (falla por FK separado, esperado) ✓
+- Tests `triageInboxMessage.test.ts` → 8/8 passing post-migration
+
+**Estado:** **FIXED** (cerrado 2026-05-05 en PR-37 ejecutivo). Backlog corregido (cita errónea original RepurposeProposal → SocialMessage).
 
 ---
 
