@@ -1088,6 +1088,16 @@ Cuando observability reporte stream lengths > 100 eventos en aggregates relevant
 
 **Estado:** PENDING (deferred del T4-B 2026-04-30).
 
+**Decisión Edward 2026-05-05.**
+
+1. **Trigger:** parametrizable (env var, e.g., `SNAPSHOT_TRIGGER_EVERY_N_EVENTS` con default sensato).
+2. **Retention de snapshots:** conservar TODOS los snapshots históricos.
+3. **Retention de eventos:** **event pruning** — al crear snapshot X, los eventos anteriores al snapshot se eliminan del stream; eventos posteriores y el evento que disparó el snapshot se mantienen.
+
+**Advertencia documentada:** event pruning compromete la propiedad fundamental del event sourcing puro (replay desde cero con shape nuevo). Decisión consciente de Edward: maximizar storage efficiency. Si en el futuro se cambia shape de un aggregate, requiere migración explícita de snapshots o re-derivación desde el snapshot más antiguo (no desde t=0).
+
+**Plan derivado.** Wire snapshot trigger en `EventSourcedRepository.save()` cuando `eventCount % N === 0` + cleanup de eventos anteriores en misma transacción + `getSnapshot()` consulta más reciente en `rehydrate()`. Versioning: agregar `aggregate_schema_version` al snapshot row.
+
 ---
 
 ### PR-21 — `OutboxInboxCleaner` retention policy + cron task
@@ -1156,6 +1166,14 @@ Cuando volumen de outbox supere 100K events/min sostenidos, o cuando se introduz
 
 **Estado:** PENDING (deferred del T4-C 2026-04-30).
 
+**Decisión Edward 2026-05-05.**
+
+1. NO ahora. Postpone hasta tener métricas/scale que lo justifiquen.
+2. **Cuando se haga, debe ser broker-agnostic vía puerto** (`packages/ports/src/MessageBrokerPort.ts` o similar) — Kafka/Pulsar/Redis Streams/NATS intercambiables sin tocar consumers.
+3. Trigger de re-evaluación: outbox > 100K events/min sostenidos O primer consumer downstream out-of-process.
+
+**Plan derivado.** Cuando se reabra: definir `MessageBrokerPort` con métodos canónicos (`publish`, `subscribe`, `ack`, `nack`) + adaptador inicial (Kafka recomendado por madurez del ecosystem). NO acoplar dispatch logic al broker concreto.
+
 ---
 
 ### PR-23 — `LISTEN/NOTIFY` para wake-up del OutboxRelay (latency optimization)
@@ -1191,6 +1209,13 @@ El optimización canónica es PostgreSQL `LISTEN/NOTIFY`: el `PrismaOutboxWriter
 Cuando se introduzca un use case que requiera real-time dispatch o cuando latency p99 > 1s sea visible en dashboards.
 
 **Estado:** PENDING (deferred del T4-C 2026-04-30).
+
+**Decisión Edward 2026-05-05.**
+
+1. SÍ adoptar LISTEN/NOTIFY como wake-up del OutboxRelay.
+2. SÍ aceptar la complejidad implícita (connection PG dedicada + reconexión + race condition pre-COMMIT).
+
+**Plan derivado.** Asignado a Fase 5 del plan de reparación (junto con OTEL Turborepo pilot). Implementación: `OutboxRelay` recibe `pg.Client` dedicado fuera del pool + `LISTEN outbox_new_event` + `pg_notify` post-COMMIT en `PrismaOutboxWriter` + polling fallback cada 5s en lugar de 1s.
 
 ---
 
@@ -1334,6 +1359,13 @@ Necesita decisión de producto sobre escalation policy + UX preferences.
 Cuando Edward decida la policy o cuando el primer reporte de "channel silent failure" llegue de producción.
 
 **Estado:** PENDING (deferred del T4-I 2026-05-01).
+
+**Decisión Edward 2026-05-05.**
+
+1. **Recipient policy:** notification a TODOS los project members del project que owns el canal.
+2. **Razón:** si un member que recibe la notification no tiene permiso para re-autenticar, ese member puede notificar/escalar a quienes sí pueden — evita "missed notification" silencioso.
+
+**Plan derivado.** `NotificationEventHandlers.onChannelAuthFailed(channelId, provider, reason, context)` resuelve recipients via `Channel → Project → ProjectMembers` (todos los roles). `CreateNotificationUseCase` con kind `CHANNEL_AUTH_FAILED` + action link al re-auth flow. Tests unit + integration end-to-end desde worker AUTH error hasta notification creada.
 
 ---
 
@@ -1669,6 +1701,12 @@ Mi recomendación tentativa: **Opción B (DEPRECATE)** — el código está bien
 Próxima sesión de roadmap planning, o cuando aparezca user demand de realtime analytics dashboards.
 
 **Estado:** PENDING — NEEDS_EDWARD (surfaced del PR-32 audit 2026-05-01).
+
+**Decisión Edward 2026-05-05.**
+
+**A) WIRE** — registrar `RealtimeAnalyticsService` en DI + exponer ruta WebSocket en `index.ts` + frontend dashboard wiring (Storybook, hooks). Esfuerzo HEAVY (~8-12h total).
+
+**Plan derivado.** Asignado a Fase 8 del plan de reparación. Pasos: (1) DI registration en `Container.ts`, (2) Route WebSocket wire en API entry, (3) JWT auth verification en handshake, (4) Frontend hook `useRealtimeAnalytics` con TanStack Query subscription pattern, (5) Dashboard component que consume + tests integration end-to-end. Roadmap entry necesario primero — qué dashboards live update se materializan (analytics? inbox? notifications?).
 
 ---
 
@@ -2335,6 +2373,15 @@ Estos NO son el mismo pattern que SettingsService:
 
 **Estado:** PENDING — NEEDS_PRODUCT (surfaced 2026-05-04 durante T2-A revisitado).
 
+**Decisión Edward 2026-05-05.**
+
+1. **Template version DELETE:** soft-delete + audit logging.
+2. **AB-test UPDATE:** solo descripciones mutables, y solo PRE-START (antes de comenzar las pruebas). Una vez running, immutable.
+3. **AB-test PAUSE:** redundante con STOP — eliminar el botón PAUSE del UI. STOP cubre el caso (terminal, no resume).
+4. **AB-test DELETE:** soft-delete + audit + parámetro configurable de retención del histórico en semanas, hasta 90 días máximo.
+
+**Plan derivado.** Asignado a Fase 9 del plan de reparación. Backend: agregar 3 rutas (DELETE template version, UPDATE AB-test descripción solo pre-start, DELETE AB-test soft con retention config). NO agregar ruta PAUSE — frontend remueve el botón. Tests integration + audit logging en cada ruta. Migration agrega columnas `deletedAt`, `deletedBy`, `deleteReason` a templates_versions + ab_tests. Env var `AB_TEST_RETENTION_WEEKS` (default e.g., 12, max 13 = 90 días).
+
 ---
 
 ### PR-47 — Migrate `error.tsx` `reset` → `unstable_retry` (Next.js v16.2+ canonical recovery)
@@ -2443,6 +2490,15 @@ Funcionan correctamente — `reset` sigue siendo soportado en v16.2+. La migraci
 
 **Estado:** PENDING (deferido indefinidamente). Si el equipo necesita mockear request multipart, streams, websocket, o GraphQL en tests, MSW canon es la solución superior — entonces se revive este entry.
 
+**Decisión Edward 2026-05-05.**
+
+**A) Migración test-by-test (opt-in)** + crear `docs/development/testing-policy.md` como **única fuente de la verdad** para decidir cuándo usar `vi.mock` vs MSW.
+
+**Plan derivado.** Asignado a Fase 4 del plan de reparación, dividido en 2 sub-batches:
+
+- **PR-50.1** — Escribir `docs/development/testing-policy.md` con criterios canónicos: cuándo `vi.mock` (mock simple de función/módulo), cuándo MSW (network-level intercept, response shaping, multipart/streams/websocket/GraphQL). Incluir ejemplos de cada caso + decisión tree.
+- **PR-50.2** — Reinstalar MSW + scaffolding opt-in (handlers/server por app, sin `setupFiles` global). Cada test que use MSW importa el helper localmente Y NO usa vi.mock fetch en ese test (lección de B-tools-2).
+
 ---
 
 ### PR-51 — Raw fetches → TanStack hooks repo-wide (27 sitios)
@@ -2514,6 +2570,17 @@ Backend mock data devuelta como si fuera real analysis. Sin consumers UI directo
 
 **Estado:** PENDING (surfaced 2026-05-04; out of scope T2-H UI-only — backend mock data).
 
+**Decisión Edward 2026-05-05.**
+
+**C) Wire YA + EXTENDER A MULTI-PROVIDER.** No solo TikTok — implementar `viralDNA analysis` para todos los providers soportados (X, Instagram, Facebook, YouTube, TikTok, Snapchat, LinkedIn, Pinterest, Threads, Bluesky, Telegram). Incluir en el paquete UX redesign con PR-53/54/55.
+
+**Plan derivado.** Asignado a Fase 7 del plan de reparación. Pasos:
+
+1. **UX redesign session** — definir shape final del viralDNA UI: ¿per-provider tabs? ¿score normalizado cross-provider? ¿provider-specific factors visibles?
+2. **Backend AI analysis endpoint canónico** — endpoint `/ai/analyze-viral?contentId&provider` que delega a un `ViralAnalysisService` con `ProviderViralAnalyzer` strategy pattern (uno por provider). Cada analyzer trae métricas reales del provider API + scoring rule-based o ML.
+3. **Reemplazar hardcoded** — `trendAnalysisService.analyzeViralContent` ya NO devuelve constants; delega al endpoint nuevo o se elimina.
+4. **Frontend wire** — display unificado del viralDNA con tabs per-provider + replication blueprint visible.
+
 ---
 
 ### PR-53 — Wire display `estimatedEngagement` en client AITemplateSelector
@@ -2537,6 +2604,14 @@ Backend mock data devuelta como si fuera real analysis. Sin consumers UI directo
 
 **Estado:** PENDING.
 
+**Decisión Edward 2026-05-05.**
+
+1. **Prioridad ahora.** Incluido en el paquete de Fase 7 del plan de reparación (junto con PR-52 + PR-54 + PR-55).
+2. **UX redesign requerido** antes de wire — definir cómo se presenta el `estimatedEngagement` (badge, progress bar, tooltip con explicación de cálculo, etc.).
+3. **Backend:** si endpoint `/templates` con `estimatedEngagement` no existe, se crea como parte de Fase 7.
+
+**Plan derivado.** Sub-fase 7.0 UX redesign + Sub-fase 7.1 backend endpoint + Sub-fase 7.2 client wire.
+
 ---
 
 ### PR-54 — Wire display `readabilityScore`/`engagementScore`/`viralPotential` en client AIContentResults
@@ -2558,6 +2633,14 @@ Backend mock data devuelta como si fuera real analysis. Sin consumers UI directo
 **Bloqueado por.** Backend AI analysis endpoint definitivo + UX decision.
 
 **Estado:** PENDING.
+
+**Decisión Edward 2026-05-05.**
+
+1. **Prioridad ahora.** Incluido en el paquete de Fase 7 del plan de reparación (junto con PR-52 + PR-53 + PR-55).
+2. **UX redesign requerido** — definir cómo se presentan los 3 scores (progress bars con threshold colors, badges con tooltip, score combinado con drilldown, etc.).
+3. **Backend:** si endpoint AI analysis no existe (verificar overlap con `apps/api/src/ai/types.ts engagement.score`), se crea como parte de Fase 7.
+
+**Plan derivado.** Sub-fase 7.0 UX redesign + Sub-fase 7.1 backend endpoint canónico (un solo endpoint que devuelve todos los scores + brandConsistency + viralDNA, multi-provider) + Sub-fase 7.2 client wire.
 
 ---
 
@@ -2588,6 +2671,64 @@ Backend mock data devuelta como si fuera real analysis. Sin consumers UI directo
 **Bloqueado por.** Decisión técnica (A/B/C) + UX design.
 
 **Estado:** PENDING.
+
+**Decisión Edward 2026-05-05.**
+
+1. **Prioridad ahora.** Incluido en el paquete de Fase 7 del plan de reparación (junto con PR-52 + PR-53 + PR-54).
+2. **Shape SoT: REDISEÑAR UX desde cero.** No mantener UI shape actual (`{ score, suggestions, voiceMatch }`) ni el backend shape actual (`{ score, voice, suggestions }`). UX session define el shape final canónico.
+3. **Backend:** SI no existe endpoint canónico, se crea. SI el shape actual de backend (`apps/api/src/ai/types.ts brandConsistency`) sirve, se reutiliza. Decisión post-UX.
+4. Remove `generateBrandSuggestions()` post-wire (dead).
+
+**Plan derivado.** Sub-fase 7.0 UX redesign (define shape) + Sub-fase 7.1 backend (crear o ajustar) + Sub-fase 7.2 client wire + cleanup stub fake.
+
+---
+
+### PR-56 — Turborepo future flags evaluation (globalConfiguration, filterUsingTasks, watchUsingTaskInputs, OTEL observability)
+
+**Surfaced.** 2026-05-04 durante verificación retroactiva canon (commit `cf5c909`). Edward solicitó abrir backlog tras WebFetch de `turborepo.dev/docs/reference/configuration` reveló 4 flags futuros que NO consideré en T2-F revisitado canon.
+
+**Síntoma / oportunidad.** Turborepo expone patrones nuevos (algunos experimentales) que el repo podría adoptar para mejorar cache hit rate, observabilidad, y dev workflow. NO son canon-violations actuales — son **adopción opcional** a evaluar por flag.
+
+**Inventario por flag.**
+
+1. **`globalConfiguration`** (experimental)
+   - **Qué hace:** shared task config a nivel global, evita duplicar config across tasks.
+   - **Valor potencial:** reduce duplicación en `turbo.json` si más de 2 tasks comparten env/dependsOn.
+   - **Estado actual repo:** 5 tasks con configs distintas (build, test, test:coverage, test:e2e, mutation). Test + test:coverage casi idénticos — candidato directo.
+   - **Decisión sugerida:** ADOPTAR si reduce LoC significativo y mejora maintainability.
+
+2. **`filterUsingTasks`** (stable)
+   - **Qué hace:** filter dependency graph por task patterns (e.g., "solo workspaces que tienen task X").
+   - **Valor potencial:** mejora `turbo run --filter` para CI selective runs.
+   - **Estado actual repo:** no usado. CI corre `turbo test --filter='[HEAD^1]'` (affected) — orthogonal a este flag.
+   - **Decisión sugerida:** EVALUAR si workflows pueden beneficiarse.
+
+3. **`watchUsingTaskInputs`** (experimental)
+   - **Qué hace:** watch mode con input granularity — solo re-run task cuando inputs específicos cambian, no todo el workspace.
+   - **Valor potencial:** mejora dev workflow `pnpm dev` reduciendo re-runs falsos.
+   - **Estado actual repo:** dev usa `concurrently` + raw `pnpm dev`, sin turbo watch. Si migramos a `turbo watch`, este flag aplica.
+   - **Decisión sugerida:** POSTPONE hasta que `turbo watch` esté en stable + repo migre dev workflow.
+
+4. **OTEL observability experimental**
+   - **Qué hace:** Turborepo emite OpenTelemetry traces de task execution (build/test pipelines) — distintos task spans, dependencias, cache hits.
+   - **Valor potencial:** conecta con stack OTEL existente del repo (`packages/observability/opentelemetry`). Permite trace cross-cutting "build → test → deploy" en pipelines.
+   - **Estado actual repo:** OTEL ya wired para runtime API + workers + browser. Build/test pipelines NO instrumentados.
+   - **Decisión sugerida:** **ADOPTAR como primer pilot** — alineamiento natural con stack existente. Mayor valor de los 4 flags.
+
+**Plan estructurado.**
+
+1. **Spike investigation:** leer docs detallados de cada flag, verificar status (experimental vs stable) en versión Turbo actual del repo (`turbo@2.8.21`).
+2. **Priority order recomendado:**
+   - PR-56.A — OTEL pilot (mayor valor + alineamiento)
+   - PR-56.B — globalConfiguration (reducción LoC test/test:coverage)
+   - PR-56.C — filterUsingTasks (evaluar uso real)
+   - PR-56.D — watchUsingTaskInputs (postpone hasta turbo watch stable)
+3. **Each sub-batch:** preflight + canon WebFetch real + adopción + verify cache hits no rompan.
+4. **Verify cache invalidation:** post-adopción, correr `turbo run build --dry` antes/después para confirmar behavior esperado.
+
+**Bloqueado por.** Solo prioritization Edward. Ningún flag es regression — son adopciones opcionales.
+
+**Estado:** PENDING (surfaced 2026-05-04 durante verification audit log; abierto a evaluación por sub-batch).
 
 ---
 
