@@ -760,7 +760,7 @@ Categoría A delegada a `nextjs-frontend-developer` (8 archivos); B+C manuales (
 
 ---
 
-#### T2-E — Path/nav corrections ⚡ ✅ 2026-04-23
+#### T2-E — Path/nav corrections ⚡ ✅ 2026-04-23 (revisitado canon 2026-05-04 — 4/4 exit criteria PASS, deuda raw fetches→TanStack tracked en PR-51)
 
 **Scope real.** Fix de paths cross-app + rename "Refactored" suffix + migración de `prompt/alert/confirm` a Dialog/toast + raw fetch → TanStack hooks. Auditoría extendida reveló scope 5× mayor al roadmap.
 
@@ -806,9 +806,11 @@ Categoría A delegada a `nextjs-frontend-developer` (8 archivos); B+C manuales (
 
 **Dependencias.** ⚡ PARALELIZABLE. Documenta PR-8 (endpoint `/slots` vs `/rules`) y PR-9 (L-215 false positive) en POST_REMEDIATION_BACKLOG.md.
 
+**Revisitado canon 2026-05-04.** Verificado contra Next.js useRouter v15/v16 + React declarative UI + WAI-ARIA APG Modal Dialog (entries en `canon_research_index.md §Routing/Navigation/UI Modals`). 4/4 exit criteria literales PASS clean: 0 alert/prompt/confirm en client/admin, 0 `/admin/*` paths en client, 0 `/scheduling` sin `/dashboard/` prefix, `window.location.href` solo en 4 sitios legítimos (PR-9 baseline preservado: 2 Stripe + 1 OAuth + 1 clipboard read). PR-8 sigue documentado correctamente como deuda backend (no regresión). **GAP fuera de exit criteria literal:** 27 raw `fetch(` en componentes/pages que canónicamente deberían usar TanStack hooks — NO era exit criterion del T2-E original, es deuda repo-wide. Tracked en **PR-51** con plan de split en 8 sub-batches por dominio (scheduling, notifications, CRM, AI predict, AI pages, templates, publishing dashboard, pages misc).
+
 ---
 
-#### T2-F — ci.yml / workflows urgentes 🔒 🔗 ✅ 2026-04-23
+#### T2-F — ci.yml / workflows urgentes 🔒 🔗 ✅ 2026-04-23 (revisitado canon 2026-05-04 — PASS mayoría + 2 GAPs fix-mini en audit.yml)
 
 **Scope real (extendido).** CI silent test skip + turbo env + turbo outputs + cache keys. Scope roadmap literal: 4 findings. Real: 12 silent skips en 5 workflow files, 0 env declarations en turbo.json (cache poisoning risk), 2 cache blocks brittle en ci.yml + 1 job sin turbo cache. **Precondición a todo trabajo serio** — sin CI que falle cuando corresponde, regresiones pasan silenciosas.
 
@@ -839,9 +841,11 @@ Categoría A delegada a `nextjs-frontend-developer` (8 archivos); B+C manuales (
 
 **Dependencias.** 🔒 BLOCKS_TIER (downstream batches confían en CI para detectar regresiones); 🔗 CROSS_TIER con T4-P (fitness functions wire) y T4-Q (CI pipeline repair completo).
 
+**Revisitado canon 2026-05-04.** Verificado contra Turborepo configuration + GitHub Actions caching (entries en `canon_research_index.md §CI/Build Caching`). PASS clean en mayoría: turbo.json env declarations alineadas con canon (globalEnv + 5 task env), composite action `setup-node-pnpm-cache` usado en 20+ jobs, `|| true` y `continue-on-error: true` en performance/security/fitness son legitímos y comentados. **2 GAPs detectados y fix-mini aplicado:** (1) `audit.yml:235` `pnpm exec size-limit --json > size-limit.json || true` neutralizaba el threshold check de size-limit (preexistente desde commit `fd256a2`, no detectado por T2-F original que solo audit'ó ci.yml) — fix: separar fail-check del JSON capture en steps distintos. (2) `audit.yml:163-171` secretlint job (introducido por mí en B-tools-2) reimplementaba setup-node manual sin cache pnpm + node version inconsistente (22 vs default 24) — fix: reemplazar por composite `./.github/actions/setup-node-pnpm-cache`. Total: ~10 LoC delta en `audit.yml`. YAML válido post-fix (10 jobs presentes). Ningún backlog entry nuevo (ambos cerrados en este batch).
+
 ---
 
-#### T2-G — Raw throws en domain + application ⚡ ✅ 2026-04-23
+#### T2-G — Raw throws en domain + application ⚡ ✅ 2026-04-23 (revisitado canon 2026-05-04 — PASS clean total, 0 cambios)
 
 **Scope real.** Ambos findings reviewed with research externo + interno. L-643 era dominio (no application como título sugería). L-496 es infrastructure (hook React) — NO viola fitness #4 pero sí se limpia el pattern awkward.
 
@@ -877,9 +881,11 @@ Categoría A delegada a `nextjs-frontend-developer` (8 archivos); B+C manuales (
 
 **Dependencias.** ⚡ PARALELIZABLE; 🔗 CROSS_TIER con T4-P (fitness function #4 ya cumplida).
 
+**Revisitado canon 2026-05-04.** Verificado contra neverthrow + Result<T,E> + DomainError hierarchy (entries en `canon_research_index.md §Error Handling/Result<T,E>`). PASS clean total: 0 raw throws en `apps/api/src/domain` + `application` (fitness #4 vigente), 0 throws en `packages/*/src/domain` + `application` (scope ampliado vs T2-G original). 4 throws detectados en `packages/shared` son legítimos canon-boundary: `unwrap()` helper canon (1) + `channelCredentialsCrypto.ts` boundary crypto (3). Anti-pattern checks: `result.value!` 0 hits, `if (!result.ok) throw` 5 hits TODOS legítimos en infrastructure layer (`saga/SagaIntegration.ts` queue handler + `ai/aiService.ts` HTTP boundary x4), `as Result<>` casts 9 hits TODOS son patrón Unit of Work documented en CLAUDE.md. Result<T,E> SoT en `packages/shared/src/types.ts:71-76` sin cambios desde T2-G original. **Cero cambios de código, cero backlog entries nuevos.**
+
 ---
 
-#### T2-H — Fake/hardcoded data UI-only ⚡ ✅ 2026-04-23
+#### T2-H — Fake/hardcoded data UI-only ⚡ ✅ 2026-04-23 (revisitado canon 2026-05-04 — PASS exit patterns + 4 fields admin migrate→client + 2 archivos admin DELETE + 4 backlog entries)
 
 **Scope real.** Los 11 findings + extensión de `ContentMetrics` (3 campos fabricados adicionales en `useAIContentGeneration.ts` / `AIContentResults.tsx` no listados en roadmap pero mismo anti-pattern).
 
@@ -917,6 +923,8 @@ Categoría A delegada a `nextjs-frontend-developer` (8 archivos); B+C manuales (
 **Estimación.** 2-3 h (real: ~1.5 h).
 
 **Dependencias.** ⚡ PARALELIZABLE.
+
+**Revisitado canon 2026-05-04.** Verificado contra Nielsen Norman empty-state guidance + 3-questions gate canon (`feedback_three_questions_before_delete`, ahora explícito en `pre_delete_gate` del preflight). PASS clean en T2-H exit patterns: `grandfatheredRevenue` 0 hits, `Powered by GPT-4` 0 hits, `estimatedTime.*Math.ceil` 0 hits, `Math.random` en UI = 1 hit ID generation legítimo, model names solo en internal logs Gemini. **Audit ampliado del grafo completo reveló:** (1) `apps/admin/types/ai-content.ts` + `apps/admin/lib/ai-content-utils.ts` huérfanos (0 consumers admin tras T2-H original removió producer + display) — diff vs client/lib mostró IDÉNTICOS (admin = duplicación pura), diff vs client/types mostró admin con 4 fields EXTRA (`estimatedEngagement`, `readabilityScore`, `engagementScore`, `viralPotential`). (2) Aplicando 3-questions gate Edward identificó los 4 fields como **features planeadas para clientes** (NO dead). **Acciones aplicadas:** migrate los 4 fields admin→client como `?: number` optional (feature pendiente de wire-up) + delete 2 archivos admin huérfanos + 4 backlog entries: PR-52 (backend `trendAnalysisService.ts viralDNA` mock cleanup, out of scope UI), PR-53 (wire display `estimatedEngagement` en `AITemplateSelector`), PR-54 (wire display `readabilityScore`/`engagementScore`/`viralPotential` en `AIContentResults`), PR-55 (wire display `BrandConsistency` client + decidir SoT backend real vs stub fake). Typecheck verde post-cambios. **Lección capturada en canon:** 3-questions gate evita removes erróneos de features planeadas — agregado al preflight template como `pre_delete_gate`.
 
 ---
 

@@ -160,15 +160,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.16.0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup-node-pnpm-cache
       - name: Run secretlint
         run: pnpm secret:scan
 
@@ -231,7 +223,10 @@ jobs:
         run: pnpm --filter @apps/admin --filter @apps/client build
         env:
           NEXT_TELEMETRY_DISABLED: "1"
-      - name: Run size-limit
+      - name: Run size-limit (fail on threshold exceed)
+        run: pnpm exec size-limit
+      - name: Capture size-limit JSON for artifact
+        if: always()
         run: pnpm exec size-limit --json > size-limit.json || true
       - name: Upload size-limit results
         if: always()

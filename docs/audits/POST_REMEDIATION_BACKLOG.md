@@ -2445,6 +2445,152 @@ Funcionan correctamente — `reset` sigue siendo soportado en v16.2+. La migraci
 
 ---
 
+### PR-51 — Raw fetches → TanStack hooks repo-wide (27 sitios)
+
+**Surfaced.** 2026-05-04 durante T2-E revisitado canon. T2-E original migró ALGUNOS raw fetches a TanStack pero no los exhaustivos del repo. Este entry consolida el resto.
+
+**Síntoma.** 27 raw `fetch(` en componentes UI + pages + hooks de `apps/client` que canónicamente deberían usar `useQuery`/`useMutation` con cache invalidation, retry, error boundary integration. Inconsistencia: parte del repo usa TanStack (canónico, Edward-aprobado en T3-A), parte usa fetch crudo.
+
+**Inventario (validado vía grep en T2-E revisitado).**
+
+| Dominio                  | Sitios | Archivos                                                                                                                                                                                |
+| ------------------------ | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Scheduling sidebar       | 2      | `components/scheduling/SchedulingDashboardSidebar.tsx`                                                                                                                                  |
+| Notifications            | 6      | `components/notifications/NotificationPreferences.tsx` (2), `NotificationBell.tsx` (4)                                                                                                  |
+| CRM connections          | 2      | `components/settings/crm/CrmConnectionCard.tsx`, `components/editor/AdminContentEditor.tsx`                                                                                             |
+| AI predict hooks         | 4      | `components/ai/analytics/hooks/usePredictiveData.ts`                                                                                                                                    |
+| AI pages                 | 3      | `app/dashboard/ai/repurpose/page.tsx` (2), `app/dashboard/ai/trends/page.tsx` (1)                                                                                                       |
+| Templates                | 1      | `components/content/templates/useTemplateData.ts`                                                                                                                                       |
+| Publishing dashboard API | 5      | `components/publishing/publishingDashboardApi.ts`                                                                                                                                       |
+| Pages misc               | 4      | `app/dashboard/settings/referral/page.tsx`, `app/dashboard/scheduling/recurring/[id]/edit/page.tsx`, `app/dashboard/channels/page.tsx` (bluesky), `app/reports/shared/[token]/page.tsx` |
+
+**Plan estructurado por sub-batch (cada uno self-contained <2h):**
+
+1. **PR-51.A scheduling sidebar** — extender `useMultiPlatformScheduling` o crear `useSchedulingDashboardSidebar` con `useCampaignsForProject` + `useTeamForProject`. ~80 LoC.
+2. **PR-51.B notifications** — crear `useNotifications.ts` con `useNotificationPreferences` + `useNotifications` + `useUnreadCount` + `useMarkRead` + `useMarkAllRead`. ~150 LoC.
+3. **PR-51.C CRM connections** — crear `useCrmConnections.ts` con `useConnectCrm` + `useChannelConnections`. ~80 LoC.
+4. **PR-51.D AI predict** — extender hooks AI con `usePredictTiming` + `usePredictAudience`. ~120 LoC.
+5. **PR-51.E AI pages** — refactor `repurpose/page.tsx`, `trends/page.tsx` a `useRepurposeProposals` + `useApprovalDecision` + `useTrendsRadar`. ~150 LoC.
+6. **PR-51.F templates** — wrap `useTemplateData.ts` `fetch` en `useQuery`. ~40 LoC.
+7. **PR-51.G publishing dashboard** — refactor `publishingDashboardApi.ts` (5 fetches) a hooks. ~200 LoC.
+8. **PR-51.H pages misc** — referral / recurring-edit / channels-bluesky / reports-shared. Algunos pueden tener razón legítima (e.g., `reports/shared` es public sin auth, tal vez valga RSC fetch). Auditar caso-por-caso. ~150 LoC.
+
+**Bloqueado por.** Solo prioritization — todos los hooks TanStack tienen patrón canónico ya establecido en el repo (T3-A QueryClient global config).
+
+**Estado:** PENDING (surfaced 2026-05-04; T2-E revisitado canon cerró exit criteria literales pero NO incluía esta deuda — es repo-wide separate concern).
+
+---
+
+### PR-52 — Backend `trendAnalysisService.ts` viralDNA hardcoded mock data cleanup
+
+**Surfaced.** 2026-05-04 durante T2-H revisitado canon (out of scope T2-H "UI-only").
+
+**Síntoma.** `apps/api/src/trends/trendAnalysisService.ts:200-220` retorna estructura `viralDNA` con valores hardcoded:
+
+- `hook.strength: 95`, `hook.type: "emotional_surprise"`, `hook.timestamp: 1.2`
+- `narrative.completion: 88`
+- `visual.quality: 92`, `visual.uniqueness: 78`
+- `audio.recognition: 95`, `audio.engagement: 89`
+- `algorithm.score: 94`
+- `audience.alignment: 87`
+- `format.optimization: 91`
+- `socialFactors.shareability: 92`, `memability: 78`, etc.
+
+Backend mock data devuelta como si fuera real analysis. Sin consumers UI directos detectados (0 hits en apps/admin + apps/client) — pero el endpoint sigue expuesto.
+
+**3-questions gate:**
+
+- **Q1 Qué es:** Service backend que devuelve "viral DNA" structure con scores cuantitativos.
+- **Q2 Para qué fue creado:** Análisis cuantitativo de viralidad de contenido para mostrar al usuario en dashboard de trends.
+- **Q3 Existe algo que lo haga hoy:** Backend SÍ ejecuta y devuelve los hardcoded. UI consumers: NO detectados. Pero endpoint expuesto puede ser consumido por feature pendiente (similar al patrón AI content).
+
+**Plan estructurado.**
+
+1. Decidir: ¿feature planeada (mantener endpoint + abrir tarea de implementación display real) o dead (remove endpoint completo)?
+2. Si feature planeada: reemplazar hardcoded con cálculo real desde Engagement/EngagementSnapshot tables.
+3. Si dead: remove service + route + tests.
+
+**Bloqueado por.** Decisión producto (similar a PR-55 BrandConsistency).
+
+**Estado:** PENDING (surfaced 2026-05-04; out of scope T2-H UI-only — backend mock data).
+
+---
+
+### PR-53 — Wire display `estimatedEngagement` en client AITemplateSelector
+
+**Surfaced.** 2026-05-04 durante T2-H revisitado canon (post-migrate de admin types).
+
+**Síntoma.** Tras migrate de fields admin→client: `ContentTemplate.estimatedEngagement?: number` ahora vive en `apps/client/types/ai-content.ts` como **optional** (feature planeada). T2-H removió el display original ("AI hardcoded score") porque era fake. El feature canon: usar dato real (backend AI analysis o histórico de engagement de templates similares).
+
+**3-questions gate aplicado durante T2-H revisitado:**
+
+- **Q3 confirmado por Edward:** feature planeada para clientes — migrate hecho, wire pendiente.
+
+**Plan estructurado.**
+
+1. Backend: extender endpoint `/templates` para devolver `estimatedEngagement` calculado desde histórico real (Engagement table aggregations por template histórico de uso).
+2. Client producer: `useAIContentGeneration` o `useAIPromptTemplates` populate field en respuesta.
+3. Client display: `AITemplateSelector` muestra "Avg engagement: X%" con tooltip explicando "calculated from N similar templates" + empty-state honesto cuando data no disponible.
+4. Type: cambiar de `?: number` a `: number | null` cuando backend está wireado.
+
+**Bloqueado por.** Backend implementación + UX decision sobre cómo presentar.
+
+**Estado:** PENDING.
+
+---
+
+### PR-54 — Wire display `readabilityScore`/`engagementScore`/`viralPotential` en client AIContentResults
+
+**Surfaced.** 2026-05-04 durante T2-H revisitado canon (post-migrate de admin types).
+
+**Síntoma.** Tras migrate de fields admin→client: `ContentMetrics` ahora tiene `readabilityScore?: number`, `engagementScore?: number`, `viralPotential?: number` como **optional** (feature planeada). Estos fields existen para mostrar análisis cuantitativo del contenido generado por AI. T2-H removió displays originales por ser fake (`80/template.estimatedEngagement/50` hardcoded).
+
+**3-questions gate:**
+
+- **Q3:** Feature planeada per Edward (migrate confirmado).
+
+**Plan estructurado.**
+
+1. Backend: `apps/api/src/ai/aiService.ts` o nuevo endpoint `/ai/analyze` debe devolver estos 3 scores reales (existe shape backend en `apps/api/src/ai/types.ts` — verificar si overlap con `engagement.score` ya presente).
+2. Client producer: `useAIContentGeneration` populate fields desde response.
+3. Client display: `AIContentResults.tsx` agrega 3 metrics nuevas con empty-state honesto cuando no disponible. Considerar progress bars o badges con explicación de cada score.
+
+**Bloqueado por.** Backend AI analysis endpoint definitivo + UX decision.
+
+**Estado:** PENDING.
+
+---
+
+### PR-55 — Wire display `BrandConsistency` en client + decidir SoT (backend real vs stub fake)
+
+**Surfaced.** 2026-05-04 durante T2-H revisitado canon.
+
+**Síntoma.** `apps/client/hooks/api/useAIContentGeneration.ts:91-94` produce stub fake `brandConsistency: { score: 85, suggestions: generateBrandSuggestions(), voiceMatch: true }` que NUNCA se renderiza en `AIContentResults.tsx` (solo muestra `metrics.{characterCount,wordCount,hashtagCount}`). Backend SoT real existe en `apps/api/src/ai/types.ts:42` con shape DIFERENTE: `{ score, voice, suggestions }` (sin `voiceMatch`, con `voice: string`).
+
+**3-questions gate aplicado durante T2-H revisitado:**
+
+- **Q3 confirmado por Edward:** feature planeada — mantener stub temporalmente, abrir backlog.
+
+**Decisión técnica pendiente:**
+
+- **Opción A:** Migrar `apps/client/types/ai-content.ts BrandConsistency` para alinearse con backend shape `{ score, voice, suggestions }`. Producer usa backend response real.
+- **Opción B:** Mantener UI shape actual `{ score, suggestions, voiceMatch }` y mappear desde backend (`voiceMatch: response.voice === requestedVoice`).
+- **Opción C:** Diseñar UX nuevo y decidir shape desde feature spec.
+
+**Plan estructurado.**
+
+1. Decidir A/B/C arriba.
+2. Wire client producer a usar response del backend AI analysis (no stub fake).
+3. Wire `AIContentResults.tsx` para renderizar BrandConsistency con score visual + suggestions list + voice indicator.
+4. Remove `generateBrandSuggestions()` de `apps/client/lib/ai-content-utils.ts` (ya dead post-wire).
+5. Empty-state honesto cuando AI analysis no disponible.
+
+**Bloqueado por.** Decisión técnica (A/B/C) + UX design.
+
+**Estado:** PENDING.
+
+---
+
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.
 
 **Cierre.** Un entry se marca como `REVIEWED` cuando Edward lo revisa al final del roadmap. Se marca como `FIXED` cuando el fix de raíz se aplicó. Se marca como `WONT_FIX` si Edward decide que el paliativo es suficiente a largo plazo (en cuyo caso la razón debe documentarse).
