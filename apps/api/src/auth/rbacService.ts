@@ -61,6 +61,9 @@ export enum Permission {
 
   // Channel admin actions (force re-auth)
   CHANNELS_FORCE_REAUTH = "channels:force_reauth",
+
+  // Webhook subscription admin (rotate signing secret)
+  WEBHOOKS_ROTATE_SECRET = "webhooks:rotate_secret",
 }
 
 // ---------------------------------------------------------------------------
@@ -410,6 +413,7 @@ export class RbacService extends AuditableService {
       Posts: [Permission.POST_MANAGE],
       Secrets: [Permission.SECRETS_VIEW],
       "Channel Admin": [Permission.CHANNELS_FORCE_REAUTH],
+      "Webhook Admin": [Permission.WEBHOOKS_ROTATE_SECRET],
     };
   }
 

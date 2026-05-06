@@ -326,6 +326,10 @@ export const TOKENS = {
   // Channel Admin (force re-auth)
   UpdateChannelAuthStateUseCase: Symbol.for("UpdateChannelAuthStateUseCase"),
 
+  // Webhook Admin (secret rotation)
+  WebhookSubscriptionRotationRepository: Symbol.for("WebhookSubscriptionRotationRepository"),
+  RotateWebhookSecretKeyUseCase: Symbol.for("RotateWebhookSecretKeyUseCase"),
+
   // Integration Platform (Zapier, Make, etc.)
   IntegrationApiKeyRepository: Symbol.for("IntegrationApiKeyRepository"),
   IntegrationSubscriptionRepository: Symbol.for("IntegrationSubscriptionRepository"),

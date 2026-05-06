@@ -26,6 +26,60 @@ import type {
 } from "./webhookTypes.js";
 
 /**
+ * Subscription fields needed by the grace-window-aware verifier. Kept narrow
+ * (and decoupled from the full Prisma model) so the helper can be unit-tested
+ * without standing up Prisma.
+ */
+export interface VerifierSubscription {
+  id: string;
+  secretKey: string;
+  previousSecretKey: string | null;
+  previousSecretKeyExpiresAt: Date | null;
+}
+
+export interface VerifyWithGraceInput {
+  processor: WebhookProcessor;
+  payload: string;
+  signature: string;
+  headers: Record<string, string>;
+  subscription: VerifierSubscription;
+  now: Date;
+}
+
+export interface VerifyWithGraceResult {
+  isValid: boolean;
+  acceptedViaPrevious: boolean;
+}
+
+/**
+ * Verifies a webhook signature against the active secretKey, falling back to
+ * `previousSecretKey` when the rotation grace window is still open. Pure
+ * function — no I/O, no logger, no Prisma. The caller emits the audit warning.
+ *
+ * Golden cases:
+ *  1. Valid signature + active secret → accepted (acceptedViaPrevious=false)
+ *  2. Invalid against active + valid against previous within window → accepted
+ *  3. Invalid against active + valid against previous AFTER window → rejected
+ *  4. Invalid against both → rejected
+ */
+export function verifyWithGraceWindow(input: VerifyWithGraceInput): VerifyWithGraceResult {
+  const { processor, payload, signature, headers, subscription, now } = input;
+  if (processor.verify(payload, signature, subscription.secretKey, headers)) {
+    return { isValid: true, acceptedViaPrevious: false };
+  }
+  if (
+    subscription.previousSecretKey !== null &&
+    subscription.previousSecretKeyExpiresAt !== null &&
+    subscription.previousSecretKeyExpiresAt.getTime() > now.getTime()
+  ) {
+    if (processor.verify(payload, signature, subscription.previousSecretKey, headers)) {
+      return { isValid: true, acceptedViaPrevious: true };
+    }
+  }
+  return { isValid: false, acceptedViaPrevious: false };
+}
+
+/**
  * Universal webhook handler for all social media providers
  */
 export class UniversalWebhookHandler {
@@ -85,8 +139,26 @@ export class UniversalWebhookHandler {
         throw AppError.internal(`No processor registered for provider: ${provider}`);
       }
 
-      const isValid = processor.verify(payload, signature, subscription.secretKey, headers);
-      if (!isValid) {
+      const verification = verifyWithGraceWindow({
+        processor,
+        payload,
+        signature,
+        headers,
+        subscription,
+        now: new Date(),
+      });
+      if (verification.acceptedViaPrevious) {
+        webhookLogger.warn(
+          {
+            webhookSubscriptionId: subscription.id,
+            provider,
+            previousSecretKeyExpiresAt:
+              subscription.previousSecretKeyExpiresAt?.toISOString() ?? null,
+          },
+          "Webhook signature verified with previousSecretKey during grace window"
+        );
+      }
+      if (!verification.isValid) {
         throw AppError.unauthorized(
           `Webhook signature verification failed for provider: ${provider}`
         );

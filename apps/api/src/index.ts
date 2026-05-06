@@ -528,6 +528,7 @@ async function createApp(): Promise<FastifyInstance> {
   const { dashboardRoutes } = await import("./admin/dashboardRoutes.js");
   const { secretsRotationRoutes } = await import("./admin/secretsRotationRoutes.js");
   const { channelReauthRoutes } = await import("./admin/channelReauthRoutes.js");
+  const { webhookAdminRoutes } = await import("./admin/webhookAdminRoutes.js");
   const { trendRoutes } = await import("./trends/trendRoutes.js");
   const { registerWebhookDashboardRoutes } = await import("./webhooks/webhookDashboardRoutes.js");
   await typedApp.register(templateRoutes);
@@ -535,6 +536,7 @@ async function createApp(): Promise<FastifyInstance> {
   await typedApp.register(dashboardRoutes);
   await typedApp.register(secretsRotationRoutes);
   await typedApp.register(channelReauthRoutes);
+  await typedApp.register(webhookAdminRoutes);
   await typedApp.register(trendRoutes);
   await registerWebhookDashboardRoutes(typedApp);
 
