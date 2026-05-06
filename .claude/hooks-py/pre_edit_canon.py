@@ -19,16 +19,24 @@ Dedup multi-capa (todas reset al iniciar nueva session):
   - per-key:  cada canon entry se inyecta UNA vez por session (cross-file)
   - hard cap: MAX_INJECTIONS_PER_SESSION limita el ruido total
 
-Relevance scoring: ratio = len(longest matched path) / len(file_path).
-Filter: matches con ratio < MIN_RELEVANCE quedan fuera. Evita inyectar
-canon de scope amplio (e.g. apps/api/src/) cuando existe canon más
-específico (e.g. apps/api/src/auth/).
+Relevance scoring (path):
+  ratio = len(longest matched path) / len(file_path).
+  Matches con ratio < MIN_RELEVANCE quedan fuera. Evita inyectar canon de
+  scope amplio (e.g. apps/api/src/) cuando existe canon más específico.
+
+Content-keyword filter:
+  Cada canon entry deriva un vocabulario desde topic + keyTakeaway +
+  patternAdopted (tokenizado, lowercased, filtrado por STOP_WORDS y
+  MIN_TOKEN_LEN). Un canon dispara solo si ≥1 token del vocab aparece en el
+  diff (new_string / content / MultiEdit edits). Si el canon no deriva
+  keywords, NO fire (conservador — evita ruido sin signal).
 
 Este hook NUNCA bloquea: exit 0 siempre. Errores se loguean y allowean.
 """
 
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -48,7 +56,97 @@ INJECTED_FILES_LOG = Path(".claude/canon-injected-files.log")
 MAX_ENTRIES_INJECTED = 2
 MAX_INJECTIONS_PER_SESSION = 50
 MIN_RELEVANCE = 0.15
+MIN_TOKEN_LEN = 3
 STALE_THRESHOLD_DAYS = 30
+
+_TOKEN_PATTERN = re.compile(r"[A-Za-z][A-Za-z0-9_]*")
+
+STOP_WORDS: frozenset[str] = frozenset(
+    {
+        # Pure grammar / pronouns / quantifiers / aux verbs
+        "the", "and", "for", "with", "this", "that", "these", "those",
+        "from", "into", "onto", "over", "under", "than", "then", "when",
+        "where", "what", "which", "while", "have", "has", "had", "been",
+        "being", "are", "was", "were", "will", "would", "should", "could",
+        "might", "must", "may", "can", "such", "also", "still", "only",
+        "between", "among", "some", "any", "every", "each", "multiple",
+        "single", "ever", "never", "across", "without", "within", "via",
+        "but", "not", "yet", "out", "off", "all", "few", "new", "old",
+        "one", "two", "per", "etc", "use", "set", "get", "fix", "add",
+        # Programming language keywords (TS/JS surface) — generic in any code
+        "import", "export", "const", "let", "var", "function", "async",
+        "await", "return", "throw", "throws", "class", "interface", "type",
+        "enum", "extends", "implements", "public", "private", "protected",
+        "static", "void", "null", "undefined", "true", "false", "boolean",
+        "string", "number", "object", "array", "promise", "record",
+        "default", "abstract", "readonly", "override",
+        # Catch-all architecture words — too broad to discriminate
+        "architecture", "system", "design", "feature", "project",
+        "context", "concept", "concepts", "approach", "instance", "instances",
+        "definition", "definitions", "reference", "references",
+        "documentation", "manual", "section", "version",
+        # Generic verbs
+        "uses", "used", "using", "applied", "applies", "applying",
+        "read", "write", "create", "update", "delete", "make", "made",
+        "valid", "invalid", "common", "good", "best", "case", "cases",
+        "flow", "flows",
+    }
+)
+
+
+def tokenize(text: str) -> set[str]:
+    """Lowercase tokens ≥ MIN_TOKEN_LEN, filtered by STOP_WORDS."""
+    if not text:
+        return set()
+    tokens: set[str] = set()
+    for raw in _TOKEN_PATTERN.findall(text):
+        tok = raw.lower()
+        if len(tok) < MIN_TOKEN_LEN:
+            continue
+        if tok in STOP_WORDS:
+            continue
+        tokens.add(tok)
+    return tokens
+
+
+_canon_keyword_cache: dict[str, set[str]] = {}
+
+
+def derive_canon_keywords(entry: dict) -> set[str]:
+    """Deriva keywords desde topic + keyTakeaway + patternAdopted del canon entry.
+
+    Cacheado por entry key (proceso-vida) para evitar retokenizar.
+    """
+    key = entry.get("key", "")
+    cached = _canon_keyword_cache.get(key)
+    if cached is not None:
+        return cached
+    sources = " ".join(
+        [
+            entry.get("topic", ""),
+            entry.get("keyTakeaway", ""),
+            entry.get("patternAdopted", ""),
+        ]
+    )
+    kws = tokenize(sources)
+    if key:
+        _canon_keyword_cache[key] = kws
+    return kws
+
+
+def extract_diff_tokens(data: dict) -> set[str]:
+    """Tokens del diff (new_string / content / MultiEdit edits)."""
+    tool_name = data.get("tool_name", "")
+    tool_input = data.get("tool_input", {})
+    chunks: list[str] = []
+    if tool_name == "Edit":
+        chunks.append(tool_input.get("new_string", ""))
+    elif tool_name == "Write":
+        chunks.append(tool_input.get("content", ""))
+    elif tool_name == "MultiEdit":
+        for edit in tool_input.get("edits", []):
+            chunks.append(edit.get("new_string", ""))
+    return tokenize("\n".join(chunks))
 
 
 def emit_no_context() -> None:
@@ -101,13 +199,23 @@ def staleness_warning(index: dict) -> str | None:
 
 
 def find_matches(
-    file_path: str, index: dict, min_relevance: float = MIN_RELEVANCE
+    file_path: str,
+    index: dict,
+    diff_tokens: set[str],
+    min_relevance: float = MIN_RELEVANCE,
 ) -> list[dict]:
-    """Devuelve canon entries cuyo appliesTo matchea file_path con relevance ≥ threshold.
+    """Devuelve canon entries que pasan path filter + content-keyword filter.
 
-    Match = cualquier path en appliesTo es substring de file_path.
-    Relevance ratio = len(longest matched-path) / len(file_path).
-    Ranking: relevance desc, tie-break por recency (date desc).
+    Cascada:
+      1. Path: cualquier `appliesTo` substring de file_path con
+         ratio = len(longest match) / len(file_path) ≥ min_relevance.
+      2. Content: ≥1 token derivado de canon (topic + keyTakeaway +
+         patternAdopted, filtrado por STOP_WORDS) en `diff_tokens`.
+
+    Canons sin keywords derivables NO disparan (conservador; evita inyectar
+    canons broad sin signal).
+
+    Ranking: path-specificity desc, tie-break por recency (date desc).
     """
     file_len = len(file_path)
     matches: list[tuple[int, str, dict]] = []
@@ -121,6 +229,11 @@ def find_matches(
             continue
         relevance = (best_specificity / file_len) if file_len else 0.0
         if relevance < min_relevance:
+            continue
+        canon_kws = derive_canon_keywords(entry)
+        if not canon_kws:
+            continue
+        if canon_kws.isdisjoint(diff_tokens):
             continue
         matches.append((best_specificity, entry.get("date", ""), entry))
     matches.sort(key=lambda t: (t[0], t[1]), reverse=True)
@@ -277,9 +390,17 @@ def main() -> None:
     if not index:
         emit_no_context()
 
-    matches = find_matches(file_path, index)
+    diff_tokens = extract_diff_tokens(data)
+    if not diff_tokens:
+        log(f"diff has no canon-relevant tokens — skip {file_path}")
+        emit_no_context()
+
+    matches = find_matches(file_path, index, diff_tokens)
     if not matches:
-        log(f"canon MISS (no matches ≥ relevance {MIN_RELEVANCE}): {file_path}")
+        log(
+            f"canon MISS (no matches passed path+content filters, "
+            f"diff_tokens={len(diff_tokens)}): {file_path}"
+        )
         log_miss(file_path, tool_name)
         emit_no_context()
 
