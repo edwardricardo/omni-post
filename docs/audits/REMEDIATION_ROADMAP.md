@@ -3541,6 +3541,109 @@ bash .github/workflows/fitness.sh   # → all 10 greps → 0
 
 ---
 
+## §10.5. Re-estimación realista (factor empírico por tier)
+
+> **Añadido 2026-05-06** como Phase 3 del meta-plan post-remediation. Reconcilia el estimado v2.1 (35-40 semanas) con el factor empírico observado en los 43 batches cerrados. Ver `batch-status-report.py` para datos de origen.
+
+### Metodología
+
+**Factor empírico** = `horas_reales / horas_estimadas` por batch. Se calcula al cierre de cada batch (en notas del batch). Se promedia por tier para obtener el factor de tier. Se aplica a los batches abiertos del mismo tier para producir un estimado realista.
+
+**Factor por tier (43 batches cerrados, datos del 2026-05-06):**
+
+| Tier | Batches cerrados | Factor empírico        | Justificación                                                                                 |
+| ---- | ---------------- | ---------------------- | --------------------------------------------------------------------------------------------- |
+| T0   | 1/1              | ~3×                    | T0-A scope expandido a 22 CWE-798 fixes (de 1 finding original)                               |
+| T1   | 10/10            | ~1.5-2×                | T1-D, T1-E, T1-F descubrieron audits adicionales no estimados                                 |
+| T2   | 11/12            | **~4×**                | T2-D, T2-E, T2-H todos 5× scope. Patrón: UI findings con surface area mayor que ticket        |
+| T3   | 10/19            | ~3×                    | T3-J 48× scope, T3-F/G ejecución parcial; balance ~3×                                         |
+| T4   | 11/26            | **~0.7×**              | T4-I, T4-K, T4-L terminaron MÁS RÁPIDO que estimado. Patrón: arquitectura clean post-decisión |
+| T5   | 0/9              | n/a (proxy T4: ~0.85×) | Sin muestras. Aplicar factor T4 como proxy (architectural similar)                            |
+| T6   | 0/11             | n/a (proxy: ~1.0×)     | Sin muestras. Mix WIRE/DELETE/decisión; factor moderado                                       |
+
+**Intervalo de confianza**: bajo. Sample size por tier es 9-11 batches en T1-T4; T5-T6 sin muestras = factor proxied es la fuente principal de incertidumbre.
+
+### Aplicación a batches abiertos
+
+| Tier      | Batches abiertos | Estimado v2.1 (h) | Factor | Realista (h) |
+| --------- | ---------------- | ----------------- | ------ | ------------ |
+| T2        | 1 (T2-K)         | 3-4               | 4×     | 12-16        |
+| T3        | 9                | ~30               | 3×     | ~90          |
+| T4        | 15               | ~50               | 0.7×   | ~35          |
+| T5        | 9                | ~250-450          | 0.85×  | ~210-380     |
+| T6        | 11               | ~400-450          | 1.0×   | ~400-450     |
+| **TOTAL** | **45**           | **~735-985**      | mixed  | **~750-970** |
+
+A 30-35 h/semana de capacity efectiva (con overhead, planning, review):
+
+- **Original v2.1 published**: 35-40 semanas total (post-T6 decisions, 2026-04-21).
+- **Realista con factor empírico**: **40-55 semanas total** (~17 semanas ya done + 23-33 semanas remaining).
+
+### Asimetría observada
+
+El factor 3× promedio del meta-plan original ESCONDE dos sub-patrones:
+
+- **T2-T3 ran slow** (factor 3-4×): UI work, refactor de hooks, scope-expansion frecuente. Sub-batches descubiertos en ejecución (T2-D.5 spinoff, T2-H 4 backlog entries).
+- **T4 ran fast** (factor 0.7×): arquitectura clean. Las decisiones T6 cerradas previamente y los canon entries pre-existentes hicieron que la implementación fuera más mecánica que estimada.
+
+**Implicación**: si T5/T6 siguen el patrón T4 (architectural disciplined), el realista podría ser ~40 semanas. Si siguen el patrón T2/T3 (UI work con scope-expansion), podría ser ~55 semanas. **Rango honesto: 40-55 semanas total, banda media ~47**.
+
+### Refresh
+
+Re-correr `batch-status-report.py` y recomputar los factores cada 3 meses, o cuando se cierren ≥5 batches nuevos en cualquier tier. El factor de cada tier debería estabilizarse a medida que la sample size crece.
+
+### Decisiones derivadas
+
+- **No prometer fechas a stakeholders externos antes de Q2 2026 (octubre)** — la incertidumbre en T5/T6 (factor proxied, no observado) hace cualquier compromiso de calendario riesgoso.
+- **Si capacity es 1 frente**: priorizar T5-A (Wave 1 según `T5_T6_PARALLELIZATION_DECISION.md`) — máximo impacto por hora.
+- **Si la asimetría T2/T3 vs T4 se confirma post-T5-A/T5-G**: reconsiderar si vale la pena terminar T3 abierto antes de avanzar T5 (sub-óptimo si T3 sigue 3× sobre estimado y T5 va 0.85×).
+
+---
+
+## §10.6. Exit criteria levels (L1 / L2 / L3)
+
+> **Añadido 2026-05-06** como Phase 4.1 del meta-plan post-remediation. Define el mínimo verificable que un batch debe cumplir antes de cerrarse, escalado por su tier. Validable advisory vía `.claude/scripts/validate-batch-exit.py <batch-id>` (ver Phase 4.2).
+
+### Motivación
+
+Los 43 batches cerrados al 2026-05-06 tienen exit criteria heterogéneos: algunos son `grep → 0` puros (T4-P fitness wire), otros son tests + behavior validation (T4-B EventStore, T4-K AI service port). Sin nivel mínimo declarado, la métrica "batch cerrado" mezcla peras y manzanas. Esta sección define **3 niveles** + asignación de niveles a tiers para que cualquier batch futuro tenga un piso de calidad explícito.
+
+### Niveles
+
+| Nivel                  | Aplica a                                          | Mínimo requerido                                                                                                                                                                                |
+| ---------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **L1 — mecánico**      | T1 (todos), file-rename batches, doc-only changes | Grep/lint pasa con count = 0. **No requiere tests.** Apto para cambios sintácticos puros donde el "comportamiento" es la ausencia del pattern.                                                  |
+| **L2 — refactor**      | T2 (todos), T3 sub-batches                        | L1 + ≥1 unit test cubriendo el comportamiento que cambió, en `apps/*/tests/unit/` o `packages/*/tests/`. El test debe FALLAR en HEAD-1 (pre-fix) y PASAR en HEAD (post-fix).                    |
+| **L3 — arquitectural** | T4 ports/DI, T5 (todos), T6 (WIRE-heavy)          | L2 + ≥1 integration test (con DB/Redis real si aplica) en `apps/api/tests/integration/`, **O** un contract test que verifique la interface del nuevo port. T6 DELETE-only batches mantienen L2. |
+
+**Excepciones legítimas**: si un batch L3 tiene WONT_FIX para tests (ej. limitación del runner, dependency externa no mockeable), debe documentarlo con la regla "L3 con waiver: <razón>" en las notas del batch.
+
+### Asignación por tier
+
+- **T0**: L3 (T0-A es secrets — afecta arquitectura completa).
+- **T1**: L1 default. T1-F (JSDoc + fitness functions) es L2 porque añade tests + fitness greps.
+- **T2**: L2 default. T2-G (raw throws domain) puede ser L1 si solo es regex match (verificación que el patrón está vigente).
+- **T3**: L2 default. T3-K (useInbox), T3-N (webhooks TanStack) son L2. T3-A (QueryClient global) es L3 (architectural).
+- **T4**: L3 default. T4-P (fitness functions wire) es L1 — el exit criteria ES la fitness function (lint-only por contrato).
+- **T5**: L3 (todos).
+- **T6**: L3 para WIRE-heavy (T6-A, T6-B, T6-C, T6-G); L2 para DELETE/scaffold (T6-D, T6-I, T6-H).
+
+### Backfill retroactivo (opcional)
+
+Los 43 batches cerrados al 2026-05-06 NO requieren re-validación retroactiva contra estos niveles. Backfill es opcional, ejecutable vía `validate-batch-exit.py <batch-id>` cuando se mire para auditoría. La intención es que **los batches futuros declaren su nivel** explícitamente en su sección, no re-litigar los cerrados.
+
+### Wire al script de validación
+
+El script CLI `.claude/scripts/validate-batch-exit.py <batch-id>` (Phase 4.2 del meta-plan) infiere el nivel desde el tier (con override declarado en la sección del batch), busca los tests requeridos en los paths esperados, y los corre con `pnpm --filter @apps/api test --run <pattern>`. Es **advisory** — no bloquea commits, solo reporta cumplimiento. Si en 1-2 sprints la disciplina cuaja, puede upgradearse a un PostToolUse hook que bloquee commits con mensaje `feat(.*): T*-*` que no pasen el validator.
+
+### Cuándo NO seguir esta clasificación
+
+- Si un batch produce un patch trivial (1-line) en una zona arquitectural compleja: aceptar L1 con justificación si el cambio es genuinamente sintáctico (ej. typo en log message).
+- Si un batch architectural genuinamente no puede tener integration test (servicio third-party que no expone test mode): documentar waiver explícito.
+- En refactors masivos cross-cutting (T1-F): el nivel se aplica al patrón general, no a cada archivo tocado.
+
+---
+
 ## §11. Changelog
 
 ### v2.1 — 2026-04-21 (T6 decisions session)

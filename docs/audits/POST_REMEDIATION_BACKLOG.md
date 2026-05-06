@@ -4,13 +4,19 @@
 >
 > **Regla operacional.** Cuando un batch del roadmap encuentra un bloqueador pre-existente fuera de su scope y se aplica un fix mínimo para desbloquear la ejecución, el fix se registra aquí. **Después de cerrado el roadmap completo**, Edward revisa este backlog y decide qué fixes ameritan upgrade a fix definitivo.
 >
-> **Formato.**
+> **Formato (entries nuevas a partir de 2026-05-06).**
+>
+> Las entries existentes (PR-1 a PR-56) usan el formato legacy descrito al final de esta nota. **Nuevas entries DEBEN llenar el bloque YAML-ish completo** para que `backlog-health-report.py` pueda surfacear stale, target-passed, BLOCKERs, y orphans.
 >
 > ```markdown
 > ### PR-<N> — <título corto>
 >
 > **Fecha de aplicación:** YYYY-MM-DD
 > **Batch de origen:** T<tier>-<letter> (del roadmap v2.1)
+> **SLA category:** BLOCKER / HIGH / MEDIUM / LOW
+> **Target decision:** YYYY-MM-DD (deadline para Edward decidir/asignar)
+> **Needs Edward:** true / false
+> **Blocked by:** [T<n>-<letter>, PR-<N>, ...] (opcional)
 > **Severidad del bug pre-existente:** bajo / medio / alto / crítico
 > **Tipo:** config / code / infra / docs / tests
 >
@@ -26,8 +32,18 @@
 > **Cuándo revisar:**
 > <inmediato / post-roadmap / sprint dedicado / batch específico (T<n>-<letter>)>
 >
-> **Estado:** APLICADO / REVIEWED / FIXED / WONT_FIX
+> **Estado:** APLICADO / REVIEWED / FIXED / WONT_FIX / DEFERRED
 > ```
+>
+> **Mapeo legacy → canonical** (lo que `backlog-health-report.py` reconoce):
+>
+> - `Batch de origen` → `originatedFrom`
+> - `Fecha de aplicación` → `createdAt`
+> - `Estado` → `status` (FIXED si contiene `FIXED|CLOSED|DONE`, DEFERRED si `deferred|diferido`, WONT_FIX si `WONT_FIX|won't fix`)
+> - `Severidad` → `slaCategory` (mapeo aproximado: crítica→BLOCKER, alto/alta→HIGH, bajo/low→LOW, default MEDIUM)
+> - Si el cuerpo libre menciona `NEEDS_EDWARD` → `needsEdward: true`
+>
+> Entries legacy (PR-1..PR-56) que carezcan de `Batch de origen` aparecen como **orphans** en el report. Backfill no es obligatorio; queda como deuda opcional.
 
 ---
 
