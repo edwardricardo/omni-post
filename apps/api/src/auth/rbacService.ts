@@ -67,6 +67,9 @@ export enum Permission {
 
   // OIDC admin (replace client secret with handshake test)
   OIDC_REPLACE_SECRET = "oidc:replace_secret",
+
+  // ApiKey admin (cross-tenant rotation)
+  APIKEYS_ADMIN_ROTATE = "apikeys:admin_rotate",
 }
 
 // ---------------------------------------------------------------------------
@@ -418,6 +421,7 @@ export class RbacService extends AuditableService {
       "Channel Admin": [Permission.CHANNELS_FORCE_REAUTH],
       "Webhook Admin": [Permission.WEBHOOKS_ROTATE_SECRET],
       "OIDC Admin": [Permission.OIDC_REPLACE_SECRET],
+      "API Keys Admin": [Permission.APIKEYS_ADMIN_ROTATE],
     };
   }
 

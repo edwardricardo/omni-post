@@ -21,6 +21,7 @@ import { secretsClient } from "./api/clients/secretsClient";
 import { channelsAdminClient } from "./api/clients/channelsAdminClient";
 import { webhooksAdminClient } from "./api/clients/webhooksAdminClient";
 import { oidcAdminClient } from "./api/clients/oidcAdminClient";
+import { apiKeysAdminClient } from "./api/clients/apiKeysAdminClient";
 
 // Re-export types so existing consumers continue to import from "@/lib/apiClient".
 export type {
@@ -115,6 +116,9 @@ export const api = {
     },
     oidc: {
       replaceClientSecret: oidcAdminClient.replaceClientSecret,
+    },
+    apiKeys: {
+      rotate: apiKeysAdminClient.rotate,
     },
   },
 };
