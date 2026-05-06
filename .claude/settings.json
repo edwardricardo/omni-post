@@ -1,5 +1,5 @@
 {
-  "_README": "Hooks Python para OmniPost — turno 4 del aprendizaje incremental.",
+  "_README": "Hooks Python para OmniPost — Batch 1 agrega UserPromptSubmit context injection.",
 
   "hooks": {
     "PreToolUse": [
@@ -21,6 +21,17 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks-py/post_bash.py"
+          }
+        ]
+      }
+    ],
+
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks-py/user_prompt_submit.py"
           }
         ]
       }
