@@ -30,6 +30,9 @@ interface ChannelRow {
   credentialsAuthTag: string;
   credentialsKeyVersion: number;
   isPrimary: boolean;
+  needsReauth: boolean;
+  authFailedAt: Date | null;
+  authFailureReason: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -89,6 +92,9 @@ export class PrismaChannelRepository implements ChannelRepository {
       // Status, errorCount, etc. are not persisted — default to healthy state
       status: CONNECTION_STATUS.CONNECTED,
       errorCount: 0,
+      needsReauth: row.needsReauth,
+      ...(row.authFailedAt !== null && { authFailedAt: row.authFailedAt }),
+      ...(row.authFailureReason !== null && { authFailureReason: row.authFailureReason }),
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     });
@@ -198,6 +204,9 @@ export class PrismaChannelRepository implements ChannelRepository {
           credentialsAuthTag: enc.credentialsAuthTag,
           credentialsKeyVersion: enc.credentialsKeyVersion,
           isPrimary: channel.isPrimary,
+          needsReauth: channel.needsReauth,
+          authFailedAt: channel.authFailedAt ?? null,
+          authFailureReason: channel.authFailureReason ?? null,
           createdAt: channel.createdAt,
           updatedAt: channel.updatedAt,
         },
@@ -208,6 +217,9 @@ export class PrismaChannelRepository implements ChannelRepository {
           credentialsAuthTag: enc.credentialsAuthTag,
           credentialsKeyVersion: enc.credentialsKeyVersion,
           isPrimary: channel.isPrimary,
+          needsReauth: channel.needsReauth,
+          authFailedAt: channel.authFailedAt ?? null,
+          authFailureReason: channel.authFailureReason ?? null,
           updatedAt: channel.updatedAt,
         },
       });

@@ -58,6 +58,9 @@ export enum Permission {
 
   // Secrets rotation status
   SECRETS_VIEW = "secrets:view",
+
+  // Channel admin actions (force re-auth)
+  CHANNELS_FORCE_REAUTH = "channels:force_reauth",
 }
 
 // ---------------------------------------------------------------------------
@@ -406,6 +409,7 @@ export class RbacService extends AuditableService {
       Dashboard: [Permission.DASHBOARD_VIEW],
       Posts: [Permission.POST_MANAGE],
       Secrets: [Permission.SECRETS_VIEW],
+      "Channel Admin": [Permission.CHANNELS_FORCE_REAUTH],
     };
   }
 

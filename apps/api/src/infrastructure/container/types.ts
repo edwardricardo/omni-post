@@ -323,6 +323,9 @@ export const TOKENS = {
   SecretRotationLogReadRepository: Symbol.for("SecretRotationLogReadRepository"),
   GetSecretRotationStatusQuery: Symbol.for("GetSecretRotationStatusQuery"),
 
+  // Channel Admin (force re-auth)
+  UpdateChannelAuthStateUseCase: Symbol.for("UpdateChannelAuthStateUseCase"),
+
   // Integration Platform (Zapier, Make, etc.)
   IntegrationApiKeyRepository: Symbol.for("IntegrationApiKeyRepository"),
   IntegrationSubscriptionRepository: Symbol.for("IntegrationSubscriptionRepository"),

@@ -18,6 +18,7 @@ import { mfaClient } from "./api/clients/mfaClient";
 import { postsClient } from "./api/clients/postsClient";
 import { rbacClient } from "./api/clients/rbacClient";
 import { secretsClient } from "./api/clients/secretsClient";
+import { channelsAdminClient } from "./api/clients/channelsAdminClient";
 
 // Re-export types so existing consumers continue to import from "@/lib/apiClient".
 export type {
@@ -103,6 +104,9 @@ export const api = {
     },
     secrets: {
       getRotationStatus: secretsClient.getRotationStatus,
+    },
+    channels: {
+      forceReauth: channelsAdminClient.forceReauth,
     },
   },
 };

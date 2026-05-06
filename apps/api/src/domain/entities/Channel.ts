@@ -47,6 +47,9 @@ export interface ChannelProps extends EntityProps {
   lastHealthCheck?: Date;
   errorCount?: number;
   lastError?: string;
+  needsReauth?: boolean;
+  authFailedAt?: Date;
+  authFailureReason?: string;
 }
 
 /**
@@ -85,6 +88,9 @@ export class Channel extends Entity<ChannelId> {
   private _lastHealthCheck: Date | undefined;
   private _errorCount: number;
   private _lastError: string | undefined;
+  private _needsReauth: boolean;
+  private _authFailedAt: Date | undefined;
+  private _authFailureReason: string | undefined;
 
   private constructor(id: ChannelId, props: ChannelProps) {
     super(id, props.createdAt);
@@ -97,6 +103,9 @@ export class Channel extends Entity<ChannelId> {
     this._lastHealthCheck = props.lastHealthCheck;
     this._errorCount = props.errorCount ?? 0;
     this._lastError = props.lastError;
+    this._needsReauth = props.needsReauth ?? false;
+    this._authFailedAt = props.authFailedAt;
+    this._authFailureReason = props.authFailureReason;
 
     if (props.updatedAt) {
       this._updatedAt = props.updatedAt;
@@ -157,6 +166,9 @@ export class Channel extends Entity<ChannelId> {
       lastHealthCheck?: Date;
       errorCount: number;
       lastError?: string;
+      needsReauth?: boolean;
+      authFailedAt?: Date;
+      authFailureReason?: string;
       createdAt: Date;
       updatedAt: Date;
     }
@@ -204,6 +216,18 @@ export class Channel extends Entity<ChannelId> {
 
   get lastError(): string | undefined {
     return this._lastError;
+  }
+
+  get needsReauth(): boolean {
+    return this._needsReauth;
+  }
+
+  get authFailedAt(): Date | undefined {
+    return this._authFailedAt ? new Date(this._authFailedAt.getTime()) : undefined;
+  }
+
+  get authFailureReason(): string | undefined {
+    return this._authFailureReason;
   }
 
   // Status predicates
@@ -379,6 +403,34 @@ export class Channel extends Entity<ChannelId> {
       return;
     }
     this._isPrimary = false;
+    this.markUpdated();
+  }
+
+  /**
+   * Flag the channel as requiring user re-authorization. Sets the failure
+   * timestamp + reason so the client app can surface a contextual banner.
+   * Workers call this on AUTH errors from the provider; admins call it
+   * proactively when rotating provider OAuth client secrets.
+   * Always re-stamps `authFailedAt` so consecutive triggers are visible.
+   */
+  markForReauth(reason: string): void {
+    this._needsReauth = true;
+    this._authFailedAt = new Date();
+    this._authFailureReason = reason;
+    this.markUpdated();
+  }
+
+  /**
+   * Clear the reauth flag once the user completes the re-grant flow.
+   * Idempotent.
+   */
+  clearReauthFlag(): void {
+    if (!this._needsReauth) {
+      return;
+    }
+    this._needsReauth = false;
+    this._authFailedAt = undefined;
+    this._authFailureReason = undefined;
     this.markUpdated();
   }
 

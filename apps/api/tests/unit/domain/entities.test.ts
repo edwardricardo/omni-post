@@ -222,6 +222,74 @@ describe("Domain Entities", () => {
       const json = channel.toJSON();
       expect(json.isPrimary).toBe(true);
     });
+
+    it("starts with needsReauth = false", () => {
+      const r = Channel.create({
+        projectId: ProjectId.generate(),
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      expect(r.ok).toBeTruthy();
+      if (!r.ok) return;
+      expect(r.value.needsReauth).toBe(false);
+      expect(r.value.authFailedAt).toBeUndefined();
+      expect(r.value.authFailureReason).toBeUndefined();
+    });
+
+    it("markForReauth sets needsReauth + authFailedAt + reason", () => {
+      const r = Channel.create({
+        projectId: ProjectId.generate(),
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      if (!r.ok) throw r.error;
+      const channel = r.value;
+      const before = Date.now();
+      channel.markForReauth("admin force-reauth post-secret-rotation");
+      expect(channel.needsReauth).toBe(true);
+      expect(channel.authFailureReason).toBe("admin force-reauth post-secret-rotation");
+      expect(channel.authFailedAt).toBeInstanceOf(Date);
+      expect((channel.authFailedAt as Date).getTime()).toBeGreaterThanOrEqual(before);
+    });
+
+    it("markForReauth re-stamps authFailedAt on consecutive triggers", async () => {
+      const r = Channel.create({
+        projectId: ProjectId.generate(),
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      if (!r.ok) throw r.error;
+      const channel = r.value;
+      channel.markForReauth("first");
+      const first = (channel.authFailedAt as Date).getTime();
+      await new Promise((res) => setTimeout(res, 5));
+      channel.markForReauth("second");
+      expect((channel.authFailedAt as Date).getTime()).toBeGreaterThanOrEqual(first);
+      expect(channel.authFailureReason).toBe("second");
+    });
+
+    it("clearReauthFlag is idempotent and resets fields", () => {
+      const r = Channel.create({
+        projectId: ProjectId.generate(),
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      if (!r.ok) throw r.error;
+      const channel = r.value;
+      channel.markForReauth("x");
+      channel.clearReauthFlag();
+      expect(channel.needsReauth).toBe(false);
+      expect(channel.authFailedAt).toBeUndefined();
+      expect(channel.authFailureReason).toBeUndefined();
+      // idempotent — second call no-op
+      const updatedAtBefore = channel.updatedAt.getTime();
+      channel.clearReauthFlag();
+      expect(channel.updatedAt.getTime()).toBe(updatedAtBefore);
+    });
   });
 
   describe("Account Entity", () => {

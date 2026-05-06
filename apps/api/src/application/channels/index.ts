@@ -10,3 +10,9 @@ export {
   type SetPrimaryChannelInput,
   type SetPrimaryChannelOutput,
 } from "./SetPrimaryChannelUseCase.js";
+
+export {
+  UpdateChannelAuthStateUseCase,
+  type UpdateChannelAuthStateInput,
+  type UpdateChannelAuthStateOutput,
+} from "./UpdateChannelAuthStateUseCase.js";
