@@ -33,6 +33,7 @@ CANON_INDEX_PATH = Path(
     "/home/edward/.claude/projects/-home-edward-projects-omni-post/memory/canon-index.json"
 )
 MISSES_LOG = Path(".claude/canon-misses.log")
+INJECTED_KEYS_LOG = Path(".claude/canon-injected-keys.log")
 MAX_ENTRIES_INJECTED = 3
 STALE_THRESHOLD_DAYS = 30
 
@@ -157,6 +158,41 @@ def log_miss(file_path: str, tool_name: str) -> None:
         log(f"WARN: no se pudo escribir canon-misses.log: {e}")
 
 
+def load_injected_keys(session_id: str) -> set[str]:
+    """Set de canon entry keys ya inyectadas en esta session_id.
+
+    Lee `.claude/canon-injected-keys.log` (formato: session_id\tkey\ttimestamp)
+    y devuelve solo las keys que correspondan a la session_id pasada.
+    Otras sesiones quedan ignoradas.
+    """
+    if not session_id or not INJECTED_KEYS_LOG.exists():
+        return set()
+    keys: set[str] = set()
+    try:
+        with INJECTED_KEYS_LOG.open("r", encoding="utf-8") as f:
+            for line in f:
+                parts = line.strip().split("\t")
+                if len(parts) >= 2 and parts[0] == session_id:
+                    keys.add(parts[1])
+    except OSError:
+        return set()
+    return keys
+
+
+def record_injected(session_id: str, keys: list[str]) -> None:
+    """Append session_id\\tkey\\ttimestamp por cada key inyectada."""
+    if not session_id or not keys:
+        return
+    try:
+        INJECTED_KEYS_LOG.parent.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now(timezone.utc).isoformat()
+        with INJECTED_KEYS_LOG.open("a", encoding="utf-8") as f:
+            for k in keys:
+                f.write(f"{session_id}\t{k}\t{timestamp}\n")
+    except OSError as e:
+        log(f"WARN: no se pudo escribir canon-injected-keys.log: {e}")
+
+
 def main() -> None:
     try:
         data = read_hook_input(log)
@@ -185,9 +221,27 @@ def main() -> None:
         log_miss(file_path, tool_name)
         emit_no_context()
 
+    # Per-session dedup: filtra entries que ya fueron inyectadas en esta session.
+    # Cada canon entry se inyecta UNA sola vez por session_id; subsiguientes Edits
+    # con las mismas matches obtienen skip silencioso. Reset = nueva session.
+    session_id = data.get("session_id", "")
+    injected_already = load_injected_keys(session_id)
+    new_matches = [m for m in matches if m.get("key") not in injected_already]
+
+    if not new_matches:
+        log(
+            f"canon HIT but all {len(matches)} matches ya inyectadas en session={session_id[:8]} — skip"
+        )
+        emit_no_context()
+
     stale = staleness_warning(index)
-    log(f"canon HIT: {len(matches)} entries for {file_path} (top {MAX_ENTRIES_INJECTED} injected)")
-    emit_context(format_context(matches, file_path, stale))
+    new_keys = [m["key"] for m in new_matches[:MAX_ENTRIES_INJECTED] if m.get("key")]
+    log(
+        f"canon HIT: {len(matches)} total, {len(new_matches)} new for {file_path} "
+        f"(top {MAX_ENTRIES_INJECTED} injected, recording {len(new_keys)} keys)"
+    )
+    record_injected(session_id, new_keys)
+    emit_context(format_context(new_matches, file_path, stale))
 
 
 if __name__ == "__main__":
