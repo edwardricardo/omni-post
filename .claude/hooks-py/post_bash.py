@@ -7,36 +7,18 @@ no necesita chequear el resultado: si corre, el push funcionó.
 """
 
 import json
-import re
 import sys
-from datetime import datetime
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _common import GIT_PUSH_RE, make_logger, read_hook_input  # noqa: E402
 
-LOG_PATH = Path(".claude/hooks.log")
 HOOK_NAME = "post-bash"
-
-# Regex compartida con pre_bash: matchea 'git' y 'push' como tokens
-# separados aunque haya flags intermedias (-C /path, --git-dir=...).
-# Limitación: no detecta composición con && (cd /path && ...).
-GIT_PUSH_RE = re.compile(r"\bgit\b\s.*\bpush\b")
-
-
-def log(message: str) -> None:
-    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now().isoformat()
-    with LOG_PATH.open("a") as f:
-        f.write(f"[{timestamp}] [{HOOK_NAME}] {message}\n")
+log, _block, _allow = make_logger(HOOK_NAME)
 
 
 def main() -> None:
-    raw_input = sys.stdin.read()
-
-    try:
-        data = json.loads(raw_input)
-    except json.JSONDecodeError as e:
-        log(f"ERROR: JSON inválido: {e}")
-        sys.exit(1)
+    data = read_hook_input(log)
 
     tool_name = data.get("tool_name", "")
     command = data.get("tool_input", {}).get("command", "")
