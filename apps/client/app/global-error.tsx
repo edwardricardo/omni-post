@@ -2,8 +2,9 @@
 
 /**
  * @file global-error.tsx
- * @description Next.js global error boundary rendering a fallback UI with a reset action
- *              when the root layout crashes.
+ * @description Next.js global error boundary rendering a fallback UI with a retry action
+ *              when the root layout crashes. Uses `unstable_retry` (Next 16.2+ canonical —
+ *              re-fetches data on retry, vs `reset` which only re-renders the boundary).
  * @component GlobalError
  * @layer infrastructure
  */
@@ -18,10 +19,10 @@ const globalErrorLogger = new ConsoleLoggerAdapter("client.global-error");
 
 export default function GlobalError({
   error,
-  reset,
+  unstable_retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  unstable_retry: () => void;
 }) {
   useEffect(() => {
     globalErrorLogger.error("Global error (root layout crash)", error, {
@@ -44,7 +45,7 @@ export default function GlobalError({
             <p className="text-sm text-gray-500 mb-4">Error ID: {error.digest}</p>
           )}
           <button
-            onClick={() => reset()}
+            onClick={() => unstable_retry()}
             className="px-4 py-2 bg-blue-500 text-white rounded-sm hover:bg-blue-600"
           >
             Try again

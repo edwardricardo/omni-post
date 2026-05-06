@@ -1,8 +1,9 @@
 /**
  * @file error.tsx
  * @description Next.js root error boundary component that displays a user-friendly error message
- * with an error ID (digest) and a retry button to attempt recovery. Routes caught
- * errors through the BrowserLoggerPort for structured reporting.
+ * with an error ID (digest) and a retry button to attempt recovery. Uses `unstable_retry`
+ * (Next 16.2+ canonical recovery — re-fetches data on retry, vs `reset` which only re-renders).
+ * Routes caught errors through the BrowserLoggerPort for structured reporting.
  */
 "use client";
 
@@ -13,10 +14,10 @@ import { ActionButton } from "@/components/ui/ActionButton";
 
 export default function Error({
   error,
-  reset,
+  unstable_retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  unstable_retry: () => void;
 }) {
   const t = useTranslations("errorPage");
   const tc = useTranslations("common");
@@ -50,7 +51,7 @@ export default function Error({
             {tc("errorId", { id: error.digest ?? "unknown" })}
           </p>
         )}
-        <ActionButton variant="primary" size="lg" onClick={reset}>
+        <ActionButton variant="primary" size="lg" onClick={unstable_retry}>
           {t("tryAgain")}
         </ActionButton>
       </div>

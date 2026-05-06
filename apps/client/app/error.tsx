@@ -3,6 +3,8 @@
  * @description Next.js global error boundary for the client app. Uses the
  *              browser logger port to report uncaught errors from the render
  *              tree so the sink can be swapped (console → APM) centrally.
+ *              Recovery uses `unstable_retry` (Next 16.2+ canonical — re-fetches
+ *              data on retry, vs `reset` which only re-renders the boundary).
  * @layer infrastructure
  */
 "use client";
@@ -12,10 +14,10 @@ import { useLogger } from "@observability/browser-logger";
 
 export default function Error({
   error,
-  reset,
+  unstable_retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  unstable_retry: () => void;
 }) {
   const logger = useLogger("client.error-page");
 
@@ -41,7 +43,7 @@ export default function Error({
         <p className="text-sm text-gray-500 mb-4">Error ID: {error.digest}</p>
       )}
       <button
-        onClick={() => reset()}
+        onClick={() => unstable_retry()}
         className="px-4 py-2 bg-blue-500 text-white rounded-sm hover:bg-blue-600"
       >
         Try again

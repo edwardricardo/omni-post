@@ -2470,7 +2470,9 @@ A) Migración total a `HttpClientPort` (canon arquitectural completo) en lugar d
 ### PR-47 — Migrate `error.tsx` `reset` → `unstable_retry` (Next.js v16.2+ canonical recovery)
 
 **Surfaced:** 2026-05-04 durante T2-B revisitado canon research.
-
+**Batch de origen:** T2-B revisitado canon research
+**SLA category:** LOW
+**Estado:** FIXED ✅ (2026-05-06) — combined upgrade Next 16.1.6 → 16.2.4 (exact pin) + rename de prop en los 3 files (`apps/admin/app/error.tsx`, `apps/client/app/error.tsx`, `apps/client/app/global-error.tsx`). Decisión Edward: pre-prod = aggressive cleanup, no defer.
 **Tipo:** API forward-migration — Next 16.2 introduce affordance preferida.
 
 **Contexto.** Next.js v16.2.0 (2026-04) agregó `unstable_retry` como prop al `error.tsx` boundary, semánticamente distinta a `reset`:
