@@ -64,6 +64,9 @@ export enum Permission {
 
   // Webhook subscription admin (rotate signing secret)
   WEBHOOKS_ROTATE_SECRET = "webhooks:rotate_secret",
+
+  // OIDC admin (replace client secret with handshake test)
+  OIDC_REPLACE_SECRET = "oidc:replace_secret",
 }
 
 // ---------------------------------------------------------------------------
@@ -414,6 +417,7 @@ export class RbacService extends AuditableService {
       Secrets: [Permission.SECRETS_VIEW],
       "Channel Admin": [Permission.CHANNELS_FORCE_REAUTH],
       "Webhook Admin": [Permission.WEBHOOKS_ROTATE_SECRET],
+      "OIDC Admin": [Permission.OIDC_REPLACE_SECRET],
     };
   }
 

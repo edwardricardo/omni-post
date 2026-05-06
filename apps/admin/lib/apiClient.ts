@@ -20,6 +20,7 @@ import { rbacClient } from "./api/clients/rbacClient";
 import { secretsClient } from "./api/clients/secretsClient";
 import { channelsAdminClient } from "./api/clients/channelsAdminClient";
 import { webhooksAdminClient } from "./api/clients/webhooksAdminClient";
+import { oidcAdminClient } from "./api/clients/oidcAdminClient";
 
 // Re-export types so existing consumers continue to import from "@/lib/apiClient".
 export type {
@@ -111,6 +112,9 @@ export const api = {
     },
     webhooks: {
       rotateSecret: webhooksAdminClient.rotateSecret,
+    },
+    oidc: {
+      replaceClientSecret: oidcAdminClient.replaceClientSecret,
     },
   },
 };

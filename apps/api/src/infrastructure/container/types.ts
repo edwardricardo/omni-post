@@ -330,6 +330,9 @@ export const TOKENS = {
   WebhookSubscriptionRotationRepository: Symbol.for("WebhookSubscriptionRotationRepository"),
   RotateWebhookSecretKeyUseCase: Symbol.for("RotateWebhookSecretKeyUseCase"),
 
+  // OIDC Admin (replace client secret + handshake test)
+  ReplaceOidcClientSecretUseCase: Symbol.for("ReplaceOidcClientSecretUseCase"),
+
   // Integration Platform (Zapier, Make, etc.)
   IntegrationApiKeyRepository: Symbol.for("IntegrationApiKeyRepository"),
   IntegrationSubscriptionRepository: Symbol.for("IntegrationSubscriptionRepository"),

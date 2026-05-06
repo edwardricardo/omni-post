@@ -170,6 +170,28 @@ export class OidcConfiguration {
   }
 
   // ---------------------------------------------------------------------------
+  // Mutations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * @method replaceClientSecret
+   * @description Updates the OIDC client secret in-place after a successful
+   *   handshake test against the IdP. Caller is responsible for performing
+   *   the handshake before invoking this method — the entity only enforces
+   *   the non-empty invariant.
+   */
+  replaceClientSecret(newSecret: string): Result<void, InvalidValueError> {
+    if (!newSecret || newSecret.trim().length === 0) {
+      return err(
+        new InvalidValueError("clientSecret", "[REDACTED]", "Client secret cannot be empty")
+      );
+    }
+    this.props.clientSecret = newSecret;
+    this.props.updatedAt = new Date();
+    return ok(undefined);
+  }
+
+  // ---------------------------------------------------------------------------
   // Serialization
   // ---------------------------------------------------------------------------
 

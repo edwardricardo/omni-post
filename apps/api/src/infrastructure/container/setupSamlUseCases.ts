@@ -21,6 +21,8 @@ import { ConfigureOidcUseCase } from "../../application/auth/ConfigureOidcUseCas
 import { EnableOidcSsoUseCase } from "../../application/auth/EnableOidcSsoUseCase.js";
 import { DisableOidcSsoUseCase } from "../../application/auth/DisableOidcSsoUseCase.js";
 import { GetOidcConfigurationQuery } from "../../application/auth/GetOidcConfigurationQuery.js";
+import { ReplaceOidcClientSecretUseCase } from "../../application/auth/ReplaceOidcClientSecretUseCase.js";
+import { OpenidClientHandshakeProbe } from "../auth/OpenidClientHandshakeProbe.js";
 
 /**
  * @function setupSamlUseCases
@@ -90,6 +92,17 @@ export function setupSamlUseCases(container: Container): void {
   container.register(
     TOKENS.DisableOidcSsoUseCase,
     () => new DisableOidcSsoUseCase(resolveAccountQueryRepo()),
+    true
+  );
+
+  container.register(
+    TOKENS.ReplaceOidcClientSecretUseCase,
+    () =>
+      new ReplaceOidcClientSecretUseCase(
+        resolveOidcRepo(),
+        new OpenidClientHandshakeProbe(),
+        resolveUoW()
+      ),
     true
   );
 
