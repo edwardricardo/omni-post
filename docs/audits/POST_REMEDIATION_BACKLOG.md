@@ -1533,6 +1533,13 @@ Cuando aparezca un ticket relacionado con BranchManager (perf, feature, bug) o c
 
 ### PR-31 — Remaining direct `RedisCacheManager` consumers post-T4-L (PostsService duplicate pool + autoCacheMiddleware + cacheDecorators)
 
+**Fecha de surfacing:** 2026-05-01
+**Batch de origen:** T4-L (post-batch audit)
+**SLA category:** MEDIUM
+**Blocked by:** decisión sobre 31-C (port extension vs documented exception). 31-A y 31-B son AUTO ejecutables sin decisión bloqueante; pueden iniciarse antes.
+**Needs Edward:** true (decisión 31-C)
+**Tipo:** code
+
 **Origen.** T4-L (2026-05-01) — audit post-cierre del batch detectó 3 sitios que siguen consumiendo `RedisCacheManager` directamente, fuera del `TOKENS.CachePort` consolidado.
 
 **Contexto.** T4-L consolidó 5 servicios + 2 UCs detrás de `CachePort`, pero **deliberadamente no tocó** 3 sitios HTTP-tier / decorator-tier que tienen razones legítimas o requieren scope mayor. Audit:
@@ -1617,14 +1624,17 @@ T4-L audit cortó scope a directorios visibles (`auth/`, `orchestration/`, `cont
 
 N/A — RESUELTO. La fitness grep #14 garantiza que no regresará.
 
-**Estado:** RESUELTO ✅ (2026-05-01)
+**Estado:** FIXED ✅ (2026-05-01)
 
 ---
 
 ### PR-33 — Direct `this.redis.*` usage bypassing `CachePort` (24 files / 65 usages)
 
 **Fecha de surfacing:** 2026-05-01 (audit post-PR-32)
+**Batch de origen:** post-T4-L audit + PR-32 sweep (cache anti-pattern follow-up)
+**SLA category:** MEDIUM
 **Severidad:** medio — viola CLAUDE.md §Caching ("All cross-pod cached state MUST go through `TOKENS.CachePort`"); fitness #14 no lo cubre porque el pattern es distinto al `private *Cache = new Map()`
+**Needs Edward:** false (sub-batch 33-A es AUTO; 33-B/C son refactor mecánico)
 **Tipo:** code refactor + posible fitness extension
 
 **Contexto.** Sweep post-PR-32 con `grep this.redis.(setex|get|set|del)` en `apps/api/src` arroja **65 usages en 24 files**. T4-L y PR-32 cubrieron el patrón `private *Cache = new Map()`; direct `this.redis.*` es un patrón paralelo que también bypassa el port.
@@ -1967,7 +1977,10 @@ My L-541 Decimal audit was keyword-filtered (`amount|price|fee|cost|...`) — mi
 ### PR-39 — Test suite flakiness under Turbo parallel execution (Redis contention)
 
 **Fecha de surfacing:** 2026-05-02 (descubierto durante audit toolkit setup)
+**Batch de origen:** B-tools setup (audit toolkit smoke)
+**SLA category:** MEDIUM
 **Severidad:** medio — false-confidence systémico durante batches anteriores
+**Needs Edward:** false (fix técnico, AUTO scope)
 **Tipo:** test infrastructure fix
 
 **Contexto.** Durante el setup del audit toolkit, Edward preguntó "por qué no se está usando Turborepo" — surfaced que mi flujo bypaseba Turbo cache (corría `pnpm --filter @apps/api test` directo). Cuando finalmente corrí `pnpm test` (= `turbo run test`), descubrí que `@adapters/dead-letter-queue` falla **consistentemente bajo turbo run** pero **passes cuando se ejecuta aislado**. Tests aparecen como `skipped` (no failing) por timeout — `tests/mutation-killing-part2.test.ts (29 tests | 29 skipped) 18689ms`.
@@ -2067,7 +2080,10 @@ Inmediatamente después del revisitado del roadmap (necesario para confiar en gr
 ### PR-42 — Admin UI dashboard read-only: status de rotación per-secret
 
 **Fecha de surfacing:** 2026-05-03 (post-roadmap T0A revisitado, conversación SECRETS.md)
+**Batch de origen:** post-T0A revisitado (conversación SECRETS.md)
+**SLA category:** MEDIUM
 **Severidad:** medio — operacionalmente útil; sin esto, "¿cuándo rotamos JWT_ACCESS_SECRET por última vez?" es una pregunta sin respuesta automatizada
+**Needs Edward:** false (MVP scope-down recomendado en plan; full scope espera priorización)
 **Tipo:** feature (admin UI + DB schema + API endpoint)
 
 **Contexto.** SECRETS.md (`docs/security/SECRETS.md`) ahora es el catálogo
@@ -2127,7 +2143,11 @@ no se tocó.
 ### PR-43 — Admin UI rotation buttons para Bucket B (per-tenant DB-stored secrets)
 
 **Fecha de surfacing:** 2026-05-03 (post-roadmap T0A revisitado, conversación SECRETS.md)
+**Batch de origen:** post-T0A revisitado (conversación SECRETS.md)
+**SLA category:** HIGH
 **Severidad:** medio — capacidad operacional faltante para incident response
+**Blocked by:** PR-42 idealmente primero (sin dashboard read-only no tiene sentido los buttons; soft-block, no hard)
+**Needs Edward:** false (priorizable post-PR-42)
 **Tipo:** feature (admin UI + endpoints + tests)
 
 **Contexto.** Per-tenant secrets DB-stored (Class A: `Channel.credentials`,
@@ -2181,7 +2201,10 @@ encryption-at-rest correcto y audit trail, no en operability.
 ### PR-44 — Mass force-reauth post-rotation de Provider OAuth client secret
 
 **Fecha de surfacing:** 2026-05-03 (post-roadmap T0A revisitado, conversación SECRETS.md)
+**Batch de origen:** post-T0A revisitado (conversación SECRETS.md)
+**SLA category:** HIGH
 **Severidad:** medio — recovery operacional faltante para una de las rotaciones más comunes
+**Needs Edward:** false (self-contained; HIGH priority por operability)
 **Tipo:** feature (admin UI + background job)
 
 **Contexto.** Cuando se rota un Provider OAuth client secret a nivel
@@ -2248,7 +2271,10 @@ el roadmap T0A — es una operability discovery de la conversación post-roadmap
 ### PR-41 — Knip dead-code reduction sweep (426 findings) + ci.yml triggers en refactor/\*\*
 
 **Fecha de surfacing:** 2026-05-02 (T1-E revisitado canon)
+**Batch de origen:** T1-E revisitado canon
+**SLA category:** MEDIUM
 **Severidad:** medio — gate canónico configurado pero no enforced en branch refactor/\*\*
+**Needs Edward:** false (sub-batch DELETE-only es AUTO con 3-preguntas gate)
 **Tipo:** scope grande — barrido de dead-code module-level con filtro 3-preguntas
 
 **Contexto.** T1-E original (2026-04-22) cerró 5 findings variable-level (L-120..L-502) y exit criteria pasan (`pnpm lint --max-warnings 0` → 0 unused). Knip ya está instalado (`v6.1.0` con `knip.json` comprehensive) y wireado en CI vía `ci.yml > code-quality > pnpm check:dead-code` — **pero ese workflow no se dispara en `refactor/**`branches** (solo`main`/`omni-post-cc`), así que el gate nunca se ejerció en esta branch.
@@ -2307,7 +2333,9 @@ Baseline local 2026-05-02:
 ### PR-45 — fetch sites sin AbortSignal en `apps/api/src` (26 sites fuera de SettingsService.ts)
 
 **Surfaced:** 2026-05-04 durante T1-J L-632 broad-pattern re-audit.
-
+**Batch de origen:** T1-J L-632 re-audit (broad-pattern)
+**SLA category:** MEDIUM
+**Needs Edward:** false (mecánico, dominio-por-dominio)
 **Tipo:** external-call hardening — extensión del patrón cerrado en T1-J cat 5.
 
 **Contexto.** T1-J L-632 cat 5 fixeó las 6 fetch en `apps/api/src/settings/SettingsService.ts` (test-connection paths admin) con `signal: AbortSignal.timeout(5_000)`. Re-audit broad reveló otros **26 fetch sites** sin AbortSignal en `apps/api/src`:
@@ -2381,8 +2409,12 @@ A) Migración total a `HttpClientPort` (canon arquitectural completo) en lugar d
 
 ### PR-46 — Backend route gaps surfaced por T2-A revisitado (template versions DELETE + AB-tests UPDATE/PAUSE/DELETE)
 
-**Surfaced:** 2026-05-04 durante T2-A revisitado (migración de hooks a `request<T>` canonical helper).
-
+**Fecha de surfacing:** 2026-05-04
+**Batch de origen:** T2-A revisitado
+**SLA category:** MEDIUM
+**Decision applied:** 2026-05-05 (DELETE soft + audit, UPDATE solo descripciones pre-start, PAUSE removido, DELETE soft con retention configurable)
+**Blocked by:** ninguno (decisión cerrada; espera implementación)
+**Needs Edward:** false (ya decidido)
 **Tipo:** broken contract — UI buttons that call non-existent backend routes.
 
 **Contexto.** T2-A revisitado migró 7 frontend files / 24 fetch sites a través del helper canónico `request<T>` (PROXY_BASE = `/api/backend`). Durante el audit broad-pattern se descubrió que **4 endpoints del flujo template/AB-test tienen UI consumer pero el backend nunca expuso la ruta**:
@@ -2422,7 +2454,7 @@ A) Migración total a `HttpClientPort` (canon arquitectural completo) en lugar d
 - Pre-launch (no se debe lanzar con UI dead buttons).
 - Cuando se haga product review del módulo Templates (deuda funcional acumulada).
 
-**Estado:** PENDING — NEEDS_PRODUCT (surfaced 2026-05-04 durante T2-A revisitado).
+**Estado:** DECISION_TAKEN — exec pending (decisión cerrada 2026-05-05; ver Plan derivado abajo, asignado a Fase 9).
 
 **Decisión Edward 2026-05-05.**
 
@@ -2525,6 +2557,14 @@ Funcionan correctamente — `reset` sigue siendo soportado en v16.2+. La migraci
 
 ### PR-50 — MSW global setupFiles incompatible con vi.mock fetch (test legacy)
 
+**Fecha de surfacing:** 2026-05-04
+**Batch de origen:** B-tools-2 smoke (apps/admin)
+**SLA category:** MEDIUM
+**Decision applied:** 2026-05-05 (Opción A — migración test-by-test opt-in + testing-policy doc canónico)
+**Blocked by:** ninguno (PR-50.1 ✅ FIXED; PR-50.2 ejecutable cuando se priorice)
+**Needs Edward:** false (decisión cerrada)
+**Tipo:** test-infra
+
 **Surfaced.** 2026-05-04 durante B-tools-2 smoke en apps/admin (18 tests rotos al activar MSW global).
 
 **Síntoma.** MSW v2 + `setupFiles: ["./tests/msw/vitest.setup.ts"]` activa `server.listen()` antes de cada test file. Tests legacy que usan `vi.mock("global.fetch")` o `globalThis.fetch = vi.fn(...)` ya no llegan a su mock — MSW intercepta primero (a nivel network handler) y devuelve unhandled-warning. Ejemplo concreto: `apps/admin/tests/unit/hooks/useUniversalAnalytics.test.tsx` espera `mockFetch.mock.calls[0]` → recibe array vacío porque el call nunca llegó al mock.
@@ -2537,9 +2577,9 @@ Funcionan correctamente — `reset` sigue siendo soportado en v16.2+. La migraci
 2. **Migración masiva** — reemplazar TODOS los `vi.mock` de fetch por handlers MSW. Trabajo grande pero coherente. Estimación: ~80 tests afectados en admin + client + api combinados.
 3. **NO reintroducir** — vi.mock funciona, no hay un caso de uso fuerte que justifique el switch. WONT_FIX si no surge una necesidad concreta.
 
-**Bloqueado por.** Decisión sobre cuál de las 3 opciones aplicar.
+**Bloqueado por.** ~~Decisión sobre cuál de las 3 opciones aplicar~~ → resuelto 2026-05-05 (Opción A — ver decisión Edward abajo).
 
-**Estado:** PENDING (deferido indefinidamente). Si el equipo necesita mockear request multipart, streams, websocket, o GraphQL en tests, MSW canon es la solución superior — entonces se revive este entry.
+**Estado:** PR-50.1 FIXED (2026-05-05) + PR-50.2 PENDING (opt-in MSW reinstall, ejecutable cuando se priorice). Si el equipo necesita mockear request multipart, streams, websocket, o GraphQL en tests, MSW canon es la solución superior — entonces se prioriza PR-50.2.
 
 **Decisión Edward 2026-05-05.**
 
@@ -2555,6 +2595,11 @@ Funcionan correctamente — `reset` sigue siendo soportado en v16.2+. La migraci
 ### PR-51 — Raw fetches → TanStack hooks repo-wide (27 sitios)
 
 **Surfaced.** 2026-05-04 durante T2-E revisitado canon. T2-E original migró ALGUNOS raw fetches a TanStack pero no los exhaustivos del repo. Este entry consolida el resto.
+
+**Batch de origen:** T2-E revisitado canon
+**SLA category:** MEDIUM
+**Needs Edward:** false (refactor masivo; merece su propio plan dedicado per Wave 5 del meta-plan)
+**Tipo:** refactor — UI client+admin
 
 **Síntoma.** 27 raw `fetch(` en componentes UI + pages + hooks de `apps/client` que canónicamente deberían usar `useQuery`/`useMutation` con cache invalidation, retry, error boundary integration. Inconsistencia: parte del repo usa TanStack (canónico, Edward-aprobado en T3-A), parte usa fetch crudo.
 
@@ -2737,6 +2782,11 @@ Backend mock data devuelta como si fuera real analysis. Sin consumers UI directo
 ### PR-56 — Turborepo future flags evaluation (globalConfiguration, filterUsingTasks, watchUsingTaskInputs, OTEL observability)
 
 **Surfaced.** 2026-05-04 durante verificación retroactiva canon (commit `cf5c909`). Edward solicitó abrir backlog tras WebFetch de `turborepo.dev/docs/reference/configuration` reveló 4 flags futuros que NO consideré en T2-F revisitado canon.
+
+**Batch de origen:** T2-F revisitado canon (verificación retroactiva)
+**SLA category:** MEDIUM
+**Needs Edward:** false (research + spike; recomendación va al final del análisis)
+**Tipo:** infra evaluation
 
 **Síntoma / oportunidad.** Turborepo expone patrones nuevos (algunos experimentales) que el repo podría adoptar para mejorar cache hit rate, observabilidad, y dev workflow. NO son canon-violations actuales — son **adopción opcional** a evaluar por flag.
 
