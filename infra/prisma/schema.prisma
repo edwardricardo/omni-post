@@ -221,6 +221,19 @@ model AuditLog {
   @@index([success, createdAt])
 }
 
+model SecretRotationLog {
+  id             String   @id @default(uuid())
+  secretCategory String
+  secretName     String
+  rotatedAt      DateTime @db.Timestamptz(6)
+  rotatedBy      String?
+  notes          String?
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([secretName, rotatedAt(sort: Desc)])
+  @@index([secretCategory])
+}
+
 model AdminUserPermission {
   id         String    @id @default(uuid())
   userId     String

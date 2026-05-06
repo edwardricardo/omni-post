@@ -55,6 +55,9 @@ export enum Permission {
 
   // Webhooks
   WEBHOOK_MANAGE = "webhook:manage",
+
+  // Secrets rotation status
+  SECRETS_VIEW = "secrets:view",
 }
 
 // ---------------------------------------------------------------------------
@@ -402,6 +405,7 @@ export class RbacService extends AuditableService {
       Webhooks: [Permission.WEBHOOK_MANAGE],
       Dashboard: [Permission.DASHBOARD_VIEW],
       Posts: [Permission.POST_MANAGE],
+      Secrets: [Permission.SECRETS_VIEW],
     };
   }
 

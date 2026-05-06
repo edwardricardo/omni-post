@@ -21,6 +21,7 @@ import { setupAIPromptTemplateUseCases } from "./setupAIPromptTemplateUseCases.j
 import { setupUsageUseCases } from "./setupUsageUseCases.js";
 import { setupBrandVoiceUseCases } from "./setupBrandVoiceUseCases.js";
 import { setupBrandKitUseCases } from "./setupBrandKitUseCases.js";
+import { setupSecretsRotationUseCases } from "./setupSecretsRotationUseCases.js";
 import { setupAssetUseCases } from "./setupAssetUseCases.js";
 import { setupIntegrationUseCases } from "./setupIntegrationUseCases.js";
 import { setupTaskUseCases } from "./setupTaskUseCases.js";
@@ -55,6 +56,7 @@ export function setupUseCases(container: Container): void {
   setupUsageUseCases(container);
   setupBrandVoiceUseCases(container);
   setupBrandKitUseCases(container);
+  setupSecretsRotationUseCases(container);
   setupAssetUseCases(container);
   setupIntegrationUseCases(container);
   setupTaskUseCases(container);

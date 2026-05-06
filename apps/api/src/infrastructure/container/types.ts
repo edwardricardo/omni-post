@@ -319,6 +319,10 @@ export const TOKENS = {
   UpsertBrandKitUseCase: Symbol.for("UpsertBrandKitUseCase"),
   DeleteBrandKitUseCase: Symbol.for("DeleteBrandKitUseCase"),
 
+  // Secrets Rotation Tracking
+  SecretRotationLogReadRepository: Symbol.for("SecretRotationLogReadRepository"),
+  GetSecretRotationStatusQuery: Symbol.for("GetSecretRotationStatusQuery"),
+
   // Integration Platform (Zapier, Make, etc.)
   IntegrationApiKeyRepository: Symbol.for("IntegrationApiKeyRepository"),
   IntegrationSubscriptionRepository: Symbol.for("IntegrationSubscriptionRepository"),

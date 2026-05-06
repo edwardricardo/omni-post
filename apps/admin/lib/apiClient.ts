@@ -17,6 +17,7 @@ import { healthClient } from "./api/clients/healthClient";
 import { mfaClient } from "./api/clients/mfaClient";
 import { postsClient } from "./api/clients/postsClient";
 import { rbacClient } from "./api/clients/rbacClient";
+import { secretsClient } from "./api/clients/secretsClient";
 
 // Re-export types so existing consumers continue to import from "@/lib/apiClient".
 export type {
@@ -99,6 +100,9 @@ export const api = {
       checkPermissions: rbacClient.checkPermissions,
       getHierarchy: rbacClient.getHierarchy,
       getStatus: rbacClient.getStatus,
+    },
+    secrets: {
+      getRotationStatus: secretsClient.getRotationStatus,
     },
   },
 };
