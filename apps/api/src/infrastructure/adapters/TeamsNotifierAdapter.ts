@@ -1,19 +1,24 @@
 /**
  * @file TeamsNotifierAdapter.ts
  * @description Infrastructure adapter for sending Microsoft Teams webhook
- *   notifications using Adaptive Card format.
+ *   notifications using Adaptive Card format. Delegates HTTP transport to
+ *   HttpClientPort (canon T4-X — Result-based outbound HTTP, AbortSignal.timeout,
+ *   error union TIMEOUT/NETWORK/BAD_RESPONSE).
  * @layer infrastructure
  */
 
 import { type Result, ok, err } from "@shared/types";
 import { type DomainError, InvariantViolationError } from "../../domain/errors/index.js";
 import { type NotificationPayload } from "../../domain/repositories/ExternalNotifierPort.js";
+import type { HttpClientPort } from "../../domain/repositories/HttpClientPort.js";
 
 /**
  * @class TeamsNotifierAdapter
  * @description Sends formatted notifications to Microsoft Teams via incoming webhooks.
  */
 export class TeamsNotifierAdapter {
+  constructor(private readonly httpClient: HttpClientPort) {}
+
   /**
    * @method send
    * @description Posts an Adaptive Card formatted message to a Teams webhook URL.
@@ -23,29 +28,30 @@ export class TeamsNotifierAdapter {
   async send(webhookUrl: string, payload: NotificationPayload): Promise<Result<void, DomainError>> {
     const body = this.buildTeamsPayload(payload);
 
-    try {
-      const response = await fetch(webhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(10_000),
-      });
+    const result = await this.httpClient.post(webhookUrl, JSON.stringify(body), {
+      headers: { "Content-Type": "application/json" },
+      timeoutMs: 10_000,
+    });
 
-      if (!response.ok) {
-        const text = await response.text().catch(() => "unknown error");
-        return err(
-          new InvariantViolationError(`Teams webhook returned HTTP ${response.status}: ${text}`)
-        );
-      }
+    if (!result.ok) {
+      const reason =
+        result.error === "TIMEOUT"
+          ? "timed out after 10s"
+          : result.error === "NETWORK"
+            ? "network error"
+            : "bad response";
+      return err(new InvariantViolationError(`Teams webhook delivery failed: ${reason}`));
+    }
 
-      return ok(undefined);
-    } catch (error) {
+    if (result.value.status >= 400) {
       return err(
         new InvariantViolationError(
-          `Teams webhook delivery failed: ${error instanceof Error ? error.message : String(error)}`
+          `Teams webhook returned HTTP ${result.value.status}: ${result.value.body ?? "unknown error"}`
         )
       );
     }
+
+    return ok(undefined);
   }
 
   /**

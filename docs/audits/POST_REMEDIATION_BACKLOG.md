@@ -2352,7 +2352,9 @@ Estos NO son el mismo pattern que SettingsService:
 A) Migración total a `HttpClientPort` (canon arquitectural completo) en lugar de solo agregar `AbortSignal` inline. 30 fetch sites repo-wide divididos en 7 sub-batches:
 
 - **PR-45.0** ✅ **FIXED** (2026-05-05) — Extender `HttpClientPort` con `get/head/put/delete` (5 verbs total) + alias back-compat `HttpPostOptions` + `FetchHttpClient` refactorizado con `request()` helper privado (DRY) + 12 tests passing (7 viejos `.post()` + 5 nuevos). Desbloquea sub-batches 45.A→F.
-- **PR-45.A** — Migrar 4 sites en `infrastructure/adapters/` (Slack, Resend, Teams, GA4) a HttpClientPort.
+- **PR-45.A** — Migrar 4 sites en `infrastructure/adapters/` (Slack, Resend, Teams, GA4) a HttpClientPort. **Split en 2 sub-batches por scope (Edward 2026-05-05, regla 4):**
+  - **PR-45.A.1** ✅ **FIXED** (2026-05-05) — `SlackNotifierAdapter` + `TeamsNotifierAdapter` con constructor-injected `HttpClientPort`. DI wire en `setupExternalNotificationUseCases.ts:42-53`. Tests creados (no existían): `SlackNotifierAdapter.test.ts` (7 tests) + `TeamsNotifierAdapter.test.ts` (6 tests) + `setupExternalNotificationUseCases.test.ts` (1 contract test) = 14/14 passing. Cero `fetch(` residual en ambos adapters (grep verified).
+  - **PR-45.A.2** — `ResendEmailAdapter` + `GA4TrackingAdapter` (sub-batch separado).
 - **PR-45.B** — Migrar ~17 sites en `auth/providerOAuthConfigs.ts` (token POST + user GET por provider).
 - **PR-45.C** — Migrar 2 sites: `auth/enhancedOAuthProvider.ts` + `admin/auth/adminAuthRoutes.ts` (turnstile).
 - **PR-45.D** — Migrar 4 sites en `settings/SettingsService.ts` (Stripe, Paddle, Resend domains, webhook test).
