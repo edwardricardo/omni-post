@@ -406,15 +406,12 @@ export function setupServices(
   // Register Analytics Services (M-8c)
   container.register<ThreadAnalytics>(
     TOKENS.ThreadAnalytics,
-    () => {
-      const redis = createRedisConnection();
-      redis.on("error", () => {});
-      return new ThreadAnalytics(
-        redis,
+    () =>
+      new ThreadAnalytics(
+        container.resolve<CachePort>(TOKENS.CachePort),
         {} as ApiMetrics,
         container.resolve<AnalyticsReadRepositoryPort>(TOKENS.AnalyticsReadRepository)
-      );
-    },
+      ),
     true
   );
   // Future: GeoAnalyticsService — deleted (100% fake geographic distribution)

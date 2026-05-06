@@ -4,9 +4,8 @@
  *              timing analysis, and platform-specific scoring to predict post performance.
  * @layer infrastructure
  */
-import type Redis from "ioredis";
+import type { CachePort } from "@ports/core";
 import { prisma as _prisma } from "@infra/prisma";
-import { createRedisConnection } from "../lib/redis.js";
 import { createLogger } from "../lib/logger.js";
 
 const analyticsLogger = createLogger("analytics");
@@ -43,12 +42,10 @@ export type { PredictionRequest, HistoricalContext } from "./types.js";
 // ---------------------------------------------------------------------------
 
 export class EngagementPredictor extends BaseService {
-  private redis: Redis;
   private readonly cachePrefix = "engagement_prediction:";
 
-  constructor() {
+  constructor(private readonly cache: CachePort) {
     super("EngagementPredictor");
-    this.redis = createRedisConnection();
   }
 
   /**
@@ -249,79 +246,78 @@ export class EngagementPredictor extends BaseService {
     projectId?: string
   ): Promise<HistoricalContext> {
     const cacheKey = `${this.cachePrefix}context:${accountId}:${projectId ?? "all"}`;
-    const cached = await this.redis.get(cacheKey);
+    return this.cache.getOrSet(
+      cacheKey,
+      async () => {
+        try {
+          // Get recent analytics data (last 90 days)
+          const endDate = new Date();
+          const startDate = new Date(endDate.getTime() - 90 * 24 * 60 * 60 * 1000);
 
-    if (cached) {
-      return JSON.parse(cached) as HistoricalContext;
-    }
+          const [analyticsData, postsData] = await Promise.all([
+            this.getAnalyticsData(accountId, projectId, startDate, endDate),
+            this.getPostsData(accountId, projectId, startDate, endDate),
+          ]);
 
-    try {
-      // Get recent analytics data (last 90 days)
-      const endDate = new Date();
-      const startDate = new Date(endDate.getTime() - 90 * 24 * 60 * 60 * 1000);
+          // Calculate account performance
+          const totalImpressions = analyticsData.reduce(
+            (sum: number, a: Record<string, number>) => sum + (a["views"] ?? 0),
+            0
+          );
+          const totalEngagements = analyticsData.reduce(
+            (sum: number, a: Record<string, number>) =>
+              sum + (a["likes"] ?? 0) + (a["comments"] ?? 0) + (a["shares"] ?? 0),
+            0
+          );
+          const avgEngagementRate =
+            totalImpressions > 0 ? (totalEngagements / totalImpressions) * 100 : 0;
+          const avgImpressions =
+            analyticsData.length > 0 ? totalImpressions / analyticsData.length : 0;
 
-      const [analyticsData, postsData] = await Promise.all([
-        this.getAnalyticsData(accountId, projectId, startDate, endDate),
-        this.getPostsData(accountId, projectId, startDate, endDate),
-      ]);
+          // Analyse top performing content types
+          const contentTypePerformance = this.analyzeContentTypePerformance(
+            analyticsData,
+            postsData
+          );
+          const topPerformingContentTypes = Object.entries(contentTypePerformance)
+            .sort(
+              ([, a], [, b]) =>
+                (b as { avgEngagementRate: number }).avgEngagementRate -
+                (a as { avgEngagementRate: number }).avgEngagementRate
+            )
+            .slice(0, 3)
+            .map(([type]) => type as ContentType);
 
-      // Calculate account performance
-      const totalImpressions = analyticsData.reduce(
-        (sum: number, a: Record<string, number>) => sum + (a["views"] ?? 0),
-        0
-      );
-      const totalEngagements = analyticsData.reduce(
-        (sum: number, a: Record<string, number>) =>
-          sum + (a["likes"] ?? 0) + (a["comments"] ?? 0) + (a["shares"] ?? 0),
-        0
-      );
-      const avgEngagementRate =
-        totalImpressions > 0 ? (totalEngagements / totalImpressions) * 100 : 0;
-      const avgImpressions = analyticsData.length > 0 ? totalImpressions / analyticsData.length : 0;
+          // Analyse best posting times
+          const bestPostingTimes = this.analyzeBestPostingTimes(analyticsData);
 
-      // Analyse top performing content types
-      const contentTypePerformance = this.analyzeContentTypePerformance(analyticsData, postsData);
-      const topPerformingContentTypes = Object.entries(contentTypePerformance)
-        .sort(
-          ([, a], [, b]) =>
-            (b as { avgEngagementRate: number }).avgEngagementRate -
-            (a as { avgEngagementRate: number }).avgEngagementRate
-        )
-        .slice(0, 3)
-        .map(([type]) => type as ContentType);
+          // Get platform benchmarks
+          const platformBenchmarks = buildPlatformBenchmarks();
 
-      // Analyse best posting times
-      const bestPostingTimes = this.analyzeBestPostingTimes(analyticsData);
+          // Calculate seasonal factors
+          const seasonalFactors = this.buildSeasonalFactors();
 
-      // Get platform benchmarks
-      const platformBenchmarks = buildPlatformBenchmarks();
+          // Get trending topics
+          const trendingTopics = await this.getTrendingTopics();
 
-      // Calculate seasonal factors
-      const seasonalFactors = this.buildSeasonalFactors();
-
-      // Get trending topics
-      const trendingTopics = await this.getTrendingTopics();
-
-      const context: HistoricalContext = {
-        accountPerformance: {
-          avgEngagementRate,
-          avgImpressions,
-          topPerformingContentTypes,
-          bestPostingTimes,
-        },
-        platformBenchmarks,
-        seasonalFactors,
-        trendingTopics,
-      };
-
-      // Cache for 1 hour
-      await this.redis.setex(cacheKey, 3600, JSON.stringify(context));
-
-      return context;
-    } catch (error) {
-      analyticsLogger.error({ err: error }, "Error getting historical context");
-      throw error;
-    }
+          return {
+            accountPerformance: {
+              avgEngagementRate,
+              avgImpressions,
+              topPerformingContentTypes,
+              bestPostingTimes,
+            },
+            platformBenchmarks,
+            seasonalFactors,
+            trendingTopics,
+          };
+        } catch (error) {
+          analyticsLogger.error({ err: error }, "Error getting historical context");
+          throw error;
+        }
+      },
+      { ttlSeconds: 3600, tags: ["analytics:engagement"] }
+    );
   }
 
   private buildSeasonalFactors(): HistoricalContext["seasonalFactors"] {

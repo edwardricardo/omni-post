@@ -5,12 +5,11 @@
  * @layer infrastructure
  */
 
-import type { Redis } from "ioredis";
+import type { CachePort } from "@ports/core";
 import { createLogger } from "../../lib/logger.js";
 
 const analyticsLogger = createLogger("analytics");
 
-import { createRedisConnection } from "../../lib/redis.js";
 import type { CrossPlatformMetrics, TimeRange } from "@shared/analytics";
 import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
 import { PrismaProjectQueryRepository } from "../../infrastructure/repositories/PrismaProjectQueryRepository.js";
@@ -36,13 +35,14 @@ export type { CrossPlatformMetrics } from "@shared/analytics";
  * Uses caching to optimize performance for repeated queries.
  */
 export class CrossPlatformAnalyticsEngine {
-  private redis: Redis;
   private cachePrefix = "analytics:cross_platform:";
   private cacheTTL = 300; // 5 minutes
   private readonly projectRepository: ProjectQueryRepositoryPort;
 
-  constructor(projectRepository?: ProjectQueryRepositoryPort) {
-    this.redis = createRedisConnection();
+  constructor(
+    private readonly cache: CachePort,
+    projectRepository?: ProjectQueryRepositoryPort
+  ) {
     // Fallback to a Prisma-backed instance when not injected (e.g. singleton use)
     this.projectRepository = projectRepository ?? new PrismaProjectQueryRepository(prisma);
   }
@@ -54,9 +54,15 @@ export class CrossPlatformAnalyticsEngine {
     options: CrossPlatformAnalyticsOptions
   ): Promise<CrossPlatformMetrics> {
     const cacheKey = this.generateCacheKey(options);
-    const cached = await this.getCachedResult(cacheKey);
-    if (cached) return cached;
+    return this.cache.getOrSet(cacheKey, () => this.computeCrossPlatformMetrics(options), {
+      ttlSeconds: this.cacheTTL,
+      tags: ["analytics:cross-platform"],
+    });
+  }
 
+  private async computeCrossPlatformMetrics(
+    options: CrossPlatformAnalyticsOptions
+  ): Promise<CrossPlatformMetrics> {
     try {
       // Get date range
       const { startDate, endDate } = this.calculateDateRange(
@@ -108,9 +114,6 @@ export class CrossPlatformAnalyticsEngine {
         recommendations,
       };
 
-      // Cache the result
-      await this.cacheResult(cacheKey, result);
-
       return result;
     } catch (error) {
       analyticsLogger.error({ err: error }, "Error generating cross-platform metrics");
@@ -124,30 +127,6 @@ export class CrossPlatformAnalyticsEngine {
   public generateCacheKey(options: CrossPlatformAnalyticsOptions): string {
     const key = `${this.cachePrefix}${options.accountId}_${options.projectId || "all"}_${options.timeRange}_${options.providers?.join(",") || "all"}`;
     return key;
-  }
-
-  /**
-   * Get cached result if available
-   */
-  private async getCachedResult(key: string): Promise<CrossPlatformMetrics | null> {
-    try {
-      const cached = await this.redis.get(key);
-      return cached ? JSON.parse(cached) : null;
-    } catch (error) {
-      analyticsLogger.error({ err: error }, "Error getting cached result");
-      return null;
-    }
-  }
-
-  /**
-   * Cache result for future queries
-   */
-  private async cacheResult(key: string, result: CrossPlatformMetrics): Promise<void> {
-    try {
-      await this.redis.setex(key, this.cacheTTL, JSON.stringify(result));
-    } catch (error) {
-      analyticsLogger.error({ err: error }, "Error caching result");
-    }
   }
 
   /**

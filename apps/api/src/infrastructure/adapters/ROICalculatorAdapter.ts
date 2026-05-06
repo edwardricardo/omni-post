@@ -5,6 +5,7 @@
  *              infrastructure's full cost model.
  * @layer infrastructure
  */
+import type { CachePort } from "@ports/core";
 import type { ROICalculatorPort } from "../../application/analytics/CalculateROIUseCase.js";
 import type { ChannelROI } from "../../application/analytics/types.js";
 import { ROICalculator } from "../../analytics/roiCalculator.js";
@@ -26,10 +27,10 @@ import { prisma } from "@infra/prisma";
 export class ROICalculatorAdapter implements ROICalculatorPort {
   private readonly calculator: ROICalculator;
 
-  constructor(projectRepository?: ProjectQueryRepositoryPort) {
+  constructor(cache: CachePort, projectRepository?: ProjectQueryRepositoryPort) {
     // Fallback to Prisma-backed instance when not injected (e.g. DI container setup)
     const repo = projectRepository ?? new PrismaProjectQueryRepository(prisma);
-    this.calculator = new ROICalculator(repo);
+    this.calculator = new ROICalculator(repo, cache);
   }
 
   async calculateROI(options: {

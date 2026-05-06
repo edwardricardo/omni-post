@@ -56,17 +56,17 @@ export function setupAnalyticsUseCases(container: Container): void {
   // Register Analytics Port Adapters
   container.register<CrossPlatformAnalyticsAdapter>(
     TOKENS.CrossPlatformAnalyticsAdapter,
-    () => new CrossPlatformAnalyticsAdapter(),
+    () => new CrossPlatformAnalyticsAdapter(container.resolve<CachePort>(TOKENS.CachePort)),
     true
   );
   container.register<PerformanceComparatorAdapter>(
     TOKENS.PerformanceComparatorAdapter,
-    () => new PerformanceComparatorAdapter(),
+    () => new PerformanceComparatorAdapter(container.resolve<CachePort>(TOKENS.CachePort)),
     true
   );
   container.register<ROICalculatorAdapter>(
     TOKENS.ROICalculatorAdapter,
-    () => new ROICalculatorAdapter(),
+    () => new ROICalculatorAdapter(container.resolve<CachePort>(TOKENS.CachePort)),
     true
   );
 
