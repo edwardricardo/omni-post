@@ -2009,7 +2009,11 @@ My L-541 Decimal audit was keyword-filtered (`amount|price|fee|cost|...`) — mi
 
 Inmediatamente después del revisitado del roadmap (necesario para confiar en green-checkmark de batches que tocan Redis). Posiblemente promovido a CI gate via audit workflow.
 
-**Estado:** PENDING (surfaced 2026-05-02 durante audit toolkit setup).
+**Estado:** FIXED ✅ (2026-05-06) — symptom no-longer-reproducible. `pnpm turbo run test --filter=@apps/api` con default concurrency pasó 7544/7547 (los 3 fails fueron architecture violation no relacionada — ver más abajo). El symptom original de PR-39 (`tests/mutation-killing-part2.test.ts (29 tests | 29 skipped)`) NO se presenta. Hipótesis: el cambio podría deberse a fixes laterales en T4-H QueuePort, T4-I workers retry, T4-L cache, o mejoras de Redis health post-T0-A. Si vuelve a flake, re-abrir como PR-39.bis con repro consistente.
+
+**Hallazgo lateral durante diagnose (corregido en mismo commit):**
+
+- `apps/api/src/domain/repositories/HttpClientPort.test.ts` violaba la regla arquitectural "domain no importa de infrastructure" (importaba `FetchHttpClient`). Architecture test lo flageaba 3 veces. Movido a `apps/api/tests/unit/infrastructure/HttpClientPort.contract.test.ts` con paths ajustados — ubicación correcta porque el contract test cruza el boundary domain→infrastructure (es trabajo de infrastructure layer verificar que el adapter implementa el port).
 
 ---
 

@@ -1,17 +1,25 @@
 /**
- * @file HttpClientPort.test.ts
- * @description Type-level contract test del HttpClientPort. El port es solo
- *              interface — los tests funcionales viven sobre el adapter
- *              (`tests/unit/infrastructure/FetchHttpClient.test.ts`). Este file
- *              cumple la regla "test paralelo" del repo verificando que el
- *              interface declara los 5 verbos canon (get/head/post/put/delete)
- *              + que FetchHttpClient lo implementa correctamente.
+ * @file HttpClientPort.contract.test.ts
+ * @description Type-level + runtime contract test del HttpClientPort. El port
+ *              es solo interface — los tests funcionales del adapter viven en
+ *              `FetchHttpClient.test.ts`. Este file verifica que el interface
+ *              declara los 5 verbos canon (get/head/post/put/delete) y que
+ *              FetchHttpClient los implementa correctamente.
+ *
+ *              Ubicado en `tests/unit/infrastructure/` (no en `src/domain/
+ *              repositories/`) porque el contract test cruza el boundary
+ *              dominio→infraestructura, y la regla arquitectural prohíbe
+ *              imports de infrastructure desde domain — incluso en tests.
  * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";
-import type { HttpClientPort, HttpRequestOptions, HttpPostOptions } from "./HttpClientPort.js";
-import { FetchHttpClient } from "../../infrastructure/adapters/FetchHttpClient.js";
+import type {
+  HttpClientPort,
+  HttpRequestOptions,
+  HttpPostOptions,
+} from "../../../src/domain/repositories/HttpClientPort.js";
+import { FetchHttpClient } from "../../../src/infrastructure/adapters/FetchHttpClient.js";
 
 describe("HttpClientPort contract", () => {
   it("declares 5 HTTP verbs (get/head/post/put/delete)", () => {
