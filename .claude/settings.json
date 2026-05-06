@@ -1,7 +1,5 @@
 {
-  "_README": "Hooks de Claude Code para OmniPost (v2). Validado contra docs.claude.com — abril/mayo 2026. Si la doc cambia, ajustar nombres de eventos manteniendo scripts intactos.",
-
-  "_install": "Copiar a la raíz del repo como .claude/settings.json. CC lo lee automáticamente al arrancar en ese directorio. Para overrides personales no commiteados, usar .claude/settings.local.json.",
+  "_README": "Hooks Python para OmniPost — turno 4 del aprendizaje incremental.",
 
   "hooks": {
     "PreToolUse": [
@@ -10,16 +8,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pre-bash.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pre-edit.sh"
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks-py/pre_bash.py"
           }
         ]
       }
@@ -27,33 +16,14 @@
 
     "PostToolUse": [
       {
-        "matcher": "Edit|Write|MultiEdit",
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/post-edit.sh"
-          }
-        ]
-      }
-    ],
-
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/stop.sh"
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks-py/post_bash.py"
           }
         ]
       }
     ]
-  },
-
-  "_environment_variables_to_set_in_your_shell": {
-    "EDWARD_AUTHORIZED_COMMIT": "Set 'yes' justo antes de aprobar un commit puntual. Volver a 'no' después.",
-    "EDWARD_AUTHORIZED_DESTRUCTIVE": "Para autorizar rm -rf, git reset --hard, git clean -f.",
-    "EDWARD_AUTHORIZED_SENSITIVE": "Para autorizar edits a .env, prisma/schema.prisma, encryption/.",
-    "CLAUDE_BATCH_BYPASS": "Set 'yes' para edit puntual fuera del ciclo de batch.",
-    "PLAN_MAX_AGE_MIN": "Override del default 120 min para plan_is_active() (regla 4)."
   }
 }
