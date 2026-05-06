@@ -1,5 +1,5 @@
 {
-  "_README": "Hooks Python para OmniPost — Batch 3 agrega secretlint single-file en PostToolUse(Edit).",
+  "_README": "Hooks Python para OmniPost — Batch 5a agrega canon orquestador en PreToolUse(Edit).",
 
   "hooks": {
     "PreToolUse": [
@@ -18,6 +18,10 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks-py/pre_edit.py"
+          },
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks-py/pre_edit_canon.py"
           }
         ]
       }
