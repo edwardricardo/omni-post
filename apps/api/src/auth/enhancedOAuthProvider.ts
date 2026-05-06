@@ -520,6 +520,7 @@ export class EnhancedOAuthService extends AuditableService {
         "User-Agent": "SaaS-Prototype-OAuth-Client/1.0",
       },
       body: tokenParams.toString(),
+      signal: AbortSignal.timeout(10_000),
     });
 
     if (!response.ok) {

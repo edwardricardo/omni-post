@@ -696,6 +696,9 @@ export class VideoUploadPipeline {
           ...webhook.headers,
         },
         body: JSON.stringify(payload),
+        // Webhook delivery from BullMQ — 30s upper bound, well under default
+        // job lockDuration to avoid double-timeout.
+        signal: AbortSignal.timeout(30_000),
       });
     } catch (error) {
       videoLogger.warn({ err: error }, "Failed to send webhook notification");

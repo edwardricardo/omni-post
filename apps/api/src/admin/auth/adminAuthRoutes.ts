@@ -274,6 +274,8 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: new URLSearchParams({ secret: turnstileSecret, response: turnstileToken }),
+          // Cloudflare Turnstile docs: typical response < 1s. 5s timeout for safety.
+          signal: AbortSignal.timeout(5_000),
         });
         const verifyData = (await verifyRes.json()) as { success: boolean };
         if (!verifyData.success) {

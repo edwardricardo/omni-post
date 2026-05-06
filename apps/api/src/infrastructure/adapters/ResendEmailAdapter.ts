@@ -68,6 +68,8 @@ export class ResendEmailAdapter implements EmailPort {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
+        // Resend API typical response < 2s; 10s upper bound covers attachment uploads.
+        signal: AbortSignal.timeout(10_000),
       });
 
       if (!response.ok) {

@@ -146,6 +146,7 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
           redirect_uri: config.redirectUri,
           code_verifier: codeVerifier,
         }),
+        signal: AbortSignal.timeout(10_000),
       });
 
       if (!tokenResponse.ok) {
@@ -157,7 +158,10 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
 
       const userResponse = await fetch(
         "https://api.twitter.com/2/users/me?user.fields=profile_image_url,verified",
-        { headers: { Authorization: `Bearer ${tokens.access_token}` } }
+        {
+          headers: { Authorization: `Bearer ${tokens.access_token}` },
+          signal: AbortSignal.timeout(10_000),
+        }
       );
 
       if (!userResponse.ok) {
@@ -202,6 +206,7 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
           redirect_uri: config.redirectUri,
           code,
         }),
+        signal: AbortSignal.timeout(10_000),
       });
 
       if (!tokenResponse.ok) {
@@ -212,7 +217,8 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
       const tokens = await tokenResponse.json();
 
       const userResponse = await fetch(
-        `https://graph.instagram.com/me?fields=id,username,media_count,account_type&access_token=${tokens.access_token}`
+        `https://graph.instagram.com/me?fields=id,username,media_count,account_type&access_token=${tokens.access_token}`,
+        { signal: AbortSignal.timeout(10_000) }
       );
 
       if (!userResponse.ok) {
@@ -247,7 +253,8 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
     async validateCode(code: string, _state: string) {
       const config = this.config;
       const tokenResponse = await fetch(
-        `${config.tokenUrl}?client_id=${config.clientId}&client_secret=${config.clientSecret}&redirect_uri=${config.redirectUri}&code=${code}`
+        `${config.tokenUrl}?client_id=${config.clientId}&client_secret=${config.clientSecret}&redirect_uri=${config.redirectUri}&code=${code}`,
+        { signal: AbortSignal.timeout(10_000) }
       );
 
       if (!tokenResponse.ok) {
@@ -258,7 +265,8 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
       const tokens = await tokenResponse.json();
 
       const userResponse = await fetch(
-        `https://graph.facebook.com/me?fields=id,name,picture&access_token=${tokens.access_token}`
+        `https://graph.facebook.com/me?fields=id,name,picture&access_token=${tokens.access_token}`,
+        { signal: AbortSignal.timeout(10_000) }
       );
 
       if (!userResponse.ok) {
@@ -304,6 +312,7 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
           grant_type: "authorization_code",
           redirect_uri: config.redirectUri,
         }),
+        signal: AbortSignal.timeout(10_000),
       });
 
       if (!tokenResponse.ok) {
@@ -315,7 +324,10 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
 
       const channelResponse = await fetch(
         "https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true",
-        { headers: { Authorization: `Bearer ${tokens.access_token}` } }
+        {
+          headers: { Authorization: `Bearer ${tokens.access_token}` },
+          signal: AbortSignal.timeout(10_000),
+        }
       );
 
       if (!channelResponse.ok) {
@@ -366,6 +378,7 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
           grant_type: "authorization_code",
           redirect_uri: config.redirectUri,
         }),
+        signal: AbortSignal.timeout(10_000),
       });
 
       if (!tokenResponse.ok) {
@@ -377,7 +390,10 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
 
       const userResponse = await fetch(
         "https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,avatar_url,display_name,username",
-        { headers: { Authorization: `Bearer ${tokens.data.access_token}` } }
+        {
+          headers: { Authorization: `Bearer ${tokens.data.access_token}` },
+          signal: AbortSignal.timeout(10_000),
+        }
       );
 
       if (!userResponse.ok) {
@@ -425,6 +441,7 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
           client_secret: config.clientSecret,
           redirect_uri: config.redirectUri,
         }),
+        signal: AbortSignal.timeout(10_000),
       });
 
       if (!tokenResponse.ok) {
@@ -436,6 +453,7 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
 
       const userResponse = await fetch("https://api.linkedin.com/v2/userinfo", {
         headers: { Authorization: `Bearer ${tokens.access_token}` },
+        signal: AbortSignal.timeout(10_000),
       });
 
       if (!userResponse.ok) {
@@ -484,6 +502,7 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
           code,
           redirect_uri: config.redirectUri,
         }),
+        signal: AbortSignal.timeout(10_000),
       });
 
       if (!tokenResponse.ok) {
@@ -495,6 +514,7 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
 
       const userResponse = await fetch("https://api.pinterest.com/v5/user_account", {
         headers: { Authorization: `Bearer ${tokens.access_token}` },
+        signal: AbortSignal.timeout(10_000),
       });
 
       if (!userResponse.ok) {
@@ -543,6 +563,7 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
           code,
           redirect_uri: config.redirectUri,
         }),
+        signal: AbortSignal.timeout(10_000),
       });
 
       if (!tokenResponse.ok) {
@@ -554,6 +575,7 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
 
       const userResponse = await fetch("https://adsapi.snapchat.com/v1/me", {
         headers: { Authorization: `Bearer ${tokens.access_token}` },
+        signal: AbortSignal.timeout(10_000),
       });
 
       if (!userResponse.ok) {
