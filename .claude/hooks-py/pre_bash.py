@@ -3,6 +3,7 @@
 
 import json
 import re
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -12,6 +13,17 @@ from _common import GIT_PUSH_RE, current_branch, make_logger, read_hook_input  #
 
 HOOK_NAME = "pre-bash"
 ALLOWED_BRANCH_PREFIX = "refactor/remediation-v2.1"
+
+# Detecta comandos que escriben (redirect / tee) a un archivo .ts/.tsx.
+# Cubre: 'cat > foo.ts <<EOF', 'echo ... > bar.tsx', 'tee baz.ts'.
+WRITES_TS_RE = re.compile(r"(>\s*\S*\.tsx?\b|\btee\s+\S*\.tsx?\b)")
+# Patrones de patch sintácticos prohibidos por CLAUDE.md.
+TS_IGNORE_RE = re.compile(r"@ts-(ignore|nocheck)")
+CONSOLE_LOG_RE = re.compile(r"\bconsole\.log\s*\(")
+# Paths de producción donde console.log está prohibido.
+PROD_PATH_RE = re.compile(r"(apps/api/src/|packages/[^/]+/src/)")
+# Comandos de migración Prisma que requieren DB corriendo.
+PNPM_MIGRATE_RE = re.compile(r"pnpm\s+(?:db:migrate|db:push|prisma\s+migrate)")
 
 log, block, allow = make_logger(HOOK_NAME)
 
@@ -102,6 +114,52 @@ def gate_commit_only_in_allowed_branch(command: str) -> None:
         )
 
 
+def gate_db_migrations_require_running_db(command: str) -> None:
+    """Bloquea pnpm db:migrate / prisma migrate si Postgres no está arriba."""
+    if not PNPM_MIGRATE_RE.search(command):
+        return
+    try:
+        result = subprocess.run(
+            ["docker", "ps", "--filter", "name=postgres", "--filter", "status=running", "--quiet"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+            check=False,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        # Docker no disponible o lento — no bloqueamos preventivamente.
+        log("docker check skipped (timeout or not found)")
+        return
+    if not result.stdout.strip():
+        block(
+            "Postgres no está corriendo. Levantá DB con `pnpm db:up` antes de migrar. "
+            "(Detectado vía `docker ps --filter name=postgres --filter status=running`)"
+        )
+
+
+def gate_no_patches_in_ts_writes(command: str) -> None:
+    """Bloquea @ts-ignore/@ts-nocheck en cualquier escritura a .ts/.tsx
+    y console.log si la escritura va a apps/api/src/ o packages/*/src/.
+
+    Aplica solo si el comando es claramente de escritura (redirect, tee).
+    Evita falsos positivos de comandos de lectura como `grep '@ts-ignore'`.
+    """
+    if not WRITES_TS_RE.search(command):
+        return
+    if TS_IGNORE_RE.search(command):
+        block(
+            "@ts-ignore / @ts-nocheck prohibidos en código de producción "
+            "(CLAUDE.md zero-tolerance). Resolvé el tipo correctamente — usá "
+            "interfaces, generics, o `unknown` + type guard."
+        )
+    if PROD_PATH_RE.search(command) and CONSOLE_LOG_RE.search(command):
+        block(
+            "console.log prohibido en producción (CLAUDE.md 'Zero console.* en "
+            "producción'). Usá `createLogger(name)` de `apps/api/src/lib/logger.ts` "
+            "o `@observability/logger` según corresponda."
+        )
+
+
 # ────────────────────────────────────────────────────────────────────
 # Main
 # ────────────────────────────────────────────────────────────────────
@@ -121,6 +179,8 @@ def main() -> None:
     gate_no_npm_or_yarn(command)
     gate_no_co_authored_in_commit(command)
     gate_commit_only_in_allowed_branch(command)
+    gate_db_migrations_require_running_db(command)
+    gate_no_patches_in_ts_writes(command)
 
     allow("command passed all gates")
 
