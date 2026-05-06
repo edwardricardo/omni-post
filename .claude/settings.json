@@ -1,5 +1,5 @@
 {
-  "_README": "Hooks Python para OmniPost — Batch 2 agrega protección de paths sensibles via pre_edit.",
+  "_README": "Hooks Python para OmniPost — Batch 3 agrega secretlint single-file en PostToolUse(Edit).",
 
   "hooks": {
     "PreToolUse": [
@@ -30,6 +30,15 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks-py/post_bash.py"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks-py/post_edit.py"
           }
         ]
       }
