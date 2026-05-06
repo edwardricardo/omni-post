@@ -1,5 +1,5 @@
 {
-  "_README": "Hooks Python para OmniPost — Batch 5a agrega canon orquestador en PreToolUse(Edit).",
+  "_README": "Hooks Python para OmniPost — Batch 6 agrega Stop hook con auditoría de cierre.",
 
   "hooks": {
     "PreToolUse": [
@@ -54,6 +54,17 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks-py/user_prompt_submit.py"
+          }
+        ]
+      }
+    ],
+
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks-py/stop.py"
           }
         ]
       }
