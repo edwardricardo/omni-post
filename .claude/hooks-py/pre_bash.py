@@ -58,13 +58,18 @@ def current_branch() -> str:
 def gate_git_push_requires_token(command: str) -> None:
     """Bloquea git push salvo que exista un token válido (no expirado).
 
-    El token NO se consume acá — eso lo hace el post-hook si la operación tiene éxito.
-    Si la operación falla, el token se preserva para reintento sin re-aprobar (siempre que
-    no haya expirado).
+    LIMITACIÓN: este gate detecta variantes comunes de 'git push' (con o sin
+    flags intermedias como -C <path>, --git-dir, etc.), pero no detecta
+    casos como 'cd /path && git push' donde el comando se compone con &&.
+    Para esos casos confiamos en que CC respete la convención y en revisión
+    posterior de logs.
     """
-    if not re.search(r"git\s+push", command):
+    # Regex que matchea 'git' seguido eventualmente de 'push' como tokens separados.
+    # Cubre: 'git push', 'git -C /path push', 'git --git-dir=... push', etc.
+    if not re.search(r"\bgit\b\s.*\bpush\b", command):
         return
 
+    # Resto de la función sin cambios...
     token_path = Path(".claude/.allowed/push")
 
     if not token_path.exists():
@@ -73,7 +78,6 @@ def gate_git_push_requires_token(command: str) -> None:
             "Si te lo concede, él ejecutará 'omnipost-allow push' y vas a poder reintentar."
         )
 
-    # El archivo existe — leerlo y validar
     try:
         with token_path.open("r") as f:
             token_data = json.load(f)
@@ -104,7 +108,6 @@ def gate_git_push_requires_token(command: str) -> None:
     now = datetime.now(timezone.utc)
 
     if now >= expires_at:
-        # Token expirado — borrar y bloquear
         log(f"token de push expirado (creado para expirar a las {expires_at_str}, ahora {now.isoformat()})")
         token_path.unlink()
         block(
