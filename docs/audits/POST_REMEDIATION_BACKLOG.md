@@ -2873,6 +2873,89 @@ Backend mock data devuelta como si fuera real analysis. Sin consumers UI directo
 
 ---
 
+### PR-57 — reg-suit (visual regression testing) — evaluación + decisión install
+
+**Surfaced.** 2026-05-07 durante Phase 2 audit-toolkit activation. Listed en el set inicial de herramientas a wirear (junto con MSW + axe + clinic.js). Edward decidió **NO instalar ahora** y evaluar caso de uso primero.
+
+**Batch de origen:** Phase 2 audit-toolkit activation
+**SLA category:** LOW
+**Needs Edward:** true (decisión: instalar / no instalar / wait-and-see)
+**Tipo:** infra evaluation — visual regression testing
+
+**Síntoma / oportunidad.** El repo tiene Storybook (apps/admin :6007, apps/client :6006) y tests Playwright con `*-snapshots` artefactos (`apps/client/tests/e2e/tests/visual.spec.ts-snapshots/` ya existe). Visual regression catch automático para UI changes — útil cuando el surface UI crece y los reviewers no pueden inspeccionar cada page diff manualmente.
+
+reg-suit hace diffing entre snapshots committed vs current build, con publish a S3-compat backend, comments en PRs, y baseline management. Alternativa nativa Playwright: `expect(page).toHaveScreenshot()` ya integrada (sin reg-suit).
+
+**Pregunta clave para Edward.**
+
+¿Vale la inversión de instalar + mantener reg-suit hoy, dado que:
+
+1. Playwright ya tiene `toHaveScreenshot()` integrado y `visual.spec.ts-snapshots/` ya existe en `apps/client`.
+2. reg-suit añade infra: S3 bucket para baselines, GitHub App para comments, config per-app.
+3. Storybook 10.x tiene `@storybook/test-runner` con visual diff opt-in.
+4. El equipo es 1 persona ahora — el cost-benefit de "evita merge de UI roto" es marginal cuando hay 1 reviewer.
+
+**Decisión sugerida**: NO instalar ahora. Re-evaluar si:
+
+- Equipo crece >2 devs (reviewer fatigue real).
+- UI surface area crece >50 distinct pages.
+- Aparece incidente concreto donde "PR rompió layout y nadie lo vio".
+
+**Alternativa interim (sin install)**: usar `expect(page).toHaveScreenshot()` de Playwright en specs nuevas críticas (login, dashboard primary). Cero deps adicionales.
+
+**Bloqueado por.** Decisión Edward. No-install es default; cambiar a install requiere caso de uso documentado.
+
+**Estado:** PENDING (decision pending — default = no install; revisitar cuando aparezca trigger).
+
+---
+
+### PR-58 — clinic.js (Node.js runtime performance profiling) — evaluación + decisión install
+
+**Surfaced.** 2026-05-07 durante Phase 2 audit-toolkit activation. Listed en el set inicial de herramientas a wirear. Edward decidió **NO instalar ahora** y evaluar caso de uso primero.
+
+**Batch de origen:** Phase 2 audit-toolkit activation
+**SLA category:** LOW
+**Needs Edward:** true (decisión: instalar / no instalar / wait-and-see)
+**Tipo:** infra evaluation — runtime performance profiling
+
+**Síntoma / oportunidad.** clinic.js (NearForm) profilea Node.js runtime: doctor (event loop / GC / I/O patterns), bubbleprof (async ops / I/O timeline), flame (CPU profiling), heapprofiler (memory allocation). Útil cuando aparecen problemas de performance específicos: latencia request, memory leaks, event loop lag.
+
+**Estado actual del repo de performance instrumentation**:
+
+- `packages/observability/opentelemetry` — OTEL SDK wired (tracing + metrics) en API + workers.
+- `packages/observability/background-scheduler` — task tracking via canonical scheduler (ya fitness function #11).
+- `performance/` directory — k6 load tests, regression detector, baseline capture (scripts en `performance/scripts/`).
+- Prometheus metrics expuestos por API.
+
+**Gap real**: profiling AD-HOC durante incident response. OTEL + Prometheus dan agregados continuos; clinic.js da deep-dive en una corrida específica.
+
+**Pregunta clave para Edward.**
+
+¿Vale instalar clinic.js como dependency permanente, o usarlo on-demand cuando hay incidente?
+
+1. clinic.js es CLI tool — se invoca con `npx clinic doctor -- node dist/server.js` (no requiere wiring en código).
+2. NO necesita estar en `devDependencies` para ser usado — `npx clinic` lo instala temporalmente.
+3. Si lo agregamos a `package.json`, es solo discoverability ("aquí está el tool documented"). No mejora capability.
+
+**Decisión sugerida**: NO instalar como dep. Documentar en `docs/development/performance-profiling.md` (NEW si no existe) cómo invocarlo on-demand:
+
+```bash
+npx clinic doctor -- node apps/api/dist/server.js
+npx clinic flame -- node apps/api/dist/server.js
+npx clinic bubbleprof -- node apps/api/dist/server.js
+```
+
+Re-evaluar si:
+
+- Aparece incidente recurrente que justifica integrar profile en CI gate (mismo argumento que reg-suit — caso de uso concreto).
+- Equipo crece y el "knowledge of which command to run" se pierde.
+
+**Bloqueado por.** Decisión Edward. No-install + documentar uso on-demand es default.
+
+**Estado:** PENDING (decision pending — default = no install + doc on-demand; revisitar cuando aparezca incidente).
+
+---
+
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.
 
 **Cierre.** Un entry se marca como `REVIEWED` cuando Edward lo revisa al final del roadmap. Se marca como `FIXED` cuando el fix de raíz se aplicó. Se marca como `WONT_FIX` si Edward decide que el paliativo es suficiente a largo plazo (en cuyo caso la razón debe documentarse).
