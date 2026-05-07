@@ -23,7 +23,7 @@ const BodySchema = z.object({
     .number()
     .int()
     .min(1)
-    .max(24 * 30)
+    .max(24 * 7)
     .optional(),
 });
 

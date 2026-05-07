@@ -16,7 +16,7 @@ import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import type { WebhookSubscriptionRotationRepository } from "./WebhookSubscriptionRotationRepository.js";
 
 const MIN_GRACE_HOURS = 1;
-const MAX_GRACE_HOURS = 24 * 30;
+const MAX_GRACE_HOURS = 24 * 7;
 const DEFAULT_GRACE_HOURS = 24;
 const SECRET_BYTE_LENGTH = 32;
 

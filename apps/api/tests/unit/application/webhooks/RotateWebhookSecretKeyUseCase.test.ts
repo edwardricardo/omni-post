@@ -47,14 +47,24 @@ describe("RotateWebhookSecretKeyUseCase", () => {
     assert.equal(result.error.code, "VALIDATION_FAILED");
   });
 
-  it("rejects graceWindowHours above the 30d ceiling", async () => {
+  it("rejects graceWindowHours above the 7d ceiling (canon: stripe-aligned cap)", async () => {
     const useCase = new RotateWebhookSecretKeyUseCase(makeRepo());
     const result = await useCase.execute({
       webhookSubscriptionId: SUB_ID,
-      graceWindowHours: 24 * 31,
+      graceWindowHours: 24 * 8,
     });
     assert.ok(!result.ok);
     assert.equal(result.error.code, "VALIDATION_FAILED");
+  });
+
+  it("accepts graceWindowHours at the 7d ceiling (168h)", async () => {
+    const useCase = new RotateWebhookSecretKeyUseCase(makeRepo());
+    const result = await useCase.execute({
+      webhookSubscriptionId: SUB_ID,
+      graceWindowHours: 24 * 7,
+    });
+    assert.ok(result.ok);
+    assert.equal(result.value.graceWindowHours, 168);
   });
 
   it("returns NOT_FOUND when subscription does not exist", async () => {

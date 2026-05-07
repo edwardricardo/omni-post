@@ -63,13 +63,13 @@ export default function AdminWebhookRotateSecretPage() {
             htmlFor="graceHours"
             className="mb-1 block text-sm font-medium text-[var(--text-primary)]"
           >
-            Grace window (hours, 1–720)
+            Grace window (hours, 1–168)
           </label>
           <input
             id="graceHours"
             type="number"
             min={1}
-            max={720}
+            max={168}
             value={graceHours}
             onChange={(e) => setGraceHours(parseInt(e.target.value, 10) || DEFAULT_GRACE_HOURS)}
             className="w-32 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)]"
