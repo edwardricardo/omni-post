@@ -82,6 +82,14 @@ export interface ChannelRepository {
   ): Promise<Channel | null>;
 
   /**
+   * Batch lookup of "posts published this calendar month" per channel id.
+   * Returns a Map keyed by channel id; channels with zero posts may be
+   * absent from the map (caller defaults to 0). Used by the channel-list
+   * mapper to populate `usage.postsThisMonth` without an N+1.
+   */
+  findUsageByChannelIds(channelIds: string[]): Promise<Map<string, { postsThisMonth: number }>>;
+
+  /**
    * Save a channel (create or update)
    */
   save(channel: Channel): Promise<Result<void, Error>>;

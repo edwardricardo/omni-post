@@ -287,6 +287,36 @@ describe("channelRoutes", () => {
       expect(body.data.length >= 1).toBeTruthy();
     });
 
+    it("returns the rich DTO shape (UX fields populated)", async () => {
+      const res = await app.inject({
+        method: "GET",
+        url: `/projects/${testProjectId}/channels`,
+      });
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      const row = body.data[0];
+      expect(row).toMatchObject({
+        id: expect.any(String),
+        projectId: testProjectId,
+        projectName: expect.any(String),
+        provider: expect.any(String),
+        providerName: expect.any(String),
+        handle: expect.any(String),
+        accountName: null,
+        profileImage: null,
+        isPrimary: expect.any(Boolean),
+        isConnected: expect.any(Boolean),
+        needsReauth: expect.any(Boolean),
+        connectedAt: expect.any(String),
+        expiredAt: null,
+        lastUsedAt: null,
+        usage: { postsThisMonth: 0 },
+      });
+      // backward-compat fields the legacy mapper used
+      expect(row.platform).toBe(row.provider);
+      expect(typeof row.name).toBe("string");
+    });
+
     it("should return 404 for non-existent project", async () => {
       const res = await app.inject({
         method: "GET",

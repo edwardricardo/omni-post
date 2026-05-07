@@ -23,6 +23,7 @@ function makeChannelRepo(overrides: Partial<ChannelRepository> = {}): ChannelRep
     hardDelete: vi.fn(),
     bulkMarkForReauthByProvider: vi.fn().mockResolvedValue({ count: 12, channelIds: ["c1", "c2"] }),
     bulkSoftDeleteByProvider: vi.fn().mockResolvedValue({ count: 5, channelIds: ["c3", "c4"] }),
+    findUsageByChannelIds: vi.fn().mockResolvedValue(new Map()),
     ...overrides,
   } as ChannelRepository;
 }

@@ -77,15 +77,68 @@ function mapCredentials(raw: Record<string, unknown>): ChannelCredentials {
   };
 }
 
-/** Project an API response view from a Channel entity */
-function toChannelView(channel: Channel) {
+/**
+ * Rich channel DTO returned by the listing + single-resource endpoints. The
+ * `client` dashboard renders this directly: `providerName`, `accountName`,
+ * `profileImage`, `connectedAt`, `expiredAt`, `lastUsedAt`, and
+ * `usage.postsThisMonth` are the columns the dashboard reads. `isConnected`
+ * is derived (`status === CONNECTED && !needsReauth`) so the UI can render a
+ * status badge without re-deriving it.
+ */
+interface ChannelView {
+  id: string;
+  projectId: string;
+  projectName: string;
+  /** Backwards-compatible alias for `accountName ?? handle` (older UI fields) */
+  name: string;
+  platform: string;
+  provider: string;
+  providerName: string;
+  handle: string;
+  accountName: string | null;
+  profileImage: string | null;
+  isPrimary: boolean;
+  isConnected: boolean;
+  needsReauth: boolean;
+  status: string;
+  connectedAt: string | null;
+  expiredAt: string | null;
+  lastUsedAt: string | null;
+  usage: { postsThisMonth: number };
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * Project a Channel entity into the API response shape. `projectName` and
+ * `postsThisMonth` are looked up by the caller and passed in — keeping this
+ * function pure means the same mapper serves both single-channel and list
+ * endpoints with appropriate batching upstream.
+ */
+function toChannelView(
+  channel: Channel,
+  ctx: { projectName: string; postsThisMonth: number }
+): ChannelView {
+  const accountName = channel.accountName ?? null;
   return {
     id: channel.id.value,
     projectId: channel.projectId.value,
-    name: channel.handle,
+    projectName: ctx.projectName,
+    name: accountName ?? channel.handle,
     platform: channel.provider.type,
+    provider: channel.provider.type,
+    providerName: channel.provider.displayName,
+    handle: channel.handle,
+    accountName,
+    profileImage: channel.profileImage ?? null,
     isPrimary: channel.isPrimary,
+    isConnected: channel.isConnected && !channel.needsReauth,
+    needsReauth: channel.needsReauth,
     status: channel.status,
+    connectedAt: (channel.connectedAt ?? channel.createdAt).toISOString(),
+    expiredAt: channel.expiredAt?.toISOString() ?? null,
+    lastUsedAt: channel.lastUsedAt?.toISOString() ?? null,
+    usage: { postsThisMonth: ctx.postsThisMonth },
     createdAt: channel.createdAt,
     updatedAt: channel.updatedAt,
   };
@@ -154,7 +207,24 @@ class ChannelRouteHandler extends BaseRouteHandler {
     }
 
     this.logInfo(ctx, "Channel created", { channelId: channel.id.value });
-    return this.sendSuccess(ctx, toChannelView(channel), 201);
+    return this.sendSuccess(
+      ctx,
+      toChannelView(channel, { projectName: projectResult.value.name, postsThisMonth: 0 }),
+      201
+    );
+  }
+
+  /**
+   * Look up `projectName` + this-month usage for a single channel and return
+   * the rich view. The list endpoint batches both lookups separately to avoid
+   * the per-channel roundtrip; single-resource endpoints accept the cost.
+   */
+  private async enrichChannelView(channel: Channel): Promise<ChannelView> {
+    const projectResult = await this.projectRepo.findById(channel.projectId);
+    const projectName = projectResult.ok ? projectResult.value.name : "";
+    const usage = await this.channelRepo.findUsageByChannelIds([channel.id.value]);
+    const postsThisMonth = usage.get(channel.id.value)?.postsThisMonth ?? 0;
+    return toChannelView(channel, { projectName, postsThisMonth });
   }
 
   /**
@@ -177,12 +247,14 @@ class ChannelRouteHandler extends BaseRouteHandler {
         : this.sendError(ctx, 500, "Failed to get channel");
     }
 
-    return this.sendSuccess(ctx, toChannelView(result.value));
+    return this.sendSuccess(ctx, await this.enrichChannelView(result.value));
   }
 
   /**
    * GET /projects/:projectId/channels
-   * List all channels belonging to a project.
+   * List all channels belonging to a project. Project name is looked up once
+   * (all rows share the same project); usage is batched across all channels
+   * in a single `groupBy` query — no N+1.
    */
   async listChannelsByProject(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -193,14 +265,21 @@ class ChannelRouteHandler extends BaseRouteHandler {
 
     const { projectId } = paramsResult.value;
 
-    // Verify project exists first
     const projectResult = await this.projectRepo.findById(ProjectId.fromStringUnsafe(projectId));
     if (!projectResult.ok) {
       return this.sendError(ctx, 404, "Project not found");
     }
 
     const channels = await this.channelRepo.findByProjectId(ProjectId.fromStringUnsafe(projectId));
-    return this.sendSuccess(ctx, channels.map(toChannelView));
+    const usageMap = await this.channelRepo.findUsageByChannelIds(channels.map((c) => c.id.value));
+    const projectName = projectResult.value.name;
+    const views = channels.map((c) =>
+      toChannelView(c, {
+        projectName,
+        postsThisMonth: usageMap.get(c.id.value)?.postsThisMonth ?? 0,
+      })
+    );
+    return this.sendSuccess(ctx, views);
   }
 
   /**
@@ -250,7 +329,7 @@ class ChannelRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 500, "Failed to update channel");
     }
 
-    return this.sendSuccess(ctx, toChannelView(updated));
+    return this.sendSuccess(ctx, await this.enrichChannelView(updated));
   }
 
   /**
@@ -391,7 +470,7 @@ class ChannelRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 500, "Failed to read updated channel");
     }
 
-    return this.sendSuccess(ctx, toChannelView(findResult.value));
+    return this.sendSuccess(ctx, await this.enrichChannelView(findResult.value));
   }
 
   /**

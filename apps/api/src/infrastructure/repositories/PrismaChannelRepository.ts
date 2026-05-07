@@ -214,6 +214,37 @@ export class PrismaChannelRepository implements ChannelRepository {
   }
 
   /**
+   * Batch usage lookup: count successful (`LogStatus.OK`) PublishLog rows
+   * grouped by channelId for the current calendar month (UTC). Single SQL
+   * roundtrip via Prisma `groupBy` — avoids per-channel N+1 in list views.
+   * Channels with zero posts this month are absent from the returned map.
+   */
+  async findUsageByChannelIds(
+    channelIds: string[]
+  ): Promise<Map<string, { postsThisMonth: number }>> {
+    const result = new Map<string, { postsThisMonth: number }>();
+    if (channelIds.length === 0) return result;
+
+    const now = new Date();
+    const startOfMonthUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+
+    const grouped = await this.prisma.publishLog.groupBy({
+      by: ["channelId"],
+      where: {
+        channelId: { in: channelIds },
+        status: "OK",
+        createdAt: { gte: startOfMonthUtc },
+      },
+      _count: { _all: true },
+    });
+
+    for (const row of grouped) {
+      result.set(row.channelId, { postsThisMonth: row._count._all });
+    }
+    return result;
+  }
+
+  /**
    * Save a channel (create or update via upsert). Credentials are encrypted
    * before persistence — plaintext never touches the upsert payload.
    */
