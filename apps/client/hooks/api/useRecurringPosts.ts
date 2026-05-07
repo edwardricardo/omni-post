@@ -41,13 +41,13 @@ export function useRecurringPosts({ projectId }: UseRecurringPostsParams) {
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to fetch recurring posts");
-      const data = (await response.json()) as {
+      const body = (await response.json()) as {
         ok: boolean;
-        value?: RecurringPost[];
+        data?: RecurringPost[];
         error?: string;
       };
-      if (!data.ok) throw new Error(data.error ?? "API error");
-      return data.value ?? [];
+      if (!body.ok) throw new Error(body.error ?? "API error");
+      return body.data ?? [];
     },
     enabled: !!projectId,
   });
@@ -117,13 +117,13 @@ export function useCreateRecurringPost() {
       if (!response.ok) {
         throw new Error(await parseApiError(response, "Failed to create recurring post"));
       }
-      const data = (await response.json()) as {
+      const body = (await response.json()) as {
         ok: boolean;
-        value?: RecurringPost;
+        data?: RecurringPost;
         error?: string;
       };
-      if (!data.ok || !data.value) throw new Error(data.error ?? "API error");
-      return data.value;
+      if (!body.ok || !body.data) throw new Error(body.error ?? "API error");
+      return body.data;
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["recurring-posts"] });
@@ -156,13 +156,13 @@ export function useUpdateRecurringPost() {
       if (!response.ok) {
         throw new Error(await parseApiError(response, "Failed to update recurring post"));
       }
-      const data = (await response.json()) as {
+      const body = (await response.json()) as {
         ok: boolean;
-        value?: RecurringPost;
+        data?: RecurringPost;
         error?: string;
       };
-      if (!data.ok || !data.value) throw new Error(data.error ?? "API error");
-      return data.value;
+      if (!body.ok || !body.data) throw new Error(body.error ?? "API error");
+      return body.data;
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["recurring-posts"] });

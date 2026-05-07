@@ -53,9 +53,9 @@ export function useAIContentGeneration() {
         });
 
         if (response.ok) {
-          const data = await response.json();
-          if (data.ok && data.value) {
-            return data.value;
+          const body = await response.json();
+          if (body.ok && body.data) {
+            return body.data;
           }
         }
       } catch {

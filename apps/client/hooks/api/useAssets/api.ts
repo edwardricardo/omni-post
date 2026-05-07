@@ -23,8 +23,8 @@ export async function fetchAssets(params: ListAssetsParams): Promise<AssetsPage>
     credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to fetch assets");
-  const data = (await res.json()) as { ok: boolean; value?: AssetsPage };
-  return data.ok && data.value ? data.value : { items: [], hasMore: false };
+  const body = (await res.json()) as { ok: boolean; data?: AssetsPage };
+  return body.ok && body.data ? body.data : { items: [], hasMore: false };
 }
 
 export async function fetchFolders(): Promise<AssetFolderDto[]> {
@@ -33,8 +33,8 @@ export async function fetchFolders(): Promise<AssetFolderDto[]> {
     credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to fetch folders");
-  const data = (await res.json()) as { ok: boolean; value?: AssetFolderDto[] };
-  return data.ok && data.value ? data.value : [];
+  const body = (await res.json()) as { ok: boolean; data?: AssetFolderDto[] };
+  return body.ok && body.data ? body.data : [];
 }
 
 export async function fetchTags(): Promise<AssetTagDto[]> {
@@ -43,8 +43,8 @@ export async function fetchTags(): Promise<AssetTagDto[]> {
     credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to fetch tags");
-  const data = (await res.json()) as { ok: boolean; value?: AssetTagDto[] };
-  return data.ok && data.value ? data.value : [];
+  const body = (await res.json()) as { ok: boolean; data?: AssetTagDto[] };
+  return body.ok && body.data ? body.data : [];
 }
 
 export async function createAsset(input: CreateAssetInput): Promise<{ id: string }> {
@@ -55,9 +55,9 @@ export async function createAsset(input: CreateAssetInput): Promise<{ id: string
     body: JSON.stringify(input),
   });
   if (!res.ok) throw new Error("Failed to create asset");
-  const data = (await res.json()) as { ok: boolean; value?: { id: string } };
-  if (!data.ok || !data.value) throw new Error("Create failed");
-  return data.value;
+  const body = (await res.json()) as { ok: boolean; data?: { id: string } };
+  if (!body.ok || !body.data) throw new Error("Create failed");
+  return body.data;
 }
 
 export async function deleteAsset(assetId: string): Promise<void> {
@@ -76,7 +76,7 @@ export async function createFolder(name: string, parentId?: string): Promise<Ass
     body: JSON.stringify({ name, ...(parentId ? { parentId } : {}) }),
   });
   if (!res.ok) throw new Error("Failed to create folder");
-  const data = (await res.json()) as { ok: boolean; value?: AssetFolderDto };
-  if (!data.ok || !data.value) throw new Error("Create folder failed");
-  return data.value;
+  const body = (await res.json()) as { ok: boolean; data?: AssetFolderDto };
+  if (!body.ok || !body.data) throw new Error("Create folder failed");
+  return body.data;
 }

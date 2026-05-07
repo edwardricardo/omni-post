@@ -31,8 +31,8 @@ async function fetchUsage(accountId: string): Promise<AccountUsageDto> {
     { cache: "no-store", credentials: "include" }
   );
   if (!res.ok) throw new Error("Failed to fetch usage");
-  const data = (await res.json()) as { ok: boolean; value?: AccountUsageDto };
-  if (data.ok && data.value) return data.value;
+  const body = (await res.json()) as { ok: boolean; data?: AccountUsageDto };
+  if (body.ok && body.data) return body.data;
   return {
     postsPublished: 0,
     aiCallsMade: 0,

@@ -64,8 +64,8 @@ export function useContentLibrary({
 
       const res = await fetch(`/api/backend/posts?${params}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch content library");
-      const data = (await res.json()) as { ok: boolean; value: ListPostsResponse };
-      return data.value;
+      const body = (await res.json()) as { ok: boolean; data: ListPostsResponse };
+      return body.data;
     },
     staleTime: 60_000,
   });

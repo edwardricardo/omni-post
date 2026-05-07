@@ -35,8 +35,8 @@ async function fetchPendingApprovals(reviewerId: string): Promise<ApprovalReques
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch pending approvals");
-  const data = (await res.json()) as { ok: boolean; value?: ApprovalRequest[] };
-  return data.ok && data.value ? data.value : [];
+  const body = (await res.json()) as { ok: boolean; data?: ApprovalRequest[] };
+  return body.ok && body.data ? body.data : [];
 }
 
 async function submitForReview(
@@ -51,9 +51,9 @@ async function submitForReview(
     body: JSON.stringify({ submitterId, ...(comment ? { comment } : {}) }),
   });
   if (!res.ok) throw new Error("Failed to submit for review");
-  const data = (await res.json()) as { ok: boolean; value?: { approvalId: string } };
-  if (!data.ok || !data.value) throw new Error("Submission failed");
-  return data.value;
+  const body = (await res.json()) as { ok: boolean; data?: { approvalId: string } };
+  if (!body.ok || !body.data) throw new Error("Submission failed");
+  return body.data;
 }
 
 async function approvePost(

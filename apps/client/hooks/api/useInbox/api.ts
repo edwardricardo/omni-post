@@ -2,7 +2,7 @@
  * @file api.ts
  * @description Internal fetch helpers for the Social Inbox endpoints. Each
  *              function maps directly to a backend route under
- *              `/api/backend/inbox` and unwraps the `{ ok, value }` envelope.
+ *              `/api/backend/inbox` and unwraps the `{ ok, data }` envelope.
  *              Consumed exclusively by `queries.ts` and `mutations.ts`; not
  *              re-exported by the barrel.
  * @layer infrastructure
@@ -34,8 +34,8 @@ export async function fetchConversations(
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch inbox");
-  const data = (await res.json()) as { ok: boolean; value?: PagedResult<ConversationListItem> };
-  return data.ok && data.value ? data.value : { items: [], nextCursor: null };
+  const envelope = (await res.json()) as { ok: boolean; data?: PagedResult<ConversationListItem> };
+  return envelope.ok && envelope.data ? envelope.data : { items: [], nextCursor: null };
 }
 
 export async function fetchMentions(
@@ -51,8 +51,8 @@ export async function fetchMentions(
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch mentions");
-  const data = (await res.json()) as { ok: boolean; value?: PagedResult<ConversationListItem> };
-  return data.ok && data.value ? data.value : { items: [], nextCursor: null };
+  const envelope = (await res.json()) as { ok: boolean; data?: PagedResult<ConversationListItem> };
+  return envelope.ok && envelope.data ? envelope.data : { items: [], nextCursor: null };
 }
 
 export async function fetchConversation(id: string): Promise<Conversation> {
@@ -61,9 +61,9 @@ export async function fetchConversation(id: string): Promise<Conversation> {
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch conversation");
-  const data = (await res.json()) as { ok: boolean; value?: Conversation };
-  if (!data.ok || !data.value) throw new Error("Conversation not found");
-  return data.value;
+  const envelope = (await res.json()) as { ok: boolean; data?: Conversation };
+  if (!envelope.ok || !envelope.data) throw new Error("Conversation not found");
+  return envelope.data;
 }
 
 export async function fetchMessages(
@@ -78,8 +78,8 @@ export async function fetchMessages(
     { credentials: "include", cache: "no-store" }
   );
   if (!res.ok) throw new Error("Failed to fetch messages");
-  const data = (await res.json()) as { ok: boolean; value?: PagedResult<Message> };
-  return data.ok && data.value ? data.value : { items: [], nextCursor: null };
+  const envelope = (await res.json()) as { ok: boolean; data?: PagedResult<Message> };
+  return envelope.ok && envelope.data ? envelope.data : { items: [], nextCursor: null };
 }
 
 export async function sendReply(messageId: string, body: string): Promise<Message> {
@@ -90,9 +90,9 @@ export async function sendReply(messageId: string, body: string): Promise<Messag
     body: JSON.stringify({ body }),
   });
   if (!res.ok) throw new Error("Failed to send reply");
-  const data = (await res.json()) as { ok: boolean; value?: Message };
-  if (!data.ok || !data.value) throw new Error("Reply failed");
-  return data.value;
+  const envelope = (await res.json()) as { ok: boolean; data?: Message };
+  if (!envelope.ok || !envelope.data) throw new Error("Reply failed");
+  return envelope.data;
 }
 
 export async function resolveConversation(

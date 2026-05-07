@@ -19,8 +19,8 @@ export async function fetchCampaigns(params: {
     credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to fetch campaigns");
-  const data = (await res.json()) as { ok: boolean; value?: CampaignDto[] };
-  return data.ok && data.value ? data.value : [];
+  const body = (await res.json()) as { ok: boolean; data?: CampaignDto[] };
+  return body.ok && body.data ? body.data : [];
 }
 
 export async function fetchCampaign(campaignId: string): Promise<CampaignDto> {
@@ -29,9 +29,9 @@ export async function fetchCampaign(campaignId: string): Promise<CampaignDto> {
     credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to fetch campaign");
-  const data = (await res.json()) as { ok: boolean; value?: CampaignDto };
-  if (!data.ok || !data.value) throw new Error("Campaign not found");
-  return data.value;
+  const body = (await res.json()) as { ok: boolean; data?: CampaignDto };
+  if (!body.ok || !body.data) throw new Error("Campaign not found");
+  return body.data;
 }
 
 export async function fetchCampaignAnalytics(campaignId: string): Promise<CampaignAnalyticsDto> {
@@ -40,8 +40,8 @@ export async function fetchCampaignAnalytics(campaignId: string): Promise<Campai
     credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to fetch campaign analytics");
-  const data = (await res.json()) as { ok: boolean; value?: CampaignAnalyticsDto };
-  if (!data.ok || !data.value) {
+  const body = (await res.json()) as { ok: boolean; data?: CampaignAnalyticsDto };
+  if (!body.ok || !body.data) {
     return {
       campaignId,
       totalPosts: 0,
@@ -53,7 +53,7 @@ export async function fetchCampaignAnalytics(campaignId: string): Promise<Campai
       avgEngagementRate: 0,
     };
   }
-  return data.value;
+  return body.data;
 }
 
 export async function createCampaign(input: CreateCampaignInput): Promise<{ id: string }> {
@@ -64,9 +64,9 @@ export async function createCampaign(input: CreateCampaignInput): Promise<{ id: 
     body: JSON.stringify(input),
   });
   if (!res.ok) throw new Error("Failed to create campaign");
-  const data = (await res.json()) as { ok: boolean; value?: { id: string } };
-  if (!data.ok || !data.value) throw new Error("Create failed");
-  return data.value;
+  const body = (await res.json()) as { ok: boolean; data?: { id: string } };
+  if (!body.ok || !body.data) throw new Error("Create failed");
+  return body.data;
 }
 
 export async function archiveCampaign(campaignId: string): Promise<void> {

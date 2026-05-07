@@ -44,8 +44,8 @@ async function fetchConnections(): Promise<CrmConnectionDto[]> {
     credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to fetch CRM connections");
-  const data = (await res.json()) as { ok: boolean; value?: CrmConnectionDto[] };
-  return data.ok && data.value ? data.value : [];
+  const body = (await res.json()) as { ok: boolean; data?: CrmConnectionDto[] };
+  return body.ok && body.data ? body.data : [];
 }
 
 async function fetchSyncLogs(platform: string): Promise<CrmSyncLogDto[]> {
@@ -54,8 +54,8 @@ async function fetchSyncLogs(platform: string): Promise<CrmSyncLogDto[]> {
     credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to fetch sync logs");
-  const data = (await res.json()) as { ok: boolean; value?: CrmSyncLogDto[] };
-  return data.ok && data.value ? data.value : [];
+  const body = (await res.json()) as { ok: boolean; data?: CrmSyncLogDto[] };
+  return body.ok && body.data ? body.data : [];
 }
 
 async function disconnectCrm(platform: string): Promise<void> {

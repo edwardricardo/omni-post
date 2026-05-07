@@ -18,8 +18,8 @@ export async function fetchSamlConfig(): Promise<SamlConfig | null> {
     cache: "no-store",
   });
   if (!res.ok) return null;
-  const data = (await res.json()) as { ok: boolean; value?: SamlConfig };
-  return data.ok && data.value ? data.value : null;
+  const body = (await res.json()) as { ok: boolean; data?: SamlConfig };
+  return body.ok && body.data ? body.data : null;
 }
 
 export async function fetchOidcConfig(): Promise<OidcConfig | null> {
@@ -28,8 +28,8 @@ export async function fetchOidcConfig(): Promise<OidcConfig | null> {
     cache: "no-store",
   });
   if (!res.ok) return null;
-  const data = (await res.json()) as { ok: boolean; value?: OidcConfig };
-  return data.ok && data.value ? data.value : null;
+  const body = (await res.json()) as { ok: boolean; data?: OidcConfig };
+  return body.ok && body.data ? body.data : null;
 }
 
 export async function configureSaml(input: ConfigureSamlInput): Promise<SamlConfig> {
@@ -40,9 +40,9 @@ export async function configureSaml(input: ConfigureSamlInput): Promise<SamlConf
     body: JSON.stringify(input),
   });
   if (!res.ok) throw new Error("Failed to configure SAML");
-  const data = (await res.json()) as { ok: boolean; value?: SamlConfig };
-  if (!data.ok || !data.value) throw new Error("SAML configuration failed");
-  return data.value;
+  const body = (await res.json()) as { ok: boolean; data?: SamlConfig };
+  if (!body.ok || !body.data) throw new Error("SAML configuration failed");
+  return body.data;
 }
 
 export async function configureOidc(input: ConfigureOidcInput): Promise<OidcConfig> {
@@ -53,9 +53,9 @@ export async function configureOidc(input: ConfigureOidcInput): Promise<OidcConf
     body: JSON.stringify(input),
   });
   if (!res.ok) throw new Error("Failed to configure OIDC");
-  const data = (await res.json()) as { ok: boolean; value?: OidcConfig };
-  if (!data.ok || !data.value) throw new Error("OIDC configuration failed");
-  return data.value;
+  const body = (await res.json()) as { ok: boolean; data?: OidcConfig };
+  if (!body.ok || !body.data) throw new Error("OIDC configuration failed");
+  return body.data;
 }
 
 export async function enableSaml(): Promise<void> {

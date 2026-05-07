@@ -38,13 +38,13 @@ export function useScheduleSlots({ projectId, startDate, endDate }: UseSchedulin
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to fetch schedule slots");
-      const data = (await response.json()) as {
+      const body = (await response.json()) as {
         ok: boolean;
-        value?: { slots: AvailableSlot[] };
+        data?: { slots: AvailableSlot[] };
         error?: string;
       };
-      if (!data.ok) throw new Error(data.error ?? "API error");
-      return data.value?.slots ?? [];
+      if (!body.ok) throw new Error(body.error ?? "API error");
+      return body.data?.slots ?? [];
     },
     refetchInterval: 30000, // Refetch every 30 seconds
   });
@@ -65,13 +65,13 @@ export function useOptimalTimes({ projectId }: Pick<UseSchedulingParams, "projec
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to fetch optimal times");
-      const data = (await response.json()) as {
+      const body = (await response.json()) as {
         ok: boolean;
-        value?: { optimalTimes: OptimalTime[] };
+        data?: { optimalTimes: OptimalTime[] };
         error?: string;
       };
-      if (!data.ok) throw new Error(data.error ?? "API error");
-      return data.value?.optimalTimes ?? [];
+      if (!body.ok) throw new Error(body.error ?? "API error");
+      return body.data?.optimalTimes ?? [];
     },
     staleTime: 60 * 60 * 1000, // 1 hour (this data doesn't change frequently)
   });
@@ -92,13 +92,13 @@ export function useSchedulingRules({ projectId }: Pick<UseSchedulingParams, "pro
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to fetch scheduling rules");
-      const data = (await response.json()) as {
+      const body = (await response.json()) as {
         ok: boolean;
-        value?: { rules: SchedulingRule[] };
+        data?: { rules: SchedulingRule[] };
         error?: string;
       };
-      if (!data.ok) throw new Error(data.error ?? "API error");
-      return data.value?.rules ?? [];
+      if (!body.ok) throw new Error(body.error ?? "API error");
+      return body.data?.rules ?? [];
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -126,9 +126,9 @@ export function useCreateSchedule() {
         };
         throw new Error(err.error ?? "Failed to create schedule");
       }
-      const data = (await response.json()) as { ok: boolean; value: CreatedSlot; error?: string };
-      if (!data.ok) throw new Error(data.error ?? "API error");
-      return data.value;
+      const body = (await response.json()) as { ok: boolean; data: CreatedSlot; error?: string };
+      if (!body.ok) throw new Error(body.error ?? "API error");
+      return body.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedule-slots"] });
@@ -158,13 +158,13 @@ export function useBulkCreateSchedules() {
         };
         throw new Error(err.error ?? "Failed to bulk create schedules");
       }
-      const data = (await response.json()) as {
+      const body = (await response.json()) as {
         ok: boolean;
-        value?: { slots: CreatedSlot[] };
+        data?: { slots: CreatedSlot[] };
         error?: string;
       };
-      if (!data.ok) throw new Error(data.error ?? "API error");
-      return data.value?.slots ?? [];
+      if (!body.ok) throw new Error(body.error ?? "API error");
+      return body.data?.slots ?? [];
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedule-slots"] });
@@ -219,13 +219,13 @@ export function useCreateSchedulingRule() {
       if (!response.ok) {
         throw new Error(await parseRuleError(response, "Failed to create rule"));
       }
-      const data = (await response.json()) as {
+      const body = (await response.json()) as {
         ok: boolean;
-        value?: SchedulingRule;
+        data?: SchedulingRule;
         error?: string;
       };
-      if (!data.ok || !data.value) throw new Error(data.error ?? "API error");
-      return data.value;
+      if (!body.ok || !body.data) throw new Error(body.error ?? "API error");
+      return body.data;
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["scheduling-rules"] });
@@ -251,13 +251,13 @@ export function useUpdateSchedulingRule() {
       if (!response.ok) {
         throw new Error(await parseRuleError(response, "Failed to update rule"));
       }
-      const data = (await response.json()) as {
+      const body = (await response.json()) as {
         ok: boolean;
-        value?: SchedulingRule;
+        data?: SchedulingRule;
         error?: string;
       };
-      if (!data.ok || !data.value) throw new Error(data.error ?? "API error");
-      return data.value;
+      if (!body.ok || !body.data) throw new Error(body.error ?? "API error");
+      return body.data;
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["scheduling-rules"] });

@@ -40,13 +40,13 @@ export function useScheduledPosts({
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to fetch scheduled posts");
-      const data = (await response.json()) as {
+      const body = (await response.json()) as {
         ok: boolean;
-        value?: { data: ScheduledPost[] };
+        data?: { data: ScheduledPost[] };
         error?: string;
       };
-      if (!data.ok) throw new Error(data.error ?? "API error");
-      return data.value?.data ?? [];
+      if (!body.ok) throw new Error(body.error ?? "API error");
+      return body.data?.data ?? [];
     },
     refetchInterval: 30000, // Refetch every 30 seconds
   });

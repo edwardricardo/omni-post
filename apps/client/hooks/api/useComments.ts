@@ -32,8 +32,8 @@ async function fetchComments(postId: string): Promise<Comment[]> {
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch comments");
-  const data = (await res.json()) as { ok: boolean; value?: Comment[] };
-  return data.ok && data.value ? data.value : [];
+  const envelope = (await res.json()) as { ok: boolean; data?: Comment[] };
+  return envelope.ok && envelope.data ? envelope.data : [];
 }
 
 async function addComment(
@@ -49,9 +49,9 @@ async function addComment(
     body: JSON.stringify({ authorId, body, ...(parentId ? { parentId } : {}) }),
   });
   if (!res.ok) throw new Error("Failed to add comment");
-  const data = (await res.json()) as { ok: boolean; value?: Comment };
-  if (!data.ok || !data.value) throw new Error("Comment failed");
-  return data.value;
+  const envelope = (await res.json()) as { ok: boolean; data?: Comment };
+  if (!envelope.ok || !envelope.data) throw new Error("Comment failed");
+  return envelope.data;
 }
 
 // ---------------------------------------------------------------------------

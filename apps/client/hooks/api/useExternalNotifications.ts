@@ -39,8 +39,8 @@ async function fetchConfigs(projectId: string): Promise<ExternalNotificationConf
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch webhook configs");
-  const data = (await res.json()) as { ok: boolean; value?: ExternalNotificationConfig[] };
-  return data.ok && data.value ? data.value : [];
+  const body = (await res.json()) as { ok: boolean; data?: ExternalNotificationConfig[] };
+  return body.ok && body.data ? body.data : [];
 }
 
 async function createConfig(params: CreateWebhookParams): Promise<ExternalNotificationConfig> {
@@ -51,9 +51,9 @@ async function createConfig(params: CreateWebhookParams): Promise<ExternalNotifi
     body: JSON.stringify(params),
   });
   if (!res.ok) throw new Error("Failed to create webhook");
-  const data = (await res.json()) as { ok: boolean; value?: ExternalNotificationConfig };
-  if (!data.ok || !data.value) throw new Error("Create failed");
-  return data.value;
+  const body = (await res.json()) as { ok: boolean; data?: ExternalNotificationConfig };
+  if (!body.ok || !body.data) throw new Error("Create failed");
+  return body.data;
 }
 
 async function deleteConfig(id: string): Promise<void> {
@@ -70,8 +70,8 @@ async function testConfig(id: string): Promise<{ sent: boolean }> {
     credentials: "include",
   });
   if (!res.ok) throw new Error("Test request failed");
-  const data = (await res.json()) as { ok: boolean; value?: { sent: boolean } };
-  return data.ok && data.value ? data.value : { sent: false };
+  const body = (await res.json()) as { ok: boolean; data?: { sent: boolean } };
+  return body.ok && body.data ? body.data : { sent: false };
 }
 
 // ---------------------------------------------------------------------------

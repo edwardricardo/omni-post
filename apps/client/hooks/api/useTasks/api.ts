@@ -20,8 +20,8 @@ export async function fetchTasks(params: ListTasksParams): Promise<TaskDto[]> {
     credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to fetch tasks");
-  const data = (await res.json()) as { ok: boolean; value?: TaskDto[] };
-  return data.ok && data.value ? data.value : [];
+  const body = (await res.json()) as { ok: boolean; data?: TaskDto[] };
+  return body.ok && body.data ? body.data : [];
 }
 
 export async function fetchTask(taskId: string, accountId: string): Promise<TaskDto> {
@@ -30,9 +30,9 @@ export async function fetchTask(taskId: string, accountId: string): Promise<Task
     credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to fetch task");
-  const data = (await res.json()) as { ok: boolean; value?: TaskDto };
-  if (!data.ok || !data.value) throw new Error("Task not found");
-  return data.value;
+  const body = (await res.json()) as { ok: boolean; data?: TaskDto };
+  if (!body.ok || !body.data) throw new Error("Task not found");
+  return body.data;
 }
 
 export async function createTask(input: CreateTaskInput): Promise<{ id: string }> {
@@ -43,9 +43,9 @@ export async function createTask(input: CreateTaskInput): Promise<{ id: string }
     body: JSON.stringify(input),
   });
   if (!res.ok) throw new Error("Failed to create task");
-  const data = (await res.json()) as { ok: boolean; value?: { id: string } };
-  if (!data.ok || !data.value) throw new Error("Create task failed");
-  return data.value;
+  const body = (await res.json()) as { ok: boolean; data?: { id: string } };
+  if (!body.ok || !body.data) throw new Error("Create task failed");
+  return body.data;
 }
 
 export async function updateTask(taskId: string, input: UpdateTaskInput): Promise<void> {
