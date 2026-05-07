@@ -158,6 +158,14 @@ jobs:
     name: secretlint (rule-based secrets)
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # `pnpm install` triggers `infra/prisma postinstall` which runs
+    # `prisma generate` and resolves env via Prisma's config loader. Without
+    # DATABASE_URL the loader throws PrismaConfigEnvError and install exits 1
+    # before secretlint can run. Dummy URL — no database connection is made
+    # by `prisma generate`. Same pattern as the size-limit job below.
+    env:
+      DATABASE_URL: "postgresql://audit:audit@localhost:5432/audit"
+      SHADOW_DATABASE_URL: "postgresql://audit:audit@localhost:5432/audit_shadow"
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node-pnpm-cache
