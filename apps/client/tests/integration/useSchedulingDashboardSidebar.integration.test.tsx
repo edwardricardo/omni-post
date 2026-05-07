@@ -5,19 +5,39 @@
  *              wiring: queryOptions factory consumed by useQuery, partial-key
  *              hierarchy works, queries are gated by `enabled` on projectId,
  *              and meta.suppressGlobalErrorToast is set on both leaves.
+ *
+ *              Migration POC for canon
+ *              `msw-v2-setup-for-vitest-tests-with-tanstack-query`: replaces
+ *              the previous `vi.stubGlobal('fetch', ...)` pattern with MSW
+ *              handlers (default success path served by
+ *              `tests/mocks/handlers/scheduling.ts`; per-test failure
+ *              scenarios via `server.use(http.X(...))` inside individual
+ *              `it()` blocks).
  * @layer infrastructure
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, afterEach, afterAll } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import React from "react";
+import { http, HttpResponse } from "msw";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { useSchedulingDashboardSidebar } from "../../hooks/useSchedulingDashboardSidebar";
 import { schedulingQueries } from "../../lib/api/queries/schedulingQueries";
+import { server } from "../mocks/server";
 
-const mockFetch = vi.fn();
-vi.stubGlobal("fetch", mockFetch);
+const PROXY = "/api/backend";
+
+// MSW lifecycle scoped to THIS file. Per-test-file rather than global
+// (vitest setupFiles) so legacy tests using vi.stubGlobal('fetch') keep
+// working — MSW intercepts at the http/undici level, below the fetch
+// global, so a global listen() with onUnhandledRequest: 'error' breaks
+// any test that didn't declare handlers. Migration is incremental: each
+// test that adopts MSW wires its own lifecycle. Strict 'error' is
+// preserved within this file's scope.
+beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
 
 function createWrapper(client: QueryClient) {
   return function Wrapper({ children }: { children: React.ReactNode }) {
@@ -34,27 +54,8 @@ function makeClient() {
   });
 }
 
-function envelope<T>(body: T) {
-  return {
-    ok: true,
-    status: 200,
-    statusText: "OK",
-    json: async () => body,
-  } satisfies Partial<Response>;
-}
-
 describe("useSchedulingDashboardSidebar", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("returns campaigns + team data for a given projectId", async () => {
-    mockFetch
-      .mockResolvedValueOnce(envelope({ ok: true, data: [{ id: "c1", name: "Spring Campaign" }] }))
-      .mockResolvedValueOnce(
-        envelope({ ok: true, data: { members: [{ id: "u1", name: "Ada Lovelace" }] } })
-      );
-
+  it("returns campaigns + team data for a given projectId (uses default MSW handlers)", async () => {
     const { result } = renderHook(() => useSchedulingDashboardSidebar("proj-1"), {
       wrapper: createWrapper(makeClient()),
     });
@@ -62,8 +63,8 @@ describe("useSchedulingDashboardSidebar", () => {
     await waitFor(() => expect(result.current.campaigns.isSuccess).toBe(true));
     await waitFor(() => expect(result.current.team.isSuccess).toBe(true));
 
-    expect(result.current.campaigns.data).toEqual([{ id: "c1", name: "Spring Campaign" }]);
-    expect(result.current.team.data).toEqual([{ id: "u1", name: "Ada Lovelace" }]);
+    expect(result.current.campaigns.data).toEqual([{ id: "c1", name: "Default Campaign" }]);
+    expect(result.current.team.data).toEqual([{ id: "u1", name: "Default User" }]);
   });
 
   it("does not fetch when projectId is undefined (enabled gate)", async () => {
@@ -71,15 +72,15 @@ describe("useSchedulingDashboardSidebar", () => {
       wrapper: createWrapper(makeClient()),
     });
 
-    expect(mockFetch).not.toHaveBeenCalled();
     expect(result.current.campaigns.fetchStatus).toBe("idle");
     expect(result.current.team.fetchStatus).toBe("idle");
   });
 
   it("falls back to empty arrays when envelope.data is missing (graceful degradation)", async () => {
-    mockFetch
-      .mockResolvedValueOnce(envelope({ ok: true })) // no data field
-      .mockResolvedValueOnce(envelope({ ok: true, data: {} })); // no members
+    server.use(
+      http.get(`${PROXY}/campaigns`, () => HttpResponse.json({ ok: true })),
+      http.get(`${PROXY}/team`, () => HttpResponse.json({ ok: true, data: {} }))
+    );
 
     const { result } = renderHook(() => useSchedulingDashboardSidebar("proj-2"), {
       wrapper: createWrapper(makeClient()),
@@ -93,14 +94,11 @@ describe("useSchedulingDashboardSidebar", () => {
   });
 
   it("surfaces the error when the request returns !ok", async () => {
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        statusText: "Internal Server Error",
-        json: async () => ({ ok: false, error: "boom", message: "boom" }),
-      })
-      .mockResolvedValueOnce(envelope({ ok: true, data: { members: [] } }));
+    server.use(
+      http.get(`${PROXY}/campaigns`, () =>
+        HttpResponse.json({ ok: false, error: "boom", message: "boom" }, { status: 500 })
+      )
+    );
 
     const { result } = renderHook(() => useSchedulingDashboardSidebar("proj-3"), {
       wrapper: createWrapper(makeClient()),
@@ -111,25 +109,30 @@ describe("useSchedulingDashboardSidebar", () => {
   });
 
   it("re-runs both queries when projectId changes (cache key includes projectId)", async () => {
-    mockFetch
-      .mockResolvedValueOnce(envelope({ ok: true, data: [{ id: "c-A", name: "A" }] }))
-      .mockResolvedValueOnce(envelope({ ok: true, data: { members: [] } }))
-      .mockResolvedValueOnce(envelope({ ok: true, data: [{ id: "c-B", name: "B" }] }))
-      .mockResolvedValueOnce(envelope({ ok: true, data: { members: [] } }));
-
     const client = makeClient();
+
+    server.use(
+      http.get(`${PROXY}/campaigns`, ({ request }) => {
+        const projectId = new URL(request.url).searchParams.get("projectId");
+        return HttpResponse.json({
+          ok: true,
+          data: [{ id: `c-${projectId}`, name: projectId ?? "" }],
+        });
+      })
+    );
+
     const { result, rerender } = renderHook(
       ({ projectId }: { projectId: string }) => useSchedulingDashboardSidebar(projectId),
       {
         wrapper: createWrapper(client),
-        initialProps: { projectId: "proj-A" },
+        initialProps: { projectId: "A" },
       }
     );
 
     await waitFor(() => expect(result.current.campaigns.isSuccess).toBe(true));
     expect(result.current.campaigns.data).toEqual([{ id: "c-A", name: "A" }]);
 
-    rerender({ projectId: "proj-B" });
+    rerender({ projectId: "B" });
 
     await waitFor(() => expect(result.current.campaigns.data).toEqual([{ id: "c-B", name: "B" }]));
   });
