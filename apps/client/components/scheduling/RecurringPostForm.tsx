@@ -11,7 +11,7 @@ import { useState, useCallback, useId } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@packages/ui";
 import { useProject } from "@/providers/ProjectProvider";
-import { useChannels } from "@/hooks/api/useChannels";
+import { useProjectChannels } from "@/lib/hooks/useProjectChannels";
 import { RecurrenceSelector } from "./RecurrenceSelector";
 import {
   useCreateRecurringPost,
@@ -48,7 +48,7 @@ const CONTENT_VARIATION_OPTIONS = [
 export function RecurringPostForm({ existing }: RecurringPostFormProps) {
   const router = useRouter();
   const { projectId } = useProject();
-  const { data: channels = [] } = useChannels();
+  const { data: channels = [] } = useProjectChannels(projectId);
   const createMutation = useCreateRecurringPost();
   const updateMutation = useUpdateRecurringPost();
 
@@ -230,7 +230,7 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
                   className="rounded text-blue-600"
                 />
                 <span className="truncate">
-                  {ch.providerName} · {ch.accountName}
+                  {ch.providerName} · {ch.accountName ?? ch.handle}
                 </span>
               </label>
             ))}

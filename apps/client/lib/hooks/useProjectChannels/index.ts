@@ -7,4 +7,4 @@
 
 export type { ChannelProvider, ChannelStatus, ProjectChannel } from "./types";
 export { useProjectChannels } from "./queries";
-export { useSetPrimaryChannel } from "./mutations";
+export { useDisconnectChannel, useSetPrimaryChannel } from "./mutations";

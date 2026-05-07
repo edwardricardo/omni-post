@@ -10,10 +10,11 @@
  */
 
 import { useMutation, useQueryClient, type QueryKey } from "@tanstack/react-query";
-import { setPrimaryChannel } from "./api";
+import { disconnectChannel, setPrimaryChannel } from "./api";
 import type { ProjectChannel } from "./types";
 
 const SET_PRIMARY_MUTATION_KEY = ["channels", "set-primary"] as const;
+const DISCONNECT_MUTATION_KEY = ["channels", "disconnect"] as const;
 
 interface SetPrimaryContext {
   /** Snapshots of every project-scoped channel list so we can roll back per-key on error. */
@@ -70,6 +71,49 @@ export function useSetPrimaryChannel() {
       // it will run its own onSettled when it resolves and we avoid a refetch
       // flicker mid-flight (TkDodo: concurrent optimistic updates).
       if (qc.isMutating({ mutationKey: SET_PRIMARY_MUTATION_KEY }) > 1) return;
+      qc.invalidateQueries({ queryKey: ["channels"] });
+    },
+  });
+}
+
+interface DisconnectContext {
+  previous: Array<[QueryKey, ProjectChannel[] | undefined]>;
+}
+
+/**
+ * @hook useDisconnectChannel
+ * @description Mutation that soft-deletes a channel. Optimistically removes
+ *   the row from every cached project list so the UI updates instantly; rolls
+ *   back on error; and revalidates on settle.
+ * @returns TanStack mutation object. Call `mutate(channelId)` or `mutateAsync(channelId)`.
+ */
+export function useDisconnectChannel() {
+  const qc = useQueryClient();
+
+  return useMutation<{ deleted: true }, Error, string, DisconnectContext>({
+    mutationKey: DISCONNECT_MUTATION_KEY,
+    mutationFn: disconnectChannel,
+    onMutate: async (channelId) => {
+      await qc.cancelQueries({ queryKey: ["channels"] });
+      const entries = qc.getQueriesData<ProjectChannel[]>({ queryKey: ["channels", "project"] });
+      const previous: DisconnectContext["previous"] = entries.map(([key, value]) => [key, value]);
+      for (const [key, list] of entries) {
+        if (!list) continue;
+        qc.setQueryData<ProjectChannel[]>(
+          key,
+          list.filter((c) => c.id !== channelId)
+        );
+      }
+      return { previous };
+    },
+    onError: (_err, _channelId, context) => {
+      if (!context) return;
+      for (const [key, value] of context.previous) {
+        qc.setQueryData(key, value);
+      }
+    },
+    onSettled: () => {
+      if (qc.isMutating({ mutationKey: DISCONNECT_MUTATION_KEY }) > 1) return;
       qc.invalidateQueries({ queryKey: ["channels"] });
     },
   });

@@ -43,6 +43,21 @@ export async function fetchProjectChannels(projectId: string): Promise<ProjectCh
 }
 
 /**
+ * Soft-deletes a channel (sets `deletedAt = now`). The row is retained for
+ * audit but disappears from every active query.
+ */
+export async function disconnectChannel(channelId: string): Promise<{ deleted: true }> {
+  const res = await fetch(`/api/backend/channels/${channelId}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) {
+    throw new Error(await readErrorMessage(res, `Failed to disconnect channel (${res.status})`));
+  }
+  return { deleted: true };
+}
+
+/**
  * Promotes a channel to primary for its (project, provider) pair. The backend
  * unmarks the previous primary atomically inside the same transaction so the
  * partial unique index is never violated.
