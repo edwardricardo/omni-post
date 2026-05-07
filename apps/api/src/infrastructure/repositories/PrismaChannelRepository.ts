@@ -25,6 +25,7 @@ interface ChannelRow {
   projectId: string;
   provider: string;
   handle: string;
+  providerAccountId: string | null;
   credentialsCiphertext: string;
   credentialsIv: string;
   credentialsAuthTag: string;
@@ -33,6 +34,11 @@ interface ChannelRow {
   needsReauth: boolean;
   authFailedAt: Date | null;
   authFailureReason: string | null;
+  accountName: string | null;
+  profileImage: string | null;
+  connectedAt: Date | null;
+  expiredAt: Date | null;
+  lastUsedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -83,18 +89,35 @@ export class PrismaChannelRepository implements ChannelRepository {
       recordId: row.id,
       caller: "PrismaChannelRepository.toDomain",
     });
+    // Derive runtime status from persisted lifecycle flags. `expiredAt` is
+    // the latest natural-expiry timestamp (kept as audit history);
+    // `needsReauth` is admin-triggered. Both nullish = CONNECTED. Order
+    // matters: needsReauth wins (admin intent overrides natural lifecycle).
+    // Loose-equality `!= null` covers both production rows (null when unset)
+    // and test fixtures (undefined when mocks don't set the column).
+    const derivedStatus = row.needsReauth
+      ? CONNECTION_STATUS.ERROR
+      : row.expiredAt != null
+        ? CONNECTION_STATUS.EXPIRED
+        : CONNECTION_STATUS.CONNECTED;
+
     return Channel.reconstitute(id, {
       projectId,
       provider: providerResult.value,
       handle: row.handle,
       credentials: parseCredentials(decrypted),
       isPrimary: row.isPrimary,
-      // Status, errorCount, etc. are not persisted — default to healthy state
-      status: CONNECTION_STATUS.CONNECTED,
+      status: derivedStatus,
       errorCount: 0,
       needsReauth: row.needsReauth,
       ...(row.authFailedAt !== null && { authFailedAt: row.authFailedAt }),
       ...(row.authFailureReason !== null && { authFailureReason: row.authFailureReason }),
+      ...(row.accountName !== null && { accountName: row.accountName }),
+      ...(row.profileImage !== null && { profileImage: row.profileImage }),
+      ...(row.connectedAt !== null && { connectedAt: row.connectedAt }),
+      ...(row.expiredAt !== null && { expiredAt: row.expiredAt }),
+      ...(row.lastUsedAt !== null && { lastUsedAt: row.lastUsedAt }),
+      ...(row.providerAccountId !== null && { providerAccountId: row.providerAccountId }),
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     });
@@ -141,6 +164,30 @@ export class PrismaChannelRepository implements ChannelRepository {
     });
 
     return rows.map((r) => this.toDomain(r));
+  }
+
+  /**
+   * Resolve "existing Channel for this OAuth grant?" via the (projectId,
+   * provider, providerAccountId) tuple. Used by the OAuth callback in
+   * `apps/api/src/auth/providerOAuthFlow.ts`. Excludes soft-deleted rows so
+   * a tenant can disconnect + reconnect to a fresh row rather than reviving
+   * a deleted one.
+   */
+  async findByProjectProviderAccount(
+    projectId: ProjectId,
+    provider: Provider,
+    providerAccountId: string
+  ): Promise<Channel | null> {
+    const row = await this.prisma.channel.findFirst({
+      where: {
+        projectId: projectId.value,
+        provider: provider.type as import("@infra/prisma").Provider,
+        providerAccountId,
+        deletedAt: null,
+      },
+    });
+    if (!row) return null;
+    return this.toDomain(row);
   }
 
   /**
@@ -199,6 +246,7 @@ export class PrismaChannelRepository implements ChannelRepository {
           projectId: channel.projectId.value,
           provider: channel.provider.type as import("@infra/prisma").Provider,
           handle: channel.handle,
+          providerAccountId: channel.providerAccountId ?? null,
           credentialsCiphertext: enc.credentialsCiphertext,
           credentialsIv: enc.credentialsIv,
           credentialsAuthTag: enc.credentialsAuthTag,
@@ -207,11 +255,17 @@ export class PrismaChannelRepository implements ChannelRepository {
           needsReauth: channel.needsReauth,
           authFailedAt: channel.authFailedAt ?? null,
           authFailureReason: channel.authFailureReason ?? null,
+          accountName: channel.accountName ?? null,
+          profileImage: channel.profileImage ?? null,
+          connectedAt: channel.connectedAt ?? null,
+          expiredAt: channel.expiredAt ?? null,
+          lastUsedAt: channel.lastUsedAt ?? null,
           createdAt: channel.createdAt,
           updatedAt: channel.updatedAt,
         },
         update: {
           handle: channel.handle,
+          providerAccountId: channel.providerAccountId ?? null,
           credentialsCiphertext: enc.credentialsCiphertext,
           credentialsIv: enc.credentialsIv,
           credentialsAuthTag: enc.credentialsAuthTag,
@@ -220,6 +274,11 @@ export class PrismaChannelRepository implements ChannelRepository {
           needsReauth: channel.needsReauth,
           authFailedAt: channel.authFailedAt ?? null,
           authFailureReason: channel.authFailureReason ?? null,
+          accountName: channel.accountName ?? null,
+          profileImage: channel.profileImage ?? null,
+          connectedAt: channel.connectedAt ?? null,
+          expiredAt: channel.expiredAt ?? null,
+          lastUsedAt: channel.lastUsedAt ?? null,
           updatedAt: channel.updatedAt,
         },
       });

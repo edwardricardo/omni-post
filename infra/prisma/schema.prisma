@@ -33,7 +33,6 @@ model Account {
   updatedAt                DateTime                  @updatedAt @db.Timestamptz(6)
   projects                 Project[]
   apiKeys                  ApiKey[]
-  providerConnections      ProviderConnection[]
   contentTemplates         ContentTemplate[]
   publishingQueue          PublishingQueue[]
   instagramStoryProjects   InstagramStoryProject[]
@@ -597,7 +596,6 @@ model Project {
   channels                    Channel[]
   posts                       Post[]
   account                     Account                      @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  providerConnections         ProviderConnection[]
   contentTemplates            ContentTemplate[]
   publishingQueue             PublishingQueue[]
   instagramStoryProjects      InstagramStoryProject[]
@@ -729,6 +727,21 @@ model Channel {
   credentialsAuthTag    String
   credentialsKeyVersion Int                       @default(1)
   isPrimary                 Boolean                   @default(false)
+  // Display fields populated at OAuth callback time. `accountName` is the
+  // provider-side display handle ("@miempresa", "Acme Inc"); `profileImage`
+  // is the provider-side avatar URL — refreshed on each OAuth grant, not
+  // validated server-side.
+  accountName               String?
+  profileImage              String?
+  // OAuth lifecycle. `connectedAt` is the most recent successful OAuth grant
+  // (refreshed on re-OAuth); distinct from `createdAt` which is row insertion
+  // and never moves. `expiredAt` records when credentials last expired —
+  // intentionally NEVER cleared on reconnect so the audit trail of past
+  // expirations survives. `lastUsedAt` is denormalized from PublishLog
+  // (updated on publish) to avoid the per-row MAX subquery in listing endpoints.
+  connectedAt               DateTime?                 @db.Timestamptz(6)
+  expiredAt                 DateTime?                 @db.Timestamptz(6)
+  lastUsedAt                DateTime?                 @db.Timestamptz(6)
   createdAt                 DateTime                  @default(now()) @db.Timestamptz(6)
   updatedAt                 DateTime                  @updatedAt @db.Timestamptz(6)
   project                   Project                   @relation(fields: [projectId], references: [id])
@@ -904,61 +917,6 @@ model ApiKey {
   // @@index([keyHash]) - REMOVED: Already unique indexed
   @@index([expiresAt])
   @@index([lastUsedAt])
-}
-
-model ProviderConnection {
-  id                String   @id @default(uuid())
-  accountId         String
-  projectId         String
-  providerId        Provider
-  providerName      String // e.g., "X", "Instagram"
-  accountName       String? // e.g., "@username"
-  providerAccountId String? // Provider-specific account ID (renamed to avoid conflict)
-  profileImage      String?
-
-  // Authentication data (encrypted)
-  accessToken  String?
-  refreshToken String?
-  apiKey       String?
-  apiSecret    String?
-  tokenType    String? @default("Bearer")
-
-  // Connection metadata
-  connectedAt DateTime  @default(now()) @db.Timestamptz(6)
-  lastUsedAt  DateTime? @db.Timestamptz(6)
-  expiresAt   DateTime? @db.Timestamptz(6)
-  isActive    Boolean   @default(true)
-  isVerified  Boolean   @default(false)
-
-  // Capabilities and limits (cached from provider)
-  capabilities Json // ProviderCapabilities
-  limits       Json // ProviderLimits
-  constraints  Json? // ProviderConstraints
-
-  // Status and health
-  status          ConnectionStatus @default(CONNECTED)
-  lastHealthCheck DateTime?        @db.Timestamptz(6)
-  healthScore     Int?             @default(100)
-  errorCount      Int              @default(0)
-  lastError       String?
-  lastErrorAt     DateTime?        @db.Timestamptz(6)
-
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @db.Timestamptz(6)
-
-  // Relationships
-  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  @@unique([accountId, projectId, providerId])
-  @@index([accountId, isActive])
-  @@index([projectId, isActive])
-  @@index([providerId, status])
-  @@index([expiresAt])
-  @@index([lastUsedAt])
-  @@index([healthScore])
-  @@index([createdAt])
-  @@index([updatedAt])
 }
 
 model ContentTemplate {
@@ -1183,14 +1141,6 @@ enum TweetStatus {
   PUBLISHING
   PUBLISHED
   FAILED
-}
-
-enum ConnectionStatus {
-  CONNECTED
-  DISCONNECTED
-  ERROR
-  EXPIRED
-  PENDING
 }
 
 enum PublishingStatus {

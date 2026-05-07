@@ -18,10 +18,12 @@ import type { MassForceReauthByProviderUseCase } from "../application/providers/
 import { auditService } from "../audit/auditService.js";
 
 const ParamsSchema = z.object({ provider: z.string().min(1) });
+// `flagChannels` covers the disable-style intent (sets needsReauth) and
+// `softDeleteChannels` covers the destructive variant. Channels are the
+// single source of truth for tenant connection state.
 const BodySchema = z.object({
   reason: z.string().min(1).max(500),
   flagChannels: z.boolean().optional(),
-  disableProviderConnections: z.boolean().optional(),
   softDeleteChannels: z.boolean().optional(),
 });
 
@@ -48,9 +50,6 @@ class MassReauthRouteHandler extends BaseRouteHandler {
       reason: body.data.reason,
       ...(body.data.flagChannels !== undefined && {
         flagChannels: body.data.flagChannels,
-      }),
-      ...(body.data.disableProviderConnections !== undefined && {
-        disableProviderConnections: body.data.disableProviderConnections,
       }),
       ...(body.data.softDeleteChannels !== undefined && {
         softDeleteChannels: body.data.softDeleteChannels,
@@ -87,10 +86,8 @@ class MassReauthRouteHandler extends BaseRouteHandler {
       details: {
         tiers: result.value.tiers,
         channelsFlagged: result.value.channelsFlagged,
-        providerConnectionsDisabled: result.value.providerConnectionsDisabled,
         channelsSoftDeleted: result.value.channelsSoftDeleted,
         channelIds: result.value.channelIds,
-        providerConnectionIds: result.value.providerConnectionIds,
         reason: body.data.reason,
       },
     });

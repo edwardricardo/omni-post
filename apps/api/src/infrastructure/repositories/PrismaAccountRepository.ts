@@ -224,10 +224,9 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
       }
       // 8. Posts
       await this.prisma.post.deleteMany({ where: { projectId: { in: projectIds } } });
-      // 9. Channels
+      // 9. Channels (single connection model — covers tokens + display state)
       await this.prisma.channel.deleteMany({ where: { projectId: { in: projectIds } } });
       // 10. Misc project-scoped tables
-      await this.prisma.providerConnection.deleteMany({ where: { projectId: { in: projectIds } } });
       await this.prisma.contentTemplate.deleteMany({ where: { projectId: { in: projectIds } } });
       await this.prisma.instagramStoryProject.deleteMany({
         where: { projectId: { in: projectIds } },
@@ -246,7 +245,6 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
 
     // Account-level records
     await this.prisma.apiKey.deleteMany({ where: { accountId } });
-    await this.prisma.providerConnection.deleteMany({ where: { accountId } });
     await this.prisma.contentTemplate.deleteMany({ where: { accountId } });
     await this.prisma.publishingQueue.deleteMany({ where: { accountId } });
     await this.prisma.instagramStoryProject.deleteMany({ where: { accountId } });

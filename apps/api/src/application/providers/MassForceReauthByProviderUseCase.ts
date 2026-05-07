@@ -2,10 +2,9 @@
  * @file MassForceReauthByProviderUseCase.ts
  * @description Admin-triggered cross-tenant mass force-reauth for a provider.
  *              When a platform-level OAuth client_secret rotates, every
- *              dependent Channel + ProviderConnection row may need to be
- *              flagged so the tenant reconnects. The admin chooses tier:
+ *              dependent Channel may need to be flagged so the tenant
+ *              reconnects. The admin chooses tier:
  *                - flagChannels (default): set Channel.needsReauth = true
- *                - disableProviderConnections (opt-in): set isActive = false
  *                - softDeleteChannels (opt-in, destructive): set deletedAt
  *              Tiers are independent toggles. All branches run inside one
  *              UoW; audit log is emitted by the route handler post-commit.
@@ -16,14 +15,12 @@ import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import { Provider } from "../../domain/value-objects/Provider.js";
 import type { ChannelRepository } from "../../domain/repositories/ChannelRepository.js";
-import type { ProviderConnectionRepository } from "./ProviderConnectionRepository.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 export interface MassForceReauthInput {
   provider: string;
   reason: string;
   flagChannels?: boolean;
-  disableProviderConnections?: boolean;
   softDeleteChannels?: boolean;
 }
 
@@ -31,14 +28,11 @@ export interface MassForceReauthOutput {
   provider: string;
   tiers: {
     flagChannels: boolean;
-    disableProviderConnections: boolean;
     softDeleteChannels: boolean;
   };
   channelsFlagged: number;
-  providerConnectionsDisabled: number;
   channelsSoftDeleted: number;
   channelIds: string[];
-  providerConnectionIds: string[];
 }
 
 export class MassForceReauthByProviderUseCase implements UseCase<
@@ -48,7 +42,6 @@ export class MassForceReauthByProviderUseCase implements UseCase<
 > {
   constructor(
     private readonly channelRepository: ChannelRepository,
-    private readonly providerConnectionRepository: ProviderConnectionRepository,
     private readonly unitOfWork?: UnitOfWork
   ) {}
 
@@ -70,28 +63,17 @@ export class MassForceReauthByProviderUseCase implements UseCase<
     }
 
     const flagChannels = input.flagChannels ?? true;
-    const disableProviderConnections = input.disableProviderConnections ?? false;
     const softDeleteChannels = input.softDeleteChannels ?? false;
 
     const doWork = async (): Promise<Result<MassForceReauthOutput, UseCaseError>> => {
       let channelsFlagged = 0;
-      let providerConnectionsDisabled = 0;
       let channelsSoftDeleted = 0;
       const channelIds: string[] = [];
-      const providerConnectionIds: string[] = [];
 
       if (flagChannels) {
         const flag = await this.channelRepository.bulkMarkForReauthByProvider(provider, reason);
         channelsFlagged = flag.count;
         channelIds.push(...flag.channelIds);
-      }
-
-      if (disableProviderConnections) {
-        const disable = await this.providerConnectionRepository.bulkDisableByProvider(
-          provider.type
-        );
-        providerConnectionsDisabled = disable.count;
-        providerConnectionIds.push(...disable.connectionIds);
       }
 
       if (softDeleteChannels) {
@@ -104,12 +86,10 @@ export class MassForceReauthByProviderUseCase implements UseCase<
 
       return ok({
         provider: provider.type,
-        tiers: { flagChannels, disableProviderConnections, softDeleteChannels },
+        tiers: { flagChannels, softDeleteChannels },
         channelsFlagged,
-        providerConnectionsDisabled,
         channelsSoftDeleted,
         channelIds,
-        providerConnectionIds,
       });
     };
 

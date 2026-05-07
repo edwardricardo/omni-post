@@ -68,6 +68,20 @@ export interface ChannelRepository {
   ): Promise<Result<Channel, EntityNotFoundError>>;
 
   /**
+   * Resolve "is this OAuth grant for an existing Channel or a new one?"
+   * Lookup by the (projectId, provider, providerAccountId) tuple — the
+   * provider-supplied account ID is what makes a connection re-identifiable
+   * across reconnects (the user's underlying social account ID never
+   * changes; tokens do). Returns null when no Channel matches; the OAuth
+   * callback then creates a fresh row.
+   */
+  findByProjectProviderAccount(
+    projectId: ProjectId,
+    provider: Provider,
+    providerAccountId: string
+  ): Promise<Channel | null>;
+
+  /**
    * Save a channel (create or update)
    */
   save(channel: Channel): Promise<Result<void, Error>>;

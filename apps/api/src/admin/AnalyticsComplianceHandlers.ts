@@ -178,6 +178,8 @@ export class AnalyticsComplianceHandler extends BaseRouteHandler {
         whereClause.createdAt = dateFilter;
       }
 
+      // Connections live as Channel rows nested under each project. Pull
+      // projects.channels in a single include and aggregate per-account.
       const accounts = await this.prisma.account.findMany({
         where: whereClause,
         include: {
@@ -186,44 +188,56 @@ export class AnalyticsComplianceHandler extends BaseRouteHandler {
               id: true,
               name: true,
               createdAt: true,
-            },
-          },
-          providerConnections: {
-            select: {
-              id: true,
-              providerId: true,
-              providerName: true,
-              accountName: true,
-              connectedAt: true,
+              channels: {
+                where: { deletedAt: null },
+                select: {
+                  id: true,
+                  provider: true,
+                  accountName: true,
+                  connectedAt: true,
+                },
+              },
             },
           },
         },
         take: 50,
       });
 
-      const gdprData = accounts.map((account) => ({
-        accountId: account.id,
-        email: account.email,
-        name: account.name,
-        createdAt: account.createdAt,
-        dataCategories: {
-          personalInformation: {
-            email: account.email,
-            name: account.name,
-            createdAt: account.createdAt,
+      const gdprData = accounts.map((account) => {
+        const channelCount = account.projects.reduce(
+          (sum, project) => sum + project.channels.length,
+          0
+        );
+        return {
+          accountId: account.id,
+          email: account.email,
+          name: account.name,
+          createdAt: account.createdAt,
+          dataCategories: {
+            personalInformation: {
+              email: account.email,
+              name: account.name,
+              createdAt: account.createdAt,
+            },
+            subscriptionData: {
+              maxProjects: account.maxProjects,
+              isOnTrial: account.isOnTrial,
+              trialStartDate: account.trialStartDate,
+              trialEndDate: account.trialEndDate,
+            },
+            projects: account.projects.length,
+            channels: channelCount,
           },
-          subscriptionData: {
-            maxProjects: account.maxProjects,
-            isOnTrial: account.isOnTrial,
-            trialStartDate: account.trialStartDate,
-            trialEndDate: account.trialEndDate,
-          },
-          projects: account.projects.length,
-          providerConnections: account.providerConnections.length,
-        },
-        exportable: true,
-        deletable: !account.isOnTrial && account.projects.length === 0,
-      }));
+          exportable: true,
+          deletable: !account.isOnTrial && account.projects.length === 0,
+        };
+      });
+
+      const totalChannels = accounts.reduce(
+        (sum, acc) =>
+          sum + acc.projects.reduce((pSum, project) => pSum + project.channels.length, 0),
+        0
+      );
 
       const summary = {
         totalDataSubjects: accounts.length,
@@ -233,11 +247,7 @@ export class AnalyticsComplianceHandler extends BaseRouteHandler {
           accounts.length > 0
             ? accounts.reduce((sum, acc) => sum + acc.projects.length, 0) / accounts.length
             : 0,
-        averageConnectionsPerAccount:
-          accounts.length > 0
-            ? accounts.reduce((sum, acc) => sum + acc.providerConnections.length, 0) /
-              accounts.length
-            : 0,
+        averageConnectionsPerAccount: accounts.length > 0 ? totalChannels / accounts.length : 0,
       };
 
       this.logInfo(ctx, "GDPR data fetched successfully", {

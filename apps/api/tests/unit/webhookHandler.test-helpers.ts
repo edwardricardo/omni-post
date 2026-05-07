@@ -52,6 +52,12 @@ export function createTestSubscriptionData(
     provider,
     webhookUrl: `https://example.com/webhooks/${provider.toLowerCase()}`,
     secretKey: "test-secret-key",
+    // Grace-window columns must be explicit `null`: the verifier uses strict
+    // `!== null` to gate the previous-secret path, so `undefined` would be
+    // treated as a populated rotation secret and call the HMAC verifier with
+    // `undefined`, masking the expected signature-failure message.
+    previousSecretKey: null,
+    previousSecretKeyExpiresAt: null,
     isActive: true,
     eventsReceived: 0,
     eventsProcessed: 0,
