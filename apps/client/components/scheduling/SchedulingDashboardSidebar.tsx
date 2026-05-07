@@ -7,7 +7,7 @@
  * a scrollable list of posts for the selected (or today's) date.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useLogger, extractErrorInfo } from "@observability/browser-logger";
 import type { DashboardScheduledPost, DashboardFilters } from "./schedulingDashboardTypes";
 import {
@@ -17,19 +17,7 @@ import {
   formatTime,
   formatRelativeTime,
 } from "./schedulingDashboardUtils";
-
-// ---------------------------------------------------------------------------
-// Types for campaign and team data
-// ---------------------------------------------------------------------------
-interface CampaignOption {
-  id: string;
-  name: string;
-}
-
-interface TeamMemberOption {
-  id: string;
-  name: string;
-}
+import { useSchedulingDashboardSidebar } from "../../hooks/useSchedulingDashboardSidebar";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -60,40 +48,32 @@ export function SchedulingDashboardSidebar({
   projectId,
 }: SchedulingDashboardSidebarProps) {
   const logger = useLogger("client.scheduling-sidebar");
-  const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
-  const [teamMembers, setTeamMembers] = useState<TeamMemberOption[]>([]);
+  const { campaigns: campaignsQuery, team: teamQuery } = useSchedulingDashboardSidebar(projectId);
 
-  // Load campaign and team options for the filter dropdowns
+  // Graceful degradation: a load failure leaves the dropdown empty rather
+  // than blocking the rest of the sidebar. The query already opts out of the
+  // global error toast (see schedulingQueries `meta.suppressGlobalErrorToast`);
+  // we still log so persistent failures show up in APM.
   useEffect(() => {
-    if (!projectId) return;
-
-    void fetch(`/api/backend/campaigns?projectId=${projectId}`, { credentials: "include" })
-      .then((r) => r.json() as Promise<{ ok: boolean; data?: CampaignOption[] }>)
-      .then((d) => {
-        if (d.ok && d.data) setCampaigns(d.data);
-      })
-      .catch((err: unknown) => {
-        // Graceful degradation — filters stay usable without the campaigns dropdown.
-        // Log so persistent failures are still visible in APM.
-        logger.warn("Failed to load campaign filter options", {
-          err: extractErrorInfo(err),
-          projectId,
-        });
+    if (campaignsQuery.error) {
+      logger.warn("Failed to load campaign filter options", {
+        err: extractErrorInfo(campaignsQuery.error),
+        projectId,
       });
+    }
+  }, [campaignsQuery.error, logger, projectId]);
 
-    void fetch(`/api/backend/team?projectId=${projectId}`, { credentials: "include" })
-      .then((r) => r.json() as Promise<{ ok: boolean; data?: { members?: TeamMemberOption[] } }>)
-      .then((d) => {
-        if (d.ok && d.data?.members) setTeamMembers(d.data.members);
-      })
-      .catch((err: unknown) => {
-        // Graceful degradation — filters stay usable without the assignee dropdown.
-        logger.warn("Failed to load team filter options", {
-          err: extractErrorInfo(err),
-          projectId,
-        });
+  useEffect(() => {
+    if (teamQuery.error) {
+      logger.warn("Failed to load team filter options", {
+        err: extractErrorInfo(teamQuery.error),
+        projectId,
       });
-  }, [projectId, logger]);
+    }
+  }, [teamQuery.error, logger, projectId]);
+
+  const campaigns = campaignsQuery.data ?? [];
+  const teamMembers = teamQuery.data ?? [];
 
   const hasActiveFilters =
     filters.platforms.length > 0 ||

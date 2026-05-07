@@ -35,7 +35,14 @@ export function Providers({ children }: ProvidersProps) {
       // LoggerProvider and cannot consume `useLogger()`. It still routes errors to
       // the same browser console / sink the rest of the app uses.
       logger: new ConsoleLoggerAdapter("client.query-client"),
-      onQueryError: (error) => {
+      onQueryError: (error, query) => {
+        // Per-query opt-out: graceful-degradation queries set
+        // `meta: { suppressGlobalErrorToast: true }` to keep the failure
+        // silent in the UI (canon entry tanstack-query-v5-migration-
+        // patterns-from-raw-fetch — tkdodo `meta` field). The error is still
+        // logged by createAppQueryClient's QueryCache handler and surfaces in
+        // the consumer hook's `error` field.
+        if (query.meta?.suppressGlobalErrorToast === true) return;
         toast({
           title: "Request failed",
           description: error instanceof Error ? error.message : "Unexpected error",
