@@ -11,7 +11,7 @@
 import { describe, it, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import type { FastifyRequest, FastifyReply } from "fastify";
-import { ok, err, type Result } from "@shared/types";
+import { ok, err } from "@shared/types";
 import { channelReauthRoutes } from "../../../src/admin/channelReauthRoutes.js";
 import { TOKENS } from "../../../src/infrastructure/container/types.js";
 import {
