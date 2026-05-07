@@ -70,6 +70,9 @@ export enum Permission {
 
   // ApiKey admin (cross-tenant rotation)
   APIKEYS_ADMIN_ROTATE = "apikeys:admin_rotate",
+
+  // Provider admin — cross-tenant mass force-reauth (post platform-secret rotation)
+  PROVIDERS_MASS_FORCE_REAUTH = "providers:mass_force_reauth",
 }
 
 // ---------------------------------------------------------------------------
@@ -422,6 +425,7 @@ export class RbacService extends AuditableService {
       "Webhook Admin": [Permission.WEBHOOKS_ROTATE_SECRET],
       "OIDC Admin": [Permission.OIDC_REPLACE_SECRET],
       "API Keys Admin": [Permission.APIKEYS_ADMIN_ROTATE],
+      "Provider Admin (Mass)": [Permission.PROVIDERS_MASS_FORCE_REAUTH],
     };
   }
 

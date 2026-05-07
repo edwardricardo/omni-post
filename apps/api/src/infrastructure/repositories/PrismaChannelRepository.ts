@@ -274,4 +274,61 @@ export class PrismaChannelRepository implements ChannelRepository {
 
     return ok(undefined);
   }
+
+  /**
+   * Bulk-flag every active (non-soft-deleted) channel for a provider with
+   * `needsReauth = true`, `authFailedAt = now`, `authFailureReason = reason`.
+   * Documented exception to the per-entity markForReauth() pattern — see
+   * ChannelRepository port docs.
+   */
+  async bulkMarkForReauthByProvider(
+    provider: Provider,
+    reason: string
+  ): Promise<{ count: number; channelIds: string[] }> {
+    const providerType = provider.type as import("@infra/prisma").Provider;
+    const now = new Date();
+    const targets = await this.prisma.channel.findMany({
+      where: { provider: providerType, deletedAt: null, needsReauth: false },
+      select: { id: true },
+    });
+    if (targets.length === 0) {
+      return { count: 0, channelIds: [] };
+    }
+    const channelIds = targets.map((r) => r.id);
+    const result = await this.prisma.channel.updateMany({
+      where: { id: { in: channelIds } },
+      data: {
+        needsReauth: true,
+        authFailedAt: now,
+        authFailureReason: reason,
+        updatedAt: now,
+      },
+    });
+    return { count: result.count, channelIds };
+  }
+
+  /**
+   * Bulk-soft-delete every active channel for a provider (sets deletedAt).
+   * Returns affected channelIds for audit. Destructive — tenants reconnect
+   * from scratch on next session.
+   */
+  async bulkSoftDeleteByProvider(
+    provider: Provider
+  ): Promise<{ count: number; channelIds: string[] }> {
+    const providerType = provider.type as import("@infra/prisma").Provider;
+    const now = new Date();
+    const targets = await this.prisma.channel.findMany({
+      where: { provider: providerType, deletedAt: null },
+      select: { id: true },
+    });
+    if (targets.length === 0) {
+      return { count: 0, channelIds: [] };
+    }
+    const channelIds = targets.map((r) => r.id);
+    const result = await this.prisma.channel.updateMany({
+      where: { id: { in: channelIds } },
+      data: { deletedAt: now, updatedAt: now },
+    });
+    return { count: result.count, channelIds };
+  }
 }

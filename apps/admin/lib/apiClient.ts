@@ -22,6 +22,7 @@ import { channelsAdminClient } from "./api/clients/channelsAdminClient";
 import { webhooksAdminClient } from "./api/clients/webhooksAdminClient";
 import { oidcAdminClient } from "./api/clients/oidcAdminClient";
 import { apiKeysAdminClient } from "./api/clients/apiKeysAdminClient";
+import { providersAdminClient } from "./api/clients/providersAdminClient";
 
 // Re-export types so existing consumers continue to import from "@/lib/apiClient".
 export type {
@@ -119,6 +120,9 @@ export const api = {
     },
     apiKeys: {
       rotate: apiKeysAdminClient.rotate,
+    },
+    providers: {
+      forceMassReauth: providersAdminClient.forceMassReauth,
     },
   },
 };

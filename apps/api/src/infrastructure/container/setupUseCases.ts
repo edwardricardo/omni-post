@@ -23,6 +23,7 @@ import { setupBrandVoiceUseCases } from "./setupBrandVoiceUseCases.js";
 import { setupBrandKitUseCases } from "./setupBrandKitUseCases.js";
 import { setupSecretsRotationUseCases } from "./setupSecretsRotationUseCases.js";
 import { setupWebhookAdminUseCases } from "./setupWebhookAdminUseCases.js";
+import { setupProviderAdminUseCases } from "./setupProviderAdminUseCases.js";
 import { setupAssetUseCases } from "./setupAssetUseCases.js";
 import { setupIntegrationUseCases } from "./setupIntegrationUseCases.js";
 import { setupTaskUseCases } from "./setupTaskUseCases.js";
@@ -59,6 +60,7 @@ export function setupUseCases(container: Container): void {
   setupBrandKitUseCases(container);
   setupSecretsRotationUseCases(container);
   setupWebhookAdminUseCases(container);
+  setupProviderAdminUseCases(container);
   setupAssetUseCases(container);
   setupIntegrationUseCases(container);
   setupTaskUseCases(container);

@@ -333,6 +333,10 @@ export const TOKENS = {
   // OIDC Admin (replace client secret + handshake test)
   ReplaceOidcClientSecretUseCase: Symbol.for("ReplaceOidcClientSecretUseCase"),
 
+  // Provider Admin Mass (force-reauth post platform secret rotation)
+  ProviderConnectionRepository: Symbol.for("ProviderConnectionRepository"),
+  MassForceReauthByProviderUseCase: Symbol.for("MassForceReauthByProviderUseCase"),
+
   // Integration Platform (Zapier, Make, etc.)
   IntegrationApiKeyRepository: Symbol.for("IntegrationApiKeyRepository"),
   IntegrationSubscriptionRepository: Symbol.for("IntegrationSubscriptionRepository"),

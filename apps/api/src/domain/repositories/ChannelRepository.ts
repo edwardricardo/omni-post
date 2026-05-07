@@ -39,6 +39,26 @@ export interface ChannelRepository {
   findByProjectAndProvider(projectId: ProjectId, provider: Provider): Promise<Channel[]>;
 
   /**
+   * Bulk-set `needsReauth = true` on every active channel for a provider
+   * (cross-tenant). Returns count + list of affected channelIds for audit.
+   *
+   * DOCUMENTED EXCEPTION to the per-entity markForReauth() pattern: O(N)
+   * entity-load-and-save would be prohibitive at scale (10k channels per
+   * provider). Implemented as a single SQL UPDATE in the adapter.
+   */
+  bulkMarkForReauthByProvider(
+    provider: Provider,
+    reason: string
+  ): Promise<{ count: number; channelIds: string[] }>;
+
+  /**
+   * Bulk-soft-delete every active channel for a provider (sets deletedAt).
+   * Cross-tenant. Destructive — tenants must reconnect from scratch.
+   * Returns count + list of affected channelIds for audit.
+   */
+  bulkSoftDeleteByProvider(provider: Provider): Promise<{ count: number; channelIds: string[] }>;
+
+  /**
    * Find the primary channel for a (project, provider) pair, if any.
    * Returns NotFoundError when no primary has been set yet for that pair.
    */
