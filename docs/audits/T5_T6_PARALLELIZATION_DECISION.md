@@ -3,7 +3,7 @@
 **Status**: análisis y recomendación pendiente de aprobación de Edward.
 **Generado**: 2026-05-06.
 **Source**: [REMEDIATION_ROADMAP.md](./REMEDIATION_ROADMAP.md) v2.1 §6 dependency graph + `canon-index.json` (126 entries; +7 entries añadidas 2026-05-06 cubriendo los gaps detectados — Saga+CQRS, i18n, custom hooks, circuit breaker).
-**Phase 2** del meta-plan de [process improvements](../../../.claude/plans/) post-remediation.
+**Phase 2** del meta-plan de process improvements post-remediation (planes locales en `~/.claude/projects/<workspace>/plans/`, fuera del repo).
 
 ## TL;DR
 
