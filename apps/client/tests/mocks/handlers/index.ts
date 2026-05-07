@@ -9,6 +9,7 @@
  * @layer infrastructure
  */
 
+import { notificationsHandlers } from "./notifications";
 import { schedulingHandlers } from "./scheduling";
 
-export const handlers = [...schedulingHandlers];
+export const handlers = [...schedulingHandlers, ...notificationsHandlers];
