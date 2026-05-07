@@ -103,6 +103,20 @@ AREA_TO_PATHS = {
     "encryption": ["apps/api/src/encryption/"],
     "rbac": ["apps/api/src/auth/rbac/"],
     "permission": ["apps/api/src/auth/rbac/"],
+    "tanstack": [
+        "apps/admin/hooks/api/",
+        "apps/admin/lib/api/",
+        "apps/client/hooks/api/",
+        "apps/client/lib/api/",
+        "packages/query-client/",
+    ],
+    "data fetching": [
+        "apps/admin/hooks/api/",
+        "apps/admin/lib/api/",
+        "apps/client/hooks/api/",
+        "apps/client/lib/api/",
+    ],
+    "frontend": ["apps/admin/", "apps/client/", "packages/ui/"],
 }
 
 
@@ -144,6 +158,24 @@ def guess_paths(area: str) -> list[str]:
     return sorted(paths)
 
 
+def parse_applies_to(raw: str) -> list[str]:
+    """Parse the optional `**Applies to**:` field into a list of paths.
+
+    Accepts comma-separated paths, optionally wrapped in backticks. Empty
+    tokens are dropped. Returns the input order preserved (no dedup beyond
+    skipping blanks) so the canon author controls the path-specificity
+    ranking that `pre_edit_canon.py` consumes.
+    """
+    paths: list[str] = []
+    if not raw:
+        return paths
+    for token in raw.split(","):
+        token = token.strip().strip("`")
+        if token:
+            paths.append(token)
+    return paths
+
+
 def parse_entry(title: str, body: str, area: str) -> dict:
     """Extract structured fields from an entry's body."""
     fields = extract_fields(body)
@@ -182,6 +214,16 @@ def parse_entry(title: str, body: str, area: str) -> dict:
         for url in urls
     ]
 
+    # Authored override of the area-keyword heuristic. When present, the
+    # candidate author has declared the exact paths this canon applies to
+    # (e.g. PR-51 entry maps to apps/<app>/hooks/api/, lib/api/queries/, etc.).
+    # `pre_edit_canon.py` uses this list for path-substring matching to
+    # decide whether to inject the canon for a given file edit, so leaving
+    # it to the area-keyword heuristic alone produces silent gaps for any
+    # area the heuristic doesn't cover.
+    declared_paths = parse_applies_to(fields.get("Applies to", ""))
+    applies_to = declared_paths if declared_paths else guess_paths(area)
+
     return {
         "key": slugify(title),
         "topic": title,
@@ -196,7 +238,7 @@ def parse_entry(title: str, body: str, area: str) -> dict:
         "confidence": "high",
         "lastVerified": date,
         "version": 1,
-        "appliesTo": guess_paths(area),
+        "appliesTo": applies_to,
     }
 
 
