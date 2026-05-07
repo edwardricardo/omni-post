@@ -18,12 +18,31 @@ import {
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
- * Adapter for the IdP discovery handshake. Injected to keep the use case
- * pure — production wiring delegates to `openidClient.discovery`; tests
- * stub a local function. Throws on handshake failure (caught by use case).
+ * Result of the handshake probe. `strict` = both discovery + token-endpoint
+ * authentication succeeded (full validation). `partial` = discovery succeeded
+ * but token endpoint rejected `client_credentials` grant with
+ * `unsupported_grant_type` — common for SSO-only configs. The use case still
+ * persists in `partial` but emits an audit-log note.
+ */
+export type OidcHandshakeResult =
+  | { validated: "strict" }
+  | { validated: "partial"; reason: string };
+
+/**
+ * Adapter for the IdP handshake validation. Per canon
+ * `oidc-client-secret-validation-clientcredentialsgrant`, this MUST hit the
+ * token endpoint to actually validate the clientSecret — discovery alone is
+ * insufficient. Production wiring chains discovery + clientCredentialsGrant;
+ * tests stub directly. Throws on real auth failure (`invalid_client`,
+ * network errors, malformed metadata) — caught by use case and mapped to
+ * VALIDATION_FAILED.
  */
 export interface OidcHandshakeProbe {
-  discover(input: { issuerUrl: string; clientId: string; clientSecret: string }): Promise<void>;
+  discover(input: {
+    issuerUrl: string;
+    clientId: string;
+    clientSecret: string;
+  }): Promise<OidcHandshakeResult>;
 }
 
 export interface ReplaceOidcClientSecretInput {
@@ -35,6 +54,16 @@ export interface ReplaceOidcClientSecretOutput {
   accountId: string;
   issuerUrl: string;
   updatedAt: string;
+  /**
+   * Validation level achieved by the handshake probe before persisting.
+   * `strict`: token endpoint authenticated the new secret (canonical).
+   * `partial`: IdP rejected `client_credentials` grant (`unsupported_grant_type`);
+   *   secret format-check passed via discovery but real auth could not be
+   *   verified server-side. Operator should confirm via real SSO attempt.
+   */
+  validation: "strict" | "partial";
+  /** Present when validation === "partial" — the IdP-provided reason. */
+  validationReason?: string;
 }
 
 export class ReplaceOidcClientSecretUseCase implements UseCase<
@@ -71,8 +100,13 @@ export class ReplaceOidcClientSecretUseCase implements UseCase<
     }
 
     // Handshake test runs OUTSIDE the UoW (external HTTP).
+    // Per canon `oidc-client-secret-validation-clientcredentialsgrant`,
+    // probe chains discovery + clientCredentialsGrant; returns either
+    // `strict` (full validation) or `partial` (IdP rejected
+    // `client_credentials` grant — common for SSO-only configs).
+    let handshakeResult: OidcHandshakeResult;
     try {
-      await this.handshakeProbe.discover({
+      handshakeResult = await this.handshakeProbe.discover({
         issuerUrl: data.issuerUrl,
         clientId: data.clientId,
         clientSecret: input.newClientSecret,
@@ -126,6 +160,10 @@ export class ReplaceOidcClientSecretUseCase implements UseCase<
         accountId: entity.accountId,
         issuerUrl: entity.issuerUrl,
         updatedAt: entity.updatedAt.toISOString(),
+        validation: handshakeResult.validated,
+        ...(handshakeResult.validated === "partial" && {
+          validationReason: handshakeResult.reason,
+        }),
       });
     };
 

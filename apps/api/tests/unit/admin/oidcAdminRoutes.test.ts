@@ -99,6 +99,7 @@ function successOutput(): ReplaceOidcClientSecretOutput {
     accountId: ACCOUNT_ID,
     issuerUrl: "https://accounts.example.com",
     updatedAt: "2026-05-06T18:00:00.000Z",
+    validation: "strict",
   };
 }
 

@@ -48,10 +48,16 @@ function makeRepo(
   } as OidcConfigurationRepository;
 }
 
-function makeProbe(behavior: { throws?: Error } = {}): OidcHandshakeProbe {
+function makeProbe(
+  behavior: { throws?: Error; partial?: boolean; partialReason?: string } = {}
+): OidcHandshakeProbe {
   return {
     discover: vi.fn(async () => {
       if (behavior.throws) throw behavior.throws;
+      if (behavior.partial) {
+        return { validated: "partial" as const, reason: behavior.partialReason ?? "x" };
+      }
+      return { validated: "strict" as const };
     }),
   };
 }
@@ -111,7 +117,7 @@ describe("ReplaceOidcClientSecretUseCase", () => {
     assert.equal(arg.clientSecret, NEW_SECRET);
   });
 
-  it("persists the new secret + returns DTO when handshake succeeds", async () => {
+  it("persists the new secret + returns DTO with validation=strict when handshake succeeds (canon: oidc-client-secret-validation-clientcredentialsgrant)", async () => {
     const repo = makeRepo();
     const useCase = new ReplaceOidcClientSecretUseCase(repo, makeProbe());
     const result = await useCase.execute({
@@ -122,10 +128,28 @@ describe("ReplaceOidcClientSecretUseCase", () => {
     assert.equal(result.value.accountId, ACCOUNT_ID);
     assert.equal(result.value.issuerUrl, "https://accounts.example.com");
     assert.equal(typeof result.value.updatedAt, "string");
+    assert.equal(result.value.validation, "strict");
+    assert.equal(result.value.validationReason, undefined);
     const saveCalls = (repo.save as ReturnType<typeof vi.fn>).mock.calls;
     assert.equal(saveCalls.length, 1);
     const savedEntity = saveCalls[0]?.[0] as { clientSecret: string };
     assert.equal(savedEntity.clientSecret, NEW_SECRET);
+  });
+
+  it("returns DTO with validation=partial + reason when probe returns partial (IdP rejected client_credentials)", async () => {
+    const repo = makeRepo();
+    const probe = makeProbe({ partial: true, partialReason: "unsupported_grant_type" });
+    const useCase = new ReplaceOidcClientSecretUseCase(repo, probe);
+    const result = await useCase.execute({
+      accountId: ACCOUNT_ID,
+      newClientSecret: NEW_SECRET,
+    });
+    assert.ok(result.ok);
+    assert.equal(result.value.validation, "partial");
+    assert.equal(result.value.validationReason, "unsupported_grant_type");
+    // Still persists — partial does NOT block. Operator must verify with real SSO attempt.
+    const saveCalls = (repo.save as ReturnType<typeof vi.fn>).mock.calls;
+    assert.equal(saveCalls.length, 1);
   });
 
   it("returns INTERNAL_ERROR when repository save fails", async () => {
