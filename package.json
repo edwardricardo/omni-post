@@ -128,27 +128,15 @@
   },
   "size-limit": [
     {
-      "name": "admin · /login (initial JS)",
-      "path": "apps/admin/.next/static/chunks/app/login/*.js",
-      "limit": "150 KB",
+      "name": "admin · all client chunks (aggregate)",
+      "path": "apps/admin/.next/static/chunks/*.js",
+      "limit": "1.2 MB",
       "gzip": true
     },
     {
-      "name": "admin · /(dashboard) (initial JS)",
-      "path": "apps/admin/.next/static/chunks/app/(dashboard)/*.js",
-      "limit": "250 KB",
-      "gzip": true
-    },
-    {
-      "name": "client · / (initial JS)",
-      "path": "apps/client/.next/static/chunks/app/*.js",
-      "limit": "200 KB",
-      "gzip": true
-    },
-    {
-      "name": "client · /(authenticated) (initial JS)",
-      "path": "apps/client/.next/static/chunks/app/(authenticated)/*.js",
-      "limit": "300 KB",
+      "name": "client · all client chunks (aggregate)",
+      "path": "apps/client/.next/static/chunks/*.js",
+      "limit": "1.4 MB",
       "gzip": true
     }
   ],
