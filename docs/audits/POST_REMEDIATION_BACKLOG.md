@@ -2598,20 +2598,40 @@ Funcionan correctamente — `reset` sigue siendo soportado en v16.2+. La migraci
 
 ---
 
-### PR-51 — Raw fetches → TanStack hooks repo-wide (27 sitios)
+### PR-51 — Raw fetches → TanStack hooks repo-wide (232 sitios — corregido 2026-05-07)
 
 **Surfaced.** 2026-05-04 durante T2-E revisitado canon. T2-E original migró ALGUNOS raw fetches a TanStack pero no los exhaustivos del repo. Este entry consolida el resto.
+
+**Audit corrigida 2026-05-07.** La cifra original de 27 era subset parcial detectado en T2-E revisitado (solo `apps/client`, solo algunos paths). Re-audit exhaustivo con scope `apps/admin` + `apps/client` (excluyendo `lib/api/clients/http.ts` y similares — esos SON la base canónica) revela **232 sitios** (91 admin + 141 client). Subestimación ~9×.
 
 **Batch de origen:** T2-E revisitado canon
 **SLA category:** MEDIUM
 **Needs Edward:** false (refactor masivo; merece su propio plan dedicado per Wave 5 del meta-plan)
 **Tipo:** refactor — UI client+admin
+**Canon de referencia:** `tanstack-query-v5-migration-patterns-from-raw-fetch` (canon-index.json — añadido 2026-05-07; fuentes: TanStack v5 docs + tkdodo). Patrón adoptado para sub-batches: domain-grouped `queryOptions()` factory por dominio (`apps/<app>/lib/api/queries/<domain>Queries.ts`). Hooks legacy con inline-key keys NO se migran en bulk — solo cuando el archivo se toque por otra razón.
 
-**Síntoma.** 27 raw `fetch(` en componentes UI + pages + hooks de `apps/client` que canónicamente deberían usar `useQuery`/`useMutation` con cache invalidation, retry, error boundary integration. Inconsistencia: parte del repo usa TanStack (canónico, Edward-aprobado en T3-A), parte usa fetch crudo.
+**Síntoma.** 232 raw `fetch(` en componentes UI + pages + hooks de `apps/admin` y `apps/client` que canónicamente deberían usar `useQuery`/`useMutation` con cache invalidation, retry, error boundary integration. Inconsistencia: parte del repo usa TanStack (canónico, Edward-aprobado en T3-A), parte usa fetch crudo.
 
-**Inventario (validado vía grep en T2-E revisitado).**
+**Inventario admin (91 sitios) — agrupado por dominio.**
 
-| Dominio                  | Sitios | Archivos                                                                                                                                                                                |
+| Dominio               | Sitios | Archivos representativos                                                                |
+| --------------------- | ------ | --------------------------------------------------------------------------------------- |
+| subscriptions/billing | 5      | `hooks/api/useSubscriptionMutations.ts`, `pages/subscriptions.tsx`                      |
+| settings              | 5      | `hooks/api/useSettings/api.ts`, `pages/settings.tsx`                                    |
+| accounts              | 4      | `hooks/api/useAccounts.ts`, `pages/accounts.tsx`, `hooks/api/useAccountBilling.ts`      |
+| queue                 | 4      | `components/queue/useQueueManager.tsx`, `hooks/api/useQueueManagement.ts`               |
+| compliance            | 3      | `hooks/api/useCompliance/api.ts`                                                        |
+| auth                  | 3      | `app/reset-password/page.tsx`, `pages/auth.tsx`                                         |
+| audit                 | 2      | `hooks/api/useAuditStats.ts`, `pages/logs.tsx`                                          |
+| users                 | 2      | `hooks/api/useAdminUsers/api.ts`                                                        |
+| scheduling            | 2      | (admin scheduling helpers)                                                              |
+| announcements         | 1      | `pages/announcements.tsx`                                                               |
+| projects              | 1      | `hooks/api/useWebhooks/api.ts`                                                          |
+| otros (sin agrupar)   | ~59    | restante distribuido en hooks/api/, components/security/, components/maintenance/, etc. |
+
+**Inventario client (141 sitios) — agrupado por dominio.**
+
+| Dominio                  | Sitios | Archivos representativos                                                                                                                                                                |
 | ------------------------ | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Scheduling sidebar       | 2      | `components/scheduling/SchedulingDashboardSidebar.tsx`                                                                                                                                  |
 | Notifications            | 6      | `components/notifications/NotificationPreferences.tsx` (2), `NotificationBell.tsx` (4)                                                                                                  |
@@ -2621,21 +2641,35 @@ Funcionan correctamente — `reset` sigue siendo soportado en v16.2+. La migraci
 | Templates                | 1      | `components/content/templates/useTemplateData.ts`                                                                                                                                       |
 | Publishing dashboard API | 5      | `components/publishing/publishingDashboardApi.ts`                                                                                                                                       |
 | Pages misc               | 4      | `app/dashboard/settings/referral/page.tsx`, `app/dashboard/scheduling/recurring/[id]/edit/page.tsx`, `app/dashboard/channels/page.tsx` (bluesky), `app/reports/shared/[token]/page.tsx` |
+| otros (sin agrupar)      | ~114   | restante distribuido en accounts/auth, channels, posts, reports, compliance, settings, ai, scheduling                                                                                   |
 
-**Plan estructurado por sub-batch (cada uno self-contained <2h):**
+**Plan estructurado por sub-batch (re-organizado 2026-05-07; cada uno self-contained <3h).**
 
-1. **PR-51.A scheduling sidebar** — extender `useMultiPlatformScheduling` o crear `useSchedulingDashboardSidebar` con `useCampaignsForProject` + `useTeamForProject`. ~80 LoC.
-2. **PR-51.B notifications** — crear `useNotifications.ts` con `useNotificationPreferences` + `useNotifications` + `useUnreadCount` + `useMarkRead` + `useMarkAllRead`. ~150 LoC.
-3. **PR-51.C CRM connections** — crear `useCrmConnections.ts` con `useConnectCrm` + `useChannelConnections`. ~80 LoC.
-4. **PR-51.D AI predict** — extender hooks AI con `usePredictTiming` + `usePredictAudience`. ~120 LoC.
-5. **PR-51.E AI pages** — refactor `repurpose/page.tsx`, `trends/page.tsx` a `useRepurposeProposals` + `useApprovalDecision` + `useTrendsRadar`. ~150 LoC.
-6. **PR-51.F templates** — wrap `useTemplateData.ts` `fetch` en `useQuery`. ~40 LoC.
-7. **PR-51.G publishing dashboard** — refactor `publishingDashboardApi.ts` (5 fetches) a hooks. ~200 LoC.
-8. **PR-51.H pages misc** — referral / recurring-edit / channels-bluesky / reports-shared. Algunos pueden tener razón legítima (e.g., `reports/shared` es public sin auth, tal vez valga RSC fetch). Auditar caso-por-caso. ~150 LoC.
+**Sub-batches admin** (~30 sitios mapeados; ~62 sin agrupar TBD):
 
-**Bloqueado por.** Solo prioritization — todos los hooks TanStack tienen patrón canónico ya establecido en el repo (T3-A QueryClient global config).
+1. **PR-51.admin.A subscriptions/billing** (5 sitios, ~3h) — refactor `useSubscriptionMutations.ts` + `pages/subscriptions.tsx` a `apps/admin/lib/api/queries/billingQueries.ts` factory.
+2. **PR-51.admin.B settings + accounts** (9, ~3h) — `settingsQueries.ts` + extender `useAccounts.ts` con factory pattern.
+3. **PR-51.admin.C queue + auth + audit** (9, ~3h) — `queueQueries.ts`, refactor `app/reset-password/page.tsx` + `useAuditStats.ts`.
+4. **PR-51.admin.D users + compliance + announcements** (6, ~2h) — `usersQueries.ts`, `complianceQueries.ts`, `useAnnouncements.ts`.
+5. **PR-51.admin.E-H restantes** (~62 sitios, distribución TBD durante ejecución por dominio detectado).
 
-**Estado:** PENDING (surfaced 2026-05-04; T2-E revisitado canon cerró exit criteria literales pero NO incluía esta deuda — es repo-wide separate concern).
+**Sub-batches client** (las 8 originales preservadas + 6 nuevas para los ~114 sin agrupar):
+
+1. **PR-51.client.A scheduling sidebar** (2, ~1.5h, **POC en curso 2026-05-07**) — `apps/client/lib/api/queries/schedulingQueries.ts` factory + `useSchedulingDashboardSidebar.ts` con `useCampaignsForProject` + `useTeamForProject`. Sirve como reference implementation del canon entry para sub-batches B-N.
+2. **PR-51.client.B notifications** (6, ~2h) — `notificationsQueries.ts` factory.
+3. **PR-51.client.C CRM connections** (2, ~1h) — `crmQueries.ts` factory.
+4. **PR-51.client.D AI predict** (4, ~2h) — extender hooks AI con queryOptions factory.
+5. **PR-51.client.E AI pages** (3, ~2h) — `aiQueries.ts` factory para repurpose + trends.
+6. **PR-51.client.F templates** (1, ~30min) — wrap en `useQuery` via factory.
+7. **PR-51.client.G publishing dashboard** (5, ~3h) — `publishingQueries.ts` factory.
+8. **PR-51.client.H pages misc** (4, ~2h) — caso-por-caso (algunos pueden quedar como RSC fetch legítimo, e.g., `reports/shared/[token]/page.tsx` es público sin auth).
+9. **PR-51.client.I-N restantes** (~114 sitios, distribución TBD por dominio).
+
+**Estimación total revisada:** ~30-40h (vs ~18h originales — escalado proporcionalmente al volumen real).
+
+**Bloqueado por.** Solo prioritization — patrón canon establecido (`tanstack-query-v5-migration-patterns-from-raw-fetch` en canon-index.json). PR-51.A POC en curso sirve de referencia para sub-batches subsecuentes.
+
+**Estado:** PENDING (corregido 2026-05-07; PR-51.A POC en curso como proof-of-concept del canon entry).
 
 ---
 
