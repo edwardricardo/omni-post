@@ -287,24 +287,20 @@ export class PrismaChannelRepository implements ChannelRepository {
   ): Promise<{ count: number; channelIds: string[] }> {
     const providerType = provider.type as import("@infra/prisma").Provider;
     const now = new Date();
-    const targets = await this.prisma.channel.findMany({
+    // updateManyAndReturn (Prisma 6.2.0+) uses Postgres RETURNING under the
+    // hood — single SQL roundtrip + atomic, no race window between SELECT
+    // and UPDATE. Replaces legacy findMany+updateMany 2-query pattern.
+    const updated = await this.prisma.channel.updateManyAndReturn({
       where: { provider: providerType, deletedAt: null, needsReauth: false },
-      select: { id: true },
-    });
-    if (targets.length === 0) {
-      return { count: 0, channelIds: [] };
-    }
-    const channelIds = targets.map((r) => r.id);
-    const result = await this.prisma.channel.updateMany({
-      where: { id: { in: channelIds } },
       data: {
         needsReauth: true,
         authFailedAt: now,
         authFailureReason: reason,
         updatedAt: now,
       },
+      select: { id: true },
     });
-    return { count: result.count, channelIds };
+    return { count: updated.length, channelIds: updated.map((r) => r.id) };
   }
 
   /**
@@ -317,18 +313,11 @@ export class PrismaChannelRepository implements ChannelRepository {
   ): Promise<{ count: number; channelIds: string[] }> {
     const providerType = provider.type as import("@infra/prisma").Provider;
     const now = new Date();
-    const targets = await this.prisma.channel.findMany({
+    const updated = await this.prisma.channel.updateManyAndReturn({
       where: { provider: providerType, deletedAt: null },
+      data: { deletedAt: now, updatedAt: now },
       select: { id: true },
     });
-    if (targets.length === 0) {
-      return { count: 0, channelIds: [] };
-    }
-    const channelIds = targets.map((r) => r.id);
-    const result = await this.prisma.channel.updateMany({
-      where: { id: { in: channelIds } },
-      data: { deletedAt: now, updatedAt: now },
-    });
-    return { count: result.count, channelIds };
+    return { count: updated.length, channelIds: updated.map((r) => r.id) };
   }
 }

@@ -16,18 +16,13 @@ export class PrismaProviderConnectionRepository implements ProviderConnectionRep
 
   async bulkDisableByProvider(provider: string): Promise<BulkDisableProviderConnectionsResult> {
     const providerEnum = provider as PrismaProvider;
-    const targets = await this.prisma.providerConnection.findMany({
+    // updateManyAndReturn (Prisma 6.2.0+) — single SQL roundtrip via Postgres
+    // RETURNING. Replaces legacy findMany+updateMany 2-query pattern.
+    const updated = await this.prisma.providerConnection.updateManyAndReturn({
       where: { providerId: providerEnum, isActive: true },
+      data: { isActive: false, updatedAt: new Date() },
       select: { id: true },
     });
-    if (targets.length === 0) {
-      return { count: 0, connectionIds: [] };
-    }
-    const connectionIds = targets.map((r) => r.id);
-    const result = await this.prisma.providerConnection.updateMany({
-      where: { id: { in: connectionIds } },
-      data: { isActive: false, updatedAt: new Date() },
-    });
-    return { count: result.count, connectionIds };
+    return { count: updated.length, connectionIds: updated.map((r) => r.id) };
   }
 }
