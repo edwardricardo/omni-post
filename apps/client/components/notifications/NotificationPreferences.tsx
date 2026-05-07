@@ -8,16 +8,17 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useNotificationPreferences,
+  useSaveNotificationPreferences,
+  type NotificationPreferenceDto,
+} from "@/hooks/api/useNotificationsApi";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-interface NotificationPreference {
-  type: string;
-  enabled: boolean;
-}
+type NotificationPreference = NotificationPreferenceDto;
 
 // Human-readable labels for each notification type
 const TYPE_LABELS: Record<string, { label: string; description: string }> = {
@@ -46,30 +47,6 @@ const TYPE_LABELS: Record<string, { label: string; description: string }> = {
     description: "When someone @mentions you in a post or comment",
   },
 };
-
-// ---------------------------------------------------------------------------
-// API helpers
-// ---------------------------------------------------------------------------
-
-async function fetchPreferences(): Promise<NotificationPreference[]> {
-  const res = await fetch("/api/backend/notifications/preferences", {
-    cache: "no-store",
-    credentials: "include",
-  });
-  if (!res.ok) throw new Error("Failed to fetch preferences");
-  const data = (await res.json()) as { ok: boolean; value?: NotificationPreference[] };
-  return data.ok && data.value ? data.value : [];
-}
-
-async function savePreferences(preferences: NotificationPreference[]): Promise<void> {
-  const res = await fetch("/api/backend/notifications/preferences", {
-    method: "PUT",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ preferences }),
-  });
-  if (!res.ok) throw new Error("Failed to save preferences");
-}
 
 // ---------------------------------------------------------------------------
 // Toggle component (avoids external dependency for a simple boolean toggle)
@@ -116,19 +93,14 @@ function Toggle({
  *              mount and persists changes via PUT endpoint with save confirmation toast.
  */
 export function NotificationPreferences() {
-  const queryClient = useQueryClient();
   const [localPrefs, setLocalPrefs] = useState<NotificationPreference[]>([]);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-  const {
-    data: serverPrefs,
-    isLoading,
-    isError,
-  } = useQuery({
-    queryKey: ["notification-preferences"],
-    queryFn: fetchPreferences,
-    staleTime: 60_000,
-  });
+  // Canon: `tanstack-query-v5-migration-patterns-from-raw-fetch` —
+  // queryOptions factory consumed via the useNotificationsApi barrel. The
+  // mutation invalidates `notificationsQueries.all()` on success (no manual
+  // queryClient.invalidateQueries needed in this component).
+  const { data: serverPrefs, isLoading, isError } = useNotificationPreferences();
 
   // Initialise local state from server data
   useEffect(() => {
@@ -140,20 +112,17 @@ export function NotificationPreferences() {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  const saveMutation = useMutation({
-    mutationFn: savePreferences,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["notification-preferences"] });
-      showToast("success", "Preferences saved");
-    },
-    onError: () => showToast("error", "Failed to save preferences"),
-  });
+  const saveMutation = useSaveNotificationPreferences();
 
   const handleToggle = (type: string, enabled: boolean) => {
     setLocalPrefs((prev) => prev.map((p) => (p.type === type ? { ...p, enabled } : p)));
   };
 
-  const handleSave = () => saveMutation.mutate(localPrefs);
+  const handleSave = () =>
+    saveMutation.mutate(localPrefs, {
+      onSuccess: () => showToast("success", "Preferences saved"),
+      onError: () => showToast("error", "Failed to save preferences"),
+    });
 
   // ---------------------------------------------------------------------------
   // Render
