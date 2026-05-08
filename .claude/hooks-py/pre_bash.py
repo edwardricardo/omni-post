@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import GIT_PUSH_RE, current_branch, make_logger, read_hook_input  # noqa: E402
 
 HOOK_NAME = "pre-bash"
-ALLOWED_BRANCH_PREFIX = "refactor/remediation-v2.1"
+ALLOWED_BRANCH_PREFIX = "workstream/"
 
 # Detecta comandos que escriben (redirect / tee) a un archivo .ts/.tsx.
 # Cubre: 'cat > foo.ts <<EOF', 'echo ... > bar.tsx', 'tee baz.ts'.
