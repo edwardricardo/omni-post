@@ -2914,7 +2914,7 @@ reg-suit hace diffing entre snapshots committed vs current build, con publish a 
 
 **Bloqueado por.** Decisión Edward. No-install es default; cambiar a install requiere caso de uso documentado.
 
-**Estado:** PENDING (decision pending — default = no install; revisitar cuando aparezca trigger).
+**Estado:** **WONT_FIX** (cerrado 2026-05-07). Edward decide no instalar reg-suit. Si en el futuro surge necesidad de visual regression (equipo crece, UI surface area crece, incidente concreto de "PR rompió layout y nadie lo vio"), revivir este entry con decisión de storage backend que corresponda. Alternativa interim disponible sin install: `expect(page).toHaveScreenshot()` de Playwright (ya integrado, snapshots existentes en `apps/client/tests/e2e/tests/visual.spec.ts-snapshots/`).
 
 ---
 
@@ -2961,7 +2961,7 @@ Re-evaluar si:
 
 **Bloqueado por.** Decisión Edward. No-install + documentar uso on-demand es default.
 
-**Estado:** PENDING (decision pending — default = no install + doc on-demand; revisitar cuando aparezca incidente).
+**Estado:** **WONT_FIX** (cerrado 2026-05-07). Edward decide no instalar clinic.js como dep permanente. Sigue disponible on-demand vía `npx clinic` (no requiere wiring). Si aparece incidente recurrente que justifique CI integration o performance gate, revivir este entry. Documentación on-demand existente: ver `performance/scripts/` (k6 + regression detector) que cubren el flow agregado.
 
 ---
 
