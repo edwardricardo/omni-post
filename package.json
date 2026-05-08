@@ -51,7 +51,9 @@
     "check:dead-code": "knip",
     "check:duplicates": "jscpd apps/ packages/",
     "check:circular": "madge --circular --extensions ts,tsx --exclude 'generated|node_modules|dist' apps/api/src/ packages/",
-    "secret:scan": "secretlint --secretlintrc .secretlintrc.json --secretlintignore .secretlintignore 'apps/**/*' 'packages/**/*' 'infra/**/*' '.env*' '*.{ts,tsx,js,jsx,json,md,yml,yaml,toml,sh}'"
+    "secret:scan": "secretlint --secretlintrc .secretlintrc.json --secretlintignore .secretlintignore 'apps/**/*' 'packages/**/*' 'infra/**/*' '.env*' '*.{ts,tsx,js,jsx,json,md,yml,yaml,toml,sh}'",
+    "env:backup": "bash scripts/env-backup.sh",
+    "env:restore": "bash scripts/env-restore.sh"
   },
   "devDependencies": {
     "@ast-grep/cli": "0.42.0",
