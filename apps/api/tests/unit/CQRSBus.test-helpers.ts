@@ -1,3 +1,8 @@
+/**
+ * @file CQRSBus.test-helpers.ts
+ * @description Test helpers for cqrsbus test helpers
+ * @layer infrastructure
+ */
 import type { DomainEvent } from "@shared/events";
 import type {
   Command,

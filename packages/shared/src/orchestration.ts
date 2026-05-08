@@ -1,7 +1,7 @@
 /**
- * Phase 3A Week 5: Multi-Provider Content Synchronization & Orchestration Types
- *
- * TypeScript types for enterprise-grade content orchestration system
+ * @file orchestration.ts
+ * @description TypeScript types for multi-provider content synchronization
+ *              and orchestration (plans, executions, conflicts, sync configs).
  */
 
 import type { CanonicalPost, Result } from "./types";

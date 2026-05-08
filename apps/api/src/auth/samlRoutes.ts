@@ -19,7 +19,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { SAML } from "@node-saml/node-saml";
-import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
+import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import type { ConfigureSamlUseCase } from "../application/auth/ConfigureSamlUseCase.js";
@@ -28,6 +28,7 @@ import type { DisableSsoUseCase } from "../application/auth/DisableSsoUseCase.js
 import type { GetSamlConfigurationQuery } from "../application/auth/GetSamlConfigurationQuery.js";
 import type { SamlConfigurationRepository } from "../domain/repositories/SamlConfigurationRepository.js";
 import type { AuthService } from "./authService.js";
+import { env } from "../config/env.js";
 
 // ============================================================================
 // Schemas
@@ -154,7 +155,7 @@ class SamlAdminHandler extends BaseRouteHandler {
 // SAML Flow Helpers
 // ============================================================================
 
-const APP_BASE_URL = process.env.APP_BASE_URL ?? "https://omnipost.app";
+const APP_BASE_URL = env.APP_BASE_URL ?? "https://omnipost.app";
 
 function buildSamlInstance(config: {
   entityId: string;
@@ -353,7 +354,7 @@ export const samlRoutes: FastifyPluginAsync = async (app) => {
 
         reply.setCookie("refreshToken", loginData.tokens.refreshToken, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
+          secure: env.NODE_ENV === "production",
           sameSite: "strict",
           maxAge: 7 * 24 * 60 * 60 * 1000,
           path: "/auth",

@@ -2,6 +2,10 @@
  * Tests for useAuditLogs
  *
  * useAuditLogs delegates to api.audit.getLogs(filters) — we mock the api module.
+ *
+ * @file useAuditLogs.test.tsx
+ * @description Tests for useAuditLogs
+ * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";

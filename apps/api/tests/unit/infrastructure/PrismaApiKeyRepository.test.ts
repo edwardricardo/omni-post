@@ -4,6 +4,10 @@
  * Part of FASE H10-B: API Key Management
  * Tests PrismaApiKeyRepository in isolation using a mocked PrismaClient.
  * Tier 0: No database required.
+ *
+ * @file PrismaApiKeyRepository.test.ts
+ * @description Tests for PrismaApiKeyRepository
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";

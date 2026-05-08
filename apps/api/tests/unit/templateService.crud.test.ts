@@ -2,6 +2,10 @@
  * Unit Tests for TemplateService - CRUD Operations
  *
  * Covers: Get Templates, Get Template, Create Template, Update Template, Delete Template
+ *
+ * @file templateService.crud.test.ts
+ * @description Tests for TemplateService - Get Templates
+ * @layer infrastructure
  */
 
 import "./templateRoutes.env-setup.js";

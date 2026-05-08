@@ -1,0 +1,367 @@
+name: Architectural Fitness Functions
+
+# Wires the 13 fitness greps documented in CLAUDE.md §Automated Compliance
+# Checks to CI as a hard-zero gate. Any new occurrence of any pattern fails
+# the workflow and is annotated on the PR diff.
+#
+# Strategy: hard-zero (every check must return count = 0). The codebase
+# reached zero across all 13 checks during the T1→T4 remediation; this
+# workflow lock-ins that state and prevents silent regression.
+#
+# Canon: Ford & Parsons "Building Evolutionary Architectures" (2nd ed) —
+# hard-zero is the correct mode for invariants in a clean codebase; ratchets
+# are only correct when a non-zero baseline cannot be eliminated immediately.
+#
+# Design: single job + 13 named steps with `if: always()` so a violation in
+# one step does NOT mask later violations — every PR sees every check.
+# Annotations are aggregated to one `::error` per check (bypasses the
+# 10-errors-per-step / 50-per-job silent cap of GitHub Actions).
+#
+# Reference: docs/audits/REMEDIATION_ROADMAP.md §T4-P.
+
+on:
+  push:
+    branches: [main, omni-post-cc, "refactor/**"]
+  pull_request:
+    branches: [main, omni-post-cc]
+
+concurrency:
+  group: fitness-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fitness:
+    name: Fitness Functions (CLAUDE.md greps)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: "#1 No Prisma singleton imports in routes"
+        if: always()
+        run: |
+          set -uo pipefail
+          MATCHES=$(grep -rn "import { prisma" apps/api/src/ --include="*routes*" 2>/dev/null || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #1 violation::$COUNT Prisma singleton imports found in route files (expected 0). Resolve repositories from DI: fastify.container.resolve(TOKENS.XRepository)."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
+      - name: "#2 Domain layer is framework-free"
+        if: always()
+        run: |
+          set -uo pipefail
+          MATCHES=$(grep -rn "prisma\|fastify\|redis\|bullmq" apps/api/src/domain/ --include="*.ts" 2>/dev/null || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #2 violation::$COUNT framework references found in domain layer (expected 0). Domain must import nothing external — no Prisma, Fastify, Redis, BullMQ."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
+      - name: "#3 No `any` in domain/application/infrastructure"
+        if: always()
+        run: |
+          set -uo pipefail
+          MATCHES=$(grep -rnE "(:\s+any\b|\bas any\b|<any>)" \
+            apps/api/src/domain/ apps/api/src/application/ apps/api/src/infrastructure/ \
+            --include="*.ts" 2>/dev/null | \
+            grep -vE "//.*any|^[^:]+:[0-9]+:\s*\*" || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #3 violation::$COUNT \`any\` usages in domain/application/infrastructure (expected 0). Use proper interfaces, generics, or \`unknown\` + type guard."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
+      - name: "#4 No raw throws in domain/application"
+        if: always()
+        run: |
+          set -uo pipefail
+          MATCHES=$(grep -rn "throw " apps/api/src/domain/ apps/api/src/application/ --include="*.ts" 2>/dev/null || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #4 violation::$COUNT raw \`throw\` statements in domain/application (expected 0). Use Result<T, DomainError> for fallible operations."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
+      - name: "#5 No @ts-ignore or @ts-nocheck in production source"
+        if: always()
+        run: |
+          set -uo pipefail
+          MATCHES=$(grep -rn "@ts-ignore\|@ts-nocheck" apps/api/src/ packages/*/src/ --include="*.ts" 2>/dev/null || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #5 violation::$COUNT @ts-ignore/@ts-nocheck in production source (expected 0). Fix the underlying type issue."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
+      - name: "#6 CQRS handlers don't touch Prisma directly"
+        if: always()
+        run: |
+          set -uo pipefail
+          MATCHES=$(grep -rn "prisma\." apps/api/src/cqrs/handlers/ --include="*.ts" 2>/dev/null || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #6 violation::$COUNT direct Prisma calls in CQRS handlers (expected 0). Delegate to Application layer use cases."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
+      - name: "#7 No randomUUID/Math.random in dedupeKey"
+        if: always()
+        run: |
+          set -uo pipefail
+          MATCHES=$(grep -rn "dedupeKey.*randomUUID\|dedupeKey.*Math.random" apps/api/src/ packages/ --include="*.ts" 2>/dev/null || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #7 violation::$COUNT dedupeKey uses non-deterministic ID (expected 0). DedupeKey must be deterministic: saga-\${sagaId}-\${stepIndex}."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
+      - name: "#8 No sprint/phase references in source comments"
+        if: always()
+        run: |
+          set -uo pipefail
+          # Catches: "Sprint 1", "Sprint A", "Sprint 8", "Part of Sprint X",
+          # "Phase 1", "Phase 2", and the legacy "T0A_" / "T0-A" task-batch
+          # prefixes used during remediation. All belong in git history /
+          # PR descriptions, not in source comments where they rot.
+          MATCHES=$(grep -rnE "Part of Sprint|Phase.*Sprint|Sprint [0-9A-Z]|Phase [0-9]|T0A_|T0-A" \
+            apps/ packages/ infra/ --include="*.ts" --include="*.tsx" --include="*.prisma" 2>/dev/null | \
+            grep -vE "node_modules|dist|\.next|\.stryker-tmp|\.stryker|reports/mutation|infra/prisma/generated/" || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #8 violation::$COUNT sprint/phase references in source (expected 0). Belongs in git history, not source comments."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
+      - name: "#9 Every file has @file header"
+        if: always()
+        run: |
+          set -uo pipefail
+          MATCHES=$(grep -rL "@file" apps/ packages/ --include="*.ts" --include="*.tsx" 2>/dev/null | \
+            grep -v "node_modules\|dist\|\.next\|\.stryker\|reports/mutation\|next-env\.d\.ts" || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #9 violation::$COUNT files missing @file header (expected 0)."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
+      - name: "#10 Only valid @layer values (domain/application/infrastructure)"
+        if: always()
+        run: |
+          set -uo pipefail
+          MATCHES=$(grep -rn "@layer" apps/ packages/ --include="*.ts" --include="*.tsx" 2>/dev/null | \
+            grep -v "node_modules\|dist\|\.next\|\.stryker\|reports/mutation" | \
+            grep -v "@layer application\|@layer domain\|@layer infrastructure" || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #10 violation::$COUNT files with invalid @layer value (expected 0). Allowed: domain, application, infrastructure."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
+      - name: "#11 No raw setInterval in backend"
+        if: always()
+        run: |
+          set -uo pipefail
+          MATCHES=$(grep -rnE "setInterval\(" apps/api/src apps/workers/src packages/ --include="*.ts" 2>/dev/null | \
+            grep -vE "default-scheduler|node_modules|dist|\.test\.|/tests/|/\.stryker-tmp/|eslint\.config|DANGEROUS_STRINGS|enhancedValidator\.ts" || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #11 violation::$COUNT raw setInterval calls in backend (expected 0). Register via TOKENS.BackgroundTaskScheduler."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
+      - name: "#12 Every component file carries @component tag"
+        if: always()
+        run: |
+          set -uo pipefail
+          MISSING=""
+          for f in $(find apps/admin/components apps/client/components packages/ui/src/components \
+            -type f -name "*.tsx" 2>/dev/null | grep -v "\.stories\.\|\.test\.\|\.next" || true); do
+            basename=$(basename "$f")
+            case "$basename" in use*) continue;; esac
+            if ! grep -qE "^export (default )?(function|const) [A-Z]" "$f"; then continue; fi
+            if ! grep -q "@component" "$f"; then
+              MISSING="$MISSING\n$f"
+            fi
+          done
+          COUNT=$(printf "%b" "$MISSING" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #12 violation::$COUNT React component files missing @component JSDoc tag (expected 0)."
+            printf "%b\n" "$MISSING" | head -20
+            exit 1
+          fi
+
+      - name: "#13 No direct pino imports in apps/api"
+        if: always()
+        run: |
+          set -uo pipefail
+          MATCHES=$(grep -rnE "^import pino\b|^const \w+ = pino\(" apps/api/src --include="*.ts" 2>/dev/null | \
+            grep -v "lib/logger\.ts\|\.test\.\|/tests/\|/\.stryker-tmp/" || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #13 violation::$COUNT direct pino imports in apps/api (expected 0). Use createLogger() from apps/api/src/lib/logger.ts so redaction config is uniform."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
+      - name: "#14 No per-class `private *Cache = new Map` in apps/api/src"
+        if: always()
+        run: |
+          set -uo pipefail
+          MATCHES=$(grep -rnE "^\s+private \w*[Cc]ache.*= new Map" apps/api/src --include="*.ts" 2>/dev/null | \
+            grep -v "\.test\.\|/tests/" || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #14 violation::$COUNT per-class private *Cache = new Map() in apps/api/src (expected 0). All cross-pod cached state MUST go through TOKENS.CachePort. Reason: OWASP A07:2021 cache coherence."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
+      - name: "#15 No insecure secret fallbacks (CWE-798)"
+        if: always()
+        run: |
+          set -uo pipefail
+          # Block the patterns:
+          #   process.env.X_SECRET || "dev-only-..."
+          #   process.env.X_KEY ?? ""
+          #   process.env.X_TOKEN || generated()
+          # The fix in app code is the typed `env` constant from
+          # apps/api/src/config/env.ts (Zod-validated, fail-fast). In provider
+          # apiClients, secrets must arrive via constructor injection from the
+          # composition root, never read from env at module/method scope.
+          # Scope: apps/api/src + apps/workers/src + packages/providers/*
+          # (excluding _template scaffolding).
+          MATCHES=$(grep -rnE 'process\.env\.[A-Z_]*(SECRET|KEY|PASSWORD|TOKEN|CREDENTIAL)[A-Z_]*\s*(\|\||\?\?)' \
+            apps/api/src apps/workers/src packages/providers --include="*.ts" 2>/dev/null | \
+            grep -v "node_modules\|\.test\.\|/tests/\|\.stryker\|/dist/\|config/env\.ts\|providers/_template/" || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #15 violation::$COUNT insecure secret fallbacks (expected 0). Replace with the typed env constant from apps/api/src/config/env.ts — Zod schema fails fast at boot, no fallback. Reason: CWE-798 (Use of Hard-coded Credentials), OWASP A07:2025."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
+      - name: "#19 No process.env reads inside provider Adapter classes"
+        if: always()
+        run: |
+          set -uo pipefail
+          # Provider adapters are stateless and receive credentials per-call
+          # from the application layer's CredentialResolver. Any env read
+          # inside an Adapter.ts file reintroduces the CWE-798 anti-pattern
+          # by smuggling secrets through the module rather than via injection.
+          # Operational config that legitimately lives in apiClient.ts is
+          # allowed there but NOT in the adapter itself. Excludes _template.
+          MATCHES=$(grep -rnE 'process\.env\.' packages/providers/*/src/*Adapter.ts 2>/dev/null | \
+            grep -v "providers/_template/\|\.stryker\|/dist/" || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #19 violation::$COUNT process.env reads inside provider Adapter classes (expected 0). Adapters must receive credentials per-call and any operational config via constructor injection from the composition root."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
+      - name: "#16 No direct process.env.* in apps/api/src outside config/env.ts"
+        if: always()
+        run: |
+          set -uo pipefail
+          # apps/api/src must consume the typed `env` constant from
+          # config/env.ts — direct process.env access bypasses Zod validation
+          # and creates a regression vector for #15. Workers + packages are
+          # out of scope (separate refactor) but this gate locks in the API.
+          # Exception: process.env.NODE_ENV — Node ecosystem convention treats
+          # this as runtime-readable, and tests rely on dynamic mutation.
+          MATCHES=$(grep -rn "process\.env\." apps/api/src --include="*.ts" 2>/dev/null | \
+            grep -v "config/env\.ts\|/tests/\|\.test\.\|process\.env\.NODE_ENV\b" || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #16 violation::$COUNT direct process.env.* references in apps/api/src outside config/env.ts (expected 0). Use the typed env constant — see apps/api/src/config/env.ts."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
+      - name: "#17 No direct process.env.* in Next.js apps outside lib/env.ts"
+        if: always()
+        run: |
+          set -uo pipefail
+          # Next.js client bundles inline process.env reads at BUILD TIME via
+          # Webpack DefinePlugin. A `process.env.SOME_SECRET` referenced in a
+          # client component leaks the value into the JS shipped to the
+          # browser. Routing every consumer through `lib/env.ts` (t3-env)
+          # enforces server/client split via the `clientPrefix` convention
+          # and fails build when a secret is referenced from client code.
+          # Exception: process.env.NODE_ENV (Node ecosystem convention) +
+          # playwright config (runs outside Next bundle).
+          MATCHES=$(grep -rnE "process\.env\." \
+              apps/admin/{app,components,hooks,lib,providers} \
+              apps/client/{app,components,hooks,lib,providers} \
+              --include="*.ts" --include="*.tsx" 2>/dev/null | \
+            grep -v "lib/env\.ts\|process\.env\.NODE_ENV\b\|/tests/\|\.test\." || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #17 violation::$COUNT direct process.env.* references in Next.js apps outside lib/env.ts (expected 0). Use the typed env constant — see apps/{admin,client}/lib/env.ts. Reason: Webpack DefinePlugin inlines client process.env at build time; client components must consume only NEXT_PUBLIC_* via env."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
+      - name: "#18 No direct argon2.hash/verify outside passwordHashing.ts"
+        if: always()
+        run: |
+          set -uo pipefail
+          # Centralised Argon2id hashing in `apps/api/src/auth/passwordHashing.ts`
+          # ensures every password / API-key / backup-code hash uses identical
+          # canonical parameters (RFC 9106 second-recommended). Direct calls to
+          # `argon2.hash()` or `argon2.verify()` elsewhere create drift risk —
+          # one site might use lib defaults, another might pass weaker params.
+          # Route everything through `hashPassword`, `verifyPassword`,
+          # `needsRehash` from the helper.
+          MATCHES=$(grep -rnE "argon2\.(hash|verify)\(" apps/api/src --include="*.ts" 2>/dev/null | \
+            grep -v "passwordHashing\.ts\|/tests/\|\.test\." || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #18 violation::$COUNT direct argon2.hash/verify calls outside apps/api/src/auth/passwordHashing.ts (expected 0). Route through the helper — see hashPassword / verifyPassword / needsRehash."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
+      - name: Fitness summary
+        if: always()
+        run: |
+          echo "## Fitness Functions" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "18 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
+          echo "Hard-zero threshold: any new occurrence fails this workflow with an \`::error\` annotation." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "See individual step results above for any violations." >> $GITHUB_STEP_SUMMARY

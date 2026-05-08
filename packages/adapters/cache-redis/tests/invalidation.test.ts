@@ -2,6 +2,10 @@
  * CacheInvalidationManager tests
  * Pure unit tests — Redis is mocked with an in-memory Map.
  * No real Redis connection required. Tier 0.
+ *
+ * @file invalidation.test.ts
+ * @description Tests for CacheInvalidationManager — dependency graph
+ * @layer infrastructure
  */
 
 import { describe, it, afterAll, expect, vi } from "vitest";

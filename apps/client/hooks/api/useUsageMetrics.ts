@@ -3,7 +3,7 @@
 /**
  * @file useUsageMetrics.ts
  * @description TanStack Query hook for fetching account usage metrics.
- * @layer presentation
+ * @layer infrastructure
  */
 
 import { useQuery } from "@tanstack/react-query";
@@ -23,7 +23,9 @@ async function fetchUsageMetrics(
   year: number,
   month: number
 ): Promise<UsageMetricsDto> {
-  const res = await fetch(`/api/backend/accounts/${accountId}/usage?year=${year}&month=${month}`);
+  const res = await fetch(`/api/backend/accounts/${accountId}/usage?year=${year}&month=${month}`, {
+    credentials: "include",
+  });
   if (!res.ok) throw new Error("Failed to fetch usage metrics");
   const json = (await res.json()) as { ok: boolean; data?: UsageMetricsDto };
   if (!json.data) throw new Error("No data returned");

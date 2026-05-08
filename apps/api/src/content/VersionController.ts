@@ -8,6 +8,7 @@
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@infra/prisma";
 import Redis from "ioredis";
+import type { CachePort } from "@ports/core";
 import {
   ContentVersion,
   OrchestrationResult,
@@ -37,12 +38,19 @@ export class VersionController {
   private prisma: PrismaClient;
   private redis: Redis;
   private eventService: EventService;
-  private versionCache = new Map<string, ContentVersion>();
+  private cache: CachePort;
+  private static readonly VERSION_TTL_SECONDS = 86_400;
 
-  constructor(dependencies: { prisma: PrismaClient; redis: Redis; eventService: EventService }) {
+  constructor(dependencies: {
+    prisma: PrismaClient;
+    redis: Redis;
+    eventService: EventService;
+    cache: CachePort;
+  }) {
     this.prisma = dependencies.prisma;
     this.redis = dependencies.redis;
     this.eventService = dependencies.eventService;
+    this.cache = dependencies.cache;
   }
 
   /**
@@ -82,8 +90,9 @@ export class VersionController {
         await this.deactivatePreviousVersions(postId);
       }
 
-      // Cache version
-      this.versionCache.set(version.id, version);
+      await this.cache.set(`version:${version.id}`, version, {
+        ttlSeconds: VersionController.VERSION_TTL_SECONDS,
+      });
 
       // Emit version created event
       await this.emitVersionEvent("VERSION_CREATED", version, {
@@ -114,20 +123,8 @@ export class VersionController {
    * Get version by ID
    */
   async getVersion(versionId: string): Promise<ContentVersion | null> {
-    // Check cache first
-    if (this.versionCache.has(versionId)) {
-      return this.versionCache.get(versionId)!;
-    }
-
-    // Check Redis
-    const cached = await this.redis.get(`version:${versionId}`);
-    if (cached) {
-      const version = JSON.parse(cached);
-      this.versionCache.set(versionId, version);
-      return version;
-    }
-
-    // Fallback to database
+    const cached = await this.cache.get<ContentVersion>(`version:${versionId}`);
+    if (cached) return cached;
     return null;
   }
 
@@ -234,8 +231,7 @@ export class VersionController {
       version.isActive = false;
       await this.storeVersion(version, null); // Snapshot not needed for deactivation
 
-      // Clear from cache
-      this.versionCache.delete(versionId);
+      await this.cache.delete(`version:${versionId}`);
 
       return { ok: true, value: undefined };
     } catch (error) {

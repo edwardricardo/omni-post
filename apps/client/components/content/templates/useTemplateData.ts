@@ -35,7 +35,9 @@ export const useTemplateData = (
   const { data: serverTemplates, isLoading } = useQuery<ContentTemplate[]>({
     queryKey: ["templates", projectId],
     queryFn: async () => {
-      const res = await fetch(`/api/backend/projects/${projectId}/templates`);
+      const res = await fetch(`/api/backend/projects/${projectId}/templates`, {
+        credentials: "include",
+      });
       if (!res.ok) {
         throw new Error(`Failed to fetch templates: ${res.status}`);
       }

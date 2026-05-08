@@ -1,11 +1,14 @@
 /**
  * Integration Tests - Crisis Mode Routes
  *
- * Part of Sprint 19: Crisis Mode Feature
  * Tests the full HTTP request/response cycle for crisis mode endpoints.
  *
  * NOTE: These tests require the API server to be running.
  * Run `pnpm dev:api` before running these tests.
+ *
+ * @file crisisRoutes.test.ts
+ * @description Tests for Crisis Mode Routes Integration
+ * @layer infrastructure
  */
 
 import { describe, it, before, after, beforeEach } from "node:test";

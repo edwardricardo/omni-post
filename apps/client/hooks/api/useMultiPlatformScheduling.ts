@@ -34,15 +34,17 @@ export function useScheduleSlots({ projectId, startDate, endDate }: UseSchedulin
         ...(startDate !== undefined && { startDate: startDate.toISOString() }),
         ...(endDate !== undefined && { endDate: endDate.toISOString() }),
       });
-      const response = await fetch(`/api/backend/scheduling/slots?${params}`);
+      const response = await fetch(`/api/backend/scheduling/slots?${params}`, {
+        credentials: "include",
+      });
       if (!response.ok) throw new Error("Failed to fetch schedule slots");
-      const data = (await response.json()) as {
+      const body = (await response.json()) as {
         ok: boolean;
-        value?: { slots: AvailableSlot[] };
+        data?: { slots: AvailableSlot[] };
         error?: string;
       };
-      if (!data.ok) throw new Error(data.error ?? "API error");
-      return data.value?.slots ?? [];
+      if (!body.ok) throw new Error(body.error ?? "API error");
+      return body.data?.slots ?? [];
     },
     refetchInterval: 30000, // Refetch every 30 seconds
   });
@@ -59,15 +61,17 @@ export function useOptimalTimes({ projectId }: Pick<UseSchedulingParams, "projec
     queryKey: ["optimal-times", projectId],
     queryFn: async (): Promise<OptimalTime[]> => {
       const params = new URLSearchParams({ projectId });
-      const response = await fetch(`/api/backend/analytics/optimal-times?${params}`);
+      const response = await fetch(`/api/backend/analytics/optimal-times?${params}`, {
+        credentials: "include",
+      });
       if (!response.ok) throw new Error("Failed to fetch optimal times");
-      const data = (await response.json()) as {
+      const body = (await response.json()) as {
         ok: boolean;
-        value?: { optimalTimes: OptimalTime[] };
+        data?: { optimalTimes: OptimalTime[] };
         error?: string;
       };
-      if (!data.ok) throw new Error(data.error ?? "API error");
-      return data.value?.optimalTimes ?? [];
+      if (!body.ok) throw new Error(body.error ?? "API error");
+      return body.data?.optimalTimes ?? [];
     },
     staleTime: 60 * 60 * 1000, // 1 hour (this data doesn't change frequently)
   });
@@ -84,15 +88,17 @@ export function useSchedulingRules({ projectId }: Pick<UseSchedulingParams, "pro
     queryKey: ["scheduling-rules", projectId],
     queryFn: async (): Promise<SchedulingRule[]> => {
       const params = new URLSearchParams({ projectId });
-      const response = await fetch(`/api/backend/scheduling/rules?${params}`);
+      const response = await fetch(`/api/backend/scheduling/rules?${params}`, {
+        credentials: "include",
+      });
       if (!response.ok) throw new Error("Failed to fetch scheduling rules");
-      const data = (await response.json()) as {
+      const body = (await response.json()) as {
         ok: boolean;
-        value?: { rules: SchedulingRule[] };
+        data?: { rules: SchedulingRule[] };
         error?: string;
       };
-      if (!data.ok) throw new Error(data.error ?? "API error");
-      return data.value?.rules ?? [];
+      if (!body.ok) throw new Error(body.error ?? "API error");
+      return body.data?.rules ?? [];
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -110,6 +116,7 @@ export function useCreateSchedule() {
     mutationFn: async (scheduleData: CreateScheduleInput): Promise<CreatedSlot> => {
       const response = await fetch("/api/backend/scheduling/slots", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(scheduleData),
       });
@@ -119,9 +126,9 @@ export function useCreateSchedule() {
         };
         throw new Error(err.error ?? "Failed to create schedule");
       }
-      const data = (await response.json()) as { ok: boolean; value: CreatedSlot; error?: string };
-      if (!data.ok) throw new Error(data.error ?? "API error");
-      return data.value;
+      const body = (await response.json()) as { ok: boolean; data: CreatedSlot; error?: string };
+      if (!body.ok) throw new Error(body.error ?? "API error");
+      return body.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedule-slots"] });
@@ -141,6 +148,7 @@ export function useBulkCreateSchedules() {
     mutationFn: async (input: BulkCreateScheduleInput): Promise<CreatedSlot[]> => {
       const response = await fetch("/api/backend/scheduling/slots/bulk", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
       });
@@ -150,16 +158,134 @@ export function useBulkCreateSchedules() {
         };
         throw new Error(err.error ?? "Failed to bulk create schedules");
       }
-      const data = (await response.json()) as {
+      const body = (await response.json()) as {
         ok: boolean;
-        value?: { slots: CreatedSlot[] };
+        data?: { slots: CreatedSlot[] };
         error?: string;
       };
-      if (!data.ok) throw new Error(data.error ?? "API error");
-      return data.value?.slots ?? [];
+      if (!body.ok) throw new Error(body.error ?? "API error");
+      return body.data?.slots ?? [];
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedule-slots"] });
+    },
+  });
+}
+
+interface CreateSchedulingRuleInput {
+  projectId: string;
+  name: string;
+  providers: string[];
+  frequency?: string;
+  active?: boolean;
+}
+
+interface UpdateSchedulingRuleInput {
+  ruleId: string;
+  name: string;
+}
+
+interface ToggleSchedulingRuleInput {
+  ruleId: string;
+  active: boolean;
+}
+
+async function parseRuleError(response: Response, fallback: string): Promise<string> {
+  const err = (await response.json().catch(() => ({ error: fallback }))) as { error?: string };
+  return err.error ?? fallback;
+}
+
+/**
+ * @hook useCreateSchedulingRule
+ * @description Mutation hook for creating a scheduling rule. Invalidates rules cache on success.
+ */
+export function useCreateSchedulingRule() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: CreateSchedulingRuleInput): Promise<SchedulingRule> => {
+      const response = await fetch("/api/backend/scheduling/rules", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: input.projectId,
+          name: input.name,
+          providers: input.providers,
+          frequency: input.frequency ?? "daily",
+          active: input.active ?? true,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(await parseRuleError(response, "Failed to create rule"));
+      }
+      const body = (await response.json()) as {
+        ok: boolean;
+        data?: SchedulingRule;
+        error?: string;
+      };
+      if (!body.ok || !body.data) throw new Error(body.error ?? "API error");
+      return body.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["scheduling-rules"] });
+    },
+  });
+}
+
+/**
+ * @hook useUpdateSchedulingRule
+ * @description Mutation hook for editing a scheduling rule's name.
+ */
+export function useUpdateSchedulingRule() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ ruleId, name }: UpdateSchedulingRuleInput): Promise<SchedulingRule> => {
+      const response = await fetch(`/api/backend/scheduling/rules/${ruleId}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!response.ok) {
+        throw new Error(await parseRuleError(response, "Failed to update rule"));
+      }
+      const body = (await response.json()) as {
+        ok: boolean;
+        data?: SchedulingRule;
+        error?: string;
+      };
+      if (!body.ok || !body.data) throw new Error(body.error ?? "API error");
+      return body.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["scheduling-rules"] });
+    },
+  });
+}
+
+/**
+ * @hook useToggleSchedulingRule
+ * @description Mutation hook for activating/deactivating a scheduling rule.
+ */
+export function useToggleSchedulingRule() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ ruleId, active }: ToggleSchedulingRuleInput): Promise<void> => {
+      const response = await fetch(`/api/backend/scheduling/rules/${ruleId}/toggle`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active }),
+      });
+      if (!response.ok) {
+        throw new Error(await parseRuleError(response, "Failed to toggle rule"));
+      }
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["scheduling-rules"] });
     },
   });
 }

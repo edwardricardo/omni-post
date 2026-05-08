@@ -8,6 +8,8 @@
 
 import { useState, useEffect } from "react";
 import { X, Info, AlertTriangle, Wrench, AlertOctagon } from "lucide-react";
+import { useLogger, extractErrorInfo } from "@observability/browser-logger";
+import { request, PROXY_BASE } from "@/lib/api/clients/request";
 
 interface Announcement {
   id: string;
@@ -45,18 +47,22 @@ function addDismissed(id: string): void {
  * @description Renders active system announcements. Dismissible per-announcement via localStorage.
  */
 export function AnnouncementBanner() {
+  const logger = useLogger("client.announcement-banner");
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setDismissed(getDismissed());
-    fetch("/api/announcements/active")
-      .then((res) => (res.ok ? res.json() : null))
+    request<{ data: Announcement[] }>(PROXY_BASE, "/announcements/active")
       .then((json) => {
-        if (json?.data) setAnnouncements(json.data);
+        if (json.data) setAnnouncements(json.data);
       })
-      .catch(() => {});
-  }, []);
+      .catch((err: unknown) => {
+        // Banner renders nothing if the fetch fails — graceful degradation.
+        // Log so sustained failures (e.g., API down) are still visible in APM.
+        logger.warn("Failed to fetch active announcements", { err: extractErrorInfo(err) });
+      });
+  }, [logger]);
 
   const visible = announcements.filter((a) => !dismissed.has(a.id));
   if (visible.length === 0) return null;
@@ -85,7 +91,7 @@ export function AnnouncementBanner() {
               className="text-muted-foreground hover:text-foreground shrink-0"
               aria-label="Dismiss"
             >
-              <X className="h-4 w-4" />
+              <X aria-hidden="true" className="h-4 w-4" />
             </button>
           </div>
         );

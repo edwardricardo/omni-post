@@ -1,7 +1,7 @@
 /**
  * @file useAIImages.ts
  * @description TanStack Query hooks for AI image generation.
- * @layer client-hooks
+ * @layer infrastructure
  */
 
 "use client";
@@ -38,22 +38,24 @@ export interface GenerateImageParams {
 async function generateImage(params: GenerateImageParams): Promise<GeneratedImage> {
   const res = await fetch("/api/backend/ai/generate-image", {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
   });
   if (!res.ok) throw new Error("Failed to generate image");
-  const data = (await res.json()) as { ok: boolean; value?: GeneratedImage };
-  if (!data.ok || !data.value) throw new Error("Generation failed");
-  return data.value;
+  const body = (await res.json()) as { ok: boolean; data?: GeneratedImage };
+  if (!body.ok || !body.data) throw new Error("Generation failed");
+  return body.data;
 }
 
 async function fetchGeneratedImages(projectId: string): Promise<GeneratedImage[]> {
   const res = await fetch(`/api/backend/ai/generated-images?projectId=${projectId}`, {
+    credentials: "include",
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch generated images");
-  const data = (await res.json()) as { ok: boolean; value?: GeneratedImage[] };
-  return data.ok && data.value ? data.value : [];
+  const body = (await res.json()) as { ok: boolean; data?: GeneratedImage[] };
+  return body.ok && body.data ? body.data : [];
 }
 
 // ---------------------------------------------------------------------------

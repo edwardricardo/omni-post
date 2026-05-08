@@ -1,3 +1,9 @@
+/**
+ * @file apiClient.ts
+ * @description TikTok main API client orchestrating marketing, research, content analytics,
+ *              auth, video processing, and hashtag helpers with circuit breaker protection.
+ * @layer infrastructure
+ */
 import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
 import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
 import { ProviderError } from "@providers/shared";
@@ -72,7 +78,6 @@ export class TikTokApiClient {
       const { TikTokResearchApiClient } = require("./researchApiClient.js");
       this.researchClient = new TikTokResearchApiClient({
         ...this.credentials,
-        researchApiKey: process.env.TIKTOK_RESEARCH_API_KEY || "",
       });
     }
     return this.researchClient!;
@@ -86,7 +91,6 @@ export class TikTokApiClient {
       const { TikTokContentAnalyticsClient } = require("./contentAnalyticsClient.js");
       this.analyticsClient = new TikTokContentAnalyticsClient({
         ...this.credentials,
-        analyticsApiKey: process.env.TIKTOK_ANALYTICS_API_KEY || "",
       });
     }
     return this.analyticsClient!;

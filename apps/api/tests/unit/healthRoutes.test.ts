@@ -4,12 +4,19 @@
  * Testing health check endpoints for monitoring and Kubernetes probes
  *
  * Coverage Target: 95%+
+ *
+ * @file healthRoutes.test.ts
+ * @description Tests for healthRoutes - Unit Tests
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, vi, expect } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import type Redis from "ioredis";
 import type { RedisCacheManager } from "@adapters/cache-redis";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
+import { createTestContainer } from "../../src/infrastructure/container/setup.js";
+import { TOKENS } from "../../src/infrastructure/container/types.js";
 
 // ─── Mock Types ─────────────────────────────────────────────────────
 type MockRedis = Pick<Redis, "ping" | "get" | "set" | "del" | "keys">;
@@ -167,24 +174,34 @@ const createMockHealthCheckManager = (status: "healthy" | "degraded" | "unhealth
   };
 };
 
-vi.mock("@monitoring/health-checks", () => ({
-  createHealthCheckManager: vi.fn(),
-  DatabaseHealthChecker: class {},
-  RedisHealthChecker: class {},
-  CacheHealthChecker: class {},
-  QueueHealthChecker: class {},
-  StorageHealthChecker: class {},
-  ProviderHealthChecker: class {},
-}));
+vi.mock("@monitoring/health-checks", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@monitoring/health-checks")>();
+  return {
+    ...actual,
+    createHealthCheckManager: vi.fn(),
+    DatabaseHealthChecker: class {},
+    RedisHealthChecker: class {},
+    CacheHealthChecker: class {},
+    QueueHealthChecker: class {},
+    StorageHealthChecker: class {},
+    ProviderHealthChecker: class {},
+  };
+});
 
-vi.mock("@adapters/db-prisma", () => ({
-  createPrismaRepoAdapter: vi.fn(() => ({})),
-}));
+vi.mock("@adapters/db-prisma", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@adapters/db-prisma")>();
+  return {
+    ...actual,
+    createPrismaRepoAdapter: vi.fn(() => ({})),
+  };
+});
 
-vi.mock("@adapters/queue-bullmq", () => ({
-  createBullMQQueueAdapter: vi.fn(() => ({})),
-}));
+vi.mock("@adapters/queue-bullmq", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@adapters/queue-bullmq")>();
+  return { ...actual };
+});
 
+// Full REPLACE intentional — storage-s3 has import-time side effects.
 vi.mock("@adapters/storage-s3", () => ({
   createS3StorageAdapter: vi.fn(() => ({})),
 }));
@@ -209,6 +226,26 @@ describe("healthRoutes - Unit Tests", () => {
     );
 
     app = Fastify({ logger: false });
+
+    // Provide a DI container so healthRoutes can resolve BackgroundTaskScheduler.
+    const container = createTestContainer();
+    container.registerInstance(TOKENS.BackgroundTaskScheduler, new NoopBackgroundTaskScheduler());
+    // healthRoutes resolves a queue adapter via the registry. Provide a
+    // stub that exercises the QueuePortRegistry contract without touching
+    // BullMQ or Redis.
+    const stubQueuePort = {
+      enqueue: vi.fn(async () => ({ ok: true as const, value: "stub-id" })),
+      health: vi.fn(async () => ({
+        ok: true as const,
+        value: { connected: true, waiting: 0, active: 0, completed: 0, failed: 0 },
+      })),
+      remove: vi.fn(async () => ({ ok: true as const, value: true })),
+    };
+    container.registerInstance(TOKENS.QueuePortRegistry, {
+      forQueue: () => stubQueuePort,
+      close: async () => {},
+    });
+    app.decorate("container", container);
 
     const { healthRoutes } = await import("../../src/health/healthRoutes.js");
     await app.register(healthRoutes, {

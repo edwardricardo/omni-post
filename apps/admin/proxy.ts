@@ -1,9 +1,8 @@
 /**
- * Admin Proxy (Next.js 16)
- *
- * Cookie-based route protection for the admin app.
- * Redirects unauthenticated users to /auth/login and
- * authenticated users away from the login page.
+ * @file proxy.ts
+ * @description Next.js 16 proxy for the admin app — cookie-based route protection that redirects
+ *              unauthenticated users to /auth/login and authenticated users away from login.
+ * @layer infrastructure
  */
 
 import { NextRequest, NextResponse } from "next/server";

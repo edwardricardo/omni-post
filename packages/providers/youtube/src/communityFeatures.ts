@@ -1,3 +1,9 @@
+/**
+ * @file communityFeatures.ts
+ * @description YouTube community posts service — creates, lists, and moderates community posts
+ *              and their replies via the YouTube Data API.
+ * @layer infrastructure
+ */
 import { google, youtube_v3 } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
 import { createExternalApiCircuitBreaker } from "@adapters/external-apis";

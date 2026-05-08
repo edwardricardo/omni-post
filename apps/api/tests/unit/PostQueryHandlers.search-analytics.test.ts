@@ -1,3 +1,8 @@
+/**
+ * @file PostQueryHandlers.search-analytics.test.ts
+ * @description Tests for SearchPostsQueryHandler - Basic Functionality
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, expect } from "vitest";
 import {
   SearchPostsQueryHandler,

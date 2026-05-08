@@ -1,17 +1,23 @@
 /**
- * Cache Factory
- * Factory functions for creating and managing global cache instances
+ * @file factory.ts
+ * @description Factory functions (createCacheManager, getCacheManager, resetCacheManager) for
+ *              creating and managing the global RedisCacheManager instance.
+ * @layer infrastructure
  */
 
 import type { CacheConfig } from "./types.js";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { RedisCacheManager } from "./cache-manager.js";
 
 // Global cache instance
 let globalCache: RedisCacheManager | null = null;
 
-export function createCacheManager(config: CacheConfig): RedisCacheManager {
+export function createCacheManager(
+  config: CacheConfig,
+  scheduler?: BackgroundTaskScheduler
+): RedisCacheManager {
   if (!globalCache) {
-    globalCache = new RedisCacheManager(config);
+    globalCache = new RedisCacheManager(config, scheduler);
   }
   return globalCache;
 }

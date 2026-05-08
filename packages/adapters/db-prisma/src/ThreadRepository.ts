@@ -1,3 +1,9 @@
+/**
+ * @file ThreadRepository.ts
+ * @description Prisma-backed repository for Thread and Tweet entities — create, update,
+ *              list, and status transition operations with strategy mapping.
+ * @layer infrastructure
+ */
 import { ok, err, type Result, type Thread, type Tweet } from "@shared/types";
 import type { CreateThreadInput, CreateTweetInput, UpdateTweetInput } from "@ports/core";
 import { prisma, type ThreadStrategy as PrismaThreadStrategy } from "@infra/prisma";

@@ -1,7 +1,16 @@
+/**
+ * @file index.ts
+ * @description Cloudinary storage adapter implementing StoragePort — generates signed upload
+ *              parameters and retrieves media metadata via the Cloudinary SDK.
+ * @layer infrastructure
+ */
 import { randomUUID } from "node:crypto";
 import { ok, err, type Result } from "@shared/types";
 import type { StoragePort, UploadSignature, MediaMetadata } from "@ports/core";
-import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
+import {
+  createExternalApiCircuitBreaker,
+  type CircuitBreakerStatus,
+} from "@adapters/external-apis";
 import { v2 as cloudinary } from "cloudinary";
 import client from "prom-client";
 import { createLogger } from "@observability/logger";
@@ -43,7 +52,7 @@ export function createCloudinaryStorageAdapter(config: CloudinaryConfig): Storag
   getMetadata(input: {
     url: string;
   }): Promise<Result<MediaMetadata, "NOT_FOUND" | "SERVICE_ERROR">>;
-  getCircuitBreakerStatus(): Record<string, any>;
+  getCircuitBreakerStatus(): Record<string, CircuitBreakerStatus | null>;
   getMetricsRegistry(): client.Registry;
 } {
   // Configure Cloudinary
@@ -207,7 +216,7 @@ export function createCloudinaryStorageAdapter(config: CloudinaryConfig): Storag
     },
 
     // Circuit breaker management
-    getCircuitBreakerStatus(): Record<string, any> {
+    getCircuitBreakerStatus(): Record<string, CircuitBreakerStatus | null> {
       return circuitBreaker.getAllStatuses();
     },
 

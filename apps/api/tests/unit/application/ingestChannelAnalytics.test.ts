@@ -1,7 +1,7 @@
 /**
  * @file ingestChannelAnalytics.test.ts
  * @description Unit tests for IngestChannelAnalyticsUseCase
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -14,7 +14,7 @@ import { ok, err } from "@shared/types";
 
 function makeChannel(overrides: Record<string, unknown> = {}) {
   return {
-    id: { value: "channel-001" },
+    id: { value: "550e8400-e29b-41d4-a716-446655440001" },
     provider: { toString: () => "INSTAGRAM" },
     handle: "@test",
     credentials: { accessToken: "tok-123" },
@@ -87,13 +87,13 @@ describe("IngestChannelAnalyticsUseCase", () => {
 
   it("fetches and stores analytics for active channel", async () => {
     const result = await useCase.execute({
-      channelId: "channel-001",
+      channelId: "550e8400-e29b-41d4-a716-446655440001",
       accountId: "account-001",
     });
 
     assert.ok(result.ok, "Should succeed");
     assert.strictEqual(result.value.ingested, 2);
-    assert.strictEqual(result.value.channelId, "channel-001");
+    assert.strictEqual(result.value.channelId, "550e8400-e29b-41d4-a716-446655440001");
     expect(adapter.fetchAnalytics).toHaveBeenCalledOnce();
     expect(analyticsWriteRepo.upsertDailySummaries).toHaveBeenCalledOnce();
   });
@@ -116,7 +116,7 @@ describe("IngestChannelAnalyticsUseCase", () => {
     adapter.fetchAnalytics.mockResolvedValue(err("AUTH"));
 
     const result = await useCase.execute({
-      channelId: "channel-001",
+      channelId: "550e8400-e29b-41d4-a716-446655440001",
       accountId: "account-001",
     });
 
@@ -128,7 +128,7 @@ describe("IngestChannelAnalyticsUseCase", () => {
     adapter.fetchAnalytics.mockResolvedValue(err("NETWORK"));
 
     const result = await useCase.execute({
-      channelId: "channel-001",
+      channelId: "550e8400-e29b-41d4-a716-446655440001",
       accountId: "account-001",
     });
 
@@ -144,7 +144,7 @@ describe("IngestChannelAnalyticsUseCase", () => {
     );
 
     const result = await useCaseNoAnalytics.execute({
-      channelId: "channel-001",
+      channelId: "550e8400-e29b-41d4-a716-446655440001",
       accountId: "account-001",
     });
 
@@ -156,7 +156,7 @@ describe("IngestChannelAnalyticsUseCase", () => {
     adapter.fetchAnalytics.mockResolvedValue(ok({ metrics: [] }));
 
     const result = await useCase.execute({
-      channelId: "channel-001",
+      channelId: "550e8400-e29b-41d4-a716-446655440001",
       accountId: "account-001",
     });
 
@@ -168,7 +168,7 @@ describe("IngestChannelAnalyticsUseCase", () => {
   it("uses custom since date when provided", async () => {
     const since = new Date("2026-01-01");
     await useCase.execute({
-      channelId: "channel-001",
+      channelId: "550e8400-e29b-41d4-a716-446655440001",
       accountId: "account-001",
       since,
     });

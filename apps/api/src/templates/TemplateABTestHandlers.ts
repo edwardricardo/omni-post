@@ -6,7 +6,7 @@
  */
 import { FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
+import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import type { TemplateService } from "./templateService.js";
 import type { templateAnalytics } from "./templateAnalytics.js";
 import type { ABTestConfig } from "./templateTypes.js";

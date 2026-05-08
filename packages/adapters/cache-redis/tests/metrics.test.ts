@@ -3,6 +3,10 @@
  * Tests the prom-client metric objects exported from metrics.ts.
  * Each file runs in its own process (node --test), so no double-registration.
  * Tier 0: no Redis, no network.
+ *
+ * @file metrics.test.ts
+ * @description Tests for Cache metrics — exports
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect } from "vitest";

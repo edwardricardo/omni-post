@@ -31,7 +31,7 @@ export interface StoryContent {
     type: "text" | "emoji" | "location" | "hashtag" | "mention";
     content: string;
     position: { x: number; y: number };
-    style?: Record<string, any>;
+    style?: Record<string, string | number>;
   }>;
 }
 

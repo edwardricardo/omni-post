@@ -1,9 +1,9 @@
 /**
  * @file AIImageGenerator.tsx
- * @description AI image generation form and gallery. Uses DALL-E 3 via the backend
- *              API. Shows a prompt form, generated image preview, and a gallery of
- *              previously generated images.
- * @layer ui
+ * @description AI image generation form and gallery. Uses OpenAI image generation
+ *              via the backend API. Shows a prompt form, generated image preview,
+ *              and a gallery of previously generated images.
+ * @layer infrastructure
  */
 
 "use client";
@@ -40,8 +40,8 @@ const STYLES: { label: string; value: ImageStyle }[] = [
 
 /**
  * @component AIImageGenerator
- * @description AI-powered image generation interface using DALL-E 3 via the backend API,
- * with a prompt form, size/quality/style selectors, generated image preview, and gallery.
+ * @description AI-powered image generation interface using OpenAI image generation via the
+ * backend API, with a prompt form, size/quality/style selectors, preview, and gallery.
  */
 
 export function AIImageGenerator() {
@@ -171,7 +171,9 @@ export function AIImageGenerator() {
           </button>
 
           {generateMutation.isError && (
-            <p className="text-sm text-red-600">{generateMutation.error?.message}</p>
+            <p role="alert" className="text-sm text-red-600">
+              {generateMutation.error?.message}
+            </p>
           )}
         </div>
 

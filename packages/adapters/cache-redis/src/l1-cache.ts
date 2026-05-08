@@ -1,6 +1,8 @@
 /**
- * L1 Cache Manager
- * In-memory cache layer with LRU eviction and memory management
+ * @file l1-cache.ts
+ * @description In-memory L1 cache manager with LRU eviction, memory-size tracking, and
+ *              promotion/demotion hooks used by the Redis cache adapter.
+ * @layer infrastructure
  */
 
 import pino from "pino";

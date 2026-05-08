@@ -31,7 +31,7 @@ export function useOnboarding() {
   return useQuery({
     queryKey: ["onboarding"],
     queryFn: async () => {
-      const res = await fetch("/api/onboarding", { credentials: "include" });
+      const res = await fetch("/api/backend/onboarding", { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch onboarding");
       const json = await res.json();
       return json.data as OnboardingData;
@@ -49,7 +49,7 @@ export function useCompleteStep() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (stepKey: string) => {
-      const res = await fetch(`/api/onboarding/step/${stepKey}/complete`, {
+      const res = await fetch(`/api/backend/onboarding/step/${stepKey}/complete`, {
         method: "POST",
         credentials: "include",
       });
@@ -71,7 +71,7 @@ export function useDismissOnboarding() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/onboarding/dismiss", {
+      const res = await fetch("/api/backend/onboarding/dismiss", {
         method: "POST",
         credentials: "include",
       });

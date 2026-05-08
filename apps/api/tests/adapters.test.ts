@@ -5,6 +5,10 @@
  * - Queue adapter health and functionality
  * - Repository pattern database operations
  * - Adapter integration with services
+ *
+ * @file adapters.test.ts
+ * @description Tests for Infrastructure Adapters
+ * @layer infrastructure
  */
 
 import { describe, it, before, after } from "node:test";

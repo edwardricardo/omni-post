@@ -2,15 +2,19 @@
 /**
  * Unit Tests for SlidingWindowRateLimit - Progressive Blocking, Error Handling,
  * Custom Key Generator, Limit Reached Callback, Different Clients
+ *
+ * @file slidingWindowRateLimit.advanced.test.ts
+ * @description Tests for SlidingWindowRateLimit - Progressive Blocking
+ * @layer infrastructure
  */
 
 import { describe, it, afterAll, expect } from "vitest";
-import { SlidingWindowRateLimit } from "../../src/security/slidingWindowRateLimit.js";
 import type { FastifyRequest } from "fastify";
 import {
   MockRedis,
   MockApiMetrics,
   createMockRequest,
+  createLimiter,
   limiterInstances,
 } from "./slidingWindowRateLimit.test-helpers.js";
 
@@ -33,7 +37,7 @@ describe("SlidingWindowRateLimit - Progressive Blocking", () => {
   it("Progressive blocking enabled", async () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 2,
       enableProgressiveBlocking: true,
@@ -53,7 +57,7 @@ describe("SlidingWindowRateLimit - Progressive Blocking", () => {
   it("Block persists across requests", async () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 1,
       enableProgressiveBlocking: true,
@@ -87,7 +91,7 @@ describe("SlidingWindowRateLimit - Error Handling", () => {
     const mockRedis = new MockRedis() as any;
     mockRedis.setFailure(true);
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 5,
     });
@@ -104,7 +108,7 @@ describe("SlidingWindowRateLimit - Error Handling", () => {
     const mockRedis = new MockRedis() as any;
     mockRedis.setFailure(true);
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 10,
     });
@@ -133,7 +137,7 @@ describe("SlidingWindowRateLimit - Custom Key Generator", () => {
       return `custom:${req.url}`;
     };
 
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 10,
       keyGenerator: customKeyGen,
@@ -161,7 +165,7 @@ describe("SlidingWindowRateLimit - Limit Reached Callback", () => {
       callbackCalled = true;
     };
 
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 2,
       onLimitReached,
@@ -187,7 +191,7 @@ describe("SlidingWindowRateLimit - Different Clients", () => {
   it("Different IPs have separate limits", async () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 2,
     });

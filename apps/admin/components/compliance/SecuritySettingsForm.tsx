@@ -2,11 +2,11 @@
  * @file SecuritySettingsForm.tsx
  * @description Form for managing security compliance settings including 2FA requirements,
  *   session timeouts, password policies, and IP allowlisting.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useId } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "@packages/ui";
 import { ActionButton } from "@/components/ui/ActionButton";
@@ -40,6 +40,10 @@ export function SecuritySettingsForm() {
   const [form, setForm] = useState<Partial<SecuritySettings>>({});
   const [ipText, setIpText] = useState("");
   const [dirty, setDirty] = useState(false);
+
+  const sessionTimeoutId = useId();
+  const maxLoginAttemptsId = useId();
+  const passwordMinLengthId = useId();
 
   useEffect(() => {
     if (data) {
@@ -106,10 +110,14 @@ export function SecuritySettingsForm() {
       {/* Session & Login */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+          <label
+            htmlFor={sessionTimeoutId}
+            className="block text-xs font-medium text-[var(--text-secondary)] mb-1"
+          >
             {t("sessionTimeout")}
           </label>
           <select
+            id={sessionTimeoutId}
             value={form.sessionTimeoutMinutes ?? 60}
             onChange={(e) => updateField("sessionTimeoutMinutes", Number(e.target.value))}
             className="h-8 w-full rounded border border-[var(--border-default)] bg-[var(--bg-elevated)] px-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
@@ -122,10 +130,14 @@ export function SecuritySettingsForm() {
           </select>
         </div>
         <div>
-          <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+          <label
+            htmlFor={maxLoginAttemptsId}
+            className="block text-xs font-medium text-[var(--text-secondary)] mb-1"
+          >
             {t("maxLoginAttempts")}
           </label>
           <input
+            id={maxLoginAttemptsId}
             type="number"
             min={1}
             max={20}
@@ -143,10 +155,14 @@ export function SecuritySettingsForm() {
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+            <label
+              htmlFor={passwordMinLengthId}
+              className="block text-xs font-medium text-[var(--text-secondary)] mb-1"
+            >
               {t("passwordMinLength")}
             </label>
             <input
+              id={passwordMinLengthId}
               type="number"
               min={6}
               max={128}

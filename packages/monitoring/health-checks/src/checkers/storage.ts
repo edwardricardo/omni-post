@@ -1,3 +1,9 @@
+/**
+ * @file storage.ts
+ * @description Health checker for the storage adapter — exercises the upload-signature path
+ *              to verify connectivity and credentials.
+ * @layer infrastructure
+ */
 import type { HealthChecker, HealthCheckResult } from "../types.js";
 import type { Result } from "@shared/types";
 import type { UploadSignature } from "@ports/core";

@@ -2,14 +2,14 @@
  * @file GatewayBillingService.test.ts
  * @description Unit tests for gateway billing service — switch lifecycle,
  *   checkout sessions, billing portal, idempotency, and query methods.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { GatewayBillingService } from "../../../src/billing/GatewayBillingService.js";
 import type { PrismaClient } from "@infra/prisma";
-import type { IGatewayAdapterRegistry } from "../../../src/infrastructure/billing/GatewayAdapterRegistry.js";
+import type { GatewayAdapterRegistryPort } from "../../../src/infrastructure/billing/GatewayAdapterRegistry.js";
 import type { GatewaySwitchJobService } from "../../../src/billing/GatewaySwitchJobService.js";
 import type { EmailPort } from "../../../src/domain/repositories/EmailPort.js";
 
@@ -156,7 +156,7 @@ describe("GatewayBillingService", () => {
     mockEmailPort = makeMockEmailPort();
     service = new GatewayBillingService(
       mockPrisma as unknown as PrismaClient,
-      mockRegistry as unknown as IGatewayAdapterRegistry,
+      mockRegistry as unknown as GatewayAdapterRegistryPort,
       mockSwitchJobService as unknown as GatewaySwitchJobService,
       mockEmailPort as unknown as EmailPort
     );

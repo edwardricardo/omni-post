@@ -2,11 +2,12 @@
  * @file auditLogger.test.ts
  * @description Unit tests for AuditLogger. Uses in-memory mocked Prisma stores
  *              with real Redis for testing caching and alerting features.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 import { createMockPrismaModule } from "./helpers/mockPrisma.js";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { FastifyRequest } from "fastify";
 
 // ---------------------------------------------------------------------------
@@ -42,9 +43,8 @@ vi.mock("../../src/lib/logger.js", () => {
 // Import SUT after mocks are in place
 // ---------------------------------------------------------------------------
 
-const { AuditLogger, createAuditLogger, AuditConfigs } = await import(
-  "../../src/security/auditLogger.js"
-);
+const { AuditLogger, createAuditLogger, AuditConfigs } =
+  await import("../../src/security/auditLogger.js");
 const Redis = (await import("ioredis")).default;
 
 // ---------------------------------------------------------------------------
@@ -71,6 +71,7 @@ function createMockRequest(overrides?: Partial<FastifyRequest>): FastifyRequest 
 
 let redis: InstanceType<typeof Redis>;
 let auditLogger: InstanceType<typeof AuditLogger>;
+const scheduler = new NoopBackgroundTaskScheduler();
 
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 
@@ -104,7 +105,7 @@ describe("AuditLogger Tests", () => {
     // Clear stores
     stores.auditLog.clear();
 
-    auditLogger = new AuditLogger(redis, {
+    auditLogger = new AuditLogger(redis, scheduler, {
       enableRealTimeAlerts: false,
       retentionDays: 7,
       enableDetailedLogging: true,
@@ -539,12 +540,12 @@ describe("AuditLogger Tests", () => {
 
   describe("Factory Function and Configs", () => {
     it("should create audit logger with factory function", () => {
-      const logger = createAuditLogger(redis);
+      const logger = createAuditLogger(redis, scheduler);
       expect(logger).toBeTruthy();
     });
 
     it("should create audit logger with custom config", () => {
-      const logger = createAuditLogger(redis, {
+      const logger = createAuditLogger(redis, scheduler, {
         enableRealTimeAlerts: false,
         retentionDays: 30,
       });
@@ -586,7 +587,7 @@ describe("AuditLogger Tests", () => {
         retryStrategy: () => null,
       });
 
-      const badLogger = new AuditLogger(badRedis, {
+      const badLogger = new AuditLogger(badRedis, scheduler, {
         enableRealTimeAlerts: false,
       });
 
@@ -615,6 +616,140 @@ describe("AuditLogger Tests", () => {
       expect(stats.totalEvents).toBe(0);
       expect(stats.failedEvents).toBe(0);
       expect(stats.securityEvents).toBe(0);
+    });
+  });
+
+  // =========================================================================
+  // Test Group 7: User ID extraction from request auth context
+  // =========================================================================
+
+  describe("extractUserId from request auth context", () => {
+    it("populates userId from req.auth.user.id (admin tier)", async () => {
+      const req = createMockRequest({
+        auth: {
+          user: {
+            id: "admin-user-123",
+            email: "admin@example.com",
+            name: "Admin",
+            role: "SUPER_ADMIN",
+            isActive: true,
+            emailVerified: true,
+            mfaEnabled: false,
+            timezone: null,
+            locale: null,
+            department: null,
+            team: null,
+            lastLoginAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+      } as Partial<FastifyRequest>);
+
+      await auditLogger.log({ action: "ADMIN_AUTH_TEST", success: true }, req);
+
+      const logs = stores.auditLog.all().filter((l) => l.action === "ADMIN_AUTH_TEST");
+      expect(logs.length).toBe(1);
+      expect(logs[0]?.userId).toBe("admin-user-123");
+    });
+
+    it("populates userId from req.user.id (regular tier) when no admin auth", async () => {
+      const req = createMockRequest({
+        user: {
+          id: "regular-user-456",
+          email: "user@example.com",
+          name: "User",
+          role: "USER",
+          isActive: true,
+          emailVerified: true,
+          mfaEnabled: false,
+          createdAt: new Date(),
+        },
+      } as Partial<FastifyRequest>);
+
+      await auditLogger.log({ action: "USER_AUTH_TEST", success: true }, req);
+
+      const logs = stores.auditLog.all().filter((l) => l.action === "USER_AUTH_TEST");
+      expect(logs.length).toBe(1);
+      expect(logs[0]?.userId).toBe("regular-user-456");
+    });
+
+    it("prefers req.auth.user.id over req.user.id when both present", async () => {
+      const req = createMockRequest({
+        auth: {
+          user: {
+            id: "admin-priority",
+            email: "admin@example.com",
+            name: "Admin",
+            role: "SUPER_ADMIN",
+            isActive: true,
+            emailVerified: true,
+            mfaEnabled: false,
+            timezone: null,
+            locale: null,
+            department: null,
+            team: null,
+            lastLoginAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+        user: {
+          id: "regular-fallback",
+          email: "user@example.com",
+          name: "User",
+          role: "USER",
+          isActive: true,
+          emailVerified: true,
+          mfaEnabled: false,
+          createdAt: new Date(),
+        },
+      } as Partial<FastifyRequest>);
+
+      await auditLogger.log({ action: "PRIORITY_TEST", success: true }, req);
+
+      const logs = stores.auditLog.all().filter((l) => l.action === "PRIORITY_TEST");
+      expect(logs.length).toBe(1);
+      expect(logs[0]?.userId).toBe("admin-priority");
+    });
+
+    it("leaves userId undefined when neither auth context is populated", async () => {
+      const req = createMockRequest();
+
+      await auditLogger.log({ action: "ANON_TEST", success: true }, req);
+
+      const logs = stores.auditLog.all().filter((l) => l.action === "ANON_TEST");
+      expect(logs.length).toBe(1);
+      expect(logs[0]?.userId).toBeFalsy();
+    });
+
+    it("explicit event.userId overrides extracted userId", async () => {
+      const req = createMockRequest({
+        auth: {
+          user: {
+            id: "extracted-id",
+            email: "admin@example.com",
+            name: "Admin",
+            role: "SUPER_ADMIN",
+            isActive: true,
+            emailVerified: true,
+            mfaEnabled: false,
+            timezone: null,
+            locale: null,
+            department: null,
+            team: null,
+            lastLoginAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+      } as Partial<FastifyRequest>);
+
+      await auditLogger.log({ action: "EXPLICIT_TEST", userId: "explicit-id", success: true }, req);
+
+      const logs = stores.auditLog.all().filter((l) => l.action === "EXPLICIT_TEST");
+      expect(logs.length).toBe(1);
+      expect(logs[0]?.userId).toBe("explicit-id");
     });
   });
 });

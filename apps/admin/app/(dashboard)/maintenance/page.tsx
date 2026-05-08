@@ -2,7 +2,7 @@
  * @file page.tsx
  * @description System maintenance page with queue overview stats, failed jobs
  *   table, and queue health panel. Uses TanStack Query hooks for data fetching.
- * @layer page
+ * @layer infrastructure
  */
 "use client";
 

@@ -2,7 +2,7 @@
  * @file FailedJobsTable.tsx
  * @description Table displaying failed BullMQ jobs with retry capability.
  *   Each row shows queue, job ID, error reason, timestamp, attempts, and a retry action.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 
@@ -13,7 +13,7 @@ import { useCurrentUser } from "@/providers/AuthProvider";
 
 import { ActionButton } from "@/components/ui/ActionButton";
 import { Badge } from "@/components/ui/Badge";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ConfirmDialog } from "@packages/ui";
 import type { FailedJob } from "@/hooks/api/useQueueManagement";
 
 interface FailedJobsTableProps {
@@ -44,7 +44,7 @@ export function FailedJobsTable({ jobs, onRetry, isRetrying }: FailedJobsTablePr
   if (jobs.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-12">
-        <AlertTriangle className="h-8 w-8 text-[var(--text-tertiary)] mb-2" />
+        <AlertTriangle aria-hidden="true" className="h-8 w-8 text-[var(--text-tertiary)] mb-2" />
         <p className="text-sm text-[var(--text-secondary)]">{tf("noFailed")}</p>
       </div>
     );

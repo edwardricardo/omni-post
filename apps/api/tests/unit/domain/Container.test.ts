@@ -1,8 +1,11 @@
 /**
  * Infrastructure Layer - Container Unit Tests
  *
- * Part of Sprint 7: DDD Architecture Implementation
  * Tests for the dependency injection container.
+ *
+ * @file Container.test.ts
+ * @description Tests for Container
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect } from "vitest";

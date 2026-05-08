@@ -1,7 +1,7 @@
 /**
  * @file dispatchAnalyticsIngestion.test.ts
  * @description Unit tests for DispatchAnalyticsIngestionUseCase
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

@@ -10,10 +10,10 @@ import { AnthropicProvider } from "./providers/anthropic.js";
 import { GeminiProvider } from "./providers/gemini.js";
 import { PerplexityProvider } from "./providers/perplexity.js";
 
-type ProviderName = "openai" | "anthropic" | "gemini" | "perplexity";
+type AiProviderName = "openai" | "anthropic" | "gemini" | "perplexity";
 
 const PROVIDER_DEFAULTS: Record<
-  ProviderName,
+  AiProviderName,
   { defaultModel: string; ProviderClass: new (config: AIProviderConfig) => AIProvider }
 > = {
   openai: { defaultModel: "gpt-4o", ProviderClass: OpenAIProvider },
@@ -45,7 +45,7 @@ export class AIProviderFactory {
    * @param model - Optional model override (uses provider default if omitted)
    * @returns Configured AIProvider instance
    */
-  static createProvider(providerName: ProviderName, apiKey: string, model?: string): AIProvider {
+  static createProvider(providerName: AiProviderName, apiKey: string, model?: string): AIProvider {
     const def = PROVIDER_DEFAULTS[providerName];
     return new def.ProviderClass({
       apiKey,

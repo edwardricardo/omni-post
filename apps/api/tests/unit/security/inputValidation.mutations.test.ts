@@ -2,7 +2,7 @@
  * @file inputValidation.mutations.test.ts
  * @description Mutation-killing tests for SecurityValidator, createSecureSchema, and SecureSchemas.
  *              Each test targets a specific mutant survivor from Stryker analysis.
- * @layer testing
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -10,6 +10,7 @@ import {
   SecurityValidator,
   SecureSchemas,
   createSecureSchema,
+  makeMediaUrlSchema,
 } from "../../../src/security/inputValidation.js";
 import { z } from "zod";
 
@@ -844,33 +845,21 @@ describe("SecureSchemas.url — protocol validation", () => {
 });
 
 describe("SecureSchemas.mediaUrl — host validation", () => {
-  it("rejects disallowed host when ALLOWED_MEDIA_HOSTS is set", () => {
-    const originalEnv = process.env.ALLOWED_MEDIA_HOSTS;
-    process.env.ALLOWED_MEDIA_HOSTS = "cdn.example.com,storage.example.com";
-
-    const result = SecureSchemas.mediaUrl.safeParse("https://evil.com/image.jpg");
-
-    process.env.ALLOWED_MEDIA_HOSTS = originalEnv;
+  it("rejects disallowed host when allowlist is set", () => {
+    const schema = makeMediaUrlSchema(["cdn.example.com", "storage.example.com"]);
+    const result = schema.safeParse("https://evil.com/image.jpg");
     expect(result.success).toBe(false);
   });
 
-  it("accepts allowed host when ALLOWED_MEDIA_HOSTS is set", () => {
-    const originalEnv = process.env.ALLOWED_MEDIA_HOSTS;
-    process.env.ALLOWED_MEDIA_HOSTS = "cdn.example.com,storage.example.com";
-
-    const result = SecureSchemas.mediaUrl.safeParse("https://cdn.example.com/img.png");
-
-    process.env.ALLOWED_MEDIA_HOSTS = originalEnv;
+  it("accepts allowed host when allowlist is set", () => {
+    const schema = makeMediaUrlSchema(["cdn.example.com", "storage.example.com"]);
+    const result = schema.safeParse("https://cdn.example.com/img.png");
     expect(result.success).toBe(true);
   });
 
-  it("accepts any host when ALLOWED_MEDIA_HOSTS is not set", () => {
-    const originalEnv = process.env.ALLOWED_MEDIA_HOSTS;
-    delete process.env.ALLOWED_MEDIA_HOSTS;
-
-    const result = SecureSchemas.mediaUrl.safeParse("https://any-host.com/file.mp4");
-
-    process.env.ALLOWED_MEDIA_HOSTS = originalEnv;
+  it("accepts any host when allowlist is empty", () => {
+    const schema = makeMediaUrlSchema([]);
+    const result = schema.safeParse("https://any-host.com/file.mp4");
     expect(result.success).toBe(true);
   });
 
@@ -880,12 +869,8 @@ describe("SecureSchemas.mediaUrl — host validation", () => {
   });
 
   it("returns the url string on success", () => {
-    const originalEnv = process.env.ALLOWED_MEDIA_HOSTS;
-    delete process.env.ALLOWED_MEDIA_HOSTS;
-
-    const result = SecureSchemas.mediaUrl.safeParse("https://media.example.com/vid.mp4");
-
-    process.env.ALLOWED_MEDIA_HOSTS = originalEnv;
+    const schema = makeMediaUrlSchema([]);
+    const result = schema.safeParse("https://media.example.com/vid.mp4");
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data).toBe("https://media.example.com/vid.mp4");
@@ -898,13 +883,9 @@ describe("SecureSchemas.mediaUrl — host validation", () => {
   });
 
   it("checks hostname endsWith for host matching", () => {
-    const originalEnv = process.env.ALLOWED_MEDIA_HOSTS;
-    process.env.ALLOWED_MEDIA_HOSTS = "example.com";
-
-    const r1 = SecureSchemas.mediaUrl.safeParse("https://sub.example.com/file.jpg");
-    const r2 = SecureSchemas.mediaUrl.safeParse("https://other.org/file.jpg");
-
-    process.env.ALLOWED_MEDIA_HOSTS = originalEnv;
+    const schema = makeMediaUrlSchema(["example.com"]);
+    const r1 = schema.safeParse("https://sub.example.com/file.jpg");
+    const r2 = schema.safeParse("https://other.org/file.jpg");
     expect(r1.success).toBe(true);
     expect(r2.success).toBe(false);
   });

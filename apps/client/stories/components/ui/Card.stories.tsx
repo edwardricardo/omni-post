@@ -1,3 +1,9 @@
+/**
+ * @file Card.stories.tsx
+ * @description Storybook stories for the Card component demonstrating header/footer/content
+ *              composition with avatars, badges, and action buttons.
+ * @layer infrastructure
+ */
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { action } from "storybook/actions";
 import {

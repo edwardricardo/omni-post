@@ -3,7 +3,7 @@
  * @description Single pending approval card in the approval queue.
  *              Shows: content preview (100 chars), platform badges, submitter name,
  *              relative submission time, and a "Review" button.
- * @layer ui
+ * @layer infrastructure
  */
 
 "use client";

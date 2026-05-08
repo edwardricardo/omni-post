@@ -3,6 +3,10 @@
  *
  * Verifies that getServiceStatus, getAllServicesStatus, getAlertHistory
  * return real data from internal state — not hardcoded values.
+ *
+ * @file index.test.ts
+ * @description Tests for CircuitBreakerMonitor
+ * @layer infrastructure
  */
 import { describe, it, beforeEach, expect } from "vitest";
 import { CircuitBreakerMonitor, type CircuitBreakerMetrics } from "../src/index.js";

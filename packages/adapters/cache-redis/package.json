@@ -10,10 +10,9 @@
     "./*": "./src/*"
   },
   "dependencies": {
+    "@observability/background-scheduler": "workspace:*",
     "@ports/core": "workspace:*",
     "@shared/types": "workspace:*",
-    "fastify": "5.6.1",
-    "fastify-plugin": "5.0.1",
     "ioredis": "5.7.0",
     "pino": "10.3.1",
     "prom-client": "15.0.0"

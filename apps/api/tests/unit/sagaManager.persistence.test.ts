@@ -7,6 +7,10 @@
  * - loadSagaInstance() returns null on Redis miss
  * - SagaManager.getSaga() checks in-memory map first, then Redis
  * - Round-trip serialization preserves dates and structure
+ *
+ * @file sagaManager.persistence.test.ts
+ * @description Tests for SagaManager - Persistence Round-Trip
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, expect } from "vitest";

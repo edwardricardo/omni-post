@@ -19,6 +19,7 @@ import type {
   SyncTransformation,
 } from "@shared/orchestration";
 import type { CanonicalPost } from "@shared/types";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { ProviderId } from "../providers/providerAdapter.interface";
 import { EventService } from "../events/EventService";
 import { createLogger } from "../lib/logger.js";
@@ -35,6 +36,7 @@ interface SyncDependencies {
   prisma: PrismaClient;
   redis: Redis;
   eventService: EventService;
+  scheduler: BackgroundTaskScheduler;
 }
 
 export class ContentSynchronizer {
@@ -48,14 +50,14 @@ export class ContentSynchronizer {
   private streamProcessor: StreamProcessor;
 
   constructor(dependencies: SyncDependencies) {
-    const { prisma, redis, eventService } = dependencies;
+    const { prisma, redis, eventService, scheduler } = dependencies;
     this.eventService = eventService;
 
     this.coordinator = new SyncCoordinator(prisma, redis);
     this.versionManager = new VersionManager(prisma, redis);
     this.conflictResolver = new ConflictResolver(eventService);
     this.transformationEngine = new TransformationEngine();
-    this.streamProcessor = new StreamProcessor(redis, eventService, (postId, changes) =>
+    this.streamProcessor = new StreamProcessor(redis, eventService, scheduler, (postId, changes) =>
       this.realTimeSync(postId, changes)
     );
   }

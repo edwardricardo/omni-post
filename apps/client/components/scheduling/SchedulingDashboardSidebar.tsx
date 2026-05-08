@@ -7,7 +7,8 @@
  * a scrollable list of posts for the selected (or today's) date.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
+import { useLogger, extractErrorInfo } from "@observability/browser-logger";
 import type { DashboardScheduledPost, DashboardFilters } from "./schedulingDashboardTypes";
 import {
   getStatusColor,
@@ -16,19 +17,7 @@ import {
   formatTime,
   formatRelativeTime,
 } from "./schedulingDashboardUtils";
-
-// ---------------------------------------------------------------------------
-// Types for campaign and team data
-// ---------------------------------------------------------------------------
-interface CampaignOption {
-  id: string;
-  name: string;
-}
-
-interface TeamMemberOption {
-  id: string;
-  name: string;
-}
+import { useSchedulingDashboardSidebar } from "../../hooks/useSchedulingDashboardSidebar";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -58,31 +47,33 @@ export function SchedulingDashboardSidebar({
   onPostClick,
   projectId,
 }: SchedulingDashboardSidebarProps) {
-  const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
-  const [teamMembers, setTeamMembers] = useState<TeamMemberOption[]>([]);
+  const logger = useLogger("client.scheduling-sidebar");
+  const { campaigns: campaignsQuery, team: teamQuery } = useSchedulingDashboardSidebar(projectId);
 
-  // Load campaign and team options for the filter dropdowns
+  // Graceful degradation: a load failure leaves the dropdown empty rather
+  // than blocking the rest of the sidebar. The query already opts out of the
+  // global error toast (see schedulingQueries `meta.suppressGlobalErrorToast`);
+  // we still log so persistent failures show up in APM.
   useEffect(() => {
-    if (!projectId) return;
-
-    void fetch(`/api/backend/campaigns?projectId=${projectId}`)
-      .then((r) => r.json() as Promise<{ ok: boolean; data?: CampaignOption[] }>)
-      .then((d) => {
-        if (d.ok && d.data) setCampaigns(d.data);
-      })
-      .catch(() => {
-        /* graceful degradation — filters still usable without options */
+    if (campaignsQuery.error) {
+      logger.warn("Failed to load campaign filter options", {
+        err: extractErrorInfo(campaignsQuery.error),
+        projectId,
       });
+    }
+  }, [campaignsQuery.error, logger, projectId]);
 
-    void fetch(`/api/backend/team?projectId=${projectId}`)
-      .then((r) => r.json() as Promise<{ ok: boolean; data?: { members?: TeamMemberOption[] } }>)
-      .then((d) => {
-        if (d.ok && d.data?.members) setTeamMembers(d.data.members);
-      })
-      .catch(() => {
-        /* graceful degradation */
+  useEffect(() => {
+    if (teamQuery.error) {
+      logger.warn("Failed to load team filter options", {
+        err: extractErrorInfo(teamQuery.error),
+        projectId,
       });
-  }, [projectId]);
+    }
+  }, [teamQuery.error, logger, projectId]);
+
+  const campaigns = campaignsQuery.data ?? [];
+  const teamMembers = teamQuery.data ?? [];
 
   const hasActiveFilters =
     filters.platforms.length > 0 ||
@@ -132,8 +123,8 @@ export function SchedulingDashboardSidebar({
 
         <div className="space-y-4">
           {/* Platform Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Platforms</label>
+          <fieldset className="border-0 p-0 m-0 min-w-0">
+            <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">Platforms</legend>
             <div className="space-y-1">
               {["instagram", "facebook", "x"].map((platform) => (
                 <label key={platform} className="flex items-center">
@@ -154,11 +145,13 @@ export function SchedulingDashboardSidebar({
                 </label>
               ))}
             </div>
-          </div>
+          </fieldset>
 
           {/* Content Type Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Content Type</label>
+          <fieldset className="border-0 p-0 m-0 min-w-0">
+            <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">
+              Content Type
+            </legend>
             <div className="space-y-1">
               {(["FEED", "STORIES", "REELS", "CAROUSEL"] as const).map((type) => (
                 <label key={type} className="flex items-center">
@@ -181,11 +174,11 @@ export function SchedulingDashboardSidebar({
                 </label>
               ))}
             </div>
-          </div>
+          </fieldset>
 
           {/* Status Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+          <fieldset className="border-0 p-0 m-0 min-w-0">
+            <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">Status</legend>
             <div className="space-y-1">
               {["scheduled", "publishing", "published", "failed", "cancelled"].map((status) => (
                 <label key={status} className="flex items-center">
@@ -206,7 +199,7 @@ export function SchedulingDashboardSidebar({
                 </label>
               ))}
             </div>
-          </div>
+          </fieldset>
 
           {/* Campaign Filter */}
           <div>
@@ -276,8 +269,17 @@ export function SchedulingDashboardSidebar({
           {sidebarPosts.map((post) => (
             <div
               key={post.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`Open post ${post.title ?? ""}`.trim()}
               className="border rounded-lg p-3 cursor-pointer hover:border-gray-300 transition-colors"
               onClick={() => onPostClick(post)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onPostClick(post);
+                }
+              }}
             >
               <div className="flex items-start space-x-3">
                 <div className="flex-shrink-0">

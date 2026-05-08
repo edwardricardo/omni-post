@@ -1,12 +1,13 @@
 /**
  * @file getTopPerformersContext.test.ts
  * @description Unit tests for GetTopPerformersContextUseCase.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { GetTopPerformersContextUseCase } from "../../../src/application/ai/GetTopPerformersContextUseCase.js";
+import { InMemoryCacheAdapter } from "../../../../../packages/adapters/cache-redis/src/in-memory-cache-adapter.js";
 
 function makeMockQueryPort(
   rows: Array<{
@@ -74,12 +75,14 @@ const samplePosts = [
 
 describe("GetTopPerformersContextUseCase", () => {
   let queryPort: ReturnType<typeof makeMockQueryPort>;
+  let cache: InMemoryCacheAdapter;
   let useCase: GetTopPerformersContextUseCase;
 
   beforeEach(() => {
     vi.clearAllMocks();
     queryPort = makeMockQueryPort(samplePosts);
-    useCase = new GetTopPerformersContextUseCase(queryPort);
+    cache = new InMemoryCacheAdapter();
+    useCase = new GetTopPerformersContextUseCase(queryPort, cache);
   });
 
   it("returns top posts sorted by engagement rate", async () => {
@@ -120,7 +123,7 @@ describe("GetTopPerformersContextUseCase", () => {
         publishedAt: new Date("2026-03-11"),
       },
     ]);
-    useCase = new GetTopPerformersContextUseCase(queryPort);
+    useCase = new GetTopPerformersContextUseCase(queryPort, cache);
 
     const result = await useCase.execute({ accountId: "acc-1" });
 
@@ -130,7 +133,7 @@ describe("GetTopPerformersContextUseCase", () => {
 
   it("returns empty context when no analytics data", async () => {
     queryPort = makeMockQueryPort([]);
-    useCase = new GetTopPerformersContextUseCase(queryPort);
+    useCase = new GetTopPerformersContextUseCase(queryPort, cache);
 
     const result = await useCase.execute({ accountId: "acc-empty-test" });
 

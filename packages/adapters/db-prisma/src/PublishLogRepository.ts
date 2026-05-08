@@ -1,3 +1,9 @@
+/**
+ * @file PublishLogRepository.ts
+ * @description Prisma-backed repository for PublishLog entities — upserts by dedupe key,
+ *              lists with filter criteria, and maps provider enums to/from DB form.
+ * @layer infrastructure
+ */
 import { ok, err, type Result } from "@shared/types";
 import type { PublishLog, LogPublishInput, ListLogsQuery } from "@ports/core";
 import { prisma } from "@infra/prisma";

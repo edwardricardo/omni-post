@@ -1,15 +1,8 @@
 /**
- * Template Engine - Client Application
- *
- * This file now re-exports the ClientTemplateEngine from the new implementation.
- * All template functionality has been consolidated into:
- * - BaseTemplateEngine (packages/shared) - shared helpers and core logic
- * - ClientTemplateEngine (this directory) - client-specific features
- *
- * ✅ P1-2: Template Engine Unification Complete
- * - Eliminated ~500 lines of duplicate Handlebars helper code
- * - Centralized template compilation, validation, and rendering
- * - Maintained all client-specific features (preview, documentation, API calls)
+ * @file templateEngine.ts
+ * @description Barrel re-export of ClientTemplateEngine and shared template types for
+ *              backwards-compatible imports in the client app.
+ * @layer infrastructure
  */
 
 export * from "./ClientTemplateEngine";

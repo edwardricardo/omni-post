@@ -1,7 +1,7 @@
 /**
  * @file syncProviderComments.test.ts
  * @description Unit tests for SyncProviderCommentsUseCase with adapter wired.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -87,7 +87,6 @@ describe("SyncProviderCommentsUseCase — with adapter wired", () => {
     useCase = new SyncProviderCommentsUseCase(
       channelRepo as never,
       ingestUseCase as never,
-      undefined,
       (provider: string) => (provider === "instagram" ? (adapter as never) : undefined)
     );
   });
@@ -147,7 +146,6 @@ describe("SyncProviderCommentsUseCase — with adapter wired", () => {
     const useCaseNoComments = new SyncProviderCommentsUseCase(
       channelRepo as never,
       ingestUseCase as never,
-      undefined,
       () => ({ id: "telegram", getComments: undefined }) as never
     );
 

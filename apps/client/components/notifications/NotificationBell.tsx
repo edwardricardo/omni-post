@@ -3,7 +3,7 @@
  * @description Notification bell icon with unread badge, popover dropdown listing recent
  *              notifications, and "Mark all read" action. Integrates with the Zustand
  *              notification store and TanStack Query for server state.
- * @layer ui
+ * @layer infrastructure
  */
 
 "use client";
@@ -12,39 +12,17 @@ import { useState, useEffect } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import * as ScrollArea from "@radix-ui/react-scroll-area";
 import { Bell } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNotificationStore } from "@/lib/stores/notificationStore";
 import type { NotificationItem as NotificationItemType } from "@/lib/stores/notificationStore";
 import { useNotificationStream } from "@/hooks/useNotificationStream";
 import { NotificationItem } from "./NotificationItem";
 import Link from "next/link";
-
-// ---------------------------------------------------------------------------
-// API helpers
-// ---------------------------------------------------------------------------
-
-async function fetchNotifications(limit = 20): Promise<NotificationItemType[]> {
-  const res = await fetch(`/api/backend/notifications?limit=${limit}`, { cache: "no-store" });
-  if (!res.ok) throw new Error("Failed to fetch notifications");
-  const data = (await res.json()) as { ok: boolean; value?: { items: NotificationItemType[] } };
-  return data.ok && data.value ? data.value.items : [];
-}
-
-async function fetchUnreadCount(): Promise<number> {
-  const res = await fetch("/api/backend/notifications/unread-count", { cache: "no-store" });
-  if (!res.ok) throw new Error("Failed to fetch unread count");
-  const data = (await res.json()) as { ok: boolean; value?: { count: number } };
-  return data.ok && data.value ? data.value.count : 0;
-}
-
-async function markAllReadApi(): Promise<void> {
-  const res = await fetch("/api/backend/notifications/mark-all-read", { method: "POST" });
-  if (!res.ok) throw new Error("Failed to mark all read");
-}
-
-async function markReadApi(id: string): Promise<void> {
-  await fetch(`/api/backend/notifications/${id}/read`, { method: "PATCH" });
-}
+import {
+  useMarkAllNotificationsRead,
+  useMarkNotificationRead,
+  useNotificationsList,
+  useNotificationsUnreadCount,
+} from "@/hooks/api/useNotificationsApi";
 
 // ---------------------------------------------------------------------------
 // Component
@@ -59,7 +37,6 @@ async function markReadApi(id: string): Promise<void> {
  */
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
-  const queryClient = useQueryClient();
 
   // Start SSE stream (once, at layout level)
   useNotificationStream(true);
@@ -71,20 +48,20 @@ export function NotificationBell() {
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const storeNotifications = useNotificationStore((s) => s.notifications);
 
-  // Server state: initial notification list loaded when popover opens
+  // Server state: initial notification list loaded when popover opens.
+  // Canon: `tanstack-query-v5-migration-patterns-from-raw-fetch` — consumes
+  // the queryOptions factory (no inline keys).
   const {
     data: serverNotifications,
     isLoading,
     isError,
     refetch,
-  } = useQuery({
-    queryKey: ["notifications"],
-    queryFn: () => fetchNotifications(20),
-    enabled: open,
-    staleTime: 60_000,
-  });
+  } = useNotificationsList({ enabled: open });
 
-  // Sync server notifications into Zustand store when data arrives
+  // Sync server notifications into Zustand store when data arrives. Zustand
+  // stays as the intermediary because `useNotificationStream` (SSE) pushes
+  // real-time additions directly into the store; replacing it with TanStack
+  // cache writes from the SSE handler is tracked as future canon work.
   useEffect(() => {
     if (serverNotifications) {
       setNotifications(serverNotifications);
@@ -92,11 +69,7 @@ export function NotificationBell() {
   }, [serverNotifications, setNotifications]);
 
   // Sync unread count on mount
-  const { data: serverUnreadCount } = useQuery({
-    queryKey: ["notifications", "unread-count"],
-    queryFn: fetchUnreadCount,
-    staleTime: 30_000,
-  });
+  const { data: serverUnreadCount } = useNotificationsUnreadCount();
 
   useEffect(() => {
     if (serverUnreadCount !== undefined) {
@@ -104,18 +77,20 @@ export function NotificationBell() {
     }
   }, [serverUnreadCount, setUnreadCount]);
 
-  const markAllReadMutation = useMutation({
-    mutationFn: markAllReadApi,
-    onSuccess: () => {
-      markAllRead();
-      void queryClient.invalidateQueries({ queryKey: ["notifications"] });
-    },
-  });
+  const markAllReadMutation = useMarkAllNotificationsRead();
+  const markReadMutation = useMarkNotificationRead();
+
+  const handleMarkAllRead = () => {
+    markAllReadMutation.mutate(undefined, {
+      onSuccess: () => {
+        markAllRead();
+      },
+    });
+  };
 
   const handleMarkRead = (id: string) => {
     markRead(id);
-    void markReadApi(id);
-    void queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
+    markReadMutation.mutate(id);
   };
 
   // Prefer store (includes SSE additions) over raw server data
@@ -152,7 +127,7 @@ export function NotificationBell() {
           <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
             <h2 className="text-sm font-semibold text-gray-900">Notifications</h2>
             <button
-              onClick={() => markAllReadMutation.mutate()}
+              onClick={handleMarkAllRead}
               disabled={unreadCount === 0 || markAllReadMutation.isPending}
               className="text-xs text-blue-600 hover:text-blue-700 disabled:text-gray-400 disabled:cursor-not-allowed"
             >
@@ -223,7 +198,7 @@ export function NotificationBell() {
           {/* Footer */}
           <div className="border-t border-gray-100 px-4 py-2 text-center">
             <Link
-              href="/admin/settings/notifications"
+              href="/dashboard/settings/notifications"
               className="text-xs text-gray-500 hover:text-gray-700"
               onClick={() => setOpen(false)}
             >

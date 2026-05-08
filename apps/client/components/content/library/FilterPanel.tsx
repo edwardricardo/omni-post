@@ -6,7 +6,7 @@
  * by status, type, platform, and date range using the available filter options.
  */
 
-import React from "react";
+import React, { useId } from "react";
 import type { ContentFilter, FilterOptions } from "./types";
 
 interface FilterPanelProps {
@@ -31,6 +31,8 @@ export function FilterPanel({
   onClearFilters,
   availableTags = [],
 }: FilterPanelProps) {
+  const authorFilterId = useId();
+
   const handleStatusChange = (
     status: "published" | "scheduled" | "draft" | "archived",
     checked: boolean
@@ -106,8 +108,8 @@ export function FilterPanel({
     <div className="bg-white border rounded-lg p-6 mb-6">
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {/* Status filter */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+        <fieldset className="border-0 p-0 m-0 min-w-0">
+          <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">Status</legend>
           <div className="space-y-1">
             {(["published", "scheduled", "draft", "archived"] as const).map((status) => (
               <label key={status} className="flex items-center">
@@ -121,11 +123,11 @@ export function FilterPanel({
               </label>
             ))}
           </div>
-        </div>
+        </fieldset>
 
         {/* Platform filter */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Platforms</label>
+        <fieldset className="border-0 p-0 m-0 min-w-0">
+          <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">Platforms</legend>
           <div className="space-y-1">
             {filterOptions.platforms.map((platform) => (
               <label key={platform} className="flex items-center">
@@ -139,11 +141,11 @@ export function FilterPanel({
               </label>
             ))}
           </div>
-        </div>
+        </fieldset>
 
         {/* Category filter */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Categories</label>
+        <fieldset className="border-0 p-0 m-0 min-w-0">
+          <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">Categories</legend>
           <div className="space-y-1">
             {filterOptions.categories.map((category) => (
               <label key={category} className="flex items-center">
@@ -157,12 +159,15 @@ export function FilterPanel({
               </label>
             ))}
           </div>
-        </div>
+        </fieldset>
 
         {/* Author filter */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Author</label>
+          <label htmlFor={authorFilterId} className="block text-sm font-medium text-gray-700 mb-2">
+            Author
+          </label>
           <select
+            id={authorFilterId}
             value={filter.author || ""}
             onChange={(e) => handleAuthorChange(e.target.value)}
             className="w-full px-2 py-1 border rounded-sm text-sm"
@@ -177,8 +182,8 @@ export function FilterPanel({
         </div>
 
         {/* Additional filters */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Options</label>
+        <fieldset className="border-0 p-0 m-0 min-w-0">
+          <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">Options</legend>
           <div className="space-y-1">
             <label className="flex items-center">
               <input
@@ -190,13 +195,13 @@ export function FilterPanel({
               <span className="text-sm">Has Media</span>
             </label>
           </div>
-        </div>
+        </fieldset>
       </div>
 
       {/* Tag filter */}
       {(availableTags.length > 0 || filterOptions.tags.length > 0) && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
+          <span className="block text-sm font-medium text-gray-700 mb-2">Tags</span>
           <div className="flex flex-wrap gap-1">
             {(availableTags.length > 0 ? availableTags : filterOptions.tags).map((tag) => (
               <button

@@ -20,6 +20,7 @@ import {
   AnalyticsCollectedEvent as _AnalyticsCollectedEvent,
   UserActionEvent,
 } from "@shared/events";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { PostgreSQLEventStore } from "./EventStore";
 import { RedisEventPublisher } from "./EventPublisher";
 import { BaseService } from "../services/BaseService";
@@ -28,6 +29,7 @@ import { Result } from "@shared/types";
 interface EventServiceConfig {
   prisma: PrismaClient;
   redis: Redis;
+  scheduler: BackgroundTaskScheduler;
   enableReplay?: boolean;
   enableMetrics?: boolean;
 }
@@ -50,6 +52,7 @@ export class EventService extends BaseService {
 
     this.publisher = new RedisEventPublisher({
       redis: config.redis,
+      scheduler: config.scheduler,
       ...(config.enableMetrics !== undefined && { enableMetrics: config.enableMetrics }),
     });
 
@@ -70,9 +73,6 @@ export class EventService extends BaseService {
         if (this.isInitialized) {
           return;
         }
-
-        // Ensure the stored_events table exists before any operations
-        await this.eventStore.ensureTable();
 
         // Subscribe publisher to handle events from store
         this.setupDefaultHandlers();

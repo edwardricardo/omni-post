@@ -1,3 +1,8 @@
+/**
+ * @file ProviderDependencyManager.test-helpers.ts
+ * @description Test helpers for provider dependency manager test helpers
+ * @layer infrastructure
+ */
 import type { RetryPolicy, PublishResult } from "@shared/orchestration";
 import type { ProviderId } from "../../src/providers/providerAdapter.interface";
 

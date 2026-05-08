@@ -1,7 +1,7 @@
 /**
  * @file authContext.integration.test.tsx
  * @description Integration tests for AuthProvider and useAuthContext hook.
- * @layer integration
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

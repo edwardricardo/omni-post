@@ -3,6 +3,10 @@
  *
  * All three hooks delegate to api.* from @/lib/apiClient.
  * We mock the api module.
+ *
+ * @file usePosts.test.tsx
+ * @description Tests for usePosts
+ * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";

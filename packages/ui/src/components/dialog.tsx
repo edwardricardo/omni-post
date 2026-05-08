@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file dialog.tsx
+ * @description Radix-based Dialog primitives (Root, Trigger, Portal, Overlay, Content, Header,
+ *              Footer, Title, Description, Close) styled with Tailwind.
+ * @component Dialog, DialogTrigger, DialogPortal, DialogClose, DialogOverlay, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription
+ * @layer infrastructure
+ */
 import * as React from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { X } from "lucide-react";

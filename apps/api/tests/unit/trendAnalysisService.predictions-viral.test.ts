@@ -4,6 +4,10 @@
  *
  * Tests prediction metadata, probabilities, signals, risk factors, action items,
  * competitive intelligence, viral metrics, DNA analysis, and report insight generation.
+ *
+ * @file trendAnalysisService.predictions-viral.test.ts
+ * @description Tests for TrendAnalysisService - Trend Predictions
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect } from "vitest";

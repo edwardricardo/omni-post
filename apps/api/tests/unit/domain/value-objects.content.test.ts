@@ -2,7 +2,7 @@
  * @file value-objects.content.test.ts
  * @description Mutation-killing tests for Content value object.
  * Covers creation, validation, platform limits, immutable updates, equality.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

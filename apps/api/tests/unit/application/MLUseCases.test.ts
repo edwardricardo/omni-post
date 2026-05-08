@@ -2,7 +2,7 @@
  * @file MLUseCases.test.ts
  * @description Application Layer - ML Use Cases Unit Tests.
  *              Tests AI-powered optimization with heuristic fallback.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect } from "vitest";

@@ -1,3 +1,8 @@
+/**
+ * @file ProviderCoordinator.scoring.test.ts
+ * @description Tests for ProviderCoordinator - scoring and strategies
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, afterEach, afterAll, expect } from "vitest";
 import { ProviderCoordinator } from "../../src/orchestration/ProviderCoordinator.js";
 import type { PrismaClient } from "@infra/prisma";
@@ -11,6 +16,7 @@ import {
   createMockEventService,
   createMockProviderAdapter,
   createMockCanonicalPost,
+  createMockScheduler,
   mockProviders,
   mockAdapters,
   setupMockProviders,
@@ -55,16 +61,14 @@ describe("ProviderCoordinator - scoring and strategies", () => {
         prisma: mockPrisma,
         redis: mockRedis,
         eventService: mockEventService,
+        scheduler: createMockScheduler(),
       });
 
       await coordinator.initialize();
     });
 
-    afterEach(() => {
-      (coordinator as any).healthCheckInterval &&
-        clearInterval((coordinator as any).healthCheckInterval);
-      (coordinator as any).metricsCollectionInterval &&
-        clearInterval((coordinator as any).metricsCollectionInterval);
+    afterEach(async () => {
+      await (coordinator as any).scheduler?.shutdownAll();
     });
 
     it("should score based on provider priority", async () => {
@@ -192,16 +196,14 @@ describe("ProviderCoordinator - scoring and strategies", () => {
         prisma: mockPrisma,
         redis: mockRedis,
         eventService: mockEventService,
+        scheduler: createMockScheduler(),
       });
 
       await coordinator.initialize();
     });
 
-    afterEach(() => {
-      (coordinator as any).healthCheckInterval &&
-        clearInterval((coordinator as any).healthCheckInterval);
-      (coordinator as any).metricsCollectionInterval &&
-        clearInterval((coordinator as any).metricsCollectionInterval);
+    afterEach(async () => {
+      await (coordinator as any).scheduler?.shutdownAll();
     });
 
     it("should execute parallel coordination strategy", async () => {

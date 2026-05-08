@@ -5,6 +5,7 @@
  *              between application and infrastructure layers.
  * @layer infrastructure
  */
+import type { CachePort } from "@ports/core";
 import type { CrossPlatformAnalyticsPort } from "../../application/analytics/GetCrossPlatformAnalyticsUseCase.js";
 import { CrossPlatformAnalyticsEngine } from "../../analytics/crossPlatform/index.js";
 import type { CrossPlatformAnalyticsOptions } from "../../analytics/crossPlatform/types.js";
@@ -24,8 +25,8 @@ import type { TimeRange, ProviderType } from "@shared/analytics";
 export class CrossPlatformAnalyticsAdapter implements CrossPlatformAnalyticsPort {
   private readonly engine: CrossPlatformAnalyticsEngine;
 
-  constructor() {
-    this.engine = new CrossPlatformAnalyticsEngine();
+  constructor(cache: CachePort) {
+    this.engine = new CrossPlatformAnalyticsEngine(cache);
   }
 
   async generateCrossPlatformMetrics(options: {

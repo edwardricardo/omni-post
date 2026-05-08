@@ -2,20 +2,92 @@
  * @file LinkedInAdapter.test.ts
  * @description Unit tests for LinkedInAdapter covering metadata, render,
  *              publish, validateCredentials, fetchAnalytics, getComments,
- *              postReply, and error handling.
+ *              postReply, and error handling. Adapter is stateless w.r.t.
+ *              credentials — tests inject a fake apiClientFactory and pass
+ *              credentials per-call.
  *              All tests are Tier 0 (no network, no DB, no Redis).
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { LinkedInAdapter } from "../src/LinkedInAdapter.js";
+import { LinkedInAdapter, type LinkedInApiClientFactory } from "../src/LinkedInAdapter.js";
+import type { LinkedInApiClient } from "../src/apiClient.js";
+import type { LinkedInCredentials } from "../src/types.js";
 import type { CanonicalPost, RenderedPost } from "@shared/types";
 import type { PublishInput } from "@ports/core";
 
 // ============================================================================
 // Test helpers
 // ============================================================================
+
+interface FakeApiClient {
+  createPost: ReturnType<typeof vi.fn>;
+  getProfile: ReturnType<typeof vi.fn>;
+  validateCredentials?: ReturnType<typeof vi.fn>;
+  getPostAnalytics: ReturnType<typeof vi.fn>;
+  initializeImageUpload: ReturnType<typeof vi.fn>;
+  initializeVideoUpload: ReturnType<typeof vi.fn>;
+  initializeDocumentUpload: ReturnType<typeof vi.fn>;
+  uploadMediaBinary: ReturnType<typeof vi.fn>;
+  getComments: ReturnType<typeof vi.fn>;
+  postComment: ReturnType<typeof vi.fn>;
+}
+
+function makeFakeApiClient(overrides: Partial<FakeApiClient> = {}): FakeApiClient {
+  return {
+    createPost: vi.fn(async () => ({
+      id: "urn:li:share:12345",
+      activity: "urn:li:activity:12345",
+    })),
+    getProfile: vi.fn(async () => ({ sub: "abc123", name: "Test User" })),
+    getPostAnalytics: vi.fn(async () => ({
+      totalShareStatistics: {
+        shareCount: 10,
+        likeCount: 50,
+        commentCount: 5,
+        impressionCount: 1000,
+        uniqueImpressionsCount: 800,
+        clickCount: 25,
+        engagement: 0.09,
+      },
+    })),
+    initializeImageUpload: vi.fn(async () => ({
+      value: { uploadUrl: "https://api.linkedin.com/upload", image: "urn:li:image:1" },
+    })),
+    initializeVideoUpload: vi.fn(async () => ({
+      value: {
+        uploadInstructions: [{ uploadUrl: "https://x", firstByte: 0, lastByte: 0 }],
+        video: "urn:li:video:1",
+      },
+    })),
+    initializeDocumentUpload: vi.fn(async () => ({
+      value: { uploadUrl: "https://api.linkedin.com/upload-doc", document: "urn:li:document:1" },
+    })),
+    uploadMediaBinary: vi.fn(async () => undefined),
+    getComments: vi.fn(async () => ({
+      elements: [],
+      paging: { start: 0, count: 20, total: 0, links: [] },
+    })),
+    postComment: vi.fn(async () => ({
+      id: "comment-001",
+      actor: "urn:li:person:abc123",
+      message: { text: "reply" },
+      created: { time: Date.now() },
+      object: "urn:li:share:12345",
+    })),
+    ...overrides,
+  };
+}
+
+function makeAdapter(client: FakeApiClient = makeFakeApiClient()): {
+  adapter: LinkedInAdapter;
+  client: FakeApiClient;
+} {
+  const factory: LinkedInApiClientFactory = () => client as unknown as LinkedInApiClient;
+  const adapter = new LinkedInAdapter({ apiClientFactory: factory });
+  return { adapter, client };
+}
 
 function makeCanonicalPost(overrides?: Partial<CanonicalPost>): CanonicalPost {
   return {
@@ -39,31 +111,33 @@ function makePublishInput(overrides?: Partial<PublishInput>): PublishInput {
   };
 }
 
-function makeValidCredentials() {
-  return {
-    accessToken: "valid-token",
-    refreshToken: "valid-refresh",
-    personUrn: "urn:li:person:abc123",
-  };
-}
+const VALID_CREDS: LinkedInCredentials = {
+  accessToken: "valid-token",
+  refreshToken: "valid-refresh",
+  personUrn: "urn:li:person:abc123",
+};
+
+const VALID_CREDS_ORG: LinkedInCredentials = {
+  ...VALID_CREDS,
+  organizationUrn: "urn:li:organization:org456",
+};
 
 // ============================================================================
 // 1. Metadata Tests
 // ============================================================================
 
 describe("LinkedInAdapter - Metadata", { concurrency: 1 }, () => {
-  let adapter: LinkedInAdapter;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new LinkedInAdapter();
   });
 
   it("returns correct provider ID", () => {
+    const { adapter } = makeAdapter();
     assert.strictEqual(adapter.id, "linkedin");
   });
 
   it("returns correct metadata fields", () => {
+    const { adapter } = makeAdapter();
     assert.strictEqual(adapter.metadata.id, "linkedin");
     assert.strictEqual(adapter.metadata.name, "linkedin");
     assert.strictEqual(adapter.metadata.displayName, "LinkedIn");
@@ -74,6 +148,7 @@ describe("LinkedInAdapter - Metadata", { concurrency: 1 }, () => {
   });
 
   it("returns correct limits", () => {
+    const { adapter } = makeAdapter();
     assert.strictEqual(adapter.limits.maxChars, 3000);
     assert.strictEqual(adapter.limits.maxMediaPerPost, 9);
     assert.strictEqual(adapter.limits.threadingSupported, false);
@@ -82,6 +157,7 @@ describe("LinkedInAdapter - Metadata", { concurrency: 1 }, () => {
   });
 
   it("returns correct capabilities", () => {
+    const { adapter } = makeAdapter();
     assert.strictEqual(adapter.capabilities.publish, true);
     assert.strictEqual(adapter.capabilities.schedule, true);
     assert.strictEqual(adapter.capabilities.analytics, true);
@@ -91,6 +167,7 @@ describe("LinkedInAdapter - Metadata", { concurrency: 1 }, () => {
   });
 
   it("has correct required scopes", () => {
+    const { adapter } = makeAdapter();
     assert.deepStrictEqual(adapter.metadata.requiredScopes, [
       "w_member_social",
       "w_organization_social",
@@ -100,13 +177,15 @@ describe("LinkedInAdapter - Metadata", { concurrency: 1 }, () => {
   });
 
   it("has empty constraints", () => {
+    const { adapter } = makeAdapter();
     assert.deepStrictEqual(adapter.constraints, {});
   });
 
-  it("exports a singleton instance", async () => {
-    const { linkedInAdapter } = await import("../src/LinkedInAdapter.js");
-    assert.ok(linkedInAdapter instanceof LinkedInAdapter);
-    assert.strictEqual(linkedInAdapter.id, "linkedin");
+  it("exports a factory function", async () => {
+    const { createLinkedInAdapter } = await import("../src/LinkedInAdapter.js");
+    const adapter = createLinkedInAdapter();
+    assert.ok(adapter instanceof LinkedInAdapter);
+    assert.strictEqual(adapter.id, "linkedin");
   });
 });
 
@@ -115,14 +194,12 @@ describe("LinkedInAdapter - Metadata", { concurrency: 1 }, () => {
 // ============================================================================
 
 describe("LinkedInAdapter - Render", { concurrency: 1 }, () => {
-  let adapter: LinkedInAdapter;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new LinkedInAdapter();
   });
 
   it("renders text-only content correctly", () => {
+    const { adapter } = makeAdapter();
     const post = makeCanonicalPost({ body: "Hello LinkedIn!" });
     const result = adapter.render(post);
 
@@ -136,6 +213,7 @@ describe("LinkedInAdapter - Render", { concurrency: 1 }, () => {
   });
 
   it("renders content with media correctly", () => {
+    const { adapter } = makeAdapter();
     const post = makeCanonicalPost({
       body: "Post with image",
       media: [
@@ -162,6 +240,7 @@ describe("LinkedInAdapter - Render", { concurrency: 1 }, () => {
   });
 
   it("renders content with multiple media items", () => {
+    const { adapter } = makeAdapter();
     const post = makeCanonicalPost({
       body: "Multi image post",
       media: [
@@ -181,6 +260,7 @@ describe("LinkedInAdapter - Render", { concurrency: 1 }, () => {
   });
 
   it("returns TEXT_TOO_LONG when body exceeds 3000 chars", () => {
+    const { adapter } = makeAdapter();
     const longBody = "x".repeat(3001);
     const post = makeCanonicalPost({ body: longBody });
 
@@ -193,6 +273,7 @@ describe("LinkedInAdapter - Render", { concurrency: 1 }, () => {
   });
 
   it("returns VALIDATION_ERROR when too many media items", () => {
+    const { adapter } = makeAdapter();
     const tooManyMedia = Array.from({ length: 10 }, (_, i) => ({
       id: `m${i}`,
       type: "image" as const,
@@ -209,6 +290,7 @@ describe("LinkedInAdapter - Render", { concurrency: 1 }, () => {
   });
 
   it("renders empty body as empty string", () => {
+    const { adapter } = makeAdapter();
     const post = makeCanonicalPost({ body: "" });
     const result = adapter.render(post);
 
@@ -220,6 +302,7 @@ describe("LinkedInAdapter - Render", { concurrency: 1 }, () => {
   });
 
   it("does not include media in rendered content when no media provided", () => {
+    const { adapter } = makeAdapter();
     const post = makeCanonicalPost({ body: "Text only", media: undefined });
     const result = adapter.render(post);
 
@@ -231,6 +314,7 @@ describe("LinkedInAdapter - Render", { concurrency: 1 }, () => {
   });
 
   it("omits alt from media when not provided", () => {
+    const { adapter } = makeAdapter();
     const post = makeCanonicalPost({
       body: "No alt text",
       media: [{ id: "m1", type: "image", url: "https://example.com/img.jpg" }],
@@ -251,44 +335,13 @@ describe("LinkedInAdapter - Render", { concurrency: 1 }, () => {
 // ============================================================================
 
 describe("LinkedInAdapter - Publish", { concurrency: 1 }, () => {
-  let adapter: LinkedInAdapter;
-  let mockCreatePost: ReturnType<typeof vi.fn>;
-  let mockGetProfile: ReturnType<typeof vi.fn>;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new LinkedInAdapter();
-
-    mockCreatePost = vi.fn(async () => ({
-      id: "urn:li:share:12345",
-      activity: "urn:li:activity:12345",
-    }));
-
-    mockGetProfile = vi.fn(async () => ({
-      sub: "abc123",
-      name: "Test User",
-    }));
-
-    (adapter as any).createApiClient = () => ({
-      createPost: mockCreatePost,
-      getProfile: mockGetProfile,
-      initializeImageUpload: vi.fn(),
-      uploadMediaBinary: vi.fn(),
-    });
-
-    (adapter as any).getCredentials = vi.fn(async () => ({
-      ok: true,
-      value: {
-        accessToken: "test-token",
-        refreshToken: "test-refresh",
-        personUrn: "urn:li:person:abc123",
-      },
-    }));
   });
 
   it("publishes text post successfully and returns receipt", async () => {
-    const input = makePublishInput();
-    const result = await adapter.publish(input);
+    const { adapter } = makeAdapter();
+    const result = await adapter.publish(makePublishInput(), VALID_CREDS);
 
     assert.ok(result.ok, "Publish should succeed");
     if (result.ok) {
@@ -299,37 +352,27 @@ describe("LinkedInAdapter - Publish", { concurrency: 1 }, () => {
   });
 
   it("calls createPost with correct author from personUrn", async () => {
-    const input = makePublishInput();
-    await adapter.publish(input);
+    const { adapter, client } = makeAdapter();
+    await adapter.publish(makePublishInput(), VALID_CREDS);
 
-    assert.strictEqual(mockCreatePost.mock.calls.length, 1);
-    const payload = mockCreatePost.mock.calls[0]?.[0] as Record<string, unknown>;
+    assert.strictEqual(client.createPost.mock.calls.length, 1);
+    const payload = client.createPost.mock.calls[0]?.[0] as Record<string, unknown>;
     assert.strictEqual(payload.author, "urn:li:person:abc123");
     assert.strictEqual(payload.visibility, "PUBLIC");
     assert.strictEqual(payload.lifecycleState, "PUBLISHED");
   });
 
   it("uses organizationUrn as author when available", async () => {
-    (adapter as any).getCredentials = vi.fn(async () => ({
-      ok: true,
-      value: {
-        accessToken: "test-token",
-        refreshToken: "test-refresh",
-        personUrn: "urn:li:person:abc123",
-        organizationUrn: "urn:li:organization:org456",
-      },
-    }));
+    const { adapter, client } = makeAdapter();
+    await adapter.publish(makePublishInput(), VALID_CREDS_ORG);
 
-    const input = makePublishInput();
-    await adapter.publish(input);
-
-    const payload = mockCreatePost.mock.calls[0]?.[0] as Record<string, unknown>;
+    const payload = client.createPost.mock.calls[0]?.[0] as Record<string, unknown>;
     assert.strictEqual(payload.author, "urn:li:organization:org456");
   });
 
   it("constructs correct URL from share URN", async () => {
-    const input = makePublishInput();
-    const result = await adapter.publish(input);
+    const { adapter } = makeAdapter();
+    const result = await adapter.publish(makePublishInput(), VALID_CREDS);
 
     assert.ok(result.ok);
     if (result.ok) {
@@ -341,16 +384,11 @@ describe("LinkedInAdapter - Publish", { concurrency: 1 }, () => {
   });
 
   it("uses raw postId in URL when activity ID cannot be extracted", async () => {
-    mockCreatePost = vi.fn(async () => ({
-      id: "non-standard-id-format",
-    }));
-    (adapter as any).createApiClient = () => ({
-      createPost: mockCreatePost,
-      getProfile: mockGetProfile,
+    const client = makeFakeApiClient({
+      createPost: vi.fn(async () => ({ id: "non-standard-id-format" })),
     });
-
-    const input = makePublishInput();
-    const result = await adapter.publish(input);
+    const { adapter } = makeAdapter(client);
+    const result = await adapter.publish(makePublishInput(), VALID_CREDS);
 
     assert.ok(result.ok);
     if (result.ok) {
@@ -361,14 +399,22 @@ describe("LinkedInAdapter - Publish", { concurrency: 1 }, () => {
     }
   });
 
-  it("returns AUTH error when credentials are invalid", async () => {
-    (adapter as any).getCredentials = vi.fn(async () => ({
-      ok: false,
-      error: "AUTH",
-    }));
+  it("returns AUTH error when credentials are missing", async () => {
+    const { adapter } = makeAdapter();
+    const result = await adapter.publish(makePublishInput(), undefined);
 
-    const input = makePublishInput();
-    const result = await adapter.publish(input);
+    assert.strictEqual(result.ok, false);
+    if (!result.ok) {
+      assert.strictEqual(result.error, "AUTH");
+    }
+  });
+
+  it("returns AUTH error when credentials lack accessToken", async () => {
+    const { adapter } = makeAdapter();
+    const result = await adapter.publish(makePublishInput(), {
+      refreshToken: "x",
+      personUrn: "y",
+    });
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -377,16 +423,13 @@ describe("LinkedInAdapter - Publish", { concurrency: 1 }, () => {
   });
 
   it("returns NETWORK error when circuit breaker is open", async () => {
-    mockCreatePost = vi.fn(async () => {
-      throw new Error("Circuit breaker is OPEN for linkedin-api");
+    const client = makeFakeApiClient({
+      createPost: vi.fn(async () => {
+        throw new Error("Circuit breaker is OPEN for linkedin-api");
+      }),
     });
-    (adapter as any).createApiClient = () => ({
-      createPost: mockCreatePost,
-      getProfile: mockGetProfile,
-    });
-
-    const input = makePublishInput();
-    const result = await adapter.publish(input);
+    const { adapter } = makeAdapter(client);
+    const result = await adapter.publish(makePublishInput(), VALID_CREDS);
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -396,16 +439,13 @@ describe("LinkedInAdapter - Publish", { concurrency: 1 }, () => {
 
   it("returns RATE_LIMIT error on 429 status", async () => {
     const rateLimitError = Object.assign(new Error("Rate limited"), { status: 429 });
-    mockCreatePost = vi.fn(async () => {
-      throw rateLimitError;
+    const client = makeFakeApiClient({
+      createPost: vi.fn(async () => {
+        throw rateLimitError;
+      }),
     });
-    (adapter as any).createApiClient = () => ({
-      createPost: mockCreatePost,
-      getProfile: mockGetProfile,
-    });
-
-    const input = makePublishInput();
-    const result = await adapter.publish(input);
+    const { adapter } = makeAdapter(client);
+    const result = await adapter.publish(makePublishInput(), VALID_CREDS);
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -415,16 +455,13 @@ describe("LinkedInAdapter - Publish", { concurrency: 1 }, () => {
 
   it("returns AUTH error on 401 status", async () => {
     const authError = Object.assign(new Error("Unauthorized"), { status: 401 });
-    mockCreatePost = vi.fn(async () => {
-      throw authError;
+    const client = makeFakeApiClient({
+      createPost: vi.fn(async () => {
+        throw authError;
+      }),
     });
-    (adapter as any).createApiClient = () => ({
-      createPost: mockCreatePost,
-      getProfile: mockGetProfile,
-    });
-
-    const input = makePublishInput();
-    const result = await adapter.publish(input);
+    const { adapter } = makeAdapter(client);
+    const result = await adapter.publish(makePublishInput(), VALID_CREDS);
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -432,18 +469,15 @@ describe("LinkedInAdapter - Publish", { concurrency: 1 }, () => {
     }
   });
 
-  it("returns mapped error for server errors (500+)", async () => {
+  it("returns NETWORK error on 500 status", async () => {
     const serverError = Object.assign(new Error("Server Error"), { status: 500 });
-    mockCreatePost = vi.fn(async () => {
-      throw serverError;
+    const client = makeFakeApiClient({
+      createPost: vi.fn(async () => {
+        throw serverError;
+      }),
     });
-    (adapter as any).createApiClient = () => ({
-      createPost: mockCreatePost,
-      getProfile: mockGetProfile,
-    });
-
-    const input = makePublishInput();
-    const result = await adapter.publish(input);
+    const { adapter } = makeAdapter(client);
+    const result = await adapter.publish(makePublishInput(), VALID_CREDS);
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -452,12 +486,15 @@ describe("LinkedInAdapter - Publish", { concurrency: 1 }, () => {
   });
 
   it("sets commentary from post body", async () => {
-    const input = makePublishInput({
-      post: { body: "My commentary text", text: "My commentary text" },
-    });
-    await adapter.publish(input);
+    const { adapter, client } = makeAdapter();
+    await adapter.publish(
+      makePublishInput({
+        post: { body: "My commentary text", text: "My commentary text" },
+      }),
+      VALID_CREDS
+    );
 
-    const payload = mockCreatePost.mock.calls[0]?.[0] as Record<string, unknown>;
+    const payload = client.createPost.mock.calls[0]?.[0] as Record<string, unknown>;
     assert.strictEqual(payload.commentary, "My commentary text");
   });
 });
@@ -467,37 +504,19 @@ describe("LinkedInAdapter - Publish", { concurrency: 1 }, () => {
 // ============================================================================
 
 describe("LinkedInAdapter - ValidateCredentials", { concurrency: 1 }, () => {
-  let adapter: LinkedInAdapter;
-  let mockGetProfile: ReturnType<typeof vi.fn>;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new LinkedInAdapter();
-
-    mockGetProfile = vi.fn(async () => ({
-      sub: "abc123",
-      name: "Test User",
-    }));
-
-    // LinkedIn's testCredentials calls the default from base class
-    // which checks for apiClient.validateCredentials, but LinkedIn
-    // doesn't override testCredentials, so it uses the default behavior
-    (adapter as any).createApiClient = () => ({
-      getProfile: mockGetProfile,
-      validateCredentials: mockGetProfile,
-    });
   });
 
   it("returns ok with valid credentials", async () => {
-    const creds = makeValidCredentials();
-    const result = await adapter.validateCredentials(creds);
-
+    const { adapter } = makeAdapter();
+    const result = await adapter.validateCredentials(VALID_CREDS);
     assert.ok(result.ok, "Validation should succeed");
   });
 
   it("returns AUTH_INVALID when accessToken is missing", async () => {
-    const creds = { ...makeValidCredentials(), accessToken: "" };
-    const result = await adapter.validateCredentials(creds);
+    const { adapter } = makeAdapter();
+    const result = await adapter.validateCredentials({ ...VALID_CREDS, accessToken: "" });
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -506,8 +525,8 @@ describe("LinkedInAdapter - ValidateCredentials", { concurrency: 1 }, () => {
   });
 
   it("returns AUTH_INVALID when refreshToken is missing", async () => {
-    const creds = { ...makeValidCredentials(), refreshToken: "" };
-    const result = await adapter.validateCredentials(creds);
+    const { adapter } = makeAdapter();
+    const result = await adapter.validateCredentials({ ...VALID_CREDS, refreshToken: "" });
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -516,8 +535,18 @@ describe("LinkedInAdapter - ValidateCredentials", { concurrency: 1 }, () => {
   });
 
   it("returns AUTH_INVALID when personUrn is missing", async () => {
-    const creds = { ...makeValidCredentials(), personUrn: "" };
-    const result = await adapter.validateCredentials(creds);
+    const { adapter } = makeAdapter();
+    const result = await adapter.validateCredentials({ ...VALID_CREDS, personUrn: "" });
+
+    assert.strictEqual(result.ok, false);
+    if (!result.ok) {
+      assert.strictEqual(result.error, "AUTH_INVALID");
+    }
+  });
+
+  it("returns AUTH_INVALID when credentials object is null", async () => {
+    const { adapter } = makeAdapter();
+    const result = await adapter.validateCredentials(null);
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -527,14 +556,13 @@ describe("LinkedInAdapter - ValidateCredentials", { concurrency: 1 }, () => {
 
   it("returns AUTH_EXPIRED when API returns 401", async () => {
     const authError = Object.assign(new Error("Unauthorized"), { status: 401 });
-    (adapter as any).createApiClient = () => ({
-      validateCredentials: vi.fn(async () => {
+    const client = makeFakeApiClient({
+      getProfile: vi.fn(async () => {
         throw authError;
       }),
     });
-
-    const creds = makeValidCredentials();
-    const result = await adapter.validateCredentials(creds);
+    const { adapter } = makeAdapter(client);
+    const result = await adapter.validateCredentials(VALID_CREDS);
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -543,14 +571,13 @@ describe("LinkedInAdapter - ValidateCredentials", { concurrency: 1 }, () => {
   });
 
   it("returns AUTH_INVALID when API throws generic error", async () => {
-    (adapter as any).createApiClient = () => ({
-      validateCredentials: vi.fn(async () => {
+    const client = makeFakeApiClient({
+      getProfile: vi.fn(async () => {
         throw new Error("Connection refused");
       }),
     });
-
-    const creds = makeValidCredentials();
-    const result = await adapter.validateCredentials(creds);
+    const { adapter } = makeAdapter(client);
+    const result = await adapter.validateCredentials(VALID_CREDS);
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -564,45 +591,20 @@ describe("LinkedInAdapter - ValidateCredentials", { concurrency: 1 }, () => {
 // ============================================================================
 
 describe("LinkedInAdapter - FetchAnalytics", { concurrency: 1 }, () => {
-  let adapter: LinkedInAdapter;
-  let mockGetPostAnalytics: ReturnType<typeof vi.fn>;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new LinkedInAdapter();
-
-    mockGetPostAnalytics = vi.fn(async () => ({
-      totalShareStatistics: {
-        shareCount: 10,
-        likeCount: 50,
-        commentCount: 5,
-        impressionCount: 1000,
-        uniqueImpressionsCount: 800,
-        clickCount: 25,
-        engagement: 0.09,
-      },
-    }));
-
-    (adapter as any).createApiClient = () => ({
-      getPostAnalytics: mockGetPostAnalytics,
-    });
-
-    (adapter as any).getCredentials = vi.fn(async () => ({
-      ok: true,
-      value: {
-        accessToken: "test-token",
-        refreshToken: "test-refresh",
-        personUrn: "urn:li:person:abc123",
-      },
-    }));
   });
 
   it("returns analytics data with correct metrics mapping", async () => {
-    const result = await adapter.fetchAnalytics({
-      channelId: "channel-001",
-      since: new Date("2024-01-01"),
-      until: new Date("2024-01-31"),
-    });
+    const { adapter } = makeAdapter();
+    const result = await adapter.fetchAnalytics(
+      {
+        channelId: "channel-001",
+        since: new Date("2024-01-01"),
+        until: new Date("2024-01-31"),
+      },
+      VALID_CREDS
+    );
 
     assert.ok(result.ok, "FetchAnalytics should succeed");
     if (result.ok) {
@@ -620,37 +622,25 @@ describe("LinkedInAdapter - FetchAnalytics", { concurrency: 1 }, () => {
   });
 
   it("passes authorUrn from personUrn to getPostAnalytics", async () => {
-    await adapter.fetchAnalytics({ channelId: "channel-001" });
+    const { adapter, client } = makeAdapter();
+    await adapter.fetchAnalytics({ channelId: "channel-001" }, VALID_CREDS);
 
-    assert.strictEqual(mockGetPostAnalytics.mock.calls.length, 1);
-    const authorUrn = mockGetPostAnalytics.mock.calls[0]?.[0] as string;
+    assert.strictEqual(client.getPostAnalytics.mock.calls.length, 1);
+    const authorUrn = client.getPostAnalytics.mock.calls[0]?.[0] as string;
     assert.strictEqual(authorUrn, "urn:li:person:abc123");
   });
 
   it("uses organizationUrn as authorUrn when available", async () => {
-    (adapter as any).getCredentials = vi.fn(async () => ({
-      ok: true,
-      value: {
-        accessToken: "test-token",
-        refreshToken: "test-refresh",
-        personUrn: "urn:li:person:abc123",
-        organizationUrn: "urn:li:organization:org456",
-      },
-    }));
+    const { adapter, client } = makeAdapter();
+    await adapter.fetchAnalytics({ channelId: "channel-001" }, VALID_CREDS_ORG);
 
-    await adapter.fetchAnalytics({ channelId: "channel-001" });
-
-    const authorUrn = mockGetPostAnalytics.mock.calls[0]?.[0] as string;
+    const authorUrn = client.getPostAnalytics.mock.calls[0]?.[0] as string;
     assert.strictEqual(authorUrn, "urn:li:organization:org456");
   });
 
-  it("returns AUTH error when credentials are invalid", async () => {
-    (adapter as any).getCredentials = vi.fn(async () => ({
-      ok: false,
-      error: "AUTH",
-    }));
-
-    const result = await adapter.fetchAnalytics({ channelId: "channel-001" });
+  it("returns AUTH error when credentials are missing", async () => {
+    const { adapter } = makeAdapter();
+    const result = await adapter.fetchAnalytics({ channelId: "channel-001" }, undefined);
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -659,14 +649,13 @@ describe("LinkedInAdapter - FetchAnalytics", { concurrency: 1 }, () => {
   });
 
   it("returns NETWORK error when API call fails", async () => {
-    mockGetPostAnalytics = vi.fn(async () => {
-      throw new Error("API unavailable");
+    const client = makeFakeApiClient({
+      getPostAnalytics: vi.fn(async () => {
+        throw new Error("API unavailable");
+      }),
     });
-    (adapter as any).createApiClient = () => ({
-      getPostAnalytics: mockGetPostAnalytics,
-    });
-
-    const result = await adapter.fetchAnalytics({ channelId: "channel-001" });
+    const { adapter } = makeAdapter(client);
+    const result = await adapter.fetchAnalytics({ channelId: "channel-001" }, VALID_CREDS);
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
@@ -675,14 +664,14 @@ describe("LinkedInAdapter - FetchAnalytics", { concurrency: 1 }, () => {
   });
 
   it("includes since and until dates in response when provided", async () => {
+    const { adapter } = makeAdapter();
     const since = new Date("2024-06-01");
     const until = new Date("2024-06-30");
 
-    const result = await adapter.fetchAnalytics({
-      channelId: "channel-001",
-      since,
-      until,
-    });
+    const result = await adapter.fetchAnalytics(
+      { channelId: "channel-001", since, until },
+      VALID_CREDS
+    );
 
     assert.ok(result.ok);
     if (result.ok) {
@@ -698,85 +687,37 @@ describe("LinkedInAdapter - FetchAnalytics", { concurrency: 1 }, () => {
 // ============================================================================
 
 describe("LinkedInAdapter - GetComments", { concurrency: 1 }, () => {
-  let adapter: LinkedInAdapter;
-  let mockGetComments: ReturnType<typeof vi.fn>;
-  let _originalGetComments: typeof adapter.getComments;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new LinkedInAdapter();
-    _originalGetComments = adapter.getComments.bind(adapter);
-
-    mockGetComments = vi.fn(async () => ({
-      elements: [
-        {
-          id: "comment-001",
-          actor: "urn:li:person:user1",
-          message: { text: "Great post!" },
-          created: { time: 1717200000000 },
-          object: "urn:li:share:12345",
-        },
-        {
-          id: "comment-002",
-          actor: "urn:li:person:user2",
-          message: { text: "Thanks for sharing" },
-          created: { time: 1717286400000 },
-          parentComment: "comment-001",
-          object: "urn:li:share:12345",
-        },
-      ],
-      paging: { start: 0, count: 20, total: 2, links: [] },
-    }));
-  });
-
-  afterEach(() => {
-    if (_originalGetComments) {
-      adapter.getComments = _originalGetComments;
-    }
   });
 
   it("returns comments list with correct mapping", async () => {
-    // We need to mock LinkedInApiClient constructor
-    // Since getComments creates its own apiClient via `new LinkedInApiClient(creds)`,
-    // we override the method to inject our mock
-    adapter.getComments = async (params) => {
-      // Temporarily replace LinkedInApiClient behavior
-      (adapter as any).createApiClient = () => ({ getComments: mockGetComments });
-      const apiClient = (adapter as any).createApiClient(params.channelCredentials);
-
-      const creds = params.channelCredentials as Record<string, string>;
-      if (!creds.accessToken || !creds.personUrn) {
-        const { err } = await import("@shared/types");
-        return err("AUTH" as const);
-      }
-
-      const postUrn = params.postExternalId || "";
-      const start = params.cursor ? parseInt(params.cursor, 10) : 0;
-      const count = params.limit || 20;
-
-      const response = await apiClient.getComments(postUrn, start, count);
-
-      const comments = response.elements.map((c: any) => ({
-        providerMessageId: c.id,
-        ...(c.parentComment ? { providerParentId: c.parentComment } : {}),
-        authorName: c.actor,
-        authorProviderId: c.actor,
-        body: c.message.text,
-        createdAt: new Date(c.created.time),
-      }));
-
-      const nextStart = start + count;
-      const hasMore = nextStart < response.paging.total;
-
-      const { ok } = await import("@shared/types");
-      return ok({
-        comments,
-        ...(hasMore ? { nextCursor: String(nextStart) } : {}),
-      });
-    };
+    const client = makeFakeApiClient({
+      getComments: vi.fn(async () => ({
+        elements: [
+          {
+            id: "comment-001",
+            actor: "urn:li:person:user1",
+            message: { text: "Great post!" },
+            created: { time: 1717200000000 },
+            object: "urn:li:share:12345",
+          },
+          {
+            id: "comment-002",
+            actor: "urn:li:person:user2",
+            message: { text: "Thanks for sharing" },
+            created: { time: 1717286400000 },
+            parentComment: "comment-001",
+            object: "urn:li:share:12345",
+          },
+        ],
+        paging: { start: 0, count: 20, total: 2, links: [] },
+      })),
+    });
+    const { adapter } = makeAdapter(client);
 
     const result = await adapter.getComments({
-      channelCredentials: makeValidCredentials(),
+      channelCredentials: VALID_CREDS,
       postExternalId: "urn:li:share:12345",
     });
 
@@ -797,8 +738,9 @@ describe("LinkedInAdapter - GetComments", { concurrency: 1 }, () => {
   });
 
   it("returns AUTH error when credentials are missing", async () => {
+    const { adapter } = makeAdapter();
     const result = await adapter.getComments({
-      channelCredentials: { accessToken: "", personUrn: "" },
+      channelCredentials: { accessToken: "", personUrn: "", refreshToken: "" },
     });
 
     assert.strictEqual(result.ok, false);
@@ -808,13 +750,32 @@ describe("LinkedInAdapter - GetComments", { concurrency: 1 }, () => {
   });
 
   it("returns AUTH error when accessToken is missing", async () => {
+    const { adapter } = makeAdapter();
     const result = await adapter.getComments({
-      channelCredentials: { accessToken: "", personUrn: "urn:li:person:abc123" },
+      channelCredentials: { accessToken: "", personUrn: "urn:li:person:abc123", refreshToken: "r" },
     });
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
       assert.strictEqual(result.error, "AUTH");
+    }
+  });
+
+  it("returns NETWORK error when API call fails", async () => {
+    const client = makeFakeApiClient({
+      getComments: vi.fn(async () => {
+        throw new Error("API down");
+      }),
+    });
+    const { adapter } = makeAdapter(client);
+    const result = await adapter.getComments({
+      channelCredentials: VALID_CREDS,
+      postExternalId: "urn:li:share:1",
+    });
+
+    assert.strictEqual(result.ok, false);
+    if (!result.ok) {
+      assert.strictEqual(result.error, "NETWORK");
     }
   });
 });
@@ -824,27 +785,14 @@ describe("LinkedInAdapter - GetComments", { concurrency: 1 }, () => {
 // ============================================================================
 
 describe("LinkedInAdapter - PostReply", { concurrency: 1 }, () => {
-  let adapter: LinkedInAdapter;
-  let _mockPostComment: ReturnType<typeof vi.fn>;
-  let _originalPostReply: typeof adapter.postReply;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new LinkedInAdapter();
-    _originalPostReply = adapter.postReply.bind(adapter);
-
-    _mockPostComment = vi.fn(async () => ({
-      id: "reply-001",
-      actor: "urn:li:person:abc123",
-      message: { text: "Thank you!" },
-      created: { time: 1717200000000 },
-      object: "urn:li:share:12345",
-    }));
   });
 
   it("returns AUTH error when credentials are missing", async () => {
+    const { adapter } = makeAdapter();
     const result = await adapter.postReply({
-      channelCredentials: { accessToken: "", personUrn: "" },
+      channelCredentials: { accessToken: "", personUrn: "", refreshToken: "" },
       inReplyToProviderMessageId: "urn:li:share:12345",
       body: "Reply text",
     });
@@ -856,8 +804,9 @@ describe("LinkedInAdapter - PostReply", { concurrency: 1 }, () => {
   });
 
   it("returns AUTH error when personUrn is missing", async () => {
+    const { adapter } = makeAdapter();
     const result = await adapter.postReply({
-      channelCredentials: { accessToken: "token", personUrn: "" },
+      channelCredentials: { accessToken: "token", personUrn: "", refreshToken: "r" },
       inReplyToProviderMessageId: "urn:li:share:12345",
       body: "Reply text",
     });
@@ -868,40 +817,31 @@ describe("LinkedInAdapter - PostReply", { concurrency: 1 }, () => {
     }
   });
 
-  afterEach(() => {
-    if (_originalPostReply) {
-      adapter.postReply = _originalPostReply;
+  it("returns ok with reply receipt on success", async () => {
+    const { adapter } = makeAdapter();
+    const result = await adapter.postReply({
+      channelCredentials: VALID_CREDS,
+      inReplyToProviderMessageId: "urn:li:share:12345",
+      body: "Reply text",
+    });
+
+    assert.ok(result.ok);
+    if (result.ok) {
+      assert.strictEqual(result.value.providerReplyId, "comment-001");
+      assert.ok(result.value.createdAt instanceof Date);
     }
   });
 
   it("returns RATE_LIMIT error on 429 status", async () => {
-    // Override postReply to simulate the error path
-    adapter.postReply = async (params) => {
-      const creds = params.channelCredentials as Record<string, string>;
-      if (!creds.accessToken || !creds.personUrn) {
-        const { err } = await import("@shared/types");
-        return err("AUTH" as const);
-      }
-
-      try {
-        const rateLimitError = Object.assign(new Error("Rate limited"), { status: 429 });
+    const rateLimitError = Object.assign(new Error("Rate limited"), { status: 429 });
+    const client = makeFakeApiClient({
+      postComment: vi.fn(async () => {
         throw rateLimitError;
-      } catch (error: unknown) {
-        if (
-          error instanceof Error &&
-          "status" in error &&
-          (error as Record<string, unknown>).status === 429
-        ) {
-          const { err } = await import("@shared/types");
-          return err("RATE_LIMIT" as const);
-        }
-        const { err } = await import("@shared/types");
-        return err("NETWORK" as const);
-      }
-    };
-
+      }),
+    });
+    const { adapter } = makeAdapter(client);
     const result = await adapter.postReply({
-      channelCredentials: makeValidCredentials(),
+      channelCredentials: VALID_CREDS,
       inReplyToProviderMessageId: "urn:li:share:12345",
       body: "Reply text",
     });
@@ -911,6 +851,25 @@ describe("LinkedInAdapter - PostReply", { concurrency: 1 }, () => {
       assert.strictEqual(result.error, "RATE_LIMIT");
     }
   });
+
+  it("returns NETWORK error for non-rate-limit errors", async () => {
+    const client = makeFakeApiClient({
+      postComment: vi.fn(async () => {
+        throw new Error("Boom");
+      }),
+    });
+    const { adapter } = makeAdapter(client);
+    const result = await adapter.postReply({
+      channelCredentials: VALID_CREDS,
+      inReplyToProviderMessageId: "urn:li:share:12345",
+      body: "Reply text",
+    });
+
+    assert.strictEqual(result.ok, false);
+    if (!result.ok) {
+      assert.strictEqual(result.error, "NETWORK");
+    }
+  });
 });
 
 // ============================================================================
@@ -918,14 +877,12 @@ describe("LinkedInAdapter - PostReply", { concurrency: 1 }, () => {
 // ============================================================================
 
 describe("LinkedInAdapter - Threading", { concurrency: 1 }, () => {
-  let adapter: LinkedInAdapter;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new LinkedInAdapter();
   });
 
   it("planThread returns THREAD_PLANNING_FAILED error", () => {
+    const { adapter } = makeAdapter();
     const post = makeCanonicalPost();
     const result = adapter.planThread(post);
 
@@ -936,98 +893,25 @@ describe("LinkedInAdapter - Threading", { concurrency: 1 }, () => {
   });
 
   it("publishThread returns VALIDATION error", async () => {
-    const result = await adapter.publishThread({
-      channelId: "channel-001",
-      threadPlan: {
-        strategy: "AUTO",
-        tweets: [],
-        totalChars: 0,
-        estimatedReach: 0,
-        needsThreading: false,
+    const { adapter } = makeAdapter();
+    const result = await adapter.publishThread(
+      {
+        channelId: "channel-001",
+        threadPlan: {
+          strategy: "AUTO",
+          tweets: [],
+          totalChars: 0,
+          estimatedReach: 0,
+          needsThreading: false,
+        },
+        dedupeKey: "dedupe-001",
       },
-      dedupeKey: "dedupe-001",
-    });
+      VALID_CREDS
+    );
 
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
       assert.strictEqual(result.error, "VALIDATION");
     }
-  });
-});
-
-// ============================================================================
-// 9. GetCredentialsFromEnvironment Tests
-// ============================================================================
-
-describe("LinkedInAdapter - GetCredentialsFromEnvironment", { concurrency: 1 }, () => {
-  let adapter: LinkedInAdapter;
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    adapter = new LinkedInAdapter();
-    delete process.env.LINKEDIN_ACCESS_TOKEN;
-    delete process.env.LINKEDIN_REFRESH_TOKEN;
-    delete process.env.LINKEDIN_PERSON_URN;
-    delete process.env.LINKEDIN_ORGANIZATION_URN;
-  });
-
-  it("returns AUTH error when env vars are not set", () => {
-    const result = (adapter as any).getCredentialsFromEnvironment();
-
-    assert.strictEqual(result.ok, false);
-    if (!result.ok) {
-      assert.strictEqual(result.error, "AUTH");
-    }
-  });
-
-  it("returns ok with credentials when required env vars are set", () => {
-    process.env.LINKEDIN_ACCESS_TOKEN = "real-token";
-    process.env.LINKEDIN_REFRESH_TOKEN = "real-refresh";
-    process.env.LINKEDIN_PERSON_URN = "urn:li:person:real123";
-
-    const result = (adapter as any).getCredentialsFromEnvironment();
-
-    assert.ok(result.ok, "Should succeed with valid env vars");
-    if (result.ok) {
-      assert.strictEqual(result.value.accessToken, "real-token");
-      assert.strictEqual(result.value.refreshToken, "real-refresh");
-      assert.strictEqual(result.value.personUrn, "urn:li:person:real123");
-    }
-
-    delete process.env.LINKEDIN_ACCESS_TOKEN;
-    delete process.env.LINKEDIN_REFRESH_TOKEN;
-    delete process.env.LINKEDIN_PERSON_URN;
-  });
-
-  it("includes organizationUrn when LINKEDIN_ORGANIZATION_URN is set", () => {
-    process.env.LINKEDIN_ACCESS_TOKEN = "real-token";
-    process.env.LINKEDIN_REFRESH_TOKEN = "real-refresh";
-    process.env.LINKEDIN_PERSON_URN = "urn:li:person:real123";
-    process.env.LINKEDIN_ORGANIZATION_URN = "urn:li:organization:org456";
-
-    const result = (adapter as any).getCredentialsFromEnvironment();
-
-    assert.ok(result.ok);
-    if (result.ok) {
-      assert.strictEqual(result.value.organizationUrn, "urn:li:organization:org456");
-    }
-
-    delete process.env.LINKEDIN_ACCESS_TOKEN;
-    delete process.env.LINKEDIN_REFRESH_TOKEN;
-    delete process.env.LINKEDIN_PERSON_URN;
-    delete process.env.LINKEDIN_ORGANIZATION_URN;
-  });
-
-  it("returns AUTH error when only accessToken is set but personUrn is placeholder", () => {
-    process.env.LINKEDIN_ACCESS_TOKEN = "real-token";
-
-    const result = (adapter as any).getCredentialsFromEnvironment();
-
-    assert.strictEqual(result.ok, false);
-    if (!result.ok) {
-      assert.strictEqual(result.error, "AUTH");
-    }
-
-    delete process.env.LINKEDIN_ACCESS_TOKEN;
   });
 });

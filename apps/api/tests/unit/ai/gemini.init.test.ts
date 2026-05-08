@@ -1,3 +1,8 @@
+/**
+ * @file gemini.init.test.ts
+ * @description Tests for GeminiProvider - Initialization and Configuration
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { GeminiProvider } from "../../../src/ai/providers/gemini.js";
 import type { AIProviderConfig } from "../../../src/ai/types.js";

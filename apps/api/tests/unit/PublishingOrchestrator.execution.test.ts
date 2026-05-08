@@ -5,6 +5,10 @@
  * 4. Plan execution (executePlan)
  * 5. Execution strategies (SIMULTANEOUS, SEQUENTIAL, DEPENDENCY_BASED, OPTIMIZED_TIMING)
  * 6. Retry logic with exponential backoff
+ *
+ * @file PublishingOrchestrator.execution.test.ts
+ * @description Tests for PublishingOrchestrator
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
@@ -25,6 +29,7 @@ import {
   stubOrchestratorInternals,
   mockProviderRegistry,
 } from "./PublishingOrchestrator.test-helpers.js";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 
 describe("PublishingOrchestrator", () => {
   let orchestrator: PublishingOrchestrator;
@@ -41,6 +46,7 @@ describe("PublishingOrchestrator", () => {
       prisma: asPrisma(mockPrisma),
       redis: asRedis(mockRedis),
       eventService: asEventService(mockEvents),
+      scheduler: new NoopBackgroundTaskScheduler(),
     });
 
     stubOrchestratorInternals(orchestrator);
@@ -83,6 +89,7 @@ describe("PublishingOrchestrator", () => {
         prisma: asPrisma(mockPrisma),
         redis: asRedis(mockRedis),
         eventService: asEventService(mockEvents),
+        scheduler: new NoopBackgroundTaskScheduler(),
         config,
       });
 

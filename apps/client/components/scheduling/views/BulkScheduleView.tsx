@@ -104,7 +104,7 @@ export function BulkScheduleView({ onBulkSchedule, projectId, timezone }: BulkSc
                 <select
                   id="frequency"
                   value={frequency}
-                  onChange={(e) => setFrequency(e.target.value as any)}
+                  onChange={(e) => setFrequency(e.target.value as "daily" | "weekly" | "monthly")}
                   className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="daily">Daily</option>
@@ -133,8 +133,10 @@ export function BulkScheduleView({ onBulkSchedule, projectId, timezone }: BulkSc
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Platforms</label>
+            <fieldset className="border-0 p-0 m-0 min-w-0">
+              <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">
+                Platforms
+              </legend>
               <div className="flex flex-wrap gap-3">
                 {["x", "instagram", "facebook", "linkedin"].map((provider) => (
                   <label key={provider} className="flex items-center cursor-pointer">
@@ -149,7 +151,7 @@ export function BulkScheduleView({ onBulkSchedule, projectId, timezone }: BulkSc
                   </label>
                 ))}
               </div>
-            </div>
+            </fieldset>
 
             <button
               onClick={handleSubmit}

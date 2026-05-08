@@ -19,7 +19,7 @@ import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import * as openidClient from "openid-client";
 import { randomBytes } from "crypto";
-import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
+import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import type { ConfigureOidcUseCase } from "../application/auth/ConfigureOidcUseCase.js";
@@ -28,6 +28,7 @@ import type { DisableOidcSsoUseCase } from "../application/auth/DisableOidcSsoUs
 import type { GetOidcConfigurationQuery } from "../application/auth/GetOidcConfigurationQuery.js";
 import type { OidcConfigurationRepository } from "../domain/repositories/OidcConfigurationRepository.js";
 import type { AuthService } from "./authService.js";
+import { env } from "../config/env.js";
 
 // ============================================================================
 // Schemas
@@ -196,7 +197,7 @@ class OidcAdminHandler extends BaseRouteHandler {
 // Helpers
 // ============================================================================
 
-const APP_BASE_URL = process.env.APP_BASE_URL ?? "https://omnipost.app";
+const APP_BASE_URL = env.APP_BASE_URL ?? "https://omnipost.app";
 
 // ============================================================================
 // Plugin
@@ -431,7 +432,7 @@ export const oidcRoutes: FastifyPluginAsync = async (app) => {
 
         reply.setCookie("refreshToken", loginData.tokens.refreshToken, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
+          secure: env.NODE_ENV === "production",
           sameSite: "strict",
           maxAge: 7 * 24 * 60 * 60 * 1000,
           path: "/auth",

@@ -1,3 +1,8 @@
+/**
+ * @file PostQueryHandlers.errors.test.ts
+ * @description Tests for Query Handlers - Error Handling
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, expect } from "vitest";
 import {
   GetPostQueryHandler,

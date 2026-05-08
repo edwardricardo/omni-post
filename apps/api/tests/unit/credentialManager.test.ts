@@ -15,7 +15,7 @@
  * - Max active keys enforcement
  * - Audit log creation for key operations
  *
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, beforeEach, expect, vi } from "vitest";
@@ -314,6 +314,12 @@ describe("CredentialManager", () => {
 
       expect(encrypted1.iv).not.toBe(encrypted2.iv);
       expect(encrypted1.encrypted).not.toBe(encrypted2.encrypted);
+    });
+
+    it("should produce a 16-byte (128-bit) auth tag (explicit authTagLength)", () => {
+      const encrypted = credentialManager.encrypt("any-plaintext");
+      // tag is hex-encoded — 16 bytes = 32 hex chars
+      expect(encrypted.tag.length).toBe(32);
     });
 
     it("should handle empty string", () => {

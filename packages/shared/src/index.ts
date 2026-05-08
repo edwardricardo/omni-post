@@ -1,5 +1,14 @@
+/**
+ * @file index.ts
+ * @description Barrel exports for the shared domain package — types, errors, events, saga, CQRS,
+ *              provider configuration, and template engine.
+ * @layer domain
+ */
 // Core type definitions
 export * from "./types";
+
+// Channel.credentials envelope encryption (api, workers, seed all use this)
+export * from "./channelCredentialsCrypto";
 
 // Error handling
 export * from "./errors";
@@ -42,6 +51,3 @@ export type {
   TemplateContext,
   TemplateCompilationResult,
 } from "./templates/BaseTemplateEngine";
-
-// Lightweight server-side logger (console-based, for Next.js Server Actions)
-export { createLogger } from "./logger";

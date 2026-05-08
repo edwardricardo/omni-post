@@ -58,10 +58,21 @@ export const TOKENS = {
   GetPostWithThreadQuery: Symbol.for("GetPostWithThreadQuery"),
   ListPostsGlobalQuery: Symbol.for("ListPostsGlobalQuery"),
 
+  // Use Cases (channels)
+  SetPrimaryChannelUseCase: Symbol.for("SetPrimaryChannelUseCase"),
+
   // Outbox (P2-1 — Transactional Outbox)
   OutboxWriter: Symbol.for("OutboxWriter"),
   OutboxRelay: Symbol.for("OutboxRelay"),
   OutboxCleaner: Symbol.for("OutboxCleaner"),
+  // Outbox concurrent claim + idempotency
+  OutboxClaimService: Symbol.for("OutboxClaimService"),
+  OutboxBackoff: Symbol.for("OutboxBackoff"),
+  OutboxInbox: Symbol.for("OutboxInbox"),
+
+  // Background task scheduler — centralised setInterval registry for all
+  // recurring in-process work (cleanup jobs, health checks, metrics pushes).
+  BackgroundTaskScheduler: Symbol.for("BackgroundTaskScheduler"),
 
   // Unit of Work (P2-4)
   UnitOfWork: Symbol.for("UnitOfWork"),
@@ -95,6 +106,10 @@ export const TOKENS = {
   AuditService: Symbol.for("AuditService"),
   ActivityFeedService: Symbol.for("ActivityFeedService"),
   AIService: Symbol.for("AIService"),
+  AIServicePort: Symbol.for("AIServicePort"),
+  HttpClientPort: Symbol.for("HttpClientPort"),
+  CachePort: Symbol.for("CachePort"),
+  RedisCacheManager: Symbol.for("RedisCacheManager"),
   AiRequestService: Symbol.for("AiRequestService"),
   DashboardService: Symbol.for("DashboardService"),
   AccountLifecycleService: Symbol.for("AccountLifecycleService"),
@@ -154,7 +169,7 @@ export const TOKENS = {
   ExitCrisisModeUseCase: Symbol.for("ExitCrisisModeUseCase"),
   GetCrisisStatusUseCase: Symbol.for("GetCrisisStatusUseCase"),
 
-  // Team Member (Phase 1.1)
+  // Team Member
   TeamMemberRepository: Symbol.for("TeamMemberRepository"),
   InviteTeamMemberUseCase: Symbol.for("InviteTeamMemberUseCase"),
   GetTeamMembersQuery: Symbol.for("GetTeamMembersQuery"),
@@ -162,10 +177,10 @@ export const TOKENS = {
   RemoveTeamMemberUseCase: Symbol.for("RemoveTeamMemberUseCase"),
   SearchTeamMembersQuery: Symbol.for("SearchTeamMembersQuery"),
 
-  // Mention Notifications (Phase 1.1 — @mention autocomplete)
+  // Mention Notifications
   NotifyMentionedUsersService: Symbol.for("NotifyMentionedUsersService"),
 
-  // Approval Workflow (Phase 1.3)
+  // Approval Workflow
   ApprovalRequestRepository: Symbol.for("ApprovalRequestRepository"),
   ApprovalWorkflowRepository: Symbol.for("ApprovalWorkflowRepository"),
   SubmitForReviewUseCase: Symbol.for("SubmitForReviewUseCase"),
@@ -178,7 +193,7 @@ export const TOKENS = {
   DeleteApprovalWorkflowUseCase: Symbol.for("DeleteApprovalWorkflowUseCase"),
   ListApprovalWorkflowsQuery: Symbol.for("ListApprovalWorkflowsQuery"),
 
-  // Notification System (Phase 1.2)
+  // Notification System
   NotificationRepository: Symbol.for("NotificationRepository"),
   NotificationPreferenceRepository: Symbol.for("NotificationPreferenceRepository"),
   NotificationBroadcaster: Symbol.for("NotificationBroadcaster"),
@@ -188,16 +203,16 @@ export const TOKENS = {
   MarkAllNotificationsReadUseCase: Symbol.for("MarkAllNotificationsReadUseCase"),
   GetUnreadCountQuery: Symbol.for("GetUnreadCountQuery"),
 
-  // Notification Event Handlers (Phase 1.5)
+  // Notification Event Handlers
   NotificationEventHandlers: Symbol.for("NotificationEventHandlers"),
 
-  // Comments (Phase 1.4)
+  // Comments
   PostCommentRepository: Symbol.for("PostCommentRepository"),
   CreateCommentUseCase: Symbol.for("CreateCommentUseCase"),
   EditCommentUseCase: Symbol.for("EditCommentUseCase"),
   DeleteCommentUseCase: Symbol.for("DeleteCommentUseCase"),
   GetPostCommentsQuery: Symbol.for("GetPostCommentsQuery"),
-  // Social Inbox (Phase 2)
+  // Social Inbox
   SocialMessageRepository: Symbol.for("SocialMessageRepository"),
   SocialMessageQueryRepository: Symbol.for("SocialMessageQueryRepository"),
   SocialConversationRepository: Symbol.for("SocialConversationRepository"),
@@ -223,7 +238,7 @@ export const TOKENS = {
   DeleteConversationNoteUseCase: Symbol.for("DeleteConversationNoteUseCase"),
   ListConversationNotesQuery: Symbol.for("ListConversationNotesQuery"),
 
-  // Campaign (Phase 3.1: Campaign Tagging)
+  // Campaign
   CampaignRepository: Symbol.for("CampaignRepository"),
   CampaignQueryRepository: Symbol.for("CampaignQueryRepository"),
   CreateCampaignUseCase: Symbol.for("CreateCampaignUseCase"),
@@ -242,14 +257,14 @@ export const TOKENS = {
   GetFirstCommentQuery: Symbol.for("GetFirstCommentQuery"),
   PublishFirstCommentUseCase: Symbol.for("PublishFirstCommentUseCase"),
 
-  // Historical Analytics (Phase 3 Step 5)
+  // Historical Analytics
   GetHistoricalAnalyticsQuery: Symbol.for("GetHistoricalAnalyticsQuery"),
 
-  // UTM / GA4 (Phase 3 Step 4: UTM/GA4 Integration)
+  // UTM / GA4
   GenerateUTMLinksUseCase: Symbol.for("GenerateUTMLinksUseCase"),
   GA4TrackingPort: Symbol.for("GA4TrackingPort"),
 
-  // Scheduled Reports (Phase 3 Step 7)
+  // Scheduled Reports
   ScheduledReportRepository: Symbol.for("ScheduledReportRepository"),
   EmailPort: Symbol.for("EmailPort"),
   CreateScheduledReportUseCase: Symbol.for("CreateScheduledReportUseCase"),
@@ -304,6 +319,23 @@ export const TOKENS = {
   UpsertBrandKitUseCase: Symbol.for("UpsertBrandKitUseCase"),
   DeleteBrandKitUseCase: Symbol.for("DeleteBrandKitUseCase"),
 
+  // Secrets Rotation Tracking
+  SecretRotationLogReadRepository: Symbol.for("SecretRotationLogReadRepository"),
+  GetSecretRotationStatusQuery: Symbol.for("GetSecretRotationStatusQuery"),
+
+  // Channel Admin (force re-auth)
+  UpdateChannelAuthStateUseCase: Symbol.for("UpdateChannelAuthStateUseCase"),
+
+  // Webhook Admin (secret rotation)
+  WebhookSubscriptionRotationRepository: Symbol.for("WebhookSubscriptionRotationRepository"),
+  RotateWebhookSecretKeyUseCase: Symbol.for("RotateWebhookSecretKeyUseCase"),
+
+  // OIDC Admin (replace client secret + handshake test)
+  ReplaceOidcClientSecretUseCase: Symbol.for("ReplaceOidcClientSecretUseCase"),
+
+  // Provider Admin Mass (force-reauth post platform secret rotation)
+  MassForceReauthByProviderUseCase: Symbol.for("MassForceReauthByProviderUseCase"),
+
   // Integration Platform (Zapier, Make, etc.)
   IntegrationApiKeyRepository: Symbol.for("IntegrationApiKeyRepository"),
   IntegrationSubscriptionRepository: Symbol.for("IntegrationSubscriptionRepository"),
@@ -323,7 +355,7 @@ export const TOKENS = {
   ListTasksQuery: Symbol.for("ListTasksQuery"),
   GetTaskQuery: Symbol.for("GetTaskQuery"),
 
-  // Asset Library (Phase 2: Asset Tags)
+  // Asset Library
   MediaAssetRepository: Symbol.for("MediaAssetRepository"),
   AssetTagRepository: Symbol.for("AssetTagRepository"),
   AssetFolderRepository: Symbol.for("AssetFolderRepository"),
@@ -383,35 +415,41 @@ export const TOKENS = {
 
   // Queue (shared)
   QueuePort: Symbol.for("QueuePort"),
+  // Multi-queue routing. Use this in preference to TOKENS.QueuePort — the
+  // legacy token resolves to the PUBLISH queue for backwards compat and
+  // will be removed once all callers migrate.
+  QueuePortRegistry: Symbol.for("QueuePortRegistry"),
+  // Producer-side DLQ port (archive only; list/retry deferred to backlog).
+  DeadLetterQueuePort: Symbol.for("DeadLetterQueuePort"),
 
-  // Analytics Aggregation (Sprint Gaps — Batch 2)
+  // Analytics Aggregation
   AnalyticsAggregationQuery: Symbol.for("AnalyticsAggregationQuery"),
 
-  // Analytics Ingestion (Sprint Gaps — Batch 1)
+  // Analytics Ingestion
   AnalyticsWriteRepository: Symbol.for("AnalyticsWriteRepository"),
   ChannelQueryForIngestion: Symbol.for("ChannelQueryForIngestion"),
   IngestChannelAnalyticsUseCase: Symbol.for("IngestChannelAnalyticsUseCase"),
   DispatchAnalyticsIngestionUseCase: Symbol.for("DispatchAnalyticsIngestionUseCase"),
 
-  // Inbox Sync (Sprint Gaps — Batch 3)
+  // Inbox Sync
   DispatchInboxSyncUseCase: Symbol.for("DispatchInboxSyncUseCase"),
 
-  // Payment Billing (Sprint 6 — Batch 5)
+  // Payment Billing
   PaymentAdapter: Symbol.for("PaymentAdapter"),
 
-  // Gateway Switching (Sprint B)
+  // Gateway Switching
   GatewayAdapterRegistry: Symbol.for("GatewayAdapterRegistry"),
   GatewayBillingService: Symbol.for("GatewayBillingService"),
   GatewaySwitchJobService: Symbol.for("GatewaySwitchJobService"),
 
-  // Compliance (Sprint C)
+  // Compliance
   ComplianceService: Symbol.for("ComplianceService"),
   DataRetentionService: Symbol.for("DataRetentionService"),
 
-  // DLQ Lifecycle (Sprint D)
+  // DLQ Lifecycle
   DlqArchivalService: Symbol.for("DlqArchivalService"),
 
-  // Report Sharing (Sprint 6 — Batch 3)
+  // Report Sharing
   EnableReportSharingUseCase: Symbol.for("EnableReportSharingUseCase"),
   DisableReportSharingUseCase: Symbol.for("DisableReportSharingUseCase"),
 
@@ -450,6 +488,7 @@ export const TOKENS = {
 
   // Platform Encryption
   EncryptionService: Symbol.for("EncryptionService"),
+  ChannelCredentialsCrypto: Symbol.for("ChannelCredentialsCrypto"),
   PlatformCredentialService: Symbol.for("PlatformCredentialService"),
 
   // Settings

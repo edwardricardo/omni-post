@@ -37,11 +37,6 @@ export interface OptimizationSuggestion {
 
 export interface HashtagAnalysis {
   hashtag: string;
-  relevanceScore: number;
-  popularityIndex: number;
-  competitionLevel: "low" | "medium" | "high";
-  expectedReach: number;
-  trendingStatus: "rising" | "stable" | "declining";
   platforms: string[];
 }
 

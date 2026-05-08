@@ -9,6 +9,7 @@
 
 import { type Result, ok } from "@shared/types";
 import type { GA4Event, GA4TrackingPort } from "../../domain/repositories/GA4TrackingPort.js";
+import { env } from "../../config/env.js";
 
 /**
  * Configuration for the GA4 tracking adapter, sourced from environment variables.
@@ -39,12 +40,12 @@ export class GA4TrackingAdapter implements GA4TrackingPort {
   ) {
     this.logger = logger;
 
-    const measurementId = process.env.GA4_MEASUREMENT_ID;
-    const apiSecret = process.env.GA4_API_SECRET;
+    const measurementId = env.GA4_MEASUREMENT_ID;
+    const apiSecret = env.GA4_API_SECRET;
 
     if (measurementId && apiSecret) {
       this.config = {
-        endpoint: process.env.GA4_ENDPOINT ?? "https://www.google-analytics.com/mp/collect",
+        endpoint: env.GA4_ENDPOINT ?? "https://www.google-analytics.com/mp/collect",
         measurementId,
         apiSecret,
       };

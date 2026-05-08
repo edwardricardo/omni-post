@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file slider.tsx
+ * @description Radix-based Slider component with styled track, range, and thumb for numeric
+ *              range selection.
+ * @component Slider
+ * @layer infrastructure
+ */
 import * as React from "react";
 import { Slider as SliderPrimitive } from "radix-ui";
 

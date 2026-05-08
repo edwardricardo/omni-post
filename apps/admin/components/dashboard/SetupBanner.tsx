@@ -89,7 +89,7 @@ export function SetupBanner() {
     <div className="rounded-lg border border-[var(--warning)] bg-[var(--warning-subtle)] p-4 mb-4">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
-          <AlertTriangle className="h-5 w-5 text-[var(--warning)]" />
+          <AlertTriangle aria-hidden="true" className="h-5 w-5 text-[var(--warning)]" />
           <div>
             <h3 className="text-sm font-semibold text-[var(--text-primary)]">
               Complete initial setup
@@ -105,7 +105,7 @@ export function SetupBanner() {
           className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] p-1"
           aria-label={tc("close")}
         >
-          <X className="h-4 w-4" />
+          <X aria-hidden="true" className="h-4 w-4" />
         </button>
       </div>
 

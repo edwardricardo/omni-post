@@ -11,6 +11,10 @@
  * - Tweet count optimization
  *
  * Run with: pnpm --filter @apps/api exec tsx tests/unit/threadAnalytics.test.ts
+ *
+ * @file threadAnalytics.test.ts
+ * @description Tests for ThreadAnalytics - calculatePerformanceRating
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect } from "vitest";

@@ -2,7 +2,7 @@
  * @file page.tsx
  * @description Subscription management page listing subscribers, trials, and revenue.
  *   Uses CSS design tokens and reusable UI components.
- * @layer page
+ * @layer infrastructure
  */
 "use client";
 
@@ -278,7 +278,7 @@ function SubscriptionsPageContent() {
     return (
       <div>
         <PageHeader title={t("subscriptions")} />
-        <div className="flex justify-center items-center h-64" role="alert" aria-live="assertive">
+        <div className="flex justify-center items-center h-64" role="alert">
           <div className="text-sm text-[var(--error)]">
             {tc("error")}: {getErrorMessage(error)}
           </div>
@@ -374,17 +374,13 @@ function SubscriptionsPageContent() {
       {/* Billing MRR */}
       {billingStats && (
         <div
-          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3"
+          className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3"
           role="region"
           aria-label="Billing statistics"
         >
           <StatCard
             label={ts("mrrStat")}
             value={`$${(billingStats.monthlyRecurringRevenue ?? 0).toLocaleString()}`}
-          />
-          <StatCard
-            label={ts("grandfatheredRevenue")}
-            value={`$${(billingStats.grandfatheredRevenue ?? 0).toLocaleString()}`}
           />
         </div>
       )}

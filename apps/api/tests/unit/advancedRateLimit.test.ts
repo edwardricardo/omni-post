@@ -4,6 +4,10 @@
  * Testing advanced rate limiting with Redis-backed sliding window algorithm
  *
  * Coverage Target: 95%+
+ *
+ * @file advancedRateLimit.test.ts
+ * @description Tests for AdvancedRateLimit Tests
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect } from "vitest";

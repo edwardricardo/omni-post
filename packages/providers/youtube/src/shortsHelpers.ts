@@ -1,9 +1,8 @@
 /**
- * YouTube Shorts - Private Helper Functions
- *
- * Utility functions used internally by YouTubeShortsService:
- * content optimization, metadata analysis, duration parsing,
- * hashtag recommendations, and retention data generation.
+ * @file shortsHelpers.ts
+ * @description Private helper functions for YouTubeShortsService — content optimization,
+ *              metadata analysis, duration parsing, hashtag recommendations, retention data.
+ * @layer infrastructure
  */
 
 import { Readable } from "stream";

@@ -16,8 +16,16 @@ out/
 
 # Testing
 coverage/
+**/coverage/
 .nyc_output/
 **/__snapshots__/
+# Playwright
+playwright-report/
+**/playwright-report/
+test-results/
+**/test-results/
+# Storybook test-runner
+*.storybook-test-results/
 
 # Mutation testing (Stryker)
 .stryker-tmp/
@@ -109,6 +117,32 @@ prometheus/data/
 *.tsbuildinfo
 tsconfig.tsbuildinfo
 
+# Backup files (any .bak, .bak2, .bak.contaminated, etc.)
+*.bak
+*.bak[0-9]*
+*.contaminated.bak
+
+# jscpd reports
+reports/jscpd/
+
 # Optional: Local development overrides
 docker-compose.local.yml
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
+.claude/run-batches.sh
+.claude/run-tiktok-stryker.sh
+.claude/run-tiktok-stryker-final.sh
+
+# Workflow batch ephemeral state (regenerated each batch by Claude Code)
+.claude/current-batch-plan.md
+.claude/current-batch-closeout.yml
+.claude/current-batch-plan.approved
+.claude/current-deletion-justification.yml
+.claude/current-deletion-justification.approved
+.claude/hooks.log
+.claude/session-b-progress.log
+.claude/stryker-api-run.log
+.claude/stryker-tiktok-final.log
+.claude/stryker-tiktok-run.log
+.claude/agent-memory/
+.claude/worktrees/

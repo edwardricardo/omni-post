@@ -6,6 +6,10 @@
  *
  * @module FacebookWebhookProcessorTests
  * @category UnitTests
+ *
+ * @file facebookWebhookProcessor.signature-feed.test.ts
+ * @description Tests for FacebookWebhookProcessor - Signature Verification
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, expect } from "vitest";

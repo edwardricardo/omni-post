@@ -4,6 +4,10 @@
  * Part of FASE H4b / H12: Hexagonal Architecture - Prisma Adapters + Soft Delete
  * Tests PrismaAccountRepository in isolation using a mocked PrismaClient.
  * Tier 0: No database required.
+ *
+ * @file PrismaAccountRepository.test.ts
+ * @description Tests for PrismaAccountRepository
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";
@@ -58,7 +62,6 @@ function makeMockPrisma() {
     tweet: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     thread: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     channel: { deleteMany: vi.fn(async () => ({ count: 0 })) },
-    providerConnection: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     contentTemplate: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     instagramStoryProject: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     videoProcessingJob: { deleteMany: vi.fn(async () => ({ count: 0 })) },

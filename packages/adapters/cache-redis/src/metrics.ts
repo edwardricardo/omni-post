@@ -1,6 +1,8 @@
 /**
- * Cache Metrics
- * Prometheus metrics for monitoring cache performance
+ * @file metrics.ts
+ * @description Prometheus metric definitions for cache performance — hit/miss counters,
+ *              operation duration histograms, and L1/L2 tier gauges.
+ * @layer infrastructure
  */
 
 import client from "prom-client";

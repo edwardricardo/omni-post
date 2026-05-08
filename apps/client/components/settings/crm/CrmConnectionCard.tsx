@@ -2,7 +2,7 @@
  * @file CrmConnectionCard.tsx
  * @component CrmConnectionCard
  * @description Card for a single CRM platform connection (HubSpot or Salesforce).
- * @layer client-components
+ * @layer infrastructure
  */
 
 "use client";
@@ -125,7 +125,7 @@ export function CrmConnectionCard({ platform, connection }: CrmConnectionCardPro
           </div>
 
           {showConfirm && (
-            <div className="p-3 rounded-md bg-red-50 border border-red-200 text-sm">
+            <div role="alert" className="p-3 rounded-md bg-red-50 border border-red-200 text-sm">
               <p className="font-medium text-red-800">Disconnect {info.name}?</p>
               <p className="text-red-700 text-xs mt-1">Contact sync will stop.</p>
               <div className="flex gap-2 mt-2">

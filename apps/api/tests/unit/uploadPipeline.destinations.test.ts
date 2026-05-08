@@ -1,6 +1,10 @@
 /**
  * Unit Tests for VideoUploadPipeline — Multi-Destination Support
  * Tests uploading to S3, Google Cloud Storage, Azure Blob Storage, and YouTube.
+ *
+ * @file uploadPipeline.destinations.test.ts
+ * @description Tests for VideoUploadPipeline - Multi-Destination Support
+ * @layer infrastructure
  */
 import { describe, it, beforeAll, expect } from "vitest";
 import { VideoUploadPipeline, type UploadDestination } from "../../src/video/uploadPipeline";

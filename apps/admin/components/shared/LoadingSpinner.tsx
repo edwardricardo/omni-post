@@ -2,7 +2,7 @@
  * @file LoadingSpinner.tsx
  * @description Accessible loading indicator with ARIA live region.
  *   Uses CSS custom-property tokens for theme support.
- * @layer presentation
+ * @layer infrastructure
  */
 
 import React from "react";

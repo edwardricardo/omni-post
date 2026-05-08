@@ -1,3 +1,9 @@
+/**
+ * @file publishHandler.ts
+ * @description Core publish orchestrator that renders posts, executes provider publishing (single
+ *              and threaded), records receipts, and coordinates with saga notifiers.
+ * @layer infrastructure
+ */
 import type {
   RenderedPost,
   Result,
@@ -42,6 +48,7 @@ import type {
 export class PublishHandler {
   private readonly repo: PublishRepo;
   private readonly providerRegistry: Record<string, PublishProvider>;
+  private readonly credentialResolver: PublishHandlerDeps["credentialResolver"];
   private readonly workerMetrics: PublishHandlerDeps["workerMetrics"];
   private readonly logger: PublishHandlerDeps["logger"];
   private readonly instrumentation: PublishInstrumentation;
@@ -52,6 +59,7 @@ export class PublishHandler {
   constructor(deps: PublishHandlerDeps) {
     this.repo = deps.repo;
     this.providerRegistry = deps.providerRegistry;
+    this.credentialResolver = deps.credentialResolver;
     this.workerMetrics = deps.workerMetrics;
     this.logger = deps.logger;
     this.instrumentation = deps.instrumentation;
@@ -138,6 +146,32 @@ export class PublishHandler {
         });
 
         try {
+          const credentialResult = await this.credentialResolver.resolve(channelId);
+          if (!credentialResult.ok) {
+            providerTimer({ status: "error" });
+            await this.databaseInstrumentation.instrumentQuery("insert", "publish_log", async () =>
+              this.repo.logPublish({
+                postId,
+                provider: providerName,
+                channelId,
+                status: "ERR",
+                payload: { error: "AUTH", correlationId },
+                dedupeKey,
+              })
+            );
+            this.workerMetrics.metrics.publishErr.inc({
+              provider: providerName,
+              content_type: "single",
+              error_type: "auth_error",
+              channel_id: channelId,
+            });
+            this.workerMetrics.recordError("publisher", "auth_error", true);
+            this.workerMetrics.recordPostPublishFailed();
+            this.workerMetrics.recordProviderPublishFailure(providerName);
+            endTimer();
+            throw new Error("AUTH");
+          }
+
           const res = (await this.instrumentation.instrumentProviderAPI(
             providerName,
             "publish",
@@ -147,11 +181,14 @@ export class PublishHandler {
                 "social.post_id": postId,
                 "social.channel_id": channelId,
               });
-              return await provider.publish({
-                channelId,
-                post: rendered,
-                dedupeKey,
-              });
+              return await provider.publish(
+                {
+                  channelId,
+                  post: rendered,
+                  dedupeKey,
+                },
+                credentialResult.value
+              );
             }
           )) as Result<PublishReceipt, PublishError>;
 
@@ -377,11 +414,20 @@ export class PublishHandler {
       throw new Error(`Provider "${providerName}" does not support thread publishing`);
     }
 
-    const publishResult = await provider.publishThread({
-      threadPlan,
-      channelId,
-      dedupeKey,
-    });
+    const credentialResult = await this.credentialResolver.resolve(channelId);
+    if (!credentialResult.ok) {
+      providerTimer({ status: "error" });
+      throw new Error("AUTH");
+    }
+
+    const publishResult = await provider.publishThread(
+      {
+        threadPlan,
+        channelId,
+        dedupeKey,
+      },
+      credentialResult.value
+    );
 
     if (!publishResult.ok) {
       providerTimer({ status: "error" });
@@ -624,6 +670,10 @@ export class PublishHandler {
       }
 
       finishJob();
+      // Re-throw so BullMQ marks the job failed and the queue's retry
+      // policy takes effect. Swallowing here would let every publish
+      // failure look like a success to the queue layer.
+      throw e;
     }
   }
 }

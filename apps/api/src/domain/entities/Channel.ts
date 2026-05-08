@@ -42,10 +42,28 @@ export interface ChannelProps extends EntityProps {
   provider: Provider;
   handle: string;
   credentials: ChannelCredentials;
+  isPrimary?: boolean;
   status?: ConnectionStatusValue;
   lastHealthCheck?: Date;
   errorCount?: number;
   lastError?: string;
+  needsReauth?: boolean;
+  authFailedAt?: Date;
+  authFailureReason?: string;
+  // Display + lifecycle fields. accountName/profileImage are populated at
+  // OAuth callback time; connectedAt is the most recent successful grant;
+  // expiredAt is the latest natural-expiry timestamp — NEVER cleared on
+  // reconnect, survives as audit trail; lastUsedAt tracks the most recent
+  // publish.
+  accountName?: string;
+  profileImage?: string;
+  connectedAt?: Date;
+  expiredAt?: Date;
+  lastUsedAt?: Date;
+  // Provider-side account identifier (Facebook page_id, Instagram account_id,
+  // X user_id, etc.). Used to resolve "is this OAuth grant for an existing
+  // Channel or a new one?" at callback time.
+  providerAccountId?: string;
 }
 
 /**
@@ -56,6 +74,12 @@ export interface CreateChannelInput {
   provider: ProviderType | Provider;
   handle: string;
   credentials: ChannelCredentials;
+  // Display + identity fields populated by OAuth callback when creating a
+  // fresh Channel from a provider grant.
+  accountName?: string;
+  profileImage?: string;
+  connectedAt?: Date;
+  providerAccountId?: string;
 }
 
 /**
@@ -79,21 +103,40 @@ export class Channel extends Entity<ChannelId> {
   private readonly _provider: Provider;
   private _handle: string;
   private _credentials: ChannelCredentials;
+  private _isPrimary: boolean;
   private _status: ConnectionStatusValue;
   private _lastHealthCheck: Date | undefined;
   private _errorCount: number;
   private _lastError: string | undefined;
-
+  private _needsReauth: boolean;
+  private _authFailedAt: Date | undefined;
+  private _authFailureReason: string | undefined;
+  private _accountName: string | undefined;
+  private _profileImage: string | undefined;
+  private _connectedAt: Date | undefined;
+  private _expiredAt: Date | undefined;
+  private _lastUsedAt: Date | undefined;
+  private _providerAccountId: string | undefined;
   private constructor(id: ChannelId, props: ChannelProps) {
     super(id, props.createdAt);
     this._projectId = props.projectId;
     this._provider = props.provider;
     this._handle = props.handle;
     this._credentials = { ...props.credentials };
+    this._isPrimary = props.isPrimary ?? false;
     this._status = props.status ?? CONNECTION_STATUS.PENDING;
     this._lastHealthCheck = props.lastHealthCheck;
     this._errorCount = props.errorCount ?? 0;
     this._lastError = props.lastError;
+    this._needsReauth = props.needsReauth ?? false;
+    this._authFailedAt = props.authFailedAt;
+    this._authFailureReason = props.authFailureReason;
+    this._accountName = props.accountName;
+    this._profileImage = props.profileImage;
+    this._connectedAt = props.connectedAt;
+    this._expiredAt = props.expiredAt;
+    this._lastUsedAt = props.lastUsedAt;
+    this._providerAccountId = props.providerAccountId;
 
     if (props.updatedAt) {
       this._updatedAt = props.updatedAt;
@@ -135,6 +178,12 @@ export class Channel extends Entity<ChannelId> {
         handle: input.handle.trim(),
         credentials: input.credentials,
         status: CONNECTION_STATUS.CONNECTED,
+        ...(input.accountName !== undefined && { accountName: input.accountName }),
+        ...(input.profileImage !== undefined && { profileImage: input.profileImage }),
+        ...(input.providerAccountId !== undefined && {
+          providerAccountId: input.providerAccountId,
+        }),
+        connectedAt: input.connectedAt ?? new Date(),
       })
     );
   }
@@ -149,10 +198,20 @@ export class Channel extends Entity<ChannelId> {
       provider: Provider;
       handle: string;
       credentials: ChannelCredentials;
+      isPrimary?: boolean;
       status: ConnectionStatusValue;
       lastHealthCheck?: Date;
       errorCount: number;
       lastError?: string;
+      needsReauth?: boolean;
+      authFailedAt?: Date;
+      authFailureReason?: string;
+      accountName?: string;
+      profileImage?: string;
+      connectedAt?: Date;
+      expiredAt?: Date;
+      lastUsedAt?: Date;
+      providerAccountId?: string;
       createdAt: Date;
       updatedAt: Date;
     }
@@ -182,6 +241,10 @@ export class Channel extends Entity<ChannelId> {
     return { ...this._credentials };
   }
 
+  get isPrimary(): boolean {
+    return this._isPrimary;
+  }
+
   get status(): ConnectionStatusValue {
     return this._status;
   }
@@ -196,6 +259,47 @@ export class Channel extends Entity<ChannelId> {
 
   get lastError(): string | undefined {
     return this._lastError;
+  }
+
+  get needsReauth(): boolean {
+    return this._needsReauth;
+  }
+
+  get authFailedAt(): Date | undefined {
+    return this._authFailedAt ? new Date(this._authFailedAt.getTime()) : undefined;
+  }
+
+  get authFailureReason(): string | undefined {
+    return this._authFailureReason;
+  }
+
+  get accountName(): string | undefined {
+    return this._accountName;
+  }
+
+  get profileImage(): string | undefined {
+    return this._profileImage;
+  }
+
+  get connectedAt(): Date | undefined {
+    return this._connectedAt ? new Date(this._connectedAt.getTime()) : undefined;
+  }
+
+  /**
+   * Most recent natural expiry timestamp. NEVER cleared on reconnect —
+   * survives as historical audit trail. To check if a channel is currently
+   * expired (i.e., needs reauth), use `isExpired` (status-based) instead.
+   */
+  get expiredAt(): Date | undefined {
+    return this._expiredAt ? new Date(this._expiredAt.getTime()) : undefined;
+  }
+
+  get lastUsedAt(): Date | undefined {
+    return this._lastUsedAt ? new Date(this._lastUsedAt.getTime()) : undefined;
+  }
+
+  get providerAccountId(): string | undefined {
+    return this._providerAccountId;
   }
 
   // Status predicates
@@ -300,11 +404,64 @@ export class Channel extends Entity<ChannelId> {
   }
 
   /**
-   * Mark credentials as expired
+   * Mark credentials as expired. Stamps `expiredAt` with the current
+   * timestamp; subsequent re-expiries overwrite it (most-recent-expiry
+   * semantics). The timestamp is NEVER cleared on reconnect — it survives
+   * as audit trail.
    */
   markAsExpired(): void {
     this._status = CONNECTION_STATUS.EXPIRED;
+    this._expiredAt = new Date();
     this.markUpdated();
+  }
+
+  /**
+   * Record a successful re-OAuth grant. Transitions status back to
+   * CONNECTED, stamps `connectedAt`, clears the reauth-required flag, and
+   * resets error counters. Does NOT clear `expiredAt` — that's audit
+   * history. Idempotent in the sense that re-connecting an already-connected
+   * channel just refreshes timestamps.
+   */
+  recordReconnection(): void {
+    this._status = CONNECTION_STATUS.CONNECTED;
+    this._connectedAt = new Date();
+    this._needsReauth = false;
+    this._authFailedAt = undefined;
+    this._authFailureReason = undefined;
+    this._errorCount = 0;
+    this._lastError = undefined;
+    this.markUpdated();
+  }
+
+  /**
+   * Update the publish-tracking timestamp. Called by the publishing flow
+   * after a successful provider publish; powers the `lastUsedAt` UX field
+   * and the listing-page denormalisation that avoids per-row MAX subqueries
+   * over PublishLog.
+   */
+  recordPublish(at: Date = new Date()): void {
+    this._lastUsedAt = new Date(at.getTime());
+    this.markUpdated();
+  }
+
+  /**
+   * Update display fields populated from the provider OAuth callback.
+   * Both fields optional — only the ones supplied are written. No-op if
+   * the input has neither field set.
+   */
+  updateProfile(input: { accountName?: string; profileImage?: string }): void {
+    let touched = false;
+    if (input.accountName !== undefined) {
+      this._accountName = input.accountName;
+      touched = true;
+    }
+    if (input.profileImage !== undefined) {
+      this._profileImage = input.profileImage;
+      touched = true;
+    }
+    if (touched) {
+      this.markUpdated();
+    }
   }
 
   /**
@@ -346,16 +503,78 @@ export class Channel extends Entity<ChannelId> {
     this.markUpdated();
   }
 
+  /**
+   * Mark this channel as the primary channel for its (project, provider) pair.
+   * Idempotent — calling on an already-primary channel is a no-op (no markUpdated).
+   *
+   * Uniqueness across the (project, provider, isPrimary=true) tuple is enforced
+   * at the persistence layer via a partial unique index, so any caller that
+   * promotes a channel must unmark the previous primary inside the same
+   * transaction or the constraint will fail mid-flight.
+   */
+  markAsPrimary(): void {
+    if (this._isPrimary) {
+      return;
+    }
+    this._isPrimary = true;
+    this.markUpdated();
+  }
+
+  /**
+   * Remove the primary flag from this channel. Idempotent.
+   */
+  unmarkAsPrimary(): void {
+    if (!this._isPrimary) {
+      return;
+    }
+    this._isPrimary = false;
+    this.markUpdated();
+  }
+
+  /**
+   * Flag the channel as requiring user re-authorization. Sets the failure
+   * timestamp + reason so the client app can surface a contextual banner.
+   * Workers call this on AUTH errors from the provider; admins call it
+   * proactively when rotating provider OAuth client secrets.
+   * Always re-stamps `authFailedAt` so consecutive triggers are visible.
+   */
+  markForReauth(reason: string): void {
+    this._needsReauth = true;
+    this._authFailedAt = new Date();
+    this._authFailureReason = reason;
+    this.markUpdated();
+  }
+
+  /**
+   * Clear the reauth flag once the user completes the re-grant flow.
+   * Idempotent.
+   */
+  clearReauthFlag(): void {
+    if (!this._needsReauth) {
+      return;
+    }
+    this._needsReauth = false;
+    this._authFailedAt = undefined;
+    this._authFailureReason = undefined;
+    this.markUpdated();
+  }
+
   toJSON(): Record<string, unknown> {
     return {
       id: this._id.toString(),
       projectId: this._projectId.toString(),
       provider: this._provider.type,
       handle: this._handle,
+      isPrimary: this._isPrimary,
       status: this._status,
       errorCount: this._errorCount,
       ...(this._lastHealthCheck && { lastHealthCheck: this._lastHealthCheck.toISOString() }),
       ...(this._lastError && { lastError: this._lastError }),
+      ...(this._accountName !== undefined && { accountName: this._accountName }),
+      ...(this._profileImage !== undefined && { profileImage: this._profileImage }),
+      ...(this._connectedAt && { connectedAt: this._connectedAt.toISOString() }),
+      ...(this._expiredAt && { expiredAt: this._expiredAt.toISOString() }),
+      ...(this._lastUsedAt && { lastUsedAt: this._lastUsedAt.toISOString() }),
       createdAt: this._createdAt.toISOString(),
       updatedAt: this._updatedAt.toISOString(),
       // Note: credentials are intentionally excluded for security

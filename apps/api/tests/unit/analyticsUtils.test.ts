@@ -31,6 +31,10 @@
  *
  * @module AnalyticsUtilsTests
  * @category UnitTests
+ *
+ * @file analyticsUtils.test.ts
+ * @description Tests for AnalyticsAggregator - Calculate Engagement Metrics
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

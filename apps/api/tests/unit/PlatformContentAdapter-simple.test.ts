@@ -3,6 +3,10 @@
  *
  * Verifies that the adapter correctly handles Twitter/X content adaptation
  * including character-limit enforcement on a body that exceeds 280 chars.
+ *
+ * @file PlatformContentAdapter-simple.test.ts
+ * @description Tests for PlatformContentAdapter - Simple Test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";

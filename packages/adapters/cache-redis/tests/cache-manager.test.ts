@@ -4,6 +4,10 @@
  * We replace ALL internal references (redis + invalidationManager.redis) with a
  * FakeRedis after construction so the manager is fully isolated from real Redis.
  * Tier 0: no real Redis required.
+ *
+ * @file cache-manager.test.ts
+ * @description Tests for RedisCacheManager — set() and get()
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterAll, afterEach, expect } from "vitest";
@@ -644,6 +648,119 @@ describe("RedisCacheManager — parseRedisInfo() private helper", { concurrency:
     const { manager: mgr } = makeManager();
     const fn = (mgr as any).parseRedisInfo.bind(mgr);
     expect(fn("# Memory\r\n", "nonexistent")).toBe(0);
+    await mgr.close();
+  });
+});
+
+describe("RedisCacheManager — has()", { concurrency: 1 }, () => {
+  it("returns ok(true) when the key has a fresh L1 entry", async () => {
+    const { manager: mgr } = makeManager();
+    await mgr.set("k", "v", { ttl: 60 });
+    const result = await mgr.has("k");
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(true);
+    await mgr.close();
+  });
+
+  it("returns ok(true) via Redis EXISTS when L1 is disabled", async () => {
+    const { manager: mgr, fakeRedis } = makeManager();
+    await mgr.set("k", "v", { ttl: 60 });
+    (mgr as any).enableL1Cache = false;
+    // Force L1 evict so we go straight to Redis EXISTS
+    (mgr as any).l1Cache.delete("k");
+    expect(fakeRedis.store.has("k")).toBe(true);
+    const result = await mgr.has("k");
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(true);
+    await mgr.close();
+  });
+
+  it("returns ok(false) when the key is absent from both L1 and L2", async () => {
+    const { manager: mgr } = makeManager();
+    const result = await mgr.has("missing");
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(false);
+    await mgr.close();
+  });
+});
+
+describe("RedisCacheManager — defaultTtl env var (L-377)", { concurrency: 1 }, () => {
+  const originalEnv = process.env.CACHE_TTL_DEFAULT;
+
+  afterEach(() => {
+    if (originalEnv === undefined) {
+      delete process.env.CACHE_TTL_DEFAULT;
+    } else {
+      process.env.CACHE_TTL_DEFAULT = originalEnv;
+    }
+  });
+
+  it("uses CACHE_TTL_DEFAULT env value when no explicit defaultTtl is configured", async () => {
+    process.env.CACHE_TTL_DEFAULT = "1234";
+    const fakeRedis = new FakeRedis();
+    const mgr = new RedisCacheManager({
+      redisUrl: "redis://localhost:6379",
+      keyPrefix: "test:",
+      enableMetrics: false,
+    });
+    (mgr as any).redis = fakeRedis;
+    if ((mgr as any).invalidationManager) {
+      (mgr as any).invalidationManager.redis = fakeRedis;
+    }
+    await mgr.set("k", "v");
+    expect(fakeRedis.ttls.get("k")).toBe(1234);
+    await mgr.close();
+  });
+
+  it("falls back to 3600 when CACHE_TTL_DEFAULT is unset", async () => {
+    delete process.env.CACHE_TTL_DEFAULT;
+    const fakeRedis = new FakeRedis();
+    const mgr = new RedisCacheManager({
+      redisUrl: "redis://localhost:6379",
+      keyPrefix: "test:",
+      enableMetrics: false,
+    });
+    (mgr as any).redis = fakeRedis;
+    if ((mgr as any).invalidationManager) {
+      (mgr as any).invalidationManager.redis = fakeRedis;
+    }
+    await mgr.set("k", "v");
+    expect(fakeRedis.ttls.get("k")).toBe(3600);
+    await mgr.close();
+  });
+
+  it("falls back to 3600 when CACHE_TTL_DEFAULT is unparseable", async () => {
+    process.env.CACHE_TTL_DEFAULT = "not-a-number";
+    const fakeRedis = new FakeRedis();
+    const mgr = new RedisCacheManager({
+      redisUrl: "redis://localhost:6379",
+      keyPrefix: "test:",
+      enableMetrics: false,
+    });
+    (mgr as any).redis = fakeRedis;
+    if ((mgr as any).invalidationManager) {
+      (mgr as any).invalidationManager.redis = fakeRedis;
+    }
+    await mgr.set("k", "v");
+    expect(fakeRedis.ttls.get("k")).toBe(3600);
+    await mgr.close();
+  });
+
+  it("explicit config.defaultTtl wins over the env var", async () => {
+    process.env.CACHE_TTL_DEFAULT = "1234";
+    const fakeRedis = new FakeRedis();
+    const mgr = new RedisCacheManager({
+      redisUrl: "redis://localhost:6379",
+      keyPrefix: "test:",
+      defaultTtl: 99,
+      enableMetrics: false,
+    });
+    (mgr as any).redis = fakeRedis;
+    if ((mgr as any).invalidationManager) {
+      (mgr as any).invalidationManager.redis = fakeRedis;
+    }
+    await mgr.set("k", "v");
+    expect(fakeRedis.ttls.get("k")).toBe(99);
     await mgr.close();
   });
 });

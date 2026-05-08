@@ -5,6 +5,10 @@ on:
     - cron: "0 3 * * *"
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   full-suite:
     name: Full test suite (cache bypassed)
@@ -62,6 +66,9 @@ jobs:
 
       - name: Run mutation testing (incremental)
         run: pnpm turbo run mutation --force
+        # Mutation testing is a long, variable-runtime health check that runs
+        # nightly for trend analysis; treated as informational (the Stryker
+        # reports uploaded below are the observable signal).
         continue-on-error: true
 
       - name: Upload mutation reports

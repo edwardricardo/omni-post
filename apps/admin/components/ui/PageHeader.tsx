@@ -2,7 +2,7 @@
  * @file PageHeader.tsx
  * @description Reusable page header with title, optional description, and action slot.
  *              Uses CSS custom-property design tokens for theme support.
- * @layer presentation
+ * @layer infrastructure
  */
 
 import React from "react";

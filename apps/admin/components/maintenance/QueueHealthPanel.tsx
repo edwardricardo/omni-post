@@ -4,7 +4,7 @@
  *   Green = healthy, yellow = has delayed items, red = has failed items.
  *   Uses aggregate stats to derive the overall indicator when per-queue data
  *   is not yet available.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

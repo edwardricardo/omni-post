@@ -2,7 +2,7 @@
  * @file useSubscriptionMutations.ts
  * @description TanStack Query mutation hooks for subscription management:
  *   start trial, end trial, and convert trial to paid subscription.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

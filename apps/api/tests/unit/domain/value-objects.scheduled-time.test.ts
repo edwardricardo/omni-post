@@ -1,7 +1,7 @@
 /**
  * @file value-objects.scheduled-time.test.ts
  * @description Mutation-killing tests for ScheduledTime value object.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, vi, beforeEach } from "vitest";

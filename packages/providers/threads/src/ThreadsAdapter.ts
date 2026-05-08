@@ -1,17 +1,15 @@
 /**
  * @file ThreadsAdapter.ts
- * @description Threads provider adapter. Extends AbstractProviderAdapter to
- *              publish text, images, videos, and carousels to Meta Threads.
- *              Uses the Threads API (graph.threads.net) with two-step container publishing.
+ * @description Threads (Meta) provider adapter. Implements the ProviderAdapter
+ *   port from @ports/core directly (no inheritance). Stateless w.r.t.
+ *   credentials — credentials are passed per-call by the application layer.
+ *   Publishes text, images, videos, and carousels via the Threads API
+ *   (graph.threads.net) using the two-step container publishing flow.
  * @layer infrastructure
  */
 
-import {
-  AbstractProviderAdapter,
-  type ProviderMetadata,
-  type ProviderConstraints,
-} from "@providers/shared";
 import type {
+  ProviderAdapter,
   ProviderId,
   ProviderLimits,
   PublishInput,
@@ -27,6 +25,12 @@ import type {
   PublishError,
 } from "@shared/types";
 import { ok, err } from "@shared/types";
+import {
+  validateCredentialStructure,
+  type ProviderMetadata,
+  type ProviderConstraints,
+} from "@providers/shared";
+import pino, { type Logger } from "pino";
 
 const API_BASE = "https://graph.threads.net/v1.0";
 
@@ -38,66 +42,96 @@ export interface ThreadsCredentials {
   [key: string]: string | undefined;
 }
 
-export class ThreadsAdapter extends AbstractProviderAdapter<ThreadsCredentials> {
-  readonly id: ProviderId = "threads" as ProviderId;
+const REQUIRED_FIELDS: (keyof ThreadsCredentials)[] = ["accessToken", "userId"];
 
-  readonly metadata: ProviderMetadata = {
-    id: "threads" as ProviderId,
-    name: "threads",
-    displayName: "Threads",
-    description: "Meta's text-based social platform for sharing ideas and joining conversations",
-    icon: "/providers/threads-icon.svg",
-    color: "#000000",
-    website: "https://threads.net",
-    authType: "oauth",
-    requiredScopes: [
-      "threads_basic",
-      "threads_content_publish",
-      "threads_read_replies",
-      "threads_manage_replies",
-    ],
-    status: "active",
-  };
+const THREADS_LIMITS: ProviderLimits = {
+  maxChars: 500,
+  maxHashtags: 30,
+  allowedMedia: ["image", "video"],
+  aspectRatios: ["1:1", "4:5", "9:16", "16:9"],
+  maxPostsPerThread: 1,
+  maxMediaPerPost: 10,
+  threadingSupported: false,
+  rateLimitHints: { burst: 60, perSeconds: 86400 },
+};
 
+const THREADS_METADATA: ProviderMetadata = {
+  id: "threads",
+  name: "threads",
+  displayName: "Threads",
+  description: "Meta's text-based social platform for sharing ideas and joining conversations",
+  icon: "/providers/threads-icon.svg",
+  color: "#000000",
+  website: "https://threads.net",
+  authType: "oauth",
+  requiredScopes: [
+    "threads_basic",
+    "threads_content_publish",
+    "threads_read_replies",
+    "threads_manage_replies",
+  ],
+  status: "active",
+};
+
+const THREADS_CAPABILITIES = {
+  publish: true,
+  schedule: false,
+  analytics: true,
+  comments: true,
+  replies: true,
+  threading: false,
+};
+
+export interface ThreadsAdapterDeps {
+  /** Logger instance. Default: pino at level "info". */
+  logger?: Logger;
+}
+
+/**
+ * @class ThreadsAdapter
+ * @description Provider adapter for publishing to Meta Threads via the Graph
+ *   API. Uses native fetch for all HTTP calls (no separate concrete client).
+ */
+export class ThreadsAdapter implements ProviderAdapter {
+  readonly id: ProviderId = "threads";
+  readonly limits: ProviderLimits = THREADS_LIMITS;
+  readonly capabilities = THREADS_CAPABILITIES;
+  readonly metadata: ProviderMetadata = THREADS_METADATA;
   readonly constraints: ProviderConstraints = {};
 
-  readonly limits: ProviderLimits = {
-    maxChars: 500,
-    maxHashtags: 30,
-    allowedMedia: ["image", "video"],
-    aspectRatios: ["1:1", "4:5", "9:16", "16:9"],
-    maxPostsPerThread: 1,
-    maxMediaPerPost: 10,
-    threadingSupported: false,
-    rateLimitHints: { burst: 60, perSeconds: 86400 },
-  };
+  private readonly logger: Logger;
 
-  readonly capabilities = {
-    publish: true,
-    schedule: false,
-    analytics: true,
-    comments: true,
-    replies: true,
-    threading: false,
-  };
-
-  protected readonly requiredCredentialFields: (keyof ThreadsCredentials)[] = [
-    "accessToken",
-    "userId",
-  ];
-
-  protected getCredentialsFromEnvironment(): Result<ThreadsCredentials, "AUTH"> {
-    const accessToken = process.env.THREADS_ACCESS_TOKEN;
-    const userId = process.env.THREADS_USER_ID;
-    if (!accessToken || !userId) return err("AUTH");
-    return ok({ accessToken, userId });
+  constructor(deps: ThreadsAdapterDeps = {}) {
+    this.logger = deps.logger ?? pino({ name: "threads-adapter", level: "info" });
   }
 
-  protected createApiClient(credentials: ThreadsCredentials): unknown {
-    return { credentials, baseUrl: API_BASE };
+  /**
+   * @method validateCredentials
+   * @description Verifies that the supplied credentials carry the required
+   *   fields. The Threads Graph API does not expose a lightweight ping, so
+   *   only the structural shape is checked here.
+   */
+  async validateCredentials(
+    credentials: unknown
+  ): Promise<Result<void, "AUTH_INVALID" | "AUTH_EXPIRED">> {
+    const validation = validateCredentialStructure<ThreadsCredentials>(
+      credentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
+      return err("AUTH_INVALID");
+    }
+    return ok(undefined);
   }
 
-  override render(canonical: CanonicalPost): Result<RenderedContent, RenderError> {
+  /**
+   * @method render
+   * @description Renders a canonical post into Threads single-content form,
+   *   truncating the body to the 500-char limit.
+   */
+  render(canonical: CanonicalPost): Result<RenderedContent, RenderError> {
     const body = canonical.body.slice(0, 500);
     const mediaUrls = (canonical.media ?? []).map((m) => m.url);
     return ok({
@@ -113,12 +147,28 @@ export class ThreadsAdapter extends AbstractProviderAdapter<ThreadsCredentials> 
     });
   }
 
-  override async publish(input: PublishInput): Promise<Result<PublishReceipt, PublishError>> {
-    try {
-      const credsResult = await this.getCredentials(input.channelId);
-      if (!credsResult.ok) return err("AUTH" as PublishError);
+  /**
+   * @method publish
+   * @description Publishes a post to Threads using the two-step container flow:
+   *   create container → wait for media (if any) → publish. Carousel posts
+   *   create child item containers first.
+   */
+  async publish(
+    input: PublishInput,
+    credentials: unknown
+  ): Promise<Result<PublishReceipt, PublishError>> {
+    const validation = validateCredentialStructure<ThreadsCredentials>(
+      credentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
+      return err("AUTH");
+    }
 
-      const creds = credsResult.value;
+    try {
+      const creds = validation.value;
       const post = input.post as { body?: string; text?: string; media?: Array<{ url: string }> };
       const text = (post.body ?? post.text ?? "").slice(0, 500);
       const mediaUrls = (post.media ?? []).map((m) => m.url);
@@ -137,20 +187,37 @@ export class ThreadsAdapter extends AbstractProviderAdapter<ThreadsCredentials> 
         publishedAt: new Date(),
       });
     } catch (error: unknown) {
-      const _message = error instanceof Error ? error.message : String(error);
+      this.logger.error({
+        provider: this.id,
+        operation: "publish",
+        channelId: input.channelId,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return err("NETWORK" as PublishError);
     }
   }
 
-  override async fetchAnalytics(q: {
-    channelId: string;
-    since?: Date;
-    until?: Date;
-  }): Promise<Result<unknown, "AUTH" | "NETWORK">> {
+  /**
+   * @method fetchAnalytics
+   * @description Aggregates per-post insights (views, likes, replies, reposts,
+   *   quotes) for the channel since the supplied date.
+   */
+  async fetchAnalytics(
+    q: { channelId: string; since?: Date; until?: Date },
+    credentials: unknown
+  ): Promise<Result<unknown, "AUTH" | "NETWORK">> {
+    const validation = validateCredentialStructure<ThreadsCredentials>(
+      credentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
+      return err("AUTH");
+    }
+
     try {
-      const credsResult = await this.getCredentials(q.channelId);
-      if (!credsResult.ok) return err("AUTH");
-      const creds = credsResult.value;
+      const creds = validation.value;
 
       const since = q.since ?? new Date(Date.now() - 30 * 86400000);
       const sinceTs = Math.floor(since.getTime() / 1000);
@@ -194,11 +261,21 @@ export class ThreadsAdapter extends AbstractProviderAdapter<ThreadsCredentials> 
       }
 
       return ok({ metrics });
-    } catch {
+    } catch (error: unknown) {
+      this.logger.error({
+        provider: this.id,
+        operation: "fetchAnalytics",
+        channelId: q.channelId,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return err("NETWORK");
     }
   }
 
+  /**
+   * @method getComments
+   * @description Lists replies to the channel since the supplied date.
+   */
   async getComments(params: {
     channelCredentials: unknown;
     postExternalId?: string;
@@ -233,11 +310,21 @@ export class ThreadsAdapter extends AbstractProviderAdapter<ThreadsCredentials> 
 
       const nextCursor = data.paging?.cursors?.after;
       return ok({ comments, ...(nextCursor !== undefined && { nextCursor }) });
-    } catch {
+    } catch (error: unknown) {
+      this.logger.error({
+        provider: this.id,
+        operation: "getComments",
+        error: error instanceof Error ? error.message : String(error),
+      });
       return err("NETWORK");
     }
   }
 
+  /**
+   * @method postReply
+   * @description Posts a reply to a specific provider message via the two-step
+   *   container flow.
+   */
   async postReply(params: {
     channelCredentials: unknown;
     inReplyToProviderMessageId: string;
@@ -272,10 +359,19 @@ export class ThreadsAdapter extends AbstractProviderAdapter<ThreadsCredentials> 
       const result = (await publishRes.json()) as { id: string };
 
       return ok({ providerReplyId: result.id, createdAt: new Date() });
-    } catch {
+    } catch (error: unknown) {
+      this.logger.error({
+        provider: this.id,
+        operation: "postReply",
+        error: error instanceof Error ? error.message : String(error),
+      });
       return err("NETWORK");
     }
   }
+
+  // ----------------------------------------------------------
+  // Private helpers
+  // ----------------------------------------------------------
 
   private async createContainer(
     creds: ThreadsCredentials,
@@ -370,4 +466,11 @@ export class ThreadsAdapter extends AbstractProviderAdapter<ThreadsCredentials> 
   }
 }
 
-export const threadsAdapter = new ThreadsAdapter();
+/**
+ * @function createThreadsAdapter
+ * @description Factory used by the composition root to instantiate the adapter
+ *   with explicit dependencies (logger).
+ */
+export function createThreadsAdapter(deps: ThreadsAdapterDeps = {}): ThreadsAdapter {
+  return new ThreadsAdapter(deps);
+}

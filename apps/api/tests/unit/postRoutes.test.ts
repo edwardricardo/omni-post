@@ -5,7 +5,7 @@
  *
  * Tests CRUD operations via application-layer use cases resolved from the
  * DI container. Delete operations use soft-delete (sets deletedAt).
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";

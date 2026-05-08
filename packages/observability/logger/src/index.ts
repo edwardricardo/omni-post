@@ -1,14 +1,10 @@
-import pino from "pino";
-
 /**
- * Shared logger factory for all packages in the omni-post monorepo.
- *
- * Usage:
- *   import { createLogger } from "@observability/logger";
- *   const logger = createLogger("adapter:db-prisma");
- *
- * Log level is controlled by the LOG_LEVEL environment variable (default: "info").
+ * @file index.ts
+ * @description Shared logger factory creating namespaced Pino loggers for all monorepo packages,
+ *              honouring the LOG_LEVEL environment variable.
+ * @layer infrastructure
  */
+import pino from "pino";
 
 const LOG_LEVEL = process.env.LOG_LEVEL || "info";
 

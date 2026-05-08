@@ -35,6 +35,10 @@
  *
  * @module XWebhookProcessorTests
  * @category UnitTests
+ *
+ * @file xWebhookProcessor.test.ts
+ * @description Tests for XWebhookProcessor - Signature Verification
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, expect } from "vitest";

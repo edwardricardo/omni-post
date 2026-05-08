@@ -11,7 +11,7 @@
  *              were deleted as part of billing modernization.
  *
  *              No real database connection is needed.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, beforeEach, expect, vi } from "vitest";

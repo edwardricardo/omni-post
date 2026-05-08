@@ -2,7 +2,7 @@
  * @file RecurringPostCard.tsx
  * @component RecurringPostCard
  * @description Single recurring post row displaying schedule, channels, status, and actions.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

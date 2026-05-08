@@ -1,11 +1,14 @@
 /**
- * Redis Cache Manager
- * Main cache manager orchestrating L1/L2 caching, invalidation, and metrics
+ * @file cache-manager.ts
+ * @description Main Redis cache manager orchestrating L1 in-memory cache, L2 Redis cache,
+ *              invalidation strategies, access pattern tracking, and Prometheus metrics.
+ * @layer infrastructure
  */
 
 import { ok, err, type Result } from "@shared/types";
 import Redis from "ioredis";
 import pino from "pino";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import {
   cacheHits,
   cacheMisses,
@@ -58,14 +61,21 @@ export class RedisCacheManager {
     warmups: 0,
   };
 
-  private cleanupInterval?: NodeJS.Timeout;
-  private patternCleanupInterval?: NodeJS.Timeout;
+  private scheduler: BackgroundTaskScheduler | undefined;
+  private readonly l1CleanupTaskId = "redis-cache-manager-l1-cleanup";
+  private readonly patternCleanupTaskId = "redis-cache-manager-pattern-cleanup";
   private isWarming = false;
 
-  constructor(config: CacheConfig) {
+  constructor(config: CacheConfig, scheduler?: BackgroundTaskScheduler) {
+    this.scheduler = scheduler;
+    // L-377: TTL default reads from CACHE_TTL_DEFAULT env var (seconds).
+    // Falls back to 3600 (1h) if unset or unparseable so existing deployments
+    // keep current behavior; explicit `config.defaultTtl` still wins.
+    const envTtl = Number(process.env.CACHE_TTL_DEFAULT);
+    const defaultTtl = Number.isFinite(envTtl) && envTtl > 0 ? envTtl : 3600;
     this.config = {
       keyPrefix: "cache:",
-      defaultTtl: 3600, // 1 hour
+      defaultTtl,
       maxRetries: 3,
       enableCompression: true,
       enableMetrics: true,
@@ -77,6 +87,12 @@ export class RedisCacheManager {
       maxRetriesPerRequest: null, // Required for BullMQ compatibility
       lazyConnect: true,
       keyPrefix: this.config.keyPrefix,
+      // ioredis defaults: commandTimeout = null (forever), connectTimeout = 10000.
+      // 5 s on each so a hung Redis fails fast on cache reads/writes instead
+      // of blocking request handlers indefinitely. maxRetriesPerRequest:null
+      // (BullMQ-compat) means timeout is the only escape hatch.
+      commandTimeout: 5_000,
+      connectTimeout: 5_000,
     });
 
     this.l1Cache = new L1CacheManager(this.stats);
@@ -392,6 +408,26 @@ export class RedisCacheManager {
   }
 
   /**
+   * Check if a key exists without decoding its payload. Checks L1 first
+   * (synchronous), then Redis `EXISTS` (single-RTT, no deserialization).
+   */
+  async has(key: string): Promise<Result<boolean, "CACHE_ERROR">> {
+    try {
+      if (this.enableL1Cache) {
+        const l1Entry = this.l1Cache.get(key);
+        if (l1Entry && this.l1Cache.isValid(l1Entry)) {
+          return ok(true);
+        }
+      }
+      const exists = await this.redis.exists(key);
+      return ok(exists > 0);
+    } catch (error: unknown) {
+      logger.error(`Cache exists error for key ${key}: ${error}`);
+      return err("CACHE_ERROR");
+    }
+  }
+
+  /**
    * Get cache statistics with L1/L2 breakdown
    */
   async getStats(): Promise<Result<CacheStats, "CACHE_ERROR">> {
@@ -529,11 +565,9 @@ export class RedisCacheManager {
    * Close Redis connection and cleanup
    */
   async close(): Promise<void> {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-    }
-    if (this.patternCleanupInterval) {
-      clearInterval(this.patternCleanupInterval);
+    if (this.scheduler) {
+      this.scheduler.unregister(this.l1CleanupTaskId);
+      this.scheduler.unregister(this.patternCleanupTaskId);
     }
     this.l1Cache.clear();
     this.accessTracker.clear();
@@ -568,17 +602,26 @@ export class RedisCacheManager {
   // Background tasks
 
   private startBackgroundTasks(): void {
+    if (!this.scheduler) {
+      // If no scheduler provided, background tasks are disabled. Consumer is
+      // expected to handle cleanup cadence via their own mechanism.
+      return;
+    }
     // Cleanup expired L1 entries every minute
-    this.cleanupInterval = setInterval(() => {
-      this.l1Cache.cleanupExpired();
-    }, 60000);
-    this.cleanupInterval.unref(); // Don't prevent process exit
-
+    this.scheduler.register(this.l1CleanupTaskId, () => this.l1Cache.cleanupExpired(), 60_000, {
+      onError: (err) => logger.warn({ err }, "L1 cleanup task error"),
+    });
     // Cleanup old access patterns every hour
-    this.patternCleanupInterval = setInterval(() => {
-      const cutoff = Date.now() - 3600000; // 1 hour
-      this.accessTracker.cleanupOldPatterns(cutoff);
-    }, 3600000);
-    this.patternCleanupInterval.unref(); // Don't prevent process exit
+    this.scheduler.register(
+      this.patternCleanupTaskId,
+      () => {
+        const cutoff = Date.now() - 3600000; // 1 hour
+        this.accessTracker.cleanupOldPatterns(cutoff);
+      },
+      3_600_000,
+      {
+        onError: (err) => logger.warn({ err }, "Pattern cleanup task error"),
+      }
+    );
   }
 }

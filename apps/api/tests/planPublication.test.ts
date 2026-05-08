@@ -6,6 +6,10 @@
  * - Provider adapter integration
  * - Rendered content validation
  * - Multi-channel planning
+ *
+ * @file planPublication.test.ts
+ * @description Tests for Publication Planning
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach } from "node:test";

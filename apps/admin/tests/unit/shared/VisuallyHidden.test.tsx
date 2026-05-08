@@ -6,6 +6,10 @@
  * - sr-only class is applied
  * - Inline positioning styles are applied
  * - Custom element tag (as prop) is respected
+ *
+ * @file VisuallyHidden.test.tsx
+ * @description Tests for VisuallyHidden
+ * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";

@@ -2,6 +2,10 @@
  * Database resilience layer tests
  * Tests circuit breaker, retry logic, metrics collector, and default options.
  * Tier 0: no DB, no Redis — uses real opossum instances with simple async functions.
+ *
+ * @file resilience.test.ts
+ * @description Tests for DEFAULT_DATABASE_RESILIENCE_OPTIONS
+ * @layer infrastructure
  */
 
 import { describe, it, afterAll, beforeEach, vi } from "vitest";

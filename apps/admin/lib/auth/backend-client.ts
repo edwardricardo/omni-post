@@ -5,17 +5,19 @@
  * verification, token refresh, logout, and health-check functions.
  */
 
-import type { AdminUserProfile, AuthenticateAdminResult, TokenPair } from "./types";
-import { createLogger } from "../logger";
+import { ConsoleLoggerAdapter } from "@observability/browser-logger";
 
-const log = createLogger("backend-client");
+import type { AdminUserProfile, AuthenticateAdminResult, TokenPair } from "./types";
+import { env } from "../../lib/env";
+
+const log = new ConsoleLoggerAdapter("admin.backend-client", { alwaysEmit: true });
 
 // ============================================================================
 // Constants & Configuration
 // ============================================================================
 
 // Prefer API_URL (server-side only) over NEXT_PUBLIC_API_URL for Server Actions/RSC
-const API_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_URL = env.API_URL || env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 // ============================================================================
 // Type Definitions

@@ -5,7 +5,7 @@
  * @description AI Prompt Templates management page. Lists system templates and
  *   account-specific custom templates. Users can create and delete their own templates.
  *   Requires ?accountId=<uuid> query param to scope account-specific templates.
- * @layer presentation
+ * @layer infrastructure
  */
 
 import React, { Suspense } from "react";

@@ -6,12 +6,13 @@
  */
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
+import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { PasswordSchema, UserRoleSchema } from "@packages/api-common";
 import { SecureSchemas } from "../security/inputValidation.js";
 import type { AuthService } from "./authService.js";
 import { requireClientAuth } from "./customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
+import { env } from "../config/env.js";
 
 // ✅ Zod schemas for validation with security enhancement
 const RegisterSchema = z.object({
@@ -143,7 +144,7 @@ class AuthRouteHandler extends BaseRouteHandler {
     // Set refresh token as HTTP-only cookie for security
     reply.setCookie("refreshToken", loginData.tokens.refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: env.NODE_ENV === "production",
       sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       path: "/auth",
@@ -215,7 +216,7 @@ class AuthRouteHandler extends BaseRouteHandler {
     // Update refresh token cookie
     reply.setCookie("refreshToken", result.value.refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: env.NODE_ENV === "production",
       sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       path: "/auth",

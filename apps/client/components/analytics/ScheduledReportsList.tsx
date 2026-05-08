@@ -1,12 +1,14 @@
 /**
  * @file ScheduledReportsList.tsx
  * @description Table of scheduled reports with generate and delete actions.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 
 import { useState } from "react";
 import cronstrue from "cronstrue";
+import { ConfirmDialog } from "@packages/ui";
+import { useLogger, extractErrorInfo } from "@observability/browser-logger";
 import { useReports, useDeleteReport, useGenerateReport } from "@/hooks/api/useReports";
 
 interface ScheduledReportsListProps {
@@ -51,16 +53,28 @@ const TABLE_HEADERS = [
 ] as const;
 
 export function ScheduledReportsList({ projectId, onCreateClick }: ScheduledReportsListProps) {
+  const logger = useLogger("client.scheduled-reports");
   const { data: reports, isLoading, error, refetch } = useReports(projectId);
   const deleteReport = useDeleteReport();
   const generateReport = useGenerateReport();
   const [generateStatus, setGenerateStatus] = useState<Record<string, GenerateStatus>>({});
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
-  async function handleDelete(id: string, name: string) {
-    if (!window.confirm(`Delete report "${name}"? This cannot be undone.`)) return;
-    await deleteReport.mutateAsync(id).catch(() => {
-      /* mutation state handles the error */
+  function handleDelete(id: string, name: string) {
+    setDeleteTarget({ id, name });
+  }
+
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return;
+    await deleteReport.mutateAsync(deleteTarget.id).catch((err: unknown) => {
+      // TanStack mutation state (deleteReport.isError) surfaces the failure in the UI.
+      // Log for observability so persistent failures are still visible in APM.
+      logger.debug("Report delete failed (mutation state handles user-facing error)", {
+        err: extractErrorInfo(err),
+        reportId: deleteTarget.id,
+      });
     });
+    setDeleteTarget(null);
   }
 
   async function handleGenerate(id: string) {
@@ -240,6 +254,23 @@ export function ScheduledReportsList({ projectId, onCreateClick }: ScheduledRepo
           </tbody>
         </table>
       </div>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title="Delete scheduled report?"
+        description={
+          deleteTarget
+            ? `Delete report "${deleteTarget.name}"? This cannot be undone.`
+            : "This cannot be undone."
+        }
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={handleConfirmDelete}
+        loading={deleteReport.isPending}
+      />
     </div>
   );
 }

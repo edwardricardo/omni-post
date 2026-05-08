@@ -1,7 +1,7 @@
 /**
  * @file AssetThumbnail.tsx
  * @description Thumbnail component for displaying media assets in grid/list.
- * @layer client-components
+ * @layer infrastructure
  */
 
 "use client";

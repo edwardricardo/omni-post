@@ -1,6 +1,10 @@
 /**
  * Tests for SmartAnalysisBodySchema and edge-case validation behaviour.
  * Imports all Zod schemas directly from routes.ts.
+ *
+ * @file aiTypes.smartanalysis.test.ts
+ * @description Tests for AI Schemas - SmartAnalysisBodySchema
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

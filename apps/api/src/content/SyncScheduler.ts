@@ -7,6 +7,7 @@
 
 import Redis from "ioredis";
 import type { VersionDiff } from "@shared/orchestration";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { ProviderId } from "../providers/providerAdapter.interface";
 import { EventService } from "../events/EventService";
 import { logger } from "../lib/logger.js";
@@ -35,15 +36,21 @@ export interface SyncMetrics {
 export class SyncScheduler {
   private redis: Redis;
   private eventService: EventService;
+  private scheduler: BackgroundTaskScheduler;
 
   private realtimeSubscriptions = new Map<string, Set<string>>(); // postId -> channelIds
   private channelMetrics = new Map<string, SyncMetrics>();
-  private metricsCollectionInterval: NodeJS.Timeout | undefined;
+  private readonly metricsTaskId = "sync-scheduler-metrics-collection";
   private processorRunning = false;
 
-  constructor(dependencies: { redis: Redis; eventService: EventService }) {
+  constructor(dependencies: {
+    redis: Redis;
+    eventService: EventService;
+    scheduler: BackgroundTaskScheduler;
+  }) {
     this.redis = dependencies.redis;
     this.eventService = dependencies.eventService;
+    this.scheduler = dependencies.scheduler;
   }
 
   /**
@@ -125,24 +132,16 @@ export class SyncScheduler {
    * Start metrics collection
    */
   startMetricsCollection(): void {
-    this.metricsCollectionInterval = setInterval(async () => {
-      try {
-        await this.collectAndStoreMetrics();
-      } catch (error) {
-        logger.error({ err: error }, "Metrics collection error");
-      }
-    }, 60000); // Every minute
-    this.metricsCollectionInterval.unref();
+    this.scheduler.register(this.metricsTaskId, () => this.collectAndStoreMetrics(), 60000, {
+      onError: (err) => logger.error({ err }, "Metrics collection error"),
+    });
   }
 
   /**
    * Stop metrics collection
    */
   stopMetricsCollection(): void {
-    if (this.metricsCollectionInterval) {
-      clearInterval(this.metricsCollectionInterval);
-      this.metricsCollectionInterval = undefined;
-    }
+    this.scheduler.unregister(this.metricsTaskId);
   }
 
   /**

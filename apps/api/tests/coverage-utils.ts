@@ -1,3 +1,8 @@
+/**
+ * @file coverage-utils.ts
+ * @description Tests for coverage utils
+ * @layer infrastructure
+ */
 // Coverage utilities for test reporting and analysis
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";

@@ -36,6 +36,7 @@ export function useAIContentGeneration() {
       try {
         const response = await fetch(`${API_URL}/ai/generate`, {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             messages: [
@@ -52,9 +53,9 @@ export function useAIContentGeneration() {
         });
 
         if (response.ok) {
-          const data = await response.json();
-          if (data.ok && data.value) {
-            return data.value;
+          const body = await response.json();
+          if (body.ok && body.data) {
+            return body.data;
           }
         }
       } catch {
@@ -83,9 +84,6 @@ export function useAIContentGeneration() {
             characterCount: platformOptimized.text.length,
             wordCount: platformOptimized.text.split(" ").length,
             hashtagCount: platformOptimized.hashtags.length,
-            readabilityScore: 80,
-            engagementScore: template.estimatedEngagement,
-            viralPotential: 50,
           },
           variations: settings.generateVariations
             ? generateVariations(platformOptimized.text, platform)

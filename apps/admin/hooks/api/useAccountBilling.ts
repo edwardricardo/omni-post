@@ -1,7 +1,7 @@
 /**
  * @file useAccountBilling.ts
  * @description TanStack Query hook for fetching account billing breakdown from the admin API.
- * @layer presentation
+ * @layer infrastructure
  */
 import { useQuery } from "@tanstack/react-query";
 import type { PlanType } from "@shared/types";

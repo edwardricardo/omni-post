@@ -1,3 +1,8 @@
+/**
+ * @file templateRoutes.env-setup.ts
+ * @description Test setup for template routes env setup
+ * @layer infrastructure
+ */
 // Must be imported before any module that uses @infra/prisma
 // ESM processes imports before module code, so this file must be
 // imported as a side-effect to ensure DATABASE_URL is set early.

@@ -1,11 +1,10 @@
 /**
- * Phase 2: Week 3-4 - Virtual Scrolling Implementation
- *
- * High-performance virtual scrolling component for large datasets:
- * - Renders only visible items to maintain performance
- * - Supports dynamic item heights with accurate scroll positioning
- * - Built-in loading states and infinite scroll capabilities
- * - Optimized for React 19 with concurrent features
+ * @file VirtualScrollList.tsx
+ * @description High-performance virtual scrolling component rendering only visible
+ *              items. Supports dynamic item heights with accurate scroll positioning,
+ *              infinite scroll capabilities, and React 19 concurrent features.
+ * @component VirtualScrollList
+ * @layer infrastructure
  */
 
 "use client";
@@ -19,6 +18,9 @@ import React, {
   useTransition,
   startTransition,
 } from "react";
+import { ConsoleLoggerAdapter } from "@observability/browser-logger";
+
+const virtualScrollListLogger = new ConsoleLoggerAdapter("VirtualScrollList");
 
 interface VirtualScrollListProps<T> {
   items: T[];
@@ -267,7 +269,6 @@ export function VirtualScrollList<T>({
           <EmptyComponent />
         ) : (
           <div className="text-gray-500 text-center">
-            <div className="text-2xl mb-2">📝</div>
             <p>No items to display</p>
           </div>
         )}
@@ -382,7 +383,7 @@ export function useVirtualScroll<T>({
         setCurrentPage((prev) => prev + 1);
       });
     } catch (error) {
-      console.error("Failed to load more items:", error);
+      virtualScrollListLogger.error("Failed to load more items", error as Error);
     } finally {
       setIsLoading(false);
     }

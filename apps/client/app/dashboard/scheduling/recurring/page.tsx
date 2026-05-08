@@ -3,7 +3,7 @@
  * @component RecurringPostsPage
  * @description Recurring posts list page — shows all recurring posts for the active project
  * with human-readable cron schedule, status badges, and deactivate action.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 
@@ -25,7 +25,7 @@ export default function RecurringPostsPage() {
           </p>
         </div>
         <Link
-          href="/scheduling/recurring/new"
+          href="/dashboard/scheduling/recurring/new"
           className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         >
           + Nueva publicación recurrente

@@ -1,12 +1,9 @@
 /**
- * Phase 2: Week 5-6 - React 19 Concurrent Renderer
- *
- * Advanced React 19 concurrent features for scalability:
- * - Time-slicing for smooth UI updates
- * - Priority-based rendering
- * - Background data fetching with Suspense
- * - Selective hydration for performance
- * - Concurrent state updates
+ * @file ConcurrentRenderer.tsx
+ * @description React 19 concurrent renderer for scalability: time-slicing,
+ *              priority-based rendering, background fetching with Suspense,
+ *              selective hydration, and concurrent state updates.
+ * @layer infrastructure
  */
 
 "use client";
@@ -90,10 +87,12 @@ export function useConcurrentData<T>(
   const [isLoading, setIsLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
 
-  // Memoize fetch function to prevent unnecessary re-renders
+  // Memoize fetch function. `...dependencies` is a caller-provided spread so
+  // ESLint cannot statically verify the dep list — the hook contract is that
+  // the caller owns stability of those deps.
   const memoizedFetchData = useCallback(() => {
     return fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- caller-owned spread
   }, [fetchData, ...dependencies]);
 
   // Background data fetching
@@ -270,7 +269,7 @@ export function PriorityList<T>({
  * Concurrent Form Handler with optimistic updates
  */
 interface ConcurrentFormProps {
-  onSubmit: (data: FormData) => Promise<any>;
+  onSubmit: (data: FormData) => Promise<unknown>;
   children: React.ReactNode;
   optimisticUpdate?: (data: FormData) => void;
   className?: string;
@@ -360,7 +359,7 @@ export function SelectiveHydration({
         break;
       case "idle":
         if ("requestIdleCallback" in window) {
-          (window as any).requestIdleCallback(hydrate);
+          window.requestIdleCallback(hydrate);
         } else {
           setTimeout(hydrate, 1000);
         }
@@ -379,8 +378,8 @@ export function SelectiveHydration({
  * Background Task Manager for concurrent operations
  */
 export function useBackgroundTasks() {
-  const [tasks, setTasks] = useState<Map<string, Promise<any>>>(new Map());
-  const [results, setResults] = useState<Map<string, any>>(new Map());
+  const [tasks, setTasks] = useState<Map<string, Promise<unknown>>>(new Map());
+  const [results, setResults] = useState<Map<string, unknown>>(new Map());
   const [errors, setErrors] = useState<Map<string, Error>>(new Map());
 
   const runBackgroundTask = useCallback(

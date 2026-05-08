@@ -1,3 +1,8 @@
+/**
+ * @file AuthPage.ts
+ * @description Tests for auth page
+ * @layer infrastructure
+ */
 // Page type not used directly '@playwright/test';
 // Page type not used directly './BasePage';
 

@@ -1,11 +1,9 @@
 /**
- * Phase 2: Week 3-4 - CQRS (Command Query Responsibility Segregation)
- *
- * This module provides the foundation for CQRS pattern implementation:
- * - Separates Command (write) and Query (read) responsibilities
- * - Commands mutate state and generate events
- * - Queries read from optimized read models (projections)
- * - Event handlers update read models asynchronously
+ * @file cqrs.ts
+ * @description Foundation for CQRS (Command Query Responsibility Segregation):
+ *              commands mutate state and generate events, queries read from
+ *              optimized read models (projections), and event handlers update
+ *              read models asynchronously.
  */
 
 import { randomUUID } from "node:crypto";

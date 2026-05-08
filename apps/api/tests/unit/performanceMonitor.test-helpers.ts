@@ -1,6 +1,21 @@
+/**
+ * @file performanceMonitor.test-helpers.ts
+ * @description Test helpers for performance monitor test helpers
+ * @layer infrastructure
+ */
 import type { ApiMetrics } from "../../src/metrics/apiMetrics.js";
 import type { FastifyRequest, FastifyReply } from "fastify";
 import type Redis from "ioredis";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
+import { PerformanceMonitor } from "../../src/monitoring/performanceMonitor.js";
+
+/**
+ * Build a PerformanceMonitor for tests with a Noop scheduler wired in.
+ * Matches the current production constructor `(metrics, redis, scheduler)`.
+ */
+export function createPerformanceMonitor(metrics: ApiMetrics, redis: Redis): PerformanceMonitor {
+  return new PerformanceMonitor(metrics, redis, new NoopBackgroundTaskScheduler());
+}
 
 export function createMockApiMetrics(): ApiMetrics {
   const recordRequestFn = () => (_statusCode: number) => {};

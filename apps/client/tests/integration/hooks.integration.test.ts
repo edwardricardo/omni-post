@@ -8,7 +8,7 @@
  * proper React rendering context with QueryClient providers.
  *
  * Run: pnpm exec vitest run tests/integration/
- * @layer integration
+ * @layer infrastructure
  */
 
 import { describe, it } from "vitest";

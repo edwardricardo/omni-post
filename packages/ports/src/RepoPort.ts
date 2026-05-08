@@ -1,3 +1,9 @@
+/**
+ * @file RepoPort.ts
+ * @description Repository port (interface) for persistence operations across accounts, posts,
+ *              channels, publish logs, threads, tweets, and analytics.
+ * @layer domain
+ */
 import type {
   CanonicalPost,
   Result,

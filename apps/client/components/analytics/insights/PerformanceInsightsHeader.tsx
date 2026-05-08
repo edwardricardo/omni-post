@@ -30,7 +30,7 @@ export function PerformanceInsightsHeader({
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Performance Insights</h2>
         <p className="text-gray-600">
-          AI-driven recommendations to improve your content performance
+          Recommendations to improve your content performance based on your analytics
           {lastAnalysisAt && (
             <span className="ml-2 text-sm">• Last analyzed {lastAnalysisAt.toLocaleString()}</span>
           )}

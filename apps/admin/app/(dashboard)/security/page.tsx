@@ -2,7 +2,7 @@
  * @file page.tsx
  * @description Security overview page displaying security stats, MFA adoption rate, and RBAC
  *   hierarchy summary. Uses CSS design tokens and reusable UI components.
- * @layer page
+ * @layer infrastructure
  */
 "use client";
 
@@ -16,7 +16,6 @@ import RbacManager from "@/components/security/RbacManager";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
-import { ActionButton } from "@/components/ui/ActionButton";
 
 function SecurityPageContent() {
   const t = useTranslations("nav");

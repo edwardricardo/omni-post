@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GatewayBillingService } from "../../../src/billing/GatewayBillingService.js";
 import type { PrismaClient } from "@infra/prisma";
 import type { EmailPort } from "../../../src/domain/repositories/EmailPort.js";
-import type { IGatewayAdapterRegistry } from "../../../src/infrastructure/billing/GatewayAdapterRegistry.js";
+import type { GatewayAdapterRegistryPort } from "../../../src/infrastructure/billing/GatewayAdapterRegistry.js";
 import type { GatewaySwitchJobService } from "../../../src/billing/GatewaySwitchJobService.js";
 
 function makeMockEmailPort(): EmailPort {
@@ -43,7 +43,7 @@ function makeMockPrisma(overrides: Record<string, unknown> = {}): PrismaClient {
 }
 
 function createService(prisma: PrismaClient, emailPort: EmailPort): GatewayBillingService {
-  const registry = {} as IGatewayAdapterRegistry;
+  const registry = {} as GatewayAdapterRegistryPort;
   const jobService = {} as GatewaySwitchJobService;
   return new GatewayBillingService(prisma, registry, jobService, emailPort);
 }
@@ -251,7 +251,7 @@ describe("handleSubscriptionCanceled — email", () => {
         return Promise.all(ops);
       }),
     });
-    const registry = {} as IGatewayAdapterRegistry;
+    const registry = {} as GatewayAdapterRegistryPort;
     const jobService = {
       startCheckoutWindow: vi.fn().mockResolvedValue(undefined),
     } as unknown as GatewaySwitchJobService;

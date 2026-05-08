@@ -1,7 +1,7 @@
 /**
  * @file useComments.ts
  * @description TanStack Query hooks for post comment threads.
- * @layer client-hooks
+ * @layer infrastructure
  */
 
 "use client";
@@ -27,10 +27,13 @@ export interface Comment {
 // ---------------------------------------------------------------------------
 
 async function fetchComments(postId: string): Promise<Comment[]> {
-  const res = await fetch(`/api/backend/posts/${postId}/comments`, { cache: "no-store" });
+  const res = await fetch(`/api/backend/posts/${postId}/comments`, {
+    credentials: "include",
+    cache: "no-store",
+  });
   if (!res.ok) throw new Error("Failed to fetch comments");
-  const data = (await res.json()) as { ok: boolean; value?: Comment[] };
-  return data.ok && data.value ? data.value : [];
+  const envelope = (await res.json()) as { ok: boolean; data?: Comment[] };
+  return envelope.ok && envelope.data ? envelope.data : [];
 }
 
 async function addComment(
@@ -41,13 +44,14 @@ async function addComment(
 ): Promise<Comment> {
   const res = await fetch(`/api/backend/posts/${postId}/comments`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ authorId, body, ...(parentId ? { parentId } : {}) }),
   });
   if (!res.ok) throw new Error("Failed to add comment");
-  const data = (await res.json()) as { ok: boolean; value?: Comment };
-  if (!data.ok || !data.value) throw new Error("Comment failed");
-  return data.value;
+  const envelope = (await res.json()) as { ok: boolean; data?: Comment };
+  if (!envelope.ok || !envelope.data) throw new Error("Comment failed");
+  return envelope.data;
 }
 
 // ---------------------------------------------------------------------------

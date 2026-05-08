@@ -8,6 +8,10 @@
  * - API endpoint rate limiting
  * - Rate limit headers
  * - Window management
+ *
+ * @file rateLimit.smoke.test.ts
+ * @description Tests for Rate Limiting System
+ * @layer infrastructure
  */
 
 import { describe, it, before, after, beforeEach } from "node:test";

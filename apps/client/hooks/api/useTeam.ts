@@ -1,7 +1,7 @@
 /**
  * @file useTeam.ts
  * @description TanStack Query hooks for team management operations.
- * @layer client-hooks
+ * @layer infrastructure
  */
 
 "use client";
@@ -41,8 +41,8 @@ async function fetchTeamMembers(accountId: string): Promise<TeamMemberDto[]> {
     credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to fetch team members");
-  const data = (await res.json()) as { ok: boolean; value?: TeamMemberDto[] };
-  return data.ok && data.value ? data.value : [];
+  const body = (await res.json()) as { ok: boolean; data?: TeamMemberDto[] };
+  return body.ok && body.data ? body.data : [];
 }
 
 async function inviteTeamMember(input: InviteTeamMemberInput): Promise<{ id: string }> {
@@ -56,9 +56,9 @@ async function inviteTeamMember(input: InviteTeamMemberInput): Promise<{ id: str
     if (res.status === 409) throw new Error("This email is already on your team");
     throw new Error("Failed to invite team member");
   }
-  const data = (await res.json()) as { ok: boolean; value?: { id: string } };
-  if (!data.ok || !data.value) throw new Error("Invitation failed");
-  return data.value;
+  const body = (await res.json()) as { ok: boolean; data?: { id: string } };
+  if (!body.ok || !body.data) throw new Error("Invitation failed");
+  return body.data;
 }
 
 async function updateTeamMemberRole(

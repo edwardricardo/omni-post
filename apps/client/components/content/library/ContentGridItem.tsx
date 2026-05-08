@@ -34,12 +34,24 @@ export function ContentGridItem({
   onItemClick,
   onTagClick,
 }: ContentGridItemProps) {
+  const handleItemKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Enter" || e.key === " ") {
+      // Avoid scrolling on space.
+      e.preventDefault();
+      onItemClick(item);
+    }
+  };
+
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label={item.title ?? truncateText(item.content.text, 60)}
       className={`bg-white border rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer ${
         isSelected ? "ring-2 ring-blue-500" : ""
       }`}
       onClick={() => onItemClick(item)}
+      onKeyDown={handleItemKeyDown}
     >
       {enableBulkActions && (
         <div className="absolute top-2 left-2 z-10">
@@ -97,34 +109,28 @@ export function ContentGridItem({
         {/* Tags */}
         {item.tags && item.tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-2">
-            {item.tags.slice(0, 4).map((tag) => (
-              <span
-                key={tag}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onTagClick?.(tag);
-                }}
-                className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
-                  onTagClick
-                    ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer"
-                    : "bg-emerald-50 text-emerald-700"
-                }`}
-                role={onTagClick ? "button" : undefined}
-                tabIndex={onTagClick ? 0 : undefined}
-                onKeyDown={
-                  onTagClick
-                    ? (e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.stopPropagation();
-                          onTagClick(tag);
-                        }
-                      }
-                    : undefined
-                }
-              >
-                #{tag}
-              </span>
-            ))}
+            {item.tags.slice(0, 4).map((tag) =>
+              onTagClick ? (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onTagClick(tag);
+                  }}
+                  className="px-2 py-0.5 text-xs rounded-full transition-colors bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer"
+                >
+                  #{tag}
+                </button>
+              ) : (
+                <span
+                  key={tag}
+                  className="px-2 py-0.5 text-xs rounded-full transition-colors bg-emerald-50 text-emerald-700"
+                >
+                  #{tag}
+                </span>
+              )
+            )}
             {item.tags.length > 4 && (
               <span className="text-xs text-gray-400">+{item.tags.length - 4}</span>
             )}

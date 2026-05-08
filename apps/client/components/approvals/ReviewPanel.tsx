@@ -2,7 +2,7 @@
  * @file ReviewPanel.tsx
  * @description Slide-in sheet panel for reviewing a pending approval.
  *              Shows full post content, approve/reject actions, and an embedded comment thread.
- * @layer ui
+ * @layer infrastructure
  */
 
 "use client";
@@ -128,7 +128,7 @@ export function ReviewPanel({ approval, reviewerId, onClose }: ReviewPanelProps)
             aria-label="Close review panel"
             className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100"
           >
-            <X className="h-4 w-4" />
+            <X aria-hidden="true" className="h-4 w-4" />
           </button>
         </div>
 
@@ -189,14 +189,17 @@ export function ReviewPanel({ approval, reviewerId, onClose }: ReviewPanelProps)
           aria-modal="true"
           aria-labelledby="reject-dialog-title"
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
+        >
+          <button
+            type="button"
+            aria-label="Close reject dialog"
+            className="absolute inset-0 cursor-default"
+            onClick={() => {
               setShowRejectDialog(false);
               setRejectReason("");
-            }
-          }}
-        >
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            }}
+          />
+          <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
             <h3 id="reject-dialog-title" className="text-base font-semibold text-gray-900">
               Reject Post
             </h3>
@@ -210,10 +213,18 @@ export function ReviewPanel({ approval, reviewerId, onClose }: ReviewPanelProps)
               placeholder="Explain why this post is being rejected…"
               rows={4}
               minLength={10}
+              aria-invalid={
+                rejectReason.length > 0 && rejectReason.length < 10 ? "true" : undefined
+              }
+              aria-describedby={
+                rejectReason.length > 0 && rejectReason.length < 10
+                  ? "reject-reason-error"
+                  : undefined
+              }
               className="mt-4 w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
             />
             {rejectReason.length > 0 && rejectReason.length < 10 && (
-              <p className="mt-1 text-xs text-red-500">
+              <p id="reject-reason-error" role="alert" className="mt-1 text-xs text-red-500">
                 Reason must be at least 10 characters ({rejectReason.length}/10)
               </p>
             )}

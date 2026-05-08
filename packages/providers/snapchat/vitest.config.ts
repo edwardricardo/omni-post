@@ -1,3 +1,9 @@
+/**
+ * @file vitest.config.ts
+ * @description Vitest configuration for the Snapchat provider — resolves workspace aliases
+ *              relative to the monorepo root and runs tests in forked node processes.
+ * @layer infrastructure
+ */
 import { defineConfig } from "vitest/config";
 import path from "node:path";
 import { existsSync } from "node:fs";

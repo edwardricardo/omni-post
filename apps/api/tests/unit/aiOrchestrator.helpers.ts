@@ -4,9 +4,15 @@
  * Provides the MockAIProvider class and an `createOrchestrator()` factory
  * so every test file can initialize its own isolated AIOrchestrator instance
  * without duplicating setup code.
+ *
+ * @file aiOrchestrator.helpers.ts
+ * @description Test helpers for ai orchestrator helpers
+ * @layer infrastructure
  */
 
 import { AIOrchestrator } from "../../src/ai/orchestrator.js";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
+import { InMemoryCacheAdapter } from "@adapters/cache-redis";
 import type {
   AIProvider,
   AIMessage,
@@ -221,7 +227,11 @@ export function createOrchestrator(
   providers.set("perplexity", mockPerplexity);
   providers.set("gemini", mockGemini);
 
-  const orchestrator = new AIOrchestrator(providers);
+  const orchestrator = new AIOrchestrator(
+    providers,
+    new NoopBackgroundTaskScheduler(),
+    new InMemoryCacheAdapter()
+  );
 
   // Initialize usage metrics for each mock provider
   for (const provider of ["openai", "perplexity", "gemini"]) {

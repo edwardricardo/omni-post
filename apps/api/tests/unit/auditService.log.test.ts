@@ -2,7 +2,7 @@
  * @file auditService.log.test.ts
  * @description Unit tests for AuditService.log() — creating audit log entries.
  *              Uses mocked Prisma to avoid database dependency.
- * @layer test-infrastructure
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";
@@ -57,10 +57,13 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("@infra/prisma", () => ({
-  prisma: mocks.prismaClient,
-  Prisma: {},
-}));
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@infra/prisma")>();
+  return {
+    ...actual,
+    prisma: mocks.prismaClient,
+  };
+});
 
 vi.mock("../../src/lib/logger.js", () => ({
   logger: mocks.logger,

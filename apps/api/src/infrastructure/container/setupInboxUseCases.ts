@@ -39,8 +39,8 @@ import type { NotifyMentionedUsersService } from "../../application/mentions/ind
 import { InboxEventHandlers } from "../../application/inbox/handlers/InboxEventHandlers.js";
 import type { ProviderRegistryService } from "../../providers/providerRegistry.js";
 import { DispatchInboxSyncUseCase } from "../../application/inbox/DispatchInboxSyncUseCase.js";
-import type { ChannelQueryForIngestion } from "../../application/analytics/DispatchAnalyticsIngestionUseCase.js";
-import type { QueuePort } from "@ports/core";
+import type { ChannelQueryForIngestion } from "../../domain/repositories/ChannelQueryForIngestion.js";
+import type { QueuePortRegistry } from "@ports/core";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { prisma } from "@infra/prisma";
 import { PrismaTriageMessageAdapter } from "../repositories/PrismaTriageMessageAdapter.js";
@@ -58,7 +58,7 @@ import type { BrandVoiceRepository } from "../../domain/repositories/BrandVoiceR
  * Register social inbox commands, queries, and event handlers
  */
 export function setupInboxUseCases(container: Container): void {
-  // Social Inbox Use Cases (Phase 2)
+  // Social Inbox Use Cases
   container.register<IngestSocialMessageUseCase>(
     TOKENS.IngestSocialMessageUseCase,
     () =>
@@ -140,14 +140,13 @@ export function setupInboxUseCases(container: Container): void {
       return new SyncProviderCommentsUseCase(
         container.resolve<ChannelRepository>(TOKENS.ChannelRepository),
         container.resolve<IngestSocialMessageUseCase>(TOKENS.IngestSocialMessageUseCase),
-        container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
         (provider: string) => registry.getAdapter(provider)
       );
     },
     true
   );
 
-  // Social Inbox Queries (Phase 2)
+  // Social Inbox Queries
   container.register<GetInboxQuery>(
     TOKENS.GetInboxQuery,
     () =>
@@ -218,20 +217,22 @@ export function setupInboxUseCases(container: Container): void {
     true
   );
 
-  // Inbox Sync Coordinator (Sprint Gaps — Batch 3)
+  // Inbox Sync Coordinator
   container.register<DispatchInboxSyncUseCase>(
     TOKENS.DispatchInboxSyncUseCase,
     () =>
       new DispatchInboxSyncUseCase(
         container.resolve<ChannelQueryForIngestion>(TOKENS.ChannelQueryForIngestion),
-        container.resolve<QueuePort>(TOKENS.QueuePort),
+        container
+          .resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
+          .forQueue(QUEUE_NAMES.INBOX_SYNC),
         QUEUE_NAMES.INBOX_SYNC,
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );
 
-  // Social Inbox Event Handlers (Phase 2)
+  // Social Inbox Event Handlers
   container.register<InboxEventHandlers>(
     TOKENS.InboxEventHandlers,
     () =>

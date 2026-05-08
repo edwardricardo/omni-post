@@ -1,3 +1,8 @@
+/**
+ * @file providerCapabilityManager.matrix.test.ts
+ * @description Tests for ProviderCapabilityManager - Capability Matrix
+ * @layer infrastructure
+ */
 import { describe, it, expect } from "vitest";
 import type { CanonicalPost } from "@shared/types";
 import type { ProviderId } from "../../src/providers/providerAdapter.interface.js";

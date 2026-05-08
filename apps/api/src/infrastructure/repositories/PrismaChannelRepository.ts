@@ -7,7 +7,6 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import { Prisma } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
 import {
   Channel,
@@ -19,12 +18,35 @@ import {
 import type { ChannelCredentials } from "../../domain/entities/Channel.js";
 import { CONNECTION_STATUS } from "../../domain/entities/Channel.js";
 import type { ChannelRepository } from "../../domain/repositories/ChannelRepository.js";
+import type { ChannelCredentialsCrypto } from "../../security/ChannelCredentialsCrypto.js";
+
+interface ChannelRow {
+  id: string;
+  projectId: string;
+  provider: string;
+  handle: string;
+  providerAccountId: string | null;
+  credentialsCiphertext: string;
+  credentialsIv: string;
+  credentialsAuthTag: string;
+  credentialsKeyVersion: number;
+  isPrimary: boolean;
+  needsReauth: boolean;
+  authFailedAt: Date | null;
+  authFailureReason: string | null;
+  accountName: string | null;
+  profileImage: string | null;
+  connectedAt: Date | null;
+  expiredAt: Date | null;
+  lastUsedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 /**
- * Maps a raw JSON credentials blob from Prisma to the typed ChannelCredentials
+ * Maps a decrypted JSON credentials blob to the typed ChannelCredentials.
  */
-function parseCredentials(raw: unknown): ChannelCredentials {
-  const blob = raw as Record<string, unknown>;
+function parseCredentials(blob: Record<string, unknown>): ChannelCredentials {
   return {
     accessToken: String(blob.accessToken ?? ""),
     ...(blob.refreshToken !== undefined && { refreshToken: String(blob.refreshToken) }),
@@ -32,41 +54,6 @@ function parseCredentials(raw: unknown): ChannelCredentials {
     ...(blob.tokenType !== undefined && { tokenType: String(blob.tokenType) }),
     ...(Array.isArray(blob.scope) && { scope: (blob.scope as unknown[]).map(String) }),
   };
-}
-
-/**
- * Maps a Prisma Channel row to the Channel domain entity
- */
-function toDomain(row: {
-  id: string;
-  projectId: string;
-  provider: string;
-  handle: string;
-  credentials: unknown;
-  createdAt: Date;
-  updatedAt: Date;
-}): Channel {
-  const id = ChannelId.fromStringUnsafe(row.id);
-  const projectId = ProjectId.fromStringUnsafe(row.projectId);
-  const providerResult = Provider.fromString(row.provider);
-
-  if (!providerResult.ok) {
-    // If provider is unknown, use a placeholder so the channel can still be loaded.
-    // This is defensive — the DB enforces a valid Provider enum so this path is unlikely.
-    throw new Error(`Invalid provider value "${row.provider}" for channel ${row.id}`);
-  }
-
-  return Channel.reconstitute(id, {
-    projectId,
-    provider: providerResult.value,
-    handle: row.handle,
-    credentials: parseCredentials(row.credentials),
-    // Status, errorCount, etc. are not persisted — default to healthy state
-    status: CONNECTION_STATUS.CONNECTED,
-    errorCount: 0,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-  });
 }
 
 /**
@@ -80,7 +67,61 @@ function toDomain(row: {
  * const result = await repo.findById(ChannelId.fromString("..."));
  */
 export class PrismaChannelRepository implements ChannelRepository {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly credentialsCrypto: ChannelCredentialsCrypto
+  ) {}
+
+  /**
+   * Maps a Prisma Channel row to the Channel domain entity, decrypting
+   * the credentials envelope through the injected crypto helper.
+   */
+  private toDomain(row: ChannelRow): Channel {
+    const id = ChannelId.fromStringUnsafe(row.id);
+    const projectId = ProjectId.fromStringUnsafe(row.projectId);
+    const providerResult = Provider.fromString(row.provider);
+
+    if (!providerResult.ok) {
+      throw new Error(`Invalid provider value "${row.provider}" for channel ${row.id}`);
+    }
+
+    const decrypted = this.credentialsCrypto.decrypt(row, {
+      recordId: row.id,
+      caller: "PrismaChannelRepository.toDomain",
+    });
+    // Derive runtime status from persisted lifecycle flags. `expiredAt` is
+    // the latest natural-expiry timestamp (kept as audit history);
+    // `needsReauth` is admin-triggered. Both nullish = CONNECTED. Order
+    // matters: needsReauth wins (admin intent overrides natural lifecycle).
+    // Loose-equality `!= null` covers both production rows (null when unset)
+    // and test fixtures (undefined when mocks don't set the column).
+    const derivedStatus = row.needsReauth
+      ? CONNECTION_STATUS.ERROR
+      : row.expiredAt != null
+        ? CONNECTION_STATUS.EXPIRED
+        : CONNECTION_STATUS.CONNECTED;
+
+    return Channel.reconstitute(id, {
+      projectId,
+      provider: providerResult.value,
+      handle: row.handle,
+      credentials: parseCredentials(decrypted),
+      isPrimary: row.isPrimary,
+      status: derivedStatus,
+      errorCount: 0,
+      needsReauth: row.needsReauth,
+      ...(row.authFailedAt !== null && { authFailedAt: row.authFailedAt }),
+      ...(row.authFailureReason !== null && { authFailureReason: row.authFailureReason }),
+      ...(row.accountName !== null && { accountName: row.accountName }),
+      ...(row.profileImage !== null && { profileImage: row.profileImage }),
+      ...(row.connectedAt !== null && { connectedAt: row.connectedAt }),
+      ...(row.expiredAt !== null && { expiredAt: row.expiredAt }),
+      ...(row.lastUsedAt !== null && { lastUsedAt: row.lastUsedAt }),
+      ...(row.providerAccountId !== null && { providerAccountId: row.providerAccountId }),
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    });
+  }
 
   /**
    * Find a channel by its ID (excludes soft-deleted channels)
@@ -94,7 +135,7 @@ export class PrismaChannelRepository implements ChannelRepository {
       return err(new EntityNotFoundError("Channel", id.value));
     }
 
-    return ok(toDomain(row));
+    return ok(this.toDomain(row));
   }
 
   /**
@@ -106,15 +147,110 @@ export class PrismaChannelRepository implements ChannelRepository {
       orderBy: { createdAt: "asc" },
     });
 
-    return rows.map(toDomain);
+    return rows.map((r) => this.toDomain(r));
   }
 
   /**
-   * Save a channel (create or update via upsert)
+   * Find all channels for a specific (project, provider) pair (excludes soft-deleted)
+   */
+  async findByProjectAndProvider(projectId: ProjectId, provider: Provider): Promise<Channel[]> {
+    const rows = await this.prisma.channel.findMany({
+      where: {
+        projectId: projectId.value,
+        provider: provider.type as import("@infra/prisma").Provider,
+        deletedAt: null,
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    return rows.map((r) => this.toDomain(r));
+  }
+
+  /**
+   * Resolve "existing Channel for this OAuth grant?" via the (projectId,
+   * provider, providerAccountId) tuple. Used by the OAuth callback in
+   * `apps/api/src/auth/providerOAuthFlow.ts`. Excludes soft-deleted rows so
+   * a tenant can disconnect + reconnect to a fresh row rather than reviving
+   * a deleted one.
+   */
+  async findByProjectProviderAccount(
+    projectId: ProjectId,
+    provider: Provider,
+    providerAccountId: string
+  ): Promise<Channel | null> {
+    const row = await this.prisma.channel.findFirst({
+      where: {
+        projectId: projectId.value,
+        provider: provider.type as import("@infra/prisma").Provider,
+        providerAccountId,
+        deletedAt: null,
+      },
+    });
+    if (!row) return null;
+    return this.toDomain(row);
+  }
+
+  /**
+   * Find the primary channel for a (project, provider) pair, or NotFound when none exists
+   */
+  async findPrimaryByProjectAndProvider(
+    projectId: ProjectId,
+    provider: Provider
+  ): Promise<Result<Channel, EntityNotFoundError>> {
+    const row = await this.prisma.channel.findFirst({
+      where: {
+        projectId: projectId.value,
+        provider: provider.type as import("@infra/prisma").Provider,
+        isPrimary: true,
+        deletedAt: null,
+      },
+    });
+
+    if (!row) {
+      return err(new EntityNotFoundError("Channel", `${projectId.value}/${provider.type}/primary`));
+    }
+
+    return ok(this.toDomain(row));
+  }
+
+  /**
+   * Batch usage lookup: count successful (`LogStatus.OK`) PublishLog rows
+   * grouped by channelId for the current calendar month (UTC). Single SQL
+   * roundtrip via Prisma `groupBy` — avoids per-channel N+1 in list views.
+   * Channels with zero posts this month are absent from the returned map.
+   */
+  async findUsageByChannelIds(
+    channelIds: string[]
+  ): Promise<Map<string, { postsThisMonth: number }>> {
+    const result = new Map<string, { postsThisMonth: number }>();
+    if (channelIds.length === 0) return result;
+
+    const now = new Date();
+    const startOfMonthUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+
+    const grouped = await this.prisma.publishLog.groupBy({
+      by: ["channelId"],
+      where: {
+        channelId: { in: channelIds },
+        status: "OK",
+        createdAt: { gte: startOfMonthUtc },
+      },
+      _count: { _all: true },
+    });
+
+    for (const row of grouped) {
+      result.set(row.channelId, { postsThisMonth: row._count._all });
+    }
+    return result;
+  }
+
+  /**
+   * Save a channel (create or update via upsert). Credentials are encrypted
+   * before persistence — plaintext never touches the upsert payload.
    */
   async save(channel: Channel): Promise<Result<void, Error>> {
     try {
-      const credentialsData: Record<string, Prisma.InputJsonValue> = {
+      const plaintextCreds: Record<string, unknown> = {
         accessToken: channel.credentials.accessToken,
         ...(channel.credentials.refreshToken !== undefined && {
           refreshToken: channel.credentials.refreshToken,
@@ -126,10 +262,13 @@ export class PrismaChannelRepository implements ChannelRepository {
           tokenType: channel.credentials.tokenType,
         }),
         ...(channel.credentials.scope !== undefined && {
-          scope: channel.credentials.scope as Prisma.InputJsonValue,
+          scope: channel.credentials.scope,
         }),
       };
-      const credentials = credentialsData as Prisma.InputJsonValue;
+      const enc = this.credentialsCrypto.encrypt(plaintextCreds, {
+        recordId: channel.id.value,
+        caller: "PrismaChannelRepository.save",
+      });
 
       await this.prisma.channel.upsert({
         where: { id: channel.id.value },
@@ -138,13 +277,39 @@ export class PrismaChannelRepository implements ChannelRepository {
           projectId: channel.projectId.value,
           provider: channel.provider.type as import("@infra/prisma").Provider,
           handle: channel.handle,
-          credentials,
+          providerAccountId: channel.providerAccountId ?? null,
+          credentialsCiphertext: enc.credentialsCiphertext,
+          credentialsIv: enc.credentialsIv,
+          credentialsAuthTag: enc.credentialsAuthTag,
+          credentialsKeyVersion: enc.credentialsKeyVersion,
+          isPrimary: channel.isPrimary,
+          needsReauth: channel.needsReauth,
+          authFailedAt: channel.authFailedAt ?? null,
+          authFailureReason: channel.authFailureReason ?? null,
+          accountName: channel.accountName ?? null,
+          profileImage: channel.profileImage ?? null,
+          connectedAt: channel.connectedAt ?? null,
+          expiredAt: channel.expiredAt ?? null,
+          lastUsedAt: channel.lastUsedAt ?? null,
           createdAt: channel.createdAt,
           updatedAt: channel.updatedAt,
         },
         update: {
           handle: channel.handle,
-          credentials,
+          providerAccountId: channel.providerAccountId ?? null,
+          credentialsCiphertext: enc.credentialsCiphertext,
+          credentialsIv: enc.credentialsIv,
+          credentialsAuthTag: enc.credentialsAuthTag,
+          credentialsKeyVersion: enc.credentialsKeyVersion,
+          isPrimary: channel.isPrimary,
+          needsReauth: channel.needsReauth,
+          authFailedAt: channel.authFailedAt ?? null,
+          authFailureReason: channel.authFailureReason ?? null,
+          accountName: channel.accountName ?? null,
+          profileImage: channel.profileImage ?? null,
+          connectedAt: channel.connectedAt ?? null,
+          expiredAt: channel.expiredAt ?? null,
+          lastUsedAt: channel.lastUsedAt ?? null,
           updatedAt: channel.updatedAt,
         },
       });
@@ -198,5 +363,51 @@ export class PrismaChannelRepository implements ChannelRepository {
     await this.prisma.channel.delete({ where: { id: channelId } });
 
     return ok(undefined);
+  }
+
+  /**
+   * Bulk-flag every active (non-soft-deleted) channel for a provider with
+   * `needsReauth = true`, `authFailedAt = now`, `authFailureReason = reason`.
+   * Documented exception to the per-entity markForReauth() pattern — see
+   * ChannelRepository port docs.
+   */
+  async bulkMarkForReauthByProvider(
+    provider: Provider,
+    reason: string
+  ): Promise<{ count: number; channelIds: string[] }> {
+    const providerType = provider.type as import("@infra/prisma").Provider;
+    const now = new Date();
+    // updateManyAndReturn (Prisma 6.2.0+) uses Postgres RETURNING under the
+    // hood — single SQL roundtrip + atomic, no race window between SELECT
+    // and UPDATE. Replaces legacy findMany+updateMany 2-query pattern.
+    const updated = await this.prisma.channel.updateManyAndReturn({
+      where: { provider: providerType, deletedAt: null, needsReauth: false },
+      data: {
+        needsReauth: true,
+        authFailedAt: now,
+        authFailureReason: reason,
+        updatedAt: now,
+      },
+      select: { id: true },
+    });
+    return { count: updated.length, channelIds: updated.map((r) => r.id) };
+  }
+
+  /**
+   * Bulk-soft-delete every active channel for a provider (sets deletedAt).
+   * Returns affected channelIds for audit. Destructive — tenants reconnect
+   * from scratch on next session.
+   */
+  async bulkSoftDeleteByProvider(
+    provider: Provider
+  ): Promise<{ count: number; channelIds: string[] }> {
+    const providerType = provider.type as import("@infra/prisma").Provider;
+    const now = new Date();
+    const updated = await this.prisma.channel.updateManyAndReturn({
+      where: { provider: providerType, deletedAt: null },
+      data: { deletedAt: now, updatedAt: now },
+      select: { id: true },
+    });
+    return { count: updated.length, channelIds: updated.map((r) => r.id) };
   }
 }

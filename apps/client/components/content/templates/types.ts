@@ -63,7 +63,7 @@ export interface AutomationTemplate {
   description: string;
   trigger: {
     type: "schedule" | "keyword" | "event" | "performance";
-    config: any;
+    config: Record<string, unknown>;
   };
   templateId: string;
   variableMapping: Record<string, string>;
@@ -84,7 +84,7 @@ export interface ContentTemplatesProps {
   onTemplateCreate?: () => void;
   onTemplateEdit?: (templateId: string) => void;
   onTemplateDelete?: (templateId: string) => void;
-  onTemplateUse?: (templateId: string, variables: Record<string, any>) => void;
+  onTemplateUse?: (templateId: string, variables: Record<string, unknown>) => void;
   onAutomationCreate?: (automation: Partial<AutomationTemplate>) => void;
   onAutomationToggle?: (automationId: string, active: boolean) => void;
   showAutomation?: boolean;

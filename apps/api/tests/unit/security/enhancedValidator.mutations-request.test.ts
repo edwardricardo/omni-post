@@ -2,7 +2,7 @@
  * @file enhancedValidator.mutations-request.test.ts
  * @description Mutation-killing tests for EnhancedValidator request validation,
  *              file upload, plugin hook, tracking, and cleanup methods.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -31,6 +31,7 @@ vi.mock("../../../src/lib/logger.js", () => ({
 
 import { EnhancedValidator } from "../../../src/security/enhancedValidator.js";
 import { logger } from "../../../src/lib/logger.js";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 
 function makeFastifyRequest(overrides: Record<string, unknown> = {}): FastifyRequest {
   return {
@@ -59,7 +60,7 @@ describe("EnhancedValidator — mutation-killing: request and plugin", () => {
   // ------------------------------------------------------------------
   describe("validateRequest user agent", () => {
     beforeEach(() => {
-      v = new EnhancedValidator();
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler());
     });
 
     it("blocks sqlmap user agent (case insensitive)", () => {
@@ -123,7 +124,7 @@ describe("EnhancedValidator — mutation-killing: request and plugin", () => {
   // ------------------------------------------------------------------
   describe("validateRequest content-type", () => {
     beforeEach(() => {
-      v = new EnhancedValidator();
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler());
     });
 
     it("flags missing content-type on POST", () => {
@@ -187,7 +188,9 @@ describe("EnhancedValidator — mutation-killing: request and plugin", () => {
 
     it("skips content-type check when disabled", () => {
       v.destroy();
-      v = new EnhancedValidator({ enableContentTypeValidation: false });
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), {
+        enableContentTypeValidation: false,
+      });
       const req = makeFastifyRequest({
         method: "POST",
         headers: { "content-type": "text/html" },
@@ -201,7 +204,7 @@ describe("EnhancedValidator — mutation-killing: request and plugin", () => {
   // ------------------------------------------------------------------
   describe("validateRequest referrer validation", () => {
     it("flags untrusted referrer when validation enabled", () => {
-      v = new EnhancedValidator({
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), {
         enableReferrerValidation: true,
         trustedDomains: ["example.com"],
       });
@@ -214,7 +217,7 @@ describe("EnhancedValidator — mutation-killing: request and plugin", () => {
     });
 
     it("accepts trusted referrer", () => {
-      v = new EnhancedValidator({
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), {
         enableReferrerValidation: true,
         trustedDomains: ["example.com"],
       });
@@ -225,7 +228,7 @@ describe("EnhancedValidator — mutation-killing: request and plugin", () => {
     });
 
     it("skips referrer check when disabled", () => {
-      v = new EnhancedValidator({
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), {
         enableReferrerValidation: false,
         trustedDomains: ["example.com"],
       });
@@ -236,7 +239,7 @@ describe("EnhancedValidator — mutation-killing: request and plugin", () => {
     });
 
     it("skips referrer check when trustedDomains is empty", () => {
-      v = new EnhancedValidator({
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), {
         enableReferrerValidation: true,
         trustedDomains: [],
       });
@@ -247,7 +250,7 @@ describe("EnhancedValidator — mutation-killing: request and plugin", () => {
     });
 
     it("does not flag when no referrer header present", () => {
-      v = new EnhancedValidator({
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), {
         enableReferrerValidation: true,
         trustedDomains: ["example.com"],
       });
@@ -256,7 +259,7 @@ describe("EnhancedValidator — mutation-killing: request and plugin", () => {
     });
 
     it("checks referrer header (alternate spelling)", () => {
-      v = new EnhancedValidator({
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), {
         enableReferrerValidation: true,
         trustedDomains: ["example.com"],
       });
@@ -272,7 +275,7 @@ describe("EnhancedValidator — mutation-killing: request and plugin", () => {
   // ------------------------------------------------------------------
   describe("validateRequest content-length", () => {
     beforeEach(() => {
-      v = new EnhancedValidator();
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler());
     });
 
     it("flags content-length over 100MB", () => {
@@ -309,7 +312,7 @@ describe("EnhancedValidator — mutation-killing: request and plugin", () => {
   // ------------------------------------------------------------------
   describe("validateRequest clean request", () => {
     it("returns isValid true and empty threats for safe request", () => {
-      v = new EnhancedValidator();
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler());
       const req = makeFastifyRequest({
         headers: { "user-agent": "Chrome/120" },
       });
@@ -326,7 +329,7 @@ describe("EnhancedValidator — mutation-killing: request and plugin", () => {
   // ------------------------------------------------------------------
   describe("getClientIP via validateRequest tracking", () => {
     beforeEach(() => {
-      v = new EnhancedValidator();
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler());
     });
 
     it("uses x-forwarded-for first IP", () => {
@@ -376,7 +379,7 @@ describe("EnhancedValidator — mutation-killing: request and plugin", () => {
   // ------------------------------------------------------------------
   describe("trackSuspiciousAttempt threshold", () => {
     beforeEach(() => {
-      v = new EnhancedValidator();
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler());
     });
 
     it("does not log when under threshold", () => {
@@ -410,7 +413,7 @@ describe("EnhancedValidator — mutation-killing: request and plugin", () => {
   // ------------------------------------------------------------------
   describe("validateFileUpload edge cases", () => {
     beforeEach(() => {
-      v = new EnhancedValidator();
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler());
     });
 
     it("accepts .jpeg extension with correct mime", () => {
@@ -500,7 +503,7 @@ describe("EnhancedValidator — mutation-killing: request and plugin", () => {
   // ------------------------------------------------------------------
   describe("destroy method", () => {
     it("clears timer and map without error", () => {
-      v = new EnhancedValidator();
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler());
       v.destroy();
       // Calling destroy again should not throw (timer already null)
       v.destroy();
@@ -512,7 +515,7 @@ describe("EnhancedValidator — mutation-killing: request and plugin", () => {
   // ------------------------------------------------------------------
   describe("getPlugin preHandler hook", () => {
     beforeEach(() => {
-      v = new EnhancedValidator();
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler());
     });
 
     it("returns 400 when request validation fails", async () => {

@@ -8,7 +8,8 @@
 
 import { type FastifyPluginAsync, type FastifyRequest, type FastifyReply } from "fastify";
 import { z } from "zod";
-import { BaseRouteHandler, type RouteContext, IdSchema } from "@packages/api-common";
+import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
+import { IdSchema } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import type { ConfigureExternalNotificationUseCase } from "../application/external-notifications/ConfigureExternalNotificationUseCase.js";

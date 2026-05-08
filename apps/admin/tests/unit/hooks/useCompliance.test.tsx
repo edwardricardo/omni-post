@@ -5,6 +5,10 @@
  *   1. /api/backend/admin/compliance/metrics
  *   2. /api/backend/admin/compliance/audit-logs
  * We mock global.fetch for both.
+ *
+ * @file useCompliance.test.tsx
+ * @description Tests for useCompliance
+ * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";

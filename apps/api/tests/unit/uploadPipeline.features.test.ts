@@ -2,6 +2,10 @@
  * Unit Tests for VideoUploadPipeline — Advanced Features
  * Tests progress tracking, encryption, compression, webhook notifications,
  * and edge cases (tiny files, exact-divisible sizes, unknown extensions).
+ *
+ * @file uploadPipeline.features.test.ts
+ * @description Tests for VideoUploadPipeline - Progress Tracking
+ * @layer infrastructure
  */
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import {

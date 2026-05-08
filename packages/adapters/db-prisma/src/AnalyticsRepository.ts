@@ -1,3 +1,9 @@
+/**
+ * @file AnalyticsRepository.ts
+ * @description Prisma-backed repository for Analytics entities — list, upsert by post/provider/
+ *              timestamp, and aggregate metrics across posts.
+ * @layer infrastructure
+ */
 import { ok, err, type Result } from "@shared/types";
 import type { Analytics, AnalyticsQuery, AnalyticsInput } from "@ports/core";
 import { prisma } from "@infra/prisma";

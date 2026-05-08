@@ -76,7 +76,7 @@ export type PostWithAnalyticsAndContent = PostDto & {
 };
 
 // ---------------------------------------------------------------------------
-// Summary DTOs (Phase 3 Step 5: Historical Analytics)
+// Summary DTOs
 // ---------------------------------------------------------------------------
 
 /**

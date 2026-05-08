@@ -9,6 +9,7 @@
 import { type Result, ok, err } from "@shared/types";
 import type { EmailPort, SendEmailOptions } from "../../domain/repositories/EmailPort.js";
 import { createLogger } from "../../lib/logger.js";
+import { env } from "../../config/env.js";
 
 const emailLogger = createLogger("email");
 
@@ -24,8 +25,8 @@ export class ResendEmailAdapter implements EmailPort {
   private readonly fromAddress: string;
 
   constructor() {
-    this.apiKey = process.env.RESEND_API_KEY;
-    this.fromAddress = process.env.RESEND_FROM_ADDRESS ?? "reports@omnipost.app";
+    this.apiKey = env.RESEND_API_KEY;
+    this.fromAddress = env.RESEND_FROM_ADDRESS ?? "reports@omnipost.app";
   }
 
   /**
@@ -67,6 +68,8 @@ export class ResendEmailAdapter implements EmailPort {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
+        // Resend API typical response < 2s; 10s upper bound covers attachment uploads.
+        signal: AbortSignal.timeout(10_000),
       });
 
       if (!response.ok) {

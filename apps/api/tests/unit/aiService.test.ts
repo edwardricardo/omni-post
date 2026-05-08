@@ -3,7 +3,7 @@
  * @description Unit tests for AIService. Mocks AIOrchestrator.createFromEnv() via
  *   vi.mock() so the admin orchestrator path can be stubbed without real AI calls.
  *   Mocks AiRequestService so BYOK/pool routing can be verified independently.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, vi, expect, beforeEach } from "vitest";
@@ -40,6 +40,8 @@ vi.mock("../../src/ai/orchestrator.js", () => ({
 
 import { AIService } from "../../src/ai/aiService.js";
 import type { AiRequestService } from "../../src/ai/AiRequestService.js";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
+import { InMemoryCacheAdapter } from "@adapters/cache-redis";
 
 // ============================================================================
 // Minimal fixtures — shape mirrors what aiOrchestrator actually returns
@@ -137,6 +139,19 @@ function createMockAiRequestService(): AiRequestService {
   } as unknown as AiRequestService;
 }
 
+/**
+ * Constructs an AIService with all 3 dependencies (request service, scheduler,
+ * cache). The orchestrator is intercepted via `vi.mock` above so scheduler/cache
+ * are never exercised — but the constructor signature requires them.
+ */
+function buildAIService(): AIService {
+  return new AIService(
+    createMockAiRequestService(),
+    new NoopBackgroundTaskScheduler(),
+    new InMemoryCacheAdapter()
+  );
+}
+
 /** Sets a mocked implementation on the shared orchestrator stub. */
 function stubOrchestrator<K extends keyof typeof mockOrchestrator>(
   method: K,
@@ -176,7 +191,7 @@ beforeEach(() => {
 
 describe("AIService - Content Generation", () => {
   it("should generate content with default options", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     stubOrchestrator("generateContent", async () => ({
       ok: true,
       value: "AI is transforming content creation.",
@@ -195,7 +210,7 @@ describe("AIService - Content Generation", () => {
   });
 
   it("should generate content with custom model options", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     stubOrchestrator("generateContent", async () => ({
       ok: true,
       value: "Custom generated content",
@@ -214,7 +229,7 @@ describe("AIService - Content Generation", () => {
   });
 
   it("should throw when orchestrator returns rate-limit error", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     stubOrchestrator("generateContent", async () => ({
       ok: false,
       error: { message: "API rate limit exceeded", code: "RATE_LIMIT" },
@@ -227,7 +242,7 @@ describe("AIService - Content Generation", () => {
   });
 
   it("should handle string error from orchestrator", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     stubOrchestrator("generateContent", async () => ({
       ok: false,
       error: "Simple error message",
@@ -246,7 +261,7 @@ describe("AIService - Content Generation", () => {
 
 describe("AIService - Content Analysis", () => {
   it("should analyze sentiment successfully", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     stubOrchestrator("analyzeContent", async () => ({
       ok: true,
       value: SENTIMENT_ANALYSIS,
@@ -262,7 +277,7 @@ describe("AIService - Content Analysis", () => {
   });
 
   it("should analyze tone successfully", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     stubOrchestrator("analyzeContent", async () => ({
       ok: true,
       value: TONE_ANALYSIS,
@@ -278,7 +293,7 @@ describe("AIService - Content Analysis", () => {
   });
 
   it("should analyze readability successfully", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     stubOrchestrator("analyzeContent", async () => ({
       ok: true,
       value: READABILITY_ANALYSIS,
@@ -293,7 +308,7 @@ describe("AIService - Content Analysis", () => {
   });
 
   it("should analyze engagement potential", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     stubOrchestrator("analyzeContent", async () => ({
       ok: true,
       value: ENGAGEMENT_ANALYSIS,
@@ -308,7 +323,7 @@ describe("AIService - Content Analysis", () => {
   });
 
   it("should throw when analysis fails", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     stubOrchestrator("analyzeContent", async () => ({
       ok: false,
       error: { message: "Analysis failed", code: "ANALYSIS_ERROR" },
@@ -325,7 +340,7 @@ describe("AIService - Content Analysis", () => {
 
 describe("AIService - Content Optimization", () => {
   it("should optimize content for Twitter", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     stubOrchestrator("optimizeContent", async () => ({
       ok: true,
       value: OPTIMIZATION,
@@ -341,7 +356,7 @@ describe("AIService - Content Optimization", () => {
   });
 
   it("should optimize with brand voice", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     stubOrchestrator("optimizeContent", async () => ({
       ok: true,
       value: OPTIMIZATION,
@@ -359,7 +374,7 @@ describe("AIService - Content Optimization", () => {
   });
 
   it("should include media suggestions for Instagram", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     stubOrchestrator("optimizeContent", async () => ({
       ok: true,
       value: OPTIMIZATION,
@@ -373,7 +388,7 @@ describe("AIService - Content Optimization", () => {
   });
 
   it("should throw when optimization fails", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     stubOrchestrator("optimizeContent", async () => ({
       ok: false,
       error: { message: "Optimization failed", code: "OPTIMIZATION_ERROR" },
@@ -390,7 +405,7 @@ describe("AIService - Content Optimization", () => {
 
 describe("AIService - Performance Prediction", () => {
   it("should predict performance without historical data", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     stubOrchestrator("predictPerformance", async () => ({
       ok: true,
       value: PREDICTION,
@@ -406,7 +421,7 @@ describe("AIService - Performance Prediction", () => {
   });
 
   it("should predict performance with historical data", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     stubOrchestrator("predictPerformance", async () => ({
       ok: true,
       value: PREDICTION,
@@ -425,7 +440,7 @@ describe("AIService - Performance Prediction", () => {
   });
 
   it("should throw when prediction fails", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     stubOrchestrator("predictPerformance", async () => ({
       ok: false,
       error: { message: "Prediction failed", code: "PREDICTION_ERROR" },
@@ -442,7 +457,7 @@ describe("AIService - Performance Prediction", () => {
 
 describe("AIService - Content Variations", () => {
   it("should generate tone variations", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     stubOrchestrator("generateVariations", async () => ({
       ok: true,
       value: VARIATIONS,
@@ -457,7 +472,7 @@ describe("AIService - Content Variations", () => {
   });
 
   it("should generate length variations", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     stubOrchestrator("generateVariations", async () => ({
       ok: true,
       value: VARIATIONS,
@@ -471,7 +486,7 @@ describe("AIService - Content Variations", () => {
   });
 
   it("should generate audience variations", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     stubOrchestrator("generateVariations", async () => ({
       ok: true,
       value: VARIATIONS,
@@ -485,7 +500,7 @@ describe("AIService - Content Variations", () => {
   });
 
   it("should throw when variation generation fails", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     stubOrchestrator("generateVariations", async () => ({
       ok: false,
       error: { message: "Variation generation failed", code: "VARIATION_ERROR" },
@@ -502,7 +517,7 @@ describe("AIService - Content Variations", () => {
 
 describe("AIService - Smart Analysis", () => {
   it("should perform smart analysis with all features enabled", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
 
     // smartAnalysis calls orchestrator.executeTask() (not the typed methods) when
     // there is no accountId. Route every task type through executeTask.
@@ -545,7 +560,7 @@ describe("AIService - Smart Analysis", () => {
   });
 
   it("should omit optional features when disabled", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     stubOrchestrator("executeTask", async (task: any) => {
       if (task.type === "analyze") {
         const stub = makeAnalyzeContentStub();
@@ -569,7 +584,7 @@ describe("AIService - Smart Analysis", () => {
   });
 
   it("should default platform to twitter and enable optimization/prediction", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     stubOrchestrator("executeTask", async (task: any) => {
       if (task.type === "analyze") {
         const stub = makeAnalyzeContentStub();
@@ -592,7 +607,7 @@ describe("AIService - Smart Analysis", () => {
   });
 
   it("should handle partial analysis failures gracefully", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     stubOrchestrator("executeTask", async (task: any) => {
       if (task.type === "analyze" && task.data.analysisType === "sentiment") {
         return { ok: true, value: SENTIMENT_ANALYSIS, metadata: METADATA };
@@ -617,7 +632,7 @@ describe("AIService - Smart Analysis", () => {
 
 describe("AIService - Metrics", () => {
   it("should retrieve usage metrics from orchestrator", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
 
     const metricsMap = new Map([
       [
@@ -646,7 +661,7 @@ describe("AIService - Metrics", () => {
   });
 
   it("should expose per-provider metrics", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
 
     const metricsMap = new Map([
       [
@@ -694,7 +709,7 @@ describe("AIService - Metrics", () => {
 
 describe("AIService - Cache Management", () => {
   it("should clear cache via orchestrator", async () => {
-    const aiService = new AIService(createMockAiRequestService());
+    const aiService = buildAIService();
     let clearCalled = false;
 
     stubOrchestrator("clearCache", () => {

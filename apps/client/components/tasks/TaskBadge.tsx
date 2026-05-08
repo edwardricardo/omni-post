@@ -2,7 +2,7 @@
  * @file TaskBadge.tsx
  * @component TaskBadge
  * @description Priority and status badges for task display.
- * @layer client-components
+ * @layer infrastructure
  */
 
 "use client";

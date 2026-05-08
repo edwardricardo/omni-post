@@ -1,13 +1,15 @@
 /**
  * @file useTemplates.ts
  * @description Custom hook for template CRUD operations (create, update, delete, duplicate) with TanStack Query cache management, scoped to a project.
+ * @layer infrastructure
  */
 
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Template } from "@/lib/templates/templateEngine";
+import { request, PROXY_BASE } from "@/lib/api/clients/request";
 
-interface CreateTemplateRequest {
-  projectId: string;
+interface CreateTemplateInput {
   name: string;
   description?: string;
   category: string;
@@ -16,7 +18,7 @@ interface CreateTemplateRequest {
   tags?: string[];
 }
 
-interface UpdateTemplateRequest {
+interface UpdateTemplateInput {
   templateId: string;
   name?: string;
   description?: string;
@@ -26,96 +28,69 @@ interface UpdateTemplateRequest {
   tags?: string[];
 }
 
-interface DuplicateTemplateRequest {
+interface DuplicateTemplateInput {
   templateId: string;
   name: string;
 }
 
-// API client functions
-const templatesApi = {
-  async getTemplates(projectId: string): Promise<Template[]> {
-    const response = await fetch(`/api/projects/${projectId}/templates`);
-    if (!response.ok) {
-      throw new Error("Failed to fetch templates");
-    }
-    const data = await response.json();
-    return data.data;
-  },
+function makeTemplatesApi(projectId: string) {
+  const base = `/projects/${projectId}/templates`;
+  return {
+    async getTemplates(): Promise<Template[]> {
+      const res = await request<{ data: Template[] }>(PROXY_BASE, base);
+      return res.data;
+    },
+    async createTemplate(input: CreateTemplateInput): Promise<Template> {
+      const res = await request<{ data: Template }>(PROXY_BASE, base, {
+        method: "POST",
+        body: JSON.stringify({
+          name: input.name,
+          description: input.description,
+          category: input.category,
+          content: input.content,
+          platforms: input.platforms,
+          tags: input.tags || [],
+          variables: [],
+        }),
+      });
+      return res.data;
+    },
+    async updateTemplate(input: UpdateTemplateInput): Promise<Template> {
+      const { templateId, ...updateData } = input;
+      const res = await request<{ data: Template }>(PROXY_BASE, `${base}/${templateId}`, {
+        method: "PUT",
+        body: JSON.stringify(updateData),
+      });
+      return res.data;
+    },
+    async deleteTemplate(templateId: string): Promise<void> {
+      await request<void>(PROXY_BASE, `${base}/${templateId}`, { method: "DELETE" });
+    },
+    async duplicateTemplate(input: DuplicateTemplateInput): Promise<Template> {
+      const res = await request<{ data: Template }>(
+        PROXY_BASE,
+        `${base}/${input.templateId}/duplicate`,
+        {
+          method: "POST",
+          body: JSON.stringify({ name: input.name }),
+        }
+      );
+      return res.data;
+    },
+  };
+}
 
-  async createTemplate(request: CreateTemplateRequest): Promise<Template> {
-    const response = await fetch(`/api/projects/${request.projectId}/templates`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: request.name,
-        description: request.description,
-        category: request.category,
-        content: request.content,
-        platforms: request.platforms,
-        tags: request.tags || [],
-        variables: [], // Will be extracted by the template engine
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to create template");
-    }
-    const data = await response.json();
-    return data.data;
-  },
-
-  async updateTemplate(request: UpdateTemplateRequest): Promise<Template> {
-    const { templateId, ...updateData } = request;
-    const response = await fetch(`/api/templates/${templateId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(updateData),
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to update template");
-    }
-    const data = await response.json();
-    return data.data;
-  },
-
-  async deleteTemplate(templateId: string): Promise<void> {
-    const response = await fetch(`/api/templates/${templateId}`, {
-      method: "DELETE",
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to delete template");
-    }
-  },
-
-  async duplicateTemplate(request: DuplicateTemplateRequest): Promise<Template> {
-    const response = await fetch(`/api/templates/${request.templateId}/duplicate`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: request.name,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to duplicate template");
-    }
-    const data = await response.json();
-    return data.data;
-  },
-};
-
+/**
+ * @hook useTemplates
+ * @description CRUD hook for project-scoped templates. List query plus create / update /
+ *              delete / duplicate mutations, all delegating to the canonical proxy
+ *              `request<T>` helper (handles `/api/backend` prefix + session cookie).
+ * @returns Query state plus four mutation handles.
+ */
 export function useTemplates(projectId: string) {
   const queryClient = useQueryClient();
+  const api = useMemo(() => makeTemplatesApi(projectId), [projectId]);
 
-  // Query for fetching templates
   const {
     data: templates = [],
     isLoading,
@@ -123,37 +98,33 @@ export function useTemplates(projectId: string) {
     refetch,
   } = useQuery({
     queryKey: ["templates", projectId],
-    queryFn: () => templatesApi.getTemplates(projectId),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    queryFn: () => api.getTemplates(),
+    staleTime: 5 * 60 * 1000,
   });
 
-  // Mutation for creating templates
   const createTemplate = useMutation({
-    mutationFn: templatesApi.createTemplate,
+    mutationFn: api.createTemplate,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["templates", projectId] });
     },
   });
 
-  // Mutation for updating templates
   const updateTemplate = useMutation({
-    mutationFn: templatesApi.updateTemplate,
+    mutationFn: api.updateTemplate,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["templates", projectId] });
     },
   });
 
-  // Mutation for deleting templates
   const deleteTemplate = useMutation({
-    mutationFn: templatesApi.deleteTemplate,
+    mutationFn: api.deleteTemplate,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["templates", projectId] });
     },
   });
 
-  // Mutation for duplicating templates
   const duplicateTemplate = useMutation({
-    mutationFn: templatesApi.duplicateTemplate,
+    mutationFn: api.duplicateTemplate,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["templates", projectId] });
     },

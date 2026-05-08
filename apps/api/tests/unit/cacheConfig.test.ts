@@ -12,6 +12,10 @@
  * - Cache statistics config
  *
  * Converted to node:test standard
+ *
+ * @file cacheConfig.test.ts
+ * @description Tests for Cache Configuration - Config Constants
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

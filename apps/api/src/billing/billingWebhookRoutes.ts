@@ -10,7 +10,7 @@
 
 import type { FastifyPluginAsync, FastifyBaseLogger } from "fastify";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { IGatewayAdapterRegistry } from "../infrastructure/billing/GatewayAdapterRegistry.js";
+import type { GatewayAdapterRegistryPort } from "../infrastructure/billing/GatewayAdapterRegistry.js";
 import type { GatewayBillingService } from "./GatewayBillingService.js";
 import type { GatewayProviderType, BillingDomainEvent } from "@ports/core";
 
@@ -159,7 +159,7 @@ export const billingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
     throw new Error("DI container not available");
   }
 
-  const registry = container.resolve<IGatewayAdapterRegistry>(TOKENS.GatewayAdapterRegistry);
+  const registry = container.resolve<GatewayAdapterRegistryPort>(TOKENS.GatewayAdapterRegistry);
   const service = container.resolve<GatewayBillingService>(TOKENS.GatewayBillingService);
 
   // POST /webhooks/stripe

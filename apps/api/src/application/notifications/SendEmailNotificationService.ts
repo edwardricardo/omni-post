@@ -10,6 +10,7 @@ import type { EmailPort } from "../../domain/repositories/EmailPort.js";
 import type { NotificationPreferenceRepository } from "../../domain/repositories/NotificationRepository.js";
 import type { NotificationTypeValue } from "../../domain/value-objects/NotificationType.js";
 import { approvalRequestedEmail, approvalDecisionEmail, mentionEmail } from "./emailTemplates.js";
+import { env } from "../../config/env.js";
 
 const EMAIL_ENABLED_TYPES: NotificationTypeValue[] = [
   "APPROVAL_REQUESTED",
@@ -46,7 +47,7 @@ export class SendEmailNotificationService {
         return;
       }
 
-      const clientUrl = process.env.CLIENT_URL ?? "http://localhost:3002";
+      const clientUrl = env.CLIENT_URL ?? "http://localhost:3002";
       const { subject, html } = await this.renderTemplate(ctx, clientUrl);
 
       await this.emailPort.send({

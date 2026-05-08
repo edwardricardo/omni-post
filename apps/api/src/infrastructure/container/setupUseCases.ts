@@ -21,6 +21,9 @@ import { setupAIPromptTemplateUseCases } from "./setupAIPromptTemplateUseCases.j
 import { setupUsageUseCases } from "./setupUsageUseCases.js";
 import { setupBrandVoiceUseCases } from "./setupBrandVoiceUseCases.js";
 import { setupBrandKitUseCases } from "./setupBrandKitUseCases.js";
+import { setupSecretsRotationUseCases } from "./setupSecretsRotationUseCases.js";
+import { setupWebhookAdminUseCases } from "./setupWebhookAdminUseCases.js";
+import { setupProviderAdminUseCases } from "./setupProviderAdminUseCases.js";
 import { setupAssetUseCases } from "./setupAssetUseCases.js";
 import { setupIntegrationUseCases } from "./setupIntegrationUseCases.js";
 import { setupTaskUseCases } from "./setupTaskUseCases.js";
@@ -31,6 +34,7 @@ import { setupCustomerAuthUseCases } from "./setupCustomerAuthUseCases.js";
 import { setupReferralUseCases } from "./setupReferralUseCases.js";
 import { setupTrendUseCases } from "./setupTrendUseCases.js";
 import { setupRepurposeUseCases } from "./setupRepurposeUseCases.js";
+import { setupChannelUseCases } from "./setupChannelUseCases.js";
 
 /**
  * @method setupUseCases
@@ -38,6 +42,7 @@ import { setupRepurposeUseCases } from "./setupRepurposeUseCases.js";
  */
 export function setupUseCases(container: Container): void {
   setupPostUseCases(container);
+  setupChannelUseCases(container);
   setupApiKeyUseCases(container);
   setupAnalyticsUseCases(container);
   setupLinkUseCases(container);
@@ -53,6 +58,9 @@ export function setupUseCases(container: Container): void {
   setupUsageUseCases(container);
   setupBrandVoiceUseCases(container);
   setupBrandKitUseCases(container);
+  setupSecretsRotationUseCases(container);
+  setupWebhookAdminUseCases(container);
+  setupProviderAdminUseCases(container);
   setupAssetUseCases(container);
   setupIntegrationUseCases(container);
   setupTaskUseCases(container);

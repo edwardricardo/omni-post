@@ -1,8 +1,11 @@
 /**
  * Domain Layer - Entities Unit Tests
  *
- * Part of Sprint 4: DDD Architecture Implementation
  * Tests for all domain entities.
+ *
+ * @file entities.test.ts
+ * @description Tests for Domain Entities
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";
@@ -132,6 +135,241 @@ describe("Domain Entities", () => {
         expect(channel.errorCount).toBe(0);
         expect(channel.isConnected).toBeTruthy();
       }
+    });
+
+    it("defaults isPrimary to false on creation", () => {
+      const result = Channel.create({
+        projectId,
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+
+      expect(result.ok).toBeTruthy();
+      if (result.ok) {
+        expect(result.value.isPrimary).toBe(false);
+      }
+    });
+
+    it("flips isPrimary via markAsPrimary and updates timestamp", async () => {
+      const result = Channel.create({
+        projectId,
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      expect(result.ok).toBeTruthy();
+      if (!result.ok) return;
+      const channel = result.value;
+      const before = channel.updatedAt.getTime();
+      // Make sure the clock advances so updatedAt changes deterministically.
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      channel.markAsPrimary();
+      expect(channel.isPrimary).toBe(true);
+      expect(channel.updatedAt.getTime()).toBeGreaterThan(before);
+    });
+
+    it("markAsPrimary is idempotent — does not bump updatedAt when already primary", async () => {
+      const result = Channel.create({
+        projectId,
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      expect(result.ok).toBeTruthy();
+      if (!result.ok) return;
+      const channel = result.value;
+      channel.markAsPrimary();
+      const after = channel.updatedAt.getTime();
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      channel.markAsPrimary();
+      expect(channel.isPrimary).toBe(true);
+      expect(channel.updatedAt.getTime()).toBe(after);
+    });
+
+    it("unmarkAsPrimary flips back to false and is idempotent", async () => {
+      const result = Channel.create({
+        projectId,
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      expect(result.ok).toBeTruthy();
+      if (!result.ok) return;
+      const channel = result.value;
+      channel.markAsPrimary();
+      expect(channel.isPrimary).toBe(true);
+      channel.unmarkAsPrimary();
+      expect(channel.isPrimary).toBe(false);
+      const after = channel.updatedAt.getTime();
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      // Second unmark on an already-non-primary channel must not bump updatedAt.
+      channel.unmarkAsPrimary();
+      expect(channel.updatedAt.getTime()).toBe(after);
+    });
+
+    it("toJSON exposes isPrimary", () => {
+      const result = Channel.create({
+        projectId,
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      expect(result.ok).toBeTruthy();
+      if (!result.ok) return;
+      const channel = result.value;
+      channel.markAsPrimary();
+      const json = channel.toJSON();
+      expect(json.isPrimary).toBe(true);
+    });
+
+    it("starts with needsReauth = false", () => {
+      const r = Channel.create({
+        projectId: ProjectId.generate(),
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      expect(r.ok).toBeTruthy();
+      if (!r.ok) return;
+      expect(r.value.needsReauth).toBe(false);
+      expect(r.value.authFailedAt).toBeUndefined();
+      expect(r.value.authFailureReason).toBeUndefined();
+    });
+
+    it("markForReauth sets needsReauth + authFailedAt + reason", () => {
+      const r = Channel.create({
+        projectId: ProjectId.generate(),
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      if (!r.ok) throw r.error;
+      const channel = r.value;
+      const before = Date.now();
+      channel.markForReauth("admin force-reauth post-secret-rotation");
+      expect(channel.needsReauth).toBe(true);
+      expect(channel.authFailureReason).toBe("admin force-reauth post-secret-rotation");
+      expect(channel.authFailedAt).toBeInstanceOf(Date);
+      expect((channel.authFailedAt as Date).getTime()).toBeGreaterThanOrEqual(before);
+    });
+
+    it("markForReauth re-stamps authFailedAt on consecutive triggers", async () => {
+      const r = Channel.create({
+        projectId: ProjectId.generate(),
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      if (!r.ok) throw r.error;
+      const channel = r.value;
+      channel.markForReauth("first");
+      const first = (channel.authFailedAt as Date).getTime();
+      await new Promise((res) => setTimeout(res, 5));
+      channel.markForReauth("second");
+      expect((channel.authFailedAt as Date).getTime()).toBeGreaterThanOrEqual(first);
+      expect(channel.authFailureReason).toBe("second");
+    });
+
+    it("clearReauthFlag is idempotent and resets fields", () => {
+      const r = Channel.create({
+        projectId: ProjectId.generate(),
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      if (!r.ok) throw r.error;
+      const channel = r.value;
+      channel.markForReauth("x");
+      channel.clearReauthFlag();
+      expect(channel.needsReauth).toBe(false);
+      expect(channel.authFailedAt).toBeUndefined();
+      expect(channel.authFailureReason).toBeUndefined();
+      // idempotent — second call no-op
+      const updatedAtBefore = channel.updatedAt.getTime();
+      channel.clearReauthFlag();
+      expect(channel.updatedAt.getTime()).toBe(updatedAtBefore);
+    });
+
+    it("markAsExpired stamps expiredAt and flips status to EXPIRED", () => {
+      const r = Channel.create({
+        projectId: ProjectId.generate(),
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      if (!r.ok) throw r.error;
+      const channel = r.value;
+      const before = Date.now();
+      channel.markAsExpired();
+      expect(channel.status).toBe("EXPIRED");
+      expect(channel.expiredAt).toBeInstanceOf(Date);
+      expect((channel.expiredAt as Date).getTime()).toBeGreaterThanOrEqual(before);
+    });
+
+    it("recordReconnection preserves expiredAt as audit history", async () => {
+      const r = Channel.create({
+        projectId: ProjectId.generate(),
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      if (!r.ok) throw r.error;
+      const channel = r.value;
+      channel.markAsExpired();
+      const expiredAtBefore = (channel.expiredAt as Date).getTime();
+      channel.markForReauth("rotation");
+
+      await new Promise((res) => setTimeout(res, 2));
+      channel.recordReconnection();
+
+      expect(channel.status).toBe("CONNECTED");
+      expect(channel.needsReauth).toBe(false);
+      expect(channel.authFailedAt).toBeUndefined();
+      expect(channel.authFailureReason).toBeUndefined();
+      expect(channel.connectedAt).toBeInstanceOf(Date);
+      // expiredAt MUST survive — it is the audit record of the latest natural expiry.
+      expect(channel.expiredAt).toBeInstanceOf(Date);
+      expect((channel.expiredAt as Date).getTime()).toBe(expiredAtBefore);
+    });
+
+    it("recordPublish updates lastUsedAt with the supplied timestamp", () => {
+      const r = Channel.create({
+        projectId: ProjectId.generate(),
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      if (!r.ok) throw r.error;
+      const channel = r.value;
+      const at = new Date("2026-04-15T10:30:00.000Z");
+      channel.recordPublish(at);
+      expect(channel.lastUsedAt).toBeInstanceOf(Date);
+      expect((channel.lastUsedAt as Date).getTime()).toBe(at.getTime());
+    });
+
+    it("updateProfile partially updates accountName/profileImage and skips no-op calls", () => {
+      const r = Channel.create({
+        projectId: ProjectId.generate(),
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      if (!r.ok) throw r.error;
+      const channel = r.value;
+
+      channel.updateProfile({ accountName: "@miempresa" });
+      expect(channel.accountName).toBe("@miempresa");
+      expect(channel.profileImage).toBeUndefined();
+
+      channel.updateProfile({ profileImage: "https://cdn/x.png" });
+      expect(channel.accountName).toBe("@miempresa");
+      expect(channel.profileImage).toBe("https://cdn/x.png");
+
+      // No-op when both inputs are undefined — updatedAt should not advance.
+      const updatedAtBefore = channel.updatedAt.getTime();
+      channel.updateProfile({});
+      expect(channel.updatedAt.getTime()).toBe(updatedAtBefore);
     });
   });
 

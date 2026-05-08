@@ -38,6 +38,10 @@
  *
  * @module TrendAnalysisServiceTests
  * @category UnitTests
+ *
+ * @file trendAnalysisService.test.ts
+ * @description Tests for TrendAnalysisService - Initialization
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect } from "vitest";

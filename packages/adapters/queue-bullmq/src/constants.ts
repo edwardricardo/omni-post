@@ -1,12 +1,8 @@
 /**
- * Centralized BullMQ queue name constants.
- *
- * Every producer, consumer, and dashboard MUST reference these constants
- * instead of hardcoding queue name strings. This prevents name mismatches
- * (e.g. "publish" vs "publishing") that cause dashboards to read from the
- * wrong Redis key space.
- *
- * @module adapters/queue-bullmq/constants
+ * @file constants.ts
+ * @description Centralized BullMQ queue name constants preventing name mismatches across
+ *              producers, consumers, and dashboards that share the same Redis key space.
+ * @layer infrastructure
  */
 
 export const QUEUE_NAMES = {

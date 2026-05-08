@@ -1,3 +1,8 @@
+/**
+ * @file trendAnalysisService.test-helpers.ts
+ * @description Test helpers for trend analysis service test helpers
+ * @layer infrastructure
+ */
 import { TrendAnalysisService } from "../../src/trends/trendAnalysisService.js";
 import type { PrismaClient } from "@infra/prisma";
 import type { FastifyLoggerInstance } from "fastify";

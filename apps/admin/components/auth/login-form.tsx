@@ -2,7 +2,7 @@
  * @file login-form.tsx
  * @description Admin Login Form using React 19 useActionState with MFA two-step flow.
  *   Uses CSS custom-property design tokens for full theme support.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 
@@ -57,7 +57,6 @@ export function LoginForm() {
           <div
             className="rounded-md bg-[var(--error-subtle)] p-4"
             role="alert"
-            aria-live="assertive"
             data-testid="login-error"
           >
             <div className="text-sm text-[var(--error)]">{state.error}</div>

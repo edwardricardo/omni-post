@@ -1,3 +1,9 @@
+/**
+ * @file seed-demo-data.ts
+ * @description Development seed script that populates the database with demo accounts, projects,
+ *              channels, posts, and analytics using Faker for local testing.
+ * @layer infrastructure
+ */
 import { createTestPrismaClient } from "@infra/prisma";
 import { faker } from "@faker-js/faker";
 

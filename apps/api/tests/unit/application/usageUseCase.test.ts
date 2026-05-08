@@ -1,7 +1,7 @@
 /**
  * @file usageUseCase.test.ts
  * @description Tests for GetUsageUseCase — validation, happy path, empty data.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, vi } from "vitest";

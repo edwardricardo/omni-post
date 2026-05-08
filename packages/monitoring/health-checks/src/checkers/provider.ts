@@ -1,3 +1,9 @@
+/**
+ * @file provider.ts
+ * @description Health checker that queries the provider registry for per-provider health and
+ *              latency information, aggregating into an overall status.
+ * @layer infrastructure
+ */
 import type { HealthChecker, HealthCheckResult } from "../types.js";
 
 /**

@@ -355,21 +355,16 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
       tweetId = normalizedData.originalTweetId as string;
     }
 
-    // Find channel by X user ID
+    // Find channel by X user ID via the dedicated `providerAccountId` column.
+    // Both `user_id` and `id_str` from X webhooks must be persisted to that
+    // column at OAuth-callback time so this lookup matches.
+    if (!userId) {
+      return {};
+    }
     const channel = await prisma.channel.findFirst({
       where: {
         provider: "X",
-        // Look for X user ID in credentials
-        OR: [
-          {
-            // Prisma JSON path filter — no typed alternative available
-            credentials: { path: ["user_id"], equals: userId, array_contains: null } as object,
-          },
-          {
-            // Prisma JSON path filter — no typed alternative available
-            credentials: { path: ["id_str"], equals: userId, array_contains: null } as object,
-          },
-        ],
+        providerAccountId: userId as string,
       },
       include: {
         project: {

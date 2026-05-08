@@ -11,7 +11,11 @@ import type { DomainEvent } from "@shared/events";
 import { createDomainEvent } from "@shared/events";
 import { logger } from "../lib/logger.js";
 import { AppError } from "../lib/errors/AppError.js";
-import type { SagaManagerConfig, SagaMetrics, ISagaExecutionEngine } from "./sagaManagerTypes.js";
+import type {
+  SagaManagerConfig,
+  SagaMetrics,
+  SagaExecutionEnginePort,
+} from "./sagaManagerTypes.js";
 
 // Re-export for consumers that previously imported from this file
 export type { SagaManagerConfig, SagaMetrics } from "./sagaManagerTypes.js";
@@ -33,7 +37,7 @@ export class SagaManagerLifecycle implements SagaManager {
   readonly executionTimes: number[] = [];
 
   /** Set by SagaManagerImpl facade after construction */
-  executionEngine!: ISagaExecutionEngine;
+  executionEngine!: SagaExecutionEnginePort;
 
   constructor(readonly config: SagaManagerConfig) {}
 
@@ -368,27 +372,35 @@ export class SagaManagerLifecycle implements SagaManager {
   }
 
   private startTimeoutChecker(): void {
-    setInterval(async () => {
-      for (const [sagaId, instance] of this.activeInstances) {
-        const definition = this.definitions.get(instance.definitionId);
-        if (!definition) continue;
+    this.config.scheduler.register(
+      "saga-timeout-checker",
+      async () => {
+        for (const [sagaId, instance] of this.activeInstances) {
+          const definition = this.definitions.get(instance.definitionId);
+          if (!definition) continue;
 
-        const timeout = definition.timeout || this.config.defaultTimeout || 30 * 60 * 1000;
-        const elapsed = Date.now() - instance.startedAt.getTime();
+          const timeout = definition.timeout || this.config.defaultTimeout || 30 * 60 * 1000;
+          const elapsed = Date.now() - instance.startedAt.getTime();
 
-        if (elapsed > timeout) {
-          logger.warn({ sagaId, elapsedMs: elapsed, timeoutMs: timeout }, "Saga timeout");
-          await this.executionEngine.failSaga(instance, "Saga timeout exceeded");
+          if (elapsed > timeout) {
+            logger.warn({ sagaId, elapsedMs: elapsed, timeoutMs: timeout }, "Saga timeout");
+            await this.executionEngine.failSaga(instance, "Saga timeout exceeded");
+          }
         }
-      }
-    }, 60000).unref();
+      },
+      60000
+    );
   }
 
   private startMetricsCollector(): void {
     if (!this.config.enableMetrics) return;
 
-    setInterval(() => {
-      this.metrics.activeInstances = this.activeInstances.size;
-    }, 30000).unref();
+    this.config.scheduler.register(
+      "saga-metrics-collector",
+      () => {
+        this.metrics.activeInstances = this.activeInstances.size;
+      },
+      30000
+    );
   }
 }

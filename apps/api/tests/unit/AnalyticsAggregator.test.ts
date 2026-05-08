@@ -4,6 +4,10 @@
  * Testing analytics calculation and aggregation methods
  *
  * Run with: pnpm --filter @apps/api exec tsx tests/unit/AnalyticsAggregator.test.ts
+ *
+ * @file AnalyticsAggregator.test.ts
+ * @description Tests for AnalyticsAggregator - calculateEngagementMetrics
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

@@ -1,7 +1,7 @@
 /**
  * @file useProviders.integration.test.ts
  * @description Integration tests for useProviders hook — provider fetching, config access.
- * @layer integration
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -9,6 +9,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useProviders } from "../../lib/hooks/useProviders";
+import type { Provider } from "../../lib/api/types";
 
 // Mock fetch
 const mockFetch = vi.fn();
@@ -20,6 +21,26 @@ function createWrapper() {
   });
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return React.createElement(QueryClientProvider, { client: queryClient }, children);
+  };
+}
+
+function makeProvider(overrides: Partial<Provider> = {}): Provider {
+  return {
+    id: "x",
+    name: "X",
+    type: "social",
+    displayName: "X",
+    capabilities: ["publish", "schedule"],
+    isActive: true,
+    ...overrides,
+  };
+}
+
+function makeProvidersEnvelope(providers: Provider[]) {
+  return {
+    ok: true,
+    providers,
+    total: providers.length,
   };
 }
 
@@ -39,28 +60,12 @@ describe("useProviders", () => {
 
   it("returns providers after successful fetch", async () => {
     const mockProviders = [
-      {
-        id: "x",
-        name: "X",
-        type: "social",
-        enabled: true,
-        config: {},
-        createdAt: "",
-        updatedAt: "",
-      },
-      {
-        id: "instagram",
-        name: "Instagram",
-        type: "social",
-        enabled: true,
-        config: {},
-        createdAt: "",
-        updatedAt: "",
-      },
+      makeProvider({ id: "x", name: "X" }),
+      makeProvider({ id: "instagram", name: "Instagram", displayName: "Instagram" }),
     ];
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => mockProviders,
+      json: async () => makeProvidersEnvelope(mockProviders),
     });
 
     const { result } = renderHook(() => useProviders(), { wrapper: createWrapper() });
@@ -72,7 +77,12 @@ describe("useProviders", () => {
   });
 
   it("returns error state when fetch fails", async () => {
-    mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      statusText: "Internal Server Error",
+      json: async () => ({ ok: false, error: "Server error" }),
+    });
 
     const { result } = renderHook(() => useProviders(), { wrapper: createWrapper() });
 
@@ -83,26 +93,13 @@ describe("useProviders", () => {
 
   it("returns enabledProviders filtered from providers", async () => {
     const mockProviders = [
-      {
-        id: "x",
-        name: "X",
-        type: "social",
-        enabled: true,
-        config: {},
-        createdAt: "",
-        updatedAt: "",
-      },
-      {
-        id: "disabled",
-        name: "Disabled",
-        type: "social",
-        enabled: false,
-        config: {},
-        createdAt: "",
-        updatedAt: "",
-      },
+      makeProvider({ id: "x", name: "X", isActive: true }),
+      makeProvider({ id: "disabled", name: "Disabled", isActive: false }),
     ];
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => mockProviders });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => makeProvidersEnvelope(mockProviders),
+    });
 
     const { result } = renderHook(() => useProviders(), { wrapper: createWrapper() });
 
@@ -154,7 +151,10 @@ describe("useProviders", () => {
   });
 
   it("validates content correctly for a provider", async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => [] });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => makeProvidersEnvelope([]),
+    });
 
     const { result } = renderHook(() => useProviders(), { wrapper: createWrapper() });
 

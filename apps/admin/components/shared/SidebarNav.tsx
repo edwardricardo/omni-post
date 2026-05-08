@@ -3,14 +3,15 @@
  * @description Collapsible sidebar navigation for the admin dashboard with i18n labels,
  *   theme toggle, language switcher, and help/admin-users links.
  *   Uses CSS custom-property design tokens for full theme support.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
+import { setLocaleAction } from "@/app/actions/locale";
 import {
   LayoutDashboard,
   Users,
@@ -103,11 +104,6 @@ const NAV_GROUPS: NavGroup[] = [
 function isActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(href + "/");
-}
-
-function setLocaleCookie(locale: string): void {
-  document.cookie = `NEXT_LOCALE=${locale};path=/;max-age=${365 * 24 * 60 * 60}`;
-  window.location.reload();
 }
 
 // ---------------------------------------------------------------------------
@@ -246,9 +242,20 @@ export function SidebarNav({ userName, userRole }: SidebarNavProps) {
   const locale = useLocale();
   const { theme, toggleTheme } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
+  const [isLocaleSwitching, startLocaleTransition] = useTransition();
 
   const toggleCollapsed = useCallback(() => setCollapsed((prev) => !prev), []);
   const sidebarWidth = collapsed ? "w-16" : "w-64";
+
+  const handleLocaleChange = useCallback(
+    (next: "en" | "es") => {
+      if (next === locale) return;
+      startLocaleTransition(() => {
+        void setLocaleAction(next);
+      });
+    },
+    [locale]
+  );
 
   // Build translation map for items
   const itemLabels: Record<string, string> = {
@@ -352,9 +359,11 @@ export function SidebarNav({ userName, userRole }: SidebarNavProps) {
           <div className="flex items-center gap-1 px-3 py-2">
             <button
               type="button"
-              onClick={() => setLocaleCookie("en")}
+              onClick={() => handleLocaleChange("en")}
+              disabled={isLocaleSwitching}
+              aria-pressed={locale === "en"}
               className={[
-                "px-2 py-1 text-xs rounded-md transition-colors",
+                "px-2 py-1 text-xs rounded-md transition-colors disabled:opacity-60",
                 locale === "en"
                   ? "bg-[var(--accent-subtle)] text-[var(--accent)] font-semibold"
                   : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]",
@@ -366,9 +375,11 @@ export function SidebarNav({ userName, userRole }: SidebarNavProps) {
             <span className="text-[var(--text-tertiary)]">|</span>
             <button
               type="button"
-              onClick={() => setLocaleCookie("es")}
+              onClick={() => handleLocaleChange("es")}
+              disabled={isLocaleSwitching}
+              aria-pressed={locale === "es"}
               className={[
-                "px-2 py-1 text-xs rounded-md transition-colors",
+                "px-2 py-1 text-xs rounded-md transition-colors disabled:opacity-60",
                 locale === "es"
                   ? "bg-[var(--accent-subtle)] text-[var(--accent)] font-semibold"
                   : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]",

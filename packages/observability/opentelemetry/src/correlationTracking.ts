@@ -1,7 +1,13 @@
-// Correlation tracking and context propagation for distributed operations
+/**
+ * @file correlationTracking.ts
+ * @description Correlation tracking and context propagation utilities — attaches correlationId,
+ *              traceId, tenantId to spans and propagates across async boundaries.
+ * @layer infrastructure
+ */
 import { trace, context, propagation, ROOT_CONTEXT, type Context } from "@opentelemetry/api";
 import { randomBytes } from "crypto";
 import pino from "pino";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 
 const logger = pino({ name: "correlation-tracking" });
 
@@ -35,17 +41,28 @@ export class CorrelationTracker {
   private correlationMap = new Map<string, CorrelationContext>();
   private userJourneyMap = new Map<string, UserJourneyContext>();
   private logger: pino.Logger;
+  private scheduler: BackgroundTaskScheduler | undefined;
+  private readonly cleanupTaskId = "correlation-tracker-cleanup";
 
   private constructor() {
     this.logger = pino({ name: "correlation-tracker" });
+  }
 
-    // Cleanup old correlations every 5 minutes
-    setInterval(
-      () => {
-        this.cleanup();
-      },
-      5 * 60 * 1000
-    );
+  /**
+   * Attach a BackgroundTaskScheduler so old correlations are cleaned up on a schedule.
+   * If never called, cleanup only runs when invoked manually.
+   */
+  attachScheduler(scheduler: BackgroundTaskScheduler): void {
+    if (this.scheduler === scheduler) {
+      return;
+    }
+    if (this.scheduler) {
+      this.scheduler.unregister(this.cleanupTaskId);
+    }
+    this.scheduler = scheduler;
+    this.scheduler.register(this.cleanupTaskId, () => this.cleanup(), 5 * 60 * 1000, {
+      onError: (err) => this.logger.warn({ err }, "Correlation tracker cleanup error"),
+    });
   }
 
   static getInstance(): CorrelationTracker {

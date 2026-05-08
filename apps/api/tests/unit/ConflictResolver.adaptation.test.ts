@@ -3,17 +3,17 @@
  *
  * These tests require monkey-patching the providerRegistry singleton
  * since ConflictResolver imports it statically.
+ *
+ * @file ConflictResolver.adaptation.test.ts
+ * @description Tests for ConflictResolver - Content Adaptation
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
 import { ConflictResolver } from "../../src/orchestration/ConflictResolver.js";
 import { providerRegistry } from "../../src/providers/providerRegistry.js";
 import type { TimingConfiguration } from "@shared/orchestration";
-import type { CanonicalPost } from "@shared/types";
-import type {
-  ProviderId,
-  ContentValidationResult,
-} from "../../src/providers/providerAdapter.interface.js";
+import type { ProviderId } from "../../src/providers/providerAdapter.interface.js";
 import {
   MockPrismaClient,
   MockRedis,
@@ -24,7 +24,6 @@ import {
 describe("ConflictResolver - Content Adaptation", () => {
   let resolver: ConflictResolver;
   let originalGetAdapter: typeof providerRegistry.getAdapter;
-  let mockValidateContent: ReturnType<typeof import("node:test").mock.fn>;
 
   beforeAll(() => {
     // Save original for restoration
@@ -36,16 +35,6 @@ describe("ConflictResolver - Content Adaptation", () => {
     const mockRedis = new MockRedis();
     const mockEventService = new MockEventService();
 
-    // Create mock validateContent
-    mockValidateContent = vi.fn(
-      async (_content: CanonicalPost): Promise<ContentValidationResult> => ({
-        valid: true,
-        errors: [],
-        suggestions: [],
-        adaptations: [],
-      })
-    );
-
     // Monkey-patch the singleton
     providerRegistry.getAdapter = vi.fn(((id: string) => {
       if (id === "twitter") {
@@ -56,7 +45,14 @@ describe("ConflictResolver - Content Adaptation", () => {
             maxMediaPerPost: 4,
             allowedMedia: ["image", "video"],
           },
-          validateContent: mockValidateContent,
+          capabilities: {
+            publish: true,
+            schedule: false,
+            analytics: false,
+            comments: false,
+            replies: false,
+            threading: false,
+          },
         };
       }
       return undefined;
@@ -124,27 +120,21 @@ describe("ConflictResolver - Content Adaptation", () => {
   });
 
   it("should set requiresManualReview when validation fails", async () => {
-    // Mock adapter to return validation errors
-    mockValidateContent.mockImplementation(
-      async (): Promise<ContentValidationResult> => ({
-        valid: false,
-        errors: [{ field: "content", message: "Invalid", severity: "error" }],
-        suggestions: [],
-        adaptations: [],
-      })
-    );
-
-    const content = createTestCanonicalPost();
+    // Twitter's allowedMedia is image+video. Attaching an unsupported "audio"
+    // media item produces an error from validateContentForLimits that no
+    // adaptation rule fixes, forcing manual review.
+    const content = createTestCanonicalPost({
+      media: [{ url: "https://example.com/clip.mp3", type: "audio" as never, id: "m-1" }],
+    });
 
     const result = await resolver.adaptContentForProvider(content, "twitter" as ProviderId, [
-      "TEXT_TOO_LONG",
+      "MEDIA_UNSUPPORTED",
     ]);
 
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.requiresManualReview).toBe(true);
     }
-    // No need to reset — beforeEach creates fresh mocks for each test
   });
 
   it("should handle missing provider adapter", async () => {

@@ -1,12 +1,12 @@
 /**
  * @file HubSpotAdapter.ts
- * @description HubSpot CRM adapter implementing ICrmAdapter port.
+ * @description HubSpot CRM adapter implementing CrmAdapter port.
  *   Uses HubSpot v3 API for contacts and Timeline Events for activity logging.
  *   OAuth 2.0 authorization_code flow for authentication.
  * @layer infrastructure
  */
 
-import type { ICrmAdapter, CrmContact, CrmActivityPayload, CrmTokens } from "@ports/core";
+import type { CrmAdapter, CrmContact, CrmActivityPayload, CrmTokens } from "@ports/core";
 
 export interface HubSpotConfig {
   clientId: string;
@@ -15,7 +15,7 @@ export interface HubSpotConfig {
   timelineTemplateId?: string;
 }
 
-export class HubSpotAdapter implements ICrmAdapter {
+export class HubSpotAdapter implements CrmAdapter {
   readonly platform = "HUBSPOT" as const;
 
   private readonly clientId: string;

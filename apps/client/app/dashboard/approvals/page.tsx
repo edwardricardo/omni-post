@@ -5,7 +5,7 @@
  * @description Approval Queue page at /dashboard/approvals. Client Component that
  *              renders the approval queue for the current user. Auth is enforced
  *              by the dashboard layout — no server-side check needed.
- * @layer ui
+ * @layer infrastructure
  */
 
 import { useAuth } from "@/lib/auth/authContext";

@@ -4,15 +4,17 @@
  *              event search, DLQ management, and real-time WebSocket upgrades.
  * @layer infrastructure
  */
+import { randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "../auth/rbacService.js";
-import { BaseRouteHandler, RouteContext } from "@packages/api-common";
+import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { WebhookDashboardService } from "./webhookDashboardService.js";
 import type { RealtimeWebhookBroadcaster } from "./realtimeWebhookBroadcaster.js";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 
 // Dashboard query schemas
 const DashboardQuerySchema = z.object({
@@ -43,7 +45,8 @@ class WebhookDashboardRouteHandler extends BaseRouteHandler {
 
   constructor(
     private readonly service: WebhookDashboardService,
-    private readonly broadcaster: RealtimeWebhookBroadcaster
+    private readonly broadcaster: RealtimeWebhookBroadcaster,
+    private readonly scheduler: BackgroundTaskScheduler
   ) {
     super();
   }
@@ -225,18 +228,23 @@ class WebhookDashboardRouteHandler extends BaseRouteHandler {
       }
     });
 
-    // Keep connection alive with heartbeats
-    const keepAlive = setInterval(() => {
-      if (!reply.raw.destroyed) {
-        reply.raw.write(
-          `data: ${JSON.stringify({ type: "heartbeat", timestamp: new Date() })}\n\n`
-        );
-      }
-    }, 30000);
+    // Keep connection alive with heartbeats. Task ID is unique per SSE connection.
+    const keepAliveTaskId = `webhook-dashboard-heartbeat-${randomUUID()}`;
+    this.scheduler.register(
+      keepAliveTaskId,
+      () => {
+        if (!reply.raw.destroyed) {
+          reply.raw.write(
+            `data: ${JSON.stringify({ type: "heartbeat", timestamp: new Date() })}\n\n`
+          );
+        }
+      },
+      30000
+    );
 
     // Cleanup on connection close
     request.raw.on("close", () => {
-      clearInterval(keepAlive);
+      this.scheduler.unregister(keepAliveTaskId);
       unsubscribe();
       this.logInfo(ctx, "SSE connection closed for webhook monitoring", {
         accountId,
@@ -286,7 +294,10 @@ export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
   const broadcaster = fastify.container!.resolve<RealtimeWebhookBroadcaster>(
     TOKENS.RealtimeWebhookBroadcaster
   );
-  const handler = new WebhookDashboardRouteHandler(service, broadcaster);
+  const scheduler = fastify.container!.resolve<BackgroundTaskScheduler>(
+    TOKENS.BackgroundTaskScheduler
+  );
+  const handler = new WebhookDashboardRouteHandler(service, broadcaster, scheduler);
 
   // Dashboard overview metrics
   fastify.get(

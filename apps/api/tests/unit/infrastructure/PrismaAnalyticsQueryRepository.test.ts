@@ -4,6 +4,10 @@
  * Part of FASE H4b: Hexagonal Architecture - Prisma Adapters
  * Tests PrismaAnalyticsQueryRepository in isolation using a mocked PrismaClient.
  * Tier 0: No database required.
+ *
+ * @file PrismaAnalyticsQueryRepository.test.ts
+ * @description Tests for PrismaAnalyticsQueryRepository
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";

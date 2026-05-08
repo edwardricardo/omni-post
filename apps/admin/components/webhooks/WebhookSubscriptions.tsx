@@ -6,9 +6,17 @@
  * and deleting webhook endpoints with provider, event type, and URL configuration.
  */
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { ApiError, getErrorMessage } from "@/lib/parseApiError";
+import { getErrorMessage } from "@/lib/parseApiError";
+import {
+  useWebhookSubscriptions,
+  useProjectsForSubscriptionForm,
+  useCreateWebhookSubscription,
+  useUpdateWebhookSubscription,
+  useDeleteWebhookSubscription,
+  type WebhookSubscription,
+} from "@/hooks/api/useWebhooks";
 import { LoadingSpinner } from "../shared/LoadingSpinner";
 import {
   Dialog,
@@ -39,30 +47,6 @@ import {
   ExternalLink as _ExternalLink,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-
-interface WebhookSubscription {
-  id: string;
-  provider: string;
-  projectId?: string;
-  webhookUrl: string;
-  verifyToken?: string;
-  eventTypes: string[];
-  isActive: boolean;
-  eventsReceived: number;
-  eventsProcessed: number;
-  lastEventAt?: string;
-  createdAt: string;
-  project?: {
-    id: string;
-    name: string;
-  };
-  stats: {
-    totalEvents: number;
-    recentEvents: number;
-    failedEvents: number;
-    successRate: number;
-  };
-}
 
 interface NewSubscription {
   provider: string;
@@ -113,122 +97,57 @@ const PROVIDER_EVENT_TYPES = {
 export function WebhookSubscriptions() {
   const tsp = useTranslations("webhooks.subscriptionsPanel");
   const tc = useTranslations("common");
-  const [subscriptions, setSubscriptions] = useState<WebhookSubscription[]>([]);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showSetupDialog, setShowSetupDialog] = useState<WebhookSubscription | null>(null);
   const [newSubscription, setNewSubscription] = useState<NewSubscription>({
     provider: "",
     eventTypes: [],
   });
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [projects, setProjects] = useState<Array<{ id: string; name: string }>>([]);
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
-  const fetchSubscriptions = async () => {
-    try {
-      setIsLoading(true);
-      const response = await fetch("/api/backend/webhooks/dashboard/subscriptions", {
-        credentials: "include",
-      });
+  // ---------------------------------------------------------------------------
+  // Data — TanStack Query (T3-N migration from manual fetch + setState)
+  // ---------------------------------------------------------------------------
 
-      if (!response.ok) {
-        const body = await response.text().catch(() => "");
-        throw ApiError.fromResponse(response.status, body);
-      }
+  const subscriptionsQuery = useWebhookSubscriptions();
+  const projectsQuery = useProjectsForSubscriptionForm();
+  const subscriptions = subscriptionsQuery.data ?? [];
+  const projects = projectsQuery.data ?? [];
+  const isLoading = subscriptionsQuery.isPending;
+  const error =
+    mutationError ??
+    (subscriptionsQuery.isError ? getErrorMessage(subscriptionsQuery.error) : null);
 
-      const data = await response.json();
-      const payload = data.data ?? data;
-      setSubscriptions(Array.isArray(payload) ? payload : (payload.subscriptions ?? []));
-      setError(null);
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setIsLoading(false);
-    }
+  const createMutation = useCreateWebhookSubscription();
+  const updateMutation = useUpdateWebhookSubscription();
+  const deleteMutation = useDeleteWebhookSubscription();
+
+  const createSubscription = () => {
+    createMutation.mutate(newSubscription, {
+      onSuccess: () => {
+        setMutationError(null);
+        setShowCreateDialog(false);
+        setNewSubscription({ provider: "", eventTypes: [] });
+      },
+      onError: (err) => setMutationError(getErrorMessage(err)),
+    });
   };
 
-  const fetchProjects = async () => {
-    try {
-      const response = await fetch("/api/backend/projects", {
-        credentials: "include",
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setProjects(data);
+  const toggleSubscription = (id: string, isActive: boolean) => {
+    updateMutation.mutate(
+      { id, data: { isActive } },
+      {
+        onSuccess: () => setMutationError(null),
+        onError: (err) => setMutationError(getErrorMessage(err)),
       }
-    } catch {
-      // Failed to fetch projects — select will show empty list
-    }
+    );
   };
 
-  useEffect(() => {
-    fetchSubscriptions();
-    fetchProjects();
-  }, []);
-
-  const createSubscription = async () => {
-    try {
-      const response = await fetch("/api/backend/webhooks/subscriptions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(newSubscription),
-      });
-
-      if (!response.ok) {
-        const body = await response.text().catch(() => "");
-        throw ApiError.fromResponse(response.status, body);
-      }
-
-      await fetchSubscriptions();
-      setShowCreateDialog(false);
-      setNewSubscription({ provider: "", eventTypes: [] });
-    } catch (err) {
-      setError(getErrorMessage(err));
-    }
-  };
-
-  const toggleSubscription = async (id: string, isActive: boolean) => {
-    try {
-      const response = await fetch(`/api/backend/webhooks/subscriptions/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({ isActive }),
-      });
-
-      if (!response.ok) {
-        const body = await response.text().catch(() => "");
-        throw ApiError.fromResponse(response.status, body);
-      }
-
-      await fetchSubscriptions();
-    } catch (err) {
-      setError(getErrorMessage(err));
-    }
-  };
-
-  const deleteSubscription = async (id: string) => {
-    try {
-      const response = await fetch(`/api/backend/webhooks/subscriptions/${id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        const body = await response.text().catch(() => "");
-        throw ApiError.fromResponse(response.status, body);
-      }
-
-      await fetchSubscriptions();
-    } catch (err) {
-      setError(getErrorMessage(err));
-    }
+  const deleteSubscription = (id: string) => {
+    deleteMutation.mutate(id, {
+      onSuccess: () => setMutationError(null),
+      onError: (err) => setMutationError(getErrorMessage(err)),
+    });
   };
 
   const copyToClipboard = (text: string) => {
@@ -417,7 +336,7 @@ export function WebhookSubscriptions() {
         ) : error ? (
           <div className="text-center py-8">
             <p className="text-[var(--error)] mb-4">{error}</p>
-            <ActionButton onClick={fetchSubscriptions} variant="secondary">
+            <ActionButton onClick={() => subscriptionsQuery.refetch()} variant="secondary">
               {tc("retry")}
             </ActionButton>
           </div>

@@ -1,12 +1,12 @@
-"use client";
-
 /**
  * @file page.tsx
  * @component IntegrationsPage
  * @description Settings - Integrations page at /dashboard/settings/integrations.
  *              Manages external notification webhooks (Slack, Teams). Auth is
  *              enforced by the dashboard layout — no server-side check needed.
- * @layer ui
+ *              Server Component — ExternalNotificationConfigs child is the Client
+ *              Component boundary.
+ * @layer infrastructure
  */
 
 import { ExternalNotificationConfigs } from "@/components/settings/ExternalNotificationConfigs";

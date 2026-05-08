@@ -4,7 +4,7 @@
  *              signature verification via X-LI-Signature header, event parsing
  *              (LIKE, COMMENT, SHARE, SHARE_MENTION, COMMENT_EDIT, COMMENT_DELETE),
  *              and event type mapping to OmniPost webhook event types.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";

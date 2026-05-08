@@ -1,3 +1,8 @@
+/**
+ * @file audit.test.ts
+ * @description Tests for Audit System
+ * @layer infrastructure
+ */
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { auditService, AuditActions, AuditResources } from "../src/audit/auditService.js";

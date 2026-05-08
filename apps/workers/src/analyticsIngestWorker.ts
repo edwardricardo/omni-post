@@ -14,33 +14,53 @@ import { Worker } from "bullmq";
 import Redis from "ioredis";
 import pino from "pino";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
-import { xAdapter } from "@providers/x";
-import { instagramAdapter } from "@providers/instagram";
-import { facebookAdapter } from "@providers/facebook";
-import { youtubeAdapter } from "@providers/youtube";
-import { tiktokAdapter } from "@providers/tiktok";
-import { snapchatAdapter } from "@providers/snapchat";
-import { telegramAdapter } from "@providers/telegram";
-import { pinterestAdapter } from "@providers/pinterest";
-import { linkedInAdapter } from "@providers/linkedin";
-import { blueskyAdapter } from "@providers/bluesky";
+import { createXAdapter } from "@providers/x";
+import { createInstagramAdapter } from "@providers/instagram";
+import { createFacebookAdapter } from "@providers/facebook";
+import { createYouTubeAdapter } from "@providers/youtube";
+import { createTikTokAdapter } from "@providers/tiktok";
+import { createSnapchatAdapter } from "@providers/snapchat";
+import { createTelegramAdapter } from "@providers/telegram";
+import { createPinterestAdapter } from "@providers/pinterest";
+import { createLinkedInAdapter } from "@providers/linkedin";
+import { createBlueskyAdapter } from "@providers/bluesky";
 import { prisma } from "@infra/prisma";
+import { createPrismaRepoAdapter } from "@adapters/db-prisma";
+import { decryptChannelCredentials } from "@shared/types";
 import type { ProviderAdapter } from "@ports/core";
 import type { Provider as PrismaProvider } from "@infra/prisma";
+import { registerGracefulShutdown } from "./lib/gracefulShutdown.js";
+import { handleProviderAuthError } from "./lib/handleProviderAuthError.js";
+import { ChannelAuthFailureRecorder } from "./services/ChannelAuthFailureRecorder.js";
+import { CredentialResolver } from "./CredentialResolver.js";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info", name: "analytics-ingest-worker" });
 
+const platformEncryptionKey = process.env.PLATFORM_ENCRYPTION_KEY;
+if (!platformEncryptionKey) {
+  throw new Error("PLATFORM_ENCRYPTION_KEY is required for the analytics ingest worker");
+}
+const decryptCredentialsForWorker = (envelope: {
+  credentialsCiphertext: string;
+  credentialsIv: string;
+  credentialsAuthTag: string;
+  credentialsKeyVersion: number;
+}) => decryptChannelCredentials(envelope, platformEncryptionKey);
+
+const repo = createPrismaRepoAdapter({ decryptChannelCredentials: decryptCredentialsForWorker });
+const credentialResolver = new CredentialResolver(repo);
+
 const providerAdapters: Record<string, ProviderAdapter> = {
-  x: xAdapter,
-  instagram: instagramAdapter,
-  facebook: facebookAdapter,
-  youtube: youtubeAdapter,
-  tiktok: tiktokAdapter,
-  snapchat: snapchatAdapter,
-  telegram: telegramAdapter,
-  pinterest: pinterestAdapter,
-  linkedin: linkedInAdapter,
-  bluesky: blueskyAdapter,
+  x: createXAdapter({ logger }),
+  instagram: createInstagramAdapter({ logger }),
+  facebook: createFacebookAdapter({ logger }),
+  youtube: createYouTubeAdapter({ logger }),
+  tiktok: createTikTokAdapter({ logger }),
+  snapchat: createSnapchatAdapter({ logger }),
+  telegram: createTelegramAdapter({ logger }),
+  pinterest: createPinterestAdapter({ logger }),
+  linkedin: createLinkedInAdapter({ logger }),
+  bluesky: createBlueskyAdapter({ logger }),
 };
 
 async function processJob(jobData: {
@@ -76,12 +96,35 @@ async function processJob(jobData: {
     "Fetching analytics"
   );
 
-  const result = await adapter.fetchAnalytics({ channelId, since, until });
+  const credentialResult = await credentialResolver.resolve(channelId);
+  if (!credentialResult.ok) {
+    logger.warn(
+      { channelId, provider: providerName },
+      "Credential lookup failed — flagging channel as needing reauth"
+    );
+    await handleProviderAuthError(
+      authFailureRecorder,
+      channelId,
+      providerName,
+      "Credential lookup failed during analytics ingestion"
+    );
+    throw new Error(`Provider ${providerName} returned error: AUTH`);
+  }
+
+  const result = await adapter.fetchAnalytics({ channelId, since, until }, credentialResult.value);
 
   if (!result.ok) {
     if (result.error === "AUTH") {
-      logger.warn({ channelId, provider: providerName }, "Auth error — channel may need reauth");
-      return;
+      logger.warn(
+        { channelId, provider: providerName },
+        "Auth error — flagging channel as needing reauth"
+      );
+      await handleProviderAuthError(
+        authFailureRecorder,
+        channelId,
+        providerName,
+        "Provider rejected credentials during analytics ingestion"
+      );
     }
     throw new Error(`Provider ${providerName} returned error: ${result.error}`);
   }
@@ -142,10 +185,18 @@ async function processJob(jobData: {
   );
 }
 
+const authFailureRecorder = new ChannelAuthFailureRecorder({ prisma });
+
 async function start() {
   const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
     maxRetriesPerRequest: null,
     lazyConnect: true,
+    // ioredis defaults: commandTimeout = null (forever), connectTimeout = 10000.
+    // Both bounded here so a hung Redis fails fast instead of stalling the
+    // worker. BullMQ requires maxRetriesPerRequest:null, so the timeout is
+    // the only escape hatch.
+    commandTimeout: 5_000,
+    connectTimeout: 5_000,
   });
 
   const worker = new Worker(
@@ -158,6 +209,17 @@ async function start() {
       concurrency: 5,
       removeOnComplete: { count: 200 },
       removeOnFail: { count: 100 },
+      // Bound BullMQ defaults that are too lax:
+      //   lockDuration default 30000 ms → 60000 ms — analytics ingestion
+      //     can legitimately exceed 30s on large tenants; 60s gives room
+      //     before stalled-detection re-picks the job.
+      //   stalledInterval default 30000 ms → 30000 ms (kept) — half of
+      //     lockDuration so a stalled worker is detected on the second tick.
+      //   drainDelay default 5 → 5 (kept) — 5 s polling on empty queue is
+      //     the canonical baseline.
+      lockDuration: 60_000,
+      stalledInterval: 30_000,
+      drainDelay: 5,
     }
   );
 
@@ -171,6 +233,12 @@ async function start() {
 
   worker.on("error", (error) => {
     logger.error({ err: error }, "Worker error");
+  });
+
+  registerGracefulShutdown({
+    name: "analytics-ingest",
+    target: { workers: [worker], connections: [connection], prisma },
+    logger,
   });
 
   logger.info(

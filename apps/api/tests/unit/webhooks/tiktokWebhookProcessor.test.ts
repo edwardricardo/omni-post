@@ -36,6 +36,10 @@
  *
  * @module TikTokWebhookProcessorTests
  * @category UnitTests
+ *
+ * @file tiktokWebhookProcessor.test.ts
+ * @description Tests for TikTokWebhookProcessor - Signature Verification
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, expect } from "vitest";

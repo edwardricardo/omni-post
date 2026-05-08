@@ -1,7 +1,7 @@
 /**
  * @file utmLinksUseCase.test.ts
  * @description Tests for GenerateUTMLinksUseCase — ID validation, UTM creation, entity persistence.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

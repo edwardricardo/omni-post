@@ -1,3 +1,8 @@
+/**
+ * @file webhookJobProcessor.priority-delay.test.ts
+ * @description Tests for WebhookJobProcessor - Priority Calculation
+ * @layer infrastructure
+ */
 import { describe, it, expect } from "vitest";
 import type { Provider, WebhookEventType } from "@infra/prisma";
 import {

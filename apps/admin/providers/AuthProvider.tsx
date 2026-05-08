@@ -16,6 +16,9 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
+import { ConsoleLoggerAdapter } from "@observability/browser-logger";
+
+const log = new ConsoleLoggerAdapter("admin.auth-provider");
 
 interface AuthContextValue {
   userId: string;
@@ -56,19 +59,33 @@ export function AuthProvider({
 
   useEffect(() => {
     fetch("/api/backend/auth/permissions", { credentials: "include" })
-      .then((res) => res.json())
-      .then((json: { ok?: boolean; data?: { permissions?: string[] }; permissions?: string[] }) => {
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`permissions fetch failed: ${res.status}`);
+        }
+        return res.json() as Promise<{
+          ok?: boolean;
+          data?: { permissions?: string[] };
+          permissions?: string[];
+        }>;
+      })
+      .then((json) => {
         const perms = json.data?.permissions ?? json.permissions ?? [];
         setPermissions(perms);
       })
-      .catch(() => {
-        // If permissions fail to load, SUPER_ADMIN gets all, others get none
-        if (isSuperAdmin) {
-          setPermissions(["*"]);
-        }
+      .catch((err) => {
+        // Failure-closed: any error (network, non-2xx, malformed body) yields zero
+        // permissions. Previously SUPER_ADMIN silently received "*" on failure,
+        // which is a security antipattern (failure-open). The user must refresh
+        // the session to retry.
+        log.error("Failed to load permissions; falling back to no access", err, {
+          userId,
+          userRole,
+        });
+        setPermissions([]);
       })
       .finally(() => setPermissionsLoaded(true));
-  }, [isSuperAdmin]);
+  }, [userId, userRole]);
 
   const hasPermission = useCallback(
     (permission: string) => {

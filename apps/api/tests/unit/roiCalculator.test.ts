@@ -9,6 +9,10 @@
  * - Cache key generation
  *
  * Run with: pnpm --filter @apps/api exec tsx tests/unit/roiCalculator.test.ts
+ *
+ * @file roiCalculator.test.ts
+ * @description Tests for ROICalculator - Initialization
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

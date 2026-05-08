@@ -9,6 +9,10 @@
  * - Performance Prediction (metrics, historical data)
  * - Content Variations (count, variation types)
  * - Error Handling (timeout fallback, detailed error info)
+ *
+ * @file aiOrchestrator.content.test.ts
+ * @description Tests for AIOrchestrator — Content & Errors
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";

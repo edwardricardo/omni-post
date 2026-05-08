@@ -7,7 +7,8 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import { BaseRouteHandler, type RouteContext, IdSchema } from "@packages/api-common";
+import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
+import { IdSchema } from "@packages/api-common";
 import {
   Channel,
   ChannelId,
@@ -19,12 +20,15 @@ import {
 import type { ChannelCredentials } from "../domain/entities/Channel.js";
 import type { ChannelRepository } from "../domain/repositories/ChannelRepository.js";
 import type { ProjectRepositoryPort } from "../domain/repositories/ProjectRepository.js";
+import type { ChannelCredentialsCrypto } from "../security/ChannelCredentialsCrypto.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "../auth/rbacService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { PrismaClient } from "@infra/prisma";
 import { BlueskyClient } from "@providers/bluesky";
+import { SetPrimaryChannelUseCase } from "../application/channels/index.js";
+import { USE_CASE_ERRORS } from "../application/UseCase.js";
 
 // ─── Schemas ────────────────────────────────────────────────────────────────
 
@@ -73,14 +77,68 @@ function mapCredentials(raw: Record<string, unknown>): ChannelCredentials {
   };
 }
 
-/** Project an API response view from a Channel entity */
-function toChannelView(channel: Channel) {
+/**
+ * Rich channel DTO returned by the listing + single-resource endpoints. The
+ * `client` dashboard renders this directly: `providerName`, `accountName`,
+ * `profileImage`, `connectedAt`, `expiredAt`, `lastUsedAt`, and
+ * `usage.postsThisMonth` are the columns the dashboard reads. `isConnected`
+ * is derived (`status === CONNECTED && !needsReauth`) so the UI can render a
+ * status badge without re-deriving it.
+ */
+interface ChannelView {
+  id: string;
+  projectId: string;
+  projectName: string;
+  /** Backwards-compatible alias for `accountName ?? handle` (older UI fields) */
+  name: string;
+  platform: string;
+  provider: string;
+  providerName: string;
+  handle: string;
+  accountName: string | null;
+  profileImage: string | null;
+  isPrimary: boolean;
+  isConnected: boolean;
+  needsReauth: boolean;
+  status: string;
+  connectedAt: string | null;
+  expiredAt: string | null;
+  lastUsedAt: string | null;
+  usage: { postsThisMonth: number };
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * Project a Channel entity into the API response shape. `projectName` and
+ * `postsThisMonth` are looked up by the caller and passed in — keeping this
+ * function pure means the same mapper serves both single-channel and list
+ * endpoints with appropriate batching upstream.
+ */
+function toChannelView(
+  channel: Channel,
+  ctx: { projectName: string; postsThisMonth: number }
+): ChannelView {
+  const accountName = channel.accountName ?? null;
   return {
     id: channel.id.value,
     projectId: channel.projectId.value,
-    name: channel.handle,
+    projectName: ctx.projectName,
+    name: accountName ?? channel.handle,
     platform: channel.provider.type,
+    provider: channel.provider.type,
+    providerName: channel.provider.displayName,
+    handle: channel.handle,
+    accountName,
+    profileImage: channel.profileImage ?? null,
+    isPrimary: channel.isPrimary,
+    isConnected: channel.isConnected && !channel.needsReauth,
+    needsReauth: channel.needsReauth,
     status: channel.status,
+    connectedAt: (channel.connectedAt ?? channel.createdAt).toISOString(),
+    expiredAt: channel.expiredAt?.toISOString() ?? null,
+    lastUsedAt: channel.lastUsedAt?.toISOString() ?? null,
+    usage: { postsThisMonth: ctx.postsThisMonth },
     createdAt: channel.createdAt,
     updatedAt: channel.updatedAt,
   };
@@ -94,7 +152,9 @@ class ChannelRouteHandler extends BaseRouteHandler {
   constructor(
     private readonly channelRepo: ChannelRepository,
     private readonly projectRepo: ProjectRepositoryPort,
-    private readonly prismaClient: PrismaClient
+    private readonly prismaClient: PrismaClient,
+    private readonly setPrimaryUseCase: SetPrimaryChannelUseCase,
+    private readonly credentialsCrypto: ChannelCredentialsCrypto
   ) {
     super();
   }
@@ -147,7 +207,24 @@ class ChannelRouteHandler extends BaseRouteHandler {
     }
 
     this.logInfo(ctx, "Channel created", { channelId: channel.id.value });
-    return this.sendSuccess(ctx, toChannelView(channel), 201);
+    return this.sendSuccess(
+      ctx,
+      toChannelView(channel, { projectName: projectResult.value.name, postsThisMonth: 0 }),
+      201
+    );
+  }
+
+  /**
+   * Look up `projectName` + this-month usage for a single channel and return
+   * the rich view. The list endpoint batches both lookups separately to avoid
+   * the per-channel roundtrip; single-resource endpoints accept the cost.
+   */
+  private async enrichChannelView(channel: Channel): Promise<ChannelView> {
+    const projectResult = await this.projectRepo.findById(channel.projectId);
+    const projectName = projectResult.ok ? projectResult.value.name : "";
+    const usage = await this.channelRepo.findUsageByChannelIds([channel.id.value]);
+    const postsThisMonth = usage.get(channel.id.value)?.postsThisMonth ?? 0;
+    return toChannelView(channel, { projectName, postsThisMonth });
   }
 
   /**
@@ -170,12 +247,14 @@ class ChannelRouteHandler extends BaseRouteHandler {
         : this.sendError(ctx, 500, "Failed to get channel");
     }
 
-    return this.sendSuccess(ctx, toChannelView(result.value));
+    return this.sendSuccess(ctx, await this.enrichChannelView(result.value));
   }
 
   /**
    * GET /projects/:projectId/channels
-   * List all channels belonging to a project.
+   * List all channels belonging to a project. Project name is looked up once
+   * (all rows share the same project); usage is batched across all channels
+   * in a single `groupBy` query — no N+1.
    */
   async listChannelsByProject(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -186,14 +265,21 @@ class ChannelRouteHandler extends BaseRouteHandler {
 
     const { projectId } = paramsResult.value;
 
-    // Verify project exists first
     const projectResult = await this.projectRepo.findById(ProjectId.fromStringUnsafe(projectId));
     if (!projectResult.ok) {
       return this.sendError(ctx, 404, "Project not found");
     }
 
     const channels = await this.channelRepo.findByProjectId(ProjectId.fromStringUnsafe(projectId));
-    return this.sendSuccess(ctx, channels.map(toChannelView));
+    const usageMap = await this.channelRepo.findUsageByChannelIds(channels.map((c) => c.id.value));
+    const projectName = projectResult.value.name;
+    const views = channels.map((c) =>
+      toChannelView(c, {
+        projectName,
+        postsThisMonth: usageMap.get(c.id.value)?.postsThisMonth ?? 0,
+      })
+    );
+    return this.sendSuccess(ctx, views);
   }
 
   /**
@@ -243,7 +329,7 @@ class ChannelRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 500, "Failed to update channel");
     }
 
-    return this.sendSuccess(ctx, toChannelView(updated));
+    return this.sendSuccess(ctx, await this.enrichChannelView(updated));
   }
 
   /**
@@ -302,10 +388,10 @@ class ChannelRouteHandler extends BaseRouteHandler {
     const { handle } = loginResult.value;
 
     // Store channel with raw Bluesky credentials in the JSON field.
-    // We bypass the domain Channel entity here because ChannelCredentials.accessToken
-    // is designed for OAuth tokens, but Bluesky uses identifier + appPassword.
-    // The AbstractProviderAdapter.getCredentialsFromDatabase() reads raw JSON from Prisma
-    // and casts directly to BlueskyCredentials, so this shape is correct for the adapter.
+    // The domain Channel entity expects an OAuth-style accessToken; Bluesky
+    // instead authenticates with identifier + appPassword, so we persist the
+    // raw shape directly. CredentialResolver returns this JSON blob unchanged
+    // and BlueskyAdapter validates the shape at runtime via the helper.
     try {
       const existing = await this.prismaClient.channel.findFirst({
         where: { projectId, provider: "BLUESKY", handle, deletedAt: null },
@@ -314,6 +400,10 @@ class ChannelRouteHandler extends BaseRouteHandler {
 
       const channelId = existing?.id ?? ChannelId.generate().value;
 
+      const enc = this.credentialsCrypto.encrypt(
+        { identifier, appPassword },
+        { recordId: channelId, caller: "channelRoutes.connectBluesky" }
+      );
       await this.prismaClient.channel.upsert({
         where: { id: channelId },
         create: {
@@ -321,12 +411,20 @@ class ChannelRouteHandler extends BaseRouteHandler {
           projectId,
           provider: "BLUESKY",
           handle,
-          credentials: { identifier, appPassword },
+          providerAccountId: identifier,
+          credentialsCiphertext: enc.credentialsCiphertext,
+          credentialsIv: enc.credentialsIv,
+          credentialsAuthTag: enc.credentialsAuthTag,
+          credentialsKeyVersion: enc.credentialsKeyVersion,
           createdAt: new Date(),
           updatedAt: new Date(),
         },
         update: {
-          credentials: { identifier, appPassword },
+          providerAccountId: identifier,
+          credentialsCiphertext: enc.credentialsCiphertext,
+          credentialsIv: enc.credentialsIv,
+          credentialsAuthTag: enc.credentialsAuthTag,
+          credentialsKeyVersion: enc.credentialsKeyVersion,
           updatedAt: new Date(),
         },
       });
@@ -337,6 +435,42 @@ class ChannelRouteHandler extends BaseRouteHandler {
       this.logError(ctx, "Failed to save Bluesky channel", { error });
       return this.sendError(ctx, 500, "Failed to connect Bluesky account");
     }
+  }
+
+  /**
+   * PATCH /channels/:channelId/set-primary
+   * Promotes a channel to primary for its (project, provider) pair. Atomically
+   * unmarks any sibling that was previously primary, so the partial unique index
+   * is never violated. Idempotent — re-marking a primary channel is a no-op.
+   */
+  async setPrimaryChannel(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+    this.logInfo(ctx, "Setting primary channel");
+
+    const paramsResult = await this.validateParams<ChannelParamsType>(ctx, ChannelParams);
+    if (!paramsResult.ok) return this.sendError(ctx, 400, "Validation failed");
+
+    const { channelId } = paramsResult.value;
+    const result = await this.setPrimaryUseCase.execute({ channelId });
+
+    if (!result.ok) {
+      const code = result.error.code;
+      if (code === USE_CASE_ERRORS.NOT_FOUND) {
+        return this.sendError(ctx, 404, "Channel not found");
+      }
+      if (code === USE_CASE_ERRORS.VALIDATION_FAILED) {
+        return this.sendError(ctx, 400, result.error.message);
+      }
+      this.logError(ctx, "Failed to set primary channel", { error: result.error });
+      return this.sendError(ctx, 500, "Failed to set primary channel");
+    }
+
+    const findResult = await this.channelRepo.findById(ChannelId.fromStringUnsafe(channelId));
+    if (!findResult.ok) {
+      return this.sendError(ctx, 500, "Failed to read updated channel");
+    }
+
+    return this.sendSuccess(ctx, await this.enrichChannelView(findResult.value));
   }
 
   /**
@@ -384,8 +518,20 @@ export const channelRoutes: FastifyPluginAsync = async (fastify) => {
   const channelRepo = container.resolve<ChannelRepository>(TOKENS.ChannelRepository);
   const projectRepo = container.resolve<ProjectRepositoryPort>(TOKENS.ProjectRepository);
   const prismaClient = container.resolve<PrismaClient>(TOKENS.PrismaClient);
+  const setPrimaryUseCase = container.resolve<SetPrimaryChannelUseCase>(
+    TOKENS.SetPrimaryChannelUseCase
+  );
+  const credentialsCrypto = container.resolve<ChannelCredentialsCrypto>(
+    TOKENS.ChannelCredentialsCrypto
+  );
 
-  const handler = new ChannelRouteHandler(channelRepo, projectRepo, prismaClient);
+  const handler = new ChannelRouteHandler(
+    channelRepo,
+    projectRepo,
+    prismaClient,
+    setPrimaryUseCase,
+    credentialsCrypto
+  );
 
   fastify.post(
     "/channels",
@@ -411,6 +557,16 @@ export const channelRoutes: FastifyPluginAsync = async (fastify) => {
     "/channels/:channelId",
     { schema: { tags: ["Channels"], summary: "Update a channel" } },
     (req, reply) => handler.updateChannel(req, reply)
+  );
+  fastify.patch(
+    "/channels/:channelId/set-primary",
+    {
+      schema: {
+        tags: ["Channels"],
+        summary: "Mark a channel as the primary one for its (project, provider) pair",
+      },
+    },
+    (req, reply) => handler.setPrimaryChannel(req, reply)
   );
   fastify.delete(
     "/channels/:channelId",

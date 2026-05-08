@@ -2,7 +2,7 @@
  * @file useApprovals.ts
  * @description TanStack Query hooks for the approval workflow.
  *              Covers: submit for review, pending approvals list, approve, reject.
- * @layer client-hooks
+ * @layer infrastructure
  */
 
 "use client";
@@ -31,11 +31,12 @@ export interface ApprovalRequest {
 
 async function fetchPendingApprovals(reviewerId: string): Promise<ApprovalRequest[]> {
   const res = await fetch(`/api/backend/approvals/pending?reviewerId=${reviewerId}`, {
+    credentials: "include",
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch pending approvals");
-  const data = (await res.json()) as { ok: boolean; value?: ApprovalRequest[] };
-  return data.ok && data.value ? data.value : [];
+  const body = (await res.json()) as { ok: boolean; data?: ApprovalRequest[] };
+  return body.ok && body.data ? body.data : [];
 }
 
 async function submitForReview(
@@ -45,13 +46,14 @@ async function submitForReview(
 ): Promise<{ approvalId: string }> {
   const res = await fetch(`/api/backend/posts/${postId}/submit-for-review`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ submitterId, ...(comment ? { comment } : {}) }),
   });
   if (!res.ok) throw new Error("Failed to submit for review");
-  const data = (await res.json()) as { ok: boolean; value?: { approvalId: string } };
-  if (!data.ok || !data.value) throw new Error("Submission failed");
-  return data.value;
+  const body = (await res.json()) as { ok: boolean; data?: { approvalId: string } };
+  if (!body.ok || !body.data) throw new Error("Submission failed");
+  return body.data;
 }
 
 async function approvePost(
@@ -61,6 +63,7 @@ async function approvePost(
 ): Promise<void> {
   const res = await fetch(`/api/backend/approvals/${approvalId}/approve`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ reviewerId, ...(comment ? { comment } : {}) }),
   });
@@ -70,6 +73,7 @@ async function approvePost(
 async function rejectPost(approvalId: string, reviewerId: string, comment: string): Promise<void> {
   const res = await fetch(`/api/backend/approvals/${approvalId}/reject`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ reviewerId, comment }),
   });

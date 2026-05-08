@@ -1,13 +1,13 @@
 /**
  * @file PaddlePaymentAdapter.ts
- * @description Paddle (Merchant of Record) implementation of IPaymentAdapter.
+ * @description Paddle (Merchant of Record) implementation of PaymentAdapter.
  *              Paddle handles VAT/tax globally — they charge the customer and pay you net.
  * @layer infrastructure
  */
 
 import { Environment, Paddle } from "@paddle/paddle-node-sdk";
 import type {
-  IPaymentAdapter,
+  PaymentAdapter,
   BillingPlan,
   BillingCycle,
   CreateCustomerResult,
@@ -25,7 +25,7 @@ export interface PaddleConfig {
   prices: Record<BillingPlan, Record<BillingCycle, string>>;
 }
 
-export class PaddlePaymentAdapter implements IPaymentAdapter {
+export class PaddlePaymentAdapter implements PaymentAdapter {
   readonly provider = "paddle" as const;
   private readonly paddle: Paddle;
   private readonly priceMap: Record<BillingPlan, Record<BillingCycle, string>>;

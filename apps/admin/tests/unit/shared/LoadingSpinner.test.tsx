@@ -5,6 +5,10 @@
  * - ARIA attributes for screen readers
  * - Size variants
  * - Custom labels
+ *
+ * @file LoadingSpinner.test.tsx
+ * @description Tests for LoadingSpinner
+ * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";

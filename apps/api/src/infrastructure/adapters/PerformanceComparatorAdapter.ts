@@ -5,6 +5,7 @@
  *              between application and infrastructure layers.
  * @layer infrastructure
  */
+import type { CachePort } from "@ports/core";
 import type { PerformanceComparatorPort } from "../../application/analytics/ComparePerformanceUseCase.js";
 import type { PerformanceSnapshot } from "../../application/analytics/types.js";
 import { PerformanceComparator } from "../../analytics/performanceComparison/index.js";
@@ -24,10 +25,10 @@ import { prisma } from "@infra/prisma";
 export class PerformanceComparatorAdapter implements PerformanceComparatorPort {
   private readonly comparator: PerformanceComparator;
 
-  constructor(projectRepository?: ProjectQueryRepositoryPort) {
+  constructor(cache: CachePort, projectRepository?: ProjectQueryRepositoryPort) {
     // Fallback to Prisma-backed instance when not injected (e.g. DI container setup)
     const repo = projectRepository ?? new PrismaProjectQueryRepository(prisma);
-    this.comparator = new PerformanceComparator(repo);
+    this.comparator = new PerformanceComparator(repo, cache);
   }
 
   async generatePerformanceComparison(options: {

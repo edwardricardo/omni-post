@@ -15,19 +15,31 @@ const { mockCall, mockGetAllStatuses, mockClearCache } = vi.hoisted(() => ({
   mockClearCache: vi.fn(),
 }));
 
-vi.mock("@adapters/external-apis", () => ({
-  createExternalApiCircuitBreaker: vi.fn(() => ({
-    call: mockCall,
-    getAllStatuses: mockGetAllStatuses,
-    clearCache: mockClearCache,
-  })),
-}));
-vi.mock("@adapters/fallback-strategies", () => ({
-  CommonFallbackStrategies: { METADATA_FALLBACK: {}, ANALYTICS_FALLBACK: {} },
-}));
-vi.mock("@providers/shared", () => ({
-  ProviderError: { externalService: vi.fn((_p: string, m: string) => new Error(m)) },
-}));
+vi.mock("@adapters/external-apis", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@adapters/external-apis")>();
+  return {
+    ...actual,
+    createExternalApiCircuitBreaker: vi.fn(() => ({
+      call: mockCall,
+      getAllStatuses: mockGetAllStatuses,
+      clearCache: mockClearCache,
+    })),
+  };
+});
+vi.mock("@adapters/fallback-strategies", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@adapters/fallback-strategies")>();
+  return {
+    ...actual,
+    CommonFallbackStrategies: { METADATA_FALLBACK: {}, ANALYTICS_FALLBACK: {} },
+  };
+});
+vi.mock("@providers/shared", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@providers/shared")>();
+  return {
+    ...actual,
+    ProviderError: { externalService: vi.fn((_p: string, m: string) => new Error(m)) },
+  };
+});
 vi.mock("prom-client", () => {
   const R = vi.fn();
   R.prototype = {};

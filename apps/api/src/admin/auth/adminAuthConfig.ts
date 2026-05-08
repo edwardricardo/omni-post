@@ -6,16 +6,16 @@
  */
 
 import type { AdminAuthConfig } from "./adminAuthTypes";
-import { getRequiredSecret } from "../../lib/envValidation.js";
+import { env } from "../../config/env.js";
 
 /**
- * Admin authentication configuration
- * JWT secrets are required in production (will throw if missing).
+ * Admin authentication configuration. JWT secrets are validated at boot via
+ * the Zod schema in `apps/api/src/config/env.ts` (fail-fast, no fallback).
  */
 export const adminAuthConfig: AdminAuthConfig = {
   jwt: {
-    accessTokenSecret: getRequiredSecret("ADMIN_JWT_ACCESS_SECRET", "admin-jwt-access-dev-only"),
-    refreshTokenSecret: getRequiredSecret("ADMIN_JWT_REFRESH_SECRET", "admin-jwt-refresh-dev-only"),
+    accessTokenSecret: env.ADMIN_JWT_ACCESS_SECRET,
+    refreshTokenSecret: env.ADMIN_JWT_REFRESH_SECRET,
     accessTokenExpiration: "15m",
     refreshTokenExpiration: "7d",
     refreshTokenExpirationRememberMe: "30d",

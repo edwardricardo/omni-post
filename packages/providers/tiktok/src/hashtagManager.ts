@@ -6,7 +6,10 @@
  * and analytics helpers in hashtagAnalytics.ts.
  */
 
-import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
+import {
+  createExternalApiCircuitBreaker,
+  type CircuitBreakerStatus,
+} from "@adapters/external-apis";
 import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
 import { ProviderError } from "@providers/shared";
 import * as client from "prom-client";
@@ -403,7 +406,7 @@ export class TikTokHashtagManager {
   /**
    * Get circuit breaker status
    */
-  getCircuitBreakerStatus(): Record<string, any> {
+  getCircuitBreakerStatus(): Record<string, CircuitBreakerStatus | null> {
     return circuitBreaker.getAllStatuses();
   }
 

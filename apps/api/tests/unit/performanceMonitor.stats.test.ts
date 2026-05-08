@@ -1,3 +1,8 @@
+/**
+ * @file performanceMonitor.stats.test.ts
+ * @description Tests for PerformanceMonitor - Endpoint Statistics
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, expect } from "vitest";
 import { PerformanceMonitor } from "../../src/monitoring/performanceMonitor.js";
 import {
@@ -5,6 +10,7 @@ import {
   createMockRedis,
   createMockRequest,
   createMockReply,
+  createPerformanceMonitor,
 } from "./performanceMonitor.test-helpers.js";
 
 describe("PerformanceMonitor - Endpoint Statistics", () => {
@@ -13,7 +19,7 @@ describe("PerformanceMonitor - Endpoint Statistics", () => {
   beforeEach(() => {
     const metrics = createMockApiMetrics();
     const redis = createMockRedis();
-    monitor = new PerformanceMonitor(metrics, redis);
+    monitor = createPerformanceMonitor(metrics, redis);
   });
 
   it("should aggregate endpoint statistics", async () => {
@@ -137,7 +143,7 @@ describe("PerformanceMonitor - Percentile Calculation", () => {
   beforeEach(() => {
     const metrics = createMockApiMetrics();
     const redis = createMockRedis();
-    monitor = new PerformanceMonitor(metrics, redis);
+    monitor = createPerformanceMonitor(metrics, redis);
   });
 
   it("should calculate percentiles correctly", async () => {
@@ -184,7 +190,7 @@ describe("PerformanceMonitor - Dashboard Data", () => {
   beforeEach(() => {
     const metrics = createMockApiMetrics();
     const redis = createMockRedis();
-    monitor = new PerformanceMonitor(metrics, redis);
+    monitor = createPerformanceMonitor(metrics, redis);
   });
 
   it("should aggregate dashboard data", async () => {
@@ -236,7 +242,7 @@ describe("PerformanceMonitor - Alert Management", () => {
   beforeEach(() => {
     const metrics = createMockApiMetrics();
     const redis = createMockRedis();
-    monitor = new PerformanceMonitor(metrics, redis);
+    monitor = createPerformanceMonitor(metrics, redis);
   });
 
   it("should retrieve recent alerts", async () => {

@@ -1,3 +1,9 @@
+/**
+ * @file threadPlanner.ts
+ * @description Thread planner that splits long posts into tweet fragments respecting character
+ *              and media limits, computes thread reach estimates, and validates plans.
+ * @layer infrastructure
+ */
 import {
   ok,
   err,

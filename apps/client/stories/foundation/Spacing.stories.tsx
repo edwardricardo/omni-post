@@ -1,4 +1,11 @@
+/**
+ * @file Spacing.stories.tsx
+ * @description Storybook stories documenting the Tailwind-based spacing scale used for consistent
+ *              layout rhythm across the client app.
+ * @layer infrastructure
+ */
 import type { Meta, StoryObj } from "@storybook/nextjs";
+import { useId } from "react";
 
 /**
  * # Spacing System
@@ -14,6 +21,8 @@ import type { Meta, StoryObj } from "@storybook/nextjs";
  */
 
 const SpacingSystem = () => {
+  const emailId = useId();
+  const passwordId = useId();
   const spacingScale = [
     { name: "px", value: "1px", class: "w-px h-4", usage: "Borders, dividers" },
     { name: "0.5", value: "0.125rem", class: "w-0.5 h-4", usage: "Minimal spacing" },
@@ -69,16 +78,22 @@ const SpacingSystem = () => {
       content: (
         <div className="space-y-6 max-w-md">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Email Address</label>
+            <label htmlFor={emailId} className="text-sm font-medium">
+              Email Address
+            </label>
             <input
+              id={emailId}
               type="email"
               className="w-full px-3 py-2 border rounded-md bg-background"
               placeholder="Enter your email"
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Password</label>
+            <label htmlFor={passwordId} className="text-sm font-medium">
+              Password
+            </label>
             <input
+              id={passwordId}
               type="password"
               className="w-full px-3 py-2 border rounded-md bg-background"
               placeholder="Enter your password"
@@ -91,8 +106,8 @@ const SpacingSystem = () => {
       ),
       code: `<div className="space-y-6">
   <div className="space-y-2">
-    <label className="text-sm font-medium">Email</label>
-    <input className="w-full px-3 py-2 border rounded-md" />
+    <label htmlFor="email" className="text-sm font-medium">Email</label>
+    <input id="email" className="w-full px-3 py-2 border rounded-md" />
   </div>
   <button className="w-full px-4 py-2 ...">Submit</button>
 </div>`,
@@ -107,16 +122,19 @@ const SpacingSystem = () => {
             <span className="font-semibold">Brand</span>
           </div>
           <div className="flex items-center space-x-6">
-            <a href="#" className="text-sm hover:text-primary">
+            <a href="/dashboard" className="text-sm hover:text-primary">
               Dashboard
             </a>
-            <a href="#" className="text-sm hover:text-primary">
+            <a href="/posts" className="text-sm hover:text-primary">
               Posts
             </a>
-            <a href="#" className="text-sm hover:text-primary">
+            <a href="/analytics" className="text-sm hover:text-primary">
               Analytics
             </a>
-            <button className="px-3 py-1.5 bg-primary text-primary-foreground rounded-sm text-sm">
+            <button
+              type="button"
+              className="px-3 py-1.5 bg-primary text-primary-foreground rounded-sm text-sm"
+            >
               Upgrade
             </button>
           </div>

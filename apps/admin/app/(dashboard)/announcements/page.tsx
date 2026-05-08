@@ -6,7 +6,7 @@
  */
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useId } from "react";
 import { useTranslations } from "next-intl";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Megaphone, Plus, Trash2, Pencil } from "lucide-react";
@@ -23,7 +23,7 @@ import {
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ActionButton } from "@/components/ui/ActionButton";
 import { Badge } from "@/components/ui/Badge";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ConfirmDialog } from "@packages/ui";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { getErrorMessage } from "@/lib/parseApiError";
 
@@ -78,6 +78,12 @@ export default function AnnouncementsPage() {
     startsAt: new Date().toISOString().slice(0, 16),
     endsAt: "",
   });
+
+  const titleId = useId();
+  const messageId = useId();
+  const typeId = useId();
+  const startsAtId = useId();
+  const endsAtId = useId();
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -212,20 +218,28 @@ export default function AnnouncementsPage() {
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">
+              <label
+                htmlFor={titleId}
+                className="mb-1 block text-xs font-medium text-[var(--text-secondary)]"
+              >
                 Title
               </label>
               <input
+                id={titleId}
                 className={INPUT_CLASS}
                 value={form.title}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">
+              <label
+                htmlFor={messageId}
+                className="mb-1 block text-xs font-medium text-[var(--text-secondary)]"
+              >
                 Message
               </label>
               <textarea
+                id={messageId}
                 className={`${INPUT_CLASS} min-h-[80px]`}
                 value={form.message}
                 onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
@@ -233,10 +247,14 @@ export default function AnnouncementsPage() {
             </div>
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">
+                <label
+                  htmlFor={typeId}
+                  className="mb-1 block text-xs font-medium text-[var(--text-secondary)]"
+                >
                   Type
                 </label>
                 <select
+                  id={typeId}
                   className={INPUT_CLASS}
                   value={form.type}
                   onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
@@ -248,10 +266,14 @@ export default function AnnouncementsPage() {
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">
+                <label
+                  htmlFor={startsAtId}
+                  className="mb-1 block text-xs font-medium text-[var(--text-secondary)]"
+                >
                   Starts At
                 </label>
                 <input
+                  id={startsAtId}
                   type="datetime-local"
                   className={INPUT_CLASS}
                   value={form.startsAt}
@@ -259,10 +281,14 @@ export default function AnnouncementsPage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">
+                <label
+                  htmlFor={endsAtId}
+                  className="mb-1 block text-xs font-medium text-[var(--text-secondary)]"
+                >
                   Ends At
                 </label>
                 <input
+                  id={endsAtId}
                   type="datetime-local"
                   className={INPUT_CLASS}
                   value={form.endsAt}

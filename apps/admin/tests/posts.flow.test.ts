@@ -1,3 +1,8 @@
+/**
+ * @file posts.flow.test.ts
+ * @description Tests for posts
+ * @layer infrastructure
+ */
 const POSTS_FLOW_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 async function postsFlowHttp(path: string, init?: RequestInit) {

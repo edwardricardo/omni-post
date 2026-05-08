@@ -1,6 +1,10 @@
 /**
  * Test utilities and mock factories for worker tests.
  * Uses node:test mock module for all mocking needs.
+ *
+ * @file setup.ts
+ * @description Test setup for setup
+ * @layer infrastructure
  */
 import client from "prom-client";
 import pino from "pino";
@@ -231,6 +235,9 @@ export function createTestDeps(overrides?: Partial<PublishHandlerDeps>): Publish
   return {
     repo: createMockRepo(),
     providerRegistry: createMockProviderRegistry(),
+    credentialResolver: {
+      resolve: async () => ({ ok: true, value: { accessToken: "test-token" } }),
+    },
     workerMetrics: createTestWorkerMetrics(),
     logger: createSilentLogger(),
     instrumentation: createMockInstrumentation(),

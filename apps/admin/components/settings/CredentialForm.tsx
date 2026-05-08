@@ -7,7 +7,7 @@
  */
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useId } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "@packages/ui";
 
@@ -48,6 +48,7 @@ export function CredentialForm({ group, fields, title, description }: Credential
 
   const [edited, setEdited] = useState<Record<string, string>>({});
   const [testResult, setTestResult] = useState<TestResult | null>(null);
+  const fieldIdPrefix = useId();
 
   const updateField = useCallback((key: string, value: string) => {
     setEdited((prev) => ({ ...prev, [key]: value }));
@@ -110,12 +111,17 @@ export function CredentialForm({ group, fields, title, description }: Credential
               ? t("form.notConfigured")
               : currentValue;
 
+          const fieldId = `${fieldIdPrefix}-${field.key}`;
           return (
             <div key={field.key}>
-              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+              <label
+                htmlFor={fieldId}
+                className="block text-xs font-medium text-[var(--text-secondary)] mb-1"
+              >
                 {field.label}
               </label>
               <input
+                id={fieldId}
                 type={field.isSecret ? "password" : "text"}
                 value={edited[field.key] ?? ""}
                 onChange={(e) => updateField(field.key, e.target.value)}

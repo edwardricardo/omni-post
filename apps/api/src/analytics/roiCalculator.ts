@@ -7,6 +7,7 @@
  * backwards compatibility with existing consumers.
  */
 import type Redis from "ioredis";
+import type { CachePort } from "@ports/core";
 import { prisma } from "@infra/prisma";
 import { Prisma } from "@infra/prisma";
 import { createRedisConnection } from "../lib/redis.js";
@@ -39,6 +40,9 @@ export type {
 } from "./roi/types.js";
 
 export class ROICalculator {
+  // Redis kept for `updateRealTimeROI` hgetall/hmset pattern (distinct from
+  // cache-aside; PR-33 categorization keeps this as KEEP — distributed counters
+  // are not a CachePort concern). Cache-aside operations migrated to CachePort.
   private redis: Redis;
   private readonly cachePrefix = "roi:";
   private readonly cacheTTL = 600; // 10 minutes
@@ -52,7 +56,10 @@ export class ROICalculator {
   private readonly defaultCostModel: CostModel;
   private readonly defaultRevenueModel: RevenueModel;
 
-  constructor(private readonly projectRepository: ProjectQueryRepositoryPort) {
+  constructor(
+    private readonly projectRepository: ProjectQueryRepositoryPort,
+    private readonly cache: CachePort
+  ) {
     this.redis = createRedisConnection();
     this.costCalculator = new CostCalculator();
     this.revenueCalculator = new RevenueCalculator();
@@ -73,9 +80,13 @@ export class ROICalculator {
    */
   async calculateROI(options: ROICalculationOptions): Promise<ROICalculation> {
     const cacheKey = this.generateCacheKey(options);
-    const cached = await this.getCachedResult(cacheKey);
-    if (cached) return cached;
+    return this.cache.getOrSet(cacheKey, () => this.computeROI(options), {
+      ttlSeconds: this.cacheTTL,
+      tags: ["analytics:roi"],
+    });
+  }
 
+  private async computeROI(options: ROICalculationOptions): Promise<ROICalculation> {
     try {
       const { startDate, endDate } = this.calculateDateRange(
         options.timeRange,
@@ -159,7 +170,6 @@ export class ROICalculator {
         recommendations,
       };
 
-      await this.cacheResult(cacheKey, result);
       return result;
     } catch (error) {
       analyticsLogger.error({ err: error }, "Error calculating ROI");
@@ -325,24 +335,6 @@ export class ROICalculator {
   // Private helpers
   // ---------------------------------------------------------------------------
 
-  private async getCachedResult(key: string): Promise<ROICalculation | null> {
-    try {
-      const cached = await this.redis.get(key);
-      return cached ? (JSON.parse(cached) as ROICalculation) : null;
-    } catch (error) {
-      analyticsLogger.error({ err: error }, "Error getting cached ROI result");
-      return null;
-    }
-  }
-
-  private async cacheResult(key: string, result: ROICalculation): Promise<void> {
-    try {
-      await this.redis.setex(key, this.cacheTTL, JSON.stringify(result));
-    } catch (error) {
-      analyticsLogger.error({ err: error }, "Error caching ROI result");
-    }
-  }
-
   private async updateRealTimeROI(conversion: ConversionTracking): Promise<void> {
     try {
       const key = `${this.cachePrefix}realtime:${conversion.source}`;
@@ -366,7 +358,6 @@ export class ROICalculator {
     }
   }
 
-  // ✅ Phase 1: Uses repository pattern — eliminates N+1 query
   private async getAnalyticsData(
     options: ROICalculationOptions,
     startDate: Date,
@@ -397,7 +388,6 @@ export class ROICalculator {
     }) as Promise<AnalyticsDataPoint[]>;
   }
 
-  // ✅ Phase 1: Uses repository pattern — eliminates N+1 query
   private async getPostsData(
     options: ROICalculationOptions,
     startDate: Date,

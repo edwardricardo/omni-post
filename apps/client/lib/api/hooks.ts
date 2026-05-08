@@ -29,7 +29,12 @@ import {
 const queryKeys = {
   projects: ["projects"] as const,
   project: (id: string) => ["projects", id] as const,
-  posts: (filters?: any) => ["posts", filters] as const,
+  posts: (filters?: {
+    projectId?: string;
+    page?: number;
+    limit?: number;
+    status?: "DRAFT" | "SCHEDULED" | "PUBLISHED" | "FAILED";
+  }) => ["posts", filters] as const,
   post: (id: string) => ["posts", id] as const,
   providers: ["providers"] as const,
   allProvidersHealth: ["providers", "health"] as const,
@@ -155,7 +160,7 @@ export function useAllProvidersHealth(
 // File Upload Hook
 export function useUploadFile(
   options?: UseMutationOptions<
-    ApiResponse<{ url: string; metadata?: any }>,
+    ApiResponse<{ url: string; metadata?: unknown }>,
     ApiError,
     {
       file: File;
@@ -168,6 +173,3 @@ export function useUploadFile(
     ...options,
   });
 }
-
-// Re-export useProviders from hooks
-export { useProviders } from "../hooks/useProviders";

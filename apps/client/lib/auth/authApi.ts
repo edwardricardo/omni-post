@@ -1,25 +1,42 @@
 /**
- * Client Authentication API
- *
- * All auth calls go through the Next.js backend proxy at /api/backend/
- * which handles httpOnly cookie management. The browser NEVER sees JWTs.
- *
- * - Login:    POST /api/backend/auth/customer/login   -> sets session cookie server-side
- * - Logout:   POST /api/backend/auth/customer/logout  -> clears session cookie server-side
- * - Refresh:  POST /api/backend/auth/customer/refresh -> rotates session cookie server-side
- * - Me:       GET  /api/backend/auth/customer/me      -> proxy injects Bearer from cookie
- *
- * @module lib/auth/authApi
+ * @file authApi.ts
+ * @description Client-side authentication API wrapper — login, logout, refresh, and me operations
+ *              routed through the Next.js proxy with httpOnly cookie-based session management.
+ *              All failure paths throw `ApiError` so callers can switch on status / code.
+ * @layer infrastructure
  */
+
+import { ApiError } from "../api/types";
 
 // All requests go through the Next.js proxy -- no direct backend access
 const PROXY_BASE = "/api/backend/auth/customer";
+
+interface ApiErrorBody {
+  error?: string;
+  message?: string;
+  code?: string;
+}
+
+async function readErrorBody(response: Response): Promise<ApiErrorBody> {
+  return response.json().catch(() => ({}) as ApiErrorBody);
+}
+
+function buildApiError(status: number, body: ApiErrorBody, fallback: string): ApiError {
+  const message = body.error ?? body.message ?? fallback;
+  return new ApiError(status, body.code ?? null, message);
+}
 
 export interface User {
   id: string;
   email: string;
   name: string;
   role?: string;
+  /**
+   * The customer account this user belongs to. Returned by
+   * `GET /auth/customer/me` and required for partitioning queries
+   * (projects, channels, posts) per Account in the multi-tenant model.
+   */
+  accountId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -76,10 +93,8 @@ class AuthAPI {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({
-        message: "An error occurred",
-      }));
-      throw new Error(error.message || error.error || `HTTP error! status: ${response.status}`);
+      const body = await readErrorBody(response);
+      throw buildApiError(response.status, body, `Request failed (${response.status})`);
     }
 
     return response.json();
@@ -101,10 +116,8 @@ class AuthAPI {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({
-        error: "An error occurred",
-      }));
-      throw new Error(error.error || error.message || `HTTP error! status: ${response.status}`);
+      const body = await readErrorBody(response);
+      throw buildApiError(response.status, body, "Login failed");
     }
 
     const result = await response.json();
@@ -169,7 +182,8 @@ class AuthAPI {
     });
 
     if (!response.ok) {
-      throw new Error("Token refresh failed");
+      const body = await readErrorBody(response);
+      throw buildApiError(response.status, body, "Token refresh failed");
     }
 
     const result = await response.json();

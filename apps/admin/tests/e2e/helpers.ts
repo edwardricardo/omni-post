@@ -1,3 +1,8 @@
+/**
+ * @file helpers.ts
+ * @description Test helpers for helpers
+ * @layer infrastructure
+ */
 // tests/e2e/helpers.ts
 import { Page } from "@playwright/test";
 

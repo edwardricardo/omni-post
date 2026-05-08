@@ -1,8 +1,13 @@
 /**
- * Threads Provider - Clean Export
+ * @file index.ts
+ * @description Threads (Meta) provider package barrel export. Composition root
+ *   constructs the adapter via `createThreadsAdapter({ logger })`.
+ * @layer infrastructure
  */
 
-export { ThreadsAdapter, threadsAdapter } from "./ThreadsAdapter.js";
-
-import { threadsAdapter } from "./ThreadsAdapter.js";
-export default threadsAdapter;
+export {
+  ThreadsAdapter,
+  createThreadsAdapter,
+  type ThreadsAdapterDeps,
+  type ThreadsCredentials,
+} from "./ThreadsAdapter.js";

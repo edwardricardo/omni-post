@@ -7,6 +7,7 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
 import type { ApiMetrics } from "../metrics/apiMetrics.js";
 import Redis from "ioredis";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { createLogger } from "../lib/logger.js";
 
 const monitoringLogger = createLogger("monitoring");
@@ -63,15 +64,17 @@ interface AlertRule {
 export class PerformanceMonitor {
   private metrics: ApiMetrics;
   private redis: Redis;
+  private scheduler: BackgroundTaskScheduler;
   private recentMetrics: PerformanceMetrics[] = [];
   private maxRecentMetrics: number = 1000;
   private alertRules: AlertRule[] = [];
   private slowRequestThreshold: number = 200; // ms
   private criticalRequestThreshold: number = 1000; // ms
 
-  constructor(metrics: ApiMetrics, redis: Redis) {
+  constructor(metrics: ApiMetrics, redis: Redis, scheduler: BackgroundTaskScheduler) {
     this.metrics = metrics;
     this.redis = redis;
+    this.scheduler = scheduler;
     this.initializeAlertRules();
     this.startBackgroundTasks();
   }
@@ -430,27 +433,30 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Start background monitoring tasks
+   * Start background monitoring tasks via the centralised scheduler.
    */
   private startBackgroundTasks(): void {
-    // Clean up old metrics every 10 minutes
-    const cleanupInterval = setInterval(
+    // Clean up metrics older than one hour, every 10 minutes.
+    this.scheduler.register(
+      "performance-monitor-metrics-cleanup",
       () => {
-        const cutoff = new Date(Date.now() - 60 * 60 * 1000); // 1 hour ago
+        const cutoff = new Date(Date.now() - 60 * 60 * 1000);
         this.recentMetrics = this.recentMetrics.filter((m) => m.timestamp > cutoff);
       },
       10 * 60 * 1000
     );
-    cleanupInterval.unref();
 
-    // Health check every 30 seconds
-    const healthCheckInterval = setInterval(async () => {
-      const health = await this.getSystemHealth();
-      if (health.status !== "healthy") {
-        monitoringLogger.warn({ health }, "System health check");
-      }
-    }, 30 * 1000);
-    healthCheckInterval.unref();
+    // Health check every 30 seconds.
+    this.scheduler.register(
+      "performance-monitor-health-check",
+      async () => {
+        const health = await this.getSystemHealth();
+        if (health.status !== "healthy") {
+          monitoringLogger.warn({ health }, "System health check");
+        }
+      },
+      30 * 1000
+    );
   }
 
   /**
@@ -475,10 +481,10 @@ export class PerformanceMonitor {
   /**
    * Get recent alerts
    */
-  async getRecentAlerts(count: number = 10): Promise<any[]> {
+  async getRecentAlerts(count: number = 10): Promise<unknown[]> {
     try {
       const alerts = await this.redis.lrange("performance:alerts", 0, count - 1);
-      return alerts.map((alert) => JSON.parse(alert));
+      return alerts.map((alert) => JSON.parse(alert) as unknown);
     } catch (_error: unknown) {
       monitoringLogger.warn({ err: _error }, "Failed to get recent alerts");
       return [];
@@ -502,7 +508,7 @@ export class PerformanceMonitor {
   async getDashboardData(timeRangeMinutes: number = 60): Promise<{
     systemHealth: SystemHealth;
     endpointStats: EndpointStats[];
-    recentAlerts: Record<string, unknown>[];
+    recentAlerts: unknown[];
     slowRequests: PerformanceMetrics[];
   }> {
     const [systemHealth, endpointStats, recentAlerts] = await Promise.all([

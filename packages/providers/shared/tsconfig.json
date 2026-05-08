@@ -1,11 +1,9 @@
 {
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src",
+    "noEmit": true,
     "incremental": true,
     "tsBuildInfoFile": ".tsbuildinfo"
   },
-  "include": ["src/**/*"],
-  "references": [{ "path": "../../shared" }, { "path": "../../adapters/db-prisma" }]
+  "include": ["src/**/*"]
 }

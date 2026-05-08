@@ -1,11 +1,10 @@
 /**
  * @file page.tsx
  * @component CrmSettingsPage
- * @description CRM integration settings page.
- * @layer client-pages
+ * @description CRM integration settings page. Server Component — CrmSettings child is
+ * the Client Component boundary.
+ * @layer infrastructure
  */
-
-"use client";
 
 import { CrmSettings } from "@/components/settings/crm/CrmSettings";
 

@@ -2,14 +2,18 @@
 /**
  * Unit Tests for SlidingWindowRateLimit - Reset Time, JWT Extraction,
  * Suspicious Activity Detection, Fastify Plugin Integration, Cleanup
+ *
+ * @file slidingWindowRateLimit.plugin-cleanup.test.ts
+ * @description Tests for SlidingWindowRateLimit - Reset Time
+ * @layer infrastructure
  */
 
 import { describe, it, afterAll, expect } from "vitest";
-import { SlidingWindowRateLimit } from "../../src/security/slidingWindowRateLimit.js";
 import {
   MockRedis,
   MockApiMetrics,
   createMockRequest,
+  createLimiter,
   limiterInstances,
 } from "./slidingWindowRateLimit.test-helpers.js";
 
@@ -32,7 +36,7 @@ describe("SlidingWindowRateLimit - Reset Time", () => {
   it("Reset time is in the future", async () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 10,
     });
@@ -54,7 +58,7 @@ describe("SlidingWindowRateLimit - JWT User ID Extraction", () => {
   it("Request with Authorization header", async () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 10,
     });
@@ -72,7 +76,7 @@ describe("SlidingWindowRateLimit - JWT User ID Extraction", () => {
   it("Request without Authorization header", async () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 10,
     });
@@ -88,7 +92,7 @@ describe("SlidingWindowRateLimit - JWT User ID Extraction", () => {
   it("Invalid Authorization header", async () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 10,
     });
@@ -112,7 +116,7 @@ describe("SlidingWindowRateLimit - Suspicious Activity Detection", () => {
   it("Suspicious activity detected at 80% threshold", async () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 10, // 80% = 8 requests
     });
@@ -131,7 +135,7 @@ describe("SlidingWindowRateLimit - Suspicious Activity Detection", () => {
   it("Blacklisting after persistent violations", async () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 5, // 80% = 4 requests
     });
@@ -160,7 +164,7 @@ describe("SlidingWindowRateLimit - Fastify Plugin Integration", () => {
   it("Plugin factory returns a function", () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 10,
     });
@@ -174,7 +178,7 @@ describe("SlidingWindowRateLimit - Fastify Plugin Integration", () => {
   it("Plugin with skipList", async () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 5,
       skipList: ["/health", "/metrics"],
@@ -205,7 +209,7 @@ describe("SlidingWindowRateLimit - Fastify Plugin Integration", () => {
   it("Plugin hook is registered", async () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 100,
     });
@@ -233,7 +237,7 @@ describe("SlidingWindowRateLimit - Cleanup & Memory Management", () => {
   it("Suspicious patterns cleanup (simulate reaching threshold)", () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 5,
     });
@@ -258,7 +262,7 @@ describe("SlidingWindowRateLimit - Cleanup & Memory Management", () => {
   it("Cleanup doesn't trigger below threshold", () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 5,
     });

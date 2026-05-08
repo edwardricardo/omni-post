@@ -12,7 +12,14 @@ import { Button } from "@packages/ui";
 import { Input } from "@packages/ui";
 import { Label } from "@packages/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@packages/ui";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@packages/ui";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  toast,
+} from "@packages/ui";
 import { Calendar, Clock, Globe, TrendingUp, AlertCircle } from "lucide-react";
 import { format, addDays, setHours, setMinutes, parse, isAfter } from "date-fns";
 
@@ -126,7 +133,7 @@ export function SchedulePicker({
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [timezone, setTimezone] = useState<string>("America/New_York");
-  const [_customDateTime, setCustomDateTime] = useState<Date | null>(null);
+  const [, setCustomDateTime] = useState<Date | null>(null);
   const [showOptimalTimes, setShowOptimalTimes] = useState(true);
 
   // Initialize with user's local timezone
@@ -191,7 +198,11 @@ export function SchedulePicker({
 
     // Validate that the scheduled time is in the future
     if (!isAfter(scheduledDateTime, new Date())) {
-      alert("Scheduled time must be in the future");
+      toast({
+        title: "Invalid schedule time",
+        description: "Scheduled time must be in the future.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -265,18 +276,20 @@ export function SchedulePicker({
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <TrendingUp className="h-4 w-4" />
-              Recommended Times
+              Suggested Times
             </CardTitle>
             <CardDescription>
-              Based on historical engagement data for your selected platforms
+              Typical high-engagement windows for your selected platforms (general heuristic — tune
+              via analytics once enough post history is collected).
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               {optimalTimes.map((time, index) => (
-                <div
+                <button
+                  type="button"
                   key={index}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted cursor-pointer transition-colors"
+                  className="w-full flex items-center justify-between p-3 border rounded-lg hover:bg-muted cursor-pointer transition-colors text-left"
                   onClick={() => handleOptimalTimeSelect(time)}
                 >
                   <div className="flex items-center gap-3">
@@ -288,13 +301,7 @@ export function SchedulePicker({
                     </div>
                     <span className="text-sm text-muted-foreground">{time.reason}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1">
-                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                      <span className="text-sm font-medium">{time.score}% optimal</span>
-                    </div>
-                  </div>
-                </div>
+                </button>
               ))}
             </div>
 
@@ -363,8 +370,11 @@ export function SchedulePicker({
           const scheduledDateTime = setMinutes(setHours(date, hours), minutes);
           return !isAfter(scheduledDateTime, new Date());
         })() && (
-          <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800">
-            <AlertCircle className="h-4 w-4" />
+          <div
+            role="alert"
+            className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800"
+          >
+            <AlertCircle aria-hidden="true" className="h-4 w-4" />
             <span className="text-sm">
               Selected time is in the past. Please choose a future date and time.
             </span>

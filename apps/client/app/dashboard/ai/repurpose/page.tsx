@@ -1,14 +1,15 @@
 /**
  * @file page.tsx
  * @description Repurpose opportunities page showing AI-detected high-performing posts.
- * @layer client-pages
+ * @layer infrastructure
  */
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth/authContext";
-import { Button } from "@packages/ui";
+import { Button, toast } from "@packages/ui";
 
 interface RepurposeProposal {
   id: string;
@@ -24,6 +25,13 @@ interface RepurposeProposal {
   }>;
 }
 
+type ApprovalAction = "approve" | "reject";
+
+async function parseRepurposeError(response: Response, fallback: string): Promise<string> {
+  const err = (await response.json().catch(() => ({ message: fallback }))) as { message?: string };
+  return err.message ?? fallback;
+}
+
 /**
  * @component RepurposePage
  * @description Shows AI-detected high-performing posts with cross-platform repurpose proposals and variant management.
@@ -31,57 +39,63 @@ interface RepurposeProposal {
 export default function RepurposePage() {
   const { user } = useAuth();
   const accountId = ((user as Record<string, unknown> | null)?.accountId as string) ?? "";
-  const [proposals, setProposals] = useState<RepurposeProposal[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<Record<string, "approve" | "reject" | null>>(
-    {}
-  );
+  const queryClient = useQueryClient();
 
-  const fetchProposals = useCallback(async () => {
-    if (!accountId) return;
-    setLoading(true);
-    try {
+  const { data: proposals = [], isLoading } = useQuery({
+    queryKey: ["repurpose-proposals", accountId],
+    queryFn: async (): Promise<RepurposeProposal[]> => {
       const res = await fetch(`/api/backend/repurpose/proposals?accountId=${accountId}`, {
         credentials: "include",
       });
-      if (res.ok) {
-        const data = (await res.json()) as { ok: boolean; value?: RepurposeProposal[] };
-        if (data.ok && data.value) setProposals(data.value);
+      if (!res.ok) {
+        throw new Error(await parseRepurposeError(res, "Failed to load proposals"));
       }
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId]);
+      const data = (await res.json()) as { ok: boolean; value?: RepurposeProposal[] };
+      if (!data.ok) return [];
+      return data.value ?? [];
+    },
+    enabled: !!accountId,
+  });
 
-  const handleApproval = useCallback(
-    async (proposalId: string, action: "approve" | "reject") => {
-      setActionLoading((prev) => ({ ...prev, [proposalId]: action }));
-      try {
-        const res = await fetch(`/api/backend/approvals/${proposalId}/${action}`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-        });
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({ message: "Request failed" }));
-          throw new Error((errData as { message?: string }).message ?? "Request failed");
-        }
-        await fetchProposals();
-      } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : "Unknown error";
-        alert(`Failed to ${action} proposal: ${msg}`);
-      } finally {
-        setActionLoading((prev) => ({ ...prev, [proposalId]: null }));
+  const approvalMutation = useMutation({
+    mutationFn: async ({ proposalId, action }: { proposalId: string; action: ApprovalAction }) => {
+      const res = await fetch(`/api/backend/approvals/${proposalId}/${action}`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        throw new Error(await parseRepurposeError(res, "Request failed"));
       }
     },
-    [fetchProposals]
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["repurpose-proposals", accountId] });
+    },
+  });
+
+  const handleApproval = useCallback(
+    async (proposalId: string, action: ApprovalAction) => {
+      try {
+        await approvalMutation.mutateAsync({ proposalId, action });
+        toast({
+          title: action === "approve" ? "Proposal approved" : "Proposal rejected",
+        });
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : "Unknown error";
+        toast({
+          title: `Failed to ${action} proposal`,
+          description: msg,
+          variant: "destructive",
+        });
+      }
+    },
+    [approvalMutation]
   );
 
-  useEffect(() => {
-    fetchProposals();
-  }, [fetchProposals]);
-
   const pending = proposals.filter((p) => p.status === "PENDING");
+  const pendingVariables = approvalMutation.variables;
+  const pendingProposalId = approvalMutation.isPending ? pendingVariables?.proposalId : undefined;
+  const pendingAction = approvalMutation.isPending ? pendingVariables?.action : undefined;
 
   return (
     <div>
@@ -92,7 +106,7 @@ export default function RepurposePage() {
         </p>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="text-center py-8 text-muted-foreground">Loading...</div>
       ) : pending.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
@@ -120,34 +134,41 @@ export default function RepurposePage() {
               <div className="space-y-2">
                 {proposal.variants
                   .filter((v) => v.status === "PENDING")
-                  .map((variant) => (
-                    <div key={variant.id} className="rounded border p-3 bg-muted/30">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-medium">{variant.platform}</span>
-                        <div className="flex gap-1">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={actionLoading[proposal.id] != null}
-                            onClick={() => handleApproval(proposal.id, "approve")}
-                          >
-                            {actionLoading[proposal.id] === "approve" ? "Approving..." : "Approve"}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            disabled={actionLoading[proposal.id] != null}
-                            onClick={() => handleApproval(proposal.id, "reject")}
-                          >
-                            {actionLoading[proposal.id] === "reject" ? "Rejecting..." : "Reject"}
-                          </Button>
+                  .map((variant) => {
+                    const isThisPending = pendingProposalId === proposal.id;
+                    return (
+                      <div key={variant.id} className="rounded border p-3 bg-muted/30">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-medium">{variant.platform}</span>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={isThisPending}
+                              onClick={() => handleApproval(proposal.id, "approve")}
+                            >
+                              {isThisPending && pendingAction === "approve"
+                                ? "Approving..."
+                                : "Approve"}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={isThisPending}
+                              onClick={() => handleApproval(proposal.id, "reject")}
+                            >
+                              {isThisPending && pendingAction === "reject"
+                                ? "Rejecting..."
+                                : "Reject"}
+                            </Button>
+                          </div>
                         </div>
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {variant.content}
+                        </p>
                       </div>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {variant.content}
-                      </p>
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
             </div>
           ))}

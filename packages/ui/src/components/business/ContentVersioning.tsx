@@ -1,18 +1,9 @@
 /**
- * ContentVersioning -- orchestrator component for version history management.
- *
- * This file is the public entry point.  It re-exports types from
- * `contentVersioningTypes` for backwards-compatibility with consumers that
- * `import { ContentVersion, ContentVersioningProps } from "./ContentVersioning"`.
- *
- * All heavy logic lives in dedicated sub-modules:
- *   - useContentVersioning  (hook -- state + handlers)
- *   - VersionTimelineView   (timeline tab)
- *   - VersionCompactView    (compact / "All Versions" tab)
- *   - VersionCompareView    (side-by-side diff tab)
- *   - VersionDetailDialog   (single-version detail modal)
- *   - VersionRestoreDialog  (restore confirmation alert)
- *   - VersionFilterBar      (advanced filters + selection bar)
+ * @file ContentVersioning.tsx
+ * @description Orchestrator component for content version history — composes timeline, compact,
+ *              compare, detail, restore, and filter sub-components behind a single public entry.
+ * @component ContentVersioning
+ * @layer infrastructure
  */
 
 "use client";

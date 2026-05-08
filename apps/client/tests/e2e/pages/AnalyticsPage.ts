@@ -1,3 +1,8 @@
+/**
+ * @file AnalyticsPage.ts
+ * @description Tests for analytics page
+ * @layer infrastructure
+ */
 // Page type not used directly '@playwright/test';
 // Page type not used directly './BasePage';
 

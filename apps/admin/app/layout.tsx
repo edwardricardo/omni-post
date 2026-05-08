@@ -9,6 +9,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
+import { LoggerProvider } from "@observability/browser-logger";
 
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { AdminToaster } from "@/components/ui/AdminToaster";
@@ -27,12 +28,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       suppressHydrationWarning
     >
       <body className="font-sans antialiased">
-        <ThemeProvider>
-          <NextIntlClientProvider locale={locale} messages={messages}>
-            {children}
-            <AdminToaster />
-          </NextIntlClientProvider>
-        </ThemeProvider>
+        <LoggerProvider defaultContext={{ app: "admin" }}>
+          <ThemeProvider>
+            <NextIntlClientProvider locale={locale} messages={messages}>
+              {children}
+              <AdminToaster />
+            </NextIntlClientProvider>
+          </ThemeProvider>
+        </LoggerProvider>
       </body>
     </html>
   );

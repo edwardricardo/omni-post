@@ -4,17 +4,74 @@
  *              Verifies that publish() detects document media by URL extension,
  *              uses the document upload path, and falls back to regular media
  *              for non-document files.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { LinkedInAdapter } from "../src/LinkedInAdapter.js";
+import { LinkedInAdapter, type LinkedInApiClientFactory } from "../src/LinkedInAdapter.js";
+import type { LinkedInApiClient } from "../src/apiClient.js";
+import type { LinkedInCredentials } from "../src/types.js";
 import type { PublishInput } from "@ports/core";
 
 // ============================================================================
 // Test helpers
 // ============================================================================
+
+const VALID_CREDS: LinkedInCredentials = {
+  accessToken: "test-token",
+  refreshToken: "test-refresh",
+  personUrn: "urn:li:person:abc123",
+};
+
+interface FakeApiClient {
+  createPost: ReturnType<typeof vi.fn>;
+  initializeImageUpload: ReturnType<typeof vi.fn>;
+  initializeVideoUpload: ReturnType<typeof vi.fn>;
+  initializeDocumentUpload: ReturnType<typeof vi.fn>;
+  uploadMediaBinary: ReturnType<typeof vi.fn>;
+}
+
+function makeFakeApiClient(overrides: Partial<FakeApiClient> = {}): FakeApiClient {
+  return {
+    createPost: vi.fn(async () => ({
+      id: "urn:li:share:99999",
+      activity: "urn:li:activity:99999",
+    })),
+    initializeImageUpload: vi.fn(async () => ({
+      value: {
+        uploadUrlExpiresAt: Date.now() + 300000,
+        uploadUrl: "https://api.linkedin.com/upload/image/presigned-url",
+        image: "urn:li:image:img-001",
+      },
+    })),
+    initializeVideoUpload: vi.fn(async () => ({
+      value: {
+        uploadUrlExpiresAt: Date.now() + 300000,
+        uploadInstructions: [{ uploadUrl: "https://x", firstByte: 0, lastByte: 0 }],
+        video: "urn:li:video:vid-001",
+      },
+    })),
+    initializeDocumentUpload: vi.fn(async () => ({
+      value: {
+        uploadUrlExpiresAt: Date.now() + 300000,
+        uploadUrl: "https://api.linkedin.com/upload/document/presigned-url",
+        document: "urn:li:document:doc-001",
+      },
+    })),
+    uploadMediaBinary: vi.fn(async () => undefined),
+    ...overrides,
+  };
+}
+
+function makeAdapter(client: FakeApiClient = makeFakeApiClient()): {
+  adapter: LinkedInAdapter;
+  client: FakeApiClient;
+} {
+  const factory: LinkedInApiClientFactory = () => client as unknown as LinkedInApiClient;
+  const adapter = new LinkedInAdapter({ apiClientFactory: factory });
+  return { adapter, client };
+}
 
 function makePublishInput(overrides?: Partial<PublishInput>): PublishInput {
   return {
@@ -28,81 +85,27 @@ function makePublishInput(overrides?: Partial<PublishInput>): PublishInput {
   };
 }
 
-function makeCredentialsResult() {
-  return {
-    ok: true as const,
-    value: {
-      accessToken: "test-token",
-      refreshToken: "test-refresh",
-      personUrn: "urn:li:person:abc123",
-    },
-  };
-}
-
 // ============================================================================
 // Document Upload Tests
 // ============================================================================
 
 describe("LinkedInAdapter - Document Upload", { concurrency: 1 }, () => {
-  let adapter: LinkedInAdapter;
-  let mockCreatePost: ReturnType<typeof vi.fn>;
-  let mockInitializeDocumentUpload: ReturnType<typeof vi.fn>;
-  let mockUploadMediaBinary: ReturnType<typeof vi.fn>;
-  let mockInitializeImageUpload: ReturnType<typeof vi.fn>;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new LinkedInAdapter();
-
-    mockCreatePost = vi.fn(async () => ({
-      id: "urn:li:share:99999",
-      activity: "urn:li:activity:99999",
-    }));
-
-    mockInitializeDocumentUpload = vi.fn(async () => ({
-      value: {
-        uploadUrlExpiresAt: Date.now() + 300000,
-        uploadUrl: "https://api.linkedin.com/upload/document/presigned-url",
-        document: "urn:li:document:doc-001",
-      },
-    }));
-
-    mockUploadMediaBinary = vi.fn(async () => undefined);
-
-    mockInitializeImageUpload = vi.fn(async () => ({
-      value: {
-        uploadUrlExpiresAt: Date.now() + 300000,
-        uploadUrl: "https://api.linkedin.com/upload/image/presigned-url",
-        image: "urn:li:image:img-001",
-      },
-    }));
-
-    (adapter as Record<string, unknown>).createApiClient = () => ({
-      createPost: mockCreatePost,
-      initializeDocumentUpload: mockInitializeDocumentUpload,
-      initializeImageUpload: mockInitializeImageUpload,
-      uploadMediaBinary: mockUploadMediaBinary,
-    });
-
-    (adapter as Record<string, unknown>).getCredentials = vi.fn(async () =>
-      makeCredentialsResult()
-    );
 
     // Mock global fetch for document/image binary download
-    const originalFetch = globalThis.fetch;
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (url: RequestInfo | URL) => {
-      if (typeof url === "string" && url.startsWith("https://api.linkedin.com")) {
-        return originalFetch(url);
-      }
-      return {
-        ok: true,
-        arrayBuffer: async () => new ArrayBuffer(1024),
-        headers: new Headers({ "content-type": "application/pdf" }),
-      } as Response;
-    });
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      async () =>
+        ({
+          ok: true,
+          arrayBuffer: async () => new ArrayBuffer(1024),
+          headers: new Headers({ "content-type": "application/pdf" }),
+        }) as Response
+    );
   });
 
   it("publishes document post when media URL has .pdf extension", async () => {
+    const { adapter, client } = makeAdapter();
     const input = makePublishInput({
       post: {
         body: "See the attached PDF",
@@ -111,19 +114,20 @@ describe("LinkedInAdapter - Document Upload", { concurrency: 1 }, () => {
       },
     });
 
-    const result = await adapter.publish(input);
+    const result = await adapter.publish(input, VALID_CREDS);
 
     assert.ok(result.ok, "Publish should succeed for document media");
     if (result.ok) {
       assert.strictEqual(result.value.providerPostId, "urn:li:share:99999");
     }
 
-    assert.strictEqual(mockInitializeDocumentUpload.mock.calls.length, 1);
-    const ownerUrn = mockInitializeDocumentUpload.mock.calls[0]?.[0] as string;
+    assert.strictEqual(client.initializeDocumentUpload.mock.calls.length, 1);
+    const ownerUrn = client.initializeDocumentUpload.mock.calls[0]?.[0] as string;
     assert.strictEqual(ownerUrn, "urn:li:person:abc123");
   });
 
   it("publishes document post when media URL has .pptx extension", async () => {
+    const { adapter, client } = makeAdapter();
     const input = makePublishInput({
       post: {
         body: "Slides attached",
@@ -132,13 +136,14 @@ describe("LinkedInAdapter - Document Upload", { concurrency: 1 }, () => {
       },
     });
 
-    const result = await adapter.publish(input);
+    const result = await adapter.publish(input, VALID_CREDS);
 
     assert.ok(result.ok, "Publish should succeed for PPTX media");
-    assert.strictEqual(mockInitializeDocumentUpload.mock.calls.length, 1);
+    assert.strictEqual(client.initializeDocumentUpload.mock.calls.length, 1);
   });
 
   it("publishes document post when media URL has .docx extension", async () => {
+    const { adapter, client } = makeAdapter();
     const input = makePublishInput({
       post: {
         body: "Word doc attached",
@@ -147,13 +152,14 @@ describe("LinkedInAdapter - Document Upload", { concurrency: 1 }, () => {
       },
     });
 
-    const result = await adapter.publish(input);
+    const result = await adapter.publish(input, VALID_CREDS);
 
     assert.ok(result.ok, "Publish should succeed for DOCX media");
-    assert.strictEqual(mockInitializeDocumentUpload.mock.calls.length, 1);
+    assert.strictEqual(client.initializeDocumentUpload.mock.calls.length, 1);
   });
 
   it("sets document content with URN and alt-based title in payload", async () => {
+    const { adapter, client } = makeAdapter();
     const input = makePublishInput({
       post: {
         body: "Doc post",
@@ -168,16 +174,17 @@ describe("LinkedInAdapter - Document Upload", { concurrency: 1 }, () => {
       },
     });
 
-    await adapter.publish(input);
+    await adapter.publish(input, VALID_CREDS);
 
-    assert.strictEqual(mockCreatePost.mock.calls.length, 1);
-    const payload = mockCreatePost.mock.calls[0]?.[0] as Record<string, unknown>;
+    assert.strictEqual(client.createPost.mock.calls.length, 1);
+    const payload = client.createPost.mock.calls[0]?.[0] as Record<string, unknown>;
     const content = payload.content as { media: { id: string; title: string } };
     assert.strictEqual(content.media.id, "urn:li:document:doc-001");
     assert.strictEqual(content.media.title, "Q4 Report");
   });
 
   it("uses 'Document' as default title when alt is not provided", async () => {
+    const { adapter, client } = makeAdapter();
     const input = makePublishInput({
       post: {
         body: "Doc without alt",
@@ -186,14 +193,15 @@ describe("LinkedInAdapter - Document Upload", { concurrency: 1 }, () => {
       },
     });
 
-    await adapter.publish(input);
+    await adapter.publish(input, VALID_CREDS);
 
-    const payload = mockCreatePost.mock.calls[0]?.[0] as Record<string, unknown>;
+    const payload = client.createPost.mock.calls[0]?.[0] as Record<string, unknown>;
     const content = payload.content as { media: { id: string; title: string } };
     assert.strictEqual(content.media.title, "Document");
   });
 
   it("falls back to regular media upload for non-document files", async () => {
+    const { adapter, client } = makeAdapter();
     const input = makePublishInput({
       post: {
         body: "Image post",
@@ -202,21 +210,22 @@ describe("LinkedInAdapter - Document Upload", { concurrency: 1 }, () => {
       },
     });
 
-    await adapter.publish(input);
+    await adapter.publish(input, VALID_CREDS);
 
     assert.strictEqual(
-      mockInitializeDocumentUpload.mock.calls.length,
+      client.initializeDocumentUpload.mock.calls.length,
       0,
       "Should not call document upload for .jpg"
     );
     assert.strictEqual(
-      mockInitializeImageUpload.mock.calls.length,
+      client.initializeImageUpload.mock.calls.length,
       1,
       "Should call image upload for .jpg"
     );
   });
 
   it("detects document extension case-insensitively", async () => {
+    const { adapter, client } = makeAdapter();
     const input = makePublishInput({
       post: {
         body: "Uppercase extension",
@@ -225,10 +234,10 @@ describe("LinkedInAdapter - Document Upload", { concurrency: 1 }, () => {
       },
     });
 
-    await adapter.publish(input);
+    await adapter.publish(input, VALID_CREDS);
 
     assert.strictEqual(
-      mockInitializeDocumentUpload.mock.calls.length,
+      client.initializeDocumentUpload.mock.calls.length,
       1,
       "Should detect .PDF as document"
     );

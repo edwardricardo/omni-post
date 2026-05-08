@@ -3,6 +3,10 @@
  *
  * Tests that the template engine module correctly re-exports
  * ServerTemplateEngine functionality.
+ *
+ * @file templateEngine.test.ts
+ * @description Tests for Template Engine Module - Re-exports
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";
@@ -177,9 +181,8 @@ describe("Template Engine Module - Re-exports", () => {
 
   it("should be importable with different import styles", async () => {
     // Named import
-    const { ServerTemplateEngine, templateEngine } = await import(
-      "../../src/lib/templates/templateEngine"
-    );
+    const { ServerTemplateEngine, templateEngine } =
+      await import("../../src/lib/templates/templateEngine");
     expect(ServerTemplateEngine).toBeTruthy();
     expect(templateEngine).toBeTruthy();
 

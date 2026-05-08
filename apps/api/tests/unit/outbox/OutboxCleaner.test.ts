@@ -3,10 +3,17 @@
  *
  * Part of P2-1: Transactional Outbox Implementation
  * Tier-0 tests with mocked Prisma.
+ *
+ * @file OutboxCleaner.test.ts
+ * @description Tests for OutboxCleaner
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { OutboxCleaner } from "../../../src/infrastructure/outbox/OutboxCleaner.js";
+
+const scheduler = new NoopBackgroundTaskScheduler();
 
 describe("OutboxCleaner", () => {
   let mockPrisma: { outboxEvent: { deleteMany: ReturnType<typeof import("node:test").mock.fn> } };
@@ -18,7 +25,7 @@ describe("OutboxCleaner", () => {
         deleteMany: vi.fn(async () => ({ count: 5 })),
       },
     };
-    cleaner = new OutboxCleaner(mockPrisma as never, 7);
+    cleaner = new OutboxCleaner(mockPrisma as never, scheduler, 7);
   });
 
   afterEach(() => {
@@ -67,7 +74,7 @@ describe("OutboxCleaner", () => {
   });
 
   it("should use custom retention days", async () => {
-    const customCleaner = new OutboxCleaner(mockPrisma as never, 30);
+    const customCleaner = new OutboxCleaner(mockPrisma as never, scheduler, 30);
     await customCleaner.clean();
 
     const args = mockPrisma.outboxEvent.deleteMany.mock.calls[0]?.[0] as {

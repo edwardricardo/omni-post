@@ -2,7 +2,7 @@
  * @file AdminToaster.tsx
  * @description Admin-specific Toaster that positions toasts at top-center.
  * Wraps @packages/ui Toast primitives with custom viewport positioning.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

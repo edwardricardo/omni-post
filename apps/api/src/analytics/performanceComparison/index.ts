@@ -8,8 +8,7 @@ import { prisma } from "@infra/prisma";
 import { createLogger } from "../../lib/logger.js";
 
 const analyticsLogger = createLogger("analytics");
-import { createRedisConnection } from "../../lib/redis.js";
-import type { Redis } from "ioredis";
+import type { CachePort } from "@ports/core";
 import type {
   TimeRange,
   MetricType,
@@ -35,13 +34,13 @@ import { TrendAnalyzer } from "./trendAnalyzer.js";
  * Main PerformanceComparator class that orchestrates performance analysis
  */
 export class PerformanceComparator {
-  private redis: Redis;
   private cachePrefix = "perf_comparison:";
   private cacheTTL = 900; // 15 minutes
 
-  constructor(private readonly projectRepository: ProjectQueryRepositoryPort) {
-    this.redis = createRedisConnection();
-  }
+  constructor(
+    private readonly projectRepository: ProjectQueryRepositoryPort,
+    private readonly cache: CachePort
+  ) {}
 
   /**
    * Generate comprehensive performance comparison
@@ -50,9 +49,15 @@ export class PerformanceComparator {
     options: PerformanceComparisonOptions
   ): Promise<PerformanceComparison> {
     const cacheKey = this.generateCacheKey(options);
-    const cached = await this.getCachedResult(cacheKey);
-    if (cached) return cached;
+    return this.cache.getOrSet(cacheKey, () => this.computePerformanceComparison(options), {
+      ttlSeconds: this.cacheTTL,
+      tags: ["analytics:performance"],
+    });
+  }
 
+  private async computePerformanceComparison(
+    options: PerformanceComparisonOptions
+  ): Promise<PerformanceComparison> {
     try {
       const { startDate, endDate } = this.calculateDateRange(
         options.timeRange,
@@ -118,7 +123,7 @@ export class PerformanceComparator {
         keyInsights,
       });
 
-      const result: PerformanceComparison = {
+      return {
         currentPerformance,
         industryBenchmarks,
         competitorComparisons,
@@ -128,9 +133,6 @@ export class PerformanceComparator {
         keyInsights,
         recommendations,
       };
-
-      await this.cacheResult(cacheKey, result);
-      return result;
     } catch (error) {
       analyticsLogger.error({ err: error }, "Error generating performance comparison");
       throw error;
@@ -438,24 +440,6 @@ export class PerformanceComparator {
 
   private generateCacheKey(options: PerformanceComparisonOptions): string {
     return `${this.cachePrefix}${options.accountId}_${options.projectId || "all"}_${options.timeRange}_${options.providers?.join(",") || "all"}`;
-  }
-
-  private async getCachedResult(key: string): Promise<PerformanceComparison | null> {
-    try {
-      const cached = await this.redis.get(key);
-      return cached ? JSON.parse(cached) : null;
-    } catch (error) {
-      analyticsLogger.error({ err: error }, "Error getting cached performance comparison");
-      return null;
-    }
-  }
-
-  private async cacheResult(key: string, result: PerformanceComparison): Promise<void> {
-    try {
-      await this.redis.setex(key, this.cacheTTL, JSON.stringify(result));
-    } catch (error) {
-      analyticsLogger.error({ err: error }, "Error caching performance comparison");
-    }
   }
 
   private calculateDateRange(

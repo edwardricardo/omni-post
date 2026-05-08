@@ -3,7 +3,7 @@
  * @description Hook for submitting Data Subject Access Requests (DSAR) to the
  *              public compliance endpoint. Wraps the POST /api/compliance/dsar
  *              call via the Next.js backend proxy.
- * @layer hooks
+ * @layer infrastructure
  */
 
 "use client";
@@ -36,6 +36,7 @@ export function useSubmitDsarRequest() {
     mutationFn: async (data: DsarSubmitParams): Promise<DsarSubmitResult> => {
       const res = await fetch("/api/backend/compliance/dsar", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });

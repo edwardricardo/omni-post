@@ -7,7 +7,7 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { ZodError } from "zod";
-import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
+import { BaseRouteHandler, type RouteContext } from "../../lib/route-handler/index.js";
 import type { AdminAuthService } from "./AdminAuthService.js";
 import type { PlatformCredentialService } from "../../security/PlatformCredentialService.js";
 import { requireAdminAuth, rateLimit } from "./adminAuthMiddleware";
@@ -27,6 +27,7 @@ import {
   validatePasswordSchema,
 } from "./adminAuthSchemas";
 import type { DeviceFingerprint } from "./adminAuthTypes";
+import { env } from "../../config/env.js";
 
 // ============================================================================
 // Route Handler Class
@@ -273,6 +274,8 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: new URLSearchParams({ secret: turnstileSecret, response: turnstileToken }),
+          // Cloudflare Turnstile docs: typical response < 1s. 5s timeout for safety.
+          signal: AbortSignal.timeout(5_000),
         });
         const verifyData = (await verifyRes.json()) as { success: boolean };
         if (!verifyData.success) {
@@ -506,7 +509,7 @@ const adminAuthRoutes: FastifyPluginAsync = async (fastify) => {
   // ==========================================================================
 
   // Login (with rate limiting — account lockout after 5 failed attempts provides primary brute-force protection)
-  const loginRateMax = process.env.NODE_ENV === "test" ? 100 : 15;
+  const loginRateMax = env.NODE_ENV === "test" ? 100 : 15;
   fastify.post(
     "/admin/auth/login",
     {

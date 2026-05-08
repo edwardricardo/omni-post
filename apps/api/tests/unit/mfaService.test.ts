@@ -7,7 +7,7 @@
  *              but writes via prisma.adminUser.update() directly. To keep both stores
  *              in sync, the mockPrisma.adminUser.update mock is overridden to also
  *              update the InMemoryAdminUserRepository.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";

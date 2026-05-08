@@ -6,6 +6,7 @@
  */
 
 import Redis from "ioredis";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import {
   DomainEvent,
   EventHandler,
@@ -17,6 +18,7 @@ import { logger } from "../lib/logger.js";
 
 interface PublisherConfig {
   redis: Redis;
+  scheduler: BackgroundTaskScheduler;
   subscriberRedis?: Redis; // Separate connection for subscriptions
   deadLetterQueue?: string;
   maxRetries?: number;
@@ -53,10 +55,12 @@ export class RedisEventPublisher implements IEventPublisher {
   private enableMetrics: boolean;
   private metrics: EventMetrics;
   private retryJobs = new Map<string, RetryJob>();
-  private healthCheckInterval?: NodeJS.Timeout;
+  private scheduler: BackgroundTaskScheduler;
+  private readonly healthTaskId = "event-publisher-health-check";
 
   constructor(config: PublisherConfig) {
     this.redis = config.redis;
+    this.scheduler = config.scheduler;
     this.subscriberRedis = config.subscriberRedis || config.redis.duplicate();
     this.deadLetterQueue = config.deadLetterQueue || "events:dead-letter";
     this.maxRetries = config.maxRetries || 3;
@@ -382,9 +386,7 @@ export class RedisEventPublisher implements IEventPublisher {
   async shutdown(): Promise<void> {
     logger.info("Shutting down event publisher");
 
-    if (this.healthCheckInterval) {
-      clearInterval(this.healthCheckInterval);
-    }
+    this.scheduler.unregister(this.healthTaskId);
 
     try {
       // Unsubscribe from all channels
@@ -569,18 +571,18 @@ export class RedisEventPublisher implements IEventPublisher {
   }
 
   /**
-   * Start health check interval
+   * Start health check interval via the centralised scheduler.
    */
   private startHealthCheck(): void {
-    this.healthCheckInterval = setInterval(async () => {
-      try {
+    this.scheduler.register(
+      this.healthTaskId,
+      async () => {
         const health = await this.healthCheck();
         if (health.status === "unhealthy") {
           logger.warn({ details: health.details }, "Event publisher health check failed");
         }
-      } catch (error) {
-        logger.error({ err: error }, "Health check error");
-      }
-    }, 30000).unref(); // Every 30 seconds
+      },
+      30000
+    );
   }
 }

@@ -2,7 +2,7 @@
  * @file RbacManager.tsx
  * @description Admin RBAC management panel for viewing roles, permissions, and users per role.
  *   Supports creating/deleting custom roles, editing descriptions, and managing permissions.
- * @layer presentation
+ * @layer infrastructure
  */
 
 "use client";
@@ -16,8 +16,7 @@ import { useCurrentUser } from "@/providers/AuthProvider";
 import { ApiError, getErrorMessage } from "@/lib/parseApiError";
 import { api, type RoleInfo } from "../../lib/apiClient";
 import { LoadingSpinner } from "../shared/LoadingSpinner";
-import { InputDialog } from "../ui/InputDialog";
-import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { InputDialog, ConfirmDialog } from "@packages/ui";
 import { Badge } from "../ui/Badge";
 import { ActionButton } from "../ui/ActionButton";
 import { PermissionGrid } from "./PermissionGrid";

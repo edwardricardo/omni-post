@@ -1,3 +1,8 @@
+/**
+ * @file PostCommandHandlers.delete.test.ts
+ * @description Tests for DeletePostCommandHandler
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, expect } from "vitest";
 import "./PostCommandHandlers.test-helpers.js";
 import {

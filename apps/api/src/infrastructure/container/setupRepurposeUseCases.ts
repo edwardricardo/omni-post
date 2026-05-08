@@ -8,7 +8,7 @@
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
-import type { QueuePort } from "@ports/core";
+import type { QueuePortRegistry } from "@ports/core";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { ApproveRepurposeVariantUseCase } from "../../application/ai/ApproveRepurposeVariantUseCase.js";
 import { RejectRepurposeVariantUseCase } from "../../application/ai/RejectRepurposeVariantUseCase.js";
@@ -75,7 +75,9 @@ export function setupRepurposeUseCases(container: Container): void {
       new DetectRepurposeCandidatesUseCase(
         new PrismaRepurposeDetectionAdapter(),
         new BullMQRepurposeJobDispatcher(
-          container.resolve<QueuePort>(TOKENS.QueuePort),
+          container
+            .resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
+            .forQueue(QUEUE_NAMES.GENERATE_REPURPOSE),
           QUEUE_NAMES.GENERATE_REPURPOSE
         ),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)

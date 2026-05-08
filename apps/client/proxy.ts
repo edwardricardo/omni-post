@@ -1,13 +1,11 @@
+/**
+ * @file proxy.ts
+ * @description Next.js 16 proxy for authentication — protects routes based on session cookie,
+ *              redirects unauthenticated users to login and authenticated users away from auth pages.
+ * @layer infrastructure
+ */
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-
-/**
- * Next.js 16 Proxy for Authentication
- *
- * Protects routes based on session cookie (set by Server Actions)
- * Redirects unauthenticated users to login
- * Redirects authenticated users away from auth pages
- */
 
 const publicPaths = ["/login", "/register", "/"];
 const authPaths = ["/login", "/register"];

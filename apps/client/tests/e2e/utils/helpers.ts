@@ -1,3 +1,8 @@
+/**
+ * @file helpers.ts
+ * @description E2E test helper utilities for client tests
+ * @layer infrastructure
+ */
 // Page type not used directly '@playwright/test';
 import path from "path";
 import fs from "fs/promises";

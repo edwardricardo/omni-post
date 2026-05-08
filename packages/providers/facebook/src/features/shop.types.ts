@@ -1,3 +1,9 @@
+/**
+ * @file shop.types.ts
+ * @description Shared type definitions for the Facebook Shop catalog, product, collection,
+ *              insights, and configuration interfaces used across shop.* modules.
+ * @layer infrastructure
+ */
 export interface FacebookProductImage {
   url: string;
   altText?: string;

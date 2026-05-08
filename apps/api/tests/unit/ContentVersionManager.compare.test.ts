@@ -1,3 +1,8 @@
+/**
+ * @file ContentVersionManager.compare.test.ts
+ * @description Tests for ContentVersionManager - compareVersions
+ * @layer infrastructure
+ */
 const _origConsoleError = console.error;
 const _origConsoleLog = console.log;
 const _origConsoleWarn = console.warn;
@@ -7,6 +12,7 @@ console.warn = () => {};
 
 import { describe, it, beforeEach, afterEach, afterAll, expect } from "vitest";
 import { ContentVersionManager } from "../../src/content/ContentVersionManager";
+import { InMemoryCacheAdapter } from "../../../../packages/adapters/cache-redis/src/in-memory-cache-adapter.js";
 import type { PrismaClient } from "@infra/prisma";
 import type Redis from "ioredis";
 import type { EventService } from "../../src/events/EventService";
@@ -46,6 +52,7 @@ describe("ContentVersionManager - compareVersions", () => {
       prisma: mockPrisma,
       redis: mockRedis as Redis,
       eventService: mockEventService as EventService,
+      cache: new InMemoryCacheAdapter(),
     });
 
     const result1 = await versionManager.createVersion(
@@ -277,6 +284,7 @@ describe("ContentVersionManager - getVersionHistory", () => {
       prisma: mockPrisma,
       redis: mockRedis as Redis,
       eventService: mockEventService as EventService,
+      cache: new InMemoryCacheAdapter(),
     });
 
     for (let i = 1; i <= 5; i++) {

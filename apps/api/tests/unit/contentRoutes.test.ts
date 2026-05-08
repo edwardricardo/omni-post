@@ -21,6 +21,10 @@
  *   POST /content/transform/recommendations
  *   POST /content/render/:provider
  *   POST /content/diff
+ *
+ * @file contentRoutes.test.ts
+ * @description Tests for contentRoutes Unit Tests
+ * @layer infrastructure
  */
 
 // Suppress console output during tests

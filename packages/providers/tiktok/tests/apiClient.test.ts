@@ -19,19 +19,31 @@ const { mockCbInstance } = vi.hoisted(() => {
   return { mockCbInstance: cb };
 });
 
-vi.mock("@adapters/external-apis", () => ({
-  createExternalApiCircuitBreaker: vi.fn(() => mockCbInstance),
-}));
-vi.mock("@adapters/fallback-strategies", () => ({
-  CommonFallbackStrategies: { METADATA_FALLBACK: {}, ANALYTICS_FALLBACK: {} },
-}));
-vi.mock("@providers/shared", () => ({
-  ProviderError: {
-    externalService: vi.fn((p: string, m: string) => new Error(`${p}: ${m}`)),
-    unauthorized: vi.fn((p: string, m: string) => new Error(`${p}: ${m}`)),
-    notFound: vi.fn((p: string, m: string) => new Error(`${p}: ${m}`)),
-  },
-}));
+vi.mock("@adapters/external-apis", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@adapters/external-apis")>();
+  return {
+    ...actual,
+    createExternalApiCircuitBreaker: vi.fn(() => mockCbInstance),
+  };
+});
+vi.mock("@adapters/fallback-strategies", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@adapters/fallback-strategies")>();
+  return {
+    ...actual,
+    CommonFallbackStrategies: { METADATA_FALLBACK: {}, ANALYTICS_FALLBACK: {} },
+  };
+});
+vi.mock("@providers/shared", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@providers/shared")>();
+  return {
+    ...actual,
+    ProviderError: {
+      externalService: vi.fn((p: string, m: string) => new Error(`${p}: ${m}`)),
+      unauthorized: vi.fn((p: string, m: string) => new Error(`${p}: ${m}`)),
+      notFound: vi.fn((p: string, m: string) => new Error(`${p}: ${m}`)),
+    },
+  };
+});
 vi.mock("prom-client", () => ({ Registry: class R {} }));
 vi.mock("axios", () => ({ default: { post: vi.fn(), get: vi.fn(), put: vi.fn() } }));
 vi.mock("@observability/logger", () => ({

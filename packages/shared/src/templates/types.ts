@@ -1,8 +1,8 @@
 /**
- * Template System Types
- *
- * Type definitions for the template system that are safe to import
- * in both client and server environments (no server-only dependencies).
+ * @file types.ts
+ * @description Template system type definitions (TemplateVariable and related shapes) safe for
+ *              both client and server environments (no server-only dependencies).
+ * @layer domain
  */
 
 export interface TemplateVariable {

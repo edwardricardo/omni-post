@@ -2,7 +2,7 @@
  * @file DataRetentionService.test.ts
  * @description Unit tests for DataRetentionService — automated data retention cleanup
  *              including audit log deletion and DSAR request expiration.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

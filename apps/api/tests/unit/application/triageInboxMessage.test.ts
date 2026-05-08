@@ -1,7 +1,7 @@
 /**
  * @file triageInboxMessage.test.ts
  * @description Unit tests for TriageInboxMessageUseCase.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

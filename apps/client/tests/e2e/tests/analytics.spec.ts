@@ -1,3 +1,8 @@
+/**
+ * @file analytics.spec.ts
+ * @description Tests for Analytics Dashboard
+ * @layer infrastructure
+ */
 import { test, expect } from "../config/test-setup";
 // Page type not used directly '../pages/AnalyticsPage';
 // Page type not used directly '../pages/DashboardPage';

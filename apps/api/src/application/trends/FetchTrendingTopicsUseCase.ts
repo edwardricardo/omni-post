@@ -7,6 +7,7 @@
  */
 
 import { type Result, ok, err } from "@shared/types";
+import type { CachePort } from "@ports/core";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 
 export interface TrendingTopic {
@@ -33,54 +34,27 @@ export interface TrendingDataPort {
   getConnectedPlatformsWithTrending(accountId: string): Promise<string[]>;
 }
 
-const cache = new Map<string, { data: FetchTrendingOutput; expiresAt: number }>();
-const CACHE_TTL_MS = 30 * 60 * 1000;
+const CACHE_TTL_SECONDS = 30 * 60;
+const CACHE_TTL_MS = CACHE_TTL_SECONDS * 1000;
 
 export class FetchTrendingTopicsUseCase implements UseCase<
   FetchTrendingInput,
   FetchTrendingOutput,
   UseCaseError
 > {
-  constructor(private readonly port: TrendingDataPort) {}
+  constructor(
+    private readonly port: TrendingDataPort,
+    private readonly cache: CachePort
+  ) {}
 
   async execute(input: FetchTrendingInput): Promise<Result<FetchTrendingOutput, UseCaseError>> {
     try {
       const cacheKey = `trends:${input.accountId}`;
-      const cached = cache.get(cacheKey);
-      if (cached && cached.expiresAt > Date.now()) {
-        return ok(cached.data);
-      }
-
-      const platforms =
-        input.platforms ?? (await this.port.getConnectedPlatformsWithTrending(input.accountId));
-      if (platforms.length === 0) {
-        return ok({ topics: [], cachedUntil: new Date(Date.now() + CACHE_TTL_MS) });
-      }
-
-      const allTopics: TrendingTopic[] = [];
-      for (const platform of platforms) {
-        try {
-          const topics = await this.port.fetchFromPlatform(platform, input.accountId);
-          allTopics.push(...topics);
-        } catch {
-          // Skip failing platforms — don't block the whole fetch
-        }
-      }
-
-      // Deduplicate by topic name
-      const seen = new Set<string>();
-      const deduped = allTopics.filter((t) => {
-        const key = t.topic.toLowerCase();
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-
-      const cachedUntil = new Date(Date.now() + CACHE_TTL_MS);
-      const result: FetchTrendingOutput = { topics: deduped, cachedUntil };
-
-      cache.set(cacheKey, { data: result, expiresAt: Date.now() + CACHE_TTL_MS });
-
+      const result = await this.cache.getOrSet<FetchTrendingOutput>(
+        cacheKey,
+        () => this.fetchTopics(input),
+        { ttlSeconds: CACHE_TTL_SECONDS }
+      );
       return ok(result);
     } catch (error: unknown) {
       return err(
@@ -91,5 +65,33 @@ export class FetchTrendingTopicsUseCase implements UseCase<
         )
       );
     }
+  }
+
+  private async fetchTopics(input: FetchTrendingInput): Promise<FetchTrendingOutput> {
+    const platforms =
+      input.platforms ?? (await this.port.getConnectedPlatformsWithTrending(input.accountId));
+    if (platforms.length === 0) {
+      return { topics: [], cachedUntil: new Date(Date.now() + CACHE_TTL_MS) };
+    }
+
+    const allTopics: TrendingTopic[] = [];
+    for (const platform of platforms) {
+      try {
+        const topics = await this.port.fetchFromPlatform(platform, input.accountId);
+        allTopics.push(...topics);
+      } catch {
+        // Skip failing platforms — don't block the whole fetch
+      }
+    }
+
+    const seen = new Set<string>();
+    const deduped = allTopics.filter((t) => {
+      const key = t.topic.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    return { topics: deduped, cachedUntil: new Date(Date.now() + CACHE_TTL_MS) };
   }
 }

@@ -3,7 +3,7 @@
  * @description Unit tests for AdminAuthService. Uses in-memory mocked Prisma
  *              stores via vi.hoisted() so no real database connection is required.
  *              Argon2 and JWT run for real to ensure correct crypto behavior.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";
@@ -376,7 +376,10 @@ const { mockModule, stores } = vi.hoisted(() => {
 // Module mocks (vi.mock is hoisted; mockModule is available via vi.hoisted)
 // ---------------------------------------------------------------------------
 
-vi.mock("@infra/prisma", () => mockModule);
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@infra/prisma")>();
+  return { ...actual, ...mockModule };
+});
 
 vi.mock("../../../src/lib/logger.js", () => {
   const noop = vi.fn();

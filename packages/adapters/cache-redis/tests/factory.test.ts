@@ -3,6 +3,10 @@
  * Tests the singleton factory pattern — no Redis connection made
  * because RedisCacheManager uses lazyConnect: true.
  * Tier 0: no DB, no Redis connectivity.
+ *
+ * @file factory.test.ts
+ * @description Tests for createCacheManager()
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";

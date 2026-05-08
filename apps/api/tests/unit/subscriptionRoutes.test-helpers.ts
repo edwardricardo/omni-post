@@ -1,3 +1,8 @@
+/**
+ * @file subscriptionRoutes.test-helpers.ts
+ * @description Test helpers for subscription routes test helpers
+ * @layer infrastructure
+ */
 import Fastify, { FastifyInstance } from "fastify";
 import { ZodTypeProvider, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 import { subscriptionRoutes } from "../../src/billing/subscriptionRoutes.js";

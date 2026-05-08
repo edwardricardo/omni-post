@@ -1,3 +1,19 @@
+/**
+ * @file index.ts
+ * @description Template provider adapter scaffold — a reference for implementing new provider
+ *              adapters. Copy this package, rename to `@providers/<name>`, then replace every
+ *              `// TEMPLATE:` placeholder with real provider-specific logic.
+ *
+ *              Structure mirrors the canonical adapters (`@providers/x`, `@providers/facebook`,
+ *              etc.): pure `ProviderAdapter` port implementation with render/publish/thread/
+ *              fetchAnalytics, all fallible operations return `Result<T, E>` from `@shared/types`.
+ *
+ *              IMPORTANT: this file intentionally reads credentials from `process.env` as a
+ *              scaffold-only pattern. Production providers receive credentials via the
+ *              credential injection mechanism (via DI / `input.channelId` lookup) — replace
+ *              before wiring a real adapter.
+ * @layer infrastructure
+ */
 import {
   ok,
   err,

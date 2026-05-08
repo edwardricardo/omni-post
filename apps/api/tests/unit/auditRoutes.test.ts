@@ -2,7 +2,7 @@
  * @file auditRoutes.test.ts
  * @description Unit tests for auditRoutes. Uses in-memory mocked Prisma stores
  *              and a real Fastify instance with full DI container.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";

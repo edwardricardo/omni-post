@@ -2,7 +2,7 @@
  * @file entities.account.test.ts
  * @description Unit tests for Account domain entity — tenant fields, slug validation,
  *              team/storage/recurring-post capacity checks, and tier limits.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach } from "vitest";

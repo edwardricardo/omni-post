@@ -3,7 +3,7 @@
  * @description TanStack Query hook for listing posts in the content library
  *   with pagination and optional sorting. Talks to the /posts endpoint via
  *   the Next.js /api/backend proxy.
- * @layer hooks
+ * @layer infrastructure
  */
 import { useQuery } from "@tanstack/react-query";
 

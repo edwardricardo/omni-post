@@ -3,7 +3,7 @@
  * @description TanStack Query hooks for multi-platform scheduling: listing
  *   available slots, optimal posting times, scheduling rules, and creating
  *   slots (single + bulk). All calls go through the Next.js /api/backend proxy.
- * @layer hooks
+ * @layer infrastructure
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type {

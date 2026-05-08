@@ -7,15 +7,16 @@
  *              NOTE: SSE cannot go through the Next.js proxy (it buffers the response).
  *              This hook connects directly to NEXT_PUBLIC_API_URL with withCredentials:true
  *              so the browser sends the customer-session cookie automatically.
- * @layer client-hooks
+ * @layer infrastructure
  */
 
 "use client";
 
 import { useEffect } from "react";
 import { useNotificationStore } from "@/lib/stores/notificationStore";
+import { env } from "../lib/env";
 
-const SSE_URL = `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"}/notifications/stream`;
+const SSE_URL = `${env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"}/notifications/stream`;
 const RECONNECT_DELAY_MS = 3_000;
 
 /**

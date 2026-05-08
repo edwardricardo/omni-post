@@ -1,10 +1,9 @@
 /**
  * @file page.tsx
- * @description Integration marketplace page.
- * @layer client-pages
+ * @description Integration marketplace page. Server Component — IntegrationMarketplace
+ * child is the Client Component boundary.
+ * @layer infrastructure
  */
-
-"use client";
 
 import { IntegrationMarketplace } from "@/components/integrations/IntegrationMarketplace";
 

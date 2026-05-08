@@ -3,7 +3,7 @@
  * @description Mutation-killing tests for FileUploadValidator.
  *              Targets survived mutants from Stryker: boundary conditions, each
  *              code branch, risk escalation, entropy, magic bytes, content patterns.
- * @layer testing
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

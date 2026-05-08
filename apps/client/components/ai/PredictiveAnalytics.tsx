@@ -48,7 +48,7 @@ const PredictiveAnalytics: React.FC<PredictiveAnalyticsProps> = ({
   const [activeTab, setActiveTab] = useState<AnalysisTab>(analysisType);
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>(timeframe);
 
-  const { predictions, roiForecasts, audienceInsights, competitorData, isLoading } =
+  const { predictions, roiForecasts, audienceInsights, competitorData, isLoading, isError, error } =
     usePredictiveData({
       accountId,
       platforms,
@@ -60,6 +60,12 @@ const PredictiveAnalytics: React.FC<PredictiveAnalyticsProps> = ({
     return <LoadingState />;
   }
 
+  // Backend endpoints currently respond with 501 NOT_IMPLEMENTED until the
+  // real ML/scoring services land. Surface that state explicitly instead of
+  // rendering empty tabs (which would silently look like "no insights yet").
+  const isNotImplemented =
+    isError && (error?.message.includes("501") || error?.message.includes("NOT_IMPLEMENTED"));
+
   return (
     <div className="bg-white rounded-lg shadow-lg">
       <AnalyticsHeader
@@ -68,6 +74,31 @@ const PredictiveAnalytics: React.FC<PredictiveAnalyticsProps> = ({
       />
 
       <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+
+      {isNotImplemented && (
+        <div
+          className="mx-6 mt-4 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"
+          role="status"
+        >
+          <p className="font-medium">Predictive analytics: backend in development</p>
+          <p className="mt-1 text-xs">
+            The four predictive endpoints (timing, audience, ROI, competitive) are scaffolded but
+            their implementation is pending. The dashboard will populate once the backend ships.
+          </p>
+        </div>
+      )}
+
+      {isError && !isNotImplemented && (
+        <div
+          className="mx-6 mt-4 rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-900"
+          role="alert"
+        >
+          <p className="font-medium">Failed to load predictive analytics</p>
+          <p className="mt-1 text-xs break-all">
+            {error?.message ?? "An unknown error occurred while contacting the backend."}
+          </p>
+        </div>
+      )}
 
       <div className="p-6">
         {activeTab === "performance" && <PerformanceTab predictions={predictions} />}

@@ -2,7 +2,7 @@
  * @file rbacRoutes.test.ts
  * @description Unit tests for rbacRoutes. Uses in-memory mocked Prisma stores
  *              and a real Fastify instance to test RBAC HTTP endpoint behavior.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";

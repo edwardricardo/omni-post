@@ -24,6 +24,7 @@ import type { CanonicalPost } from "@shared/types";
 import type { ProviderId, ProviderAdapter } from "../providers/providerAdapter.interface";
 import { EventService } from "../events/EventService";
 import { providerRegistry } from "../providers/providerRegistry";
+import { validateContentForLimits } from "@providers/shared";
 import { createLogger } from "../lib/logger.js";
 
 const log = createLogger("orchestration");
@@ -246,7 +247,11 @@ export class ConflictResolver {
         }
       }
 
-      const validation = await adapter.validateContent(adaptedContent);
+      const validation = await validateContentForLimits(
+        adaptedContent,
+        adapter.limits,
+        adapter.capabilities
+      );
       const requiresManualReview = validation.errors.some((e) => e.severity === "error");
 
       const platformAdaptation: PlatformAdaptation = {

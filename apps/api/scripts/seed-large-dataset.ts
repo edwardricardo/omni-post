@@ -1,3 +1,9 @@
+/**
+ * @file seed-large-dataset.ts
+ * @description Seed script generating a large dataset (500+ accounts with varying subscription tiers)
+ *              for performance and load testing scenarios.
+ * @layer infrastructure
+ */
 import { prisma } from "@infra/prisma";
 import { faker } from "@faker-js/faker";
 

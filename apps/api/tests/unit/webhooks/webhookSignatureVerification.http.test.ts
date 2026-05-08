@@ -1,3 +1,8 @@
+/**
+ * @file webhookSignatureVerification.http.test.ts
+ * @description Tests for Webhook HTTP route — signature enforcement at Fastify layer
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, afterAll, vi, expect } from "vitest";
 import Fastify from "fastify";
 import type { FastifyInstance } from "fastify";

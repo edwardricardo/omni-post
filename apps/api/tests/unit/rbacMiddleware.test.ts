@@ -5,6 +5,10 @@
  *
  * Coverage Target: 95%+
  * Test Count: 28
+ *
+ * @file rbacMiddleware.test.ts
+ * @description Tests for rbacMiddleware Tests
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi } from "vitest";

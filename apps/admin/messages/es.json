@@ -105,6 +105,7 @@
   },
   "errorPage": {
     "title": "Algo salio mal",
+    "genericMessage": "Ocurrio un error inesperado. Intenta de nuevo o contacta a soporte.",
     "tryAgain": "Intentar de nuevo"
   },
   "notFound": {
@@ -340,7 +341,6 @@
     "lastBill": "Ultima factura",
     "noPlan": "Sin plan",
     "mrrStat": "MRR",
-    "grandfatheredRevenue": "Ingresos con precio anterior",
     "expiringWarning": "{count} prueba{count, plural, one {} other {s}} por vencer en los proximos 7 dias",
     "viewTrials": "Ver pruebas",
     "startDate": "Fecha de inicio",
@@ -430,9 +430,7 @@
     "mrr": {
       "monthlyRecurringRevenue": "Ingresos recurrentes mensuales",
       "activeSubscriptions": "Suscripciones activas",
-      "grandfatheredRevenue": "Ingresos con precio anterior",
       "noActiveSubscriptions": "Aun no hay suscripciones activas",
-      "grandfatheredDesc": "Ingresos a precios anteriores durante el periodo de notificacion",
       "activeBundles": "Paquetes activos",
       "bundleBaseMrr": "MRR base de paquetes",
       "totalProviderTiers": "Niveles de proveedor totales"

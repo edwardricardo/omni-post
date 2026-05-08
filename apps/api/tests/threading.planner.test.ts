@@ -3,6 +3,10 @@
  *
  * Tests the thread planning logic for splitting content into multiple tweets
  * with proper character limits, media distribution, and thread indicators.
+ *
+ * @file threading.planner.test.ts
+ * @description Tests for Thread Planner
+ * @layer infrastructure
  */
 
 import { describe, it } from "node:test";

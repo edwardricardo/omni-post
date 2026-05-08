@@ -1,8 +1,8 @@
 /**
- * Provider Configuration - Single Source of Truth
- *
- * This file defines all provider constraints, capabilities, and metadata.
- * It should be imported by both frontend and backend code to ensure consistency.
+ * @file providerConfig.ts
+ * @description Single source of truth for provider constraints, capabilities, and metadata —
+ *              imported by frontend and backend to ensure consistent validation everywhere.
+ * @layer domain
  */
 
 export type ProviderId =

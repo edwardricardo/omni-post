@@ -22,6 +22,10 @@
  * Coverage Target: 95%+
  *
  * @module tests/unit/fileUploadValidator
+ *
+ * @file fileUploadValidator.test.ts
+ * @description Tests for FileUploadValidator
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

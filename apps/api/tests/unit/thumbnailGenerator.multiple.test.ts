@@ -2,6 +2,10 @@
  * Unit Tests for ThumbnailGenerator -- Multiple Thumbnails
  * Tests generateMultipleThumbnails() with specific positions,
  * count-based even distribution, and single-thumbnail fallback.
+ *
+ * @file thumbnailGenerator.multiple.test.ts
+ * @description Tests for ThumbnailGenerator - Multiple Thumbnails
+ * @layer infrastructure
  */
 import { describe, it, beforeEach, expect } from "vitest";
 import { ThumbnailGenerator, type ThumbnailOptions } from "../../src/video/thumbnailGenerator";

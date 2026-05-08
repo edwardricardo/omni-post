@@ -5,7 +5,19 @@
  * @layer infrastructure
  */
 
-import { CacheTTL, RouteCacheOptions } from "@adapters/cache-redis";
+import { CacheTTL, type CacheOptions } from "@adapters/cache-redis";
+
+/**
+ * Per-route cache options consumed by `autoCacheMiddleware`. Extends the
+ * package's `CacheOptions` with route-level toggles (enable/disable, custom
+ * key pattern, vary-by parameters, invalidation triggers).
+ */
+export interface RouteCacheOptions extends CacheOptions {
+  enabled?: boolean;
+  keyPattern?: string;
+  varyBy?: string[];
+  invalidateOn?: string[];
+}
 
 /**
  * Cache configuration for specific API endpoints
@@ -252,8 +264,8 @@ export function shouldCacheRoute(method: string, route: string): boolean {
 export function generateApiCacheKey(
   method: string,
   route: string,
-  params: Record<string, any> = {},
-  query: Record<string, any> = {},
+  params: Record<string, unknown> = {},
+  query: Record<string, unknown> = {},
   headers: Record<string, string> = {},
   userId?: string
 ): string {

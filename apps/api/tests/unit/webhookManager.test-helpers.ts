@@ -2,7 +2,7 @@
  * @file webhookManager.test-helpers.ts
  * @description Shared test helpers for WebhookManager unit tests.
  *              Uses in-memory stores instead of real DB/Redis connections.
- * @layer test
+ * @layer infrastructure
  */
 
 import { vi } from "vitest";

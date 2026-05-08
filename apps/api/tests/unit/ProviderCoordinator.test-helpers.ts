@@ -1,8 +1,21 @@
+/**
+ * @file ProviderCoordinator.test-helpers.ts
+ * @description Test helpers for provider coordinator test helpers
+ * @layer infrastructure
+ */
 import type { PrismaClient } from "@infra/prisma";
 import type Redis from "ioredis";
 import type { EventService } from "../../src/events/EventService.js";
 import type { CanonicalPost } from "@shared/types";
 import type { ProviderId, ProviderAdapter } from "../../src/providers/providerAdapter.interface.js";
+import {
+  NoopBackgroundTaskScheduler,
+  type BackgroundTaskScheduler,
+} from "@observability/background-scheduler";
+
+export function createMockScheduler(): BackgroundTaskScheduler {
+  return new NoopBackgroundTaskScheduler();
+}
 
 export interface MockProviderAdapter extends ProviderAdapter {
   healthCheck(): Promise<{ ok: boolean; value?: { latency?: number } }>;

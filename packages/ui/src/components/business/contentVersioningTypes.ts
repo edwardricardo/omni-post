@@ -1,12 +1,8 @@
 /**
- * Content Versioning — shared types and pure utility functions.
- *
- * Exports `ContentVersion` and `ContentVersioningProps` interfaces used by the
- * ContentVersioning orchestrator and its two sub-view components
- * (VersionTimelineView, VersionCompactView).
- *
- * Pure helpers that require no React are kept here so they can be imported by
- * all four files without creating circular dependencies.
+ * @file contentVersioningTypes.ts
+ * @description Shared types (ContentVersion, ContentVersioningProps) and pure utility helpers
+ *              consumed by ContentVersioning and its sub-views without circular dependencies.
+ * @layer infrastructure
  */
 
 import { format, formatDistanceToNow } from "date-fns";
@@ -160,11 +156,12 @@ export const getVersionMedia = (version: ContentVersion) =>
 
 /**
  * Format a date for display inside a version card.
- * Returns a locale string like "Jan 5, 2026, 10:30 AM".
+ * Uses the browser/runtime locale (passes `undefined` to `Intl.DateTimeFormat`)
+ * so the output respects the user's language and region preferences.
  */
 export const formatVersionDate = (date: Date | string): string => {
   const dateObj = typeof date === "string" ? new Date(date) : date;
-  return dateObj.toLocaleDateString("en-US", {
+  return dateObj.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
     year: "numeric",

@@ -4,6 +4,10 @@
  * Tests content adaptation for Facebook (long-form content, link preservation),
  * YouTube (video handling, long descriptions), TikTok (vertical video, caption limits),
  * and simultaneous multi-provider adaptation.
+ *
+ * @file PlatformContentAdapter.platforms.test.ts
+ * @description Tests for PlatformContentAdapter - Facebook, YouTube, TikTok, Multi
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, beforeEach, afterAll, expect, vi } from "vitest";

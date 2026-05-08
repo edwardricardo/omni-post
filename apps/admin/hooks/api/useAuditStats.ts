@@ -2,7 +2,7 @@
  * @file useAuditStats.ts
  * @description TanStack Query hook for fetching audit log statistics.
  *   Used by the /logs page to display summary stat cards.
- * @layer presentation
+ * @layer infrastructure
  */
 
 import { useQuery } from "@tanstack/react-query";

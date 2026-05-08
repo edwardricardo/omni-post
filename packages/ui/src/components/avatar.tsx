@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file avatar.tsx
+ * @description Radix-based Avatar primitives (Avatar, AvatarImage, AvatarFallback, AvatarInitial)
+ *              for user profile displays with image fallback behaviour.
+ * @component Avatar, AvatarImage, AvatarFallback, AvatarInitial
+ * @layer infrastructure
+ */
 import * as React from "react";
 import { Avatar as AvatarPrimitive } from "radix-ui";
 

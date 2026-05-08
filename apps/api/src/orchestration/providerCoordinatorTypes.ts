@@ -98,7 +98,7 @@ export interface CoordinationJob {
   >;
   startedAt: Date;
   completedAt?: Date;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 /** Internal provider node used by ProviderCoordinator. */

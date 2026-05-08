@@ -1,3 +1,8 @@
+/**
+ * @file aiRoutes.test-helpers.ts
+ * @description Test helpers for ai routes test helpers
+ * @layer infrastructure
+ */
 import Fastify, { FastifyInstance } from "fastify";
 import { vi } from "vitest";
 import aiRoutes from "../../src/ai/routes.js";

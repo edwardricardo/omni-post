@@ -1,3 +1,8 @@
+/**
+ * @file run.ts
+ * @description Tests for run
+ * @layer infrastructure
+ */
 // Test aggregator with proper async handling and timeout management
 
 // Test configuration
@@ -43,7 +48,11 @@ const TEST_MODULES: TestModule[] = [
   { name: "Provider Registry", path: "./providerRegistry.test.ts", enabled: true },
 
   // Integration Tests (restored files)
-  { name: "Phase 4C Integration", path: "./phase4c-integration.test.ts", enabled: true },
+  {
+    name: "Universal Client Dashboard Integration",
+    path: "./universal-client-dashboard.integration.test.ts",
+    enabled: true,
+  },
 ];
 
 interface TestResult {

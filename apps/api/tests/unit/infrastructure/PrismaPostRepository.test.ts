@@ -4,6 +4,10 @@
  * Part of FASE H12: Hexagonal Architecture - Soft Delete + Post Adapter
  * Tests PrismaPostRepository in isolation using a mocked PrismaClient.
  * Tier 0: No database required.
+ *
+ * @file PrismaPostRepository.test.ts
+ * @description Tests for PrismaPostRepository
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, beforeAll, afterAll, vi, expect } from "vitest";

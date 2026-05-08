@@ -5,6 +5,8 @@
  *   BYOK/pool routing and rate limiting.
  * @layer infrastructure
  */
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+import type { CachePort } from "@ports/core";
 import { BaseService } from "../services/BaseService.js";
 import { AppError } from "../lib/errors/AppError.js";
 import { AIOrchestrator } from "./orchestrator.js";
@@ -57,7 +59,11 @@ interface SmartAnalysisResult {
 export class AIService extends BaseService {
   private adminOrchestrator: AIOrchestrator | null = null;
 
-  constructor(private readonly aiRequestService: AiRequestService) {
+  constructor(
+    private readonly aiRequestService: AiRequestService,
+    private readonly scheduler: BackgroundTaskScheduler,
+    private readonly cache: CachePort
+  ) {
     super("AIService");
   }
 
@@ -68,7 +74,7 @@ export class AIService extends BaseService {
    */
   private getAdminOrchestrator(): AIOrchestrator {
     if (!this.adminOrchestrator) {
-      this.adminOrchestrator = AIOrchestrator.createFromEnv();
+      this.adminOrchestrator = AIOrchestrator.createFromEnv(this.scheduler, this.cache);
     }
     return this.adminOrchestrator;
   }
@@ -293,9 +299,12 @@ export class AIService extends BaseService {
           if (!result.ok) {
             throw AppError.externalService("AI", `Variation generation failed: ${result.error}`);
           }
+          const variations = Array.isArray(result.value.response)
+            ? result.value.response.filter((v): v is string => typeof v === "string")
+            : [];
           return {
             success: true,
-            variations: result.value.response,
+            variations,
             metadata: {
               provider: result.value.provider,
               model: result.value.model,
@@ -314,14 +323,17 @@ export class AIService extends BaseService {
               : result.error?.message || "Variation generation failed";
           throw AppError.externalService("AI", errorMsg);
         }
-        return { success: true, variations: result.value, metadata: result.metadata };
+        const variations = Array.isArray(result.value)
+          ? result.value.filter((v): v is string => typeof v === "string")
+          : [];
+        return { success: true, variations, metadata: result.metadata };
       }
     );
   }
 
   /**
    * @method generateImage
-   * @description Generates an image via the admin orchestrator (DALL-E 3).
+   * @description Generates an image via the admin orchestrator using OpenAI image generation.
    *   Image generation always uses pool credentials (no BYOK for images).
    */
   async generateImage(options: ImageGenerationOptions): Promise<AIResponse<ImageGenerationResult>> {
@@ -465,7 +477,7 @@ export class AIService extends BaseService {
   async clearCache() {
     return this.execute({ operation: "clearCache" }, async () => {
       const orchestrator = this.getAdminOrchestrator();
-      orchestrator.clearCache();
+      await orchestrator.clearCache();
       return { success: true, message: "Cache cleared successfully" };
     });
   }

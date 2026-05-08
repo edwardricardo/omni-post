@@ -9,7 +9,7 @@
 import { randomUUID } from "crypto";
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
+import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { CreateNotificationUseCase } from "../application/notifications/CreateNotificationUseCase.js";
@@ -22,6 +22,7 @@ import type { GetUnreadCountQuery } from "../application/notifications/GetUnread
 import type { NotificationBroadcaster } from "../services/NotificationBroadcaster.js";
 import type { NotificationPreferenceRepository } from "../domain/repositories/NotificationRepository.js";
 import { NOTIFICATION_TYPES } from "../domain/value-objects/NotificationType.js";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 
 // --- Zod Schemas ---
 
@@ -76,7 +77,8 @@ class NotificationRouteHandler extends BaseRouteHandler {
     private readonly markAllReadUseCase: MarkAllNotificationsReadUseCase,
     private readonly unreadCountQuery: GetUnreadCountQuery,
     private readonly preferenceRepo: NotificationPreferenceRepository,
-    private readonly broadcaster: NotificationBroadcaster
+    private readonly broadcaster: NotificationBroadcaster,
+    private readonly scheduler: BackgroundTaskScheduler
   ) {
     super();
   }
@@ -325,23 +327,24 @@ class NotificationRouteHandler extends BaseRouteHandler {
       }
     });
 
-    // Send heartbeat every 30 seconds
-    const heartbeat = setInterval(() => {
-      try {
-        reply.raw.write(": heartbeat\n\n");
-      } catch {
-        clearInterval(heartbeat);
-        this.broadcaster.unsubscribe(subId);
-      }
-    }, 30_000);
-
-    if (heartbeat.unref) {
-      heartbeat.unref();
-    }
+    // Send heartbeat every 30 seconds. Task ID is unique per SSE connection via subId.
+    const heartbeatTaskId = `notification-stream-heartbeat-${subId}`;
+    this.scheduler.register(
+      heartbeatTaskId,
+      () => {
+        try {
+          reply.raw.write(": heartbeat\n\n");
+        } catch {
+          this.scheduler.unregister(heartbeatTaskId);
+          this.broadcaster.unsubscribe(subId);
+        }
+      },
+      30_000
+    );
 
     // Cleanup on client disconnect
     request.raw.on("close", () => {
-      clearInterval(heartbeat);
+      this.scheduler.unregister(heartbeatTaskId);
       this.broadcaster.unsubscribe(subId);
     });
   }
@@ -368,6 +371,7 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
   const broadcaster = app.container.resolve<NotificationBroadcaster>(
     TOKENS.NotificationBroadcaster
   );
+  const scheduler = app.container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler);
 
   const handler = new NotificationRouteHandler(
     createUseCase,
@@ -376,7 +380,8 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
     markAllReadUseCase,
     unreadCountQuery,
     preferenceRepo,
-    broadcaster
+    broadcaster,
+    scheduler
   );
 
   // List notifications with cursor pagination

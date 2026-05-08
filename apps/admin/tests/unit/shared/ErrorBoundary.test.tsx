@@ -5,7 +5,12 @@
  * - Normal children render correctly
  * - Errors are caught and fallback UI is shown
  * - Custom fallback is respected
- * - Error message is displayed
+ * - Raw error.message is sanitized in non-development environments (security)
+ * - Raw error.message is shown in development (debug friction)
+ *
+ * @file ErrorBoundary.test.tsx
+ * @description Tests for ErrorBoundary
+ * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -18,6 +23,8 @@ function ThrowingChild({ shouldThrow }: { shouldThrow: boolean }) {
   }
   return <div>Child rendered successfully</div>;
 }
+
+const GENERIC_MESSAGE = "Something went wrong. Please try again or contact support.";
 
 describe("ErrorBoundary", () => {
   // Suppress console.error for expected throws in tests
@@ -38,14 +45,34 @@ describe("ErrorBoundary", () => {
     expect(screen.getByText("Child rendered successfully")).toBeInTheDocument();
   });
 
-  it("shows default error UI when child throws", () => {
+  it("shows sanitized generic message when child throws in non-dev env", () => {
+    // NODE_ENV is "test" by default in vitest, which is treated as non-development.
     render(
       <ErrorBoundary>
         <ThrowingChild shouldThrow={true} />
       </ErrorBoundary>
     );
     expect(screen.getByText("Error")).toBeInTheDocument();
-    expect(screen.getByText("Test error message")).toBeInTheDocument();
+    // Raw "Test error message" MUST NOT leak — sanitized to generic copy.
+    expect(screen.queryByText("Test error message")).not.toBeInTheDocument();
+    expect(screen.getByText(GENERIC_MESSAGE)).toBeInTheDocument();
+  });
+
+  it("shows raw error.message when NODE_ENV === 'development'", () => {
+    const original = process.env.NODE_ENV;
+    vi.stubEnv("NODE_ENV", "development");
+    try {
+      render(
+        <ErrorBoundary>
+          <ThrowingChild shouldThrow={true} />
+        </ErrorBoundary>
+      );
+      expect(screen.getByText("Test error message")).toBeInTheDocument();
+      expect(screen.queryByText(GENERIC_MESSAGE)).not.toBeInTheDocument();
+    } finally {
+      vi.stubEnv("NODE_ENV", original ?? "test");
+      vi.unstubAllEnvs();
+    }
   });
 
   it("shows custom fallback when provided", () => {
@@ -59,7 +86,7 @@ describe("ErrorBoundary", () => {
     expect(screen.queryByText("Error")).not.toBeInTheDocument();
   });
 
-  it("shows fallback message when error has no message", () => {
+  it("shows generic message when error has no message (non-dev)", () => {
     function ThrowEmpty(): never {
       throw new Error();
     }
@@ -68,7 +95,7 @@ describe("ErrorBoundary", () => {
         <ThrowEmpty />
       </ErrorBoundary>
     );
-    expect(screen.getByText("Something went wrong")).toBeInTheDocument();
+    expect(screen.getByText(GENERIC_MESSAGE)).toBeInTheDocument();
   });
 
   it("does not render children when error occurred", () => {

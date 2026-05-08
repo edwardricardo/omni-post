@@ -1,3 +1,8 @@
+/**
+ * @file ContentVersionManager.create.test.ts
+ * @description Tests for ContentVersionManager - createVersion
+ * @layer infrastructure
+ */
 const _origConsoleError = console.error;
 const _origConsoleLog = console.log;
 const _origConsoleWarn = console.warn;
@@ -7,6 +12,7 @@ console.warn = () => {};
 
 import { describe, it, beforeEach, afterEach, afterAll, expect } from "vitest";
 import { ContentVersionManager } from "../../src/content/ContentVersionManager";
+import { InMemoryCacheAdapter } from "../../../../packages/adapters/cache-redis/src/in-memory-cache-adapter.js";
 import type { PrismaClient } from "@infra/prisma";
 import type Redis from "ioredis";
 import type { EventService } from "../../src/events/EventService";
@@ -43,6 +49,7 @@ describe("ContentVersionManager - createVersion", () => {
       prisma: mockPrisma,
       redis: mockRedis as Redis,
       eventService: mockEventService as EventService,
+      cache: new InMemoryCacheAdapter(),
     });
   });
 
@@ -204,6 +211,7 @@ describe("ContentVersionManager - createVersion", () => {
           },
         } as MockRedis as Redis,
         eventService: mockEventService as EventService,
+        cache: new InMemoryCacheAdapter(),
       });
 
       const result = await invalidManager.createVersion(
@@ -235,6 +243,7 @@ describe("ContentVersionManager - createBranch", () => {
       prisma: mockPrisma,
       redis: mockRedis as Redis,
       eventService: mockEventService as EventService,
+      cache: new InMemoryCacheAdapter(),
     });
 
     const result = await versionManager.createVersion(

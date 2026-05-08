@@ -5,6 +5,10 @@
  * Tier-0 tests — no real Redis or BullMQ connection required.
  * The BullMQ Queue is mocked via a minimal interface to verify correct
  * delegation without coupling the test to BullMQ internals.
+ *
+ * @file BullMQIntegrationPublisher.test.ts
+ * @description Tests for BullMQIntegrationPublisher
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";

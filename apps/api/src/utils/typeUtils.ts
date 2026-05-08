@@ -9,7 +9,7 @@
  * Removes properties with undefined values from an object to make it compatible
  * with exactOptionalPropertyTypes: true
  */
-export function removeUndefinedProperties<T extends Record<string, any>>(obj: T): Partial<T> {
+export function removeUndefinedProperties<T extends Record<string, unknown>>(obj: T): Partial<T> {
   const result: Partial<T> = {};
 
   for (const key in obj) {
@@ -31,7 +31,7 @@ export function conditionalProperty<T>(condition: boolean, value: T): T | {} {
 /**
  * Safely extract defined properties from parsed form data
  */
-export function extractDefinedProperties<T extends Record<string, any>>(
+export function extractDefinedProperties<T extends Record<string, unknown>>(
   source: T,
   allowedKeys: (keyof T)[]
 ): Partial<T> {

@@ -14,6 +14,10 @@
  * with its own prom-client.Registry to prevent breaker state leaking
  * between test groups. Opossum's internal rolling counters can cause
  * a breaker to open unexpectedly if error counts accumulate across tests.
+ *
+ * @file circuitBreaker.test.ts
+ * @description Tests for DEFAULT_EXTERNAL_API_OPTIONS
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";

@@ -2,7 +2,7 @@
  * @file entities.task.test.ts
  * @description Unit tests for Task domain entity covering creation,
  *   status transitions, validation, and serialisation.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";

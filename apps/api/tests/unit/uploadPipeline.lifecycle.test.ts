@@ -1,6 +1,10 @@
 /**
  * Unit Tests for VideoUploadPipeline — Session Lifecycle
  * Tests session cancellation, cleanup of old sessions, and chunk retry logic.
+ *
+ * @file uploadPipeline.lifecycle.test.ts
+ * @description Tests for VideoUploadPipeline - Session Cancellation
+ * @layer infrastructure
  */
 import { describe, it, beforeAll, expect } from "vitest";
 import { VideoUploadPipeline, type UploadDestination } from "../../src/video/uploadPipeline";

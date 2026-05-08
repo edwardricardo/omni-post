@@ -2,7 +2,7 @@
  * @file page.tsx
  * @component ReferralSettingsPage
  * @description Referral program settings page with share link and stats.
- * @layer client-pages
+ * @layer infrastructure
  */
 
 "use client";

@@ -1,3 +1,8 @@
+/**
+ * @file BasePage.ts
+ * @description Tests for base page
+ * @layer infrastructure
+ */
 // Page type not used directly '@playwright/test';
 
 /**

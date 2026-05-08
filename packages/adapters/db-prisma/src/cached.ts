@@ -1,3 +1,9 @@
+/**
+ * @file cached.ts
+ * @description RepoPort wrapper that transparently caches list/query results via the Redis cache
+ *              manager, invalidating by key prefix on mutations.
+ * @layer infrastructure
+ */
 import type {
   RepoPort,
   PublishLog,
@@ -135,6 +141,12 @@ export function createCachedRepositoryAdapter(
     enableReadyCheck: false,
     maxRetriesPerRequest: 3,
     lazyConnect: true,
+    // ioredis defaults: commandTimeout = null (forever), connectTimeout = 10000.
+    // 5 s on each so a hung Redis fails fast instead of stalling cached repo
+    // lookups; cache misses fall through to Prisma which has its own pool
+    // timeout.
+    commandTimeout: 5_000,
+    connectTimeout: 5_000,
   });
 
   // Handle Redis connection errors

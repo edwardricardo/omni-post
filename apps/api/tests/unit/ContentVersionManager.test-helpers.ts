@@ -1,3 +1,8 @@
+/**
+ * @file ContentVersionManager.test-helpers.ts
+ * @description Test helpers for content version manager test helpers
+ * @layer infrastructure
+ */
 import type { PrismaClient } from "@infra/prisma";
 import type Redis from "ioredis";
 import type { EventService } from "../../src/events/EventService";

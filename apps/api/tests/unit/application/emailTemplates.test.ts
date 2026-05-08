@@ -1,7 +1,7 @@
 /**
  * @file emailTemplates.test.ts
  * @description Unit tests for react-email notification templates.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it } from "vitest";

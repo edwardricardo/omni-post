@@ -392,13 +392,97 @@ execute(command: CreatePostCommand): Promise<Post>  // hides failure
 
 ## Logging & Observability
 
-- Use `@observability/logger` (Pino) — zero `console.*` in production code
-- **Domain layer: zero logging** — it is an infrastructure concern
-- Application layer: `WARN` or `ERROR` only
-- Logger injected via `LoggerPort` — never imported as a concrete class
-- Every log entry carries: `correlationId`, `layer`, `operation`
-- Correlation ID propagated to: logger → domain events → outbox → BullMQ job data → error responses
-- OTel SDK initialized as **first import** in entry points (`index.ts`) — before Fastify, before Prisma
+**All logger instances MUST come from one of three named factories — never `import pino from "pino"` directly outside the factory itself.** Each factory targets a distinct scope:
+
+| Where                                                              | Factory                                                | Why                                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `apps/api/src/**`                                                  | `createLogger(name)` from `apps/api/src/lib/logger.ts` | Applies redaction of sensitive fields (`password`, `token`, `apiKey`, `accessToken`, `refreshToken`, `authorization`, `cookie`, `set-cookie`), sets `service: "omnipost-api"` binding, and uses `pino.destination({ sync: true })` in tests to avoid open handles. |
+| `packages/**` (adapters, observability, providers, ui server-side) | `createLogger(name)` from `@observability/logger`      | Lightweight factory for shared packages. No redaction (packages don't see request payloads with credentials directly — that lives in `apps/api`).                                                                                                                  |
+| `apps/admin/**`, `apps/client/**`, `packages/ui/**` (browser code) | `useLogger(name)` from `@observability/browser-logger` | Browser-targeted; routes through a `BrowserLoggerPort` (Sentry/console adapter).                                                                                                                                                                                   |
+| `apps/workers/**`                                                  | Direct `pino()` factory in the worker entry file       | Workers have distinct ergonomics (separate process, per-worker config); inline factories accepted there.                                                                                                                                                           |
+| Tests                                                              | Anything (real factory, `vi.fn()`, or test double)     | No restrictions in `*.test.ts`.                                                                                                                                                                                                                                    |
+
+- **Zero `console.*` in production code** (JSDoc `@example` blocks excluded — those are documentation, not executed).
+- **Domain layer: zero logging** — logging is an infrastructure concern; domain stays pure.
+- Application layer: `WARN` or `ERROR` only — info/debug belong to infrastructure or routes.
+- Every log entry carries: `correlationId`, `layer`, `operation` where applicable.
+- Correlation ID propagated through: logger → domain events → outbox → BullMQ job data → error responses.
+- OTel SDK initialized as **first import** in entry points (`index.ts`) — before Fastify, before Prisma.
+- **Adding a new sensitive field?** Extend the `REDACT_PATHS` array in `apps/api/src/lib/logger.ts` and document the rationale alongside the threat being mitigated. Redact paths are case-sensitive — `req.headers.AUTHORIZATION` does not match `authorization`. See [docs/architecture/logging.md](docs/architecture/logging.md) for the threat-model and how to extend safely.
+
+---
+
+## Background Tasks
+
+**All recurring work MUST be registered via `BackgroundTaskScheduler` — never call `setInterval` / `setTimeout` directly in backend production code.**
+
+The scheduler lives at `packages/observability/background-scheduler/` and is wired into DI as `TOKENS.BackgroundTaskScheduler`. It applies `.unref()` by default, wraps callbacks with try/catch + logger, tracks in-flight async work, and is torn down on SIGINT/SIGTERM via `scheduler.shutdownAll()`.
+
+- **Register:** `scheduler.register(taskId, callback, intervalMs, options?)` — `taskId` is a stable string constant (one per task, one per class, not a UUID unless the task is per-connection), `callback` may be sync or async, errors go through `options.onError` or the injected logger.
+- **Unregister:** `scheduler.unregister(taskId)` on teardown (`stop()` / `shutdown()` / `destroy()` / `onClose` hook / request `close` event).
+- **Use `critical: true`** only when the task must NOT let the process exit while still running (rare — default is safer).
+- **Use `immediate: true`** when the first execution must fire synchronously instead of after one interval.
+- **Libraries in `packages/`** accept `scheduler?: BackgroundTaskScheduler` as an **optional** dependency to stay pure when consumed outside the DI graph. The app's composition root passes the scheduler explicitly.
+- **Workers** (apps/workers) construct their own `DefaultBackgroundTaskScheduler` and call `scheduler.shutdownAll()` in their `SIGINT`/`SIGTERM` handlers.
+- **Tests** inject a `NoopBackgroundTaskScheduler` and fire callbacks manually via `noopScheduler.triggerTask(taskId)` when the test needs to exercise the task body.
+
+The only legitimate raw `setInterval` call in the entire backend is inside `DefaultBackgroundTaskScheduler` itself. The CI fitness grep blocks new occurrences.
+
+---
+
+## Caching
+
+**All cross-pod cached state MUST go through `TOKENS.CachePort` — never instantiate `RedisCacheManager` outside the composition root, and never declare a per-class `private *Cache = new Map()`.**
+
+The cache port lives at `packages/ports/src/CachePort.ts`. Two adapters implement it: `RedisCacheAdapter` (production, wraps the singleton `RedisCacheManager` with L1 in-process LRU + L2 Redis + tag invalidation) and `InMemoryCacheAdapter` (tests + per-process scopes; pure `Map` + per-entry TTL + tag index, no I/O).
+
+| Scope                                                             | Adapter                | DI token                   |
+| ----------------------------------------------------------------- | ---------------------- | -------------------------- |
+| Cross-pod shared state (credentials, permissions, computed views) | `RedisCacheAdapter`    | `TOKENS.CachePort`         |
+| Underlying L1+L2 manager (singleton, advanced features)           | `RedisCacheManager`    | `TOKENS.RedisCacheManager` |
+| Tests (deterministic, no Redis)                                   | `InMemoryCacheAdapter` | injected directly per test |
+
+- **Inject `CachePort`** — never `RedisCacheManager` — into application services. The port surface is `get`, `set`, `getOrSet`, `delete`, `invalidateByTag`, `has`. Use `getOrSet(key, factory, options)` for cache-aside; raw `get` + `set` only when callers compose their own flow (write-only counters, pre-warmed caches with no factory).
+- **Namespace your keys** with a feature prefix (`credentials:`, `permissions:`, `branch:`, `version:`, `connection-health:`, `top-performers:`, `trends:`). The Redis manager additionally applies an `api:` prefix on the wire, so the on-the-wire key is e.g. `api:credentials:foo`.
+- **Tags** group keys for `invalidateByTag`. Use them for cross-key invalidation patterns (e.g. role-permission cache: every role's permissions share the `rbac:role` tag so `cache.invalidateByTag("rbac:role")` wipes the pool without enumerating roles).
+- **Default TTL** is configurable via `CACHE_TTL_DEFAULT` (seconds). Falls back to 3600 when unset. Explicit `ttlSeconds` per call always wins.
+- **In tests**, instantiate `new InMemoryCacheAdapter()` directly. Each test gets its own adapter, no shared state, deterministic TTL via `vi.useFakeTimers()`.
+- **Stampede protection** (single-flight, XFetch, SWR, jitter) is intentionally NOT implemented yet — tracked as PR-29 in the backlog. Concurrent factory calls on a missed key each run independently.
+- **No new `private *Cache = new Map()`** in `apps/api/src/**`. CI fitness grep #14 blocks the pattern (see §Automated Compliance Checks). The reason is OWASP A07:2021 (Identification and Authentication Failures): a per-instance Map can't propagate invalidations cross-pod, so a revoked permission stays valid on adjacent pods until their local TTL expires.
+
+Full caching architecture rationale: `docs/architecture/caching.md`.
+
+---
+
+## Secrets and Environment
+
+**All env access MUST go through a typed `env` constant — never `process.env.X` directly, never a `process.env.X || "fallback"` pattern.**
+
+Three apps, three env modules — same shape:
+
+| App / package     | Env module                   | Library                    | Notes                                                   |
+| ----------------- | ---------------------------- | -------------------------- | ------------------------------------------------------- |
+| `apps/api/src/**` | `apps/api/src/config/env.ts` | `@t3-oss/env-core` + Zod   | Server-only env; consumed by Fastify + workers.         |
+| `apps/admin/**`   | `apps/admin/lib/env.ts`      | `@t3-oss/env-nextjs` + Zod | Server/client split via `clientPrefix: "NEXT_PUBLIC_"`. |
+| `apps/client/**`  | `apps/client/lib/env.ts`     | `@t3-oss/env-nextjs` + Zod | Same pattern as admin.                                  |
+
+Every module parses `process.env` once at module load. If any required key is missing or malformed, the app refuses to boot with a precise error. There is no warn-and-continue.
+
+| Scope                                  | Pattern                                                                                                                                |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Read a value                           | `import { env } from ".../env.js"; env.MY_VAR`                                                                                         |
+| Add a new var (api)                    | Add to `server: {...}` block in `apps/api/src/config/env.ts`; update `.env.example`                                                    |
+| Add a new var (Next.js)                | Server-only → `server: {...}`. Browser-exposed → `client: {...}` (key MUST start with `NEXT_PUBLIC_`); also add to `runtimeEnv: {...}` |
+| Conditional secret (e.g. Stripe)       | Schema marks optional; factory throws at construction if the toggle requires it                                                        |
+| Test fixture                           | Set in `.env.test` at root; tests should not mutate `process.env` at runtime                                                           |
+| Runtime-mutable allowlist (non-secret) | Extract to a factory function that takes the allowlist as a parameter (cf. `makeMediaUrlSchema`)                                       |
+
+- **Fail-fast required, no fallbacks for secrets** (CWE-798). CI fitness greps #15 + #16 + #17 enforce this in `apps/api/src`, `apps/workers/src`, and the Next.js apps respectively.
+- **Single source of truth on disk**: root `.env` for dev, root `.env.test` for tests. Per-app `.env`s were removed.
+- **Browser bundle leak prevention**: Next.js `clientPrefix: "NEXT_PUBLIC_"` enforced — referencing a server-only env var (e.g. `env.SENTRY_DSN`) from a client component throws at runtime via `onInvalidAccess`, surfacing the leak before it reaches users.
+
+Full secrets architecture rationale: `docs/architecture/secrets-and-env.md`.
+Operational reference (where every secret lives + how to rotate it): `docs/security/SECRETS.md`.
 
 ---
 
@@ -626,13 +710,30 @@ Every public class method gets:
 
 ### @layer Standard Values
 
-**Use exactly these three values — no variations, no new values:**
+**Use exactly these three values — no variations, no new values. The rule applies to every `.ts` and `.tsx` file in `apps/` and `packages/`, including tests, frontend components, hooks, pages, UI primitives, config files, and barrel exports. No exceptions.**
 
-| Value            | Use for                                                                                   |
-| ---------------- | ----------------------------------------------------------------------------------------- |
-| `domain`         | Entities, value objects, aggregates, domain events, repository interfaces, domain errors  |
-| `application`    | Use cases, application services, handlers, command/query objects, DTOs                    |
-| `infrastructure` | Adapters, repository implementations, routes, processors, BullMQ jobs, config, middleware |
+| Value            | Use for                                                                                                                                         |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `domain`         | Entities, value objects, aggregates, domain events, repository interfaces, domain errors                                                        |
+| `application`    | Use cases, application services, handlers, command/query objects, DTOs                                                                          |
+| `infrastructure` | Adapters, repository implementations, routes, processors, BullMQ jobs, config, middleware, React components, hooks, pages, UI primitives, tests |
+
+### Mapping by context
+
+Resolve ambiguity by path. When a file could fit two layers, pick by this table:
+
+| Path                                                                                              | @layer           |
+| ------------------------------------------------------------------------------------------------- | ---------------- |
+| `apps/api/src/domain/`, `packages/shared/`, `packages/ports/` (pure contracts, no framework deps) | `domain`         |
+| `apps/api/src/application/`                                                                       | `application`    |
+| `apps/api/src/infrastructure/`, `apps/api/src/**/*Routes.ts`, `apps/api/src/**/*Processor.ts`     | `infrastructure` |
+| `apps/workers/src/`                                                                               | `infrastructure` |
+| `apps/admin/`, `apps/client/` (pages, components, hooks, stores, lib)                             | `infrastructure` |
+| `packages/ui/` (UI primitives)                                                                    | `infrastructure` |
+| `packages/adapters/`, `packages/providers/` (hexagonal adapters)                                  | `infrastructure` |
+| `packages/monitoring/`, `packages/observability/` (cross-cutting)                                 | `infrastructure` |
+| `packages/api-common/` (shared HTTP helpers)                                                      | `infrastructure` |
+| Tests (`**/tests/**`, `**/*.test.ts`, `**/*.test.tsx`)                                            | `infrastructure` |
 
 **Examples:**
 
@@ -642,8 +743,67 @@ Every public class method gets:
 - `GatewaySwitchProcessor.ts` → `@layer infrastructure`
 - `Post.ts` (entity) → `@layer domain`
 - `PostRepository.ts` (interface) → `@layer domain`
+- `PaymentAdapter.ts` (port contract in `packages/ports/`) → `@layer domain`
+- `CampaignList.tsx` (React component) → `@layer infrastructure`
+- `useCampaigns.ts` (React hook) → `@layer infrastructure`
+- `dashboard/page.tsx` (Next.js page) → `@layer infrastructure`
+- `postRoutes.test.ts` (unit test) → `@layer infrastructure`
 
-**Forbidden variations:** `infrastructure (routes)`, `routes`, `presentation`, `service`, `handler` — always normalize to one of the three values above.
+**Forbidden variations:** `test`, `integration`, `unit`, `testing`, `presentation`, `page`, `hooks`, `ui`, `client-components`, `client-hooks`, `client-pages`, `client-state`, `client-lib`, `client-tests`, `ports`, `provider`, `test-infrastructure`, `infrastructure (routes)`, `routes`, `service`, `handler` — always normalize to one of `domain` / `application` / `infrastructure`.
+
+### React component JSDoc — Storybook autodocs integration
+
+React components get `@component` **in addition to** `@layer infrastructure`. The two tags answer different questions: `@layer` locates the file in the hexagonal architecture (always `infrastructure` for UI); `@component` marks the file as a React component for readers and grep-based tooling.
+
+Storybook `addon-docs` reads **two places** to populate the autodocs page:
+
+1. The **component function's preceding JSDoc block** → used as the long-form component description.
+2. **JSDoc comments above each prop in the props `interface`** → used as the per-prop description in the Controls panel.
+
+`@param` tags on the component function are **redundant and ignored** by `react-docgen-typescript`. Put prop descriptions on the interface, not the function.
+
+**Canonical template:**
+
+```tsx
+/**
+ * @file CampaignList.tsx
+ * @description List view of campaigns with filter/sort controls and inline actions.
+ * @component CampaignList
+ * @layer infrastructure
+ */
+
+interface CampaignListProps {
+  /** Account whose campaigns will be listed. Required. */
+  accountId: string;
+  /** When true, shows archived campaigns mixed with active ones. Default: false. */
+  includeArchived?: boolean;
+  /** Fired after the user triggers archive/unarchive on any row. */
+  onChange?: (campaignId: string) => void;
+}
+
+/**
+ * Renders a paginated list of campaigns for an account, with inline archive,
+ * duplicate, and analytics actions. Filters persist in the URL query string.
+ */
+export function CampaignList({ accountId, includeArchived = false, onChange }: CampaignListProps) {
+  // ...
+}
+```
+
+Gotchas documented during T1-F research:
+
+- Storybook `react-docgen-typescript` has a known limitation (issues [#21007](https://github.com/storybookjs/storybook/issues/21007), [#30767](https://github.com/storybookjs/storybook/issues/30767)): when a component is imported from a pnpm workspace package via the package root, autodocs may miss prop descriptions. If this happens, import from the source path (`@packages/ui/src/ComponentName`) instead of the package root (`@packages/ui`).
+- Next.js 15 App Router components that use `useRouter` from `next/navigation` require `parameters.nextjs.appDirectory: true` in the Storybook `preview.tsx`.
+- Storybook ignores `@defaultValue` ([issue #21192](https://github.com/storybookjs/storybook/issues/21192)). Express defaults via TypeScript parameter defaults instead (`prop = false`).
+
+### Storybook port convention
+
+Each app runs its own Storybook on a dedicated port to avoid collisions during parallel development:
+
+- `apps/client`: `6006`
+- `apps/admin`: `6007`
+
+`packages/ui` does **not** run its own Storybook; its stories are picked up by the client Storybook via a cross-package glob in `apps/client/.storybook/main.ts`. This avoids dual-maintenance of addons/preview configuration.
 
 ### Comment Quality Rules
 
@@ -659,7 +819,7 @@ All comments in **English**.
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-These must stay at zero. If your change breaks any of these, fix it before committing:
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request`. Threshold: **hard-zero** for all 18 — any new occurrence fails the workflow with an `::error` annotation. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 ```bash
 # 1. No Prisma singleton imports in routes
@@ -668,10 +828,14 @@ grep -rn "import { prisma" apps/api/src/ --include="*routes*" | wc -l
 # 2. Domain layer is framework-free
 grep -rn "prisma\|fastify\|redis\|bullmq" apps/api/src/domain/ --include="*.ts" | wc -l
 
-# 3. No `any` in domain/application/infrastructure
-grep -rn ": any\b\|as any\b\|<any>" \
+# 3. No `any` in domain/application/infrastructure.
+# Refined regex: `\bas any\b` (word boundary before `as`) avoids matching
+# "h*as any*" in JSDoc prose like "Check if project has any channels".
+# Also exclude lines that start with `*` (JSDoc) or `//` (line comment).
+grep -rnE "(:\s+any\b|\bas any\b|<any>)" \
   apps/api/src/domain/ apps/api/src/application/ apps/api/src/infrastructure/ \
-  --include="*.ts" | grep -v "// any" | wc -l
+  --include="*.ts" | \
+  grep -vE "//.*any|^[^:]+:[0-9]+:\s*\*" | wc -l
 
 # 4. No raw throws in domain/application
 grep -rn "throw " apps/api/src/domain/ apps/api/src/application/ \
@@ -688,18 +852,125 @@ grep -rn "prisma\." apps/api/src/cqrs/handlers/ --include="*.ts" | wc -l
 grep -rn "dedupeKey.*randomUUID\|dedupeKey.*Math.random" \
   apps/api/src/ packages/ --include="*.ts" | wc -l
 
-# 8. No sprint references in source comments
-grep -rn "Part of Sprint\|Phase.*Sprint\|Sprint [0-9]" \
-  apps/api/src/ apps/admin/src/ apps/client/src/ \
-  --include="*.ts" --include="*.tsx" | wc -l
+# 8. No sprint/phase references in source comments (repo-wide, excluding test sandboxes
+# and Prisma's generated client mirror). Catches: "Sprint N", "Sprint X", "Phase N",
+# "Part of Sprint X", and the legacy "T0A_" / "T0-A" task-batch prefixes used during
+# remediation. All belong in git history, not source comments where they rot.
+grep -rnE "Part of Sprint|Phase.*Sprint|Sprint [0-9A-Z]|Phase [0-9]|T0A_|T0-A" \
+  apps/ packages/ infra/ --include="*.ts" --include="*.tsx" --include="*.prisma" | \
+  grep -vE "node_modules|dist|\.next|\.stryker-tmp|\.stryker|reports/mutation|infra/prisma/generated/" | wc -l
 
-# 9. No files missing @file header (target: 0)
-grep -rL "@file" apps/api/src/ --include="*.ts" | grep -v node_modules | wc -l
+# 9. No files missing @file header (all repo, target: 0).
+# Excludes Next.js auto-generated `next-env.d.ts` (regenerated on every build,
+# see https://nextjs.org/docs/app/api-reference/config/typescript — "should not be edited").
+grep -rL "@file" apps/ packages/ --include="*.ts" --include="*.tsx" | \
+  grep -v "node_modules\|dist\|\.next\|\.stryker\|reports/mutation\|next-env\.d\.ts" | wc -l
 
-# 10. No invalid @layer values
-grep -rn "@layer" apps/api/src/ --include="*.ts" | \
+# 10. No invalid @layer values (all repo, only domain/application/infrastructure)
+grep -rn "@layer" apps/ packages/ --include="*.ts" --include="*.tsx" | \
+  grep -v "node_modules\|dist\|\.next\|\.stryker\|reports/mutation" | \
   grep -v "@layer application\|@layer domain\|@layer infrastructure" | wc -l
+
+# 11. No raw setInterval in backend (scheduler-adapter excepted).
+# Excludes `enhancedValidator.ts` which holds `"setInterval("` as a literal
+# string in a security denylist of dangerous patterns — not a real call.
+grep -rnE "setInterval\(" apps/api/src apps/workers/src packages/ --include="*.ts" | \
+  grep -vE "default-scheduler|node_modules|dist|\.test\.|/tests/|/\.stryker-tmp/|eslint\.config|DANGEROUS_STRINGS|enhancedValidator\.ts" | wc -l
+
+# 12. Every React component file carries an @component tag.
+# Scan component directories and fail if any canonical component .tsx lacks @component.
+# Excludes hooks (use*.tsx) and helper modules (camelCase exports, not PascalCase components).
+for f in $(find apps/admin/components apps/client/components packages/ui/src/components \
+  -type f -name "*.tsx" 2>/dev/null | grep -v "\.stories\.\|\.test\.\|\.next"); do
+  basename=$(basename "$f")
+  # Skip hooks — use*.tsx follow the hook convention, document them with @hook, not @component.
+  case "$basename" in use*) continue;; esac
+  # Skip helper modules that don't export any PascalCase component.
+  if ! grep -qE "^export (default )?(function|const) [A-Z]" "$f"; then continue; fi
+  grep -q "@component" "$f" || echo "MISSING @component: $f"
+done | wc -l
+
+# 13. No direct `pino` instantiation in apps/api production code — every
+# logger MUST come from the `createLogger` factory in `apps/api/src/lib/logger.ts`
+# so redaction paths and service bindings are uniform. Excludes the factory
+# file itself, tests, and stryker sandboxes.
+grep -rnE "^import pino\b|^const \w+ = pino\(" apps/api/src --include="*.ts" | \
+  grep -v "lib/logger\.ts\|\.test\.\|/tests/\|/\.stryker-tmp/" | wc -l
+
+# 14. No `private *Cache = new Map()` per-class caches in apps/api/src/.
+# Reason: cross-pod cache coherence (OWASP A07:2021) — per-instance Maps
+# can't propagate invalidations between pods, so revoked permissions /
+# stale credentials stay valid on adjacent pods until local TTL expires.
+# All cross-pod cached state MUST go through TOKENS.CachePort. Excludes
+# tests + test directories (test fixtures legitimately use Maps).
+grep -rnE "^\s+private \w*[Cc]ache.*= new Map" apps/api/src --include="*.ts" | \
+  grep -v "\.test\.\|/tests/" | wc -l
+
+# 15. No insecure secret fallbacks (CWE-798) in apps/api/src + apps/workers/src
+# + packages/providers/*/src.
+# Reason: `process.env.X || "dev-only-..."`, `... ?? ""`, `... || generated()`
+# patterns let the app boot with hard-coded / empty / per-restart secrets,
+# masking misconfiguration in dev and shipping insecurely to prod. The fix
+# is the typed env constant from apps/api/src/config/env.ts (Zod fail-fast)
+# in app code, and constructor injection of secrets into provider apiClients.
+# Excludes `_template` (scaffolding example).
+grep -rnE "process\.env\.[A-Z_]*(SECRET|KEY|PASSWORD|TOKEN|CREDENTIAL)[A-Z_]*\s*(\|\||\?\?)" \
+  apps/api/src apps/workers/src packages/providers --include="*.ts" | \
+  grep -v "node_modules\|\.test\.\|/tests/\|\.stryker\|/dist/\|config/env\.ts\|providers/_template/" | wc -l
+
+# 16. No direct `process.env.*` in apps/api/src outside config/env.ts.
+# Reason: forces every consumer to go through the Zod-validated `env` constant
+# so every secret/config value passes schema validation at boot. Direct
+# process.env access is the carrier for #15 violations and bypasses type-safety.
+# Exception: process.env.NODE_ENV — Node ecosystem convention treats this as
+# runtime-readable everywhere (libraries, tests) and Zod still validates it.
+grep -rn "process\.env\." apps/api/src --include="*.ts" | \
+  grep -v "config/env\.ts\|/tests/\|\.test\.\|process\.env\.NODE_ENV\b" | wc -l
+
+# 17. No direct `process.env.*` in Next.js apps outside lib/env.ts.
+# Reason: Webpack DefinePlugin inlines client `process.env` reads at build time
+# — a `process.env.SECRET` referenced in a client component leaks the value
+# into the browser bundle. Routing every consumer through `lib/env.ts`
+# (@t3-oss/env-nextjs) enforces server/client split via the `clientPrefix`
+# convention and fails build when a server secret is referenced from client
+# code. Exception: process.env.NODE_ENV (Node ecosystem) + playwright config
+# (runs outside Next bundle).
+grep -rnE "process\.env\." \
+    apps/admin/{app,components,hooks,lib,providers} \
+    apps/client/{app,components,hooks,lib,providers} \
+    --include="*.ts" --include="*.tsx" | \
+  grep -v "lib/env\.ts\|process\.env\.NODE_ENV\b\|/tests/\|\.test\." | wc -l
+
+# 19. No `process.env.*` reads inside provider Adapter classes
+# (`packages/providers/*/src/*Adapter.ts`). Reason: provider adapters are
+# stateless and receive credentials per-call from the application layer's
+# CredentialResolver. Any env read inside the adapter file reintroduces the
+# CWE-798 anti-pattern by smuggling secrets through the module rather than via
+# constructor / parameter injection. Operational config (REDIS_URL, etc.) that
+# legitimately lives in the apiClient layer is allowed there but NOT in the
+# adapter file. Excludes `_template`.
+grep -rnE "process\.env\." packages/providers/*/src/*Adapter.ts 2>/dev/null | \
+  grep -v "providers/_template/\|\.stryker\|/dist/" | wc -l
+
+# 18. No direct `argon2.hash` / `argon2.verify` outside the canonical helper
+# (`apps/api/src/auth/passwordHashing.ts`). Reason: every password / API-key /
+# backup-code hash must use identical Argon2id parameters (RFC 9106 second-
+# recommended: m=64MiB, t=3, p=4, hashLength=32, type=argon2id). Direct calls
+# scattered across files cause drift — one site uses lib defaults, another
+# passes weaker params, none use `needsRehash` for transparent rehash on
+# login. Route everything through `hashPassword` / `verifyPassword` /
+# `needsRehash` from the helper.
+grep -rnE "argon2\.(hash|verify)\(" apps/api/src --include="*.ts" | \
+  grep -v "passwordHashing\.ts\|/tests/\|\.test\." | wc -l
 ```
+
+**Extending the suite.** Adding a new fitness check requires three coordinated edits, in order:
+
+1. Add the regex here with a one-line description of the threat being prevented and a comment justifying any exclusions.
+2. Add the corresponding step in `.github/workflows/fitness.yml` mirroring the regex exactly (paste, don't paraphrase — drift between the doc and the workflow is the failure mode).
+3. Verify `count = 0` on `main` before merging the wire. If the count is non-zero on existing code, document the baseline + ramp-down plan as a backlog entry rather than locking in non-zero noise.
+
+The regex in this file IS the regex in CI — keep them in sync.
 
 ---
 

@@ -1,3 +1,9 @@
+/**
+ * @file Typography.stories.tsx
+ * @description Storybook stories documenting the typography hierarchy, font weights, sizes, and
+ *              line-height guidelines for the client app.
+ * @layer infrastructure
+ */
 import type { Meta, StoryObj } from "@storybook/nextjs";
 
 /**
@@ -261,7 +267,10 @@ export const BodyTextExamples: Story = {
           Configure your API credentials by setting the{" "}
           <code className="text-sm font-mono bg-muted px-1 py-0.5 rounded-sm">OAUTH_CLIENT_ID</code>{" "}
           and visiting the{" "}
-          <a className="text-primary underline-offset-4 hover:underline">developer console</a>.
+          <a href="/developer/console" className="text-primary underline-offset-4 hover:underline">
+            developer console
+          </a>
+          .
         </p>
       </div>
     </div>

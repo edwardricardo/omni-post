@@ -1,3 +1,8 @@
+/**
+ * @file templateEngine.test.ts
+ * @description Tests for ClientTemplateEngine
+ * @layer infrastructure
+ */
 import { describe, it, expect, beforeEach } from "vitest";
 import { ClientTemplateEngine } from "../ClientTemplateEngine";
 import type { Template, TemplateContext } from "@shared/types";

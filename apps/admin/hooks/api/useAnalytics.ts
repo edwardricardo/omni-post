@@ -2,7 +2,7 @@
  * @file useAnalytics.ts
  * @description TanStack Query hook for fetching analytics summary data by combining
  * three API sources: analytics metrics, dashboard stats, and billing stats.
- * @layer presentation
+ * @layer infrastructure
  */
 import { useQuery } from "@tanstack/react-query";
 
@@ -52,7 +52,9 @@ export interface AnalyticsSummary {
 
 async function fetchJSON(url: string): Promise<Record<string, unknown>> {
   const res = await fetch(url, { credentials: "include" });
-  if (!res.ok) return {};
+  if (!res.ok) {
+    throw new Error(`Analytics request failed: ${res.status} ${res.statusText} (${url})`);
+  }
   const json = await res.json();
   return (json.data ?? json) as Record<string, unknown>;
 }
@@ -101,11 +103,6 @@ export function useAnalytics(timeRange: "7d" | "30d" | "90d" = "30d") {
       const billStats = (billing.stats ?? billing) as Record<string, unknown>;
       const totalRevenue = (billStats.totalRevenue ?? {}) as Record<string, number>;
       const growthMetrics = (billStats.growthMetrics ?? {}) as Record<string, number>;
-      const _churnRisk = (billStats.churnRisk ?? {}) as Record<string, number>;
-      const _statusDist = (billStats.statusDistribution ?? {}) as Record<
-        string,
-        Record<string, number>
-      >;
 
       // Calculate derived metrics
       const mrr = Number(billStats.totalMRR ?? totalRevenue.monthly ?? 0);

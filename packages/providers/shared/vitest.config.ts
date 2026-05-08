@@ -1,0 +1,41 @@
+/**
+ * @file vitest.config.ts
+ * @description Vitest configuration for the providers/shared package — resolves
+ *              workspace aliases relative to the monorepo root and runs tests
+ *              in forked node processes.
+ * @layer infrastructure
+ */
+import { defineConfig } from "vitest/config";
+import path from "node:path";
+import { existsSync } from "node:fs";
+
+function findMonorepoRoot(startDir: string): string {
+  let dir = path.resolve(startDir);
+  for (let i = 0; i < 10; i++) {
+    if (existsSync(path.join(dir, "pnpm-workspace.yaml"))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return path.resolve(startDir, "../../");
+}
+
+const root = findMonorepoRoot(__dirname);
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      "@shared/types": path.join(root, "packages/shared/src/index.ts"),
+      "@shared": path.join(root, "packages/shared/src"),
+      "@ports/core": path.join(root, "packages/ports/src/index.ts"),
+      "@ports": path.join(root, "packages/ports/src"),
+      "@observability/logger": path.join(root, "packages/observability/logger/src/index.ts"),
+    },
+  },
+  test: {
+    environment: "node",
+    globals: true,
+    include: ["tests/**/*.test.ts"],
+    pool: "forks",
+  },
+});

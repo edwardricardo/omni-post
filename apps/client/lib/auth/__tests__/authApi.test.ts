@@ -3,7 +3,7 @@
  * @description Mutation-killing tests for the AuthAPI class.
  * Covers login, register, logout, refreshToken, getCurrentUser,
  * updateProfile, changePassword, and error handling.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -134,8 +134,11 @@ describe("authApi.login", () => {
       json: vi.fn().mockRejectedValue(new Error("parse error")),
     });
 
+    // After T3-B authApi throws ApiError with the per-endpoint fallback message
+    // ("Login failed"). Body parsing failure is now caught silently in
+    // readErrorBody and the endpoint-specific fallback is used.
     await expect(authApi.login({ email: "a@b.com", password: "bad" })).rejects.toThrow(
-      "An error occurred"
+      "Login failed"
     );
   });
 
@@ -267,7 +270,11 @@ describe("authApi.refreshToken", () => {
   });
 
   it("throws error on non-ok response", async () => {
-    mockFetch.mockResolvedValue({ ok: false, status: 401 });
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: vi.fn().mockRejectedValue(new Error("no body")),
+    });
 
     await expect(authApi.refreshToken()).rejects.toThrow("Token refresh failed");
   });

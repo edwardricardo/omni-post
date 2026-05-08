@@ -1,3 +1,8 @@
+/**
+ * @file PostCommandHandlers.publish.test.ts
+ * @description Tests for PublishPostCommandHandler
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, expect } from "vitest";
 import "./PostCommandHandlers.test-helpers.js";
 import {

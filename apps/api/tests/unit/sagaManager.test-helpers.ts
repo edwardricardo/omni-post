@@ -1,6 +1,12 @@
+/**
+ * @file sagaManager.test-helpers.ts
+ * @description Test helpers for saga manager test helpers
+ * @layer infrastructure
+ */
 import { SagaManagerImpl } from "../../src/saga/SagaManager";
 import { SagaDefinition, SagaStep, SagaContext, SagaStepResult } from "@shared/saga";
 import { DomainEvent } from "@shared/events";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 
 export interface MockPrismaClient {
   $queryRaw: (query: any) => Promise<any>;
@@ -88,6 +94,7 @@ export function createSagaManager(
     prisma: mockPrisma as any,
     redis: mockRedis as any,
     eventService: mockEventService as any,
+    scheduler: new NoopBackgroundTaskScheduler(),
     enableMetrics: true,
   });
 }

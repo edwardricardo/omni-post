@@ -16,11 +16,15 @@ import {
   ProviderHealthChecker,
 } from "@monitoring/health-checks";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
-import { createBullMQQueueAdapter } from "@adapters/queue-bullmq";
+import { QUEUE_NAMES } from "@adapters/queue-bullmq";
+import type { QueuePortRegistry } from "@ports/core";
 import { createS3StorageAdapter } from "@adapters/storage-s3";
 import { providerRegistry } from "../providers/providerRegistry.js";
 import type Redis from "ioredis";
 import type { RedisCacheManager } from "@adapters/cache-redis";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+import { TOKENS } from "../infrastructure/container/types.js";
+import { env } from "../config/env.js";
 
 /**
  * Health check routes for monitoring and Kubernetes probes
@@ -40,27 +44,35 @@ export async function healthRoutes(
   }
 ) {
   const { redis, cacheManager } = options;
+  const scheduler = fastify.container!.resolve<BackgroundTaskScheduler>(
+    TOKENS.BackgroundTaskScheduler
+  );
 
   // Initialize health check manager
-  const healthManager = createHealthCheckManager({
-    timeout: 5000,
-    interval: 30000,
-    retries: 3,
-    alertThresholds: {
-      degradedLatency: 1000,
-      unhealthyLatency: 5000,
-      criticalFailureCount: 3,
+  const healthManager = createHealthCheckManager(
+    {
+      timeout: 5000,
+      interval: 30000,
+      retries: 3,
+      alertThresholds: {
+        degradedLatency: 1000,
+        unhealthyLatency: 5000,
+        criticalFailureCount: 3,
+      },
     },
-  });
+    scheduler
+  );
 
   // Initialize adapters
-  const repoAdapter = createPrismaRepoAdapter();
-  const queueAdapter = createBullMQQueueAdapter();
+  const repoAdapter = createPrismaRepoAdapter({ scheduler });
+  const queueAdapter = fastify
+    .container!.resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
+    .forQueue(QUEUE_NAMES.PUBLISH);
   const storageAdapter = createS3StorageAdapter({
-    bucket: process.env.S3_BUCKET || "omni-post-media",
-    region: process.env.S3_REGION || "us-east-1",
-    accessKeyId: process.env.S3_ACCESS_KEY_ID || "",
-    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || "",
+    bucket: env.S3_BUCKET || "omni-post-media",
+    region: env.S3_REGION || "us-east-1",
+    accessKeyId: env.S3_ACCESS_KEY_ID || "",
+    secretAccessKey: env.S3_SECRET_ACCESS_KEY || "",
   });
 
   // Register health checkers

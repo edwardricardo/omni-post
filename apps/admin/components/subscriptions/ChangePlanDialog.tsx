@@ -3,7 +3,7 @@
  * @description Dialog for changing an account's subscription plan. Two modes:
  *   Custom (individual provider checkboxes with live pricing) and
  *   Bundle (pre-configured plan cards). Matches admin design system tokens.
- * @layer presentation
+ * @layer infrastructure
  */
 
 "use client";

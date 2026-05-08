@@ -8,7 +8,7 @@
  */
 
 import type { FastifyRequest, FastifyReply } from "fastify";
-import argon2 from "argon2";
+import { verifyPassword } from "./passwordHashing.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { IntegrationApiKeyRepository } from "../domain/repositories/IntegrationApiKeyRepository.js";
 
@@ -84,7 +84,7 @@ export async function integrationAuthMiddleware(
       if (candidate.isRevoked) {
         continue;
       }
-      const valid = await argon2.verify(candidate.keyHash, token);
+      const valid = await verifyPassword(candidate.keyHash, token);
       if (valid) {
         matchedKey = candidate;
         break;

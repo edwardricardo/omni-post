@@ -2,7 +2,7 @@
  * @file ConversationHeader.tsx
  * @description Header for the conversation thread view. Shows platform badge,
  *              sender name, status badge, and Resolve/Reopen button.
- * @layer ui
+ * @layer infrastructure
  */
 
 "use client";

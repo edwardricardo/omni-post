@@ -91,13 +91,13 @@ export {
   type HistoricalTrendDto,
 } from "./AnalyticsReadRepository.js";
 
-// TeamMember repository port (Phase 1: TeamMember foundation)
+// TeamMember repository port
 export { type TeamMemberRepository } from "./TeamMemberRepository.js";
 
-// Approval request repository port (Phase 1 Step 3: Content Approval)
+// Approval request repository port
 export { type ApprovalRequestRepository } from "./ApprovalRequestRepository.js";
 
-// Notification repository ports (Phase 1 Step 2: Notification system)
+// Notification repository ports
 export {
   type NotificationRepository,
   type NotificationPreferenceRepository,
@@ -106,14 +106,14 @@ export {
   type NotificationPaginatedResult,
 } from "./NotificationRepository.js";
 
-// PostComment repository port (Phase 1 Step 4: In-Context Comments)
+// PostComment repository port
 export {
   type PostCommentRepository,
   type PostCommentFindOptions,
   type PostCommentPaginatedResult,
 } from "./PostCommentRepository.js";
 
-// Social Inbox repository ports (Phase 2: Social Inbox)
+// Social Inbox repository ports
 export { type SocialMessageRepository } from "./SocialMessageRepository.js";
 export {
   type SocialMessageQueryRepository,
@@ -134,7 +134,7 @@ export {
   OUTBOUND_REPLY_STATUSES,
 } from "./SocialOutboundReplyRepository.js";
 
-// Campaign repository ports (Phase 3: Analytics & Reporting)
+// Campaign repository ports
 export { type CampaignRepository } from "./CampaignRepository.js";
 export {
   type CampaignQueryRepository,
@@ -143,16 +143,16 @@ export {
   type ListCampaignsOptions,
 } from "./CampaignQueryRepository.js";
 
-// Scheduled Report repository port (Phase 3 Step 7: Scheduled Reports)
+// Scheduled Report repository port
 export {
   type ScheduledReportRepository,
   type ScheduledReportDto,
 } from "./ScheduledReportRepository.js";
 
-// Email port (Phase 3 Step 7: Scheduled Reports)
+// Email port
 export { type EmailPort, type SendEmailOptions, type EmailAttachment } from "./EmailPort.js";
 
-// GA4 Tracking port (Phase 3 Step 4: UTM/GA4 Integration)
+// GA4 Tracking port
 export { type GA4TrackingPort, type GA4Event } from "./GA4TrackingPort.js";
 
 // GeneratedImage repository port (AI Image Generation)

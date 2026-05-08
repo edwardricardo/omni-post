@@ -1,6 +1,8 @@
 /**
- * Cache Constants
- * Predefined cache keys and TTL values for common patterns
+ * @file constants.ts
+ * @description Predefined cache key generators (CacheKeys) and TTL values (CacheTTL) for
+ *              common caching patterns used across the platform.
+ * @layer infrastructure
  */
 
 // Cache key generators for common patterns

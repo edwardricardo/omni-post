@@ -46,12 +46,19 @@ function AnalyticsPageContent() {
   }
 
   if (error) {
+    // Never leak raw error.message to end users in production — could expose
+    // backend internals. Show generic message; dev mode keeps the real text
+    // for debugging.
+    const isDev = process.env.NODE_ENV === "development";
+    const displayMessage = isDev
+      ? error.message || "Failed to load analytics data"
+      : "Failed to load analytics data. Please try again.";
     return (
       <div className="min-h-screen bg-gray-50 p-6">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-3xl font-bold text-gray-900 mb-8">Analytics</h1>
-          <div className="flex justify-center items-center h-64" role="alert" aria-live="assertive">
-            <div className="text-lg text-red-600">Error: {error.message}</div>
+          <div className="flex justify-center items-center h-64" role="alert">
+            <div className="text-lg text-red-600">{displayMessage}</div>
             <button
               onClick={() => refetch()}
               className="ml-4 px-4 py-2 bg-blue-600 text-white rounded-sm hover:bg-blue-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"

@@ -1,3 +1,9 @@
+/**
+ * @file liveStreaming.ts
+ * @description YouTube live-streaming service — creates and manages broadcasts, streams, and
+ *              live chat moderation through the YouTube Live Streaming API.
+ * @layer infrastructure
+ */
 import { google, youtube_v3 } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
 import { createExternalApiCircuitBreaker } from "@adapters/external-apis";

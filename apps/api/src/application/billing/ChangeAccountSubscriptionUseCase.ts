@@ -138,14 +138,23 @@ export class ChangeAccountSubscriptionUseCase implements UseCase<
             const providerTiers = await this.repo.findProviderPricingTiers();
             const accountTiers = await this.repo.findAccountPricingTiers();
 
-            const { total } = PricingCalculator.calculateCustomPrice(
+            const customResult = PricingCalculator.calculateCustomPrice(
               input.providers.length,
               subscription.accountCount,
               providerTiers,
               accountTiers
             );
+            if (!customResult.ok) {
+              return err(
+                new UseCaseError(
+                  customResult.error.message,
+                  USE_CASE_ERRORS.INTERNAL_ERROR,
+                  customResult.error
+                )
+              );
+            }
 
-            newPrice = total;
+            newPrice = customResult.value.total;
             newProviders = input.providers;
             newMaxProjects = input.providers.length * 3;
             newBundleId = null;
@@ -164,13 +173,22 @@ export class ChangeAccountSubscriptionUseCase implements UseCase<
           }
 
           const accountTiers = await this.repo.findAccountPricingTiers();
-          const { total } = PricingCalculator.calculateBundlePrice(
+          const bundleResult = PricingCalculator.calculateBundlePrice(
             bundle.pricePerAccountMonth,
             subscription.accountCount,
             accountTiers
           );
+          if (!bundleResult.ok) {
+            return err(
+              new UseCaseError(
+                bundleResult.error.message,
+                USE_CASE_ERRORS.INTERNAL_ERROR,
+                bundleResult.error
+              )
+            );
+          }
 
-          newPrice = total;
+          newPrice = bundleResult.value.total;
           newProviders = bundle.providers;
           newMaxProjects = bundle.providers.length * 3;
           newBundleId = bundle.id;
@@ -180,14 +198,23 @@ export class ChangeAccountSubscriptionUseCase implements UseCase<
         const providerTiers = await this.repo.findProviderPricingTiers();
         const accountTiers = await this.repo.findAccountPricingTiers();
 
-        const { total } = PricingCalculator.calculateCustomPrice(
+        const customResult = PricingCalculator.calculateCustomPrice(
           input.providers.length,
           subscription.accountCount,
           providerTiers,
           accountTiers
         );
+        if (!customResult.ok) {
+          return err(
+            new UseCaseError(
+              customResult.error.message,
+              USE_CASE_ERRORS.INTERNAL_ERROR,
+              customResult.error
+            )
+          );
+        }
 
-        newPrice = total;
+        newPrice = customResult.value.total;
         newProviders = input.providers;
         newMaxProjects = input.providers.length * 3;
       }

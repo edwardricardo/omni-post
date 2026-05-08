@@ -3,6 +3,10 @@
  *
  * The hook calls fetch directly to /api/backend/posts with query params.
  * We mock global.fetch.
+ *
+ * @file useContentLibrary.test.tsx
+ * @description Tests for useContentLibrary
+ * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";

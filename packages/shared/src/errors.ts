@@ -1,6 +1,8 @@
 /**
- * Standardized Error Codes
- * Used to return consistent, safe error codes to clients without leaking internal details
+ * @file errors.ts
+ * @description Standardized error code enum covering auth, validation, business, infrastructure,
+ *              and provider failure categories for consistent, safe client-facing responses.
+ * @layer domain
  */
 export enum ErrorCode {
   // Authentication & Authorization
@@ -40,6 +42,7 @@ export enum ErrorCode {
   INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR",
   BAD_REQUEST = "BAD_REQUEST",
   FORBIDDEN = "FORBIDDEN",
+  NOT_IMPLEMENTED = "NOT_IMPLEMENTED",
 }
 
 /**
@@ -115,6 +118,13 @@ export class AppError extends Error {
 
   static internal(message = "Internal server error", details?: Record<string, unknown>): AppError {
     return new AppError(ErrorCode.INTERNAL_SERVER_ERROR, 500, message, false, details);
+  }
+
+  static notImplemented(
+    message = "Feature not yet implemented",
+    details?: Record<string, unknown>
+  ): AppError {
+    return new AppError(ErrorCode.NOT_IMPLEMENTED, 501, message, true, details);
   }
 
   static validationFailed(

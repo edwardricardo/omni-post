@@ -167,7 +167,7 @@ Content:
 
   /**
    * @method generateImage
-   * @description Generates an image using OpenAI DALL-E 3 from a text prompt.
+   * @description Generates an image using OpenAI image generation from a text prompt.
    * @param options - Image generation options including prompt, size, quality, and style
    * @returns AIResponse containing the image URL and revised prompt on success
    */

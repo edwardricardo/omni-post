@@ -67,18 +67,22 @@ export const AutomationCard: React.FC<AutomationCardProps> = ({ automation, onTo
 
         <div className="flex space-x-1">
           <button
+            type="button"
             onClick={() => onToggle(automation.id, !automation.isActive)}
             className={`p-2 rounded-sm ${
               automation.isActive
                 ? "text-orange-600 hover:bg-orange-100"
                 : "text-green-600 hover:bg-green-100"
             }`}
+            aria-label={automation.isActive ? "Pause automation" : "Start automation"}
             title={automation.isActive ? "Pause Automation" : "Start Automation"}
           >
             {automation.isActive ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
           </button>
           <button
+            type="button"
             className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-sm"
+            aria-label="Configure automation"
             title="Configure Automation"
           >
             <Settings className="w-4 h-4" />

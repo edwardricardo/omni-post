@@ -6,9 +6,14 @@
  * Tests cover platform-specific configurations and helper methods.
  *
  * Run with: pnpm --filter @apps/api exec tsx tests/unit/engagementPredictor.test.ts
+ *
+ * @file engagementPredictor.test.ts
+ * @description Tests for EngagementPredictor - Initialization
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";
+import { InMemoryCacheAdapter } from "@adapters/cache-redis";
 import { EngagementPredictor } from "../../src/analytics/engagementPredictor.js";
 import {
   PLATFORM_MULTIPLIERS,
@@ -18,7 +23,7 @@ import { getDayName, getMonthName } from "../../src/analytics/engagementPredicto
 
 describe("EngagementPredictor - Initialization", () => {
   it("initializes successfully", () => {
-    const predictor = new EngagementPredictor();
+    const predictor = new EngagementPredictor(new InMemoryCacheAdapter());
     expect(predictor instanceof EngagementPredictor).toBeTruthy();
   });
 });

@@ -1,7 +1,9 @@
 /**
  * @file utils.ts
  * @description Pure utility functions for the performance insights module, including
- * day-name formatting and AI recommendation generation logic from raw analytics data.
+ * day-name formatting and heuristic recommendation generation logic derived from raw
+ * analytics data (no ML / no AI model — rule-based thresholds on the metrics).
+ * @layer infrastructure
  */
 
 import type {

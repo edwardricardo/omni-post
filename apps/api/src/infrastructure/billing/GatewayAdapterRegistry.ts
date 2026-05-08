@@ -6,12 +6,13 @@
  * @layer infrastructure
  */
 
-import type { IPaymentAdapter, GatewayProviderType } from "@ports/core";
+import type { PaymentAdapter, GatewayProviderType } from "@ports/core";
+import { env } from "../../config/env.js";
 import { StripePaymentAdapter, type StripeConfig } from "./StripePaymentAdapter.js";
 import { PaddlePaymentAdapter, type PaddleConfig } from "./PaddlePaymentAdapter.js";
 
-export interface IGatewayAdapterRegistry {
-  getAdapter(provider: GatewayProviderType): IPaymentAdapter;
+export interface GatewayAdapterRegistryPort {
+  getAdapter(provider: GatewayProviderType): PaymentAdapter;
 }
 
 interface GatewayRegistryConfig {
@@ -19,7 +20,7 @@ interface GatewayRegistryConfig {
   paddle: PaddleConfig;
 }
 
-export class GatewayAdapterRegistry implements IGatewayAdapterRegistry {
+export class GatewayAdapterRegistry implements GatewayAdapterRegistryPort {
   private stripeAdapter: StripePaymentAdapter | null = null;
   private paddleAdapter: PaddlePaymentAdapter | null = null;
   private readonly config: GatewayRegistryConfig;
@@ -28,7 +29,7 @@ export class GatewayAdapterRegistry implements IGatewayAdapterRegistry {
     this.config = config;
   }
 
-  getAdapter(provider: GatewayProviderType): IPaymentAdapter {
+  getAdapter(provider: GatewayProviderType): PaymentAdapter {
     if (provider === "stripe") {
       if (!this.stripeAdapter) {
         if (!this.config.stripe.secretKey) {
@@ -71,18 +72,34 @@ function buildPriceMap(
 /**
  * @function createGatewayRegistry
  * @description Factory that creates a registry with configs from environment variables.
+ *              Each provider's secretKey/apiKey + webhookSecret pair must be set
+ *              together — partial config throws at startup (not at first use).
  */
 export function createGatewayRegistry(): GatewayAdapterRegistry {
+  const stripeConfigured = Boolean(env.STRIPE_SECRET_KEY) || Boolean(env.STRIPE_WEBHOOK_SECRET);
+  if (stripeConfigured && (!env.STRIPE_SECRET_KEY || !env.STRIPE_WEBHOOK_SECRET)) {
+    throw new Error(
+      "Stripe is partially configured. Set BOTH STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET, or neither."
+    );
+  }
+
+  const paddleConfigured = Boolean(env.PADDLE_API_KEY) || Boolean(env.PADDLE_WEBHOOK_SECRET);
+  if (paddleConfigured && (!env.PADDLE_API_KEY || !env.PADDLE_WEBHOOK_SECRET)) {
+    throw new Error(
+      "Paddle is partially configured. Set BOTH PADDLE_API_KEY and PADDLE_WEBHOOK_SECRET, or neither."
+    );
+  }
+
   return new GatewayAdapterRegistry({
     stripe: {
-      secretKey: process.env.STRIPE_SECRET_KEY ?? "",
-      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
+      secretKey: env.STRIPE_SECRET_KEY ?? "",
+      webhookSecret: env.STRIPE_WEBHOOK_SECRET ?? "",
       prices: buildPriceMap("STRIPE"),
     },
     paddle: {
-      apiKey: process.env.PADDLE_API_KEY ?? "",
-      webhookSecret: process.env.PADDLE_WEBHOOK_SECRET ?? "",
-      sandbox: process.env.PADDLE_SANDBOX === "true",
+      apiKey: env.PADDLE_API_KEY ?? "",
+      webhookSecret: env.PADDLE_WEBHOOK_SECRET ?? "",
+      sandbox: env.PADDLE_SANDBOX ?? false,
       prices: buildPriceMap("PADDLE"),
     },
   });

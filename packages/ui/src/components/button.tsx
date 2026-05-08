@@ -1,3 +1,10 @@
+/**
+ * @file button.tsx
+ * @description Button component built with Radix Slot and class-variance-authority, supporting
+ *              default/destructive/outline/secondary/ghost/link variants and multiple sizes.
+ * @component Button
+ * @layer infrastructure
+ */
 import * as React from "react";
 import { Slot as SlotPrimitive } from "radix-ui";
 import { cva, type VariantProps } from "class-variance-authority";
@@ -30,8 +37,7 @@ const buttonVariants = cva(
 );
 
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
   asChild?: boolean;
 }
 

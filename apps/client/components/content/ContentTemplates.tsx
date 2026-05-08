@@ -48,7 +48,7 @@ interface ContentTemplatesProps {
   onTemplateCreate?: () => void;
   onTemplateEdit?: (templateId: string) => void;
   onTemplateDelete?: (templateId: string) => void;
-  onTemplateUse?: (templateId: string, variables: Record<string, any>) => void;
+  onTemplateUse?: (templateId: string, variables: Record<string, string>) => void;
   onAutomationCreate?: (automation: Partial<AutomationTemplate>) => void;
   onAutomationToggle?: (automationId: string, active: boolean) => void;
   showAutomation?: boolean;
@@ -97,7 +97,7 @@ const ContentTemplates: React.FC<ContentTemplatesProps> = ({
   }, []);
 
   const handleVariableSubmit = useCallback(
-    (templateId: string, variables: Record<string, any>) => {
+    (templateId: string, variables: Record<string, string>) => {
       onTemplateUse?.(templateId, variables);
       setShowVariableModal(false);
       setSelectedTemplate(null);

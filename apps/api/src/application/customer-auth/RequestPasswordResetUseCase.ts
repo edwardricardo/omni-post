@@ -10,6 +10,7 @@ import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import type { CustomerUserRepository } from "../../domain/repositories/CustomerUserRepository.js";
 import type { EmailPort } from "../../domain/repositories/EmailPort.js";
 import { randomBytes } from "crypto";
+import { env } from "../../config/env.js";
 
 /** Error code union */
 export type RequestPasswordResetError = "INTERNAL_ERROR";
@@ -74,7 +75,7 @@ export class RequestPasswordResetUseCase {
 
       // Send email OUTSIDE the transaction (external API call)
       if (this.emailPort) {
-        const baseUrl = input.resetBaseUrl || process.env.CLIENT_URL || "http://localhost:3200";
+        const baseUrl = input.resetBaseUrl || env.CLIENT_URL || "http://localhost:3200";
         const resetLink = `${baseUrl}/reset-password?token=${resetToken}`;
 
         await this.emailPort.send({

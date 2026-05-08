@@ -2,7 +2,7 @@
  * @file commentRoutes.test.ts
  * @description Unit tests for in-context comments system endpoints.
  *   Uses mocked Prisma stores and a real Fastify instance to test HTTP endpoint behavior.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";

@@ -36,7 +36,6 @@ function mapApiTemplate(dto: AIPromptTemplateDto): ContentTemplate {
     })),
     template: dto.prompt,
     tone: dto.tone,
-    estimatedEngagement: 75,
   };
 }
 

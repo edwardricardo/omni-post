@@ -11,6 +11,7 @@ import type { CanonicalPost } from "@shared/types";
 import type { ProviderId, ProviderAdapter } from "../providers/providerAdapter.interface";
 import type { EventService } from "../events/EventService";
 import { providerRegistry } from "../providers/providerRegistry";
+import { validateContentForLimits } from "@providers/shared";
 import type { AdaptationMetrics, AdaptationSession } from "./platformContentAdapterTypes.js";
 import {
   calculateQualityScore,
@@ -43,7 +44,11 @@ export class PlatformContentAdapterValidation {
     if (!adaptation.ok) return adaptation;
 
     try {
-      const validation = await adapter.validateContent(adaptation.value.adaptedContent);
+      const validation = await validateContentForLimits(
+        adaptation.value.adaptedContent,
+        adapter.limits,
+        adapter.capabilities
+      );
 
       if (!validation.valid) {
         const errors = validation.errors.filter((e) => e.severity === "error");

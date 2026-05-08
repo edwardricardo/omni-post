@@ -75,7 +75,7 @@ export function SchedulingDashboardPostModal({
 
             {/* Scheduled Time */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Scheduled Time</label>
+              <span className="block text-sm font-medium text-gray-700 mb-1">Scheduled Time</span>
               <div className="text-lg text-gray-900">
                 {post.scheduledAt.toLocaleString()} ({formatRelativeTime(post.scheduledAt)})
               </div>
@@ -83,16 +83,16 @@ export function SchedulingDashboardPostModal({
 
             {/* Content */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Content</label>
+              <span className="block text-sm font-medium text-gray-700 mb-1">Content</span>
               <div className="border rounded-lg p-3 bg-gray-50">{post.content.text}</div>
             </div>
 
             {/* Media */}
             {post.content.media && post.content.media.length > 0 && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <span className="block text-sm font-medium text-gray-700 mb-1">
                   Media ({post.content.media.length})
-                </label>
+                </span>
                 <div className="grid grid-cols-2 gap-2">
                   {post.content.media.map((media) => (
                     <div
@@ -120,7 +120,7 @@ export function SchedulingDashboardPostModal({
 
             {/* Error Message */}
             {post.error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-lg">
                 <div className="text-sm font-medium text-red-800 mb-1">Error:</div>
                 <div className="text-sm text-red-700">{post.error}</div>
               </div>
@@ -129,7 +129,7 @@ export function SchedulingDashboardPostModal({
             {/* Tags */}
             {post.tags && post.tags.length > 0 && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+                <span className="block text-sm font-medium text-gray-700 mb-1">Tags</span>
                 <div className="flex flex-wrap gap-1">
                   {post.tags.map((tag) => (
                     <span
@@ -146,9 +146,9 @@ export function SchedulingDashboardPostModal({
             {/* Estimated Reach */}
             {post.estimatedReach && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <span className="block text-sm font-medium text-gray-700 mb-1">
                   Estimated Reach
-                </label>
+                </span>
                 <div className="text-lg text-gray-900">
                   {post.estimatedReach.toLocaleString()} people
                 </div>

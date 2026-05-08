@@ -1,0 +1,33 @@
+############################################################################
+# lychee — markdown link checker config
+#
+# Loaded by `audit.yml > lychee-link-check` job. Local equivalent:
+#   ~/.local/bin/lychee --config .lychee.toml './**/*.md'
+#
+# Strategy: --offline so the check is deterministic (no rate-limit flakes),
+# and code-file refs (.ts/.tsx/.json/etc) are excluded because those are
+# workspace-relative paths the IDE resolves, not filesystem paths lychee
+# can follow without a --root-dir convention.
+############################################################################
+
+# Run in offline mode — only check filesystem-resolvable refs.
+offline = true
+
+no_progress = true
+
+# Exclude common build/cache dirs from path traversal.
+exclude_path = [
+  "node_modules",
+  ".next",
+  ".stryker-tmp",
+  "dist",
+  "coverage",
+  "storybook-static",
+]
+
+# Skip URLs matching this regex. Source-code paths are workspace-relative
+# (resolved by IDE), not filesystem-relative (which lychee would follow).
+# Regex is unanchored so anchor fragments like `.ts#L42` still match.
+exclude = [
+  '\.(ts|tsx|js|jsx|cjs|mjs|json|sql|yaml|yml|css|scss|html|sh|toml|prisma)',
+]

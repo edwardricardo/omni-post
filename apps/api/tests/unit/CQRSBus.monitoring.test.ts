@@ -1,3 +1,8 @@
+/**
+ * @file CQRSBus.monitoring.test.ts
+ * @description Tests for CQRSBus - Metrics and Monitoring
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, expect } from "vitest";
 import { CQRSBusImpl } from "../../src/cqrs/CQRSBus";
 import type { QueryHandler, QueryResult } from "@shared/cqrs";

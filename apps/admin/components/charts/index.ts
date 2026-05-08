@@ -1,7 +1,7 @@
 /**
  * @file index.ts
  * @description Barrel exports for all reusable chart components.
- * @layer presentation
+ * @layer infrastructure
  */
 export { ChartEmptyState } from "./ChartEmptyState";
 export { DonutChart } from "./DonutChart";

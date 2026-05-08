@@ -2,7 +2,7 @@
  * @file page.tsx
  * @description Gateway switch management page. Lists switch events with stats,
  *   filtering, detail dialog, and admin actions (extend, force-complete, suspend).
- * @layer page
+ * @layer infrastructure
  */
 "use client";
 
@@ -113,15 +113,17 @@ function DetailDialog({ eventId, t, tc, onClose, onExtend }: DetailDialogProps) 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label={t("detail.title")}
     >
-      <div
-        className="relative w-full max-w-lg rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <button
+        type="button"
+        aria-label={tc("close")}
+        className="absolute inset-0 cursor-default"
+        onClick={onClose}
+      />
+      <div className="relative w-full max-w-lg rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 shadow-xl">
         <button
           type="button"
           onClick={onClose}
@@ -289,15 +291,17 @@ function ExtendDialog({ eventId, currentDeadline, t, tc, onClose }: ExtendDialog
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label={t("extendDialog.title")}
     >
-      <div
-        className="relative w-full max-w-sm rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <button
+        type="button"
+        aria-label={tc("close")}
+        className="absolute inset-0 cursor-default"
+        onClick={onClose}
+      />
+      <div className="relative w-full max-w-sm rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 shadow-xl">
         <button
           type="button"
           onClick={onClose}
@@ -508,7 +512,17 @@ function GatewaySwitchesPageContent() {
         key: "actions",
         header: t("table.actions"),
         render: (evt: GatewaySwitchEvent) => (
-          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="flex items-center gap-1"
+            // The handlers here merely prevent the underlying row's click/keyboard
+            // navigation from firing when the user activates an inline action button.
+            // The wrapper itself is non-interactive — keyboard users tab directly
+            // to the buttons, never to this div. The presentation role makes that
+            // explicit to assistive tech.
+            role="presentation"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
             <ActionButton variant="secondary" size="sm" onClick={() => setDetailId(evt.id)}>
               {t("actions.viewDetail")}
             </ActionButton>

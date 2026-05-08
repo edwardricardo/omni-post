@@ -6,6 +6,10 @@
  *   scheduling, priority levels)
  * - Querying saga status and progress
  * - Continuing and compensating sagas via API
+ *
+ * @file sagaIntegration.routes.test.ts
+ * @description Tests for SagaIntegration - Post Publishing Routes
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, expect } from "vitest";

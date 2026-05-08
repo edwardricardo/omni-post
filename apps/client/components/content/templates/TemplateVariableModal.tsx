@@ -6,14 +6,14 @@
  * before applying it to a new post, with dynamic form fields per variable.
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useId } from "react";
 import type { ContentTemplate } from "./types";
 
 interface TemplateVariableModalProps {
   template: ContentTemplate | null;
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (templateId: string, variables: Record<string, any>) => void;
+  onSubmit: (templateId: string, variables: Record<string, string>) => void;
 }
 
 /**
@@ -27,11 +27,12 @@ export const TemplateVariableModal: React.FC<TemplateVariableModalProps> = ({
   onClose,
   onSubmit,
 }) => {
-  const [variables, setVariables] = useState<Record<string, any>>({});
+  const [variables, setVariables] = useState<Record<string, string>>({});
+  const variableIdPrefix = useId();
 
   useEffect(() => {
     if (template) {
-      const initialVariables: Record<string, any> = {};
+      const initialVariables: Record<string, string> = {};
       template.content.variables.forEach((variable) => {
         initialVariables[variable.name] = variable.defaultValue ?? "";
       });
@@ -61,51 +62,64 @@ export const TemplateVariableModal: React.FC<TemplateVariableModalProps> = ({
         </div>
 
         <div className="space-y-4 mb-6">
-          {template.content.variables.map((variable) => (
-            <div key={variable.name}>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {variable.name} {variable.required && <span className="text-red-500">*</span>}
-              </label>
-              {variable.type === "text" ||
-              variable.type === "hashtags" ||
-              variable.type === "mentions" ? (
-                <textarea
-                  rows={variable.type === "text" ? 3 : 2}
-                  value={variables[variable.name] ?? ""}
-                  onChange={(e) =>
-                    setVariables((prev) => ({
-                      ...prev,
-                      [variable.name]: e.target.value,
-                    }))
-                  }
-                  placeholder={variable.placeholder}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              ) : (
-                <input
-                  type={
-                    variable.type === "url"
-                      ? "url"
-                      : variable.type === "date"
-                        ? "date"
-                        : variable.type === "number"
-                          ? "number"
-                          : "text"
-                  }
-                  value={variables[variable.name] ?? ""}
-                  onChange={(e) =>
-                    setVariables((prev) => ({
-                      ...prev,
-                      [variable.name]: e.target.value,
-                    }))
-                  }
-                  placeholder={variable.placeholder}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              )}
-              <p className="text-xs text-gray-500 mt-1">{variable.placeholder}</p>
-            </div>
-          ))}
+          {template.content.variables.map((variable) => {
+            const variableId = `${variableIdPrefix}-${variable.name}`;
+            return (
+              <div key={variable.name}>
+                <label
+                  htmlFor={variableId}
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  {variable.name}{" "}
+                  {variable.required && (
+                    <span aria-hidden="true" className="text-red-500">
+                      *
+                    </span>
+                  )}
+                </label>
+                {variable.type === "text" ||
+                variable.type === "hashtags" ||
+                variable.type === "mentions" ? (
+                  <textarea
+                    id={variableId}
+                    rows={variable.type === "text" ? 3 : 2}
+                    value={variables[variable.name] ?? ""}
+                    onChange={(e) =>
+                      setVariables((prev) => ({
+                        ...prev,
+                        [variable.name]: e.target.value,
+                      }))
+                    }
+                    placeholder={variable.placeholder}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                ) : (
+                  <input
+                    id={variableId}
+                    type={
+                      variable.type === "url"
+                        ? "url"
+                        : variable.type === "date"
+                          ? "date"
+                          : variable.type === "number"
+                            ? "number"
+                            : "text"
+                    }
+                    value={variables[variable.name] ?? ""}
+                    onChange={(e) =>
+                      setVariables((prev) => ({
+                        ...prev,
+                        [variable.name]: e.target.value,
+                      }))
+                    }
+                    placeholder={variable.placeholder}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                )}
+                <p className="text-xs text-gray-500 mt-1">{variable.placeholder}</p>
+              </div>
+            );
+          })}
         </div>
 
         <div className="flex justify-end space-x-3">

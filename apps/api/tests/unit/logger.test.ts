@@ -2,6 +2,10 @@
  * Logger Factory Tests
  *
  * Tests for the unified logger factory following TDD principles.
+ *
+ * @file logger.test.ts
+ * @description Tests for Logger Factory
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

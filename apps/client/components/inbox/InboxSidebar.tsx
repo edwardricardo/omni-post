@@ -2,7 +2,7 @@
  * @file InboxSidebar.tsx
  * @description Filter sidebar for the Social Inbox. Provides platform, status,
  *              and message type (All / Mentions / Comments) filter pills.
- * @layer ui
+ * @layer infrastructure
  */
 
 "use client";

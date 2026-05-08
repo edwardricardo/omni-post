@@ -1,12 +1,12 @@
 /**
  * @file SalesforceAdapter.ts
- * @description Salesforce CRM adapter implementing ICrmAdapter port.
+ * @description Salesforce CRM adapter implementing CrmAdapter port.
  *   Uses Salesforce REST API v59.0 for contacts (SOQL) and Task records for activity logging.
  *   OAuth 2.0 authorization_code flow via Connected App.
  * @layer infrastructure
  */
 
-import type { ICrmAdapter, CrmContact, CrmActivityPayload, CrmTokens } from "@ports/core";
+import type { CrmAdapter, CrmContact, CrmActivityPayload, CrmTokens } from "@ports/core";
 
 export interface SalesforceConfig {
   clientId: string;
@@ -15,7 +15,7 @@ export interface SalesforceConfig {
   sandbox?: boolean;
 }
 
-export class SalesforceAdapter implements ICrmAdapter {
+export class SalesforceAdapter implements CrmAdapter {
   readonly platform = "SALESFORCE" as const;
 
   private readonly clientId: string;

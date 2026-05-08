@@ -1,3 +1,8 @@
+/**
+ * @file run-with-coverage.ts
+ * @description Tests for run with coverage
+ * @layer infrastructure
+ */
 // Enhanced test runner with coverage reporting capabilities
 // This runner supports both regular test execution and coverage analysis
 
@@ -93,8 +98,8 @@ const TEST_MODULES: TestModule[] = [
 
   // Integration Tests
   {
-    name: "Phase 4C Integration",
-    path: "./phase4c-integration.test.ts",
+    name: "Universal Client Dashboard Integration",
+    path: "./universal-client-dashboard.integration.test.ts",
     enabled: true,
     category: "integration",
   },

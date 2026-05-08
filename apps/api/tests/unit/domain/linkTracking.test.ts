@@ -1,8 +1,11 @@
 /**
  * Domain Layer - Link Tracking Unit Tests
  *
- * Part of Sprint 19: Link Tracking Feature
- * TDD: RED phase - Tests written before implementation
+ * Tests for TrackedLink aggregate, value objects, and link-tracking domain events.
+ *
+ * @file linkTracking.test.ts
+ * @description Tests for Link Tracking Domain
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

@@ -93,7 +93,7 @@ export class TrialManagementService extends AuditableService {
    * @method getTrialStatusFromSubscription
    * @description Reads trial status from the new AccountSubscription model.
    *   This is an additive method — legacy Account-based trial fields remain
-   *   untouched until Phase 3 migration.
+   *   untouched until the billing migration completes.
    * @param accountId - The account ID to check
    * @returns Trial status object or null if no subscription exists
    */

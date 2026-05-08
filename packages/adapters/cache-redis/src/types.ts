@@ -1,6 +1,8 @@
 /**
- * Cache Type Definitions
- * All TypeScript interfaces and types for the Redis cache adapter
+ * @file types.ts
+ * @description Cache type definitions — CacheConfig, CacheItem, CacheOptions, AccessPattern,
+ *              and other interfaces consumed by the Redis cache adapter.
+ * @layer infrastructure
  */
 
 export interface CacheConfig {

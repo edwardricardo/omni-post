@@ -4,7 +4,7 @@
  *              Targets: calculateBlockDuration, findMatchingRule edge cases,
  *              createFingerprint, extractIP, checkRateLimit blocked/reset paths,
  *              getPlugin headers and error handling.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

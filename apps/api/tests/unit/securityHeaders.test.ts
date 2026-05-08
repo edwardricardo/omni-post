@@ -4,6 +4,10 @@
  * Testing security headers, CSP, CORS, and request validation
  *
  * Coverage Target: 95%+
+ *
+ * @file securityHeaders.test.ts
+ * @description Tests for SecurityManager Tests
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

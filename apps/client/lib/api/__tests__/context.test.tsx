@@ -1,3 +1,8 @@
+/**
+ * @file context.test.tsx
+ * @description Tests for ApiProvider and useApi
+ * @layer infrastructure
+ */
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import React from "react";
@@ -15,7 +20,7 @@ function TestComponent() {
       <button
         data-testid="trigger-error"
         onClick={() => {
-          const error = new ApiError("Test error", 400);
+          const error = new ApiError(400, null, "Test error");
           handleError(error);
           errorHandler(error);
         }}
@@ -100,7 +105,7 @@ describe("ApiProvider and useApi", () => {
 
       function TestUnauthorized() {
         const { handleError } = useApi();
-        const error = new ApiError("Unauthorized", 401);
+        const error = new ApiError(401, null, "Unauthorized");
         handleError(error);
         return <div>Test</div>;
       }
@@ -119,7 +124,7 @@ describe("ApiProvider and useApi", () => {
 
       function TestForbidden() {
         const { handleError } = useApi();
-        const error = new ApiError("Forbidden", 403);
+        const error = new ApiError(403, null, "Forbidden");
         handleError(error);
         return <div>Test</div>;
       }
@@ -138,7 +143,7 @@ describe("ApiProvider and useApi", () => {
 
       function TestRateLimit() {
         const { handleError } = useApi();
-        const error = new ApiError("Too Many Requests", 429);
+        const error = new ApiError(429, null, "Too Many Requests");
         handleError(error);
         return <div>Test</div>;
       }
@@ -157,7 +162,7 @@ describe("ApiProvider and useApi", () => {
 
       function TestServerError() {
         const { handleError } = useApi();
-        const error = new ApiError("Internal Server Error", 500);
+        const error = new ApiError(500, null, "Internal Server Error");
         handleError(error);
         return <div>Test</div>;
       }

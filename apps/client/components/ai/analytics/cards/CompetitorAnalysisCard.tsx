@@ -94,7 +94,7 @@ export const CompetitorAnalysisCard: React.FC<CompetitorAnalysisCardProps> = ({ 
 
         <div>
           <h5 className="font-semibold text-gray-900 mb-3 flex items-center space-x-2">
-            <AlertTriangle className="w-4 h-4 text-red-600" />
+            <AlertTriangle aria-hidden="true" className="w-4 h-4 text-red-600" />
             <span>Threats</span>
           </h5>
           <div className="space-y-2 text-sm">

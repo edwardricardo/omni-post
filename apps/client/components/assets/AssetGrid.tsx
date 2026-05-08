@@ -1,7 +1,7 @@
 /**
  * @file AssetGrid.tsx
  * @description Grid of asset thumbnails with selection and bulk actions.
- * @layer client-components
+ * @layer infrastructure
  */
 
 "use client";

@@ -2,7 +2,7 @@
  * @file MfaSelfService.tsx
  * @description Self-service MFA setup panel for the current admin user.
  * Allows setting up MFA via TOTP, verifying with a code, and disabling MFA.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 
@@ -251,9 +251,9 @@ export function MfaSelfService() {
             </div>
           )}
           <div>
-            <label className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">
+            <span className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">
               {ms("manualKey")}
-            </label>
+            </span>
             <code className="block rounded border border-[var(--border-default)] bg-[var(--bg-elevated)] px-2 py-1 font-mono text-xs text-[var(--text-primary)] select-all break-all">
               {setupData.secret}
             </code>

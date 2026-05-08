@@ -6,14 +6,14 @@
  */
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useId } from "react";
 import { useTranslations } from "next-intl";
 import { ShieldAlert } from "lucide-react";
 import { toast } from "@packages/ui";
 
 import { useRotateEncryption } from "@/hooks/api/useSettings";
 import { ActionButton } from "../ui/ActionButton";
-import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { ConfirmDialog } from "@packages/ui";
 
 /**
  * @component SecurityTab
@@ -26,6 +26,7 @@ export function SecurityTab() {
   const rotateMutation = useRotateEncryption();
   const [note, setNote] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const noteInputId = useId();
 
   const handleRotate = useCallback(async () => {
     try {
@@ -46,7 +47,7 @@ export function SecurityTab() {
       </div>
 
       <div className="flex items-start gap-3 rounded-md bg-[var(--warning-subtle)] p-3">
-        <ShieldAlert className="h-5 w-5 text-[var(--warning)] shrink-0 mt-0.5" />
+        <ShieldAlert aria-hidden="true" className="h-5 w-5 text-[var(--warning)] shrink-0 mt-0.5" />
         <div className="text-sm text-[var(--text-primary)]">
           <p className="font-medium">{t("warning")}</p>
           <ol className="mt-2 list-decimal list-inside space-y-1 text-[var(--text-secondary)]">
@@ -65,10 +66,14 @@ export function SecurityTab() {
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+        <label
+          htmlFor={noteInputId}
+          className="block text-xs font-medium text-[var(--text-secondary)] mb-1"
+        >
           {t("noteLabel")}
         </label>
         <input
+          id={noteInputId}
           type="text"
           value={note}
           onChange={(e) => setNote(e.target.value)}

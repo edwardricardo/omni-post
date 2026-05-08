@@ -1,8 +1,11 @@
 /**
  * RealtimeWebhookBroadcaster Tests
  *
- * Tests for Sprint 13: Webhook Processors - Real-time broadcast system
- * Following TDD principles - validating webhook broadcast functionality.
+ * Validates the real-time broadcast system for webhook processors.
+ *
+ * @file realtimeWebhookBroadcaster.test.ts
+ * @description Tests for RealtimeWebhookBroadcaster
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

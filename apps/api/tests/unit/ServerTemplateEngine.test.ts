@@ -7,6 +7,10 @@
  * - Platform validation
  * - Component compilation
  * - Platform limits
+ *
+ * @file ServerTemplateEngine.test.ts
+ * @description Tests for ServerTemplateEngine - Platform Validation
+ * @layer infrastructure
  */
 
 import "./templateRoutes.env-setup.js";

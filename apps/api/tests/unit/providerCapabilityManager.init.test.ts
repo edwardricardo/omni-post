@@ -1,3 +1,8 @@
+/**
+ * @file providerCapabilityManager.init.test.ts
+ * @description Tests for ProviderCapabilityManager - Initialization & Basic Operations
+ * @layer infrastructure
+ */
 import { describe, it, expect } from "vitest";
 import type { ProviderCapabilities } from "../../src/providers/providerAdapter.interface.js";
 import {

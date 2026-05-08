@@ -2,11 +2,11 @@
  * @file BreachTable.tsx
  * @description Table for managing data breach reports with severity badges,
  *   notification actions, and a dialog for reporting new breaches.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useId } from "react";
 import { useTranslations } from "next-intl";
 import {
   toast,
@@ -77,6 +77,13 @@ export function BreachTable() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState<CreateBreachInput>(EMPTY_FORM);
+
+  const titleId = useId();
+  const descriptionId = useId();
+  const discoveredAtId = useId();
+  const severityId = useId();
+  const affectedUsersId = useId();
+  const dataTypesHeadingId = useId();
 
   const handleCreate = useCallback(async () => {
     if (!form.title.trim() || !form.description.trim()) return;
@@ -226,10 +233,14 @@ export function BreachTable() {
           <div className="space-y-3 py-2">
             {/* Title */}
             <div>
-              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+              <label
+                htmlFor={titleId}
+                className="block text-xs font-medium text-[var(--text-secondary)] mb-1"
+              >
                 {tc("name")}
               </label>
               <input
+                id={titleId}
                 type="text"
                 value={form.title}
                 onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
@@ -238,10 +249,14 @@ export function BreachTable() {
             </div>
             {/* Description */}
             <div>
-              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+              <label
+                htmlFor={descriptionId}
+                className="block text-xs font-medium text-[var(--text-secondary)] mb-1"
+              >
                 {tc("description")}
               </label>
               <textarea
+                id={descriptionId}
                 value={form.description}
                 onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
                 rows={3}
@@ -251,10 +266,14 @@ export function BreachTable() {
             {/* Discovered At + Severity */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                <label
+                  htmlFor={discoveredAtId}
+                  className="block text-xs font-medium text-[var(--text-secondary)] mb-1"
+                >
                   {t("discoveredAt")}
                 </label>
                 <input
+                  id={discoveredAtId}
                   type="datetime-local"
                   value={form.discoveredAt}
                   onChange={(e) => setForm((prev) => ({ ...prev, discoveredAt: e.target.value }))}
@@ -262,10 +281,14 @@ export function BreachTable() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                <label
+                  htmlFor={severityId}
+                  className="block text-xs font-medium text-[var(--text-secondary)] mb-1"
+                >
                   {t("severity")}
                 </label>
                 <select
+                  id={severityId}
                   value={form.severity}
                   onChange={(e) =>
                     setForm((prev) => ({
@@ -285,10 +308,14 @@ export function BreachTable() {
             </div>
             {/* Affected Users */}
             <div>
-              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+              <label
+                htmlFor={affectedUsersId}
+                className="block text-xs font-medium text-[var(--text-secondary)] mb-1"
+              >
                 {t("affected")}
               </label>
               <input
+                id={affectedUsersId}
                 type="number"
                 min={0}
                 value={form.affectedUsers}
@@ -300,16 +327,24 @@ export function BreachTable() {
             </div>
             {/* Data Types */}
             <div>
-              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+              <span
+                id={dataTypesHeadingId}
+                className="block text-xs font-medium text-[var(--text-secondary)] mb-1"
+              >
                 {t("dataTypes")}
-              </label>
-              <div className="flex flex-wrap gap-2">
+              </span>
+              <div
+                role="group"
+                aria-labelledby={dataTypesHeadingId}
+                className="flex flex-wrap gap-2"
+              >
                 {DATA_TYPE_OPTIONS.map((dtype) => {
                   const selected = form.dataTypes.includes(dtype);
                   return (
                     <button
                       key={dtype}
                       type="button"
+                      aria-pressed={selected}
                       onClick={() => toggleDataType(dtype)}
                       className={[
                         "px-2 py-1 text-xs rounded-md border transition-colors",

@@ -1,7 +1,7 @@
 /**
  * @file campaignUseCases.test.ts
  * @description Tests for CreateCampaignUseCase — project ID validation, entity creation, persistence.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

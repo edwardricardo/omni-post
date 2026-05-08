@@ -1,3 +1,8 @@
+/**
+ * @file AnalyticsRepository.channel.test.ts
+ * @description Tests for AnalyticsRepository - getLatestForPosts
+ * @layer infrastructure
+ */
 import { describe, it, beforeAll, afterAll, expect } from "vitest";
 import { PrismaAnalyticsReadRepository } from "../../../src/infrastructure/repositories/PrismaAnalyticsReadRepository.js";
 import { prisma } from "@infra/prisma";

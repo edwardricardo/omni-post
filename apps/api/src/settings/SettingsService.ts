@@ -372,6 +372,7 @@ export class SettingsService {
 
     const res = await fetch("https://api.stripe.com/v1/balance", {
       headers: { Authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(5_000),
     });
 
     return res.ok
@@ -393,6 +394,7 @@ export class SettingsService {
 
     const res = await fetch(`${baseUrl}/customers?per_page=1`, {
       headers: { Authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(5_000),
     });
 
     return res.ok
@@ -411,6 +413,7 @@ export class SettingsService {
 
     const res = await fetch("https://api.resend.com/domains", {
       headers: { Authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(5_000),
     });
 
     return res.ok
@@ -473,7 +476,11 @@ export class SettingsService {
       }
     }
 
-    const res = await fetch(config.url, { method: "GET", headers });
+    const res = await fetch(config.url, {
+      method: "GET",
+      headers,
+      signal: AbortSignal.timeout(5_000),
+    });
 
     return res.ok
       ? { success: true, message: `${provider} API connected` }
@@ -496,7 +503,7 @@ export class SettingsService {
 
     try {
       const url = endpoint.endsWith("/") ? `${endpoint}${bucket}` : `${endpoint}/${bucket}`;
-      const res = await fetch(url, { method: "HEAD" });
+      const res = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(5_000) });
       return res.ok || res.status === 403
         ? { success: true, message: "Storage endpoint reachable" }
         : {
@@ -599,7 +606,7 @@ export class SettingsService {
       url = `${url}${separator}access_token=${token}`;
     }
 
-    const res = await fetch(url, { headers });
+    const res = await fetch(url, { headers, signal: AbortSignal.timeout(5_000) });
     const providerName = group.replace("SOCIAL_", "");
 
     return res.ok

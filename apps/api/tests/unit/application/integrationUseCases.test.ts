@@ -413,14 +413,15 @@ describe("UnsubscribeIntegrationTriggerUseCase", () => {
 describe("TriggerIntegrationEventService", () => {
   let repo: IntegrationSubscriptionRepository;
   let service: TriggerIntegrationEventService;
+  let httpClient: { post: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     vi.clearAllMocks();
     repo = makeSubRepo();
-    service = new TriggerIntegrationEventService(repo);
-
-    // Mock global fetch
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("OK", { status: 200 })));
+    httpClient = {
+      post: vi.fn(async () => ({ ok: true, value: { status: 200, headers: {} } })),
+    };
+    service = new TriggerIntegrationEventService(repo, httpClient as never);
   });
 
   it("fires POST requests to all active subscribers (all platforms)", async () => {
@@ -430,11 +431,11 @@ describe("TriggerIntegrationEventService", () => {
     repo = makeSubRepo({
       findActiveByEvent: vi.fn().mockResolvedValue([sub1, sub2]),
     });
-    service = new TriggerIntegrationEventService(repo);
+    service = new TriggerIntegrationEventService(repo, httpClient as never);
 
     await service.fire("post.published", { postId: "p-001" });
 
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(httpClient.post).toHaveBeenCalledTimes(2);
   });
 
   it("fires only to Make subscribers when platform filter is MAKE", async () => {
@@ -446,22 +447,23 @@ describe("TriggerIntegrationEventService", () => {
     repo = makeSubRepo({
       findActiveByEventAndPlatform: vi.fn().mockResolvedValue([makeSub1]),
     });
-    service = new TriggerIntegrationEventService(repo);
+    service = new TriggerIntegrationEventService(repo, httpClient as never);
 
     await service.fire("post.published", { postId: "p-001" }, "MAKE");
 
     expect(repo.findActiveByEventAndPlatform).toHaveBeenCalledWith("post.published", "MAKE");
-    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(httpClient.post).toHaveBeenCalledTimes(1);
   });
 
-  it("does not throw when fetch fails", async () => {
+  it("does not throw when http delivery fails", async () => {
     const sub = makeSub();
     repo = makeSubRepo({
       findActiveByEvent: vi.fn().mockResolvedValue([sub]),
     });
-    service = new TriggerIntegrationEventService(repo);
-
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network error")));
+    httpClient = {
+      post: vi.fn(async () => ({ ok: false, error: "NETWORK" })),
+    };
+    service = new TriggerIntegrationEventService(repo, httpClient as never);
 
     // Should not throw
     await service.fire("post.published", { postId: "p-001" });
@@ -470,14 +472,14 @@ describe("TriggerIntegrationEventService", () => {
   it("does not fire when no active subscriptions exist", async () => {
     await service.fire("post.published", { postId: "p-001" });
 
-    expect(fetch).not.toHaveBeenCalled();
+    expect(httpClient.post).not.toHaveBeenCalled();
   });
 
   it("does not throw when repository lookup fails", async () => {
     repo = makeSubRepo({
       findActiveByEvent: vi.fn().mockRejectedValue(new Error("DB down")),
     });
-    service = new TriggerIntegrationEventService(repo);
+    service = new TriggerIntegrationEventService(repo, httpClient as never);
 
     // Should not throw
     await service.fire("post.published", { postId: "p-001" });

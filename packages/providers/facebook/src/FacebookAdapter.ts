@@ -1,16 +1,15 @@
 /**
- * Facebook Provider Adapter - Class-based implementation
- *
- * Extends AbstractProviderAdapter to provide Facebook-specific functionality
- * for publishing posts, uploading media, and fetching page analytics.
+ * @file FacebookAdapter.ts
+ * @description Facebook provider adapter. Implements the ProviderAdapter port from
+ *   @ports/core directly (no inheritance). Stateless w.r.t. credentials —
+ *   credentials are passed per-call by the application layer. Routes content
+ *   between regular page posts, Stories, and Reels via Graph API; supports
+ *   page-level analytics, comment fetch, and reply posting.
+ * @layer infrastructure
  */
 
-import {
-  AbstractProviderAdapter,
-  type ProviderMetadata,
-  type ProviderConstraints,
-} from "@providers/shared";
 import type {
+  ProviderAdapter,
   ProviderId,
   ProviderLimits,
   PublishInput,
@@ -27,6 +26,13 @@ import type {
   PublishError,
 } from "@shared/types";
 import { ok, err } from "@shared/types";
+import {
+  validateCredentialStructure,
+  mapErrorToPublishError,
+  type ProviderMetadata,
+  type ProviderConstraints,
+} from "@providers/shared";
+import pino, { type Logger } from "pino";
 import { FacebookApiClient, type FacebookCredentials } from "./apiClient.js";
 import {
   FacebookStoriesApi,
@@ -35,96 +41,123 @@ import {
 } from "./features/stories.js";
 import { FacebookReelsApi, type FacebookReelOptions } from "./features/reels.js";
 
+const REQUIRED_FIELDS: (keyof FacebookCredentials)[] = [
+  "accessToken",
+  "pageId",
+  "appId",
+  "appSecret",
+];
+
+const FACEBOOK_LIMITS: ProviderLimits = {
+  maxChars: 63206,
+  allowedMedia: ["image", "video"],
+  aspectRatios: ["16:9", "1:1", "4:5", "9:16"],
+  maxMediaPerPost: 10,
+  threadingSupported: false,
+  rateLimitHints: { burst: 200, perSeconds: 3600 },
+};
+
+const FACEBOOK_METADATA: ProviderMetadata = {
+  id: "facebook",
+  name: "facebook",
+  displayName: "Facebook",
+  description: "Publish posts, stories and videos to Facebook",
+  icon: "/providers/facebook-icon.svg",
+  color: "#1877F2",
+  website: "https://facebook.com",
+  authType: "oauth",
+  requiredScopes: ["pages_manage_posts", "pages_read_engagement"],
+  status: "active",
+};
+
+const FACEBOOK_CAPABILITIES = {
+  publish: true,
+  schedule: true,
+  analytics: true,
+  comments: true,
+  replies: true,
+  threading: false,
+};
+
 /**
- * Facebook Provider Adapter
+ * Factory for creating FacebookApiClient instances. Injected so tests can supply
+ * a fake. Defaults to constructing a real `FacebookApiClient`.
  */
-export class FacebookAdapter extends AbstractProviderAdapter<FacebookCredentials> {
+export type FacebookApiClientFactory = (credentials: FacebookCredentials) => FacebookApiClient;
+
+const defaultClientFactory: FacebookApiClientFactory = (credentials) =>
+  new FacebookApiClient(credentials);
+
+export interface FacebookAdapterDeps {
+  /** Logger instance. Default: pino at level "info". */
+  logger?: Logger;
+  /** Factory that constructs a FacebookApiClient given credentials. Default: real client. */
+  apiClientFactory?: FacebookApiClientFactory;
+}
+
+/**
+ * @class FacebookAdapter
+ * @description Publishes content to Facebook via Graph API.
+ */
+export class FacebookAdapter implements ProviderAdapter {
   readonly id: ProviderId = "facebook";
-
-  readonly metadata: ProviderMetadata = {
-    id: "facebook",
-    name: "facebook",
-    displayName: "Facebook",
-    description: "Publish posts, stories and videos to Facebook",
-    icon: "/providers/facebook-icon.svg",
-    color: "#1877F2",
-    website: "https://facebook.com",
-    authType: "oauth",
-    requiredScopes: ["pages_manage_posts", "pages_read_engagement"],
-    status: "active",
-  };
-
+  readonly limits: ProviderLimits = FACEBOOK_LIMITS;
+  readonly capabilities = FACEBOOK_CAPABILITIES;
+  readonly metadata: ProviderMetadata = FACEBOOK_METADATA;
   readonly constraints: ProviderConstraints = {};
 
-  readonly limits: ProviderLimits = {
-    maxChars: 63206, // Facebook's character limit
-    allowedMedia: ["image", "video"],
-    aspectRatios: ["16:9", "1:1", "4:5", "9:16"],
-    maxMediaPerPost: 10, // Facebook allows multiple media per post
-    threadingSupported: false, // Facebook doesn't support threading like Twitter
-    rateLimitHints: { burst: 200, perSeconds: 3600 }, // Facebook rate limits
-  };
+  private readonly logger: Logger;
+  private readonly apiClientFactory: FacebookApiClientFactory;
 
-  readonly capabilities = {
-    publish: true,
-    schedule: true,
-    analytics: true,
-    comments: true,
-    replies: true,
-    threading: false,
-  };
-
-  protected readonly requiredCredentialFields: (keyof FacebookCredentials)[] = [
-    "accessToken",
-    "pageId",
-    "appId",
-    "appSecret",
-  ];
+  constructor(deps: FacebookAdapterDeps = {}) {
+    this.logger = deps.logger ?? pino({ name: "facebook-adapter", level: "info" });
+    this.apiClientFactory = deps.apiClientFactory ?? defaultClientFactory;
+  }
 
   /**
-   * Get credentials from environment variables
+   * @method validateCredentials
+   * @description Verifies that supplied credentials are well-formed and accepted
+   *   by Facebook. Used by ConnectChannel before persisting a channel.
    */
-  protected getCredentialsFromEnvironment(): Result<FacebookCredentials, "AUTH"> {
-    const credentials: FacebookCredentials = {
-      accessToken: process.env.FACEBOOK_ACCESS_TOKEN || "placeholder",
-      pageId: process.env.FACEBOOK_PAGE_ID || "placeholder",
-      appId: process.env.FACEBOOK_APP_ID || "placeholder",
-      appSecret: process.env.FACEBOOK_APP_SECRET || "placeholder",
-      ...(process.env.FACEBOOK_LONG_LIVED_TOKEN && {
-        longLivedToken: process.env.FACEBOOK_LONG_LIVED_TOKEN,
-      }),
-      ...(process.env.FACEBOOK_INSTAGRAM_BUSINESS_ACCOUNT_ID && {
-        instagramBusinessAccountId: process.env.FACEBOOK_INSTAGRAM_BUSINESS_ACCOUNT_ID,
-      }),
-      ...(process.env.FACEBOOK_AD_ACCOUNT_ID && {
-        adAccountId: process.env.FACEBOOK_AD_ACCOUNT_ID,
-      }),
-    };
-
-    if (
-      credentials.accessToken === "placeholder" ||
-      credentials.pageId === "placeholder" ||
-      credentials.appId === "placeholder" ||
-      credentials.appSecret === "placeholder"
-    ) {
-      return err("AUTH");
+  async validateCredentials(
+    credentials: unknown
+  ): Promise<Result<void, "AUTH_INVALID" | "AUTH_EXPIRED">> {
+    const validation = validateCredentialStructure<FacebookCredentials>(
+      credentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
+      return err("AUTH_INVALID");
     }
 
-    return ok(credentials);
+    try {
+      const apiClient = this.apiClientFactory(validation.value);
+      await apiClient.validateCredentials();
+      return ok(undefined);
+    } catch (error: unknown) {
+      this.logger.error({
+        provider: this.id,
+        operation: "validateCredentials",
+        error: error instanceof Error ? error.message : String(error),
+      });
+      if (
+        error instanceof Error &&
+        "status" in error &&
+        (error as Record<string, unknown>).status === 401
+      ) {
+        return err("AUTH_EXPIRED");
+      }
+      return err("AUTH_INVALID");
+    }
   }
 
   /**
-   * Create Facebook API client
+   * @method render
+   * @description Validates content length and renders for publishing.
    */
-  protected createApiClient(credentials: FacebookCredentials): FacebookApiClient {
-    return new FacebookApiClient(credentials);
-  }
-
-  /**
-   * Render canonical post for Facebook
-   */
-  override render(canonical: CanonicalPost): Result<RenderedContent, RenderError> {
-    // Facebook posts are single posts, no threading
+  render(canonical: CanonicalPost): Result<RenderedContent, RenderError> {
     const message = canonical.body;
 
     if (this.limits.maxChars && message.length > this.limits.maxChars) {
@@ -138,15 +171,13 @@ export class FacebookAdapter extends AbstractProviderAdapter<FacebookCredentials
         message,
         ...(canonical.media && canonical.media.length > 0 ? { media: canonical.media } : {}),
       },
-      ...(Object.keys({}).length > 0 ? { meta: {} } : {}),
     });
   }
 
   /**
-   * Detect content type based on post metadata and media
+   * Detect content type based on post metadata and media.
    */
   private detectContentType(post: RenderedPost): "STORY" | "REEL" | "POST" {
-    // Check for explicit content type in metadata
     const contentType = post.meta?.contentType || post.meta?.type;
     if (contentType === "story" || contentType === "STORY") {
       return "STORY";
@@ -155,19 +186,16 @@ export class FacebookAdapter extends AbstractProviderAdapter<FacebookCredentials
       return "REEL";
     }
 
-    // Detect based on media characteristics
     if (post.media && post.media.length > 0) {
       const firstMedia = post.media[0];
       if (!firstMedia) {
         return "POST";
       }
 
-      // Stories: typically vertical video/image with short lifespan metadata
       if (post.meta?.ephemeral || post.meta?.story || post.meta?.duration === 24) {
         return "STORY";
       }
 
-      // Reels: vertical video content (9:16 aspect ratio)
       const mediaMeta = (firstMedia as { meta?: Record<string, unknown> }).meta;
       if (
         firstMedia.type === "video" &&
@@ -179,7 +207,6 @@ export class FacebookAdapter extends AbstractProviderAdapter<FacebookCredentials
         return "REEL";
       }
 
-      // Reels: video with reel-specific metadata
       if (
         firstMedia.type === "video" &&
         (post.meta?.musicTrack || post.meta?.effects || post.meta?.allowRemixing !== undefined)
@@ -188,21 +215,19 @@ export class FacebookAdapter extends AbstractProviderAdapter<FacebookCredentials
       }
     }
 
-    // Default to regular post
     return "POST";
   }
 
   /**
-   * Publish story to Facebook
+   * Publish a Facebook Story.
    */
   private async publishStory(
-    apiClient: FacebookApiClient,
+    credentials: FacebookCredentials,
     post: RenderedPost
   ): Promise<Result<PublishReceipt, PublishError>> {
     try {
-      const storiesApi = new FacebookStoriesApi(apiClient["credentials"]);
+      const storiesApi = new FacebookStoriesApi(credentials);
 
-      // Validate media exists for story
       if (!post.media || post.media.length === 0) {
         return err("VALIDATION");
       }
@@ -214,7 +239,6 @@ export class FacebookAdapter extends AbstractProviderAdapter<FacebookCredentials
 
       const mediaMeta = (media as { meta?: Record<string, unknown> }).meta;
 
-      // Build story options
       const storyOptions: FacebookStoryOptions = {
         media: {
           id: "",
@@ -224,7 +248,6 @@ export class FacebookAdapter extends AbstractProviderAdapter<FacebookCredentials
         },
       };
 
-      // Add optional story properties from post metadata
       if (post.meta?.interactive) {
         storyOptions.interactive = post.meta.interactive as FacebookStoryInteractiveElements;
       }
@@ -260,21 +283,20 @@ export class FacebookAdapter extends AbstractProviderAdapter<FacebookCredentials
       });
     } catch (error: unknown) {
       this.logError("publishStory", error, { post });
-      return err(this.mapErrorToPublishError(error));
+      return err(mapErrorToPublishError(error));
     }
   }
 
   /**
-   * Publish reel to Facebook
+   * Publish a Facebook Reel.
    */
   private async publishReel(
-    apiClient: FacebookApiClient,
+    credentials: FacebookCredentials,
     post: RenderedPost
   ): Promise<Result<PublishReceipt, PublishError>> {
     try {
-      const reelsApi = new FacebookReelsApi(apiClient["credentials"]);
+      const reelsApi = new FacebookReelsApi(credentials);
 
-      // Validate video exists for reel
       if (!post.media || post.media.length === 0) {
         return err("VALIDATION");
       }
@@ -284,12 +306,10 @@ export class FacebookAdapter extends AbstractProviderAdapter<FacebookCredentials
         return err("VALIDATION");
       }
 
-      // Build reel options
       const reelOptions: FacebookReelOptions = {
         videoUrl: video.url,
       };
 
-      // Add optional reel properties
       if (post.body) {
         reelOptions.description = post.body;
       }
@@ -348,19 +368,18 @@ export class FacebookAdapter extends AbstractProviderAdapter<FacebookCredentials
       });
     } catch (error: unknown) {
       this.logError("publishReel", error, { post });
-      return err(this.mapErrorToPublishError(error));
+      return err(mapErrorToPublishError(error));
     }
   }
 
   /**
-   * Publish regular post to Facebook
+   * Publish a regular Facebook page post.
    */
   private async publishPost(
     apiClient: FacebookApiClient,
     post: RenderedPost
   ): Promise<Result<PublishReceipt, PublishError>> {
     try {
-      // Upload media first if present
       const mediaIds: string[] = [];
       if (post.media && post.media.length > 0) {
         for (const media of post.media) {
@@ -369,7 +388,6 @@ export class FacebookAdapter extends AbstractProviderAdapter<FacebookCredentials
         }
       }
 
-      // Post to Facebook Page with circuit breaker protection
       const result = await apiClient.postToPage(post.body, mediaIds);
 
       return ok({
@@ -379,33 +397,39 @@ export class FacebookAdapter extends AbstractProviderAdapter<FacebookCredentials
       });
     } catch (error: unknown) {
       this.logError("publishPost", error, { post });
-      return err(this.mapErrorToPublishError(error));
+      return err(mapErrorToPublishError(error));
     }
   }
 
   /**
-   * Publish post to Facebook (routes to Story, Reel, or regular Post based on content type)
+   * @method publish
+   * @description Routes to Story, Reel, or regular Post based on detected
+   *   content type. Caller must pass resolved credentials.
    */
-  override async publish(input: PublishInput): Promise<Result<PublishReceipt, PublishError>> {
-    // Get credentials using base class method
-    const credentials = await this.getCredentials(input.channelId);
-    if (!credentials.ok) {
+  async publish(
+    input: PublishInput,
+    credentials: unknown
+  ): Promise<Result<PublishReceipt, PublishError>> {
+    const validation = validateCredentialStructure<FacebookCredentials>(
+      credentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
       return err("AUTH");
     }
 
     try {
-      const apiClient = this.createApiClient(credentials.value);
-
-      // Detect content type based on post metadata and media
+      const apiClient = this.apiClientFactory(validation.value);
       const contentType = this.detectContentType(input.post);
 
-      // Route to appropriate publishing method
       switch (contentType) {
         case "STORY":
-          return await this.publishStory(apiClient, input.post);
+          return await this.publishStory(validation.value, input.post);
 
         case "REEL":
-          return await this.publishReel(apiClient, input.post);
+          return await this.publishReel(validation.value, input.post);
 
         case "POST":
         default:
@@ -414,32 +438,34 @@ export class FacebookAdapter extends AbstractProviderAdapter<FacebookCredentials
     } catch (error: unknown) {
       this.logError("publish", error, { channelId: input.channelId });
 
-      // Handle circuit breaker specific error
       if (error instanceof Error && error.message?.includes("Circuit breaker is OPEN")) {
         return err("NETWORK");
       }
 
-      // Use base class error mapping
-      return err(this.mapErrorToPublishError(error));
+      return err(mapErrorToPublishError(error));
     }
   }
 
   /**
-   * Fetch analytics from Facebook
+   * @method fetchAnalytics
+   * @description Retrieves page-level insights for the given time window.
    */
-  override async fetchAnalytics(q: {
-    channelId: string;
-    since?: Date;
-    until?: Date;
-  }): Promise<Result<unknown, "AUTH" | "NETWORK">> {
-    // Get credentials using base class method
-    const credentials = await this.getCredentials(q.channelId);
-    if (!credentials.ok) {
+  async fetchAnalytics(
+    q: { channelId: string; since?: Date; until?: Date },
+    credentials: unknown
+  ): Promise<Result<unknown, "AUTH" | "NETWORK">> {
+    const validation = validateCredentialStructure<FacebookCredentials>(
+      credentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
       return err("AUTH");
     }
 
     try {
-      const apiClient = this.createApiClient(credentials.value);
+      const apiClient = this.apiClientFactory(validation.value);
       const insights = await apiClient.getPageInsights(q.since, q.until);
 
       return ok({
@@ -457,7 +483,6 @@ export class FacebookAdapter extends AbstractProviderAdapter<FacebookCredentials
     } catch (error: unknown) {
       this.logError("fetchAnalytics", error, { channelId: q.channelId });
 
-      // Handle circuit breaker specific error
       if (error instanceof Error && error.message?.includes("Circuit breaker is OPEN")) {
         return err("NETWORK");
       }
@@ -465,14 +490,11 @@ export class FacebookAdapter extends AbstractProviderAdapter<FacebookCredentials
       return err("NETWORK");
     }
   }
-  // ----------------------------------------------------------
-  // Social Inbox: getComments & postReply
-  // ----------------------------------------------------------
 
   /**
    * @method getComments
    * @description Fetches comments on a Facebook post via GET /{post-id}/comments.
-   *              Supports cursor-based pagination and reverse chronological order.
+   *   Supports cursor-based pagination and threading info.
    */
   async getComments(params: {
     channelCredentials: unknown;
@@ -485,9 +507,18 @@ export class FacebookAdapter extends AbstractProviderAdapter<FacebookCredentials
       return ok({ comments: [] });
     }
 
+    const validation = validateCredentialStructure<FacebookCredentials>(
+      params.channelCredentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
+      return err("AUTH");
+    }
+
     try {
-      const credentials = params.channelCredentials as FacebookCredentials;
-      const apiClient = this.createApiClient(credentials);
+      const apiClient = this.apiClientFactory(validation.value);
 
       const result = await apiClient.getPostComments(
         params.postExternalId,
@@ -523,9 +554,18 @@ export class FacebookAdapter extends AbstractProviderAdapter<FacebookCredentials
     inReplyToProviderMessageId: string;
     body: string;
   }): Promise<Result<ProviderReplyResult, "AUTH" | "NETWORK" | "RATE_LIMIT">> {
+    const validation = validateCredentialStructure<FacebookCredentials>(
+      params.channelCredentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
+      return err("AUTH");
+    }
+
     try {
-      const credentials = params.channelCredentials as FacebookCredentials;
-      const apiClient = this.createApiClient(credentials);
+      const apiClient = this.apiClientFactory(validation.value);
 
       const result = await apiClient.replyToComment(params.inReplyToProviderMessageId, params.body);
 
@@ -543,7 +583,23 @@ export class FacebookAdapter extends AbstractProviderAdapter<FacebookCredentials
       return err("NETWORK");
     }
   }
+
+  private logError(operation: string, error: unknown, context: Record<string, unknown> = {}): void {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    this.logger.error({
+      provider: this.id,
+      operation,
+      error: errorMessage,
+      ...context,
+    });
+  }
 }
 
-// Export singleton instance for backward compatibility
-export const facebookAdapter = new FacebookAdapter();
+/**
+ * @function createFacebookAdapter
+ * @description Factory used by the composition root to instantiate the adapter
+ *   with explicit dependencies (logger, optional client factory for tests).
+ */
+export function createFacebookAdapter(deps: FacebookAdapterDeps = {}): FacebookAdapter {
+  return new FacebookAdapter(deps);
+}

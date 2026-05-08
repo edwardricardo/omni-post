@@ -1,3 +1,9 @@
+/**
+ * @file resilience.ts
+ * @description Queue resilience primitives — circuit breaker, exponential backoff retry wrapper,
+ *              and metrics collector used by the BullMQ adapter.
+ * @layer infrastructure
+ */
 import CircuitBreaker from "opossum";
 import type { Result as _Result } from "@shared/types";
 import { createLogger } from "@observability/logger";
@@ -34,7 +40,7 @@ export const DEFAULT_RETRY_OPTIONS: RetryOptions = {
   backoffMultiplier: 2,
 };
 
-export function createCircuitBreaker<T extends any[], R>(
+export function createCircuitBreaker<T extends unknown[], R>(
   fn: (...args: T) => Promise<R>,
   options: Partial<CircuitBreakerOptions> = {}
 ): CircuitBreaker<T, R> {
@@ -129,7 +135,7 @@ export class MetricsCollector {
 
   private responseTimes: number[] = [];
 
-  setupCircuitBreakerMetrics(breaker: CircuitBreaker<any, any>): void {
+  setupCircuitBreakerMetrics(breaker: CircuitBreaker<unknown[], unknown>): void {
     breaker.on("success", (result, latencyTime) => {
       this.metrics.totalRequests++;
       this.metrics.successfulRequests++;

@@ -11,7 +11,7 @@ export {
   type PostAggregateState,
 } from "./PostAggregate.js";
 
-// In-context comments aggregate (Phase 1 Step 4: In-Context Comments)
+// In-context comments aggregate
 export {
   PostCommentAggregate,
   type CreateCommentProps,
@@ -21,7 +21,7 @@ export {
   CommentDeleted,
 } from "./PostCommentAggregate.js";
 
-// Approval workflow aggregate (Phase 1 Step 3: Content Approval)
+// Approval workflow aggregate
 export {
   ApprovalRequestAggregate,
   type CreateApprovalRequestInput,
@@ -33,7 +33,7 @@ export {
   ApprovalRequestCancelled,
 } from "./ApprovalRequestAggregate.js";
 
-// Social Inbox aggregate (Phase 2: Social Inbox)
+// Social Inbox aggregate
 export {
   SocialMessageAggregate,
   type CreateSocialMessageInput,

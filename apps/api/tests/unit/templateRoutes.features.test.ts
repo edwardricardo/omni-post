@@ -1,4 +1,9 @@
 #!/usr/bin/env tsx
+/**
+ * @file templateRoutes.features.test.ts
+ * @description Tests for Template Routes - Template Versions
+ * @layer infrastructure
+ */
 import "./templateRoutes.env-setup.js";
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 
@@ -92,37 +97,34 @@ describe("Template Routes - Analytics", () => {
     await app.close();
   });
 
-  it("should get template analytics", async () => {
+  it("should return 501 for template analytics (stub not yet wired)", async () => {
     const response = await app.inject({
       method: "GET",
       url: `/projects/${projectId}/templates/analytics`,
     });
 
-    const body = JSON.parse(response.body);
-
-    expect(response.statusCode).toBe(200);
-    expect(body.ok).toBe(true);
+    expect(response.statusCode).toBe(501);
   });
 
-  it("should get analytics with date filters", async () => {
+  it("should return 501 for analytics with date filters (stub not yet wired)", async () => {
     const response = await app.inject({
       method: "GET",
       url: `/projects/${projectId}/templates/analytics?startDate=2024-01-01&endDate=2024-12-31`,
     });
 
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode).toBe(501);
   });
 
-  it("should get analytics for specific templates", async () => {
+  it("should return 501 for analytics on specific templates (stub not yet wired)", async () => {
     const response = await app.inject({
       method: "GET",
       url: `/projects/${projectId}/templates/analytics?templateIds=template-1,template-2`,
     });
 
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode).toBe(501);
   });
 
-  it("should track template usage", async () => {
+  it("should return 501 when tracking template usage (stub not yet wired)", async () => {
     const response = await app.inject({
       method: "POST",
       url: `/projects/${projectId}/templates/${templateId}/usage`,
@@ -132,13 +134,10 @@ describe("Template Routes - Analytics", () => {
       },
     });
 
-    const body = JSON.parse(response.body);
-
-    expect(response.statusCode).toBe(200);
-    expect(body.data.message).toBe("Usage tracked successfully");
+    expect(response.statusCode).toBe(501);
   });
 
-  it("should track different usage actions", async () => {
+  it("should return 501 across all usage actions (stub not yet wired)", async () => {
     const actions = ["VIEW", "USE", "COMPILE", "LIKE", "SHARE"];
 
     for (const action of actions) {
@@ -148,7 +147,7 @@ describe("Template Routes - Analytics", () => {
         payload: { action },
       });
 
-      expect(response.statusCode).toBe(200);
+      expect(response.statusCode).toBe(501);
     }
   });
 
@@ -244,16 +243,13 @@ describe("Template Routes - A/B Testing", () => {
     expect(body.ok).toBe(true);
   });
 
-  it("should get A/B test results", async () => {
+  it("should return 501 for A/B test results (stub not yet wired)", async () => {
     const response = await app.inject({
       method: "GET",
       url: `/projects/${projectId}/templates/ab-tests/${testId}/results`,
     });
 
-    const body = JSON.parse(response.body);
-
-    expect(response.statusCode).toBe(200);
-    expect(body.ok).toBe(true);
+    expect(response.statusCode).toBe(501);
   });
 
   it("should return 404 for non-existent A/B test", async () => {

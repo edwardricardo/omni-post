@@ -12,6 +12,7 @@ import { prisma } from "@infra/prisma";
 import { AuditableService } from "../services/AuditableService";
 import type { AdminUserRepositoryPort } from "../domain/repositories/AdminUserRepository.js";
 import { authLogger } from "../lib/logger.js";
+import { hashPassword, verifyPassword } from "./passwordHashing.js";
 
 interface MfaSetupData {
   secret: string;
@@ -46,7 +47,6 @@ export class MfaService extends AuditableService {
     >
   > {
     try {
-      // ✅ Phase 1: Check if user exists using repository
       const userResult = await this.userRepo.findActiveUser(userId, "id");
 
       if (isErr(userResult)) {
@@ -124,7 +124,6 @@ export class MfaService extends AuditableService {
     >
   > {
     try {
-      // ✅ Phase 1: Check if user exists using repository
       const userResult = await this.userRepo.findById(userId);
 
       if (!userResult.ok) {
@@ -228,7 +227,6 @@ export class MfaService extends AuditableService {
     >
   > {
     try {
-      // ✅ Phase 1: Check if user exists using repository
       const userResult = await this.userRepo.findById(userId);
 
       if (!userResult.ok) {
@@ -464,7 +462,6 @@ export class MfaService extends AuditableService {
     >
   > {
     try {
-      // ✅ Phase 1: Check if user exists using repository
       const userResult = await this.userRepo.findById(userId);
 
       if (!userResult.ok) {
@@ -506,13 +503,15 @@ export class MfaService extends AuditableService {
   }
 
   private async hashBackupCode(code: string): Promise<string> {
-    // Use a simple hash for backup codes (they're single-use anyway)
-    return crypto.createHash("sha256").update(code).digest("hex");
+    // Backup codes are passwords; use the canonical Argon2id parameters.
+    // SHA-256 alone is vulnerable to brute-force given the small alphabet
+    // (~32 bits of entropy per code) — Argon2id makes the search space
+    // computationally infeasible.
+    return hashPassword(code);
   }
 
   private async verifyBackupCode(code: string, hashedCode: string): Promise<boolean> {
-    const hashedInput = crypto.createHash("sha256").update(code).digest("hex");
-    return hashedInput === hashedCode;
+    return verifyPassword(hashedCode, code);
   }
 }
 

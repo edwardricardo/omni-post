@@ -2,7 +2,7 @@
  * @file accountLifecycleService.test.ts
  * @description Unit tests for AccountLifecycleService.
  *              Uses in-memory mocked Prisma stores — no real database needed.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";
@@ -42,9 +42,8 @@ vi.mock("../../src/lib/logger.js", () => {
 // ---------------------------------------------------------------------------
 
 const { AccountLifecycleService } = await import("../../src/admin/accountLifecycleService.js");
-const { PrismaAdminUserRepository } = await import(
-  "../../src/infrastructure/repositories/PrismaAdminUserRepository.js"
-);
+const { PrismaAdminUserRepository } =
+  await import("../../src/infrastructure/repositories/PrismaAdminUserRepository.js");
 
 // ---------------------------------------------------------------------------
 // Test suite

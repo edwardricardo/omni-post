@@ -43,14 +43,21 @@ const { execFileMockFn, probeDataRef } = vi.hoisted(() => {
 
 // ── Hoist mock setup before module evaluation ──
 
-vi.mock("@adapters/external-apis", () => ({
-  createExternalApiCircuitBreaker: () => ({
-    call: async (_svc: string, _op: string, fn: (...a: any[]) => Promise<any>) => fn(),
-    getAllStatuses: () => ({}),
-  }),
-  resetExternalApiCircuitBreaker: async () => undefined,
-}));
+vi.mock("@adapters/external-apis", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@adapters/external-apis")>();
+  return {
+    ...actual,
+    createExternalApiCircuitBreaker: () => ({
+      call: async (_svc: string, _op: string, fn: (...a: any[]) => Promise<any>) => fn(),
+      getAllStatuses: () => ({}),
+    }),
+    resetExternalApiCircuitBreaker: async () => undefined,
+  };
+});
 
+// Full REPLACE intentional — storage-s3 has import-time side effects
+// (creates Redis-backed circuit breaker + S3 client). importOriginal would
+// trigger them. The SUT consumes only `createS3StorageAdapter`.
 vi.mock("@adapters/storage-s3", () => ({
   createS3StorageAdapter: () => ({
     generateUploadSignature: async () => ({

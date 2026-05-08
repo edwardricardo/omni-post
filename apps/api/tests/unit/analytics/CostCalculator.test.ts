@@ -1,7 +1,7 @@
 /**
  * @file CostCalculator.test.ts
  * @description Mutation-killing tests for ROI CostCalculator — pure math.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

@@ -1,3 +1,9 @@
+/**
+ * @file QueuePort.ts
+ * @description Queue port (interface) defining enqueue and health-check contracts plus the
+ *              QueueJob and QueueHealth domain shapes.
+ * @layer domain
+ */
 import type { Result } from "@shared/types";
 
 export type QueueJob = {

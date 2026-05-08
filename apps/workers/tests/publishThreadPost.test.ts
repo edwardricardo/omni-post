@@ -1,3 +1,8 @@
+/**
+ * @file publishThreadPost.test.ts
+ * @description Tests for PublishHandler.publishThreadPost
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import {
@@ -10,7 +15,7 @@ import {
 import { PublishHandler } from "../src/publishHandler.js";
 import type { PublishHandlerDeps, PublishProvider } from "../src/publishHandler.js";
 
-describe("PublishHandler.publishThreadPost", { concurrency: 1 }, () => {
+describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
   let deps: PublishHandlerDeps;
   let handler: PublishHandler;
   /** Shortcut to the "x" mock provider in the registry. */

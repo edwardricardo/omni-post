@@ -3,6 +3,10 @@
  *
  * The hook calls fetch directly to /api/backend/dashboard with projectId and
  * timeRange query params. We mock global.fetch.
+ *
+ * @file useUniversalAnalytics.test.tsx
+ * @description Tests for useUniversalAnalytics
+ * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";

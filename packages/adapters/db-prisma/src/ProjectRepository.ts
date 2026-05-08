@@ -1,3 +1,9 @@
+/**
+ * @file ProjectRepository.ts
+ * @description Prisma-backed repository for Project entities — creates and retrieves projects
+ *              scoped to an account with locale metadata.
+ * @layer infrastructure
+ */
 import { ok, err, type Result } from "@shared/types";
 import { prisma } from "@infra/prisma";
 import { createLogger } from "@observability/logger";

@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 import { prisma } from "@infra/prisma";
-import Redis from "ioredis";
+import type { CachePort } from "@ports/core";
 import { createLogger } from "../lib/logger.js";
 
 const analyticsLogger = createLogger("analytics");
@@ -70,35 +70,31 @@ interface ThreadAnalyticsSummary {
 }
 
 export class ThreadAnalytics {
-  private redis: Redis;
   private metrics: ApiMetrics;
   private readonly analyticsRepository: AnalyticsReadRepositoryPort;
   private cachePrefix = "thread_analytics:";
   private cacheTTL = 300; // 5 minutes
 
-  constructor(redis: Redis, metrics: ApiMetrics, analyticsRepository: AnalyticsReadRepositoryPort) {
-    this.redis = redis;
+  constructor(
+    private readonly cache: CachePort,
+    metrics: ApiMetrics,
+    analyticsRepository: AnalyticsReadRepositoryPort
+  ) {
     this.metrics = metrics;
     this.analyticsRepository = analyticsRepository;
-
-    // Setup Redis error handling
-    this.redis.on("error", (err) => {
-      analyticsLogger.error({ err }, "Redis connection error in thread analytics");
-    });
   }
 
   // Calculate comprehensive thread metrics
   async getThreadMetrics(threadId: string): Promise<ThreadMetrics | null> {
+    const cacheKey = `${this.cachePrefix}metrics:${threadId}`;
+    return this.cache.getOrSet(cacheKey, () => this.computeThreadMetrics(threadId), {
+      ttlSeconds: this.cacheTTL,
+      tags: ["analytics:thread"],
+    });
+  }
+
+  private async computeThreadMetrics(threadId: string): Promise<ThreadMetrics | null> {
     try {
-      const cacheKey = `${this.cachePrefix}metrics:${threadId}`;
-
-      // Try cache first
-      const cached = await this.redis.get(cacheKey);
-      if (cached) {
-        // this.metrics.metrics.cacheHits.inc({ status: "hit" });
-        return JSON.parse(cached);
-      }
-
       // Fetch thread with related data
       const thread = await prisma.thread.findUnique({
         where: { id: threadId },
@@ -116,7 +112,6 @@ export class ThreadAnalytics {
 
       if (!thread) return null;
 
-      // ✅ Phase 1: Fixed N+1 query - use repository method to get analytics
       const tweetIds = thread.tweets
         .filter((tweet) => tweet.tweetId)
         .map((tweet) => tweet.tweetId!);
@@ -179,10 +174,6 @@ export class ThreadAnalytics {
         lastUpdateAt: thread.updatedAt,
         performance,
       };
-
-      // Cache the result
-      await this.redis.setex(cacheKey, this.cacheTTL, JSON.stringify(threadMetrics));
-      // this.metrics.metrics.cacheHits.inc({ status: "miss" });
 
       return threadMetrics;
     } catch (_error: unknown) {
@@ -261,7 +252,6 @@ export class ThreadAnalytics {
   }
 
   // Get engagement trends for a thread
-  // ✅ Phase 1: Fixed N+1 query - was fetching analytics for each tweet in a loop
   async getEngagementTrends(threadId: string): Promise<EngagementTrend[]> {
     try {
       const thread = await prisma.thread.findUnique({
@@ -364,7 +354,6 @@ export class ThreadAnalytics {
         t.tweets.every((tweet) => tweet.status === "PUBLISHED")
       ).length;
 
-      // ✅ Phase 1: Calculate metrics for each thread (batch processing instead of individual queries)
       const threadMetrics = await this.getThreadMetricsBatch(threads.map((t) => t.id));
       const validMetrics = threadMetrics.filter(Boolean) as ThreadMetrics[];
 
@@ -478,7 +467,6 @@ export class ThreadAnalytics {
         }
       >();
 
-      // ✅ Phase 1: Batch process metrics instead of calling getThreadMetrics for each thread
       const threadIds = threads.map((t) => t.id);
       const allMetrics = await this.getThreadMetricsBatch(threadIds);
       const metricsMap = new Map(allMetrics.filter(Boolean).map((m) => [m!.threadId, m!]));
@@ -590,8 +578,7 @@ export class ThreadAnalytics {
   }
 
   /**
-   * ✅ Phase 1: Batch version of getThreadMetrics to avoid N+1 queries
-   * Gets metrics for multiple threads in a single database round-trip
+   * Gets metrics for multiple threads in a single database round-trip to avoid N+1 queries.
    */
   private async getThreadMetricsBatch(threadIds: string[]): Promise<(ThreadMetrics | null)[]> {
     try {
@@ -703,14 +690,10 @@ export class ThreadAnalytics {
     }
   }
 
-  // Cleanup method
+  // Cleanup method — invalidates all entries tagged "analytics:thread"
   async cleanup(): Promise<void> {
-    // Clean up old cached analytics
     try {
-      const keys = await this.redis.keys(`${this.cachePrefix}*`);
-      if (keys.length > 0) {
-        await this.redis.del(...keys);
-      }
+      await this.cache.invalidateByTag("analytics:thread");
     } catch (_error: unknown) {
       analyticsLogger.error({ err: _error }, "Failed to cleanup thread analytics cache");
     }

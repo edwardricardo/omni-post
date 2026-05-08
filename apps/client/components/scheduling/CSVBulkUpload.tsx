@@ -5,7 +5,7 @@
  * @component CSVBulkUpload
  * @description CSV upload zone for bulk scheduling. Parses CSV, shows per-row validation,
  *              and submits valid rows via useBulkCreateSchedules.
- * @layer presentation
+ * @layer infrastructure
  */
 
 import { useState, useRef, useCallback } from "react";

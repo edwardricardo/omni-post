@@ -1,3 +1,8 @@
+/**
+ * @file global-setup.ts
+ * @description Test setup for global setup
+ * @layer infrastructure
+ */
 import { chromium, FullConfig } from "@playwright/test";
 import path from "path";
 import { fileURLToPath } from "url";

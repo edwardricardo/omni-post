@@ -1,3 +1,10 @@
+/**
+ * @file input.tsx
+ * @description Styled Input component with forwarded ref, matching design system focus-ring and
+ *              disabled-state styling.
+ * @component Input
+ * @layer infrastructure
+ */
 import * as React from "react";
 import { cn } from "../lib/utils";
 

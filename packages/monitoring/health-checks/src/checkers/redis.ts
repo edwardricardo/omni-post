@@ -1,3 +1,9 @@
+/**
+ * @file redis.ts
+ * @description Health checker for Redis connectivity — issues PING and reports latency, plus
+ *              cache manager statistics when available.
+ * @layer infrastructure
+ */
 import type { HealthChecker, HealthCheckResult } from "../types.js";
 import type { RedisCacheManager } from "@adapters/cache-redis";
 import type Redis from "ioredis";
@@ -152,96 +158,6 @@ export class CacheHealthChecker implements HealthChecker {
         status: "unhealthy",
         latency,
         message: "Cache health check failed",
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }
-}
-
-interface QueueAdapter {
-  health(): Promise<{
-    ok: boolean;
-    value?: {
-      connected: boolean;
-      waiting: number;
-      active: number;
-      completed: number;
-      failed: number;
-    };
-    error?: string;
-  }>;
-}
-
-export class QueueHealthChecker implements HealthChecker {
-  constructor(private queue: QueueAdapter) {}
-
-  async check(): Promise<HealthCheckResult> {
-    const startTime = Date.now();
-
-    try {
-      // Check queue health
-      const health = await this.queue.health();
-
-      if (!health.ok) {
-        return {
-          status: "unhealthy",
-          latency: Date.now() - startTime,
-          message: "Queue health check failed",
-          error: health.error || "Queue health check returned error",
-        };
-      }
-
-      const latency = Date.now() - startTime;
-
-      // Determine status based on queue metrics
-      let status: HealthCheckResult["status"] = "healthy";
-      let message = "Queue is healthy";
-
-      const queueData = health.value;
-      if (!queueData) {
-        return {
-          status: "unhealthy",
-          latency,
-          message: "Queue data unavailable",
-        };
-      }
-
-      // Check connection status first
-      if (!queueData.connected) {
-        status = "unhealthy";
-        message = "Queue is not connected";
-      } else {
-        // Check for high job counts (potential backlog)
-        if (queueData.waiting > 1000) {
-          status = "degraded";
-          message = `High number of waiting jobs: ${queueData.waiting}`;
-        }
-
-        if (queueData.failed > 100) {
-          status = "degraded";
-          message = `High number of failed jobs: ${queueData.failed}`;
-        }
-      }
-
-      return {
-        status,
-        latency,
-        message,
-        details: {
-          responseTime: latency,
-          waiting: queueData.waiting,
-          active: queueData.active,
-          completed: queueData.completed,
-          failed: queueData.failed,
-          connected: queueData.connected,
-        },
-      };
-    } catch (error: unknown) {
-      const latency = Date.now() - startTime;
-      return {
-        status: "unhealthy",
-        latency,
-        message: "Queue health check failed",
         error: error instanceof Error ? error.message : String(error),
       };
     }

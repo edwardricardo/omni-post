@@ -3,6 +3,10 @@
  *
  * Tests the Anti-Corruption Layer that translates normalized webhook data into
  * strongly-typed domain webhook events. All tests are pure (no I/O, no DB).
+ *
+ * @file WebhookEventMapper.test.ts
+ * @description Tests for WebhookEventMapper
+ * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";
 import {

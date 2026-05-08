@@ -7,7 +7,6 @@
  */
 
 import React from "react";
-import { TrendingUp } from "lucide-react";
 import type { ContentTemplate } from "../../types/ai-content";
 
 interface AITemplateSelectorProps {
@@ -76,14 +75,8 @@ export function AITemplateSelector({
                 ))}
               </div>
 
-              <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center text-sm">
                 <span className="text-gray-600">{template.variables.length} variables</span>
-                <div className="flex items-center space-x-1">
-                  <TrendingUp className="w-3 h-3 text-green-600" aria-hidden="true" />
-                  <span className="text-green-600 font-medium">
-                    {template.estimatedEngagement}% engagement
-                  </span>
-                </div>
               </div>
             </div>
           </div>

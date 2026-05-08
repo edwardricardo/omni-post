@@ -1,24 +1,50 @@
 /**
  * Infrastructure Layer - Prisma Channel Repository Unit Tests
  *
- * Part of FASE H4b / H12: Hexagonal Architecture - Prisma Adapters + Soft Delete
  * Tests PrismaChannelRepository in isolation using a mocked PrismaClient.
  * Tier 0: No database required.
+ *
+ * @file PrismaChannelRepository.test.ts
+ * @description Tests for PrismaChannelRepository
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";
+import { randomBytes } from "node:crypto";
 import { PrismaChannelRepository } from "../../../src/infrastructure/repositories/PrismaChannelRepository.js";
+import { ChannelCredentialsCrypto } from "../../../src/security/ChannelCredentialsCrypto.js";
+import { EncryptionService } from "../../../src/security/EncryptionService.js";
 import { ChannelId, ProjectId } from "../../../src/domain/index.js";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
+const TEST_KEY = randomBytes(32).toString("base64");
+const sharedEncryption = new EncryptionService({
+  activeKeyBase64: TEST_KEY,
+  activeKeyVersion: 1,
+});
+const sharedCrypto = new ChannelCredentialsCrypto(sharedEncryption);
+
+/**
+ * Builds a Channel row with credentials already encrypted via the shared
+ * crypto helper, so `repo.findById` returns a valid Channel domain entity.
+ */
 function baseRow() {
+  // Match the recordId the repository uses on read (`row.id`).
+  const enc = sharedCrypto.encrypt(
+    { accessToken: "tok_123", refreshToken: "ref_456" },
+    { recordId: "f0000000-0000-4000-8000-000000000001" }
+  );
   return {
     id: "f0000000-0000-4000-8000-000000000001",
     projectId: "b0000000-0000-4000-8000-000000000001",
     provider: "X",
     handle: "@myaccount",
-    credentials: { accessToken: "tok_123", refreshToken: "ref_456" },
+    credentialsCiphertext: enc.credentialsCiphertext,
+    credentialsIv: enc.credentialsIv,
+    credentialsAuthTag: enc.credentialsAuthTag,
+    credentialsKeyVersion: enc.credentialsKeyVersion,
+    isPrimary: false,
     createdAt: new Date("2026-01-01"),
     updatedAt: new Date("2026-01-01"),
   };
@@ -33,7 +59,10 @@ function makeMockPrisma() {
       update: vi.fn(async () => baseRow()),
       delete: vi.fn(async () => baseRow()),
     },
-    publishLog: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+    publishLog: {
+      deleteMany: vi.fn(async () => ({ count: 0 })),
+      groupBy: vi.fn(async () => [] as Array<{ channelId: string; _count: { _all: number } }>),
+    },
     analytics: { deleteMany: vi.fn(async () => ({ count: 0 })) },
   };
 }
@@ -46,7 +75,7 @@ describe("PrismaChannelRepository", () => {
 
   beforeEach(() => {
     prisma = makeMockPrisma();
-    repo = new PrismaChannelRepository(prisma as never);
+    repo = new PrismaChannelRepository(prisma as never, sharedCrypto);
   });
 
   describe("findById", () => {
@@ -185,6 +214,39 @@ describe("PrismaChannelRepository", () => {
       expect(result.ok).toBeFalsy();
       expect(result.error.message).toMatch(/Channel/);
       expect(prisma.channel.delete.mock.calls.length).toBe(0);
+    });
+  });
+
+  describe("findUsageByChannelIds", () => {
+    it("returns empty Map when no channel ids passed (no DB call)", async () => {
+      const result = await repo.findUsageByChannelIds([]);
+      expect(result.size).toBe(0);
+      expect(prisma.publishLog.groupBy).not.toHaveBeenCalled();
+    });
+
+    it("issues a single groupBy filtered to status=OK + this calendar month", async () => {
+      prisma.publishLog.groupBy.mockResolvedValueOnce([
+        { channelId: "ch-1", _count: { _all: 12 } },
+        { channelId: "ch-2", _count: { _all: 3 } },
+      ]);
+      const result = await repo.findUsageByChannelIds(["ch-1", "ch-2", "ch-3"]);
+
+      expect(result.get("ch-1")).toEqual({ postsThisMonth: 12 });
+      expect(result.get("ch-2")).toEqual({ postsThisMonth: 3 });
+      expect(result.has("ch-3")).toBe(false);
+
+      expect(prisma.publishLog.groupBy).toHaveBeenCalledTimes(1);
+      const callArgs = prisma.publishLog.groupBy.mock.calls[0]?.[0] as {
+        by: string[];
+        where: { channelId: { in: string[] }; status: string; createdAt: { gte: Date } };
+      };
+      expect(callArgs.by).toEqual(["channelId"]);
+      expect(callArgs.where.status).toBe("OK");
+      expect(callArgs.where.channelId.in).toEqual(["ch-1", "ch-2", "ch-3"]);
+      // Start of current calendar month, UTC
+      const now = new Date();
+      const expected = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+      expect(callArgs.where.createdAt.gte.getTime()).toBe(expected.getTime());
     });
   });
 

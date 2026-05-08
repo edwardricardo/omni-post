@@ -1,10 +1,10 @@
 "use client";
 
 /**
- * Shared Publishing Engine Hook
- *
- * Provides unified publishing logic for both client and admin apps.
- * Eliminates duplication of validation, threading, scheduling logic.
+ * @file usePublishingEngine.ts
+ * @description Shared publishing engine hook unifying validation, threading, and scheduling
+ *              logic for both client and admin apps.
+ * @layer infrastructure
  */
 
 import { useState, useMemo, useCallback } from "react";

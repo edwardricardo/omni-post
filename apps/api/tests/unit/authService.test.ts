@@ -3,7 +3,7 @@
  * @description Unit tests for AuthService. Uses in-memory mocked Prisma stores
  *              so no real database connection is required. Real argon2, JWT, and
  *              otplib are used for correct crypto behavior.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";
@@ -44,9 +44,8 @@ vi.mock("../../src/lib/logger.js", () => {
 
 const { AuthService, setRedisInstance } = await import("../../src/auth/authService.js");
 const { MfaService } = await import("../../src/auth/mfaService.js");
-const { PrismaAdminUserRepository } = await import(
-  "../../src/infrastructure/repositories/PrismaAdminUserRepository.js"
-);
+const { PrismaAdminUserRepository } =
+  await import("../../src/infrastructure/repositories/PrismaAdminUserRepository.js");
 
 // ---------------------------------------------------------------------------
 // Test data

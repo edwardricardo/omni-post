@@ -1,9 +1,12 @@
 /**
  * @file useABTests.ts
  * @description Custom hook for managing A/B tests on templates, including CRUD operations, lifecycle controls (start, pause, stop), and result fetching via TanStack Query.
+ * @layer infrastructure
  */
 
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { request, PROXY_BASE } from "@/lib/api/clients/request";
 
 interface ABTest {
   id: string;
@@ -46,115 +49,83 @@ interface ABTest {
   updatedAt: Date;
 }
 
-// API client functions
-const abTestsApi = {
-  async getABTests(projectId: string, status?: ABTest["status"]): Promise<ABTest[]> {
-    const params = new URLSearchParams();
-    if (status) params.append("status", status);
+function makeAbTestsApi(projectId: string) {
+  const base = `/projects/${projectId}/templates/ab-tests`;
+  return {
+    async getABTests(status?: ABTest["status"]): Promise<ABTest[]> {
+      const params = new URLSearchParams();
+      if (status) params.append("status", status);
+      const qs = params.toString();
+      const path = qs ? `${base}?${qs}` : base;
+      const res = await request<{ data: ABTest[] }>(PROXY_BASE, path);
+      return res.data;
+    },
+    async createABTest(
+      test: Omit<ABTest, "id" | "status" | "createdAt" | "updatedAt">
+    ): Promise<ABTest> {
+      const res = await request<{ data: ABTest }>(PROXY_BASE, base, {
+        method: "POST",
+        body: JSON.stringify(test),
+      });
+      return res.data;
+    },
+    // Backend route for AB-test UPDATE is not exposed (PR-46 backlog: needs
+    // product decision on which fields are mutable post-creation). Routing
+    // through canonical client keeps the contract consistent for when the
+    // backend route lands.
+    async updateABTest(test: ABTest): Promise<ABTest> {
+      const res = await request<{ data: ABTest }>(PROXY_BASE, `${base}/${test.id}`, {
+        method: "PUT",
+        body: JSON.stringify(test),
+      });
+      return res.data;
+    },
+    async startABTest(testId: string): Promise<ABTest> {
+      const res = await request<{ data: ABTest }>(PROXY_BASE, `${base}/${testId}/start`, {
+        method: "POST",
+      });
+      return res.data;
+    },
+    // Backend route for AB-test PAUSE is not exposed (PR-46 backlog).
+    async pauseABTest(testId: string): Promise<ABTest> {
+      const res = await request<{ data: ABTest }>(PROXY_BASE, `${base}/${testId}/pause`, {
+        method: "POST",
+      });
+      return res.data;
+    },
+    async stopABTest(testId: string): Promise<ABTest> {
+      const res = await request<{ data: ABTest }>(PROXY_BASE, `${base}/${testId}/stop`, {
+        method: "POST",
+      });
+      return res.data;
+    },
+    // Backend route for AB-test DELETE is not exposed (PR-46 backlog).
+    async deleteABTest(testId: string): Promise<void> {
+      await request<void>(PROXY_BASE, `${base}/${testId}`, {
+        method: "DELETE",
+      });
+    },
+    async getABTestResults(testId: string): Promise<ABTest["results"]> {
+      const res = await request<{ data: ABTest["results"] }>(
+        PROXY_BASE,
+        `${base}/${testId}/results`
+      );
+      return res.data;
+    },
+  };
+}
 
-    const response = await fetch(`/api/projects/${projectId}/templates/ab-tests?${params}`);
-    if (!response.ok) {
-      throw new Error("Failed to fetch A/B tests");
-    }
-    const data = await response.json();
-    return data.data;
-  },
-
-  async createABTest(
-    projectId: string,
-    test: Omit<ABTest, "id" | "status" | "createdAt" | "updatedAt">
-  ): Promise<ABTest> {
-    const response = await fetch(`/api/projects/${projectId}/templates/ab-tests`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(test),
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to create A/B test");
-    }
-    const data = await response.json();
-    return data.data;
-  },
-
-  async updateABTest(test: ABTest): Promise<ABTest> {
-    const response = await fetch(`/api/ab-tests/${test.id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(test),
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to update A/B test");
-    }
-    const data = await response.json();
-    return data.data;
-  },
-
-  async startABTest(projectId: string, testId: string): Promise<ABTest> {
-    const response = await fetch(`/api/projects/${projectId}/templates/ab-tests/${testId}/start`, {
-      method: "POST",
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to start A/B test");
-    }
-    const data = await response.json();
-    return data.data;
-  },
-
-  async pauseABTest(projectId: string, testId: string): Promise<ABTest> {
-    const response = await fetch(`/api/projects/${projectId}/templates/ab-tests/${testId}/pause`, {
-      method: "POST",
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to pause A/B test");
-    }
-    const data = await response.json();
-    return data.data;
-  },
-
-  async stopABTest(projectId: string, testId: string): Promise<ABTest> {
-    const response = await fetch(`/api/projects/${projectId}/templates/ab-tests/${testId}/stop`, {
-      method: "POST",
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to stop A/B test");
-    }
-    const data = await response.json();
-    return data.data;
-  },
-
-  async deleteABTest(testId: string): Promise<void> {
-    const response = await fetch(`/api/ab-tests/${testId}`, {
-      method: "DELETE",
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to delete A/B test");
-    }
-  },
-
-  async getABTestResults(projectId: string, testId: string): Promise<ABTest["results"]> {
-    const response = await fetch(`/api/projects/${projectId}/templates/ab-tests/${testId}/results`);
-    if (!response.ok) {
-      throw new Error("Failed to fetch A/B test results");
-    }
-    const data = await response.json();
-    return data.data;
-  },
-};
-
+/**
+ * @hook useABTests
+ * @description Project-scoped A/B test management hook. List query plus six mutations
+ *              (create / update / start / pause / stop / delete), all delegating to the
+ *              canonical proxy `request<T>` helper.
+ * @returns Query state plus six mutation handles.
+ */
 export function useABTests(projectId: string, status?: ABTest["status"]) {
   const queryClient = useQueryClient();
+  const api = useMemo(() => makeAbTestsApi(projectId), [projectId]);
 
-  // Query for fetching A/B tests
   const {
     data: tests = [],
     isLoading,
@@ -162,54 +133,47 @@ export function useABTests(projectId: string, status?: ABTest["status"]) {
     refetch,
   } = useQuery({
     queryKey: ["ab-tests", projectId, status],
-    queryFn: () => abTestsApi.getABTests(projectId, status),
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    queryFn: () => api.getABTests(status),
+    staleTime: 2 * 60 * 1000,
   });
 
-  // Mutation for creating A/B tests
   const createTest = useMutation({
-    mutationFn: (test: Omit<ABTest, "id" | "status" | "createdAt" | "updatedAt">) =>
-      abTestsApi.createABTest(projectId, test),
+    mutationFn: api.createABTest,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ab-tests", projectId] });
     },
   });
 
-  // Mutation for updating A/B tests
   const updateTest = useMutation({
-    mutationFn: abTestsApi.updateABTest,
+    mutationFn: api.updateABTest,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ab-tests", projectId] });
     },
   });
 
-  // Mutation for starting A/B tests
   const startTest = useMutation({
-    mutationFn: (testId: string) => abTestsApi.startABTest(projectId, testId),
+    mutationFn: api.startABTest,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ab-tests", projectId] });
     },
   });
 
-  // Mutation for pausing A/B tests
   const pauseTest = useMutation({
-    mutationFn: (testId: string) => abTestsApi.pauseABTest(projectId, testId),
+    mutationFn: api.pauseABTest,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ab-tests", projectId] });
     },
   });
 
-  // Mutation for stopping A/B tests
   const stopTest = useMutation({
-    mutationFn: (testId: string) => abTestsApi.stopABTest(projectId, testId),
+    mutationFn: api.stopABTest,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ab-tests", projectId] });
     },
   });
 
-  // Mutation for deleting A/B tests
   const deleteTest = useMutation({
-    mutationFn: abTestsApi.deleteABTest,
+    mutationFn: api.deleteABTest,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ab-tests", projectId] });
     },

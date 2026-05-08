@@ -1,3 +1,8 @@
+/**
+ * @file jobHandler.test.ts
+ * @description Tests for PublishHandler.handleJob
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import {
@@ -14,7 +19,7 @@ import {
 import { PublishHandler } from "../src/publishHandler.js";
 import type { PublishHandlerDeps, PublishProvider } from "../src/publishHandler.js";
 
-describe("PublishHandler.handleJob", { concurrency: 1 }, () => {
+describe("PublishHandler.handleJob", { sequential: true }, () => {
   let deps: PublishHandlerDeps;
   let handler: PublishHandler;
   /** Shortcut to the "x" mock provider in the registry. */
@@ -94,10 +99,12 @@ describe("PublishHandler.handleJob", { concurrency: 1 }, () => {
       error: "NOT_FOUND",
     });
 
-    // handleJob catches errors internally
-    await handler.handleJob({
-      payload: { postId: POST_ID, channelId: CHANNEL_ID },
-    });
+    // handleJob re-throws so BullMQ's retry policy can take effect.
+    await assert.rejects(
+      handler.handleJob({
+        payload: { postId: POST_ID, channelId: CHANNEL_ID },
+      })
+    );
 
     const failed = await deps.workerMetrics.metrics.jobsFailed.get();
     const match = failed.values.find((v) => v.labels.error_category === "processing_error");
@@ -119,9 +126,11 @@ describe("PublishHandler.handleJob", { concurrency: 1 }, () => {
       error: "TEXT_TOO_LONG" as const,
     });
 
-    await handler.handleJob({
-      payload: { postId: POST_ID, channelId: CHANNEL_ID },
-    });
+    await assert.rejects(
+      handler.handleJob({
+        payload: { postId: POST_ID, channelId: CHANNEL_ID },
+      })
+    );
 
     const failed = await deps.workerMetrics.metrics.jobsFailed.get();
     const match = failed.values.find((v) => v.labels.error_category === "processing_error");
@@ -358,9 +367,11 @@ describe("PublishHandler.handleJob", { concurrency: 1 }, () => {
       throw new Error("Unexpected DB crash");
     };
 
-    await handler.handleJob({
-      payload: { postId: POST_ID, channelId: CHANNEL_ID },
-    });
+    await assert.rejects(
+      handler.handleJob({
+        payload: { postId: POST_ID, channelId: CHANNEL_ID },
+      })
+    );
 
     const errors = await deps.workerMetrics.metrics.errorsByType.get();
     const match = errors.values.find(
@@ -375,9 +386,11 @@ describe("PublishHandler.handleJob", { concurrency: 1 }, () => {
       throw new Error("crash");
     };
 
-    await handler.handleJob({
-      payload: { postId: POST_ID, channelId: CHANNEL_ID },
-    });
+    await assert.rejects(
+      handler.handleJob({
+        payload: { postId: POST_ID, channelId: CHANNEL_ID },
+      })
+    );
 
     const value = await deps.workerMetrics.metrics.jobsActive.get();
     assert.strictEqual(value.values[0]?.value, 0);
@@ -389,10 +402,13 @@ describe("PublishHandler.handleJob", { concurrency: 1 }, () => {
       value: null,
     });
 
-    // handleJob catches errors internally and records them
-    await handler.handleJob({
-      payload: { postId: POST_ID, channelId: CHANNEL_ID, provider: "unknown_platform" },
-    });
+    // handleJob re-throws after recording the error so BullMQ retries.
+    await assert.rejects(
+      handler.handleJob({
+        payload: { postId: POST_ID, channelId: CHANNEL_ID, provider: "unknown_platform" },
+      }),
+      /Unknown provider/
+    );
 
     const failed = await deps.workerMetrics.metrics.jobsFailed.get();
     const match = failed.values.find((v) => v.labels.error_category === "processing_error");

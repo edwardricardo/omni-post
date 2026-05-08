@@ -1,4 +1,9 @@
-// Business Intelligence and KPI tracking for social media CMS
+/**
+ * @file businessMetrics.ts
+ * @description Business intelligence and KPI tracking via OpenTelemetry meter — content
+ *              publishing counters, success rate histograms, and engagement gauges.
+ * @layer infrastructure
+ */
 import { metrics } from "@opentelemetry/api";
 import pino from "pino";
 
@@ -108,7 +113,7 @@ export interface UserMetrics {
   action: string;
   feature: string;
   timestamp: Date;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface ProviderMetrics {

@@ -2,7 +2,7 @@
  * @file AuditableService.test.ts
  * @description Unit tests for AuditableService — audit logging functionality
  *              with mocked Prisma (no database dependency).
- * @layer test-infrastructure
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";

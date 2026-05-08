@@ -13,7 +13,7 @@
  * - Content changes for posts without subscriptions
  * - Processing changes for subscribed channels
  * - Filtering changes by provider involvement
- * @layer integration
+ * @layer infrastructure
  */
 
 import { describe, it, before, after, beforeEach } from "node:test";

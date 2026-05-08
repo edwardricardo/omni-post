@@ -1,3 +1,9 @@
+/**
+ * @file shop.management.ts
+ * @description Facebook Shop management service — shop configuration, product insights,
+ *              shop sections, and section item operations via the Graph API.
+ * @layer infrastructure
+ */
 import { FacebookApiClient, FacebookCredentials } from "../apiClient.js";
 import { createLogger } from "@observability/logger";
 import type {

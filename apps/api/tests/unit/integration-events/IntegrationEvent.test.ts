@@ -4,6 +4,10 @@
  * Part of P2-2: Integration Events via BullMQ
  * Tier-0 tests for the toIntegrationEvent() factory function.
  * No external dependencies — pure logic only.
+ *
+ * @file IntegrationEvent.test.ts
+ * @description Tests for IntegrationEvent
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

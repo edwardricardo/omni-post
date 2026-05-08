@@ -5,6 +5,8 @@
  * @layer infrastructure
  */
 import { FastifyInstance } from "fastify";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+import type { ChannelRepository } from "../domain/repositories/ChannelRepository.js";
 import { ProviderOAuthHandler } from "./providerOAuthFlow.js";
 import { requireClientAuth } from "./customerAuthMiddleware.js";
 
@@ -18,8 +20,12 @@ export type { OAuthConfig, OAuthProvider } from "./providerOAuthConfigs.js";
  * Security: All routes require authentication except the OAuth callback,
  * which must remain public because OAuth providers redirect to it.
  */
-export async function registerOAuthRoutes(fastify: FastifyInstance) {
-  const handler = new ProviderOAuthHandler();
+export async function registerOAuthRoutes(
+  fastify: FastifyInstance,
+  scheduler: BackgroundTaskScheduler,
+  channelRepository: ChannelRepository
+) {
+  const handler = new ProviderOAuthHandler(scheduler, channelRepository);
 
   // Requires auth: user must be logged in to initiate an OAuth connection
   fastify.get("/auth/:provider", { preHandler: [requireClientAuth] }, async (request, reply) => {

@@ -3,7 +3,7 @@
  * @description Unit tests for GatewayBillingService webhook helper methods:
  *   resolveAccountIdByCustomer, checkBillingEventIdempotency,
  *   markBillingEventProcessed, markBillingEventError.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

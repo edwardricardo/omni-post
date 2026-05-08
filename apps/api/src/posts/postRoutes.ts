@@ -6,7 +6,8 @@
  */
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import { BaseRouteHandler, type RouteContext, IdSchema } from "@packages/api-common";
+import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
+import { IdSchema } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { SecureSchemas } from "../security/inputValidation.js";
 import type { CreatePostUseCase } from "../application/posts/CreatePostUseCase.js";

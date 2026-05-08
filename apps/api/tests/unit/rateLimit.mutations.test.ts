@@ -3,7 +3,7 @@
  * @description Mutation-killing boundary tests for RateLimit.
  *              Targets: findConfig, getClientKey edge cases, checkRateLimit
  *              boundary at maxRequests, remaining calculation, EXPENSIVE_ENDPOINT_RULES.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

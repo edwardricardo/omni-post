@@ -3,7 +3,7 @@
  * @description Unit tests for authRoutes. Uses in-memory mocked Prisma stores
  *              and a real Fastify instance to test HTTP endpoint behavior.
  *              Real argon2 and JWT are used for correct crypto behavior.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";

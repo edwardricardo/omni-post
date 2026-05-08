@@ -6,6 +6,10 @@
  * Coverage Target: 90%+
  *
  * Run with: pnpm --filter @apps/api exec tsx tests/unit/rateLimit.test.ts
+ *
+ * @file rateLimit.test.ts
+ * @description Tests for RateLimit - Constructor & Configuration
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

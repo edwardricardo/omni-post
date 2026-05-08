@@ -1,3 +1,8 @@
+/**
+ * @file security.test.ts
+ * @description Tests for Security Features
+ * @layer infrastructure
+ */
 import { describe, it, before } from "node:test";
 import assert from "node:assert/strict";
 

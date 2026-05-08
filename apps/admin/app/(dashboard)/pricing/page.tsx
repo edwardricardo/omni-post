@@ -2,7 +2,7 @@
  * @file page.tsx
  * @description Admin pricing management page with live provider tiers, account tiers,
  *   bundles (CRUD), and MRR dashboard. Delegates to functional tab components.
- * @layer page
+ * @layer infrastructure
  */
 "use client";
 
@@ -35,7 +35,7 @@ import { TabNav } from "@/components/ui/TabNav";
 import { ActionButton } from "@/components/ui/ActionButton";
 import { Badge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ConfirmDialog } from "@packages/ui";
 
 const EMPTY_BUNDLE_FORM: BundleFormData = {
   name: "",
@@ -199,7 +199,7 @@ function PricingPageContent() {
     return (
       <div>
         <PageHeader title={t("pricing")} />
-        <div className="flex justify-center items-center h-64" role="alert" aria-live="assertive">
+        <div className="flex justify-center items-center h-64" role="alert">
           <div className="text-sm text-[var(--error)]">
             {tc("error")}: {getErrorMessage(error)}
           </div>

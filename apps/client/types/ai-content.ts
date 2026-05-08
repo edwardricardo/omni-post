@@ -14,7 +14,7 @@ export interface ContentTemplate {
   variables: TemplateVariable[];
   template: string;
   tone: string[];
-  estimatedEngagement: number;
+  estimatedEngagement?: number;
 }
 
 export interface TemplateVariable {
@@ -50,9 +50,9 @@ export interface ContentMetrics {
   characterCount: number;
   wordCount: number;
   hashtagCount: number;
-  readabilityScore: number;
-  engagementScore: number;
-  viralPotential: number;
+  readabilityScore?: number;
+  engagementScore?: number;
+  viralPotential?: number;
 }
 
 export interface ContentVariation {

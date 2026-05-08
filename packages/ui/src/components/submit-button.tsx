@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file submit-button.tsx
+ * @description Form submit Button that uses React useFormStatus to show pending state and a
+ *              spinner while a server action is in flight.
+ * @component SubmitButton
+ * @layer infrastructure
+ */
 import * as React from "react";
 import { useFormStatus } from "react-dom";
 import { Loader2 } from "lucide-react";

@@ -1,3 +1,8 @@
+/**
+ * @file openai.test-helpers.ts
+ * @description Test helpers for openai test helpers
+ * @layer infrastructure
+ */
 import type { AIProviderConfig } from "../../../src/ai/types.js";
 
 export const mockConfig: AIProviderConfig = {

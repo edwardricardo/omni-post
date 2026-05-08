@@ -3,7 +3,7 @@
 /**
  * @file useBrandVoice.ts
  * @description TanStack Query hooks for Brand Voice Profiles.
- * @layer presentation
+ * @layer infrastructure
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -32,7 +32,9 @@ interface UpsertBrandVoicePayload {
 const BASE = "/api/backend/ai/brand-voice";
 
 async function fetchBrandVoice(accountId: string): Promise<BrandVoiceData | null> {
-  const res = await fetch(`${BASE}?accountId=${encodeURIComponent(accountId)}`);
+  const res = await fetch(`${BASE}?accountId=${encodeURIComponent(accountId)}`, {
+    credentials: "include",
+  });
   if (!res.ok) throw new Error("Failed to fetch brand voice");
   const json = (await res.json()) as { ok: boolean; data: BrandVoiceData | null };
   return json.data;
@@ -41,6 +43,7 @@ async function fetchBrandVoice(accountId: string): Promise<BrandVoiceData | null
 async function upsertBrandVoice(payload: UpsertBrandVoicePayload): Promise<BrandVoiceData> {
   const res = await fetch(BASE, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
@@ -53,7 +56,10 @@ async function upsertBrandVoice(payload: UpsertBrandVoicePayload): Promise<Brand
 }
 
 async function deleteBrandVoice(accountId: string): Promise<void> {
-  const res = await fetch(`${BASE}/${encodeURIComponent(accountId)}`, { method: "DELETE" });
+  const res = await fetch(`${BASE}/${encodeURIComponent(accountId)}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
   if (!res.ok) throw new Error("Failed to delete brand voice");
 }
 

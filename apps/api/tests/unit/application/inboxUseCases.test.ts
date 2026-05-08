@@ -2,7 +2,7 @@
  * @file inboxUseCases.test.ts
  * @description Tests for Social Inbox use cases — IngestSocialMessage, MarkMessageRead,
  * AssignMessage, MarkArchived, ResolveConversation, ReopenConversation.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

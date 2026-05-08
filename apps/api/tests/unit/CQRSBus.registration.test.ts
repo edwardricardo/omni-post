@@ -1,3 +1,8 @@
+/**
+ * @file CQRSBus.registration.test.ts
+ * @description Tests for CQRSBus - Command Handler Registration
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, expect } from "vitest";
 import { CQRSBusImpl } from "../../src/cqrs/CQRSBus";
 import type { CommandHandler, CommandResult } from "@shared/cqrs";

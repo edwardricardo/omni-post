@@ -1,3 +1,8 @@
+/**
+ * @file providerCapabilityManager.test-helpers.ts
+ * @description Test helpers for provider capability manager test helpers
+ * @layer infrastructure
+ */
 import type { ProviderAdapter, ProviderId } from "../../src/providers/providerAdapter.interface.js";
 import type { CanonicalPost } from "@shared/types";
 

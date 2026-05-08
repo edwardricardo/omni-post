@@ -14,6 +14,9 @@ import { RbacService } from "../../auth/rbacService.js";
 import { auditService } from "../../audit/auditService.js";
 import { ActivityFeedService } from "../../audit/activityFeedService.js";
 import { AIService } from "../../ai/aiService.js";
+import type { AIServicePort } from "../../domain/repositories/AIServicePort.js";
+import type { HttpClientPort } from "../../domain/repositories/HttpClientPort.js";
+import { FetchHttpClient } from "../adapters/FetchHttpClient.js";
 import { AiRequestService } from "../../ai/AiRequestService.js";
 import { dashboardService } from "../../admin/dashboardService.js";
 import { AccountLifecycleService } from "../../admin/accountLifecycleService.js";
@@ -40,8 +43,10 @@ import { ComplianceService } from "../../compliance/ComplianceService.js";
 import { DataRetentionService } from "../../compliance/DataRetentionService.js";
 import { DlqArchivalService } from "../../webhooks/DlqArchivalService.js";
 import { DatabaseOptimizer } from "../../database/DatabaseOptimizer.js";
-import { RedisCacheManager } from "@adapters/cache-redis";
-import { dbLogger } from "../../lib/logger.js";
+import { RedisCacheManager, RedisCacheAdapter, createCacheManager } from "@adapters/cache-redis";
+import type { CachePort } from "@ports/core";
+import { getRedisUrl } from "../../lib/redis.js";
+import { dbLogger, createLogger } from "../../lib/logger.js";
 import { CredentialManager } from "../../orchestration/CredentialManager.js";
 import { RateLimitManager } from "../../orchestration/RateLimitManager.js";
 import { ProviderCoordinator } from "../../orchestration/ProviderCoordinator.js";
@@ -50,6 +55,8 @@ import { SagaManagerImpl } from "../../saga/SagaManager.js";
 import type { IntegrationEventPublisher } from "../integration-events/IntegrationEventPort.js";
 import { EventSchemaRegistry } from "../integration-events/EventSchemaRegistry.js";
 import { EncryptionService } from "../../security/EncryptionService.js";
+import { ChannelCredentialsCrypto } from "../../security/ChannelCredentialsCrypto.js";
+import type { AuditService } from "../../audit/auditService.js";
 import { PlatformCredentialService } from "../../security/PlatformCredentialService.js";
 import { SettingsService } from "../../settings/SettingsService.js";
 import { UpcasterChain } from "../integration-events/EventUpcaster.js";
@@ -57,7 +64,18 @@ import { NotificationBroadcaster } from "../../services/NotificationBroadcaster.
 import { GA4TrackingAdapter } from "../adapters/GA4TrackingAdapter.js";
 import type { EmailPort } from "../../domain/repositories/EmailPort.js";
 import { ResendEmailAdapter } from "../adapters/ResendEmailAdapter.js";
-import { createBullMQQueueAdapter } from "@adapters/queue-bullmq";
+import {
+  BullMQQueuePortRegistry,
+  BullMQDeadLetterQueueAdapter,
+  QUEUE_NAMES,
+} from "@adapters/queue-bullmq";
+import type { QueuePort, QueuePortRegistry, DeadLetterQueuePort } from "@ports/core";
+import Redis from "ioredis";
+import {
+  DefaultBackgroundTaskScheduler,
+  type BackgroundTaskScheduler,
+} from "@observability/background-scheduler";
+import { env } from "../../config/env.js";
 
 /**
  * Register all services in the container
@@ -66,12 +84,20 @@ export function setupServices(
   container: Container,
   integrationEventPublisher?: IntegrationEventPublisher
 ): void {
-  // Register Integration Event Publisher (P2-2) -- if provided
+  // Register Integration Event Publisher -- if provided
   if (integrationEventPublisher) {
     container.registerInstance(TOKENS.IntegrationEventPublisher, integrationEventPublisher);
   }
 
-  // Register Event Versioning infrastructure (P2-5)
+  // Register BackgroundTaskScheduler (centralised setInterval registry).
+  // Singleton — one registry per process, flushed on SIGTERM/SIGINT.
+  container.register<BackgroundTaskScheduler>(
+    TOKENS.BackgroundTaskScheduler,
+    () => new DefaultBackgroundTaskScheduler({ logger: createLogger("scheduler") }),
+    true
+  );
+
+  // Register Event Versioning infrastructure
   container.register<EventSchemaRegistry>(
     TOKENS.EventSchemaRegistry,
     () => new EventSchemaRegistry(),
@@ -79,7 +105,7 @@ export function setupServices(
   );
   container.register<UpcasterChain>(TOKENS.UpcasterChain, () => new UpcasterChain(), true);
 
-  // Register Auth Services (R1-A -- factory-based with injected deps)
+  // Register Auth Services -- factory-based with injected deps
   container.register<MfaService>(
     TOKENS.MfaService,
     () => new MfaService(container.resolve<AdminUserRepositoryPort>(TOKENS.AdminUserRepository)),
@@ -96,7 +122,11 @@ export function setupServices(
   );
   container.register<RbacService>(
     TOKENS.RbacService,
-    () => new RbacService(container.resolve<AdminUserRepositoryPort>(TOKENS.AdminUserRepository)),
+    () =>
+      new RbacService(
+        container.resolve<AdminUserRepositoryPort>(TOKENS.AdminUserRepository),
+        container.resolve<CachePort>(TOKENS.CachePort)
+      ),
     true
   );
 
@@ -108,16 +138,66 @@ export function setupServices(
     () =>
       new AiRequestService(
         container.resolve(TOKENS.PrismaClient),
-        container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService)
+        container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService),
+        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
+        container.resolve<CachePort>(TOKENS.CachePort)
       ),
     true
   );
 
   container.register<AIService>(
     TOKENS.AIService,
-    () => new AIService(container.resolve<AiRequestService>(TOKENS.AiRequestService)),
+    () =>
+      new AIService(
+        container.resolve<AiRequestService>(TOKENS.AiRequestService),
+        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
+        container.resolve<CachePort>(TOKENS.CachePort)
+      ),
     true
   );
+  // Port-side handle so application/ml use cases depend on the abstraction.
+  // The concrete AIService instance fulfils the AIServicePort contract;
+  // resolving the port returns the same singleton.
+  container.register<AIServicePort>(
+    TOKENS.AIServicePort,
+    () => container.resolve<AIService>(TOKENS.AIService),
+    true
+  );
+  // Outbound HTTP port for application services (TriggerIntegrationEventService).
+  container.register<HttpClientPort>(TOKENS.HttpClientPort, () => new FetchHttpClient(), true);
+
+  // Application-wide RedisCacheManager singleton: a single L1+L2 tiered cache
+  // pool shared by every consumer. Created lazily so tests that resolve the
+  // container without exercising cache-dependent code don't open a real Redis
+  // connection. The Fastify entry point (`apps/api/src/index.ts`) resolves it
+  // immediately for `fastify.cacheManager` decoration; everything else
+  // resolves it implicitly via `TOKENS.CachePort`.
+  container.register<RedisCacheManager>(
+    TOKENS.RedisCacheManager,
+    () =>
+      createCacheManager(
+        {
+          redisUrl: getRedisUrl(),
+          keyPrefix: "api:",
+          enableMetrics: true,
+        },
+        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
+      ),
+    true
+  );
+
+  // General-purpose cache port: wraps the application-wide `RedisCacheManager`
+  // singleton behind the canonical `CachePort` API. Callers namespace their
+  // keys with conventional prefixes (`credentials:`, `permissions:`,
+  // `branch:`); the underlying manager applies the global `keyPrefix` at the
+  // Redis level, so every consumer shares L1+L2 tiering, tag invalidation,
+  // and cross-pod coherence with no duplicated cache pools.
+  container.register<CachePort>(
+    TOKENS.CachePort,
+    () => new RedisCacheAdapter(container.resolve<RedisCacheManager>(TOKENS.RedisCacheManager)),
+    true
+  );
+
   container.registerInstance(TOKENS.DashboardService, dashboardService);
 
   container.register<AccountLifecycleService>(
@@ -143,7 +223,7 @@ export function setupServices(
   container.registerInstance(TOKENS.SubscriptionService, subscriptionService);
   container.registerInstance(TOKENS.WebhookDashboardService, webhookDashboardService);
 
-  // Compliance (Sprint C)
+  // Compliance
   container.register<ComplianceService>(
     TOKENS.ComplianceService,
     () => {
@@ -176,7 +256,10 @@ export function setupServices(
     () => {
       const redis = createRedisConnection();
       redis.on("error", () => {});
-      return new RealtimeWebhookBroadcaster(redis);
+      return new RealtimeWebhookBroadcaster(
+        redis,
+        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
+      );
     },
     true
   );
@@ -188,10 +271,72 @@ export function setupServices(
   );
   container.registerInstance(TOKENS.ProviderRegistry, providerRegistry);
 
-  // Queue adapter (shared by analytics ingestion, inbox sync, etc.)
-  container.register(TOKENS.QueuePort, () => createBullMQQueueAdapter(), true);
+  // Queue infrastructure: single Redis connection shared across all queue
+  // adapters via the registry. Per-queue retry policy wired here so
+  // producers don't need to pass `attempts`/`backoff` on every enqueue
+  // call. Defaults follow the BullMQ canon — exponential backoff with
+  // jitter to avoid thundering-herd on simultaneous failures. DLQ queues
+  // set `attempts: 1` because they are terminal stores, not processing
+  // queues.
+  container.register<QueuePortRegistry>(
+    TOKENS.QueuePortRegistry,
+    () => {
+      const connection = new Redis(env.REDIS_URL || "redis://localhost:6379", {
+        enableReadyCheck: false,
+        maxRetriesPerRequest: 3,
+        lazyConnect: true,
+        // ioredis defaults: commandTimeout = null (forever), connectTimeout = 10000.
+        // 5 s on each so a hung Redis fails fast instead of stalling job
+        // enqueues from API request handlers.
+        commandTimeout: 5_000,
+        connectTimeout: 5_000,
+      });
+      const defaultJobOptionsByQueue = {
+        [QUEUE_NAMES.PUBLISH]: {
+          attempts: 3,
+          backoff: { type: "exponential" as const, delay: 5000, jitter: 0.5 },
+        },
+        [QUEUE_NAMES.ANALYTICS_AGGREGATION]: {
+          attempts: 3,
+          backoff: { type: "exponential" as const, delay: 5000, jitter: 0.5 },
+        },
+        [QUEUE_NAMES.INBOX_SYNC]: {
+          attempts: 3,
+          backoff: { type: "exponential" as const, delay: 5000, jitter: 0.5 },
+        },
+        [QUEUE_NAMES.GENERATE_REPURPOSE]: {
+          attempts: 3,
+          backoff: { type: "exponential" as const, delay: 10000, jitter: 0.5 },
+        },
+        [QUEUE_NAMES.WEBHOOK_PROCESSING]: {
+          attempts: 5,
+          backoff: { type: "exponential" as const, delay: 2000, jitter: 0.3 },
+        },
+        // DLQs: terminal — no retry policy.
+        [QUEUE_NAMES.DEAD_LETTER_QUEUE]: { attempts: 1 },
+        [QUEUE_NAMES.WEBHOOK_DEAD_LETTER]: { attempts: 1 },
+        [QUEUE_NAMES.FAILED_OPERATIONS_DLQ]: { attempts: 1 },
+      };
+      return new BullMQQueuePortRegistry({ connection, defaultJobOptionsByQueue });
+    },
+    true
+  );
+  container.register<QueuePort>(
+    TOKENS.QueuePort,
+    () =>
+      container.resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry).forQueue(QUEUE_NAMES.PUBLISH),
+    true
+  );
+  container.register<DeadLetterQueuePort>(
+    TOKENS.DeadLetterQueuePort,
+    () =>
+      new BullMQDeadLetterQueueAdapter({
+        registry: container.resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry),
+      }),
+    true
+  );
 
-  // Register Content Sync Services (F28)
+  // Register Content Sync Services
   container.register<ContentVersionManager>(
     TOKENS.ContentVersionManager,
     () => {
@@ -200,11 +345,13 @@ export function setupServices(
       const eventService = new EventService({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
+        scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
       });
       return new ContentVersionManager({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
         eventService,
+        cache: container.resolve<CachePort>(TOKENS.CachePort),
       });
     },
     true
@@ -217,6 +364,7 @@ export function setupServices(
       const eventService = new EventService({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
+        scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
       });
       return new PlatformContentAdapter({
         prisma: container.resolve(TOKENS.PrismaClient),
@@ -234,12 +382,14 @@ export function setupServices(
       const eventService = new EventService({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
+        scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
       });
       const versionManager = container.resolve<ContentVersionManager>(TOKENS.ContentVersionManager);
       const synchronizer = new ContentSynchronizer({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
         eventService,
+        scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
       });
       return new SyncEngine({
         prisma: container.resolve(TOKENS.PrismaClient),
@@ -247,6 +397,7 @@ export function setupServices(
         eventService,
         synchronizer,
         versionManager,
+        scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
       });
     },
     true
@@ -255,26 +406,30 @@ export function setupServices(
   // Register Analytics Services (M-8c)
   container.register<ThreadAnalytics>(
     TOKENS.ThreadAnalytics,
-    () => {
-      const redis = createRedisConnection();
-      redis.on("error", () => {});
-      return new ThreadAnalytics(
-        redis,
+    () =>
+      new ThreadAnalytics(
+        container.resolve<CachePort>(TOKENS.CachePort),
         {} as ApiMetrics,
         container.resolve<AnalyticsReadRepositoryPort>(TOKENS.AnalyticsReadRepository)
-      );
-    },
+      ),
     true
   );
   // Future: GeoAnalyticsService — deleted (100% fake geographic distribution)
 
-  // Register CredentialManager + RateLimitManager (P2-A)
+  // Register CredentialManager + RateLimitManager
   container.register<CredentialManager>(
     TOKENS.CredentialManager,
     () => {
       const redis = createRedisConnection();
       redis.on("error", () => {});
-      return new CredentialManager({ prisma: container.resolve(TOKENS.PrismaClient), redis });
+      return new CredentialManager({
+        prisma: container.resolve(TOKENS.PrismaClient),
+        redis,
+        credentialsCrypto: container.resolve<ChannelCredentialsCrypto>(
+          TOKENS.ChannelCredentialsCrypto
+        ),
+        cache: container.resolve<CachePort>(TOKENS.CachePort),
+      });
     },
     true
   );
@@ -288,25 +443,26 @@ export function setupServices(
     true
   );
 
-  // Register PostsService (B0-4)
+  // Register PostsService — shares the application-wide RedisCacheManager
+  // singleton (prefix `api:`) instead of opening a second pool. Cache keys
+  // built inside the service are namespaced via the `dashboard:posts:` /
+  // `posts:total:` segments embedded in the key strings themselves, so the
+  // singleton's global `api:` prefix layers cleanly without collisions.
   container.register(
     TOKENS.PostsService,
     () => {
-      const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
-      const dbOptimizer = new DatabaseOptimizer(container.resolve(TOKENS.PrismaClient), dbLogger);
-      const cacheManager = new RedisCacheManager({
-        redisUrl,
-        keyPrefix: "posts:",
-        defaultTtl: 300,
-        enableCompression: true,
-        enableMetrics: true,
-      });
+      const dbOptimizer = new DatabaseOptimizer(
+        container.resolve(TOKENS.PrismaClient),
+        dbLogger,
+        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
+      );
+      const cacheManager = container.resolve<RedisCacheManager>(TOKENS.RedisCacheManager);
       return createPostsService(dbOptimizer, cacheManager);
     },
     true
   );
 
-  // Register ProviderCoordinator (P2-B)
+  // Register ProviderCoordinator
   container.register<ProviderCoordinator>(
     TOKENS.ProviderCoordinator,
     () => {
@@ -315,11 +471,13 @@ export function setupServices(
       const eventService = new EventService({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
+        scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
       });
       return new ProviderCoordinator({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
         eventService,
+        scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
       });
     },
     true
@@ -330,27 +488,30 @@ export function setupServices(
     true
   );
 
-  // Register NotificationBroadcaster (Phase 1.2 -- SSE real-time notifications)
+  // Register NotificationBroadcaster
   container.register<NotificationBroadcaster>(
     TOKENS.NotificationBroadcaster,
     () => {
       const redis = createRedisConnection();
       redis.on("error", () => {});
-      const broadcaster = new NotificationBroadcaster(redis);
+      const broadcaster = new NotificationBroadcaster(
+        redis,
+        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
+      );
       broadcaster.initialize();
       return broadcaster;
     },
     true
   );
 
-  // Register GA4 Tracking Adapter (Phase 3 Step 4: UTM/GA4 Integration)
+  // Register GA4 Tracking Adapter
   container.register<GA4TrackingAdapter>(
     TOKENS.GA4TrackingPort,
     () => new GA4TrackingAdapter(),
     true
   );
 
-  // Register EmailPort (Phase 3 Step 7: Scheduled Reports)
+  // Register EmailPort
   container.register<EmailPort>(TOKENS.EmailPort, () => new ResendEmailAdapter(), true);
 
   // Register SagaManager (P3-A)
@@ -362,11 +523,13 @@ export function setupServices(
       const eventService = new EventService({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
+        scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
       });
       return new SagaManagerImpl({
         prisma: container.resolve(TOKENS.PrismaClient),
         redis,
         eventService,
+        scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
         enableMetrics: true,
         defaultTimeout: 30 * 60 * 1000,
         maxConcurrentSagas: 100,
@@ -376,9 +539,21 @@ export function setupServices(
   );
 
   // Register Platform Encryption Services
+  // AuditService singleton (registered earlier in this setup) is reused as
+  // the decrypt-audit port for EncryptionService — every decrypt() emits
+  // an audit event via this port.
   container.register<EncryptionService>(
     TOKENS.EncryptionService,
-    () => new EncryptionService(),
+    () =>
+      new EncryptionService({
+        auditPort: container.resolve<AuditService>(TOKENS.AuditService),
+      }),
+    true
+  );
+  container.register<ChannelCredentialsCrypto>(
+    TOKENS.ChannelCredentialsCrypto,
+    () =>
+      new ChannelCredentialsCrypto(container.resolve<EncryptionService>(TOKENS.EncryptionService)),
     true
   );
   container.register<PlatformCredentialService>(

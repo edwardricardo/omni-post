@@ -3,7 +3,7 @@
  * @description Mutation-killing tests for LinkedIn media upload helpers.
  * Covers uploadAndAttachMedia, uploadDocument, and the internal
  * buildMediaContent logic via integration through uploadAndAttachMedia.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";

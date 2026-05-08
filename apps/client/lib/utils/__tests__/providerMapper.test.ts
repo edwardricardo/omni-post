@@ -3,7 +3,7 @@
  * @description Mutation-killing tests for providerMapper utility functions.
  * Covers mapProvidersToMetadata, mapCapabilities, default limits,
  * default colors, scopes, and fallback behavior.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

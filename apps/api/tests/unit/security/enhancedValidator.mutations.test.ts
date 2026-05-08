@@ -3,7 +3,7 @@
  * @description Mutation-killing tests for EnhancedValidator input validation.
  *              Targets boundary conditions, disabled flags, pattern detection,
  *              and sanitization branches not covered by the existing test file.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -30,6 +30,7 @@ vi.mock("../../../src/lib/logger.js", () => ({
 }));
 
 import { EnhancedValidator } from "../../../src/security/enhancedValidator.js";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 
 describe("EnhancedValidator — mutation-killing: input validation", () => {
   let v: EnhancedValidator;
@@ -47,7 +48,7 @@ describe("EnhancedValidator — mutation-killing: input validation", () => {
   // ------------------------------------------------------------------
   describe("validateInput type dispatch", () => {
     it("returns valid with sanitized for null input", () => {
-      v = new EnhancedValidator();
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler());
       const result = v.validateInput(null);
       expect(result.isValid).toBe(true);
       expect(result.sanitized).toBeNull();
@@ -56,7 +57,7 @@ describe("EnhancedValidator — mutation-killing: input validation", () => {
     });
 
     it("returns valid with sanitized for undefined input", () => {
-      v = new EnhancedValidator();
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler());
       const result = v.validateInput(undefined);
       expect(result.isValid).toBe(true);
       expect(result.sanitized).toBeUndefined();
@@ -64,21 +65,21 @@ describe("EnhancedValidator — mutation-killing: input validation", () => {
     });
 
     it("returns valid with sanitized for number 0", () => {
-      v = new EnhancedValidator();
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler());
       const result = v.validateInput(0);
       expect(result.isValid).toBe(true);
       expect(result.sanitized).toBe(0);
     });
 
     it("returns valid with sanitized for boolean false", () => {
-      v = new EnhancedValidator();
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler());
       const result = v.validateInput(false);
       expect(result.isValid).toBe(true);
       expect(result.sanitized).toBe(false);
     });
 
     it("delegates arrays to validateObject (arrays are typeof object)", () => {
-      v = new EnhancedValidator();
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler());
       const result = v.validateInput(["safe"]);
       expect(result.isValid).toBe(true);
     });
@@ -89,7 +90,7 @@ describe("EnhancedValidator — mutation-killing: input validation", () => {
   // ------------------------------------------------------------------
   describe("validateString length boundaries", () => {
     it("rejects string exactly 1 char over maxStringLength", () => {
-      v = new EnhancedValidator({ maxStringLength: 10 });
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), { maxStringLength: 10 });
       const result = v.validateInput("a".repeat(11));
       expect(result.isValid).toBe(false);
       expect(result.threats).toContain("EXCESSIVE_LENGTH");
@@ -98,20 +99,20 @@ describe("EnhancedValidator — mutation-killing: input validation", () => {
     });
 
     it("accepts string exactly at maxStringLength", () => {
-      v = new EnhancedValidator({ maxStringLength: 10 });
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), { maxStringLength: 10 });
       const result = v.validateInput("a".repeat(10));
       expect(result.isValid).toBe(true);
       expect(result.sanitized).toBeDefined();
     });
 
     it("accepts string 1 char under maxStringLength", () => {
-      v = new EnhancedValidator({ maxStringLength: 10 });
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), { maxStringLength: 10 });
       const result = v.validateInput("a".repeat(9));
       expect(result.isValid).toBe(true);
     });
 
     it("excessive length returns early without checking patterns", () => {
-      v = new EnhancedValidator({ maxStringLength: 5 });
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), { maxStringLength: 5 });
       const result = v.validateInput("select x from y");
       expect(result.threats).toEqual(["EXCESSIVE_LENGTH"]);
       expect(result.threats).not.toContain("SQL_INJECTION");
@@ -123,37 +124,47 @@ describe("EnhancedValidator — mutation-killing: input validation", () => {
   // ------------------------------------------------------------------
   describe("validateString with disabled protections", () => {
     it("skips SQL injection detection when disabled", () => {
-      v = new EnhancedValidator({ enableSQLInjectionProtection: false });
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), {
+        enableSQLInjectionProtection: false,
+      });
       const result = v.validateInput("SELECT * FROM users");
       expect(result.threats).not.toContain("SQL_INJECTION");
     });
 
     it("skips XSS detection when disabled", () => {
-      v = new EnhancedValidator({ enableXSSProtection: false });
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), { enableXSSProtection: false });
       const result = v.validateInput("<script>alert(1)</script>");
       expect(result.threats).not.toContain("XSS_ATTEMPT");
     });
 
     it("skips NoSQL detection when disabled", () => {
-      v = new EnhancedValidator({ enableNoSQLInjectionProtection: false });
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), {
+        enableNoSQLInjectionProtection: false,
+      });
       const result = v.validateInput('{"$where": "1==1"}');
       expect(result.threats).not.toContain("NOSQL_INJECTION");
     });
 
     it("skips command injection detection when disabled", () => {
-      v = new EnhancedValidator({ enableCommandInjectionProtection: false });
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), {
+        enableCommandInjectionProtection: false,
+      });
       const result = v.validateInput("; rm -rf /");
       expect(result.threats).not.toContain("COMMAND_INJECTION");
     });
 
     it("skips path traversal detection when disabled", () => {
-      v = new EnhancedValidator({ enablePathTraversalProtection: false });
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), {
+        enablePathTraversalProtection: false,
+      });
       const result = v.validateInput("../../etc/passwd");
       expect(result.threats).not.toContain("PATH_TRAVERSAL");
     });
 
     it("skips LDAP injection detection when disabled", () => {
-      v = new EnhancedValidator({ enableLDAPInjectionProtection: false });
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), {
+        enableLDAPInjectionProtection: false,
+      });
       const result = v.validateInput("*)|(&(");
       expect(result.threats).not.toContain("LDAP_INJECTION");
     });
@@ -164,7 +175,7 @@ describe("EnhancedValidator — mutation-killing: input validation", () => {
   // ------------------------------------------------------------------
   describe("SQL injection individual patterns", () => {
     beforeEach(() => {
-      v = new EnhancedValidator({
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), {
         enableXSSProtection: false,
         enableCommandInjectionProtection: false,
         enablePathTraversalProtection: false,
@@ -215,7 +226,7 @@ describe("EnhancedValidator — mutation-killing: input validation", () => {
   // ------------------------------------------------------------------
   describe("XSS individual patterns", () => {
     beforeEach(() => {
-      v = new EnhancedValidator({
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), {
         enableSQLInjectionProtection: false,
         enableCommandInjectionProtection: false,
         enablePathTraversalProtection: false,
@@ -265,7 +276,7 @@ describe("EnhancedValidator — mutation-killing: input validation", () => {
   // ------------------------------------------------------------------
   describe("NoSQL injection individual patterns", () => {
     beforeEach(() => {
-      v = new EnhancedValidator({
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), {
         enableSQLInjectionProtection: false,
         enableXSSProtection: false,
         enableCommandInjectionProtection: false,
@@ -300,7 +311,7 @@ describe("EnhancedValidator — mutation-killing: input validation", () => {
   // ------------------------------------------------------------------
   describe("Command injection individual patterns", () => {
     beforeEach(() => {
-      v = new EnhancedValidator({
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), {
         enableSQLInjectionProtection: false,
         enableXSSProtection: false,
         enablePathTraversalProtection: false,
@@ -355,7 +366,7 @@ describe("EnhancedValidator — mutation-killing: input validation", () => {
   // ------------------------------------------------------------------
   describe("Path traversal individual patterns", () => {
     beforeEach(() => {
-      v = new EnhancedValidator({
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), {
         enableSQLInjectionProtection: false,
         enableXSSProtection: false,
         enableCommandInjectionProtection: false,
@@ -380,7 +391,7 @@ describe("EnhancedValidator — mutation-killing: input validation", () => {
   // ------------------------------------------------------------------
   describe("LDAP injection individual patterns", () => {
     beforeEach(() => {
-      v = new EnhancedValidator({
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), {
         enableSQLInjectionProtection: false,
         enableXSSProtection: false,
         enableCommandInjectionProtection: false,
@@ -431,7 +442,7 @@ describe("EnhancedValidator — mutation-killing: input validation", () => {
   // ------------------------------------------------------------------
   describe("Dangerous strings individual detection", () => {
     beforeEach(() => {
-      v = new EnhancedValidator({
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), {
         enableSQLInjectionProtection: false,
         enableXSSProtection: false,
         enableCommandInjectionProtection: false,
@@ -474,7 +485,7 @@ describe("EnhancedValidator — mutation-killing: input validation", () => {
   // ------------------------------------------------------------------
   describe("validateString sanitized output", () => {
     it("returns sanitized string when no threats detected", () => {
-      v = new EnhancedValidator();
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler());
       const result = v.validateInput("safe text");
       expect(result.isValid).toBe(true);
       expect(result.sanitized).toBeDefined();
@@ -482,7 +493,7 @@ describe("EnhancedValidator — mutation-killing: input validation", () => {
     });
 
     it("does not return sanitized when threats are found", () => {
-      v = new EnhancedValidator();
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler());
       const result = v.validateInput("<script>x</script>");
       expect(result.isValid).toBe(false);
       expect(result.sanitized).toBeUndefined();
@@ -494,7 +505,7 @@ describe("EnhancedValidator — mutation-killing: input validation", () => {
   // ------------------------------------------------------------------
   describe("validateObject edge cases", () => {
     beforeEach(() => {
-      v = new EnhancedValidator();
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler());
     });
 
     it("returns valid sanitized for empty object", () => {
@@ -524,7 +535,7 @@ describe("EnhancedValidator — mutation-killing: input validation", () => {
 
     it("uses sanitized key in output when key gets sanitized", () => {
       v.destroy();
-      v = new EnhancedValidator({
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler(), {
         enableSQLInjectionProtection: false,
         enableXSSProtection: false,
         enableCommandInjectionProtection: false,
@@ -550,7 +561,7 @@ describe("EnhancedValidator — mutation-killing: input validation", () => {
   // ------------------------------------------------------------------
   describe("validateArray edge cases", () => {
     beforeEach(() => {
-      v = new EnhancedValidator();
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler());
     });
 
     it("returns valid for empty array", () => {
@@ -581,7 +592,7 @@ describe("EnhancedValidator — mutation-killing: input validation", () => {
   // ------------------------------------------------------------------
   describe("sanitizeString context branches", () => {
     beforeEach(() => {
-      v = new EnhancedValidator();
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler());
     });
 
     it("html context calls DOMPurify.sanitize", () => {
@@ -649,7 +660,7 @@ describe("EnhancedValidator — mutation-killing: input validation", () => {
   // ------------------------------------------------------------------
   describe("getMaxRisk all combinations", () => {
     beforeEach(() => {
-      v = new EnhancedValidator();
+      v = new EnhancedValidator(new NoopBackgroundTaskScheduler());
     });
 
     it("low vs low returns low", () => {

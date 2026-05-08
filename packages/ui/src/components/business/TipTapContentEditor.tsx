@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file TipTapContentEditor.tsx
+ * @description Rich-text content editor built on TipTap with StarterKit, CharacterCount, and
+ *              Placeholder extensions; wraps ContentEditorCore for toolbar and preview rendering.
+ * @component TipTapContentEditor
+ * @layer infrastructure
+ */
 import React, { useEffect, useState, useCallback } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -18,11 +25,10 @@ import {
 import { Button } from "../button";
 import { cn } from "../../lib/utils";
 
-export interface TipTapContentEditorProps
-  extends Omit<
-    ContentEditorCoreProps,
-    "renderToolbar" | "renderMediaPreview" | "renderCharacterCount"
-  > {
+export interface TipTapContentEditorProps extends Omit<
+  ContentEditorCoreProps,
+  "renderToolbar" | "renderMediaPreview" | "renderCharacterCount"
+> {
   // TipTap-specific props
   enableRichText?: boolean;
   enableEmoji?: boolean;
@@ -218,7 +224,11 @@ export function TipTapContentEditor({
                   src={mediaItem.url}
                   className="w-full h-full object-cover rounded-md"
                   controls={false}
-                />
+                >
+                  {/* Captions intentionally absent: this is a thumbnail preview of
+                      user-uploaded media with no caption track. Placeholder track declares intent. */}
+                  <track kind="captions" />
+                </video>
               </div>
             ) : (
               <img

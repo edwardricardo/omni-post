@@ -1,11 +1,14 @@
 /**
  * Integration Tests - Link Tracking Routes
  *
- * Part of Sprint 19: Link Tracking Feature
  * Tests the full HTTP request/response cycle for link tracking endpoints.
  *
  * NOTE: These tests require the API server to be running.
  * Run `pnpm dev:api` before running these tests.
+ *
+ * @file linkRoutes.test.ts
+ * @description Tests for Link Tracking Routes Integration
+ * @layer infrastructure
  */
 
 import { describe, it, before, after, beforeEach } from "node:test";

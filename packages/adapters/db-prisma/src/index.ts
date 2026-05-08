@@ -1,3 +1,9 @@
+/**
+ * @file index.ts
+ * @description Prisma repo adapter factory composing Account, Project, Post, Channel,
+ *              PublishLog, Analytics, and Thread sub-repositories into a single RepoPort.
+ * @layer infrastructure
+ */
 import {
   createDatabaseCircuitBreaker,
   withDatabaseRetry,
@@ -7,6 +13,7 @@ import {
 } from "./resilience.js";
 import { prisma } from "@infra/prisma";
 import { createLogger } from "@observability/logger";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 
 const logger = createLogger("adapter:db-prisma");
 import type { RepoPort } from "@ports/core";
@@ -58,11 +65,20 @@ export {
   type PrismaTweetStatus,
 } from "./mappers.js";
 
-export function createPrismaRepoAdapter(): RepoPort & {
+export function createPrismaRepoAdapter(options?: {
+  scheduler?: BackgroundTaskScheduler;
+  decryptChannelCredentials?: (envelope: {
+    credentialsCiphertext: string;
+    credentialsIv: string;
+    credentialsAuthTag: string;
+    credentialsKeyVersion: number;
+  }) => Record<string, unknown>;
+}): RepoPort & {
   getDatabaseHealthMetrics(): DatabaseHealthMetrics;
   close(): Promise<void>;
 } {
   const metricsCollector = new DatabaseMetricsCollector();
+  const connectionMonitorTaskId = "db-prisma-connection-monitor";
 
   // Create circuit breakers for critical database operations
   const readOperationBreaker = createDatabaseCircuitBreaker(
@@ -104,20 +120,30 @@ export function createPrismaRepoAdapter(): RepoPort & {
   metricsCollector.setupCircuitBreakerMetrics(transactionBreaker);
 
   // Connection health monitoring
-  const monitorConnection = async () => {
+  const monitorConnection = async (): Promise<void> => {
     const isHealthy = await checkDatabaseConnection(prisma);
     metricsCollector.updateConnectionHealth(isHealthy);
   };
 
-  // Monitor connection every 30 seconds
-  setInterval(monitorConnection, 30000);
-  monitorConnection(); // Initial check
+  // Register monitor via scheduler when available, fire initial check immediately
+  if (options?.scheduler) {
+    options.scheduler.register(connectionMonitorTaskId, monitorConnection, 30_000, {
+      immediate: true,
+      onError: (err) => logger.warn({ err }, "DB connection monitor error"),
+    });
+  } else {
+    void monitorConnection();
+  }
 
   // Compose repositories from focused modules
   const accountRepo = createAccountRepository(readOperationBreaker, writeOperationBreaker);
   const projectRepo = createProjectRepository();
   const postRepo = createPostRepository(transactionBreaker);
-  const channelRepo = createChannelRepository();
+  const channelRepo = createChannelRepository(
+    options?.decryptChannelCredentials
+      ? { decryptCredentials: options.decryptChannelCredentials }
+      : {}
+  );
   const publishLogRepo = createPublishLogRepository();
   const analyticsRepo = createAnalyticsRepository();
   const threadRepo = createThreadRepository();
@@ -150,6 +176,9 @@ export function createPrismaRepoAdapter(): RepoPort & {
 
     async close(): Promise<void> {
       try {
+        if (options?.scheduler) {
+          options.scheduler.unregister(connectionMonitorTaskId);
+        }
         await prisma.$disconnect();
         logger.info("Database connections closed");
       } catch (error) {

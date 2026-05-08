@@ -5,6 +5,10 @@
  *   1. Unknown provider → job resolves but records failure metrics
  *   2. Provider error propagation → publishSinglePost throws, handleJob catches
  *   3. Multi-provider independence → one provider failure does not affect others
+ *
+ * @file publishHandlerEdgeCases.test.ts
+ * @description Tests for PublishHandler.handleJob edge cases
+ * @layer infrastructure
  */
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
@@ -12,7 +16,7 @@ import { createTestDeps, createTestPublishReceipt, createMockProvider } from "./
 import { PublishHandler } from "../src/publishHandler.js";
 import type { PublishHandlerDeps, PublishJobInput } from "../src/publishHandler.js";
 
-describe("PublishHandler.handleJob edge cases", { concurrency: 1 }, () => {
+describe("PublishHandler.handleJob edge cases", { sequential: true }, () => {
   let deps: PublishHandlerDeps;
   let handler: PublishHandler;
 
@@ -34,8 +38,8 @@ describe("PublishHandler.handleJob edge cases", { concurrency: 1 }, () => {
         },
       };
 
-      // handleJob catches the error from resolveProvider — should NOT throw
-      await handler.handleJob(job);
+      // handleJob re-throws so BullMQ retries; metrics still incremented.
+      await assert.rejects(handler.handleJob(job));
 
       const jobsFailed = await deps.workerMetrics.metrics.jobsFailed.get();
       const match = jobsFailed.values.find((v) => v.labels.error_category === "processing_error");
@@ -52,7 +56,7 @@ describe("PublishHandler.handleJob edge cases", { concurrency: 1 }, () => {
         },
       };
 
-      await handler.handleJob(job);
+      await assert.rejects(handler.handleJob(job));
 
       const errorsByType = await deps.workerMetrics.metrics.errorsByType.get();
       const match = errorsByType.values.find(
@@ -81,7 +85,7 @@ describe("PublishHandler.handleJob edge cases", { concurrency: 1 }, () => {
         },
       };
 
-      await handler.handleJob(job);
+      await assert.rejects(handler.handleJob(job));
 
       assert.strictEqual(sagaMessages.length, 1);
       const parsed = JSON.parse(sagaMessages[0]!) as {
@@ -113,8 +117,8 @@ describe("PublishHandler.handleJob edge cases", { concurrency: 1 }, () => {
         },
       };
 
-      // handleJob should resolve (not throw) even though the provider failed
-      await handler.handleJob(job);
+      // handleJob re-throws so BullMQ retries; metrics still recorded.
+      await assert.rejects(handler.handleJob(job));
 
       // publishErr should be incremented by publishSinglePost
       const publishErr = await deps.workerMetrics.metrics.publishErr.get();
@@ -155,7 +159,7 @@ describe("PublishHandler.handleJob edge cases", { concurrency: 1 }, () => {
         },
       };
 
-      await handler.handleJob(job);
+      await assert.rejects(handler.handleJob(job));
 
       // Should have logged RUNNING first, then ERR
       assert.ok(logStatuses.includes("RUNNING"), "Should log RUNNING status");
@@ -183,7 +187,7 @@ describe("PublishHandler.handleJob edge cases", { concurrency: 1 }, () => {
         },
       };
 
-      await handler.handleJob(job);
+      await assert.rejects(handler.handleJob(job));
 
       assert.strictEqual(trackedSuccess, false);
     });
@@ -226,8 +230,8 @@ describe("PublishHandler.handleJob edge cases", { concurrency: 1 }, () => {
         },
       };
 
-      // Run instagram job (fails) then x job (succeeds) — both resolve
-      await handler.handleJob(igJob);
+      // Run instagram job (fails — re-throws) then x job (succeeds).
+      await assert.rejects(handler.handleJob(igJob));
       await handler.handleJob(xJob);
 
       // x should have a successful publish logged

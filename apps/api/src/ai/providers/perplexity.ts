@@ -41,6 +41,8 @@ export class PerplexityProvider implements AIProvider {
           messages: [{ role: "user", content: "Hi" }],
           max_tokens: 10,
         }),
+        // Health check — short timeout (10s) per LLM provider docs.
+        signal: AbortSignal.timeout(10_000),
       });
 
       return response.ok;
@@ -71,6 +73,8 @@ export class PerplexityProvider implements AIProvider {
           presence_penalty: options.presencePenalty || 0,
           stream: false,
         }),
+        // LLM responses can be slow; 120s upper bound per Anthropic/OpenAI defaults.
+        signal: AbortSignal.timeout(120_000),
       });
 
       if (!response.ok) {

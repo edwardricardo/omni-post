@@ -1,3 +1,8 @@
+/**
+ * @file perplexity.advanced.test.ts
+ * @description Tests for PerplexityProvider - Content Analysis
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { PerplexityProvider } from "../../../src/ai/providers/perplexity.js";
 import { mockConfig } from "./perplexity.test-helpers.js";

@@ -16,6 +16,10 @@
  * Tests that verify URL construction or resource-type routing must
  * use the FIRST call to a fresh operation key or a fresh adapter
  * (but the CB is global, so the first-call constraint applies).
+ *
+ * @file index.test.ts
+ * @description Tests for createCloudinaryStorageAdapter -- factory
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";

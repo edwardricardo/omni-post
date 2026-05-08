@@ -6,6 +6,10 @@
  * - Unique identifiers using timestamps and random strings
  * - Automatic tracking of created entities for cleanup
  * - Proper cleanup in reverse dependency order
+ *
+ * @file testDataFactory.ts
+ * @description Tests for test data factory
+ * @layer infrastructure
  */
 import { prisma } from "@infra/prisma";
 import type { AdminUser, Account, Project, Post, Channel } from "@infra/prisma";

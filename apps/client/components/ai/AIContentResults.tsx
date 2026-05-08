@@ -9,7 +9,7 @@
 import React from "react";
 import { Copy, Save, Camera, Video } from "lucide-react";
 import type { GeneratedContent } from "../../types/ai-content";
-import { getCharacterLimitColor, getScoreColor } from "../../lib/ai-content-utils";
+import { getCharacterLimitColor } from "../../lib/ai-content-utils";
 
 interface AIContentResultsProps {
   content: GeneratedContent[];
@@ -65,18 +65,6 @@ export function AIContentResults({
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
                 <h5 className="font-semibold text-gray-900 capitalize">{item.platform}</h5>
-                <div className="flex space-x-2">
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${getScoreColor(item.metrics.engagementScore)}`}
-                  >
-                    {Math.round(item.metrics.engagementScore)}% engagement
-                  </span>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${getScoreColor(item.brandConsistency.score)}`}
-                  >
-                    {Math.round(item.brandConsistency.score)}% brand match
-                  </span>
-                </div>
               </div>
               <div className="flex space-x-2">
                 <button
@@ -117,7 +105,7 @@ export function AIContentResults({
             </div>
 
             {/* Metrics */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div className="grid grid-cols-3 gap-4 mb-4">
               <div className="text-center">
                 <div
                   className={`font-semibold ${getCharacterLimitColor(item.metrics.characterCount, item.platform)}`}
@@ -131,16 +119,8 @@ export function AIContentResults({
                 <div className="text-xs text-gray-600">Words</div>
               </div>
               <div className="text-center">
-                <div className="font-semibold text-purple-600">
-                  {Math.round(item.metrics.viralPotential)}%
-                </div>
-                <div className="text-xs text-gray-600">Viral Potential</div>
-              </div>
-              <div className="text-center">
-                <div className="font-semibold text-green-600">
-                  {Math.round(item.metrics.readabilityScore)}
-                </div>
-                <div className="text-xs text-gray-600">Readability</div>
+                <div className="font-semibold text-gray-900">{item.metrics.hashtagCount}</div>
+                <div className="text-xs text-gray-600">Hashtags</div>
               </div>
             </div>
 

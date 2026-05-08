@@ -10,6 +10,10 @@
  * The run-tests.sh batch runner uses the split files. This file keeps all
  * tests together for quick individual execution:
  *   node --import tsx --test bruteForceProtection.test.ts
+ *
+ * @file bruteForceProtection.test.ts
+ * @description Tests for BruteForceProtection Tests
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect } from "vitest";

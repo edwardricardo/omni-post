@@ -1,18 +1,11 @@
 /**
- * Redis Cache Adapter — Public API
- *
- * Thin barrel re-exporting from focused modules.
- * Implementation lives in:
- *   types.ts          — interfaces and type aliases
- *   constants.ts      — CacheKeys and CacheTTL
- *   metrics.ts        — Prometheus counters / histograms
- *   l1-cache.ts       — in-memory L1 cache with LRU eviction
- *   access-patterns.ts — access frequency tracking
- *   invalidation.ts   — invalidation strategies (immediate / lazy / scheduled / smart)
- *   cache-manager.ts  — RedisCacheManager (L1 + L2 orchestrator)
- *   factory.ts        — createCacheManager / getCacheManager / resetCacheManager
- *   middleware.ts     — Fastify cachePlugin + CacheInvalidator
- *   events.ts         — domain-event-driven invalidation
+ * @file index.ts
+ * @description Barrel re-exports for the Redis cache adapter — types, constants,
+ *              metrics, L1 cache, access patterns, invalidation, cache manager,
+ *              and factory. HTTP-level caching middleware lives app-local
+ *              (`apps/api/src/middleware/autoCacheMiddleware.ts`) so this
+ *              package stays Fastify-free.
+ * @layer infrastructure
  */
 
 // Types
@@ -32,23 +25,10 @@ export { CacheKeys, CacheTTL } from "./constants.js";
 // Core cache manager
 export { RedisCacheManager } from "./cache-manager.js";
 
+// CachePort adapters
+export { RedisCacheAdapter } from "./redis-cache-adapter.js";
+export { InMemoryCacheAdapter } from "./in-memory-cache-adapter.js";
+export type { InMemoryCacheAdapterOptions } from "./in-memory-cache-adapter.js";
+
 // Factory helpers
 export { createCacheManager, getCacheManager, resetCacheManager } from "./factory.js";
-
-// Fastify middleware and invalidation helpers
-export {
-  cachePlugin,
-  CacheInvalidator,
-  type CacheMiddlewareOptions,
-  type RouteCacheOptions,
-} from "./middleware.js";
-
-// Event-driven cache invalidation
-export {
-  CacheEventManager,
-  createCacheEventManager,
-  CacheInvalidationPatterns,
-  type CacheEventHandler,
-  type DomainEvent,
-  type EntityCacheOptions,
-} from "./events.js";

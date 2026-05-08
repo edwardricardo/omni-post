@@ -1,8 +1,13 @@
-import { createBullMQQueueAdapter } from "@adapters/queue-bullmq";
+/**
+ * @file worker.smoke.ts
+ * @description Tests for worker smoke
+ * @layer infrastructure
+ */
+import { createBullMQQueueAdapter, QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 
 async function main() {
-  const queue = createBullMQQueueAdapter();
+  const queue = createBullMQQueueAdapter({ queueName: QUEUE_NAMES.PUBLISH });
   const repo = createPrismaRepoAdapter();
 
   // Precondiciones ligeras

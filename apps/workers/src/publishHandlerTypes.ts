@@ -1,8 +1,8 @@
 /**
- * Type definitions for the PublishHandler.
- *
- * Extracted into a separate file to keep publishHandler.ts under the 800-line limit.
- * All interfaces are re-exported from publishHandler.ts for backwards compatibility.
+ * @file publishHandlerTypes.ts
+ * @description Type definitions for the PublishHandler, extracted into a separate file to keep
+ *              publishHandler.ts under the 800-line limit. Re-exported for backwards compatibility.
+ * @layer infrastructure
  */
 
 import type pino from "pino";
@@ -66,23 +66,39 @@ export interface PublishRepo {
 }
 
 /**
- * Provider interface for the publish handler.
- * Mirrors the subset of ProviderAdapter used by publish operations.
+ * Provider interface used by the publish handler. Mirrors the credential-explicit
+ * shape of ProviderAdapter — the handler resolves credentials before invoking
+ * the provider, so adapters do not perform their own DB lookup.
  */
 export interface PublishProvider {
-  publish(input: {
-    channelId: string;
-    post: RenderedPost;
-    dedupeKey: string;
-  }): Promise<Result<PublishReceipt, PublishError>>;
+  publish(
+    input: {
+      channelId: string;
+      post: RenderedPost;
+      dedupeKey: string;
+    },
+    credentials: unknown
+  ): Promise<Result<PublishReceipt, PublishError>>;
 
-  publishThread?(input: {
-    threadPlan: ThreadPlan;
-    channelId: string;
-    dedupeKey: string;
-  }): Promise<Result<ThreadReceipt, PublishError>>;
+  publishThread?(
+    input: {
+      threadPlan: ThreadPlan;
+      channelId: string;
+      dedupeKey: string;
+    },
+    credentials: unknown
+  ): Promise<Result<ThreadReceipt, PublishError>>;
 
   render(canonical: CanonicalPost): Result<RenderedContent, RenderError>;
+}
+
+/**
+ * Resolves a channel's plaintext credentials. Implemented by the application
+ * layer's `CredentialResolver`; injected so the handler can be exercised with
+ * a fake in tests.
+ */
+export interface CredentialsLookup {
+  resolve(channelId: string): Promise<Result<unknown, "AUTH">>;
 }
 
 /**
@@ -134,6 +150,7 @@ export interface SagaNotifier {
 export interface PublishHandlerDeps {
   repo: PublishRepo;
   providerRegistry: Record<string, PublishProvider>;
+  credentialResolver: CredentialsLookup;
   workerMetrics: WorkerMetrics;
   logger: pino.Logger;
   instrumentation: PublishInstrumentation;

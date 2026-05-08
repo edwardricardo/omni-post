@@ -3,7 +3,7 @@
  * @description Main admin dashboard home page displaying key metrics: account counts,
  *   plan distribution, revenue figures, and recent activity via the useDashboardStats hook.
  *   Uses CSS custom-property design tokens and reusable UI components.
- * @layer page
+ * @layer infrastructure
  */
 "use client";
 
@@ -85,7 +85,6 @@ function DashboardContent() {
         <div
           className="bg-[var(--error-subtle)] border border-[var(--error)] rounded-md p-3"
           role="alert"
-          aria-live="assertive"
         >
           <div className="text-[var(--error)]">{getErrorMessage(error)}</div>
           <ActionButton

@@ -1,3 +1,8 @@
+/**
+ * @file accountLifecycle.test.ts
+ * @description Tests for Account Lifecycle Management
+ * @layer infrastructure
+ */
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { AccountLifecycleService } from "../src/admin/accountLifecycleService.js";

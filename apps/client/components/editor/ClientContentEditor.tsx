@@ -6,9 +6,11 @@
  * provider integration, platform previews, template selector, and schedule picker.
  */
 
-import React, { useMemo, useCallback, useState } from "react";
+import React, { useMemo, useCallback, useState, useEffect } from "react";
 import {
+  ChannelMultiSelect,
   ContentEditorCore,
+  computeDefaultChannelSelection,
   type ContentEditorContent,
   type ProviderConstraints,
 } from "@packages/ui";
@@ -17,6 +19,8 @@ import { providerRegistry } from "@/lib/providers/registry";
 import { useAuth } from "@/lib/auth/authContext";
 import { useToast } from "@packages/ui";
 import { usePostDraft } from "@/lib/hooks/useAutoSave";
+import { useProjectChannels } from "@/lib/hooks/useProjectChannels";
+import { useSchedulePost } from "@/lib/hooks/useSchedulePost";
 import { PlatformPreview } from "./PlatformPreview";
 import { TemplateSelector } from "./TemplateSelector";
 import { SchedulePicker } from "./SchedulePicker";
@@ -60,10 +64,16 @@ export function ClientContentEditor({
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [showSchedulePicker, setShowSchedulePicker] = useState(false);
+  const [selectedChannelIds, setSelectedChannelIds] = useState<string[]>([]);
+  const [serverPostId, setServerPostId] = useState<string | undefined>(postId);
 
   // Auto-save functionality
-  const { saveDraft, saveStatus, lastSaved, publishPost, isPublishing, clearDraft } =
-    usePostDraft(postId);
+  const { saveDraft, saveNow, saveStatus, lastSaved, publishPost, isPublishing, clearDraft } =
+    usePostDraft(postId, setServerPostId);
+
+  const channelsQuery = useProjectChannels(projectId);
+  const channels = useMemo(() => channelsQuery.data ?? [], [channelsQuery.data]);
+  const scheduleMutation = useSchedulePost();
 
   // Transform providers to ProviderConstraints format
   const providerConstraints: ProviderConstraints[] = useMemo(() => {
@@ -87,6 +97,31 @@ export function ClientContentEditor({
       };
     });
   }, [enabledProviders, getProviderConfig]);
+
+  // Reconcile the channel selection whenever the user toggles providers on/off
+  // or the channel list arrives. New providers get their primary channel
+  // pre-selected (smart default); removed providers lose their channels;
+  // explicit user overrides on still-active providers are preserved.
+  useEffect(() => {
+    setSelectedChannelIds((prev) => {
+      const prevSet = new Set(prev);
+      const next: string[] = [];
+      for (const provider of selectedProviders) {
+        const groupChannels = channels.filter((c) => c.platform === provider);
+        if (groupChannels.length === 0) continue;
+        const userKept = groupChannels.filter((c) => prevSet.has(c.id)).map((c) => c.id);
+        if (userKept.length > 0) {
+          next.push(...userKept);
+          continue;
+        }
+        const defaults = computeDefaultChannelSelection(groupChannels, [provider]);
+        next.push(...defaults);
+      }
+      const sameLength = next.length === prev.length;
+      const sameContents = sameLength && next.every((id, i) => id === prev[i]);
+      return sameContents ? prev : next;
+    });
+  }, [selectedProviders, channels]);
 
   // Handle content change with auto-save
   const handleContentChange = useCallback(
@@ -160,7 +195,9 @@ export function ClientContentEditor({
     clearDraft,
   ]);
 
-  // Handle schedule
+  // Handle schedule — canonical state-machine flow: ensure the post exists on
+  // the server (autosave is debounced; flush it first), then call the schedule
+  // endpoint with the resolved channel ids.
   const handleSchedule = useCallback(
     async (scheduledAt: Date, _timezone?: string) => {
       if (selectedProviders.length === 0) {
@@ -171,15 +208,63 @@ export function ClientContentEditor({
         return;
       }
 
-      // Scheduling API integration pending — show confirmation for now
-      success({
-        title: "Post Scheduled!",
-        description: `Your post has been scheduled for ${scheduledAt.toLocaleString()}.`,
-      });
+      if (selectedChannelIds.length === 0) {
+        showError({
+          title: "Channel Selection Required",
+          description:
+            "Please connect a channel for the selected platforms or pick at least one channel.",
+        });
+        return;
+      }
 
-      clearDraft();
+      try {
+        await saveNow();
+      } catch (err) {
+        showError({
+          title: "Schedule Failed",
+          description: err instanceof Error ? err.message : "Failed to save the post draft.",
+        });
+        return;
+      }
+
+      const targetPostId = serverPostId;
+      if (!targetPostId) {
+        showError({
+          title: "Schedule Failed",
+          description: "The post is still being saved — please try again in a moment.",
+        });
+        return;
+      }
+
+      try {
+        await scheduleMutation.mutateAsync({
+          postId: targetPostId,
+          scheduledFor: scheduledAt.toISOString(),
+          channelIds: selectedChannelIds,
+        });
+
+        success({
+          title: "Post Scheduled!",
+          description: `Your post has been scheduled for ${scheduledAt.toLocaleString()}.`,
+        });
+        clearDraft();
+      } catch (err) {
+        showError({
+          title: "Schedule Failed",
+          description: err instanceof Error ? err.message : "Failed to schedule the post.",
+        });
+      }
     },
-    [selectedProviders, showError, success, clearDraft]
+    [
+      selectedProviders,
+      selectedChannelIds,
+      saveNow,
+      serverPostId,
+      scheduleMutation,
+      showError,
+      success,
+      clearDraft,
+    ]
   );
 
   const handleTemplateSelect = useCallback(
@@ -202,19 +287,19 @@ export function ClientContentEditor({
       <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
         {saveStatus === "saving" && (
           <div className="flex items-center gap-1">
-            <Clock className="h-4 w-4 animate-spin" />
+            <Clock aria-hidden="true" className="h-4 w-4 animate-spin" />
             <span>Saving...</span>
           </div>
         )}
         {saveStatus === "saved" && (
-          <div className="flex items-center gap-1 text-green-600">
-            <CheckCircle2 className="h-4 w-4" />
+          <div role="status" className="flex items-center gap-1 text-green-600">
+            <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
             <span>Saved</span>
           </div>
         )}
         {saveStatus === "error" && (
-          <div className="flex items-center gap-1 text-red-600">
-            <AlertCircle className="h-4 w-4" />
+          <div role="alert" className="flex items-center gap-1 text-red-600">
+            <AlertCircle aria-hidden="true" className="h-4 w-4" />
             <span>Save failed</span>
           </div>
         )}
@@ -244,6 +329,16 @@ export function ClientContentEditor({
         validateOnChange={true}
       />
 
+      {/* Channel selection — smart default with override */}
+      {projectId && selectedProviders.length > 0 && (
+        <ChannelMultiSelect
+          channels={channels}
+          selectedProviders={selectedProviders}
+          value={selectedChannelIds}
+          onChange={setSelectedChannelIds}
+        />
+      )}
+
       {/* Action Buttons */}
       {projectId && (
         <div className="flex items-center justify-end gap-2">
@@ -256,12 +351,16 @@ export function ClientContentEditor({
           </Button>
           <Button
             onClick={() => setShowSchedulePicker(true)}
-            disabled={!initialContent.trim()}
+            disabled={
+              !initialContent.trim() ||
+              scheduleMutation.isPending ||
+              selectedChannelIds.length === 0
+            }
             variant="outline"
             size="sm"
           >
             <Calendar className="h-4 w-4 mr-1" />
-            Schedule
+            {scheduleMutation.isPending ? "Scheduling..." : "Schedule"}
           </Button>
         </div>
       )}

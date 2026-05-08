@@ -2,7 +2,7 @@
  * @file pricingCalculator.test.ts
  * @description Unit tests for PricingCalculator domain service.
  *              Tests the complete provider-based pricing model.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";
@@ -12,7 +12,23 @@ import type {
   ProviderTier,
   AccountTier,
   BundleDef,
+  PriceQuote,
+  BundleMatch,
 } from "../../../src/domain/billing/PricingCalculator.js";
+import { InvariantViolationError } from "../../../src/domain/errors/DomainError.js";
+import type { Result } from "@shared/types";
+
+function unwrapQuote(result: Result<PriceQuote, InvariantViolationError>): PriceQuote {
+  assert.ok(result.ok, `expected ok result, got: ${result.ok ? "ok" : result.error.message}`);
+  return result.value;
+}
+
+function unwrapBundleMatch(
+  result: Result<BundleMatch | null, InvariantViolationError>
+): BundleMatch | null {
+  assert.ok(result.ok, `expected ok result, got: ${result.ok ? "ok" : result.error.message}`);
+  return result.value;
+}
 
 const providerTiers: ProviderTier[] = [
   { minProviders: 1, maxProviders: 1, pricePerProviderMonth: 12, isActive: true },
@@ -68,12 +84,16 @@ const bundles: BundleDef[] = [
 
 describe("PricingCalculator.calculateCustomPrice()", () => {
   it("1 provider, 1 account = $12", () => {
-    const { total } = PricingCalculator.calculateCustomPrice(1, 1, providerTiers, accountTiers);
+    const { total } = unwrapQuote(
+      PricingCalculator.calculateCustomPrice(1, 1, providerTiers, accountTiers)
+    );
     assert.strictEqual(total, 12);
   });
 
   it("3 providers, 1 account = $30", () => {
-    const { total } = PricingCalculator.calculateCustomPrice(3, 1, providerTiers, accountTiers);
+    const { total } = unwrapQuote(
+      PricingCalculator.calculateCustomPrice(3, 1, providerTiers, accountTiers)
+    );
     assert.strictEqual(total, 30);
   });
 
@@ -82,17 +102,23 @@ describe("PricingCalculator.calculateCustomPrice()", () => {
     // Account 2: $30 x 0.8 = $24
     // Account 3: $30 x 0.8 = $24
     // Total: $78
-    const { total } = PricingCalculator.calculateCustomPrice(3, 3, providerTiers, accountTiers);
+    const { total } = unwrapQuote(
+      PricingCalculator.calculateCustomPrice(3, 3, providerTiers, accountTiers)
+    );
     assert.strictEqual(total, 78);
   });
 
   it("7 providers triggers lowest per-provider tier ($6)", () => {
-    const { breakdown } = PricingCalculator.calculateCustomPrice(7, 1, providerTiers, accountTiers);
+    const { breakdown } = unwrapQuote(
+      PricingCalculator.calculateCustomPrice(7, 1, providerTiers, accountTiers)
+    );
     assert.strictEqual(breakdown.pricePerProvider, 6);
   });
 
   it("10 custom providers = $60 (10 x $6)", () => {
-    const { total } = PricingCalculator.calculateCustomPrice(10, 1, providerTiers, accountTiers);
+    const { total } = unwrapQuote(
+      PricingCalculator.calculateCustomPrice(10, 1, providerTiers, accountTiers)
+    );
     assert.strictEqual(total, 60);
   });
 
@@ -105,26 +131,34 @@ describe("PricingCalculator.calculateCustomPrice()", () => {
     // Account 4: $32 x 0.65 = $20.80
     // Account 5: $32 x 0.65 = $20.80
     // Total: $124.80
-    const { total } = PricingCalculator.calculateCustomPrice(4, 5, providerTiers, accountTiers);
+    const { total } = unwrapQuote(
+      PricingCalculator.calculateCustomPrice(4, 5, providerTiers, accountTiers)
+    );
     assert.strictEqual(total, 124.8);
   });
 
   it("calculates savings vs no-discount", () => {
-    const { breakdown } = PricingCalculator.calculateCustomPrice(3, 3, providerTiers, accountTiers);
+    const { breakdown } = unwrapQuote(
+      PricingCalculator.calculateCustomPrice(3, 3, providerTiers, accountTiers)
+    );
     // No discount: $30 x 3 = $90. With discount: $78. Savings: $12
     assert.strictEqual(breakdown.savings, 12);
   });
 
-  it("throws if no tier covers provider count (0 providers)", () => {
-    expect(() =>
-      PricingCalculator.calculateCustomPrice(0, 1, providerTiers, accountTiers)
-    ).toThrow();
+  it("returns InvariantViolationError when no tier covers provider count (0 providers)", () => {
+    const result = PricingCalculator.calculateCustomPrice(0, 1, providerTiers, accountTiers);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBeInstanceOf(InvariantViolationError);
+      expect(result.error.code).toBe("INVARIANT_VIOLATION");
+      expect(result.error.message).toContain("provider count 0");
+    }
   });
 });
 
 describe("PricingCalculator.calculateBundlePrice()", () => {
   it("Creator bundle, 1 account = $25", () => {
-    const { total } = PricingCalculator.calculateBundlePrice(25, 1, accountTiers);
+    const { total } = unwrapQuote(PricingCalculator.calculateBundlePrice(25, 1, accountTiers));
     assert.strictEqual(total, 25);
   });
 
@@ -133,90 +167,100 @@ describe("PricingCalculator.calculateBundlePrice()", () => {
     // Account 2: $55 x 0.8 = $44
     // Account 3: $55 x 0.8 = $44
     // Total: $143
-    const { total } = PricingCalculator.calculateBundlePrice(55, 3, accountTiers);
+    const { total } = unwrapQuote(PricingCalculator.calculateBundlePrice(55, 3, accountTiers));
     assert.strictEqual(total, 143);
   });
 });
 
 describe("PricingCalculator.findCheaperBundle()", () => {
   it("returns Agency Full when 10 custom providers ($60) > Agency Full ($55)", () => {
-    const result = PricingCalculator.findCheaperBundle(
-      [
-        "X",
-        "INSTAGRAM",
-        "FACEBOOK",
-        "YOUTUBE",
-        "TIKTOK",
-        "LINKEDIN",
-        "PINTEREST",
-        "SNAPCHAT",
-        "TELEGRAM",
-        "BLUESKY",
-      ],
-      60,
-      bundles,
-      1,
-      accountTiers
+    const match = unwrapBundleMatch(
+      PricingCalculator.findCheaperBundle(
+        [
+          "X",
+          "INSTAGRAM",
+          "FACEBOOK",
+          "YOUTUBE",
+          "TIKTOK",
+          "LINKEDIN",
+          "PINTEREST",
+          "SNAPCHAT",
+          "TELEGRAM",
+          "BLUESKY",
+        ],
+        60,
+        bundles,
+        1,
+        accountTiers
+      )
     );
-    assert.ok(result);
-    assert.strictEqual(result.bundle.slug, "agency-full");
-    assert.strictEqual(result.savings, 5);
+    assert.ok(match);
+    assert.strictEqual(match.bundle.slug, "agency-full");
+    assert.strictEqual(match.savings, 5);
   });
 
   it("returns null when custom is cheaper than any bundle", () => {
     // 1 provider = $12, no bundle covers just 1 provider at a lower price
-    const result = PricingCalculator.findCheaperBundle(["X"], 12, bundles, 1, accountTiers);
-    assert.strictEqual(result, null);
+    const match = unwrapBundleMatch(
+      PricingCalculator.findCheaperBundle(["X"], 12, bundles, 1, accountTiers)
+    );
+    assert.strictEqual(match, null);
   });
 
   it("returns null when no bundle covers all selected providers", () => {
     // Creator covers X+IG+YT but not TIKTOK
-    const result = PricingCalculator.findCheaperBundle(
-      ["X", "INSTAGRAM", "TIKTOK"],
-      30,
-      bundles,
-      1,
-      accountTiers
+    const match = unwrapBundleMatch(
+      PricingCalculator.findCheaperBundle(
+        ["X", "INSTAGRAM", "TIKTOK"],
+        30,
+        bundles,
+        1,
+        accountTiers
+      )
     );
     // Social Pro doesn't cover TIKTOK either. Agency Full at $55 > $30
-    assert.strictEqual(result, null);
+    assert.strictEqual(match, null);
   });
 
   it("returns savings amount", () => {
-    const result = PricingCalculator.findCheaperBundle(
-      ["X", "INSTAGRAM", "FACEBOOK", "LINKEDIN"],
-      40, // custom = $40 (4 x $8 = $32... actually this would be $32)
-      bundles,
-      1,
-      accountTiers
+    const match = unwrapBundleMatch(
+      PricingCalculator.findCheaperBundle(
+        ["X", "INSTAGRAM", "FACEBOOK", "LINKEDIN"],
+        40, // custom = $40 (4 x $8 = $32... actually this would be $32)
+        bundles,
+        1,
+        accountTiers
+      )
     );
     // Social Pro covers these 4 at $32. $40 - $32 = $8
-    assert.ok(result);
-    assert.strictEqual(result.savings, 8);
+    assert.ok(match);
+    assert.strictEqual(match.savings, 8);
   });
 
   it("skips inactive bundles", () => {
     const inactiveBundles = bundles.map((b) =>
       b.slug === "agency-full" ? { ...b, isActive: false } : b
     );
-    const result = PricingCalculator.findCheaperBundle(
-      [
-        "X",
-        "INSTAGRAM",
-        "FACEBOOK",
-        "YOUTUBE",
-        "TIKTOK",
-        "LINKEDIN",
-        "PINTEREST",
-        "SNAPCHAT",
-        "TELEGRAM",
-        "BLUESKY",
-      ],
-      60,
-      inactiveBundles,
-      1,
-      accountTiers
+    const match = unwrapBundleMatch(
+      PricingCalculator.findCheaperBundle(
+        [
+          "X",
+          "INSTAGRAM",
+          "FACEBOOK",
+          "YOUTUBE",
+          "TIKTOK",
+          "LINKEDIN",
+          "PINTEREST",
+          "SNAPCHAT",
+          "TELEGRAM",
+          "BLUESKY",
+        ],
+        60,
+        inactiveBundles,
+        1,
+        accountTiers
+      )
     );
-    assert.strictEqual(result, null);
+    assert.strictEqual(match, null);
   });
 });

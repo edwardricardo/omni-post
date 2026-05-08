@@ -3,6 +3,10 @@
  *
  * Comprehensive test coverage for Facebook Stories and Reels functionality
  * including content type detection, publishing workflows, and error handling.
+ *
+ * @file FacebookAdapter.stories-reels.test.ts
+ * @description Tests for FacebookAdapter - Stories and Reels Publishing
+ * @layer infrastructure
  */
 
 import { describe, it } from "vitest";

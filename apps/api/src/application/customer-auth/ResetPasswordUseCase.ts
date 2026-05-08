@@ -7,7 +7,7 @@
 import { type Result, ok, err } from "@shared/types";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import type { CustomerUserRepository } from "../../domain/repositories/CustomerUserRepository.js";
-import argon2 from "argon2";
+import { hashPassword } from "../../auth/passwordHashing.js";
 
 /** Error code union */
 export type ResetPasswordError =
@@ -62,12 +62,7 @@ export class ResetPasswordUseCase {
       }
 
       // Hash new password
-      const newHash = await argon2.hash(input.newPassword, {
-        type: argon2.argon2id,
-        memoryCost: 65536,
-        timeCost: 3,
-        parallelism: 4,
-      });
+      const newHash = await hashPassword(input.newPassword);
 
       const doWork = async (): Promise<Result<{ message: string }, ResetPasswordError>> => {
         // Update password hash

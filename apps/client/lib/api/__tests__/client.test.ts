@@ -1,3 +1,8 @@
+/**
+ * @file client.test.ts
+ * @description Tests for ApiClient
+ * @layer infrastructure
+ */
 import { describe, it, expect, beforeEach, vi, Mock } from "vitest";
 import { apiClient } from "../client";
 import { ApiError } from "../types";

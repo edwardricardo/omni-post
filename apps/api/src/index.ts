@@ -1,30 +1,20 @@
 /**
  * @file index.ts
- * @description API server entry point. Loads environment, initializes OpenTelemetry,
- *              configures Fastify with all plugins and routes, and starts the HTTP server.
+ * @description API server entry point. Initializes OpenTelemetry, configures
+ *              Fastify with all plugins and routes, and starts the HTTP server.
+ *              Environment loading and validation are owned by `./config/env.ts`,
+ *              which executes via the import below.
  * @layer infrastructure
  */
-// Load environment-specific .env file FIRST
-import dotenv from "dotenv";
-import path from "path";
-import { fileURLToPath } from "url";
+import { env } from "./config/env.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const envFile = process.env.NODE_ENV === "test" ? ".env.test" : ".env";
-const envPath = path.resolve(__dirname, "../../..", envFile); // Root of monorepo
-dotenv.config({ path: envPath, override: true });
+import { createLogger } from "./lib/logger.js";
+const otelLogger = createLogger("api-telemetry");
 
-// ---- OpenTelemetry initialization (MUST happen before Fastify import) ----
-// Conditional on TRACING_ENABLED=true to avoid overhead in dev/test environments
-import pino from "pino";
-const otelLogger = pino({ name: "api-telemetry" });
-
-if (process.env.TRACING_ENABLED === "true") {
+if (env.TRACING_ENABLED) {
   try {
     const otel = await import("@observability/opentelemetry");
-    const environment = process.env.NODE_ENV || "development";
-    const telemetry = otel.createApiTelemetry(environment);
+    const telemetry = otel.createApiTelemetry(env.NODE_ENV);
     await telemetry.start();
     otelLogger.info("OpenTelemetry initialized for API server");
   } catch (error) {
@@ -44,20 +34,21 @@ import { z } from "zod";
 import { serializerCompiler, validatorCompiler, ZodTypeProvider } from "fastify-type-provider-zod";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import { closeDatabaseConnections, prisma } from "@infra/prisma";
-import { createBullMQQueueAdapter } from "@adapters/queue-bullmq";
+import type { QueuePortRegistry } from "@ports/core";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import client from "prom-client";
 import { createStorageAdapter } from "./infrastructure/storage/createStorageAdapter.js";
 import { RateLimit, RateLimitConfigs, EXPENSIVE_ENDPOINT_RULES } from "./security/rateLimit.js";
 import { createErrorHandler } from "./lib/errors/errorHandler.js";
 import { createRedisConnection, getRedisUrl } from "./lib/redis.js";
 import { logger } from "./lib/logger.js";
-import { getRequiredSecret } from "./lib/envValidation.js";
 import { ApiMetrics } from "./metrics/apiMetrics.js";
 import { createMetricsMiddleware } from "./middleware/metricsMiddleware.js";
 import { createCircuitBreakerMonitor } from "@monitoring/circuit-breaker";
 import { createDeadLetterQueue } from "@adapters/dead-letter-queue";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
-import { createCacheManager } from "@adapters/cache-redis";
+import type { CachePort } from "@ports/core";
+import type { RedisCacheManager } from "@adapters/cache-redis";
 import fastifyCookie from "@fastify/cookie";
 import { createTenantHealthMonitor } from "@monitoring/health-checks";
 import { authRoutes } from "./auth/authRoutes.js";
@@ -119,7 +110,6 @@ import { customReportRoutes } from "./custom-reports/customReportRoutes.js";
 import { crmRoutes } from "./crm/crmRoutes.js";
 import { customerAuthRoutes } from "./auth/customerAuthRoutes.js";
 
-// Phase 3 imports
 import { DatabaseOptimizer } from "./utils/dbOptimization.js";
 import { SecurityManager } from "./security/securityHeaders.js";
 import { PerformanceMonitor } from "./monitoring/performanceMonitor.js";
@@ -135,6 +125,12 @@ async function createApp(): Promise<FastifyInstance> {
   const app = Fastify({
     logger: true,
     trustProxy: true,
+    // Bound the two HTTP defaults Fastify inherits from Node:
+    //   keepAliveTimeout = 72000 ms   → 5 s (LB manages connection reuse)
+    //   requestTimeout   = 0 (none)   → 30 s (matches typical API SLA)
+    // Together they prevent socket hoarding and indefinite request hangs.
+    keepAliveTimeout: 5_000,
+    requestTimeout: 30_000,
   });
 
   // ✅ Apply ZodTypeProvider for type safety
@@ -198,41 +194,51 @@ async function createApp(): Promise<FastifyInstance> {
   // Initialize unified authentication service with Redis
   setRedisInstance(redis);
 
-  // Initialize cache manager
-  const cacheManager = createCacheManager({
-    redisUrl: getRedisUrl(),
-    keyPrefix: "api:",
-    defaultTtl: 300,
-    enableMetrics: true,
-  });
+  // Initialize DI container and decorate Fastify instance (needed so scheduler is
+  // available to downstream adapters/managers created below).
+  const container = setupContainer({ prisma });
+  typedApp.decorate("container", container);
+  const bootstrapScheduler = container.resolve<BackgroundTaskScheduler>(
+    TOKENS.BackgroundTaskScheduler
+  );
 
-  // Decorate fastify instance with cache manager (accessible as fastify.cacheManager and fastify.cache)
+  // Decorate Fastify with the application-tier cache port. Single
+  // decoration semantically scoped to "caching for routes + middleware".
+  // Ops tooling (cacheStatsRoutes) resolves the concrete RedisCacheManager
+  // from the DI container directly — never via this decoration.
+  const cachePort = container.resolve<CachePort>(TOKENS.CachePort);
   typedApp.decorate("redis", redis);
-  typedApp.decorate("cacheManager", cacheManager);
-  typedApp.decorate("cache", cacheManager);
+  typedApp.decorate("cache", cachePort);
+
+  // Concrete RedisCacheManager — kept as a local reference for ops-tier
+  // consumers (health checks, tenant monitor, healthRoutes plugin) that
+  // need access to features outside the CachePort surface (`getStats`,
+  // `healthCheck`, raw `Result`-shaped reads).
+  const cacheManager = container.resolve<RedisCacheManager>(TOKENS.RedisCacheManager);
 
   // Register auto-cache middleware for automatic caching and invalidation
   // (autoCachePlugin handles both caching and cache-plugin functionality)
   await typedApp.register(autoCachePlugin, {
-    cacheManager,
+    cache: cachePort,
     enableCaching: true,
     enableInvalidation: true,
-    logCacheOps: process.env.LOG_CACHE_OPS === "true",
+    logCacheOps: env.LOG_CACHE_OPS ?? false,
     excludeRoutes: ["/health", "/metrics"],
   });
 
-  // Initialize DI container and decorate Fastify instance
-  const container = setupContainer({ prisma });
-  typedApp.decorate("container", container);
-
   // Initialize cookie support
   await typedApp.register(fastifyCookie, {
-    secret: getRequiredSecret("COOKIE_SECRET", "cookie-secret-dev-only"),
+    secret: env.COOKIE_SECRET,
   });
 
   // Initialize components
-  const repoAdapter = createPrismaRepoAdapter();
-  const queueAdapter = createBullMQQueueAdapter();
+  const repoAdapter = createPrismaRepoAdapter({ scheduler: bootstrapScheduler });
+  // Queue adapter resolved from the registry so this top-level wiring
+  // shares the same Redis connection and queue instances as the rest of the
+  // container. Targets the PUBLISH queue for legacy callers that expect a
+  // single QueuePort; per-queue routing happens through the registry.
+  const queueRegistry = container.resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry);
+  const queueAdapter = queueRegistry.forQueue(QUEUE_NAMES.PUBLISH);
   const storageAdapter = createStorageAdapter();
 
   // Initialize dead letter queue
@@ -290,7 +296,11 @@ async function createApp(): Promise<FastifyInstance> {
   });
 
   // Initialize performance monitor
-  const performanceMonitor = new PerformanceMonitor(apiMetrics, redis);
+  const performanceMonitor = new PerformanceMonitor(
+    apiMetrics,
+    redis,
+    container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
+  );
 
   // Initialize database optimizer
   const _dbOptimizer = new DatabaseOptimizer(apiMetrics);
@@ -329,7 +339,7 @@ async function createApp(): Promise<FastifyInstance> {
       const creds = monitoringCreds.value;
       initSentry(
         creds.sentryDsn ?? null,
-        creds.sentryEnvironment ?? process.env.NODE_ENV,
+        creds.sentryEnvironment ?? env.NODE_ENV,
         parseFloat(creds.sentryTracesSampleRate ?? "0.1")
       );
     }
@@ -344,7 +354,7 @@ async function createApp(): Promise<FastifyInstance> {
   typedApp.log.info("Centralized error handler enabled - all errors sanitized");
 
   // Rate limiting setup
-  if (process.env.ENABLE_RATE_LIMITING !== "false") {
+  if (env.ENABLE_RATE_LIMITING) {
     const rateLimit = new RateLimit(redis, RateLimitConfigs.STANDARD);
 
     // Configure rate limit rules for standard endpoints
@@ -387,12 +397,32 @@ async function createApp(): Promise<FastifyInstance> {
     });
   }
 
-  // Register Phase 3 security and performance middleware
+  // Register security and performance middleware
   await securityManager.register(typedApp);
 
   // IP allowlist enforcement (reads SecuritySettings from DB, 60s cache)
   const { createIpAllowlistMiddleware } = await import("./security/ipAllowlistMiddleware.js");
   typedApp.addHook("onRequest", createIpAllowlistMiddleware(prisma));
+
+  // Bind request-scoped audit context to AsyncLocalStorage so every
+  // EncryptionService.decrypt() invocation triggered by this request
+  // emits an AuditLog row enriched with userId / ipAddress / correlationId.
+  // Workers and cron run outside any request scope and emit decrypt audit
+  // events without these fields — which honestly reflects "system-initiated".
+  const { withRequestAuditContext } = await import("./security/decryptAuditContext.js");
+  typedApp.addHook("onRequest", (request, _reply, done) => {
+    const ctx = {
+      ...(request.id !== undefined && { correlationId: String(request.id) }),
+      ...(request.ip !== undefined && { ipAddress: request.ip }),
+      ...(request.headers["user-agent"] !== undefined && {
+        userAgent: String(request.headers["user-agent"]),
+      }),
+      // userId is populated post-auth — auth middleware sets request.user
+      // before any decrypt happens; we read it lazily inside the audit
+      // emitter so the latest value flows through.
+    };
+    withRequestAuditContext(ctx, () => done());
+  });
 
   // CSRF token validation on state-changing admin requests
   const { createCsrfMiddleware } = await import("./security/csrfMiddleware.js");
@@ -501,11 +531,23 @@ async function createApp(): Promise<FastifyInstance> {
   const { templateRoutes } = await import("./templates/templateRoutes.js");
   const { contentRoutes } = await import("./content/contentRoutes.js");
   const { dashboardRoutes } = await import("./admin/dashboardRoutes.js");
+  const { secretsRotationRoutes } = await import("./admin/secretsRotationRoutes.js");
+  const { channelReauthRoutes } = await import("./admin/channelReauthRoutes.js");
+  const { webhookAdminRoutes } = await import("./admin/webhookAdminRoutes.js");
+  const { oidcAdminRoutes } = await import("./admin/oidcAdminRoutes.js");
+  const { apiKeyAdminRoutes } = await import("./admin/apiKeyAdminRoutes.js");
+  const { massReauthRoutes } = await import("./admin/massReauthRoutes.js");
   const { trendRoutes } = await import("./trends/trendRoutes.js");
   const { registerWebhookDashboardRoutes } = await import("./webhooks/webhookDashboardRoutes.js");
   await typedApp.register(templateRoutes);
   await typedApp.register(contentRoutes);
   await typedApp.register(dashboardRoutes);
+  await typedApp.register(secretsRotationRoutes);
+  await typedApp.register(channelReauthRoutes);
+  await typedApp.register(webhookAdminRoutes);
+  await typedApp.register(oidcAdminRoutes);
+  await typedApp.register(apiKeyAdminRoutes);
+  await typedApp.register(massReauthRoutes);
   await typedApp.register(trendRoutes);
   await registerWebhookDashboardRoutes(typedApp);
 
@@ -514,7 +556,11 @@ async function createApp(): Promise<FastifyInstance> {
   await typedApp.register(cacheStatsRoutes);
 
   // Register OAuth routes
-  await registerOAuthRoutes(typedApp);
+  await registerOAuthRoutes(
+    typedApp,
+    typedApp.container!.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
+    typedApp.container!.resolve(TOKENS.ChannelRepository)
+  );
 
   // Register CRM routes
   await typedApp.register(crmRoutes);
@@ -528,7 +574,11 @@ async function createApp(): Promise<FastifyInstance> {
   const { EventService } = await import("./events/EventService.js");
   const { CQRSBusImpl } = await import("./cqrs/CQRSBus.js");
 
-  const sagaEventService = new EventService({ prisma, redis });
+  const sagaEventService = new EventService({
+    prisma,
+    redis,
+    scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
+  });
   const sagaCQRSBus = new CQRSBusImpl({
     eventService: sagaEventService,
     redis,
@@ -542,6 +592,7 @@ async function createApp(): Promise<FastifyInstance> {
     cqrsBus: sagaCQRSBus,
     redis,
     queue: queueAdapter,
+    scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
   });
   await sagaIntegration.initialize();
   typedApp.decorate("sagaIntegration", sagaIntegration);
@@ -621,35 +672,40 @@ async function start() {
     );
     logger.info("GatewaySwitchProcessor started");
 
-    // DLQ archival — daily (Sprint D)
+    // Resolve the background task scheduler once and register daily maintenance jobs.
+    const scheduler = app.container!.resolve<BackgroundTaskScheduler>(
+      TOKENS.BackgroundTaskScheduler
+    );
+
+    // DLQ archival — daily
     const { DlqArchivalService: _DlqArchivalType } =
       await import("./webhooks/DlqArchivalService.js");
     const dlqArchival = app.container!.resolve<InstanceType<typeof _DlqArchivalType>>(
       TOKENS.DlqArchivalService
     );
-    setInterval(
-      () => {
-        dlqArchival.archiveResolvedEvents(90).catch(() => {});
-        dlqArchival.flagStaleEvents(30).catch(() => {});
+    scheduler.register(
+      "dlq-archival",
+      async () => {
+        await dlqArchival.archiveResolvedEvents(90);
+        await dlqArchival.flagStaleEvents(30);
       },
       24 * 60 * 60 * 1000
     );
 
-    // Data retention cleanup — daily (Sprint C)
+    // Data retention cleanup — daily
     const { DataRetentionService: _DataRetentionType } =
       await import("./compliance/DataRetentionService.js");
     const dataRetention = app.container!.resolve<InstanceType<typeof _DataRetentionType>>(
       TOKENS.DataRetentionService
     );
-    setInterval(
-      () => {
-        dataRetention.runRetentionCleanup().catch(() => {});
-      },
+    scheduler.register(
+      "data-retention-cleanup",
+      () => dataRetention.runRetentionCleanup(),
       24 * 60 * 60 * 1000
     );
 
-    const port = parseInt(process.env.PORT || "3000");
-    const host = process.env.HOST || "0.0.0.0";
+    const port = env.PORT;
+    const host = env.HOST;
 
     await app.listen({ port, host });
 
@@ -657,8 +713,8 @@ async function start() {
     logger.info("Outbox relay and cleaner started");
 
     // Graceful shutdown — inside start() so we have access to app and outbox references
-    process.on("SIGINT", async () => {
-      logger.info("Shutting down gracefully...");
+    const shutdown = async (signal: string): Promise<void> => {
+      logger.info({ signal }, "Shutting down gracefully...");
       outboxRelay.stop();
       outboxCleaner.stop();
 
@@ -670,9 +726,30 @@ async function start() {
         await saga.shutdown();
       }
 
+      // Tear down all BackgroundTaskScheduler-registered recurring tasks.
+      const scheduler = app.container!.resolve<BackgroundTaskScheduler>(
+        TOKENS.BackgroundTaskScheduler
+      );
+      const shutdownResult = await scheduler.shutdownAll();
+      if (shutdownResult.timedOut) {
+        logger.warn({ shutdownResult }, "BackgroundTaskScheduler shutdown timed out");
+      }
+
+      // Close all BullMQ queue adapters via the registry — closes every
+      // Queue and the shared Redis connection in one shot.
+      const registry = app.container!.resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry);
+      await registry.close();
+
       await app.close();
       await closeDatabaseConnections();
       process.exit(0);
+    };
+
+    process.on("SIGINT", () => {
+      void shutdown("SIGINT");
+    });
+    process.on("SIGTERM", () => {
+      void shutdown("SIGTERM");
     });
   } catch (err) {
     logger.error({ err }, "Error starting server");

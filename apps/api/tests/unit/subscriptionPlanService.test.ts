@@ -4,10 +4,10 @@
  *   Tests for removed methods (getSubscriptionPlan, getAllPlans, validateUpgrade,
  *   validateDowngrade) and the SUBSCRIPTION_PLANS constant were deleted because
  *   those were removed in the billing modernization sprint.
- * @layer test
+ * @layer infrastructure
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { SubscriptionPlanService } from "../../src/billing/subscription/SubscriptionPlanService.js";
 

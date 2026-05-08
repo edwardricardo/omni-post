@@ -14,32 +14,35 @@ import { Worker } from "bullmq";
 import Redis from "ioredis";
 import pino from "pino";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
-import { xAdapter } from "@providers/x";
-import { instagramAdapter } from "@providers/instagram";
-import { facebookAdapter } from "@providers/facebook";
-import { youtubeAdapter } from "@providers/youtube";
-import { tiktokAdapter } from "@providers/tiktok";
-import { snapchatAdapter } from "@providers/snapchat";
-import { telegramAdapter } from "@providers/telegram";
-import { pinterestAdapter } from "@providers/pinterest";
-import { linkedInAdapter } from "@providers/linkedin";
-import { blueskyAdapter } from "@providers/bluesky";
+import { registerGracefulShutdown } from "./lib/gracefulShutdown.js";
+import { handleProviderAuthError } from "./lib/handleProviderAuthError.js";
+import { ChannelAuthFailureRecorder } from "./services/ChannelAuthFailureRecorder.js";
+import { createXAdapter } from "@providers/x";
+import { createInstagramAdapter } from "@providers/instagram";
+import { createFacebookAdapter } from "@providers/facebook";
+import { createYouTubeAdapter } from "@providers/youtube";
+import { createTikTokAdapter } from "@providers/tiktok";
+import { createSnapchatAdapter } from "@providers/snapchat";
+import { createTelegramAdapter } from "@providers/telegram";
+import { createPinterestAdapter } from "@providers/pinterest";
+import { createLinkedInAdapter } from "@providers/linkedin";
+import { createBlueskyAdapter } from "@providers/bluesky";
 import { prisma } from "@infra/prisma";
 import type { ProviderAdapter } from "@ports/core";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info", name: "inbox-sync-worker" });
 
 const providerAdapters: Record<string, ProviderAdapter> = {
-  x: xAdapter,
-  instagram: instagramAdapter,
-  facebook: facebookAdapter,
-  youtube: youtubeAdapter,
-  tiktok: tiktokAdapter,
-  snapchat: snapchatAdapter,
-  telegram: telegramAdapter,
-  pinterest: pinterestAdapter,
-  linkedin: linkedInAdapter,
-  bluesky: blueskyAdapter,
+  x: createXAdapter({ logger }),
+  instagram: createInstagramAdapter({ logger }),
+  facebook: createFacebookAdapter({ logger }),
+  youtube: createYouTubeAdapter({ logger }),
+  tiktok: createTikTokAdapter({ logger }),
+  snapchat: createSnapchatAdapter({ logger }),
+  telegram: createTelegramAdapter({ logger }),
+  pinterest: createPinterestAdapter({ logger }),
+  linkedin: createLinkedInAdapter({ logger }),
+  bluesky: createBlueskyAdapter({ logger }),
 };
 
 async function processJob(jobData: {
@@ -83,14 +86,22 @@ async function processJob(jobData: {
     const commentsResult = await adapter.getComments({
       channelCredentials: channel.credentials,
       since,
-      cursor,
+      ...(cursor !== undefined && { cursor }),
       limit: 100,
     });
 
     if (!commentsResult.ok) {
       if (commentsResult.error === "AUTH") {
-        logger.warn({ channelId, provider: providerName }, "Auth error — channel may need reauth");
-        return;
+        logger.warn(
+          { channelId, provider: providerName },
+          "Auth error — flagging channel as needing reauth"
+        );
+        await handleProviderAuthError(
+          authFailureRecorder,
+          channelId,
+          providerName,
+          "Provider rejected credentials during inbox sync"
+        );
       }
       throw new Error(`Provider ${providerName} returned error: ${commentsResult.error}`);
     }
@@ -141,10 +152,18 @@ async function processJob(jobData: {
   logger.info({ channelId, provider: providerName, synced, skipped }, "Inbox sync completed");
 }
 
+const authFailureRecorder = new ChannelAuthFailureRecorder({ prisma });
+
 async function start() {
   const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
     maxRetriesPerRequest: null,
     lazyConnect: true,
+    // ioredis defaults: commandTimeout = null (forever), connectTimeout = 10000.
+    // Both bounded here so a hung Redis fails fast instead of stalling the
+    // worker. BullMQ requires maxRetriesPerRequest:null, so the timeout is
+    // the only escape hatch.
+    commandTimeout: 5_000,
+    connectTimeout: 5_000,
   });
 
   const worker = new Worker(
@@ -159,6 +178,13 @@ async function start() {
       concurrency: 5,
       removeOnComplete: { count: 200 },
       removeOnFail: { count: 100 },
+      // BullMQ default lockDuration of 30 s is too tight for inbox sync
+      // (provider API calls can stall). 60 s gives room before stalled
+      // detection re-picks the job; stalledInterval halved relative to
+      // lockDuration so detection lands on the second tick.
+      lockDuration: 60_000,
+      stalledInterval: 30_000,
+      drainDelay: 5,
     }
   );
 
@@ -172,6 +198,12 @@ async function start() {
 
   worker.on("error", (error) => {
     logger.error({ err: error }, "Worker error");
+  });
+
+  registerGracefulShutdown({
+    name: "inbox-sync",
+    target: { workers: [worker], connections: [connection], prisma },
+    logger,
   });
 
   logger.info("Inbox sync worker started, listening on queue: %s", QUEUE_NAMES.INBOX_SYNC);

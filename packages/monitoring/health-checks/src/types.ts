@@ -1,10 +1,8 @@
 /**
- * Shared types for health-check system.
- *
- * Extracted to break the circular dependency between index.ts (which
- * re-exports checkers) and the checker files (which need these types).
- *
- * @module monitoring/health-checks/types
+ * @file types.ts
+ * @description Shared types for the health-check system — HealthStatus, HealthCheckResult,
+ *              DependencyHealth, SystemHealthReport, HealthAlert, and the HealthChecker contract.
+ * @layer infrastructure
  */
 
 export type HealthStatus = "healthy" | "degraded" | "unhealthy";

@@ -6,7 +6,7 @@
  */
 
 import { z } from "zod";
-import { BaseRouteHandler, RouteContext } from "@packages/api-common";
+import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { SyncEngine } from "./SyncEngine.js";
 import type { ContentVersionManager } from "./ContentVersionManager.js";

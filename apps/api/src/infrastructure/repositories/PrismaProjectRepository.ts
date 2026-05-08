@@ -234,7 +234,6 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
     // 9. Channels
     await this.prisma.channel.deleteMany({ where: { projectId } });
     // 10. Other project-level records
-    await this.prisma.providerConnection.deleteMany({ where: { projectId } });
     await this.prisma.contentTemplate.deleteMany({ where: { projectId } });
     await this.prisma.instagramStoryProject.deleteMany({ where: { projectId } });
     await this.prisma.videoProcessingJob.deleteMany({ where: { projectId } });

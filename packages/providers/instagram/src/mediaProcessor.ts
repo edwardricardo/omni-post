@@ -1,3 +1,9 @@
+/**
+ * @file mediaProcessor.ts
+ * @description Instagram media processor — validates, splits, and prepares images and videos
+ *              (including long-video segmentation via ffmpeg) before publishing.
+ * @layer infrastructure
+ */
 import { execFile } from "node:child_process";
 import fs from "fs";
 import os from "os";

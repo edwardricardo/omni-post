@@ -2,7 +2,7 @@
  * @file usePosts.ts
  * @description TanStack Query hooks for the admin posts list and basic
  *   create/delete mutations. All three delegate to the shared apiClient.
- * @layer hooks
+ * @layer infrastructure
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/apiClient";

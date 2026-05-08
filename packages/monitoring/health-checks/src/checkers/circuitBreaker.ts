@@ -1,3 +1,9 @@
+/**
+ * @file circuitBreaker.ts
+ * @description Health checker that inspects the circuit-breaker monitor to report degraded or
+ *              unhealthy status when breakers are open across registered services.
+ * @layer infrastructure
+ */
 import type { HealthChecker, HealthCheckResult } from "../types.js";
 
 interface CircuitBreakerMonitor {

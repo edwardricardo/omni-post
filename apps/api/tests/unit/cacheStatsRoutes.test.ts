@@ -4,6 +4,10 @@
  * Testing cache statistics and monitoring endpoints
  *
  * Coverage Target: 95%+
+ *
+ * @file cacheStatsRoutes.test.ts
+ * @description Tests for cacheStatsRoutes - Unit Tests
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
@@ -14,6 +18,8 @@ vi.mock("../../src/auth/customerAuthMiddleware.js", () => ({
 
 import Fastify, { FastifyInstance } from "fastify";
 import type { RedisCacheManager } from "@adapters/cache-redis";
+import { Container } from "../../src/infrastructure/container/Container.js";
+import { TOKENS } from "../../src/infrastructure/container/types.js";
 
 // ─── Mock Types ─────────────────────────────────────────────────────
 type MockCacheManager = Pick<
@@ -100,8 +106,11 @@ describe("cacheStatsRoutes - Unit Tests", () => {
 
     app = Fastify({ logger: false });
 
-    // Attach cache manager to server
-    app.decorate("cache", mockCacheManager as RedisCacheManager);
+    // Routes resolve TOKENS.RedisCacheManager from the DI container, not via
+    // a Fastify decoration. Mock the container with the manager registered.
+    const container = new Container();
+    container.registerInstance(TOKENS.RedisCacheManager, mockCacheManager as RedisCacheManager);
+    app.decorate("container", container);
 
     const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
     await app.register(cacheStatsRoutes);
@@ -174,29 +183,15 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       expect(body.stats.hotKeys.length <= 10).toBeTruthy();
     });
 
-    it("should return 503 when cache manager unavailable", async () => {
-      const appWithoutCache = Fastify({ logger: false });
-      const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
-      await appWithoutCache.register(cacheStatsRoutes);
-
-      const response = await appWithoutCache.inject({
-        method: "GET",
-        url: "/cache/stats",
-      });
-
-      expect(response.statusCode).toBe(503);
-
-      const body = JSON.parse(response.body);
-      expect(body.ok).toBe(false);
-      expect(body.error).toBeTruthy();
-
-      await appWithoutCache.close();
-    });
-
     it("should handle cache manager errors gracefully", async (_t) => {
       const appWithFailingCache = Fastify({ logger: false });
       const failingCache = createMockCacheManager({ statsSuccess: false });
-      appWithFailingCache.decorate("cache", failingCache as RedisCacheManager);
+      const containerFailingCache = new Container();
+      containerFailingCache.registerInstance(
+        TOKENS.RedisCacheManager,
+        failingCache as RedisCacheManager
+      );
+      appWithFailingCache.decorate("container", containerFailingCache);
 
       const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
       await appWithFailingCache.register(cacheStatsRoutes);
@@ -242,24 +237,15 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       expect(body.health.latencyMs).toBeTruthy();
     });
 
-    it("should return 503 when cache manager unavailable", async () => {
-      const appWithoutCache = Fastify({ logger: false });
-      const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
-      await appWithoutCache.register(cacheStatsRoutes);
-
-      const response = await appWithoutCache.inject({
-        method: "GET",
-        url: "/cache/health",
-      });
-
-      expect(response.statusCode).toBe(503);
-      await appWithoutCache.close();
-    });
-
     it("should handle health check failures", async (_t) => {
       const appWithUnhealthyCache = Fastify({ logger: false });
       const unhealthyCache = createMockCacheManager({ healthy: false });
-      appWithUnhealthyCache.decorate("cache", unhealthyCache as RedisCacheManager);
+      const containerUnhealthy = new Container();
+      containerUnhealthy.registerInstance(
+        TOKENS.RedisCacheManager,
+        unhealthyCache as RedisCacheManager
+      );
+      appWithUnhealthyCache.decorate("container", containerUnhealthy);
 
       const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
       await appWithUnhealthyCache.register(cacheStatsRoutes);
@@ -289,24 +275,15 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       expect(body.timestamp).toBeTruthy();
     });
 
-    it("should return 503 when cache manager unavailable", async () => {
-      const appWithoutCache = Fastify({ logger: false });
-      const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
-      await appWithoutCache.register(cacheStatsRoutes);
-
-      const response = await appWithoutCache.inject({
-        method: "POST",
-        url: "/cache/flush",
-      });
-
-      expect(response.statusCode).toBe(503);
-      await appWithoutCache.close();
-    });
-
     it("should handle flush failures", async (_t) => {
       const appWithFailingFlush = Fastify({ logger: false });
       const failingCache = createMockCacheManager({ flushSuccess: false });
-      appWithFailingFlush.decorate("cache", failingCache);
+      const containerFailingFlush = new Container();
+      containerFailingFlush.registerInstance(
+        TOKENS.RedisCacheManager,
+        failingCache as RedisCacheManager
+      );
+      appWithFailingFlush.decorate("container", containerFailingFlush);
 
       const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
       await appWithFailingFlush.register(cacheStatsRoutes);
@@ -400,23 +377,6 @@ describe("cacheStatsRoutes - Unit Tests", () => {
 
       expect(response.statusCode).toBe(200);
     });
-
-    it("should return 503 when cache manager unavailable", async () => {
-      const appWithoutCache = Fastify({ logger: false });
-      const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
-      await appWithoutCache.register(cacheStatsRoutes);
-
-      const response = await appWithoutCache.inject({
-        method: "POST",
-        url: "/cache/invalidate",
-        payload: {
-          tags: ["test"],
-        },
-      });
-
-      expect(response.statusCode).toBe(503);
-      await appWithoutCache.close();
-    });
   });
 
   describe("GET /cache/hot-keys", () => {
@@ -443,20 +403,6 @@ describe("cacheStatsRoutes - Unit Tests", () => {
 
       const body = JSON.parse(response.body);
       expect(body.hotKeys.length <= 50).toBeTruthy();
-    });
-
-    it("should return 503 when cache manager unavailable", async () => {
-      const appWithoutCache = Fastify({ logger: false });
-      const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
-      await appWithoutCache.register(cacheStatsRoutes);
-
-      const response = await appWithoutCache.inject({
-        method: "GET",
-        url: "/cache/hot-keys",
-      });
-
-      expect(response.statusCode).toBe(503);
-      await appWithoutCache.close();
     });
   });
 
@@ -485,24 +431,15 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       expect(body.warmedCount >= 0).toBeTruthy();
     });
 
-    it("should return 503 when cache manager unavailable", async () => {
-      const appWithoutCache = Fastify({ logger: false });
-      const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
-      await appWithoutCache.register(cacheStatsRoutes);
-
-      const response = await appWithoutCache.inject({
-        method: "POST",
-        url: "/cache/warm",
-      });
-
-      expect(response.statusCode).toBe(503);
-      await appWithoutCache.close();
-    });
-
     it("should handle warming failures", async (_t) => {
       const appWithFailingWarm = Fastify({ logger: false });
       const failingCache = createMockCacheManager({ warmSuccess: false });
-      appWithFailingWarm.decorate("cache", failingCache as RedisCacheManager);
+      const containerFailingWarm = new Container();
+      containerFailingWarm.registerInstance(
+        TOKENS.RedisCacheManager,
+        failingCache as RedisCacheManager
+      );
+      appWithFailingWarm.decorate("container", containerFailingWarm);
 
       const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
       await appWithFailingWarm.register(cacheStatsRoutes);
@@ -514,6 +451,22 @@ describe("cacheStatsRoutes - Unit Tests", () => {
 
       expect(response.statusCode).toBe(500);
       await appWithFailingWarm.close();
+    });
+  });
+
+  describe("plugin fail-fast", () => {
+    it("registers no routes when DI container is unavailable", async () => {
+      const bareApp = Fastify({ logger: false });
+      const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
+      await bareApp.register(cacheStatsRoutes);
+
+      // Without container, the plugin returns early — none of the cache
+      // ops routes are registered, so requests 404 instead of being
+      // checked per-handler.
+      const response = await bareApp.inject({ method: "GET", url: "/cache/stats" });
+      expect(response.statusCode).toBe(404);
+
+      await bareApp.close();
     });
   });
 });

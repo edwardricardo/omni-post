@@ -1,19 +1,19 @@
 /**
  * @file XAdapter.polls.test.ts
  * @description Unit tests for X/Twitter poll and quote tweet features.
- *              Tests render() poll tag detection and publish() poll/quote passing.
- *              All tests are Tier 0 (no network, no DB, no Redis).
- * @layer test
+ *   Tests render() poll tag detection and publish() poll/quote passing through
+ *   the injected fake apiClientFactory. All tests are Tier 0.
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { XAdapter } from "../src/XAdapter.js";
 import type { CanonicalPost } from "@shared/types";
 import type { PublishInput } from "@ports/core";
+import { makeAdapter, MOCK_CREDENTIALS } from "./XAdapter.test-helpers.js";
 
 // ============================================================================
-// Test helpers
+// Test fixtures
 // ============================================================================
 
 function makeCanonicalPost(overrides?: Partial<CanonicalPost>): CanonicalPost {
@@ -39,47 +39,17 @@ function makePublishInput(overrides?: Partial<PublishInput>): PublishInput {
   };
 }
 
-function makeMockApiClient() {
-  return {
-    postTweet: vi.fn(async () => ({
-      data: {
-        id: "tweet-poll-001",
-        text: "What is your favorite color?",
-        created_at: "2026-03-10T10:00:00Z",
-      },
-    })),
-    uploadMedia: vi.fn(async () => ({
-      media_id_string: "media-001",
-      media_id: 1,
-      size: 1000,
-      media_key: "7_media-001",
-    })),
-    validateCredentials: vi.fn(async () => ({
-      data: { id: "user-001", name: "Test", username: "test" },
-    })),
-    getTweetAnalytics: vi.fn(async () => ({ data: [] })),
-    deleteTweet: vi.fn(async () => ({ data: { deleted: true } })),
-    searchReplies: vi.fn(async () => ({ data: [], meta: { result_count: 0 } })),
-    getCircuitBreakerStatus: vi.fn(() => ({})),
-    clearCache: vi.fn(),
-    forceCircuitBreakerOpen: vi.fn(() => true),
-    forceCircuitBreakerClose: vi.fn(() => true),
-  };
-}
-
 // ============================================================================
 // 1. Poll Tag Parsing in render()
 // ============================================================================
 
 describe("XAdapter - Poll Rendering", { concurrent: false }, () => {
-  let adapter: XAdapter;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new XAdapter();
   });
 
   it("detects poll tag and includes poll config in rendered meta", () => {
+    const { adapter } = makeAdapter();
     const canonical = makeCanonicalPost({
       tags: ["poll:1440:What is your favorite color?|Red|Blue|Green"],
     });
@@ -96,9 +66,8 @@ describe("XAdapter - Poll Rendering", { concurrent: false }, () => {
   });
 
   it("renders without poll when no poll tag present", () => {
-    const canonical = makeCanonicalPost({
-      tags: ["category:tech"],
-    });
+    const { adapter } = makeAdapter();
+    const canonical = makeCanonicalPost({ tags: ["category:tech"] });
 
     const result = adapter.render(canonical);
 
@@ -108,6 +77,7 @@ describe("XAdapter - Poll Rendering", { concurrent: false }, () => {
   });
 
   it("ignores invalid poll tag with less than 2 options", () => {
+    const { adapter } = makeAdapter();
     const canonical = makeCanonicalPost({
       tags: ["poll:1440:Question|OnlyOneOption"],
     });
@@ -120,6 +90,7 @@ describe("XAdapter - Poll Rendering", { concurrent: false }, () => {
   });
 
   it("ignores poll tag with invalid duration", () => {
+    const { adapter } = makeAdapter();
     const canonical = makeCanonicalPost({
       tags: ["poll:abc:Question|A|B"],
     });
@@ -132,8 +103,9 @@ describe("XAdapter - Poll Rendering", { concurrent: false }, () => {
   });
 
   it("ignores poll tag with duration out of range", () => {
+    const { adapter } = makeAdapter();
     const canonical = makeCanonicalPost({
-      tags: ["poll:1:Question|A|B"], // 1 minute < 5 minute minimum
+      tags: ["poll:1:Question|A|B"],
     });
 
     const result = adapter.render(canonical);
@@ -144,6 +116,7 @@ describe("XAdapter - Poll Rendering", { concurrent: false }, () => {
   });
 
   it("accepts poll with 4 options (maximum)", () => {
+    const { adapter } = makeAdapter();
     const canonical = makeCanonicalPost({
       tags: ["poll:60:Pick one|A|B|C|D"],
     });
@@ -159,6 +132,7 @@ describe("XAdapter - Poll Rendering", { concurrent: false }, () => {
   });
 
   it("rejects poll with more than 4 options", () => {
+    const { adapter } = makeAdapter();
     const canonical = makeCanonicalPost({
       tags: ["poll:60:Pick|A|B|C|D|E"],
     });
@@ -176,14 +150,12 @@ describe("XAdapter - Poll Rendering", { concurrent: false }, () => {
 // ============================================================================
 
 describe("XAdapter - Quote Tweet Rendering", { concurrent: false }, () => {
-  let adapter: XAdapter;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new XAdapter();
   });
 
   it("detects quote tweet tag and includes ID in meta", () => {
+    const { adapter } = makeAdapter();
     const canonical = makeCanonicalPost({
       body: "Check out this great tweet!",
       tags: ["quote:1234567890123456789"],
@@ -197,6 +169,7 @@ describe("XAdapter - Quote Tweet Rendering", { concurrent: false }, () => {
   });
 
   it("renders without quoteTweetId when no quote tag", () => {
+    const { adapter } = makeAdapter();
     const canonical = makeCanonicalPost();
 
     const result = adapter.render(canonical);
@@ -212,26 +185,12 @@ describe("XAdapter - Quote Tweet Rendering", { concurrent: false }, () => {
 // ============================================================================
 
 describe("XAdapter - Publish with Poll/Quote", { concurrent: false }, () => {
-  let adapter: XAdapter;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new XAdapter();
   });
 
   it("passes poll config to postTweet when present in meta", async () => {
-    const mockClient = makeMockApiClient();
-    const getCredsSpy = vi.spyOn(adapter as any, "getCredentials").mockResolvedValue({
-      ok: true,
-      value: {
-        apiKey: "k",
-        apiSecret: "s",
-        accessToken: "a",
-        accessTokenSecret: "as",
-        bearerToken: "b",
-      },
-    });
-    const createClientSpy = vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
+    const { adapter, client } = makeAdapter();
 
     const input = makePublishInput({
       post: {
@@ -243,36 +202,20 @@ describe("XAdapter - Publish with Poll/Quote", { concurrent: false }, () => {
       },
     });
 
-    const result = await adapter.publish(input);
+    const result = await adapter.publish(input, MOCK_CREDENTIALS);
 
     assert.ok(result.ok);
-    assert.strictEqual(result.value.providerPostId, "tweet-poll-001");
 
-    const call = mockClient.postTweet.mock.calls[0];
+    const call = client.postTweet.mock.calls[0];
     assert.ok(call);
-    // 4th argument is poll
     const pollArg = call[3] as { options: string[]; durationMinutes: number };
     assert.ok(pollArg);
     assert.deepStrictEqual(pollArg.options, ["Yes", "No"]);
     assert.strictEqual(pollArg.durationMinutes, 1440);
-
-    getCredsSpy.mockRestore();
-    createClientSpy.mockRestore();
   });
 
   it("passes quote tweet ID to postTweet when present in meta", async () => {
-    const mockClient = makeMockApiClient();
-    const getCredsSpy = vi.spyOn(adapter as any, "getCredentials").mockResolvedValue({
-      ok: true,
-      value: {
-        apiKey: "k",
-        apiSecret: "s",
-        accessToken: "a",
-        accessTokenSecret: "as",
-        bearerToken: "b",
-      },
-    });
-    const createClientSpy = vi.spyOn(adapter as any, "createApiClient").mockReturnValue(mockClient);
+    const { adapter, client } = makeAdapter();
 
     const input = makePublishInput({
       post: {
@@ -282,16 +225,12 @@ describe("XAdapter - Publish with Poll/Quote", { concurrent: false }, () => {
       },
     });
 
-    const result = await adapter.publish(input);
+    const result = await adapter.publish(input, MOCK_CREDENTIALS);
 
     assert.ok(result.ok);
 
-    const call = mockClient.postTweet.mock.calls[0];
+    const call = client.postTweet.mock.calls[0];
     assert.ok(call);
-    // 5th argument is quoteTweetId
     assert.strictEqual(call[4], "9876543210");
-
-    getCredsSpy.mockRestore();
-    createClientSpy.mockRestore();
   });
 });

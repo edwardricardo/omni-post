@@ -1,7 +1,7 @@
 /**
  * @file generateImageUseCase.test.ts
  * @description Tests for GenerateImageUseCase — validation, AI delegation, persistence.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

@@ -1,3 +1,9 @@
+/**
+ * @file apiClient.ts
+ * @description X/Twitter API client wrapping twitter-api-v2 with circuit breaker protection,
+ *              fallback strategies, and metric instrumentation for tweets and media uploads.
+ * @layer infrastructure
+ */
 import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
 import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
 import client from "prom-client";

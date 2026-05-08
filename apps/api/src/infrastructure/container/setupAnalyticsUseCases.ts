@@ -7,6 +7,7 @@
  */
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
+import type { CachePort } from "@ports/core";
 import type { CampaignRepository } from "../../domain/repositories/CampaignRepository.js";
 import type { CampaignQueryRepository } from "../../domain/repositories/CampaignQueryRepository.js";
 import type { AnalyticsReadRepositoryPort } from "../../domain/repositories/AnalyticsReadRepository.js";
@@ -34,7 +35,7 @@ import { GetHistoricalAnalyticsQuery } from "../../application/analytics/GetHist
 import { GenerateUTMLinksUseCase } from "../../application/utm/index.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import type { AnalyticsWriteRepository } from "../../domain/repositories/AnalyticsWriteRepository.js";
-import type { ChannelQueryForIngestion } from "../../application/analytics/DispatchAnalyticsIngestionUseCase.js";
+import type { ChannelQueryForIngestion } from "../../domain/repositories/ChannelQueryForIngestion.js";
 import { IngestChannelAnalyticsUseCase } from "../../application/analytics/IngestChannelAnalyticsUseCase.js";
 import { DispatchAnalyticsIngestionUseCase } from "../../application/analytics/DispatchAnalyticsIngestionUseCase.js";
 import { PrismaAnalyticsWriteRepository } from "../repositories/PrismaAnalyticsWriteRepository.js";
@@ -45,31 +46,31 @@ import {
   type TopPerformersQueryPort,
 } from "../../application/ai/GetTopPerformersContextUseCase.js";
 import type { PrismaClient } from "@infra/prisma";
-import type { QueuePort } from "@ports/core";
+import type { QueuePortRegistry } from "@ports/core";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 
 /**
  * Register all analytics, ML, campaign, historical analytics, and UTM use cases in the container
  */
 export function setupAnalyticsUseCases(container: Container): void {
-  // Register Analytics Port Adapters (F26)
+  // Register Analytics Port Adapters
   container.register<CrossPlatformAnalyticsAdapter>(
     TOKENS.CrossPlatformAnalyticsAdapter,
-    () => new CrossPlatformAnalyticsAdapter(),
+    () => new CrossPlatformAnalyticsAdapter(container.resolve<CachePort>(TOKENS.CachePort)),
     true
   );
   container.register<PerformanceComparatorAdapter>(
     TOKENS.PerformanceComparatorAdapter,
-    () => new PerformanceComparatorAdapter(),
+    () => new PerformanceComparatorAdapter(container.resolve<CachePort>(TOKENS.CachePort)),
     true
   );
   container.register<ROICalculatorAdapter>(
     TOKENS.ROICalculatorAdapter,
-    () => new ROICalculatorAdapter(),
+    () => new ROICalculatorAdapter(container.resolve<CachePort>(TOKENS.CachePort)),
     true
   );
 
-  // Register Analytics Use Cases (F26)
+  // Register Analytics Use Cases
   container.register<GetCrossPlatformAnalyticsUseCase>(
     TOKENS.GetCrossPlatformAnalyticsUseCase,
     () =>
@@ -93,12 +94,16 @@ export function setupAnalyticsUseCases(container: Container): void {
     true
   );
 
-  // Register ML Use Cases (B0-2 — AI-powered with heuristic fallback)
+  // Register ML Use Cases — AI-powered with heuristic fallback. Resolves
+  // the AI port (not the concrete AIService) so application/ml depends on
+  // the abstraction.
   container.register<OptimizeContentUseCase>(
     TOKENS.OptimizeContentUseCase,
     () =>
       new OptimizeContentUseCase(
-        container.resolve<import("../../ai/aiService.js").AIService>(TOKENS.AIService)
+        container.resolve<import("../../domain/repositories/AIServicePort.js").AIServicePort>(
+          TOKENS.AIServicePort
+        )
       ),
     true
   );
@@ -106,7 +111,9 @@ export function setupAnalyticsUseCases(container: Container): void {
     TOKENS.PredictOptimalTimingUseCase,
     () =>
       new PredictOptimalTimingUseCase(
-        container.resolve<import("../../ai/aiService.js").AIService>(TOKENS.AIService),
+        container.resolve<import("../../domain/repositories/AIServicePort.js").AIServicePort>(
+          TOKENS.AIServicePort
+        ),
         container.resolve<
           import("../../domain/repositories/AnalyticsReadRepository.js").AnalyticsReadRepositoryPort
         >(TOKENS.AnalyticsReadRepository)
@@ -114,7 +121,7 @@ export function setupAnalyticsUseCases(container: Container): void {
     true
   );
 
-  // Campaign Use Cases (Phase 3)
+  // Campaign Use Cases
   container.register<CreateCampaignUseCase>(
     TOKENS.CreateCampaignUseCase,
     () =>
@@ -186,7 +193,7 @@ export function setupAnalyticsUseCases(container: Container): void {
     true
   );
 
-  // Register Historical Analytics Query (Phase 3 Step 5)
+  // Register Historical Analytics Query
   container.register<GetHistoricalAnalyticsQuery>(
     TOKENS.GetHistoricalAnalyticsQuery,
     () =>
@@ -196,17 +203,18 @@ export function setupAnalyticsUseCases(container: Container): void {
     true
   );
 
-  // Register UTM Use Cases (Phase 3 Step 4: UTM/GA4 Integration)
+  // Register UTM Use Cases
   container.register<GenerateUTMLinksUseCase>(
     TOKENS.GenerateUTMLinksUseCase,
     () =>
       new GenerateUTMLinksUseCase(
-        container.resolve<TrackedLinkRepository>(TOKENS.TrackedLinkRepository)
+        container.resolve<TrackedLinkRepository>(TOKENS.TrackedLinkRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );
 
-  // Analytics Ingestion (Sprint Gaps — Batch 1)
+  // Analytics Ingestion
   container.register<AnalyticsWriteRepository>(
     TOKENS.AnalyticsWriteRepository,
     () => new PrismaAnalyticsWriteRepository(container.resolve<PrismaClient>(TOKENS.PrismaClient)),
@@ -237,7 +245,9 @@ export function setupAnalyticsUseCases(container: Container): void {
     () =>
       new DispatchAnalyticsIngestionUseCase(
         container.resolve<ChannelQueryForIngestion>(TOKENS.ChannelQueryForIngestion),
-        container.resolve<QueuePort>(TOKENS.QueuePort),
+        container
+          .resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
+          .forQueue(QUEUE_NAMES.ANALYTICS_AGGREGATION),
         QUEUE_NAMES.ANALYTICS_AGGREGATION,
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
@@ -254,7 +264,8 @@ export function setupAnalyticsUseCases(container: Container): void {
     TOKENS.GetTopPerformersContextUseCase,
     () =>
       new GetTopPerformersContextUseCase(
-        container.resolve<TopPerformersQueryPort>(TOKENS.TopPerformersQueryPort)
+        container.resolve<TopPerformersQueryPort>(TOKENS.TopPerformersQueryPort),
+        container.resolve<CachePort>(TOKENS.CachePort)
       ),
     true
   );

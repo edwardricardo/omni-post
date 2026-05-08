@@ -4,6 +4,10 @@
  * Testing metrics collection and request tracking middleware
  *
  * Coverage Target: 95%+
+ *
+ * @file metricsMiddleware.test.ts
+ * @description Tests for metricsMiddleware Tests
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect } from "vitest";

@@ -6,6 +6,10 @@
  * - GET /api/sagas          — active-instance summary
  * - GET /api/sagas/health   — structured health status
  * - GET /api/sagas/metrics  — performance KPIs and success-rate calculation
+ *
+ * @file sagaIntegration.monitoring.test.ts
+ * @description Tests for SagaIntegration - Monitoring Routes
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, expect } from "vitest";

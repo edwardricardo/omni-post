@@ -8,6 +8,10 @@
  * - Account upgrade scenarios
  * - Account deletion cascade
  * - Backward compatibility
+ *
+ * @file multiproject.flow.test.ts
+ * @description Tests for Multi-Project Flow Tests
+ * @layer infrastructure
  */
 
 import { describe, it, before } from "node:test";

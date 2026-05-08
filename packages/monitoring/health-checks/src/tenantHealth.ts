@@ -1,3 +1,9 @@
+/**
+ * @file tenantHealth.ts
+ * @description Per-tenant health scoring and alerting — computes tenant-level health metrics
+ *              (queue depth, error rate) and emits Prometheus gauges for observability.
+ * @layer infrastructure
+ */
 import { randomUUID } from "node:crypto";
 import { ok, err, type Result } from "@shared/types";
 import * as pino from "pino";
@@ -155,9 +161,9 @@ export class TenantHealthMonitor {
 
       // Gather metrics from various sources
       const [queueHealth, storageHealth, rateLimitHealth, integrationHealth] = await Promise.all([
-        this.getQueueHealth(projectId),
+        this.getQueueHealth(tenantId, projectId),
         this.getStorageHealth(projectId),
-        this.getRateLimitHealth(projectId),
+        this.getRateLimitHealth(tenantId, projectId),
         this.getIntegrationHealth(projectId),
       ]);
 
@@ -282,6 +288,7 @@ export class TenantHealthMonitor {
   }
 
   private async getQueueHealth(
+    tenantId: string,
     projectId: string
   ): Promise<
     Result<
@@ -308,9 +315,8 @@ export class TenantHealthMonitor {
         status = "degraded";
       }
 
-      // Note: tenant_id would be passed from the caller in production
       tenantQueueHealth.set(
-        { tenant_id: "system", project_id: projectId, queue_type: "publication" },
+        { tenant_id: tenantId, project_id: projectId, queue_type: "publication" },
         this.statusToNumber(status)
       );
 
@@ -342,7 +348,10 @@ export class TenantHealthMonitor {
     }
   }
 
-  private async getRateLimitHealth(_projectId: string): Promise<
+  private async getRateLimitHealth(
+    tenantId: string,
+    projectId: string
+  ): Promise<
     Result<
       Array<{
         provider: string;
@@ -387,7 +396,7 @@ export class TenantHealthMonitor {
           }
 
           tenantRateLimitStatus.set(
-            { tenant_id: "system", project_id: _projectId, provider: channel.provider },
+            { tenant_id: tenantId, project_id: projectId, provider: channel.provider },
             throttled ? 1 : 0
           );
 

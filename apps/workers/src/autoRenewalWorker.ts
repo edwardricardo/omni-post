@@ -15,11 +15,20 @@ import Redis from "ioredis";
 import pino from "pino";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { prisma } from "@infra/prisma";
+import { registerGracefulShutdown } from "./lib/gracefulShutdown.js";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info", name: "auto-renewal-worker" });
 
 const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
-const connection = new Redis(redisUrl, { maxRetriesPerRequest: null });
+const connection = new Redis(redisUrl, {
+  maxRetriesPerRequest: null,
+  // ioredis defaults: commandTimeout = null (forever), connectTimeout = 10000.
+  // Both bounded so a hung Redis fails fast instead of stalling the daily
+  // cron. BullMQ requires maxRetriesPerRequest:null, so the timeout is the
+  // only escape hatch.
+  commandTimeout: 5_000,
+  connectTimeout: 5_000,
+});
 
 // ---------------------------------------------------------------------------
 // Cron scheduler — enqueues the job daily at 2:00 AM UTC
@@ -134,7 +143,16 @@ const worker = new Worker(
 
     return { processed, failed };
   },
-  { connection, concurrency: 1 }
+  {
+    connection,
+    concurrency: 1,
+    // Auto-renewal hits Stripe / Paddle APIs sequentially; lockDuration of
+    // 60 s gives the job room to finish without stalled detection re-picking
+    // it mid-flight. stalledInterval halved for second-tick detection.
+    lockDuration: 60_000,
+    stalledInterval: 30_000,
+    drainDelay: 5,
+  }
 );
 
 worker.on("completed", (job, result) => {
@@ -155,12 +173,12 @@ setupCron().catch((err) => {
 
 logger.info("Auto-renewal worker started");
 
-// Graceful shutdown
-process.on("SIGTERM", async () => {
-  logger.info("Shutting down auto-renewal worker...");
-  await worker.close();
-  await queue.close();
-  await connection.quit();
-  await prisma.$disconnect();
-  process.exit(0);
+// Graceful shutdown — handles both SIGTERM (Kubernetes/CI deploy) and SIGINT
+// (Ctrl+C in dev). Uses the shared helper so the lifecycle (worker.close →
+// queue.close → connection.quit → prisma.$disconnect) is identical across
+// every worker process.
+registerGracefulShutdown({
+  name: "auto-renewal",
+  target: { workers: [worker], queues: [queue], connections: [connection], prisma },
+  logger,
 });

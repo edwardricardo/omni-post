@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import Redis from "ioredis";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { ApiMetrics } from "../metrics/apiMetrics.js";
 import { logger } from "../lib/logger.js";
 
@@ -54,13 +55,20 @@ export const SlidingWindowConfigs = {
 export class SlidingWindowRateLimit {
   private redis: Redis;
   private metrics: ApiMetrics;
+  private scheduler: BackgroundTaskScheduler;
   private globalConfig: SlidingWindowConfig;
   private suspiciousPatterns: Map<string, number> = new Map();
-  private cleanupTimer: NodeJS.Timeout | null = null;
+  private readonly taskId: string;
 
-  constructor(redis: Redis, metrics: ApiMetrics, globalConfig: SlidingWindowConfig) {
+  constructor(
+    redis: Redis,
+    metrics: ApiMetrics,
+    scheduler: BackgroundTaskScheduler,
+    globalConfig: SlidingWindowConfig
+  ) {
     this.redis = redis;
     this.metrics = metrics;
+    this.scheduler = scheduler;
     this.globalConfig = {
       precision: 10,
       enableGeoBlocking: true,
@@ -71,6 +79,9 @@ export class SlidingWindowRateLimit {
       ...(globalConfig.keyGenerator ? { keyGenerator: globalConfig.keyGenerator } : {}),
       ...(globalConfig.onLimitReached ? { onLimitReached: globalConfig.onLimitReached } : {}),
     };
+    // Include a UUID suffix to avoid task-id collisions when multiple rate
+    // limit instances are constructed in the same process (e.g., per route).
+    this.taskId = `sliding-window-rate-limit-cleanup-${randomUUID()}`;
 
     // Setup Redis error handling
     this.redis.on("error", (err) => {
@@ -78,7 +89,7 @@ export class SlidingWindowRateLimit {
     });
 
     // Clean up suspicious patterns every hour
-    this.cleanupTimer = setInterval(() => this.cleanupSuspiciousPatterns(), 60 * 60 * 1000);
+    this.scheduler.register(this.taskId, () => this.cleanupSuspiciousPatterns(), 60 * 60 * 1000);
   }
 
   // True sliding window algorithm using Redis sorted sets
@@ -333,14 +344,13 @@ export class SlidingWindowRateLimit {
   }
 
   /**
-   * Cleanup method to clear the internal timer
-   * Should be called when the rate limiter is no longer needed (e.g., in tests or during shutdown)
+   * Cleanup method — unregisters the scheduled cleanup task and clears the
+   * in-memory pattern map. Safe to call multiple times. The scheduler's
+   * shutdownAll() also clears the task, so explicit destroy() is only
+   * required when disposing an instance mid-process (e.g., in tests).
    */
   public destroy(): void {
-    if (this.cleanupTimer) {
-      clearInterval(this.cleanupTimer);
-      this.cleanupTimer = null;
-    }
+    this.scheduler.unregister(this.taskId);
     this.suspiciousPatterns.clear();
   }
 

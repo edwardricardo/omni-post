@@ -3,7 +3,7 @@
  * @description TanStack Query hook for the dashboard performance insights view.
  *   Fetches engagement, time series, top posts, media performance, optimal
  *   timing, hashtags, and audience insights for a project.
- * @layer hooks
+ * @layer infrastructure
  */
 import { useQuery } from "@tanstack/react-query";
 

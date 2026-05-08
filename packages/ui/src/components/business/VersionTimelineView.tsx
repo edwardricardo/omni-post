@@ -1,10 +1,9 @@
 /**
- * VersionTimelineView — timeline tab for the ContentVersioning component.
- *
- * Renders each content version as a card connected by a vertical line,
- * mimicking a Git-style timeline.  All state and handlers are received as
- * props from the parent `ContentVersioning` orchestrator; this component holds
- * no state of its own.
+ * @file VersionTimelineView.tsx
+ * @description Timeline tab for ContentVersioning that renders each version as a card on a
+ *              Git-style vertical timeline. Stateless; all data comes from parent orchestrator.
+ * @component VersionTimelineView
+ * @layer infrastructure
  */
 
 "use client";

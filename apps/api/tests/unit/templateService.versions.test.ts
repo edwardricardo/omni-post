@@ -2,6 +2,10 @@
  * Unit Tests for TemplateService - Versioning, Duplication, Compilation, A/B Testing
  *
  * Covers: Duplicate Template, Compile Template, Version Management, A/B Testing
+ *
+ * @file templateService.versions.test.ts
+ * @description Tests for TemplateService - Duplicate Template
+ * @layer infrastructure
  */
 
 import "./templateRoutes.env-setup.js";

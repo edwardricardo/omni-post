@@ -3,7 +3,7 @@
  * @description Unit tests for the ActivityFeedService — cursor-based pagination,
  *              action-to-display mapping, and filter behavior.
  *              Uses mocked Prisma to avoid database dependency.
- * @layer test-infrastructure
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";

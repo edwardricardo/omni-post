@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@observability/background-scheduler": "workspace:*",
     "@opentelemetry/api": "1.9.1",
     "@opentelemetry/auto-instrumentations-node": "0.72.0",
     "@opentelemetry/core": "2.6.1",
@@ -27,7 +28,7 @@
     "pino": "10.3.1"
   },
   "devDependencies": {
-    "@types/node": "22.0.0",
+    "@types/node": "22.13.3",
     "typescript": "6.0.2"
   }
 }

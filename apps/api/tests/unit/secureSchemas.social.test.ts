@@ -1,3 +1,8 @@
+/**
+ * @file secureSchemas.social.test.ts
+ * @description Tests for SecurityValidatedSchemas - Post Content Validation
+ * @layer infrastructure
+ */
 import { describe, it, expect } from "vitest";
 import { SecurityValidatedSchemas } from "../../src/validation/secureSchemas.js";
 

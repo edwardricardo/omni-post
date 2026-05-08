@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main, omni-post-cc]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint-and-format:
     name: Lint and Format Check
@@ -23,8 +27,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
           restore-keys: |
+            ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-
             ${{ runner.os }}-turbo-
 
       - name: Check formatting
@@ -73,6 +78,15 @@ jobs:
       - name: Setup Node.js with pnpm and cache
         uses: ./.github/actions/setup-node-pnpm-cache
 
+      - name: Setup Turborepo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-
+            ${{ runner.os }}-turbo-
+
       - name: Setup test environment
         run: |
           cp apps/api/.env.example apps/api/.env
@@ -101,8 +115,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
           restore-keys: |
+            ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-
             ${{ runner.os }}-turbo-
 
       - name: Build all packages
@@ -147,7 +162,6 @@ jobs:
 
       - name: Circular dependency check (madge)
         run: pnpm check:circular
-        continue-on-error: true
 
   # ── Tier 0: Provider adapter unit tests (no DB, no Redis) ──
   test-providers:

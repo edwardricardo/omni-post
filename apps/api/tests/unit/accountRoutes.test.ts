@@ -2,7 +2,7 @@
  * @file accountRoutes.test.ts
  * @description Unit tests for accountRoutes.
  *              Uses in-memory mocked Prisma stores — no real database needed.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";

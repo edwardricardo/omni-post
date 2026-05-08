@@ -18,6 +18,7 @@ import {
   PublishResult,
 } from "@shared/orchestration";
 import type { CanonicalPost } from "@shared/types";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { ProviderId, ConnectionConfig } from "../providers/providerAdapter.interface";
 import { EventService } from "../events/EventService";
 
@@ -37,6 +38,8 @@ export class PublishingOrchestratorHelpers {
   protected redis!: Redis;
   protected eventService!: EventService;
   protected config!: OrchestrationConfig;
+  protected scheduler!: BackgroundTaskScheduler;
+  protected readonly healthMonitorTaskId = "publishing-orchestrator-health-monitor";
 
   // ─── ID generation ─────────────────────────────────────────────────────────
 
@@ -67,8 +70,9 @@ export class PublishingOrchestratorHelpers {
   // ─── Health monitoring ──────────────────────────────────────────────────────
 
   protected startHealthMonitoring(): void {
-    setInterval(async () => {
-      try {
+    this.scheduler.register(
+      this.healthMonitorTaskId,
+      async () => {
         const health = await (
           this as unknown as {
             getHealthStatus: () => Promise<{ status: string; details: Record<string, unknown> }>;
@@ -80,10 +84,16 @@ export class PublishingOrchestratorHelpers {
             "Orchestrator health degraded"
           );
         }
-      } catch (error: unknown) {
-        log.error({ err: error }, "Health check failed");
+      },
+      this.config.healthCheckInterval,
+      {
+        onError: (err) => log.error({ err }, "Health check failed"),
       }
-    }, this.config.healthCheckInterval);
+    );
+  }
+
+  protected stopHealthMonitoring(): void {
+    this.scheduler.unregister(this.healthMonitorTaskId);
   }
 
   // ─── Event emission ─────────────────────────────────────────────────────────

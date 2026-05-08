@@ -1,7 +1,7 @@
 /**
  * @file reportUseCases.test.ts
  * @description Tests for report use cases — CreateScheduledReport, GenerateReport.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

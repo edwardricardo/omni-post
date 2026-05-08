@@ -1,7 +1,7 @@
 /**
  * @file page.tsx
  * @description Campaigns list page.
- * @layer client-pages
+ * @layer infrastructure
  */
 
 "use client";

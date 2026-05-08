@@ -7,8 +7,8 @@
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { randomBytes } from "node:crypto";
-import argon2 from "argon2";
-import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
+import { hashPassword as argonHashPassword } from "../auth/passwordHashing.js";
+import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { requireAdminAuth } from "./auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "../auth/rbacService.js";
@@ -54,15 +54,12 @@ function generateRandomPassword(): string {
 }
 
 /**
- * @description Hashes a password using argon2id with the same settings as seed.ts.
+ * @description Hashes a password using the canonical argon2id parameters.
+ *   Delegates to `apps/api/src/auth/passwordHashing.ts` so all password
+ *   hashing across the api uses identical Argon2id settings.
  */
 async function hashPassword(password: string): Promise<string> {
-  return argon2.hash(password, {
-    type: argon2.argon2id,
-    memoryCost: 65536,
-    timeCost: 3,
-    parallelism: 4,
-  });
+  return argonHashPassword(password);
 }
 
 // --- Handler ---
@@ -466,8 +463,10 @@ class AdminUserHandler extends BaseRouteHandler {
     }
 
     const { id } = paramsResult.data;
-    const requestingUserId = (request as FastifyRequest & { auth: { user: { id: string } } }).auth
-      .user.id;
+    const requestingUserId = request.auth?.user?.id;
+    if (!requestingUserId) {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
 
     if (id === requestingUserId) {
       return this.sendError(ctx, 400, "Use the change-password flow for your own account");

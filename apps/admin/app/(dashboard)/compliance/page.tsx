@@ -2,7 +2,7 @@
  * @file page.tsx
  * @description Compliance dashboard page with five tabs: Overview (metrics + checklist),
  *   GDPR (settings + DSAR), Security (settings), Breaches (reports), and Audit (logs).
- * @layer page
+ * @layer infrastructure
  */
 "use client";
 

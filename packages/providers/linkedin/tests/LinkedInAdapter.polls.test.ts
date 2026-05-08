@@ -3,18 +3,49 @@
  * @description Unit tests for LinkedIn poll support in render() and publish().
  *              Verifies poll tag parsing, validation rules, and publish payload
  *              construction for poll content.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { LinkedInAdapter } from "../src/LinkedInAdapter.js";
+import { LinkedInAdapter, type LinkedInApiClientFactory } from "../src/LinkedInAdapter.js";
+import type { LinkedInApiClient } from "../src/apiClient.js";
+import type { LinkedInCredentials } from "../src/types.js";
 import type { CanonicalPost, RenderedPost } from "@shared/types";
 import type { PublishInput } from "@ports/core";
 
 // ============================================================================
 // Test helpers
 // ============================================================================
+
+const VALID_CREDS: LinkedInCredentials = {
+  accessToken: "test-token",
+  refreshToken: "test-refresh",
+  personUrn: "urn:li:person:abc123",
+};
+
+interface FakeApiClient {
+  createPost: ReturnType<typeof vi.fn>;
+}
+
+function makeFakeApiClient(overrides: Partial<FakeApiClient> = {}): FakeApiClient {
+  return {
+    createPost: vi.fn(async () => ({
+      id: "urn:li:share:poll-12345",
+      activity: "urn:li:activity:poll-12345",
+    })),
+    ...overrides,
+  };
+}
+
+function makeAdapter(client: FakeApiClient = makeFakeApiClient()): {
+  adapter: LinkedInAdapter;
+  client: FakeApiClient;
+} {
+  const factory: LinkedInApiClientFactory = () => client as unknown as LinkedInApiClient;
+  const adapter = new LinkedInAdapter({ apiClientFactory: factory });
+  return { adapter, client };
+}
 
 function makeCanonicalPost(overrides?: Partial<CanonicalPost>): CanonicalPost {
   return {
@@ -43,14 +74,12 @@ function makePublishInput(overrides?: Partial<PublishInput>): PublishInput {
 // ============================================================================
 
 describe("LinkedInAdapter - Poll Render", { concurrency: 1 }, () => {
-  let adapter: LinkedInAdapter;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new LinkedInAdapter();
   });
 
   it("detects poll tag and includes poll data in rendered meta", () => {
+    const { adapter } = makeAdapter();
     const post = makeCanonicalPost({
       tags: ["poll:THREE_DAYS:Best framework?|React|Vue|Angular"],
     });
@@ -73,9 +102,8 @@ describe("LinkedInAdapter - Poll Render", { concurrency: 1 }, () => {
   });
 
   it("accepts ONE_DAY duration", () => {
-    const post = makeCanonicalPost({
-      tags: ["poll:ONE_DAY:Quick poll?|Yes|No"],
-    });
+    const { adapter } = makeAdapter();
+    const post = makeCanonicalPost({ tags: ["poll:ONE_DAY:Quick poll?|Yes|No"] });
 
     const result = adapter.render(post);
 
@@ -87,9 +115,8 @@ describe("LinkedInAdapter - Poll Render", { concurrency: 1 }, () => {
   });
 
   it("accepts SEVEN_DAYS duration", () => {
-    const post = makeCanonicalPost({
-      tags: ["poll:SEVEN_DAYS:Week poll?|Option A|Option B"],
-    });
+    const { adapter } = makeAdapter();
+    const post = makeCanonicalPost({ tags: ["poll:SEVEN_DAYS:Week poll?|Option A|Option B"] });
 
     const result = adapter.render(post);
 
@@ -101,25 +128,21 @@ describe("LinkedInAdapter - Poll Render", { concurrency: 1 }, () => {
   });
 
   it("accepts FOURTEEN_DAYS duration", () => {
-    const post = makeCanonicalPost({
-      tags: ["poll:FOURTEEN_DAYS:Long poll?|A|B|C|D"],
-    });
+    const { adapter } = makeAdapter();
+    const post = makeCanonicalPost({ tags: ["poll:FOURTEEN_DAYS:Long poll?|A|B|C|D"] });
 
     const result = adapter.render(post);
 
     assert.ok(result.ok);
     if (result.ok) {
-      const poll = (result.value.content as RenderedPost).meta?.poll as {
-        options: string[];
-      };
+      const poll = (result.value.content as RenderedPost).meta?.poll as { options: string[] };
       assert.strictEqual(poll.options.length, 4);
     }
   });
 
   it("ignores poll tag with invalid duration", () => {
-    const post = makeCanonicalPost({
-      tags: ["poll:TWO_DAYS:Invalid?|Yes|No"],
-    });
+    const { adapter } = makeAdapter();
+    const post = makeCanonicalPost({ tags: ["poll:TWO_DAYS:Invalid?|Yes|No"] });
 
     const result = adapter.render(post);
 
@@ -131,9 +154,8 @@ describe("LinkedInAdapter - Poll Render", { concurrency: 1 }, () => {
   });
 
   it("ignores poll tag with fewer than 2 options", () => {
-    const post = makeCanonicalPost({
-      tags: ["poll:THREE_DAYS:One option only?|Solo"],
-    });
+    const { adapter } = makeAdapter();
+    const post = makeCanonicalPost({ tags: ["poll:THREE_DAYS:One option only?|Solo"] });
 
     const result = adapter.render(post);
 
@@ -145,9 +167,8 @@ describe("LinkedInAdapter - Poll Render", { concurrency: 1 }, () => {
   });
 
   it("ignores poll tag with more than 4 options", () => {
-    const post = makeCanonicalPost({
-      tags: ["poll:THREE_DAYS:Too many?|A|B|C|D|E"],
-    });
+    const { adapter } = makeAdapter();
+    const post = makeCanonicalPost({ tags: ["poll:THREE_DAYS:Too many?|A|B|C|D|E"] });
 
     const result = adapter.render(post);
 
@@ -159,10 +180,9 @@ describe("LinkedInAdapter - Poll Render", { concurrency: 1 }, () => {
   });
 
   it("ignores poll tag when question exceeds 140 characters", () => {
+    const { adapter } = makeAdapter();
     const longQuestion = "Q".repeat(141);
-    const post = makeCanonicalPost({
-      tags: [`poll:THREE_DAYS:${longQuestion}|Yes|No`],
-    });
+    const post = makeCanonicalPost({ tags: [`poll:THREE_DAYS:${longQuestion}|Yes|No`] });
 
     const result = adapter.render(post);
 
@@ -174,6 +194,7 @@ describe("LinkedInAdapter - Poll Render", { concurrency: 1 }, () => {
   });
 
   it("ignores poll tag when an option exceeds 30 characters", () => {
+    const { adapter } = makeAdapter();
     const longOption = "O".repeat(31);
     const post = makeCanonicalPost({
       tags: [`poll:THREE_DAYS:Valid question?|${longOption}|Short`],
@@ -189,9 +210,8 @@ describe("LinkedInAdapter - Poll Render", { concurrency: 1 }, () => {
   });
 
   it("ignores poll tag with missing colon separator", () => {
-    const post = makeCanonicalPost({
-      tags: ["poll:THREE_DAYSno-colon|Yes|No"],
-    });
+    const { adapter } = makeAdapter();
+    const post = makeCanonicalPost({ tags: ["poll:THREE_DAYSno-colon|Yes|No"] });
 
     const result = adapter.render(post);
 
@@ -203,9 +223,8 @@ describe("LinkedInAdapter - Poll Render", { concurrency: 1 }, () => {
   });
 
   it("renders normally when no poll tag is present", () => {
-    const post = makeCanonicalPost({
-      tags: ["marketing", "announcement"],
-    });
+    const { adapter } = makeAdapter();
+    const post = makeCanonicalPost({ tags: ["marketing", "announcement"] });
 
     const result = adapter.render(post);
 
@@ -223,33 +242,12 @@ describe("LinkedInAdapter - Poll Render", { concurrency: 1 }, () => {
 // ============================================================================
 
 describe("LinkedInAdapter - Poll Publish", { concurrency: 1 }, () => {
-  let adapter: LinkedInAdapter;
-  let mockCreatePost: ReturnType<typeof vi.fn>;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    adapter = new LinkedInAdapter();
-
-    mockCreatePost = vi.fn(async () => ({
-      id: "urn:li:share:poll-12345",
-      activity: "urn:li:activity:poll-12345",
-    }));
-
-    (adapter as Record<string, unknown>).createApiClient = () => ({
-      createPost: mockCreatePost,
-    });
-
-    (adapter as Record<string, unknown>).getCredentials = vi.fn(async () => ({
-      ok: true,
-      value: {
-        accessToken: "test-token",
-        refreshToken: "test-refresh",
-        personUrn: "urn:li:person:abc123",
-      },
-    }));
   });
 
   it("creates post with poll content when poll meta is present", async () => {
+    const { adapter, client } = makeAdapter();
     const input = makePublishInput({
       post: {
         body: "Cast your vote!",
@@ -265,12 +263,12 @@ describe("LinkedInAdapter - Poll Publish", { concurrency: 1 }, () => {
       },
     });
 
-    const result = await adapter.publish(input);
+    const result = await adapter.publish(input, VALID_CREDS);
 
     assert.ok(result.ok, "Publish should succeed");
-    assert.strictEqual(mockCreatePost.mock.calls.length, 1);
+    assert.strictEqual(client.createPost.mock.calls.length, 1);
 
-    const payload = mockCreatePost.mock.calls[0]?.[0] as Record<string, unknown>;
+    const payload = client.createPost.mock.calls[0]?.[0] as Record<string, unknown>;
     const content = payload.content as {
       poll: {
         question: string;
@@ -289,6 +287,7 @@ describe("LinkedInAdapter - Poll Publish", { concurrency: 1 }, () => {
   });
 
   it("does not attach media content when poll is present", async () => {
+    const { adapter, client } = makeAdapter();
     const input = makePublishInput({
       post: {
         body: "Poll with media ignored",
@@ -305,9 +304,9 @@ describe("LinkedInAdapter - Poll Publish", { concurrency: 1 }, () => {
       },
     });
 
-    await adapter.publish(input);
+    await adapter.publish(input, VALID_CREDS);
 
-    const payload = mockCreatePost.mock.calls[0]?.[0] as Record<string, unknown>;
+    const payload = client.createPost.mock.calls[0]?.[0] as Record<string, unknown>;
     const content = payload.content as Record<string, unknown>;
     assert.ok(content.poll, "Poll content should be set");
     assert.strictEqual(content.media, undefined, "Media should not be set when poll is present");

@@ -1,8 +1,22 @@
+/**
+ * @file types.ts
+ * @description API types for the client app — domain DTOs for Project, Post, Provider, Channel,
+ *              Analytics, and paginated responses consumed by the API client.
+ * @layer infrastructure
+ */
 // API Types for OmniPost Client
 
 export interface Project {
   id: string;
   name: string;
+  /**
+   * The Account this project belongs to. Required for multi-tenant
+   * partitioning — backend `GET /accounts/:accountId/projects` returns
+   * projects scoped to a specific account.
+   */
+  accountId: string;
+  /** Default content locale (`es`, `en`, etc.) for posts in this project. */
+  locale: string;
   description?: string;
   createdAt: string;
   updatedAt: string;
@@ -73,7 +87,7 @@ export interface ProviderHealth {
   latency: number;
   lastCheck: string;
   errorRate: number;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 }
 
 export interface Channel {
@@ -183,18 +197,10 @@ export interface HealthResponse {
   };
 }
 
-// Error types
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    public status: number,
-    public code?: string,
-    public details?: any
-  ) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
+// Error types — canonical class lives in `@packages/api-errors`. Kept as a
+// re-export so existing import paths (`from "@/lib/api/types"`) continue to
+// work without a wide import sweep.
+export { ApiError } from "@packages/api-errors";
 
 export interface ValidationError {
   field: string;

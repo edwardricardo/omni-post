@@ -3,7 +3,7 @@
  * @description Mutation-killing tests for the client-side ProviderRegistry.
  * Covers validation, optimal times, char limits, media limits, rate limits,
  * threading, thread segmentation, legacy config conversion, and feature queries.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

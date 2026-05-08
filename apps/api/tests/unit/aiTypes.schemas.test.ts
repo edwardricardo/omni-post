@@ -1,6 +1,10 @@
 /**
  * Tests for AI route input validation schemas.
  * Imports the real Zod schemas from routes.ts — if the schema changes, these tests catch the drift.
+ *
+ * @file aiTypes.schemas.test.ts
+ * @description Tests for AI Schemas - MessageSchema
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

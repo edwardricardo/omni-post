@@ -6,7 +6,7 @@
  * to fill in template variables and adjust generation settings before triggering a run.
  */
 
-import React from "react";
+import React, { useId } from "react";
 import { Sparkles, RefreshCw } from "lucide-react";
 import type { ContentTemplate, GenerationSettings } from "../../types/ai-content";
 
@@ -48,43 +48,55 @@ export function AIPromptForm({
     onSettingsChange({ ...settings, [key]: value });
   };
 
+  const variableIdPrefix = useId();
+
   return (
     <div className="border rounded-lg p-6 bg-gray-50">
       <h5 className="font-semibold text-gray-900 mb-4">Configure Template Variables</h5>
 
       {/* Template Variables */}
       <div className="space-y-4 mb-6">
-        {template.variables.map((variable) => (
-          <div key={variable.name}>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {variable.label} {variable.required && <span className="text-red-500">*</span>}
-            </label>
-            {variable.type === "select" ? (
-              <select
-                value={formData[variable.name] || ""}
-                onChange={(e) => handleInputChange(variable.name, e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                aria-required={variable.required}
-              >
-                <option value="">{variable.placeholder}</option>
-                {variable.options?.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type={variable.type}
-                value={formData[variable.name] || ""}
-                onChange={(e) => handleInputChange(variable.name, e.target.value)}
-                placeholder={variable.placeholder}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                aria-required={variable.required}
-              />
-            )}
-          </div>
-        ))}
+        {template.variables.map((variable) => {
+          const variableId = `${variableIdPrefix}-${variable.name}`;
+          return (
+            <div key={variable.name}>
+              <label htmlFor={variableId} className="block text-sm font-medium text-gray-700 mb-1">
+                {variable.label}{" "}
+                {variable.required && (
+                  <span aria-hidden="true" className="text-red-500">
+                    *
+                  </span>
+                )}
+              </label>
+              {variable.type === "select" ? (
+                <select
+                  id={variableId}
+                  value={formData[variable.name] || ""}
+                  onChange={(e) => handleInputChange(variable.name, e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  aria-required={variable.required}
+                >
+                  <option value="">{variable.placeholder}</option>
+                  {variable.options?.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  id={variableId}
+                  type={variable.type}
+                  value={formData[variable.name] || ""}
+                  onChange={(e) => handleInputChange(variable.name, e.target.value)}
+                  placeholder={variable.placeholder}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  aria-required={variable.required}
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Generation Settings */}

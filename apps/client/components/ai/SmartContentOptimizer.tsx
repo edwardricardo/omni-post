@@ -38,6 +38,8 @@ import { SmartContentOptimizerSuggestions } from "./SmartContentOptimizerSuggest
 import { SmartContentOptimizerHashtags } from "./SmartContentOptimizerHashtags";
 import { SmartContentOptimizerTone } from "./SmartContentOptimizerTone";
 import { SmartContentOptimizerMetrics } from "./SmartContentOptimizerMetrics";
+import { request, PROXY_BASE } from "@/lib/api/clients/request";
+import { ApiError } from "@/lib/api/types";
 
 /**
  * @component SmartContentOptimizer
@@ -45,8 +47,6 @@ import { SmartContentOptimizerMetrics } from "./SmartContentOptimizerMetrics";
  * and coordinating AI backend calls for content scoring, tone detection, hashtag
  * recommendations, and engagement predictions across tab-specific sub-components.
  */
-
-const API_URL = "/api/backend";
 
 type ActiveTab = "overview" | "suggestions" | "hashtags" | "tone" | "metrics";
 
@@ -81,30 +81,21 @@ const SmartContentOptimizer: React.FC<SmartContentOptimizerProps> = ({
         const primaryPlatform = platforms[0] ?? "twitter";
         const apiPlatform = PLATFORM_TO_API_PROVIDER[primaryPlatform] ?? primaryPlatform;
 
-        const response = await fetch(`${API_URL}/ai/smart-analysis`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            content: textContent,
-            platform: apiPlatform,
-            ...(brandVoice !== "professional" && { brandVoice }),
-            includeOptimization: true,
-            includePrediction: true,
-            includeVariations: false,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorBody = await response.json().catch(() => null);
-          const message =
-            (errorBody as { error?: string } | null)?.error ?? `API error (${response.status})`;
-          throw new Error(message);
-        }
-
-        const json = (await response.json()) as {
-          ok?: boolean;
-          data?: Record<string, unknown>;
-        };
+        const json = await request<{ ok?: boolean; data?: Record<string, unknown> }>(
+          PROXY_BASE,
+          "/ai/smart-analysis",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              content: textContent,
+              platform: apiPlatform,
+              ...(brandVoice !== "professional" && { brandVoice }),
+              includeOptimization: true,
+              includePrediction: true,
+              includeVariations: false,
+            }),
+          }
+        );
 
         if (!json.ok || !json.data) {
           throw new Error("Unexpected response format from AI service");
@@ -127,17 +118,9 @@ const SmartContentOptimizer: React.FC<SmartContentOptimizerProps> = ({
             : [];
           if (hashtags.length > 0) {
             setHashtagAnalysis(
-              hashtags.map((tag, i) => ({
+              hashtags.map((tag) => ({
                 hashtag: tag.startsWith("#") ? tag : `#${tag}`,
-                relevanceScore: Math.max(10, 90 - i * 10),
-                popularityIndex: Math.max(10, 80 - i * 8),
-                competitionLevel: (i < 2 ? "low" : i < 4 ? "medium" : "high") as
-                  | "low"
-                  | "medium"
-                  | "high",
-                expectedReach: Math.max(1000, 50000 - i * 8000),
-                trendingStatus: (i < 2 ? "rising" : "stable") as "rising" | "stable" | "declining",
-                platforms: platforms,
+                platforms,
               }))
             );
           } else {
@@ -151,15 +134,18 @@ const SmartContentOptimizer: React.FC<SmartContentOptimizerProps> = ({
         // Map tone analysis
         setToneAnalysis(adaptToneResponse(analysisData));
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Content analysis failed";
+        // Distinguish between "AI not configured" (503) and transient failures
+        // by inspecting the typed ApiError.status when available.
+        const isUnavailable =
+          (error instanceof ApiError && error.status === 503) ||
+          (error instanceof Error && /unavailable/i.test(error.message));
 
-        // Distinguish between "AI not configured" and transient failures
-        if (message.includes("503") || message.includes("unavailable")) {
+        if (isUnavailable) {
           setAnalysisError(
             "AI service is not available. Ensure at least one AI provider API key is configured on the server."
           );
         } else {
-          setAnalysisError(message);
+          setAnalysisError(error instanceof Error ? error.message : "Content analysis failed");
         }
 
         // Clear stale results on error
@@ -233,8 +219,8 @@ const SmartContentOptimizer: React.FC<SmartContentOptimizerProps> = ({
   if (analysisError) {
     return (
       <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="text-center py-8">
-          <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+        <div role="alert" className="text-center py-8">
+          <AlertTriangle aria-hidden="true" className="w-12 h-12 text-amber-500 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Analysis Failed</h3>
           <p className="text-gray-600 mb-4 max-w-md mx-auto">{analysisError}</p>
           <button

@@ -2,7 +2,7 @@
  * @file runCustomReport.test.ts
  * @description Unit tests for RunCustomReportQuery — verifies real data aggregation
  *              and deterministic output (no Math.random).
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, vi, beforeEach } from "vitest";

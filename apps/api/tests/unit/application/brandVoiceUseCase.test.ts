@@ -1,7 +1,7 @@
 /**
  * @file brandVoiceUseCase.test.ts
  * @description Tests for UpsertBrandVoiceUseCase — validation, upsert, defaults.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

@@ -9,6 +9,7 @@
 import { type Result, ok, err } from "@shared/types";
 import type { QueuePort } from "@ports/core";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { ChannelQueryForIngestion } from "../../domain/repositories/ChannelQueryForIngestion.js";
 
 export interface DispatchAnalyticsIngestionInput {
   accountId?: string;
@@ -24,17 +25,6 @@ export class DispatchAnalyticsIngestionError extends Error {
     super(message, { cause });
     this.name = "DispatchAnalyticsIngestionError";
   }
-}
-
-export interface ChannelQueryForIngestion {
-  findActiveChannels(accountId?: string): Promise<
-    Array<{
-      id: string;
-      projectId: string;
-      provider: string;
-      accountId: string;
-    }>
-  >;
 }
 
 export class DispatchAnalyticsIngestionUseCase {

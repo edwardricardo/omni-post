@@ -1,3 +1,8 @@
+/**
+ * @file EventService.user-analytics.test.ts
+ * @description Tests for createUserActionEvent
+ * @layer infrastructure
+ */
 import { describe, it, expect } from "vitest";
 import { createUserActionEvent, createAnalyticsEvent } from "../../src/events/EventService";
 import { EVENT_TYPES, validateEvent } from "@shared/events";

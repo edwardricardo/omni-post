@@ -1,12 +1,18 @@
+/**
+ * @file webhookSignatureVerification.providers1.test.ts
+ * @description Tests for Webhook signature verification — InstagramWebhookProcessor
+ * @layer infrastructure
+ */
 import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
 import { createHmac } from "node:crypto";
 
-vi.mock("@infra/prisma", () => ({
-  prisma: {},
-  Prisma: {},
-  WebhookEventType: {},
-  WebhookProcessingStatus: {},
-}));
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@infra/prisma")>();
+  return {
+    ...actual,
+    prisma: {},
+  };
+});
 import { InstagramWebhookProcessor } from "../../../src/webhooks/processors/instagramWebhookProcessor.js";
 import { FacebookWebhookProcessor } from "../../../src/webhooks/processors/facebookWebhookProcessor.js";
 import { YouTubeWebhookProcessor } from "../../../src/webhooks/processors/youtubeWebhookProcessor.js";

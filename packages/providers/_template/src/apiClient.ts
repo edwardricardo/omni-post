@@ -1,3 +1,9 @@
+/**
+ * @file apiClient.ts
+ * @description Template API client skeleton showing the circuit-breaker + metrics pattern used
+ *              by every provider adapter's API client implementation.
+ * @layer infrastructure
+ */
 import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
 import client from "prom-client";
 import { createLogger } from "@observability/logger";

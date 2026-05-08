@@ -1,8 +1,11 @@
 /**
  * Infrastructure Layer - Prisma Post Repository Unit Tests
  *
- * Part of Sprint 6: DDD Architecture Implementation
  * Tests for the PrismaPostRepository implementation.
+ *
+ * @file PrismaPostRepository.test.ts
+ * @description Tests for PrismaPostRepository
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect } from "vitest";

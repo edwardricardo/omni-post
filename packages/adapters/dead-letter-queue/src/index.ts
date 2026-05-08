@@ -1,3 +1,9 @@
+/**
+ * @file index.ts
+ * @description Dead-letter queue manager — captures failed operations via BullMQ, stores retry
+ *              metadata, supports manual reprocessing, and emits Prometheus metrics.
+ * @layer infrastructure
+ */
 import { ok, err, type Result } from "@shared/types";
 import { Queue, Worker, Job, QueueEvents } from "bullmq";
 import Redis from "ioredis";
@@ -107,6 +113,12 @@ export class DeadLetterQueueManager {
       enableReadyCheck: false,
       maxRetriesPerRequest: null, // Required by BullMQ
       lazyConnect: true,
+      // ioredis defaults: commandTimeout = null (forever), connectTimeout = 10000.
+      // Both bounded so a hung Redis fails fast instead of stalling DLQ
+      // operations. BullMQ requires maxRetriesPerRequest:null, so the
+      // timeout is the only escape hatch.
+      commandTimeout: 5_000,
+      connectTimeout: 5_000,
     });
 
     this.queue = new Queue(this.config.queueName, {

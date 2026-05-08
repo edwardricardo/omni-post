@@ -1,8 +1,11 @@
 /**
  * Application Layer - Analytics Use Cases Unit Tests
  *
- * Part of Sprint 11: TDD Implementation
  * Tests for GetCrossPlatformAnalytics, ComparePerformance, and CalculateROI use cases.
+ *
+ * @file AnalyticsUseCases.test.ts
+ * @description Tests for Analytics Use Cases (TDD)
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";

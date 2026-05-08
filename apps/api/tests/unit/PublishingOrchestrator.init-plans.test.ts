@@ -5,6 +5,10 @@
  * 1. Initialization and setup
  * 2. Plan creation and validation
  * 3. Plan updates with conflict handling
+ *
+ * @file PublishingOrchestrator.init-plans.test.ts
+ * @description Tests for PublishingOrchestrator
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
@@ -25,6 +29,7 @@ import {
   asEventService,
   stubOrchestratorInternals,
 } from "./PublishingOrchestrator.test-helpers.js";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 
 describe("PublishingOrchestrator", () => {
   let orchestrator: PublishingOrchestrator;
@@ -41,6 +46,7 @@ describe("PublishingOrchestrator", () => {
       prisma: asPrisma(mockPrisma),
       redis: asRedis(mockRedis),
       eventService: asEventService(mockEvents),
+      scheduler: new NoopBackgroundTaskScheduler(),
     });
 
     stubOrchestratorInternals(orchestrator);
@@ -70,6 +76,7 @@ describe("PublishingOrchestrator", () => {
         prisma: asPrisma(mockPrisma),
         redis: asRedis(mockRedis),
         eventService: asEventService(mockEvents),
+        scheduler: new NoopBackgroundTaskScheduler(),
         config: {
           maxConcurrentExecutions: 20,
           enableRollback: false,
@@ -103,6 +110,7 @@ describe("PublishingOrchestrator", () => {
         prisma: asPrisma(mockPrisma),
         redis: asRedis(mockRedis),
         eventService: asEventService(mockEvents),
+        scheduler: new NoopBackgroundTaskScheduler(),
       });
 
       (errorOrchestrator as any).setupRedisChannels = async () => {

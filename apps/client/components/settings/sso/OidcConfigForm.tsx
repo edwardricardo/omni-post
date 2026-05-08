@@ -2,7 +2,7 @@
  * @file OidcConfigForm.tsx
  * @component OidcConfigForm
  * @description OpenID Connect configuration form with redirect URI display.
- * @layer client-components
+ * @layer infrastructure
  */
 
 "use client";
@@ -83,9 +83,9 @@ export function OidcConfigForm({ accountId }: OidcConfigFormProps) {
           </code>
           <Button variant="ghost" size="sm" onClick={copyRedirect}>
             {copiedRedirect ? (
-              <Check className="h-4 w-4 text-green-600" />
+              <Check aria-hidden="true" className="h-4 w-4 text-green-600" />
             ) : (
-              <Copy className="h-4 w-4" />
+              <Copy aria-hidden="true" className="h-4 w-4" />
             )}
           </Button>
         </div>
@@ -97,16 +97,27 @@ export function OidcConfigForm({ accountId }: OidcConfigFormProps) {
 
         <div>
           <Label htmlFor="oidc-issuer">Issuer URL *</Label>
-          <Input
-            id="oidc-issuer"
-            type="url"
-            value={issuerUrl}
-            onChange={(e) => setIssuerUrl(e.target.value)}
-            placeholder="https://accounts.google.com"
-          />
-          {issuerUrl && !issuerUrl.startsWith("https://") && (
-            <p className="text-xs text-red-600 mt-1">Must use HTTPS</p>
-          )}
+          {(() => {
+            const issuerInvalid = !!issuerUrl && !issuerUrl.startsWith("https://");
+            return (
+              <>
+                <Input
+                  id="oidc-issuer"
+                  type="url"
+                  value={issuerUrl}
+                  onChange={(e) => setIssuerUrl(e.target.value)}
+                  placeholder="https://accounts.google.com"
+                  aria-invalid={issuerInvalid ? "true" : undefined}
+                  aria-describedby={issuerInvalid ? "oidc-issuer-error" : undefined}
+                />
+                {issuerInvalid && (
+                  <p id="oidc-issuer-error" role="alert" className="text-xs text-red-600 mt-1">
+                    Must use HTTPS
+                  </p>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         <div>

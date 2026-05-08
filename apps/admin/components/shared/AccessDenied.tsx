@@ -2,7 +2,7 @@
  * @file AccessDenied.tsx
  * @description Full-block component for 403 permission denied errors.
  *   Shown in place of page content when a query returns 403.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 
@@ -28,7 +28,6 @@ export function AccessDenied({ message, requiredRole }: AccessDeniedProps) {
     <div
       className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center px-4"
       role="alert"
-      aria-live="assertive"
     >
       <div className="flex items-center justify-center w-16 h-16 rounded-full bg-[var(--error-subtle)] text-[var(--error)]">
         <ShieldOff className="h-8 w-8" />

@@ -7,6 +7,10 @@
  *   sagas are persisted to Redis before the process exits
  * - Error handling: validation failures and unexpected errors are
  *   surfaced correctly from route handlers
+ *
+ * @file sagaIntegration.lifecycle.test.ts
+ * @description Tests for SagaIntegration - Event Handling
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, afterEach, expect } from "vitest";

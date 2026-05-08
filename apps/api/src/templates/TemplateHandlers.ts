@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 import { FastifyRequest, FastifyReply } from "fastify";
-import { BaseRouteHandler } from "@packages/api-common";
+import { BaseRouteHandler } from "../lib/route-handler/index.js";
 import type { TemplateService } from "./templateService.js";
 import { templateAnalytics } from "./templateAnalytics.js";
 import { TemplateCrudHandler } from "./TemplateCrudHandlers.js";

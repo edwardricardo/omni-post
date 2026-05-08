@@ -49,8 +49,7 @@ export function createCsrfMiddleware(prisma: PrismaClient) {
     }
 
     // Auth middleware runs before this — request.auth should be populated
-    const authReq = request as FastifyRequest & { auth?: { user?: { id?: string } } };
-    const userId = authReq.auth?.user?.id;
+    const userId = request.auth?.user?.id;
     if (!userId) return; // Auth middleware will handle missing auth
 
     const session = await prisma.adminSession.findFirst({

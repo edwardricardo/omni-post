@@ -1,17 +1,11 @@
 "use client";
 
 /**
- * Authentication Context for the Client App
- *
- * Auth state is derived from the backend session, NOT from localStorage.
- * JWTs are stored exclusively in httpOnly cookies managed by the
- * Next.js proxy route at /api/backend/[...path].
- *
- * On mount, the context calls /api/backend/auth/me to check if a valid
- * session exists. On login, the proxy sets the cookie. On logout, the
- * proxy clears it.
- *
- * @module lib/auth/authContext
+ * @file authContext.tsx
+ * @description React context providing authentication state derived from the backend session
+ *              (cookie-based). Exposes login/logout/register handlers and current user.
+ * @component AuthProvider
+ * @layer infrastructure
  */
 
 import React, {

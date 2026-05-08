@@ -2,7 +2,7 @@
  * @file useChangePassword.ts
  * @description TanStack Query mutation hook for changing the admin user's password.
  *   Used by the /security page's Change Password form.
- * @layer presentation
+ * @layer infrastructure
  */
 
 import { useMutation } from "@tanstack/react-query";

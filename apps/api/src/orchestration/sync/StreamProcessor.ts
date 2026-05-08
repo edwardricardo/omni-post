@@ -6,6 +6,7 @@
 
 import type Redis from "ioredis";
 import type { VersionDiff } from "@shared/orchestration";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { EventService } from "../../events/EventService";
 import { createLogger } from "../../lib/logger.js";
 
@@ -14,15 +15,19 @@ const log = createLogger("orchestration");
 export class StreamProcessor {
   private redis: Redis;
   private eventService: EventService;
+  private scheduler: BackgroundTaskScheduler;
   private onRealTimeSync: (postId: string, changes: VersionDiff[]) => Promise<void>;
+  private readonly scheduledSyncTaskId = "stream-processor-scheduled-sync";
 
   constructor(
     redis: Redis,
     eventService: EventService,
+    scheduler: BackgroundTaskScheduler,
     onRealTimeSync: (postId: string, changes: VersionDiff[]) => Promise<void>
   ) {
     this.redis = redis;
     this.eventService = eventService;
+    this.scheduler = scheduler;
     this.onRealTimeSync = onRealTimeSync;
   }
 
@@ -73,14 +78,10 @@ export class StreamProcessor {
    * Start scheduled sync processor
    */
   startScheduledSyncProcessor(processScheduledSyncs: () => Promise<void>): void {
-    // Process scheduled sync configurations every minute
-    setInterval(async () => {
-      try {
-        await processScheduledSyncs();
-      } catch (error: unknown) {
-        log.error({ err: error }, "Scheduled sync processor error");
-      }
-    }, 60000).unref(); // 1 minute
+    // Process scheduled sync configurations every minute.
+    this.scheduler.register(this.scheduledSyncTaskId, processScheduledSyncs, 60000, {
+      onError: (err) => log.error({ err }, "Scheduled sync processor error"),
+    });
   }
 
   /**

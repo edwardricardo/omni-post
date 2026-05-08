@@ -1,12 +1,12 @@
 /**
  * @file FolderSidebar.tsx
  * @description Folder navigation sidebar for asset library.
- * @layer client-components
+ * @layer infrastructure
  */
 
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Button, Input } from "@packages/ui";
 import { Folder, FolderPlus } from "lucide-react";
 import { useAssetFolders, useCreateFolder } from "@/hooks/api/useAssets";
@@ -28,6 +28,14 @@ export function FolderSidebar({ selectedFolderId, onSelectFolder }: FolderSideba
   const createFolderMutation = useCreateFolder();
   const [showCreate, setShowCreate] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+  const newFolderInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus the new-folder input when the inline create form opens.
+  useEffect(() => {
+    if (showCreate) {
+      newFolderInputRef.current?.focus();
+    }
+  }, [showCreate]);
 
   const handleCreate = useCallback(async () => {
     if (!newFolderName.trim()) return;
@@ -70,10 +78,10 @@ export function FolderSidebar({ selectedFolderId, onSelectFolder }: FolderSideba
       {showCreate ? (
         <div className="px-2 pt-2 space-y-2">
           <Input
+            ref={newFolderInputRef}
             value={newFolderName}
             onChange={(e) => setNewFolderName(e.target.value)}
             placeholder="Folder name"
-            autoFocus
             onKeyDown={(e) => {
               if (e.key === "Enter") handleCreate();
               if (e.key === "Escape") setShowCreate(false);

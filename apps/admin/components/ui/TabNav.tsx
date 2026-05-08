@@ -2,7 +2,7 @@
  * @file TabNav.tsx
  * @description Horizontal tab navigation bar with active indicator.
  *              Uses CSS custom-property tokens for theme support.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 
@@ -35,7 +35,7 @@ export function TabNav({ tabs, activeTab, onChange }: TabNavProps) {
   );
 
   return (
-    <nav
+    <div
       role="tablist"
       aria-label="Tabs"
       className="flex gap-1 border-b border-[var(--border-subtle)] overflow-x-auto"
@@ -64,6 +64,6 @@ export function TabNav({ tabs, activeTab, onChange }: TabNavProps) {
           </button>
         );
       })}
-    </nav>
+    </div>
   );
 }

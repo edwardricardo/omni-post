@@ -1,12 +1,16 @@
 /**
- * YouTube Provider - Clean Export
- *
- * Exports the class-based YouTubeAdapter implementation
+ * @file index.ts
+ * @description YouTube provider package barrel export. Composition root constructs
+ *   the adapter via `createYouTubeAdapter({ logger })`.
+ * @layer infrastructure
  */
 
-// Export class and instance
-export { YouTubeAdapter, youtubeAdapter } from "./YouTubeAdapter.js";
-
-// Default export
-import { youtubeAdapter } from "./YouTubeAdapter.js";
-export default youtubeAdapter;
+export {
+  YouTubeAdapter,
+  createYouTubeAdapter,
+  type YouTubeAdapterDeps,
+  type YouTubeApiClientFactory,
+  type YouTubeProviderCredentials,
+} from "./YouTubeAdapter.js";
+export { YouTubeApiClient } from "./apiClient.js";
+export type { YouTubeCredentials } from "./apiClient.js";

@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file ValidationContentEditor.tsx
+ * @description Content editor variant that foregrounds provider validation results, wrapping
+ *              ContentEditorCore with a provider selector and inline violation feedback.
+ * @component ValidationContentEditor
+ * @layer infrastructure
+ */
 import React, { useCallback, useMemo } from "react";
 import {
   ContentEditorCore,
@@ -12,8 +19,10 @@ import {
 } from "./ContentEditorCore";
 import { cn } from "../../lib/utils";
 
-export interface ValidationContentEditorProps
-  extends Omit<ContentEditorCoreProps, "renderProviderSelector" | "customValidator"> {
+export interface ValidationContentEditorProps extends Omit<
+  ContentEditorCoreProps,
+  "renderProviderSelector" | "customValidator"
+> {
   // Validation-specific props
   showValidationPanel?: boolean;
   showAdaptationSuggestions?: boolean;

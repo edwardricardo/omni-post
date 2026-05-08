@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file TemplateManagementDashboard.tsx
+ * @description Dashboard for managing content templates — tabs for library, editor, A/B testing,
+ *              and version control, backed by template and A/B test hooks.
+ * @component TemplateManagementDashboard
+ * @layer infrastructure
+ */
 import React, { useState, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@packages/ui";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@packages/ui";
@@ -115,8 +122,12 @@ export function TemplateManagementDashboard({
       try {
         if (editorMode === "create") {
           await createTemplate.mutateAsync({
-            ...template,
-            projectId,
+            name: template.name,
+            category: template.category,
+            content: template.content,
+            platforms: template.platforms,
+            ...(template.description !== undefined && { description: template.description }),
+            ...(template.tags !== undefined && { tags: template.tags }),
           });
           success({ description: "Template created successfully!" });
         } else {
@@ -131,7 +142,7 @@ export function TemplateManagementDashboard({
         error({ description: "Failed to save template" });
       }
     },
-    [editorMode, createTemplate, updateTemplate, projectId, success, error]
+    [editorMode, createTemplate, updateTemplate, success, error]
   );
 
   const handleTemplateDelete = useCallback(
@@ -247,7 +258,12 @@ export function TemplateManagementDashboard({
       </div>
 
       {/* Main Content Tabs */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) =>
+          setActiveTab(value as "library" | "editor" | "ab-testing" | "versions" | "analytics")
+        }
+      >
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="library" className="flex items-center space-x-2">
             <FileText className="h-4 w-4" />

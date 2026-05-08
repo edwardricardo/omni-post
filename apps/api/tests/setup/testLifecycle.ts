@@ -4,6 +4,10 @@
  *
  * This module solves the root cause of test hangs: missing prisma.$disconnect()
  * and unclosed resources (Fastify, Redis, etc.)
+ *
+ * @file testLifecycle.ts
+ * @description Tests for test lifecycle
+ * @layer infrastructure
  */
 import { prisma } from "@infra/prisma";
 import type { FastifyInstance } from "fastify";

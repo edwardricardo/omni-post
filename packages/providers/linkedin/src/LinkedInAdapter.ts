@@ -1,17 +1,16 @@
 /**
  * @file LinkedInAdapter.ts
- * @description LinkedIn provider adapter extending AbstractProviderAdapter.
- *              Supports text posts, image posts, video posts, and carousel content.
- *              Uses LinkedIn Posts API (v2 REST) with OAuth 2.0 authentication.
+ * @description LinkedIn provider adapter. Implements the ProviderAdapter port from
+ *   @ports/core directly (no inheritance). Stateless w.r.t. credentials —
+ *   credentials are passed per-call by the application layer.
+ *   Supports text posts, image posts, video posts, document posts (PDF/PPTX/DOCX),
+ *   poll posts, and carousel content via the LinkedIn Posts API (v2 REST) with
+ *   OAuth 2.0 authentication.
  * @layer infrastructure
  */
 
-import {
-  AbstractProviderAdapter,
-  type ProviderMetadata,
-  type ProviderConstraints,
-} from "@providers/shared";
 import type {
+  ProviderAdapter,
   ProviderId,
   ProviderLimits,
   PublishInput,
@@ -31,95 +30,136 @@ import type {
   ThreadError,
 } from "@shared/types";
 import { ok, err } from "@shared/types";
+import {
+  validateCredentialStructure,
+  mapErrorToPublishError,
+  type ProviderMetadata,
+  type ProviderConstraints,
+} from "@providers/shared";
+import pino, { type Logger } from "pino";
 import { LinkedInApiClient } from "./apiClient.js";
 import type { LinkedInCredentials, LinkedInPostPayload, LinkedInPollDuration } from "./types.js";
 import { uploadAndAttachMedia, uploadDocument } from "./mediaUpload.js";
 
+const REQUIRED_FIELDS: (keyof LinkedInCredentials)[] = ["accessToken", "refreshToken", "personUrn"];
+
+const LINKEDIN_LIMITS: ProviderLimits = {
+  maxChars: 3000,
+  allowedMedia: ["image", "video"],
+  aspectRatios: ["1:1", "4:5", "16:9", "9:16"],
+  maxMediaPerPost: 9,
+  threadingSupported: false,
+  rateLimitHints: { burst: 100, perSeconds: 86400 },
+};
+
+const LINKEDIN_METADATA: ProviderMetadata = {
+  id: "linkedin",
+  name: "linkedin",
+  displayName: "LinkedIn",
+  description: "Publish posts and articles to LinkedIn profiles and company pages",
+  icon: "/providers/linkedin-icon.svg",
+  color: "#0A66C2",
+  website: "https://linkedin.com",
+  authType: "oauth",
+  requiredScopes: ["w_member_social", "w_organization_social", "openid", "profile"],
+  status: "active",
+};
+
+const LINKEDIN_CAPABILITIES = {
+  publish: true,
+  schedule: true,
+  analytics: true,
+  comments: true,
+  replies: true,
+  threading: false,
+};
+
 /**
- * LinkedIn Provider Adapter
- *
- * Publishes content to LinkedIn via the REST Posts API.
- * Supports personal profiles and organization pages.
+ * Factory for creating LinkedInApiClient instances. Injected so tests can supply
+ * a fake. Defaults to constructing a real `LinkedInApiClient`.
  */
-export class LinkedInAdapter extends AbstractProviderAdapter<LinkedInCredentials> {
+export type LinkedInApiClientFactory = (credentials: LinkedInCredentials) => LinkedInApiClient;
+
+const defaultApiClientFactory: LinkedInApiClientFactory = (credentials) =>
+  new LinkedInApiClient(credentials);
+
+export interface LinkedInAdapterDeps {
+  /** Logger instance. Default: pino at level "info". */
+  logger?: Logger;
+  /** Factory that constructs a LinkedInApiClient given credentials. Default: real client. */
+  apiClientFactory?: LinkedInApiClientFactory;
+}
+
+/**
+ * @class LinkedInAdapter
+ * @description Publishes content to LinkedIn via the REST Posts API.
+ *   Supports personal profiles and organization pages.
+ */
+export class LinkedInAdapter implements ProviderAdapter {
   readonly id: ProviderId = "linkedin";
-
-  readonly metadata: ProviderMetadata = {
-    id: "linkedin",
-    name: "linkedin",
-    displayName: "LinkedIn",
-    description: "Publish posts and articles to LinkedIn profiles and company pages",
-    icon: "/providers/linkedin-icon.svg",
-    color: "#0A66C2",
-    website: "https://linkedin.com",
-    authType: "oauth",
-    requiredScopes: ["w_member_social", "w_organization_social", "openid", "profile"],
-    status: "active",
-  };
-
+  readonly limits: ProviderLimits = LINKEDIN_LIMITS;
+  readonly capabilities = LINKEDIN_CAPABILITIES;
+  readonly metadata: ProviderMetadata = LINKEDIN_METADATA;
   readonly constraints: ProviderConstraints = {};
 
-  readonly limits: ProviderLimits = {
-    maxChars: 3000,
-    allowedMedia: ["image", "video"],
-    aspectRatios: ["1:1", "4:5", "16:9", "9:16"],
-    maxMediaPerPost: 9,
-    threadingSupported: false,
-    rateLimitHints: { burst: 100, perSeconds: 86400 },
-  };
+  private readonly logger: Logger;
+  private readonly apiClientFactory: LinkedInApiClientFactory;
 
-  readonly capabilities = {
-    publish: true,
-    schedule: true,
-    analytics: true,
-    comments: true,
-    replies: true,
-    threading: false,
-  };
-
-  protected readonly requiredCredentialFields: (keyof LinkedInCredentials)[] = [
-    "accessToken",
-    "refreshToken",
-    "personUrn",
-  ];
-
-  /**
-   * @method getCredentialsFromEnvironment
-   * @description Reads LinkedIn credentials from environment variables.
-   * @returns Result with credentials or AUTH error
-   */
-  protected getCredentialsFromEnvironment(): Result<LinkedInCredentials, "AUTH"> {
-    const orgUrn = process.env.LINKEDIN_ORGANIZATION_URN;
-    const credentials: LinkedInCredentials = {
-      accessToken: process.env.LINKEDIN_ACCESS_TOKEN || "placeholder",
-      refreshToken: process.env.LINKEDIN_REFRESH_TOKEN || "placeholder",
-      personUrn: process.env.LINKEDIN_PERSON_URN || "placeholder",
-      ...(orgUrn ? { organizationUrn: orgUrn } : {}),
-    };
-
-    if (credentials.accessToken === "placeholder" || credentials.personUrn === "placeholder") {
-      return err("AUTH");
-    }
-
-    return ok(credentials);
+  constructor(deps: LinkedInAdapterDeps = {}) {
+    this.logger = deps.logger ?? pino({ name: "linkedin-adapter", level: "info" });
+    this.apiClientFactory = deps.apiClientFactory ?? defaultApiClientFactory;
   }
 
   /**
-   * @method createApiClient
-   * @description Creates a new LinkedInApiClient with the given credentials.
+   * @method validateCredentials
+   * @description Verifies that supplied credentials are well-formed and accepted
+   *   by LinkedIn. Used by ConnectChannel before persisting a channel.
    */
-  protected createApiClient(credentials: LinkedInCredentials): LinkedInApiClient {
-    return new LinkedInApiClient(credentials);
+  async validateCredentials(
+    credentials: unknown
+  ): Promise<Result<void, "AUTH_INVALID" | "AUTH_EXPIRED">> {
+    const validation = validateCredentialStructure<LinkedInCredentials>(
+      credentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
+      return err("AUTH_INVALID");
+    }
+
+    try {
+      const apiClient = this.apiClientFactory(validation.value);
+      const apiClientLike = apiClient as unknown as Record<string, unknown>;
+      if (typeof apiClientLike.validateCredentials === "function") {
+        await (apiClientLike.validateCredentials as () => Promise<void>)();
+      } else {
+        await apiClient.getProfile();
+      }
+      return ok(undefined);
+    } catch (error: unknown) {
+      this.logger.error({
+        provider: this.id,
+        operation: "validateCredentials",
+        error: error instanceof Error ? error.message : String(error),
+      });
+      if (
+        error instanceof Error &&
+        "status" in error &&
+        (error as Record<string, unknown>).status === 401
+      ) {
+        return err("AUTH_EXPIRED");
+      }
+      return err("AUTH_INVALID");
+    }
   }
 
   /**
    * @method render
    * @description Renders a canonical post into LinkedIn-specific format.
-   *              Supports text, media, polls, and document posts.
-   * @param canonical - The platform-agnostic post content
-   * @returns Rendered content ready for publishing
+   *   Supports text, media, polls, and document posts.
    */
-  override render(canonical: CanonicalPost): Result<RenderedContent, RenderError> {
+  render(canonical: CanonicalPost): Result<RenderedContent, RenderError> {
     const text = canonical.body || "";
 
     if (text.length > this.limits.maxChars) {
@@ -164,7 +204,7 @@ export class LinkedInAdapter extends AbstractProviderAdapter<LinkedInCredentials
    * @method planThread
    * @description LinkedIn does not support threading. Always returns an error.
    */
-  override planThread(_canonical: CanonicalPost): Result<ThreadPlan, ThreadError> {
+  planThread(_canonical: CanonicalPost): Result<ThreadPlan, ThreadError> {
     return err("THREAD_PLANNING_FAILED");
   }
 
@@ -172,8 +212,9 @@ export class LinkedInAdapter extends AbstractProviderAdapter<LinkedInCredentials
    * @method publishThread
    * @description LinkedIn does not support threading. Always returns an error.
    */
-  override async publishThread(
-    _input: ThreadPublishInput
+  async publishThread(
+    _input: ThreadPublishInput,
+    _credentials: unknown
   ): Promise<Result<ThreadReceipt, PublishError>> {
     return err("VALIDATION");
   }
@@ -181,19 +222,25 @@ export class LinkedInAdapter extends AbstractProviderAdapter<LinkedInCredentials
   /**
    * @method publish
    * @description Publishes a single post to LinkedIn. Handles media upload
-   *              (images/videos) via the 2-step upload flow before creating the post.
-   * @param input - The publish input containing channel, content, and dedupe key
-   * @returns Receipt with the LinkedIn post URN and URL
+   *   (images/videos/documents) before creating the post.
    */
-  override async publish(input: PublishInput): Promise<Result<PublishReceipt, PublishError>> {
-    const credentials = await this.getCredentials(input.channelId);
-    if (!credentials.ok) {
+  async publish(
+    input: PublishInput,
+    credentials: unknown
+  ): Promise<Result<PublishReceipt, PublishError>> {
+    const validation = validateCredentialStructure<LinkedInCredentials>(
+      credentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
       return err("AUTH");
     }
 
     try {
-      const apiClient = this.createApiClient(credentials.value);
-      const authorUrn = credentials.value.organizationUrn || credentials.value.personUrn;
+      const apiClient = this.apiClientFactory(validation.value);
+      const authorUrn = validation.value.organizationUrn || validation.value.personUrn;
 
       const payload: LinkedInPostPayload = {
         author: authorUrn,
@@ -250,35 +297,42 @@ export class LinkedInAdapter extends AbstractProviderAdapter<LinkedInCredentials
         publishedAt: new Date(),
       });
     } catch (error: unknown) {
-      this.logError("publish", error, { channelId: input.channelId });
+      this.logger.error({
+        provider: this.id,
+        operation: "publish",
+        channelId: input.channelId,
+        error: error instanceof Error ? error.message : String(error),
+      });
 
       if (error instanceof Error && error.message?.includes("Circuit breaker is OPEN")) {
         return err("NETWORK");
       }
 
-      return err(this.mapErrorToPublishError(error));
+      return err(mapErrorToPublishError(error));
     }
   }
 
   /**
    * @method fetchAnalytics
    * @description Fetches engagement analytics for a LinkedIn channel.
-   * @param q - Query containing channelId, since, and until
-   * @returns Analytics data or error
    */
-  override async fetchAnalytics(q: {
-    channelId: string;
-    since?: Date;
-    until?: Date;
-  }): Promise<Result<unknown, "AUTH" | "NETWORK">> {
-    const credentials = await this.getCredentials(q.channelId);
-    if (!credentials.ok) {
+  async fetchAnalytics(
+    q: { channelId: string; since?: Date; until?: Date },
+    credentials: unknown
+  ): Promise<Result<unknown, "AUTH" | "NETWORK">> {
+    const validation = validateCredentialStructure<LinkedInCredentials>(
+      credentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
       return err("AUTH");
     }
 
     try {
-      const apiClient = this.createApiClient(credentials.value);
-      const authorUrn = credentials.value.organizationUrn || credentials.value.personUrn;
+      const apiClient = this.apiClientFactory(validation.value);
+      const authorUrn = validation.value.organizationUrn || validation.value.personUrn;
       const analytics = await apiClient.getPostAnalytics(authorUrn);
 
       return ok({
@@ -295,7 +349,12 @@ export class LinkedInAdapter extends AbstractProviderAdapter<LinkedInCredentials
         },
       });
     } catch (error: unknown) {
-      this.logError("fetchAnalytics", error, { channelId: q.channelId });
+      this.logger.error({
+        provider: this.id,
+        operation: "fetchAnalytics",
+        channelId: q.channelId,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return err("NETWORK");
     }
   }
@@ -303,8 +362,6 @@ export class LinkedInAdapter extends AbstractProviderAdapter<LinkedInCredentials
   /**
    * @method getComments
    * @description Fetches comments on a LinkedIn post.
-   * @param params - Query parameters including credentials, post ID, cursor, limit
-   * @returns Paginated list of normalized comments
    */
   async getComments(params: {
     channelCredentials: unknown;
@@ -313,13 +370,18 @@ export class LinkedInAdapter extends AbstractProviderAdapter<LinkedInCredentials
     cursor?: string;
     limit?: number;
   }): Promise<Result<{ comments: ProviderComment[]; nextCursor?: string }, "AUTH" | "NETWORK">> {
-    const creds = params.channelCredentials as LinkedInCredentials;
-    if (!creds.accessToken || !creds.personUrn) {
+    const validation = validateCredentialStructure<LinkedInCredentials>(
+      params.channelCredentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
       return err("AUTH");
     }
 
     try {
-      const apiClient = new LinkedInApiClient(creds);
+      const apiClient = this.apiClientFactory(validation.value);
       const postUrn = params.postExternalId || "";
       const start = params.cursor ? parseInt(params.cursor, 10) : 0;
       const count = params.limit || 20;
@@ -343,7 +405,11 @@ export class LinkedInAdapter extends AbstractProviderAdapter<LinkedInCredentials
         ...(hasMore ? { nextCursor: String(nextStart) } : {}),
       });
     } catch (error: unknown) {
-      this.logError("getComments", error);
+      this.logger.error({
+        provider: this.id,
+        operation: "getComments",
+        error: error instanceof Error ? error.message : String(error),
+      });
       return err("NETWORK");
     }
   }
@@ -351,21 +417,24 @@ export class LinkedInAdapter extends AbstractProviderAdapter<LinkedInCredentials
   /**
    * @method postReply
    * @description Posts a reply comment on a LinkedIn post.
-   * @param params - The reply parameters including credentials, parent message ID, body
-   * @returns The created reply result
    */
   async postReply(params: {
     channelCredentials: unknown;
     inReplyToProviderMessageId: string;
     body: string;
   }): Promise<Result<ProviderReplyResult, "AUTH" | "NETWORK" | "RATE_LIMIT">> {
-    const creds = params.channelCredentials as LinkedInCredentials;
-    if (!creds.accessToken || !creds.personUrn) {
+    const validation = validateCredentialStructure<LinkedInCredentials>(
+      params.channelCredentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
       return err("AUTH");
     }
 
     try {
-      const apiClient = new LinkedInApiClient(creds);
+      const apiClient = this.apiClientFactory(validation.value);
       const postUrn = params.inReplyToProviderMessageId;
       const result = await apiClient.postComment(postUrn, params.body);
 
@@ -374,7 +443,11 @@ export class LinkedInAdapter extends AbstractProviderAdapter<LinkedInCredentials
         createdAt: new Date(result.created.time),
       });
     } catch (error: unknown) {
-      this.logError("postReply", error);
+      this.logger.error({
+        provider: this.id,
+        operation: "postReply",
+        error: error instanceof Error ? error.message : String(error),
+      });
 
       if (
         error instanceof Error &&
@@ -391,7 +464,7 @@ export class LinkedInAdapter extends AbstractProviderAdapter<LinkedInCredentials
   /**
    * @method parsePollTag
    * @description Parses a poll tag into structured poll data.
-   *              Format: "poll:DURATION:question|option1|option2|..."
+   *   Format: "poll:DURATION:question|option1|option2|..."
    */
   private parsePollTag(
     tag: string
@@ -435,5 +508,11 @@ export class LinkedInAdapter extends AbstractProviderAdapter<LinkedInCredentials
   }
 }
 
-// Export singleton instance for backward compatibility
-export const linkedInAdapter = new LinkedInAdapter();
+/**
+ * @function createLinkedInAdapter
+ * @description Factory used by the composition root to instantiate the adapter
+ *   with explicit dependencies (logger, optional apiClient factory for tests).
+ */
+export function createLinkedInAdapter(deps: LinkedInAdapterDeps = {}): LinkedInAdapter {
+  return new LinkedInAdapter(deps);
+}

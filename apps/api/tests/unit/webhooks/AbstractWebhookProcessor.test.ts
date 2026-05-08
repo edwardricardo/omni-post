@@ -1,6 +1,10 @@
 /**
  * AbstractWebhookProcessor Tests
  * TDD - RED Phase: Tests for the webhook processor base class
+ *
+ * @file AbstractWebhookProcessor.test.ts
+ * @description Tests for AbstractWebhookProcessor
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";

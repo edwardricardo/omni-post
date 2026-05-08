@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file scroll-area.tsx
+ * @description Radix-based ScrollArea with styled ScrollBar primitive for themed scrollable
+ *              containers.
+ * @component ScrollArea, ScrollBar
+ * @layer infrastructure
+ */
 import * as React from "react";
 import { ScrollArea as ScrollAreaPrimitive } from "radix-ui";
 

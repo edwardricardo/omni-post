@@ -1,3 +1,9 @@
+/**
+ * @file vitest.config.ts
+ * @description Vitest configuration for the queue-bullmq adapter — node environment,
+ *              forked pool, and local test file glob.
+ * @layer infrastructure
+ */
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({

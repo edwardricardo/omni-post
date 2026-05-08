@@ -15,7 +15,7 @@ import type {
   MLProvider,
   ContentType,
 } from "./types.js";
-import type { AIService } from "../../ai/aiService.js";
+import type { AIServicePort } from "../../domain/repositories/AIServicePort.js";
 import type { AnalyticsReadRepositoryPort } from "../../domain/repositories/AnalyticsReadRepository.js";
 
 const VALID_PROVIDERS: MLProvider[] = [
@@ -84,7 +84,7 @@ export class PredictOptimalTimingUseCase implements UseCase<
   UseCaseError
 > {
   constructor(
-    private readonly aiService?: AIService,
+    private readonly aiService?: AIServicePort,
     private readonly analyticsRepo?: AnalyticsReadRepositoryPort
   ) {}
 

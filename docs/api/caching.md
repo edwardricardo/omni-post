@@ -429,7 +429,6 @@ pnpm --filter @apps/api test tests/cache.test.ts
 
 ## References
 
-- [Redis Cache Adapter](/packages/adapters/cache-redis/src/index.ts)
-- [Cache Middleware](/packages/adapters/cache-redis/src/middleware.ts)
-- [Cache Events](/packages/adapters/cache-redis/src/events.ts)
-- [Performance Monitoring](/docs/observability/performance-monitoring.md)
+- [Redis Cache Adapter](../../packages/adapters/cache-redis/src/index.ts)
+- [Auto-cache Middleware](../../apps/api/src/middleware/autoCacheMiddleware.ts)
+- [Cache Manager (L1+L2)](../../packages/adapters/cache-redis/src/cache-manager.ts)

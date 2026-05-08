@@ -2,7 +2,7 @@
  * @file InboxLayout.tsx
  * @description Two-panel inbox layout. Left: filter sidebar + conversation list.
  *              Right: conversation thread or empty state when none selected.
- * @layer ui
+ * @layer infrastructure
  */
 
 "use client";

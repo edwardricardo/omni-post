@@ -1,3 +1,9 @@
+/**
+ * @file community.ts
+ * @description Facebook community management service — comments, messages, moderation actions,
+ *              and conversation handling via the Graph API.
+ * @layer infrastructure
+ */
 import { FacebookApiClient, FacebookCredentials } from "../apiClient.js";
 import { createLogger } from "@observability/logger";
 

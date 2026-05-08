@@ -8,6 +8,7 @@ import { promises as fs } from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
 import { createLogger } from "../lib/logger.js";
+import { env } from "../config/env.js";
 
 const videoLogger = createLogger("video");
 
@@ -119,7 +120,7 @@ export class VideoUploadPipeline {
   private readonly simulatedChunkDelayMs: number;
 
   constructor(simulatedChunkDelayMs?: number) {
-    this.tempDir = process.env.VIDEO_TEMP_DIR || "/tmp/claude/video-uploads";
+    this.tempDir = env.VIDEO_TEMP_DIR || "/tmp/claude/video-uploads";
     this.simulatedChunkDelayMs = simulatedChunkDelayMs ?? 100;
     this.ensureTempDir();
   }
@@ -695,6 +696,9 @@ export class VideoUploadPipeline {
           ...webhook.headers,
         },
         body: JSON.stringify(payload),
+        // Webhook delivery from BullMQ — 30s upper bound, well under default
+        // job lockDuration to avoid double-timeout.
+        signal: AbortSignal.timeout(30_000),
       });
     } catch (error) {
       videoLogger.warn({ err: error }, "Failed to send webhook notification");

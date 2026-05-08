@@ -14,7 +14,8 @@
     "@ports/core": "workspace:*",
     "@providers/shared": "workspace:*",
     "@shared/types": "workspace:*",
-    "image-size": "2.0.2"
+    "image-size": "2.0.2",
+    "pino": "10.3.1"
   },
   "scripts": {
     "test": "vitest run",

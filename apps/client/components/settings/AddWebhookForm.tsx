@@ -3,7 +3,7 @@
  * @component AddWebhookForm
  * @description Dialog form for adding a new Slack or Teams webhook configuration.
  *              Validates HTTPS URL and requires at least 1 event selected.
- * @layer ui
+ * @layer infrastructure
  */
 
 "use client";
@@ -74,19 +74,22 @@ export function AddWebhookForm({ onSubmit, onClose, isPending }: AddWebhookFormP
       aria-modal="true"
       aria-labelledby="add-webhook-title"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
     >
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+      <button
+        type="button"
+        aria-label="Close add webhook dialog"
+        className="absolute inset-0 cursor-default"
+        onClick={onClose}
+      />
+      <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
         <h3 id="add-webhook-title" className="text-base font-semibold text-gray-900">
           Add Webhook
         </h3>
 
         <div className="mt-4 space-y-4">
           {/* Channel */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">Channel</label>
+          <fieldset className="border-0 p-0 m-0 min-w-0">
+            <legend className="block text-xs font-medium text-gray-700 mb-1.5 p-0">Channel</legend>
             <div className="flex gap-3">
               {(["slack", "teams"] as const).map((c) => (
                 <label key={c} className="flex items-center gap-2 cursor-pointer">
@@ -104,7 +107,7 @@ export function AddWebhookForm({ onSubmit, onClose, isPending }: AddWebhookFormP
                 </label>
               ))}
             </div>
-          </div>
+          </fieldset>
 
           {/* Label */}
           <div>
@@ -136,6 +139,8 @@ export function AddWebhookForm({ onSubmit, onClose, isPending }: AddWebhookFormP
                 else setUrlError(null);
               }}
               placeholder="https://hooks.slack.com/services/…"
+              aria-invalid={urlError ? "true" : undefined}
+              aria-describedby={urlError ? "webhook-url-error" : undefined}
               className={[
                 "w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2",
                 urlError
@@ -143,14 +148,18 @@ export function AddWebhookForm({ onSubmit, onClose, isPending }: AddWebhookFormP
                   : "border-gray-200 focus:ring-indigo-500",
               ].join(" ")}
             />
-            {urlError && <p className="mt-1 text-xs text-red-600">{urlError}</p>}
+            {urlError && (
+              <p id="webhook-url-error" role="alert" className="mt-1 text-xs text-red-600">
+                {urlError}
+              </p>
+            )}
           </div>
 
           {/* Events */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-2">
+          <fieldset className="border-0 p-0 m-0 min-w-0">
+            <legend className="block text-xs font-medium text-gray-700 mb-2 p-0">
               Events (select at least 1)
-            </label>
+            </legend>
             <div className="space-y-2">
               {SUPPORTED_EVENTS.map((e) => (
                 <label key={e.value} className="flex items-center gap-2 cursor-pointer">
@@ -167,7 +176,7 @@ export function AddWebhookForm({ onSubmit, onClose, isPending }: AddWebhookFormP
             {events.length === 0 && (
               <p className="mt-1 text-xs text-amber-600">Select at least one event</p>
             )}
-          </div>
+          </fieldset>
         </div>
 
         <div className="mt-6 flex justify-end gap-3">

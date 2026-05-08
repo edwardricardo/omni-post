@@ -1,3 +1,9 @@
+/**
+ * @file apiClient.ts
+ * @description Instagram Graph API client wrapping authenticated HTTP calls for media container
+ *              creation, publishing, insights, and comment moderation with circuit breaker protection.
+ * @layer infrastructure
+ */
 import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
 import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
 import { isOk as _isOk, isErr, unwrap, AppError, type Result as _Result } from "@shared/types";

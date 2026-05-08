@@ -1,13 +1,25 @@
 /**
  * @file paymentAdapterFactory.ts
- * @description Factory that selects payment adapter based on PAYMENT_PROVIDER env var.
- *              Defaults to Stripe. Switching providers is a config change, not a code change.
+ * @description Factory that selects payment adapter based on a config.
+ *              Switching providers is a config change, not a code change. Required
+ *              provider secrets are validated at point of use; partial configuration
+ *              fails fast.
  * @layer infrastructure
  */
 
-import type { IPaymentAdapter, BillingPlan, BillingCycle } from "@ports/core";
+import type { PaymentAdapter, BillingPlan, BillingCycle } from "@ports/core";
+import { env } from "../../config/env.js";
 import { StripePaymentAdapter } from "./StripePaymentAdapter.js";
 import { PaddlePaymentAdapter } from "./PaddlePaymentAdapter.js";
+
+export interface PaymentAdapterFactoryConfig {
+  provider: "stripe" | "paddle" | "none";
+  stripeSecretKey?: string;
+  stripeWebhookSecret?: string;
+  paddleApiKey?: string;
+  paddleWebhookSecret?: string;
+  paddleSandbox?: boolean;
+}
 
 function buildPriceMap(prefix: string): Record<BillingPlan, Record<BillingCycle, string>> {
   return {
@@ -26,21 +38,55 @@ function buildPriceMap(prefix: string): Record<BillingPlan, Record<BillingCycle,
   };
 }
 
-export function createPaymentAdapter(): IPaymentAdapter {
-  const provider = process.env.PAYMENT_PROVIDER ?? "stripe";
+function configFromEnv(): PaymentAdapterFactoryConfig {
+  return {
+    provider: env.PAYMENT_PROVIDER,
+    ...(env.STRIPE_SECRET_KEY !== undefined && { stripeSecretKey: env.STRIPE_SECRET_KEY }),
+    ...(env.STRIPE_WEBHOOK_SECRET !== undefined && {
+      stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET,
+    }),
+    ...(env.PADDLE_API_KEY !== undefined && { paddleApiKey: env.PADDLE_API_KEY }),
+    ...(env.PADDLE_WEBHOOK_SECRET !== undefined && {
+      paddleWebhookSecret: env.PADDLE_WEBHOOK_SECRET,
+    }),
+    ...(env.PADDLE_SANDBOX !== undefined && { paddleSandbox: env.PADDLE_SANDBOX }),
+  };
+}
 
-  if (provider === "paddle") {
+export function createPaymentAdapter(
+  config: PaymentAdapterFactoryConfig = configFromEnv()
+): PaymentAdapter {
+  if (config.provider === "paddle") {
+    if (!config.paddleApiKey || !config.paddleWebhookSecret) {
+      throw new Error(
+        "PAYMENT_PROVIDER=paddle requires PADDLE_API_KEY and PADDLE_WEBHOOK_SECRET. " +
+          "Either provide both or set PAYMENT_PROVIDER=none."
+      );
+    }
     return new PaddlePaymentAdapter({
-      apiKey: process.env.PADDLE_API_KEY ?? "",
-      webhookSecret: process.env.PADDLE_WEBHOOK_SECRET ?? "",
-      sandbox: process.env.PADDLE_SANDBOX === "true",
+      apiKey: config.paddleApiKey,
+      webhookSecret: config.paddleWebhookSecret,
+      sandbox: config.paddleSandbox ?? false,
       prices: buildPriceMap("PADDLE"),
     });
   }
 
-  return new StripePaymentAdapter({
-    secretKey: process.env.STRIPE_SECRET_KEY ?? "",
-    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
-    prices: buildPriceMap("STRIPE"),
-  });
+  if (config.provider === "stripe") {
+    if (!config.stripeSecretKey || !config.stripeWebhookSecret) {
+      throw new Error(
+        "PAYMENT_PROVIDER=stripe requires STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET. " +
+          "Either provide both or set PAYMENT_PROVIDER=none."
+      );
+    }
+    return new StripePaymentAdapter({
+      secretKey: config.stripeSecretKey,
+      webhookSecret: config.stripeWebhookSecret,
+      prices: buildPriceMap("STRIPE"),
+    });
+  }
+
+  throw new Error(
+    `PAYMENT_PROVIDER=${config.provider} cannot construct a payment adapter. ` +
+      `Set PAYMENT_PROVIDER to "stripe" or "paddle" with the corresponding secrets.`
+  );
 }

@@ -2,7 +2,7 @@
  * @file mfaRoutes.test.ts
  * @description Unit tests for mfaRoutes. Uses in-memory mocked Prisma stores
  *              and a real Fastify instance to test MFA HTTP endpoint behavior.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";

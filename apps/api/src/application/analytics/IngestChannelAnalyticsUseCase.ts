@@ -10,6 +10,7 @@ import { type Result, ok, err } from "@shared/types";
 import type { ChannelRepository } from "../../domain/repositories/ChannelRepository.js";
 import type { AnalyticsWriteRepository } from "../../domain/repositories/AnalyticsWriteRepository.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import { ChannelId } from "../../domain/value-objects/EntityId.js";
 import type { ProviderAdapter } from "@ports/core";
 
 export interface IngestChannelAnalyticsInput {
@@ -57,9 +58,18 @@ export class IngestChannelAnalyticsUseCase {
   async execute(
     input: IngestChannelAnalyticsInput
   ): Promise<Result<IngestChannelAnalyticsOutput, IngestChannelAnalyticsError>> {
-    const channelResult = await this.channelRepository.findById({
-      value: input.channelId,
-    } as import("../../domain/value-objects/EntityId.js").ChannelId);
+    const channelIdResult = ChannelId.fromString(input.channelId);
+    if (!channelIdResult.ok) {
+      return err(
+        new IngestChannelAnalyticsError(
+          `Invalid channelId: ${input.channelId}`,
+          INGEST_ERRORS.CHANNEL_NOT_FOUND,
+          channelIdResult.error
+        )
+      );
+    }
+
+    const channelResult = await this.channelRepository.findById(channelIdResult.value);
     if (!channelResult.ok) {
       return err(
         new IngestChannelAnalyticsError(
@@ -85,11 +95,14 @@ export class IngestChannelAnalyticsUseCase {
     const since = input.since ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const until = new Date();
 
-    const analyticsResult = await adapter.fetchAnalytics({
-      channelId: input.channelId,
-      since,
-      until,
-    });
+    const analyticsResult = await adapter.fetchAnalytics(
+      {
+        channelId: input.channelId,
+        since,
+        until,
+      },
+      channel.credentials
+    );
 
     if (!analyticsResult.ok) {
       const errorType = analyticsResult.error;

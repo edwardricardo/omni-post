@@ -10,6 +10,10 @@
  * The circuit breaker is initialized at module level via
  * createExternalApiCircuitBreaker(). This is harmless because it only
  * creates an opossum instance + prom-client counters -- no network.
+ *
+ * @file index.test.ts
+ * @description Tests for createS3StorageAdapter — factory
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";

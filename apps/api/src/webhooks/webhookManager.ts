@@ -16,6 +16,7 @@ import { webhookLogger } from "../lib/logger.js";
 import { AppError } from "../lib/errors/AppError.js";
 import { z } from "zod";
 import { randomBytes } from "crypto";
+import { env } from "../config/env.js";
 
 // Webhook subscription schemas
 const CreateWebhookSubscriptionSchema = z.object({
@@ -114,8 +115,7 @@ export class WebhookManager {
 
     // Generate webhook URL if not provided
     const webhookUrl =
-      validated.webhookUrl ||
-      `${process.env.API_BASE_URL}/webhooks/${validated.provider.toLowerCase()}`;
+      validated.webhookUrl || `${env.API_BASE_URL}/webhooks/${validated.provider.toLowerCase()}`;
 
     // Generate secret key for signature verification
     const secretKey = this.generateSecretKey();
@@ -506,7 +506,7 @@ export class WebhookManager {
    * Generate setup instructions for webhook subscription
    */
   private generateSetupInstructions(subscription: { provider: string; verifyToken: string }) {
-    const baseUrl = process.env.API_BASE_URL || "https://your-api-domain.com";
+    const baseUrl = env.API_BASE_URL || "https://your-api-domain.com";
     const webhookUrl = `${baseUrl}/webhooks/${subscription.provider.toLowerCase()}`;
 
     const instructions: Record<string, unknown> = {

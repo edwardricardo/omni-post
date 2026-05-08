@@ -2,6 +2,10 @@
  * Constants tests
  * Pure unit tests for CacheKeys and CacheTTL constants — zero external deps.
  * Tier 0: no DB, no Redis, no network.
+ *
+ * @file constants.test.ts
+ * @description Tests for CacheKeys
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

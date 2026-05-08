@@ -1,3 +1,9 @@
+/**
+ * @file analytics.ts
+ * @description Advanced analytics and ML integration types — time ranges, metric identifiers,
+ *              and analytics shapes shared by admin and client analytics features.
+ * @layer domain
+ */
 // Advanced Analytics & ML Integration Types
 export type TimeRange = "7d" | "30d" | "90d" | "1y" | "custom";
 export type MetricType =

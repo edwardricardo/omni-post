@@ -1,3 +1,9 @@
+/**
+ * @file Button.stories.tsx
+ * @description Storybook stories for the Button component showcasing variants, sizes, and
+ *              icon integrations.
+ * @layer infrastructure
+ */
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { action } from "storybook/actions";
 import { Button } from "@packages/ui";

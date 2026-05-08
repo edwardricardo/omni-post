@@ -1,3 +1,9 @@
+/**
+ * @file authService.ts
+ * @description TikTok OAuth and Login Kit authentication service — handles authorization code
+ *              exchange, token refresh, and signed-request verification.
+ * @layer infrastructure
+ */
 import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
 import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
 import { ProviderError } from "@providers/shared";

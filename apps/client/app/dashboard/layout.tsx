@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file layout.tsx
+ * @description Dashboard layout wrapping authenticated pages with navigation, announcement banner,
+ *              user menu, and project context provider.
+ * @component DashboardLayout
+ * @layer infrastructure
+ */
 import { useAuth } from "@/lib/auth/authContext";
 import { ProjectProvider } from "@/providers/ProjectProvider";
 import { AnnouncementBanner } from "@/components/announcements/AnnouncementBanner";
@@ -167,8 +174,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black bg-opacity-25 lg:hidden"
+        <button
+          type="button"
+          aria-label="Close sidebar"
+          className="fixed inset-0 z-40 bg-black bg-opacity-25 lg:hidden cursor-default"
           onClick={() => setSidebarOpen(false)}
         />
       )}

@@ -1,0 +1,16 @@
+# Squawk: PostgreSQL migration linter.
+# Lints `prisma migrate diff` SQL output before apply.
+#
+# Default behavior: lint all rules at "warning" level.
+# Override per-rule severity below.
+#
+# Reference: https://squawkhq.com/docs/
+
+excluded_rules = [
+  # Prisma generates DEFAULT NULL on nullable columns naturally; this rule
+  # is for legacy hand-rolled SQL where DEFAULT NULL was a smell.
+  "adding-required-field",
+]
+
+# Pin assume_in_transaction since Prisma wraps all migrations in a transaction.
+assume_in_transaction = true

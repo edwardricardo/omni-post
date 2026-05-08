@@ -2,8 +2,11 @@
 
 /**
  * @file RecommendationsList.tsx
- * @description Filterable list of AI-generated content recommendations, grouped by
+ * @description Filterable list of heuristic content recommendations, grouped by
  * category (timing, content, hashtags, audience) with one-click apply actions.
+ * Recommendations are derived from the analytics data via rule-based thresholds
+ * (no ML / no AI model); the label is intentionally neutral.
+ * @layer infrastructure
  */
 
 import React, { useMemo, useCallback } from "react";
@@ -18,9 +21,8 @@ interface RecommendationsListProps {
 
 /**
  * @component RecommendationsList
- * @description Filterable list of AI-generated content recommendations grouped by
+ * @description Filterable list of heuristic content recommendations grouped by
  * category (timing, content, hashtags, audience) with one-click apply actions.
- * @param props.onApplyRecommendation - Callback fired when user applies a recommendation
  */
 export function RecommendationsList({
   recommendations,
@@ -43,7 +45,7 @@ export function RecommendationsList({
   return (
     <div className="bg-white rounded-lg border p-6">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-medium">🎯 AI Recommendations</h3>
+        <h3 className="text-lg font-medium">🎯 Smart Recommendations</h3>
         <div className="flex space-x-2">
           {(["all", "timing", "content", "hashtags", "audience"] as const).map((category) => (
             <button

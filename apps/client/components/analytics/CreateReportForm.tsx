@@ -1,7 +1,7 @@
 /**
  * @file CreateReportForm.tsx
  * @description Dialog form for creating a new scheduled report.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

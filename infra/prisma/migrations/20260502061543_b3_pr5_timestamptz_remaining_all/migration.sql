@@ -1,0 +1,291 @@
+-- B3 PR-5: remaining models — DateTime → TIMESTAMPTZ(6) migration (final pass).
+--
+-- Closes the schema-wide TIMESTAMPTZ migration. After this PR, every Prisma
+-- DateTime field maps to TIMESTAMPTZ(6) except the documented carve-outs
+-- (AnalyticsDailySummary.date, AnalyticsMonthlySummary.month — calendar
+-- dates with @db.Date, no time-of-day or timezone semantics).
+--
+-- Affected models (~42): Analytics, Instagram*, TemplateAnalytics, ABTest,
+-- Reports, AI/ML, Approval workflows, Social messaging, Video processing,
+-- Notifications, GDPR/Compliance, CRM, sagas, etc.
+--
+-- 157 columns flipped. Canon no-rewrite optimization (PG 9.2+, session UTC).
+
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '90s';
+SET LOCAL TIMEZONE = 'UTC';
+
+-- AlterTable
+ALTER TABLE "ABTest" ALTER COLUMN "startDate" TYPE TIMESTAMPTZ(6) USING "startDate" AT TIME ZONE 'UTC',
+ALTER COLUMN "endDate" TYPE TIMESTAMPTZ(6) USING "endDate" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "AIPromptTemplate" ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "AccountOnboarding" ALTER COLUMN "completedAt" TYPE TIMESTAMPTZ(6) USING "completedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "dismissedAt" TYPE TIMESTAMPTZ(6) USING "dismissedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "AiTokenUsage" ALTER COLUMN "usedAt" TYPE TIMESTAMPTZ(6) USING "usedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "Analytics" ALTER COLUMN "capturedAt" TYPE TIMESTAMPTZ(6) USING "capturedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "ApprovalRequest" ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "ApprovalReview" ALTER COLUMN "reviewedAt" TYPE TIMESTAMPTZ(6) USING "reviewedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "ApprovalWorkflow" ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "ApprovalWorkflowLevel" ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "AssetFolder" ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "AssetTag" ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "BrandKit" ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "BrandVoice" ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "ConsentRecord" ALTER COLUMN "acceptedAt" TYPE TIMESTAMPTZ(6) USING "acceptedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "withdrawnAt" TYPE TIMESTAMPTZ(6) USING "withdrawnAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "ConversationNote" ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "deletedAt" TYPE TIMESTAMPTZ(6) USING "deletedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "CrmActivity" ALTER COLUMN "occurredAt" TYPE TIMESTAMPTZ(6) USING "occurredAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "syncedAt" TYPE TIMESTAMPTZ(6) USING "syncedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "CrmConnection" ALTER COLUMN "tokenExpiresAt" TYPE TIMESTAMPTZ(6) USING "tokenExpiresAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "lastSyncAt" TYPE TIMESTAMPTZ(6) USING "lastSyncAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "CrmContact" ALTER COLUMN "syncedAt" TYPE TIMESTAMPTZ(6) USING "syncedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "CrmSyncLog" ALTER COLUMN "startedAt" TYPE TIMESTAMPTZ(6) USING "startedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "completedAt" TYPE TIMESTAMPTZ(6) USING "completedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "CustomReport" ALTER COLUMN "dateRangeStart" TYPE TIMESTAMPTZ(6) USING "dateRangeStart" AT TIME ZONE 'UTC',
+ALTER COLUMN "dateRangeEnd" TYPE TIMESTAMPTZ(6) USING "dateRangeEnd" AT TIME ZONE 'UTC',
+ALTER COLUMN "shareExpiresAt" TYPE TIMESTAMPTZ(6) USING "shareExpiresAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "DataBreachReport" ALTER COLUMN "discoveredAt" TYPE TIMESTAMPTZ(6) USING "discoveredAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "reportedAt" TYPE TIMESTAMPTZ(6) USING "reportedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "notificationSentAt" TYPE TIMESTAMPTZ(6) USING "notificationSentAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "regulatoryReportedAt" TYPE TIMESTAMPTZ(6) USING "regulatoryReportedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "resolvedAt" TYPE TIMESTAMPTZ(6) USING "resolvedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "ExternalNotificationConfig" ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "FirstComment" ALTER COLUMN "publishedAt" TYPE TIMESTAMPTZ(6) USING "publishedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "GdprSettings" ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "GeneratedImage" ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "InstagramAnalytics" ALTER COLUMN "capturedAt" TYPE TIMESTAMPTZ(6) USING "capturedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "periodStart" TYPE TIMESTAMPTZ(6) USING "periodStart" AT TIME ZONE 'UTC',
+ALTER COLUMN "periodEnd" TYPE TIMESTAMPTZ(6) USING "periodEnd" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "InstagramStory" ALTER COLUMN "publishedAt" TYPE TIMESTAMPTZ(6) USING "publishedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "expiresAt" TYPE TIMESTAMPTZ(6) USING "expiresAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "InstagramStoryProject" ALTER COLUMN "scheduledAt" TYPE TIMESTAMPTZ(6) USING "scheduledAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "startedAt" TYPE TIMESTAMPTZ(6) USING "startedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "completedAt" TYPE TIMESTAMPTZ(6) USING "completedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "lastErrorAt" TYPE TIMESTAMPTZ(6) USING "lastErrorAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "IntegrationApiKey" ALTER COLUMN "lastUsedAt" TYPE TIMESTAMPTZ(6) USING "lastUsedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "revokedAt" TYPE TIMESTAMPTZ(6) USING "revokedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "IntegrationSubscription" ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "MediaAsset" ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "deletedAt" TYPE TIMESTAMPTZ(6) USING "deletedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "Notification" ALTER COLUMN "readAt" TYPE TIMESTAMPTZ(6) USING "readAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "NotificationPreference" ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "PlatformEncryptionKey" ALTER COLUMN "rotatedAt" TYPE TIMESTAMPTZ(6) USING "rotatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "ProjectMember" ALTER COLUMN "assignedAt" TYPE TIMESTAMPTZ(6) USING "assignedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "ReportSchedule" ALTER COLUMN "lastRunAt" TYPE TIMESTAMPTZ(6) USING "lastRunAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "nextRunAt" TYPE TIMESTAMPTZ(6) USING "nextRunAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "RepurposeProposal" ALTER COLUMN "detectedAt" TYPE TIMESTAMPTZ(6) USING "detectedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "reviewedAt" TYPE TIMESTAMPTZ(6) USING "reviewedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "Role" ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "RolePermission" ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "SagaInstance" ALTER COLUMN "startedAt" TYPE TIMESTAMPTZ(6) USING "startedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "completedAt" TYPE TIMESTAMPTZ(6) USING "completedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "ScheduledReport" ALTER COLUMN "lastRunAt" TYPE TIMESTAMPTZ(6) USING "lastRunAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "nextRunAt" TYPE TIMESTAMPTZ(6) USING "nextRunAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "SecuritySettings" ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "SocialConversation" ALTER COLUMN "lastMessageAt" TYPE TIMESTAMPTZ(6) USING "lastMessageAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "resolvedAt" TYPE TIMESTAMPTZ(6) USING "resolvedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "SocialMessage" ALTER COLUMN "aiProcessedAt" TYPE TIMESTAMPTZ(6) USING "aiProcessedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "providerCreatedAt" TYPE TIMESTAMPTZ(6) USING "providerCreatedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "SocialOutboundReply" ALTER COLUMN "sentAt" TYPE TIMESTAMPTZ(6) USING "sentAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "SystemAnnouncement" ALTER COLUMN "startsAt" TYPE TIMESTAMPTZ(6) USING "startsAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "endsAt" TYPE TIMESTAMPTZ(6) USING "endsAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "Template" ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "deletedAt" TYPE TIMESTAMPTZ(6) USING "deletedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "TemplateAnalytics" ALTER COLUMN "startDate" TYPE TIMESTAMPTZ(6) USING "startDate" AT TIME ZONE 'UTC',
+ALTER COLUMN "endDate" TYPE TIMESTAMPTZ(6) USING "endDate" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "TemplateCollaboration" ALTER COLUMN "invitedAt" TYPE TIMESTAMPTZ(6) USING "invitedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "acceptedAt" TYPE TIMESTAMPTZ(6) USING "acceptedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "lastActiveAt" TYPE TIMESTAMPTZ(6) USING "lastActiveAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "TemplateCommit" ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "TemplateComponent" ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "TemplateUsageEvent" ALTER COLUMN "timestamp" TYPE TIMESTAMPTZ(6) USING "timestamp" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "TemplateVersion" ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "TrendRadarResult" ALTER COLUMN "fetchedAt" TYPE TIMESTAMPTZ(6) USING "fetchedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "expiresAt" TYPE TIMESTAMPTZ(6) USING "expiresAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "UsageMetric" ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "VideoProcessingJob" ALTER COLUMN "startedAt" TYPE TIMESTAMPTZ(6) USING "startedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "completedAt" TYPE TIMESTAMPTZ(6) USING "completedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "lastErrorAt" TYPE TIMESTAMPTZ(6) USING "lastErrorAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "VideoSegment" ALTER COLUMN "publishedAt" TYPE TIMESTAMPTZ(6) USING "publishedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "WebhookDeadLetter" ALTER COLUMN "firstFailedAt" TYPE TIMESTAMPTZ(6) USING "firstFailedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "lastRetryAt" TYPE TIMESTAMPTZ(6) USING "lastRetryAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "resolvedAt" TYPE TIMESTAMPTZ(6) USING "resolvedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "archivedAt" TYPE TIMESTAMPTZ(6) USING "archivedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';
+
+-- AlterTable
+ALTER TABLE "WebhookEvent" ALTER COLUMN "nextRetryAt" TYPE TIMESTAMPTZ(6) USING "nextRetryAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "receivedAt" TYPE TIMESTAMPTZ(6) USING "receivedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "processedAt" TYPE TIMESTAMPTZ(6) USING "processedAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "createdAt" TYPE TIMESTAMPTZ(6) USING "createdAt" AT TIME ZONE 'UTC',
+ALTER COLUMN "updatedAt" TYPE TIMESTAMPTZ(6) USING "updatedAt" AT TIME ZONE 'UTC';

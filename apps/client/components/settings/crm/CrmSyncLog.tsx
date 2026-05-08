@@ -2,7 +2,7 @@
  * @file CrmSyncLog.tsx
  * @component CrmSyncLog
  * @description Sync history log for a CRM connection.
- * @layer client-components
+ * @layer infrastructure
  */
 
 "use client";

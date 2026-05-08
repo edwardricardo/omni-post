@@ -41,7 +41,9 @@ export function useReports(projectId: string | undefined) {
       const params = new URLSearchParams({
         ...(projectId !== undefined && { projectId }),
       });
-      const response = await fetch(`/api/backend/reports?${params.toString()}`);
+      const response = await fetch(`/api/backend/reports?${params.toString()}`, {
+        credentials: "include",
+      });
       if (!response.ok) throw new Error("Failed to fetch reports");
       const data = (await response.json()) as {
         ok: boolean;
@@ -67,6 +69,7 @@ export function useCreateReport() {
     mutationFn: async (input: CreateReportInput): Promise<void> => {
       const response = await fetch("/api/backend/reports", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
       });
@@ -95,6 +98,7 @@ export function useDeleteReport() {
     mutationFn: async (id: string): Promise<void> => {
       const response = await fetch(`/api/backend/reports/${id}`, {
         method: "DELETE",
+        credentials: "include",
       });
       if (!response.ok) {
         const err = (await response.json().catch(() => ({ error: "Failed to delete report" }))) as {
@@ -119,6 +123,7 @@ export function useGenerateReport() {
     mutationFn: async (id: string): Promise<void> => {
       const response = await fetch(`/api/backend/reports/${id}/generate`, {
         method: "POST",
+        credentials: "include",
       });
       if (!response.ok) {
         const err = (await response

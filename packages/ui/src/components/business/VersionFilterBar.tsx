@@ -1,12 +1,14 @@
 /**
- * VersionFilterBar -- advanced filtering controls for ContentVersioning.
- *
- * Renders filter-by-author, filter-by-change-type, filter-by-status, and
- * sort-by selectors.  Also renders the "N versions selected" action bar
- * when versions are checked via the compact view.
+ * @file VersionFilterBar.tsx
+ * @description Advanced filter controls (author, change type, status, sort) and selection action
+ *              bar for ContentVersioning.
+ * @component VersionFilterBar
+ * @layer infrastructure
  */
 
 "use client";
+
+import { useId } from "react";
 
 import type { ContentVersion } from "./contentVersioningTypes";
 import { getAuthorName } from "./contentVersioningTypes";
@@ -44,11 +46,19 @@ export function VersionFilterBar({
   onFilterChange,
   onSortChange,
 }: VersionFilterBarProps) {
+  const authorFilterId = useId();
+  const changeTypeFilterId = useId();
+  const statusFilterId = useId();
+  const sortById = useId();
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Author</label>
+        <label htmlFor={authorFilterId} className="block text-sm font-medium text-gray-700 mb-1">
+          Filter by Author
+        </label>
         <select
+          id={authorFilterId}
           value={filterBy.author || ""}
           onChange={(e) =>
             onFilterChange({
@@ -68,10 +78,14 @@ export function VersionFilterBar({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label
+          htmlFor={changeTypeFilterId}
+          className="block text-sm font-medium text-gray-700 mb-1"
+        >
           Filter by Change Type
         </label>
         <select
+          id={changeTypeFilterId}
           value={filterBy.changeType || ""}
           onChange={(e) =>
             onFilterChange({
@@ -90,8 +104,11 @@ export function VersionFilterBar({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
+        <label htmlFor={statusFilterId} className="block text-sm font-medium text-gray-700 mb-1">
+          Filter by Status
+        </label>
         <select
+          id={statusFilterId}
           value={filterBy.status || ""}
           onChange={(e) =>
             onFilterChange({
@@ -110,8 +127,11 @@ export function VersionFilterBar({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
+        <label htmlFor={sortById} className="block text-sm font-medium text-gray-700 mb-1">
+          Sort By
+        </label>
         <select
+          id={sortById}
           value={sortBy}
           onChange={(e) => onSortChange(e.target.value as SortMode)}
           className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"

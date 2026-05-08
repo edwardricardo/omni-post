@@ -3,14 +3,17 @@
  * @description Mutation-killing tests for SlidingWindowRateLimit. Targets all
  *   survived mutants: boundary conditions, exact return values, operator
  *   replacements, conditional negations, and string literal mutations.
- * @layer unit
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import {
   SlidingWindowRateLimit,
   SlidingWindowConfigs,
 } from "../../src/security/slidingWindowRateLimit.js";
+
+const testScheduler = new NoopBackgroundTaskScheduler();
 
 // ---------------------------------------------------------------------------
 // Mock factories
@@ -135,7 +138,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("applies default precision of 10 when not provided", () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -146,7 +149,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("applies default enableGeoBlocking true when not provided", () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -156,7 +159,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("applies default enableUserAgentTracking true when not provided", () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -166,7 +169,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("applies default enableProgressiveBlocking true when not provided", () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -176,7 +179,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("overrides precision when explicitly provided", () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         precision: 20,
@@ -187,7 +190,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("preserves skipList when provided", () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         skipList: ["/health"],
@@ -198,7 +201,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("does not set skipList when not provided", () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -209,7 +212,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
       const kg = () => "custom-key";
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         keyGenerator: kg,
@@ -221,7 +224,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
       const cb = vi.fn();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         onLimitReached: cb,
@@ -232,7 +235,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("registers Redis error handler on construction", () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -251,7 +254,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         get: vi.fn(async () => futureTs),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -273,7 +276,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         get: vi.fn(async () => String(Date.now() - 1)),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -288,7 +291,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         get: vi.fn(async () => String(Date.now() - 10000)),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -303,7 +306,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         get: vi.fn(async () => null),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -330,7 +333,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         exec: vi.fn(async () => null),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 5,
       });
@@ -363,7 +366,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         ]),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 5,
       });
@@ -394,7 +397,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         ]),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -427,7 +430,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         ]),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -462,7 +465,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         ]),
       });
       const metrics = createMockMetrics();
-      const lim = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      const lim = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests,
         enableProgressiveBlocking: false,
@@ -539,7 +542,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         ]),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         onLimitReached,
@@ -556,7 +559,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
       const onLimitReached = vi.fn();
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         onLimitReached,
@@ -585,7 +588,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         ]),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 5,
         enableProgressiveBlocking: true,
@@ -616,7 +619,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         ]),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 5,
         enableProgressiveBlocking: false,
@@ -640,7 +643,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         }),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 30000,
         maxRequests: 7,
       });
@@ -686,7 +689,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         ]),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -710,7 +713,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
       const keyGen = vi.fn(() => "custom:my-key");
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         keyGenerator: keyGen,
@@ -725,7 +728,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("includes ua fingerprint when enableUserAgentTracking is true", async () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         enableUserAgentTracking: true,
@@ -740,7 +743,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("excludes ua fingerprint when enableUserAgentTracking is false", async () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         enableUserAgentTracking: false,
@@ -755,7 +758,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("uses unknown for user-agent when header is missing", async () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         enableUserAgentTracking: false,
@@ -775,7 +778,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("returns first IP from x-forwarded-for with multiple IPs", async () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         enableUserAgentTracking: false,
@@ -795,7 +798,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("returns single IP from x-forwarded-for", async () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         enableUserAgentTracking: false,
@@ -814,7 +817,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("uses x-real-ip when x-forwarded-for is absent", async () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         enableUserAgentTracking: false,
@@ -833,7 +836,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("uses cf-connecting-ip when other headers absent", async () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         enableUserAgentTracking: false,
@@ -852,7 +855,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("falls back to socket.remoteAddress", async () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         enableUserAgentTracking: false,
@@ -872,7 +875,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("returns unknown when no IP source available", async () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         enableUserAgentTracking: false,
@@ -898,7 +901,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("returns null for Bearer token so key has no user segment", async () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         enableUserAgentTracking: false,
@@ -917,7 +920,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("returns null when no authorization header", async () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         enableUserAgentTracking: false,
@@ -932,7 +935,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("returns null for non-Bearer authorization", async () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         enableUserAgentTracking: false,
@@ -957,7 +960,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("replaces version numbers with X so different versions match", () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -971,7 +974,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("removes special characters from fingerprint", () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -984,7 +987,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("truncates to 50 chars before encoding", () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -998,7 +1001,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("returns base64-encoded string sliced to 16 chars", () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -1033,7 +1036,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         ]),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -1069,7 +1072,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         ]),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -1105,7 +1108,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         ]),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -1147,7 +1150,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         ]),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         enableProgressiveBlocking: false,
@@ -1180,7 +1183,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         ]),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         enableProgressiveBlocking: false,
@@ -1211,7 +1214,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         ]),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         enableProgressiveBlocking: false,
@@ -1246,7 +1249,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         ]),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         enableProgressiveBlocking: false,
@@ -1275,7 +1278,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         incr: vi.fn(async () => violationNumber),
       });
       const metrics = createMockMetrics();
-      const lim = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      const lim = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 5,
       });
@@ -1322,7 +1325,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         incr: vi.fn(async () => 1),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 5,
       });
@@ -1341,7 +1344,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("clears map when size exceeds 10000", () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -1359,7 +1362,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("does not clear map when size is exactly 10000", () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -1377,7 +1380,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("does not clear map when size is below 10000", () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -1397,25 +1400,27 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
   // =========================================================================
 
   describe("destroy", () => {
-    it("clears cleanup timer", () => {
+    it("unregisters the cleanup task from the scheduler", () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      const scheduler = new NoopBackgroundTaskScheduler();
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, scheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
 
-      expect((limiter as any).cleanupTimer).not.toBeNull();
+      const taskId = (limiter as any).taskId as string;
+      expect(scheduler.getActiveTasks().includes(taskId)).toBe(true);
 
       limiter.destroy();
 
-      expect((limiter as any).cleanupTimer).toBeNull();
+      expect(scheduler.getActiveTasks().includes(taskId)).toBe(false);
     });
 
     it("clears suspiciousPatterns map", () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -1432,14 +1437,16 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("is safe to call multiple times", () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      const scheduler = new NoopBackgroundTaskScheduler();
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, scheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
+      const taskId = (limiter as any).taskId as string;
 
       limiter.destroy();
       expect(() => limiter.destroy()).not.toThrow();
-      expect((limiter as any).cleanupTimer).toBeNull();
+      expect(scheduler.getActiveTasks().includes(taskId)).toBe(false);
     });
   });
 
@@ -1451,7 +1458,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("skips rate limiting for paths matching skipList", async () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 5,
         skipList: ["/health", "/metrics"],
@@ -1487,7 +1494,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("does not skip for paths not in skipList", async () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 100,
         skipList: ["/health"],
@@ -1517,7 +1524,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
     it("sets all rate limit headers on allowed request", async () => {
       const redis = createMockRedis();
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
       });
@@ -1570,7 +1577,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         ]),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 5,
         enableProgressiveBlocking: false,
@@ -1626,7 +1633,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         }),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 5,
       });
@@ -1670,7 +1677,7 @@ describe("SlidingWindowRateLimit - mutation killing", () => {
         ]),
       });
       const metrics = createMockMetrics();
-      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, {
+      limiter = new SlidingWindowRateLimit(redis as any, metrics as any, testScheduler, {
         windowMs: 60000,
         maxRequests: 10,
         enableProgressiveBlocking: false,

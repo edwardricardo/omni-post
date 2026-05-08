@@ -1,3 +1,9 @@
+/**
+ * @file shop.catalog.ts
+ * @description Facebook Shop catalog service — creates and manages product catalogs, products,
+ *              product variants, and collections via the Graph API.
+ * @layer infrastructure
+ */
 import { FacebookApiClient, FacebookCredentials } from "../apiClient.js";
 import { AppError } from "@shared/types";
 import { createLogger } from "@observability/logger";

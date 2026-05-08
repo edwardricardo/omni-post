@@ -19,6 +19,10 @@
  *                         requestId: "...", timestamp: "..." } }
  *
  * @module tests/unit/authRateLimit
+ *
+ * @file authRateLimit.test.ts
+ * @description Tests for Auth endpoint rate limiting
+ * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";

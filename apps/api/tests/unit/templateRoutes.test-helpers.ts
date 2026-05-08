@@ -1,3 +1,8 @@
+/**
+ * @file templateRoutes.test-helpers.ts
+ * @description Test helpers for template routes test helpers
+ * @layer infrastructure
+ */
 import { vi } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import { templateRoutes } from "../../src/templates/templateRoutes.js";

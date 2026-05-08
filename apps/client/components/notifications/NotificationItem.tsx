@@ -3,7 +3,7 @@
  * @description Single notification row rendered inside the notification bell dropdown.
  *              Shows: colored type dot, title, truncated body, time-ago, and navigates
  *              to the relevant resource on click.
- * @layer ui
+ * @layer infrastructure
  */
 
 "use client";
@@ -31,15 +31,15 @@ function getTarget(notification: NotificationItemType): string {
   const postId = notification.metadata?.postId as string | undefined;
   switch (notification.type) {
     case "APPROVAL_REQUESTED":
-      return "/admin/approvals";
+      return "/dashboard/approvals";
     case "POST_APPROVED":
     case "POST_REJECTED":
     case "COMMENT_ADDED":
     case "COMMENT_REPLY":
     case "MENTION":
-      return postId ? `/admin/posts/${postId}` : "/admin/posts";
+      return postId ? `/dashboard/posts/${postId}` : "/dashboard/posts";
     default:
-      return "/admin";
+      return "/dashboard";
   }
 }
 

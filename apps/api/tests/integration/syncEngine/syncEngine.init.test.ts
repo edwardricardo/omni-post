@@ -8,7 +8,7 @@
  * - Unidirectional / bidirectional channel creation
  * - Duplicate channel rejection, same-source/target validation
  * - Redis storage of channel config, initial health status
- * @layer integration
+ * @layer infrastructure
  */
 
 import { describe, it, before, after, beforeEach } from "node:test";

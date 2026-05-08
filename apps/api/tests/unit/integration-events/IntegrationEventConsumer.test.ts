@@ -11,6 +11,10 @@
  * - Worker lifecycle (start/stop) is tested by inspecting `isRunning` only
  *   when the Worker creation can be avoided (i.e., we do NOT call start() in
  *   Tier-0 tests to avoid needing Redis).
+ *
+ * @file IntegrationEventConsumer.test.ts
+ * @description Tests for IntegrationEventConsumer — routing
+ * @layer infrastructure
  */
 
 import { describe, it, expect } from "vitest";

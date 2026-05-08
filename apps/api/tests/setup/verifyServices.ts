@@ -3,6 +3,10 @@
  *
  * Verifies that all required services are running on expected ports.
  * If services are not running, attempts to start them via Docker.
+ *
+ * @file verifyServices.ts
+ * @description Tests for verify services
+ * @layer infrastructure
  */
 
 import { exec, execSync } from "node:child_process";

@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @file switch.tsx
+ * @description Radix-based Switch component styled as a toggle with checked/unchecked colour
+ *              states and focus-visible ring.
+ * @component Switch
+ * @layer infrastructure
+ */
 import * as React from "react";
 import { Switch as SwitchPrimitives } from "radix-ui";
 

@@ -5,6 +5,9 @@
  *   injection — no module-level singleton.
  * @layer infrastructure
  */
+import { createHash } from "node:crypto";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+import type { CachePort } from "@ports/core";
 import {
   AIProvider,
   AITask,
@@ -26,19 +29,36 @@ const aiLogger = logger.child({ module: "ai" });
 import { OpenAIProvider } from "./providers/openai.js";
 import { PerplexityProvider } from "./providers/perplexity.js";
 import { GeminiProvider } from "./providers/gemini.js";
+import { env } from "../config/env.js";
 
 /** Callback invoked after each successful AI request with token usage */
 type TokenUsageCallback = (provider: string, tokens: number) => Promise<void>;
 
-interface CacheEntry<T> {
-  data: T;
-  timestamp: number;
-  ttl: number;
-}
-
 interface CacheHitStats {
   hits: number;
   misses: number;
+}
+
+/**
+ * Prompt template version embedded in cache keys. Bump when prompts change to
+ * auto-orphan cached responses. Canon: amitkoth, AWS LLM caching — version
+ * tokens prevent serving stale outputs after upgrades.
+ */
+const PROMPT_TEMPLATE_VERSION = "v1";
+
+/**
+ * Stable JSON stringify — sorts object keys recursively so semantically
+ * equivalent inputs produce identical cache keys. Avoids the
+ * `JSON.stringify({a,b}) !== JSON.stringify({b,a})` cache-miss footgun.
+ */
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return "[" + value.map(stableStringify).join(",") + "]";
+  const keys = Object.keys(value as Record<string, unknown>).sort();
+  const entries = keys.map(
+    (k) => JSON.stringify(k) + ":" + stableStringify((value as Record<string, unknown>)[k])
+  );
+  return "{" + entries.join(",") + "}";
 }
 
 /**
@@ -48,7 +68,6 @@ interface CacheHitStats {
  */
 export class AIOrchestrator {
   private providers: Map<string, AIProvider> = new Map();
-  private cache: Map<string, CacheEntry<unknown>> = new Map();
   private cacheHitStats: CacheHitStats = { hits: 0, misses: 0 };
   private usageMetrics: Map<string, AIUsageMetrics> = new Map();
   private rateLimits: Map<string, { requests: number; tokens: number; resetTime: number }> =
@@ -57,10 +76,15 @@ export class AIOrchestrator {
   /**
    * @constructor
    * @param providers - Pre-built provider map (use AIProviderFactory to create)
+   * @param scheduler - Registers the rate-limit-reset background task. Required.
+   * @param cache - Distributed cache port for AI response caching. L1+L2 tier
+   *   handled by the underlying RedisCacheAdapter; cross-pod hit rate.
    * @param onTokensUsed - Optional callback invoked after each successful request
    */
   constructor(
     providers: Map<string, AIProvider>,
+    private readonly scheduler: BackgroundTaskScheduler,
+    private readonly cache: CachePort,
     private readonly onTokensUsed?: TokenUsageCallback
   ) {
     this.providers = providers;
@@ -72,15 +96,15 @@ export class AIOrchestrator {
    * @description Creates an orchestrator from environment variables.
    * @deprecated Use AIProviderFactory + constructor injection instead.
    */
-  static createFromEnv(): AIOrchestrator {
+  static createFromEnv(scheduler: BackgroundTaskScheduler, cache: CachePort): AIOrchestrator {
     const providers = new Map<string, AIProvider>();
 
-    if (process.env.OPENAI_API_KEY) {
+    if (env.OPENAI_API_KEY) {
       providers.set(
         "openai",
         new OpenAIProvider({
-          apiKey: process.env.OPENAI_API_KEY,
-          model: process.env.OPENAI_MODEL || "gpt-4",
+          apiKey: env.OPENAI_API_KEY,
+          model: env.OPENAI_MODEL || "gpt-4",
           rateLimit: {
             requestsPerMinute: 500,
             tokensPerMinute: 200000,
@@ -93,12 +117,12 @@ export class AIOrchestrator {
       );
     }
 
-    if (process.env.PERPLEXITY_API_KEY) {
+    if (env.PERPLEXITY_API_KEY) {
       providers.set(
         "perplexity",
         new PerplexityProvider({
-          apiKey: process.env.PERPLEXITY_API_KEY,
-          model: process.env.PERPLEXITY_MODEL || "llama-3.1-sonar-small-128k-online",
+          apiKey: env.PERPLEXITY_API_KEY,
+          model: env.PERPLEXITY_MODEL || "llama-3.1-sonar-small-128k-online",
           baseUrl: "https://api.perplexity.ai",
           rateLimit: {
             requestsPerMinute: 20,
@@ -112,12 +136,12 @@ export class AIOrchestrator {
       );
     }
 
-    if (process.env.GEMINI_API_KEY) {
+    if (env.GEMINI_API_KEY) {
       providers.set(
         "gemini",
         new GeminiProvider({
-          apiKey: process.env.GEMINI_API_KEY,
-          model: process.env.GEMINI_MODEL || "gemini-1.5-flash",
+          apiKey: env.GEMINI_API_KEY,
+          model: env.GEMINI_MODEL || "gemini-1.5-flash",
           rateLimit: {
             requestsPerMinute: 60,
             tokensPerMinute: 30000,
@@ -130,7 +154,7 @@ export class AIOrchestrator {
       );
     }
 
-    return new AIOrchestrator(providers);
+    return new AIOrchestrator(providers, scheduler, cache);
   }
 
   private startMetricsCollection() {
@@ -147,19 +171,24 @@ export class AIOrchestrator {
       });
     }
 
-    // Reset rate limits every minute
-    setInterval(() => {
-      const now = Date.now();
-      for (const [provider, limits] of this.rateLimits) {
-        if (now >= limits.resetTime) {
-          this.rateLimits.set(provider, {
-            requests: 0,
-            tokens: 0,
-            resetTime: now + 60000, // Reset in 1 minute
-          });
+    // Reset rate limits every minute — registered via the scheduler so the
+    // interval is unref'd, error-wrapped, and cleared during graceful shutdown.
+    this.scheduler.register(
+      "ai-orchestrator-rate-limit-reset",
+      () => {
+        const now = Date.now();
+        for (const [provider, limits] of this.rateLimits) {
+          if (now >= limits.resetTime) {
+            this.rateLimits.set(provider, {
+              requests: 0,
+              tokens: 0,
+              resetTime: now + 60000, // Reset in 1 minute
+            });
+          }
         }
-      }
-    }, 60000);
+      },
+      60000
+    );
   }
 
   private getOptimalProvider(task: AITask): ("openai" | "perplexity" | "gemini")[] {
@@ -188,29 +217,34 @@ export class AIOrchestrator {
     );
   }
 
+  /**
+   * Generate a deterministic cache key for a task. Canon: SHA-256 hash of
+   * stable-stringified input + version tokens (prompt template, model). This
+   * auto-orphans cached entries on prompt-template upgrade and tolerates
+   * property-order/whitespace variations in the input.
+   *
+   * Refs: amitkoth, AWS LLM caching, Brenndoerfer (canon_research_index.md
+   * §Caching · LLM / AI-specific).
+   */
   private generateCacheKey(task: AITask): string {
-    return `${task.type}:${JSON.stringify(task.data)}`;
-  }
-
-  private getCachedResult<T>(cacheKey: string): T | null {
-    const entry = this.cache.get(cacheKey);
-    if (!entry) return null;
-
-    const now = Date.now();
-    if (now > entry.timestamp + entry.ttl) {
-      this.cache.delete(cacheKey);
-      return null;
-    }
-
-    return entry.data as T | null;
-  }
-
-  private setCachedResult<T>(cacheKey: string, data: T, ttl: number = 300000): void {
-    this.cache.set(cacheKey, {
-      data,
-      timestamp: Date.now(),
-      ttl,
+    const normalized = stableStringify({
+      type: task.type,
+      data: task.data,
+      promptTemplate: PROMPT_TEMPLATE_VERSION,
     });
+    const hash = createHash("sha256").update(normalized).digest("hex");
+    return `ai:${task.type}:${hash}`;
+  }
+
+  /**
+   * Tags for an AI cache entry. Multi-tag canon (Brenndoerfer, oneuptime):
+   * `ai` for nuclear admin clear, `ai:task:<type>` for type-targeted
+   * invalidation, `ai:model:<id>` for model-targeted invalidation.
+   */
+  private cacheTags(task: AITask, modelId?: string): readonly string[] {
+    const tags = ["ai", `ai:task:${task.type}`];
+    if (modelId) tags.push(`ai:model:${modelId}`);
+    return tags;
   }
 
   private async checkRateLimit(
@@ -272,8 +306,8 @@ export class AIOrchestrator {
 
     // Check cache first
     if (config?.cacheResults !== false) {
-      const cachedResult = this.getCachedResult<T>(cacheKey);
-      if (cachedResult) {
+      const cachedResult = await this.cache.get<T>(cacheKey);
+      if (cachedResult !== null) {
         this.cacheHitStats.hits++;
         return {
           ok: true,
@@ -287,9 +321,6 @@ export class AIOrchestrator {
           },
         };
       }
-    }
-
-    if (config?.cacheResults !== false) {
       this.cacheHitStats.misses++;
     }
 
@@ -366,9 +397,17 @@ export class AIOrchestrator {
           // Update metrics
           this.updateMetrics(providerName, true, latency, estimatedTokens);
 
-          // Cache the result
+          // Cache the result. TTL canon: default 1h for stable LLM outputs;
+          // override via cacheTTL only for time-sensitive tasks. Tags allow
+          // targeted invalidation (admin clearCache → invalidateByTag("ai"),
+          // model upgrade → invalidateByTag(`ai:model:${modelId}`)).
           if (config?.cacheResults !== false) {
-            this.setCachedResult(cacheKey, result, config?.cacheTTL || 300000);
+            const ttlMs = config?.cacheTTL ?? 3_600_000;
+            const ttlSeconds = Math.max(1, Math.floor(ttlMs / 1000));
+            await this.cache.set(cacheKey, result, {
+              ttlSeconds,
+              tags: this.cacheTags(task, provider.name),
+            });
           }
 
           const response: AIResponse<T> = {
@@ -495,7 +534,7 @@ export class AIOrchestrator {
   /**
    * @method generateImage
    * @description Generates an image by delegating to the first available provider
-   *              that supports image generation (currently OpenAI with DALL-E 3).
+   *              that supports OpenAI image generation.
    * @param options - Image generation options
    * @returns AIResponse with the generated image URL and revised prompt
    */
@@ -546,16 +585,21 @@ export class AIOrchestrator {
     return new Map(this.usageMetrics);
   }
 
-  getCacheStats(): { size: number; hitRate: number } {
+  /**
+   * Hit-rate metric for AI cache. Note: `size` field was dropped post
+   * CachePort migration — it represented per-instance Map size, which is
+   * misleading info in multi-pod deployments. Cluster-wide cache stats are
+   * available via Prometheus metrics emitted by `RedisCacheManager.getStats()`.
+   */
+  getCacheStats(): { hitRate: number } {
     const total = this.cacheHitStats.hits + this.cacheHitStats.misses;
     return {
-      size: this.cache.size,
       hitRate: total > 0 ? this.cacheHitStats.hits / total : 0,
     };
   }
 
-  clearCache(): void {
-    this.cache.clear();
+  async clearCache(): Promise<void> {
+    await this.cache.invalidateByTag("ai");
     this.cacheHitStats = { hits: 0, misses: 0 };
   }
 

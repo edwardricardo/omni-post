@@ -3,12 +3,15 @@ services:
     image: postgres:16
     container_name: omnipost-postgres
     restart: always
+    env_file:
+      - path: .env
+        required: false
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password123
-      POSTGRES_DB: omnipostdb
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB must be set in .env}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 
@@ -16,8 +19,11 @@ services:
     image: redis:7
     container_name: omnipost-redis
     restart: always
+    env_file:
+      - path: .env
+        required: false
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redisdata:/data
 
@@ -25,11 +31,14 @@ services:
     image: grafana/grafana:11.2.2
     container_name: omnipost-grafana
     restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
     ports:
-      - "3001:3000"
+      - "127.0.0.1:3001:3000"
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER:?GF_SECURITY_ADMIN_USER must be set in .env}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:?GF_SECURITY_ADMIN_PASSWORD must be set in .env}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_SERVER_ROOT_URL=http://localhost:3001
     volumes:
@@ -43,8 +52,11 @@ services:
     image: prom/prometheus:v2.48.1
     container_name: omnipost-prometheus
     restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
@@ -61,14 +73,55 @@ services:
     image: jaegertracing/jaeger:latest
     container_name: omnipost-jaeger
     restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
     ports:
-      - "16686:16686" # Jaeger UI
-      - "4318:4318" # OTLP HTTP receiver
+      - "127.0.0.1:16686:16686" # Jaeger UI
+      - "127.0.0.1:4318:4318" # OTLP HTTP receiver
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
+
+  minio:
+    image: minio/minio:latest
+    container_name: omnipost-minio
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "127.0.0.1:9000:9000" # S3 API
+      - "127.0.0.1:9001:9001" # Web console
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER must be set in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set in .env}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: omnipost-minio-init
+    depends_on:
+      - minio
+    env_file:
+      - path: .env
+        required: false
+    entrypoint: >
+      /bin/sh -c "
+      until (mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD) do sleep 2; done;
+      mc mb --ignore-existing local/omni-post-media;
+      exit 0;
+      "
 
 volumes:
   pgdata:
   redisdata:
   grafana-data:
   prometheus-data:
+  minio-data:

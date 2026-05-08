@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * @file label.tsx
+ * @description Radix-based Label primitive with class-variance-authority styling for form fields.
+ * @component Label
+ * @layer infrastructure
+ */
 import * as React from "react";
 import { Label as LabelPrimitive } from "radix-ui";
 import { cva, type VariantProps } from "class-variance-authority";

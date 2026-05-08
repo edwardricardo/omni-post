@@ -3,7 +3,7 @@
  * @description Admin queue dashboard hook. Fetches BullMQ jobs + stats via the
  *   /api/backend/queue proxy, maps raw jobs into UI QueueItem shape, exposes
  *   local filter state, and provides retry/cancel/delete mutations.
- * @layer hooks
+ * @layer infrastructure
  */
 "use client";
 

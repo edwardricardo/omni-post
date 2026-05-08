@@ -1,3 +1,8 @@
+/**
+ * @file PublishingPage.ts
+ * @description Tests for publishing page
+ * @layer infrastructure
+ */
 // Page type not used directly '@playwright/test';
 // Page type not used directly './BasePage';
 

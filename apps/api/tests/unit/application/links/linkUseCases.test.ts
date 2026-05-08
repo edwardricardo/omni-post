@@ -1,9 +1,12 @@
 /**
  * Application Layer - Link Tracking Use Cases Tests
  *
- * Part of Sprint 19: Link Tracking Feature
  * Tests for CreateTrackedLink, GetTrackedLink, RedirectAndTrackClick,
  * GetLinkStats, and DeleteTrackedLink use cases.
+ *
+ * @file linkUseCases.test.ts
+ * @description Tests for CreateTrackedLinkUseCase
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";

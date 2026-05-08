@@ -7,6 +7,10 @@
  * The tokens are signed with the same secret and parameters that
  * AdminAuthService.TokenService uses, so they pass verification
  * in requireAdminAuth middleware.
+ *
+ * @file adminTestHelper.ts
+ * @description Test helpers for admin test helper
+ * @layer infrastructure
  */
 
 import jwt from "jsonwebtoken";

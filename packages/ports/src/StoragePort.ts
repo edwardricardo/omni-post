@@ -1,3 +1,9 @@
+/**
+ * @file StoragePort.ts
+ * @description Storage port (interface) defining upload-signature generation and media metadata
+ *              retrieval contracts for media file handling.
+ * @layer domain
+ */
 import type { Result } from "@shared/types";
 
 export type UploadSignature = {

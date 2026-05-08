@@ -1,3 +1,8 @@
+/**
+ * @file gemini.advanced.test.ts
+ * @description Tests for GeminiProvider - Performance Prediction
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { GeminiProvider } from "../../../src/ai/providers/gemini.js";
 import { mockConfig, makeMockClient } from "./gemini.test-helpers.js";

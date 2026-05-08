@@ -1,0 +1,18 @@
+{
+  "name": "@packages/api-errors",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "clean": "tsc --build --clean",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "24.5.2",
+    "typescript": "6.0.2",
+    "vitest": "4.0.18"
+  }
+}

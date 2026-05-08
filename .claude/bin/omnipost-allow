@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+"""omnipost-allow — crea tokens de autorización con expiración para operaciones sensibles."""
+
+import argparse
+import json
+import sys
+from datetime import datetime, timezone, timedelta
+from pathlib import Path
+
+
+# Operaciones permitidas con su TTL default en minutos.
+ALLOWED_OPERATIONS = {
+    "push": {
+        "description": "git push autorizado",
+        "default_ttl_minutes": 15,
+    },
+    # Agregás operaciones nuevas acá:
+    # "deploy": {"description": "deployment a producción", "default_ttl_minutes": 5},
+}
+
+TOKENS_DIR = Path(".claude/.allowed")
+
+
+def list_operations() -> str:
+    """Devuelve un string con la lista de operaciones disponibles."""
+    lines = []
+    for op, meta in ALLOWED_OPERATIONS.items():
+        lines.append(f"  {op:<10} — {meta['description']} (TTL default: {meta['default_ttl_minutes']} min)")
+    return "\n".join(lines)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Crea un token de autorización para una operación sensible.",
+        epilog=f"Operaciones disponibles:\n{list_operations()}",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "operation",
+        help="Nombre de la operación a autorizar (ej. 'push').",
+    )
+    parser.add_argument(
+        "--ttl",
+        type=int,
+        default=None,
+        help="Tiempo de vida del token en minutos. Si no se especifica, usa el default de la operación.",
+    )
+
+    args = parser.parse_args()
+
+    if args.operation not in ALLOWED_OPERATIONS:
+        print(f"Operación '{args.operation}' no reconocida.", file=sys.stderr)
+        print(f"\nOperaciones disponibles:\n{list_operations()}", file=sys.stderr)
+        sys.exit(1)
+
+    operation_meta = ALLOWED_OPERATIONS[args.operation]
+    ttl_minutes = args.ttl if args.ttl is not None else operation_meta["default_ttl_minutes"]
+
+    if ttl_minutes <= 0:
+        print(f"TTL debe ser positivo. Recibido: {ttl_minutes}", file=sys.stderr)
+        sys.exit(1)
+
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(minutes=ttl_minutes)
+
+    token_data = {
+        "operation": args.operation,
+        "created_at": now.isoformat(),
+        "expires_at": expires_at.isoformat(),
+        "ttl_minutes": ttl_minutes,
+        "authorized_by": "edward",
+    }
+
+    TOKENS_DIR.mkdir(parents=True, exist_ok=True)
+    token_path = TOKENS_DIR / args.operation
+
+    if token_path.exists():
+        print(f"Ya existe un token para '{args.operation}'. Será reemplazado.", file=sys.stderr)
+
+    with token_path.open("w") as f:
+        json.dump(token_data, f, indent=2)
+
+    expires_local = expires_at.astimezone()  # convertir a timezone local para mostrar
+    print(f"✓ Token '{args.operation}' creado")
+    print(f"  Path:    {token_path}")
+    print(f"  Expira:  {expires_local.strftime('%H:%M:%S')} ({ttl_minutes} minutos)")
+
+
+if __name__ == "__main__":
+    main()

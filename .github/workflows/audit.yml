@@ -1,0 +1,335 @@
+name: Pre-merge Audit Toolkit
+
+# 7-tool audit pipeline executed on every push + PR. Each tool runs in its
+# own job (parallel) so a slow/failing tool doesn't block the others. SARIF
+# output where supported uploads to GitHub Code Scanning UI for inline PR
+# annotations.
+#
+# Strategy: hard gates for tools where we're at zero baseline; informational
+# for tools with pre-existing findings (ratchet down over time).
+#
+# Tools wired (canon: ~/.claude/.../canon_research_index.md §Pre-merge audit toolkit):
+#   - dependency-cruiser  (hexagonal layer enforcement, ERROR-level fail)
+#   - Semgrep CE          (TS/Node SAST, ERROR-level fail)
+#   - OSV-Scanner         (dep vulnerabilities, report-only baseline)
+#   - gitleaks            (secret scanning, hard fail on NEW secrets)
+#   - Squawk              (DB migration safety, fail on critical rules)
+#   - size-limit          (bundle regression, fail on threshold breach)
+#   - TruffleHog          (verified secrets, NIGHTLY schedule)
+
+on:
+  push:
+    branches: [main, omni-post-cc, "refactor/**"]
+  pull_request:
+    branches: [main, omni-post-cc]
+  schedule:
+    # Daily 03:00 UTC for heavier scans (TruffleHog full history verification)
+    - cron: "0 3 * * *"
+
+concurrency:
+  group: audit-${{ github.ref }}
+  cancel-in-progress: true
+
+# Minimal permissions baseline; OSV-Scanner upload-sarif needs write.
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────
+  # 1. dependency-cruiser — hexagonal layer enforcement (graph-level rules)
+  # ──────────────────────────────────────────────────────────────────────
+  dependency-cruiser:
+    if: github.event_name != 'schedule'
+    name: dependency-cruiser (hexagonal)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Prisma's postinstall config loader requires DATABASE_URL to be defined.
+    # We never connect — depcruise scans source files — so a dummy URL is fine.
+    env:
+      DATABASE_URL: "postgresql://audit:audit@localhost:5432/audit"
+      SHADOW_DATABASE_URL: "postgresql://audit:audit@localhost:5432/audit_shadow"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-pnpm-cache
+      - name: Cruise apps/api
+        run: pnpm exec depcruise apps/api/src --config .dependency-cruiser.cjs --output-type err
+
+  # ──────────────────────────────────────────────────────────────────────
+  # 2. Semgrep CE — TS/Node SAST (taint, security rules, OWASP)
+  # ──────────────────────────────────────────────────────────────────────
+  semgrep:
+    if: github.event_name != 'schedule'
+    name: Semgrep CE (SAST)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    container:
+      image: returntocorp/semgrep:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Semgrep
+        # `semgrep ci` is for the AppSec Platform; we have no platform login.
+        # `semgrep scan` accepts --error / --severity and exits non-zero
+        # on findings at the requested severity (canonical OSS-rules CI flow).
+        run: |
+          semgrep scan \
+            --config p/typescript \
+            --config p/security-audit \
+            --config p/owasp-top-ten \
+            --config p/javascript \
+            --metrics off \
+            --error \
+            --severity ERROR \
+            apps/api/src apps/admin/app apps/client/app packages
+
+  # ──────────────────────────────────────────────────────────────────────
+  # 3. OSV-Scanner — dependency vulnerabilities (report-only baseline)
+  # ──────────────────────────────────────────────────────────────────────
+  osv-scanner:
+    if: github.event_name != 'schedule'
+    name: OSV-Scanner (deps)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install OSV-Scanner
+        run: |
+          curl -sSL "https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64" -o /usr/local/bin/osv-scanner
+          chmod +x /usr/local/bin/osv-scanner
+          osv-scanner --version
+      - name: Scan pnpm-lock.yaml (report only — baseline has 90 vulns)
+        run: |
+          set +e
+          osv-scanner --lockfile=pnpm-lock.yaml --format=sarif --output-file=osv.sarif
+          CODE=$?
+          if [ "$CODE" -ne 0 ] && [ "$CODE" -ne 1 ]; then
+            echo "::error::OSV-Scanner failed unexpectedly (exit $CODE)"
+            exit "$CODE"
+          fi
+          echo "::notice::OSV-Scanner completed; see SARIF upload below for findings (currently informational)"
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: osv.sarif
+          category: osv-scanner
+
+  # ──────────────────────────────────────────────────────────────────────
+  # 4. gitleaks — secret scanning (HARD FAIL on new secrets)
+  # ──────────────────────────────────────────────────────────────────────
+  gitleaks:
+    if: github.event_name != 'schedule'
+    name: gitleaks (secrets)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install gitleaks
+        run: |
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v8.30.0/gitleaks_8.30.0_linux_x64.tar.gz" -o /tmp/gl.tgz
+          tar -xzf /tmp/gl.tgz -C /usr/local/bin gitleaks
+          chmod +x /usr/local/bin/gitleaks
+          gitleaks version
+      - name: Scan PR diff (block new secrets)
+        if: github.event_name == 'pull_request'
+        run: |
+          gitleaks protect \
+            --config .gitleaks.toml \
+            --staged \
+            --no-banner \
+            --redact \
+            --verbose
+      - name: Scan repository (informational — baseline has historical hits)
+        if: github.event_name == 'push'
+        run: |
+          set +e
+          gitleaks detect --config .gitleaks.toml --no-banner --redact > /dev/null
+          CODE=$?
+          if [ "$CODE" -gt 0 ]; then
+            echo "::warning::gitleaks detect found historical secrets in git history (baseline: 56 hits — see PR-39 backlog for BFG plan)"
+          fi
+
+  # ──────────────────────────────────────────────────────────────────────
+  # 4b. secretlint — defense-in-depth secret scan (rule-based, complements gitleaks regex)
+  # ──────────────────────────────────────────────────────────────────────
+  secretlint:
+    if: github.event_name != 'schedule'
+    name: secretlint (rule-based secrets)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # `pnpm install` triggers `infra/prisma postinstall` which runs
+    # `prisma generate` and resolves env via Prisma's config loader. Without
+    # DATABASE_URL the loader throws PrismaConfigEnvError and install exits 1
+    # before secretlint can run. Dummy URL — no database connection is made
+    # by `prisma generate`. Same pattern as the size-limit job below.
+    env:
+      DATABASE_URL: "postgresql://audit:audit@localhost:5432/audit"
+      SHADOW_DATABASE_URL: "postgresql://audit:audit@localhost:5432/audit_shadow"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-pnpm-cache
+      - name: Run secretlint
+        run: pnpm secret:scan
+
+  # ──────────────────────────────────────────────────────────────────────
+  # 5. Squawk — Postgres migration safety (only when migrations changed)
+  # ──────────────────────────────────────────────────────────────────────
+  squawk:
+    if: github.event_name != 'schedule'
+    name: Squawk (Prisma migrations)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Detect changed migrations
+        id: changed
+        run: |
+          set +e
+          if git diff --name-only HEAD~1 HEAD 2>/dev/null | grep -q "infra/prisma/migrations/.*\.sql"; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Migration files changed — running Squawk lint"
+          else
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No migration changes detected — skipping Squawk"
+          fi
+      - name: Install Squawk
+        if: steps.changed.outputs.has_changes == 'true'
+        run: |
+          curl -sSL "https://github.com/sbdchd/squawk/releases/download/v2.49.0/squawk-linux-x64" -o /usr/local/bin/squawk
+          chmod +x /usr/local/bin/squawk
+          squawk --version
+      - name: Lint changed migrations
+        if: steps.changed.outputs.has_changes == 'true'
+        run: |
+          set +e
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD | grep "infra/prisma/migrations/.*\.sql" || true)
+          if [ -n "$CHANGED_FILES" ]; then
+            echo "$CHANGED_FILES" | xargs squawk --config .squawk.toml || \
+              echo "::warning::Squawk found warnings in changed migrations (review output above)"
+          fi
+
+  # ──────────────────────────────────────────────────────────────────────
+  # 6. size-limit — Next.js bundle regression
+  # ──────────────────────────────────────────────────────────────────────
+  size-limit:
+    if: github.event_name != 'schedule'
+    name: size-limit (bundles)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # DATABASE_URL needed at install (Prisma config loader) and at build
+    # (Next.js builds @infra/prisma). Dummy URL — no connection attempted.
+    env:
+      DATABASE_URL: "postgresql://audit:audit@localhost:5432/audit"
+      SHADOW_DATABASE_URL: "postgresql://audit:audit@localhost:5432/audit_shadow"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-pnpm-cache
+      - name: Build apps
+        run: pnpm --filter @apps/admin --filter @apps/client build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+      - name: Run size-limit (fail on threshold exceed)
+        run: pnpm exec size-limit
+      - name: Capture size-limit JSON for artifact
+        if: always()
+        run: pnpm exec size-limit --json > size-limit.json || true
+      - name: Upload size-limit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: size-limit-results
+          path: size-limit.json
+          retention-days: 30
+
+  # ──────────────────────────────────────────────────────────────────────
+  # 7. lychee — markdown link check (broken internal docs refs)
+  # ──────────────────────────────────────────────────────────────────────
+  lychee-link-check:
+    if: github.event_name != 'schedule'
+    name: lychee (markdown link check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run lychee on docs + repo markdown
+        uses: lycheeverse/lychee-action@v2
+        with:
+          # Config lives in `.lychee.toml` at repo root. Decouples regex
+          # escaping from YAML quoting (which broke an inline `--exclude`
+          # flag earlier — multi-line `>-` collapsed quotes incorrectly).
+          args: --config .lychee.toml './**/*.md'
+          fail: true
+
+  # ──────────────────────────────────────────────────────────────────────
+  # 8. TruffleHog — verified secrets (NIGHTLY only)
+  # ──────────────────────────────────────────────────────────────────────
+  trufflehog-nightly:
+    if: github.event_name == 'schedule'
+    name: TruffleHog (nightly verification)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install TruffleHog
+        run: |
+          curl -sSL "https://github.com/trufflesecurity/trufflehog/releases/download/v3.95.2/trufflehog_3.95.2_linux_amd64.tar.gz" -o /tmp/th.tgz
+          tar -xzf /tmp/th.tgz -C /usr/local/bin trufflehog
+          chmod +x /usr/local/bin/trufflehog
+          trufflehog --version
+      - name: Verified secret scan
+        run: |
+          set +e
+          trufflehog git file://. --only-verified --json > trufflehog.json
+          CODE=$?
+          if [ "$CODE" -gt 0 ]; then
+            echo "::error::TruffleHog found VERIFIED LIVE credentials in git history. Rotate immediately."
+            cat trufflehog.json
+            exit 1
+          fi
+          echo "::notice::TruffleHog scan complete — no verified live credentials found"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trufflehog-results
+          path: trufflehog.json
+          retention-days: 90
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Summary
+  # ──────────────────────────────────────────────────────────────────────
+  audit-summary:
+    if: always() && github.event_name != 'schedule'
+    name: Audit Summary
+    runs-on: ubuntu-latest
+    needs:
+      - dependency-cruiser
+      - semgrep
+      - osv-scanner
+      - gitleaks
+      - secretlint
+      - squawk
+      - size-limit
+      - lychee-link-check
+    steps:
+      - name: Render summary
+        run: |
+          echo "## Pre-merge Audit Toolkit Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Tool | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| dependency-cruiser | ${{ needs.dependency-cruiser.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Semgrep CE         | ${{ needs.semgrep.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| OSV-Scanner        | ${{ needs.osv-scanner.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| gitleaks           | ${{ needs.gitleaks.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| secretlint         | ${{ needs.secretlint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Squawk             | ${{ needs.squawk.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| size-limit         | ${{ needs.size-limit.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| lychee             | ${{ needs.lychee-link-check.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Reference: docs/architecture/audit-toolkit.md" >> $GITHUB_STEP_SUMMARY

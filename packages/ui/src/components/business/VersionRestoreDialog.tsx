@@ -1,7 +1,9 @@
 /**
- * VersionRestoreDialog -- confirmation alert before restoring a version.
- *
- * Wraps shadcn AlertDialog with the standard restore-confirmation copy.
+ * @file VersionRestoreDialog.tsx
+ * @description Confirmation alert dialog shown before restoring a content version, wrapping the
+ *              shared AlertDialog primitive with standard copy and actions.
+ * @component VersionRestoreDialog
+ * @layer infrastructure
  */
 
 "use client";

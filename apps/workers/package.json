@@ -13,7 +13,10 @@
   },
   "dependencies": {
     "@adapters/db-prisma": "workspace:*",
+    "@adapters/external-apis": "workspace:*",
     "@adapters/queue-bullmq": "workspace:*",
+    "@observability/background-scheduler": "workspace:*",
+    "@observability/logger": "workspace:*",
     "@observability/opentelemetry": "workspace:*",
     "@ports/core": "workspace:*",
     "@providers/bluesky": "workspace:*",
@@ -28,6 +31,7 @@
     "@providers/youtube": "workspace:*",
     "@sentry/node": "^10.48.0",
     "@shared/types": "workspace:*",
+    "bullmq": "5.58.9",
     "dotenv": "17.2.2",
     "ioredis": "5.7.0",
     "pino": "10.3.1",

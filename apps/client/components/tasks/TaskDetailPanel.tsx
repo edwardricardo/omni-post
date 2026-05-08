@@ -2,7 +2,7 @@
  * @file TaskDetailPanel.tsx
  * @component TaskDetailPanel
  * @description Slide-over panel showing full task details with actions.
- * @layer client-components
+ * @layer infrastructure
  */
 
 "use client";
@@ -35,12 +35,17 @@ export function TaskDetailPanel({ task, onClose, onComplete, onCancel }: TaskDet
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="fixed inset-0 bg-black/25" onClick={onClose} />
+      <button
+        type="button"
+        aria-label="Close task details"
+        className="fixed inset-0 bg-black/25 cursor-default"
+        onClick={onClose}
+      />
       <div className="relative z-50 w-full max-w-md bg-card border-l shadow-lg overflow-y-auto">
         <div className="sticky top-0 bg-card border-b px-6 py-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Task Details</h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close task details">
+            <X aria-hidden="true" className="h-4 w-4" />
           </Button>
         </div>
 

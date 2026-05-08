@@ -28,7 +28,7 @@ export type {
 } from "./types";
 
 // React Hooks
-export { useApiProviders as useProviders, useAllProvidersHealth } from "./hooks";
+export { useApiProviders, useAllProvidersHealth } from "./hooks";
 
 // Context
 export { ApiProvider } from "./context";

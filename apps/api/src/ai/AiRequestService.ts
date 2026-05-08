@@ -8,6 +8,8 @@
  */
 import { ok, err, type Result } from "@shared/types";
 import type { PrismaClient } from "@infra/prisma";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+import type { CachePort } from "@ports/core";
 import type { PlatformCredentialService } from "../security/PlatformCredentialService.js";
 import type { AITask, AIResponse, AIProvider } from "./types.js";
 import { AIOrchestrator } from "./orchestrator.js";
@@ -20,12 +22,12 @@ const aiLogger = logger.child({ module: "ai-request" });
 // Types
 // ---------------------------------------------------------------------------
 
-type ProviderName = "openai" | "anthropic" | "gemini" | "perplexity";
+type AiProviderName = "openai" | "anthropic" | "gemini" | "perplexity";
 
 interface AiRequestParams {
   accountId: string;
   task: AITask;
-  preferredProvider?: ProviderName;
+  preferredProvider?: AiProviderName;
 }
 
 interface AiRequestResult {
@@ -42,14 +44,14 @@ type AiError =
   | "PROVIDER_ERROR"
   | "DATABASE_ERROR";
 
-const PROVIDER_KEY_MAP: Record<ProviderName, string> = {
+const PROVIDER_KEY_MAP: Record<AiProviderName, string> = {
   openai: "openaiApiKey",
   anthropic: "anthropicApiKey",
   gemini: "geminiApiKey",
   perplexity: "perplexityApiKey",
 };
 
-const PROVIDER_MODEL_MAP: Record<ProviderName, string> = {
+const PROVIDER_MODEL_MAP: Record<AiProviderName, string> = {
   openai: "openaiModel",
   anthropic: "anthropicModel",
   gemini: "geminiModel",
@@ -66,7 +68,9 @@ const BASE_TOKENS_PER_UNIT = 10_000;
 export class AiRequestService {
   constructor(
     private readonly prisma: PrismaClient,
-    private readonly credentialService: PlatformCredentialService
+    private readonly credentialService: PlatformCredentialService,
+    private readonly scheduler: BackgroundTaskScheduler,
+    private readonly cache: CachePort
   ) {}
 
   /**
@@ -106,16 +110,21 @@ export class AiRequestService {
    */
   private async executeWithByok(
     accountId: string,
-    providerName: ProviderName,
+    providerName: AiProviderName,
     apiKey: string,
     task: AITask
   ): Promise<Result<AiRequestResult, AiError>> {
     const provider = AIProviderFactory.createProvider(providerName, apiKey);
     const providers = new Map<string, AIProvider>([[providerName, provider]]);
 
-    const orchestrator = new AIOrchestrator(providers, async (prov, tokens) => {
-      await this.trackUsage(accountId, prov, tokens, true);
-    });
+    const orchestrator = new AIOrchestrator(
+      providers,
+      this.scheduler,
+      this.cache,
+      async (prov, tokens) => {
+        await this.trackUsage(accountId, prov, tokens, true);
+      }
+    );
 
     return this.executeWithOrchestrator(orchestrator, task, true);
   }
@@ -127,7 +136,7 @@ export class AiRequestService {
   private async executeWithPool(
     accountId: string,
     task: AITask,
-    preferredProvider?: ProviderName
+    preferredProvider?: AiProviderName
   ): Promise<Result<AiRequestResult, AiError>> {
     const poolResult = await this.credentialService.getGroup("AI_POOL");
     if (!poolResult.ok) {
@@ -136,7 +145,7 @@ export class AiRequestService {
 
     const poolCreds = poolResult.value;
     const providers = new Map<string, AIProvider>();
-    const providerNames: ProviderName[] = ["openai", "anthropic", "gemini", "perplexity"];
+    const providerNames: AiProviderName[] = ["openai", "anthropic", "gemini", "perplexity"];
 
     // Build providers, putting preferred first
     const ordered = preferredProvider
@@ -155,9 +164,14 @@ export class AiRequestService {
       return err("NO_PROVIDERS_CONFIGURED");
     }
 
-    const orchestrator = new AIOrchestrator(providers, async (prov, tokens) => {
-      await this.trackUsage(accountId, prov, tokens, false);
-    });
+    const orchestrator = new AIOrchestrator(
+      providers,
+      this.scheduler,
+      this.cache,
+      async (prov, tokens) => {
+        await this.trackUsage(accountId, prov, tokens, false);
+      }
+    );
 
     return this.executeWithOrchestrator(orchestrator, task, false);
   }

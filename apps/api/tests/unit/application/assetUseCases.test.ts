@@ -3,7 +3,7 @@
  * @description Tests for Asset Library use cases: CreateMediaAsset, UpdateMediaAsset,
  *   DeleteMediaAsset, TagMediaAsset, GetMediaAssets, CreateAssetTag, ListAssetTags,
  *   and CreateAssetFolder.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

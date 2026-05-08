@@ -2,7 +2,7 @@
  * @file ActionButton.tsx
  * @description Themed action button with primary, secondary, and danger variants,
  *              three sizes, and a loading state. Uses CSS custom-property tokens.
- * @layer presentation
+ * @layer infrastructure
  */
 "use client";
 

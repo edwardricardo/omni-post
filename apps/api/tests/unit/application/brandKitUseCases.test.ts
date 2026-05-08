@@ -1,7 +1,7 @@
 /**
  * @file brandKitUseCases.test.ts
  * @description Tests for BrandKit use cases — UpsertBrandKitUseCase, GetBrandKitQuery, DeleteBrandKitUseCase.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

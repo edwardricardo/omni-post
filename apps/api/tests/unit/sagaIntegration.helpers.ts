@@ -4,6 +4,10 @@
  * Provides lightweight mock factories for Fastify, EventService, CQRSBus,
  * Redis and QueuePort so every test file can set up its own isolated
  * integration instance without sharing mutable state.
+ *
+ * @file sagaIntegration.helpers.ts
+ * @description Test helpers for saga integration helpers
+ * @layer infrastructure
  */
 
 import { DomainEvent } from "@shared/events";
@@ -11,6 +15,7 @@ import { Command } from "@shared/cqrs";
 import { ok } from "@shared/types";
 import type { QueuePort, QueueJob, QueueHealth } from "@ports/core";
 import type { Result } from "@shared/types";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { SagaIntegration } from "../../src/saga/SagaIntegration";
 
 // ---------------------------------------------------------------------------
@@ -204,6 +209,7 @@ export async function buildIntegration(): Promise<{
     cqrsBus: mockCQRSBus as any,
     redis: mockRedis as any,
     queue: mockQueue,
+    scheduler: new NoopBackgroundTaskScheduler(),
   });
 
   await integration.initialize();

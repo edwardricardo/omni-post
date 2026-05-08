@@ -2,6 +2,10 @@
  * Queue resilience layer tests
  * Tests circuit breaker, exponential backoff retry, metrics collector, and default options.
  * Tier 0: no Redis, no BullMQ — uses real opossum instances with simple async functions.
+ *
+ * @file resilience.test.ts
+ * @description Tests for DEFAULT_CIRCUIT_BREAKER_OPTIONS
+ * @layer infrastructure
  */
 
 import { describe, it, afterAll, beforeEach, expect } from "vitest";

@@ -1,3 +1,8 @@
+/**
+ * @file cqrsIntegration.init-commands-queries.test.ts
+ * @description Tests for CQRSIntegration - Initialization
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, afterEach, beforeAll, afterAll, expect } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import { CQRSIntegration } from "../../src/cqrs/CQRSIntegration";

@@ -1,7 +1,7 @@
 /**
  * @file useExternalNotifications.ts
  * @description TanStack Query hooks for Slack/Teams external notification webhook config.
- * @layer client-hooks
+ * @layer infrastructure
  */
 
 "use client";
@@ -35,35 +35,43 @@ export interface CreateWebhookParams {
 
 async function fetchConfigs(projectId: string): Promise<ExternalNotificationConfig[]> {
   const res = await fetch(`/api/backend/external-notifications?projectId=${projectId}`, {
+    credentials: "include",
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch webhook configs");
-  const data = (await res.json()) as { ok: boolean; value?: ExternalNotificationConfig[] };
-  return data.ok && data.value ? data.value : [];
+  const body = (await res.json()) as { ok: boolean; data?: ExternalNotificationConfig[] };
+  return body.ok && body.data ? body.data : [];
 }
 
 async function createConfig(params: CreateWebhookParams): Promise<ExternalNotificationConfig> {
   const res = await fetch("/api/backend/external-notifications", {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
   });
   if (!res.ok) throw new Error("Failed to create webhook");
-  const data = (await res.json()) as { ok: boolean; value?: ExternalNotificationConfig };
-  if (!data.ok || !data.value) throw new Error("Create failed");
-  return data.value;
+  const body = (await res.json()) as { ok: boolean; data?: ExternalNotificationConfig };
+  if (!body.ok || !body.data) throw new Error("Create failed");
+  return body.data;
 }
 
 async function deleteConfig(id: string): Promise<void> {
-  const res = await fetch(`/api/backend/external-notifications/${id}`, { method: "DELETE" });
+  const res = await fetch(`/api/backend/external-notifications/${id}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
   if (!res.ok) throw new Error("Failed to delete webhook");
 }
 
 async function testConfig(id: string): Promise<{ sent: boolean }> {
-  const res = await fetch(`/api/backend/external-notifications/${id}/test`, { method: "POST" });
+  const res = await fetch(`/api/backend/external-notifications/${id}/test`, {
+    method: "POST",
+    credentials: "include",
+  });
   if (!res.ok) throw new Error("Test request failed");
-  const data = (await res.json()) as { ok: boolean; value?: { sent: boolean } };
-  return data.ok && data.value ? data.value : { sent: false };
+  const body = (await res.json()) as { ok: boolean; data?: { sent: boolean } };
+  return body.ok && body.data ? body.data : { sent: false };
 }
 
 // ---------------------------------------------------------------------------

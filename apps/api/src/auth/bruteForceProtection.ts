@@ -72,7 +72,7 @@ interface SuspiciousActivity {
   type: "RAPID_FAILURES" | "DISTRIBUTED_ATTACK" | "CREDENTIAL_STUFFING" | "IP_HOPPING";
   severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   description: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 export class BruteForceProtection {

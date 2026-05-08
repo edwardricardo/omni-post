@@ -2,7 +2,7 @@
  * @file TeamMemberRow.tsx
  * @component TeamMemberRow
  * @description Single row in the team members table with role and actions.
- * @layer client-components
+ * @layer infrastructure
  */
 
 "use client";

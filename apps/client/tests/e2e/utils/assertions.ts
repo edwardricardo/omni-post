@@ -1,5 +1,10 @@
+/**
+ * @file assertions.ts
+ * @description Tests for assertions
+ * @layer infrastructure
+ */
 // Page type not used directly '@playwright/test';
-import { AxeBuilder } from "@axe-core/playwright";
+import { expectPageToBeAccessible, type A11yImpact, type A11yOptions } from "./a11y";
 
 /**
  * Custom Assertions for E2E Tests
@@ -10,33 +15,22 @@ export class CustomAssertions {
   constructor(private page: Page) {}
 
   /**
-   * Assert that page is accessible according to WCAG guidelines
+   * @deprecated Use the standalone `expectPageToBeAccessible(page, options)`
+   *             from `./a11y.ts` directly. This method delegates to it.
+   *             Canon: `axe-core-playwright-a11y-testing-for-e2e-suites`.
    */
   async expectPageToBeAccessible(options?: {
     tags?: string[];
     exclude?: string[];
     includedImpacts?: string[];
-  }) {
-    const {
-      tags = ["wcag2a", "wcag2aa"],
-      exclude = [],
-      includedImpacts = ["minor", "moderate", "serious", "critical"],
-    } = options || {};
-
-    const axeBuilder = new AxeBuilder({ page: this.page }).withTags(tags).exclude(exclude);
-
-    const results = await axeBuilder.analyze();
-
-    const violationsWithImpact = results.violations.filter((violation) =>
-      includedImpacts.includes(violation.impact!)
-    );
-
-    expect(
-      violationsWithImpact,
-      `Page has ${violationsWithImpact.length} accessibility violations:\n${violationsWithImpact
-        .map((v) => `- ${v.description} (${v.impact})`)
-        .join("\n")}`
-    ).toHaveLength(0);
+  }): Promise<void> {
+    const normalized: A11yOptions = {};
+    if (options?.tags) normalized.tags = options.tags;
+    if (options?.exclude) normalized.exclude = options.exclude;
+    if (options?.includedImpacts) {
+      normalized.includedImpacts = options.includedImpacts as A11yImpact[];
+    }
+    await expectPageToBeAccessible(this.page, normalized);
   }
 
   /**

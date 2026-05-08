@@ -1,12 +1,12 @@
 /**
  * @file CreateCampaignModal.tsx
  * @description Modal for creating new campaigns with UTM parameters.
- * @layer client-components
+ * @layer infrastructure
  */
 
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Button, Input, Label } from "@packages/ui";
 import { useCreateCampaign } from "@/hooks/api/useCampaigns";
 
@@ -29,6 +29,14 @@ export function CreateCampaignModal({ projectId, open, onClose }: CreateCampaign
   const [utmSource, setUtmSource] = useState("");
   const [utmMedium, setUtmMedium] = useState("");
   const [showUtm, setShowUtm] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus the name input when the modal opens.
+  useEffect(() => {
+    if (open) {
+      nameInputRef.current?.focus();
+    }
+  }, [open]);
 
   const createMutation = useCreateCampaign();
   const canSubmit = name.trim().length > 0 && !createMutation.isPending;
@@ -74,7 +82,12 @@ export function CreateCampaignModal({ projectId, open, onClose }: CreateCampaign
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="fixed inset-0 bg-black/25" onClick={onClose} />
+      <button
+        type="button"
+        aria-label="Close modal"
+        className="fixed inset-0 bg-black/25 cursor-default"
+        onClick={onClose}
+      />
       <div className="relative z-50 w-full max-w-lg rounded-lg bg-card border shadow-lg p-6">
         <h2 className="text-lg font-semibold mb-4">New Campaign</h2>
 
@@ -82,11 +95,11 @@ export function CreateCampaignModal({ projectId, open, onClose }: CreateCampaign
           <div>
             <Label htmlFor="campaign-name">Name *</Label>
             <Input
+              ref={nameInputRef}
               id="campaign-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Spring Product Launch"
-              autoFocus
             />
           </div>
 

@@ -1,0 +1,6 @@
+# CODEOWNERS — repo-wide code review routing.
+# Pattern reference: https://docs.github.com/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Rule: last matching pattern wins. Keep this file short until team expands.
+
+* @edwardricardo

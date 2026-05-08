@@ -1,3 +1,8 @@
+/**
+ * @file ContentSynchronizer.test-helpers.ts
+ * @description Test helpers for content synchronizer test helpers
+ * @layer infrastructure
+ */
 console.log = () => {};
 console.error = () => {};
 console.warn = () => {};

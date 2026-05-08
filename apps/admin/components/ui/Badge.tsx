@@ -2,7 +2,7 @@
  * @file Badge.tsx
  * @description Small pill badge with semantic color variants. Uses CSS
  *              custom-property tokens for full theme support.
- * @layer presentation
+ * @layer infrastructure
  */
 
 import React from "react";

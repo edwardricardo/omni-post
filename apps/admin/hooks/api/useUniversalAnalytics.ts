@@ -3,7 +3,7 @@
  * @description TanStack Query hook for the unified analytics dashboard. Fetches
  *   aggregated engagement, reach, and per-platform metrics for a given project
  *   and time range (default 7d).
- * @layer hooks
+ * @layer infrastructure
  */
 import { useQuery } from "@tanstack/react-query";
 

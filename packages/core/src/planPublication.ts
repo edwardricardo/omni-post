@@ -1,3 +1,9 @@
+/**
+ * @file planPublication.ts
+ * @description Builds a publication plan by asking each channel's provider adapter to render a
+ *              canonical post, collecting successes into Plan entries or aggregating errors.
+ * @layer infrastructure
+ */
 import { ok, err, type Result, type CanonicalPost } from "@shared/types";
 import type { ProviderAdapter, RenderedPost } from "@ports/core";
 

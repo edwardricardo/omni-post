@@ -4,6 +4,10 @@
  * Part of FASE H10-B: API Key Management
  * Tests all API key use cases with a mocked ApiKeyRepository.
  * Tier 0: No database required.
+ *
+ * @file ApiKeyUseCases.test.ts
+ * @description Tests for CreateApiKeyUseCase
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";

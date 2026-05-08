@@ -1,3 +1,9 @@
+/**
+ * @file circuitBreaker.ts
+ * @description External API circuit breaker wrapping opossum with fallback strategies, dead
+ *              letter queue integration, and Prometheus metric emission.
+ * @layer infrastructure
+ */
 import CircuitBreaker from "opossum";
 import client from "prom-client";
 import { createLogger } from "@observability/logger";
@@ -16,6 +22,21 @@ import {
   getDeadLetterQueue,
 } from "@adapters/dead-letter-queue";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
+
+/**
+ * @interface CircuitBreakerStatus
+ * @description Public status snapshot of a single circuit breaker. Returned
+ *              by `getStatus(service, operation)` and as the value type of
+ *              `getAllStatuses()`. Used by adapter and provider modules to
+ *              expose breaker health to observability dashboards.
+ */
+export interface CircuitBreakerStatus {
+  state: "CLOSED" | "OPEN" | "HALF_OPEN";
+  failures: number;
+  successes: number;
+  /** Epoch ms — only present while the breaker is OPEN. */
+  nextAttempt?: number;
+}
 
 export interface ExternalApiOptions {
   timeout: number;
@@ -580,15 +601,7 @@ export class ExternalApiCircuitBreaker {
   /**
    * Get circuit breaker status for a specific service/operation
    */
-  getStatus(
-    service: string,
-    operation: string
-  ): {
-    state: "CLOSED" | "OPEN" | "HALF_OPEN";
-    failures: number;
-    successes: number;
-    nextAttempt?: number;
-  } | null {
+  getStatus(service: string, operation: string): CircuitBreakerStatus | null {
     const key = `${service}:${operation}`;
     const breaker = this.breakers.get(key);
 
@@ -616,8 +629,8 @@ export class ExternalApiCircuitBreaker {
   /**
    * Get all circuit breaker statuses
    */
-  getAllStatuses(): Record<string, unknown> {
-    const statuses: Record<string, unknown> = {};
+  getAllStatuses(): Record<string, CircuitBreakerStatus | null> {
+    const statuses: Record<string, CircuitBreakerStatus | null> = {};
 
     for (const [key, _breaker] of this.breakers) {
       const [service, operation] = key.split(":");

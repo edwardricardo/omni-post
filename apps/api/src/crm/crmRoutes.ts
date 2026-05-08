@@ -13,7 +13,7 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import { BaseRouteHandler, type RouteContext } from "@packages/api-common";
+import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import type { ConnectCrmUseCase } from "../application/crm/ConnectCrmUseCase.js";
@@ -21,6 +21,7 @@ import type { DisconnectCrmUseCase } from "../application/crm/DisconnectCrmUseCa
 import type { GetCrmConnectionsQuery } from "../application/crm/GetCrmConnectionsQuery.js";
 import type { SyncCrmContactsUseCase } from "../application/crm/SyncCrmContactsUseCase.js";
 import type { GetCrmSyncLogsQuery } from "../application/crm/GetCrmSyncLogsQuery.js";
+import { env } from "../config/env.js";
 
 // ============================================================================
 // Schemas
@@ -244,8 +245,8 @@ export const crmRoutes: FastifyPluginAsync = async (app) => {
       schema: { tags: ["CRM"], summary: "Get HubSpot OAuth authorization URL" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const clientId = process.env.HUBSPOT_CLIENT_ID ?? "";
-      const redirectUri = process.env.HUBSPOT_REDIRECT_URI ?? "";
+      const clientId = env.HUBSPOT_CLIENT_ID ?? "";
+      const redirectUri = env.HUBSPOT_REDIRECT_URI ?? "";
       const state = crypto.randomUUID();
       const scopes = "crm.objects.contacts.read crm.objects.contacts.write timeline";
       const url =
@@ -266,9 +267,9 @@ export const crmRoutes: FastifyPluginAsync = async (app) => {
       schema: { tags: ["CRM"], summary: "Get Salesforce OAuth authorization URL" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const clientId = process.env.SALESFORCE_CLIENT_ID ?? "";
-      const redirectUri = process.env.SALESFORCE_REDIRECT_URI ?? "";
-      const sandbox = process.env.SALESFORCE_SANDBOX === "true";
+      const clientId = env.SALESFORCE_CLIENT_ID ?? "";
+      const redirectUri = env.SALESFORCE_REDIRECT_URI ?? "";
+      const sandbox = env.SALESFORCE_SANDBOX ?? false;
       const loginUrl = sandbox ? "https://test.salesforce.com" : "https://login.salesforce.com";
       const state = crypto.randomUUID();
       const url =

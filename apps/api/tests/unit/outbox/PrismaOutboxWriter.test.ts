@@ -3,6 +3,10 @@
  *
  * Part of P2-1: Transactional Outbox Implementation
  * Tier-0 tests with mocked Prisma transaction client.
+ *
+ * @file PrismaOutboxWriter.test.ts
+ * @description Tests for PrismaOutboxWriter
+ * @layer infrastructure
  */
 
 import { describe, it, beforeEach, vi, expect } from "vitest";

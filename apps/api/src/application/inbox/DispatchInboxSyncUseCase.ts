@@ -9,7 +9,7 @@
 import { type Result, ok, err } from "@shared/types";
 import type { QueuePort } from "@ports/core";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
-import type { ChannelQueryForIngestion } from "../analytics/DispatchAnalyticsIngestionUseCase.js";
+import type { ChannelQueryForIngestion } from "../../domain/repositories/ChannelQueryForIngestion.js";
 
 export interface DispatchInboxSyncInput {
   accountId?: string;

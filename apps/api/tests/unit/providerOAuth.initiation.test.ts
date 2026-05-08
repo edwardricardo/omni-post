@@ -1,3 +1,8 @@
+/**
+ * @file providerOAuth.initiation.test.ts
+ * @description Tests for ProviderOAuth - OAuth Initiation
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, expect } from "vitest";
 import { randomBytes } from "node:crypto";
 import { oauthProviders } from "../../src/auth/providerOAuth.js";

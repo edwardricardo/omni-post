@@ -2,17 +2,19 @@
 /**
  * Unit Tests for SlidingWindowRateLimit - Constructor, Basic Rate Limiting,
  * Window Info, IP Extraction, User Agent Tracking
+ *
+ * @file slidingWindowRateLimit.config-basic.test.ts
+ * @description Tests for SlidingWindowRateLimit - Constructor & Configuration
+ * @layer infrastructure
  */
 
 import { describe, it, afterAll, expect } from "vitest";
-import {
-  SlidingWindowRateLimit,
-  SlidingWindowConfigs,
-} from "../../src/security/slidingWindowRateLimit.js";
+import { SlidingWindowConfigs } from "../../src/security/slidingWindowRateLimit.js";
 import {
   MockRedis,
   MockApiMetrics,
   createMockRequest,
+  createLimiter,
   limiterInstances,
 } from "./slidingWindowRateLimit.test-helpers.js";
 
@@ -36,7 +38,7 @@ describe("SlidingWindowRateLimit - Constructor & Configuration", () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
     const config = { windowMs: 60000, maxRequests: 100 };
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, config);
+    const limiter = createLimiter(mockRedis, mockMetrics, config);
     limiterInstances.push(limiter);
 
     expect(limiter !== null && limiter !== undefined).toBeTruthy();
@@ -52,7 +54,7 @@ describe("SlidingWindowRateLimit - Constructor & Configuration", () => {
       enableProgressiveBlocking: false,
       skipList: ["/health"],
     };
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, config);
+    const limiter = createLimiter(mockRedis, mockMetrics, config);
     limiterInstances.push(limiter);
 
     expect(limiter !== null).toBeTruthy();
@@ -73,7 +75,7 @@ describe("SlidingWindowRateLimit - Basic Rate Limiting", () => {
   it("First request is allowed", async () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 10,
     });
@@ -89,7 +91,7 @@ describe("SlidingWindowRateLimit - Basic Rate Limiting", () => {
   it("Requests within limit are allowed", async () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 5,
     });
@@ -109,7 +111,7 @@ describe("SlidingWindowRateLimit - Basic Rate Limiting", () => {
   it("Request exceeding limit is rejected", async () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 3,
     });
@@ -138,7 +140,7 @@ describe("SlidingWindowRateLimit - Window Info", () => {
   it("Window info includes request count", async () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 10,
     });
@@ -154,7 +156,7 @@ describe("SlidingWindowRateLimit - Window Info", () => {
   it("Window info includes timestamps", async () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 10,
     });
@@ -176,7 +178,7 @@ describe("SlidingWindowRateLimit - IP Extraction", () => {
   it("Extract IP from X-Forwarded-For", async () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 10,
     });
@@ -194,7 +196,7 @@ describe("SlidingWindowRateLimit - IP Extraction", () => {
   it("Extract IP from X-Real-IP", async () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 10,
     });
@@ -212,7 +214,7 @@ describe("SlidingWindowRateLimit - IP Extraction", () => {
   it("Extract IP from CF-Connecting-IP (Cloudflare)", async () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 10,
     });
@@ -236,7 +238,7 @@ describe("SlidingWindowRateLimit - User Agent Tracking", () => {
   it("User agent fingerprinting enabled", async () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 10,
       enableUserAgentTracking: true,
@@ -255,7 +257,7 @@ describe("SlidingWindowRateLimit - User Agent Tracking", () => {
   it("User agent fingerprinting disabled", async () => {
     const mockRedis = new MockRedis() as any;
     const mockMetrics = new MockApiMetrics() as any;
-    const limiter = new SlidingWindowRateLimit(mockRedis, mockMetrics, {
+    const limiter = createLimiter(mockRedis, mockMetrics, {
       windowMs: 60000,
       maxRequests: 10,
       enableUserAgentTracking: false,

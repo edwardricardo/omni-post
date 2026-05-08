@@ -1,7 +1,16 @@
+/**
+ * @file index.ts
+ * @description S3-compatible storage adapter implementing StoragePort — generates presigned
+ *              upload URLs, validates content types, and retrieves media metadata.
+ * @layer infrastructure
+ */
 import { randomUUID } from "node:crypto";
 import { ok, err, type Result } from "@shared/types";
 import type { StoragePort, UploadSignature, MediaMetadata } from "@ports/core";
-import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
+import {
+  createExternalApiCircuitBreaker,
+  type CircuitBreakerStatus,
+} from "@adapters/external-apis";
 import { createLogger } from "@observability/logger";
 
 const logger = createLogger("adapter:storage-s3");
@@ -48,7 +57,7 @@ export function createS3StorageAdapter(config: S3Config): StoragePort & {
   getMetadata(input: {
     url: string;
   }): Promise<Result<MediaMetadata, "NOT_FOUND" | "SERVICE_ERROR">>;
-  getCircuitBreakerStatus(): Record<string, any>;
+  getCircuitBreakerStatus(): Record<string, CircuitBreakerStatus | null>;
   getMetricsRegistry(): client.Registry;
 } {
   const s3Client = new S3Client({
@@ -209,7 +218,7 @@ export function createS3StorageAdapter(config: S3Config): StoragePort & {
     },
 
     // Circuit breaker management
-    getCircuitBreakerStatus(): Record<string, any> {
+    getCircuitBreakerStatus(): Record<string, CircuitBreakerStatus | null> {
       return circuitBreaker.getAllStatuses();
     },
 

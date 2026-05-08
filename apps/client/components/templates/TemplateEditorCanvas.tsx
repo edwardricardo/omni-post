@@ -33,7 +33,7 @@ import {
 import Editor from "@monaco-editor/react";
 import { VariableInserter } from "./VariableInserter";
 import TipTapEditor from "./TipTapEditor";
-import type { TemplateEditorCanvasProps } from "./templateEditorTypes";
+import type { EditorTab, TemplateEditorCanvasProps } from "./templateEditorTypes";
 
 export function TemplateEditorCanvas({
   formData,
@@ -91,7 +91,7 @@ export function TemplateEditorCanvas({
 
             {compilationResult.warnings && compilationResult.warnings.length > 0 && (
               <Alert>
-                <AlertCircle className="h-4 w-4" />
+                <AlertCircle aria-hidden="true" className="h-4 w-4" />
                 <AlertDescription>
                   <strong>Warnings:</strong>
                   <ul className="mt-1 list-disc list-inside">
@@ -107,7 +107,7 @@ export function TemplateEditorCanvas({
           </div>
         ) : (
           <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
+            <AlertCircle aria-hidden="true" className="h-4 w-4" />
             <AlertDescription>
               <strong>Compilation failed:</strong>
               <ul className="mt-1 list-disc list-inside">
@@ -166,7 +166,7 @@ export function TemplateEditorCanvas({
         </div>
       </CardHeader>
       <CardContent>
-        <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as any)}>
+        <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as EditorTab)}>
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="editor" className="flex items-center space-x-1">
               <Code className="h-4 w-4" />
@@ -324,7 +324,7 @@ export function TemplateEditorCanvas({
                 </div>
               ) : (
                 <Alert>
-                  <Info className="h-4 w-4" />
+                  <Info aria-hidden="true" className="h-4 w-4" />
                   <AlertDescription>
                     No variables detected in the template. Add variables using double curly braces:{" "}
                     <code>{`{{variableName}}`}</code>

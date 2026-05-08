@@ -2,6 +2,10 @@
  * Unit Tests for ThumbnailGenerator -- Templates, A/B Testing, and Edge Cases
  * Tests getThumbnailTemplates(), applyTemplate(), generateABTestThumbnails(),
  * and edge cases (zero timestamp, max quality, small resolution).
+ *
+ * @file thumbnailGenerator.templates.test.ts
+ * @description Tests for ThumbnailGenerator - Templates
+ * @layer infrastructure
  */
 import { describe, it, beforeEach, expect } from "vitest";
 import { ThumbnailGenerator, type ThumbnailOptions } from "../../src/video/thumbnailGenerator";

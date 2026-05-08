@@ -7,18 +7,25 @@
 
 import { randomUUID } from "node:crypto";
 import Redis from "ioredis";
+import type { CachePort } from "@ports/core";
 import { OrchestrationResult, ContentVersion } from "@shared/orchestration";
 import { EventService } from "../events/EventService";
 import { VersionBranch } from "./contentVersionTypes";
 
+// `branchCache` is preserved as a write-only path: the original
+// `Map<string, VersionBranch>` was set on creation but never read. Migrating
+// to the port preserves that exact pattern (set-only) instead of introducing
+// new read paths during a cache-consolidation refactor. The dead-read
+// investigation is tracked separately as PR-30 in the backlog.
 export class BranchManager {
   private redis: Redis;
   private eventService: EventService;
-  private branchCache = new Map<string, VersionBranch>();
+  private cache: CachePort | undefined;
 
-  constructor(dependencies: { redis: Redis; eventService: EventService }) {
+  constructor(dependencies: { redis: Redis; eventService: EventService; cache?: CachePort }) {
     this.redis = dependencies.redis;
     this.eventService = dependencies.eventService;
+    this.cache = dependencies.cache;
   }
 
   /**
@@ -64,8 +71,9 @@ export class BranchManager {
       // Persist branch
       await this.storeBranch(branch);
 
-      // Populate in-memory cache
-      this.branchCache.set(branch.id, branch);
+      if (this.cache) {
+        await this.cache.set(`branch:${branch.id}`, branch, { ttlSeconds: 86_400 });
+      }
 
       // Emit event
       await this.emitBranchEvent("BRANCH_CREATED", branch);

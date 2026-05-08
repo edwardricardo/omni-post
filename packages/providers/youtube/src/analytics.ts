@@ -1,3 +1,9 @@
+/**
+ * @file analytics.ts
+ * @description YouTube analytics client fetching core and engagement metrics (views, likes,
+ *              comments, watch time) via the YouTube Analytics API with circuit breaker protection.
+ * @layer infrastructure
+ */
 import { google, youtubeAnalytics_v2 } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
 import { createExternalApiCircuitBreaker } from "@adapters/external-apis";

@@ -5,7 +5,7 @@
  *   tests that generate tokens via AuthService (JWT_SECRET) to pass through
  *   routes protected by requireAdminAuth (ADMIN_JWT_SECRET) or
  *   requireClientAuth (CUSTOMER_JWT_SECRET).
- * @layer test
+ * @layer infrastructure
  */
 
 import type { FastifyRequest, FastifyReply } from "fastify";

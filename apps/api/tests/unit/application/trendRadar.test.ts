@@ -1,13 +1,14 @@
 /**
  * @file trendRadar.test.ts
  * @description Unit tests for FetchTrendingTopicsUseCase and ScoreTrendRelevanceUseCase.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { FetchTrendingTopicsUseCase } from "../../../src/application/trends/FetchTrendingTopicsUseCase.js";
 import { ScoreTrendRelevanceUseCase } from "../../../src/application/trends/ScoreTrendRelevanceUseCase.js";
+import { InMemoryCacheAdapter } from "../../../../../packages/adapters/cache-redis/src/in-memory-cache-adapter.js";
 
 const sampleTopics = [
   {
@@ -45,12 +46,14 @@ function makeMockTrendPort(topics = sampleTopics) {
 
 describe("FetchTrendingTopicsUseCase", () => {
   let port: ReturnType<typeof makeMockTrendPort>;
+  let cache: InMemoryCacheAdapter;
   let useCase: FetchTrendingTopicsUseCase;
 
   beforeEach(() => {
     vi.clearAllMocks();
     port = makeMockTrendPort();
-    useCase = new FetchTrendingTopicsUseCase(port);
+    cache = new InMemoryCacheAdapter();
+    useCase = new FetchTrendingTopicsUseCase(port, cache);
   });
 
   it("fetches trends from connected platforms", async () => {
@@ -89,7 +92,7 @@ describe("FetchTrendingTopicsUseCase", () => {
       },
     ];
     port = makeMockTrendPort(dupes);
-    useCase = new FetchTrendingTopicsUseCase(port);
+    useCase = new FetchTrendingTopicsUseCase(port, cache);
 
     const result = await useCase.execute({ accountId: "acc-dedup" });
     assert.ok(result.ok);

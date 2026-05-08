@@ -28,6 +28,7 @@ import { TokenService } from "./TokenService";
 import { SessionManager } from "./SessionManager";
 import { BruteForceProtection } from "./BruteForceProtection";
 import { MfaService } from "./MfaService";
+import { hashRefreshToken } from "../../auth/refreshTokenHash.js";
 
 export class AdminAuthService {
   private passwordService: PasswordService;
@@ -222,8 +223,10 @@ export class AdminAuthService {
       return err("CSRF_TOKEN_MISMATCH");
     }
 
-    // Verify refresh token matches
-    if (session.refreshToken !== refreshToken) {
+    // Verify refresh token matches the stored hash. We compare digests
+    // (not raw tokens) so a DB exfiltration leaks only hashes, not bearer
+    // tokens that could be replayed against the API.
+    if (session.refreshTokenHash !== hashRefreshToken(refreshToken)) {
       return err("INVALID_TOKEN");
     }
 

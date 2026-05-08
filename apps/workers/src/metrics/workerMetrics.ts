@@ -1,3 +1,9 @@
+/**
+ * @file workerMetrics.ts
+ * @description Prometheus metrics collector for publish workers — counters, histograms, and gauges
+ *              covering publishing, threading, job processing, and system health.
+ * @layer infrastructure
+ */
 import client from "prom-client";
 import { v4 as uuidv4 } from "uuid";
 

@@ -1,3 +1,10 @@
+/**
+ * @file toast.tsx
+ * @description Radix-based Toast primitives (ToastProvider, ToastViewport, Toast, ToastAction,
+ *              ToastClose, ToastTitle, ToastDescription) with variant styling.
+ * @component ToastProvider, ToastViewport, Toast, ToastAction, ToastClose, ToastTitle, ToastDescription
+ * @layer infrastructure
+ */
 import * as React from "react";
 import { Toast as ToastPrimitives } from "radix-ui";
 import { cva, type VariantProps } from "class-variance-authority";

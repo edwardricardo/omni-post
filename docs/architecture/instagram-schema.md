@@ -351,7 +351,6 @@ await prisma.publishingQueue.create({
 - **Schema**: `/infra/prisma/schema.prisma`
 - **Migrations**: `/infra/prisma/migrations/20250923000001_instagram_features/`
 - **Query Patterns**: `/infra/prisma/docs/instagram-query-patterns.sql`
-- **Performance Guide**: `/infra/prisma/docs/performance-monitoring.md`
 - **Security Docs**: `/infra/prisma/docs/multi-tenant-security.sql`
 
 ### Performance Baselines

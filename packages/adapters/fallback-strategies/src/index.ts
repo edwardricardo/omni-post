@@ -1,3 +1,9 @@
+/**
+ * @file index.ts
+ * @description Fallback strategy manager providing CACHED_RESPONSE, STATIC_RESPONSE,
+ *              DEGRADED_SERVICE, FAIL_GRACEFULLY, and RETRY_ALTERNATIVE strategies with Redis backing.
+ * @layer infrastructure
+ */
 import { ok, err, type Result } from "@shared/types";
 import pino from "pino";
 import Redis from "ioredis";
@@ -45,6 +51,11 @@ export class FallbackManager {
         enableReadyCheck: false,
         maxRetriesPerRequest: 2,
         lazyConnect: true,
+        // ioredis defaults: commandTimeout = null (forever), connectTimeout = 10000.
+        // 5 s on each so a hung Redis fails fast instead of stalling fallback
+        // lookups (which themselves run inside an already-degraded request).
+        commandTimeout: 5_000,
+        connectTimeout: 5_000,
       });
 
       this.redis.on("error", (error) => {

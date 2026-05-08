@@ -1,9 +1,8 @@
 /**
- * YouTube Shorts Service
- *
- * Orchestrates upload, analytics, optimization suggestions, trend discovery,
- * and channel listing for YouTube Shorts. All private helpers live in
- * shortsHelpers.ts; types and the shared circuit breaker live in shortsTypes.ts.
+ * @file shorts.ts
+ * @description YouTube Shorts service orchestrating upload, analytics, optimization suggestions,
+ *              trend discovery, and channel listing via the YouTube Data API.
+ * @layer infrastructure
  */
 
 import { google, youtube_v3 } from "googleapis";

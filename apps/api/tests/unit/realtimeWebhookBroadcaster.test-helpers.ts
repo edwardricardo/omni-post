@@ -1,4 +1,10 @@
+/**
+ * @file realtimeWebhookBroadcaster.test-helpers.ts
+ * @description Tests for close
+ * @layer infrastructure
+ */
 import { EventEmitter } from "events";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { RealtimeWebhookBroadcaster } from "../../src/webhooks/realtimeWebhookBroadcaster.js";
 
 export class MockWebSocket extends EventEmitter {
@@ -82,7 +88,10 @@ export function setupBroadcaster(): void {
     state.broadcaster.shutdown();
   }
   state.mockRedis = new MockRedis();
-  state.broadcaster = new RealtimeWebhookBroadcaster(state.mockRedis as any);
+  state.broadcaster = new RealtimeWebhookBroadcaster(
+    state.mockRedis as any,
+    new NoopBackgroundTaskScheduler()
+  );
   state.mockRedis.clearPublished();
 }
 

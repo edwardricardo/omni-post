@@ -1,3 +1,8 @@
+/**
+ * @file types.test.ts
+ * @description Tests for AITypes - Message Structure
+ * @layer infrastructure
+ */
 import { describe, it, expect } from "vitest";
 import type {
   AIMessage,

@@ -7,7 +7,11 @@ dotenv.config({ path: path.join(import.meta.dirname, "../../.env") });
 import { PrismaClient } from "./generated/prisma/client/client.js";
 import { Provider } from "./generated/prisma/client/client.js";
 import argon2 from "argon2";
+import { randomBytes, createCipheriv } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { createLogger } from "@observability/logger";
+
+const logger = createLogger("seed");
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -16,6 +20,52 @@ if (!connectionString) {
 
 const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
+
+/**
+ * AES-256-GCM seed-time encryption mirroring `apps/api/src/security/EncryptionService`.
+ * Inlined here so this script stays free of the api package — the seed runs
+ * before the application bootstraps and the algorithm contract is small.
+ */
+const PLATFORM_ENCRYPTION_KEY = process.env.PLATFORM_ENCRYPTION_KEY;
+if (!PLATFORM_ENCRYPTION_KEY) {
+  throw new Error("PLATFORM_ENCRYPTION_KEY is required to seed encrypted Channel credentials");
+}
+const seedEncryptionKey = Buffer.from(PLATFORM_ENCRYPTION_KEY, "base64");
+if (seedEncryptionKey.length !== 32) {
+  throw new Error("PLATFORM_ENCRYPTION_KEY must be 32 bytes (base64-encoded)");
+}
+
+/**
+ * Same canonicalisation as `apps/api/src/security/EncryptionService.canonicaliseContext`.
+ * The fieldName (fixed at "Channel.credentials") + recordId (the channel id)
+ * are bound as AAD so a leaked seed ciphertext cannot be replayed against
+ * another channel — the auth tag verification will fail.
+ */
+function canonicaliseContext(fieldName: string, recordId: string): Buffer {
+  return Buffer.from(`${fieldName}\x1f${recordId}`, "utf8");
+}
+
+function encryptChannelCredentials(
+  creds: Record<string, unknown>,
+  channelId: string
+): {
+  credentialsCiphertext: string;
+  credentialsIv: string;
+  credentialsAuthTag: string;
+  credentialsKeyVersion: number;
+} {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", seedEncryptionKey, iv, { authTagLength: 16 });
+  cipher.setAAD(canonicaliseContext("Channel.credentials", channelId));
+  const ciphertext = Buffer.concat([cipher.update(JSON.stringify(creds), "utf8"), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+  return {
+    credentialsCiphertext: ciphertext.toString("base64"),
+    credentialsIv: iv.toString("base64"),
+    credentialsAuthTag: authTag.toString("base64"),
+    credentialsKeyVersion: 1,
+  };
+}
 
 async function main() {
   // Create a default account first
@@ -56,7 +106,7 @@ async function main() {
       projectId: project.id,
       provider: Provider.X,
       handle: "@GolDeAyerDev",
-      credentials: { token: "REEMPLAZAR" },
+      ...encryptChannelCredentials({ token: "REEMPLAZAR" }, "dev-x"),
     },
   });
 
@@ -534,15 +584,18 @@ async function main() {
     });
   }
 
-  console.log("Seed OK", {
-    account,
-    project,
-    systemTemplates: systemTemplates.length,
-    adminUser: { email: adminUser.email, roleId: adminUser.roleId },
-    pricingTiers: providerTiers.length,
-    accountTiers: accountTiers.length,
-    bundles: bundles.length,
-  });
+  logger.info(
+    {
+      account,
+      project,
+      systemTemplates: systemTemplates.length,
+      adminUser: { email: adminUser.email, roleId: adminUser.roleId },
+      pricingTiers: providerTiers.length,
+      accountTiers: accountTiers.length,
+      bundles: bundles.length,
+    },
+    "Seed OK"
+  );
 
   await seedTestAccounts();
 }
@@ -745,7 +798,7 @@ async function seedTestAccounts() {
           projectId: project.id,
           provider,
           handle: `${acct.handle}-${provider.toLowerCase()}`,
-          credentials: { token: "TEST_TOKEN" },
+          ...encryptChannelCredentials({ token: "TEST_TOKEN" }, channelId),
         },
       });
     }
@@ -791,9 +844,9 @@ async function seedTestAccounts() {
     }
   }
 
-  console.log(`Test accounts seeded: ${testAccounts.length}`);
+  logger.info({ count: testAccounts.length }, "Test accounts seeded");
 
-  // ─── Compliance Settings (Sprint C) ───────────────────────────────────────
+  // ─── Compliance Settings ──────────────────────────────────────────────────
   await prisma.gdprSettings.upsert({
     where: { id: "gdpr-singleton" },
     update: {},
@@ -810,7 +863,7 @@ async function seedTestAccounts() {
       enableBreachNotification: true,
     },
   });
-  console.log("GdprSettings seeded");
+  logger.info("GdprSettings seeded");
 
   await prisma.securitySettings.upsert({
     where: { id: "security-singleton" },
@@ -822,7 +875,7 @@ async function seedTestAccounts() {
       passwordMinLength: 8,
     },
   });
-  console.log("SecuritySettings seeded");
+  logger.info("SecuritySettings seeded");
 }
 
 main().finally(() => prisma.$disconnect());

@@ -1,3 +1,8 @@
+/**
+ * @file cqrsIntegration.system-errors-cache-shutdown.test.ts
+ * @description Tests for CQRSIntegration - System Routes
+ * @layer infrastructure
+ */
 import { describe, it, beforeEach, afterEach, beforeAll, afterAll, expect } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import { CQRSIntegration } from "../../src/cqrs/CQRSIntegration";

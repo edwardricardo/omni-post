@@ -1,12 +1,8 @@
 /**
- * Facebook Shop — barrel re-export
- *
- * Types        → shop.types.ts
- * Catalog/Product/Collection API → shop.catalog.ts  (FacebookShopCatalogApi)
- * Shop management / insights     → shop.management.ts (FacebookShopManagementApi)
- *
- * FacebookShopApi is preserved here as a backward-compatible alias for
- * FacebookShopCatalogApi so existing code that imports this name continues to work.
+ * @file shop.ts
+ * @description Barrel re-exports for Facebook Shop — types, catalog API, management API,
+ *              and a backward-compatible FacebookShopApi alias.
+ * @layer infrastructure
  */
 
 // Types

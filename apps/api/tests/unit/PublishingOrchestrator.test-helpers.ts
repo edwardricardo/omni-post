@@ -3,11 +3,16 @@
  *
  * Common mock classes, bridge functions, and factory helpers
  * used across the PublishingOrchestrator test suite.
+ *
+ * @file PublishingOrchestrator.test-helpers.ts
+ * @description Test helpers for publishing orchestrator test helpers
+ * @layer infrastructure
  */
 
 import { PublishingOrchestrator } from "../../src/orchestration/PublishingOrchestrator.js";
 import type { PrismaClient } from "@infra/prisma";
 import type Redis from "ioredis";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { EventService } from "../../src/events/EventService.js";
 import type { ProviderId } from "../../src/providers/providerAdapter.interface.js";
 
@@ -160,6 +165,7 @@ export function createOrchestrator(
     prisma: asPrisma(mockPrisma),
     redis: asRedis(mockRedis),
     eventService: asEventService(mockEvents),
+    scheduler: new NoopBackgroundTaskScheduler(),
     ...(config && { config }),
   });
 

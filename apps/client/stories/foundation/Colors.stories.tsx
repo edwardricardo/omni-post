@@ -1,3 +1,9 @@
+/**
+ * @file Colors.stories.tsx
+ * @description Storybook stories documenting the semantic color token palette (HSL + CSS variables)
+ *              used for theming and light/dark adaptation.
+ * @layer infrastructure
+ */
 import type { Meta, StoryObj } from "@storybook/nextjs";
 
 /**

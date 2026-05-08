@@ -1,8 +1,17 @@
+/**
+ * @file preview.tsx
+ * @description Storybook preview configuration — imports global CSS, configures controls matchers,
+ *              docs table-of-contents, and default story parameters.
+ * @layer infrastructure
+ */
 import type { Preview } from "@storybook/nextjs";
 import "../app/globals.css";
 
 const preview: Preview = {
   parameters: {
+    nextjs: {
+      appDirectory: true,
+    },
     controls: {
       matchers: {
         color: /(background|color)$/i,

@@ -6,13 +6,12 @@
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import {
-  BaseRouteHandler,
-  type RouteContext,
   IdSchema,
   exportToCSV,
   generateCSVFilename,
   type ColumnDefinition,
 } from "@packages/api-common";
+import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import type { AuthenticatedUser } from "../auth/authService.js";
 import type { PrismaClient } from "@infra/prisma";
@@ -766,6 +765,47 @@ const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
       schema: { tags: ["Analytics"], summary: "Export analytics data" },
     },
     async (request, reply) => handler.exportAnalytics(request, reply)
+  );
+
+  // ─── Predictive analytics scaffolding ──────────────────────────────────────
+  // ROI forecast + cross-platform competitive analysis. Wired so the route
+  // table reflects the planned contract; both respond with 501 until the
+  // underlying scoring services are implemented. Frontend `usePredictiveData`
+  // surfaces this as a "feature in development" state.
+
+  fastify.get(
+    "/analytics/roi",
+    {
+      preHandler: [requireClientAuth],
+      schema: {
+        tags: ["Analytics"],
+        summary: "ROI forecast for an account / time range (scaffolded — pending impl)",
+      },
+    },
+    async (_request, reply) =>
+      reply.status(501).send({
+        ok: false,
+        error: "NOT_IMPLEMENTED",
+        message: "ROI forecast endpoint is scaffolded but the backend implementation is pending.",
+      })
+  );
+
+  fastify.get(
+    "/analytics/cross-platform",
+    {
+      preHandler: [requireClientAuth],
+      schema: {
+        tags: ["Analytics"],
+        summary: "Cross-platform competitive analysis (scaffolded — pending impl)",
+      },
+    },
+    async (_request, reply) =>
+      reply.status(501).send({
+        ok: false,
+        error: "NOT_IMPLEMENTED",
+        message:
+          "Cross-platform analytics endpoint is scaffolded but the backend implementation is pending.",
+      })
   );
 };
 

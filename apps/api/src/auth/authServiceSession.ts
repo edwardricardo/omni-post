@@ -26,6 +26,7 @@ import {
   deleteActiveSessionsKey,
 } from "./redisSessionHelpers.js";
 import { hashFingerprint } from "./deviceFingerprint.js";
+import { hashRefreshToken } from "./refreshTokenHash.js";
 import type { AuthServiceCore } from "./authServiceCore.js";
 import { authLogger } from "../lib/logger.js";
 
@@ -77,7 +78,7 @@ export class AuthServiceSession {
       const decoded = jwt.verify(refreshToken, this.core.refreshSecret, jwtOptions) as TokenPayload;
 
       const session = await prisma.adminSession.findUnique({
-        where: { refreshToken },
+        where: { refreshTokenHash: hashRefreshToken(refreshToken) },
         include: { user: true },
       });
 
@@ -128,7 +129,10 @@ export class AuthServiceSession {
 
       await prisma.adminSession.update({
         where: { id: session.id },
-        data: { refreshToken: newTokens.refreshToken, expiresAt: newTokens.expiresAt },
+        data: {
+          refreshTokenHash: hashRefreshToken(newTokens.refreshToken),
+          expiresAt: newTokens.expiresAt,
+        },
       });
 
       await this.core.logUserActionPublic(decoded.userId, {
@@ -186,7 +190,7 @@ export class AuthServiceSession {
 
       const session = await prisma.adminSession.findUnique({
         where: { id: decoded.sessionId },
-        include: { user: true },
+        include: { user: { include: { role: true } } },
       });
       if (!session || !session.isActive || session.expiresAt < new Date()) {
         return err("SESSION_EXPIRED");
@@ -200,7 +204,11 @@ export class AuthServiceSession {
         }
       }
 
-      return ok(this.core.mapUserToAuthenticatedUser(session.user as unknown as AdminUserDto));
+      const userDto = {
+        ...session.user,
+        role: session.user.role.name,
+      } as unknown as AdminUserDto;
+      return ok(this.core.mapUserToAuthenticatedUser(userDto));
     } catch (error) {
       if (error instanceof jwt.JsonWebTokenError) {
         return err("INVALID_TOKEN");
@@ -217,7 +225,7 @@ export class AuthServiceSession {
   ): Promise<Result<void, "SESSION_NOT_FOUND" | "DATABASE_ERROR">> {
     try {
       const session = await prisma.adminSession.findUnique({
-        where: { refreshToken },
+        where: { refreshTokenHash: hashRefreshToken(refreshToken) },
       });
 
       if (!session) return err("SESSION_NOT_FOUND");

@@ -1,7 +1,7 @@
 /**
  * @file externalNotificationUseCase.test.ts
  * @description Tests for ConfigureExternalNotificationUseCase — URL validation, events, persistence.
- * @layer test
+ * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";

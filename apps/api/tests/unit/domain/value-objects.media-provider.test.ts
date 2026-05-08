@@ -1,3 +1,8 @@
+/**
+ * @file value-objects.media-provider.test.ts
+ * @description Tests for Domain Value Objects - MediaAttachment
+ * @layer infrastructure
+ */
 import { describe, it, expect } from "vitest";
 import { MediaAttachment, MediaId, ScheduledTime, Provider } from "./value-objects.fixtures.js";
 

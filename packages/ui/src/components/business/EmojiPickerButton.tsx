@@ -2,7 +2,8 @@
  * @file EmojiPickerButton.tsx
  * @description Emoji picker button using emoji-mart. Opens a popover with emoji search
  *   and categories. Calls onEmojiSelect with the native emoji character.
- * @layer ui
+ * @component EmojiPickerButton
+ * @layer infrastructure
  */
 
 "use client";
