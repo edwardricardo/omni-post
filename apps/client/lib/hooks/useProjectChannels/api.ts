@@ -43,6 +43,38 @@ export async function fetchProjectChannels(projectId: string): Promise<ProjectCh
 }
 
 /**
+ * Connect a Bluesky account using App Password authentication. Backend
+ * validates credentials, creates the Channel row, and returns the new
+ * channelId + handle.
+ */
+export interface ConnectBlueskyInput {
+  projectId: string;
+  identifier: string;
+  appPassword: string;
+}
+export interface ConnectBlueskyResult {
+  channelId: string;
+  handle: string;
+  provider: "BLUESKY";
+}
+export async function connectBluesky(input: ConnectBlueskyInput): Promise<ConnectBlueskyResult> {
+  const res = await fetch(`/api/backend/channels/bluesky/connect`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    throw new Error(await readErrorMessage(res, `Failed to connect Bluesky (${res.status})`));
+  }
+  const body = (await res.json()) as { ok?: boolean; data?: ConnectBlueskyResult; error?: string };
+  if (!body.ok || !body.data) {
+    throw new Error(body.error ?? "Failed to connect Bluesky");
+  }
+  return body.data;
+}
+
+/**
  * Soft-deletes a channel (sets `deletedAt = now`). The row is retained for
  * audit but disappears from every active query.
  */

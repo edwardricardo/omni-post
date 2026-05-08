@@ -10,11 +10,18 @@
  */
 
 import { useMutation, useQueryClient, type QueryKey } from "@tanstack/react-query";
-import { disconnectChannel, setPrimaryChannel } from "./api";
+import {
+  connectBluesky,
+  disconnectChannel,
+  setPrimaryChannel,
+  type ConnectBlueskyInput,
+  type ConnectBlueskyResult,
+} from "./api";
 import type { ProjectChannel } from "./types";
 
 const SET_PRIMARY_MUTATION_KEY = ["channels", "set-primary"] as const;
 const DISCONNECT_MUTATION_KEY = ["channels", "disconnect"] as const;
+const CONNECT_BLUESKY_MUTATION_KEY = ["channels", "connect-bluesky"] as const;
 
 interface SetPrimaryContext {
   /** Snapshots of every project-scoped channel list so we can roll back per-key on error. */
@@ -114,6 +121,27 @@ export function useDisconnectChannel() {
     },
     onSettled: () => {
       if (qc.isMutating({ mutationKey: DISCONNECT_MUTATION_KEY }) > 1) return;
+      qc.invalidateQueries({ queryKey: ["channels"] });
+    },
+  });
+}
+
+/**
+ * @hook useConnectBluesky
+ * @description Mutation that creates a new Bluesky channel via the
+ *   backend `/channels/bluesky/connect` endpoint. Bluesky uses App
+ *   Passwords instead of OAuth, so the form here lives in the
+ *   client-side Connect dialog; the mutation invalidates the channel
+ *   list on success so the new row appears immediately.
+ * @returns TanStack mutation object. Call `mutateAsync(input)` to await
+ *   the resulting channelId / handle.
+ */
+export function useConnectBluesky() {
+  const qc = useQueryClient();
+  return useMutation<ConnectBlueskyResult, Error, ConnectBlueskyInput>({
+    mutationKey: CONNECT_BLUESKY_MUTATION_KEY,
+    mutationFn: connectBluesky,
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["channels"] });
     },
   });

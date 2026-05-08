@@ -6,5 +6,6 @@
  */
 
 export type { ChannelProvider, ChannelStatus, ProjectChannel } from "./types";
+export type { ConnectBlueskyInput, ConnectBlueskyResult } from "./api";
 export { useProjectChannels } from "./queries";
-export { useDisconnectChannel, useSetPrimaryChannel } from "./mutations";
+export { useConnectBluesky, useDisconnectChannel, useSetPrimaryChannel } from "./mutations";
