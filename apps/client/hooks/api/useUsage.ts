@@ -1,66 +1,28 @@
 /**
  * @file useUsage.ts
- * @description TanStack Query hook for account usage metrics.
+ * @description TanStack Query hook fetching account usage metrics + plan
+ *              context (counters, limits, trial, billing). Consumes the
+ *              canonical `usageQueries.forAccount(accountId)` factory
+ *              (canon `tanstack-query-v5-migration-patterns-from-raw-fetch`).
+ * @hook useAccountUsage
  * @layer infrastructure
  */
 
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { usageQueries } from "@/lib/api/queries/usageQueries";
 
-export interface AccountUsageDto {
-  postsPublished: number;
-  aiCallsMade: number;
-  storageGb: number;
-  teamMemberCount: number;
-  plan: string;
-  postsLimit: number;
-  channelsLimit: number;
-  teamMembersLimit: number;
-  storageLimitGb: number;
-  channelsCount: number;
-  isOnTrial: boolean;
-  trialEndDate: string | null;
-  nextBillingDate: string | null;
-}
-
-async function fetchUsage(accountId: string): Promise<AccountUsageDto> {
-  const now = new Date();
-  const res = await fetch(
-    `/api/backend/usage?accountId=${accountId}&year=${now.getFullYear()}&month=${now.getMonth() + 1}`,
-    { cache: "no-store", credentials: "include" }
-  );
-  if (!res.ok) throw new Error("Failed to fetch usage");
-  const body = (await res.json()) as { ok: boolean; data?: AccountUsageDto };
-  if (body.ok && body.data) return body.data;
-  return {
-    postsPublished: 0,
-    aiCallsMade: 0,
-    storageGb: 0,
-    teamMemberCount: 0,
-    plan: "none",
-    postsLimit: 10,
-    channelsLimit: 3,
-    teamMembersLimit: 5,
-    storageLimitGb: 5,
-    channelsCount: 0,
-    isOnTrial: true,
-    trialEndDate: null,
-    nextBillingDate: null,
-  };
-}
+export type { AccountUsageDto } from "@/lib/api/clients/usageClient";
 
 /**
  * @hook useAccountUsage
- * @description Fetches account usage data including plan limits, current usage, and trial status.
- * @param accountId - The account to fetch usage for
- * @returns TanStack Query result with account usage data including limits and counts
+ * @description Fetches the current-period usage data + plan context. The
+ *              query is gated on a non-empty `accountId`; while the auth
+ *              context resolves, the hook stays disabled.
+ * @param accountId - The account to fetch usage for. Required.
+ * @returns TanStack Query result with the AccountUsageDto.
  */
 export function useAccountUsage(accountId: string) {
-  return useQuery({
-    queryKey: ["usage", accountId],
-    queryFn: () => fetchUsage(accountId),
-    staleTime: 60_000,
-    enabled: !!accountId,
-  });
+  return useQuery(usageQueries.forAccount(accountId));
 }

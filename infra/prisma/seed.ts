@@ -540,6 +540,8 @@ async function main() {
       providers: ["X", "INSTAGRAM", "FACEBOOK"],
       pricePerAccountMonth: 20.0,
       sortOrder: 1,
+      maxPostsPerMonth: 100,
+      maxChannels: 3,
     },
     {
       name: "Growth",
@@ -548,6 +550,8 @@ async function main() {
       providers: ["X", "INSTAGRAM", "FACEBOOK", "LINKEDIN", "TIKTOK", "YOUTUBE"],
       pricePerAccountMonth: 40.0,
       sortOrder: 2,
+      maxPostsPerMonth: 500,
+      maxChannels: 10,
     },
     {
       name: "Agency Full",
@@ -568,6 +572,9 @@ async function main() {
       ],
       pricePerAccountMonth: 60.0,
       sortOrder: 3,
+      // null = unlimited (enterprise tier)
+      maxPostsPerMonth: null,
+      maxChannels: null,
     },
   ];
   for (const bundle of bundles) {
@@ -579,6 +586,8 @@ async function main() {
         providers: bundle.providers,
         pricePerAccountMonth: bundle.pricePerAccountMonth,
         sortOrder: bundle.sortOrder,
+        maxPostsPerMonth: bundle.maxPostsPerMonth,
+        maxChannels: bundle.maxChannels,
       },
       create: { ...bundle, isActive: true },
     });

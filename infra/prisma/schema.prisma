@@ -2848,6 +2848,12 @@ model ProviderBundle {
   pricePerAccountMonth Decimal    @db.Decimal(19, 4)
   isActive             Boolean    @default(true)
   sortOrder            Int        @default(0)
+  /// Posts the account is allowed to publish per calendar month under this bundle.
+  /// `null` means unlimited (enterprise-grade plans).
+  maxPostsPerMonth     Int?
+  /// Social channels the account is allowed to connect concurrently under this bundle.
+  /// `null` means unlimited.
+  maxChannels          Int?
   createdAt            DateTime   @default(now()) @db.Timestamptz(6)
   updatedAt            DateTime   @updatedAt @db.Timestamptz(6)
 

@@ -18,9 +18,24 @@ function UsageMeter({
 }: {
   label: string;
   current: number;
-  limit: number;
+  /** `null` means unlimited (enterprise tier or no subscription bundle). */
+  limit: number | null;
   unit?: string;
 }) {
+  // Unlimited tier — show count only, no progress bar.
+  if (limit === null) {
+    return (
+      <div className="rounded-lg border bg-card p-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium">{label}</span>
+          <span className="text-sm text-muted-foreground">
+            {current.toLocaleString()} {unit ?? ""} · Unlimited
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   const percentage = limit > 0 ? Math.min((current / limit) * 100, 100) : 0;
   const barColor =
     percentage >= 95 ? "bg-red-500" : percentage >= 80 ? "bg-orange-500" : "bg-primary";
