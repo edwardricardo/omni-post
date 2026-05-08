@@ -14,6 +14,7 @@ import type {
   PostReadModelWithThread,
   ThreadReadModel,
   GlobalPostFilter,
+  PostFilterCriteria,
   PostSortField,
   PaginationParams,
   PaginatedResult,
@@ -111,19 +112,31 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
   }
 
   /**
-   * List posts for a project with optional pagination and sorting.
+   * List posts for a project with optional pagination, sorting, and filters.
    * Defaults: page 1, limit 20, ordered by createdAt descending.
+   *
+   * Filter semantics:
+   * - `status`: single value or array (uses Prisma `in` for arrays).
+   * - Date ranges (`scheduledBefore`/`scheduledAfter`, `createdBefore`/`createdAfter`):
+   *   inclusive bounds (`gte`/`lte`).
+   * - `hasMedia`: `true` → at least one PostMedia, `false` → none.
+   * - `tags` + `searchText`: both apply through `contents.some` filter; combined
+   *   with AND semantics (a single content row must match all conditions).
+   *
+   * The filter's own `projectId` is ignored — the explicit `projectId` arg is
+   * authoritative for scope (prevents cross-project leakage).
    */
   async listByProject(
     projectId: ProjectId,
     pagination?: PaginationParams,
-    sort?: SortParams<PostSortField>
+    sort?: SortParams<PostSortField>,
+    filter?: PostFilterCriteria
   ): Promise<PaginatedResult<PostReadModel>> {
     const page = pagination?.page ?? DEFAULT_PAGE;
     const limit = Math.min(pagination?.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
     const skip = (page - 1) * limit;
 
-    const where = { projectId: projectId.value, deletedAt: null };
+    const where = this.buildWhereClause(projectId, filter);
     const orderBy = sort ? { [sort.field]: sort.direction } : { createdAt: "desc" as const };
 
     const [posts, total] = await Promise.all([
@@ -151,6 +164,62 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
       hasNext: page < totalPages,
       hasPrevious: page > 1,
     };
+  }
+
+  /**
+   * Build a Prisma `where` clause from a project scope and optional filter.
+   * Always pins `projectId` and `deletedAt: null`.
+   */
+  private buildWhereClause(
+    projectId: ProjectId,
+    filter?: PostFilterCriteria
+  ): Record<string, unknown> {
+    const where: Record<string, unknown> = {
+      projectId: projectId.value,
+      deletedAt: null,
+    };
+
+    if (!filter) return where;
+
+    if (filter.status !== undefined) {
+      where["status"] = Array.isArray(filter.status) ? { in: filter.status } : filter.status;
+    }
+
+    if (filter.scheduledBefore || filter.scheduledAfter) {
+      const range: { gte?: Date; lte?: Date } = {};
+      if (filter.scheduledAfter) range.gte = filter.scheduledAfter;
+      if (filter.scheduledBefore) range.lte = filter.scheduledBefore;
+      where["scheduledAt"] = range;
+    }
+
+    if (filter.createdBefore || filter.createdAfter) {
+      const range: { gte?: Date; lte?: Date } = {};
+      if (filter.createdAfter) range.gte = filter.createdAfter;
+      if (filter.createdBefore) range.lte = filter.createdBefore;
+      where["createdAt"] = range;
+    }
+
+    if (filter.hasMedia === true) {
+      where["media"] = { some: {} };
+    } else if (filter.hasMedia === false) {
+      where["media"] = { none: {} };
+    }
+
+    const contentConditions: Record<string, unknown> = {};
+    if (filter.tags && filter.tags.length > 0) {
+      contentConditions["tags"] = { hasSome: filter.tags };
+    }
+    if (filter.searchText) {
+      contentConditions["OR"] = [
+        { title: { contains: filter.searchText, mode: "insensitive" } },
+        { body: { contains: filter.searchText, mode: "insensitive" } },
+      ];
+    }
+    if (Object.keys(contentConditions).length > 0) {
+      where["contents"] = { some: contentConditions };
+    }
+
+    return where;
   }
 
   /**

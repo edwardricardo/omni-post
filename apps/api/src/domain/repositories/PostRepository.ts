@@ -28,6 +28,7 @@ export interface PostFilterCriteria {
   createdAfter?: Date;
   hasMedia?: boolean;
   searchText?: string;
+  tags?: string[];
 }
 
 /**
@@ -180,12 +181,17 @@ export interface PostQueryRepository {
   getById(id: PostId): Promise<Result<PostReadModel, EntityNotFoundError>>;
 
   /**
-   * List posts for a project (optimized for listing)
+   * List posts for a project (optimized for listing).
+   *
+   * Optional `filter` narrows the result set with the same criteria shape used
+   * by the command-side `findWithFilters`. `projectId` from the filter is
+   * ignored — the explicit `projectId` parameter is authoritative for scope.
    */
   listByProject(
     projectId: ProjectId,
     pagination?: PaginationParams,
-    sort?: SortParams<PostSortField>
+    sort?: SortParams<PostSortField>,
+    filter?: PostFilterCriteria
   ): Promise<PaginatedResult<PostReadModel>>;
 
   /**
