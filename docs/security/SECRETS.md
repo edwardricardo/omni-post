@@ -16,7 +16,7 @@ see [Appendix F](#appendix-f--cross-references).
 
 ## 1. Scope
 
-**Covers**
+### Covers
 
 - Every runtime secret loaded from `process.env` (validated by
   [apps/api/src/config/env.ts](../../apps/api/src/config/env.ts))
@@ -24,14 +24,14 @@ see [Appendix F](#appendix-f--cross-references).
 - CI/CD secrets (current location and target location)
 - Local-dev-only secrets (Docker Compose service credentials, admin seed)
 
-**Does not cover**
+### Does not cover
 
 - The procedure to rotate any individual secret → [T0A_SECRETS_ROTATION_RUNBOOK.md](./T0A_SECRETS_ROTATION_RUNBOOK.md)
 - The Class A–E classification semantics → [SECRETS_DATABASE_INVENTORY.md](./SECRETS_DATABASE_INVENTORY.md)
 - Architectural decisions (deployment delivery, KMS migration, BYOK
   feasibility) → [Appendix F](#appendix-f--cross-references)
 
-**Audience**
+### Audience
 
 Operators, on-call engineers, security reviewers, new contributors.
 Anyone who needs to find a specific secret and understand its lifecycle

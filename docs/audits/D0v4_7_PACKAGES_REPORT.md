@@ -284,7 +284,7 @@ domain ← application ← infrastructure
 @ui                      : 2 CRITICAL (ORPHAN + hardcoded URL)
 ```
 
-**Total boundary leaks CRITICAL: 7**
+#### Total boundary leaks CRITICAL: 7
 
 ---
 

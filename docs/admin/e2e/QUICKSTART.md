@@ -200,7 +200,7 @@ The test suite covers:
 - ✅ Logout flow and session clearing (2 tests)
 - ✅ Session persistence across reloads (2 tests)
 
-**Total: 17 comprehensive test cases**
+### Total: 17 comprehensive test cases
 
 ## Next Steps
 

@@ -122,7 +122,7 @@ Addressed 42 of 76 security vulnerabilities and consolidated fragmented dependen
 
 ### Patches Applied (20 packages)
 
-fastify 5.6.1 → 5.8.4, prisma 7.4.1 → 7.5.0, bullmq 5.58.9 → 5.71.1, ioredis 5.7.0 → 5.10.1, @fastify/cors 11.1.0 → 11.2.0, @tanstack/react-query 5.90.2 → 5.95.2, @tiptap/_ (11 packages) 3.6.1 → 3.20.5, @typescript-eslint/_ 8.44.1 → 8.57.2, @playwright/test 1.55.1 → 1.58.2, turbo 2.8.14 → 2.8.20, tailwindcss 4.2.1 → 4.2.2, and others.
+fastify 5.6.1 → 5.8.4, prisma 7.4.1 → 7.5.0, bullmq 5.58.9 → 5.71.1, ioredis 5.7.0 → 5.10.1, @fastify/cors 11.1.0 → 11.2.0, @tanstack/react-query 5.90.2 → 5.95.2, `@tiptap/_` (11 packages) 3.6.1 → 3.20.5, `@typescript-eslint/_` 8.44.1 → 8.57.2, @playwright/test 1.55.1 → 1.58.2, turbo 2.8.14 → 2.8.20, tailwindcss 4.2.1 → 4.2.2, and others.
 
 ### Security Audit Comparison
 

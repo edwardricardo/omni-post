@@ -156,7 +156,7 @@ Creo que el 70% del código en apps/admin es código de producto que pertenece e
 
 ## Recommended Approach
 
-**Option C: Rename/repurpose — make admin the client, build a new admin**
+### Option C: Rename/repurpose — make admin the client, build a new admin
 
 ### Reasoning
 

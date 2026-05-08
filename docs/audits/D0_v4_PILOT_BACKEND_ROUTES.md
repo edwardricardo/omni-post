@@ -184,7 +184,7 @@ Todos presentes y correctamente auth'd.
 
 ### §5.A Sustantivos (afectan umbral VERDE/AMARILLO/ROJO)
 
-**Total: 3**
+#### Total: 3
 
 **#1. `missed_in_inventory` — `PUT /admin/accounts/:id/settings` en `admin/analyticsRoutes.ts:73-80`**
 
@@ -359,7 +359,7 @@ No son sustantivos del piloto (D1 cleanup pendiente separado).
 
 ## §7 Decisión recomendada
 
-**Clasificación: 🟢 VERDE**
+### Clasificación: 🟢 VERDE
 
 **Justificación numérica:**
 

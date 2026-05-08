@@ -19,7 +19,7 @@ and [SECRETS_PRODUCTION_ARCHITECTURE.md](./SECRETS_PRODUCTION_ARCHITECTURE.md)
 
 ## 1. Scope
 
-**Covers**
+### Covers
 
 - Per-tenant DEK / KEK study and the three industry-standard isolation
   levels (L1 platform-KEK, L2 per-tenant-KEK, L3 customer-managed KEK)
@@ -31,7 +31,7 @@ and [SECRETS_PRODUCTION_ARCHITECTURE.md](./SECRETS_PRODUCTION_ARCHITECTURE.md)
 - Decision criteria — the questions that must have answers before any
   phase is executed
 
-**Does not cover**
+### Does not cover
 
 - Implementation code (schema migrations, EncryptionService refactor) —
   out of scope; this is feasibility, not an executive plan
@@ -42,7 +42,7 @@ and [SECRETS_PRODUCTION_ARCHITECTURE.md](./SECRETS_PRODUCTION_ARCHITECTURE.md)
 - Deployment-time secret delivery → [SECRETS_PRODUCTION_ARCHITECTURE.md](./SECRETS_PRODUCTION_ARCHITECTURE.md)
 - Per-secret rotation cadence → [T0A_SECRETS_ROTATION_RUNBOOK.md](./T0A_SECRETS_ROTATION_RUNBOOK.md)
 
-**Audience**
+### Audience
 
 Product and security planning teams considering SOC2 / HIPAA / GDPR
 roadmap; enterprise sales preparing technical answers for procurement

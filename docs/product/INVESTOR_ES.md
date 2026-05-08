@@ -282,15 +282,15 @@ Esta arquitectura no es ornamental. Es lo que permite que un solo desarrollador 
 
 ### Segmentos Target
 
-**Primario: Agencias de social media (TAM: $8.2B)**
+#### Primario: Agencias de social media (TAM: $8.2B)
 
 Las agencias gestionan multiples cuentas de clientes y necesitan eficiencia operativa, aprobaciones, reportes compartibles y pricing por volumen. OmniPost esta disenado para este segmento desde la arquitectura -- multi-tenant nativo, roles de equipo, campanas, CRM, pricing degresivo por cuenta.
 
-**Secundario: Creadores de contenido y PYMES (TAM: $6.1B)**
+#### Secundario: Creadores de contenido y PYMES (TAM: $6.1B)
 
 Creadores individuales y pequenas empresas que publican en 3-5 plataformas. El bundle Creator ($25/mes) compite directamente con Buffer ($36/mes) ofreciendo AI significativamente mas avanzada.
 
-**Terciario: Enterprise (TAM: $9.2B)**
+#### Terciario: Enterprise (TAM: $9.2B)
 
 Empresas con equipos de marketing que necesitan SSO, aprobaciones multi-nivel, CRM, y compliance. OmniPost tiene la infraestructura enterprise (SAML, OIDC, audit logs, gestion de crisis) a un precio sustancialmente menor que Sprout Social ($399/mes).
 

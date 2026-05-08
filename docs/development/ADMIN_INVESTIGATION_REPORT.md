@@ -34,7 +34,7 @@
 
 **Symptom:** App logs out with HTTP 401 `TOKEN_EXPIRED` during normal use.
 
-**Access Token TTL: 15 minutes**
+#### Access Token TTL: 15 minutes
 
 ```
 File: apps/api/src/admin/auth/adminAuthConfig.ts
@@ -49,7 +49,7 @@ File: apps/api/src/admin/auth/TokenService.ts:33
 exp: Math.floor(Date.now() / 1000) + 15 * 60, // 15 minutes
 ```
 
-**Refresh endpoint: EXISTS**
+#### Refresh endpoint: EXISTS
 
 ```
 File: apps/api/src/admin/auth/adminAuthRoutes.ts:495-499
@@ -57,14 +57,14 @@ Route: POST /admin/auth/refresh
 Body: { refreshToken: string, csrfToken: string }
 ```
 
-**Cookie stores access token with 24h maxAge (mismatch)**
+#### Cookie stores access token with 24h maxAge (mismatch)
 
 ```
 File: apps/admin/app/actions/auth.ts:28
 maxAge: 24 * 60 * 60, // 1 day — but JWT inside expires in 15 min
 ```
 
-**Frontend NEVER calls refresh endpoint**
+#### Frontend NEVER calls refresh endpoint
 
 ```
 File: apps/admin/app/api/backend/[...path]/route.ts:46-52
@@ -90,7 +90,7 @@ if (!user) {
 
 But this only runs on navigation/page load, not on API calls.
 
-**Login flow stores only accessToken (not refreshToken or csrfToken)**
+#### Login flow stores only accessToken (not refreshToken or csrfToken)
 
 ```
 File: apps/admin/app/actions/auth.ts:80-85
@@ -296,7 +296,7 @@ File: apps/admin/app/(dashboard)/pricing/page.tsx
 
 ### 7. Security — RBAC, MFA, Permission Hierarchy
 
-**Permission Hierarchy: FROM DATABASE (not hardcoded)**
+#### Permission Hierarchy: FROM DATABASE (not hardcoded)
 
 ```
 File: apps/admin/hooks/api/useSecurity.ts:31-36

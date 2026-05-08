@@ -27,7 +27,7 @@ New timeout: 7,200,000 ms (2 hours)
 | A5    | templates, video, ai, billing               | ⚠️ break threshold | -      | -        | -     | 2h       |
 | G1    | infrastructure                              | ⚠️ break threshold | -      | -        | -     | 2h       |
 
-**Total runtime: ~16.5 hours**
+### Total runtime: ~16.5 hours
 
 ## Covered Scores (from cumulative killed/survived)
 

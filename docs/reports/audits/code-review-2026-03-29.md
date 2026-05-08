@@ -77,7 +77,7 @@ Fastify REST API with 85 Prisma models, 74+ use cases, 26+ queries, all followin
 | Crisis management      | COMPLETE | Enter/Exit/GetStatus                        | Crisis routes                                               | Full workflow                                  |
 | Link shortener         | COMPLETE | Create/Delete TrackedLink                   | Link routes with /r/:shortCode redirect                     | Click tracking                                 |
 
-**Summary: 20 COMPLETE, 14 BACKEND ONLY, 3 PARTIAL, 2 STUB, 0 MISSING**
+#### Summary: 20 COMPLETE, 14 BACKEND ONLY, 3 PARTIAL, 2 STUB, 0 MISSING
 
 ### Client App Assessment
 

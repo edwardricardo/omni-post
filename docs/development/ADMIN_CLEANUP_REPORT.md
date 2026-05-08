@@ -8,13 +8,13 @@
 
 ### BLOCKING (2)
 
-**B1 -- Legacy dashboard overrides sprint dashboard**
+#### B1 -- Legacy dashboard overrides sprint dashboard
 
 - **File:** `apps/admin/app/page.tsx` (310 lines)
 - **Problem:** Pre-sprint Genesis dashboard (2026-03-08) using `useState`/`useEffect` and direct `api.admin.getDashboardStats()` calls. In Next.js, `app/page.tsx` takes priority over `app/(dashboard)/page.tsx` for the `/` route, so users always saw the legacy version instead of the sprint-built dashboard with auth guards, SidebarNav, and TanStack Query hooks.
 - **Fix:** Deleted the file. `(dashboard)/page.tsx` now serves `/` through the route group, wrapped by `(dashboard)/layout.tsx` which provides auth verification, sidebar navigation, and ProjectProvider context.
 
-**B2 -- Root layout renders legacy navbar**
+#### B2 -- Root layout renders legacy navbar
 
 - **File:** `apps/admin/app/layout.tsx` (19 lines)
 - **Problem:** Hardcoded header with inline styles: `<a href="/">Admin</a> · <a href="/posts">Posts</a> · <a href="/logs">Logs</a> · <a href="/webhooks">Webhooks</a>`. This wrapped ALL routes including `(dashboard)/*`, causing users to see both the legacy navbar AND the sprint-built SidebarNav simultaneously. The `/posts` link pointed to a route that does not exist.

@@ -112,7 +112,7 @@ Ambas apps (admin y client) comparten el mismo backend Fastify en `localhost:300
 
 **Dado el auth architecture:**
 
-**Recommendation cambiada a: Option C modificado**
+### Recommendation cambiada a: Option C modificado
 
 Option C (rename admin→client, build new admin) sigue siendo viable PERO requiere resolver el auth primero:
 

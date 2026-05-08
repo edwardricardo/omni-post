@@ -1753,7 +1753,7 @@ Próxima sesión de roadmap planning, o cuando aparezca user demand de realtime 
 
 **Contexto.** T4-R implementó `extractUserId(req)` retornando `req.auth?.user?.id ?? req.user?.id` (admin → regular fallback) y declaró `request.auth?` en `fastify.d.ts` para eliminar casts. Esto resuelve L-27 (audit logs ahora tienen userId real). Quedan dos mejoras canon-recomendadas pero out-of-scope T4-R.
 
-**Mejora 1: Actor discriminator pattern**
+#### Mejora 1: Actor discriminator pattern
 
 Canon (OWASP Logging Cheat Sheet, microservices.io audit-logging, sonar): `actor: { type: "user" | "admin" | "system" | "service"; id: string | null }` beats bare `userId: string | undefined`. Razón: bare null/undefined es ambiguo — ¿anonymous? ¿cron job? ¿retry worker? El discriminator field elimina la ambigüedad.
 
@@ -1774,7 +1774,7 @@ private extractActor(req: FastifyRequest): Actor | null {
 
 Impactos: `AuditEvent.userId?: string` → `AuditEvent.actor?: Actor`. Migration de schema `auditLog.userId` (string?) → `auditLog.actorType` + `auditLog.actorId` (split fields). Requiere data migration retroactiva.
 
-**Mejora 2: Auth shape consolidación**
+#### Mejora 2: Auth shape consolidación
 
 Canon (`@fastify/auth` multi-strategy pattern): one shape, multiple strategies. Nuestro split `request.user` (regular) vs `request.auth.user` (admin) es non-canon technical debt. Canon: ambos deberían populate `request.auth.user` (o `request.user`) con `request.auth.scope: "user" | "admin"` discriminator.
 
@@ -1785,7 +1785,7 @@ Migration HEAVY:
 - Delete `request.user` augmentation.
 - Update todos los callers que leen `request.user.id` → `request.auth.user.id`.
 
-**Mejora 3: AsyncLocalStorage user context (opcional)**
+#### Mejora 3: AsyncLocalStorage user context (opcional)
 
 Canon (`@fastify/request-context`): para deep call chains donde threading param es impractical. No es nuestro caso actual (audit logger recibe `FastifyRequest` directly), pero si surge un caller deep-stack podría aplicar.
 
@@ -2325,7 +2325,7 @@ Baseline local 2026-05-02:
 
 3. **Implementation**:
    - Rondas iterativas: cada finding pasa el filtro 3-preguntas, se decide DELETE / IMPLEMENT / IGNORE-IN-CONFIG.
-   - Se aprovecha para configurar `knip.json` con entry-points explícitos (CLI scripts como `generateEncryptionKey.ts`, etc.).
+   - Se aprovecha para configurar `knip.json` con entry-points explícitos para los CLI scripts restantes que arranquen post-audit (e.g. seed scripts, migration helpers).
 
 4. **Wire ci.yml en `refactor/**`\*\* + cualquier branch protection una vez baseline = 0:
    - Extender `on: push.branches` a `[main, omni-post-cc, "refactor/**"]`.
@@ -3153,6 +3153,122 @@ Re-evaluar si:
 **Bloqueado por**: Resend API key + priority vs other features.
 
 **Estado:** **PROPOSED** (2026-05-08). Spinoff de Audit A.4 Cluster 5. Higher priority than Triage/Trends/Repurpose.
+
+---
+
+## PR-Path-Conventions-Audit — Verificar que todos los paths respeten convenciones internas
+
+**Origen.** Audit A.2 Item 4 (2026-05-08): el refactor de `CredentialResolver.ts` reveló que algunos archivos vivían en ubicaciones inconsistentes — la versión de workers estaba en `apps/workers/src/CredentialResolver.ts` (root) en vez de `apps/workers/src/services/`, y existía un duplicado en `apps/api/src/auth/CredentialResolver.ts` con `@layer application` (correcto) pero zero consumers. Edward solicitó auditoría sistemática de path placement antes de seguir acumulando deuda.
+
+**Convenciones a verificar** (canon CLAUDE.md):
+
+| Layer / pattern                  | Path canónico                                                                                  | Anti-patterns observados                                                        |
+| -------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Domain entities, VOs, aggregates | `apps/api/src/domain/<bounded-context>/`                                                       | files dispersos en `apps/api/src/<feature>/` sin sub-carpeta domain             |
+| Application use cases            | `apps/api/src/application/<bounded-context>/`                                                  | use cases en `apps/api/src/<feature>/` sin sub-carpeta application              |
+| Infrastructure repos             | `apps/api/src/infrastructure/repositories/`                                                    | adapters in-line al lado del feature en vez de `infrastructure/`                |
+| Routes                           | `apps/api/src/<feature>/<feature>Routes.ts` o `apps/api/src/routes/<feature>Routes.ts` (mixed) | inconsistencia entre patterns — algunos features usan `routes/`, otros co-locan |
+| Workers services                 | `apps/workers/src/services/<Service>.ts`                                                       | files en root (e.g. CredentialResolver pre-refactor)                            |
+| Worker entry files               | `apps/workers/src/<feature>Worker.ts`                                                          | OK                                                                              |
+| Schedulers                       | `apps/api/src/<feature>/<Feature>Scheduler.ts`                                                 | OK (RecurrenceScheduler) — verificar consistencia                               |
+| Frontend components              | `apps/{client,admin}/components/<feature>/<Component>.tsx`                                     | duplicados client/admin sin compartir vía `@packages/ui`                        |
+| Frontend hooks                   | `apps/{client,admin}/hooks/use<Hook>.ts`                                                       | mixed: algunos en `apps/{client,admin}/lib/api/use<Hook>.ts`                    |
+| Frontend pages                   | `apps/{client,admin}/app/<route>/page.tsx` (App Router)                                        | OK                                                                              |
+| Shared packages                  | `packages/<name>/src/`                                                                         | packages sin barrel `index.ts` o con barrels redundantes                        |
+| Tests                            | `apps/api/tests/{unit,integration}/<feature>/` o co-located `<file>.test.ts`                   | mixed — verificar política y aplicar uniforme                                   |
+
+**Scope del audit**:
+
+1. **Sweep `apps/api/src/`** — list every top-level dir, classify each by primary content, flag mismatches:
+   - Directories que mezclan layers (e.g. routes + use cases + adapters en mismo folder)
+   - Files con `@layer X` ubicados en path que no corresponde a esa layer
+   - Duplicates entre `auth/`, `application/auth/`, `infrastructure/auth/`
+2. **Sweep `apps/workers/src/`** — verificar que solo entry files queden en root, todo lo demás bajo `services/` / `lib/`.
+3. **Sweep `apps/{client,admin}/`** — verificar consistencia de hooks (`hooks/` vs `lib/api/`), components ubicación, lib/utils splitting.
+4. **Sweep `packages/`** — barrel exports presence, `src/` layout uniforme, naming (`@packages/X` vs `@adapters/X` vs `@providers/X` vs `@ports/X`).
+5. **Cross-check JSDoc `@layer`** vs path placement — file con `@layer application` debe vivir en `application/`, etc.
+
+**Outputs esperados**:
+
+- Listado de violations con `file:line` + categoría + fix sugerido
+- Move plan agrupado por category (no atomic moves de a uno) con git mv preservando history
+- Update de import paths post-move (typecheck-driven)
+- Posiblemente nueva fitness check en CI: `@layer X` mismatch con path (regex sobre `@layer\s+\w+` cross-reference path tokens)
+
+**Bloqueado por**: nada — puede arrancar cualquier momento. Ideal post-A.2/A.3 para que orphan sweeps no compitan con moves.
+
+**Estimado**: 4-6h sweep + 2-4h moves + 1h fitness check = 7-11h total.
+
+**Estado:** **PROPOSED** (2026-05-08). Spinoff de Audit A.2 Item 4. Solicitado por Edward al ver que CredentialResolver vivía en path inconsistente.
+
+---
+
+## PR-Markdown-Lint-Sweep-Continuation — Verificar markdownlint cleanup masivo en docs no in-scope
+
+**Origen.** Audit A.2 (2026-05-08): durante side-quest de cleanup de warnings IDE-visibles (MD036 emphasis-as-heading, MD037 spaces-in-emphasis, MD060 table-pipe-style), un sub-agent ejecutó el sweep sobre **33 archivos** cuando el plan activo solo modifica 3. Edward decidió no revertir las modificaciones del agent (ya hechas) pero solicitó tracking explícito para revisar si las quiere mantener / refinar / completar en el futuro.
+
+**Decisión** (Edward 2026-05-08): los 3 archivos in-scope del workstream actual quedan finalizados. Los 32 archivos out-of-scope se mantienen modificados pero **pendientes de validación ad-hoc** — Edward decidirá per-file si quiere los cambios.
+
+**Archivos in-scope del workstream `workstream/horizontal-audits-v1` (FINALIZED)**:
+
+- `docs/audits/POST_REMEDIATION_BACKLOG.md` — 4 fixes manuales + agent reconfirmó
+- `docs/audits/horizontal-v1/A1-apps-client-orphan-sweep.md` — agent fixed (MD060)
+- `docs/reports/audits/status-2026-05-07.md` — agent fixed (MD036)
+
+**Archivos out-of-scope modificados (PENDIENTES DE REVIEW)**:
+
+| Path                                                       | Cambios principales                                    |
+| ---------------------------------------------------------- | ------------------------------------------------------ |
+| `docs/README.md`                                           | MD036 emphasis-as-heading conversions                  |
+| `docs/admin/e2e/FIRST_RUN_CHECKLIST.md`                    | MD036                                                  |
+| `docs/admin/e2e/QUICKSTART.md`                             | MD036                                                  |
+| `docs/api/README.md`                                       | MD036                                                  |
+| `docs/api/caching.md`                                      | MD036                                                  |
+| `docs/architecture/DATABASE.md`                            | MD036                                                  |
+| `docs/architecture/PROVIDERS.md`                           | MD036                                                  |
+| `docs/architecture/README.md`                              | MD036                                                  |
+| `docs/architecture/TESTING.md`                             | MD036 (30 conversions, file más grande)                |
+| `docs/audits/D0_v4_PILOT_BACKEND_ROUTES.md`                | MD036                                                  |
+| `docs/audits/D0v4_7_PACKAGES_REPORT.md`                    | MD036                                                  |
+| `docs/development/ADMIN_CLEANUP_REPORT.md`                 | MD036                                                  |
+| `docs/development/ADMIN_INVESTIGATION_REPORT.md`           | MD036                                                  |
+| `docs/development/contributing.md`                         | MD036                                                  |
+| `docs/development/getting-started.md`                      | MD036                                                  |
+| `docs/product/INVESTOR_EN.md`                              | MD036                                                  |
+| `docs/product/INVESTOR_ES.md`                              | MD036                                                  |
+| `docs/reports/SPRINT_B3_SURGICAL_FIXES_REPORT.md`          | MD036                                                  |
+| `docs/reports/audits/app-separation-audit-2026-03-29.md`   | MD036                                                  |
+| `docs/reports/audits/backend-auth-audit-2026-03-29.md`     | MD036                                                  |
+| `docs/reports/audits/code-review-2026-03-29.md`            | MD036                                                  |
+| `docs/reports/audits/conceptual-audit.md`                  | MD036 (13 conversions)                                 |
+| `docs/reports/audits/deep-audit-2026-03-27.md`             | MD036                                                  |
+| `docs/reports/planning/next-sprint-backlog.md`             | MD036                                                  |
+| `docs/reports/planning/plan-validity-check-phases-5-11.md` | MD036 (10 conversions)                                 |
+| `docs/reports/sessions/session-f4.md`                      | MD036                                                  |
+| `docs/reports/updates/dependency-update.md`                | MD037 (1 fix — backtick wrap de wildcards `@tiptap/*`) |
+| `docs/security/OVERVIEW.md`                                | MD036                                                  |
+| `docs/security/SECRETS.md`                                 | MD036                                                  |
+| `docs/security/SECRETS_BYOK_FEASIBILITY.md`                | MD036                                                  |
+| `docs/security/SECRETS_KMS_MIGRATION.md`                   | MD036                                                  |
+| `docs/security/SECRETS_PRODUCTION_ARCHITECTURE.md`         | MD036                                                  |
+
+**Cambios típicos del agent**:
+
+- `**Bold Text**` → `### Bold Text` (heading promotion al nivel parent+1, capped a H6)
+- 8 `_Last updated: ...2026_` footers preservados con `<!-- markdownlint-disable-next-line MD036 -->` comment arriba (heading conversion polluiría el outline)
+
+**Outputs esperados del review**:
+
+- Per-file: review del diff, accept / refine / revert
+- Identificar si alguna heading promotion rompió un TOC, link interno, o convención del file
+- Identificar si las 8 disable-comments deberían reemplazarse por heading reales (`#### Last updated: ...` o similar)
+- Decidir si el `.markdownlint.json` (creado en root) tiene la rule selection correcta o si quiere ajustes
+
+**Bloqueado por**: nada — review puede arrancar cualquier momento. Ideal post-A.2/A.3 cuando los workstreams orphan-sweep estén cerrados.
+
+**Estimado**: 1-2h review (33 files × ~2-3min cada uno).
+
+**Estado:** **PENDING_REVIEW** (2026-05-08). Spinoff de Audit A.2 markdownlint side-quest. Solicitado por Edward al ver que el sub-agent salió del scope original (3 files) y modificó 33.
 
 ---
 

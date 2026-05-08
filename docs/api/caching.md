@@ -40,13 +40,13 @@ Comprehensive Redis-based response caching system for API endpoints that dramati
 
 ### Cache Layers
 
-**L1 Cache (In-Memory)**
+#### L1 Cache (In-Memory)
 
 - Fastest access (< 1ms)
 - Limited to 1000 items or 50MB
 - LRU eviction policy
 
-**L2 Cache (Redis)**
+#### L2 Cache (Redis)
 
 - Fast access (1-5ms)
 - Larger capacity (configurable)

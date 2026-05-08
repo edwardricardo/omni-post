@@ -19,7 +19,7 @@ Post: All development phases (1-11) + All update sessions (U0-U6)
 | Performance      | ⚠️     | 0               | 0/45 routes with OpenAPI schema; 2 cache usage points      |
 | Documentation    | ⚠️     | 0               | 0 routes with Fastify schema annotations                   |
 
-**Overall product completion: ~82%**
+### Overall product completion: ~82%
 
 ---
 

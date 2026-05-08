@@ -40,7 +40,7 @@ Comprehensive testing strategy for the multi-channel social media CMS using a tr
 
 ### Unit Tests ✅ IMPLEMENTED
 
-**API Unit Tests**
+#### API Unit Tests
 
 - **Authentication Services**: JWT, MFA, session management with argon2 password hashing
 - **Provider Adapters**: X/Twitter API integration and content transformation
@@ -48,7 +48,7 @@ Comprehensive testing strategy for the multi-channel social media CMS using a tr
 - **Utility Functions**: Schema validation with Zod 4.3.6, result patterns
 - **Rate Limiting**: Endpoint protection and abuse prevention
 
-**Client Unit Tests**
+#### Client Unit Tests
 
 - **React Hooks**: Custom hooks for API integration with React Query 5.90.2
 - **UI Components**: Radix UI 1.4.3 (unified package) with comprehensive interaction testing
@@ -58,7 +58,7 @@ Comprehensive testing strategy for the multi-channel social media CMS using a tr
 
 ### Integration Tests ✅ IMPLEMENTED
 
-**API Integration Tests**
+#### API Integration Tests
 
 - **Complete Flows**: Authentication → Project creation → Post publishing
 - **Database Operations**: Prisma 7.4.1 with real PostgreSQL transactions
@@ -66,7 +66,7 @@ Comprehensive testing strategy for the multi-channel social media CMS using a tr
 - **Provider Integration**: Real API calls to social media platforms (mocked in tests)
 - **File Operations**: S3-compatible storage for media management
 
-**Client Integration Tests**
+#### Client Integration Tests
 
 - **API Client**: Full request/response cycle testing
 - **Component Integration**: Parent-child component communication
@@ -75,14 +75,14 @@ Comprehensive testing strategy for the multi-channel social media CMS using a tr
 
 ### Contract Tests ✅ IMPLEMENTED
 
-**Provider Contracts**
+#### Provider Contracts
 
 - **Adapter Interface**: Standardized provider API compliance
 - **Content Transformation**: Platform-specific content formatting
 - **Rate Limiting**: Provider-specific limits and retry logic
 - **Error Handling**: Consistent error response formatting
 
-**Infrastructure Contracts**
+#### Infrastructure Contracts
 
 - **Database Repository**: Prisma ORM operation contracts
 - **Queue Adapter**: BullMQ job processing contracts
@@ -90,7 +90,7 @@ Comprehensive testing strategy for the multi-channel social media CMS using a tr
 
 ### End-to-End Tests ✅ IMPLEMENTED
 
-**Critical User Journeys**
+#### Critical User Journeys
 
 - **Account Registration**: Email verification → Profile setup → Subscription
 - **Content Publishing**: Draft creation → Review → Scheduling → Publication
@@ -313,7 +313,7 @@ describe("useProviders", () => {
 
 ### Database Testing Strategy
 
-**Real Database with Isolation**
+#### Real Database with Isolation
 
 - **Environment**: PostgreSQL 15 with dedicated test database
 - **Connection Management**: Shared connections with proper cleanup
@@ -329,7 +329,7 @@ const accountResult = await ctx.repo.createAccount({
 });
 ```
 
-**Database Configuration**
+#### Database Configuration
 
 ```env
 # Test environment variables
@@ -339,7 +339,7 @@ TEST_REDIS_URL=redis://localhost:6379/1
 
 ### Queue and Background Job Testing
 
-**BullMQ Integration Testing**
+#### BullMQ Integration Testing
 
 - **Real Redis Instance**: Redis 7-alpine for job persistence
 - **Queue Health Checks**: Connection validation before test execution
@@ -355,13 +355,13 @@ if (!queueHealth.ok) {
 
 ### Mock Strategy
 
-**API Mocking (Client Tests)**
+#### API Mocking (Client Tests)
 
 - **Fetch Mocking**: Comprehensive endpoint response simulation
 - **LocalStorage Mocking**: Persistent state simulation
 - **Browser API Mocking**: ResizeObserver, IntersectionObserver, matchMedia
 
-**External Service Mocking (API Tests)**
+#### External Service Mocking (API Tests)
 
 - **Provider APIs**: Social media platform API responses
 - **File Storage**: S3-compatible storage operations
@@ -369,7 +369,7 @@ if (!queueHealth.ok) {
 
 ### React 19 Testing Patterns
 
-**Concurrent Features Testing**
+#### Concurrent Features Testing
 
 ```typescript
 // Transition and Suspense testing
@@ -422,7 +422,7 @@ REDIS_TIMEOUT=3000
 QUEUE_TIMEOUT=5000
 ```
 
-**Client Test Environment**
+#### Client Test Environment
 
 ```env
 # Next.js Test Configuration
@@ -484,7 +484,7 @@ export default defineConfig({
 }
 ```
 
-**Execution Flow**
+#### Execution Flow
 
 1. **ESLint**: Automated fixing and validation
 2. **Prettier**: Code formatting enforcement
@@ -512,7 +512,7 @@ The CI pipeline uses a composite action (`.github/actions/setup-node-pnpm-cache`
 
 ### CI/CD Best Practices
 
-**Parallel Execution**
+#### Parallel Execution
 
 - All 8 jobs run independently in parallel
 - Lint/Format checks run independently of tests
@@ -521,19 +521,19 @@ The CI pipeline uses a composite action (`.github/actions/setup-node-pnpm-cache`
 - Provider tests require no external services (Tier 0)
 - Frontend tests require no external services (Tier 0)
 
-**Dependency Caching**
+#### Dependency Caching
 
 - pnpm store caching for faster dependency installation
 - Docker layer caching for service images
 - Node.js compilation caching for TypeScript builds
 
-**Fail-Fast Strategy**
+#### Fail-Fast Strategy
 
 - Early termination on critical failures (lint errors, build failures)
 - Timeout protection for hanging tests (15-minute test timeout)
 - Health check validation for external services
 
-**Environment Isolation**
+#### Environment Isolation
 
 - Dedicated test database per CI run
 - Redis instance isolation with different DB numbers
@@ -543,7 +543,7 @@ The CI pipeline uses a composite action (`.github/actions/setup-node-pnpm-cache`
 
 ### Current Implementation Coverage
 
-**API Test Coverage (Backend)**
+#### API Test Coverage (Backend)
 
 - **Authentication & Security**: 100% critical path coverage
   - Login/logout flows, JWT validation, MFA implementation
@@ -559,7 +559,7 @@ The CI pipeline uses a composite action (`.github/actions/setup-node-pnpm-cache`
 - **Integration Flows**: 80%+ coverage
   - End-to-end publishing workflows, multi-project isolation
 
-**Client Test Coverage (Frontend)**
+#### Client Test Coverage (Frontend)
 
 - **API Client**: 90%+ coverage
   - HTTP client, authentication handling, error management
@@ -624,7 +624,7 @@ export function expectErr<E>(result: Result<any, E>): E {
 
 ### Performance Testing
 
-**API Performance Metrics**
+#### API Performance Metrics
 
 - **Response Time**: <200ms for simple endpoints, <1s for complex operations
 - **Database Query Performance**: <50ms for indexed queries
@@ -651,7 +651,7 @@ describe("Load Testing", () => {
 
 ### Security Testing
 
-**API Security Validation**
+#### API Security Validation
 
 - **Authentication Bypass**: Testing unauthorized access attempts
 - **SQL Injection**: Prisma ORM provides built-in protection
@@ -659,7 +659,7 @@ describe("Load Testing", () => {
 - **CSRF Protection**: Token-based request validation
 - **Rate Limiting**: Endpoint abuse prevention
 
-**Example Security Test**
+#### Example Security Test
 
 ```typescript
 // Test unauthorized access
@@ -678,14 +678,14 @@ async function testUnauthorizedAccess(ctx: TestContext): Promise<void> {
 
 ### Test Execution Performance
 
-**Speed Targets**
+#### Speed Targets
 
 - **Unit Tests**: <100ms per test (API), <50ms per test (Client)
 - **Integration Tests**: <5s per test
 - **Full Test Suite**: <2 minutes (API), <1 minute (Client)
 - **CI Pipeline**: <15 minutes total
 
-**Reliability Metrics**
+#### Reliability Metrics
 
 - **Flaky Test Rate**: <1% (target: 0%)
 - **False Positive Rate**: <2%
@@ -693,7 +693,7 @@ async function testUnauthorizedAccess(ctx: TestContext): Promise<void> {
 
 ### Code Quality Integration
 
-**ESLint Rules for Tests**
+#### ESLint Rules for Tests
 
 ```json
 {
@@ -705,7 +705,7 @@ async function testUnauthorizedAccess(ctx: TestContext): Promise<void> {
 }
 ```
 
-**Test-Specific Standards**
+#### Test-Specific Standards
 
 - **Naming**: Descriptive test names using "should + action + condition"
 - **Assertions**: Single concern per test with clear error messages
@@ -714,7 +714,7 @@ async function testUnauthorizedAccess(ctx: TestContext): Promise<void> {
 
 ### Example Test Structure
 
-**API Test Pattern**
+#### API Test Pattern
 
 ```typescript
 // Authentication flow test
@@ -757,7 +757,7 @@ runTestWithSetup(
 );
 ```
 
-**Client Test Pattern**
+#### Client Test Pattern
 
 ```typescript
 // React component test

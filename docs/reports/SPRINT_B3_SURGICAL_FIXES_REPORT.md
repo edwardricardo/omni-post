@@ -62,7 +62,7 @@ export interface WebhookEvent {
 }
 ```
 
-**Step 2: Pass event ID in adapters**
+#### Step 2: Pass event ID in adapters
 
 - `StripePaymentAdapter.ts` — returns `event.id` from Stripe event object (format: `evt_xxxx`)
 - `PaddlePaymentAdapter.ts` — returns `raw.eventId ?? raw.event_id ?? raw.notificationId` from Paddle event

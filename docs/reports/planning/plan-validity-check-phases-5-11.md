@@ -28,7 +28,7 @@ Date: 2026-03-25
 
 #### AI Image Generation UI
 
-**Status: DONE**
+##### Status: DONE
 
 - Backend: `GenerateImageUseCase.ts`, `ListGeneratedImagesQuery.ts`, routes at `/api/ai/generate-image`
 - UI: `AIImageGenerator.tsx` (268 LOC), pages at `/dashboard/ai/generate`, `/dashboard/ai/analytics`, `/dashboard/ai/optimizer`, `/dashboard/ai/templates`
@@ -37,7 +37,7 @@ Date: 2026-03-25
 
 #### Slack/Teams External Notification UI
 
-**Status: DONE**
+##### Status: DONE
 
 - Backend: `ConfigureExternalNotificationUseCase`, `TestExternalNotificationUseCase`, `ListExternalNotificationsQuery`, `DeleteExternalNotificationUseCase`
 - Routes: POST/GET/DELETE `/api/external-notifications`, POST `/:id/test`
@@ -46,7 +46,7 @@ Date: 2026-03-25
 
 #### In-Post Comments UI
 
-**Status: DONE**
+##### Status: DONE
 
 - Backend: `CreateCommentUseCase`, `EditCommentUseCase`, `DeleteCommentUseCase`, `GetPostCommentsQuery`
 - Routes: POST/GET/PATCH/DELETE on `/posts/:postId/comments`
@@ -56,7 +56,7 @@ Date: 2026-03-25
 
 ### Phase 6 — Recurring Posts UI
 
-**Status: DONE**
+#### Status: DONE
 
 - Backend: 6 use cases (Create, Update, Deactivate, Get, List, ProcessRecurrence)
 - Routes: CRUD at `/api/recurring-posts`
@@ -66,7 +66,7 @@ Date: 2026-03-25
 
 ### Phase 7 — Platform Preview
 
-**Status: PARTIAL**
+#### Status: PARTIAL
 
 - `PlatformPreview.tsx` exists in apps/client with character limit segmentation
 - `ContentPreviewSystem.tsx` exists in apps/admin
@@ -75,7 +75,7 @@ Date: 2026-03-25
 
 ### Phase 8 — Bluesky Provider
 
-**Status: DONE**
+#### Status: DONE
 
 - `BlueskyAdapter.ts` (204 LOC) with publish capability
 - `BlueskyClient.ts` for AT Protocol communication
@@ -89,7 +89,7 @@ Date: 2026-03-25
 
 #### Scheduled Reports UI
 
-**Status: DONE**
+##### Status: DONE
 
 - Backend: `CreateScheduledReportUseCase`, `GenerateReportUseCase`, `UpdateScheduledReportUseCase`, `DeleteScheduledReportUseCase`
 - UI: `CreateReportForm.tsx`, `ScheduledReportsList.tsx`, `useReports.ts`
@@ -97,14 +97,14 @@ Date: 2026-03-25
 
 #### GA4 / UTM Integration
 
-**Status: DONE**
+##### Status: DONE
 
 - GA4: Port interface `GA4TrackingPort.ts` + concrete `GA4TrackingAdapter.ts`
 - UTM: `GenerateUTMLinksUseCase.ts` + routes at `/api/utm`
 
 #### Analytics Data Retention Policy
 
-**Status: DONE**
+##### Status: DONE
 
 - Prisma models: `AnalyticsDailySummary`, `AnalyticsMonthlySummary`
 - Worker: `analyticsAggregationWorker.ts` for background aggregation
@@ -113,7 +113,7 @@ Date: 2026-03-25
 
 ### Phase 10 — API Documentation
 
-**Status: DONE**
+#### Status: DONE
 
 - `@fastify/swagger` v9.7.0 + `@scalar/fastify-api-reference` v1.48.0
 - OpenAPI spec generated automatically from Fastify route schemas

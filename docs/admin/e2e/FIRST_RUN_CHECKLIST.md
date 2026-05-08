@@ -178,7 +178,7 @@ curl -I http://localhost:3100/auth/login  # Should return 200 OK
 
 ### First Test Run (Recommended: UI Mode)
 
-**Terminal 4: Test Runner**
+#### Terminal 4: Test Runner
 
 ```bash
 cd /home/edward/projects/omni-post/apps/admin
