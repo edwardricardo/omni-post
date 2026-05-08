@@ -443,26 +443,20 @@ export function setupServices(
     true
   );
 
-  // Register PostsService
+  // Register PostsService — shares the application-wide RedisCacheManager
+  // singleton (prefix `api:`) instead of opening a second pool. Cache keys
+  // built inside the service are namespaced via the `dashboard:posts:` /
+  // `posts:total:` segments embedded in the key strings themselves, so the
+  // singleton's global `api:` prefix layers cleanly without collisions.
   container.register(
     TOKENS.PostsService,
     () => {
-      const redisUrl = env.REDIS_URL ?? "redis://localhost:6379";
       const dbOptimizer = new DatabaseOptimizer(
         container.resolve(TOKENS.PrismaClient),
         dbLogger,
         container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
       );
-      const cacheManager = new RedisCacheManager(
-        {
-          redisUrl,
-          keyPrefix: "posts:",
-          defaultTtl: 300,
-          enableCompression: true,
-          enableMetrics: true,
-        },
-        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
-      );
+      const cacheManager = container.resolve<RedisCacheManager>(TOKENS.RedisCacheManager);
       return createPostsService(dbOptimizer, cacheManager);
     },
     true
