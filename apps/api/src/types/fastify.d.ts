@@ -8,16 +8,20 @@
 declare module "fastify" {
   import type { PrismaClient } from "@infra/prisma";
   import type { Container } from "../infrastructure/container/Container.js";
-  import type { RedisCacheManager } from "@adapters/cache-redis";
+  import type { CachePort } from "@ports/core";
   import type { SagaIntegration } from "../saga/SagaIntegration.js";
 
   export interface FastifyInstance {
     prisma?: PrismaClient;
     container?: Container;
-    /** Cache manager decorated on the Fastify instance (see index.ts createApp) */
-    cache?: RedisCacheManager;
-    /** Alias for cache — same RedisCacheManager instance */
-    cacheManager?: RedisCacheManager;
+    /**
+     * Application-tier cache port decorated at app boot from
+     * `TOKENS.CachePort`. Routes and the auto-cache middleware consume it.
+     * Ops tooling (stats, flush, pattern invalidation) resolves the concrete
+     * `RedisCacheManager` from the DI container directly — never via this
+     * decoration.
+     */
+    cache?: CachePort;
     /** Saga integration for orchestrating multi-step publishing workflows */
     sagaIntegration?: SagaIntegration;
   }
@@ -93,7 +97,7 @@ declare module "fastify" {
 
     // Cache middleware (autoCacheMiddleware.ts, cache-redis middleware)
     _cacheKey?: string;
-    _cacheConfig?: { ttl?: number; tags?: string[]; version?: string; enabled?: boolean };
+    _cacheConfig?: { ttl?: number; tags?: string[]; enabled?: boolean };
     _routeCacheOptions?: unknown;
 
     // Input validation middleware (inputValidation.ts)

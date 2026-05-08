@@ -1,13 +1,18 @@
 /**
  * @file cacheStatsRoutes.ts
  * @description REST API endpoints for monitoring cache performance, hit rates, and
- *              invalidation operations via the RedisCacheManager instance.
+ *              invalidation operations. Resolves the concrete `RedisCacheManager`
+ *              from the DI container — `getStats`, `flush`, `warmCache`,
+ *              `healthCheck`, and `invalidateByPattern` are ops-tier concerns that
+ *              live outside the application `CachePort` surface.
  * @layer infrastructure
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
+import type { RedisCacheManager } from "@adapters/cache-redis";
 import { createLogger } from "../lib/logger.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
+import { TOKENS } from "../infrastructure/container/types.js";
 
 const logger = createLogger("cache-stats-routes");
 
@@ -15,6 +20,14 @@ const logger = createLogger("cache-stats-routes");
  * Cache statistics routes
  */
 export const cacheStatsRoutes: FastifyPluginAsync = async (fastify) => {
+  const container = fastify.container;
+  const cacheManager = container?.resolve<RedisCacheManager>(TOKENS.RedisCacheManager);
+
+  if (!cacheManager) {
+    fastify.log.warn("DI container or RedisCacheManager unavailable — cache stats routes disabled");
+    return;
+  }
+
   /**
    * GET /cache/stats - Get comprehensive cache statistics
    */
@@ -25,15 +38,6 @@ export const cacheStatsRoutes: FastifyPluginAsync = async (fastify) => {
       schema: { tags: ["Cache"], summary: "Get comprehensive cache statistics" },
     },
     async (_request: FastifyRequest, reply: FastifyReply) => {
-      const cacheManager = fastify.cache;
-
-      if (!cacheManager) {
-        return reply.status(503).send({
-          ok: false,
-          error: "Cache manager not available",
-        });
-      }
-
       try {
         const statsResult = await cacheManager.getStats();
 
@@ -93,15 +97,6 @@ export const cacheStatsRoutes: FastifyPluginAsync = async (fastify) => {
       schema: { tags: ["Cache"], summary: "Check cache health status" },
     },
     async (_request: FastifyRequest, reply: FastifyReply) => {
-      const cacheManager = fastify.cache;
-
-      if (!cacheManager) {
-        return reply.status(503).send({
-          ok: false,
-          error: "Cache manager not available",
-        });
-      }
-
       try {
         const healthResult = await cacheManager.healthCheck();
 
@@ -143,15 +138,6 @@ export const cacheStatsRoutes: FastifyPluginAsync = async (fastify) => {
       schema: { tags: ["Cache"], summary: "Flush all cache entries" },
     },
     async (_request: FastifyRequest, reply: FastifyReply) => {
-      const cacheManager = fastify.cache;
-
-      if (!cacheManager) {
-        return reply.status(503).send({
-          ok: false,
-          error: "Cache manager not available",
-        });
-      }
-
       try {
         const flushResult = await cacheManager.flush();
 
@@ -191,15 +177,6 @@ export const cacheStatsRoutes: FastifyPluginAsync = async (fastify) => {
       schema: { tags: ["Cache"], summary: "Invalidate cache by tags or patterns" },
     },
     async (request, reply) => {
-      const cacheManager = fastify.cache;
-
-      if (!cacheManager) {
-        return reply.status(503).send({
-          ok: false,
-          error: "Cache manager not available",
-        });
-      }
-
       const { tags = [], patterns = [] } = request.body;
 
       if (tags.length === 0 && patterns.length === 0) {
@@ -259,15 +236,6 @@ export const cacheStatsRoutes: FastifyPluginAsync = async (fastify) => {
       schema: { tags: ["Cache"], summary: "Get most frequently accessed cache keys" },
     },
     async (_request: FastifyRequest, reply: FastifyReply) => {
-      const cacheManager = fastify.cache;
-
-      if (!cacheManager) {
-        return reply.status(503).send({
-          ok: false,
-          error: "Cache manager not available",
-        });
-      }
-
       try {
         const statsResult = await cacheManager.getStats();
 
@@ -306,15 +274,6 @@ export const cacheStatsRoutes: FastifyPluginAsync = async (fastify) => {
       schema: { tags: ["Cache"], summary: "Warm cache with frequently accessed data" },
     },
     async (_request: FastifyRequest, reply: FastifyReply) => {
-      const cacheManager = fastify.cache;
-
-      if (!cacheManager) {
-        return reply.status(503).send({
-          ok: false,
-          error: "Cache manager not available",
-        });
-      }
-
       try {
         const warmResult = await cacheManager.warmCache();
 

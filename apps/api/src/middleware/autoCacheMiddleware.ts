@@ -2,12 +2,14 @@
  * @file autoCacheMiddleware.ts
  * @description Fastify plugin that automatically applies caching to GET requests and
  *              cache invalidation to mutations based on route-level cache configuration.
+ *              Consumes the canonical `CachePort` (not the concrete RedisCacheManager) so
+ *              the application-tier surface matches the rest of the repo.
  * @layer infrastructure
  */
 
 import type { FastifyRequest, FastifyReply, FastifyPluginAsync } from "fastify";
 import fp from "fastify-plugin";
-import type { RedisCacheManager } from "@adapters/cache-redis";
+import type { CachePort } from "@ports/core";
 import {
   getCacheConfig,
   getInvalidationTags,
@@ -22,10 +24,11 @@ const logger = createLogger("auto-cache-middleware");
  */
 export interface AutoCacheOptions {
   /**
-   * Cache manager instance to use for caching operations.
-   * If not provided, the plugin will attempt to read from fastify.cacheManager.
+   * Cache port instance to use for caching operations.
+   * If not provided, the plugin reads from `fastify.cache` (decorated at app
+   * boot from the DI container's `TOKENS.CachePort`).
    */
-  cacheManager?: RedisCacheManager;
+  cache?: CachePort;
 
   /**
    * Enable automatic caching for GET requests
@@ -62,10 +65,10 @@ const autoCachePluginImpl: FastifyPluginAsync<AutoCacheOptions> = async (fastify
     logCacheOps = false,
   } = options;
 
-  const cacheManager = options.cacheManager ?? fastify.cacheManager ?? fastify.cache;
+  const cache = options.cache ?? fastify.cache;
 
-  if (!cacheManager) {
-    logger.warn("Cache manager not available, auto-cache plugin disabled");
+  if (!cache) {
+    logger.warn("Cache port not available, auto-cache plugin disabled");
     return;
   }
 
@@ -97,15 +100,6 @@ const autoCachePluginImpl: FastifyPluginAsync<AutoCacheOptions> = async (fastify
         return;
       }
 
-      // Skip if cache manager is unavailable (closed/disconnected)
-      if (
-        "isAvailable" in cacheManager &&
-        typeof cacheManager.isAvailable === "function" &&
-        !cacheManager.isAvailable()
-      ) {
-        return;
-      }
-
       try {
         // Generate cache key
         const params = request.params as Record<string, unknown>;
@@ -115,32 +109,19 @@ const autoCachePluginImpl: FastifyPluginAsync<AutoCacheOptions> = async (fastify
 
         const cacheKey = generateApiCacheKey("GET", route, params, query, headers, userId);
 
-        // Try to get from cache
-        const cached = await cacheManager.get(cacheKey);
+        // Try to get from cache. CachePort.get returns `T | null` — null is a miss.
+        const cached = await cache.get<{
+          body: unknown;
+          headers?: Record<string, string>;
+          statusCode?: number;
+        }>(cacheKey);
 
-        if (!cached.ok) {
-          // Cache error - continue without cache, do NOT set _cacheKey
-          if (logCacheOps) {
-            logger.debug(`Cache error for key ${cacheKey}: ${cached.error}`);
-          }
-          return;
-        }
-
-        if (cached.value !== null) {
-          // Cache hit
+        if (cached !== null) {
           if (logCacheOps) {
             logger.debug(`Cache HIT: ${cacheKey}`);
           }
 
-          const {
-            body,
-            headers: cachedHeaders,
-            statusCode,
-          } = cached.value as {
-            body: unknown;
-            headers?: Record<string, string>;
-            statusCode?: number;
-          };
+          const { body, headers: cachedHeaders, statusCode } = cached;
 
           // Set cached headers
           if (cachedHeaders) {
@@ -159,12 +140,14 @@ const autoCachePluginImpl: FastifyPluginAsync<AutoCacheOptions> = async (fastify
           return;
         }
 
-        // Cache miss (ok=true, value=null) - store key for use in response hook
+        // Cache miss — store key for use in response hook
         request._cacheKey = cacheKey;
         request._cacheConfig = config;
       } catch (error: unknown) {
-        logger.error(`Cache read error: ${error}`);
         // Continue without cache on error
+        if (logCacheOps) {
+          logger.debug(`Cache read error: ${error}`);
+        }
       }
     });
 
@@ -207,11 +190,10 @@ const autoCachePluginImpl: FastifyPluginAsync<AutoCacheOptions> = async (fastify
         };
 
         // Cache the response in the background (fire-and-forget) — do NOT block done()
-        cacheManager
+        cache
           .set(cacheKey, cacheData, {
-            ...(config.ttl !== undefined && { ttl: config.ttl }),
+            ...(config.ttl !== undefined && { ttlSeconds: config.ttl }),
             ...(config.tags !== undefined && { tags: config.tags }),
-            ...(config.version !== undefined && { version: config.version }),
           })
           .then(() => {
             if (logCacheOps) {
@@ -255,7 +237,7 @@ const autoCachePluginImpl: FastifyPluginAsync<AutoCacheOptions> = async (fastify
 
       try {
         // Invalidate asynchronously (don't block response)
-        const invalidationPromises = tags.map((tag) => cacheManager.invalidateByTag(tag));
+        const invalidationPromises = tags.map((tag) => cache.invalidateByTag(tag));
 
         await Promise.all(invalidationPromises);
 
@@ -276,77 +258,3 @@ const autoCachePluginImpl: FastifyPluginAsync<AutoCacheOptions> = async (fastify
 export const autoCachePlugin = fp(autoCachePluginImpl, {
   name: "auto-cache-plugin",
 });
-
-/**
- * Manual cache invalidation helper for use in route handlers
- *
- * Usage:
- * ```typescript
- * await invalidateCacheForRoute(request, 'POST', '/posts');
- * ```
- */
-export async function invalidateCacheForRoute(
-  request: FastifyRequest,
-  method: string,
-  route: string
-): Promise<void> {
-  const cacheManager = request.server.cache;
-
-  if (!cacheManager) {
-    logger.warn("Cache manager not available for invalidation");
-    return;
-  }
-
-  const tags = getInvalidationTags(method, route);
-
-  if (tags.length === 0) {
-    return;
-  }
-
-  try {
-    const invalidationPromises = tags.map((tag) => cacheManager.invalidateByTag(tag));
-    await Promise.all(invalidationPromises);
-
-    logger.info(`Manual cache invalidation: ${tags.join(", ")}`);
-  } catch (error: unknown) {
-    logger.error(`Manual cache invalidation failed: ${error}`);
-  }
-}
-
-/**
- * Get current cache statistics
- */
-export async function getCacheStats(request: FastifyRequest): Promise<{
-  hitRate: number;
-  totalKeys: number;
-  memoryUsage: number;
-  l1Hits: number;
-  l2Hits: number;
-} | null> {
-  const cacheManager = request.server.cache;
-
-  if (!cacheManager) {
-    return null;
-  }
-
-  try {
-    const statsResult = await cacheManager.getStats();
-
-    if (!statsResult.ok) {
-      return null;
-    }
-
-    const stats = statsResult.value;
-
-    return {
-      hitRate: stats.hitRate,
-      totalKeys: stats.totalKeys,
-      memoryUsage: stats.memoryUsage,
-      l1Hits: stats.l1Hits,
-      l2Hits: stats.l2Hits,
-    };
-  } catch (error: unknown) {
-    logger.error(`Failed to get cache stats: ${error}`);
-    return null;
-  }
-}

@@ -47,6 +47,7 @@ import { createMetricsMiddleware } from "./middleware/metricsMiddleware.js";
 import { createCircuitBreakerMonitor } from "@monitoring/circuit-breaker";
 import { createDeadLetterQueue } from "@adapters/dead-letter-queue";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
+import type { CachePort } from "@ports/core";
 import type { RedisCacheManager } from "@adapters/cache-redis";
 import fastifyCookie from "@fastify/cookie";
 import { createTenantHealthMonitor } from "@monitoring/health-checks";
@@ -201,20 +202,24 @@ async function createApp(): Promise<FastifyInstance> {
     TOKENS.BackgroundTaskScheduler
   );
 
-  // Initialize cache manager — resolved from the DI container so the same
-  // `RedisCacheManager` singleton is wrapped by `TOKENS.CachePort` and used
-  // for the Fastify decoration below. No duplicated L1+L2 pools.
-  const cacheManager = container.resolve<RedisCacheManager>(TOKENS.RedisCacheManager);
-
-  // Decorate fastify instance with cache manager (accessible as fastify.cacheManager and fastify.cache)
+  // Decorate Fastify with the application-tier cache port. Single
+  // decoration semantically scoped to "caching for routes + middleware".
+  // Ops tooling (cacheStatsRoutes) resolves the concrete RedisCacheManager
+  // from the DI container directly — never via this decoration.
+  const cachePort = container.resolve<CachePort>(TOKENS.CachePort);
   typedApp.decorate("redis", redis);
-  typedApp.decorate("cacheManager", cacheManager);
-  typedApp.decorate("cache", cacheManager);
+  typedApp.decorate("cache", cachePort);
+
+  // Concrete RedisCacheManager — kept as a local reference for ops-tier
+  // consumers (health checks, tenant monitor, healthRoutes plugin) that
+  // need access to features outside the CachePort surface (`getStats`,
+  // `healthCheck`, raw `Result`-shaped reads).
+  const cacheManager = container.resolve<RedisCacheManager>(TOKENS.RedisCacheManager);
 
   // Register auto-cache middleware for automatic caching and invalidation
   // (autoCachePlugin handles both caching and cache-plugin functionality)
   await typedApp.register(autoCachePlugin, {
-    cacheManager,
+    cache: cachePort,
     enableCaching: true,
     enableInvalidation: true,
     logCacheOps: env.LOG_CACHE_OPS ?? false,

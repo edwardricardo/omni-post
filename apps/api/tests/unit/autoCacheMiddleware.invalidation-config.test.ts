@@ -7,7 +7,7 @@
 import { describe, it, beforeAll, afterAll, expect } from "vitest";
 import Fastify from "fastify";
 import { autoCachePlugin } from "../../src/middleware/autoCacheMiddleware.js";
-import { RedisCacheManager } from "@adapters/cache-redis";
+import { RedisCacheManager, RedisCacheAdapter } from "@adapters/cache-redis";
 import Redis from "ioredis";
 
 const testRedis = new Redis({
@@ -58,7 +58,7 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
   describe("Cache Invalidation", () => {
     it("should invalidate cache on POST requests", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", cacheManager);
+      app.decorate("cache", new RedisCacheAdapter(cacheManager));
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -99,7 +99,7 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
 
     it("should invalidate cache on PUT requests", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", cacheManager);
+      app.decorate("cache", new RedisCacheAdapter(cacheManager));
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -131,7 +131,7 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
 
     it("should invalidate cache on DELETE requests", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", cacheManager);
+      app.decorate("cache", new RedisCacheAdapter(cacheManager));
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -166,7 +166,7 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
 
     it("should not invalidate on failed mutations", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", cacheManager);
+      app.decorate("cache", new RedisCacheAdapter(cacheManager));
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -197,7 +197,7 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
 
     it("should handle PATCH requests", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", cacheManager);
+      app.decorate("cache", new RedisCacheAdapter(cacheManager));
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -229,7 +229,7 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
   describe("Cache Key Variations", () => {
     it("should cache with different query parameters separately", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", cacheManager);
+      app.decorate("cache", new RedisCacheAdapter(cacheManager));
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -256,7 +256,7 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
 
     it("should cache with different route parameters separately", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", cacheManager);
+      app.decorate("cache", new RedisCacheAdapter(cacheManager));
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -283,7 +283,7 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
 
     it("should vary cache by user when authenticated", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", cacheManager);
+      app.decorate("cache", new RedisCacheAdapter(cacheManager));
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -345,7 +345,7 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
 
     it("should handle cache read errors gracefully", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", cacheManager);
+      app.decorate("cache", new RedisCacheAdapter(cacheManager));
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -365,7 +365,7 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
 
     it("should handle cache write errors gracefully", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", cacheManager);
+      app.decorate("cache", new RedisCacheAdapter(cacheManager));
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -385,7 +385,7 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
 
     it("should handle invalidation errors gracefully", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", cacheManager);
+      app.decorate("cache", new RedisCacheAdapter(cacheManager));
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -408,7 +408,7 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
   describe("Configuration Options", () => {
     it("should respect enableCaching option", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", cacheManager);
+      app.decorate("cache", new RedisCacheAdapter(cacheManager));
 
       await app.register(autoCachePlugin, {
         enableCaching: false,
@@ -428,7 +428,7 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
 
     it("should respect enableInvalidation option", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", cacheManager);
+      app.decorate("cache", new RedisCacheAdapter(cacheManager));
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -451,7 +451,7 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
 
     it("should respect logCacheOps option", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", cacheManager);
+      app.decorate("cache", new RedisCacheAdapter(cacheManager));
 
       await app.register(autoCachePlugin, {
         enableCaching: true,

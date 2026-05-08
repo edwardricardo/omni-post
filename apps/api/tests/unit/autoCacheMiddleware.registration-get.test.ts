@@ -6,12 +6,8 @@
  */
 import { describe, it, beforeAll, afterAll, expect } from "vitest";
 import Fastify from "fastify";
-import {
-  autoCachePlugin,
-  invalidateCacheForRoute,
-  getCacheStats,
-} from "../../src/middleware/autoCacheMiddleware.js";
-import { RedisCacheManager } from "@adapters/cache-redis";
+import { autoCachePlugin } from "../../src/middleware/autoCacheMiddleware.js";
+import { RedisCacheManager, RedisCacheAdapter } from "@adapters/cache-redis";
 import Redis from "ioredis";
 
 const testRedis = new Redis({
@@ -62,7 +58,7 @@ describe("autoCacheMiddleware - Registration and GET Caching", () => {
   describe("Plugin Registration", () => {
     it("should register plugin with default options", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", cacheManager);
+      app.decorate("cache", new RedisCacheAdapter(cacheManager));
 
       await app.register(autoCachePlugin);
 
@@ -72,7 +68,7 @@ describe("autoCacheMiddleware - Registration and GET Caching", () => {
 
     it("should register plugin with custom options", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", cacheManager);
+      app.decorate("cache", new RedisCacheAdapter(cacheManager));
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -98,7 +94,7 @@ describe("autoCacheMiddleware - Registration and GET Caching", () => {
   describe("GET Request Caching", () => {
     it("should cache GET request responses", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", cacheManager);
+      app.decorate("cache", new RedisCacheAdapter(cacheManager));
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -131,7 +127,7 @@ describe("autoCacheMiddleware - Registration and GET Caching", () => {
 
     it("should not cache non-GET requests", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", cacheManager);
+      app.decorate("cache", new RedisCacheAdapter(cacheManager));
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -157,7 +153,7 @@ describe("autoCacheMiddleware - Registration and GET Caching", () => {
 
     it("should exclude routes from caching", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", cacheManager);
+      app.decorate("cache", new RedisCacheAdapter(cacheManager));
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -183,7 +179,7 @@ describe("autoCacheMiddleware - Registration and GET Caching", () => {
 
     it("should not cache error responses", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", cacheManager);
+      app.decorate("cache", new RedisCacheAdapter(cacheManager));
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -214,7 +210,7 @@ describe("autoCacheMiddleware - Registration and GET Caching", () => {
 
     it("should add cache metadata headers", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", cacheManager);
+      app.decorate("cache", new RedisCacheAdapter(cacheManager));
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -231,103 +227,6 @@ describe("autoCacheMiddleware - Registration and GET Caching", () => {
         url: "/test",
       });
 
-      expect(response.statusCode).toBe(200);
-
-      await app.close();
-    });
-  });
-
-  describe("Cache Statistics", () => {
-    it("should return cache stats when available", async () => {
-      const app = Fastify({ logger: false });
-      app.decorate("cache", cacheManager);
-
-      await app.register(autoCachePlugin);
-
-      app.get("/stats", async (request) => {
-        const stats = await getCacheStats(request);
-        return stats || { error: "No stats" };
-      });
-
-      await app.ready();
-
-      const response = await app.inject({ method: "GET", url: "/stats" });
-      expect(response.statusCode).toBe(200);
-
-      const stats = JSON.parse(response.payload);
-      if (stats.error !== "No stats") {
-        expect(typeof stats.hitRate === "number").toBeTruthy();
-      }
-
-      await app.close();
-    });
-
-    it("should return null when cache manager not available", async () => {
-      const app = Fastify({ logger: false });
-
-      await app.register(autoCachePlugin);
-
-      app.get("/stats", async (request) => {
-        const stats = await getCacheStats(request);
-        return { stats };
-      });
-
-      await app.ready();
-
-      const response = await app.inject({ method: "GET", url: "/stats" });
-      const data = JSON.parse(response.payload);
-      expect(data.stats).toBe(null);
-
-      await app.close();
-    });
-  });
-
-  describe("Manual Cache Invalidation", () => {
-    it("should manually invalidate cache for route", async () => {
-      const app = Fastify({ logger: false });
-      app.decorate("cache", cacheManager);
-
-      await app.register(autoCachePlugin, {
-        enableCaching: true,
-      });
-
-      let counter = 0;
-      app.get("/data", async () => {
-        counter++;
-        return { counter };
-      });
-
-      app.post("/invalidate", async (request) => {
-        await invalidateCacheForRoute(request, "POST", "/data");
-        return { success: true };
-      });
-
-      await app.ready();
-
-      const get1 = await app.inject({ method: "GET", url: "/data" });
-      expect(JSON.parse(get1.payload).counter).toBe(1);
-
-      await app.inject({ method: "POST", url: "/invalidate" });
-
-      const get2 = await app.inject({ method: "GET", url: "/data" });
-      expect(JSON.parse(get2.payload).counter).toBe(2);
-
-      await app.close();
-    });
-
-    it("should handle invalidation without cache manager", async () => {
-      const app = Fastify({ logger: false });
-
-      await app.register(autoCachePlugin);
-
-      app.post("/invalidate", async (request) => {
-        await invalidateCacheForRoute(request, "POST", "/data");
-        return { success: true };
-      });
-
-      await app.ready();
-
-      const response = await app.inject({ method: "POST", url: "/invalidate" });
       expect(response.statusCode).toBe(200);
 
       await app.close();
