@@ -290,6 +290,87 @@ describe("Domain Entities", () => {
       channel.clearReauthFlag();
       expect(channel.updatedAt.getTime()).toBe(updatedAtBefore);
     });
+
+    it("markAsExpired stamps expiredAt and flips status to EXPIRED", () => {
+      const r = Channel.create({
+        projectId: ProjectId.generate(),
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      if (!r.ok) throw r.error;
+      const channel = r.value;
+      const before = Date.now();
+      channel.markAsExpired();
+      expect(channel.status).toBe("EXPIRED");
+      expect(channel.expiredAt).toBeInstanceOf(Date);
+      expect((channel.expiredAt as Date).getTime()).toBeGreaterThanOrEqual(before);
+    });
+
+    it("recordReconnection preserves expiredAt as audit history", async () => {
+      const r = Channel.create({
+        projectId: ProjectId.generate(),
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      if (!r.ok) throw r.error;
+      const channel = r.value;
+      channel.markAsExpired();
+      const expiredAtBefore = (channel.expiredAt as Date).getTime();
+      channel.markForReauth("rotation");
+
+      await new Promise((res) => setTimeout(res, 2));
+      channel.recordReconnection();
+
+      expect(channel.status).toBe("CONNECTED");
+      expect(channel.needsReauth).toBe(false);
+      expect(channel.authFailedAt).toBeUndefined();
+      expect(channel.authFailureReason).toBeUndefined();
+      expect(channel.connectedAt).toBeInstanceOf(Date);
+      // expiredAt MUST survive — it is the audit record of the latest natural expiry.
+      expect(channel.expiredAt).toBeInstanceOf(Date);
+      expect((channel.expiredAt as Date).getTime()).toBe(expiredAtBefore);
+    });
+
+    it("recordPublish updates lastUsedAt with the supplied timestamp", () => {
+      const r = Channel.create({
+        projectId: ProjectId.generate(),
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      if (!r.ok) throw r.error;
+      const channel = r.value;
+      const at = new Date("2026-04-15T10:30:00.000Z");
+      channel.recordPublish(at);
+      expect(channel.lastUsedAt).toBeInstanceOf(Date);
+      expect((channel.lastUsedAt as Date).getTime()).toBe(at.getTime());
+    });
+
+    it("updateProfile partially updates accountName/profileImage and skips no-op calls", () => {
+      const r = Channel.create({
+        projectId: ProjectId.generate(),
+        provider: "X",
+        handle: "@test",
+        credentials: { accessToken: "token" },
+      });
+      if (!r.ok) throw r.error;
+      const channel = r.value;
+
+      channel.updateProfile({ accountName: "@miempresa" });
+      expect(channel.accountName).toBe("@miempresa");
+      expect(channel.profileImage).toBeUndefined();
+
+      channel.updateProfile({ profileImage: "https://cdn/x.png" });
+      expect(channel.accountName).toBe("@miempresa");
+      expect(channel.profileImage).toBe("https://cdn/x.png");
+
+      // No-op when both inputs are undefined — updatedAt should not advance.
+      const updatedAtBefore = channel.updatedAt.getTime();
+      channel.updateProfile({});
+      expect(channel.updatedAt.getTime()).toBe(updatedAtBefore);
+    });
   });
 
   describe("Account Entity", () => {

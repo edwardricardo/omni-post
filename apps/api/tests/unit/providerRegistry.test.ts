@@ -3,13 +3,6 @@
  * Unit Tests for Provider Registry Service
  * Tests provider metadata management, adapter registration, and health checking
  *
- * Converted to node:test standard with:
- * - node:test and node:assert modules
- * - Proper Prisma NULL vs undefined handling
- * - Provider enum values from schema
- * - Database cleanup for ProviderConnection
- * - Unique test data generation
- *
  * Environment Variables:
  * - USE_REAL_ADAPTERS=true - Use real provider adapters instead of mocks (makes network calls)
  *
@@ -60,8 +53,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  // Cleanup handled by cascade delete in individual test group
-  // No need to delete ProviderConnection separately
+  // No persistent state to clean up — adapters are in-memory.
 });
 
 // ============================================================================
@@ -399,8 +391,3 @@ describe("Provider Registry - Health Checking", () => {
     expect(duration < 100).toBeTruthy();
   });
 });
-
-// ============================================================================
-// Test Group 7: Database Integration (ProviderConnection)
-// Moved to tests/integration/providerRegistry.db.test.ts (requires real DB)
-// ============================================================================

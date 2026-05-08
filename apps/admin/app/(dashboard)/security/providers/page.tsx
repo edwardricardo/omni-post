@@ -3,9 +3,9 @@
  * @description Admin form for cross-tenant mass force-reauth on a Provider
  *              after a platform-level OAuth client_secret rotation. Operator
  *              picks the provider, types a reason, toggles tiered actions
- *              (flag channels DEFAULT-ON, disable provider connections,
- *              soft-delete channels DESTRUCTIVE-OFF). Soft-delete requires
- *              typed confirmation. Audit-logged with aggregated counts.
+ *              (flag channels DEFAULT-ON, soft-delete channels DESTRUCTIVE-OFF).
+ *              Soft-delete requires typed confirmation. Audit-logged with
+ *              aggregated counts.
  * @component AdminProviderMassReauthPage
  * @layer infrastructure
  */
@@ -31,14 +31,13 @@ export default function AdminProviderMassReauthPage() {
   const [provider, setProvider] = useState<(typeof PROVIDERS)[number]>("FACEBOOK");
   const [reason, setReason] = useState("");
   const [flagChannels, setFlagChannels] = useState(true);
-  const [disableProviderConnections, setDisableProviderConnections] = useState(false);
   const [softDeleteChannels, setSoftDeleteChannels] = useState(false);
   const [softDeleteConfirm, setSoftDeleteConfirm] = useState("");
   const mutation = useProviderForceMassReauth();
 
   const softDeleteRequired = `DELETE ${provider}`;
   const softDeleteUnlocked = !softDeleteChannels || softDeleteConfirm.trim() === softDeleteRequired;
-  const anyTier = flagChannels || disableProviderConnections || softDeleteChannels;
+  const anyTier = flagChannels || softDeleteChannels;
   const canSubmit = !mutation.isPending && !!reason.trim() && anyTier && softDeleteUnlocked;
 
   const handleSubmit = (event: React.FormEvent) => {
@@ -48,7 +47,6 @@ export default function AdminProviderMassReauthPage() {
       provider,
       reason: reason.trim(),
       flagChannels,
-      disableProviderConnections,
       softDeleteChannels,
     });
   };
@@ -124,20 +122,6 @@ export default function AdminProviderMassReauthPage() {
           <label className="flex items-start gap-2">
             <input
               type="checkbox"
-              checked={disableProviderConnections}
-              onChange={(e) => setDisableProviderConnections(e.target.checked)}
-              disabled={mutation.isPending}
-              className="mt-1"
-            />
-            <span className="text-sm text-[var(--text-primary)]">
-              <strong>Disable provider connections</strong> (medium) — set
-              ProviderConnection.isActive=false. Forces token re-issue on next call.
-            </span>
-          </label>
-
-          <label className="flex items-start gap-2">
-            <input
-              type="checkbox"
               checked={softDeleteChannels}
               onChange={(e) => setSoftDeleteChannels(e.target.checked)}
               disabled={mutation.isPending}
@@ -198,10 +182,6 @@ export default function AdminProviderMassReauthPage() {
           <ul className="text-sm text-[var(--text-primary)]">
             <li>
               Channels flagged: <strong>{mutation.data.channelsFlagged}</strong>
-            </li>
-            <li>
-              Provider connections disabled:{" "}
-              <strong>{mutation.data.providerConnectionsDisabled}</strong>
             </li>
             <li>
               Channels soft-deleted: <strong>{mutation.data.channelsSoftDeleted}</strong>

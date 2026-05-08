@@ -62,7 +62,6 @@ function makeMockPrisma() {
     tweet: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     thread: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     channel: { deleteMany: vi.fn(async () => ({ count: 0 })) },
-    providerConnection: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     contentTemplate: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     instagramStoryProject: { deleteMany: vi.fn(async () => ({ count: 0 })) },
     videoProcessingJob: { deleteMany: vi.fn(async () => ({ count: 0 })) },

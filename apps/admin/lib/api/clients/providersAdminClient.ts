@@ -10,7 +10,6 @@ export interface ForceMassReauthInput {
   provider: string;
   reason: string;
   flagChannels?: boolean;
-  disableProviderConnections?: boolean;
   softDeleteChannels?: boolean;
 }
 
@@ -18,14 +17,11 @@ export interface MassReauthResult {
   provider: string;
   tiers: {
     flagChannels: boolean;
-    disableProviderConnections: boolean;
     softDeleteChannels: boolean;
   };
   channelsFlagged: number;
-  providerConnectionsDisabled: number;
   channelsSoftDeleted: number;
   channelIds: string[];
-  providerConnectionIds: string[];
 }
 
 export const providersAdminClient = {

@@ -97,14 +97,11 @@ function successOutput(): MassForceReauthOutput {
     provider: "FACEBOOK",
     tiers: {
       flagChannels: true,
-      disableProviderConnections: false,
       softDeleteChannels: false,
     },
     channelsFlagged: 12,
-    providerConnectionsDisabled: 0,
     channelsSoftDeleted: 0,
     channelIds: ["c1", "c2"],
-    providerConnectionIds: [],
   };
 }
 
