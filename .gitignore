@@ -146,3 +146,5 @@ docker-compose.local.yml
 .claude/stryker-tiktok-run.log
 .claude/agent-memory/
 .claude/worktrees/
+.claude/hooks-py/__pycache__/
+**/__pycache__/

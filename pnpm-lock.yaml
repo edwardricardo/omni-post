@@ -306,6 +306,12 @@ importers:
       '@adapters/dead-letter-queue':
         specifier: workspace:*
         version: link:../../packages/adapters/dead-letter-queue
+      '@adapters/external-apis':
+        specifier: workspace:*
+        version: link:../../packages/adapters/external-apis
+      '@adapters/fallback-strategies':
+        specifier: workspace:*
+        version: link:../../packages/adapters/fallback-strategies
       '@adapters/queue-bullmq':
         specifier: workspace:*
         version: link:../../packages/adapters/queue-bullmq
@@ -381,6 +387,9 @@ importers:
       '@providers/pinterest':
         specifier: workspace:*
         version: link:../../packages/providers/pinterest
+      '@providers/shared':
+        specifier: workspace:*
+        version: link:../../packages/providers/shared
       '@providers/snapchat':
         specifier: workspace:*
         version: link:../../packages/providers/snapchat

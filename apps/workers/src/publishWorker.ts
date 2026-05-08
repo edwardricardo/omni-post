@@ -29,7 +29,7 @@ import { createBullMQConsumerAdapter, QUEUE_NAMES } from "@adapters/queue-bullmq
 import { registerGracefulShutdown } from "./lib/gracefulShutdown.js";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import { decryptChannelCredentials } from "@shared/types";
-import { CredentialResolver } from "./CredentialResolver.js";
+import { CredentialResolver } from "./services/CredentialResolver.js";
 
 // PLATFORM_ENCRYPTION_KEY is required for decrypting Channel.credentials.
 // Workers fail fast if missing — no plaintext fallback.

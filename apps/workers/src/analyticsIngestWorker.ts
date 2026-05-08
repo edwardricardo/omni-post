@@ -32,7 +32,7 @@ import type { Provider as PrismaProvider } from "@infra/prisma";
 import { registerGracefulShutdown } from "./lib/gracefulShutdown.js";
 import { handleProviderAuthError } from "./lib/handleProviderAuthError.js";
 import { ChannelAuthFailureRecorder } from "./services/ChannelAuthFailureRecorder.js";
-import { CredentialResolver } from "./CredentialResolver.js";
+import { CredentialResolver } from "./services/CredentialResolver.js";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info", name: "analytics-ingest-worker" });
 
