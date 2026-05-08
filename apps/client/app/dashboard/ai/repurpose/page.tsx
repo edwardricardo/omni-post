@@ -41,12 +41,23 @@ export default function RepurposePage() {
   const accountId = ((user as Record<string, unknown> | null)?.accountId as string) ?? "";
   const queryClient = useQueryClient();
 
-  const { data: proposals = [], isLoading } = useQuery({
+  const {
+    data: proposals = [],
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["repurpose-proposals", accountId],
     queryFn: async (): Promise<RepurposeProposal[]> => {
       const res = await fetch(`/api/backend/repurpose/proposals?accountId=${accountId}`, {
         credentials: "include",
       });
+      if (res.status === 501) {
+        // Pipeline scaffolded but not wired end-to-end (DETECT scheduler +
+        // GENERATE worker + AI provider missing). Surface as a known state
+        // so the page renders the "feature in development" banner instead
+        // of a generic error toast. Tracked: PR-Repurpose-AI-Pipeline.
+        throw new Error("PIPELINE_NOT_IMPLEMENTED");
+      }
       if (!res.ok) {
         throw new Error(await parseRepurposeError(res, "Failed to load proposals"));
       }
@@ -55,7 +66,11 @@ export default function RepurposePage() {
       return data.value ?? [];
     },
     enabled: !!accountId,
+    retry: false, // 501 is a permanent state — no point retrying
   });
+
+  const isPipelineNotImplemented =
+    error instanceof Error && error.message === "PIPELINE_NOT_IMPLEMENTED";
 
   const approvalMutation = useMutation({
     mutationFn: async ({ proposalId, action }: { proposalId: string; action: ApprovalAction }) => {
@@ -106,7 +121,21 @@ export default function RepurposePage() {
         </p>
       </div>
 
-      {isLoading ? (
+      {isPipelineNotImplemented ? (
+        <div
+          role="status"
+          className="rounded-lg border border-amber-200 bg-amber-50 p-6 text-amber-900"
+        >
+          <p className="text-base font-semibold">Feature in development</p>
+          <p className="mt-2 text-sm">
+            The AI Repurpose pipeline is scaffolded — schema, use cases, adapters and this UI all
+            exist — but the detection scheduler and variant-generation worker are not yet wired, and
+            an AI provider (OpenAI / Perplexity / Gemini) credential is required. Tracked as{" "}
+            <code className="font-mono text-xs">PR-Repurpose-AI-Pipeline</code> in the
+            post-remediation backlog.
+          </p>
+        </div>
+      ) : isLoading ? (
         <div className="text-center py-8 text-muted-foreground">Loading...</div>
       ) : pending.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">

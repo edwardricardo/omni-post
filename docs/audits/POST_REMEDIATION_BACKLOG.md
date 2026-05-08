@@ -3007,6 +3007,56 @@ Re-evaluar si:
 
 ---
 
+---
+
+## PR-Repurpose-AI-Pipeline — Wire detect + generate scheduler/worker + AI provider
+
+**Origen.** Audit A.4 Cluster 2 (2026-05-08): the AI Repurpose pipeline is 80% built — `RepurposeProposal` + `RepurposeVariant` schema models, `DetectRepurposeCandidatesUseCase`, `GenerateRepurposeVariantsUseCase`, `ApproveRepurposeVariantUseCase`, `RejectRepurposeVariantUseCase`, `BullMQRepurposeJobDispatcher`, `PrismaRepurposeDetectionAdapter`, `PrismaRepurposeVariantAdapter`, DI wiring, and the `/dashboard/ai/repurpose` frontend page all exist. The pipeline is NOT wired end-to-end:
+
+- No scheduler invokes `DetectRepurposeCandidatesUseCase` periodically
+- No worker consumes `GENERATE_REPURPOSE` queue (jobs would accumulate)
+- No AI provider configured — `OPENAI_API_KEY`, `PERPLEXITY_API_KEY`, `GEMINI_API_KEY` all empty in `.env`
+
+**Decisión** (Edward 2026-05-08): preservar el desarrollo, completar scaffolding HTTP con 501 NOT_IMPLEMENTED honestos para que el frontend muestre "feature in development" en lugar de fallar silenciosamente. Scope completo de implementación queda diferido hasta que se decida proveedor de AI.
+
+**Estado actual** (post-stub):
+
+- `GET /repurpose/proposals` → 501 con mensaje claro (in `apps/api/src/repurpose/repurposeRoutes.ts`)
+- `POST /admin/ai/detect-repurpose` → 501 (admin manual trigger)
+- Frontend page detecta 501 y muestra banner `Feature in development` con referencia al backlog ID
+- Todos los use cases + adapters + schema + DI wiring preservados intactos para reactivación rápida
+
+**Scope de wire-up futuro** (cuando AI provider esté decidido):
+
+1. **Schedule** `DetectRepurposeCandidatesUseCase` via `BackgroundTaskScheduler` (canon CLAUDE.md). Cadence: daily at 02:00 UTC (low-traffic window). Pattern: same as `RecurrenceScheduler.ts` from Cluster A.4-1.
+2. **GenerateRepurposeVariants worker** en `apps/workers/src/repurposeWorker.ts`:
+   - Consume queue `GENERATE_REPURPOSE`
+   - Cada job invoca `GenerateRepurposeVariantsUseCase`
+   - Retry: 3 con backoff exponencial (default BullMQ)
+   - DLQ: `FAILED_OPERATIONS_DLQ` para variantes que fallaron generación
+3. **AI provider config** — registrar OpenAI (default) o Perplexity/Gemini en env. Decision pending: cost vs quality vs API stability.
+4. **Replace HTTP stubs** — el `GET /repurpose/proposals` consulta `RepurposeProposal` table, el `POST /admin/ai/detect-repurpose` invoca el use case real.
+5. **Tests**:
+   - Scheduler unit (mock noop scheduler)
+   - Worker unit + integration (mock AI provider)
+   - HTTP route integration con MSW
+   - E2E: post high-performing → DETECT cron → ver proposals en UI → approve → variant publica
+6. **Cost monitoring** — métricas de AI calls/month + alert cuando se acerque presupuesto.
+
+**Estimado**: 8-12h cuando el AI provider esté seleccionado y key disponible.
+
+**Strategic context**: Repurpose con AI es feature **diferenciador premium** (Buffer Premium, Hootsuite Enterprise lo tienen). No table-stake como recurring posts, pero sustantivamente competitivo. Postergable hasta que mobile-perf workstream cierre (PR-Mobile-Perf en backlog) y haya bandwidth.
+
+**Bloqueado por**:
+
+1. Decisión de AI provider (Edward).
+2. Budget/cost approval para AI calls en producción.
+3. Mobile-perf workstream (highest priority customer-facing).
+
+**Estado:** **PROPOSED** (2026-05-08). Spinoff de Audit A.4 Cluster 2.
+
+---
+
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.
 
 **Cierre.** Un entry se marca como `REVIEWED` cuando Edward lo revisa al final del roadmap. Se marca como `FIXED` cuando el fix de raíz se aplicó. Se marca como `WONT_FIX` si Edward decide que el paliativo es suficiente a largo plazo (en cuyo caso la razón debe documentarse).
