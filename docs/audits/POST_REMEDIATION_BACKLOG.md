@@ -3057,6 +3057,105 @@ Re-evaluar si:
 
 ---
 
+## PR-Triage-AI-Inbox — Wire AI inbox message triage pipeline
+
+**Origen.** Audit A.4 Cluster 3 (2026-05-08): `TriageInboxMessageUseCase` + 2 Prisma adapters (`PrismaTriageMessageAdapter`, `PrismaTriageCrmAdapter`) + unit tests exist, but the pipeline has zero HTTP exposure, zero scheduler, zero worker, zero frontend, and the TRIAGE_INBOX queue constant has no producer or consumer.
+
+**Decisión** (Edward 2026-05-08): preservar el desarrollo, agregar al backlog para implementación futura. Sin surface stub-able actualmente — feature 100% backend invisible al usuario.
+
+**Scope de wire-up futuro**:
+
+1. **Producer trigger** — modificar el inbox message ingestion (`apps/api/src/inbox/...`) para enqueue cada mensaje nuevo en TRIAGE_INBOX queue inmediatamente después de save.
+2. **TriageInboxMessage worker** en `apps/workers/src/triageInboxWorker.ts`:
+   - Consume queue TRIAGE_INBOX
+   - Cada job invoca `TriageInboxMessageUseCase` (que llama AI provider para clasificar)
+   - Resultado: actualiza `SocialMessage` row con category/sentiment/urgency/intent
+   - Para mensajes urgentes/leads: opcionalmente integra con CRM via `PrismaTriageCrmAdapter`
+3. **AI provider config** — OPENAI_API_KEY o equivalente.
+4. **HTTP endpoints** (opcional, para admin/debugging): `POST /admin/inbox/triage/:messageId` (manual re-triage), `GET /inbox/messages?triageCategory=lead`.
+5. **Frontend** (potencial): badge en cada message + filter dropdown + auto-routing rules.
+6. **Tests**: unit + integration con AI mock + worker E2E.
+
+**Estimado**: 10-15h. Más extenso que Repurpose porque incluye producer trigger + worker + UI integration.
+
+**Strategic context**: AI inbox triage es feature **premium** (Sprout Social Inbox AI, Hootsuite Inbox Insights). Diferenciador para agencies grandes manejando >100 msgs/día.
+
+**Bloqueado por**: Decisión de AI provider + priority vs Repurpose y Reports.
+
+**Estado:** **PROPOSED** (2026-05-08). Spinoff de Audit A.4 Cluster 3.
+
+---
+
+## PR-Trend-Radar-Caching — Pre-fetch + score trending topics offline (low priority)
+
+**Origen.** Audit A.4 Cluster 4 (2026-05-08): la feature de Trend Radar **funciona** hoy — HTTP routes registered, frontend page renderiza, `trendAnalysisService` llama TikTok API con circuit breaker. La queue TREND_RADAR existe en constants.ts pero nadie la usa porque las queries son sync (request → external API → response).
+
+**Decisión** (Edward 2026-05-08): la queue es scaffolding intencional para optimización futura — pre-fetch + score offline en background, servir cached results al usuario. Preservar la queue constant + agregar al backlog.
+
+**Diferencia con clusters previos**: aquí el feature trabaja, lo que falta es la capa de optimización. No es UX broken — es performance future-proofing.
+
+**Scope de optimización futura**:
+
+1. **Background fetcher** en `apps/workers/src/trendFetcherWorker.ts`:
+   - BullMQ repeatable job (cadence: cada 6 h)
+   - Fetch trending topics desde sources externos (TikTok, Twitter, Google Trends, Reddit)
+   - Persiste en tabla `TrendingTopic` (NEW schema model)
+   - Aplica `ScoreTrendRelevanceUseCase` con context del proyecto
+2. **HTTP routes pivot** — endpoints actuales cambian de "sync external fetch" a "DB query con fallback a sync external si cache stale".
+3. **Cache invalidation** — TTL en TrendingTopic table + manual refresh button en UI.
+4. **External API budget** — rate limit prevention (Twitter/TikTok quotas).
+5. **Schema migration** — add `TrendingTopic` table.
+6. **Tests**: worker mock + cache hit/miss scenarios.
+
+**Estimado**: 6-8h.
+
+**Strategic context**: Trend Radar **funciona** sin esto — es solo optimization. Implementar cuando OmniPost tenga >50 active users del feature.
+
+**Bloqueado por**: priority lower que Reports/Triage.
+
+**Estado:** **PROPOSED** (2026-05-08). Spinoff de Audit A.4 Cluster 4. Low priority.
+
+---
+
+## PR-Scheduled-Reports-Cron — Wire cron trigger for scheduled report email delivery
+
+**Origen.** Audit A.4 Cluster 5 (2026-05-08): el feature de Scheduled Reports es 90% built — schema (`ScheduledReport` con `cronSchedule`), 7 use cases (CRUD + GenerateReportUseCase + queries + custom-reports), `reportRoutes.ts` + `customReportRoutes.ts`, frontend `useReports` hook + `ScheduledReportsList` + `CreateReportForm` + `/dashboard/analytics/reports` page. **Manual** generation funciona via "Generate Now". **Cron-driven** scheduled email delivery está roto silenciosamente — usuarios crean schedules pensando recibir emails y nunca llegan.
+
+**Decisión** (Edward 2026-05-08): preservar todo, banner UX en frontend ("Manual generation only — cron not wired"), agregar al backlog para wire-up del cron.
+
+**Estado actual** (post-banner):
+
+- Frontend `/dashboard/analytics/reports` muestra banner amber "Manual generation only" con referencia al backlog
+- Manual "Generate Now" sigue funcionando — usuarios pueden trigger reports on-demand
+- DB sigue persistiendo schedules pero el cron no los procesa
+
+**Scope de wire-up futuro**:
+
+1. **ScheduledReportsScheduler** en `apps/api/src/reports/ScheduledReportsScheduler.ts`:
+   - Pattern como `RecurrenceScheduler.ts` (Audit A.4 Cluster 1)
+   - `BackgroundTaskScheduler` task tickea cada 1 min
+   - Find scheduled reports `isActive = true && nextRunAt <= now`
+   - Enqueue job en REPORT_GENERATION queue para cada one
+2. **ReportGenerationWorker** en `apps/workers/src/reportGenerationWorker.ts`:
+   - Consume REPORT_GENERATION queue
+   - Cada job invoca `GenerateReportUseCase`
+   - Send email via Resend (RESEND_API_KEY ya en env, currently empty)
+   - Update `lastRunAt` + recompute `nextRunAt` desde cronSchedule
+3. **Resend config** — necesita `RESEND_API_KEY` real + `RESEND_FROM_ADDRESS`.
+4. **Reset frontend banner** — quitar el amber banner cuando cron lande.
+5. **Tests**: scheduler unit + worker integration con mock email + E2E.
+6. **PDF generation** (si format=PDF): puppeteer o react-pdf.
+
+**Estimado**: 8-10h.
+
+**Strategic context**: Scheduled Reports es feature **standard** (Buffer base tier, Hootsuite, Sprout, Later). Clientes finales esperan reports mensuales. **Tier table-stake** — higher priority que Triage/Trends/Repurpose.
+
+**Bloqueado por**: Resend API key + priority vs other features.
+
+**Estado:** **PROPOSED** (2026-05-08). Spinoff de Audit A.4 Cluster 5. Higher priority than Triage/Trends/Repurpose.
+
+---
+
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.
 
 **Cierre.** Un entry se marca como `REVIEWED` cuando Edward lo revisa al final del roadmap. Se marca como `FIXED` cuando el fix de raíz se aplicó. Se marca como `WONT_FIX` si Edward decide que el paliativo es suficiente a largo plazo (en cuyo caso la razón debe documentarse).
