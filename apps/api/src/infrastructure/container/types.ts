@@ -298,6 +298,8 @@ export const TOKENS = {
   ListRecurringPostsQuery_Recurring: Symbol.for("ListRecurringPostsQuery_Recurring"),
   GetRecurringPostQuery: Symbol.for("GetRecurringPostQuery"),
   ProcessRecurrenceUseCase: Symbol.for("ProcessRecurrenceUseCase"),
+  CreatePostFromRecurrenceUseCase: Symbol.for("CreatePostFromRecurrenceUseCase"),
+  RecurrenceScheduler: Symbol.for("RecurrenceScheduler"),
 
   // AI Prompt Templates (Task 11.3)
   AIPromptTemplateRepository: Symbol.for("AIPromptTemplateRepository"),

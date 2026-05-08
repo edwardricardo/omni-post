@@ -672,6 +672,15 @@ async function start() {
     );
     logger.info("GatewaySwitchProcessor started");
 
+    // RecurrenceScheduler — ticks every 60 s, processes due recurring posts
+    // and creates + schedules a new Post for each occurrence.
+    const { RecurrenceScheduler: _RecurrenceSchedulerType } =
+      await import("./recurring/RecurrenceScheduler.js");
+    const recurrenceScheduler = app.container!.resolve<
+      InstanceType<typeof _RecurrenceSchedulerType>
+    >(TOKENS.RecurrenceScheduler);
+    recurrenceScheduler.start();
+
     // Resolve the background task scheduler once and register daily maintenance jobs.
     const scheduler = app.container!.resolve<BackgroundTaskScheduler>(
       TOKENS.BackgroundTaskScheduler

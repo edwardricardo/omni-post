@@ -70,6 +70,13 @@ export const USE_CASE_ERRORS = {
   FORBIDDEN: "FORBIDDEN",
   CONFLICT: "CONFLICT",
   INTERNAL_ERROR: "INTERNAL_ERROR",
+  /**
+   * Request was valid but the requested operation isn't wired yet — distinct
+   * from `INTERNAL_ERROR` (unknown failure) and `VALIDATION_FAILED` (caller
+   * input wrong). Caller should surface this as a "feature not available"
+   * UX, not a generic 500.
+   */
+  NOT_IMPLEMENTED: "NOT_IMPLEMENTED",
 } as const;
 
 export type UseCaseErrorCode = (typeof USE_CASE_ERRORS)[keyof typeof USE_CASE_ERRORS];
