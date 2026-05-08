@@ -54,20 +54,56 @@ const UpdatePostBodySchema = z.object({
   tags: z.array(z.string()).optional(),
 });
 
+const PublishStatusEnum = z.enum([
+  "DRAFT",
+  "PENDING_REVIEW",
+  "SCHEDULED",
+  "PUBLISHING",
+  "PUBLISHED",
+  "FAILED",
+  "CANCELLED",
+]);
+
+const csvTransform = (v: string | undefined): string[] | undefined =>
+  v
+    ? v
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean)
+    : undefined;
+
 const ListPostsQuerySchema = z.object({
   projectId: z.string().uuid().optional(),
-  status: z.enum(["DRAFT", "SCHEDULED", "PUBLISHED", "FAILED"]).optional(),
-  tags: z
+  /** Single value (`?status=DRAFT`) or CSV multi (`?status=DRAFT,SCHEDULED`). */
+  status: z
     .string()
     .optional()
-    .transform((v) =>
-      v
-        ? v
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean)
-        : undefined
-    ),
+    .transform((v, ctx) => {
+      const arr = csvTransform(v);
+      if (!arr) return undefined;
+      for (const s of arr) {
+        if (!PublishStatusEnum.safeParse(s).success) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Invalid status: ${s}`,
+          });
+          return z.NEVER;
+        }
+      }
+      return arr.length === 1 ? arr[0] : arr;
+    }),
+  tags: z.string().optional().transform(csvTransform),
+  hasMedia: z.coerce.boolean().optional(),
+  /** ISO 8601 datetime range bounds. */
+  createdFrom: z.string().datetime().optional(),
+  createdTo: z.string().datetime().optional(),
+  scheduledFrom: z.string().datetime().optional(),
+  scheduledTo: z.string().datetime().optional(),
+  searchText: z.string().min(1).max(200).optional(),
+  sortBy: z.enum(["createdAt", "updatedAt", "scheduledAt", "publishedAt", "status"]).optional(),
+  sortDirection: z.enum(["asc", "desc"]).optional(),
+  /** Set to "true" to include archived posts in the result set. */
+  includeArchived: z.coerce.boolean().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
 });
@@ -122,7 +158,22 @@ class PostRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid query parameters");
     }
 
-    const { projectId, status, limit, offset } = validation.value;
+    const {
+      projectId,
+      status,
+      tags,
+      hasMedia,
+      createdFrom,
+      createdTo,
+      scheduledFrom,
+      scheduledTo,
+      searchText,
+      sortBy,
+      sortDirection,
+      includeArchived,
+      limit,
+      offset,
+    } = validation.value;
 
     try {
       // When projectId is provided, delegate to the project-scoped use case
@@ -132,6 +183,19 @@ class PostRouteHandler extends BaseRouteHandler {
           projectId,
           page,
           limit,
+          ...(status !== undefined && {
+            status: status as PublishStatusValue | PublishStatusValue[],
+          }),
+          ...(tags !== undefined && { tags }),
+          ...(hasMedia !== undefined && { hasMedia }),
+          ...(createdFrom !== undefined && { createdFrom }),
+          ...(createdTo !== undefined && { createdTo }),
+          ...(scheduledFrom !== undefined && { scheduledFrom }),
+          ...(scheduledTo !== undefined && { scheduledTo }),
+          ...(searchText !== undefined && { searchText }),
+          ...(sortBy !== undefined && { sortBy }),
+          ...(sortDirection !== undefined && { sortDirection }),
+          ...(includeArchived === true && { includeArchived: true }),
         });
 
         if (!result.ok) {

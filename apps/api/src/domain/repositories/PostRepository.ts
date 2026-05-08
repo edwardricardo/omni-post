@@ -29,6 +29,12 @@ export interface PostFilterCriteria {
   hasMedia?: boolean;
   searchText?: string;
   tags?: string[];
+  /**
+   * Include archived posts (those with archivedAt set). Default behaviour
+   * filters them out so the standard listing view never shows archived
+   * items. Set to `true` only for an explicit "Archive" view.
+   */
+  includeArchived?: boolean;
 }
 
 /**

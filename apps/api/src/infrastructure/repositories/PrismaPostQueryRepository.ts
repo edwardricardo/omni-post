@@ -168,7 +168,8 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
 
   /**
    * Build a Prisma `where` clause from a project scope and optional filter.
-   * Always pins `projectId` and `deletedAt: null`.
+   * Always pins `projectId` and `deletedAt: null`. Filters `archivedAt: null`
+   * by default unless `filter.includeArchived === true` (explicit Archive view).
    */
   private buildWhereClause(
     projectId: ProjectId,
@@ -178,6 +179,10 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
       projectId: projectId.value,
       deletedAt: null,
     };
+
+    if (!filter?.includeArchived) {
+      where["archivedAt"] = null;
+    }
 
     if (!filter) return where;
 
