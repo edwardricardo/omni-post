@@ -19,6 +19,9 @@ interface PostsViewSwitcherProps {
   onPreview: (postId: string) => void;
   onEdit: (postId: string) => void;
   onDelete: (postId: string) => void;
+  /** When provided, every card renders a selection checkbox. */
+  selectedIds?: ReadonlySet<string>;
+  onSelectChange?: (postId: string, next: boolean) => void;
 }
 
 export function PostsViewSwitcher({
@@ -27,7 +30,12 @@ export function PostsViewSwitcher({
   onPreview,
   onEdit,
   onDelete,
+  selectedIds,
+  onSelectChange,
 }: PostsViewSwitcherProps) {
+  const cardSelectionProps = (postId: string) =>
+    selectedIds && onSelectChange ? { isSelected: selectedIds.has(postId), onSelectChange } : {};
+
   if (viewMode === "virtual") {
     return (
       <VirtualScrollList
@@ -43,6 +51,7 @@ export function PostsViewSwitcher({
               onEdit={onEdit}
               onDelete={onDelete}
               isCompact
+              {...cardSelectionProps(post.id)}
             />
           </div>
         )}
@@ -62,6 +71,7 @@ export function PostsViewSwitcher({
             onEdit={onEdit}
             onDelete={onDelete}
             className="mb-4"
+            {...cardSelectionProps(post.id)}
           />
         ))}
       </div>
@@ -77,6 +87,7 @@ export function PostsViewSwitcher({
           onPreview={onPreview}
           onEdit={onEdit}
           onDelete={onDelete}
+          {...cardSelectionProps(post.id)}
         />
       ))}
     </div>

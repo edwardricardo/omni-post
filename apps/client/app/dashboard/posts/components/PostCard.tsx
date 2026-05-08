@@ -63,6 +63,35 @@ interface PostCardProps {
   onDelete: (postId: string) => void;
   isCompact?: boolean;
   className?: string;
+  /**
+   * When defined, renders a selection checkbox controlled by the parent.
+   * Omit (or pass `undefined`) to render the card without selection UI.
+   */
+  isSelected?: boolean;
+  onSelectChange?: (postId: string, next: boolean) => void;
+}
+
+function SelectionCheckbox({
+  postId,
+  isSelected,
+  onSelectChange,
+  className = "",
+}: {
+  postId: string;
+  isSelected: boolean;
+  onSelectChange: (postId: string, next: boolean) => void;
+  className?: string;
+}) {
+  return (
+    <input
+      type="checkbox"
+      aria-label={`Select post ${postId}`}
+      checked={isSelected}
+      onChange={(e) => onSelectChange(postId, e.target.checked)}
+      onClick={(e) => e.stopPropagation()}
+      className={`h-4 w-4 cursor-pointer rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 ${className}`}
+    />
+  );
 }
 
 export function PostCard({
@@ -72,15 +101,25 @@ export function PostCard({
   onDelete,
   isCompact = false,
   className = "",
+  isSelected,
+  onSelectChange,
 }: PostCardProps) {
   const StatusIcon = STATUS_ICONS[post.status as keyof typeof STATUS_ICONS];
   const statusClass = STATUS_COLORS[post.status as keyof typeof STATUS_COLORS];
+  const showSelection = onSelectChange !== undefined && isSelected !== undefined;
 
   if (isCompact) {
     return (
       <div
         className={`flex items-center space-x-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors ${className}`}
       >
+        {showSelection && (
+          <SelectionCheckbox
+            postId={post.id}
+            isSelected={isSelected}
+            onSelectChange={onSelectChange}
+          />
+        )}
         <div className="flex-1">
           <div className="flex items-center justify-between">
             <h4 className="font-medium text-sm truncate">{post.title || "Untitled Post"}</h4>
@@ -105,11 +144,21 @@ export function PostCard({
     <Card className={`hover:shadow-md transition-shadow ${className}`}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <CardTitle className="text-lg leading-6">{post.title || "Untitled Post"}</CardTitle>
-            <CardDescription className="mt-1">
-              {format(new Date(post.createdAt), "MMM d, yyyy")}
-            </CardDescription>
+          <div className="flex flex-1 items-start gap-3">
+            {showSelection && (
+              <SelectionCheckbox
+                postId={post.id}
+                isSelected={isSelected}
+                onSelectChange={onSelectChange}
+                className="mt-1"
+              />
+            )}
+            <div className="flex-1">
+              <CardTitle className="text-lg leading-6">{post.title || "Untitled Post"}</CardTitle>
+              <CardDescription className="mt-1">
+                {format(new Date(post.createdAt), "MMM d, yyyy")}
+              </CardDescription>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Badge className={cn("text-xs", statusClass)}>

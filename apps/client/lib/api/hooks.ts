@@ -13,6 +13,12 @@ import {
   UseMutationOptions,
 } from "@tanstack/react-query";
 import { apiClient } from "./client";
+import type {
+  ListPostsParams,
+  ArchiveBatchResponse,
+  DuplicateBatchResponse,
+  HardDeleteBatchResponse,
+} from "./clients/postsClient";
 import {
   Post,
   Project,
@@ -29,12 +35,7 @@ import {
 const queryKeys = {
   projects: ["projects"] as const,
   project: (id: string) => ["projects", id] as const,
-  posts: (filters?: {
-    projectId?: string;
-    page?: number;
-    limit?: number;
-    status?: "DRAFT" | "SCHEDULED" | "PUBLISHED" | "FAILED";
-  }) => ["posts", filters] as const,
+  posts: (filters?: ListPostsParams) => ["posts", filters] as const,
   post: (id: string) => ["posts", id] as const,
   providers: ["providers"] as const,
   allProvidersHealth: ["providers", "health"] as const,
@@ -108,12 +109,7 @@ export function useDeletePost(options?: UseMutationOptions<ApiResponse<void>, Ap
 
 // Posts List Hook
 export function usePosts(
-  params?: {
-    projectId?: string;
-    page?: number;
-    limit?: number;
-    status?: "DRAFT" | "SCHEDULED" | "PUBLISHED" | "FAILED";
-  },
+  params?: ListPostsParams,
   options?: UseQueryOptions<PaginatedResponse<Post>, ApiError>
 ) {
   return useQuery({
@@ -170,6 +166,71 @@ export function useUploadFile(
 ) {
   return useMutation({
     mutationFn: ({ file, type = "image" }) => apiClient.uploadFile(file, type),
+    ...options,
+  });
+}
+
+/**
+ * @hook useArchivePostsBatch
+ * @description Bulk-archive mutation. Invalidates the posts list cache on
+ *              success so the archived rows disappear from the default view.
+ */
+export function useArchivePostsBatch(
+  options?: UseMutationOptions<ArchiveBatchResponse, ApiError, string[]>
+) {
+  const queryClient = useQueryClient();
+  return useMutation<ArchiveBatchResponse, ApiError, string[]>({
+    mutationFn: async (postIds) => {
+      const res = await apiClient.archivePostsBatch(postIds);
+      return res.data ?? { archived: 0, invalidIds: [] };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.posts() });
+    },
+    ...options,
+  });
+}
+
+/**
+ * @hook useHardDeletePostsBatch
+ * @description Bulk hard-delete mutation. Irreversible — caller is expected
+ *              to confirm with the user before invoking.
+ */
+export function useHardDeletePostsBatch(
+  options?: UseMutationOptions<HardDeleteBatchResponse, ApiError, string[]>
+) {
+  const queryClient = useQueryClient();
+  return useMutation<HardDeleteBatchResponse, ApiError, string[]>({
+    mutationFn: async (postIds) => {
+      const res = await apiClient.hardDeletePostsBatch(postIds);
+      return res.data ?? { deleted: 0, invalidIds: [] };
+    },
+    onSuccess: (_data, postIds) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.posts() });
+      for (const id of postIds) {
+        queryClient.removeQueries({ queryKey: queryKeys.post(id) });
+      }
+    },
+    ...options,
+  });
+}
+
+/**
+ * @hook useDuplicatePostsBatch
+ * @description Bulk-duplicate mutation. Each source becomes a fresh DRAFT.
+ */
+export function useDuplicatePostsBatch(
+  options?: UseMutationOptions<DuplicateBatchResponse, ApiError, string[]>
+) {
+  const queryClient = useQueryClient();
+  return useMutation<DuplicateBatchResponse, ApiError, string[]>({
+    mutationFn: async (postIds) => {
+      const res = await apiClient.duplicatePostsBatch(postIds);
+      return res.data ?? { duplicates: [], invalidIds: [], notFoundIds: [] };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.posts() });
+    },
     ...options,
   });
 }

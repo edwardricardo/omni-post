@@ -15,11 +15,57 @@ import type {
 } from "../types";
 import { request } from "./request";
 
+export type PostStatus =
+  | "DRAFT"
+  | "PENDING_REVIEW"
+  | "SCHEDULED"
+  | "PUBLISHING"
+  | "PUBLISHED"
+  | "FAILED"
+  | "CANCELLED";
+
+export type PostSortField = "createdAt" | "updatedAt" | "scheduledAt" | "publishedAt" | "status";
+
 export interface ListPostsParams {
   projectId?: string;
   page?: number;
   limit?: number;
-  status?: "DRAFT" | "SCHEDULED" | "PUBLISHED" | "FAILED";
+  /** Single value or comma-joined multi-status filter. */
+  status?: PostStatus | PostStatus[];
+  /** Tag filter — joined as CSV on the wire. */
+  tags?: string[];
+  hasMedia?: boolean;
+  /** ISO 8601 datetime range bounds. */
+  createdFrom?: string;
+  createdTo?: string;
+  scheduledFrom?: string;
+  scheduledTo?: string;
+  /** Substring search across title + body (≤200 chars). */
+  searchText?: string;
+  sortBy?: PostSortField;
+  sortDirection?: "asc" | "desc";
+  /** Set true to include archived posts in the result set. */
+  includeArchived?: boolean;
+}
+
+export interface BatchPostsBody {
+  postIds: string[];
+}
+
+export interface ArchiveBatchResponse {
+  archived: number;
+  invalidIds: string[];
+}
+
+export interface HardDeleteBatchResponse {
+  deleted: number;
+  invalidIds: string[];
+}
+
+export interface DuplicateBatchResponse {
+  duplicates: Array<{ sourceId: string; newId: string }>;
+  invalidIds: string[];
+  notFoundIds: string[];
 }
 
 export interface AddPostMediaInput {
@@ -52,10 +98,65 @@ export class PostsClient {
     if (params?.projectId) searchParams.set("projectId", params.projectId);
     if (params?.page) searchParams.set("page", params.page.toString());
     if (params?.limit) searchParams.set("limit", params.limit.toString());
-    if (params?.status) searchParams.set("status", params.status);
+    if (params?.status) {
+      // Backend accepts both `?status=DRAFT` and `?status=DRAFT,SCHEDULED`.
+      const value = Array.isArray(params.status) ? params.status.join(",") : params.status;
+      searchParams.set("status", value);
+    }
+    if (params?.tags && params.tags.length > 0) {
+      searchParams.set("tags", params.tags.join(","));
+    }
+    if (params?.hasMedia !== undefined) {
+      searchParams.set("hasMedia", params.hasMedia ? "true" : "false");
+    }
+    if (params?.createdFrom) searchParams.set("createdFrom", params.createdFrom);
+    if (params?.createdTo) searchParams.set("createdTo", params.createdTo);
+    if (params?.scheduledFrom) searchParams.set("scheduledFrom", params.scheduledFrom);
+    if (params?.scheduledTo) searchParams.set("scheduledTo", params.scheduledTo);
+    if (params?.searchText) searchParams.set("searchText", params.searchText);
+    if (params?.sortBy) searchParams.set("sortBy", params.sortBy);
+    if (params?.sortDirection) searchParams.set("sortDirection", params.sortDirection);
+    if (params?.includeArchived) searchParams.set("includeArchived", "true");
 
     const query = searchParams.toString();
     return request<PaginatedResponse<Post>>(this.baseUrl, `/posts${query ? `?${query}` : ""}`);
+  }
+
+  /**
+   * @method archivePostsBatch
+   * @description Bulk-archive posts (sets archivedAt = now). Idempotent.
+   * @param postIds - 1..100 UUIDs
+   */
+  async archivePostsBatch(postIds: string[]): Promise<ApiResponse<ArchiveBatchResponse>> {
+    return request<ApiResponse<ArchiveBatchResponse>>(this.baseUrl, "/posts/batch/archive", {
+      method: "PATCH",
+      body: JSON.stringify({ postIds }),
+    });
+  }
+
+  /**
+   * @method hardDeletePostsBatch
+   * @description Bulk hard-delete posts. Cascades + irreversible — use only
+   *              from "Empty trash" UX or admin tooling.
+   * @param postIds - 1..100 UUIDs
+   */
+  async hardDeletePostsBatch(postIds: string[]): Promise<ApiResponse<HardDeleteBatchResponse>> {
+    return request<ApiResponse<HardDeleteBatchResponse>>(this.baseUrl, "/posts/batch", {
+      method: "DELETE",
+      body: JSON.stringify({ postIds }),
+    });
+  }
+
+  /**
+   * @method duplicatePostsBatch
+   * @description Bulk-duplicate posts as new DRAFT aggregates.
+   * @param postIds - 1..50 UUIDs (lower cap due to per-item read+write)
+   */
+  async duplicatePostsBatch(postIds: string[]): Promise<ApiResponse<DuplicateBatchResponse>> {
+    return request<ApiResponse<DuplicateBatchResponse>>(this.baseUrl, "/posts/batch/duplicate", {
+      method: "POST",
+      body: JSON.stringify({ postIds }),
+    });
   }
 
   /**

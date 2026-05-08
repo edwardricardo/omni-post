@@ -51,6 +51,9 @@ import {
   PostsClient,
   type ListPostsParams,
   type ThreadingStrategy,
+  type ArchiveBatchResponse,
+  type DuplicateBatchResponse,
+  type HardDeleteBatchResponse,
 } from "./clients/postsClient";
 import { ProjectsClient } from "./clients/projectsClient";
 import {
@@ -153,6 +156,18 @@ class ApiClient {
 
   getPostThread(postId: string): Promise<ApiResponse<unknown>> {
     return this.posts.getPostThread(postId);
+  }
+
+  archivePostsBatch(postIds: string[]): Promise<ApiResponse<ArchiveBatchResponse>> {
+    return this.posts.archivePostsBatch(postIds);
+  }
+
+  hardDeletePostsBatch(postIds: string[]): Promise<ApiResponse<HardDeleteBatchResponse>> {
+    return this.posts.hardDeletePostsBatch(postIds);
+  }
+
+  duplicatePostsBatch(postIds: string[]): Promise<ApiResponse<DuplicateBatchResponse>> {
+    return this.posts.duplicatePostsBatch(postIds);
   }
 
   // Providers
