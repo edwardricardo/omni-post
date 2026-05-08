@@ -19,6 +19,7 @@ import type { DeletePostUseCase } from "../application/posts/DeletePostUseCase.j
 import type { SchedulePostUseCase } from "../application/posts/SchedulePostUseCase.js";
 import type { ArchivePostsBatchUseCase } from "../application/posts/ArchivePostsBatchUseCase.js";
 import type { HardDeletePostsBatchUseCase } from "../application/posts/HardDeletePostsBatchUseCase.js";
+import type { DuplicatePostsBatchUseCase } from "../application/posts/DuplicatePostsBatchUseCase.js";
 import { USE_CASE_ERRORS } from "../application/UseCase.js";
 import { ProjectId, type ContentLocale, type ProjectRepository } from "../domain/index.js";
 import type { PublishStatusValue } from "../domain/value-objects/PublishStatus.js";
@@ -148,7 +149,8 @@ class PostRouteHandler extends BaseRouteHandler {
     private readonly projectRepository: ProjectRepository,
     private readonly incrementUsageUseCase: IncrementUsageUseCase,
     private readonly archivePostsBatchUseCase: ArchivePostsBatchUseCase,
-    private readonly hardDeletePostsBatchUseCase: HardDeletePostsBatchUseCase
+    private readonly hardDeletePostsBatchUseCase: HardDeletePostsBatchUseCase,
+    private readonly duplicatePostsBatchUseCase: DuplicatePostsBatchUseCase
   ) {
     super();
   }
@@ -588,6 +590,40 @@ class PostRouteHandler extends BaseRouteHandler {
   }
 
   // -----------------------------------------------------------------------
+  // POST /posts/batch/duplicate — Bulk duplicate (clone to DRAFT)
+  // -----------------------------------------------------------------------
+
+  async duplicatePostsBatch(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+    this.logInfo(ctx, "Duplicating posts batch");
+
+    const validation = await this.validateBody(ctx, BatchPostsBodySchema);
+    if (!validation.ok) {
+      return this.sendError(ctx, 400, "Invalid request body");
+    }
+
+    try {
+      const result = await this.duplicatePostsBatchUseCase.execute({
+        postIds: validation.value.postIds,
+      });
+
+      if (!result.ok) {
+        return this.mapUseCaseError(ctx, result.error);
+      }
+
+      this.logInfo(ctx, "Posts duplicated", {
+        duplicated: result.value.duplicates.length,
+        invalidCount: result.value.invalidIds.length,
+        notFoundCount: result.value.notFoundIds.length,
+      });
+      this.sendSuccess(ctx, result.value);
+    } catch (error) {
+      this.logError(ctx, "Failed to duplicate posts batch", { error });
+      return this.sendError(ctx, 500, "Failed to duplicate posts");
+    }
+  }
+
+  // -----------------------------------------------------------------------
   // Error mapping helper
   // -----------------------------------------------------------------------
 
@@ -638,6 +674,7 @@ class PostRouteHandler extends BaseRouteHandler {
  * - DELETE /posts/:id            — Soft-delete post (DeletePostUseCase)
  * - PATCH  /posts/batch/archive  — Bulk archive (ArchivePostsBatchUseCase)
  * - DELETE /posts/batch          — Bulk hard-delete (HardDeletePostsBatchUseCase)
+ * - POST   /posts/batch/duplicate — Bulk duplicate (DuplicatePostsBatchUseCase)
  */
 export const postRoutes: FastifyPluginAsync = async (fastify) => {
   const container = fastify.container!;
@@ -653,7 +690,8 @@ export const postRoutes: FastifyPluginAsync = async (fastify) => {
     container.resolve<ProjectRepository>(TOKENS.ProjectRepository),
     container.resolve<IncrementUsageUseCase>(TOKENS.IncrementUsageUseCase),
     container.resolve<ArchivePostsBatchUseCase>(TOKENS.ArchivePostsBatchUseCase),
-    container.resolve<HardDeletePostsBatchUseCase>(TOKENS.HardDeletePostsBatchUseCase)
+    container.resolve<HardDeletePostsBatchUseCase>(TOKENS.HardDeletePostsBatchUseCase),
+    container.resolve<DuplicatePostsBatchUseCase>(TOKENS.DuplicatePostsBatchUseCase)
   );
 
   // List posts
@@ -725,5 +763,15 @@ export const postRoutes: FastifyPluginAsync = async (fastify) => {
       schema: { tags: ["Posts"], summary: "Bulk hard-delete posts (irreversible)" },
     },
     async (request, reply) => handler.hardDeletePostsBatch(request, reply)
+  );
+
+  // Bulk duplicate
+  fastify.post(
+    "/posts/batch/duplicate",
+    {
+      preHandler: [requireClientAuth],
+      schema: { tags: ["Posts"], summary: "Bulk duplicate posts as DRAFT" },
+    },
+    async (request, reply) => handler.duplicatePostsBatch(request, reply)
   );
 };

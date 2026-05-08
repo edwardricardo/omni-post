@@ -34,3 +34,8 @@ export {
   type HardDeletePostsBatchInput,
   type HardDeletePostsBatchOutput,
 } from "./HardDeletePostsBatchUseCase.js";
+export {
+  DuplicatePostsBatchUseCase,
+  type DuplicatePostsBatchInput,
+  type DuplicatePostsBatchOutput,
+} from "./DuplicatePostsBatchUseCase.js";
