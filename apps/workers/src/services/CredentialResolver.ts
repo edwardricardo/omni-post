@@ -1,24 +1,45 @@
 /**
  * @file CredentialResolver.ts
- * @description Resolves a channel's plaintext provider credentials by looking up
- *   the persisted (encrypted) envelope from the channel repository, decrypting
- *   it (the repository is supplied with a decryption fn at construction time),
- *   and returning the plaintext credentials object. Provider adapters receive
- *   resolved credentials per-call rather than performing their own DB lookup.
- * @layer infrastructure
+ * @description Resolves a channel's provider credentials by looking up the
+ *   persisted (encrypted) envelope from the channel repository, decrypting it,
+ *   and returning the plaintext credentials object. The repository is supplied
+ *   at construction time with the decryption function it needs, so this class
+ *   stays free of crypto concerns and is trivially testable with a fake repo.
+ *
+ *   Canon: Cockburn hexagonal — credentials resolution is an application
+ *   service, not an infrastructure concern. Provider adapters receive resolved
+ *   credentials per-call rather than performing their own DB lookup.
+ * @layer application
  */
 
 import { ok, err, type Result } from "@shared/types";
 
+/**
+ * Minimal port the resolver consumes. Concrete implementations
+ * (e.g. `createPrismaRepoAdapter` from `@adapters/db-prisma`) already satisfy
+ * this contract by returning channels with the credentials field decrypted.
+ */
 export interface ChannelCredentialsRepository {
   getChannelsByIds(
     ids: string[]
   ): Promise<Result<Array<{ id: string; credentials: unknown }>, "DATABASE_ERROR">>;
 }
 
+/**
+ * @class CredentialResolver
+ * @description Orchestrates channel-credentials retrieval. Returns `err("AUTH")`
+ *   for any failure path so callers can map uniformly to a HTTP 401 / publish
+ *   AUTH error without leaking lookup details.
+ */
 export class CredentialResolver {
   constructor(private readonly repo: ChannelCredentialsRepository) {}
 
+  /**
+   * @method resolve
+   * @description Resolve plaintext credentials for the given channel id.
+   *   Returns `err("AUTH")` when the channel does not exist, the repository
+   *   lookup fails, or the credentials field is empty.
+   */
   async resolve(channelId: string): Promise<Result<unknown, "AUTH">> {
     try {
       const result = await this.repo.getChannelsByIds([channelId]);
