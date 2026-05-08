@@ -23,6 +23,7 @@ import {
   GetPostWithThreadQuery,
   ListPostsGlobalQuery,
   ArchivePostsBatchUseCase,
+  HardDeletePostsBatchUseCase,
 } from "../../application/posts/index.js";
 
 /**
@@ -73,6 +74,15 @@ export function setupPostUseCases(container: Container): void {
     TOKENS.ArchivePostsBatchUseCase,
     () =>
       new ArchivePostsBatchUseCase(
+        container.resolve<PostRepository>(TOKENS.PostRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+  container.register<HardDeletePostsBatchUseCase>(
+    TOKENS.HardDeletePostsBatchUseCase,
+    () =>
+      new HardDeletePostsBatchUseCase(
         container.resolve<PostRepository>(TOKENS.PostRepository),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),

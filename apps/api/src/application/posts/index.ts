@@ -29,3 +29,8 @@ export {
   type ArchivePostsBatchInput,
   type ArchivePostsBatchOutput,
 } from "./ArchivePostsBatchUseCase.js";
+export {
+  HardDeletePostsBatchUseCase,
+  type HardDeletePostsBatchInput,
+  type HardDeletePostsBatchOutput,
+} from "./HardDeletePostsBatchUseCase.js";
