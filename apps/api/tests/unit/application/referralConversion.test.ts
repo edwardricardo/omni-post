@@ -109,6 +109,12 @@ describe("GrantReferralRewardUseCase", () => {
       extendSubscription: vi.fn().mockResolvedValue(undefined),
       extendTrial: vi.fn().mockResolvedValue(undefined),
       setRewardGranted: vi.fn().mockResolvedValue(undefined),
+      findReferralRewardEmailContext: vi.fn().mockResolvedValue({
+        referrerEmail: "referrer@example.com",
+        referrerName: "Acme Inc.",
+        referredCompanyName: "Globex Corp.",
+        totalConversions: 3,
+      }),
     };
   }
 
@@ -170,5 +176,64 @@ describe("GrantReferralRewardUseCase", () => {
     const result = await useCase.execute({ referralId: "nope" });
 
     assert.ok(!result.ok);
+  });
+
+  describe("email notification", () => {
+    function makeMockEmailPort() {
+      return {
+        send: vi.fn().mockResolvedValue(ok(undefined)),
+      };
+    }
+
+    it("sends referral reward email when emailPort is provided and reward is newly granted", async () => {
+      const grantRepo = makeMockGrantRepo();
+      const emailPort = makeMockEmailPort();
+      const useCase = new GrantReferralRewardUseCase(grantRepo, emailPort);
+
+      await useCase.execute({ referralId: "ref-1" });
+      // Email send is fire-and-forget — yield once to let the microtask resolve.
+      await new Promise<void>((resolve) => setImmediate(resolve));
+
+      expect(emailPort.send).toHaveBeenCalledOnce();
+      const call = emailPort.send.mock.calls[0]?.[0];
+      assert.deepStrictEqual(call?.to, ["referrer@example.com"]);
+      assert.match(call?.subject ?? "", /Globex Corp\./);
+      assert.match(call?.subject ?? "", /30 free days/);
+      assert.ok(call?.html?.includes("Acme Inc."));
+    });
+
+    it("does not send email when reward was already granted previously", async () => {
+      const grantRepo = makeMockGrantRepo({ rewardGranted: true });
+      const emailPort = makeMockEmailPort();
+      const useCase = new GrantReferralRewardUseCase(grantRepo, emailPort);
+
+      await useCase.execute({ referralId: "ref-1" });
+      await new Promise<void>((resolve) => setImmediate(resolve));
+
+      expect(emailPort.send).not.toHaveBeenCalled();
+    });
+
+    it("does not crash when emailPort is omitted", async () => {
+      const grantRepo = makeMockGrantRepo();
+      const useCase = new GrantReferralRewardUseCase(grantRepo);
+
+      const result = await useCase.execute({ referralId: "ref-1" });
+
+      assert.ok(result.ok);
+      expect(grantRepo.findReferralRewardEmailContext).not.toHaveBeenCalled();
+    });
+
+    it("does not crash when email context lookup returns null", async () => {
+      const grantRepo = makeMockGrantRepo();
+      grantRepo.findReferralRewardEmailContext.mockResolvedValue(null);
+      const emailPort = makeMockEmailPort();
+      const useCase = new GrantReferralRewardUseCase(grantRepo, emailPort);
+
+      const result = await useCase.execute({ referralId: "ref-1" });
+      await new Promise<void>((resolve) => setImmediate(resolve));
+
+      assert.ok(result.ok);
+      expect(emailPort.send).not.toHaveBeenCalled();
+    });
   });
 });

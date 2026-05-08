@@ -9,6 +9,7 @@ import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import type { EmailPort } from "../../domain/repositories/EmailPort.js";
+import { referralRewardEmail } from "../notifications/referralRewardEmail.js";
 
 export interface GrantReferralRewardInput {
   referralId: string;
@@ -17,6 +18,13 @@ export interface GrantReferralRewardInput {
 export interface GrantReferralRewardOutput {
   rewardedAccountId: string;
   newExpiry: Date;
+}
+
+export interface ReferralRewardEmailContext {
+  referrerEmail: string;
+  referrerName: string;
+  referredCompanyName: string;
+  totalConversions: number;
 }
 
 export interface GrantRewardRepository {
@@ -36,9 +44,11 @@ export interface GrantRewardRepository {
   extendSubscription(subscriptionId: string, newEnd: Date): Promise<void>;
   extendTrial(subscriptionId: string, newTrialEnd: Date): Promise<void>;
   setRewardGranted(referralId: string): Promise<void>;
+  findReferralRewardEmailContext(referralId: string): Promise<ReferralRewardEmailContext | null>;
 }
 
 const REWARD_DAYS = 30;
+const DEFAULT_BILLING_BASE_URL = "https://app.omnipost.io";
 
 export class GrantReferralRewardUseCase implements UseCase<
   GrantReferralRewardInput,
@@ -54,6 +64,8 @@ export class GrantReferralRewardUseCase implements UseCase<
   async execute(
     input: GrantReferralRewardInput
   ): Promise<Result<GrantReferralRewardOutput, UseCaseError>> {
+    let alreadyRewarded = false;
+
     const doWork = async (): Promise<Result<GrantReferralRewardOutput, UseCaseError>> => {
       const referral = await this.repo.findReferralById(input.referralId);
       if (!referral) {
@@ -61,6 +73,7 @@ export class GrantReferralRewardUseCase implements UseCase<
       }
 
       if (referral.rewardGranted) {
+        alreadyRewarded = true;
         const accountId = await this.repo.findReferrerAccountId(referral.referralCodeId);
         return ok({ rewardedAccountId: accountId ?? "", newExpiry: new Date() });
       }
@@ -92,18 +105,20 @@ export class GrantReferralRewardUseCase implements UseCase<
       return ok({ rewardedAccountId: referrerAccountId, newExpiry });
     };
 
+    let result: Result<GrantReferralRewardOutput, UseCaseError>;
     try {
       if (this.unitOfWork) {
-        let result: Result<GrantReferralRewardOutput, UseCaseError> = ok({
+        let inner: Result<GrantReferralRewardOutput, UseCaseError> = ok({
           rewardedAccountId: "",
           newExpiry: new Date(),
         });
         await this.unitOfWork.executeInTransaction(async () => {
-          result = await doWork();
+          inner = await doWork();
         });
-        return result;
+        result = inner;
+      } else {
+        result = await doWork();
       }
-      return await doWork();
     } catch (error: unknown) {
       return err(
         new UseCaseError(
@@ -113,5 +128,45 @@ export class GrantReferralRewardUseCase implements UseCase<
         )
       );
     }
+
+    if (result.ok && !alreadyRewarded && this.emailPort) {
+      void this.sendRewardEmail(input.referralId, result.value).catch(() => {
+        // Email failures must never roll back the granted reward — the
+        // transaction has already committed. Swallow + rely on logger
+        // hooks in the EmailPort adapter for observability.
+      });
+    }
+
+    return result;
+  }
+
+  private async sendRewardEmail(
+    referralId: string,
+    output: GrantReferralRewardOutput
+  ): Promise<void> {
+    if (!this.emailPort) return;
+
+    const ctx = await this.repo.findReferralRewardEmailContext(referralId);
+    if (!ctx) return;
+
+    const billingUrl = `${DEFAULT_BILLING_BASE_URL}/dashboard/settings/billing`;
+    const newExpiryDate = output.newExpiry.toISOString().split("T")[0] ?? "";
+
+    const content = await referralRewardEmail({
+      referrerName: ctx.referrerName,
+      referredCompanyName: ctx.referredCompanyName,
+      rewardDays: REWARD_DAYS,
+      newExpiryDate,
+      totalConversions: ctx.totalConversions,
+      billingUrl,
+      accountName: ctx.referrerName,
+    });
+
+    await this.emailPort.send({
+      to: [ctx.referrerEmail],
+      subject: content.subject,
+      body: `You earned ${REWARD_DAYS} free days from your referral of ${ctx.referredCompanyName}.`,
+      html: content.html,
+    });
   }
 }
