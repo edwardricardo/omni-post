@@ -2965,6 +2965,48 @@ Re-evaluar si:
 
 ---
 
+---
+
+## PR-Mobile-Perf — Lighthouse mobile audit + canon adoption
+
+**Origen.** Audit A.1 Cluster 5 (2026-05-08): `apps/client/lib/scalability/ConcurrentRenderer.tsx` (527 LOC) eliminado. Era 7 wrappers speculative para concurrent React 19 (priority rendering, batched lists, selective hydration, optimistic forms, background tasks, perf metrics) sin métricas que justificaran adopción y duplicando 4 de 7 features con canon establecido (TanStack Query, react-window, Next.js streaming SSR, web-vitals).
+
+**Decisión** (Edward 2026-05-08): no podemos quedar atrás de competencia mobile. Buffer / Hootsuite / Sprout Social / Later todos tienen mobile UX excelente. OmniPost necesita responsive web performante en low-end Android (mercado agencia LATAM/Asia, big chunk del TAM).
+
+**Pero**: el camino correcto NO es 527 LOC custom helpers — es **medir bottlenecks reales y adoptar canon tools**.
+
+**Scope del workstream propuesto** (no parte de horizontal-audits-v1):
+
+1. **Audit Lighthouse mobile** en 5 páginas heavy con throttled CPU + 3G:
+   - `/dashboard/posts` (listas largas)
+   - `/dashboard/analytics` (charts + tablas)
+   - `/dashboard/scheduling` (calendar + filters)
+   - `/dashboard/inbox` (chat-like UI)
+   - `/dashboard/settings/usage` (ahora reachable)
+
+   Reportar: TTI, LCP, CLS, INP, render-blocking JS para cada una.
+
+2. **Adopt canon tools donde haga falta**:
+   - Listas >50 items → `react-window` (ya en `VirtualScrollList` de `@packages/ui` — verificar uso correcto)
+   - Background fetch → TanStack Query (ya canon, verificar `staleTime`/`refetchInterval` apropiados)
+   - Slow forms → React 19 `<form action>` + server actions
+   - Slow hydration → revisar streaming SSR config en `next.config.mjs`
+   - Frontend metrics → `web-vitals` package + reportar a Sentry/Grafana
+
+3. **Performance budget en CI**:
+   - `lighthouse-ci` con thresholds por página
+   - `size-limit` (ya instalado) — establecer baseline + ratchet
+
+4. **PWA candidates** (opcional): si el research muestra usage patterns mobile, evaluar `next-pwa` para offline-capable composer/scheduling.
+
+**Estimado**: 1-2 sprints (depending on Lighthouse findings).
+
+**Bloqueado por.** Priority decision Edward — qué tan urgente es el mobile parity vs otros workstreams. Sugerencia: ejecutar antes de cualquier campaign de marketing public-facing del producto.
+
+**Estado:** **PROPOSED** (2026-05-08). Spinoff de Audit A.1 Cluster 5.
+
+---
+
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.
 
 **Cierre.** Un entry se marca como `REVIEWED` cuando Edward lo revisa al final del roadmap. Se marca como `FIXED` cuando el fix de raíz se aplicó. Se marca como `WONT_FIX` si Edward decide que el paliativo es suficiente a largo plazo (en cuyo caso la razón debe documentarse).
