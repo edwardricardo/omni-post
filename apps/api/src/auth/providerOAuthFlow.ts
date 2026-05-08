@@ -14,7 +14,6 @@ import {
 } from "../lib/route-handler/index.js";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { ProviderId } from "../providers/providerAdapter.interface.js";
-import type { Provider as PrismaProvider } from "@infra/prisma";
 import { prisma } from "@infra/prisma";
 import { randomBytes, createHash } from "crypto";
 import { oauthProviders } from "./providerOAuthConfigs.js";
