@@ -616,7 +616,7 @@ Opción C (keep deferred):
 
 Próxima sesión con Edward post-T3-R parcial. Edward decide A/B/C; si A, ejecutar L-95 cleanup en batch dedicado (~30 min). Si B, agendar sesión de planning OAuth provider-by-provider.
 
-**Estado:** DIFERIDO — pre-existente a T3-R, T3-R parcial preserva UI actual sin tocar OAuth/Settings. NO se introduce nueva deuda; la deuda ya existía y queda registrada explícitamente con plan de re-evaluación.
+**Estado:** PARCIAL (2026-05-07) — L-95 cerrado incidentalmente con la reescritura de PR-16 (commit `e19103a`): la rewrite de `apps/client/app/dashboard/channels/page.tsx` simplificó la columna "Actions" y los botones "Test"/"Settings" deshabilitados desaparecieron junto con sus tooltips "Coming soon". L-94 sigue DIFERIDO — la rewrite preservó el comportamiento OAuth existente (Bluesky funcional via App Password; los 10 providers restantes mantienen el modal placeholder con el comentario explícito de OAuth no implementado). Próximo paso para L-94: decisión producto sobre prioridad de providers.
 
 ---
 
@@ -1008,7 +1008,16 @@ Opción B — defer hasta resolver L-94/L-95 (T3-R):
 
 Próximo batch que toque `/dashboard/channels` (probablemente T3-R cuando se resuelvan L-94/L-95) o batch dedicado post-T3 si Edward prioriza fixear el shape mismatch antes.
 
-**Estado:** DIFERIDO — pre-existente a T3-Q. T3-Q crea hooks nuevos correctos para el editor flow sin tocar consumers rotos pre-existentes. NO se introduce nueva deuda — la deuda existía desde antes y queda registrada explícitamente.
+**Estado:** FIXED (2026-05-07). Refactor unificado vía Opción A:
+
+- **Schema consolidation** (commit `f9d64a4`): `Channel` absorbe los UX fields de `ProviderConnection` (`accountName`, `profileImage`, `connectedAt`, `expiredAt`, `lastUsedAt`); el modelo `ProviderConnection` se eliminó del schema y la tabla se dropea via migración. OAuth callback repointado a `Channel`. `connectionManager` + `enhancedOAuthProvider` + `PrismaProviderConnectionRepository` borrados (≈1.000 LOC).
+- **API DTO extension** (commit `1d9cbe7`): `toChannelView` y el endpoint `GET /projects/:projectId/channels` retornan el shape rico (`projectName`, `providerName`, `accountName`, `profileImage`, `isConnected`, `needsReauth`, `connectedAt`, `expiredAt`, `lastUsedAt`, `usage.postsThisMonth`). `findUsageByChannelIds` resuelve usage en una sola query batch (`groupBy` filtrado por `LogStatus.OK` + start-of-month UTC).
+- **Client refactor** (commit `e19103a`): `apps/client/hooks/api/useChannels.ts` borrado. `useProjectChannels` + `useDisconnectChannel` ahora viven en el módulo consolidado. `/dashboard/channels` reescrita con el shape canónico — status badge derivado (`isConnected`/`needsReauth`/`expiredAt`), avatar real desde `profileImage`, tabla con todas las columnas UX. `RecurringPostForm` consume el mismo hook.
+- **Tests + cleanup** (commit `0bcdddb`): coverage de los métodos lifecycle nuevos en `Channel` (`markAsExpired` preserve, `recordReconnection` mantiene `expiredAt`, `recordPublish`, `updateProfile` partial+no-op). Drop de tests huérfanos del modelo eliminado. Admin "Mass force-reauth" pierde el toggle "Disable provider connections" (ya no existe el modelo).
+
+Verificación: API 7604/7604, admin 160/160, client 416/416. PR-18 sigue independiente — L-94/L-95 trataban de OAuth flow y Test/Settings UI, no del shape mismatch.
+
+**Deuda residual conocida:** `OAUTH_ENCRYPTION_KEY` env var quedó declarada en `apps/api/src/config/env.ts` + `secretCatalog.ts` aunque ningún código la lee tras la consolidación (la KEK que encripta `Channel.credentials` es `PLATFORM_ENCRYPTION_KEY`). Drop del var requiere tocar `.env*` files — diferido a una decisión de Edward separada.
 
 ---
 
