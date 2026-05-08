@@ -17,6 +17,7 @@ import type { ListPostsUseCase } from "../application/posts/ListPostsUseCase.js"
 import type { ListPostsGlobalQuery } from "../application/posts/ListPostsGlobalQuery.js";
 import type { DeletePostUseCase } from "../application/posts/DeletePostUseCase.js";
 import type { SchedulePostUseCase } from "../application/posts/SchedulePostUseCase.js";
+import type { ArchivePostsBatchUseCase } from "../application/posts/ArchivePostsBatchUseCase.js";
 import { USE_CASE_ERRORS } from "../application/UseCase.js";
 import { ProjectId, type ContentLocale, type ProjectRepository } from "../domain/index.js";
 import type { PublishStatusValue } from "../domain/value-objects/PublishStatus.js";
@@ -45,6 +46,10 @@ const SchedulePostBodySchema = z.object({
 
 const PostParamsSchema = z.object({
   id: IdSchema,
+});
+
+const BatchPostsBodySchema = z.object({
+  postIds: z.array(z.string().uuid()).min(1).max(100),
 });
 
 const UpdatePostBodySchema = z.object({
@@ -140,7 +145,8 @@ class PostRouteHandler extends BaseRouteHandler {
     private readonly deletePostUseCase: DeletePostUseCase,
     private readonly schedulePostUseCase: SchedulePostUseCase,
     private readonly projectRepository: ProjectRepository,
-    private readonly incrementUsageUseCase: IncrementUsageUseCase
+    private readonly incrementUsageUseCase: IncrementUsageUseCase,
+    private readonly archivePostsBatchUseCase: ArchivePostsBatchUseCase
   ) {
     super();
   }
@@ -514,6 +520,39 @@ class PostRouteHandler extends BaseRouteHandler {
   }
 
   // -----------------------------------------------------------------------
+  // PATCH /posts/batch/archive — Bulk archive
+  // -----------------------------------------------------------------------
+
+  async archivePostsBatch(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+    this.logInfo(ctx, "Archiving posts batch");
+
+    const validation = await this.validateBody(ctx, BatchPostsBodySchema);
+    if (!validation.ok) {
+      return this.sendError(ctx, 400, "Invalid request body");
+    }
+
+    try {
+      const result = await this.archivePostsBatchUseCase.execute({
+        postIds: validation.value.postIds,
+      });
+
+      if (!result.ok) {
+        return this.mapUseCaseError(ctx, result.error);
+      }
+
+      this.logInfo(ctx, "Posts archived", {
+        archived: result.value.archived,
+        invalidCount: result.value.invalidIds.length,
+      });
+      this.sendSuccess(ctx, result.value);
+    } catch (error) {
+      this.logError(ctx, "Failed to archive posts batch", { error });
+      return this.sendError(ctx, 500, "Failed to archive posts");
+    }
+  }
+
+  // -----------------------------------------------------------------------
   // Error mapping helper
   // -----------------------------------------------------------------------
 
@@ -556,12 +595,13 @@ class PostRouteHandler extends BaseRouteHandler {
  * and repository ports following hexagonal architecture.
  *
  * Routes:
- * - GET    /posts              — List posts (project-scoped or global)
- * - POST   /posts              — Create post (CreatePostUseCase)
- * - GET    /posts/:id          — Get post with thread (GetPostWithThreadQuery)
- * - PATCH  /posts/:id          — Update post content (UpdatePostUseCase)
- * - POST   /posts/:id/schedule — Schedule post (SchedulePostUseCase)
- * - DELETE /posts/:id          — Soft-delete post (DeletePostUseCase)
+ * - GET    /posts                — List posts (project-scoped or global)
+ * - POST   /posts                — Create post (CreatePostUseCase)
+ * - GET    /posts/:id            — Get post with thread (GetPostWithThreadQuery)
+ * - PATCH  /posts/:id            — Update post content (UpdatePostUseCase)
+ * - POST   /posts/:id/schedule   — Schedule post (SchedulePostUseCase)
+ * - DELETE /posts/:id            — Soft-delete post (DeletePostUseCase)
+ * - PATCH  /posts/batch/archive  — Bulk archive (ArchivePostsBatchUseCase)
  */
 export const postRoutes: FastifyPluginAsync = async (fastify) => {
   const container = fastify.container!;
@@ -575,7 +615,8 @@ export const postRoutes: FastifyPluginAsync = async (fastify) => {
     container.resolve<DeletePostUseCase>(TOKENS.DeletePostUseCase),
     container.resolve<SchedulePostUseCase>(TOKENS.SchedulePostUseCase),
     container.resolve<ProjectRepository>(TOKENS.ProjectRepository),
-    container.resolve<IncrementUsageUseCase>(TOKENS.IncrementUsageUseCase)
+    container.resolve<IncrementUsageUseCase>(TOKENS.IncrementUsageUseCase),
+    container.resolve<ArchivePostsBatchUseCase>(TOKENS.ArchivePostsBatchUseCase)
   );
 
   // List posts
@@ -627,5 +668,15 @@ export const postRoutes: FastifyPluginAsync = async (fastify) => {
     "/posts/:id",
     { preHandler: [requireClientAuth], schema: { tags: ["Posts"], summary: "Delete post" } },
     async (request, reply) => handler.deletePost(request, reply)
+  );
+
+  // Bulk archive
+  fastify.patch(
+    "/posts/batch/archive",
+    {
+      preHandler: [requireClientAuth],
+      schema: { tags: ["Posts"], summary: "Bulk archive posts" },
+    },
+    async (request, reply) => handler.archivePostsBatch(request, reply)
   );
 };

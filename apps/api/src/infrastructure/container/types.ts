@@ -52,6 +52,9 @@ export const TOKENS = {
   GetPostUseCase: Symbol.for("GetPostUseCase"),
   ListPostsUseCase: Symbol.for("ListPostsUseCase"),
   DeletePostUseCase: Symbol.for("DeletePostUseCase"),
+  ArchivePostsBatchUseCase: Symbol.for("ArchivePostsBatchUseCase"),
+  HardDeletePostsBatchUseCase: Symbol.for("HardDeletePostsBatchUseCase"),
+  DuplicatePostsBatchUseCase: Symbol.for("DuplicatePostsBatchUseCase"),
 
   // Use Cases (post scheduling)
   SchedulePostUseCase: Symbol.for("SchedulePostUseCase"),

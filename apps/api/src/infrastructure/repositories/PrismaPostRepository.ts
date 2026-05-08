@@ -364,6 +364,45 @@ export class PrismaPostRepository implements PostRepository {
     }
   }
 
+  /**
+   * Bulk archive — stamp archivedAt for every non-deleted, non-archived post
+   * in the input set. Returns the row count whose archivedAt transitioned
+   * from null to a timestamp in this call.
+   */
+  async bulkArchive(postIds: PostId[]): Promise<Result<number, Error>> {
+    if (postIds.length === 0) return ok(0);
+    try {
+      const result = await this.prisma.post.updateMany({
+        where: {
+          id: { in: postIds.map((id) => id.value) },
+          deletedAt: null,
+          archivedAt: null,
+        },
+        data: { archivedAt: new Date() },
+      });
+      return ok(result.count);
+    } catch (error) {
+      return err(error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+
+  /**
+   * Bulk hard-delete — physically remove rows for every postId. Prisma cascades
+   * to dependent rows (contents, media, publishLogs, etc.) per the schema
+   * relation onDelete behaviour.
+   */
+  async bulkHardDelete(postIds: PostId[]): Promise<Result<number, Error>> {
+    if (postIds.length === 0) return ok(0);
+    try {
+      const result = await this.prisma.post.deleteMany({
+        where: { id: { in: postIds.map((id) => id.value) } },
+      });
+      return ok(result.count);
+    } catch (error) {
+      return err(error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+
   // Private helper methods
 
   /**

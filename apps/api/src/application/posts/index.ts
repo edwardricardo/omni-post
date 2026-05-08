@@ -24,3 +24,8 @@ export {
   type ListPostsGlobalInput,
   type ListPostsGlobalOutput,
 } from "./ListPostsGlobalQuery.js";
+export {
+  ArchivePostsBatchUseCase,
+  type ArchivePostsBatchInput,
+  type ArchivePostsBatchOutput,
+} from "./ArchivePostsBatchUseCase.js";

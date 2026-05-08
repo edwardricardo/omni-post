@@ -107,6 +107,24 @@ export interface PostRepository extends Repository<PostAggregate, PostId> {
   bulkUpdateStatus(postIds: PostId[], status: PublishStatusValue): Promise<Result<void, Error>>;
 
   /**
+   * Bulk archive: stamp `archivedAt = now()` on every matching post that is
+   * not already soft-deleted. Idempotent — re-archiving an already-archived
+   * post is a no-op (the existing timestamp is preserved).
+   *
+   * @returns count of rows whose archivedAt was set in this call.
+   */
+  bulkArchive(postIds: PostId[]): Promise<Result<number, Error>>;
+
+  /**
+   * Bulk hard-delete: physically remove rows for every postId. Cascades to
+   * contents, media, publishLogs, etc. Irreversible — soft-deleted posts
+   * are also removed when included in the input set.
+   *
+   * @returns count of rows actually deleted.
+   */
+  bulkHardDelete(postIds: PostId[]): Promise<Result<number, Error>>;
+
+  /**
    * Hard-delete a post and all its data (irreversible).
    * Only callable by SUPER_ADMIN. Cascades to contents, media, publishLogs, etc.
    */
