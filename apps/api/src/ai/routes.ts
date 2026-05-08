@@ -419,6 +419,51 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Metrics endpoint removed - use main /metrics endpoint instead
 
+  // ─── Predictive analytics scaffolding ──────────────────────────────────────
+  // The two endpoints below are wired so the route table reflects the planned
+  // contract, but the underlying ML/statistical implementation is pending. They
+  // respond with 501 NOT_IMPLEMENTED so the frontend (`usePredictiveData`) can
+  // surface a clear "feature in development" state instead of silently
+  // receiving 404s. Replace these handlers when the real scoring + segment
+  // models are wired into the AI service.
+
+  fastify.post(
+    "/predict-timing",
+    {
+      preHandler: [requireClientAuth],
+      schema: {
+        tags: ["AI"],
+        summary: "Predict optimal posting times for a provider (scaffolded — pending impl)",
+      },
+    },
+    async (_request, reply) =>
+      reply.status(501).send({
+        ok: false,
+        error: "NOT_IMPLEMENTED",
+        message:
+          "Predictive timing analysis endpoint is scaffolded but the backend implementation is pending.",
+      })
+  );
+
+  fastify.post(
+    "/predict-audience",
+    {
+      preHandler: [requireClientAuth],
+      schema: {
+        tags: ["AI"],
+        summary:
+          "Predict audience engagement, segments, and optimisation suggestions (scaffolded — pending impl)",
+      },
+    },
+    async (_request, reply) =>
+      reply.status(501).send({
+        ok: false,
+        error: "NOT_IMPLEMENTED",
+        message:
+          "Predictive audience analysis endpoint is scaffolded but the backend implementation is pending.",
+      })
+  );
+
   fastify.delete(
     "/cache",
     { preHandler: [requireClientAuth], schema: { tags: ["AI"], summary: "Clear AI cache" } },
