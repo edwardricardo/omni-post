@@ -29,14 +29,14 @@ export interface TokenPair {
   csrfToken: string;
 }
 
-export interface LoginResponse {
+interface LoginResponse {
   user: AdminUserProfile;
   tokens: TokenPair;
   requiresMfa: boolean;
   mfaSessionToken?: string;
 }
 
-export interface LoginResult {
+interface LoginResult {
   success: boolean;
   redirectTo?: string;
   error?: string;

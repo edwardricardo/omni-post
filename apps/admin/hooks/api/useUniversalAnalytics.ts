@@ -7,7 +7,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
-export interface AnalyticsOverview {
+interface AnalyticsOverview {
   totalPosts: number;
   totalEngagement: number;
   totalReach: number;
@@ -18,7 +18,7 @@ export interface AnalyticsOverview {
   performanceScore: number;
 }
 
-export interface PlatformMetrics {
+interface PlatformMetrics {
   platformId: string;
   platformName: string;
   handle: string;

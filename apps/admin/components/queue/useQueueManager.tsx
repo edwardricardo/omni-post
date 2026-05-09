@@ -10,13 +10,7 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 
-export type QueueItemStatus =
-  | "queued"
-  | "processing"
-  | "published"
-  | "failed"
-  | "cancelled"
-  | "paused";
+type QueueItemStatus = "queued" | "processing" | "published" | "failed" | "cancelled" | "paused";
 
 export interface QueueItem {
   id: string;

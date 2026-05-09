@@ -7,7 +7,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
-export interface ContentLibraryPost {
+interface ContentLibraryPost {
   id: string;
   projectId: string;
   status: string;

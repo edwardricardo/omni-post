@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-export type { GroupCredentials, SettingsStatus, TestResult } from "./types";
+export type { SettingsStatus, TestResult } from "./types";
 
 export { useGroupSettings, useSettingsStatus } from "./queries";
 

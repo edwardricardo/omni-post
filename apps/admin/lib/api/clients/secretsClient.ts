@@ -7,9 +7,9 @@
 
 import { http } from "./http";
 
-export type SecretRotationStatus = "OK" | "DUE_SOON" | "OVERDUE" | "UNKNOWN";
+type SecretRotationStatus = "OK" | "DUE_SOON" | "OVERDUE" | "UNKNOWN";
 
-export type SecretCategory =
+type SecretCategory =
   | "KEK"
   | "JWT"
   | "DB_PASSWORD"

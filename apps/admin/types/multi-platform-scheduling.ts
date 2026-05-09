@@ -85,11 +85,11 @@ export interface BulkCreateScheduleInput {
 }
 
 // UI-only type for the calendar view (not an API type)
-export interface CalendarDay {
+interface CalendarDay {
   date: Date;
   slots: AvailableSlot[];
   optimalTimes: OptimalTime[];
   isToday: boolean;
 }
 
-export type SchedulerView = "calendar" | "optimal" | "rules" | "bulk";
+type SchedulerView = "calendar" | "optimal" | "rules" | "bulk";

@@ -4,9 +4,9 @@
  * @layer infrastructure
  */
 
-export type GatewayName = "STRIPE" | "PADDLE";
+type GatewayName = "STRIPE" | "PADDLE";
 
-export type GatewaySwitchStatus =
+type GatewaySwitchStatus =
   | "SCHEDULED"
   | "PENDING_CHECKOUT"
   | "COMPLETED"
@@ -14,7 +14,7 @@ export type GatewaySwitchStatus =
   | "SUSPENDED"
   | "EXPIRED";
 
-export interface GatewaySwitchAccount {
+interface GatewaySwitchAccount {
   id: string;
   name: string;
   email: string;
@@ -38,7 +38,7 @@ export interface GatewaySwitchEvent {
   account: GatewaySwitchAccount;
 }
 
-export interface GatewaySwitchStats {
+interface GatewaySwitchStats {
   scheduled: number;
   pendingCheckout: number;
   suspended: number;

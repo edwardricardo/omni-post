@@ -6,19 +6,7 @@
  * @layer infrastructure
  */
 
-export type {
-  CreateWebhookSubscriptionInput,
-  DashboardMetrics,
-  DeadLetterEvent,
-  DeadLetterFilters,
-  DeadLetterPage,
-  OutboxDeadLetterPage,
-  UpdateWebhookSubscriptionInput,
-  WebhookEvent,
-  WebhookEventsFilters,
-  WebhookEventsPage,
-  WebhookSubscription,
-} from "./types";
+export type { DeadLetterEvent, WebhookEvent, WebhookSubscription } from "./types";
 
 export {
   useDlqMetrics,

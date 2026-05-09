@@ -6,18 +6,7 @@
  * @layer infrastructure
  */
 
-export type {
-  ExtendDeadlineResponse,
-  GatewayName,
-  GatewaySwitchAccount,
-  GatewaySwitchDetailResponse,
-  GatewaySwitchEvent,
-  GatewaySwitchFilters,
-  GatewaySwitchListData,
-  GatewaySwitchListResponse,
-  GatewaySwitchStats,
-  GatewaySwitchStatus,
-} from "./types";
+export type { GatewaySwitchEvent } from "./types";
 
 export { useGatewaySwitchDetail, useGatewaySwitches } from "./queries";
 

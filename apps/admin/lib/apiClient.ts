@@ -26,23 +26,13 @@ import { providersAdminClient } from "./api/clients/providersAdminClient";
 
 // Re-export types so existing consumers continue to import from "@/lib/apiClient".
 export type {
-  AccountListFilters,
-  AccountListItem,
-  AccountListPagination,
-  AccountListResponse,
-  AccountProject,
   AccountSummary,
   AuditLog,
   AuditLogFilters,
-  CreateRoleInput,
   DashboardStats,
-  MfaStatus,
   RbacHierarchy,
   RoleInfo,
   SecurityStats,
-  SubscriptionSummary,
-  UpdateRoleInput,
-  UserPermissions,
 } from "./api/types";
 
 /**
