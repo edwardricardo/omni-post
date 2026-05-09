@@ -139,15 +139,20 @@ export class SagaExecutionEngine {
         if (!stepResult.success) {
           if (this.shouldRetryStep(definition, instance)) {
             instance.retryCount++;
-            await this.persistSagaInstance(instance);
-
             const retryDelay = this.calculateRetryDelay(definition, instance.retryCount);
+            // Persist nextRetryAt instead of in-process setTimeout — survives
+            // process restarts. The recovery checker resumes due retries.
+            instance.nextRetryAt = new Date(Date.now() + retryDelay);
+            await this.persistSagaInstance(instance);
             logger.info(
-              { stepName: step.name, retryDelayMs: retryDelay, attempt: instance.retryCount },
-              "Retrying saga step"
+              {
+                stepName: step.name,
+                retryDelayMs: retryDelay,
+                attempt: instance.retryCount,
+                nextRetryAt: instance.nextRetryAt.toISOString(),
+              },
+              "Saga step scheduled for retry"
             );
-
-            setTimeout(() => this.executeSagaAsync(sagaId), retryDelay);
             return;
           } else {
             await this.failSaga(instance, stepResult.error || "Step execution failed");
@@ -155,8 +160,10 @@ export class SagaExecutionEngine {
           }
         }
 
+        // Successful step: clear retry bookkeeping before advancing.
         instance.currentStep++;
         instance.retryCount = 0;
+        delete instance.nextRetryAt;
         await this.persistSagaInstance(instance);
 
         if (step.id === "wait-publishing-completion") {
@@ -398,6 +405,7 @@ export class SagaExecutionEngine {
       ...instance,
       startedAt: instance.startedAt.toISOString(),
       ...(instance.completedAt && { completedAt: instance.completedAt.toISOString() }),
+      ...(instance.nextRetryAt && { nextRetryAt: instance.nextRetryAt.toISOString() }),
     });
 
     // Cast domain types to Prisma-compatible JSON values
@@ -405,6 +413,10 @@ export class SagaExecutionEngine {
     const stepResultsJson = JSON.parse(JSON.stringify(instance.stepResults));
     const compensationResultsJson = JSON.parse(JSON.stringify(instance.compensationResults));
 
+    // Update path explicitly null-clears nextRetryAt when the in-memory
+    // value is undefined so a successful step (or saga completion) wipes the
+    // pending retry marker. The create path can simply omit it (column is
+    // nullable).
     const postgresWrite = this.config.prisma.sagaInstance
       .upsert({
         where: { id: instance.id },
@@ -421,6 +433,7 @@ export class SagaExecutionEngine {
           ...(instance.error !== undefined && { error: instance.error }),
           ...(instance.context.userId && { accountId: instance.context.userId }),
           ...(instance.completedAt && { completedAt: instance.completedAt }),
+          ...(instance.nextRetryAt && { nextRetryAt: instance.nextRetryAt }),
         },
         update: {
           definitionId: instance.definitionId,
@@ -434,6 +447,7 @@ export class SagaExecutionEngine {
           ...(instance.error !== undefined && { error: instance.error }),
           ...(instance.context.userId && { accountId: instance.context.userId }),
           ...(instance.completedAt && { completedAt: instance.completedAt }),
+          nextRetryAt: instance.nextRetryAt ?? null,
         },
       })
       .catch((err: unknown) => {
@@ -530,6 +544,9 @@ export class SagaExecutionEngine {
         ? { completedAt: new Date(parsed.completedAt) }
         : {}),
       ...(typeof parsed.error === "string" ? { error: parsed.error } : {}),
+      ...(typeof parsed.nextRetryAt === "string"
+        ? { nextRetryAt: new Date(parsed.nextRetryAt) }
+        : {}),
     };
   }
 
@@ -545,6 +562,7 @@ export class SagaExecutionEngine {
     error: string | null;
     startedAt: Date;
     completedAt: Date | null;
+    nextRetryAt?: Date | null;
   }): SagaInstance {
     return {
       id: row.id,
@@ -558,6 +576,7 @@ export class SagaExecutionEngine {
       startedAt: row.startedAt,
       ...(row.error !== null && { error: row.error }),
       ...(row.completedAt !== null && { completedAt: row.completedAt }),
+      ...(row.nextRetryAt && { nextRetryAt: row.nextRetryAt }),
     };
   }
 }

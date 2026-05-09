@@ -166,6 +166,10 @@ export interface SagaInstance {
   completedAt?: Date;
   error?: string;
   retryCount: number;
+  /** When non-null, the saga is awaiting a retry of its current step at
+   * this timestamp. Null when no retry is pending. Persisted to survive
+   * process restarts; the recovery checker resumes due retries at boot. */
+  nextRetryAt?: Date;
 }
 
 /**

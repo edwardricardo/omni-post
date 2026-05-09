@@ -2066,6 +2066,11 @@ model SagaInstance {
   accountId           String?
   startedAt           DateTime  @default(now()) @db.Timestamptz(6)
   completedAt         DateTime? @db.Timestamptz(6)
+  /// When non-null, the saga is awaiting a retry of its current step at this
+  /// timestamp. Persisted (vs in-process setTimeout) so retries survive
+  /// restarts — a recovery checker resumes any RUNNING saga whose
+  /// nextRetryAt is past.
+  nextRetryAt         DateTime? @db.Timestamptz(6)
   updatedAt           DateTime  @updatedAt @db.Timestamptz(6)
   createdAt           DateTime  @default(now()) @db.Timestamptz(6)
 
@@ -2073,6 +2078,7 @@ model SagaInstance {
   @@index([definitionId, status])
   @@index([accountId, status])
   @@index([completedAt])
+  @@index([status, nextRetryAt])
 }
 
 // Social Inbox
