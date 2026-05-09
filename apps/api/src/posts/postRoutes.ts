@@ -10,47 +10,21 @@ import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.
 import { IdSchema } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { SecureSchemas } from "../security/inputValidation.js";
-import type { CreatePostUseCase } from "../application/posts/CreatePostUseCase.js";
 import type { GetPostWithThreadQuery } from "../application/posts/GetPostWithThreadQuery.js";
 import type { UpdatePostUseCase } from "../application/posts/UpdatePostUseCase.js";
 import type { ListPostsUseCase } from "../application/posts/ListPostsUseCase.js";
 import type { ListPostsGlobalQuery } from "../application/posts/ListPostsGlobalQuery.js";
 import type { DeletePostUseCase } from "../application/posts/DeletePostUseCase.js";
-import type { SchedulePostUseCase } from "../application/posts/SchedulePostUseCase.js";
 import type { ArchivePostsBatchUseCase } from "../application/posts/ArchivePostsBatchUseCase.js";
 import type { HardDeletePostsBatchUseCase } from "../application/posts/HardDeletePostsBatchUseCase.js";
 import type { DuplicatePostsBatchUseCase } from "../application/posts/DuplicatePostsBatchUseCase.js";
 import { USE_CASE_ERRORS } from "../application/UseCase.js";
-import { ProjectId, type ContentLocale, type ProjectRepository } from "../domain/index.js";
 import type { PublishStatusValue } from "../domain/value-objects/PublishStatus.js";
-import type { IncrementUsageUseCase } from "../application/usage/IncrementUsageUseCase.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 
 // ---------------------------------------------------------------------------
 // Zod Schemas for Validation with security enhancement
 // ---------------------------------------------------------------------------
-
-const CreatePostBodySchema = z.object({
-  projectId: z.string().uuid(),
-  /** Optional — when provided, usage counter is incremented for this account */
-  accountId: z.string().uuid().optional(),
-  locale: z.string().min(2).max(5),
-  body: SecureSchemas.postBody,
-  title: SecureSchemas.userName.optional(), // userName has max 256 chars built-in
-  tags: z.array(z.string()).default([]),
-  status: z.enum(["DRAFT", "SCHEDULED", "PUBLISHED", "FAILED"]).default("DRAFT"),
-});
-
-const SchedulePostBodySchema = z.object({
-  channelIds: z.array(z.string().uuid()),
-  scheduledFor: z.string().datetime(),
-});
-
-const PublishPostBodySchema = z.object({
-  channelIds: z.array(z.string().uuid()).min(1, {
-    message: "At least one channel must be specified for publishing",
-  }),
-});
 
 const PostParamsSchema = z.object({
   id: IdSchema,
@@ -126,34 +100,22 @@ const ListPostsQuerySchema = z.object({
 // ---------------------------------------------------------------------------
 
 /**
- * Post Route Handler
+ * Post Route Handler.
  *
- * Delegates all operations to application-layer use cases resolved from the
- * DI container. No direct Prisma dependency remains.
- *
- * Use cases used:
- * - CreatePostUseCase: Creates a post in the domain aggregate.
- * - GetPostWithThreadQuery: Reads a post with optional thread enrichment.
- * - ListPostsUseCase: Lists posts within a project (CQRS read side).
- * - ListPostsGlobalQuery: Lists posts across all projects.
- * - UpdatePostUseCase: Updates post content.
- * - DeletePostUseCase: Soft-deletes a post.
- * - SchedulePostUseCase: Transitions a post to SCHEDULED status.
- * - ProjectRepository: Verifies project existence before creating posts.
+ * Read-only and post-existing-resource operations live here. Post creation,
+ * scheduling, and immediate publishing are driven by the saga endpoint
+ * (`POST /sagas/post-publishing/start`) — this handler intentionally does
+ * NOT expose those routes; consumers go through the saga.
  */
 class PostRouteHandler extends BaseRouteHandler {
   protected routeName = "posts";
 
   constructor(
-    private readonly createPostUseCase: CreatePostUseCase,
     private readonly getPostWithThreadQuery: GetPostWithThreadQuery,
     private readonly updatePostUseCase: UpdatePostUseCase,
     private readonly listPostsUseCase: ListPostsUseCase,
     private readonly listPostsGlobalQuery: ListPostsGlobalQuery,
     private readonly deletePostUseCase: DeletePostUseCase,
-    private readonly schedulePostUseCase: SchedulePostUseCase,
-    private readonly projectRepository: ProjectRepository,
-    private readonly incrementUsageUseCase: IncrementUsageUseCase,
     private readonly archivePostsBatchUseCase: ArchivePostsBatchUseCase,
     private readonly hardDeletePostsBatchUseCase: HardDeletePostsBatchUseCase,
     private readonly duplicatePostsBatchUseCase: DuplicatePostsBatchUseCase
@@ -249,85 +211,6 @@ class PostRouteHandler extends BaseRouteHandler {
     } catch (error) {
       this.logError(ctx, "Failed to list posts", { error });
       return this.sendError(ctx, 500, "Failed to list posts");
-    }
-  }
-
-  // -----------------------------------------------------------------------
-  // POST /posts — Create Post
-  // -----------------------------------------------------------------------
-
-  async createPost(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const ctx: RouteContext = { request, reply };
-    this.logInfo(ctx, "Creating post");
-
-    const validated = await this.validateRequest<{ body: z.infer<typeof CreatePostBodySchema> }>(
-      ctx,
-      { body: CreatePostBodySchema }
-    );
-    if (!validated.ok) {
-      return this.sendError(ctx, 400, "Invalid request body");
-    }
-
-    const { projectId, accountId, locale, body, title, tags } = validated.value.body as {
-      projectId: string;
-      accountId?: string;
-      locale: string;
-      body: string;
-      title?: string;
-      tags: string[];
-    };
-
-    try {
-      // Verify project exists via repository port
-      const projectIdResult = ProjectId.fromString(projectId);
-      if (!projectIdResult.ok) {
-        return this.sendError(ctx, 400, "Invalid project ID");
-      }
-      const projectExists = await this.projectRepository.exists(projectIdResult.value);
-      if (!projectExists) {
-        return this.sendError(ctx, 404, "Project not found");
-      }
-
-      // Delegate to application use case
-      const result = await this.createPostUseCase.execute({
-        projectId,
-        body,
-        ...(title && { title }),
-        ...(tags.length > 0 && { tags }),
-        locale: locale as ContentLocale,
-      });
-
-      if (!result.ok) {
-        return this.mapUseCaseError(ctx, result.error);
-      }
-
-      const output = result.value;
-      this.logInfo(ctx, "Post created successfully", { postId: output.id });
-
-      // Increment usage counter — best-effort, does not fail the request
-      if (accountId) {
-        void this.incrementUsageUseCase
-          .execute({ accountId, field: "postsPublished" })
-          .catch(() => void 0);
-      }
-
-      this.sendSuccess(
-        ctx,
-        {
-          id: output.id,
-          projectId: output.projectId,
-          locale: output.locale,
-          body: output.body,
-          ...(output.title && { title: output.title }),
-          tags: output.tags,
-          status: output.status,
-          createdAt: output.createdAt,
-        },
-        201
-      );
-    } catch (error) {
-      this.logError(ctx, "Failed to create post", { error });
-      return this.sendError(ctx, 500, "Failed to create post");
     }
   }
 
@@ -446,112 +329,6 @@ class PostRouteHandler extends BaseRouteHandler {
     } catch (error) {
       this.logError(ctx, "Failed to update post", { error });
       return this.sendError(ctx, 500, "Failed to update post");
-    }
-  }
-
-  // -----------------------------------------------------------------------
-  // POST /posts/:id/schedule — Schedule Post (via SchedulePostUseCase)
-  // -----------------------------------------------------------------------
-
-  async schedulePost(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const ctx: RouteContext = { request, reply };
-    this.logInfo(ctx, "Scheduling post");
-
-    const paramValidation = await this.validateParams(ctx, PostParamsSchema);
-    if (!paramValidation.ok) {
-      return this.sendError(ctx, 400, "Invalid post ID");
-    }
-
-    const bodyValidation = await this.validateBody(ctx, SchedulePostBodySchema);
-    if (!bodyValidation.ok) {
-      return this.sendError(ctx, 400, "Invalid schedule data");
-    }
-
-    const { id } = paramValidation.value;
-    const { channelIds, scheduledFor } = bodyValidation.value;
-
-    try {
-      const result = await this.schedulePostUseCase.execute({
-        postId: id,
-        channelIds,
-        scheduledFor,
-      });
-
-      if (!result.ok) {
-        return this.mapUseCaseError(ctx, result.error);
-      }
-
-      const output = result.value;
-      this.logInfo(ctx, "Post scheduled successfully", {
-        postId: id,
-        channelCount: channelIds.length,
-      });
-
-      this.sendSuccess(ctx, {
-        id: output.id,
-        status: output.status,
-        scheduledFor: output.scheduledFor,
-        channelIds: output.channelIds,
-      });
-    } catch (error) {
-      this.logError(ctx, "Failed to schedule post", { error });
-      return this.sendError(ctx, 500, "Failed to schedule post");
-    }
-  }
-
-  // -----------------------------------------------------------------------
-  // POST /posts/:id/publish — Publish Now (delegates to SchedulePostUseCase
-  // with `scheduledFor = now()`). The worker pipeline picks up scheduled
-  // posts whose time has arrived; "now" is just a degenerate case of
-  // scheduling. Same auth (`requireClientAuth`) and use case as schedule —
-  // separate route so the public API surface mirrors user intent
-  // ("publish" vs "schedule") instead of forcing the frontend to construct
-  // a synthetic scheduledFor. Ref: F.1 Publishing audit, finding #1.
-  // -----------------------------------------------------------------------
-
-  async publishPost(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const ctx: RouteContext = { request, reply };
-    this.logInfo(ctx, "Publishing post");
-
-    const paramValidation = await this.validateParams(ctx, PostParamsSchema);
-    if (!paramValidation.ok) {
-      return this.sendError(ctx, 400, "Invalid post ID");
-    }
-
-    const bodyValidation = await this.validateBody(ctx, PublishPostBodySchema);
-    if (!bodyValidation.ok) {
-      return this.sendError(ctx, 400, "Invalid publish data");
-    }
-
-    const { id } = paramValidation.value;
-    const { channelIds } = bodyValidation.value;
-
-    try {
-      const result = await this.schedulePostUseCase.execute({
-        postId: id,
-        channelIds,
-        scheduledFor: new Date().toISOString(),
-      });
-
-      if (!result.ok) {
-        return this.mapUseCaseError(ctx, result.error);
-      }
-
-      const output = result.value;
-      this.logInfo(ctx, "Post queued for immediate publishing", {
-        postId: id,
-        channelCount: channelIds.length,
-      });
-
-      this.sendSuccess(ctx, {
-        id: output.id,
-        status: output.status,
-        scheduledFor: output.scheduledFor,
-        channelIds: output.channelIds,
-      });
-    } catch (error) {
-      this.logError(ctx, "Failed to publish post", { error });
-      return this.sendError(ctx, 500, "Failed to publish post");
     }
   }
 
@@ -729,28 +506,25 @@ class PostRouteHandler extends BaseRouteHandler {
  *
  * Routes:
  * - GET    /posts                — List posts (project-scoped or global)
- * - POST   /posts                — Create post (CreatePostUseCase)
  * - GET    /posts/:id            — Get post with thread (GetPostWithThreadQuery)
  * - PATCH  /posts/:id            — Update post content (UpdatePostUseCase)
- * - POST   /posts/:id/schedule   — Schedule post (SchedulePostUseCase)
  * - DELETE /posts/:id            — Soft-delete post (DeletePostUseCase)
  * - PATCH  /posts/batch/archive  — Bulk archive (ArchivePostsBatchUseCase)
  * - DELETE /posts/batch          — Bulk hard-delete (HardDeletePostsBatchUseCase)
  * - POST   /posts/batch/duplicate — Bulk duplicate (DuplicatePostsBatchUseCase)
+ *
+ * Post creation, scheduling, and publish-now go through
+ * `POST /sagas/post-publishing/start` (saga endpoint), not this router.
  */
 export const postRoutes: FastifyPluginAsync = async (fastify) => {
   const container = fastify.container!;
 
   const handler = new PostRouteHandler(
-    container.resolve<CreatePostUseCase>(TOKENS.CreatePostUseCase),
     container.resolve<GetPostWithThreadQuery>(TOKENS.GetPostWithThreadQuery),
     container.resolve<UpdatePostUseCase>(TOKENS.UpdatePostUseCase),
     container.resolve<ListPostsUseCase>(TOKENS.ListPostsUseCase),
     container.resolve<ListPostsGlobalQuery>(TOKENS.ListPostsGlobalQuery),
     container.resolve<DeletePostUseCase>(TOKENS.DeletePostUseCase),
-    container.resolve<SchedulePostUseCase>(TOKENS.SchedulePostUseCase),
-    container.resolve<ProjectRepository>(TOKENS.ProjectRepository),
-    container.resolve<IncrementUsageUseCase>(TOKENS.IncrementUsageUseCase),
     container.resolve<ArchivePostsBatchUseCase>(TOKENS.ArchivePostsBatchUseCase),
     container.resolve<HardDeletePostsBatchUseCase>(TOKENS.HardDeletePostsBatchUseCase),
     container.resolve<DuplicatePostsBatchUseCase>(TOKENS.DuplicatePostsBatchUseCase)
@@ -761,16 +535,6 @@ export const postRoutes: FastifyPluginAsync = async (fastify) => {
     "/posts",
     { preHandler: [requireClientAuth], schema: { tags: ["Posts"], summary: "List posts" } },
     async (request, reply) => handler.listPosts(request, reply)
-  );
-
-  // Create post
-  fastify.post(
-    "/posts",
-    {
-      preHandler: [requireClientAuth],
-      schema: { tags: ["Posts"], summary: "Create a new post" },
-    },
-    async (request, reply) => handler.createPost(request, reply)
   );
 
   // Get post by ID
@@ -788,26 +552,6 @@ export const postRoutes: FastifyPluginAsync = async (fastify) => {
     "/posts/:id",
     { preHandler: [requireClientAuth], schema: { tags: ["Posts"], summary: "Update post" } },
     async (request, reply) => handler.updatePost(request, reply)
-  );
-
-  // Schedule post
-  fastify.post(
-    "/posts/:id/schedule",
-    {
-      preHandler: [requireClientAuth],
-      schema: { tags: ["Posts"], summary: "Schedule post for publishing" },
-    },
-    async (request, reply) => handler.schedulePost(request, reply)
-  );
-
-  // Publish post immediately (degenerate scheduling with scheduledFor = now)
-  fastify.post(
-    "/posts/:id/publish",
-    {
-      preHandler: [requireClientAuth],
-      schema: { tags: ["Posts"], summary: "Publish post immediately" },
-    },
-    async (request, reply) => handler.publishPost(request, reply)
   );
 
   // Delete post
