@@ -179,28 +179,49 @@ export async function verifyAccessToken(accessToken: string): Promise<AdminUserP
  * Sends logout request to the backend to invalidate the current session.
  * Optionally invalidates all sessions for the user across all devices.
  *
+ * Backend `/admin/auth/logout` is protected by the CSRF middleware, so the
+ * caller MUST pass the active CSRF token (read from the `admin-csrf` cookie
+ * by the calling Server Action). Without it, the backend returns 403
+ * `CSRF_MISSING` and the JWT remains valid server-side — silently breaking
+ * the security guarantee of "logout invalidates the session everywhere."
+ *
  * @param accessToken - JWT access token for authentication
+ * @param csrfToken - CSRF token from the `admin-csrf` cookie. Required for
+ *                    backend session invalidation; pass `null` only when
+ *                    the caller has no active session (rare).
  * @param allSessions - If true, revoke all user sessions; if false, only current session
  */
 export async function logoutFromBackend(
   accessToken: string,
+  csrfToken: string | null,
   allSessions: boolean = false
 ): Promise<void> {
   try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    };
+    if (csrfToken) {
+      headers["X-CSRF-Token"] = csrfToken;
+    }
+
     const response = await fetch(`${API_URL}/admin/auth/logout`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
+      headers,
       body: JSON.stringify({
         allSessions,
       }),
     });
 
     if (!response.ok) {
-      log.error("Logout request failed", { status: response.status });
-      // Continue — frontend will clear session regardless
+      const body = await response.text().catch(() => "");
+      log.error("Logout request failed — backend session NOT invalidated", {
+        status: response.status,
+        body: body.slice(0, 200),
+      });
+      // Continue — frontend will clear session regardless. Log surfaces
+      // the failure so observability picks up CSRF / session-state regressions
+      // (vs the prior silent .catch(() => {}) that masked the bug for months).
     }
   } catch (error) {
     log.error("Network error during logout", error);

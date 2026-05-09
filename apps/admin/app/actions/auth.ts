@@ -15,7 +15,12 @@ import { ConsoleLoggerAdapter } from "@observability/browser-logger";
 
 import type { AdminAuthState } from "@/lib/auth/types";
 import { authenticateAdmin, logoutFromBackend } from "@/lib/auth/backend-client";
-import { SESSION_COOKIE_NAME, setAuthTokens, clearAuthCookies } from "@/lib/auth/sessionCookie";
+import {
+  CSRF_COOKIE_NAME,
+  SESSION_COOKIE_NAME,
+  setAuthTokens,
+  clearAuthCookies,
+} from "@/lib/auth/sessionCookie";
 
 const log = new ConsoleLoggerAdapter("admin.auth-actions", { alwaysEmit: true });
 
@@ -104,11 +109,14 @@ export async function logoutAction(): Promise<void> {
   try {
     const cookieStore = await cookies();
     const session = cookieStore.get(SESSION_COOKIE_NAME);
+    const csrf = cookieStore.get(CSRF_COOKIE_NAME);
 
     if (session) {
-      await logoutFromBackend(session.value, false).catch(() => {
-        // Intentionally ignored — cookies will still be cleared below
-      });
+      // Backend logout is CSRF-protected — pass the token from the cookie so
+      // the request actually reaches `AdminAuthService.logout` instead of
+      // being rejected at the middleware (403 CSRF_MISSING) and silently
+      // swallowed, which would leave the JWT valid server-side post-"logout".
+      await logoutFromBackend(session.value, csrf?.value ?? null, false);
     }
 
     await clearAuthCookies();
