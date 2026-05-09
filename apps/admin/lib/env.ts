@@ -95,5 +95,3 @@ export const env = createEnv({
     );
   },
 });
-
-type Env = typeof env;

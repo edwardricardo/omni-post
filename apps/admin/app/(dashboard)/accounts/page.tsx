@@ -216,7 +216,7 @@ function AccountsPageContent() {
       setSelectedAccounts(new Set());
       setShowActions(false);
     },
-    [accounts, selectedAccounts, refetch, tc]
+    [selectedAccounts, refetch, tc]
   );
 
   const handleView = useCallback((accountId: string) => {

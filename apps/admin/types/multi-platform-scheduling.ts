@@ -83,13 +83,3 @@ export interface BulkCreateScheduleInput {
   timezone?: string;
   isActive?: boolean;
 }
-
-// UI-only type for the calendar view (not an API type)
-interface CalendarDay {
-  date: Date;
-  slots: AvailableSlot[];
-  optimalTimes: OptimalTime[];
-  isToday: boolean;
-}
-
-type SchedulerView = "calendar" | "optimal" | "rules" | "bulk";
