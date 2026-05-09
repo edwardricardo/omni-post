@@ -5,6 +5,8 @@
  * @layer infrastructure
  */
 
+import type { CachePort } from "@ports/core";
+
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import type { CustomerUserRepository } from "../../domain/repositories/CustomerUserRepository.js";
@@ -66,15 +68,17 @@ export function setupCustomerAuthUseCases(container: Container): void {
     TOKENS.RefreshCustomerTokenUseCase,
     () =>
       new RefreshCustomerTokenUseCase(
-        container.resolve<CustomerUserRepository>(TOKENS.CustomerUserRepository)
+        container.resolve<CustomerUserRepository>(TOKENS.CustomerUserRepository),
+        container.resolve<CachePort>(TOKENS.CachePort)
       ),
     true
   );
 
-  // Logout
+  // Logout — receives the refresh token from the caller and revokes its
+  // sessionId via CachePort so subsequent refresh attempts are rejected.
   container.register<LogoutCustomerUseCase>(
     TOKENS.LogoutCustomerUseCase,
-    () => new LogoutCustomerUseCase(),
+    () => new LogoutCustomerUseCase(container.resolve<CachePort>(TOKENS.CachePort)),
     true
   );
 

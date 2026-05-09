@@ -188,12 +188,19 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
 
   /**
    * @method logout
-   * @description POST /auth/customer/logout - Acknowledges logout.
+   * @description POST /auth/customer/logout — revokes the active session by
+   *   blacklisting its `sessionId` in the cache. The refresh token is read
+   *   from the request body (Next.js proxy forwards it from the
+   *   `customer-refresh` httpOnly cookie). Missing token still returns 200
+   *   so the frontend can always finalize logout client-side.
    */
   async logout(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
-    const result = await this.logoutUseCase.execute();
+    const body = (request.body ?? {}) as { refreshToken?: unknown };
+    const refreshToken = typeof body.refreshToken === "string" ? body.refreshToken : null;
+
+    const result = await this.logoutUseCase.execute({ refreshToken });
 
     if (!result.ok) {
       return this.sendError(ctx, 500, "Internal server error");

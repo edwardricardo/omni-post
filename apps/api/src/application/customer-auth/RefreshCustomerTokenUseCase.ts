@@ -5,6 +5,7 @@
  */
 
 import { type Result, ok, err } from "@shared/types";
+import type { CachePort } from "@ports/core";
 import type { CustomerUserRepository } from "../../domain/repositories/CustomerUserRepository.js";
 import { randomBytes } from "crypto";
 import {
@@ -12,6 +13,7 @@ import {
   signCustomerAccessToken,
   signCustomerRefreshToken,
 } from "../../auth/customerJwt.js";
+import { CUSTOMER_REVOKED_SESSION_PREFIX } from "./LogoutCustomerUseCase.js";
 
 /** Error code union */
 export type RefreshCustomerTokenError =
@@ -36,7 +38,10 @@ export interface RefreshCustomerTokenOutput {
  * @description Validates the refresh token, checks user status, and re-issues tokens.
  */
 export class RefreshCustomerTokenUseCase {
-  constructor(private readonly customerUserRepo: CustomerUserRepository) {}
+  constructor(
+    private readonly customerUserRepo: CustomerUserRepository,
+    private readonly cache: CachePort
+  ) {}
 
   /**
    * @method execute
@@ -51,6 +56,13 @@ export class RefreshCustomerTokenUseCase {
       try {
         payload = verifyCustomerRefreshToken(input.refreshToken);
       } catch {
+        return err("INVALID_TOKEN");
+      }
+
+      // Reject if the session was revoked via logout — gates token reissue
+      // on the cache-backed blacklist set by `LogoutCustomerUseCase`.
+      const revoked = await this.cache.has(CUSTOMER_REVOKED_SESSION_PREFIX + payload.sessionId);
+      if (revoked) {
         return err("INVALID_TOKEN");
       }
 
