@@ -26,6 +26,7 @@
     "@providers/pinterest": "workspace:*",
     "@providers/snapchat": "workspace:*",
     "@providers/telegram": "workspace:*",
+    "@providers/threads": "workspace:*",
     "@providers/tiktok": "workspace:*",
     "@providers/x": "workspace:*",
     "@providers/youtube": "workspace:*",

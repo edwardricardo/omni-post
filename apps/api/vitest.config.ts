@@ -6,7 +6,6 @@
  * @layer infrastructure
  */
 import { defineConfig } from "vitest/config";
-import tsconfigPaths from "vite-tsconfig-paths";
 import path from "node:path";
 import { existsSync } from "node:fs";
 
@@ -28,7 +27,6 @@ function findMonorepoRoot(startDir: string): string {
 const root = findMonorepoRoot(__dirname);
 
 export default defineConfig({
-  plugins: [tsconfigPaths({ root, ignoreConfigErrors: true })],
   resolve: {
     alias: {
       "@shared/types": path.join(root, "packages/shared/src/index.ts"),
