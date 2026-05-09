@@ -31,6 +31,7 @@
 
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
+import { z } from "zod";
 import type { PrismaClient } from "@infra/prisma";
 import type { QueuePort } from "@ports/core";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
@@ -44,8 +45,13 @@ import { AppError } from "../lib/errors/index.js";
 import { logger } from "../lib/logger.js";
 import { createRedisConnection } from "../lib/redis.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "../auth/rbacService.js";
+import { SecureSchemas } from "../security/inputValidation.js";
+import { ProjectId, AccountId } from "../domain/value-objects/EntityId.js";
+import type { ProjectRepositoryPort } from "../domain/repositories/ProjectRepository.js";
+import type { ChannelRepository } from "../domain/repositories/ChannelRepository.js";
 
 /** Channel used by workers to notify saga completions/failures */
 const SAGA_EVENTS_CHANNEL = "saga:events";
@@ -58,7 +64,37 @@ interface SagaIntegrationConfig {
   redis: Redis;
   queue: QueuePort;
   scheduler: BackgroundTaskScheduler;
+  /** Required for the customer-facing /start endpoint to verify project ownership */
+  projectRepository: ProjectRepositoryPort;
+  /** Required for the customer-facing /start endpoint to verify channel ownership */
+  channelRepository: ChannelRepository;
 }
+
+const PostContentBaseSchema = {
+  projectId: z.string().uuid(),
+  locale: z.string().min(2).max(5),
+  body: SecureSchemas.postBody,
+  title: SecureSchemas.userName.optional(),
+  tags: z.array(z.string()).default([]),
+  mediaIds: z.array(z.string().uuid()).default([]),
+} as const;
+
+const StartPostPublishingSagaBodySchema = z.discriminatedUnion("mode", [
+  z.object({ mode: z.literal("draft"), ...PostContentBaseSchema }),
+  z.object({
+    mode: z.literal("schedule"),
+    ...PostContentBaseSchema,
+    channelIds: z.array(z.string().uuid()).min(1, "At least one channel is required"),
+    scheduledAt: z.string().datetime(),
+  }),
+  z.object({
+    mode: z.literal("publish-now"),
+    ...PostContentBaseSchema,
+    channelIds: z.array(z.string().uuid()).min(1, "At least one channel is required"),
+  }),
+]);
+
+type StartPostPublishingSagaBody = z.infer<typeof StartPostPublishingSagaBodySchema>;
 
 export class SagaIntegration {
   private sagaManager: SagaManagerImpl;
@@ -173,52 +209,76 @@ export class SagaIntegration {
   private async registerRoutes(): Promise<void> {
     const { fastify } = this.config;
 
-    // Start Post Publishing Saga
-    fastify.post<{
-      Body: {
-        postData: {
-          title?: string;
-          body: string;
-          locale?: string;
-          tags?: string[];
-          mediaIds?: string[];
-          scheduledAt?: string;
-          channelIds: string[];
-        };
-        priority?: "LOW" | "NORMAL" | "HIGH";
-      };
-    }>(
+    fastify.post<{ Body: StartPostPublishingSagaBody }>(
       "/sagas/post-publishing/start",
-      { preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_CONFIGURE)] },
+      { preHandler: [requireClientAuth] },
       async (request, _reply) => {
-        try {
-          const { postData, priority = "NORMAL" } = request.body;
+        const parsed = StartPostPublishingSagaBodySchema.safeParse(request.body);
+        if (!parsed.success) {
+          throw AppError.badRequest("Invalid saga start body", {
+            issues: parsed.error.issues,
+          });
+        }
+        const body = parsed.data;
 
-          // Validate required fields
-          if (!postData.body || !postData.channelIds || postData.channelIds.length === 0) {
-            throw AppError.badRequest("Post body and at least one channel are required");
+        const customer = request.customerUser;
+        if (!customer) {
+          throw AppError.unauthorized("Customer authentication required");
+        }
+
+        try {
+          const projectIdResult = ProjectId.fromString(body.projectId);
+          if (!projectIdResult.ok) {
+            throw AppError.badRequest("Invalid project ID");
+          }
+          const projectResult = await this.config.projectRepository.findById(projectIdResult.value);
+          if (!projectResult.ok) {
+            throw AppError.notFound("Project");
+          }
+          const project = projectResult.value;
+          const customerAccountIdResult = AccountId.fromString(customer.accountId);
+          if (!customerAccountIdResult.ok) {
+            throw AppError.unauthorized("Invalid account identifier in token");
+          }
+          if (project.accountId.toString() !== customerAccountIdResult.value.toString()) {
+            // Return 404 (not 403) to prevent project-id enumeration across tenants.
+            throw AppError.notFound("Project");
           }
 
-          // Create saga context
-          const correlationId = `post-publish-${randomUUID()}`;
-          const context = createSagaContext(
-            "", // Will be set by saga manager
-            correlationId,
-            request.user?.id,
-            {
-              postData: {
-                ...postData,
-                projectId: request.user?.projectId || "default-project",
-                ...(postData.scheduledAt && { scheduledAt: new Date(postData.scheduledAt) }),
-              },
-              priority,
-              source: "API",
-              userAgent: request.headers["user-agent"],
-              ipAddress: request.ip,
+          if (body.mode !== "draft") {
+            const projectChannels = await this.config.channelRepository.findByProjectId(
+              projectIdResult.value
+            );
+            const projectChannelIds = new Set(projectChannels.map((c) => c.id.toString()));
+            for (const channelId of body.channelIds) {
+              if (!projectChannelIds.has(channelId)) {
+                // Return 404 (not 403) to prevent channel-id enumeration across tenants.
+                throw AppError.notFound(`Channel ${channelId}`);
+              }
             }
-          );
+          }
 
-          // Start saga
+          const correlationId = `post-publish-${randomUUID()}`;
+          const postData: Record<string, unknown> = {
+            projectId: body.projectId,
+            locale: body.locale,
+            body: body.body,
+            tags: body.tags,
+            mediaIds: body.mediaIds,
+            ...(body.title !== undefined && { title: body.title }),
+            ...("channelIds" in body && { channelIds: body.channelIds }),
+            ...(body.mode === "schedule" && { scheduledAt: new Date(body.scheduledAt) }),
+          };
+
+          const context = createSagaContext("", correlationId, customer.id, {
+            mode: body.mode,
+            postData,
+            accountId: customer.accountId,
+            source: "customer-api",
+            userAgent: request.headers["user-agent"],
+            ipAddress: request.ip,
+          });
+
           const sagaInstance = await this.sagaManager.startSaga("post-publishing-saga", context);
 
           return {
@@ -226,70 +286,77 @@ export class SagaIntegration {
             data: {
               sagaId: sagaInstance.id,
               status: sagaInstance.status,
+              mode: body.mode,
               correlationId,
               startedAt: sagaInstance.startedAt,
             },
           };
         } catch (error) {
-          // Re-throw AppErrors (e.g. validation errors) directly
           if (error instanceof AppError) {
             throw error;
           }
-          logger.error({ err: error }, "Failed to start post publishing saga");
+          logger.error(
+            { err: error, customerId: customer.id, mode: body.mode },
+            "Failed to start post publishing saga"
+          );
           throw AppError.internal("Failed to start saga");
         }
       }
     );
 
-    // Get Saga Status
     fastify.get<{
       Params: { sagaId: string };
-    }>(
-      "/sagas/:sagaId",
-      { preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_CONFIGURE)] },
-      async (request, _reply) => {
-        try {
-          const { sagaId } = request.params;
-
-          const sagaInstance = await this.sagaManager.getSaga(sagaId);
-          if (!sagaInstance) {
-            throw AppError.notFound("Saga");
-          }
-
-          // Calculate progress
-          const totalSteps = sagaInstance.stepResults.length || 1;
-          const completedSteps = sagaInstance.stepResults.filter((r) => r?.success).length;
-          const progress = Math.round((completedSteps / totalSteps) * 100);
-
-          return {
-            success: true,
-            data: {
-              id: sagaInstance.id,
-              definitionId: sagaInstance.definitionId,
-              status: sagaInstance.status,
-              currentStep: sagaInstance.currentStep,
-              progress,
-              startedAt: sagaInstance.startedAt,
-              completedAt: sagaInstance.completedAt,
-              error: sagaInstance.error,
-              retryCount: sagaInstance.retryCount,
-              stepResults: sagaInstance.stepResults.map((result, index) => ({
-                stepIndex: index,
-                success: result?.success || false,
-                error: result?.error,
-                data: result?.data,
-              })),
-            },
-          };
-        } catch (error) {
-          if (error instanceof AppError) {
-            throw error;
-          }
-          logger.error({ err: error }, "Failed to get saga status");
-          throw AppError.notFound(`Saga not found: ${request.params.sagaId}`);
-        }
+    }>("/sagas/:sagaId", { preHandler: [requireClientAuth] }, async (request, _reply) => {
+      const customer = request.customerUser;
+      if (!customer) {
+        throw AppError.unauthorized("Customer authentication required");
       }
-    );
+
+      try {
+        const { sagaId } = request.params;
+
+        const sagaInstance = await this.sagaManager.getSaga(sagaId);
+        if (!sagaInstance) {
+          throw AppError.notFound("Saga");
+        }
+
+        if (sagaInstance.context.userId !== customer.id) {
+          // Return 404 (not 403) to prevent saga-id enumeration across tenants.
+          throw AppError.notFound("Saga");
+        }
+
+        const totalSteps = sagaInstance.stepResults.length || 1;
+        const completedSteps = sagaInstance.stepResults.filter((r) => r?.success).length;
+        const progress = Math.round((completedSteps / totalSteps) * 100);
+
+        return {
+          success: true,
+          data: {
+            id: sagaInstance.id,
+            definitionId: sagaInstance.definitionId,
+            status: sagaInstance.status,
+            currentStep: sagaInstance.currentStep,
+            progress,
+            startedAt: sagaInstance.startedAt,
+            completedAt: sagaInstance.completedAt,
+            error: sagaInstance.error,
+            retryCount: sagaInstance.retryCount,
+            stepResults: sagaInstance.stepResults.map((result, index) => ({
+              stepIndex: index,
+              success: result?.success || false,
+              error: result?.error,
+              data: result?.data,
+            })),
+          },
+        };
+      } catch (error) {
+        if (error instanceof AppError) {
+          throw error;
+        }
+        logger.error({ err: error }, "Failed to get saga status");
+        throw AppError.notFound(`Saga not found: ${request.params.sagaId}`);
+      }
+    });
 
     // Continue Saga (manual trigger)
     fastify.post<{

@@ -595,6 +595,8 @@ async function createApp(): Promise<FastifyInstance> {
     redis,
     queue: queueAdapter,
     scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
+    projectRepository: container.resolve(TOKENS.ProjectRepository),
+    channelRepository: container.resolve(TOKENS.ChannelRepository),
   });
   await sagaIntegration.initialize();
   typedApp.decorate("sagaIntegration", sagaIntegration);

@@ -80,6 +80,29 @@ interface StepExecuteData {
   [key: string]: unknown;
 }
 
+/**
+ * Saga mode discriminator. Drives which steps run end-to-end:
+ *   - "draft":       Validate + Create only (no scheduling, no wait, no status update).
+ *   - "schedule":    Validate + Create + Schedule jobs (worker publishes at scheduledAt;
+ *                    saga ends after scheduling — no wait/update synchronously).
+ *   - "publish-now": All five steps run (scheduledAt is set to "now"; saga waits for
+ *                    worker completion and finalizes Post.status to PUBLISHED|FAILED).
+ */
+export type SagaPostMode = "draft" | "schedule" | "publish-now";
+
+function readMode(context: SagaContext): SagaPostMode {
+  const raw = context.metadata.mode;
+  if (raw === "draft" || raw === "schedule" || raw === "publish-now") {
+    return raw;
+  }
+  return "publish-now";
+}
+
+function readPostData(context: SagaContext, data?: StepExecuteData): PostDataPayload | undefined {
+  const fromMetadata = context.metadata.postData as PostDataPayload | undefined;
+  return fromMetadata ?? data?.postData;
+}
+
 // Step data shapes for cross-step communication
 interface ValidateStepData {
   validatedData?: { channelIds: string[]; scheduledAt?: Date; [key: string]: unknown };
@@ -165,7 +188,8 @@ export class ValidatePostDataStep implements SagaStep {
 
   async execute(context: SagaContext, data?: StepExecuteData): Promise<SagaStepResult> {
     try {
-      const postData = data?.postData;
+      const postData = readPostData(context, data);
+      const mode = readMode(context);
 
       if (!postData?.body) {
         return {
@@ -174,10 +198,23 @@ export class ValidatePostDataStep implements SagaStep {
         };
       }
 
-      if (!postData?.channelIds || postData.channelIds.length === 0) {
+      // channelIds are only required when the saga will actually attempt to
+      // publish. Drafts skip channel selection entirely.
+      if (mode === "schedule" || mode === "publish-now") {
+        if (!postData.channelIds || postData.channelIds.length === 0) {
+          return {
+            success: false,
+            error: "At least one channel must be selected",
+          };
+        }
+      }
+
+      // scheduledAt is only required for the "schedule" mode. "publish-now"
+      // overrides it to "now"; "draft" doesn't use it.
+      if (mode === "schedule" && !postData.scheduledAt) {
         return {
           success: false,
-          error: "At least one channel must be selected",
+          error: "scheduledAt is required for scheduled publishing",
         };
       }
 
@@ -188,7 +225,7 @@ export class ValidatePostDataStep implements SagaStep {
 
       return {
         success: true,
-        data: { validated: true },
+        data: { validated: true, mode },
       };
     } catch (error) {
       return {
@@ -209,7 +246,7 @@ export class CreatePostStep implements SagaStep {
   async execute(context: SagaContext, data?: StepExecuteData): Promise<SagaStepResult> {
     try {
       const validationData = context.stepData["validate-post-data"] as ValidateStepData | undefined;
-      const postData = validationData?.validatedData || data?.postData;
+      const postData = validationData?.validatedData || readPostData(context, data);
       const aggregateId = data?.postId || `post-${Date.now()}`;
 
       const createCommand: Command = {
@@ -306,6 +343,22 @@ export class SchedulePublishingJobsStep implements SagaStep {
 
   async execute(context: SagaContext, data?: StepExecuteData): Promise<SagaStepResult> {
     try {
+      const mode = readMode(context);
+
+      // Drafts never reach the publishing pipeline — short-circuit so the saga
+      // can complete with just validate + create. compensationData is empty so
+      // a later compensation walk is a no-op for this step.
+      if (mode === "draft") {
+        context.stepData[this.id] = {
+          jobIds: [],
+          channelCount: 0,
+        };
+        return {
+          success: true,
+          data: { skipped: true, reason: "draft-mode", jobIds: [], channelCount: 0 },
+        };
+      }
+
       const createData = context.stepData["create-post"] as CreateStepData | undefined;
       const postId = createData?.postId || data?.postId;
 
@@ -317,9 +370,14 @@ export class SchedulePublishingJobsStep implements SagaStep {
       }
 
       const validationData = context.stepData["validate-post-data"] as ValidateStepData | undefined;
-      const resolved = validationData?.validatedData || data?.postData;
+      const resolved = validationData?.validatedData || readPostData(context, data);
       const channelIds = resolved?.channelIds || [];
-      const scheduledAt = resolved?.scheduledAt;
+      // For "publish-now" the endpoint does not pass scheduledAt; default to
+      // "now" so the worker picks it up immediately. "schedule" carries the
+      // user-specified timestamp through validation.
+      const scheduledAt = mode === "publish-now" ? new Date() : resolved?.scheduledAt || new Date();
+      const priority =
+        (context.metadata.priority as string | undefined) || data?.priority || "NORMAL";
 
       const jobIds: string[] = [];
 
@@ -328,8 +386,8 @@ export class SchedulePublishingJobsStep implements SagaStep {
           type: "publish-post",
           postId,
           channelId,
-          scheduledAt: scheduledAt || new Date(),
-          priority: data?.priority || "NORMAL",
+          scheduledAt,
+          priority,
           sagaId: context.sagaId,
           correlationId: context.correlationId,
         });
@@ -340,7 +398,7 @@ export class SchedulePublishingJobsStep implements SagaStep {
       context.stepData[this.id] = {
         jobIds,
         channelCount: channelIds.length,
-        scheduledAt: scheduledAt || new Date(),
+        scheduledAt,
       };
 
       return {
@@ -409,6 +467,31 @@ export class WaitForPublishingCompletionStep implements SagaStep {
 
   async execute(context: SagaContext): Promise<SagaStepResult> {
     try {
+      const mode = readMode(context);
+
+      // Only "publish-now" actually waits for completion. Drafts produce no
+      // jobs; scheduled posts are owned by the worker pipeline at scheduledAt
+      // and the saga doesn't sit around for hours holding the workflow open.
+      if (mode === "draft" || mode === "schedule") {
+        context.stepData[this.id] = {
+          totalJobs: 0,
+          completed: 0,
+          failed: 0,
+          completedAt: new Date(),
+          publishingComplete: true,
+        };
+        return {
+          success: true,
+          data: {
+            skipped: true,
+            reason: `${mode}-mode`,
+            publishingComplete: true,
+            completedJobs: 0,
+            totalJobs: 0,
+          },
+        };
+      }
+
       const schedulingData = context.stepData["schedule-publishing-jobs"] as
         | ScheduleStepData
         | undefined;
@@ -477,6 +560,18 @@ export class UpdatePostStatusStep implements SagaStep {
 
   async execute(context: SagaContext, _data?: unknown): Promise<SagaStepResult> {
     try {
+      const mode = readMode(context);
+
+      // For draft/schedule modes the create step already left Post in the
+      // correct terminal status (DRAFT or SCHEDULED). Promoting to PUBLISHED
+      // here would be wrong, so we no-op.
+      if (mode === "draft" || mode === "schedule") {
+        return {
+          success: true,
+          data: { skipped: true, reason: `${mode}-mode` },
+        };
+      }
+
       const createData = context.stepData["create-post"] as CreateStepData | undefined;
       const completionData = context.stepData["wait-publishing-completion"] as
         | CompletionStepData

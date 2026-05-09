@@ -18,6 +18,15 @@ import type { Result } from "@shared/types";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { SagaIntegration } from "../../src/saga/SagaIntegration";
 
+export const TEST_CUSTOMER_ID = "11111111-1111-4111-8111-111111111111";
+export const TEST_ACCOUNT_ID = "22222222-2222-4222-8222-222222222222";
+export const TEST_PROJECT_ID = "33333333-3333-4333-8333-333333333333";
+export const TEST_CHANNEL_IDS = [
+  "44444444-4444-4444-8444-444444444444",
+  "55555555-5555-4555-8555-555555555555",
+  "66666666-6666-4666-8666-666666666666",
+];
+
 // ---------------------------------------------------------------------------
 // Mock type definitions
 // ---------------------------------------------------------------------------
@@ -183,6 +192,47 @@ export function createMockQueue(): MockQueue {
   };
 }
 
+function createMockProjectRepo() {
+  return {
+    findById: async (id: any) => {
+      const idStr = id?.toString?.() ?? String(id);
+      if (idStr === TEST_PROJECT_ID) {
+        // Duck-typed Project: SagaIntegration only reads `project.accountId.toString()`.
+        return ok({
+          accountId: { toString: () => TEST_ACCOUNT_ID },
+        }) as any;
+      }
+      return { ok: false, error: { kind: "NotFound" } } as any;
+    },
+    findByAccountId: async () => [],
+    save: async () => ok(undefined),
+    delete: async () => ok(undefined),
+    hardDelete: async () => ok(undefined),
+    exists: async () => true,
+    findByName: async () => null,
+    findPublishLogsByProjectId: async () => [],
+  };
+}
+
+function createMockChannelRepo() {
+  return {
+    findById: async () => ({ ok: false, error: {} }),
+    findByProjectId: async () =>
+      TEST_CHANNEL_IDS.map((cid) => ({
+        id: { toString: () => cid },
+      })) as any,
+    findByProjectAndProvider: async () => [],
+    bulkMarkForReauthByProvider: async () => ({ count: 0, channelIds: [] }),
+    bulkSoftDeleteByProvider: async () => ({ count: 0, channelIds: [] }),
+    findPrimaryByProjectAndProvider: async () => ({ ok: false, error: {} }),
+    findByProjectProviderAccount: async () => null,
+    findUsageByChannelIds: async () => new Map(),
+    save: async () => ok(undefined),
+    delete: async () => ok(undefined),
+    hardDelete: async () => ok(undefined),
+  };
+}
+
 /**
  * Build a fully initialized SagaIntegration with isolated mocks.
  * Returns the integration instance AND the registered-routes map so callers
@@ -210,6 +260,8 @@ export async function buildIntegration(): Promise<{
     redis: mockRedis as any,
     queue: mockQueue,
     scheduler: new NoopBackgroundTaskScheduler(),
+    projectRepository: createMockProjectRepo() as any,
+    channelRepository: createMockChannelRepo() as any,
   });
 
   await integration.initialize();
@@ -223,19 +275,54 @@ export async function buildIntegration(): Promise<{
   };
 }
 
-/** Minimal request object used by most tests. */
 export function makeStartRequest(
-  overrides: Partial<{ body: string; channelIds: string[]; priority: string }> = {}
+  overrides: Partial<{
+    body: string;
+    channelIds: string[];
+    priority: string;
+    mode: "draft" | "schedule" | "publish-now";
+    scheduledAt: string;
+    title: string;
+    locale: string;
+    projectId: string;
+    accountId: string;
+  }> = {}
 ) {
+  const mode = overrides.mode ?? "publish-now";
+  const baseBody = {
+    projectId: overrides.projectId ?? TEST_PROJECT_ID,
+    locale: overrides.locale ?? "en",
+    body: overrides.body ?? "Test post content",
+    tags: [],
+    mediaIds: [],
+    ...(overrides.title ? { title: overrides.title } : {}),
+  };
+
+  let body: Record<string, unknown>;
+  if (mode === "draft") {
+    body = { mode, ...baseBody };
+  } else if (mode === "schedule") {
+    body = {
+      mode,
+      ...baseBody,
+      channelIds: overrides.channelIds ?? [TEST_CHANNEL_IDS[0]],
+      scheduledAt: overrides.scheduledAt ?? new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    };
+  } else {
+    body = {
+      mode,
+      ...baseBody,
+      channelIds: overrides.channelIds ?? [TEST_CHANNEL_IDS[0]],
+    };
+  }
+
   return {
-    body: {
-      postData: {
-        body: overrides.body ?? "Test post content",
-        channelIds: overrides.channelIds ?? ["channel-1"],
-      },
-      ...(overrides.priority ? { priority: overrides.priority } : {}),
+    body,
+    customerUser: {
+      id: TEST_CUSTOMER_ID,
+      accountId: overrides.accountId ?? TEST_ACCOUNT_ID,
+      role: "owner",
     },
-    user: { id: "user-123", projectId: "project-456" },
     headers: {},
     ip: "127.0.0.1",
   };
