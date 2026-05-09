@@ -46,6 +46,12 @@ const SchedulePostBodySchema = z.object({
   scheduledFor: z.string().datetime(),
 });
 
+const PublishPostBodySchema = z.object({
+  channelIds: z.array(z.string().uuid()).min(1, {
+    message: "At least one channel must be specified for publishing",
+  }),
+});
+
 const PostParamsSchema = z.object({
   id: IdSchema,
 });
@@ -494,6 +500,62 @@ class PostRouteHandler extends BaseRouteHandler {
   }
 
   // -----------------------------------------------------------------------
+  // POST /posts/:id/publish — Publish Now (delegates to SchedulePostUseCase
+  // with `scheduledFor = now()`). The worker pipeline picks up scheduled
+  // posts whose time has arrived; "now" is just a degenerate case of
+  // scheduling. Same auth (`requireClientAuth`) and use case as schedule —
+  // separate route so the public API surface mirrors user intent
+  // ("publish" vs "schedule") instead of forcing the frontend to construct
+  // a synthetic scheduledFor. Ref: F.1 Publishing audit, finding #1.
+  // -----------------------------------------------------------------------
+
+  async publishPost(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+    this.logInfo(ctx, "Publishing post");
+
+    const paramValidation = await this.validateParams(ctx, PostParamsSchema);
+    if (!paramValidation.ok) {
+      return this.sendError(ctx, 400, "Invalid post ID");
+    }
+
+    const bodyValidation = await this.validateBody(ctx, PublishPostBodySchema);
+    if (!bodyValidation.ok) {
+      return this.sendError(ctx, 400, "Invalid publish data");
+    }
+
+    const { id } = paramValidation.value;
+    const { channelIds } = bodyValidation.value;
+
+    try {
+      const result = await this.schedulePostUseCase.execute({
+        postId: id,
+        channelIds,
+        scheduledFor: new Date().toISOString(),
+      });
+
+      if (!result.ok) {
+        return this.mapUseCaseError(ctx, result.error);
+      }
+
+      const output = result.value;
+      this.logInfo(ctx, "Post queued for immediate publishing", {
+        postId: id,
+        channelCount: channelIds.length,
+      });
+
+      this.sendSuccess(ctx, {
+        id: output.id,
+        status: output.status,
+        scheduledFor: output.scheduledFor,
+        channelIds: output.channelIds,
+      });
+    } catch (error) {
+      this.logError(ctx, "Failed to publish post", { error });
+      return this.sendError(ctx, 500, "Failed to publish post");
+    }
+  }
+
+  // -----------------------------------------------------------------------
   // DELETE /posts/:id — Delete Post (soft-delete via use case)
   // -----------------------------------------------------------------------
 
@@ -736,6 +798,16 @@ export const postRoutes: FastifyPluginAsync = async (fastify) => {
       schema: { tags: ["Posts"], summary: "Schedule post for publishing" },
     },
     async (request, reply) => handler.schedulePost(request, reply)
+  );
+
+  // Publish post immediately (degenerate scheduling with scheduledFor = now)
+  fastify.post(
+    "/posts/:id/publish",
+    {
+      preHandler: [requireClientAuth],
+      schema: { tags: ["Posts"], summary: "Publish post immediately" },
+    },
+    async (request, reply) => handler.publishPost(request, reply)
   );
 
   // Delete post
