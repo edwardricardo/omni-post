@@ -1,24 +1,21 @@
-#!/usr/bin/env bash
-# Post-commit hook — incremental graphify --update for affected apps.
+#!/usr/bin/env sh
+# Post-commit hook — incremental graphify update for affected graph targets.
 #
 # What this does:
-#   1. Detects which apps/* directories had files changed in the last commit.
-#   2. Runs `graphify --update` (incremental AST re-extraction) inside each
-#      affected app's working dir, in parallel.
-#   3. Stays silent if no apps changed, or if graphify CLI is not installed
-#      (devs without the optional tool see no friction).
+#   1. Detects which graph targets (apps/* or packages/) had files changed.
+#   2. Runs `graphify update` (incremental AST re-extraction) inside each
+#      affected target's working dir, in parallel.
+#   3. Stays silent if no targets changed, or if graphify CLI is not installed.
 #
-# Why post-commit (not post-push or pre-push):
-#   - graph.json + GRAPH_REPORT.md stay fresh in real time per commit, not
-#     stale until the next push.
+# Why post-commit (not post-push):
+#   - graph.json + GRAPH_REPORT.md stay fresh per commit, not stale until push.
 #   - AST extraction is sub-second per typical commit, so it does not block.
 #   - Failures are non-fatal: a broken graph never blocks a workflow.
 #
-# Cost:
-#   ~50-500 ms per commit (only changed files re-extract via tree-sitter).
+# POSIX shell required (Husky invokes hooks via sh, not bash). No arrays,
+# no `[[ ]]`, no `(( ))`.
 
 # Augment PATH so user-local installs (graphify via pipx, etc.) are visible.
-# Git hooks run in non-interactive shells which skip ~/.bashrc.
 case ":$PATH:" in
   *":$HOME/.local/bin:"*) ;;
   *) export PATH="$HOME/.local/bin:$PATH" ;;
@@ -27,57 +24,44 @@ esac
 # Graceful skip if graphify CLI is not installed (optional tool).
 command -v graphify >/dev/null 2>&1 || exit 0
 
-# Files changed in HEAD commit (handles initial commit too via the diff-tree
-# fallback to /dev/null when HEAD has no parent).
+# Files changed in HEAD commit.
 CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null || true)
 [ -z "$CHANGED" ] && exit 0
 
-# Detect which graph targets had changes. Only update targets that already
-# have a graphify-out/ directory (i.e. the user ran /graphify on them at
-# least once). Each entry maps a path prefix in CHANGED to a working dir.
-#
-# Format: "<path-prefix-in-commit>:<workdir-from-repo-root>"
-TARGETS=(
-  "apps/workers/:apps/workers"
-  "apps/api/:apps/api"
-  "apps/admin/:apps/admin"
-  "apps/client/:apps/client"
-  "packages/:packages"
-)
+# Graph targets: space-separated list of "<path-prefix>:<workdir>".
+TARGETS="apps/workers:apps/workers apps/api:apps/api apps/admin:apps/admin apps/client:apps/client packages:packages"
 
-TO_UPDATE=()
-for entry in "${TARGETS[@]}"; do
+# Detect which targets had changes AND have an initialized graphify-out/.
+TO_UPDATE=""
+for entry in $TARGETS; do
   prefix="${entry%%:*}"
   workdir="${entry##*:}"
-  if echo "$CHANGED" | grep -q "^${prefix}"; then
+  if echo "$CHANGED" | grep -q "^${prefix}/"; then
     if [ -f "${workdir}/graphify-out/.graphify_python" ]; then
-      TO_UPDATE+=("$workdir")
+      TO_UPDATE="$TO_UPDATE $workdir"
     fi
   fi
 done
 
-[ ${#TO_UPDATE[@]} -eq 0 ] && exit 0
+[ -z "$TO_UPDATE" ] && exit 0
 
-echo "[graphify] Updating: ${TO_UPDATE[*]}"
+echo "[graphify] Updating:$TO_UPDATE"
 
-# Run updates in parallel (each target is independent). Failures are logged
-# but do not abort the hook — the commit has already happened.
-PIDS=()
-for workdir in "${TO_UPDATE[@]}"; do
-  # Sanitize for log filename: replace slashes with hyphens
-  log_name="${workdir//\//-}"
+# Run updates in parallel. Failures are logged but do not abort the hook.
+PIDS=""
+for workdir in $TO_UPDATE; do
+  log_name=$(echo "$workdir" | tr '/' '-')
   (
-    cd "$workdir"
+    cd "$workdir" || exit 0
     if ! graphify update . > "/tmp/graphify-${log_name}.log" 2>&1; then
       echo "[graphify] update failed for ${workdir} (non-fatal — see /tmp/graphify-${log_name}.log)" >&2
     fi
   ) &
-  PIDS+=($!)
+  PIDS="$PIDS $!"
 done
 
-# Wait for all parallel updates to finish.
-for pid in "${PIDS[@]}"; do
-  wait "$pid" || true
+for pid in $PIDS; do
+  wait "$pid" 2>/dev/null || true
 done
 
 echo "[graphify] Done."
