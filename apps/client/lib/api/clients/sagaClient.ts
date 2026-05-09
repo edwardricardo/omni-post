@@ -1,8 +1,7 @@
 /**
  * @file sagaClient.ts
  * @description Saga domain client. Drives the customer post-publishing saga
- *              endpoint that supersedes the legacy create/schedule/publish
- *              triplet. The body's `mode` discriminator selects which saga
+ *              endpoint. The body's `mode` discriminator selects which saga
  *              steps actually run; the response carries a `sagaId` callers
  *              poll via `getSagaStatus` until reaching a terminal state.
  * @layer infrastructure
@@ -157,10 +156,9 @@ export const SAGA_TERMINAL_STATUSES: ReadonlyArray<SagaStatus> = Object.freeze([
 
 /**
  * Helper: start a saga and imperatively poll its status until a terminal
- * state. Used by legacy hooks (`useCreatePost`, `useSchedulePost`) that need
- * to preserve their resolve-with-result contract for downstream consumers
- * (auto-save flow, scheduling UI). Components that want a non-blocking flow
- * with progress UI should use the `useSagaStatus` hook instead.
+ * state. Used by mutation hooks that need to resolve with the post result
+ * (auto-save flow, scheduling UI). Components that want a non-blocking
+ * flow with progress UI should use the `useSagaStatus` hook instead.
  *
  * Throws when the saga ends in FAILED/COMPENSATED, or when the timeout
  * elapses. Returns the postId from the create-post step on COMPLETED so

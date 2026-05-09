@@ -15,7 +15,6 @@ import type {
   Analytics,
   ApiResponse,
   Channel,
-  CreatePostRequest,
   CrossPlatformAnalyticsData,
   HealthResponse,
   PaginatedResponse,
@@ -63,7 +62,6 @@ import {
   type ProvidersHealthResponse,
   type ProvidersListResponse,
 } from "./clients/providersClient";
-import { PublishingClient, type PublishOptions } from "./clients/publishingClient";
 import { PROXY_BASE } from "./clients/request";
 import {
   SagaClient,
@@ -88,7 +86,6 @@ class ApiClient {
   private readonly providers: ProvidersClient;
   private readonly channels: ChannelsClient;
   private readonly analytics: AnalyticsClient;
-  private readonly publishing: PublishingClient;
   private readonly saga: SagaClient;
   private readonly uploads: UploadsClient;
   private readonly ai: AiClient;
@@ -101,7 +98,6 @@ class ApiClient {
     this.providers = new ProvidersClient(baseUrl);
     this.channels = new ChannelsClient(baseUrl);
     this.analytics = new AnalyticsClient(baseUrl);
-    this.publishing = new PublishingClient(baseUrl);
     this.saga = new SagaClient(baseUrl);
     this.uploads = new UploadsClient(baseUrl);
     this.ai = new AiClient(baseUrl);
@@ -137,10 +133,6 @@ class ApiClient {
 
   getPost(id: string): Promise<ApiResponse<Post>> {
     return this.posts.getPost(id);
-  }
-
-  createPost(data: CreatePostRequest): Promise<ApiResponse<Post>> {
-    return this.posts.createPost(data);
   }
 
   updatePost(id: string, data: UpdatePostRequest): Promise<ApiResponse<Post>> {
@@ -249,24 +241,7 @@ class ApiClient {
     return this.analytics.getCrossPlatformAnalytics(params);
   }
 
-  // Publishing
-  publishPost(postId: string, options?: PublishOptions): Promise<ApiResponse<unknown>> {
-    return this.publishing.publishPost(postId, options);
-  }
-
-  schedulePost(
-    postId: string,
-    scheduledFor: string,
-    channelIds: string[]
-  ): Promise<ApiResponse<unknown>> {
-    return this.publishing.schedulePost(postId, scheduledFor, channelIds);
-  }
-
-  cancelScheduledPost(postId: string): Promise<ApiResponse<unknown>> {
-    return this.publishing.cancelScheduledPost(postId);
-  }
-
-  // Saga (post-publishing) — supersedes Posts.create + Publishing.schedule/publish
+  // Saga (post-publishing) — drives create / schedule / publish-now
   startPostPublishingSaga(
     input: StartPostPublishingSagaInput
   ): Promise<ApiResponse<StartPostPublishingSagaResponse>> {

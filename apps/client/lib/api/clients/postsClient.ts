@@ -6,13 +6,7 @@
  * @layer infrastructure
  */
 
-import type {
-  ApiResponse,
-  CreatePostRequest,
-  PaginatedResponse,
-  Post,
-  UpdatePostRequest,
-} from "../types";
+import type { ApiResponse, PaginatedResponse, Post, UpdatePostRequest } from "../types";
 import { request } from "./request";
 
 export type PostStatus =
@@ -167,19 +161,6 @@ export class PostsClient {
    */
   async getPost(id: string): Promise<ApiResponse<Post>> {
     return request<ApiResponse<Post>>(this.baseUrl, `/posts/${id}`);
-  }
-
-  /**
-   * @method createPost
-   * @description Creates a new post draft.
-   * @param data - Post creation parameters
-   * @returns Created post payload
-   */
-  async createPost(data: CreatePostRequest): Promise<ApiResponse<Post>> {
-    return request<ApiResponse<Post>>(this.baseUrl, "/posts", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
   }
 
   /**

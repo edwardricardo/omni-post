@@ -100,12 +100,9 @@ const ListPostsQuerySchema = z.object({
 // ---------------------------------------------------------------------------
 
 /**
- * Post Route Handler.
- *
- * Read-only and post-existing-resource operations live here. Post creation,
- * scheduling, and immediate publishing are driven by the saga endpoint
- * (`POST /sagas/post-publishing/start`) — this handler intentionally does
- * NOT expose those routes; consumers go through the saga.
+ * Post Route Handler. Exposes list, get, update, soft-delete, and batch
+ * operations on existing posts. Post creation, scheduling, and publish-now
+ * are driven by `POST /sagas/post-publishing/start`.
  */
 class PostRouteHandler extends BaseRouteHandler {
   protected routeName = "posts";
@@ -513,8 +510,7 @@ class PostRouteHandler extends BaseRouteHandler {
  * - DELETE /posts/batch          — Bulk hard-delete (HardDeletePostsBatchUseCase)
  * - POST   /posts/batch/duplicate — Bulk duplicate (DuplicatePostsBatchUseCase)
  *
- * Post creation, scheduling, and publish-now go through
- * `POST /sagas/post-publishing/start` (saga endpoint), not this router.
+ * Post creation, scheduling, and publish-now: see `POST /sagas/post-publishing/start`.
  */
 export const postRoutes: FastifyPluginAsync = async (fastify) => {
   const container = fastify.container!;

@@ -5,8 +5,7 @@
  *              the existing postId). Applies the canonical TanStack v5
  *              optimistic-update flow on the cached `["posts", id]` query so
  *              the post detail UI flips status immediately. The mutation
- *              awaits the saga's terminal state so the resolve contract
- *              matches the pre-saga path.
+ *              awaits the saga's terminal state and resolves with the result.
  * @layer infrastructure
  */
 
@@ -61,12 +60,9 @@ export function useSchedulePost() {
 
   return useMutation<ApiResponse<unknown>, Error, SchedulePostInput, SchedulePostContext>({
     mutationKey: SCHEDULE_POST_MUTATION_KEY,
-    // Routes through the post-publishing saga (mode="schedule") with the
-    // existing postId. The saga validates ownership + DRAFT status, queues
-    // publish jobs at scheduledAt, and stops — no Wait step for scheduled
-    // mode, so terminal status arrives in ~1s. projectId is fetched from
-    // the post so the legacy SchedulePostInput shape stays unchanged for
-    // upstream callers (ClientContentEditor, post detail page, etc.).
+    // Saga validates ownership + DRAFT status, queues publish jobs at
+    // scheduledAt, then completes — no Wait step in schedule mode. projectId
+    // is fetched from the post because SchedulePostInput only carries postId.
     mutationFn: async ({ postId, scheduledFor, channelIds }) => {
       const postLookup = await apiClient.getPost(postId);
       if (!postLookup.ok || !postLookup.data) {

@@ -1,10 +1,10 @@
 /**
  * @file useSchedulePost.integration.test.tsx
- * @description Integration tests for the `useSchedulePost` mutation hook,
- *              which now routes through the post-publishing saga
- *              (`mode="schedule"` with the existing postId). Verifies the
- *              wire shape (saga endpoint + ownership lookup), the optimistic
- *              cache flip, rollback on failure, and error propagation.
+ * @description Integration tests for the `useSchedulePost` mutation hook
+ *              (saga `mode="schedule"` with the existing postId). Verifies
+ *              the wire shape (saga endpoint + ownership lookup), the
+ *              optimistic cache flip, rollback on failure, and error
+ *              propagation.
  * @layer infrastructure
  */
 

@@ -1,9 +1,7 @@
 /**
  * @file useStartPostPublishingSaga.ts
  * @description TanStack Query mutation hook that kicks off the customer
- *              post-publishing saga endpoint. Supersedes the legacy triplet
- *              of `useCreatePost`, `useSchedulePost`, and direct
- *              `apiClient.publishPost` calls — the body's `mode` discriminator
+ *              post-publishing saga endpoint. The body's `mode` discriminator
  *              selects which saga steps actually run end-to-end.
  *
  *              The mutation resolves as soon as the saga is registered and

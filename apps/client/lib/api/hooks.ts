@@ -67,11 +67,9 @@ export function useCreatePost(
   const queryClient = useQueryClient();
 
   return useMutation({
-    // Drafts now route through the post-publishing saga (mode="draft"). The
-    // imperative wait-until-terminal helper preserves the pre-saga contract:
-    // resolves with the created Post so auto-save and other consumers can
-    // pick up the postId synchronously. The saga commits Validate + Create
-    // and stops — typically <1s in dev.
+    // Saga in mode="draft" runs Validate + Create only — typically <1s. The
+    // imperative wait-until-terminal helper resolves with the Post so
+    // auto-save can read the new postId synchronously.
     mutationFn: async (data) => {
       const { postId } = await runSagaAndAwaitTerminal(
         {
