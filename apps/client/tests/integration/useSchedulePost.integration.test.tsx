@@ -1,10 +1,10 @@
 /**
  * @file useSchedulePost.integration.test.tsx
- * @description Integration tests for the `useSchedulePost` mutation hook —
- *              exercises the canonical TanStack v5 optimistic flow (cache flip
- *              on mutate, rollback on error, invalidation on settle), the
- *              correct request body shape (`scheduledFor`, not the legacy
- *              `scheduledAt`), and propagation of fetch errors.
+ * @description Integration tests for the `useSchedulePost` mutation hook,
+ *              which now routes through the post-publishing saga
+ *              (`mode="schedule"` with the existing postId). Verifies the
+ *              wire shape (saga endpoint + ownership lookup), the optimistic
+ *              cache flip, rollback on failure, and error propagation.
  * @layer infrastructure
  */
 
@@ -26,10 +26,6 @@ function createWrapper(client: QueryClient) {
 function makeClient() {
   return new QueryClient({
     defaultOptions: {
-      // gcTime: Infinity keeps unobserved cache entries alive so the test can
-      // inspect them with `getQueryData` after a mutation cycle. With the
-      // default short gcTime, an unobserved entry is collected before the
-      // assertion runs and the test sees `undefined`.
       queries: { retry: false, gcTime: Infinity, staleTime: 0, refetchOnWindowFocus: false },
       mutations: { retry: false },
     },
@@ -59,14 +55,47 @@ function makePost(overrides: Partial<Post> = {}): Post {
   };
 }
 
+/**
+ * Sets up the three sequential responses every successful schedule mutation
+ * triggers via the saga path:
+ *   1. GET /posts/:id           → returns the existing draft (with projectId)
+ *   2. POST /sagas/.../start    → returns sagaId
+ *   3. GET /sagas/:sagaId       → returns COMPLETED status
+ */
+function mockSuccessfulSchedule(postId: string, projectId = "project-1", sagaId = "saga-1"): void {
+  mockFetch
+    .mockResolvedValueOnce(jsonResponse({ ok: true, data: makePost({ id: postId, projectId }) }))
+    .mockResolvedValueOnce(
+      jsonResponse({ ok: true, data: { sagaId, status: "PENDING", mode: "schedule" } })
+    )
+    .mockResolvedValueOnce(
+      jsonResponse({
+        ok: true,
+        data: {
+          id: sagaId,
+          status: "COMPLETED",
+          progress: 100,
+          currentStep: 3,
+          retryCount: 0,
+          startedAt: new Date().toISOString(),
+          stepResults: [
+            { stepIndex: 0, success: true },
+            { stepIndex: 1, success: true, data: { postId } },
+            { stepIndex: 2, success: true },
+          ],
+        },
+      })
+    );
+}
+
 beforeEach(() => {
   mockFetch.mockReset();
   vi.stubGlobal("fetch", mockFetch);
 });
 
-describe("useSchedulePost", () => {
-  it("posts scheduledFor (not scheduledAt) and channelIds in the body", async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse({ ok: true, data: { id: "post-1" } }));
+describe("useSchedulePost (saga-routed)", () => {
+  it("starts the post-publishing saga with mode=schedule and postId", async () => {
+    mockSuccessfulSchedule("post-1");
     const client = makeClient();
     const { result } = renderHook(() => useSchedulePost(), { wrapper: createWrapper(client) });
 
@@ -78,17 +107,24 @@ describe("useSchedulePost", () => {
       });
     });
 
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(init.method).toBe("POST");
-    const body = JSON.parse(init.body as string);
-    expect(body.scheduledFor).toBe("2026-12-01T10:00:00.000Z");
-    expect(body.channelIds).toEqual(["chan-1", "chan-2"]);
-    expect(body.scheduledAt).toBeUndefined();
+    // Three calls: post lookup, saga start, saga status (one COMPLETED tick).
+    expect(mockFetch.mock.calls.length).toBeGreaterThanOrEqual(2);
+
+    // The saga start payload should carry mode=schedule, postId, channelIds, scheduledAt.
+    const startCall = mockFetch.mock.calls.find(([url]) =>
+      String(url).includes("/sagas/post-publishing/start")
+    );
+    expect(startCall).toBeTruthy();
+    const startInit = startCall?.[1] as RequestInit;
+    const startBody = JSON.parse(startInit.body as string);
+    expect(startBody.mode).toBe("schedule");
+    expect(startBody.postId).toBe("post-1");
+    expect(startBody.channelIds).toEqual(["chan-1", "chan-2"]);
+    expect(startBody.scheduledAt).toBe("2026-12-01T10:00:00.000Z");
   });
 
   it("optimistically flips the cached post to SCHEDULED before the request resolves", async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse({ ok: true, data: { id: "post-7" } }));
+    mockSuccessfulSchedule("post-7");
     const client = makeClient();
     const draft = makePost({ id: "post-7", status: "DRAFT" });
     client.setQueryData<Post>(["posts", "post-7"], draft);
@@ -110,7 +146,7 @@ describe("useSchedulePost", () => {
     });
   });
 
-  it("rolls back the cached post when the mutation fails", async () => {
+  it("rolls back the cached post when the post lookup fails", async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ error: { message: "boom" } }, 500));
     const client = makeClient();
     const draft = makePost({ id: "post-7", status: "DRAFT" });
@@ -136,8 +172,30 @@ describe("useSchedulePost", () => {
     expect(cached?.scheduledAt).toBeUndefined();
   });
 
-  it("propagates the error message from the server", async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse({ error: { message: "too soon" } }, 400));
+  it("surfaces saga FAILED status as a mutation error", async () => {
+    const failedStatus = jsonResponse({
+      ok: true,
+      data: {
+        id: "saga-fail",
+        status: "FAILED",
+        error: "scheduledAt too soon",
+        progress: 0,
+        currentStep: 0,
+        retryCount: 0,
+        startedAt: new Date().toISOString(),
+        stepResults: [],
+      },
+    });
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse({ ok: true, data: makePost({ id: "post-7" }) }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          ok: true,
+          data: { sagaId: "saga-fail", status: "PENDING", mode: "schedule" },
+        })
+      )
+      // Default any further status polls to FAILED (helper polls until terminal).
+      .mockResolvedValue(failedStatus);
     const client = makeClient();
     const { result } = renderHook(() => useSchedulePost(), { wrapper: createWrapper(client) });
 
@@ -154,6 +212,6 @@ describe("useSchedulePost", () => {
     });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
-    expect(result.current.error).toBeInstanceOf(Error);
+    expect(result.current.error?.message).toContain("scheduledAt too soon");
   });
 });

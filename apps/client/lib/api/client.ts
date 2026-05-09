@@ -65,6 +65,12 @@ import {
 } from "./clients/providersClient";
 import { PublishingClient, type PublishOptions } from "./clients/publishingClient";
 import { PROXY_BASE } from "./clients/request";
+import {
+  SagaClient,
+  type StartPostPublishingSagaInput,
+  type StartPostPublishingSagaResponse,
+  type SagaStatusDetails,
+} from "./clients/sagaClient";
 import { UploadsClient, type UploadResult, type UploadType } from "./clients/uploadsClient";
 
 /**
@@ -83,6 +89,7 @@ class ApiClient {
   private readonly channels: ChannelsClient;
   private readonly analytics: AnalyticsClient;
   private readonly publishing: PublishingClient;
+  private readonly saga: SagaClient;
   private readonly uploads: UploadsClient;
   private readonly ai: AiClient;
 
@@ -95,6 +102,7 @@ class ApiClient {
     this.channels = new ChannelsClient(baseUrl);
     this.analytics = new AnalyticsClient(baseUrl);
     this.publishing = new PublishingClient(baseUrl);
+    this.saga = new SagaClient(baseUrl);
     this.uploads = new UploadsClient(baseUrl);
     this.ai = new AiClient(baseUrl);
   }
@@ -256,6 +264,17 @@ class ApiClient {
 
   cancelScheduledPost(postId: string): Promise<ApiResponse<unknown>> {
     return this.publishing.cancelScheduledPost(postId);
+  }
+
+  // Saga (post-publishing) — supersedes Posts.create + Publishing.schedule/publish
+  startPostPublishingSaga(
+    input: StartPostPublishingSagaInput
+  ): Promise<ApiResponse<StartPostPublishingSagaResponse>> {
+    return this.saga.startPostPublishingSaga(input);
+  }
+
+  getSagaStatus(sagaId: string): Promise<ApiResponse<SagaStatusDetails>> {
+    return this.saga.getSagaStatus(sagaId);
   }
 
   // Uploads

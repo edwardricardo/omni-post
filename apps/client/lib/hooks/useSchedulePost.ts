@@ -1,11 +1,12 @@
 /**
  * @file useSchedulePost.ts
- * @description TanStack Query mutation hook for transitioning a post from DRAFT to
- *              SCHEDULED via `POST /posts/:id/schedule`. Wraps `apiClient.schedulePost`
- *              and applies the canonical TanStack v5 optimistic-update flow on the
- *              cached `["posts", id]` query so the post detail UI flips status
- *              immediately. Errors propagate to the global `MutationCache.onError`
- *              and to per-call `onError` callbacks for toast feedback.
+ * @description TanStack Query mutation hook for transitioning a post from DRAFT
+ *              to SCHEDULED via the post-publishing saga (mode="schedule" with
+ *              the existing postId). Applies the canonical TanStack v5
+ *              optimistic-update flow on the cached `["posts", id]` query so
+ *              the post detail UI flips status immediately. The mutation
+ *              awaits the saga's terminal state so the resolve contract
+ *              matches the pre-saga path.
  * @layer infrastructure
  */
 
@@ -13,6 +14,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
+import { runSagaAndAwaitTerminal } from "@/lib/api/clients/sagaClient";
 import type { ApiResponse, Post } from "@/lib/api/types";
 
 const SCHEDULE_POST_MUTATION_KEY = ["posts", "schedule"] as const;
@@ -59,8 +61,37 @@ export function useSchedulePost() {
 
   return useMutation<ApiResponse<unknown>, Error, SchedulePostInput, SchedulePostContext>({
     mutationKey: SCHEDULE_POST_MUTATION_KEY,
-    mutationFn: ({ postId, scheduledFor, channelIds }) =>
-      apiClient.schedulePost(postId, scheduledFor, channelIds),
+    // Routes through the post-publishing saga (mode="schedule") with the
+    // existing postId. The saga validates ownership + DRAFT status, queues
+    // publish jobs at scheduledAt, and stops — no Wait step for scheduled
+    // mode, so terminal status arrives in ~1s. projectId is fetched from
+    // the post so the legacy SchedulePostInput shape stays unchanged for
+    // upstream callers (ClientContentEditor, post detail page, etc.).
+    mutationFn: async ({ postId, scheduledFor, channelIds }) => {
+      const postLookup = await apiClient.getPost(postId);
+      if (!postLookup.ok || !postLookup.data) {
+        throw new Error("Post not found");
+      }
+      const projectId = postLookup.data.projectId;
+
+      const result = await runSagaAndAwaitTerminal(
+        {
+          start: (input) => apiClient.startPostPublishingSaga(input),
+          getStatus: (sagaId) => apiClient.getSagaStatus(sagaId),
+        },
+        {
+          mode: "schedule",
+          projectId,
+          postId,
+          channelIds,
+          scheduledAt: scheduledFor,
+        }
+      );
+      return {
+        ok: true,
+        data: { sagaId: result.sagaId, postId: result.postId },
+      } as ApiResponse<unknown>;
+    },
     onMutate: async ({ postId, scheduledFor }) => {
       await qc.cancelQueries({ queryKey: ["posts", postId] });
       const previousPost = qc.getQueryData<Post>(["posts", postId]);

@@ -11,6 +11,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { usePost } from "@/lib/api/hooks";
 import { apiClient } from "@/lib/api/client";
+import { runSagaAndAwaitTerminal } from "@/lib/api/clients/sagaClient";
 import { PlatformPreview } from "@/components/editor/PlatformPreview";
 import { useProjectChannels } from "@/lib/hooks/useProjectChannels";
 import { useSchedulePost } from "@/lib/hooks/useSchedulePost";
@@ -72,9 +73,37 @@ export default function PreviewPostPage() {
   }, [showScheduleDialog, channels, channelProviders]);
 
   const handlePublishNow = useCallback(async () => {
+    if (selectedChannelIds.length === 0) {
+      toast({
+        title: "Select channels first",
+        description: "Pick at least one channel to publish to.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!post?.projectId) {
+      toast({
+        title: "Post not loaded",
+        description: "Please wait for the post data to finish loading.",
+        variant: "destructive",
+      });
+      return;
+    }
     setIsPublishing(true);
     try {
-      await apiClient.publishPost(postId);
+      await runSagaAndAwaitTerminal(
+        {
+          start: (input) => apiClient.startPostPublishingSaga(input),
+          getStatus: (sagaId) => apiClient.getSagaStatus(sagaId),
+        },
+        {
+          mode: "publish-now",
+          projectId: post.projectId,
+          postId,
+          channelIds: selectedChannelIds,
+        },
+        { pollIntervalMs: 1000, timeoutMs: 120_000 }
+      );
       toast({ title: "Post published" });
       refetch();
     } catch (error) {
@@ -83,7 +112,7 @@ export default function PreviewPostPage() {
     } finally {
       setIsPublishing(false);
     }
-  }, [postId, refetch]);
+  }, [postId, post?.projectId, selectedChannelIds, refetch]);
 
   const handleSharePreview = useCallback(async () => {
     try {

@@ -24,6 +24,8 @@ vi.mock("../client", () => ({
     getPost: vi.fn(),
     createPost: vi.fn(),
     uploadFile: vi.fn(),
+    startPostPublishingSaga: vi.fn(),
+    getSagaStatus: vi.fn(),
   },
 }));
 
@@ -175,7 +177,7 @@ describe("API Hooks", () => {
   });
 
   describe("useCreatePost", () => {
-    it("should create post successfully", async () => {
+    it("should create post successfully via saga (mode=draft)", async () => {
       const postData = {
         projectId: "project-123",
         locale: "en" as const,
@@ -183,18 +185,34 @@ describe("API Hooks", () => {
         body: "This is a new post",
       };
 
-      const mockResponse = {
+      const sagaId = "saga-abc";
+      const postId = "post-456";
+
+      mockApiClient.startPostPublishingSaga.mockResolvedValue({
+        ok: true,
+        data: { sagaId, status: "PENDING", mode: "draft" },
+      });
+      mockApiClient.getSagaStatus.mockResolvedValue({
         ok: true,
         data: {
-          id: "post-456",
-          ...postData,
-          status: "DRAFT",
-          createdAt: "2024-01-01T00:00:00Z",
-          updatedAt: "2024-01-01T00:00:00Z",
+          id: sagaId,
+          definitionId: "post-publishing-saga",
+          status: "COMPLETED",
+          currentStep: 2,
+          progress: 100,
+          startedAt: new Date().toISOString(),
+          retryCount: 0,
+          stepResults: [
+            { stepIndex: 0, success: true },
+            { stepIndex: 1, success: true, data: { postId } },
+          ],
         },
+      });
+      const fetchedPost = {
+        ok: true,
+        data: { id: postId, ...postData, status: "DRAFT" },
       };
-
-      mockApiClient.createPost.mockResolvedValue(mockResponse);
+      mockApiClient.getPost.mockResolvedValue(fetchedPost);
 
       const { result } = renderHook(() => useCreatePost(), {
         wrapper: createWrapper(),
@@ -202,23 +220,45 @@ describe("API Hooks", () => {
 
       result.current.mutate(postData);
 
-      await waitFor(() => {
-        expect(result.current.isSuccess).toBe(true);
-      });
+      await waitFor(
+        () => {
+          expect(result.current.isSuccess).toBe(true);
+        },
+        { timeout: 3000 }
+      );
 
-      expect(result.current.data).toEqual(mockResponse);
-      expect(mockApiClient.createPost).toHaveBeenCalledWith(postData);
+      expect(mockApiClient.startPostPublishingSaga).toHaveBeenCalledWith(
+        expect.objectContaining({ mode: "draft", projectId: "project-123", body: postData.body })
+      );
+      expect(mockApiClient.getPost).toHaveBeenCalledWith(postId);
+      expect(result.current.data).toEqual(fetchedPost);
     });
 
-    it("should handle create post error", async () => {
+    it("should handle saga failure as a mutation error", async () => {
       const postData = {
         projectId: "project-123",
         locale: "en" as const,
         body: "This is a new post",
       };
 
-      const error = new Error("Validation failed");
-      mockApiClient.createPost.mockRejectedValue(error);
+      mockApiClient.startPostPublishingSaga.mockResolvedValue({
+        ok: true,
+        data: { sagaId: "saga-fail", status: "PENDING", mode: "draft" },
+      });
+      mockApiClient.getSagaStatus.mockResolvedValue({
+        ok: true,
+        data: {
+          id: "saga-fail",
+          definitionId: "post-publishing-saga",
+          status: "FAILED",
+          currentStep: 0,
+          progress: 0,
+          startedAt: new Date().toISOString(),
+          retryCount: 0,
+          error: "Validation failed",
+          stepResults: [],
+        },
+      });
 
       const { result } = renderHook(() => useCreatePost(), {
         wrapper: createWrapper(),
@@ -226,11 +266,14 @@ describe("API Hooks", () => {
 
       result.current.mutate(postData);
 
-      await waitFor(() => {
-        expect(result.current.isError).toBe(true);
-      });
+      await waitFor(
+        () => {
+          expect(result.current.isError).toBe(true);
+        },
+        { timeout: 3000 }
+      );
 
-      expect(result.current.error).toEqual(error);
+      expect(result.current.error?.message).toContain("Validation failed");
     });
   });
 
@@ -291,12 +334,30 @@ describe("API Hooks", () => {
         body: "Test post",
       };
 
-      const mockResponse = {
-        ok: true,
-        data: { id: "post-123", ...postData },
-      };
+      const sagaId = "saga-opts";
+      const postId = "post-123";
 
-      mockApiClient.createPost.mockResolvedValue(mockResponse);
+      mockApiClient.startPostPublishingSaga.mockResolvedValue({
+        ok: true,
+        data: { sagaId, status: "PENDING", mode: "draft" },
+      });
+      mockApiClient.getSagaStatus.mockResolvedValue({
+        ok: true,
+        data: {
+          id: sagaId,
+          status: "COMPLETED",
+          stepResults: [
+            { stepIndex: 0, success: true },
+            { stepIndex: 1, success: true, data: { postId } },
+          ],
+          progress: 100,
+          currentStep: 2,
+          retryCount: 0,
+          startedAt: new Date().toISOString(),
+        },
+      });
+      const fetchedPost = { ok: true, data: { id: postId, ...postData } };
+      mockApiClient.getPost.mockResolvedValue(fetchedPost);
 
       const { result } = renderHook(
         () => useCreatePost({ retry: 3 }), // Custom option
@@ -305,11 +366,14 @@ describe("API Hooks", () => {
 
       result.current.mutate(postData);
 
-      await waitFor(() => {
-        expect(result.current.isSuccess).toBe(true);
-      });
+      await waitFor(
+        () => {
+          expect(result.current.isSuccess).toBe(true);
+        },
+        { timeout: 3000 }
+      );
 
-      expect(result.current.data).toEqual(mockResponse);
+      expect(result.current.data).toEqual(fetchedPost);
     });
   });
 });

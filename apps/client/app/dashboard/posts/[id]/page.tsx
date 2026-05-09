@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { usePost, useProjects } from "@/lib/api/hooks";
 import { useProviders } from "@/lib/hooks/useProviders";
+import { runSagaAndAwaitTerminal } from "@/lib/api/clients/sagaClient";
 import { apiClient } from "@/lib/api/client";
 import { ClientContentEditor } from "@/components/editor/ClientContentEditor";
 import { useProjectChannels } from "@/lib/hooks/useProjectChannels";
@@ -105,9 +106,45 @@ export default function EditPostPage() {
   };
 
   const handlePublishNow = useCallback(async () => {
+    if (selectedChannelIds.length === 0) {
+      toast({
+        title: "Select channels first",
+        description: "Pick at least one channel to publish to.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!post?.projectId) {
+      toast({
+        title: "Post not loaded",
+        description: "Please wait for the post data to finish loading.",
+        variant: "destructive",
+      });
+      return;
+    }
     setIsPublishing(true);
     try {
-      await apiClient.publishPost(postId);
+      // Routes through the post-publishing saga (mode="publish-now") with
+      // the existing draft. Saga runs Validate + Create(skip) + Schedule +
+      // Wait + UpdateStatus; terminal state arrives once the worker pipeline
+      // confirms the publish (or fails). The await blocks the button so the
+      // user sees one round-trip; for long publishes a polling UI would be
+      // an improvement (tracked under PR-59 saga UX backlog).
+      await runSagaAndAwaitTerminal(
+        {
+          start: (input) => apiClient.startPostPublishingSaga(input),
+          getStatus: (sagaId) => apiClient.getSagaStatus(sagaId),
+        },
+        {
+          mode: "publish-now",
+          projectId: post.projectId,
+          postId,
+          channelIds: selectedChannelIds,
+        },
+        // Publish-now goes through provider workers — allow a longer ceiling
+        // than the default 60s.
+        { pollIntervalMs: 1000, timeoutMs: 120_000 }
+      );
       toast({ title: "Post published" });
       refetch();
     } catch (error) {
@@ -116,7 +153,7 @@ export default function EditPostPage() {
     } finally {
       setIsPublishing(false);
     }
-  }, [postId, refetch]);
+  }, [postId, post?.projectId, selectedChannelIds, refetch]);
 
   const handleSchedulePost = useCallback(async () => {
     if (!scheduleDate) {

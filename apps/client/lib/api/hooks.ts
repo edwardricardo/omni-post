@@ -19,6 +19,7 @@ import type {
   DuplicateBatchResponse,
   HardDeleteBatchResponse,
 } from "./clients/postsClient";
+import { runSagaAndAwaitTerminal } from "./clients/sagaClient";
 import {
   Post,
   Project,
@@ -66,7 +67,28 @@ export function useCreatePost(
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data) => apiClient.createPost(data),
+    // Drafts now route through the post-publishing saga (mode="draft"). The
+    // imperative wait-until-terminal helper preserves the pre-saga contract:
+    // resolves with the created Post so auto-save and other consumers can
+    // pick up the postId synchronously. The saga commits Validate + Create
+    // and stops — typically <1s in dev.
+    mutationFn: async (data) => {
+      const { postId } = await runSagaAndAwaitTerminal(
+        {
+          start: (input) => apiClient.startPostPublishingSaga(input),
+          getStatus: (sagaId) => apiClient.getSagaStatus(sagaId),
+        },
+        {
+          mode: "draft",
+          projectId: data.projectId,
+          locale: data.locale ?? "en",
+          body: data.body,
+          ...(data.title !== undefined && { title: data.title }),
+          ...(data.tags !== undefined && { tags: data.tags }),
+        }
+      );
+      return apiClient.getPost(postId);
+    },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.posts() });
       if (variables.projectId) {
