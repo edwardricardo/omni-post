@@ -33,7 +33,7 @@ import Fastify, { FastifyInstance, FastifyRequest, FastifyReply } from "fastify"
 import { z } from "zod";
 import { serializerCompiler, validatorCompiler, ZodTypeProvider } from "fastify-type-provider-zod";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
-import { closeDatabaseConnections, prisma } from "@infra/prisma";
+import { closeDatabaseConnections, prisma, verifyDatabaseAuth } from "@infra/prisma";
 import type { QueuePortRegistry } from "@ports/core";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import client from "prom-client";
@@ -662,6 +662,12 @@ async function createApp(): Promise<FastifyInstance> {
 // ✅ PROPER server startup
 async function start() {
   try {
+    // Fail fast if DATABASE_URL credentials don't authenticate. Catches the
+    // common dev pitfall of a stale Postgres volume holding a password that
+    // no longer matches .env (silent split-brain that otherwise surfaces as
+    // BackgroundTaskScheduler error spam minutes later).
+    await verifyDatabaseAuth();
+
     const app = await createApp();
 
     // Start outbox relay (polls outbox table and dispatches unpublished events)

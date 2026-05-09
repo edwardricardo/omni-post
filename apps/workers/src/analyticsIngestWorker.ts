@@ -24,7 +24,7 @@ import { createTelegramAdapter } from "@providers/telegram";
 import { createPinterestAdapter } from "@providers/pinterest";
 import { createLinkedInAdapter } from "@providers/linkedin";
 import { createBlueskyAdapter } from "@providers/bluesky";
-import { prisma } from "@infra/prisma";
+import { prisma, verifyDatabaseAuth } from "@infra/prisma";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import { decryptChannelCredentials } from "@shared/types";
 import type { ProviderAdapter } from "@ports/core";
@@ -188,6 +188,10 @@ async function processJob(jobData: {
 const authFailureRecorder = new ChannelAuthFailureRecorder({ prisma });
 
 async function start() {
+  // Fail fast if DATABASE_URL credentials don't authenticate (typically a
+  // stale Postgres volume after a password rotation without `down -v`).
+  await verifyDatabaseAuth();
+
   const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
     maxRetriesPerRequest: null,
     lazyConnect: true,

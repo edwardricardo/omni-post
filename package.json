@@ -25,7 +25,7 @@
     "dev:client": "pnpm --filter @apps/client dev",
     "dev:all": "concurrently -n api,workers,admin,client -c green,cyan,yellow,blue \"pnpm dev:api\" \"pnpm dev:workers\" \"pnpm dev:admin\" \"pnpm dev:client\"",
     "dev": "concurrently -n api,workers -c green,cyan \"pnpm dev:api\" \"pnpm dev:workers\"",
-    "db:up": "docker compose up -d",
+    "db:up": "bash scripts/db-up.sh",
     "db:studio": "pnpm --filter @infra/prisma studio",
     "db:migrate": "pnpm --filter @infra/prisma migrate",
     "db:seed": "pnpm --filter @infra/prisma seed",

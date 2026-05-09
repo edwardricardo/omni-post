@@ -28,6 +28,7 @@ import { createThreadsAdapter } from "@providers/threads";
 import { createBullMQConsumerAdapter, QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { registerGracefulShutdown } from "./lib/gracefulShutdown.js";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
+import { verifyDatabaseAuth } from "@infra/prisma";
 import { decryptChannelCredentials } from "@shared/types";
 import { CredentialResolver } from "./services/CredentialResolver.js";
 
@@ -124,6 +125,10 @@ const handler = new PublishHandler({
 });
 
 async function start() {
+  // Fail fast if DATABASE_URL credentials don't authenticate (typically a
+  // stale Postgres volume after a password rotation without `down -v`).
+  await verifyDatabaseAuth();
+
   await consumer.subscribe(async (job) => {
     const payload = job.payload as {
       postId: string;

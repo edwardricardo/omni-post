@@ -14,7 +14,7 @@ import { Worker, Queue } from "bullmq";
 import Redis from "ioredis";
 import pino from "pino";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
-import { prisma } from "@infra/prisma";
+import { prisma, verifyDatabaseAuth } from "@infra/prisma";
 import { registerGracefulShutdown } from "./lib/gracefulShutdown.js";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info", name: "auto-renewal-worker" });
@@ -169,9 +169,14 @@ worker.on("failed", (job, err) => {
 // Start
 // ---------------------------------------------------------------------------
 
-setupCron().catch((err) => {
-  logger.error({ err }, "Failed to setup auto-renewal cron");
-});
+// Fail fast if DATABASE_URL credentials don't authenticate (typically a
+// stale Postgres volume after a password rotation without `down -v`).
+verifyDatabaseAuth()
+  .then(() => setupCron())
+  .catch((err) => {
+    logger.error({ err }, "Failed to start auto-renewal worker");
+    process.exit(1);
+  });
 
 logger.info("Auto-renewal worker started");
 

@@ -214,3 +214,43 @@ export const checkDatabaseHealth = async () => {
     };
   }
 };
+
+/**
+ * Boot-time fail-fast Prisma auth verification.
+ *
+ * Runs `SELECT 1` against `DATABASE_URL` and throws a descriptive error if
+ * authentication fails (Postgres SQLSTATE 28P01). The most common cause of
+ * 28P01 in dev is a stale Postgres volume: when `POSTGRES_PASSWORD` is
+ * rotated in `.env` without a `docker compose down -v`, the container init
+ * script does NOT re-apply the password (Postgres only initializes on a
+ * fresh data dir). The container env says X, the volume says Y, the app
+ * sends X, Postgres rejects with 28P01.
+ *
+ * Call this once during boot so a misconfigured environment fails immediately
+ * instead of spamming auth-failure logs from BackgroundTaskScheduler tasks.
+ */
+export const verifyDatabaseAuth = async (): Promise<void> => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const code =
+      error && typeof error === "object" && "code" in error ? String(error.code) : undefined;
+    const isAuthFailure =
+      code === "P1000" ||
+      message.includes("Authentication failed") ||
+      message.includes("28P01") ||
+      message.includes("password authentication failed");
+
+    if (isAuthFailure) {
+      throw new Error(
+        "Database authentication failed (Postgres 28P01). The most common " +
+          "cause in dev is a stale Postgres volume holding a password that " +
+          "no longer matches the one in .env. Resolve with:\n" +
+          "    docker compose down -v && pnpm db:up && pnpm db:migrate && pnpm db:seed\n" +
+          `Original error: ${message}`
+      );
+    }
+    throw error;
+  }
+};
