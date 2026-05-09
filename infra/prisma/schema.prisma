@@ -3117,7 +3117,7 @@ model GdprSettings {
 model SecuritySettings {
   id                    String   @id @default(cuid())
   require2FA            Boolean  @default(false)
-  sessionTimeoutMinutes Int      @default(1440)
+  sessionTimeoutMinutes Int      @default(15)
   maxLoginAttempts      Int      @default(5)
   passwordMinLength     Int      @default(8)
   requireUppercase      Boolean  @default(false)

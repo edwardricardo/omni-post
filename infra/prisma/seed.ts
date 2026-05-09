@@ -879,7 +879,7 @@ async function seedTestAccounts() {
     update: {},
     create: {
       id: "security-singleton",
-      sessionTimeoutMinutes: 1440,
+      sessionTimeoutMinutes: 15,
       maxLoginAttempts: 5,
       passwordMinLength: 8,
     },
