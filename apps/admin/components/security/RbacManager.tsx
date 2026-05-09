@@ -13,7 +13,7 @@ import { Plus, Trash2, Pencil, Check, X } from "lucide-react";
 import { toast } from "@packages/ui";
 import { useCurrentUser } from "@/providers/AuthProvider";
 
-import { ApiError, getErrorMessage } from "@/lib/parseApiError";
+import { ApiError, getErrorMessage } from "@packages/api-errors";
 import { api, type RoleInfo } from "../../lib/apiClient";
 import { LoadingSpinner } from "../shared/LoadingSpinner";
 import { InputDialog, ConfirmDialog } from "@packages/ui";

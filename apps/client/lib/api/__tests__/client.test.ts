@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, beforeEach, vi, Mock } from "vitest";
 import { apiClient } from "../client";
-import { ApiError } from "../types";
+import { ApiError } from "@packages/api-errors";
 
 // Mock fetch globally
 global.fetch = vi.fn();

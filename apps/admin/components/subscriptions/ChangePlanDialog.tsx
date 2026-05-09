@@ -28,7 +28,7 @@ import { Badge } from "@/components/ui/Badge";
 // ---------------------------------------------------------------------------
 
 import { PROVIDER_NAMES, type PlanType } from "@shared/types";
-import { ApiError, getErrorMessage } from "@/lib/parseApiError";
+import { ApiError, getErrorMessage } from "@packages/api-errors";
 
 const ALL_PROVIDERS = PROVIDER_NAMES.map((id) => ({ id, label: id }));
 

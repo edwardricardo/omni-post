@@ -16,7 +16,7 @@ import {
   TemplateCompilationResult,
 } from "@shared/types";
 import { request, PROXY_BASE } from "@/lib/api/clients/request";
-import { ApiError } from "@/lib/api/types";
+import { ApiError } from "@packages/api-errors";
 
 export class ClientTemplateEngine extends BaseTemplateEngine {
   private apiBaseUrl: string;

@@ -13,7 +13,7 @@
 
 import { useState } from "react";
 import { useProviderForceMassReauth } from "@/hooks/api/useProviderForceMassReauth";
-import { getErrorMessage } from "@/lib/parseApiError";
+import { getErrorMessage } from "@packages/api-errors";
 import { PageHeader } from "@/components/ui/PageHeader";
 
 const PROVIDERS = [

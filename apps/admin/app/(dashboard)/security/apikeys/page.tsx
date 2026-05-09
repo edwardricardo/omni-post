@@ -11,7 +11,7 @@
 
 import { useState } from "react";
 import { useApiKeyAdminRotate } from "@/hooks/api/useApiKeyAdminRotate";
-import { getErrorMessage } from "@/lib/parseApiError";
+import { getErrorMessage } from "@packages/api-errors";
 import { PageHeader } from "@/components/ui/PageHeader";
 
 export default function AdminApiKeyRotatePage() {

@@ -39,7 +39,7 @@ import { SmartContentOptimizerHashtags } from "./SmartContentOptimizerHashtags";
 import { SmartContentOptimizerTone } from "./SmartContentOptimizerTone";
 import { SmartContentOptimizerMetrics } from "./SmartContentOptimizerMetrics";
 import { request, PROXY_BASE } from "@/lib/api/clients/request";
-import { ApiError } from "@/lib/api/types";
+import { ApiError } from "@packages/api-errors";
 
 /**
  * @component SmartContentOptimizer

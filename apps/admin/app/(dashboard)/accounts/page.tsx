@@ -13,7 +13,7 @@ import { useCurrentUser } from "@/providers/AuthProvider";
 
 import { Eye, EyeOff, Pencil, KeyRound } from "lucide-react";
 
-import { isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
+import { isPermissionDenied, getErrorMessage } from "@packages/api-errors";
 import { AccessDenied } from "@/components/shared/AccessDenied";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAccounts, useUpdateAccount } from "@/hooks/api/useAccounts";

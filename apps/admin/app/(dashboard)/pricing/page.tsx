@@ -18,7 +18,7 @@ import {
 } from "@packages/ui";
 import { PROVIDER_NAMES } from "@shared/types";
 
-import { isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
+import { isPermissionDenied, getErrorMessage } from "@packages/api-errors";
 import { AccessDenied } from "@/components/shared/AccessDenied";
 import {
   usePricingTiers,

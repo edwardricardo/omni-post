@@ -12,7 +12,7 @@ import { Save, ShieldAlert, ChevronRight, ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "@packages/ui";
 
-import { ApiError, getErrorMessage } from "@/lib/parseApiError";
+import { ApiError, getErrorMessage } from "@packages/api-errors";
 import { api, type RoleInfo } from "../../lib/apiClient";
 import { ActionButton } from "../ui/ActionButton";
 

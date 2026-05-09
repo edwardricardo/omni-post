@@ -22,7 +22,6 @@ export type {
   PaginatedResponse,
   ApiResponse,
   HealthResponse,
-  ApiError,
   ValidationError,
   ErrorResponse,
 } from "./types";

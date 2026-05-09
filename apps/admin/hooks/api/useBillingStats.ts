@@ -6,7 +6,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { ApiError } from "@/lib/parseApiError";
+import { ApiError } from "@packages/api-errors";
 
 export interface BillingStats {
   totalRevenue: number;

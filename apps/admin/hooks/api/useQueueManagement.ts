@@ -7,7 +7,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@packages/ui";
-import { ApiError, getErrorMessage } from "@/lib/parseApiError";
+import { ApiError, getErrorMessage } from "@packages/api-errors";
 
 export interface QueueStats {
   total: number;

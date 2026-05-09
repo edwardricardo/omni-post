@@ -6,7 +6,7 @@
  * @layer infrastructure
  */
 
-import { ApiError } from "../api/types";
+import { ApiError } from "@packages/api-errors";
 
 // All requests go through the Next.js proxy -- no direct backend access
 const PROXY_BASE = "/api/backend/auth/customer";

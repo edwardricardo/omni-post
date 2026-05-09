@@ -10,7 +10,7 @@
 
 import { useState } from "react";
 import { useChannelForceReauth } from "@/hooks/api/useChannelForceReauth";
-import { getErrorMessage } from "@/lib/parseApiError";
+import { getErrorMessage } from "@packages/api-errors";
 import { PageHeader } from "@/components/ui/PageHeader";
 
 export default function AdminForceReauthPage() {

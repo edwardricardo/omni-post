@@ -12,7 +12,7 @@ import { Clock, Play, Settings2 } from "lucide-react";
 import { toast } from "@packages/ui";
 import { useCurrentUser } from "@/providers/AuthProvider";
 
-import { ApiError, getErrorMessage } from "@/lib/parseApiError";
+import { ApiError, getErrorMessage } from "@packages/api-errors";
 import { ActionButton } from "@/components/ui/ActionButton";
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmDialog } from "@packages/ui";

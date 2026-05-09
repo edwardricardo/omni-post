@@ -12,7 +12,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "@packages/ui";
 import { useCurrentUser } from "@/providers/AuthProvider";
 
-import { getErrorMessage } from "@/lib/parseApiError";
+import { getErrorMessage } from "@packages/api-errors";
 import { api } from "../../lib/apiClient";
 import { LoadingSpinner } from "../shared/LoadingSpinner";
 import { ActionButton } from "../ui/ActionButton";

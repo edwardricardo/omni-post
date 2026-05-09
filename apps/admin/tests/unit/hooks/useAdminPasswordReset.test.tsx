@@ -14,7 +14,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useAdminPasswordReset } from "@/hooks/api/useAdminPasswordReset";
-import { ApiError } from "@/lib/parseApiError";
+import { ApiError } from "@packages/api-errors";
 
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);

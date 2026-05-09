@@ -14,7 +14,7 @@ import { useTranslations } from "next-intl";
 import { Turnstile } from "@marsidev/react-turnstile";
 
 import { ActionButton } from "@/components/ui/ActionButton";
-import { ApiError, getErrorMessage } from "@/lib/parseApiError";
+import { ApiError, getErrorMessage } from "@packages/api-errors";
 
 const INPUT_CLASS =
   "w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";

@@ -22,7 +22,7 @@ import {
 import { toast } from "@packages/ui";
 import { useTranslations } from "next-intl";
 
-import { getErrorMessage } from "@/lib/parseApiError";
+import { getErrorMessage } from "@packages/api-errors";
 import { api } from "../../lib/apiClient";
 
 interface CreateRoleDialogProps {

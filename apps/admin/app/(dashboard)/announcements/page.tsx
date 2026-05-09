@@ -25,7 +25,7 @@ import { ActionButton } from "@/components/ui/ActionButton";
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmDialog } from "@packages/ui";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
-import { getErrorMessage } from "@/lib/parseApiError";
+import { getErrorMessage } from "@packages/api-errors";
 
 const INPUT_CLASS =
   "w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";

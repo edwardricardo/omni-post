@@ -29,7 +29,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@packages/ui";
-import { isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
+import { isPermissionDenied, getErrorMessage } from "@packages/api-errors";
 import { AccessDenied } from "@/components/shared/AccessDenied";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";

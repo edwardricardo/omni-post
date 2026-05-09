@@ -12,7 +12,7 @@
 
 import { useState } from "react";
 import { useOidcReplaceClientSecret } from "@/hooks/api/useOidcReplaceClientSecret";
-import { getErrorMessage } from "@/lib/parseApiError";
+import { getErrorMessage } from "@packages/api-errors";
 import { PageHeader } from "@/components/ui/PageHeader";
 
 export default function AdminOidcReplaceSecretPage() {

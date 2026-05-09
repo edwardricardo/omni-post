@@ -28,8 +28,8 @@ import {
   UpdatePostRequest,
   PaginatedResponse,
   ApiResponse,
-  ApiError,
 } from "./types";
+import { ApiError } from "@packages/api-errors";
 
 // Query Keys
 const queryKeys = {
