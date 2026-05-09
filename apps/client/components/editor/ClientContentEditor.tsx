@@ -20,7 +20,7 @@ import { useAuth } from "@/lib/auth/authContext";
 import { useToast } from "@packages/ui";
 import { usePostDraft } from "@/lib/hooks/useAutoSave";
 import { useProjectChannels } from "@/lib/hooks/useProjectChannels";
-import { useSchedulePost } from "@/lib/hooks/useSchedulePost";
+import { useSchedulePostViaSaga } from "@/lib/hooks/useSchedulePostViaSaga";
 import { PlatformPreview } from "./PlatformPreview";
 import { TemplateSelector } from "./TemplateSelector";
 import { SchedulePicker } from "./SchedulePicker";
@@ -73,7 +73,7 @@ export function ClientContentEditor({
 
   const channelsQuery = useProjectChannels(projectId);
   const channels = useMemo(() => channelsQuery.data ?? [], [channelsQuery.data]);
-  const scheduleMutation = useSchedulePost();
+  const scheduleMutation = useSchedulePostViaSaga();
 
   // Transform providers to ProviderConstraints format
   const providerConstraints: ProviderConstraints[] = useMemo(() => {

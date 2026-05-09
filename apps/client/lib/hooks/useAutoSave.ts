@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useRef, useCallback, useState } from "react";
-import { useCreatePost, useUpdatePost } from "@/lib/api/hooks";
+import { useCreateDraftViaSaga, useUpdatePost } from "@/lib/api/hooks";
 
 /**
  * Public lifecycle callback invoked after each save attempt completes.
@@ -194,7 +194,7 @@ export function useAutoSave(config: AutoSaveConfig) {
 /**
  * @hook usePostDraft
  * @description Post-specific autosave wrapper. Combines `useAutoSave` with the
- *   real `useCreatePost` / `useUpdatePost` mutations. Pattern Lazy semantics:
+ *   real `useCreateDraftViaSaga` / `useUpdatePost` mutations. Pattern Lazy semantics:
  *   - localStorage write happens on every debounce tick (offline resilience).
  *   - Server save is skipped when the body is empty (the backend rejects empty bodies).
  *   - First server save with non-empty body issues `POST /posts`; subsequent
@@ -213,7 +213,7 @@ export function useAutoSave(config: AutoSaveConfig) {
  *   and `isPublishing` for the publish flow.
  */
 export function usePostDraft(postId?: string, onPostCreated?: (id: string) => void) {
-  const createPost = useCreatePost();
+  const createPost = useCreateDraftViaSaga();
   const updatePost = useUpdatePost();
 
   // Synced via effect so callbacks always read the latest server-issued id

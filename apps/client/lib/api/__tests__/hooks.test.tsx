@@ -9,7 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React, { ReactNode } from "react";
 import {
   useApiProviders,
-  useCreatePost,
+  useCreateDraftViaSaga,
   useAllProvidersHealth,
   usePost,
   useUploadFile,
@@ -22,7 +22,6 @@ vi.mock("../client", () => ({
     getProviders: vi.fn(),
     getAllProvidersHealth: vi.fn(),
     getPost: vi.fn(),
-    createPost: vi.fn(),
     uploadFile: vi.fn(),
     startPostPublishingSaga: vi.fn(),
     getSagaStatus: vi.fn(),
@@ -176,7 +175,7 @@ describe("API Hooks", () => {
     });
   });
 
-  describe("useCreatePost", () => {
+  describe("useCreateDraftViaSaga", () => {
     it("should create post successfully via saga (mode=draft)", async () => {
       const postData = {
         projectId: "project-123",
@@ -214,7 +213,7 @@ describe("API Hooks", () => {
       };
       mockApiClient.getPost.mockResolvedValue(fetchedPost);
 
-      const { result } = renderHook(() => useCreatePost(), {
+      const { result } = renderHook(() => useCreateDraftViaSaga(), {
         wrapper: createWrapper(),
       });
 
@@ -260,7 +259,7 @@ describe("API Hooks", () => {
         },
       });
 
-      const { result } = renderHook(() => useCreatePost(), {
+      const { result } = renderHook(() => useCreateDraftViaSaga(), {
         wrapper: createWrapper(),
       });
 
@@ -360,7 +359,7 @@ describe("API Hooks", () => {
       mockApiClient.getPost.mockResolvedValue(fetchedPost);
 
       const { result } = renderHook(
-        () => useCreatePost({ retry: 3 }), // Custom option
+        () => useCreateDraftViaSaga({ retry: 3 }), // Custom option
         { wrapper: createWrapper() }
       );
 

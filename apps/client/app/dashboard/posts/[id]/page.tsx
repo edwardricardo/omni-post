@@ -15,7 +15,7 @@ import { runSagaAndAwaitTerminal } from "@/lib/api/clients/sagaClient";
 import { apiClient } from "@/lib/api/client";
 import { ClientContentEditor } from "@/components/editor/ClientContentEditor";
 import { useProjectChannels } from "@/lib/hooks/useProjectChannels";
-import { useSchedulePost } from "@/lib/hooks/useSchedulePost";
+import { useSchedulePostViaSaga } from "@/lib/hooks/useSchedulePostViaSaga";
 import {
   Card,
   CardContent,
@@ -68,7 +68,7 @@ export default function EditPostPage() {
     () => Array.from(new Set(channels.map((c) => c.platform))),
     [channels]
   );
-  const scheduleMutation = useSchedulePost();
+  const scheduleMutation = useSchedulePostViaSaga();
   const isScheduling = scheduleMutation.isPending;
 
   // Seed the channel selection with each provider's primary the first time the
@@ -124,12 +124,8 @@ export default function EditPostPage() {
     }
     setIsPublishing(true);
     try {
-      // Routes through the post-publishing saga (mode="publish-now") with
-      // the existing draft. Saga runs Validate + Create(skip) + Schedule +
-      // Wait + UpdateStatus; terminal state arrives once the worker pipeline
-      // confirms the publish (or fails). The await blocks the button so the
-      // user sees one round-trip; for long publishes a polling UI would be
-      // an improvement (tracked under PR-59 saga UX backlog).
+      // Awaits the saga's terminal state — the button stays disabled while
+      // the worker pipeline confirms each provider publish.
       await runSagaAndAwaitTerminal(
         {
           start: (input) => apiClient.startPostPublishingSaga(input),

@@ -14,7 +14,7 @@ import { apiClient } from "@/lib/api/client";
 import { runSagaAndAwaitTerminal } from "@/lib/api/clients/sagaClient";
 import { PlatformPreview } from "@/components/editor/PlatformPreview";
 import { useProjectChannels } from "@/lib/hooks/useProjectChannels";
-import { useSchedulePost } from "@/lib/hooks/useSchedulePost";
+import { useSchedulePostViaSaga } from "@/lib/hooks/useSchedulePostViaSaga";
 import {
   Card,
   CardContent,
@@ -60,7 +60,7 @@ export default function PreviewPostPage() {
     () => Array.from(new Set(channels.map((c) => c.platform))),
     [channels]
   );
-  const scheduleMutation = useSchedulePost();
+  const scheduleMutation = useSchedulePostViaSaga();
   const isScheduling = scheduleMutation.isPending;
 
   useEffect(() => {

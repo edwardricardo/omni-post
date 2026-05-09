@@ -1,6 +1,6 @@
 /**
- * @file useSchedulePost.integration.test.tsx
- * @description Integration tests for the `useSchedulePost` mutation hook
+ * @file useSchedulePostViaSaga.integration.test.tsx
+ * @description Integration tests for the `useSchedulePostViaSaga` mutation hook
  *              (saga `mode="schedule"` with the existing postId). Verifies
  *              the wire shape (saga endpoint + ownership lookup), the
  *              optimistic cache flip, rollback on failure, and error
@@ -12,7 +12,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useSchedulePost } from "../../lib/hooks/useSchedulePost";
+import { useSchedulePostViaSaga } from "../../lib/hooks/useSchedulePostViaSaga";
 import type { Post } from "../../lib/api/types";
 
 const mockFetch = vi.fn();
@@ -93,11 +93,13 @@ beforeEach(() => {
   vi.stubGlobal("fetch", mockFetch);
 });
 
-describe("useSchedulePost (saga-routed)", () => {
+describe("useSchedulePostViaSaga", () => {
   it("starts the post-publishing saga with mode=schedule and postId", async () => {
     mockSuccessfulSchedule("post-1");
     const client = makeClient();
-    const { result } = renderHook(() => useSchedulePost(), { wrapper: createWrapper(client) });
+    const { result } = renderHook(() => useSchedulePostViaSaga(), {
+      wrapper: createWrapper(client),
+    });
 
     await act(async () => {
       await result.current.mutateAsync({
@@ -129,7 +131,9 @@ describe("useSchedulePost (saga-routed)", () => {
     const draft = makePost({ id: "post-7", status: "DRAFT" });
     client.setQueryData<Post>(["posts", "post-7"], draft);
 
-    const { result } = renderHook(() => useSchedulePost(), { wrapper: createWrapper(client) });
+    const { result } = renderHook(() => useSchedulePostViaSaga(), {
+      wrapper: createWrapper(client),
+    });
 
     await act(async () => {
       result.current.mutate({
@@ -152,7 +156,9 @@ describe("useSchedulePost (saga-routed)", () => {
     const draft = makePost({ id: "post-7", status: "DRAFT" });
     client.setQueryData<Post>(["posts", "post-7"], draft);
 
-    const { result } = renderHook(() => useSchedulePost(), { wrapper: createWrapper(client) });
+    const { result } = renderHook(() => useSchedulePostViaSaga(), {
+      wrapper: createWrapper(client),
+    });
 
     await act(async () => {
       try {
@@ -197,7 +203,9 @@ describe("useSchedulePost (saga-routed)", () => {
       // Default any further status polls to FAILED (helper polls until terminal).
       .mockResolvedValue(failedStatus);
     const client = makeClient();
-    const { result } = renderHook(() => useSchedulePost(), { wrapper: createWrapper(client) });
+    const { result } = renderHook(() => useSchedulePostViaSaga(), {
+      wrapper: createWrapper(client),
+    });
 
     await act(async () => {
       try {

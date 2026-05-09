@@ -1,11 +1,12 @@
 /**
- * @file useSchedulePost.ts
- * @description TanStack Query mutation hook for transitioning a post from DRAFT
- *              to SCHEDULED via the post-publishing saga (mode="schedule" with
- *              the existing postId). Applies the canonical TanStack v5
- *              optimistic-update flow on the cached `["posts", id]` query so
- *              the post detail UI flips status immediately. The mutation
- *              awaits the saga's terminal state and resolves with the result.
+ * @file useSchedulePostViaSaga.ts
+ * @description TanStack Query mutation hook for transitioning a post from
+ *              DRAFT to SCHEDULED via the post-publishing saga
+ *              (mode="schedule" with the existing postId). Applies the
+ *              canonical TanStack v5 optimistic-update flow on the cached
+ *              `["posts", id]` query so the post detail UI flips status
+ *              immediately. The mutation awaits the saga's terminal state
+ *              and resolves with the result.
  * @layer infrastructure
  */
 
@@ -19,7 +20,7 @@ import type { ApiResponse, Post } from "@/lib/api/types";
 const SCHEDULE_POST_MUTATION_KEY = ["posts", "schedule"] as const;
 
 /**
- * Input passed to `useSchedulePost.mutate(...)`.
+ * Input passed to `useSchedulePostViaSaga.mutate(...)`.
  *
  * @property postId - UUID of the draft post to transition to SCHEDULED.
  * @property scheduledFor - ISO-8601 timestamp; backend rejects times less than
@@ -38,7 +39,7 @@ interface SchedulePostContext {
 }
 
 /**
- * @hook useSchedulePost
+ * @hook useSchedulePostViaSaga
  * @description Mutation that schedules a post for future publication. The
  *   post detail cache is optimistically updated to `status: "SCHEDULED"` so the
  *   UI reflects the transition before the network round-trip completes; the
@@ -49,13 +50,13 @@ interface SchedulePostContext {
  *   invalidation flicker via `isMutating({ mutationKey })` (TkDodo pattern).
  *
  * @example
- * const schedule = useSchedulePost();
+ * const schedule = useSchedulePostViaSaga();
  * schedule.mutate({ postId, scheduledFor, channelIds }, {
  *   onSuccess: () => toast({ title: "Post scheduled" }),
  *   onError: (err) => toast({ title: "Failed to schedule", description: err.message }),
  * });
  */
-export function useSchedulePost() {
+export function useSchedulePostViaSaga() {
   const qc = useQueryClient();
 
   return useMutation<ApiResponse<unknown>, Error, SchedulePostInput, SchedulePostContext>({

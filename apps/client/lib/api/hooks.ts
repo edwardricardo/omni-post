@@ -61,15 +61,24 @@ export function usePost(id: string, options?: UseQueryOptions<ApiResponse<Post>,
   });
 }
 
-export function useCreatePost(
+/**
+ * @hook useCreateDraftViaSaga
+ * @description Creates a new post draft via the post-publishing saga
+ *   (mode="draft"). The saga commits Validate + Create — typically <1 s in
+ *   dev. Resolves with the created Post so callers can read the postId
+ *   synchronously. Pair with `useSagaStatus` from
+ *   `@/lib/hooks/useSagaStatus` if a non-blocking progress UI is needed
+ *   instead.
+ *
+ * @returns TanStack Query mutation. `mutate({ projectId, locale, body, ... })`
+ *   resolves with the freshly fetched Post payload.
+ */
+export function useCreateDraftViaSaga(
   options?: UseMutationOptions<ApiResponse<Post>, ApiError, CreatePostRequest>
 ) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    // Saga in mode="draft" runs Validate + Create only — typically <1s. The
-    // imperative wait-until-terminal helper resolves with the Post so
-    // auto-save can read the new postId synchronously.
     mutationFn: async (data) => {
       const { postId } = await runSagaAndAwaitTerminal(
         {
