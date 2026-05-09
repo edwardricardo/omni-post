@@ -148,3 +148,6 @@ docker-compose.local.yml
 .claude/worktrees/
 .claude/hooks-py/__pycache__/
 **/__pycache__/
+
+# graphify knowledge-graph outputs (regenerable)
+graphify-out/
