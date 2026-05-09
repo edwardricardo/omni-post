@@ -49,9 +49,10 @@ import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "../auth/rbacService.js";
 import { SecureSchemas } from "../security/inputValidation.js";
-import { ProjectId, AccountId } from "../domain/value-objects/EntityId.js";
+import { ProjectId, AccountId, PostId } from "../domain/value-objects/EntityId.js";
 import type { ProjectRepositoryPort } from "../domain/repositories/ProjectRepository.js";
 import type { ChannelRepository } from "../domain/repositories/ChannelRepository.js";
+import type { PostRepository } from "../domain/repositories/PostRepository.js";
 
 /** Channel used by workers to notify saga completions/failures */
 const SAGA_EVENTS_CHANNEL = "saga:events";
@@ -68,30 +69,95 @@ interface SagaIntegrationConfig {
   projectRepository: ProjectRepositoryPort;
   /** Required for the customer-facing /start endpoint to verify channel ownership */
   channelRepository: ChannelRepository;
+  /** Required for the customer-facing /start endpoint to verify ownership +
+   * status of the existing post when `postId` is provided in the body. */
+  postRepository: PostRepository;
 }
 
-const PostContentBaseSchema = {
+/**
+ * Required everywhere: project context.
+ */
+const SagaPostBaseSchema = {
   projectId: z.string().uuid(),
-  locale: z.string().min(2).max(5),
-  body: SecureSchemas.postBody,
+} as const;
+
+/**
+ * Content fields used when the saga creates a NEW post. For schedule and
+ * publish-now modes these are mutually exclusive with `postId` — the schema
+ * refinement below enforces XOR.
+ */
+const PostContentFieldsSchema = {
+  locale: z.string().min(2).max(5).optional(),
+  body: SecureSchemas.postBody.optional(),
   title: SecureSchemas.userName.optional(),
   tags: z.array(z.string()).default([]),
   mediaIds: z.array(z.string().uuid()).default([]),
 } as const;
 
+/**
+ * Refinement applied to schedule/publish-now schemas: caller MUST provide
+ * either `postId` (operate on existing draft) OR content (`locale` + `body`
+ * for a new post) — not both, and not neither.
+ */
+function refineExistingOrNew<
+  T extends {
+    postId?: string | undefined;
+    locale?: string | undefined;
+    body?: string | undefined;
+  },
+>(data: T, ctx: z.RefinementCtx): void {
+  const hasPostId = typeof data.postId === "string" && data.postId.length > 0;
+  const hasContent =
+    typeof data.locale === "string" &&
+    data.locale.length > 0 &&
+    typeof data.body === "string" &&
+    data.body.length > 0;
+
+  if (hasPostId && hasContent) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Provide either postId (existing draft) or content (locale + body), not both",
+    });
+  }
+  if (!hasPostId && !hasContent) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Either postId (existing draft) or content (locale + body) is required",
+    });
+  }
+}
+
 const StartPostPublishingSagaBodySchema = z.discriminatedUnion("mode", [
-  z.object({ mode: z.literal("draft"), ...PostContentBaseSchema }),
+  // Draft: only the create-from-scratch path makes sense (cannot "draft" an
+  // already-existing post). Body + locale required.
   z.object({
-    mode: z.literal("schedule"),
-    ...PostContentBaseSchema,
-    channelIds: z.array(z.string().uuid()).min(1, "At least one channel is required"),
-    scheduledAt: z.string().datetime(),
+    mode: z.literal("draft"),
+    ...SagaPostBaseSchema,
+    locale: z.string().min(2).max(5),
+    body: SecureSchemas.postBody,
+    title: SecureSchemas.userName.optional(),
+    tags: z.array(z.string()).default([]),
+    mediaIds: z.array(z.string().uuid()).default([]),
   }),
-  z.object({
-    mode: z.literal("publish-now"),
-    ...PostContentBaseSchema,
-    channelIds: z.array(z.string().uuid()).min(1, "At least one channel is required"),
-  }),
+  z
+    .object({
+      mode: z.literal("schedule"),
+      ...SagaPostBaseSchema,
+      postId: z.string().uuid().optional(),
+      ...PostContentFieldsSchema,
+      channelIds: z.array(z.string().uuid()).min(1, "At least one channel is required"),
+      scheduledAt: z.string().datetime(),
+    })
+    .superRefine(refineExistingOrNew),
+  z
+    .object({
+      mode: z.literal("publish-now"),
+      ...SagaPostBaseSchema,
+      postId: z.string().uuid().optional(),
+      ...PostContentFieldsSchema,
+      channelIds: z.array(z.string().uuid()).min(1, "At least one channel is required"),
+    })
+    .superRefine(refineExistingOrNew),
 ]);
 
 type StartPostPublishingSagaBody = z.infer<typeof StartPostPublishingSagaBodySchema>;
@@ -258,14 +324,53 @@ export class SagaIntegration {
             }
           }
 
+          // Existing-draft path (schedule/publish-now with postId): verify the
+          // post exists, belongs to this project, and is still in DRAFT status.
+          // Re-publishing a post already in PUBLISHED/SCHEDULED would create
+          // a duplicate publish job — surface as a client error instead.
+          const providedPostId =
+            body.mode !== "draft" && typeof body.postId === "string" ? body.postId : null;
+          if (providedPostId !== null) {
+            const postIdResult = PostId.fromString(providedPostId);
+            if (!postIdResult.ok) {
+              throw AppError.badRequest("Invalid post ID");
+            }
+            const postLookup = await this.config.postRepository.findById(postIdResult.value);
+            if (!postLookup.ok) {
+              throw AppError.notFound("Post");
+            }
+            const post = postLookup.value;
+            if (post.projectId.toString() !== projectIdResult.value.toString()) {
+              // Post belongs to another project — return 404 to prevent
+              // post-id enumeration across projects.
+              throw AppError.notFound("Post");
+            }
+            if (post.status.value !== "DRAFT") {
+              throw AppError.badRequest(
+                `Post is in ${post.status.value} status; only DRAFT posts can be scheduled or published via this saga`
+              );
+            }
+          }
+
           const correlationId = `post-publish-${randomUUID()}`;
           const postData: Record<string, unknown> = {
             projectId: body.projectId,
-            locale: body.locale,
-            body: body.body,
-            tags: body.tags,
-            mediaIds: body.mediaIds,
-            ...(body.title !== undefined && { title: body.title }),
+            ...(body.mode === "draft" && {
+              locale: body.locale,
+              body: body.body,
+              tags: body.tags,
+              mediaIds: body.mediaIds,
+              ...(body.title !== undefined && { title: body.title }),
+            }),
+            ...(body.mode !== "draft" &&
+              providedPostId === null && {
+                ...(body.locale !== undefined && { locale: body.locale }),
+                ...(body.body !== undefined && { body: body.body }),
+                tags: body.tags,
+                mediaIds: body.mediaIds,
+                ...(body.title !== undefined && { title: body.title }),
+              }),
+            ...(providedPostId !== null && { postId: providedPostId }),
             ...("channelIds" in body && { channelIds: body.channelIds }),
             ...(body.mode === "schedule" && { scheduledAt: new Date(body.scheduledAt) }),
           };

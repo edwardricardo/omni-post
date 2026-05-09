@@ -69,6 +69,10 @@ interface PostDataPayload {
   body?: string;
   channelIds?: string[];
   scheduledAt?: Date;
+  /** When set, the saga operates on this existing draft instead of creating
+   * a new aggregate. Mutually exclusive with body/title/locale at the route
+   * boundary; here it's just inspected by ValidatePostDataStep + CreatePostStep. */
+  postId?: string;
   [key: string]: unknown;
 }
 
@@ -116,6 +120,10 @@ interface CreateStepData {
   /** Status the post lands in immediately after creation. Read by
    * UpdatePostStatusStep compensation to revert to the true prior state. */
   initialStatus?: string;
+  /** True when the saga reused an existing draft (postId provided by caller)
+   * instead of creating one. Compensation MUST NOT delete the post in that
+   * case — it was not created by the saga. */
+  skippedCreation?: boolean;
 }
 
 interface ScheduleStepData {
@@ -198,7 +206,21 @@ export class ValidatePostDataStep implements SagaStep {
       const postData = readPostData(context, data);
       const mode = readMode(context);
 
-      if (!postData?.body) {
+      // When postId is provided, the saga operates on an existing draft —
+      // body/title/locale validation is skipped because the existing aggregate
+      // already carries that content. Only valid for schedule/publish-now;
+      // mode="draft" with postId is meaningless (cannot "create draft" of an
+      // already-existing post).
+      const operatesOnExisting = typeof postData?.postId === "string" && postData.postId.length > 0;
+
+      if (operatesOnExisting && mode === "draft") {
+        return {
+          success: false,
+          error: "postId is not valid for mode=draft",
+        };
+      }
+
+      if (!operatesOnExisting && !postData?.body) {
         return {
           success: false,
           error: "Post body is required",
@@ -208,7 +230,7 @@ export class ValidatePostDataStep implements SagaStep {
       // channelIds are only required when the saga will actually attempt to
       // publish. Drafts skip channel selection entirely.
       if (mode === "schedule" || mode === "publish-now") {
-        if (!postData.channelIds || postData.channelIds.length === 0) {
+        if (!postData?.channelIds || postData.channelIds.length === 0) {
           return {
             success: false,
             error: "At least one channel must be selected",
@@ -254,6 +276,28 @@ export class CreatePostStep implements SagaStep {
     try {
       const validationData = context.stepData["validate-post-data"] as ValidateStepData | undefined;
       const postData = validationData?.validatedData || readPostData(context, data);
+
+      // Existing-post path: route handler already verified ownership + DRAFT
+      // status; we just pass the postId forward via stepData. compensationData
+      // is empty so a later compensation does NOT delete a post the saga did
+      // not create.
+      const existingPostId =
+        typeof postData?.postId === "string" && postData.postId.length > 0 ? postData.postId : null;
+
+      if (existingPostId !== null) {
+        const initialStatus = "DRAFT";
+        context.stepData[this.id] = {
+          postId: existingPostId,
+          createdAt: new Date(),
+          initialStatus,
+          skippedCreation: true,
+        };
+        return {
+          success: true,
+          data: { postId: existingPostId, initialStatus, skippedCreation: true },
+        };
+      }
+
       const aggregateId = data?.postId || `post-${Date.now()}`;
 
       const createCommand: Command = {
@@ -313,6 +357,13 @@ export class CreatePostStep implements SagaStep {
 
       if (!postId) {
         return { success: true }; // Nothing to compensate
+      }
+
+      // Reused-existing-post path: the saga did not create this post — caller
+      // brought it. Deleting it here would destroy a draft the customer
+      // legitimately owns. Compensation is a no-op for that case.
+      if (compData?.skippedCreation === true) {
+        return { success: true, data: { skippedCompensation: true, postId } };
       }
 
       const deleteCommand: Command = {

@@ -27,6 +27,10 @@ export const TEST_CHANNEL_IDS = [
   "66666666-6666-4666-8666-666666666666",
 ];
 
+/** UUID of an existing DRAFT post owned by TEST_PROJECT_ID. The mock post
+ * repo recognises this id; any other id resolves to NotFound. */
+export const TEST_EXISTING_DRAFT_POST_ID = "77777777-7777-4777-8777-777777777777";
+
 // ---------------------------------------------------------------------------
 // Mock type definitions
 // ---------------------------------------------------------------------------
@@ -227,6 +231,32 @@ function createMockProjectRepo() {
   };
 }
 
+function createMockPostRepo() {
+  return {
+    findById: async (id: any) => {
+      const idStr = id?.toString?.() ?? String(id);
+      if (idStr === TEST_EXISTING_DRAFT_POST_ID) {
+        // Duck-typed PostAggregate: SagaIntegration only reads
+        // `post.projectId.toString()` and `post.status.value`.
+        return ok({
+          projectId: { toString: () => TEST_PROJECT_ID },
+          status: { value: "DRAFT" },
+        }) as any;
+      }
+      return { ok: false, error: { kind: "NotFound" } } as any;
+    },
+    findByProjectId: async () => ({ items: [], total: 0, page: 1, limit: 20 }),
+    findByStatus: async () => ({ items: [], total: 0, page: 1, limit: 20 }),
+    findReadyForPublishing: async () => [],
+    findWithFilters: async () => ({ items: [], total: 0, page: 1, limit: 20 }),
+    countByProjectId: async () => 0,
+    countByStatus: async () => 0,
+    save: async () => ok(undefined),
+    delete: async () => ok(undefined),
+    exists: async () => false,
+  };
+}
+
 function createMockChannelRepo() {
   return {
     findById: async () => ({ ok: false, error: {} }),
@@ -275,6 +305,7 @@ export async function buildIntegration(): Promise<{
     scheduler: new NoopBackgroundTaskScheduler(),
     projectRepository: createMockProjectRepo() as any,
     channelRepository: createMockChannelRepo() as any,
+    postRepository: createMockPostRepo() as any,
   });
 
   await integration.initialize();

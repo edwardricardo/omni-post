@@ -18,8 +18,16 @@ import {
   buildIntegration,
   makeStartRequest,
   passthroughReply,
+  TEST_CHANNEL_IDS,
+  TEST_CUSTOMER_ID,
+  TEST_ACCOUNT_ID,
   type MockRedis,
 } from "./sagaIntegration.helpers";
+
+const makeAuthedStatusRequest = (sagaId: string) => ({
+  params: { sagaId },
+  customerUser: { id: TEST_CUSTOMER_ID, accountId: TEST_ACCOUNT_ID, role: "owner" },
+});
 
 // Suppress verbose background-execution logs so they don't corrupt the TAP
 // stream when this file runs as a subprocess in the full test suite.
@@ -47,26 +55,10 @@ describe("SagaIntegration - Post Publishing Routes", () => {
     const handler = routes.get("POST:/sagas/post-publishing/start");
     expect(handler).toBeTruthy();
 
-    const request = {
-      body: {
-        postData: {
-          body: "Test post content",
-          channelIds: ["channel-1", "channel-2"],
-          title: "Test Post",
-        },
-        priority: "NORMAL",
-      },
-      user: { id: "user-123", projectId: "project-456" },
-      headers: { "user-agent": "test-agent" },
-      ip: "127.0.0.1",
-    };
-
-    const reply = {
-      status: (_code: number) => ({ send: (data: any) => data }),
-      send: (data: any) => data,
-    };
-
-    const result = await handler(request, reply);
+    const result = await handler(
+      makeStartRequest({ body: "Test post content", title: "Test Post" }),
+      passthroughReply
+    );
 
     expect(result.success).toBeTruthy();
     expect(result.data.sagaId).toBeTruthy();
@@ -76,89 +68,70 @@ describe("SagaIntegration - Post Publishing Routes", () => {
   it("should validate required fields in post publishing request", async () => {
     const handler = routes.get("POST:/sagas/post-publishing/start");
 
-    const request = {
-      body: {
-        postData: {
-          // Missing body field
-          channelIds: [],
-        },
-      },
-      user: { id: "user-123" },
-      headers: {},
-      ip: "127.0.0.1",
+    // Missing body content for a from-scratch publish-now request
+    const request = makeStartRequest({ mode: "publish-now" });
+    request.body = {
+      mode: "publish-now",
+      projectId: request.body.projectId,
+      channelIds: [TEST_CHANNEL_IDS[0]!],
+      // No postId, no body — triggers refinement failure
     };
 
-    const reply = {
-      status: (_code: number) => ({ send: (data: any) => data }),
-      send: (data: any) => data,
-    };
-
-    try {
-      await handler(request, reply);
-      expect.unreachable("Should throw validation error");
-    } catch (error: any) {
-      expect(error.message.includes("required")).toBeTruthy();
-    }
+    await expect(handler(request, passthroughReply)).rejects.toThrowError(
+      /Invalid saga start body/
+    );
   });
 
   it("should create saga context with user and request metadata", async () => {
     const handler = routes.get("POST:/sagas/post-publishing/start");
 
-    const request = {
-      body: {
-        postData: {
-          body: "Test post",
-          channelIds: ["channel-1"],
-        },
-      },
-      user: { id: "user-123", projectId: "project-456" },
-      headers: { "user-agent": "Mozilla/5.0" },
-      ip: "192.168.1.1",
-    };
-
-    const result = await handler(request, passthroughReply);
+    const result = await handler(makeStartRequest({ body: "Test post" }), passthroughReply);
 
     const manager = integration.getSagaManager();
     const saga = await manager.getSaga(result.data.sagaId);
 
     expect(saga).toBeTruthy();
-    expect(saga.context.userId).toBe("user-123");
-    expect(saga.context.metadata.source).toBe("API");
+    expect(saga!.context.userId).toBe(TEST_CUSTOMER_ID);
+    expect(saga!.context.metadata.source).toBe("customer-api");
   });
 
   it("should support scheduled post publishing", async () => {
     const handler = routes.get("POST:/sagas/post-publishing/start");
 
-    const scheduledDate = new Date(Date.now() + 3_600_000).toISOString();
-
-    const request = {
-      body: {
-        postData: {
-          body: "Scheduled post",
-          channelIds: ["channel-1"],
-          scheduledAt: scheduledDate,
-        },
-      },
-      user: { id: "user-123", projectId: "project-456" },
-      headers: {},
-      ip: "127.0.0.1",
-    };
-
-    const result = await handler(request, passthroughReply);
+    const result = await handler(
+      makeStartRequest({
+        mode: "schedule",
+        body: "Scheduled post",
+        channelIds: [TEST_CHANNEL_IDS[0]!],
+      }),
+      passthroughReply
+    );
 
     expect(result.success).toBeTruthy();
     expect(result.data.sagaId).toBeTruthy();
+    expect(result.data.mode).toBe("schedule");
   });
 
-  it("should support priority levels for post publishing", async () => {
+  it("should accept all three modes (draft, schedule, publish-now)", async () => {
     const handler = routes.get("POST:/sagas/post-publishing/start");
 
-    const priorities = ["LOW", "NORMAL", "HIGH"] as const;
+    const draftResult = await handler(
+      makeStartRequest({ mode: "draft", body: "Draft content" }),
+      passthroughReply
+    );
+    expect(draftResult.success).toBeTruthy();
 
-    for (const priority of priorities) {
-      const result = await handler(makeStartRequest({ priority }), passthroughReply);
-      expect(result.success).toBeTruthy();
-    }
+    const scheduleResult = await handler(
+      makeStartRequest({ mode: "schedule", body: "Schedule content" }),
+      passthroughReply
+    );
+    expect(scheduleResult.success).toBeTruthy();
+
+    const publishNowResult = await handler(
+      makeStartRequest({ mode: "publish-now", body: "Publish now content" }),
+      passthroughReply
+    );
+    expect(publishNowResult.success).toBeTruthy();
   });
 });
 
@@ -184,7 +157,7 @@ describe("SagaIntegration - Saga Status Routes", () => {
 
     const statusHandler = routes.get("GET:/sagas/:sagaId");
     const statusResult = await statusHandler(
-      { params: { sagaId: startResult.data.sagaId } },
+      makeAuthedStatusRequest(startResult.data.sagaId),
       passthroughReply
     );
 
@@ -200,7 +173,7 @@ describe("SagaIntegration - Saga Status Routes", () => {
 
     const statusHandler = routes.get("GET:/sagas/:sagaId");
     const statusResult = await statusHandler(
-      { params: { sagaId: startResult.data.sagaId } },
+      makeAuthedStatusRequest(startResult.data.sagaId),
       passthroughReply
     );
 
@@ -217,7 +190,7 @@ describe("SagaIntegration - Saga Status Routes", () => {
 
     const statusHandler = routes.get("GET:/sagas/:sagaId");
     const statusResult = await statusHandler(
-      { params: { sagaId: startResult.data.sagaId } },
+      makeAuthedStatusRequest(startResult.data.sagaId),
       passthroughReply
     );
 
@@ -227,12 +200,9 @@ describe("SagaIntegration - Saga Status Routes", () => {
   it("should throw error for non-existent saga", async () => {
     const handler = routes.get("GET:/sagas/:sagaId");
 
-    try {
-      await handler({ params: { sagaId: "non-existent-saga-id" } }, passthroughReply);
-      expect.unreachable("Should throw not found error");
-    } catch (error: any) {
-      expect(error.message.includes("not found") || error.message.includes("Saga")).toBeTruthy();
-    }
+    await expect(
+      handler(makeAuthedStatusRequest("non-existent-saga-id"), passthroughReply)
+    ).rejects.toThrowError(/Saga.*not found|not found.*Saga/i);
   });
 });
 
