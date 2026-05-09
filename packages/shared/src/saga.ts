@@ -113,6 +113,9 @@ interface CreateStepData {
   postId?: string;
   version?: number;
   createdAt?: Date;
+  /** Status the post lands in immediately after creation. Read by
+   * UpdatePostStatusStep compensation to revert to the true prior state. */
+  initialStatus?: string;
 }
 
 interface ScheduleStepData {
@@ -250,7 +253,7 @@ export class CreatePostStep implements SagaStep {
       const aggregateId = data?.postId || `post-${Date.now()}`;
 
       const createCommand: Command = {
-        id: `cmd-create-post-${Date.now()}`,
+        id: `cmd-${context.sagaId}-${this.id}`,
         type: "post.create",
         aggregateId,
         aggregateType: "Post",
@@ -272,16 +275,22 @@ export class CreatePostStep implements SagaStep {
         };
       }
 
+      // CreatePostUseCase always produces DRAFT posts; capturing it here lets
+      // UpdatePostStatusStep compensation revert to the true prior state
+      // without hardcoding the literal across the saga.
+      const initialStatus = "DRAFT";
+
       context.stepData[this.id] = {
         postId: createCommand.aggregateId,
         version: result.data?.version || 1,
         createdAt: new Date(),
+        initialStatus,
       };
 
       return {
         success: true,
-        data: { postId: createCommand.aggregateId },
-        compensationData: { postId: createCommand.aggregateId },
+        data: { postId: createCommand.aggregateId, initialStatus },
+        compensationData: { postId: createCommand.aggregateId, initialStatus },
       };
     } catch (error) {
       return {
@@ -303,7 +312,7 @@ export class CreatePostStep implements SagaStep {
       }
 
       const deleteCommand: Command = {
-        id: `cmd-delete-post-${Date.now()}`,
+        id: `cmd-${context.sagaId}-${this.id}-compensate`,
         type: "post.delete",
         aggregateId: postId,
         aggregateType: "Post",
@@ -588,9 +597,10 @@ export class UpdatePostStatusStep implements SagaStep {
       }
 
       const newStatus = publishingSuccess ? "PUBLISHED" : "FAILED";
+      const previousStatus = createData?.initialStatus ?? "DRAFT";
 
       const updateCommand: Command = {
-        id: `cmd-update-post-status-${Date.now()}`,
+        id: `cmd-${context.sagaId}-${this.id}`,
         type: "post.update",
         aggregateId: postId,
         aggregateType: "Post",
@@ -616,7 +626,7 @@ export class UpdatePostStatusStep implements SagaStep {
       }
 
       context.stepData[this.id] = {
-        previousStatus: "DRAFT", // Would get from previous step
+        previousStatus,
         newStatus,
         updatedAt: new Date(),
       };
@@ -624,7 +634,7 @@ export class UpdatePostStatusStep implements SagaStep {
       return {
         success: true,
         data: { status: newStatus, postId },
-        compensationData: { postId, previousStatus: "DRAFT", newStatus },
+        compensationData: { postId, previousStatus, newStatus },
       };
     } catch (error) {
       return {
@@ -647,7 +657,7 @@ export class UpdatePostStatusStep implements SagaStep {
       }
 
       const revertCommand: Command = {
-        id: `cmd-revert-post-status-${Date.now()}`,
+        id: `cmd-${context.sagaId}-${this.id}-compensate`,
         type: "post.update",
         aggregateId: postId,
         aggregateType: "Post",
