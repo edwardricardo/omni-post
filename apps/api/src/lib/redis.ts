@@ -34,6 +34,17 @@ export function getRedisUrl(): string {
 /**
  * Create a new Redis connection with standard options
  * Uses environment variables for configuration
+ *
+ * `maxRetriesPerRequest: null` is the canonical signal for a BullMQ Worker
+ * connection. When detected, this factory omits `commandTimeout` because
+ * BullMQ blocking commands (BZPOPMIN, XREAD BLOCK) legitimately wait
+ * indefinitely — any commandTimeout surfaces as spurious "Command timed
+ * out" errors even on healthy Redis (BullMQ issue #2619). Worker liveness
+ * is enforced via lockDuration + stalledInterval (BullMQ-side) and TCP
+ * keepAlive (transport-side).
+ *
+ * For default (cache / producer) callers, a 5 s commandTimeout fails fast
+ * on a hung Redis without stalling request handlers.
  */
 export function createRedisConnection(
   options: {
@@ -42,19 +53,14 @@ export function createRedisConnection(
   } = {}
 ): Redis {
   const redisUrl = getRedisUrl();
+  const isBullMQWorker = options.maxRetriesPerRequest === null;
 
   return new Redis(redisUrl, {
-    maxRetriesPerRequest:
-      options.maxRetriesPerRequest === null ? null : (options.maxRetriesPerRequest ?? 3),
+    maxRetriesPerRequest: isBullMQWorker ? null : (options.maxRetriesPerRequest ?? 3),
     db: options.db ?? 0,
-    // Enable lazy connect for Railway compatibility (private network not available during build)
     lazyConnect: true,
-    // Enable offline queue to prevent connection errors from crashing the app
     enableOfflineQueue: true,
-    // ioredis defaults: commandTimeout = null (forever), connectTimeout = 10000.
-    // 5 s on each so a hung Redis fails fast instead of stalling request
-    // handlers that share this factory.
-    commandTimeout: 5_000,
-    connectTimeout: 5_000,
+    connectTimeout: 10_000,
+    ...(isBullMQWorker ? { keepAlive: 30_000 } : { commandTimeout: 5_000 }),
   });
 }

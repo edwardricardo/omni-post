@@ -22,12 +22,14 @@ const logger = pino({ level: process.env.LOG_LEVEL ?? "info", name: "auto-renewa
 const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
 const connection = new Redis(redisUrl, {
   maxRetriesPerRequest: null,
-  // ioredis defaults: commandTimeout = null (forever), connectTimeout = 10000.
-  // Both bounded so a hung Redis fails fast instead of stalling the daily
-  // cron. BullMQ requires maxRetriesPerRequest:null, so the timeout is the
-  // only escape hatch.
-  commandTimeout: 5_000,
-  connectTimeout: 5_000,
+  // No commandTimeout: BullMQ Worker uses blocking commands (BZPOPMIN,
+  // XREAD BLOCK) that legitimately wait indefinitely for jobs. Any
+  // commandTimeout interrupts those polls mid-flight and surfaces as
+  // spurious "Command timed out" errors (BullMQ issue #2619). Worker
+  // liveness is enforced via lockDuration + stalledInterval (BullMQ-side)
+  // and TCP keepAlive (transport-side).
+  connectTimeout: 10_000,
+  keepAlive: 30_000,
 });
 
 // ---------------------------------------------------------------------------

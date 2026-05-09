@@ -619,8 +619,11 @@ export class SagaIntegration {
    */
   private async setupEventHandling(): Promise<void> {
     try {
-      // Create a dedicated Redis connection for subscribing
-      this.subscriber = createRedisConnection();
+      // Dedicated Redis connection for subscribing. `maxRetriesPerRequest: null`
+      // signals a long-lived blocking connection — the factory omits
+      // commandTimeout for these (subscribe() blocks indefinitely waiting
+      // for messages, any commandTimeout fires spurious "Command timed out").
+      this.subscriber = createRedisConnection({ maxRetriesPerRequest: null });
       await this.subscriber.connect();
 
       this.subscriber.on("error", (err) => {

@@ -61,7 +61,10 @@ export class RedisEventPublisher implements IEventPublisher {
   constructor(config: PublisherConfig) {
     this.redis = config.redis;
     this.scheduler = config.scheduler;
-    this.subscriberRedis = config.subscriberRedis || config.redis.duplicate();
+    // Override commandTimeout: subscribe() blocks indefinitely waiting for
+    // messages, so any commandTimeout inherited from the parent connection
+    // surfaces as spurious "Command timed out" errors.
+    this.subscriberRedis = config.subscriberRedis || config.redis.duplicate({ commandTimeout: 0 });
     this.deadLetterQueue = config.deadLetterQueue || "events:dead-letter";
     this.maxRetries = config.maxRetries || 3;
     this.retryDelay = config.retryDelay || 5000; // 5 seconds

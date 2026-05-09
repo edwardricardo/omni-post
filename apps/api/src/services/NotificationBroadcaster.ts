@@ -52,7 +52,10 @@ export class NotificationBroadcaster {
 
   constructor(redis: Redis, scheduler: BackgroundTaskScheduler) {
     this.publisher = redis;
-    this.subscriber = redis.duplicate();
+    // Override commandTimeout: subscribe() blocks indefinitely waiting for
+    // messages, so any commandTimeout inherited from the parent connection
+    // surfaces as spurious "Command timed out" errors.
+    this.subscriber = redis.duplicate({ commandTimeout: 0 });
     this.subscriber.on("error", () => {});
     this.scheduler = scheduler;
   }

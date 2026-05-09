@@ -40,14 +40,18 @@ export function createBullMQConsumerAdapter(
   const connection =
     options.connection ??
     new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
+      // BullMQ requirement: maxRetriesPerRequest MUST be null. The Worker
+      // throws on instantiation otherwise.
       maxRetriesPerRequest: null,
       lazyConnect: true,
-      // ioredis defaults: commandTimeout = null (forever), connectTimeout = 10000.
-      // 5 s on each so a hung Redis fails fast instead of stalling consumer
-      // job processing. BullMQ requires maxRetriesPerRequest:null, so the
-      // timeout is the only escape hatch.
-      commandTimeout: 5_000,
-      connectTimeout: 5_000,
+      // No commandTimeout: BullMQ Worker uses blocking commands (BZPOPMIN,
+      // XREAD BLOCK) that legitimately wait indefinitely for jobs. Any
+      // commandTimeout interrupts those polls mid-flight and surfaces as
+      // spurious "Command timed out" errors even when Redis is healthy —
+      // BullMQ issue #2619. Worker liveness is enforced via lockDuration +
+      // stalledInterval (BullMQ-side) and TCP keepAlive (transport-side).
+      connectTimeout: 10_000,
+      keepAlive: 30_000,
     });
 
   const concurrency = options.concurrency ?? 5;
