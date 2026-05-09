@@ -11,7 +11,7 @@ export interface FieldDef {
   isSecret: boolean;
 }
 
-export const CREDENTIAL_KEYS: Record<string, string[]> = {
+const CREDENTIAL_KEYS: Record<string, string[]> = {
   STRIPE: [
     "secretKey",
     "webhookSecret",

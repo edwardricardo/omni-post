@@ -10,9 +10,9 @@
  * @layer infrastructure
  */
 
-import { ApiError } from "../../parseApiError";
+import { ApiError } from "@packages/api-errors";
 
-export const ADMIN_API_BASE = "/api/backend";
+const ADMIN_API_BASE = "/api/backend";
 
 /**
  * @function http

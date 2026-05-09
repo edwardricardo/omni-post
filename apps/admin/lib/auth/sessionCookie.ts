@@ -28,13 +28,13 @@ export const REFRESH_COOKIE_NAME = "admin-refresh";
 export const CSRF_COOKIE_NAME = "admin-csrf";
 
 /** Session cookie TTL: 15 minutes (matches typical JWT access token TTL). */
-export const SESSION_MAX_AGE = 15 * 60;
+const SESSION_MAX_AGE = 15 * 60;
 
 /** Refresh cookie TTL: 7 days. Paired with the CSRF cookie of the same TTL. */
-export const REFRESH_MAX_AGE = 7 * 24 * 60 * 60;
+const REFRESH_MAX_AGE = 7 * 24 * 60 * 60;
 
 /** CSRF cookie TTL: matches the refresh cookie. */
-export const CSRF_MAX_AGE = REFRESH_MAX_AGE;
+const CSRF_MAX_AGE = REFRESH_MAX_AGE;
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
@@ -59,7 +59,7 @@ export async function setSessionCookie(token: string): Promise<void> {
 }
 
 /** Persist the refresh token as the httpOnly admin-refresh cookie. */
-export async function setRefreshCookie(token: string): Promise<void> {
+async function setRefreshCookie(token: string): Promise<void> {
   const store = await cookies();
   store.set(REFRESH_COOKIE_NAME, token, {
     ...BASE_COOKIE_OPTIONS,
@@ -68,7 +68,7 @@ export async function setRefreshCookie(token: string): Promise<void> {
 }
 
 /** Persist the CSRF token as the httpOnly admin-csrf cookie. */
-export async function setCsrfCookie(token: string): Promise<void> {
+async function setCsrfCookie(token: string): Promise<void> {
   const store = await cookies();
   store.set(CSRF_COOKIE_NAME, token, {
     ...BASE_COOKIE_OPTIONS,
