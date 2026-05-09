@@ -10,6 +10,8 @@ import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler
 
 export interface MockPrismaClient {
   $queryRaw: (query: any) => Promise<any>;
+  $executeRaw: (query: any) => Promise<any>;
+  $transaction: <T>(fn: (tx: MockPrismaClient) => Promise<T>) => Promise<T>;
   sagaInstance: {
     upsert: (args: any) => Promise<any>;
     findMany: (args?: any) => Promise<any[]>;
@@ -27,14 +29,18 @@ export interface MockRedis {
 export interface MockEventService {
   initialize: () => Promise<void>;
   publishEvent: (event: DomainEvent) => Promise<void>;
+  appendEventInTx: (tx: unknown, event: DomainEvent) => Promise<void>;
+  broadcastEvent: (event: DomainEvent) => Promise<void>;
   publishedEvents: DomainEvent[];
 }
 
 export function createMockPrisma(): MockPrismaClient {
   const store = new Map<string, any>();
 
-  return {
+  const mock: MockPrismaClient = {
     $queryRaw: async () => [{ result: 1 }],
+    $executeRaw: async () => 1,
+    $transaction: async <T>(fn: (tx: MockPrismaClient) => Promise<T>) => fn(mock),
     sagaInstance: {
       upsert: async (args: any) => {
         const data = args.create ?? args.update;
@@ -53,6 +59,7 @@ export function createMockPrisma(): MockPrismaClient {
       },
     },
   };
+  return mock;
 }
 
 export function createMockRedis(): MockRedis {
@@ -80,6 +87,12 @@ export function createMockEventService(): MockEventService {
     initialize: async () => {},
     publishEvent: async (event: DomainEvent) => {
       publishedEvents.push(event);
+    },
+    appendEventInTx: async (_tx: unknown, event: DomainEvent) => {
+      publishedEvents.push(event);
+    },
+    broadcastEvent: async () => {
+      // No-op in tests; the durable append already recorded the event.
     },
     publishedEvents,
   };

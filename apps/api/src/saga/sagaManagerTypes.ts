@@ -10,6 +10,7 @@
 import type { PrismaClient } from "@infra/prisma";
 import type Redis from "ioredis";
 import type { SagaInstance } from "@shared/saga";
+import type { DomainEvent } from "@shared/events";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { EventService } from "../events/EventService";
 
@@ -41,7 +42,7 @@ export interface SagaMetrics {
 export interface SagaExecutionEnginePort {
   executeSagaAsync(sagaId: string): void;
   compensateSagaAsync(sagaId: string): void;
-  persistSagaInstance(instance: SagaInstance): Promise<void>;
+  persistSagaInstance(instance: SagaInstance, events?: DomainEvent[]): Promise<void>;
   loadSagaInstance(sagaId: string): Promise<SagaInstance | null>;
   failSaga(instance: SagaInstance, error: string): Promise<void>;
 }

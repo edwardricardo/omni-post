@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-import { PrismaClient } from "@infra/prisma";
+import { PrismaClient, Prisma } from "@infra/prisma";
 import Redis from "ioredis";
 import {
   DomainEvent,
@@ -98,6 +98,45 @@ export class EventService extends BaseService {
             }
           )
         );
+      }
+    );
+  }
+
+  /**
+   * Append an event to the durable EventStore inside an externally-managed
+   * Prisma transaction. Used by callers (e.g. SagaManager) that need the
+   * event log to commit atomically with their own state mutation. The
+   * pub/sub broadcast does NOT happen here — call `broadcastEvent` after
+   * the outer transaction commits (best-effort fan-out).
+   */
+  async appendEventInTx(tx: Prisma.TransactionClient, event: DomainEvent): Promise<void> {
+    if (!this.isInitialized) {
+      throw new Error("Event Service not initialized");
+    }
+    await this.eventStore.appendInTx(tx, `${event.aggregateType}:${event.aggregateId}`, [event]);
+  }
+
+  /**
+   * Broadcast an event to in-process Redis pub/sub subscribers without
+   * touching the EventStore. Pair with `appendEventInTx` after the outer
+   * transaction commits to preserve the durable-first / broadcast-after
+   * semantic.
+   */
+  async broadcastEvent(event: DomainEvent): Promise<Result<void, string>> {
+    return this.executeWithErrorHandling(
+      {
+        operation: "broadcastEvent",
+        metadata: {
+          eventType: event.type,
+          aggregateType: event.aggregateType,
+          aggregateId: event.aggregateId,
+        },
+      },
+      async () => {
+        if (!this.isInitialized) {
+          throw new Error("Event Service not initialized");
+        }
+        await this.publisher.publish(event);
       }
     );
   }

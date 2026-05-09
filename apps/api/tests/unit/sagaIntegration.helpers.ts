@@ -41,6 +41,8 @@ export interface MockFastifyInstance {
 export interface MockEventService {
   initialize: () => Promise<void>;
   publishEvent: (event: DomainEvent) => Promise<void>;
+  appendEventInTx: (tx: unknown, event: DomainEvent) => Promise<void>;
+  broadcastEvent: (event: DomainEvent) => Promise<void>;
   publishedEvents: DomainEvent[];
 }
 
@@ -66,6 +68,8 @@ export interface MockQueue extends QueuePort {
 
 export interface MockPrisma {
   $queryRaw: (query: any) => Promise<any>;
+  $executeRaw: (query: any) => Promise<any>;
+  $transaction: <T>(fn: (tx: MockPrisma) => Promise<T>) => Promise<T>;
   sagaInstance: {
     upsert: (args: any) => Promise<any>;
     findMany: (args?: any) => Promise<any[]>;
@@ -80,8 +84,10 @@ export interface MockPrisma {
 export function createMockPrisma(): MockPrisma {
   const store = new Map<string, any>();
 
-  return {
+  const mock: MockPrisma = {
     $queryRaw: async () => [{ result: 1 }],
+    $executeRaw: async () => 1,
+    $transaction: async <T>(fn: (tx: MockPrisma) => Promise<T>) => fn(mock),
     sagaInstance: {
       upsert: async (args: any) => {
         const data = args.create ?? args.update;
@@ -100,6 +106,7 @@ export function createMockPrisma(): MockPrisma {
       },
     },
   };
+  return mock;
 }
 
 export function createMockFastify(): MockFastifyInstance {
@@ -134,6 +141,12 @@ export function createMockEventService(): MockEventService {
     initialize: async () => {},
     publishEvent: async (event: DomainEvent) => {
       publishedEvents.push(event);
+    },
+    appendEventInTx: async (_tx: unknown, event: DomainEvent) => {
+      publishedEvents.push(event);
+    },
+    broadcastEvent: async () => {
+      // No-op in tests; appendEventInTx already recorded the event.
     },
     publishedEvents,
   };

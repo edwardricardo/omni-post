@@ -7,7 +7,7 @@
 
 import type { SagaDefinition, SagaInstance } from "@shared/saga";
 import { SAGA_EVENTS } from "@shared/saga";
-import { createDomainEvent } from "@shared/events";
+import { createDomainEvent, type DomainEvent } from "@shared/events";
 import type { SagaManagerLifecycle } from "./SagaManagerLifecycle.js";
 import type { SagaManagerConfig } from "./sagaManagerTypes.js";
 import { logger } from "../lib/logger.js";
@@ -134,8 +134,6 @@ export class SagaExecutionEngine {
           }
         );
 
-        await this.config.eventService.publishEvent(stepEvent);
-
         if (!stepResult.success) {
           if (this.shouldRetryStep(definition, instance)) {
             instance.retryCount++;
@@ -143,7 +141,7 @@ export class SagaExecutionEngine {
             // Persist nextRetryAt instead of in-process setTimeout — survives
             // process restarts. The recovery checker resumes due retries.
             instance.nextRetryAt = new Date(Date.now() + retryDelay);
-            await this.persistSagaInstance(instance);
+            await this.persistSagaInstance(instance, [stepEvent]);
             logger.info(
               {
                 stepName: step.name,
@@ -155,6 +153,9 @@ export class SagaExecutionEngine {
             );
             return;
           } else {
+            // Persist the step-failed event atomically with the result, then
+            // record the saga-failed transition as its own state change.
+            await this.persistSagaInstance(instance, [stepEvent]);
             await this.failSaga(instance, stepResult.error || "Step execution failed");
             return;
           }
@@ -164,7 +165,7 @@ export class SagaExecutionEngine {
         instance.currentStep++;
         instance.retryCount = 0;
         delete instance.nextRetryAt;
-        await this.persistSagaInstance(instance);
+        await this.persistSagaInstance(instance, [stepEvent]);
 
         if (step.id === "wait-publishing-completion") {
           logger.info({ stepName: step.name }, "Saga waiting for external events");
@@ -234,7 +235,6 @@ export class SagaExecutionEngine {
 
     instance.status = "COMPENSATED";
     instance.completedAt = new Date();
-    await this.persistSagaInstance(instance);
 
     const compensationCompletedEvent = createDomainEvent(
       SAGA_EVENTS.SAGA_COMPENSATION_COMPLETED,
@@ -253,7 +253,7 @@ export class SagaExecutionEngine {
       }
     );
 
-    await this.config.eventService.publishEvent(compensationCompletedEvent);
+    await this.persistSagaInstance(instance, [compensationCompletedEvent]);
 
     this.lifecycle.metrics.sagasCompensated++;
     this.lifecycle.metrics.activeInstances--;
@@ -272,7 +272,6 @@ export class SagaExecutionEngine {
 
     instance.status = "COMPLETED";
     instance.completedAt = completedAt;
-    await this.persistSagaInstance(instance);
 
     const sagaCompletedEvent = createDomainEvent(
       SAGA_EVENTS.SAGA_COMPLETED,
@@ -294,7 +293,7 @@ export class SagaExecutionEngine {
       }
     );
 
-    await this.config.eventService.publishEvent(sagaCompletedEvent);
+    await this.persistSagaInstance(instance, [sagaCompletedEvent]);
 
     this.lifecycle.metrics.sagasCompleted++;
     this.lifecycle.metrics.activeInstances--;
@@ -321,7 +320,6 @@ export class SagaExecutionEngine {
     instance.status = "FAILED";
     instance.completedAt = completedAt;
     instance.error = error;
-    await this.persistSagaInstance(instance);
 
     const sagaFailedEvent = createDomainEvent(
       SAGA_EVENTS.SAGA_FAILED,
@@ -344,7 +342,7 @@ export class SagaExecutionEngine {
       }
     );
 
-    await this.config.eventService.publishEvent(sagaFailedEvent);
+    await this.persistSagaInstance(instance, [sagaFailedEvent]);
 
     this.lifecycle.metrics.sagasFailed++;
     this.lifecycle.metrics.activeInstances--;
@@ -399,7 +397,7 @@ export class SagaExecutionEngine {
    *
    * @param instance - The saga instance to persist
    */
-  async persistSagaInstance(instance: SagaInstance): Promise<void> {
+  async persistSagaInstance(instance: SagaInstance, events: DomainEvent[] = []): Promise<void> {
     const key = `saga:${instance.id}`;
     const serialized = JSON.stringify({
       ...instance,
@@ -413,58 +411,75 @@ export class SagaExecutionEngine {
     const stepResultsJson = JSON.parse(JSON.stringify(instance.stepResults));
     const compensationResultsJson = JSON.parse(JSON.stringify(instance.compensationResults));
 
-    // Update path explicitly null-clears nextRetryAt when the in-memory
-    // value is undefined so a successful step (or saga completion) wipes the
-    // pending retry marker. The create path can simply omit it (column is
-    // nullable).
-    const postgresWrite = this.config.prisma.sagaInstance
-      .upsert({
-        where: { id: instance.id },
-        create: {
-          id: instance.id,
-          definitionId: instance.definitionId,
-          status: instance.status,
-          currentStep: instance.currentStep,
-          context: contextJson,
-          stepResults: stepResultsJson,
-          compensationResults: compensationResultsJson,
-          retryCount: instance.retryCount,
-          startedAt: instance.startedAt,
-          ...(instance.error !== undefined && { error: instance.error }),
-          ...(instance.context.userId && { accountId: instance.context.userId }),
-          ...(instance.completedAt && { completedAt: instance.completedAt }),
-          ...(instance.nextRetryAt && { nextRetryAt: instance.nextRetryAt }),
-        },
-        update: {
-          definitionId: instance.definitionId,
-          status: instance.status,
-          currentStep: instance.currentStep,
-          context: contextJson,
-          stepResults: stepResultsJson,
-          compensationResults: compensationResultsJson,
-          retryCount: instance.retryCount,
-          startedAt: instance.startedAt,
-          ...(instance.error !== undefined && { error: instance.error }),
-          ...(instance.context.userId && { accountId: instance.context.userId }),
-          ...(instance.completedAt && { completedAt: instance.completedAt }),
-          nextRetryAt: instance.nextRetryAt ?? null,
-        },
-      })
-      .catch((err: unknown) => {
-        logger.error({ err, sagaId: instance.id }, "Failed to persist saga to PostgreSQL");
-        throw err;
-      });
+    // Atomicity gate: saga state + durable event log commit together. Without
+    // the wrapping $transaction, a Postgres lag between sagaInstance.upsert
+    // and eventStore.append could leave the saga advanced but its audit
+    // event missing — OWASP A09 (Logging Failures) gap. Update path explicitly
+    // null-clears nextRetryAt when the in-memory value is undefined so a
+    // successful step (or saga completion) wipes the pending retry marker.
+    try {
+      await this.config.prisma.$transaction(async (tx) => {
+        await tx.sagaInstance.upsert({
+          where: { id: instance.id },
+          create: {
+            id: instance.id,
+            definitionId: instance.definitionId,
+            status: instance.status,
+            currentStep: instance.currentStep,
+            context: contextJson,
+            stepResults: stepResultsJson,
+            compensationResults: compensationResultsJson,
+            retryCount: instance.retryCount,
+            startedAt: instance.startedAt,
+            ...(instance.error !== undefined && { error: instance.error }),
+            ...(instance.context.userId && { accountId: instance.context.userId }),
+            ...(instance.completedAt && { completedAt: instance.completedAt }),
+            ...(instance.nextRetryAt && { nextRetryAt: instance.nextRetryAt }),
+          },
+          update: {
+            definitionId: instance.definitionId,
+            status: instance.status,
+            currentStep: instance.currentStep,
+            context: contextJson,
+            stepResults: stepResultsJson,
+            compensationResults: compensationResultsJson,
+            retryCount: instance.retryCount,
+            startedAt: instance.startedAt,
+            ...(instance.error !== undefined && { error: instance.error }),
+            ...(instance.context.userId && { accountId: instance.context.userId }),
+            ...(instance.completedAt && { completedAt: instance.completedAt }),
+            nextRetryAt: instance.nextRetryAt ?? null,
+          },
+        });
 
-    const redisWrite = this.config.redis
+        for (const event of events) {
+          await this.config.eventService.appendEventInTx(tx, event);
+        }
+      });
+    } catch (err: unknown) {
+      logger.error({ err, sagaId: instance.id }, "Failed to persist saga to PostgreSQL");
+      throw err;
+    }
+
+    // Best-effort post-commit work — Redis cache + pub/sub broadcast. Failures
+    // here do NOT roll back the durable state: the saga has advanced and the
+    // event is in the EventStore.
+    this.config.redis
       .setex(key, SagaExecutionEngine.REDIS_TTL_SECONDS, serialized)
-      .catch((err: unknown) => {
-        logger.warn({ err, sagaId: instance.id }, "Failed to cache saga in Redis (non-fatal)");
+      .catch((cacheErr: unknown) => {
+        logger.warn(
+          { err: cacheErr, sagaId: instance.id },
+          "Failed to cache saga in Redis (non-fatal)"
+        );
       });
 
-    const [pgResult] = await Promise.allSettled([postgresWrite, redisWrite]);
-
-    if (pgResult.status === "rejected") {
-      throw pgResult.reason;
+    for (const event of events) {
+      this.config.eventService.broadcastEvent(event).catch((broadcastErr: unknown) => {
+        logger.warn(
+          { err: broadcastErr, eventType: event.type, sagaId: instance.id },
+          "Failed to broadcast saga event (non-fatal)"
+        );
+      });
     }
   }
 
