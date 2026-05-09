@@ -14,6 +14,9 @@ import { requireAdminAuth, rateLimit } from "./adminAuthMiddleware";
 import { requirePermission } from "../../auth/rbacMiddleware.js";
 import { Permission } from "../../auth/rbacService.js";
 import { TOKENS } from "../../infrastructure/container/types.js";
+import type { EmailPort } from "../../domain/repositories/EmailPort.js";
+import { passwordResetEmail } from "../../application/notifications/emailTemplates.js";
+import { prisma } from "@infra/prisma";
 import {
   loginSchema,
   refreshTokenSchema,
@@ -38,7 +41,8 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
 
   constructor(
     private readonly adminAuthService: AdminAuthService,
-    private readonly credentialService: PlatformCredentialService
+    private readonly credentialService: PlatformCredentialService,
+    private readonly emailPort: EmailPort
   ) {
     super();
   }
@@ -92,11 +96,20 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
     );
 
     if (!result.ok) {
+      // MFA_REQUIRED is a negotiation step, not an authentication failure
+      // — the credentials were valid, the second factor is just missing.
+      // Returning success-shape (`{ ok: true, data: { requiresMfa: true } }`)
+      // matches the frontend `authenticateAdmin` contract (it checks
+      // `data.data?.requiresMfa`); returning error-shape would route the
+      // flow into the generic error path and break MFA login entirely.
+      // Ref: F.7 Auth audit, finding #4.
+      if (result.error === "MFA_REQUIRED") {
+        return this.sendSuccess(ctx, { requiresMfa: true });
+      }
       const statusMap: Record<string, number> = {
         INVALID_CREDENTIALS: 401,
         ACCOUNT_LOCKED: 403,
         ACCOUNT_INACTIVE: 403,
-        MFA_REQUIRED: 200,
         MFA_INVALID: 401,
       };
       const status = statusMap[result.error] || 500;
@@ -232,14 +245,51 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
     const { email } = validation.data;
     const result = await this.adminAuthService.initiatePasswordReset(email);
 
-    // Always return success to prevent email enumeration
-    // The service handles the logic internally
+    // Always return success to prevent email enumeration. The service
+    // returns a placeholder token when the email is unknown — guard against
+    // sending email in that case so we don't accidentally leak existence.
     if (!result.ok) {
-      // Log error but still return success message
       this.logError(ctx, "Password reset initiation failed", { error: result.error });
+    } else if (result.value !== "reset_token_placeholder") {
+      // Real reset token issued — fire the email. Same wire-up as the
+      // admin-initiated reset flow in adminUserRoutes.ts (single source of
+      // truth: passwordResetEmail template + EmailPort + adminUrl from
+      // PlatformCredentialService). Ref: F.7 Auth audit, finding #5.
+      const resetToken = result.value;
+      const userRow = await prisma.adminUser.findUnique({
+        where: { email: email.toLowerCase() },
+        select: { name: true, email: true },
+      });
+
+      if (userRow) {
+        const adminUrlResult = await this.credentialService.getCredential("PLATFORM", "adminUrl");
+        const adminUrl = (adminUrlResult.ok && adminUrlResult.value) || "http://localhost:3100";
+        const resetUrl = `${adminUrl}/reset-password?token=${resetToken}`;
+
+        try {
+          const emailContent = await passwordResetEmail({
+            userName: userRow.name,
+            resetUrl,
+          });
+          const emailResult = await this.emailPort.send({
+            to: [userRow.email],
+            subject: emailContent.subject,
+            body: `Password reset requested. Visit: ${resetUrl}`,
+            html: emailContent.html,
+          });
+          if (!emailResult.ok) {
+            this.logError(ctx, "Password reset email delivery failed", {
+              err: emailResult.error,
+            });
+          }
+        } catch (err) {
+          this.logError(ctx, "Password reset email render/send failed", {
+            err: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
     }
 
-    // Future: integrate email service to send reset link with token
     return this.sendSuccess(ctx, {
       message: "If the email exists, a password reset link has been sent.",
     });
@@ -502,7 +552,8 @@ const adminAuthRoutes: FastifyPluginAsync = async (fastify) => {
   }
   const adminAuthSvc = container.resolve<AdminAuthService>(TOKENS.AdminAuthService);
   const credSvc = container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService);
-  const handler = new AdminAuthRouteHandler(adminAuthSvc, credSvc);
+  const emailPort = container.resolve<EmailPort>(TOKENS.EmailPort);
+  const handler = new AdminAuthRouteHandler(adminAuthSvc, credSvc, emailPort);
 
   // ==========================================================================
   // Public Endpoints (No Authentication Required)
