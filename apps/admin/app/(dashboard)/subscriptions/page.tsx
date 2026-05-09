@@ -8,15 +8,22 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Download, RefreshCw, Search } from "lucide-react";
+import { AlertTriangle, Download, PlayCircle, RefreshCw, Search } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { toast } from "@packages/ui";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  toast,
+} from "@packages/ui";
 
-import { ApiError, isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
+import { ApiError, isPermissionDenied, getErrorMessage } from "@packages/api-errors";
 import { AccessDenied } from "@/components/shared/AccessDenied";
 import { useSubscriptions } from "@/hooks/api/useSubscriptions";
-import { useEndTrial, useConvertTrial } from "@/hooks/api/useSubscriptionMutations";
+import { useEndTrial, useConvertTrial, useStartTrial } from "@/hooks/api/useSubscriptionMutations";
 import { useBillingStats } from "@/hooks/api/useBillingStats";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { UsageMetricsPanel } from "@/components/settings/UsageMetricsPanel";
@@ -66,7 +73,11 @@ function SubscriptionsPageContent() {
   const queryClient = useQueryClient();
   const endTrialMutation = useEndTrial();
   const convertTrialMutation = useConvertTrial();
+  const startTrialMutation = useStartTrial();
   const [renewalProcessing, setRenewalProcessing] = useState(false);
+  const [showStartTrial, setShowStartTrial] = useState(false);
+  const [startTrialAccountId, setStartTrialAccountId] = useState("");
+  const [startTrialDays, setStartTrialDays] = useState<number>(14);
 
   const handleEndTrial = useCallback(
     (accountId: string) => {
@@ -89,6 +100,44 @@ function SubscriptionsPageContent() {
     },
     [endTrialMutation, ts, refetch]
   );
+
+  const handleStartTrial = useCallback(() => {
+    const accountId = startTrialAccountId.trim();
+    if (!accountId) {
+      toast({
+        title: ts("startTrialMissingAccountId"),
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!Number.isFinite(startTrialDays) || startTrialDays < 1) {
+      toast({
+        title: ts("startTrialInvalidDays"),
+        variant: "destructive",
+      });
+      return;
+    }
+    startTrialMutation.mutate(
+      { accountId, trialDays: startTrialDays },
+      {
+        onSuccess: () => {
+          toast({ title: ts("startTrialSuccess") });
+          setShowStartTrial(false);
+          setStartTrialAccountId("");
+          setStartTrialDays(14);
+          refetch();
+          queryClient.invalidateQueries({ queryKey: ["accounts"] });
+        },
+        onError: (e) => {
+          toast({
+            title: ts("startTrialError"),
+            description: getErrorMessage(e),
+            variant: "destructive",
+          });
+        },
+      }
+    );
+  }, [startTrialAccountId, startTrialDays, startTrialMutation, ts, refetch, queryClient]);
 
   const handleConvertTrial = useCallback(
     (accountId: string) => {
@@ -302,6 +351,10 @@ function SubscriptionsPageContent() {
         title={t("subscriptions")}
         actions={
           <div className="flex gap-2">
+            <ActionButton variant="primary" size="sm" onClick={() => setShowStartTrial(true)}>
+              <PlayCircle className="h-3.5 w-3.5" />
+              {ts("startTrial")}
+            </ActionButton>
             <ActionButton
               variant="primary"
               size="sm"
@@ -622,6 +675,56 @@ function SubscriptionsPageContent() {
           </div>
         )}
       </div>
+
+      <Dialog open={showStartTrial} onOpenChange={setShowStartTrial}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{ts("startTrialTitle")}</DialogTitle>
+            <DialogDescription>{ts("startTrialDescription")}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <label className="grid gap-1 text-sm">
+              <span className="text-[var(--text-secondary)]">{ts("startTrialAccountIdLabel")}</span>
+              <input
+                type="text"
+                value={startTrialAccountId}
+                onChange={(e) => setStartTrialAccountId(e.target.value)}
+                placeholder="acc-uuid-..."
+                className="rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+              />
+            </label>
+            <label className="grid gap-1 text-sm">
+              <span className="text-[var(--text-secondary)]">{ts("startTrialDaysLabel")}</span>
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={startTrialDays}
+                onChange={(e) => setStartTrialDays(Number.parseInt(e.target.value, 10) || 0)}
+                className="rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+              />
+            </label>
+          </div>
+          <div className="flex justify-end gap-2">
+            <ActionButton
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowStartTrial(false)}
+              disabled={startTrialMutation.isPending}
+            >
+              {tc("cancel")}
+            </ActionButton>
+            <ActionButton
+              variant="primary"
+              size="sm"
+              onClick={handleStartTrial}
+              loading={startTrialMutation.isPending}
+            >
+              {ts("startTrial")}
+            </ActionButton>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

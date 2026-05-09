@@ -356,7 +356,16 @@
     "autoRenewProcessedWithFailed": "{processed} account(s) converted to paid, {failed} failed",
     "noEligibleRenewals": "No accounts eligible for auto-renewal",
     "autoRenewError": "Failed to process auto-renewals",
-    "actions": "Actions"
+    "actions": "Actions",
+    "startTrial": "Start Trial",
+    "startTrialTitle": "Start Trial",
+    "startTrialDescription": "Grant a manual trial period to an account. Useful for sales/support overrides or re-engaging accounts whose trial expired.",
+    "startTrialAccountIdLabel": "Account ID",
+    "startTrialDaysLabel": "Trial duration (days)",
+    "startTrialSuccess": "Trial started successfully",
+    "startTrialError": "Failed to start trial",
+    "startTrialMissingAccountId": "Account ID is required",
+    "startTrialInvalidDays": "Trial duration must be at least 1 day"
   },
   "changePlan": {
     "title": "Edit Plan",
@@ -706,7 +715,7 @@
       "autoDelete": "Auto-delete expired data",
       "autoDeleteWarning": "Enabling this permanently deletes data on schedule",
       "dsarResponseDays": "DSAR Response Deadline (days)",
-      "dsarResponseHelper": "15 = Brazil/LGPD \u00b7 30 = GDPR \u00b7 45 = US/CCPA",
+      "dsarResponseHelper": "15 = Brazil/LGPD · 30 = GDPR · 45 = US/CCPA",
       "defaultJurisdiction": "Default Jurisdiction",
       "enableErasure": "Right to Erasure",
       "enableExport": "Data Export",
@@ -1221,7 +1230,10 @@
           "term": "Account",
           "definition": "A tenant organization that owns projects and subscribes to a plan"
         },
-        { "term": "Utilization", "definition": "Percentage of allowed projects currently in use" }
+        {
+          "term": "Utilization",
+          "definition": "Percentage of allowed projects currently in use"
+        }
       ]
     },
     "subscriptions": {
@@ -1619,7 +1631,14 @@
       "saveSuccess": "Credentials saved successfully",
       "saveError": "Failed to save credentials",
       "notConfigured": "Not configured",
-      "enterNewValue": "Enter new value to update"
+      "enterNewValue": "Enter new value to update",
+      "deleteCredentialTitle": "Delete credential",
+      "deleteCredentialDescription": "This will permanently remove the credential value for `{key}` from the platform. New requests using this credential will fail until a replacement is configured. This cannot be undone.",
+      "deleteCredentialConfirm": "Delete credential",
+      "deleteCredentialSuccess": "Credential removed",
+      "deleteCredentialError": "Failed to remove credential",
+      "deleteCredentialTooltip": "Remove this credential",
+      "deleteCredentialAriaLabel": "Remove credential {key}"
     },
     "security": {
       "title": "Encryption Key Management",
