@@ -171,7 +171,13 @@ function AccountsPageContent() {
   const handleBulkAction = useCallback(
     async (action: "suspend" | "activate" | "export") => {
       if (action === "export") {
-        exportAccountsToCSV(accounts, selectedAccounts);
+        try {
+          await exportAccountsToCSV(selectedAccounts);
+        } catch (e) {
+          // Surface failure as an alert; the export endpoint either returns
+          // CSV (success) or a JSON error envelope on auth/validation issues.
+          alert(e instanceof Error ? e.message : "Failed to export accounts");
+        }
         setSelectedAccounts(new Set());
         setShowActions(false);
         return;

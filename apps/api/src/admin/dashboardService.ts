@@ -92,6 +92,70 @@ export class DashboardService extends BaseService {
   }
 
   /**
+   * @method mapAccountToSummary
+   * @description Shape an Account row (with projects + accountSubscription includes)
+   *   into the AccountSummary DTO consumed by the admin accounts UI and CSV export.
+   */
+  private mapAccountToSummary(
+    account: Awaited<ReturnType<typeof prisma.account.findMany>>[number] & {
+      projects: unknown[];
+      accountSubscription: {
+        bundle: { name: string } | null;
+        maxProjects: number;
+        status: string;
+        providers: unknown[];
+        pricePerMonth: unknown;
+        bundleId: string | null;
+      } | null;
+    },
+    now: Date
+  ) {
+    const trialExpired = account.trialEndDate ? now > account.trialEndDate : false;
+    const trialDaysRemaining = account.trialEndDate
+      ? Math.max(
+          0,
+          Math.ceil((account.trialEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+        )
+      : 0;
+
+    const sub = account.accountSubscription;
+    const maxProjects = sub?.maxProjects ?? account.maxProjects;
+
+    return {
+      id: account.id,
+      email: account.email,
+      name: account.name,
+      isActive: account.isActive,
+      createdAt: account.createdAt.toISOString(),
+      ...(account.phone && { phone: account.phone }),
+      plan: {
+        type: sub?.bundleId
+          ? ("bundle" as const)
+          : sub?.providers?.length
+            ? ("custom" as const)
+            : ("none" as const),
+        name: sub?.bundle?.name ?? (sub?.providers?.length ? "Custom" : "No Plan"),
+        status: sub?.status ?? "NONE",
+        providers: sub?.providers?.map(String) ?? [],
+        pricePerMonth: sub ? Number(sub.pricePerMonth) : 0,
+      },
+      trial: {
+        isOnTrial: account.isOnTrial,
+        trialDaysRemaining,
+        trialExpired,
+        ...(account.trialEndDate && { trialEndDate: account.trialEndDate.toISOString() }),
+        autoRenewal: account.autoRenewal,
+      },
+      usage: {
+        projectsUsed: account.projects.length,
+        projectsRemaining: Math.max(0, maxProjects - account.projects.length),
+        utilizationPercent:
+          maxProjects > 0 ? Math.round((account.projects.length / maxProjects) * 100) : 0,
+      },
+    };
+  }
+
+  /**
    * Get accounts summary with usage details
    */
   async getAccountsSummary() {
@@ -106,56 +170,37 @@ export class DashboardService extends BaseService {
       });
 
       const now = new Date();
-      const accountSummaries = accounts.map((account) => {
-        const trialExpired = account.trialEndDate ? now > account.trialEndDate : false;
-        const trialDaysRemaining = account.trialEndDate
-          ? Math.max(
-              0,
-              Math.ceil((account.trialEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-            )
-          : 0;
-
-        const sub = account.accountSubscription;
-        const maxProjects = sub?.maxProjects ?? account.maxProjects;
-
-        return {
-          id: account.id,
-          email: account.email,
-          name: account.name,
-          isActive: account.isActive,
-          createdAt: account.createdAt.toISOString(),
-          ...(account.phone && { phone: account.phone }),
-          plan: {
-            type: sub?.bundleId
-              ? ("bundle" as const)
-              : sub?.providers?.length
-                ? ("custom" as const)
-                : ("none" as const),
-            name: sub?.bundle?.name ?? (sub?.providers?.length ? "Custom" : "No Plan"),
-            status: sub?.status ?? "NONE",
-            providers: sub?.providers?.map(String) ?? [],
-            pricePerMonth: sub ? Number(sub.pricePerMonth) : 0,
-          },
-          trial: {
-            isOnTrial: account.isOnTrial,
-            trialDaysRemaining,
-            trialExpired,
-            ...(account.trialEndDate && { trialEndDate: account.trialEndDate.toISOString() }),
-            autoRenewal: account.autoRenewal,
-          },
-          usage: {
-            projectsUsed: account.projects.length,
-            projectsRemaining: Math.max(0, maxProjects - account.projects.length),
-            utilizationPercent:
-              maxProjects > 0 ? Math.round((account.projects.length / maxProjects) * 100) : 0,
-          },
-        };
-      });
+      const accountSummaries = accounts.map((account) => this.mapAccountToSummary(account, now));
 
       return {
         accounts: accountSummaries,
         total: accountSummaries.length,
       };
+    });
+  }
+
+  /**
+   * @method getAccountsForExport
+   * @description Returns full AccountSummary rows for CSV export. When `ids` is
+   *   provided, scope to those accounts; otherwise return up to 1000 most-recent
+   *   accounts (export ceiling — large exports should be paginated server-side
+   *   in a future iteration). Mirrors the pattern of subscription/audit exports
+   *   that route through the `exportToCSV` utility in `@packages/api-common`.
+   */
+  async getAccountsForExport(ids?: string[]) {
+    return this.execute({ operation: "getAccountsForExport" }, async () => {
+      const accounts = await prisma.account.findMany({
+        where: ids && ids.length > 0 ? { id: { in: ids } } : {},
+        include: {
+          projects: true,
+          accountSubscription: { include: { bundle: true } },
+        },
+        take: 1000,
+        orderBy: { createdAt: "desc" },
+      });
+
+      const now = new Date();
+      return accounts.map((account) => this.mapAccountToSummary(account, now));
     });
   }
 

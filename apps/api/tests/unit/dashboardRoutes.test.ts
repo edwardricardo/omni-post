@@ -266,6 +266,48 @@ describe("dashboardRoutes Unit Tests", () => {
     });
   });
 
+  describe("GET /admin/accounts/export", () => {
+    it("should return CSV with proper Content-Type as admin", async () => {
+      const response = await app.inject({
+        method: "GET",
+        url: "/admin/accounts/export?format=csv",
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["content-type"]).toMatch(/text\/csv/);
+      expect(response.headers["content-disposition"]).toMatch(/attachment; filename="accounts-/);
+    });
+
+    it("should include the canonical CSV header row", async () => {
+      const response = await app.inject({
+        method: "GET",
+        url: "/admin/accounts/export?format=csv",
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect(response.statusCode).toBe(200);
+      const firstLine = response.body.split(/\r?\n/)[0];
+      expect(firstLine).toBe("ID,Email,Name,Plan,Status,Created At");
+    });
+
+    it("should accept comma-separated ids filter", async () => {
+      const response = await app.inject({
+        method: "GET",
+        url: "/admin/accounts/export?format=csv&ids=acc-1,acc-2",
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["content-type"]).toMatch(/text\/csv/);
+    });
+
+    it("should reject without authentication", async () => {
+      const response = await app.inject({
+        method: "GET",
+        url: "/admin/accounts/export?format=csv",
+      });
+      expect(response.statusCode).toBe(401);
+    });
+  });
+
   describe("GET /admin/subscriptions/summary", () => {
     it("should get subscriptions summary as admin", async () => {
       const response = await app.inject({
