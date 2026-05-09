@@ -142,7 +142,11 @@ async function start() {
   );
 
   // Enhanced metrics and health endpoint
-  const metricsPort = Number(process.env.METRICS_PORT ?? 9100);
+  // Port 3300 is the canonical OmniPost worker metrics port: outside
+  // Prometheus's reserved 9090–9999 exporter range (9090=server, 9091=pushgateway,
+  // 9100=node_exporter), so it never collides with the prometheus container or a
+  // host-side node_exporter. See `prometheus/prometheus.yml` workers job.
+  const metricsPort = Number(process.env.METRICS_PORT ?? 3300);
   http
     .createServer(async (req, res) => {
       if (req.url === "/metrics") {

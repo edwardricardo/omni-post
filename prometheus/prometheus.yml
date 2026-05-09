@@ -41,20 +41,21 @@ scrape_configs:
         target_label: instance
         replacement: "api-server"
 
-  # Workers metrics (not yet available - workers don't expose a metrics endpoint)
-  # Uncomment when a metrics server is added to the workers process
-  # - job_name: "workers"
-  #   scrape_interval: 15s
-  #   metrics_path: "/metrics"
-  #   static_configs:
-  #     - targets: ["host.docker.internal:3300"]
-  #       labels:
-  #         service: "workers"
-  #         component: "bullmq"
-  #   relabel_configs:
-  #     - source_labels: [__address__]
-  #       target_label: instance
-  #       replacement: "workers"
+  # Workers metrics — publishWorker exposes /metrics on port 3300.
+  # 3300 is outside Prometheus's reserved 9090–9999 exporter range so it
+  # avoids collisions with this container (9090) and node_exporter (9100).
+  - job_name: "workers"
+    scrape_interval: 15s
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["host.docker.internal:3300"]
+        labels:
+          service: "workers"
+          component: "bullmq"
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: "workers"
 
   # PostgreSQL exporter (optional - can be added later)
   # - job_name: 'postgres'
