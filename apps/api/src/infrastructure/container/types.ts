@@ -350,6 +350,7 @@ export const TOKENS = {
   SubscribeIntegrationTriggerUseCase: Symbol.for("SubscribeIntegrationTriggerUseCase"),
   UnsubscribeIntegrationTriggerUseCase: Symbol.for("UnsubscribeIntegrationTriggerUseCase"),
   TriggerIntegrationEventService: Symbol.for("TriggerIntegrationEventService"),
+  IntegrationEventDeliveryHandler: Symbol.for("IntegrationEventDeliveryHandler"),
 
   // Task Assignment
   TaskRepository: Symbol.for("TaskRepository"),

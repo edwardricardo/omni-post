@@ -78,6 +78,11 @@ import { setupContainer } from "./infrastructure/container/setup.js";
 import { TOKENS } from "./infrastructure/container/types.js";
 import type { OutboxRelay } from "./infrastructure/outbox/OutboxRelay.js";
 import type { OutboxCleaner } from "./infrastructure/outbox/OutboxCleaner.js";
+import type { EventDispatcher } from "./domain/events/DomainEvent.js";
+import {
+  IntegrationEventDeliveryHandler,
+  HANDLED_EVENT_TYPES as INTEGRATION_HANDLED_EVENT_TYPES,
+} from "./integrations/IntegrationEventDeliveryHandler.js";
 import { crisisRoutes } from "./projects/crisisRoutes.js";
 import { linkRoutes } from "./links/linkRoutes.js";
 import { teamRoutes } from "./team/teamRoutes.js";
@@ -662,6 +667,18 @@ async function start() {
     // and outbox cleaner (removes old published events hourly)
     const outboxRelay = app.container!.resolve<OutboxRelay>(TOKENS.OutboxRelay);
     const outboxCleaner = app.container!.resolve<OutboxCleaner>(TOKENS.OutboxCleaner);
+
+    // Bridge: outbox-dispatched domain events → customer integration delivery
+    // (Zapier/Make/Slack/Salesforce via IntegrationSubscription.targetUrl).
+    // Without this wire the relay claims and silently discards every event.
+    const integrationDeliveryHandler = app.container!.resolve<IntegrationEventDeliveryHandler>(
+      TOKENS.IntegrationEventDeliveryHandler
+    );
+    const eventDispatcher = app.container!.resolve<EventDispatcher>(TOKENS.EventDispatcher);
+    for (const eventType of INTEGRATION_HANDLED_EVENT_TYPES) {
+      eventDispatcher.register(eventType, integrationDeliveryHandler);
+    }
+
     outboxRelay.start();
     outboxCleaner.start();
 

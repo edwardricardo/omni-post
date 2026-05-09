@@ -3272,6 +3272,104 @@ Re-evaluar si:
 
 ---
 
+### PR-59 — Outbox + Integration delivery audit completo (Slack/Salesforce/Zapier outbound)
+
+**Surfaced.** 2026-05-09 durante saga Phase 3c. Edward identificó que el outbox infrastructure existe sin consumer wireado.
+
+**Batch de origen:** F.1 Publishing saga migration (out-of-scope discovery)
+**SLA category:** **HIGH** (Edward marcó como urgente)
+**Needs Edward:** true (varias decisiones de producto)
+**Tipo:** audit + decisiones de producto + implementación cross-aggregate
+
+**Síntoma observado.** Durante Phase 3c se descubrió que el sistema de outbound integrations (Zapier REST Hooks, Slack/Salesforce/etc. via `IntegrationSubscription`) está **construido al 90% pero le falta UN handler intermedio**. PR-A (separate immediate work) cierra ese handler para Post events, pero NO cubre el audit completo del sistema.
+
+**Cadena confirmada (por código):**
+
+```text
+Aggregate.addDomainEvent(...)
+  → Repo.outboxWriter.writeEvents(tx, events)         ✅ wired (only PrismaPostRepository)
+  → OutboxRelay claim + dispatch                       ✅ wired (relay running)
+  → EventDispatcher (InMemoryEventDispatcher)          ✅ wired
+  → [HANDLERS]                                         ⚠️ ZERO handlers registered
+       ↓
+       Por el lado outbound:
+  → TriggerIntegrationEventService.fire(event, payload)  ✅ existe en DI, jamás invocado
+  → POST a IntegrationSubscription.targetUrl             ✅ código existe
+       (Zapier/Slack/Salesforce/Make/HubSpot integrations)
+```
+
+**Lo que FUNCIONA hoy (verificado):**
+
+- Integration API keys CRUD (`/zapier/keys` endpoints)
+- Subscription CRUD (`POST /zapier/subscribe { event, targetUrl }`)
+- Customer-initiated actions (`POST /zapier/actions/create-draft|schedule-post`)
+- Polling triggers (`GET /zapier/triggers/posts-published` last 25 posts)
+- Outbox producer side: `PrismaPostRepository` escribe events transaccionalmente
+- Outbox infra: relay con SKIP LOCKED + DLQ + full-jitter backoff (T4-C 2026-04-30)
+
+**Lo que NO funciona hoy:**
+
+- **Push delivery a customer integrations**: el cliente subscribe a "post.published" pero NUNCA recibe nada. Su Zap nunca se dispara automáticamente. Solo funciona el polling workaround.
+- **Cross-aggregate reactions**: PostPublished no actualiza Project.lastPublishedAt o Account.totalPublished (esos campos tampoco existen aún).
+
+**PR-A (immediate, separate commit):** Wire `IntegrationEventDeliveryHandler` que registra al `EventDispatcher` para events Post.\* → llama `TriggerIntegrationEventService.fire(eventName, payload)`. Cierra el push delivery hole para Post.
+
+**Scope de ESTA entry (PR-59):** auditar el resto del sistema. Pendientes a confirmar/decidir:
+
+1. **¿Qué OTROS aggregates deben emitir events que el cliente quiera consumir vía integration?** Candidatos a auditar:
+   - `Channel`: ChannelConnected, ChannelDisconnected, ChannelReauthRequired, ChannelDeleted
+   - `Account`: AccountSuspended, AccountSubscriptionChanged, AccountUsageThresholdReached
+   - `Project`: ProjectArchived, ProjectQuotaExceeded
+   - `Campaign`: CampaignStarted, CampaignCompleted, CampaignFailed
+   - `Approval`: ApprovalRequested, ApprovalGranted, ApprovalRejected
+   - `Comment`: CommentReceived (mention, DM)
+   - `MediaAsset`: MediaUploaded, MediaProcessed
+   - **Acción**: por cada aggregate, decidir si tiene events relevantes para customer integrations + wire `outboxWriter` en su repo + agregar al mapping de integration events.
+
+2. **Inspección de los 3 modelos webhook adicionales** (claim del audit doc `BILLING_COMPLIANCE_WEBHOOKS_DLQ_AUDIT.md` — verificar que sea cierto):
+
+   | Modelo                | Claim                                                                          | A verificar                                                                          |
+   | --------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+   | `WebhookEvent`        | "Full event lifecycle tracking"                                                | ¿Se inserta? ¿Se actualiza por status? ¿Tiene índices p95-friendly?                  |
+   | `WebhookSubscription` | "Per-account webhook endpoint subscriptions" (CONFIRMADO INBOUND, no outbound) | ¿Está en uso real para inbound webhooks de los 8 providers? ¿HMAC rotation funciona? |
+   | `WebhookDeadLetter`   | "Failed events that exhausted retries"                                         | ¿Hay path real que escriba aquí? ¿Admin UI lee correctamente?                        |
+
+3. **`realtimeWebhookBroadcaster.ts`** (WebSocket + Redis pub/sub a dashboards): ¿está activo? ¿qué dashboard lo consume? ¿tiene auth correcta?
+
+4. **`outboxAdminRoutes.ts`** + admin UI `DeadLetterQueue.tsx`: validar end-to-end que admin puede ver + retry + resolve dead-letters. El audit doc menciona BUG: `POST /api/webhooks/dashboard/dead-letter/retry-all` returns 404 (frontend llama, backend no implementa).
+
+5. **Mapping `eventType class → integration event string`**: hoy `IntegrationSubscription.event` es free-form (`z.string().min(1)`). Necesita un catálogo canónico de event names que el cliente puede subscribirse (`post.published`, `post.failed`, `channel.disconnected`, etc.) + documentación pública.
+
+6. **Provider Slack/Salesforce/Make/HubSpot**: ¿hay algún código provider-específico (auth flow, payload shape per platform), o es uniforme via Zapier? Mirar `IntegrationPlatform` enum + ver si todos los providers usan el mismo path `/zapier/*` o tienen routes propias.
+
+7. **Quality**: Wire-up tests (each Post event → integration delivery), DLQ visibility, customer-facing docs ("How to subscribe to OmniPost events from Zapier/Make").
+
+8. **Frontend cliente — gap completo de UI para gestión de API keys**:
+
+   Verificado en código (2026-05-09): el cliente NO puede generar/listar/revocar Zapier API keys desde el dashboard. Backend tiene los 3 endpoints (`POST /zapier/keys`, `GET /zapier/keys`, `DELETE /zapier/keys/:id`) con `requireClientAuth`, pero `/dashboard/settings/integrations` apunta a `ExternalNotificationConfigs` (Slack/Teams), que es un sistema distinto. El marketplace `/dashboard/integrations` muestra Zapier/Make/HubSpot/Salesforce como cards informativos, pero "Configure" lleva al lugar equivocado (mismatch en `apps/client/lib/integrations/registry.ts`).
+
+   **Faltante:**
+   - Página `/dashboard/settings/api-keys` (o similar) con UI de generar/listar/revocar API keys
+   - Flow "muéstrame la key UNA vez al crearla, copiar al portapapeles, después solo `keyPrefix`" (la key cleartext nunca se devuelve después de creación)
+   - Posiblemente: panel "Subscriptions activas" (requiere endpoint `GET /zapier/subscriptions` que no existe)
+   - Fix del routing: `INTEGRATIONS[id=zapier].settingsPath` debe apuntar al nuevo path correcto, no a `/settings/integrations` (Slack/Teams)
+
+   Sin esta UI el handler que se acaba de wirear (PR-A) no es accionable por el cliente — el feature backend está vivo pero el customer no tiene cómo conectar su Zap sin pasar por curl o admin support.
+
+9. **¿Decidir si EventStore es duplicado del outbox?** EventService.publishEvent escribe a EventStore + Redis pub/sub para events distintos (saga lifecycle, orchestration). Outbox escribe a OutboxEvent. Ambos durables. Decision pendiente: ¿uno reemplaza al otro? ¿coexisten por roles distintos? (Mi análisis previo: roles distintos — outbox = at-least-once cross-boundary, EventStore = audit log + in-process pub/sub fan-out. Pero merece review formal.)
+
+**Bloqueado por.** Decisiones de producto:
+
+- ¿Customer integrations es feature de pricing tier? ¿free vs paid?
+- ¿Qué events son public-API vs internal?
+- ¿Slack/Salesforce/Make/HubSpot tienen handler propio o todo va via Zapier-style generic webhook?
+
+**Estimación.** Auditar 8 puntos = ~3-5 días de research + ~1-2 semanas de implementación cross-aggregate. NO es scope de saga migration. Workstream propio.
+
+**Estado:** PENDING — Edward marcó como HIGH priority. Debe agendarse después de cerrar la cola actual de F.x audits (F.2-F.6) o antes según prioridad de producto.
+
+---
+
 **Visibilidad.** Este archivo se lee al comienzo de cada batch del roadmap para identificar si un fix paliativo vigente afecta al scope actual.
 
 **Cierre.** Un entry se marca como `REVIEWED` cuando Edward lo revisa al final del roadmap. Se marca como `FIXED` cuando el fix de raíz se aplicó. Se marca como `WONT_FIX` si Edward decide que el paliativo es suficiente a largo plazo (en cuyo caso la razón debe documentarse).
