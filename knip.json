@@ -27,7 +27,7 @@
     },
     "apps/admin": {
       "project": ["**/*.{ts,tsx}"],
-      "ignore": ["tests/**"],
+      "ignore": ["tests/**", "**/ui-safelist.ts", "**/useAuditStats.ts"],
       "ignoreDependencies": ["@vitest/coverage-v8"]
     },
     "apps/client": {
