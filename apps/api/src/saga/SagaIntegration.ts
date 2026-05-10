@@ -244,15 +244,20 @@ export class SagaIntegration {
 
         return jobId;
       },
-      // Job status checker
+      // Job status checker — reads real BullMQ state via the QueuePort. The
+      // event-driven flow (worker emits publish.job.completed/failed via
+      // Redis pub/sub) is the primary path; this poll is the fallback when
+      // the saga is resumed by the recovery scheduler instead of by an
+      // event. Without it, a worker crash between publish and event emit
+      // would silently mark posts as PUBLISHED that never published.
       async (jobIds: string[]) => {
-        // BullMQ job status checking is done via the worker's Redis pub/sub
-        // notifications rather than polling. Return current known state.
-        return {
-          completed: jobIds.length,
-          failed: 0,
-          pending: 0,
-        };
+        const result = await queue.getJobStates(jobIds);
+        if (!result.ok) {
+          // CONNECTION_ERROR — surface as all-pending so the step retries
+          // (canon retryable behavior) instead of fabricating success.
+          return { completed: 0, failed: 0, pending: jobIds.length };
+        }
+        return result.value;
       },
       // Reread implementation for the pivot step's RereadCheck countermeasure.
       // Confirms Post.status is still DRAFT immediately before enqueueing

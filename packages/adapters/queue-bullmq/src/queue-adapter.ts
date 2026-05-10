@@ -150,6 +150,32 @@ export function createBullMQQueueAdapter(options: BullMQQueueAdapterOptions): Bu
       }
     },
 
+    async getJobStates(jobIds) {
+      try {
+        const aggregate = { completed: 0, failed: 0, pending: 0 };
+        for (const jobId of jobIds) {
+          const job = await queue.getJob(jobId);
+          if (!job) {
+            // Missing — treat as failed so the saga cannot silently transition
+            // Post.status to PUBLISHED on a job that no longer exists.
+            aggregate.failed++;
+            continue;
+          }
+          const state = await job.getState();
+          if (state === "completed") aggregate.completed++;
+          else if (state === "failed") aggregate.failed++;
+          else aggregate.pending++; // waiting / active / delayed / unknown
+        }
+        return ok(aggregate);
+      } catch (error) {
+        logger.warn(
+          { err: error, queueName: options.queueName, jobCount: jobIds.length },
+          "Failed to read job states from BullMQ"
+        );
+        return err("CONNECTION_ERROR");
+      }
+    },
+
     async remove(jobId: string): Promise<Result<boolean, "CONNECTION_ERROR" | "NOT_FOUND">> {
       try {
         const result = (await withExponentialBackoff(() => removeBreaker.fire(jobId), {
