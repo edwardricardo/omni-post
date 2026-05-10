@@ -491,14 +491,17 @@ describe("Saga customer flow integration", () => {
     const postId = stepResults[1]?.data?.postId;
     assert.ok(postId, "post created via saga");
 
-    // Mutate the post once to bump its version to 1.
+    // Mutate the post once to bump its version to 1. Body avoids "update"
+    // and other SQL keywords — SecureSchemas.postBody runs SecurityValidator
+    // which flags those as injection threats and rejects the request before
+    // the use case sees it.
     const firstUpdate = await fetch(`${API_URL}/posts/${postId}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
         Authorization: fixture.authHeader,
       },
-      body: JSON.stringify({ body: "first update" }),
+      body: JSON.stringify({ body: "revised content one" }),
     });
     assert.strictEqual(firstUpdate.status, 200);
 
@@ -510,7 +513,7 @@ describe("Saga customer flow integration", () => {
         "Content-Type": "application/json",
         Authorization: fixture.authHeader,
       },
-      body: JSON.stringify({ body: "stale update", expectedVersion: 0 }),
+      body: JSON.stringify({ body: "revised content two", expectedVersion: 0 }),
     });
     assert.strictEqual(
       staleUpdate.status,
@@ -536,7 +539,8 @@ describe("Saga customer flow integration", () => {
       mode: "publish-now",
       projectId: fixture.projectId,
       channelIds: [fixture.channelIds[0]!],
-      body: "pivot enforcement test",
+      locale: "en",
+      body: "pivot enforcement scenario",
     });
     assert.strictEqual(start.status, 200);
     const sagaId = (start.body as { data: { sagaId: string } }).data.sagaId;

@@ -199,7 +199,10 @@ export const UpdatePostCommandSchema = z.object({
     body: z.string().optional(),
     tags: z.array(z.string()).optional(),
     mediaIds: z.array(z.string()).optional(),
-    status: z.enum(["DRAFT", "SCHEDULED", "PUBLISHED"]).optional(),
+    // FAILED is a legitimate terminal status — emitted by saga UpdatePostStatusStep
+    // when WaitForPublishingCompletionStep reports any failed worker job. The
+    // command schema must accept it for the saga to reach a terminal state.
+    status: z.enum(["DRAFT", "SCHEDULED", "PUBLISHED", "FAILED"]).optional(),
     expectedVersion: z.number().int().nonnegative().optional(),
   }),
   metadata: z.object({
@@ -525,14 +528,22 @@ export function validateCommand<T extends Command>(
     };
   } catch (error) {
     if (error instanceof z.ZodError) {
+      const validationErrors = error.issues.map((err) => ({
+        field: err.path.join("."),
+        message: err.message,
+        code: err.code,
+      }));
+      // Surface the first issue's field+message in the error string so saga
+      // step retries do not collapse to an opaque "Validation failed" — when
+      // a step.execute() fails, the saga only carries `error` forward, not
+      // validationErrors. Without this, debugging a malformed command means
+      // adding ad-hoc logging.
+      const first = validationErrors[0];
+      const detail = first ? ` (${first.field}: ${first.message})` : "";
       return {
         success: false,
-        error: "Validation failed",
-        validationErrors: error.issues.map((err) => ({
-          field: err.path.join("."),
-          message: err.message,
-          code: err.code,
-        })),
+        error: `Validation failed${detail}`,
+        validationErrors,
       };
     }
     return {

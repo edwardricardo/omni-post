@@ -699,6 +699,10 @@ export class WaitForPublishingCompletionStep implements RetryableStep {
         completed: status.completed,
         failed: status.failed,
         completedAt: new Date(),
+        // Surface for UpdatePostStatusStep — distinguishes the publish-now
+        // success path (all jobs completed) from the partial-failure path so
+        // the next step can promote to PUBLISHED vs mark FAILED.
+        publishingComplete: status.failed === 0,
       };
 
       if (status.failed > 0) {
