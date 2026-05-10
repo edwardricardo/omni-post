@@ -214,9 +214,18 @@ describe("Saga customer flow integration", () => {
       await prisma.sagaInstance.deleteMany({
         where: { context: { path: ["userId"], equals: fixture.customerUserId } as never },
       });
-      await prisma.postContent.deleteMany({
-        where: { postId: { in: [fixture.draftPostId, fixture.publishedPostId] } },
+      // Cleanup applies to ALL posts in the project — sagas that ran during
+      // the suite created additional posts beyond the two fixture posts, and
+      // each has a PostContent that the FK constraint requires we drop first.
+      const projectPosts = await prisma.post.findMany({
+        where: { projectId: fixture.projectId },
+        select: { id: true },
       });
+      const projectPostIds = projectPosts.map((p) => p.id);
+      if (projectPostIds.length > 0) {
+        await prisma.postContent.deleteMany({ where: { postId: { in: projectPostIds } } });
+        await prisma.publishLog.deleteMany({ where: { postId: { in: projectPostIds } } });
+      }
       await prisma.post.deleteMany({ where: { projectId: fixture.projectId } });
       await prisma.channel.deleteMany({ where: { projectId: fixture.projectId } });
       await prisma.project.deleteMany({ where: { id: fixture.projectId } });
