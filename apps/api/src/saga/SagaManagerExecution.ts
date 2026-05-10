@@ -101,7 +101,25 @@ export class SagaExecutionEngine {
         let stepResult;
 
         try {
-          stepResult = await step.execute(instance.context);
+          // Countermeasures (Azure §15-20) — activated in canonical order
+          // before step.execute(). RereadCheck guards against dirty reads;
+          // SemanticLock surfaces concurrent-saga conflicts; VersionCheck
+          // is enforced inside the use case layer via expectedVersion in
+          // the command — only declared here for runtime visibility.
+          const cm = step.countermeasures;
+          if (cm?.rereadCheck) {
+            const reread = await cm.rereadCheck.rereadBeforeUpdate(instance.context);
+            if (!reread.stillValid) {
+              stepResult = {
+                success: false,
+                error: `Reread check failed: ${reread.reason ?? "aggregate state changed"}`,
+              };
+            }
+          }
+
+          if (!stepResult) {
+            stepResult = await step.execute(instance.context);
+          }
         } catch (error) {
           stepResult = {
             success: false,
@@ -152,13 +170,23 @@ export class SagaExecutionEngine {
               "Saga step scheduled for retry"
             );
             return;
-          } else {
-            // Persist the step-failed event atomically with the result, then
-            // record the saga-failed transition as its own state change.
-            await this.persistSagaInstance(instance, [stepEvent]);
-            await this.failSaga(instance, stepResult.error || "Step execution failed");
-            return;
           }
+
+          // Retries exhausted. Canon-discriminated terminal handling:
+          //   - compensable step (pre-pivot): trigger compensation walk
+          //   - pivot step (point of no return): FAILED, no rollback (Azure §5)
+          //   - retryable step (post-pivot): FAILED, forward-recovery exhausted
+          await this.persistSagaInstance(instance, [stepEvent]);
+          const errMsg = stepResult.error || "Step execution failed";
+
+          if (step.class === "compensable") {
+            instance.error = errMsg;
+            this.compensateSagaAsync(instance.id);
+          } else {
+            // Pivot or retryable: no compensation by canon
+            await this.failSaga(instance, errMsg);
+          }
+          return;
         }
 
         // Successful step: clear retry bookkeeping before advancing.
@@ -167,18 +195,13 @@ export class SagaExecutionEngine {
         delete instance.nextRetryAt;
         await this.persistSagaInstance(instance, [stepEvent]);
 
-        if (step.id === "wait-publishing-completion") {
-          // Only suspend execution when the step actually expects an external
-          // event to resume it (publish-now path). draft/schedule modes mark
-          // the step as skipped — there's no worker job to wait on, so the
-          // saga must continue to the next step inline. Without this guard
-          // those sagas hang forever in RUNNING currentStep=4.
-          const skipped = (stepResult.data as { skipped?: boolean } | undefined)?.skipped === true;
-          if (!skipped) {
-            logger.info({ stepName: step.name }, "Saga waiting for external events");
-            return;
-          }
-        }
+        // Note: external-event suspension is handled by the retry mechanism,
+        // not by special-casing step.id here. A RetryableStep waiting on a
+        // worker event returns success:false → schedules retry → worker
+        // emits publish.job.completed → SagaIntegration.handleEvent calls
+        // executeSagaAsync → engine re-runs the step which now succeeds.
+        // This avoids hard-coding step ids in the engine and keeps the
+        // canon flow uniform across step classes.
       }
 
       await this.completeSaga(instance);
