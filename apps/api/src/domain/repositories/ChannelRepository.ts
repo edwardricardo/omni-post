@@ -32,6 +32,15 @@ export interface ChannelRepository {
   findByProjectId(projectId: ProjectId): Promise<Channel[]>;
 
   /**
+   * Lightweight ownership lookup — returns ONLY channel IDs for a project.
+   * Bypasses credential decryption that the full toDomain() does, which is
+   * unnecessary (and can fail on dev fixtures with placeholder ciphertext)
+   * for cases that just need a "does channel X belong to project Y?" check.
+   * Used by the saga admission path before kicking off publish jobs.
+   */
+  findIdsByProjectId(projectId: ProjectId): Promise<ChannelId[]>;
+
+  /**
    * Find all channels belonging to a project for a specific provider.
    * Used by SetPrimaryChannelUseCase to locate sibling channels that may
    * already hold the primary flag for the same (project, provider) pair.

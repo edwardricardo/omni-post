@@ -317,10 +317,12 @@ export class SagaIntegration {
           }
 
           if (body.mode !== "draft") {
-            const projectChannels = await this.config.channelRepository.findByProjectId(
-              projectIdResult.value
+            // Ownership-only lookup — bypasses credential decryption.
+            const projectChannelIds = new Set(
+              (await this.config.channelRepository.findIdsByProjectId(projectIdResult.value)).map(
+                (id) => id.toString()
+              )
             );
-            const projectChannelIds = new Set(projectChannels.map((c) => c.id.toString()));
             for (const channelId of body.channelIds) {
               if (!projectChannelIds.has(channelId)) {
                 // Return 404 (not 403) to prevent channel-id enumeration across tenants.
