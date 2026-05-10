@@ -168,8 +168,16 @@ export class SagaExecutionEngine {
         await this.persistSagaInstance(instance, [stepEvent]);
 
         if (step.id === "wait-publishing-completion") {
-          logger.info({ stepName: step.name }, "Saga waiting for external events");
-          return;
+          // Only suspend execution when the step actually expects an external
+          // event to resume it (publish-now path). draft/schedule modes mark
+          // the step as skipped — there's no worker job to wait on, so the
+          // saga must continue to the next step inline. Without this guard
+          // those sagas hang forever in RUNNING currentStep=4.
+          const skipped = (stepResult.data as { skipped?: boolean } | undefined)?.skipped === true;
+          if (!skipped) {
+            logger.info({ stepName: step.name }, "Saga waiting for external events");
+            return;
+          }
         }
       }
 
@@ -204,7 +212,17 @@ export class SagaExecutionEngine {
         continue;
       }
 
-      if (!step.compensate || !stepResult?.success) {
+      // Canon enforcement (Azure §5): only compensable steps strictly before
+      // the pivot are eligible for compensation. Pivot + post-pivot retryable
+      // steps are forward-recovery only — rolling them back has no canon-
+      // valid semantics (provider may have already accepted the side-effect).
+      if (stepIndex >= definition.pivotStepIndex) {
+        continue;
+      }
+      if (step.class !== "compensable") {
+        continue;
+      }
+      if (!stepResult?.success) {
         continue;
       }
 

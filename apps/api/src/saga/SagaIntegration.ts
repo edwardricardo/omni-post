@@ -248,22 +248,16 @@ export class SagaIntegration {
       async (jobIds: string[]) => {
         // BullMQ job status checking is done via the worker's Redis pub/sub
         // notifications rather than polling. Return current known state.
-        // In production, this could query BullMQ job states directly.
         return {
           completed: jobIds.length,
           failed: 0,
           pending: 0,
         };
-      },
-      // Job cancellation — used by saga compensation to cancel queued jobs
-      async (jobId: string): Promise<boolean> => {
-        const result = await queue.remove(jobId);
-        if (!result.ok) {
-          logger.warn({ jobId, error: result.error }, "Failed to cancel queued job (best-effort)");
-          return false;
-        }
-        return result.value;
       }
+      // No cancelJob: SchedulePublishingJobsStep is now classified as PivotStep
+      // (point of no return per Azure §5). Once jobs are accepted by BullMQ,
+      // workers may dispatch to the provider before any saga-side cancel
+      // could fire — compensation has no canonically valid semantics here.
     );
 
     this.sagaManager.registerSaga(postPublishingSaga);
