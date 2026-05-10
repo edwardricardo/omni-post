@@ -12,7 +12,7 @@ import {
   type SortParams,
 } from "./Repository.js";
 import { PostAggregate } from "../aggregates/PostAggregate.js";
-import { PostId, ProjectId } from "../value-objects/EntityId.js";
+import { PostId, ProjectId, AccountId } from "../value-objects/EntityId.js";
 import { type PublishStatusValue } from "../value-objects/PublishStatus.js";
 import { EntityNotFoundError } from "../errors/index.js";
 
@@ -129,6 +129,22 @@ export interface PostRepository extends Repository<PostAggregate, PostId> {
    * Only callable by SUPER_ADMIN. Cascades to contents, media, publishLogs, etc.
    */
   hardDelete(id: PostId): Promise<Result<void, EntityNotFoundError>>;
+
+  /**
+   * Filter the input postIds to only those owned by `accountId` (joined via
+   * Project). Used by use cases that take a customer-supplied list of postIds
+   * to enforce cross-tenant isolation (CWE-639) — pass any input through this
+   * filter before bulk-mutating, and the operation can no longer touch posts
+   * the caller does not own. Returns an empty array if none match.
+   */
+  filterIdsByAccount(postIds: PostId[], accountId: AccountId): Promise<PostId[]>;
+
+  /**
+   * Resolve the accountId that owns this post (via Project.accountId). Used
+   * by single-post mutating use cases to assert caller ownership before
+   * proceeding. Returns null if the post does not exist.
+   */
+  findOwnerAccountId(postId: PostId): Promise<AccountId | null>;
 }
 
 /**

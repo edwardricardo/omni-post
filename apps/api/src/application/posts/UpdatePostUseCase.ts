@@ -32,6 +32,14 @@ export interface UpdatePostInput {
   summary?: string;
   tags?: string[];
   expectedVersion?: number;
+  /**
+   * Account that owns the calling customer. When provided, the use case
+   * verifies the post belongs to the caller's account before mutating —
+   * cross-tenant updates are rejected as NOT_FOUND (404) per the anti-IDOR
+   * canon (no enumeration via 403). Optional for backward compat with
+   * pre-IDOR-fix callers + admin/internal use cases that bypass the check.
+   */
+  callerAccountId?: string;
 }
 
 /**
@@ -61,6 +69,17 @@ export class UpdatePostUseCase implements UseCase<UpdatePostInput, PostDTO, UseC
       return err(
         new UseCaseError(`Invalid post ID: ${input.postId}`, USE_CASE_ERRORS.VALIDATION_FAILED)
       );
+    }
+
+    // Cross-tenant ownership gate (CWE-639). Resolve the post's owner via
+    // Project.accountId before loading the aggregate. A caller asking about
+    // a post they do not own gets NOT_FOUND, not FORBIDDEN — return shape
+    // matches the anti-IDOR canon used by saga admission (no enumeration).
+    if (input.callerAccountId !== undefined) {
+      const ownerAccountId = await this.postRepository.findOwnerAccountId(postIdResult.value);
+      if (!ownerAccountId || ownerAccountId.value !== input.callerAccountId) {
+        return err(new UseCaseError(`Post not found: ${input.postId}`, USE_CASE_ERRORS.NOT_FOUND));
+      }
     }
 
     // Find the post

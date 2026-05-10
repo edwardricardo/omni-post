@@ -8,16 +8,24 @@
 
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
-import { PostId, type PostRepository } from "../../domain/index.js";
+import { AccountId, PostId, type PostRepository } from "../../domain/index.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 const MAX_BATCH_SIZE = 100;
 
 /**
  * Input DTO for archiving a batch of posts.
+ *
+ * `callerAccountId` is the cross-tenant isolation gate (CWE-639). When
+ * provided, the use case filters the input to only include posts the
+ * caller actually owns before issuing the bulk archive — the rest are
+ * silently skipped (counted under invalidIds is misleading; they are
+ * "not yours" rather than "malformed", so they fall out of the result).
+ * Optional for backward compat; real customer-facing routes pass it.
  */
 export interface ArchivePostsBatchInput {
   postIds: string[];
+  callerAccountId?: string;
 }
 
 /**
@@ -82,8 +90,24 @@ export class ArchivePostsBatchUseCase implements UseCase<
       return ok({ archived: 0, invalidIds });
     }
 
+    // Cross-tenant filter (CWE-639). Drop any postIds whose owning Project
+    // does not belong to the caller's account before issuing the bulkArchive
+    // — silent skip matches the bulk-update semantics for already-archived
+    // / soft-deleted posts (no error, just zero affected for that subset).
+    const ownedPostIds = input.callerAccountId
+      ? await (async () => {
+          const accountIdResult = AccountId.fromString(input.callerAccountId!);
+          if (!accountIdResult.ok) return [];
+          return this.postRepository.filterIdsByAccount(postIds, accountIdResult.value);
+        })()
+      : postIds;
+
+    if (ownedPostIds.length === 0) {
+      return ok({ archived: 0, invalidIds });
+    }
+
     const doWork = async (): Promise<Result<ArchivePostsBatchOutput, UseCaseError>> => {
-      const result = await this.postRepository.bulkArchive(postIds);
+      const result = await this.postRepository.bulkArchive(ownedPostIds);
       if (!result.ok) {
         return err(
           new UseCaseError(

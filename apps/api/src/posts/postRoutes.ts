@@ -307,6 +307,10 @@ class PostRouteHandler extends BaseRouteHandler {
         ...(summary && { summary }),
         ...(tags && { tags }),
         ...(expectedVersion !== undefined && { expectedVersion }),
+        // Cross-tenant gate (CWE-639) — caller's accountId from auth token.
+        ...(ctx.request.customerUser && {
+          callerAccountId: ctx.request.customerUser.accountId,
+        }),
       });
 
       if (!result.ok) {
@@ -381,6 +385,10 @@ class PostRouteHandler extends BaseRouteHandler {
     try {
       const result = await this.archivePostsBatchUseCase.execute({
         postIds: validation.value.postIds,
+        // Cross-tenant gate (CWE-639): caller can only archive posts they own.
+        ...(ctx.request.customerUser && {
+          callerAccountId: ctx.request.customerUser.accountId,
+        }),
       });
 
       if (!result.ok) {
@@ -414,6 +422,10 @@ class PostRouteHandler extends BaseRouteHandler {
     try {
       const result = await this.hardDeletePostsBatchUseCase.execute({
         postIds: validation.value.postIds,
+        // Cross-tenant gate (CWE-639): caller can only delete posts they own.
+        ...(ctx.request.customerUser && {
+          callerAccountId: ctx.request.customerUser.accountId,
+        }),
       });
 
       if (!result.ok) {
@@ -447,6 +459,10 @@ class PostRouteHandler extends BaseRouteHandler {
     try {
       const result = await this.duplicatePostsBatchUseCase.execute({
         postIds: validation.value.postIds,
+        // Cross-tenant gate (CWE-639): caller can only duplicate posts they own.
+        ...(ctx.request.customerUser && {
+          callerAccountId: ctx.request.customerUser.accountId,
+        }),
       });
 
       if (!result.ok) {
