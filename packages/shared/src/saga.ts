@@ -563,6 +563,7 @@ export class SchedulePublishingJobsStep implements PivotStep<StepExecuteData> {
   readonly id = "schedule-publishing-jobs";
   readonly name = "Schedule Publishing Jobs";
   readonly class = "pivot" as const;
+  countermeasures?: StepCountermeasures;
 
   constructor(private queueJob: (job: Record<string, unknown>) => Promise<string>) {}
 
@@ -823,8 +824,42 @@ export function createPostPublishingSagaDefinition(
   queueJob: (job: Record<string, unknown>) => Promise<string>,
   checkJobsStatus: (
     jobIds: string[]
-  ) => Promise<{ completed: number; failed: number; pending: number }>
+  ) => Promise<{ completed: number; failed: number; pending: number }>,
+  /**
+   * Optional reread implementation for the pivot step. Returns the current
+   * Post.status (or null if missing). When provided, the pivot step gains a
+   * RereadCheck countermeasure that aborts before enqueueing jobs if the
+   * post is no longer DRAFT — closing the dirty-read window between Create
+   * and Schedule (Azure §15-18).
+   */
+  getPostStatus?: (postId: string) => Promise<string | null>
 ): SagaDefinition {
+  const scheduleStep = new SchedulePublishingJobsStep(queueJob);
+
+  if (getPostStatus) {
+    scheduleStep.countermeasures = {
+      rereadCheck: {
+        async rereadBeforeUpdate(
+          ctx: SagaContext
+        ): Promise<{ stillValid: boolean; reason?: string }> {
+          const createData = ctx.stepData["create-post"] as CreateStepData | undefined;
+          const postId = createData?.postId;
+          if (!postId) {
+            return { stillValid: false, reason: "no postId in stepData" };
+          }
+          const status = await getPostStatus(postId);
+          if (status !== "DRAFT") {
+            return {
+              stillValid: false,
+              reason: `Post.status is ${status ?? "missing"}, expected DRAFT`,
+            };
+          }
+          return { stillValid: true };
+        },
+      },
+    };
+  }
+
   return defineSaga({
     id: "post-publishing-saga",
     name: "Post Publishing Saga",
@@ -836,7 +871,7 @@ export function createPostPublishingSagaDefinition(
       exponential: true,
     },
     preCommit: [new ValidatePostDataStep(), new CreatePostStep(executeCommand)],
-    pivot: new SchedulePublishingJobsStep(queueJob),
+    pivot: scheduleStep,
     postCommit: [
       new WaitForPublishingCompletionStep(checkJobsStatus),
       new UpdatePostStatusStep(executeCommand),

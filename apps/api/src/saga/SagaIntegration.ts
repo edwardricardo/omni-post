@@ -253,6 +253,17 @@ export class SagaIntegration {
           failed: 0,
           pending: 0,
         };
+      },
+      // Reread implementation for the pivot step's RereadCheck countermeasure.
+      // Confirms Post.status is still DRAFT immediately before enqueueing
+      // jobs — prevents the dirty-read window where a manual Update or a
+      // concurrent saga changed the status between Create and Schedule.
+      async (postIdRaw: string): Promise<string | null> => {
+        const idResult = PostId.fromString(postIdRaw);
+        if (!idResult.ok) return null;
+        const post = await this.config.postRepository.findById(idResult.value);
+        if (!post.ok) return null;
+        return post.value.status.value;
       }
       // No cancelJob: SchedulePublishingJobsStep is now classified as PivotStep
       // (point of no return per Azure §5). Once jobs are accepted by BullMQ,
