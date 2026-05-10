@@ -586,12 +586,36 @@ async function createApp(): Promise<FastifyInstance> {
     redis,
     scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
   });
+  // EventService.publishEvents() throws "not initialized" until initialize() is
+  // called — without this, every saga step that publishes events (Create, Update)
+  // fails downstream and the saga either fails or stalls.
+  const sagaEventServiceInit = await sagaEventService.initialize();
+  if (!sagaEventServiceInit.ok) {
+    logger.error({ err: sagaEventServiceInit.error }, "Failed to initialize saga EventService");
+  }
+
   const sagaCQRSBus = new CQRSBusImpl({
     eventService: sagaEventService,
     redis,
     enableMetrics: true,
     enableQueryCache: false,
   });
+
+  // Register Post command handlers on the saga's CQRSBus. The saga emits
+  // commands like `post.create` / `post.update` / `post.delete` via
+  // `cqrsBus.executeCommand(...)`; without this wiring the bus throws
+  // "No handler registered for command type: post.create" and every saga
+  // step 1 (Create) fails silently into the FAILED terminal state.
+  const { createPostCommandHandlers } = await import("./cqrs/handlers/PostCommandHandlers.js");
+  createPostCommandHandlers({
+    createPostUseCase: container.resolve(TOKENS.CreatePostUseCase),
+    updatePostUseCase: container.resolve(TOKENS.UpdatePostUseCase),
+    deletePostUseCase: container.resolve(TOKENS.DeletePostUseCase),
+    postRepository: container.resolve(TOKENS.PostRepository),
+    channelRepository: container.resolve(TOKENS.ChannelRepository),
+    redis,
+  }).forEach((handler) => sagaCQRSBus.registerCommandHandler(handler));
+
   const sagaIntegration = new SagaIntegration({
     fastify: typedApp,
     prisma,

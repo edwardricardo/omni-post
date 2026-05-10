@@ -148,6 +148,13 @@ export const POST_COMMANDS = {
 
 /**
  * Create Post Command
+ *
+ * The Post aggregate is platform-agnostic: it owns content (body, title,
+ * locale, tags) and nothing else. Channel selection, media attachment,
+ * and scheduling are cross-cutting concerns owned by downstream saga
+ * steps (SchedulePublishingJobsStep) — not by Create. Including those
+ * fields here would couple Post creation to publishing, which is exactly
+ * what the saga split is meant to undo.
  */
 export const CreatePostCommandSchema = z.object({
   id: z.string(),
@@ -160,9 +167,6 @@ export const CreatePostCommandSchema = z.object({
     body: z.string(),
     locale: z.string().default("en"),
     tags: z.array(z.string()).optional(),
-    mediaIds: z.array(z.string()).optional(),
-    scheduledAt: z.date().optional(),
-    channelIds: z.array(z.string()),
   }),
   metadata: z.object({
     userId: z.string().optional(),
@@ -178,7 +182,12 @@ export const CreatePostCommandSchema = z.object({
 export type CreatePostCommand = z.infer<typeof CreatePostCommandSchema>;
 
 /**
- * Update Post Command
+ * Update Post Command.
+ *
+ * `expectedVersion` carries the OCC token from the caller (Azure saga §15-20).
+ * Saga retryable steps that update Post post-pivot pass createData.version so
+ * the use case can detect concurrent writes. Optional — when omitted, only the
+ * repository-level WHERE-clause guard applies.
  */
 export const UpdatePostCommandSchema = z.object({
   id: z.string(),
