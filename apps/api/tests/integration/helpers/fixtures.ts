@@ -12,6 +12,7 @@
 
 import type { PrismaClient } from "@infra/prisma";
 import { signCustomerAccessToken } from "../../../src/auth/customerJwt.js";
+import { TokenService } from "../../../src/admin/auth/TokenService.js";
 import { EncryptionService } from "../../../src/security/EncryptionService.js";
 import { ChannelCredentialsCrypto } from "../../../src/security/ChannelCredentialsCrypto.js";
 
@@ -181,6 +182,78 @@ export async function createTestPost(
  * Account, in the order the foreign-key constraints require. Must be
  * called from `after()` to keep the test DB clean across runs.
  */
+export interface TestAdminFixture {
+  adminUserId: string;
+  adminEmail: string;
+  authHeader: string;
+}
+
+/**
+ * Create a SUPER_ADMIN AdminUser + sign a valid access token via the
+ * canonical TokenService. The middleware verifies the JWT statelessly
+ * (issuer + audience + signature + type discriminator), so the helper
+ * does NOT need to seed an AdminSession row — just the AdminUser and
+ * the signed token suffice for protected admin endpoints.
+ */
+export async function createTestAdminUser(
+  prisma: PrismaClient,
+  opts: { tagPrefix?: string; role?: "SUPER_ADMIN" | "ADMIN" | "MODERATOR" | "SUPPORT" } = {}
+): Promise<TestAdminFixture> {
+  const tag = `${opts.tagPrefix ?? "smk-adm"}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const adminEmail = `adm-${tag}@test.local`;
+  const role = opts.role ?? "SUPER_ADMIN";
+  // Resolve role id by name. Seed loads role-super-admin / role-admin /
+  // role-support as system rows; tests reuse those instead of creating
+  // ad-hoc Role rows that would need their own cleanup.
+  const roleRow = await prisma.role.findUnique({ where: { name: role } });
+  if (!roleRow) {
+    throw new Error(`Test fixture: Role '${role}' not seeded — run pnpm db:seed`);
+  }
+
+  const adminUser = await prisma.adminUser.create({
+    data: {
+      email: adminEmail,
+      passwordHash: "ignored-for-test",
+      name: "Smoke Admin",
+      roleId: roleRow.id,
+      isActive: true,
+      emailVerified: true,
+    },
+  });
+
+  const tokenService = new TokenService();
+  const accessToken = tokenService.generateAccessToken(
+    {
+      id: adminUser.id,
+      email: adminUser.email,
+      name: adminUser.name,
+      role,
+      isActive: true,
+      emailVerified: true,
+      mfaEnabled: false,
+      timezone: null,
+      locale: null,
+      department: null,
+    },
+    undefined,
+    60 // 60 minutes — generous for test runs
+  );
+
+  return {
+    adminUserId: adminUser.id,
+    adminEmail,
+    authHeader: `Bearer ${accessToken}`,
+  };
+}
+
+export async function cleanupTestAdminUser(
+  prisma: PrismaClient,
+  adminUserId: string
+): Promise<void> {
+  await prisma.adminSession.deleteMany({ where: { adminUserId } });
+  await prisma.adminUser.deleteMany({ where: { id: adminUserId } });
+}
+
 export async function cleanupTestAccount(prisma: PrismaClient, accountId: string): Promise<void> {
   // Find every project under the account so we can cascade
   const projects = await prisma.project.findMany({
