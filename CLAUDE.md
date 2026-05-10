@@ -300,18 +300,65 @@ export class MyUseCase {
 
 ## Saga Pattern
 
-- Each saga step is a local transaction — commits independently
-- Compensating transactions exist for every compensable step — **no no-op compensations**
-- Compensation is **idempotent and retryable**
-- Compensations execute in **reverse order** of forward steps
-- DedupeKey is **deterministic**: `saga-${sagaId}-${stepIndex}` — never append `randomUUID()`
-- Guard against re-execution of terminal sagas:
+**Every saga in this repo is canon-aligned to Richardson (microservices.io) + Azure Architecture Center "Saga design pattern". Steps are classified, the pivot is identified, countermeasures are explicit. Definition-time enforcement via `defineSaga()` factory in `packages/shared/src/saga.ts` — sagas that compile are canon-by-construction.**
 
-  ```typescript
-  if (["COMPLETED", "FAILED", "COMPENSATED"].includes(saga.status)) return;
-  ```
+### Step classification (Azure §4-8)
 
-- Saga state (including jobIds from scheduling steps) persisted between steps for compensation use
+Every step MUST declare its `class` — a discriminated union enforced by the TS compiler:
+
+- **`compensable`** — pre-pivot. MUST implement `compensate()` (TS rejects classes without it). Idempotent. On saga failure pre-pivot, compensable steps are walked in reverse and their `compensate()` is invoked.
+- **`pivot`** — point of no return. NO `compensate()`. If retries exhausted → saga FAILED, no rollback (the pivot's external side-effects, e.g. enqueued provider jobs that may have already published, cannot be canonically undone).
+- **`retryable`** — post-pivot. NO `compensate()`. Idempotent forward-recovery only; retried until success or terminal failure.
+
+### `pivotStepIndex` (Azure §5)
+
+Every `SagaDefinition` MUST declare `pivotStepIndex` (the array index of the pivot step). Use the `defineSaga()` factory, which forces preCommit / pivot / postCommit segments and derives the index — TS rejects passing a `PivotStep` into preCommit, a `RetryableStep` as pivot, etc.
+
+```typescript
+const saga = defineSaga({
+  id: "my-saga",
+  name: "My Saga",
+  version: "1.0.0",
+  preCommit: [validateStep, createStep], // CompensableStep[]
+  pivot: scheduleStep, // PivotStep
+  postCommit: [waitStep, finalizeStep], // RetryableStep[]
+});
+```
+
+### Countermeasures (Azure §15-20)
+
+Sagas with concurrent execution risk MUST attach the relevant countermeasures via `step.countermeasures`:
+
+- **`SemanticLock`** — application-level lock keyed by aggregate. Rejects a second saga from progressing while the first holds the lock. Use when 2+ sagas can race on the same aggregate.
+- **`RereadCheck`** — confirms aggregate state hasn't changed pre-write. Activated by the engine before `step.execute()`; returns `{stillValid:false}` aborts the step. Use to close dirty-read windows between read-and-write steps.
+- **`VersionCheck`** — Optimistic Concurrency Control via aggregate version. Saga step emits `expectedVersion` in the command; use case rejects with `CONFLICT` if persisted version has advanced. Use for retryable post-pivot updates that race with manual writes.
+
+### Compensation (Richardson + Azure §3)
+
+- Compensation is **idempotent and retryable**.
+- Compensations execute in **reverse order** of forward steps, and ONLY on `compensable` steps strictly before `pivotStepIndex`. Engine enforces this — a compensation walk past the pivot is a canon violation that the engine refuses by construction.
+- "No no-op compensations" — every compensable step's `compensate()` is real undo logic. If a step has nothing to undo (e.g., pure validation), declare its compensate as `{ success: true }` explicitly so the canon classification is self-documenting.
+
+### Terminal state (Azure §9 + Richardson)
+
+Sagas MUST reach `COMPLETED`, `FAILED`, or `COMPENSATED`. Infinite `RUNNING` is a canon violation enforced by the timeout checker in `SagaManagerLifecycle` (default 30 min). Recovery scheduler resumes due retries on every tick (5 s).
+
+### DedupeKey
+
+Deterministic: `cmd-${sagaId}-${stepId}[-compensate]`. Never `randomUUID()`. The CQRS bus dedupes by command ID; the outbox dedupes by message ID — both rely on this determinism.
+
+### Outbox coupling (Richardson Outbox)
+
+Domain events emitted via outbox in the SAME DB transaction as saga state mutation. Consumer dedupe via `messageId` unique constraint. Saga + Outbox are tightly coupled — Richardson explicitly says "the Saga and Domain event patterns create the need for this pattern."
+
+### Re-execution guard
+
+```typescript
+const TERMINAL = ["COMPLETED", "FAILED", "COMPENSATED"];
+if (TERMINAL.includes(saga.status)) return;
+```
+
+Engine checks this at the top of `executeSaga` — terminal sagas never re-execute regardless of how the engine is invoked (recovery checker, event resume, manual re-trigger).
 
 ---
 
