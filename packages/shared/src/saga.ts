@@ -474,19 +474,25 @@ export class CreatePostStep implements CompensableStep<StepExecuteData, CreateSt
         };
       }
 
+      // The use case generates its own postId (PostId.generate()); the
+      // aggregateId carried in the command was a placeholder. Always trust
+      // the response — using createCommand.aggregateId here would carry a
+      // phantom id that no other step (or repository) can resolve.
+      const persistedPostId =
+        typeof result.data?.postId === "string" ? result.data.postId : createCommand.aggregateId;
       const initialStatus = "DRAFT";
 
       context.stepData[this.id] = {
-        postId: createCommand.aggregateId,
-        version: result.data?.version || 1,
+        postId: persistedPostId,
+        version: typeof result.data?.version === "number" ? result.data.version : 0,
         createdAt: new Date(),
         initialStatus,
       };
 
       return {
         success: true,
-        data: { postId: createCommand.aggregateId, initialStatus },
-        compensationData: { postId: createCommand.aggregateId, initialStatus },
+        data: { postId: persistedPostId, initialStatus },
+        compensationData: { postId: persistedPostId, initialStatus },
       };
     } catch (error) {
       return {

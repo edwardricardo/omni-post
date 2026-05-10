@@ -158,7 +158,11 @@ export class CreatePostCommandHandler implements CommandHandler<
 
       return {
         success: true,
-        data: { postId, version: 1 },
+        // version: 0 — every freshly-created Post starts at version 0 (the
+        // schema default + AggregateRoot default). The saga step propagates
+        // this as expectedVersion to UpdateStatusStep so OCC matches the
+        // persisted row instead of fabricating a phantom version.
+        data: { postId, version: 0 },
         events,
       };
     } catch (error) {
