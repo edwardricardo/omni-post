@@ -16,7 +16,14 @@ import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import { type PostDTO } from "./GetPostUseCase.js";
 
 /**
- * Input DTO for updating a post
+ * Input DTO for updating a post.
+ *
+ * `expectedVersion` is the OCC token (Azure saga §15-20). When provided, the
+ * use case rejects the call with a CONFLICT error if the persisted version
+ * has advanced past it — another writer committed in the meantime. When
+ * omitted, the use case falls back to the repository-level OCC guard alone
+ * (still rejects concurrent writes via the WHERE-clause check, but cannot
+ * detect a slow caller working with stale read state).
  */
 export interface UpdatePostInput {
   postId: string;
@@ -24,6 +31,7 @@ export interface UpdatePostInput {
   title?: string;
   summary?: string;
   tags?: string[];
+  expectedVersion?: number;
 }
 
 /**
@@ -75,6 +83,19 @@ export class UpdatePostUseCase implements UseCase<UpdatePostInput, PostDTO, UseC
         new UseCaseError(
           `Post cannot be edited in current status: ${post.status.value}`,
           USE_CASE_ERRORS.FORBIDDEN
+        )
+      );
+    }
+
+    // OCC pre-check (Azure saga §15-20). If the caller passed expectedVersion,
+    // reject when the persisted version has advanced — another writer committed
+    // between the caller's read and this update. Returns CONFLICT so the caller
+    // (e.g., a saga retryable step) can re-read and retry against fresh state.
+    if (input.expectedVersion !== undefined && post.version !== input.expectedVersion) {
+      return err(
+        new UseCaseError(
+          `Post version conflict: expected ${input.expectedVersion}, found ${post.version}`,
+          USE_CASE_ERRORS.CONFLICT
         )
       );
     }

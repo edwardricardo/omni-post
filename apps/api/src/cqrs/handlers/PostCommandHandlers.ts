@@ -257,12 +257,13 @@ export class UpdatePostCommandHandler implements CommandHandler<
         );
       }
 
-      // 2. Delegate to use case
+      // 2. Delegate to use case (propagating OCC token if caller supplied one)
       const result = await this.config.updatePostUseCase.execute({
         postId: aggregateId,
         ...(data.body && { body: data.body }),
         ...(data.title && { title: data.title }),
         ...(data.tags && { tags: data.tags }),
+        ...(data.expectedVersion !== undefined && { expectedVersion: data.expectedVersion }),
       });
 
       if (!result.ok) {

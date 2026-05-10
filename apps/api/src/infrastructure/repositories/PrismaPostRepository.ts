@@ -21,6 +21,7 @@ import {
   type PublishStatusValue,
   PUBLISH_STATUS,
   EntityNotFoundError,
+  VersionConflictError,
 } from "../../domain/index.js";
 import type { OutboxWriter } from "../../domain/repositories/OutboxWriter.js";
 import {
@@ -485,12 +486,35 @@ export class PrismaPostRepository implements PostRepository {
     aggregate: PostAggregate
   ): Promise<void> {
     const postId = aggregate.id.value;
+    const expectedVersion = aggregate.version;
 
-    // Update post
-    await tx.post.update({
-      where: { id: postId },
-      data: data.post,
-    });
+    // OCC update (Azure saga §15-20). The WHERE clause includes the version
+    // so concurrent writers are rejected — Prisma throws P2025 when no row
+    // matches. We translate that to VersionConflictError so the use case
+    // layer can surface a meaningful conflict response to the caller.
+    try {
+      await tx.post.update({
+        where: { id: postId, version: expectedVersion },
+        data: { ...data.post, version: { increment: 1 } },
+      });
+      // Reflect the new version in the aggregate so subsequent operations on
+      // the same instance see the post-commit value.
+      aggregate.incrementVersion();
+    } catch (error) {
+      const isPrismaNotFound =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        (error as { code?: string }).code === "P2025";
+      if (isPrismaNotFound) {
+        const current = await tx.post.findUnique({
+          where: { id: postId },
+          select: { version: true },
+        });
+        throw new VersionConflictError("Post", postId, expectedVersion, current?.version ?? null);
+      }
+      throw error;
+    }
 
     // Update or create content (upsert for default locale)
     await tx.postContent.upsert({

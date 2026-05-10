@@ -191,6 +191,7 @@ export const UpdatePostCommandSchema = z.object({
     tags: z.array(z.string()).optional(),
     mediaIds: z.array(z.string()).optional(),
     status: z.enum(["DRAFT", "SCHEDULED", "PUBLISHED"]).optional(),
+    expectedVersion: z.number().int().nonnegative().optional(),
   }),
   metadata: z.object({
     userId: z.string().optional(),

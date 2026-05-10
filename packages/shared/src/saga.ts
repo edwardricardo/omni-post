@@ -760,6 +760,16 @@ export class UpdatePostStatusStep implements RetryableStep {
 
       const newStatus = publishingSuccess ? "PUBLISHED" : "FAILED";
 
+      // Pass createData.version as expectedVersion (Azure saga §15-20 OCC).
+      // The use case rejects with CONFLICT when the persisted version has
+      // advanced past this — meaning a concurrent writer mutated the post
+      // between Create and UpdateStatus. This step is RetryableStep, so the
+      // engine schedules a retry; the next attempt re-reads (via the
+      // pivot's RereadCheck if still pre-pivot, or directly by the use case
+      // load) and proceeds with the fresh version.
+      const expectedVersion =
+        typeof createData?.version === "number" ? createData.version : undefined;
+
       const updateCommand: Command = {
         id: `cmd-${context.sagaId}-${this.id}`,
         type: "post.update",
@@ -768,6 +778,7 @@ export class UpdatePostStatusStep implements RetryableStep {
         data: {
           status: newStatus,
           ...(publishingSuccess && { publishedAt: new Date() }),
+          ...(expectedVersion !== undefined && { expectedVersion }),
         },
         metadata: {
           ...(context.userId && { userId: context.userId }),
