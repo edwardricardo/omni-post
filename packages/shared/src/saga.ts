@@ -424,6 +424,20 @@ export class CreatePostStep implements CompensableStep<StepExecuteData, CreateSt
   readonly id = "create-post";
   readonly name = "Create Post";
   readonly class = "compensable" as const;
+  /**
+   * SemanticLock keyed by existing postId (when the saga operates on an
+   * existing draft). New-post sagas mint a unique aggregate per saga so
+   * they cannot conflict — the lock returns an empty key and the engine
+   * skips acquisition for those.
+   */
+  readonly countermeasures: StepCountermeasures = {
+    semanticLock: {
+      acquireKey(ctx: SagaContext): string {
+        const postData = ctx.metadata.postData as { postId?: string } | undefined;
+        return postData?.postId ? `post-publishing:${postData.postId}` : "";
+      },
+    },
+  };
 
   constructor(private executeCommand: (command: Command) => Promise<unknown>) {}
 

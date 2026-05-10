@@ -616,6 +616,12 @@ async function createApp(): Promise<FastifyInstance> {
     redis,
   }).forEach((handler) => sagaCQRSBus.registerCommandHandler(handler));
 
+  // Semantic lock backend (Azure saga §15-20). Reuses the saga's redis
+  // connection — lock ops are short, non-blocking SET NX / Lua release.
+  const { RedisSemanticLockStore } =
+    await import("./infrastructure/saga/RedisSemanticLockStore.js");
+  const sagaLockStore = new RedisSemanticLockStore(redis);
+
   const sagaIntegration = new SagaIntegration({
     fastify: typedApp,
     prisma,
@@ -627,6 +633,7 @@ async function createApp(): Promise<FastifyInstance> {
     projectRepository: container.resolve(TOKENS.ProjectRepository),
     channelRepository: container.resolve(TOKENS.ChannelRepository),
     postRepository: container.resolve(TOKENS.PostRepository),
+    lockStore: sagaLockStore,
   });
   await sagaIntegration.initialize();
   typedApp.decorate("sagaIntegration", sagaIntegration);

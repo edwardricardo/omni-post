@@ -53,6 +53,7 @@ import { ProjectId, AccountId, PostId } from "../domain/value-objects/EntityId.j
 import type { ProjectRepositoryPort } from "../domain/repositories/ProjectRepository.js";
 import type { ChannelRepository } from "../domain/repositories/ChannelRepository.js";
 import type { PostRepository } from "../domain/repositories/PostRepository.js";
+import type { SemanticLockPort } from "@ports/core";
 
 /** Channel used by workers to notify saga completions/failures */
 const SAGA_EVENTS_CHANNEL = "saga:events";
@@ -72,6 +73,11 @@ interface SagaIntegrationConfig {
   /** Required for the customer-facing /start endpoint to verify ownership +
    * status of the existing post when `postId` is provided in the body. */
   postRepository: PostRepository;
+  /** Optional semantic-lock backend for concurrency control (Azure §15-20).
+   * When provided, sagas with `semanticLock` countermeasures gate their
+   * execution through this store. Omit in tests that do not exercise the
+   * concurrency check. */
+  lockStore?: SemanticLockPort;
 }
 
 /**
@@ -176,6 +182,7 @@ export class SagaIntegration {
       enableMetrics: true,
       defaultTimeout: 30 * 60 * 1000, // 30 minutes
       maxConcurrentSagas: 100,
+      ...(config.lockStore && { lockStore: config.lockStore }),
     });
   }
 

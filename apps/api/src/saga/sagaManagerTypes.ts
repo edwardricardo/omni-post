@@ -12,6 +12,7 @@ import type Redis from "ioredis";
 import type { SagaInstance } from "@shared/saga";
 import type { DomainEvent } from "@shared/events";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+import type { SemanticLockPort } from "@ports/core";
 import type { EventService } from "../events/EventService";
 
 export interface SagaManagerConfig {
@@ -22,6 +23,14 @@ export interface SagaManagerConfig {
   enableMetrics?: boolean;
   defaultTimeout?: number;
   maxConcurrentSagas?: number;
+  /**
+   * Optional semantic-lock backend (Azure §15-20). When provided, steps
+   * that declare a `semanticLock` countermeasure are gated through
+   * lockStore.acquire() and released on terminal-state transitions.
+   * When omitted, semanticLock declarations are silently skipped — useful
+   * for tests that opt out of the concurrency check.
+   */
+  lockStore?: SemanticLockPort;
 }
 
 export interface SagaMetrics {

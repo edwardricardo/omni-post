@@ -102,12 +102,36 @@ export class SagaExecutionEngine {
 
         try {
           // Countermeasures (Azure §15-20) — activated in canonical order
-          // before step.execute(). RereadCheck guards against dirty reads;
-          // SemanticLock surfaces concurrent-saga conflicts; VersionCheck
-          // is enforced inside the use case layer via expectedVersion in
-          // the command — only declared here for runtime visibility.
+          // before step.execute():
+          //   1. SemanticLock — admission control, rejects concurrent saga.
+          //   2. RereadCheck — guards against dirty reads.
+          //   3. VersionCheck — enforced inside the use case layer via
+          //      expectedVersion in the command.
           const cm = step.countermeasures;
-          if (cm?.rereadCheck) {
+
+          if (cm?.semanticLock && this.config.lockStore) {
+            const key = cm.semanticLock.acquireKey(instance.context);
+            if (key) {
+              const ttl = cm.semanticLock.ttlMs ?? definition.timeout ?? 30 * 60 * 1000;
+              const acquireResult = await this.config.lockStore.acquire(key, instance.id, ttl);
+              if (!acquireResult.ok) {
+                // CONNECTION_ERROR — fail this step rather than running
+                // unguarded. Saga will retry per canon retry policy.
+                stepResult = {
+                  success: false,
+                  error: "Semantic lock acquire failed (lock store unreachable)",
+                };
+              } else if (!acquireResult.value) {
+                // Held by another saga — concurrent execution rejected.
+                stepResult = {
+                  success: false,
+                  error: `Semantic lock held by another saga: ${key}`,
+                };
+              }
+            }
+          }
+
+          if (!stepResult && cm?.rereadCheck) {
             const reread = await cm.rereadCheck.rereadBeforeUpdate(instance.context);
             if (!reread.stillValid) {
               stepResult = {
@@ -301,6 +325,8 @@ export class SagaExecutionEngine {
     this.lifecycle.activeInstances.delete(sagaId);
 
     logger.info({ sagaId }, "Saga compensation completed");
+
+    await this.releaseAllLocks(sagaId);
   }
 
   // ---------------------------------------------------------------------------
@@ -352,6 +378,25 @@ export class SagaExecutionEngine {
       { sagaId: instance.id, executionTimeMs: executionTime },
       "Saga completed successfully"
     );
+
+    await this.releaseAllLocks(instance.id);
+  }
+
+  /**
+   * Best-effort release of every semantic lock held by `sagaId`. Called on
+   * every terminal-state transition (COMPLETED / FAILED / COMPENSATED).
+   * If the lock store is misconfigured or unreachable the locks will
+   * eventually time out via TTL — never deadlock, even on this path.
+   */
+  private async releaseAllLocks(sagaId: string): Promise<void> {
+    if (!this.config.lockStore) return;
+    const result = await this.config.lockStore.releaseAllForSaga(sagaId);
+    if (!result.ok) {
+      logger.warn(
+        { sagaId, err: result.error },
+        "Semantic lock cleanup failed; locks will expire via TTL"
+      );
+    }
   }
 
   async failSaga(instance: SagaInstance, error: string): Promise<void> {
@@ -389,6 +434,8 @@ export class SagaExecutionEngine {
     this.lifecycle.metrics.activeInstances--;
 
     logger.error({ sagaId: instance.id, error }, "Saga failed");
+
+    await this.releaseAllLocks(instance.id);
   }
 
   // ---------------------------------------------------------------------------
