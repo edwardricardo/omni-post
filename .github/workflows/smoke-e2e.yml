@@ -1,0 +1,218 @@
+name: Smoke E2E
+
+# Horizontal smoke E2E coverage across api, workers, admin, client.
+# Splits into 4 jobs (one per app) so failures localize to a surface and
+# CI runtime parallelizes. Each job brings up postgres + redis, applies
+# migrations, seeds canonical fixtures, and runs the smoke suite for its
+# app.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches:
+      - main
+      - workstream/smoke-e2e-v1
+
+env:
+  NODE_VERSION: 20
+  POSTGRES_PASSWORD: password123
+
+jobs:
+  api-smoke:
+    name: API smoke (node:test integration)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: password123
+          POSTGRES_USER: postgres
+          POSTGRES_DB: omnipostdb
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+        ports: ["5432:5432"]
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+        ports: ["6379:6379"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-pnpm-cache
+      - name: Bootstrap test env
+        run: |
+          cp .env.example .env
+          echo "DATABASE_URL=postgresql://postgres:password123@localhost:5432/omnipostdb" >> .env
+          echo "SHADOW_DATABASE_URL=postgresql://postgres:password123@localhost:5432/omnipostdb_shadow" >> .env
+          echo "REDIS_URL=redis://localhost:6379" >> .env
+      - name: Migrate + seed
+        run: |
+          pnpm --filter @infra/prisma exec prisma migrate deploy
+          pnpm --filter @infra/prisma exec prisma generate
+          pnpm db:seed
+      - name: Start API + workers in background
+        run: |
+          pnpm dev > /tmp/dev.log 2>&1 &
+          echo $! > /tmp/dev.pid
+          # Wait for API health
+          for i in {1..60}; do
+            if curl -fs http://localhost:3000/health >/dev/null 2>&1; then
+              echo "API ready"
+              break
+            fi
+            sleep 2
+          done
+      - name: Run API integration smokes
+        run: pnpm --filter @apps/api test:integration
+      - name: Surface dev log on failure
+        if: failure()
+        run: tail -200 /tmp/dev.log
+
+  workers-smoke:
+    name: Workers smoke (node:test integration)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: password123
+          POSTGRES_USER: postgres
+          POSTGRES_DB: omnipostdb
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+        ports: ["5432:5432"]
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+        ports: ["6379:6379"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-pnpm-cache
+      - name: Bootstrap test env
+        run: |
+          cp .env.example .env
+          echo "DATABASE_URL=postgresql://postgres:password123@localhost:5432/omnipostdb" >> .env
+          echo "REDIS_URL=redis://localhost:6379" >> .env
+      - name: Migrate
+        run: |
+          pnpm --filter @infra/prisma exec prisma migrate deploy
+          pnpm --filter @infra/prisma exec prisma generate
+      - name: Run worker integration smokes
+        run: pnpm --filter @apps/workers test
+        # Workers tests run in-process — no need to start the dev server.
+
+  admin-smoke:
+    name: Admin smoke (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: password123
+          POSTGRES_USER: postgres
+          POSTGRES_DB: omnipostdb
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+        ports: ["5432:5432"]
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+        ports: ["6379:6379"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-pnpm-cache
+      - name: Install Playwright browsers
+        run: pnpm --filter @apps/admin exec playwright install --with-deps chromium
+      - name: Bootstrap test env
+        run: |
+          cp .env.example .env
+          echo "DATABASE_URL=postgresql://postgres:password123@localhost:5432/omnipostdb" >> .env
+          echo "REDIS_URL=redis://localhost:6379" >> .env
+      - name: Migrate + seed
+        run: |
+          pnpm --filter @infra/prisma exec prisma migrate deploy
+          pnpm --filter @infra/prisma exec prisma generate
+          pnpm db:seed
+      - name: Start API + admin in background
+        run: |
+          pnpm dev:api > /tmp/api.log 2>&1 &
+          pnpm dev:admin > /tmp/admin.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fs http://localhost:3000/health >/dev/null 2>&1 \
+              && curl -fs http://localhost:3100 >/dev/null 2>&1; then
+              echo "API + admin ready"
+              break
+            fi
+            sleep 2
+          done
+      - name: Run admin Playwright smokes
+        run: pnpm --filter @apps/admin exec playwright test
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-playwright-report
+          path: apps/admin/playwright-report
+          retention-days: 7
+
+  client-smoke:
+    name: Client smoke (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: password123
+          POSTGRES_USER: postgres
+          POSTGRES_DB: omnipostdb
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+        ports: ["5432:5432"]
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+        ports: ["6379:6379"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-pnpm-cache
+      - name: Install Playwright browsers
+        run: pnpm --filter @apps/client exec playwright install --with-deps chromium
+      - name: Bootstrap test env
+        run: |
+          cp .env.example .env
+          echo "DATABASE_URL=postgresql://postgres:password123@localhost:5432/omnipostdb" >> .env
+          echo "REDIS_URL=redis://localhost:6379" >> .env
+      - name: Migrate + seed
+        run: |
+          pnpm --filter @infra/prisma exec prisma migrate deploy
+          pnpm --filter @infra/prisma exec prisma generate
+          pnpm db:seed
+      - name: Start API + client in background
+        run: |
+          pnpm dev:api > /tmp/api.log 2>&1 &
+          pnpm dev:client > /tmp/client.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fs http://localhost:3000/health >/dev/null 2>&1 \
+              && curl -fs http://localhost:3200 >/dev/null 2>&1; then
+              echo "API + client ready"
+              break
+            fi
+            sleep 2
+          done
+      - name: Run client Playwright smokes
+        run: pnpm --filter @apps/client exec playwright test
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-playwright-report
+          path: apps/client/test-results/html-report
+          retention-days: 7
