@@ -25,11 +25,17 @@ async function parseJson(response: Response): Promise<unknown | null> {
   }
 }
 
-function buildHeaders(authHeader?: string, extra?: Record<string, string>): HeadersInit {
+function buildHeaders(
+  authHeader?: string,
+  opts: { withBody?: boolean; extra?: Record<string, string> } = {}
+): HeadersInit {
+  // Fastify rejects an `application/json` content-type when the body is
+  // empty ("Body cannot be empty when content-type is set..."), so the
+  // helper omits the header for body-less requests.
   return {
-    "Content-Type": "application/json",
+    ...(opts.withBody !== false && { "Content-Type": "application/json" }),
     ...(authHeader && { Authorization: authHeader }),
-    ...extra,
+    ...opts.extra,
   };
 }
 
@@ -39,7 +45,7 @@ export async function apiGet<T = unknown>(
 ): Promise<ApiResponse<T>> {
   const response = await fetch(`${BASE_URL}${path}`, {
     method: "GET",
-    headers: buildHeaders(authHeader),
+    headers: buildHeaders(authHeader, { withBody: false }),
   });
   return {
     status: response.status,
@@ -55,7 +61,7 @@ export async function apiPost<T = unknown>(
 ): Promise<ApiResponse<T>> {
   const response = await fetch(`${BASE_URL}${path}`, {
     method: "POST",
-    headers: buildHeaders(authHeader),
+    headers: buildHeaders(authHeader, { withBody: true }),
     body: JSON.stringify(body),
   });
   return {
@@ -72,7 +78,7 @@ export async function apiPatch<T = unknown>(
 ): Promise<ApiResponse<T>> {
   const response = await fetch(`${BASE_URL}${path}`, {
     method: "PATCH",
-    headers: buildHeaders(authHeader),
+    headers: buildHeaders(authHeader, { withBody: true }),
     body: JSON.stringify(body),
   });
   return {
@@ -87,10 +93,11 @@ export async function apiDelete<T = unknown>(
   authHeader?: string,
   body?: unknown
 ): Promise<ApiResponse<T>> {
+  const hasBody = body !== undefined;
   const response = await fetch(`${BASE_URL}${path}`, {
     method: "DELETE",
-    headers: buildHeaders(authHeader),
-    ...(body !== undefined && { body: JSON.stringify(body) }),
+    headers: buildHeaders(authHeader, { withBody: hasBody }),
+    ...(hasBody && { body: JSON.stringify(body) }),
   });
   return {
     status: response.status,
