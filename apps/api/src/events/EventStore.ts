@@ -71,51 +71,9 @@ export class PostgreSQLEventStore implements IEventStore {
       throw new Error(`Cannot append more than ${this.maxBatchSize} events at once`);
     }
 
-    const fullStreamId = `${this.streamPrefix}${streamId}`;
-
     try {
       await this.prisma.$transaction(async (tx) => {
-        const currentVersionResult = await tx.$queryRaw<[{ version: number | null }]>(
-          Prisma.sql`SELECT MAX(version) as version FROM "stored_events" WHERE stream_id = ${fullStreamId}`
-        );
-
-        const currentVersion = Number(currentVersionResult[0]?.version ?? 0);
-
-        if (expectedVersion !== undefined && currentVersion !== expectedVersion) {
-          throw new Error(
-            `Concurrency conflict: expected version ${expectedVersion}, but current version is ${currentVersion}`
-          );
-        }
-
-        const sequenceResult = await tx.$queryRaw<[{ next_sequence: number }]>(
-          Prisma.sql`SELECT COALESCE(MAX(sequence), 0) + 1 as next_sequence FROM "stored_events"`
-        );
-
-        const nextSequence = Number(sequenceResult[0]?.next_sequence ?? 1);
-
-        const eventsToInsert = events.map((event, index) => ({
-          id: event.id,
-          stream_id: fullStreamId,
-          event_type: event.type,
-          event_data: serializeEvent(event),
-          metadata: JSON.stringify(event.metadata),
-          version: currentVersion + index + 1,
-          sequence: nextSequence + index,
-          timestamp: event.timestamp,
-          correlation_id: event.correlationId || null,
-          causation_id: event.causationId || null,
-        }));
-
-        const valuesTuples = eventsToInsert.map(
-          (evt) =>
-            Prisma.sql`(${evt.id}, ${evt.stream_id}, ${evt.event_type}, ${evt.event_data}, ${evt.metadata}, ${evt.version}, ${evt.sequence}, ${evt.timestamp}, ${evt.correlation_id}, ${evt.causation_id})`
-        );
-        await tx.$executeRaw(
-          Prisma.sql`INSERT INTO "stored_events" (
-            id, stream_id, event_type, event_data, metadata,
-            version, sequence, timestamp, correlation_id, causation_id
-          ) VALUES ${Prisma.join(valuesTuples)}`
-        );
+        await this.appendInTx(tx, streamId, events, expectedVersion);
       });
 
       await this.publishEvents(events);
@@ -123,6 +81,72 @@ export class PostgreSQLEventStore implements IEventStore {
       logger.error({ err: error, streamId }, "Failed to append events to stream");
       throw error;
     }
+  }
+
+  /**
+   * Append events to a stream using an externally-managed Prisma transaction.
+   * Used by callers (e.g. SagaManager) that need to atomically persist their
+   * own state + the event log within the same `$transaction`. The pub/sub
+   * broadcast does NOT happen here — callers must invoke their own
+   * post-commit broadcast (typically via `EventService.broadcastEvent`).
+   *
+   * Same concurrency-control + sequence-allocation logic as `append` —
+   * extracted so both call paths share a single SQL implementation.
+   */
+  async appendInTx(
+    tx: Prisma.TransactionClient,
+    streamId: string,
+    events: DomainEvent[],
+    expectedVersion?: number
+  ): Promise<void> {
+    if (events.length === 0) return;
+    if (events.length > this.maxBatchSize) {
+      throw new Error(`Cannot append more than ${this.maxBatchSize} events at once`);
+    }
+
+    const fullStreamId = `${this.streamPrefix}${streamId}`;
+
+    const currentVersionResult = await tx.$queryRaw<[{ version: number | null }]>(
+      Prisma.sql`SELECT MAX(version) as version FROM "stored_events" WHERE stream_id = ${fullStreamId}`
+    );
+
+    const currentVersion = Number(currentVersionResult[0]?.version ?? 0);
+
+    if (expectedVersion !== undefined && currentVersion !== expectedVersion) {
+      throw new Error(
+        `Concurrency conflict: expected version ${expectedVersion}, but current version is ${currentVersion}`
+      );
+    }
+
+    const sequenceResult = await tx.$queryRaw<[{ next_sequence: number }]>(
+      Prisma.sql`SELECT COALESCE(MAX(sequence), 0) + 1 as next_sequence FROM "stored_events"`
+    );
+
+    const nextSequence = Number(sequenceResult[0]?.next_sequence ?? 1);
+
+    const eventsToInsert = events.map((event, index) => ({
+      id: event.id,
+      stream_id: fullStreamId,
+      event_type: event.type,
+      event_data: serializeEvent(event),
+      metadata: JSON.stringify(event.metadata),
+      version: currentVersion + index + 1,
+      sequence: nextSequence + index,
+      timestamp: event.timestamp,
+      correlation_id: event.correlationId || null,
+      causation_id: event.causationId || null,
+    }));
+
+    const valuesTuples = eventsToInsert.map(
+      (evt) =>
+        Prisma.sql`(${evt.id}, ${evt.stream_id}, ${evt.event_type}, ${evt.event_data}, ${evt.metadata}, ${evt.version}, ${evt.sequence}, ${evt.timestamp}, ${evt.correlation_id}, ${evt.causation_id})`
+    );
+    await tx.$executeRaw(
+      Prisma.sql`INSERT INTO "stored_events" (
+        id, stream_id, event_type, event_data, metadata,
+        version, sequence, timestamp, correlation_id, causation_id
+      ) VALUES ${Prisma.join(valuesTuples)}`
+    );
   }
 
   /**

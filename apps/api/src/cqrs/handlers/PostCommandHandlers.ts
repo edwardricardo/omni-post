@@ -102,15 +102,8 @@ export class CreatePostCommandHandler implements CommandHandler<
       const validatedCommand = validation.data as CreatePostCommand;
       const { data, metadata } = validatedCommand;
 
-      // 2. Validate channels (cross-aggregate concern)
-      if (data.channelIds.length > 0) {
-        const channelError = await validateChannels(data.channelIds, this.config.channelRepository);
-        if (channelError) {
-          return { success: false, error: channelError };
-        }
-      }
-
-      // 3. Delegate to use case
+      // Delegate to use case. Post is platform-agnostic: no channels, no
+      // media, no schedule. Those are owned by downstream saga steps.
       const result = await this.config.createPostUseCase.execute({
         projectId: data.projectId,
         body: data.body,
@@ -119,7 +112,6 @@ export class CreatePostCommandHandler implements CommandHandler<
         ...(data.locale && {
           locale: data.locale as import("../../domain/value-objects/Content.js").ContentLocale,
         }),
-        ...(data.scheduledAt && { scheduledAt: data.scheduledAt }),
       });
 
       if (!result.ok) {
@@ -128,74 +120,49 @@ export class CreatePostCommandHandler implements CommandHandler<
 
       const postId = result.value.id;
 
-      // 4. Create CQRS integration events
-      const events = [];
-
-      const postCreatedEvent = createPostEvent(
-        EVENT_TYPES.POST_CREATED,
-        postId,
-        data.projectId,
-        {
-          title: data.title,
-          body: data.body,
-          locale: data.locale,
-          tags: data.tags,
-          mediaCount: data.mediaIds?.length || 0,
-          channelIds: data.channelIds,
-          scheduledAt: data.scheduledAt,
-          status: result.value.status,
-        },
-        {
-          ...(metadata.userId && { userId: metadata.userId }),
-          source: metadata.source,
-        }
-      );
-      events.push(postCreatedEvent);
-
-      if (data.scheduledAt) {
-        const postScheduledEvent = createPostEvent(
-          EVENT_TYPES.POST_SCHEDULED,
+      const events = [
+        createPostEvent(
+          EVENT_TYPES.POST_CREATED,
           postId,
           data.projectId,
           {
-            scheduledAt: data.scheduledAt,
-            channelIds: data.channelIds,
-            estimatedPublishTime: data.scheduledAt,
+            title: data.title,
+            body: data.body,
+            locale: data.locale,
+            tags: data.tags,
+            status: result.value.status,
           },
           {
-            source: metadata.source,
             ...(metadata.userId && { userId: metadata.userId }),
-            ...(metadata.correlationId && { correlationId: metadata.correlationId }),
+            source: metadata.source,
           }
-        );
-        events.push(postScheduledEvent);
-      }
-
-      const userActionEvent = createUserActionEvent(
-        metadata.userId || "system",
-        "CREATE_POST",
-        "Post",
-        postId,
-        {
-          source: metadata.source || "API",
-          ...(metadata.userId && { userId: metadata.userId }),
-          ...(metadata.sessionId && { sessionId: metadata.sessionId }),
-        },
-        {
-          projectId: data.projectId,
-          hasSchedule: !!data.scheduledAt,
-          channelCount: data.channelIds.length,
-          mediaCount: data.mediaIds?.length || 0,
-        }
-      );
-      events.push(userActionEvent);
+        ),
+        createUserActionEvent(
+          metadata.userId || "system",
+          "CREATE_POST",
+          "Post",
+          postId,
+          {
+            source: metadata.source || "API",
+            ...(metadata.userId && { userId: metadata.userId }),
+            ...(metadata.sessionId && { sessionId: metadata.sessionId }),
+          },
+          {
+            projectId: data.projectId,
+          }
+        ),
+      ];
 
       // 5. Invalidate caches
       await this.invalidateCaches(data.projectId);
 
       return {
         success: true,
-        data: { postId, version: 1 },
+        // version: 0 — every freshly-created Post starts at version 0 (the
+        // schema default + AggregateRoot default). The saga step propagates
+        // this as expectedVersion to UpdateStatusStep so OCC matches the
+        // persisted row instead of fabricating a phantom version.
+        data: { postId, version: 0 },
         events,
       };
     } catch (error) {
@@ -257,12 +224,13 @@ export class UpdatePostCommandHandler implements CommandHandler<
         );
       }
 
-      // 2. Delegate to use case
+      // 2. Delegate to use case (propagating OCC token if caller supplied one)
       const result = await this.config.updatePostUseCase.execute({
         postId: aggregateId,
         ...(data.body && { body: data.body }),
         ...(data.title && { title: data.title }),
         ...(data.tags && { tags: data.tags }),
+        ...(data.expectedVersion !== undefined && { expectedVersion: data.expectedVersion }),
       });
 
       if (!result.ok) {

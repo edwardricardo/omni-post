@@ -8,7 +8,8 @@
  * @layer infrastructure
  */
 
-import { ApiError, type ErrorResponse } from "../types";
+import { ApiError } from "@packages/api-errors";
+import type { ErrorResponse } from "../types";
 
 export const PROXY_BASE = "/api/backend";
 

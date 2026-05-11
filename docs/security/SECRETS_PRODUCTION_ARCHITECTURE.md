@@ -15,13 +15,13 @@ separate working session and captured in the final canonical reference.
 
 ## 1. Scope
 
-**Covers**
+### Covers
 
 - Deployment-time secret delivery for the omni-post platform
 - Current deployment topology (single VPS-style runtime, future Kubernetes)
 - Near-term horizon (1–2 years)
 
-**Does not cover**
+### Does not cover
 
 - Per-secret rotation procedure → [T0A_SECRETS_ROTATION_RUNBOOK.md](./T0A_SECRETS_ROTATION_RUNBOOK.md)
 - Encryption-at-rest model and `keyVersion` taxonomy → [SECRETS_DATABASE_INVENTORY.md](./SECRETS_DATABASE_INVENTORY.md)
@@ -31,7 +31,7 @@ separate working session and captured in the final canonical reference.
 - Sample manifests — those live in operational documents per chosen tool;
   this document stays at the architectural level
 
-**Audience**
+### Audience
 
 Anyone who needs to understand the options for moving secrets out of `.env`
 and into a production-grade delivery mechanism: contributors, reviewers,

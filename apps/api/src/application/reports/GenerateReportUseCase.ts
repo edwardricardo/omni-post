@@ -58,9 +58,11 @@ const ANALYTICS_CSV_COLUMNS: ColumnDefinition<AnalyticsExportRow>[] = [
  *   Loads the report configuration, fetches analytics data, formats the output,
  *   sends it via email, and records the execution timestamp.
  */
-export class GenerateReportUseCase
-  implements UseCase<GenerateReportInput, GenerateReportOutput, UseCaseError>
-{
+export class GenerateReportUseCase implements UseCase<
+  GenerateReportInput,
+  GenerateReportOutput,
+  UseCaseError
+> {
   constructor(
     private readonly reportRepository: ScheduledReportRepository,
     private readonly analyticsReadRepository: AnalyticsReadRepositoryPort,

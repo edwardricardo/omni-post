@@ -11,10 +11,11 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { usePost, useProjects } from "@/lib/api/hooks";
 import { useProviders } from "@/lib/hooks/useProviders";
+import { runSagaAndAwaitTerminal } from "@/lib/api/clients/sagaClient";
 import { apiClient } from "@/lib/api/client";
 import { ClientContentEditor } from "@/components/editor/ClientContentEditor";
 import { useProjectChannels } from "@/lib/hooks/useProjectChannels";
-import { useSchedulePost } from "@/lib/hooks/useSchedulePost";
+import { useSchedulePostViaSaga } from "@/lib/hooks/useSchedulePostViaSaga";
 import {
   Card,
   CardContent,
@@ -67,7 +68,7 @@ export default function EditPostPage() {
     () => Array.from(new Set(channels.map((c) => c.platform))),
     [channels]
   );
-  const scheduleMutation = useSchedulePost();
+  const scheduleMutation = useSchedulePostViaSaga();
   const isScheduling = scheduleMutation.isPending;
 
   // Seed the channel selection with each provider's primary the first time the
@@ -105,9 +106,41 @@ export default function EditPostPage() {
   };
 
   const handlePublishNow = useCallback(async () => {
+    if (selectedChannelIds.length === 0) {
+      toast({
+        title: "Select channels first",
+        description: "Pick at least one channel to publish to.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!post?.projectId) {
+      toast({
+        title: "Post not loaded",
+        description: "Please wait for the post data to finish loading.",
+        variant: "destructive",
+      });
+      return;
+    }
     setIsPublishing(true);
     try {
-      await apiClient.publishPost(postId);
+      // Awaits the saga's terminal state — the button stays disabled while
+      // the worker pipeline confirms each provider publish.
+      await runSagaAndAwaitTerminal(
+        {
+          start: (input) => apiClient.startPostPublishingSaga(input),
+          getStatus: (sagaId) => apiClient.getSagaStatus(sagaId),
+        },
+        {
+          mode: "publish-now",
+          projectId: post.projectId,
+          postId,
+          channelIds: selectedChannelIds,
+        },
+        // Publish-now goes through provider workers — allow a longer ceiling
+        // than the default 60s.
+        { pollIntervalMs: 1000, timeoutMs: 120_000 }
+      );
       toast({ title: "Post published" });
       refetch();
     } catch (error) {
@@ -116,7 +149,7 @@ export default function EditPostPage() {
     } finally {
       setIsPublishing(false);
     }
-  }, [postId, refetch]);
+  }, [postId, post?.projectId, selectedChannelIds, refetch]);
 
   const handleSchedulePost = useCallback(async () => {
     if (!scheduleDate) {

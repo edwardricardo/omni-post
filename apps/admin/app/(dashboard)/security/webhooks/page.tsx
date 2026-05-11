@@ -12,7 +12,7 @@
 
 import { useState } from "react";
 import { useWebhookRotateSecret } from "@/hooks/api/useWebhookRotateSecret";
-import { getErrorMessage } from "@/lib/parseApiError";
+import { getErrorMessage } from "@packages/api-errors";
 import { PageHeader } from "@/components/ui/PageHeader";
 
 const DEFAULT_GRACE_HOURS = 24;

@@ -28,7 +28,7 @@
 | D12: Multi-Tenant Account Management  | 4/6         | 1/6     | 1/6     | **75%** | 🟡 Parcial                      |
 | D13: Integrations & Extensibility     | 2/7         | 1/7     | 4/7     | **36%** | 🟡 Parcial                      |
 
-**Overall: ~49% (across 98 individual capabilities)**
+#### Overall: ~49% (across 98 individual capabilities)
 
 ---
 
@@ -144,7 +144,7 @@ Based on the full audit, the 7 highest-leverage items:
 | 1.5 | All media types: images, video, carousels, PDFs, link previews | 🟡 PARTIAL     | Images/video: `apps/admin/components/instagram/MediaUploadZone.tsx`, Prisma `PostMedia`. Carousels: Instagram/LinkedIn adapters. PDFs: LinkedIn `LinkedInAdapter.ts` `uploadDocument()`. Link previews: no file found. | Link preview/unfurling (OG tag fetch) does not exist in editor. PDF support limited to LinkedIn.          |
 | 1.6 | Publish now + schedule for later from same interface           | ✅ IMPLEMENTED | `apps/client/app/(dashboard)/posts/new/page.tsx`, `apps/client/components/publishing/PublishingInterface.tsx`, `apps/client/components/editor/SchedulePicker.tsx`                                                      | Both publish paths wired to same creation flow.                                                           |
 
-**Score: 2 ✅ + 3 🟡 + 1 🔴 = ~58%**
+#### Score: 2 ✅ + 3 🟡 + 1 🔴 = ~58%
 
 ---
 
@@ -162,7 +162,7 @@ Based on the full audit, the 7 highest-leverage items:
 | 2.5 | Queue-based auto-scheduling                                 | ✅ IMPLEMENTED | Prisma `PublishingQueue`, `apps/admin/components/queue/PublishingQueueManager.tsx`, `apps/workers/src/publishWorker.ts`     | BullMQ workers publish from queue. Priority, retry, DLQ all wired.                                                       |
 | 2.6 | Post preview in calendar view before publishing             | 🟡 PARTIAL     | `apps/admin/components/scheduling/SchedulingDashboardPostModal.tsx`                                                         | Post modal exists on calendar. Full rich preview (rendered per platform) not confirmed in calendar view.                 |
 
-**Score: 3 ✅ + 3 🟡 + 0 🔴 = ~75%**
+#### Score: 3 ✅ + 3 🟡 + 0 🔴 = ~75%
 
 ---
 
@@ -217,7 +217,7 @@ The frontend UI has **zero components**. Every row below reflects this asymmetry
 | 4.6 | Internal notes on conversations               | 🔴 MISSING | No `AddInternalNoteUseCase` or `InternalNote` model found.                                                                                                                                                   | Not implemented in backend either.                |
 | 4.7 | Read/unread state management                  | 🟡 PARTIAL | Backend: `MarkMessageReadUseCase.ts`, `GetUnreadInboxCountQuery.ts`, Prisma `SocialMessage.isRead`                                                                                                           | No UI.                                            |
 
-**Score: 0 ✅ + 6 🟡 + 1 🔴 = ~43% (0% from end-user product perspective)**
+#### Score: 0 ✅ + 6 🟡 + 1 🔴 = ~43% (0% from end-user product perspective)
 
 ---
 
@@ -238,7 +238,7 @@ The frontend UI has **zero components**. Every row below reflects this asymmetry
 | 5.7 | Alert system when keywords spike              | 🔴 MISSING | No file found.                                                                                                     |                                                                                        |
 | 5.8 | AI-assisted creation from listening data      | 🔴 MISSING | No connection between `trendAnalysisService.ts` and the composer/AI content generator.                             |                                                                                        |
 
-**Score: 0 ✅ + 1 🟡 + 7 🔴 = ~6%**
+#### Score: 0 ✅ + 1 🟡 + 7 🔴 = ~6%
 
 ---
 
@@ -259,7 +259,7 @@ The frontend UI has **zero components**. Every row below reflects this asymmetry
 | 6.7 | Collaborative whiteboard for brainstorming    | 🔴 MISSING     | No file found.                                                                                                                                                                                                                                               | No whiteboard component or multi-user ideation feature.                                             |
 | 6.8 | Content suggestions from listening data       | 🔴 MISSING     | No connection between `trendAnalysisService.ts` and AI content generation pipeline.                                                                                                                                                                          | D5 listening capabilities are near-zero, so this has no data source to draw from.                   |
 
-**Score: 2 ✅ + 2 🟡 + 4 🔴 = ~38%**
+#### Score: 2 ✅ + 2 🟡 + 4 🔴 = ~38%
 
 🔵 **EXCEEDS MODEL — AI Image Generation:**
 `apps/api/src/application/ai-image/GenerateImageUseCase.ts` — DALL-E 3 via `aiService.ts`/OpenAI provider.
@@ -290,7 +290,7 @@ Sizes: 1024×1024, 1792×1024, 1024×1792. Results stored in Prisma `GeneratedIm
 | 7.9  | Social advertising ROI tracking                                         | 🟡 PARTIAL     | `apps/api/src/application/analytics/CalculateROIUseCase.ts`, `apps/api/src/analytics/roiCalculator.ts`, `apps/api/src/analytics/roi/`                                                                       | ROI calculation exists but for organic content. No paid ad tracking.                                                                                       |
 | 7.10 | Platform-specific metrics (Reels views, watch time, TikTok completions) | ✅ IMPLEMENTED | Each provider `fetchAnalytics()` returns platform-native metrics. Instagram: impressions/reach/profile_views. YouTube: views/likes/comments/shares/watch time. TikTok: follower count + basic metrics.      | TikTok analytics limited by basic API tier. Others comprehensive.                                                                                          |
 
-**Score: 4 ✅ + 5 🟡 + 1 🔴 = ~65%**
+#### Score: 4 ✅ + 5 🟡 + 1 🔴 = ~65%
 
 🔵 **EXCEEDS MODEL — Link click tracking:**
 `apps/api/src/application/links/` (CreateTrackedLink, GetLinkStats, RedirectAndTrackClick),
@@ -317,7 +317,7 @@ for approvals, comments, and notifications.
 | 8.5 | Audit log                                      | ✅ IMPLEMENTED | `apps/api/src/audit/auditMiddleware.ts` (Fastify middleware, auto-logs all authenticated requests), `auditRoutes.ts`, `apps/api/src/audit/activityFeedRoutes.ts` + `activityFeedService.ts`                                                | Audit log complete. Activity feed with cursor pagination also implemented. Admin `/(dashboard)/logs/page.tsx` exists.                                                                                  |
 | 8.6 | Content assignment between team members        | 🟡 PARTIAL     | Backend: `apps/api/src/application/team/` (4 use cases: Invite, Remove, UpdateRole, GetMembers). `TeamMember` entity + `TeamRole` VO. Social Inbox has `AssignMessageUseCase`.                                                             | Team member model exists. Direct post-to-member assignment (e.g., "this draft is assigned to Person X for editing") not explicitly confirmed. Approval submission to a reviewer is the closest analog. |
 
-**Score: 2 ✅ + 4 🟡 + 0 🔴 = ~67%**
+#### Score: 2 ✅ + 4 🟡 + 0 🔴 = ~67%
 
 🔵 **EXCEEDS MODEL — Content Versioning (git-like):**
 `apps/api/src/content/DiffCalculator.ts`, `ContentVersionManager.ts`, Prisma `ContentVersion`, `TemplateCommit`, `TemplateCollaboration`.
@@ -340,7 +340,7 @@ Branch, merge, diff comparison, conflict detection, commit history. Not describe
 | 9.5 | Asset expiry or archiving policies                    | 🔴 MISSING | No `expiresAt` or `archivedAt` field on media models found.                                                                                                                        |                                                                                                                            |
 | 9.6 | External storage integration (Google Drive, Dropbox)  | 🟡 PARTIAL | `packages/adapters/storage-s3/` (S3-compatible internal storage), `packages/adapters/storage-cloudinary/` (Cloudinary for images/video)                                            | Internal S3/Cloudinary confirmed. Google Drive, Dropbox, OneDrive import: no file found.                                   |
 
-**Score: 0 ✅ + 4 🟡 + 2 🔴 = ~33%**
+#### Score: 0 ✅ + 4 🟡 + 2 🔴 = ~33%
 
 🔵 **EXCEEDS MODEL — Template versioning with git-like history:**
 Prisma `Template`, `TemplateVersion`, `TemplateCommit`, `TemplateCollaboration`. Content templates
@@ -361,7 +361,7 @@ have version control, branching, and collaboration tracking — not in reference
 | 10.4 | Advocate management (invite, onboard, report)         | 🔴 MISSING | No file found. |                        |
 | 10.5 | Permission controls (share-only, not edit)            | 🔴 MISSING | No file found. |                        |
 
-**Score: 0 ✅ + 0 🟡 + 5 🔴 = 0%**
+#### Score: 0 ✅ + 0 🟡 + 5 🔴 = 0%
 
 ---
 
@@ -378,7 +378,7 @@ have version control, branching, and collaboration tracking — not in reference
 | 11.4 | Ad spend tracking and ROI reporting        | 🔴 MISSING | No file found.                                                                                                                                                  | ROI calculator exists for organic; no paid ad tracking.                                     |
 | 11.5 | Platform ad API integration                | 🟡 PARTIAL | `packages/providers/tiktok/src/marketingApiClient.ts` — `createPromotedContent()` logs `"Marketing campaign creation not fully implemented"` and returns error. | Dead stub. No Meta Ads, no LinkedIn Campaign Manager, no TikTok Ads functional integration. |
 
-**Score: 0 ✅ + 1 🟡 + 4 🔴 = ~10%**
+#### Score: 0 ✅ + 1 🟡 + 4 🔴 = ~10%
 
 ---
 
@@ -397,7 +397,7 @@ have version control, branching, and collaboration tracking — not in reference
 | 12.5 | Per-tenant API keys                                   | ✅ IMPLEMENTED | Prisma `ApiKey` (scoped to Account), `apps/api/src/auth/apiKeyRoutes.ts`, `apps/api/src/application/apiKeys/ApiKeyUseCases.ts`                                                                           | API key generation, rotation, revocation per account.                                                                     |
 | 12.6 | Usage quotas and limits per tenant tier               | 🟡 PARTIAL     | Prisma `Account.maxProjects`, `Account.subscription` (`SubscriptionTier`: BASIC, PRO, ENTERPRISE). `apps/api/src/security/advancedRateLimit.ts`. `apps/api/src/billing/subscriptionService.ts` (Stripe). | maxProjects enforced. Rate limiting per tenant. No detailed usage metering (posts/month, API calls, storage GB) per tier. |
 
-**Score: 4 ✅ + 1 🟡 + 1 🔴 = ~75%**
+#### Score: 4 ✅ + 1 🟡 + 1 🔴 = ~75%
 
 ---
 
@@ -416,7 +416,7 @@ have version control, branching, and collaboration tracking — not in reference
 | 13.6 | Public API for external automation                     | ✅ IMPLEMENTED | 41 route files, 90+ endpoints, API key auth (`ApiKey` model), rate limiting (`advancedRateLimit.ts`, `slidingWindowRateLimit.ts`)   | Full REST API available for external consumers with API key authentication.                                                                 |
 | 13.7 | Webhook support for outbound event notifications       | ✅ IMPLEMENTED | `apps/api/src/webhooks/webhookManager.ts`, `webhookHandler.ts`, Prisma `WebhookSubscription` + `WebhookEvent` + `WebhookDeadLetter` | Subscription-based outbound webhooks. Events with DLQ, retry. Admin UI for config: `apps/admin/app/(dashboard)/webhooks/page.tsx`.          |
 
-**Score: 2 ✅ + 1 🟡 + 4 🔴 = ~36%**
+#### Score: 2 ✅ + 1 🟡 + 4 🔴 = ~36%
 
 🔵 **EXCEEDS MODEL — Slack/Teams notifications:**
 `apps/api/src/infrastructure/adapters/SlackNotifierAdapter.ts` + `TeamsNotifierAdapter.ts` +

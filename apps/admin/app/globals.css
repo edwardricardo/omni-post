@@ -76,7 +76,6 @@
   --sidebar-item-hover: #f5f5f5;
   --sidebar-item-active: rgba(37, 99, 235, 0.08);
   --sidebar-item-active-text: #2563eb;
-
 }
 
 .dark {
@@ -119,7 +118,6 @@
   --sidebar-item-hover: #1a1a1a;
   --sidebar-item-active: rgba(59, 130, 246, 0.12);
   --sidebar-item-active-text: #3b82f6;
-
 }
 
 /* ═══════════════════════════════════════════════════════════════

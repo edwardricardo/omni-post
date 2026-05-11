@@ -78,7 +78,7 @@ export interface AccountSummary {
   };
 }
 
-export interface AccountListItem {
+interface AccountListItem {
   id: string;
   email: string;
   name: string;
@@ -87,7 +87,7 @@ export interface AccountListItem {
   mfaEnabled: boolean;
 }
 
-export interface AccountListPagination {
+interface AccountListPagination {
   page: number;
   limit: number;
   total: number;

@@ -27,31 +27,38 @@ const scheduler = new NoopBackgroundTaskScheduler();
 function createMockPrismaWithSagaInstance() {
   const store = new Map<string, Record<string, unknown>>();
 
-  return {
-    $queryRaw: async () => [{ result: 1 }],
-    sagaInstance: {
-      upsert: async (args: {
-        where: { id: string };
-        create: Record<string, unknown>;
-        update: Record<string, unknown>;
-      }) => {
-        const existing = store.get(args.where.id);
-        if (existing) {
-          const updated = { ...existing, ...args.update };
-          store.set(args.where.id, updated);
-          return updated;
-        }
-        store.set(args.where.id, args.create);
-        return args.create;
+  type Tx = ReturnType<typeof build>;
+  function build() {
+    const tx = {
+      $queryRaw: async () => [{ result: 1 }],
+      $executeRaw: async () => 1,
+      $transaction: async <T>(fn: (innerTx: Tx) => Promise<T>) => fn(tx),
+      sagaInstance: {
+        upsert: async (args: {
+          where: { id: string };
+          create: Record<string, unknown>;
+          update: Record<string, unknown>;
+        }) => {
+          const existing = store.get(args.where.id);
+          if (existing) {
+            const updated = { ...existing, ...args.update };
+            store.set(args.where.id, updated);
+            return updated;
+          }
+          store.set(args.where.id, args.create);
+          return args.create;
+        },
+        findMany: async () => {
+          return Array.from(store.values());
+        },
+        findUnique: async (args: { where: { id: string } }) => {
+          return store.get(args.where.id) ?? null;
+        },
       },
-      findMany: async () => {
-        return Array.from(store.values());
-      },
-      findUnique: async (args: { where: { id: string } }) => {
-        return store.get(args.where.id) ?? null;
-      },
-    },
-  };
+    };
+    return tx;
+  }
+  return build();
 }
 
 describe("V5: Terminal State Guard", () => {

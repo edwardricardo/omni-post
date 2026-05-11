@@ -28,8 +28,9 @@ import { createThreadsAdapter } from "@providers/threads";
 import { createBullMQConsumerAdapter, QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { registerGracefulShutdown } from "./lib/gracefulShutdown.js";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
+import { verifyDatabaseAuth } from "@infra/prisma";
 import { decryptChannelCredentials } from "@shared/types";
-import { CredentialResolver } from "./CredentialResolver.js";
+import { CredentialResolver } from "./services/CredentialResolver.js";
 
 // PLATFORM_ENCRYPTION_KEY is required for decrypting Channel.credentials.
 // Workers fail fast if missing — no plaintext fallback.
@@ -124,6 +125,10 @@ const handler = new PublishHandler({
 });
 
 async function start() {
+  // Fail fast if DATABASE_URL credentials don't authenticate (typically a
+  // stale Postgres volume after a password rotation without `down -v`).
+  await verifyDatabaseAuth();
+
   await consumer.subscribe(async (job) => {
     const payload = job.payload as {
       postId: string;
@@ -142,7 +147,11 @@ async function start() {
   );
 
   // Enhanced metrics and health endpoint
-  const metricsPort = Number(process.env.METRICS_PORT ?? 9100);
+  // Port 3300 is the canonical OmniPost worker metrics port: outside
+  // Prometheus's reserved 9090–9999 exporter range (9090=server, 9091=pushgateway,
+  // 9100=node_exporter), so it never collides with the prometheus container or a
+  // host-side node_exporter. See `prometheus/prometheus.yml` workers job.
+  const metricsPort = Number(process.env.METRICS_PORT ?? 3300);
   http
     .createServer(async (req, res) => {
       if (req.url === "/metrics") {

@@ -13,7 +13,7 @@ import { useCurrentUser } from "@/providers/AuthProvider";
 
 import { Eye, EyeOff, Pencil, KeyRound } from "lucide-react";
 
-import { isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
+import { isPermissionDenied, getErrorMessage } from "@packages/api-errors";
 import { AccessDenied } from "@/components/shared/AccessDenied";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAccounts, useUpdateAccount } from "@/hooks/api/useAccounts";
@@ -171,7 +171,13 @@ function AccountsPageContent() {
   const handleBulkAction = useCallback(
     async (action: "suspend" | "activate" | "export") => {
       if (action === "export") {
-        exportAccountsToCSV(accounts, selectedAccounts);
+        try {
+          await exportAccountsToCSV(selectedAccounts);
+        } catch (e) {
+          // Surface failure as an alert; the export endpoint either returns
+          // CSV (success) or a JSON error envelope on auth/validation issues.
+          alert(e instanceof Error ? e.message : "Failed to export accounts");
+        }
         setSelectedAccounts(new Set());
         setShowActions(false);
         return;
@@ -210,7 +216,7 @@ function AccountsPageContent() {
       setSelectedAccounts(new Set());
       setShowActions(false);
     },
-    [accounts, selectedAccounts, refetch, tc]
+    [selectedAccounts, refetch, tc]
   );
 
   const handleView = useCallback((accountId: string) => {

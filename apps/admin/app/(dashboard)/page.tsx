@@ -11,7 +11,7 @@ import { useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import { isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
+import { isPermissionDenied, getErrorMessage } from "@packages/api-errors";
 import { AccessDenied } from "@/components/shared/AccessDenied";
 import { useDashboardStats } from "@/hooks/api/useDashboardStats";
 import { DonutChart, HorizontalBarChart } from "@/components/charts";

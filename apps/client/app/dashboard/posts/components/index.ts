@@ -5,6 +5,7 @@
  */
 
 export { PostCard } from "./PostCard";
+export { PostsBulkActionsBar } from "./PostsBulkActionsBar";
 export { PostsEmptyState } from "./PostsEmptyState";
 export { PostsFilters, type PostStatusFilter, type PostViewMode } from "./PostsFilters";
 export { PostsLoadingSkeleton } from "./PostsLoadingSkeleton";

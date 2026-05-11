@@ -5,13 +5,7 @@
  * @layer infrastructure
  */
 
-export type {
-  AdminUser,
-  AdminUsersResponse,
-  CreateAdminUserInput,
-  CreateAdminUserResponse,
-  UpdateAdminUserData,
-} from "./types";
+export type { AdminUser } from "./types";
 
 export { useAdminUsers } from "./queries";
 

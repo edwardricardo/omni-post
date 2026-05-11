@@ -74,14 +74,14 @@ Each provider is implemented as an isolated package (`packages/providers/{name}/
 
 ### Core Features
 
-**Content Management**
+#### Content Management
 
 - Rich content editor with per-platform preview and character-count validation
 - Content library with tagging, search, and bulk operations
 - Template system with variable interpolation and automation rules
 - CSV bulk upload for campaign scheduling
 
-**Scheduling and Publishing**
+#### Scheduling and Publishing
 
 - Visual calendar with drag-and-drop scheduling
 - Recurring post templates with cron-based scheduling
@@ -89,21 +89,21 @@ Each provider is implemented as an isolated package (`packages/providers/{name}/
 - Publishing queue with retry logic and dead-letter handling
 - 14 BullMQ queues processing content through the pipeline
 
-**Collaboration and Approvals**
+#### Collaboration and Approvals
 
 - Multi-level approval workflows (configurable per project)
 - @mention support in comments and review threads
 - Task management with assignment and due dates
 - Real-time notification system with email and webhook delivery
 
-**Analytics**
+#### Analytics
 
 - Cross-platform analytics dashboard with date-range filtering
 - Performance insights: audience analysis, hashtag performance, optimal timing
 - Custom report builder with scheduled generation
 - Analytics ingestion pipeline updating every 6 hours
 
-**Integrations**
+#### Integrations
 
 - CRM: HubSpot and Salesforce with real contact sync
 - Automation: Zapier and Make (generic webhook integration)

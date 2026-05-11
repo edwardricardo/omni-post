@@ -45,9 +45,11 @@ export interface ApprovalRequestDTO {
  * @class GetApprovalHistoryQuery
  * @description Retrieves all approval requests for a given post as DTOs.
  */
-export class GetApprovalHistoryQuery
-  implements UseCase<GetApprovalHistoryInput, ApprovalRequestDTO[], UseCaseError>
-{
+export class GetApprovalHistoryQuery implements UseCase<
+  GetApprovalHistoryInput,
+  ApprovalRequestDTO[],
+  UseCaseError
+> {
   constructor(private readonly approvalRepo: ApprovalRequestRepository) {}
 
   /**

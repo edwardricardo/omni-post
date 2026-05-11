@@ -1,9 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "dist",
-    "incremental": true,
-    "tsBuildInfoFile": ".tsbuildinfo"
+    "noEmit": true
   },
   "include": ["src", "../../packages/*/src/**/*", "../../infra/*/src/**/*"],
   "exclude": ["node_modules", "dist", "build", ".turbo", ".next", "coverage"]

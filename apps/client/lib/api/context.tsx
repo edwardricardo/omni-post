@@ -7,7 +7,7 @@
 
 import React, { createContext, useContext, ReactNode } from "react";
 import { apiClient } from "./client";
-import { ApiError } from "./types";
+import { ApiError } from "@packages/api-errors";
 
 interface ApiContextType {
   client: typeof apiClient;

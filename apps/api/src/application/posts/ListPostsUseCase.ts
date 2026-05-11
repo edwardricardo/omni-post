@@ -6,7 +6,13 @@
 
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
-import { ProjectId, type PostQueryRepository, type PostSortField } from "../../domain/index.js";
+import {
+  ProjectId,
+  type PostFilterCriteria,
+  type PostQueryRepository,
+  type PostSortField,
+} from "../../domain/index.js";
+import type { PublishStatusValue } from "../../domain/value-objects/PublishStatus.js";
 import { type PostDTO } from "./GetPostUseCase.js";
 
 /**
@@ -18,6 +24,21 @@ export interface ListPostsInput {
   limit?: number;
   sortBy?: PostSortField;
   sortDirection?: "asc" | "desc";
+  /** Single value or array; both become a multi-status filter at the repo level. */
+  status?: PublishStatusValue | PublishStatusValue[];
+  /** ISO 8601 datetime strings. */
+  createdFrom?: string;
+  createdTo?: string;
+  scheduledFrom?: string;
+  scheduledTo?: string;
+  /** Substring search across PostContent.title + PostContent.body. */
+  searchText?: string;
+  /** Tag filter — `hasSome` semantics (any tag matches). */
+  tags?: string[];
+  /** When `true`, only posts with at least one media attachment. */
+  hasMedia?: boolean;
+  /** When `true`, the standard `archivedAt: null` filter is dropped. */
+  includeArchived?: boolean;
 }
 
 /**
@@ -76,13 +97,67 @@ export class ListPostsUseCase implements UseCase<ListPostsInput, ListPostsOutput
         }
       : undefined;
 
+    // Build filter — only populate when at least one criterion is set so the
+    // repository can short-circuit to the no-filter path for plain listings.
+    const filter = buildFilter(input);
+
     // Query the read model directly — no aggregate loading or manual DTO mapping
     const result = await this.postQueryRepository.listByProject(
       projectIdResult.value,
       pagination,
-      sort
+      sort,
+      filter
     );
 
     return ok(result);
   }
+}
+
+/**
+ * Translate an ISO datetime string from the input DTO to a Date. Returns
+ * undefined when the input is missing, empty, or unparseable — the repo
+ * treats undefined bounds as "no constraint" so silent invalid dates simply
+ * loosen the filter rather than fail the request.
+ */
+function parseIsoDate(value: string | undefined): Date | undefined {
+  if (!value) return undefined;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
+/**
+ * Convert ListPostsInput's flat filter fields into a PostFilterCriteria, or
+ * return undefined when no filter dimension is set so the repository skips
+ * the where-clause builder entirely.
+ */
+function buildFilter(input: ListPostsInput): PostFilterCriteria | undefined {
+  const createdAfter = parseIsoDate(input.createdFrom);
+  const createdBefore = parseIsoDate(input.createdTo);
+  const scheduledAfter = parseIsoDate(input.scheduledFrom);
+  const scheduledBefore = parseIsoDate(input.scheduledTo);
+
+  const hasAnyDimension =
+    input.status !== undefined ||
+    createdAfter !== undefined ||
+    createdBefore !== undefined ||
+    scheduledAfter !== undefined ||
+    scheduledBefore !== undefined ||
+    input.searchText !== undefined ||
+    (input.tags && input.tags.length > 0) ||
+    input.hasMedia !== undefined ||
+    input.includeArchived === true;
+
+  if (!hasAnyDimension) return undefined;
+
+  return {
+    ...(input.status !== undefined && { status: input.status }),
+    ...(createdAfter !== undefined && { createdAfter }),
+    ...(createdBefore !== undefined && { createdBefore }),
+    ...(scheduledAfter !== undefined && { scheduledAfter }),
+    ...(scheduledBefore !== undefined && { scheduledBefore }),
+    ...(input.searchText !== undefined && { searchText: input.searchText }),
+    ...(input.tags !== undefined && input.tags.length > 0 && { tags: input.tags }),
+    ...(input.hasMedia !== undefined && { hasMedia: input.hasMedia }),
+    ...(input.includeArchived === true && { includeArchived: true }),
+  };
 }

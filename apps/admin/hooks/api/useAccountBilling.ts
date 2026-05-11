@@ -5,7 +5,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import type { PlanType } from "@shared/types";
-import { ApiError } from "@/lib/parseApiError";
+import { ApiError } from "@packages/api-errors";
 
 export interface BillingData {
   accountId: string;

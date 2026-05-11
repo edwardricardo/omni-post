@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-import { ApiError } from "@/lib/parseApiError";
+import { ApiError } from "@packages/api-errors";
 import type { GroupCredentials, SettingsStatus, TestResult } from "./types";
 
 const BASE = "/api/backend/admin/settings";

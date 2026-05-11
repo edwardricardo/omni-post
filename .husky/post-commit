@@ -1,0 +1,67 @@
+#!/usr/bin/env sh
+# Post-commit hook — incremental graphify update for affected graph targets.
+#
+# What this does:
+#   1. Detects which graph targets (apps/* or packages/) had files changed.
+#   2. Runs `graphify update` (incremental AST re-extraction) inside each
+#      affected target's working dir, in parallel.
+#   3. Stays silent if no targets changed, or if graphify CLI is not installed.
+#
+# Why post-commit (not post-push):
+#   - graph.json + GRAPH_REPORT.md stay fresh per commit, not stale until push.
+#   - AST extraction is sub-second per typical commit, so it does not block.
+#   - Failures are non-fatal: a broken graph never blocks a workflow.
+#
+# POSIX shell required (Husky invokes hooks via sh, not bash). No arrays,
+# no `[[ ]]`, no `(( ))`.
+
+# Augment PATH so user-local installs (graphify via pipx, etc.) are visible.
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+
+# Graceful skip if graphify CLI is not installed (optional tool).
+command -v graphify >/dev/null 2>&1 || exit 0
+
+# Files changed in HEAD commit.
+CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null || true)
+[ -z "$CHANGED" ] && exit 0
+
+# Graph targets: space-separated list of "<path-prefix>:<workdir>".
+TARGETS="apps/workers:apps/workers apps/api:apps/api apps/admin:apps/admin apps/client:apps/client packages:packages"
+
+# Detect which targets had changes AND have an initialized graphify-out/.
+TO_UPDATE=""
+for entry in $TARGETS; do
+  prefix="${entry%%:*}"
+  workdir="${entry##*:}"
+  if echo "$CHANGED" | grep -q "^${prefix}/"; then
+    if [ -f "${workdir}/graphify-out/.graphify_python" ]; then
+      TO_UPDATE="$TO_UPDATE $workdir"
+    fi
+  fi
+done
+
+[ -z "$TO_UPDATE" ] && exit 0
+
+echo "[graphify] Updating:$TO_UPDATE"
+
+# Run updates in parallel. Failures are logged but do not abort the hook.
+PIDS=""
+for workdir in $TO_UPDATE; do
+  log_name=$(echo "$workdir" | tr '/' '-')
+  (
+    cd "$workdir" || exit 0
+    if ! graphify update . > "/tmp/graphify-${log_name}.log" 2>&1; then
+      echo "[graphify] update failed for ${workdir} (non-fatal — see /tmp/graphify-${log_name}.log)" >&2
+    fi
+  ) &
+  PIDS="$PIDS $!"
+done
+
+for pid in $PIDS; do
+  wait "$pid" 2>/dev/null || true
+done
+
+echo "[graphify] Done."

@@ -17,7 +17,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@packages/ui";
-import { getErrorMessage } from "@/lib/parseApiError";
+import { getErrorMessage } from "@packages/api-errors";
 import { DataTable } from "@/components/ui/DataTable";
 import { ActionButton } from "@/components/ui/ActionButton";
 

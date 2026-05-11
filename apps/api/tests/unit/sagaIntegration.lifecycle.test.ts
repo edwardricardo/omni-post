@@ -120,48 +120,21 @@ describe("SagaIntegration - Error Handling", () => {
 
   it("should handle validation errors for invalid post data", async () => {
     const handler = routes.get("POST:/sagas/post-publishing/start");
-    const request = {
-      body: {
-        postData: {
-          // Missing required 'body' field
-          channelIds: [],
-        },
-      },
-      user: { id: "user-123" },
-      headers: {},
-      ip: "127.0.0.1",
+    // Empty body — fails Zod schema (body required for mode=draft)
+    const request = makeStartRequest({ mode: "draft" });
+    request.body = {
+      mode: "draft",
+      projectId: request.body.projectId,
+      // No body / locale — schema requires them for draft
     };
 
-    const reply = {
-      status: (code: number) => ({
-        send: (data: any) => ({ statusCode: code, ...data }),
-      }),
-    };
-
-    try {
-      await handler(request, reply);
-      expect.unreachable("Should throw validation error");
-    } catch (error: any) {
-      expect(error).toBeTruthy();
-    }
+    await expect(handler(request, passthroughReply)).rejects.toThrow();
   });
 
   it("should handle errors when saga manager fails", async () => {
     const handler = routes.get("POST:/sagas/post-publishing/start");
-    const request = {
-      body: {
-        postData: {
-          body: "Test",
-          channelIds: ["channel-1"],
-        },
-      },
-      user: { id: "user-123", projectId: "project-456" },
-      headers: {},
-      ip: "127.0.0.1",
-    };
-
     // Should not throw unhandled errors for valid input.
-    const result = await handler(request, passthroughReply);
+    const result = await handler(makeStartRequest({ body: "Test" }), passthroughReply);
     expect(result).toBeTruthy();
   });
 });

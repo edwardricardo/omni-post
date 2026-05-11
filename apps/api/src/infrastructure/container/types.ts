@@ -52,6 +52,9 @@ export const TOKENS = {
   GetPostUseCase: Symbol.for("GetPostUseCase"),
   ListPostsUseCase: Symbol.for("ListPostsUseCase"),
   DeletePostUseCase: Symbol.for("DeletePostUseCase"),
+  ArchivePostsBatchUseCase: Symbol.for("ArchivePostsBatchUseCase"),
+  HardDeletePostsBatchUseCase: Symbol.for("HardDeletePostsBatchUseCase"),
+  DuplicatePostsBatchUseCase: Symbol.for("DuplicatePostsBatchUseCase"),
 
   // Use Cases (post scheduling)
   SchedulePostUseCase: Symbol.for("SchedulePostUseCase"),
@@ -295,6 +298,8 @@ export const TOKENS = {
   ListRecurringPostsQuery_Recurring: Symbol.for("ListRecurringPostsQuery_Recurring"),
   GetRecurringPostQuery: Symbol.for("GetRecurringPostQuery"),
   ProcessRecurrenceUseCase: Symbol.for("ProcessRecurrenceUseCase"),
+  CreatePostFromRecurrenceUseCase: Symbol.for("CreatePostFromRecurrenceUseCase"),
+  RecurrenceScheduler: Symbol.for("RecurrenceScheduler"),
 
   // AI Prompt Templates (Task 11.3)
   AIPromptTemplateRepository: Symbol.for("AIPromptTemplateRepository"),
@@ -345,6 +350,7 @@ export const TOKENS = {
   SubscribeIntegrationTriggerUseCase: Symbol.for("SubscribeIntegrationTriggerUseCase"),
   UnsubscribeIntegrationTriggerUseCase: Symbol.for("UnsubscribeIntegrationTriggerUseCase"),
   TriggerIntegrationEventService: Symbol.for("TriggerIntegrationEventService"),
+  IntegrationEventDeliveryHandler: Symbol.for("IntegrationEventDeliveryHandler"),
 
   // Task Assignment
   TaskRepository: Symbol.for("TaskRepository"),

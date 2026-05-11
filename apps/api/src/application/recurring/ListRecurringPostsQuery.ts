@@ -37,9 +37,11 @@ export interface RecurringPostListDTO {
  * @class ListRecurringPostsQuery
  * @description Lists all recurring post schedules belonging to a project.
  */
-export class ListRecurringPostsQuery
-  implements UseCase<ListRecurringPostsParams, RecurringPostListDTO[], UseCaseError>
-{
+export class ListRecurringPostsQuery implements UseCase<
+  ListRecurringPostsParams,
+  RecurringPostListDTO[],
+  UseCaseError
+> {
   constructor(private readonly recurringPostRepo: RecurringPostRepository) {}
 
   /**

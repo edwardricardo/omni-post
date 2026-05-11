@@ -10,7 +10,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@packages/ui";
-import { getErrorMessage } from "@/lib/parseApiError";
+import { getErrorMessage } from "@packages/api-errors";
 import { extendSwitchDeadline, forceCompleteSwitch, forceSuspendSwitch } from "./api";
 
 const KEY = ["gateway-switches"] as const;

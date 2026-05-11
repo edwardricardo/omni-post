@@ -29,9 +29,11 @@ export interface GetMentionsInput {
  *   cursor-based pagination. Delegates directly to the read-model query
  *   repository's findMentions method.
  */
-export class GetMentionsQuery
-  implements UseCase<GetMentionsInput, CursorPaginatedResult<SocialMessageDTO>, UseCaseError>
-{
+export class GetMentionsQuery implements UseCase<
+  GetMentionsInput,
+  CursorPaginatedResult<SocialMessageDTO>,
+  UseCaseError
+> {
   constructor(private readonly queryRepo: SocialMessageQueryRepository) {}
 
   /**

@@ -31,6 +31,7 @@
 
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
+import { z } from "zod";
 import type { PrismaClient } from "@infra/prisma";
 import type { QueuePort } from "@ports/core";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
@@ -44,8 +45,15 @@ import { AppError } from "../lib/errors/index.js";
 import { logger } from "../lib/logger.js";
 import { createRedisConnection } from "../lib/redis.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "../auth/rbacService.js";
+import { SecureSchemas } from "../security/inputValidation.js";
+import { ProjectId, AccountId, PostId } from "../domain/value-objects/EntityId.js";
+import type { ProjectRepositoryPort } from "../domain/repositories/ProjectRepository.js";
+import type { ChannelRepository } from "../domain/repositories/ChannelRepository.js";
+import type { PostRepository } from "../domain/repositories/PostRepository.js";
+import type { SemanticLockPort } from "@ports/core";
 
 /** Channel used by workers to notify saga completions/failures */
 const SAGA_EVENTS_CHANNEL = "saga:events";
@@ -58,7 +66,107 @@ interface SagaIntegrationConfig {
   redis: Redis;
   queue: QueuePort;
   scheduler: BackgroundTaskScheduler;
+  /** Required for the customer-facing /start endpoint to verify project ownership */
+  projectRepository: ProjectRepositoryPort;
+  /** Required for the customer-facing /start endpoint to verify channel ownership */
+  channelRepository: ChannelRepository;
+  /** Required for the customer-facing /start endpoint to verify ownership +
+   * status of the existing post when `postId` is provided in the body. */
+  postRepository: PostRepository;
+  /** Optional semantic-lock backend for concurrency control (Azure §15-20).
+   * When provided, sagas with `semanticLock` countermeasures gate their
+   * execution through this store. Omit in tests that do not exercise the
+   * concurrency check. */
+  lockStore?: SemanticLockPort;
 }
+
+/**
+ * Required everywhere: project context.
+ */
+const SagaPostBaseSchema = {
+  projectId: z.string().uuid(),
+} as const;
+
+/**
+ * Content fields used when the saga creates a NEW post. For schedule and
+ * publish-now modes these are mutually exclusive with `postId` — the schema
+ * refinement below enforces XOR.
+ */
+const PostContentFieldsSchema = {
+  locale: z.string().min(2).max(5).optional(),
+  body: SecureSchemas.postBody.optional(),
+  title: SecureSchemas.userName.optional(),
+  tags: z.array(z.string()).default([]),
+  mediaIds: z.array(z.string().uuid()).default([]),
+} as const;
+
+/**
+ * Refinement applied to schedule/publish-now schemas: caller MUST provide
+ * either `postId` (operate on existing draft) OR content (`locale` + `body`
+ * for a new post) — not both, and not neither.
+ */
+function refineExistingOrNew<
+  T extends {
+    postId?: string | undefined;
+    locale?: string | undefined;
+    body?: string | undefined;
+  },
+>(data: T, ctx: z.RefinementCtx): void {
+  const hasPostId = typeof data.postId === "string" && data.postId.length > 0;
+  const hasContent =
+    typeof data.locale === "string" &&
+    data.locale.length > 0 &&
+    typeof data.body === "string" &&
+    data.body.length > 0;
+
+  if (hasPostId && hasContent) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Provide either postId (existing draft) or content (locale + body), not both",
+    });
+  }
+  if (!hasPostId && !hasContent) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Either postId (existing draft) or content (locale + body) is required",
+    });
+  }
+}
+
+const StartPostPublishingSagaBodySchema = z.discriminatedUnion("mode", [
+  // Draft: only the create-from-scratch path makes sense (cannot "draft" an
+  // already-existing post). Body + locale required.
+  z.object({
+    mode: z.literal("draft"),
+    ...SagaPostBaseSchema,
+    locale: z.string().min(2).max(5),
+    body: SecureSchemas.postBody,
+    title: SecureSchemas.userName.optional(),
+    tags: z.array(z.string()).default([]),
+    mediaIds: z.array(z.string().uuid()).default([]),
+  }),
+  z
+    .object({
+      mode: z.literal("schedule"),
+      ...SagaPostBaseSchema,
+      postId: z.string().uuid().optional(),
+      ...PostContentFieldsSchema,
+      channelIds: z.array(z.string().uuid()).min(1, "At least one channel is required"),
+      scheduledAt: z.string().datetime(),
+    })
+    .superRefine(refineExistingOrNew),
+  z
+    .object({
+      mode: z.literal("publish-now"),
+      ...SagaPostBaseSchema,
+      postId: z.string().uuid().optional(),
+      ...PostContentFieldsSchema,
+      channelIds: z.array(z.string().uuid()).min(1, "At least one channel is required"),
+    })
+    .superRefine(refineExistingOrNew),
+]);
+
+type StartPostPublishingSagaBody = z.infer<typeof StartPostPublishingSagaBodySchema>;
 
 export class SagaIntegration {
   private sagaManager: SagaManagerImpl;
@@ -74,6 +182,7 @@ export class SagaIntegration {
       enableMetrics: true,
       defaultTimeout: 30 * 60 * 1000, // 30 minutes
       maxConcurrentSagas: 100,
+      ...(config.lockStore && { lockStore: config.lockStore }),
     });
   }
 
@@ -142,26 +251,36 @@ export class SagaIntegration {
 
         return jobId;
       },
-      // Job status checker
+      // Job status checker — reads real BullMQ state via the QueuePort. The
+      // event-driven flow (worker emits publish.job.completed/failed via
+      // Redis pub/sub) is the primary path; this poll is the fallback when
+      // the saga is resumed by the recovery scheduler instead of by an
+      // event. Without it, a worker crash between publish and event emit
+      // would silently mark posts as PUBLISHED that never published.
       async (jobIds: string[]) => {
-        // BullMQ job status checking is done via the worker's Redis pub/sub
-        // notifications rather than polling. Return current known state.
-        // In production, this could query BullMQ job states directly.
-        return {
-          completed: jobIds.length,
-          failed: 0,
-          pending: 0,
-        };
-      },
-      // Job cancellation — used by saga compensation to cancel queued jobs
-      async (jobId: string): Promise<boolean> => {
-        const result = await queue.remove(jobId);
+        const result = await queue.getJobStates(jobIds);
         if (!result.ok) {
-          logger.warn({ jobId, error: result.error }, "Failed to cancel queued job (best-effort)");
-          return false;
+          // CONNECTION_ERROR — surface as all-pending so the step retries
+          // (canon retryable behavior) instead of fabricating success.
+          return { completed: 0, failed: 0, pending: jobIds.length };
         }
         return result.value;
+      },
+      // Reread implementation for the pivot step's RereadCheck countermeasure.
+      // Confirms Post.status is still DRAFT immediately before enqueueing
+      // jobs — prevents the dirty-read window where a manual Update or a
+      // concurrent saga changed the status between Create and Schedule.
+      async (postIdRaw: string): Promise<string | null> => {
+        const idResult = PostId.fromString(postIdRaw);
+        if (!idResult.ok) return null;
+        const post = await this.config.postRepository.findById(idResult.value);
+        if (!post.ok) return null;
+        return post.value.status.value;
       }
+      // No cancelJob: SchedulePublishingJobsStep is now classified as PivotStep
+      // (point of no return per Azure §5). Once jobs are accepted by BullMQ,
+      // workers may dispatch to the provider before any saga-side cancel
+      // could fire — compensation has no canonically valid semantics here.
     );
 
     this.sagaManager.registerSaga(postPublishingSaga);
@@ -173,52 +292,117 @@ export class SagaIntegration {
   private async registerRoutes(): Promise<void> {
     const { fastify } = this.config;
 
-    // Start Post Publishing Saga
-    fastify.post<{
-      Body: {
-        postData: {
-          title?: string;
-          body: string;
-          locale?: string;
-          tags?: string[];
-          mediaIds?: string[];
-          scheduledAt?: string;
-          channelIds: string[];
-        };
-        priority?: "LOW" | "NORMAL" | "HIGH";
-      };
-    }>(
+    fastify.post<{ Body: StartPostPublishingSagaBody }>(
       "/sagas/post-publishing/start",
-      { preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_CONFIGURE)] },
+      { preHandler: [requireClientAuth] },
       async (request, _reply) => {
-        try {
-          const { postData, priority = "NORMAL" } = request.body;
+        const parsed = StartPostPublishingSagaBodySchema.safeParse(request.body);
+        if (!parsed.success) {
+          throw AppError.badRequest("Invalid saga start body", {
+            issues: parsed.error.issues,
+          });
+        }
+        const body = parsed.data;
 
-          // Validate required fields
-          if (!postData.body || !postData.channelIds || postData.channelIds.length === 0) {
-            throw AppError.badRequest("Post body and at least one channel are required");
+        const customer = request.customerUser;
+        if (!customer) {
+          throw AppError.unauthorized("Customer authentication required");
+        }
+
+        try {
+          const projectIdResult = ProjectId.fromString(body.projectId);
+          if (!projectIdResult.ok) {
+            throw AppError.badRequest("Invalid project ID");
+          }
+          const projectResult = await this.config.projectRepository.findById(projectIdResult.value);
+          if (!projectResult.ok) {
+            throw AppError.notFound("Project");
+          }
+          const project = projectResult.value;
+          const customerAccountIdResult = AccountId.fromString(customer.accountId);
+          if (!customerAccountIdResult.ok) {
+            throw AppError.unauthorized("Invalid account identifier in token");
+          }
+          if (project.accountId.toString() !== customerAccountIdResult.value.toString()) {
+            // Return 404 (not 403) to prevent project-id enumeration across tenants.
+            throw AppError.notFound("Project");
           }
 
-          // Create saga context
-          const correlationId = `post-publish-${randomUUID()}`;
-          const context = createSagaContext(
-            "", // Will be set by saga manager
-            correlationId,
-            request.user?.id,
-            {
-              postData: {
-                ...postData,
-                projectId: request.user?.projectId || "default-project",
-                ...(postData.scheduledAt && { scheduledAt: new Date(postData.scheduledAt) }),
-              },
-              priority,
-              source: "API",
-              userAgent: request.headers["user-agent"],
-              ipAddress: request.ip,
+          if (body.mode !== "draft") {
+            // Ownership-only lookup — bypasses credential decryption.
+            const projectChannelIds = new Set(
+              (await this.config.channelRepository.findIdsByProjectId(projectIdResult.value)).map(
+                (id) => id.toString()
+              )
+            );
+            for (const channelId of body.channelIds) {
+              if (!projectChannelIds.has(channelId)) {
+                // Return 404 (not 403) to prevent channel-id enumeration across tenants.
+                throw AppError.notFound(`Channel ${channelId}`);
+              }
             }
-          );
+          }
 
-          // Start saga
+          // Existing-draft path (schedule/publish-now with postId): verify the
+          // post exists, belongs to this project, and is still in DRAFT status.
+          // Re-publishing a post already in PUBLISHED/SCHEDULED would create
+          // a duplicate publish job — surface as a client error instead.
+          const providedPostId =
+            body.mode !== "draft" && typeof body.postId === "string" ? body.postId : null;
+          if (providedPostId !== null) {
+            const postIdResult = PostId.fromString(providedPostId);
+            if (!postIdResult.ok) {
+              throw AppError.badRequest("Invalid post ID");
+            }
+            const postLookup = await this.config.postRepository.findById(postIdResult.value);
+            if (!postLookup.ok) {
+              throw AppError.notFound("Post");
+            }
+            const post = postLookup.value;
+            if (post.projectId.toString() !== projectIdResult.value.toString()) {
+              // Post belongs to another project — return 404 to prevent
+              // post-id enumeration across projects.
+              throw AppError.notFound("Post");
+            }
+            if (post.status.value !== "DRAFT") {
+              throw AppError.badRequest(
+                `Post is in ${post.status.value} status; only DRAFT posts can be scheduled or published via this saga`
+              );
+            }
+          }
+
+          const correlationId = `post-publish-${randomUUID()}`;
+          const postData: Record<string, unknown> = {
+            projectId: body.projectId,
+            ...(body.mode === "draft" && {
+              locale: body.locale,
+              body: body.body,
+              tags: body.tags,
+              mediaIds: body.mediaIds,
+              ...(body.title !== undefined && { title: body.title }),
+            }),
+            ...(body.mode !== "draft" &&
+              providedPostId === null && {
+                ...(body.locale !== undefined && { locale: body.locale }),
+                ...(body.body !== undefined && { body: body.body }),
+                tags: body.tags,
+                mediaIds: body.mediaIds,
+                ...(body.title !== undefined && { title: body.title }),
+              }),
+            ...(providedPostId !== null && { postId: providedPostId }),
+            ...("channelIds" in body && { channelIds: body.channelIds }),
+            ...(body.mode === "schedule" && { scheduledAt: new Date(body.scheduledAt) }),
+          };
+
+          const context = createSagaContext("", correlationId, customer.id, {
+            mode: body.mode,
+            postData,
+            accountId: customer.accountId,
+            source: "customer-api",
+            userAgent: request.headers["user-agent"],
+            ipAddress: request.ip,
+          });
+
           const sagaInstance = await this.sagaManager.startSaga("post-publishing-saga", context);
 
           return {
@@ -226,70 +410,77 @@ export class SagaIntegration {
             data: {
               sagaId: sagaInstance.id,
               status: sagaInstance.status,
+              mode: body.mode,
               correlationId,
               startedAt: sagaInstance.startedAt,
             },
           };
         } catch (error) {
-          // Re-throw AppErrors (e.g. validation errors) directly
           if (error instanceof AppError) {
             throw error;
           }
-          logger.error({ err: error }, "Failed to start post publishing saga");
+          logger.error(
+            { err: error, customerId: customer.id, mode: body.mode },
+            "Failed to start post publishing saga"
+          );
           throw AppError.internal("Failed to start saga");
         }
       }
     );
 
-    // Get Saga Status
     fastify.get<{
       Params: { sagaId: string };
-    }>(
-      "/sagas/:sagaId",
-      { preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_CONFIGURE)] },
-      async (request, _reply) => {
-        try {
-          const { sagaId } = request.params;
-
-          const sagaInstance = await this.sagaManager.getSaga(sagaId);
-          if (!sagaInstance) {
-            throw AppError.notFound("Saga");
-          }
-
-          // Calculate progress
-          const totalSteps = sagaInstance.stepResults.length || 1;
-          const completedSteps = sagaInstance.stepResults.filter((r) => r?.success).length;
-          const progress = Math.round((completedSteps / totalSteps) * 100);
-
-          return {
-            success: true,
-            data: {
-              id: sagaInstance.id,
-              definitionId: sagaInstance.definitionId,
-              status: sagaInstance.status,
-              currentStep: sagaInstance.currentStep,
-              progress,
-              startedAt: sagaInstance.startedAt,
-              completedAt: sagaInstance.completedAt,
-              error: sagaInstance.error,
-              retryCount: sagaInstance.retryCount,
-              stepResults: sagaInstance.stepResults.map((result, index) => ({
-                stepIndex: index,
-                success: result?.success || false,
-                error: result?.error,
-                data: result?.data,
-              })),
-            },
-          };
-        } catch (error) {
-          if (error instanceof AppError) {
-            throw error;
-          }
-          logger.error({ err: error }, "Failed to get saga status");
-          throw AppError.notFound(`Saga not found: ${request.params.sagaId}`);
-        }
+    }>("/sagas/:sagaId", { preHandler: [requireClientAuth] }, async (request, _reply) => {
+      const customer = request.customerUser;
+      if (!customer) {
+        throw AppError.unauthorized("Customer authentication required");
       }
-    );
+
+      try {
+        const { sagaId } = request.params;
+
+        const sagaInstance = await this.sagaManager.getSaga(sagaId);
+        if (!sagaInstance) {
+          throw AppError.notFound("Saga");
+        }
+
+        if (sagaInstance.context.userId !== customer.id) {
+          // Return 404 (not 403) to prevent saga-id enumeration across tenants.
+          throw AppError.notFound("Saga");
+        }
+
+        const totalSteps = sagaInstance.stepResults.length || 1;
+        const completedSteps = sagaInstance.stepResults.filter((r) => r?.success).length;
+        const progress = Math.round((completedSteps / totalSteps) * 100);
+
+        return {
+          success: true,
+          data: {
+            id: sagaInstance.id,
+            definitionId: sagaInstance.definitionId,
+            status: sagaInstance.status,
+            currentStep: sagaInstance.currentStep,
+            progress,
+            startedAt: sagaInstance.startedAt,
+            completedAt: sagaInstance.completedAt,
+            error: sagaInstance.error,
+            retryCount: sagaInstance.retryCount,
+            stepResults: sagaInstance.stepResults.map((result, index) => ({
+              stepIndex: index,
+              success: result?.success || false,
+              error: result?.error,
+              data: result?.data,
+            })),
+          },
+        };
+      } catch (error) {
+        if (error instanceof AppError) {
+          throw error;
+        }
+        logger.error({ err: error }, "Failed to get saga status");
+        throw AppError.notFound(`Saga not found: ${request.params.sagaId}`);
+      }
+    });
 
     // Continue Saga (manual trigger)
     fastify.post<{
@@ -447,8 +638,11 @@ export class SagaIntegration {
    */
   private async setupEventHandling(): Promise<void> {
     try {
-      // Create a dedicated Redis connection for subscribing
-      this.subscriber = createRedisConnection();
+      // Dedicated Redis connection for subscribing. `maxRetriesPerRequest: null`
+      // signals a long-lived blocking connection — the factory omits
+      // commandTimeout for these (subscribe() blocks indefinitely waiting
+      // for messages, any commandTimeout fires spurious "Command timed out").
+      this.subscriber = createRedisConnection({ maxRetriesPerRequest: null });
       await this.subscriber.connect();
 
       this.subscriber.on("error", (err) => {

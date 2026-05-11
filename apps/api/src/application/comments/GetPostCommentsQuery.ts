@@ -51,9 +51,11 @@ export interface GetPostCommentsOutput {
  * @description Retrieves comments for a post with threaded structure.
  *   For top-level comments, replies are loaded and attached as nested DTOs.
  */
-export class GetPostCommentsQuery
-  implements UseCase<GetPostCommentsQueryParams, GetPostCommentsOutput, UseCaseError>
-{
+export class GetPostCommentsQuery implements UseCase<
+  GetPostCommentsQueryParams,
+  GetPostCommentsOutput,
+  UseCaseError
+> {
   constructor(private readonly commentRepo: PostCommentRepository) {}
 
   /**

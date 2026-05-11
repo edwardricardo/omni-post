@@ -26,13 +26,13 @@ export const SESSION_COOKIE_NAME = "customer-session";
 export const REFRESH_COOKIE_NAME = "customer-refresh";
 
 /** Session cookie TTL: 15 minutes (matches typical JWT access token TTL). */
-export const SESSION_MAX_AGE = 15 * 60;
+const SESSION_MAX_AGE = 15 * 60;
 
 /** Refresh cookie TTL: 7 days (default, no "remember me"). */
-export const REFRESH_MAX_AGE = 7 * 24 * 60 * 60;
+const REFRESH_MAX_AGE = 7 * 24 * 60 * 60;
 
 /** Refresh cookie TTL when user opts into "remember me": 30 days. */
-export const REFRESH_REMEMBER_ME_MAX_AGE = 30 * 24 * 60 * 60;
+const REFRESH_REMEMBER_ME_MAX_AGE = 30 * 24 * 60 * 60;
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
@@ -110,7 +110,7 @@ export function readAuthTokens(parsed: unknown): TokensInBody | null {
  * Strip the access token from a parsed auth response body before forwarding it
  * to the browser. The token must never reach the client — only the cookie does.
  */
-export function stripTokensFromResponse(parsed: Record<string, unknown>): Record<string, unknown> {
+function stripTokensFromResponse(parsed: Record<string, unknown>): Record<string, unknown> {
   const data = parsed.data as Record<string, unknown> | undefined;
   if (!data) return parsed;
   const { accessToken: _accessToken, refreshToken: _refreshToken, ...safeData } = data;

@@ -264,4 +264,6 @@ The codebase achieves **~97% Hexagonal Architecture compliance** (FASE H0-H12 co
 
 ---
 
+<!-- markdownlint-disable-next-line MD036 -->
+
 _Last updated: February 2026_

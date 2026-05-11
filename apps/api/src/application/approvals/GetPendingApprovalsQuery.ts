@@ -21,9 +21,11 @@ export interface GetPendingApprovalsInput {
  * @class GetPendingApprovalsQuery
  * @description Retrieves all pending approval requests awaiting review by a specific member.
  */
-export class GetPendingApprovalsQuery
-  implements UseCase<GetPendingApprovalsInput, ApprovalRequestDTO[], UseCaseError>
-{
+export class GetPendingApprovalsQuery implements UseCase<
+  GetPendingApprovalsInput,
+  ApprovalRequestDTO[],
+  UseCaseError
+> {
   constructor(private readonly approvalRepo: ApprovalRequestRepository) {}
 
   /**

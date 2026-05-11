@@ -24,3 +24,18 @@ export {
   type ListPostsGlobalInput,
   type ListPostsGlobalOutput,
 } from "./ListPostsGlobalQuery.js";
+export {
+  ArchivePostsBatchUseCase,
+  type ArchivePostsBatchInput,
+  type ArchivePostsBatchOutput,
+} from "./ArchivePostsBatchUseCase.js";
+export {
+  HardDeletePostsBatchUseCase,
+  type HardDeletePostsBatchInput,
+  type HardDeletePostsBatchOutput,
+} from "./HardDeletePostsBatchUseCase.js";
+export {
+  DuplicatePostsBatchUseCase,
+  type DuplicatePostsBatchInput,
+  type DuplicatePostsBatchOutput,
+} from "./DuplicatePostsBatchUseCase.js";

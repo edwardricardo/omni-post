@@ -34,9 +34,7 @@ export class PrismaChangeSubscriptionRepository implements ChangeSubscriptionRep
     };
   }
 
-  async findBundle(
-    bundleId: string
-  ): Promise<{
+  async findBundle(bundleId: string): Promise<{
     id: string;
     providers: string[];
     pricePerAccountMonth: number;

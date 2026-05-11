@@ -10,7 +10,6 @@
     "noUncheckedSideEffectImports": false,
     "paths": {
       "@/*": ["./*"],
-      "@providers/instagram/*": ["../../packages/providers/instagram/*"],
       "@packages/api-errors": ["../../packages/api-errors/src/index.ts"],
       "@shared/types": ["../../packages/shared/src/index.ts"],
       "@shared/types/*": ["../../packages/shared/src/*"]

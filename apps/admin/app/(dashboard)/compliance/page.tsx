@@ -9,7 +9,7 @@
 import { useMemo, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 
-import { isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
+import { isPermissionDenied, getErrorMessage } from "@packages/api-errors";
 import { AccessDenied } from "@/components/shared/AccessDenied";
 import { useCompliance, useComplianceScore } from "@/hooks/api/useCompliance";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";

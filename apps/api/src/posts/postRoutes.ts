@@ -10,41 +10,28 @@ import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.
 import { IdSchema } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { SecureSchemas } from "../security/inputValidation.js";
-import type { CreatePostUseCase } from "../application/posts/CreatePostUseCase.js";
 import type { GetPostWithThreadQuery } from "../application/posts/GetPostWithThreadQuery.js";
 import type { UpdatePostUseCase } from "../application/posts/UpdatePostUseCase.js";
 import type { ListPostsUseCase } from "../application/posts/ListPostsUseCase.js";
 import type { ListPostsGlobalQuery } from "../application/posts/ListPostsGlobalQuery.js";
 import type { DeletePostUseCase } from "../application/posts/DeletePostUseCase.js";
-import type { SchedulePostUseCase } from "../application/posts/SchedulePostUseCase.js";
+import type { ArchivePostsBatchUseCase } from "../application/posts/ArchivePostsBatchUseCase.js";
+import type { HardDeletePostsBatchUseCase } from "../application/posts/HardDeletePostsBatchUseCase.js";
+import type { DuplicatePostsBatchUseCase } from "../application/posts/DuplicatePostsBatchUseCase.js";
 import { USE_CASE_ERRORS } from "../application/UseCase.js";
-import { ProjectId, type ContentLocale, type ProjectRepository } from "../domain/index.js";
 import type { PublishStatusValue } from "../domain/value-objects/PublishStatus.js";
-import type { IncrementUsageUseCase } from "../application/usage/IncrementUsageUseCase.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 
 // ---------------------------------------------------------------------------
 // Zod Schemas for Validation with security enhancement
 // ---------------------------------------------------------------------------
 
-const CreatePostBodySchema = z.object({
-  projectId: z.string().uuid(),
-  /** Optional — when provided, usage counter is incremented for this account */
-  accountId: z.string().uuid().optional(),
-  locale: z.string().min(2).max(5),
-  body: SecureSchemas.postBody,
-  title: SecureSchemas.userName.optional(), // userName has max 256 chars built-in
-  tags: z.array(z.string()).default([]),
-  status: z.enum(["DRAFT", "SCHEDULED", "PUBLISHED", "FAILED"]).default("DRAFT"),
-});
-
-const SchedulePostBodySchema = z.object({
-  channelIds: z.array(z.string().uuid()),
-  scheduledFor: z.string().datetime(),
-});
-
 const PostParamsSchema = z.object({
   id: IdSchema,
+});
+
+const BatchPostsBodySchema = z.object({
+  postIds: z.array(z.string().uuid()).min(1).max(100),
 });
 
 const UpdatePostBodySchema = z.object({
@@ -52,22 +39,63 @@ const UpdatePostBodySchema = z.object({
   title: SecureSchemas.userName.optional(),
   summary: z.string().max(500).optional(),
   tags: z.array(z.string()).optional(),
+  // OCC token (Azure saga §15-20). When provided, the use case rejects with
+  // CONFLICT (409) if the persisted Post.version has advanced past this —
+  // another writer committed in the meantime. Optional; omitting falls back
+  // to repository-level WHERE-clause OCC alone.
+  expectedVersion: z.number().int().nonnegative().optional(),
 });
+
+const PublishStatusEnum = z.enum([
+  "DRAFT",
+  "PENDING_REVIEW",
+  "SCHEDULED",
+  "PUBLISHING",
+  "PUBLISHED",
+  "FAILED",
+  "CANCELLED",
+]);
+
+const csvTransform = (v: string | undefined): string[] | undefined =>
+  v
+    ? v
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean)
+    : undefined;
 
 const ListPostsQuerySchema = z.object({
   projectId: z.string().uuid().optional(),
-  status: z.enum(["DRAFT", "SCHEDULED", "PUBLISHED", "FAILED"]).optional(),
-  tags: z
+  /** Single value (`?status=DRAFT`) or CSV multi (`?status=DRAFT,SCHEDULED`). */
+  status: z
     .string()
     .optional()
-    .transform((v) =>
-      v
-        ? v
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean)
-        : undefined
-    ),
+    .transform((v, ctx) => {
+      const arr = csvTransform(v);
+      if (!arr) return undefined;
+      for (const s of arr) {
+        if (!PublishStatusEnum.safeParse(s).success) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Invalid status: ${s}`,
+          });
+          return z.NEVER;
+        }
+      }
+      return arr.length === 1 ? arr[0] : arr;
+    }),
+  tags: z.string().optional().transform(csvTransform),
+  hasMedia: z.coerce.boolean().optional(),
+  /** ISO 8601 datetime range bounds. */
+  createdFrom: z.string().datetime().optional(),
+  createdTo: z.string().datetime().optional(),
+  scheduledFrom: z.string().datetime().optional(),
+  scheduledTo: z.string().datetime().optional(),
+  searchText: z.string().min(1).max(200).optional(),
+  sortBy: z.enum(["createdAt", "updatedAt", "scheduledAt", "publishedAt", "status"]).optional(),
+  sortDirection: z.enum(["asc", "desc"]).optional(),
+  /** Set to "true" to include archived posts in the result set. */
+  includeArchived: z.coerce.boolean().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
 });
@@ -77,34 +105,22 @@ const ListPostsQuerySchema = z.object({
 // ---------------------------------------------------------------------------
 
 /**
- * Post Route Handler
- *
- * Delegates all operations to application-layer use cases resolved from the
- * DI container. No direct Prisma dependency remains.
- *
- * Use cases used:
- * - CreatePostUseCase: Creates a post in the domain aggregate.
- * - GetPostWithThreadQuery: Reads a post with optional thread enrichment.
- * - ListPostsUseCase: Lists posts within a project (CQRS read side).
- * - ListPostsGlobalQuery: Lists posts across all projects.
- * - UpdatePostUseCase: Updates post content.
- * - DeletePostUseCase: Soft-deletes a post.
- * - SchedulePostUseCase: Transitions a post to SCHEDULED status.
- * - ProjectRepository: Verifies project existence before creating posts.
+ * Post Route Handler. Exposes list, get, update, soft-delete, and batch
+ * operations on existing posts. Post creation, scheduling, and publish-now
+ * are driven by `POST /sagas/post-publishing/start`.
  */
 class PostRouteHandler extends BaseRouteHandler {
   protected routeName = "posts";
 
   constructor(
-    private readonly createPostUseCase: CreatePostUseCase,
     private readonly getPostWithThreadQuery: GetPostWithThreadQuery,
     private readonly updatePostUseCase: UpdatePostUseCase,
     private readonly listPostsUseCase: ListPostsUseCase,
     private readonly listPostsGlobalQuery: ListPostsGlobalQuery,
     private readonly deletePostUseCase: DeletePostUseCase,
-    private readonly schedulePostUseCase: SchedulePostUseCase,
-    private readonly projectRepository: ProjectRepository,
-    private readonly incrementUsageUseCase: IncrementUsageUseCase
+    private readonly archivePostsBatchUseCase: ArchivePostsBatchUseCase,
+    private readonly hardDeletePostsBatchUseCase: HardDeletePostsBatchUseCase,
+    private readonly duplicatePostsBatchUseCase: DuplicatePostsBatchUseCase
   ) {
     super();
   }
@@ -122,7 +138,22 @@ class PostRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid query parameters");
     }
 
-    const { projectId, status, limit, offset } = validation.value;
+    const {
+      projectId,
+      status,
+      tags,
+      hasMedia,
+      createdFrom,
+      createdTo,
+      scheduledFrom,
+      scheduledTo,
+      searchText,
+      sortBy,
+      sortDirection,
+      includeArchived,
+      limit,
+      offset,
+    } = validation.value;
 
     try {
       // When projectId is provided, delegate to the project-scoped use case
@@ -132,6 +163,19 @@ class PostRouteHandler extends BaseRouteHandler {
           projectId,
           page,
           limit,
+          ...(status !== undefined && {
+            status: status as PublishStatusValue | PublishStatusValue[],
+          }),
+          ...(tags !== undefined && { tags }),
+          ...(hasMedia !== undefined && { hasMedia }),
+          ...(createdFrom !== undefined && { createdFrom }),
+          ...(createdTo !== undefined && { createdTo }),
+          ...(scheduledFrom !== undefined && { scheduledFrom }),
+          ...(scheduledTo !== undefined && { scheduledTo }),
+          ...(searchText !== undefined && { searchText }),
+          ...(sortBy !== undefined && { sortBy }),
+          ...(sortDirection !== undefined && { sortDirection }),
+          ...(includeArchived === true && { includeArchived: true }),
         });
 
         if (!result.ok) {
@@ -169,85 +213,6 @@ class PostRouteHandler extends BaseRouteHandler {
     } catch (error) {
       this.logError(ctx, "Failed to list posts", { error });
       return this.sendError(ctx, 500, "Failed to list posts");
-    }
-  }
-
-  // -----------------------------------------------------------------------
-  // POST /posts — Create Post
-  // -----------------------------------------------------------------------
-
-  async createPost(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const ctx: RouteContext = { request, reply };
-    this.logInfo(ctx, "Creating post");
-
-    const validated = await this.validateRequest<{ body: z.infer<typeof CreatePostBodySchema> }>(
-      ctx,
-      { body: CreatePostBodySchema }
-    );
-    if (!validated.ok) {
-      return this.sendError(ctx, 400, "Invalid request body");
-    }
-
-    const { projectId, accountId, locale, body, title, tags } = validated.value.body as {
-      projectId: string;
-      accountId?: string;
-      locale: string;
-      body: string;
-      title?: string;
-      tags: string[];
-    };
-
-    try {
-      // Verify project exists via repository port
-      const projectIdResult = ProjectId.fromString(projectId);
-      if (!projectIdResult.ok) {
-        return this.sendError(ctx, 400, "Invalid project ID");
-      }
-      const projectExists = await this.projectRepository.exists(projectIdResult.value);
-      if (!projectExists) {
-        return this.sendError(ctx, 404, "Project not found");
-      }
-
-      // Delegate to application use case
-      const result = await this.createPostUseCase.execute({
-        projectId,
-        body,
-        ...(title && { title }),
-        ...(tags.length > 0 && { tags }),
-        locale: locale as ContentLocale,
-      });
-
-      if (!result.ok) {
-        return this.mapUseCaseError(ctx, result.error);
-      }
-
-      const output = result.value;
-      this.logInfo(ctx, "Post created successfully", { postId: output.id });
-
-      // Increment usage counter — best-effort, does not fail the request
-      if (accountId) {
-        void this.incrementUsageUseCase
-          .execute({ accountId, field: "postsPublished" })
-          .catch(() => void 0);
-      }
-
-      this.sendSuccess(
-        ctx,
-        {
-          id: output.id,
-          projectId: output.projectId,
-          locale: output.locale,
-          body: output.body,
-          ...(output.title && { title: output.title }),
-          tags: output.tags,
-          status: output.status,
-          createdAt: output.createdAt,
-        },
-        201
-      );
-    } catch (error) {
-      this.logError(ctx, "Failed to create post", { error });
-      return this.sendError(ctx, 500, "Failed to create post");
     }
   }
 
@@ -327,7 +292,7 @@ class PostRouteHandler extends BaseRouteHandler {
     }
 
     const { id } = paramValidation.value;
-    const { body, title, summary, tags } = bodyValidation.value;
+    const { body, title, summary, tags, expectedVersion } = bodyValidation.value;
 
     // Ensure at least one field is being updated
     if (!body && !title && !summary && !tags) {
@@ -341,6 +306,11 @@ class PostRouteHandler extends BaseRouteHandler {
         ...(title && { title }),
         ...(summary && { summary }),
         ...(tags && { tags }),
+        ...(expectedVersion !== undefined && { expectedVersion }),
+        // Cross-tenant gate (CWE-639) — caller's accountId from auth token.
+        ...(ctx.request.customerUser && {
+          callerAccountId: ctx.request.customerUser.accountId,
+        }),
       });
 
       if (!result.ok) {
@@ -366,56 +336,6 @@ class PostRouteHandler extends BaseRouteHandler {
     } catch (error) {
       this.logError(ctx, "Failed to update post", { error });
       return this.sendError(ctx, 500, "Failed to update post");
-    }
-  }
-
-  // -----------------------------------------------------------------------
-  // POST /posts/:id/schedule — Schedule Post (via SchedulePostUseCase)
-  // -----------------------------------------------------------------------
-
-  async schedulePost(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const ctx: RouteContext = { request, reply };
-    this.logInfo(ctx, "Scheduling post");
-
-    const paramValidation = await this.validateParams(ctx, PostParamsSchema);
-    if (!paramValidation.ok) {
-      return this.sendError(ctx, 400, "Invalid post ID");
-    }
-
-    const bodyValidation = await this.validateBody(ctx, SchedulePostBodySchema);
-    if (!bodyValidation.ok) {
-      return this.sendError(ctx, 400, "Invalid schedule data");
-    }
-
-    const { id } = paramValidation.value;
-    const { channelIds, scheduledFor } = bodyValidation.value;
-
-    try {
-      const result = await this.schedulePostUseCase.execute({
-        postId: id,
-        channelIds,
-        scheduledFor,
-      });
-
-      if (!result.ok) {
-        return this.mapUseCaseError(ctx, result.error);
-      }
-
-      const output = result.value;
-      this.logInfo(ctx, "Post scheduled successfully", {
-        postId: id,
-        channelCount: channelIds.length,
-      });
-
-      this.sendSuccess(ctx, {
-        id: output.id,
-        status: output.status,
-        scheduledFor: output.scheduledFor,
-        channelIds: output.channelIds,
-      });
-    } catch (error) {
-      this.logError(ctx, "Failed to schedule post", { error });
-      return this.sendError(ctx, 500, "Failed to schedule post");
     }
   }
 
@@ -446,6 +366,118 @@ class PostRouteHandler extends BaseRouteHandler {
     } catch (error) {
       this.logError(ctx, "Failed to delete post", { error });
       return this.sendError(ctx, 500, "Failed to delete post");
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // PATCH /posts/batch/archive — Bulk archive
+  // -----------------------------------------------------------------------
+
+  async archivePostsBatch(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+    this.logInfo(ctx, "Archiving posts batch");
+
+    const validation = await this.validateBody(ctx, BatchPostsBodySchema);
+    if (!validation.ok) {
+      return this.sendError(ctx, 400, "Invalid request body");
+    }
+
+    try {
+      const result = await this.archivePostsBatchUseCase.execute({
+        postIds: validation.value.postIds,
+        // Cross-tenant gate (CWE-639): caller can only archive posts they own.
+        ...(ctx.request.customerUser && {
+          callerAccountId: ctx.request.customerUser.accountId,
+        }),
+      });
+
+      if (!result.ok) {
+        return this.mapUseCaseError(ctx, result.error);
+      }
+
+      this.logInfo(ctx, "Posts archived", {
+        archived: result.value.archived,
+        invalidCount: result.value.invalidIds.length,
+      });
+      this.sendSuccess(ctx, result.value);
+    } catch (error) {
+      this.logError(ctx, "Failed to archive posts batch", { error });
+      return this.sendError(ctx, 500, "Failed to archive posts");
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // DELETE /posts/batch — Bulk hard-delete (irreversible)
+  // -----------------------------------------------------------------------
+
+  async hardDeletePostsBatch(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+    this.logInfo(ctx, "Hard-deleting posts batch");
+
+    const validation = await this.validateBody(ctx, BatchPostsBodySchema);
+    if (!validation.ok) {
+      return this.sendError(ctx, 400, "Invalid request body");
+    }
+
+    try {
+      const result = await this.hardDeletePostsBatchUseCase.execute({
+        postIds: validation.value.postIds,
+        // Cross-tenant gate (CWE-639): caller can only delete posts they own.
+        ...(ctx.request.customerUser && {
+          callerAccountId: ctx.request.customerUser.accountId,
+        }),
+      });
+
+      if (!result.ok) {
+        return this.mapUseCaseError(ctx, result.error);
+      }
+
+      this.logInfo(ctx, "Posts hard-deleted", {
+        deleted: result.value.deleted,
+        invalidCount: result.value.invalidIds.length,
+      });
+      this.sendSuccess(ctx, result.value);
+    } catch (error) {
+      this.logError(ctx, "Failed to hard-delete posts batch", { error });
+      return this.sendError(ctx, 500, "Failed to delete posts");
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // POST /posts/batch/duplicate — Bulk duplicate (clone to DRAFT)
+  // -----------------------------------------------------------------------
+
+  async duplicatePostsBatch(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+    this.logInfo(ctx, "Duplicating posts batch");
+
+    const validation = await this.validateBody(ctx, BatchPostsBodySchema);
+    if (!validation.ok) {
+      return this.sendError(ctx, 400, "Invalid request body");
+    }
+
+    try {
+      const result = await this.duplicatePostsBatchUseCase.execute({
+        postIds: validation.value.postIds,
+        // Cross-tenant gate (CWE-639): caller can only duplicate posts they own.
+        ...(ctx.request.customerUser && {
+          callerAccountId: ctx.request.customerUser.accountId,
+        }),
+      });
+
+      if (!result.ok) {
+        return this.mapUseCaseError(ctx, result.error);
+      }
+
+      this.logInfo(ctx, "Posts duplicated", {
+        duplicated: result.value.duplicates.length,
+        invalidCount: result.value.invalidIds.length,
+        notFoundCount: result.value.notFoundIds.length,
+      });
+      this.sendSuccess(ctx, result.value);
+    } catch (error) {
+      this.logError(ctx, "Failed to duplicate posts batch", { error });
+      return this.sendError(ctx, 500, "Failed to duplicate posts");
     }
   }
 
@@ -492,26 +524,28 @@ class PostRouteHandler extends BaseRouteHandler {
  * and repository ports following hexagonal architecture.
  *
  * Routes:
- * - GET    /posts              — List posts (project-scoped or global)
- * - POST   /posts              — Create post (CreatePostUseCase)
- * - GET    /posts/:id          — Get post with thread (GetPostWithThreadQuery)
- * - PATCH  /posts/:id          — Update post content (UpdatePostUseCase)
- * - POST   /posts/:id/schedule — Schedule post (SchedulePostUseCase)
- * - DELETE /posts/:id          — Soft-delete post (DeletePostUseCase)
+ * - GET    /posts                — List posts (project-scoped or global)
+ * - GET    /posts/:id            — Get post with thread (GetPostWithThreadQuery)
+ * - PATCH  /posts/:id            — Update post content (UpdatePostUseCase)
+ * - DELETE /posts/:id            — Soft-delete post (DeletePostUseCase)
+ * - PATCH  /posts/batch/archive  — Bulk archive (ArchivePostsBatchUseCase)
+ * - DELETE /posts/batch          — Bulk hard-delete (HardDeletePostsBatchUseCase)
+ * - POST   /posts/batch/duplicate — Bulk duplicate (DuplicatePostsBatchUseCase)
+ *
+ * Post creation, scheduling, and publish-now: see `POST /sagas/post-publishing/start`.
  */
 export const postRoutes: FastifyPluginAsync = async (fastify) => {
   const container = fastify.container!;
 
   const handler = new PostRouteHandler(
-    container.resolve<CreatePostUseCase>(TOKENS.CreatePostUseCase),
     container.resolve<GetPostWithThreadQuery>(TOKENS.GetPostWithThreadQuery),
     container.resolve<UpdatePostUseCase>(TOKENS.UpdatePostUseCase),
     container.resolve<ListPostsUseCase>(TOKENS.ListPostsUseCase),
     container.resolve<ListPostsGlobalQuery>(TOKENS.ListPostsGlobalQuery),
     container.resolve<DeletePostUseCase>(TOKENS.DeletePostUseCase),
-    container.resolve<SchedulePostUseCase>(TOKENS.SchedulePostUseCase),
-    container.resolve<ProjectRepository>(TOKENS.ProjectRepository),
-    container.resolve<IncrementUsageUseCase>(TOKENS.IncrementUsageUseCase)
+    container.resolve<ArchivePostsBatchUseCase>(TOKENS.ArchivePostsBatchUseCase),
+    container.resolve<HardDeletePostsBatchUseCase>(TOKENS.HardDeletePostsBatchUseCase),
+    container.resolve<DuplicatePostsBatchUseCase>(TOKENS.DuplicatePostsBatchUseCase)
   );
 
   // List posts
@@ -519,16 +553,6 @@ export const postRoutes: FastifyPluginAsync = async (fastify) => {
     "/posts",
     { preHandler: [requireClientAuth], schema: { tags: ["Posts"], summary: "List posts" } },
     async (request, reply) => handler.listPosts(request, reply)
-  );
-
-  // Create post
-  fastify.post(
-    "/posts",
-    {
-      preHandler: [requireClientAuth],
-      schema: { tags: ["Posts"], summary: "Create a new post" },
-    },
-    async (request, reply) => handler.createPost(request, reply)
   );
 
   // Get post by ID
@@ -548,20 +572,40 @@ export const postRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.updatePost(request, reply)
   );
 
-  // Schedule post
-  fastify.post(
-    "/posts/:id/schedule",
-    {
-      preHandler: [requireClientAuth],
-      schema: { tags: ["Posts"], summary: "Schedule post for publishing" },
-    },
-    async (request, reply) => handler.schedulePost(request, reply)
-  );
-
   // Delete post
   fastify.delete(
     "/posts/:id",
     { preHandler: [requireClientAuth], schema: { tags: ["Posts"], summary: "Delete post" } },
     async (request, reply) => handler.deletePost(request, reply)
+  );
+
+  // Bulk archive
+  fastify.patch(
+    "/posts/batch/archive",
+    {
+      preHandler: [requireClientAuth],
+      schema: { tags: ["Posts"], summary: "Bulk archive posts" },
+    },
+    async (request, reply) => handler.archivePostsBatch(request, reply)
+  );
+
+  // Bulk hard-delete (irreversible)
+  fastify.delete(
+    "/posts/batch",
+    {
+      preHandler: [requireClientAuth],
+      schema: { tags: ["Posts"], summary: "Bulk hard-delete posts (irreversible)" },
+    },
+    async (request, reply) => handler.hardDeletePostsBatch(request, reply)
+  );
+
+  // Bulk duplicate
+  fastify.post(
+    "/posts/batch/duplicate",
+    {
+      preHandler: [requireClientAuth],
+      schema: { tags: ["Posts"], summary: "Bulk duplicate posts as DRAFT" },
+    },
+    async (request, reply) => handler.duplicatePostsBatch(request, reply)
   );
 };

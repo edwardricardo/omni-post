@@ -113,12 +113,15 @@ export class DeadLetterQueueManager {
       enableReadyCheck: false,
       maxRetriesPerRequest: null, // Required by BullMQ
       lazyConnect: true,
-      // ioredis defaults: commandTimeout = null (forever), connectTimeout = 10000.
-      // Both bounded so a hung Redis fails fast instead of stalling DLQ
-      // operations. BullMQ requires maxRetriesPerRequest:null, so the
-      // timeout is the only escape hatch.
-      commandTimeout: 5_000,
-      connectTimeout: 5_000,
+      // No commandTimeout: this connection backs both a BullMQ Worker and
+      // a QueueEvents reader. Both issue blocking commands (BZPOPMIN,
+      // XREAD BLOCK) that legitimately wait indefinitely for jobs/events.
+      // Any commandTimeout interrupts those polls mid-flight and surfaces
+      // as spurious "Command timed out" errors (BullMQ issue #2619).
+      // Liveness via lockDuration + stalledInterval (BullMQ-side) and TCP
+      // keepAlive (transport-side).
+      connectTimeout: 10_000,
+      keepAlive: 30_000,
     });
 
     this.queue = new Queue(this.config.queueName, {

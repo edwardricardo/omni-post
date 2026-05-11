@@ -16,7 +16,14 @@ import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import { type PostDTO } from "./GetPostUseCase.js";
 
 /**
- * Input DTO for updating a post
+ * Input DTO for updating a post.
+ *
+ * `expectedVersion` is the OCC token (Azure saga §15-20). When provided, the
+ * use case rejects the call with a CONFLICT error if the persisted version
+ * has advanced past it — another writer committed in the meantime. When
+ * omitted, the use case falls back to the repository-level OCC guard alone
+ * (still rejects concurrent writes via the WHERE-clause check, but cannot
+ * detect a slow caller working with stale read state).
  */
 export interface UpdatePostInput {
   postId: string;
@@ -24,6 +31,15 @@ export interface UpdatePostInput {
   title?: string;
   summary?: string;
   tags?: string[];
+  expectedVersion?: number;
+  /**
+   * Account that owns the calling customer. When provided, the use case
+   * verifies the post belongs to the caller's account before mutating —
+   * cross-tenant updates are rejected as NOT_FOUND (404) per the anti-IDOR
+   * canon (no enumeration via 403). Optional for backward compat with
+   * pre-IDOR-fix callers + admin/internal use cases that bypass the check.
+   */
+  callerAccountId?: string;
 }
 
 /**
@@ -55,6 +71,17 @@ export class UpdatePostUseCase implements UseCase<UpdatePostInput, PostDTO, UseC
       );
     }
 
+    // Cross-tenant ownership gate (CWE-639). Resolve the post's owner via
+    // Project.accountId before loading the aggregate. A caller asking about
+    // a post they do not own gets NOT_FOUND, not FORBIDDEN — return shape
+    // matches the anti-IDOR canon used by saga admission (no enumeration).
+    if (input.callerAccountId !== undefined) {
+      const ownerAccountId = await this.postRepository.findOwnerAccountId(postIdResult.value);
+      if (!ownerAccountId || ownerAccountId.value !== input.callerAccountId) {
+        return err(new UseCaseError(`Post not found: ${input.postId}`, USE_CASE_ERRORS.NOT_FOUND));
+      }
+    }
+
     // Find the post
     const findResult = await this.postRepository.findById(postIdResult.value);
     if (!findResult.ok) {
@@ -75,6 +102,19 @@ export class UpdatePostUseCase implements UseCase<UpdatePostInput, PostDTO, UseC
         new UseCaseError(
           `Post cannot be edited in current status: ${post.status.value}`,
           USE_CASE_ERRORS.FORBIDDEN
+        )
+      );
+    }
+
+    // OCC pre-check (Azure saga §15-20). If the caller passed expectedVersion,
+    // reject when the persisted version has advanced — another writer committed
+    // between the caller's read and this update. Returns CONFLICT so the caller
+    // (e.g., a saga retryable step) can re-read and retry against fresh state.
+    if (input.expectedVersion !== undefined && post.version !== input.expectedVersion) {
+      return err(
+        new UseCaseError(
+          `Post version conflict: expected ${input.expectedVersion}, found ${post.version}`,
+          USE_CASE_ERRORS.CONFLICT
         )
       );
     }

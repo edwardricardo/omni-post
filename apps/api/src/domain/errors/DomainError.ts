@@ -118,6 +118,35 @@ export class InvariantViolationError extends DomainError {
 }
 
 /**
+ * Optimistic Concurrency Control conflict (Azure saga §15-20). Raised when a
+ * write detects that the aggregate version in the database has advanced past
+ * the version held by the caller — another process has committed in the
+ * meantime, so the current write would silently overwrite (lost update).
+ */
+export class VersionConflictError extends DomainError {
+  public readonly entityType: string;
+  public readonly entityId: string;
+  public readonly expectedVersion: number;
+  public readonly actualVersion: number | null;
+
+  constructor(
+    entityType: string,
+    entityId: string,
+    expectedVersion: number,
+    actualVersion: number | null
+  ) {
+    super(
+      `${entityType} "${entityId}" version conflict: expected ${expectedVersion}, found ${actualVersion ?? "missing"}`,
+      "VERSION_CONFLICT"
+    );
+    this.entityType = entityType;
+    this.entityId = entityId;
+    this.expectedVersion = expectedVersion;
+    this.actualVersion = actualVersion;
+  }
+}
+
+/**
  * Domain Error type union for Result<T, DomainError>
  */
 export type DomainErrorType =
@@ -127,4 +156,5 @@ export type DomainErrorType =
   | ValueTooLongError
   | InvalidStateTransitionError
   | EntityNotFoundError
-  | InvariantViolationError;
+  | InvariantViolationError
+  | VersionConflictError;

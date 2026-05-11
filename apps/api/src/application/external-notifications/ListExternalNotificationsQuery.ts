@@ -21,10 +21,11 @@ export interface ListExternalNotificationsInput {
  * @class ListExternalNotificationsQuery
  * @description Retrieves all external notification configs for a project.
  */
-export class ListExternalNotificationsQuery
-  implements
-    UseCase<ListExternalNotificationsInput, ExternalNotificationConfigOutput[], UseCaseError>
-{
+export class ListExternalNotificationsQuery implements UseCase<
+  ListExternalNotificationsInput,
+  ExternalNotificationConfigOutput[],
+  UseCaseError
+> {
   constructor(private readonly repository: ExternalNotificationConfigRepository) {}
 
   /**

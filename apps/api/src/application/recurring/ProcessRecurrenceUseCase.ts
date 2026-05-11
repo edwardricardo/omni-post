@@ -32,6 +32,13 @@ export interface ProcessedRecurrence {
   contentVariation: string;
   newOccurrenceCount: number;
   deactivated: boolean;
+  /**
+   * The recurrence's scheduled time for this occurrence (the entity's
+   * pre-recordOccurrence `nextScheduledAt`). The caller uses this as the
+   * `scheduledAt` for the resulting Post — preserves "Monday 9am" intent
+   * even if the scheduler tick fires a few seconds late.
+   */
+  dueAt: Date;
 }
 
 /**
@@ -106,6 +113,12 @@ export class ProcessRecurrenceUseCase implements UseCase<
           updatedAt: data.updatedAt,
         });
 
+        // Capture the pre-record nextScheduledAt — this is the canonical
+        // "intended publish time" of the occurrence we're about to fire.
+        // Falls back to `asOf` when the entity has no nextScheduledAt yet
+        // (first occurrence of a brand-new recurrence).
+        const dueAt = entity.nextScheduledAt ?? asOf;
+
         // Record the occurrence through the domain entity
         entity.recordOccurrence();
 
@@ -147,6 +160,7 @@ export class ProcessRecurrenceUseCase implements UseCase<
           contentVariation: entity.contentVariation,
           newOccurrenceCount: entity.occurrenceCount,
           deactivated: !entity.isActive,
+          dueAt,
         });
       }
 

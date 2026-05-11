@@ -11,9 +11,9 @@
 // Compliance overview
 // ---------------------------------------------------------------------------
 
-export type ComplianceStatus = "compliant" | "warning" | "non-compliant";
+type ComplianceStatus = "compliant" | "warning" | "non-compliant";
 
-export interface ComplianceMetric {
+interface ComplianceMetric {
   id: string;
   category: string;
   name: string;
@@ -25,7 +25,7 @@ export interface ComplianceMetric {
   actions?: string[];
 }
 
-export interface AuditEvent {
+interface AuditEvent {
   id: string;
   timestamp: string;
   action: string;
@@ -64,7 +64,7 @@ export interface BackendComplianceMetrics {
   generatedAt: string;
 }
 
-export interface BackendAuditLog {
+interface BackendAuditLog {
   id: string;
   userId: string | null;
   user: { id: string; name: string; email: string; role: string } | null;
@@ -135,7 +135,7 @@ export interface SecuritySettings {
 // Compliance score
 // ---------------------------------------------------------------------------
 
-export interface ComplianceCheck {
+interface ComplianceCheck {
   key: string;
   label: string;
   weight: number;
@@ -152,7 +152,7 @@ export interface ComplianceScoreData {
 // DSAR (Data Subject Access Request)
 // ---------------------------------------------------------------------------
 
-export type DsarStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED" | "REJECTED" | "EXPIRED";
+type DsarStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED" | "REJECTED" | "EXPIRED";
 
 export interface DsarRequest {
   id: string;
@@ -185,7 +185,7 @@ export interface DsarResponse {
 // Breach reports
 // ---------------------------------------------------------------------------
 
-export type BreachSeverity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+type BreachSeverity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
 export interface BreachReport {
   id: string;

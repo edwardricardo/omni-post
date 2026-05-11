@@ -179,7 +179,7 @@ export interface DlqMetrics {
 // Outbox DLQ (cross-domain — different endpoint family)
 // ---------------------------------------------------------------------------
 
-export interface OutboxDeadLetterEntry {
+interface OutboxDeadLetterEntry {
   id: string;
   createdAt: string;
   eventType: string;

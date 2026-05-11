@@ -13,5 +13,6 @@ export {
   InvalidStateTransitionError,
   EntityNotFoundError,
   InvariantViolationError,
+  VersionConflictError,
   type DomainErrorType,
 } from "./DomainError.js";

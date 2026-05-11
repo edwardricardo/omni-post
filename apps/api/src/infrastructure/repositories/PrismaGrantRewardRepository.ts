@@ -7,7 +7,10 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import type { GrantRewardRepository } from "../../application/referral/GrantReferralRewardUseCase.js";
+import type {
+  GrantRewardRepository,
+  ReferralRewardEmailContext,
+} from "../../application/referral/GrantReferralRewardUseCase.js";
 
 export class PrismaGrantRewardRepository implements GrantRewardRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -99,5 +102,39 @@ export class PrismaGrantRewardRepository implements GrantRewardRepository {
       where: { id: referralId },
       data: { rewardGranted: true },
     });
+  }
+
+  /**
+   * @method findReferralRewardEmailContext
+   * @description Resolves the data needed to render the referral-reward email
+   *   (referrer email/name, referred company name, total conversions for the code).
+   *   Returns null when the referral or its referrer account cannot be located.
+   */
+  async findReferralRewardEmailContext(
+    referralId: string
+  ): Promise<ReferralRewardEmailContext | null> {
+    const referral = await this.prisma.referral.findUnique({
+      where: { id: referralId },
+      select: {
+        referredAccount: { select: { name: true } },
+        referralCode: {
+          select: {
+            conversions: true,
+            account: { select: { name: true, email: true } },
+          },
+        },
+      },
+    });
+
+    if (!referral || !referral.referralCode.account) {
+      return null;
+    }
+
+    return {
+      referrerEmail: referral.referralCode.account.email,
+      referrerName: referral.referralCode.account.name,
+      referredCompanyName: referral.referredAccount?.name ?? "a new customer",
+      totalConversions: referral.referralCode.conversions,
+    };
   }
 }

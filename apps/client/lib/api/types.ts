@@ -197,11 +197,6 @@ export interface HealthResponse {
   };
 }
 
-// Error types — canonical class lives in `@packages/api-errors`. Kept as a
-// re-export so existing import paths (`from "@/lib/api/types"`) continue to
-// work without a wide import sweep.
-export { ApiError } from "@packages/api-errors";
-
 export interface ValidationError {
   field: string;
   message: string;

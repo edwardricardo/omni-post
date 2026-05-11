@@ -9,12 +9,14 @@
 
 import { useState, useCallback, useId } from "react";
 import { useTranslations } from "next-intl";
-import { toast } from "@packages/ui";
+import { ConfirmDialog, toast } from "@packages/ui";
+import { X } from "lucide-react";
 
 import {
   useGroupSettings,
   useUpdateGroupSettings,
   useTestConnection,
+  useDeleteCredential,
 } from "@/hooks/api/useSettings";
 import type { TestResult } from "@/hooks/api/useSettings";
 import { LoadingSpinner } from "../shared/LoadingSpinner";
@@ -45,9 +47,11 @@ export function CredentialForm({ group, fields, title, description }: Credential
   const { data: current, isLoading } = useGroupSettings(group);
   const updateMutation = useUpdateGroupSettings();
   const testMutation = useTestConnection();
+  const deleteMutation = useDeleteCredential();
 
   const [edited, setEdited] = useState<Record<string, string>>({});
   const [testResult, setTestResult] = useState<TestResult | null>(null);
+  const [deletingKey, setDeletingKey] = useState<string | null>(null);
   const fieldIdPrefix = useId();
 
   const updateField = useCallback((key: string, value: string) => {
@@ -73,6 +77,26 @@ export function CredentialForm({ group, fields, title, description }: Credential
       toast({ title: tc("error"), description: t("form.saveError"), variant: "destructive" });
     }
   }, [edited, group, updateMutation, tc, t]);
+
+  const handleDelete = useCallback(async () => {
+    if (!deletingKey) return;
+    try {
+      await deleteMutation.mutateAsync({ group, key: deletingKey });
+      toast({ title: tc("success"), description: t("form.deleteCredentialSuccess") });
+      setEdited((prev) => {
+        const next = { ...prev };
+        delete next[deletingKey];
+        return next;
+      });
+      setDeletingKey(null);
+    } catch {
+      toast({
+        title: tc("error"),
+        description: t("form.deleteCredentialError"),
+        variant: "destructive",
+      });
+    }
+  }, [deletingKey, deleteMutation, group, tc, t]);
 
   const handleTest = useCallback(async () => {
     setTestResult(null);
@@ -112,6 +136,7 @@ export function CredentialForm({ group, fields, title, description }: Credential
               : currentValue;
 
           const fieldId = `${fieldIdPrefix}-${field.key}`;
+          const isConfigured = currentValue !== null && currentValue !== undefined;
           return (
             <div key={field.key}>
               <label
@@ -120,14 +145,27 @@ export function CredentialForm({ group, fields, title, description }: Credential
               >
                 {field.label}
               </label>
-              <input
-                id={fieldId}
-                type={field.isSecret ? "password" : "text"}
-                value={edited[field.key] ?? ""}
-                onChange={(e) => updateField(field.key, e.target.value)}
-                placeholder={placeholder}
-                className="h-8 w-full rounded border border-[var(--border-default)] bg-[var(--bg-elevated)] px-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
-              />
+              <div className="flex gap-2">
+                <input
+                  id={fieldId}
+                  type={field.isSecret ? "password" : "text"}
+                  value={edited[field.key] ?? ""}
+                  onChange={(e) => updateField(field.key, e.target.value)}
+                  placeholder={placeholder}
+                  className="h-8 w-full rounded border border-[var(--border-default)] bg-[var(--bg-elevated)] px-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                />
+                {isConfigured && (
+                  <button
+                    type="button"
+                    onClick={() => setDeletingKey(field.key)}
+                    aria-label={t("form.deleteCredentialAriaLabel", { key: field.key })}
+                    title={t("form.deleteCredentialTooltip")}
+                    className="h-8 shrink-0 rounded border border-[var(--error)]/30 px-2 text-[var(--error)] hover:bg-[var(--error-subtle)] focus:outline-none focus:ring-1 focus:ring-[var(--error)]"
+                  >
+                    <X className="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}
@@ -164,6 +202,20 @@ export function CredentialForm({ group, fields, title, description }: Credential
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={deletingKey !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeletingKey(null);
+        }}
+        title={t("form.deleteCredentialTitle")}
+        description={t("form.deleteCredentialDescription", { key: deletingKey ?? "" })}
+        variant="danger"
+        confirmLabel={t("form.deleteCredentialConfirm")}
+        cancelLabel={tc("cancel")}
+        loading={deleteMutation.isPending}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

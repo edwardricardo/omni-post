@@ -7,7 +7,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ApiError } from "@/lib/parseApiError";
+import { ApiError } from "@packages/api-errors";
 
 interface StartTrialParams {
   accountId: string;

@@ -18,9 +18,11 @@ import {
   PostAggregate,
   PostId,
   ProjectId,
+  AccountId,
   type PublishStatusValue,
   PUBLISH_STATUS,
   EntityNotFoundError,
+  VersionConflictError,
 } from "../../domain/index.js";
 import type { OutboxWriter } from "../../domain/repositories/OutboxWriter.js";
 import {
@@ -364,6 +366,76 @@ export class PrismaPostRepository implements PostRepository {
     }
   }
 
+  /**
+   * Bulk archive — stamp archivedAt for every non-deleted, non-archived post
+   * in the input set. Returns the row count whose archivedAt transitioned
+   * from null to a timestamp in this call.
+   */
+  async bulkArchive(postIds: PostId[]): Promise<Result<number, Error>> {
+    if (postIds.length === 0) return ok(0);
+    try {
+      const result = await this.prisma.post.updateMany({
+        where: {
+          id: { in: postIds.map((id) => id.value) },
+          deletedAt: null,
+          archivedAt: null,
+        },
+        data: { archivedAt: new Date() },
+      });
+      return ok(result.count);
+    } catch (error) {
+      return err(error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+
+  /**
+   * Bulk hard-delete — physically remove rows for every postId. Prisma cascades
+   * to dependent rows (contents, media, publishLogs, etc.) per the schema
+   * relation onDelete behaviour.
+   */
+  async bulkHardDelete(postIds: PostId[]): Promise<Result<number, Error>> {
+    if (postIds.length === 0) return ok(0);
+    try {
+      const result = await this.prisma.post.deleteMany({
+        where: { id: { in: postIds.map((id) => id.value) } },
+      });
+      return ok(result.count);
+    } catch (error) {
+      return err(error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+
+  /**
+   * Filter input postIds to only those owned by accountId (joined via
+   * Project.accountId). Cross-tenant isolation gate for bulk mutating
+   * use cases per CWE-639.
+   */
+  async filterIdsByAccount(postIds: PostId[], accountId: AccountId): Promise<PostId[]> {
+    if (postIds.length === 0) return [];
+    const rows = await this.prisma.post.findMany({
+      where: {
+        id: { in: postIds.map((id) => id.value) },
+        deletedAt: null,
+        project: { accountId: accountId.value },
+      },
+      select: { id: true },
+    });
+    return rows.map((r) => PostId.fromStringUnsafe(r.id));
+  }
+
+  /**
+   * Lookup the accountId that owns this post via the Project relationship.
+   * Returns null if the post does not exist or is soft-deleted.
+   */
+  async findOwnerAccountId(postId: PostId): Promise<AccountId | null> {
+    const row = await this.prisma.post.findFirst({
+      where: { id: postId.value, deletedAt: null },
+      select: { project: { select: { accountId: true } } },
+    });
+    if (!row) return null;
+    return AccountId.fromStringUnsafe(row.project.accountId);
+  }
+
   // Private helper methods
 
   /**
@@ -446,12 +518,35 @@ export class PrismaPostRepository implements PostRepository {
     aggregate: PostAggregate
   ): Promise<void> {
     const postId = aggregate.id.value;
+    const expectedVersion = aggregate.version;
 
-    // Update post
-    await tx.post.update({
-      where: { id: postId },
-      data: data.post,
-    });
+    // OCC update (Azure saga §15-20). The WHERE clause includes the version
+    // so concurrent writers are rejected — Prisma throws P2025 when no row
+    // matches. We translate that to VersionConflictError so the use case
+    // layer can surface a meaningful conflict response to the caller.
+    try {
+      await tx.post.update({
+        where: { id: postId, version: expectedVersion },
+        data: { ...data.post, version: { increment: 1 } },
+      });
+      // Reflect the new version in the aggregate so subsequent operations on
+      // the same instance see the post-commit value.
+      aggregate.incrementVersion();
+    } catch (error) {
+      const isPrismaNotFound =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        (error as { code?: string }).code === "P2025";
+      if (isPrismaNotFound) {
+        const current = await tx.post.findUnique({
+          where: { id: postId },
+          select: { version: true },
+        });
+        throw new VersionConflictError("Post", postId, expectedVersion, current?.version ?? null);
+      }
+      throw error;
+    }
 
     // Update or create content (upsert for default locale)
     await tx.postContent.upsert({

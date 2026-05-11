@@ -56,6 +56,20 @@ export default function ScheduledReportsPage() {
           </button>
         </div>
 
+        <div
+          role="status"
+          className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900"
+        >
+          <p className="text-sm font-semibold">Manual generation only</p>
+          <p className="mt-1 text-sm">
+            You can create scheduled reports and trigger them manually via the &quot;Generate&quot;
+            button. Cron-driven automated delivery is scaffolded but not yet wired — emails on the
+            recurring schedule will not fire until{" "}
+            <code className="font-mono text-xs">PR-Scheduled-Reports-Cron</code> lands. Tracked in
+            the post-remediation backlog.
+          </p>
+        </div>
+
         <ScheduledReportsList projectId={projectId} onCreateClick={() => setIsDialogOpen(true)} />
 
         <CreateReportForm

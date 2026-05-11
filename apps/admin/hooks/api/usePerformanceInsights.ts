@@ -7,7 +7,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
-export interface TopEngagingPost {
+interface TopEngagingPost {
   id: string;
   content: string;
   platform: string;
@@ -15,33 +15,33 @@ export interface TopEngagingPost {
   publishedAt: string;
 }
 
-export interface EngagementSummary {
+interface EngagementSummary {
   totalEngagements: number;
   averageEngagementRate: number;
   topEngagingContent: TopEngagingPost[];
 }
 
-export interface TimeSeriesPoint {
+interface TimeSeriesPoint {
   date: string;
   impressions: number;
   engagement: number;
   clicks: number;
 }
 
-export interface TopPost {
+interface TopPost {
   id: string;
   content: string;
   platform: string;
   score: number;
 }
 
-export interface MediaPerformance {
+interface MediaPerformance {
   type: string;
   avgEngagement: number;
   postCount: number;
 }
 
-export interface OptimalTiming {
+interface OptimalTiming {
   platform: string;
   dayOfWeek: number;
   hour: number;
@@ -49,7 +49,7 @@ export interface OptimalTiming {
   confidence: number;
 }
 
-export interface HashtagPerformance {
+interface HashtagPerformance {
   hashtag: string;
   usage: number;
   avgEngagement: number;
@@ -57,7 +57,7 @@ export interface HashtagPerformance {
   effectiveness: "low" | "medium" | "high";
 }
 
-export interface AudienceInsight {
+interface AudienceInsight {
   platformId: string;
   totalFollowers: number;
   growthRate: number;

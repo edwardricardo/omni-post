@@ -269,4 +269,6 @@ export const NewAdapter: ProviderAdapter = {
 
 ---
 
+<!-- markdownlint-disable-next-line MD036 -->
+
 _Last updated: March 2026_

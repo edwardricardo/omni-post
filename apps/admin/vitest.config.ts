@@ -1,19 +1,23 @@
 /**
  * @file vitest.config.ts
- * @description Vitest configuration for the admin app — jsdom environment, @vitejs/plugin-react,
- *              vite-tsconfig-paths for alias resolution, and unit-test setup file.
+ * @description Vitest configuration for the admin app — jsdom environment,
+ *   @vitejs/plugin-react, explicit `resolve.alias` mirroring tsconfig.json
+ *   `paths` (no third-party tsconfig-paths plugin — its transitive `tsconfck`
+ *   declares `peerDependencies.typescript: ^5.0.0` which conflicts with our
+ *   TypeScript 6 install). Aliases must stay in sync with `tsconfig.json`.
  * @layer infrastructure
  */
 import path from "node:path";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
-import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
-  plugins: [tsconfigPaths({ ignoreConfigErrors: true }), react()],
+  plugins: [react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./"),
+      "@packages/api-errors": path.resolve(__dirname, "../../packages/api-errors/src/index.ts"),
+      "@shared/types": path.resolve(__dirname, "../../packages/shared/src/index.ts"),
     },
   },
   test: {

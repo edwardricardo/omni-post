@@ -270,4 +270,6 @@ AUDIT_RETENTION_DAYS=90
 
 ---
 
+<!-- markdownlint-disable-next-line MD036 -->
+
 _Last updated: March 2026_

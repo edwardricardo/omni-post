@@ -654,13 +654,21 @@ model Post {
   analyticsDailySummaries   AnalyticsDailySummary[]
   analyticsMonthlySummaries AnalyticsMonthlySummary[]
   recurringInstances        RecurringPost[]           @relation("RecurringTemplatePost")
+  archivedAt                DateTime?                 @db.Timestamptz(6)
   deletedAt                 DateTime?                 @db.Timestamptz(6)
+  // Optimistic Concurrency Control (Azure saga §15-20). Read by the repository
+  // on findById, used as a WHERE-clause guard on update so concurrent writers
+  // are rejected with a version conflict. Incremented on every successful
+  // mutation. Sagas that traverse Post lifecycle pass `expectedVersion` in
+  // post.update commands to enforce lost-update prevention.
+  version                   Int                       @default(0)
 
   @@index([scheduledAt], where: { deletedAt: null })
   @@index([projectId, status], where: { deletedAt: null })
   @@index([projectId, createdAt], where: { deletedAt: null })
   @@index([projectId, publishedAt], where: { deletedAt: null })
   @@index([projectId, scheduledAt, status], where: { deletedAt: null })
+  @@index([projectId, archivedAt], where: { deletedAt: null })
   @@index([deletedAt])
 }
 
@@ -2064,6 +2072,11 @@ model SagaInstance {
   accountId           String?
   startedAt           DateTime  @default(now()) @db.Timestamptz(6)
   completedAt         DateTime? @db.Timestamptz(6)
+  /// When non-null, the saga is awaiting a retry of its current step at this
+  /// timestamp. Persisted (vs in-process setTimeout) so retries survive
+  /// restarts — a recovery checker resumes any RUNNING saga whose
+  /// nextRetryAt is past.
+  nextRetryAt         DateTime? @db.Timestamptz(6)
   updatedAt           DateTime  @updatedAt @db.Timestamptz(6)
   createdAt           DateTime  @default(now()) @db.Timestamptz(6)
 
@@ -2071,6 +2084,7 @@ model SagaInstance {
   @@index([definitionId, status])
   @@index([accountId, status])
   @@index([completedAt])
+  @@index([status, nextRetryAt])
 }
 
 // Social Inbox
@@ -2846,6 +2860,12 @@ model ProviderBundle {
   pricePerAccountMonth Decimal    @db.Decimal(19, 4)
   isActive             Boolean    @default(true)
   sortOrder            Int        @default(0)
+  /// Posts the account is allowed to publish per calendar month under this bundle.
+  /// `null` means unlimited (enterprise-grade plans).
+  maxPostsPerMonth     Int?
+  /// Social channels the account is allowed to connect concurrently under this bundle.
+  /// `null` means unlimited.
+  maxChannels          Int?
   createdAt            DateTime   @default(now()) @db.Timestamptz(6)
   updatedAt            DateTime   @updatedAt @db.Timestamptz(6)
 
@@ -3109,7 +3129,7 @@ model GdprSettings {
 model SecuritySettings {
   id                    String   @id @default(cuid())
   require2FA            Boolean  @default(false)
-  sessionTimeoutMinutes Int      @default(1440)
+  sessionTimeoutMinutes Int      @default(15)
   maxLoginAttempts      Int      @default(5)
   passwordMinLength     Int      @default(8)
   requireUppercase      Boolean  @default(false)

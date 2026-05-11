@@ -22,6 +22,9 @@ import {
   SchedulePostUseCase,
   GetPostWithThreadQuery,
   ListPostsGlobalQuery,
+  ArchivePostsBatchUseCase,
+  HardDeletePostsBatchUseCase,
+  DuplicatePostsBatchUseCase,
 } from "../../application/posts/index.js";
 
 /**
@@ -64,6 +67,34 @@ export function setupPostUseCases(container: Container): void {
     () =>
       new DeletePostUseCase(
         container.resolve<PostRepository>(TOKENS.PostRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+  container.register<ArchivePostsBatchUseCase>(
+    TOKENS.ArchivePostsBatchUseCase,
+    () =>
+      new ArchivePostsBatchUseCase(
+        container.resolve<PostRepository>(TOKENS.PostRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+  container.register<HardDeletePostsBatchUseCase>(
+    TOKENS.HardDeletePostsBatchUseCase,
+    () =>
+      new HardDeletePostsBatchUseCase(
+        container.resolve<PostRepository>(TOKENS.PostRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+  container.register<DuplicatePostsBatchUseCase>(
+    TOKENS.DuplicatePostsBatchUseCase,
+    () =>
+      new DuplicatePostsBatchUseCase(
+        container.resolve<PostRepository>(TOKENS.PostRepository),
+        container.resolve<EventDispatcher>(TOKENS.EventDispatcher),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true

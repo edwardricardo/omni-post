@@ -7,7 +7,7 @@
  * @layer infrastructure
  */
 
-import { ApiError } from "@/lib/parseApiError";
+import { ApiError } from "@packages/api-errors";
 import type {
   BackendAuditLogsResponse,
   BackendComplianceMetrics,

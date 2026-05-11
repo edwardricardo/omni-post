@@ -13,6 +13,7 @@ import { RefreshCustomerTokenUseCase } from "../../src/application/customer-auth
 import { ResetPasswordUseCase } from "../../src/application/customer-auth/ResetPasswordUseCase.js";
 import { RequestPasswordResetUseCase } from "../../src/application/customer-auth/RequestPasswordResetUseCase.js";
 import { LogoutCustomerUseCase } from "../../src/application/customer-auth/LogoutCustomerUseCase.js";
+import { InMemoryCacheAdapter } from "@adapters/cache-redis";
 import { CustomerUser } from "../../src/domain/entities/CustomerUser.js";
 import { Account } from "../../src/domain/entities/Account.js";
 import { EntityNotFoundError } from "../../src/domain/errors/index.js";
@@ -248,11 +249,13 @@ describe("LoginCustomerUseCase", () => {
 describe("RefreshCustomerTokenUseCase", () => {
   let useCase: RefreshCustomerTokenUseCase;
   let customerUserRepo: ReturnType<typeof makeCustomerUserRepo>;
+  let cache: InMemoryCacheAdapter;
 
   beforeEach(() => {
     vi.clearAllMocks();
     customerUserRepo = makeCustomerUserRepo();
-    useCase = new RefreshCustomerTokenUseCase(customerUserRepo);
+    cache = new InMemoryCacheAdapter();
+    useCase = new RefreshCustomerTokenUseCase(customerUserRepo, cache);
   });
 
   it("returns INVALID_TOKEN for garbage input", async () => {
@@ -289,15 +292,53 @@ describe("RefreshCustomerTokenUseCase", () => {
     expect(result.value.accessToken).toBeDefined();
     expect(result.value.refreshToken).toBeDefined();
   });
+
+  it("returns INVALID_TOKEN when the session has been revoked via logout", async () => {
+    const { signCustomerRefreshToken } = await import("../../src/auth/customerJwt.js");
+    const token = signCustomerRefreshToken("user-123", "session-revoked");
+    // Revoke the session before the refresh attempt
+    const logoutUseCase = new LogoutCustomerUseCase(cache);
+    await logoutUseCase.execute({ refreshToken: token });
+
+    const result = await useCase.execute({ refreshToken: token });
+
+    assert.ok(!result.ok);
+    assert.strictEqual(result.error, "INVALID_TOKEN");
+  });
 });
 
 describe("LogoutCustomerUseCase", () => {
-  it("always returns ok", async () => {
-    const useCase = new LogoutCustomerUseCase();
-    const result = await useCase.execute();
+  let cache: InMemoryCacheAdapter;
+  let useCase: LogoutCustomerUseCase;
+
+  beforeEach(() => {
+    cache = new InMemoryCacheAdapter();
+    useCase = new LogoutCustomerUseCase(cache);
+  });
+
+  it("returns ok and is a no-op when refreshToken is null", async () => {
+    const result = await useCase.execute({ refreshToken: null });
 
     assert.ok(result.ok);
     assert.strictEqual(result.value.message, "Logged out successfully");
+  });
+
+  it("returns ok and is a no-op when refreshToken is malformed", async () => {
+    const result = await useCase.execute({ refreshToken: "not-a-jwt" });
+
+    assert.ok(result.ok);
+    // Cache should be empty — nothing to revoke from a malformed token
+    expect(await cache.has("customer-session-revoked:any")).toBe(false);
+  });
+
+  it("revokes the session id encoded in a valid refresh token", async () => {
+    const { signCustomerRefreshToken } = await import("../../src/auth/customerJwt.js");
+    const token = signCustomerRefreshToken("user-123", "session-abc");
+
+    const result = await useCase.execute({ refreshToken: token });
+
+    assert.ok(result.ok);
+    expect(await cache.has("customer-session-revoked:session-abc")).toBe(true);
   });
 });
 

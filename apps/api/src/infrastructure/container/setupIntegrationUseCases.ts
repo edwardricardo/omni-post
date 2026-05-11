@@ -16,6 +16,7 @@ import { ListIntegrationApiKeysQuery } from "../../application/integrations/List
 import { SubscribeIntegrationTriggerUseCase } from "../../application/integrations/SubscribeIntegrationTriggerUseCase.js";
 import { UnsubscribeIntegrationTriggerUseCase } from "../../application/integrations/UnsubscribeIntegrationTriggerUseCase.js";
 import { TriggerIntegrationEventService } from "../../application/integrations/TriggerIntegrationEventService.js";
+import { IntegrationEventDeliveryHandler } from "../../integrations/IntegrationEventDeliveryHandler.js";
 
 /**
  * @method setupIntegrationUseCases
@@ -96,6 +97,18 @@ export function setupIntegrationUseCases(container: Container): void {
         container.resolve<import("../../domain/repositories/HttpClientPort.js").HttpClientPort>(
           TOKENS.HttpClientPort
         )
+      ),
+    true
+  );
+
+  // Bridges domain events from the outbox to integration delivery. The
+  // dispatcher subscription itself is wired at boot in apps/api/src/index.ts
+  // after the OutboxRelay starts.
+  container.register<IntegrationEventDeliveryHandler>(
+    TOKENS.IntegrationEventDeliveryHandler,
+    () =>
+      new IntegrationEventDeliveryHandler(
+        container.resolve<TriggerIntegrationEventService>(TOKENS.TriggerIntegrationEventService)
       ),
     true
   );

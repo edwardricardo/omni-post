@@ -7,24 +7,9 @@
  */
 
 export type {
-  AuditEvent,
-  BackendAuditLog,
-  BackendAuditLogsResponse,
-  BackendComplianceMetrics,
-  BreachFilters,
   BreachReport,
-  BreachResponse,
-  BreachSeverity,
-  ComplianceCheck,
-  ComplianceData,
-  ComplianceMetric,
-  ComplianceScoreData,
-  ComplianceStatus,
   CreateBreachInput,
-  DsarFilters,
   DsarRequest,
-  DsarResponse,
-  DsarStatus,
   GdprSettings,
   SecuritySettings,
 } from "./types";

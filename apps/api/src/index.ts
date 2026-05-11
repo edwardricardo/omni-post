@@ -33,7 +33,7 @@ import Fastify, { FastifyInstance, FastifyRequest, FastifyReply } from "fastify"
 import { z } from "zod";
 import { serializerCompiler, validatorCompiler, ZodTypeProvider } from "fastify-type-provider-zod";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
-import { closeDatabaseConnections, prisma } from "@infra/prisma";
+import { closeDatabaseConnections, prisma, verifyDatabaseAuth } from "@infra/prisma";
 import type { QueuePortRegistry } from "@ports/core";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import client from "prom-client";
@@ -78,6 +78,11 @@ import { setupContainer } from "./infrastructure/container/setup.js";
 import { TOKENS } from "./infrastructure/container/types.js";
 import type { OutboxRelay } from "./infrastructure/outbox/OutboxRelay.js";
 import type { OutboxCleaner } from "./infrastructure/outbox/OutboxCleaner.js";
+import type { EventDispatcher } from "./domain/events/DomainEvent.js";
+import {
+  IntegrationEventDeliveryHandler,
+  HANDLED_EVENT_TYPES as INTEGRATION_HANDLED_EVENT_TYPES,
+} from "./integrations/IntegrationEventDeliveryHandler.js";
 import { crisisRoutes } from "./projects/crisisRoutes.js";
 import { linkRoutes } from "./links/linkRoutes.js";
 import { teamRoutes } from "./team/teamRoutes.js";
@@ -96,6 +101,7 @@ import { firstCommentRoutes } from "./first-comment/firstCommentRoutes.js";
 import { externalNotificationRoutes } from "./external-notifications/externalNotificationRoutes.js";
 import { aiImageRoutes } from "./ai-image/aiImageRoutes.js";
 import { recurringPostRoutes } from "./recurring/recurringPostRoutes.js";
+import { repurposeRoutes } from "./repurpose/repurposeRoutes.js";
 import { promptTemplateRoutes } from "./ai/promptTemplateRoutes.js";
 import { usageRoutes } from "./usage/usageRoutes.js";
 import { brandVoiceRoutes } from "./brand-voice/brandVoiceRoutes.js";
@@ -510,6 +516,7 @@ async function createApp(): Promise<FastifyInstance> {
   await typedApp.register(externalNotificationRoutes);
   await typedApp.register(aiImageRoutes);
   await typedApp.register(recurringPostRoutes);
+  await typedApp.register(repurposeRoutes);
   await typedApp.register(promptTemplateRoutes);
   await typedApp.register(usageRoutes);
   await typedApp.register(brandVoiceRoutes);
@@ -579,12 +586,42 @@ async function createApp(): Promise<FastifyInstance> {
     redis,
     scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
   });
+  // EventService.publishEvents() throws "not initialized" until initialize() is
+  // called — without this, every saga step that publishes events (Create, Update)
+  // fails downstream and the saga either fails or stalls.
+  const sagaEventServiceInit = await sagaEventService.initialize();
+  if (!sagaEventServiceInit.ok) {
+    logger.error({ err: sagaEventServiceInit.error }, "Failed to initialize saga EventService");
+  }
+
   const sagaCQRSBus = new CQRSBusImpl({
     eventService: sagaEventService,
     redis,
     enableMetrics: true,
     enableQueryCache: false,
   });
+
+  // Register Post command handlers on the saga's CQRSBus. The saga emits
+  // commands like `post.create` / `post.update` / `post.delete` via
+  // `cqrsBus.executeCommand(...)`; without this wiring the bus throws
+  // "No handler registered for command type: post.create" and every saga
+  // step 1 (Create) fails silently into the FAILED terminal state.
+  const { createPostCommandHandlers } = await import("./cqrs/handlers/PostCommandHandlers.js");
+  createPostCommandHandlers({
+    createPostUseCase: container.resolve(TOKENS.CreatePostUseCase),
+    updatePostUseCase: container.resolve(TOKENS.UpdatePostUseCase),
+    deletePostUseCase: container.resolve(TOKENS.DeletePostUseCase),
+    postRepository: container.resolve(TOKENS.PostRepository),
+    channelRepository: container.resolve(TOKENS.ChannelRepository),
+    redis,
+  }).forEach((handler) => sagaCQRSBus.registerCommandHandler(handler));
+
+  // Semantic lock backend (Azure saga §15-20). Reuses the saga's redis
+  // connection — lock ops are short, non-blocking SET NX / Lua release.
+  const { RedisSemanticLockStore } =
+    await import("./infrastructure/saga/RedisSemanticLockStore.js");
+  const sagaLockStore = new RedisSemanticLockStore(redis);
+
   const sagaIntegration = new SagaIntegration({
     fastify: typedApp,
     prisma,
@@ -593,6 +630,10 @@ async function createApp(): Promise<FastifyInstance> {
     redis,
     queue: queueAdapter,
     scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
+    projectRepository: container.resolve(TOKENS.ProjectRepository),
+    channelRepository: container.resolve(TOKENS.ChannelRepository),
+    postRepository: container.resolve(TOKENS.PostRepository),
+    lockStore: sagaLockStore,
   });
   await sagaIntegration.initialize();
   typedApp.decorate("sagaIntegration", sagaIntegration);
@@ -652,12 +693,30 @@ async function createApp(): Promise<FastifyInstance> {
 // ✅ PROPER server startup
 async function start() {
   try {
+    // Fail fast if DATABASE_URL credentials don't authenticate. Catches the
+    // common dev pitfall of a stale Postgres volume holding a password that
+    // no longer matches .env (silent split-brain that otherwise surfaces as
+    // BackgroundTaskScheduler error spam minutes later).
+    await verifyDatabaseAuth();
+
     const app = await createApp();
 
     // Start outbox relay (polls outbox table and dispatches unpublished events)
     // and outbox cleaner (removes old published events hourly)
     const outboxRelay = app.container!.resolve<OutboxRelay>(TOKENS.OutboxRelay);
     const outboxCleaner = app.container!.resolve<OutboxCleaner>(TOKENS.OutboxCleaner);
+
+    // Bridge: outbox-dispatched domain events → customer integration delivery
+    // (Zapier/Make/Slack/Salesforce via IntegrationSubscription.targetUrl).
+    // Without this wire the relay claims and silently discards every event.
+    const integrationDeliveryHandler = app.container!.resolve<IntegrationEventDeliveryHandler>(
+      TOKENS.IntegrationEventDeliveryHandler
+    );
+    const eventDispatcher = app.container!.resolve<EventDispatcher>(TOKENS.EventDispatcher);
+    for (const eventType of INTEGRATION_HANDLED_EVENT_TYPES) {
+      eventDispatcher.register(eventType, integrationDeliveryHandler);
+    }
+
     outboxRelay.start();
     outboxCleaner.start();
 
@@ -671,6 +730,15 @@ async function start() {
       app.container!.resolve(TOKENS.EmailPort)
     );
     logger.info("GatewaySwitchProcessor started");
+
+    // RecurrenceScheduler — ticks every 60 s, processes due recurring posts
+    // and creates + schedules a new Post for each occurrence.
+    const { RecurrenceScheduler: _RecurrenceSchedulerType } =
+      await import("./recurring/RecurrenceScheduler.js");
+    const recurrenceScheduler = app.container!.resolve<
+      InstanceType<typeof _RecurrenceSchedulerType>
+    >(TOKENS.RecurrenceScheduler);
+    recurrenceScheduler.start();
 
     // Resolve the background task scheduler once and register daily maintenance jobs.
     const scheduler = app.container!.resolve<BackgroundTaskScheduler>(

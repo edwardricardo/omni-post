@@ -29,21 +29,6 @@ export interface TokenPair {
   csrfToken: string;
 }
 
-export interface LoginResponse {
-  user: AdminUserProfile;
-  tokens: TokenPair;
-  requiresMfa: boolean;
-  mfaSessionToken?: string;
-}
-
-export interface LoginResult {
-  success: boolean;
-  redirectTo?: string;
-  error?: string;
-  requiresMfa?: boolean;
-  mfaSessionToken?: string;
-}
-
 // ============================================================================
 // Server Actions Auth Types (new pattern — replaces NextAuth)
 // ============================================================================

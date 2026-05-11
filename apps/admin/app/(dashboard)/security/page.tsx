@@ -9,7 +9,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import { isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
+import { isPermissionDenied, getErrorMessage } from "@packages/api-errors";
 import { AccessDenied } from "@/components/shared/AccessDenied";
 import { useSecurityOverview } from "@/hooks/api/useSecurity";
 import RbacManager from "@/components/security/RbacManager";

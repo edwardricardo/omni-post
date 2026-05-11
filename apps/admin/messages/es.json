@@ -356,7 +356,16 @@
     "autoRenewProcessedWithFailed": "{processed} cuenta(s) convertida(s) a pago, {failed} fallaron",
     "noEligibleRenewals": "No hay cuentas elegibles para auto-renovacion",
     "autoRenewError": "Error al procesar auto-renovaciones",
-    "actions": "Acciones"
+    "actions": "Acciones",
+    "startTrial": "Iniciar prueba",
+    "startTrialTitle": "Iniciar prueba",
+    "startTrialDescription": "Otorgar manualmente un periodo de prueba a una cuenta. Útil para overrides de ventas/soporte o re-activar cuentas con prueba vencida.",
+    "startTrialAccountIdLabel": "ID de cuenta",
+    "startTrialDaysLabel": "Duración de la prueba (días)",
+    "startTrialSuccess": "Prueba iniciada correctamente",
+    "startTrialError": "Error al iniciar la prueba",
+    "startTrialMissingAccountId": "El ID de cuenta es requerido",
+    "startTrialInvalidDays": "La duración de la prueba debe ser al menos 1 día"
   },
   "changePlan": {
     "title": "Editar plan",
@@ -706,7 +715,7 @@
       "autoDelete": "Eliminar automaticamente datos expirados",
       "autoDeleteWarning": "Habilitar esto eliminara permanentemente los datos segun el cronograma",
       "dsarResponseDays": "Plazo de respuesta DSAR (dias)",
-      "dsarResponseHelper": "15 = Brasil/LGPD \u00b7 30 = GDPR \u00b7 45 = EE.UU./CCPA",
+      "dsarResponseHelper": "15 = Brasil/LGPD · 30 = GDPR · 45 = EE.UU./CCPA",
       "defaultJurisdiction": "Jurisdiccion predeterminada",
       "enableErasure": "Derecho al olvido",
       "enableExport": "Exportacion de datos",
@@ -1625,7 +1634,14 @@
       "saveSuccess": "Credenciales guardadas exitosamente",
       "saveError": "Error al guardar credenciales",
       "notConfigured": "No configurado",
-      "enterNewValue": "Ingrese nuevo valor para actualizar"
+      "enterNewValue": "Ingrese nuevo valor para actualizar",
+      "deleteCredentialTitle": "Eliminar credential",
+      "deleteCredentialDescription": "Esto eliminará permanentemente el valor de la credential `{key}` de la plataforma. Las solicitudes que la usen fallarán hasta que se configure un reemplazo. No se puede deshacer.",
+      "deleteCredentialConfirm": "Eliminar credential",
+      "deleteCredentialSuccess": "Credential eliminada",
+      "deleteCredentialError": "Error al eliminar la credential",
+      "deleteCredentialTooltip": "Eliminar esta credential",
+      "deleteCredentialAriaLabel": "Eliminar credential {key}"
     },
     "security": {
       "title": "Gestión de Claves de Encriptación",

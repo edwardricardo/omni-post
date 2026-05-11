@@ -89,9 +89,13 @@ jobs:
 
       - name: Setup test environment
         run: |
-          cp apps/api/.env.example apps/api/.env
-          echo "DATABASE_URL=postgresql://postgres:password123@localhost:5432/omnipostdb" >> apps/api/.env
-          echo "REDIS_URL=redis://localhost:6379" >> apps/api/.env
+          cp .env.example .env
+          echo "DATABASE_URL=postgresql://postgres:password123@localhost:5432/omnipostdb" >> .env
+          echo "SHADOW_DATABASE_URL=postgresql://postgres:password123@localhost:5432/omnipostdb_shadow" >> .env
+          echo "REDIS_URL=redis://localhost:6379" >> .env
+
+      - name: Generate Prisma client
+        run: pnpm --filter @infra/prisma exec prisma generate
 
       - name: Run database migrations
         run: pnpm --filter @infra/prisma db:migrate

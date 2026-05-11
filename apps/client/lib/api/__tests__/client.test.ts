@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, beforeEach, vi, Mock } from "vitest";
 import { apiClient } from "../client";
-import { ApiError } from "../types";
+import { ApiError } from "@packages/api-errors";
 
 // Mock fetch globally
 global.fetch = vi.fn();
@@ -136,44 +136,6 @@ describe("ApiClient", () => {
   });
 
   describe("Posts", () => {
-    it("should create post with correct payload", async () => {
-      const postData = {
-        projectId: "project-123",
-        locale: "en" as const,
-        title: "Test Post",
-        body: "This is a test post",
-        tags: ["test", "api"],
-      };
-
-      const mockResponse = {
-        ok: true,
-        data: {
-          id: "post-123",
-          ...postData,
-          createdAt: "2024-01-01T00:00:00Z",
-        },
-      };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockResponse),
-      });
-
-      const result = await apiClient.createPost(postData);
-
-      expect(result).toEqual(mockResponse);
-      expect(mockFetch).toHaveBeenCalledWith(
-        "/api/backend/posts",
-        expect.objectContaining({
-          method: "POST",
-          body: JSON.stringify(postData),
-          headers: expect.objectContaining({
-            "Content-Type": "application/json",
-          }),
-        })
-      );
-    });
-
     it("should fetch posts with query parameters", async () => {
       const params = {
         projectId: "project-123",

@@ -31,9 +31,11 @@ export interface GetMediaAssetsInput {
  * @description Fetches media assets with filters and cursor-based pagination.
  *   Reads directly from the repository.
  */
-export class GetMediaAssetsQuery
-  implements UseCase<GetMediaAssetsInput, MediaAssetPaginatedResult, UseCaseError>
-{
+export class GetMediaAssetsQuery implements UseCase<
+  GetMediaAssetsInput,
+  MediaAssetPaginatedResult,
+  UseCaseError
+> {
   constructor(private readonly mediaAssetRepository: MediaAssetRepository) {}
 
   /**

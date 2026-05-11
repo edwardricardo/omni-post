@@ -54,6 +54,7 @@ export class SagaManagerLifecycle implements SagaManager {
 
     this.startTimeoutChecker();
     this.startMetricsCollector();
+    this.startRetryRecoveryChecker();
 
     logger.info("Saga Manager initialized successfully");
   }
@@ -103,10 +104,6 @@ export class SagaManagerLifecycle implements SagaManager {
       retryCount: 0,
     };
 
-    await this.executionEngine.persistSagaInstance(instance);
-
-    this.activeInstances.set(sagaId, instance);
-
     const sagaStartedEvent = createDomainEvent(
       SAGA_EVENTS.SAGA_STARTED,
       sagaId,
@@ -125,7 +122,9 @@ export class SagaManagerLifecycle implements SagaManager {
       }
     );
 
-    await this.config.eventService.publishEvent(sagaStartedEvent);
+    await this.executionEngine.persistSagaInstance(instance, [sagaStartedEvent]);
+
+    this.activeInstances.set(sagaId, instance);
 
     this.metrics.sagasStarted++;
     this.metrics.activeInstances++;
@@ -167,7 +166,6 @@ export class SagaManagerLifecycle implements SagaManager {
     }
 
     instance.status = "COMPENSATING";
-    await this.executionEngine.persistSagaInstance(instance);
 
     const compensationStartedEvent = createDomainEvent(
       SAGA_EVENTS.SAGA_COMPENSATION_STARTED,
@@ -185,7 +183,7 @@ export class SagaManagerLifecycle implements SagaManager {
       }
     );
 
-    await this.config.eventService.publishEvent(compensationStartedEvent);
+    await this.executionEngine.persistSagaInstance(instance, [compensationStartedEvent]);
 
     this.executionEngine.compensateSagaAsync(sagaId);
 
@@ -355,6 +353,7 @@ export class SagaManagerLifecycle implements SagaManager {
     error: string | null;
     startedAt: Date;
     completedAt: Date | null;
+    nextRetryAt?: Date | null;
   }): SagaInstance {
     return {
       id: row.id,
@@ -368,7 +367,44 @@ export class SagaManagerLifecycle implements SagaManager {
       startedAt: row.startedAt,
       ...(row.error !== null && { error: row.error }),
       ...(row.completedAt !== null && { completedAt: row.completedAt }),
+      ...(row.nextRetryAt && { nextRetryAt: row.nextRetryAt }),
     };
+  }
+
+  /**
+   * Polls every 5s for sagas whose nextRetryAt has elapsed and resumes them.
+   * Persisted retries survive process restarts: a saga that scheduled a
+   * retry just before a crash gets picked up here at the next boot tick.
+   * Indexed by (status, nextRetryAt) so the scan is cheap.
+   */
+  private startRetryRecoveryChecker(): void {
+    this.config.scheduler.register(
+      "saga-retry-recovery",
+      async () => {
+        try {
+          const now = new Date();
+          const dueRows = await this.config.prisma.sagaInstance.findMany({
+            where: {
+              status: "RUNNING",
+              nextRetryAt: { lte: now, not: null },
+            },
+            select: { id: true },
+            take: 50,
+          });
+
+          for (const { id: sagaId } of dueRows) {
+            this.executionEngine.executeSagaAsync(sagaId);
+          }
+
+          if (dueRows.length > 0) {
+            logger.info({ count: dueRows.length }, "Resumed sagas with due retries");
+          }
+        } catch (err) {
+          logger.error({ err }, "Saga retry recovery scan failed");
+        }
+      },
+      5000
+    );
   }
 
   private startTimeoutChecker(): void {

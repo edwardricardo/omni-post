@@ -138,7 +138,7 @@ When reviewing, score each item 1–5 on:
 - **Effort**: Inverse of complexity (5 = easy, 1 = very hard)
 - **Dependency**: Is this blocking other work?
 
-**Priority score = (Demand × 2) + Revenue + Effort + Dependency**
+### Priority score = (Demand × 2) + Revenue + Effort + Dependency
 
 Items with score ≥ 10 should be promoted to **Must Have Next**.
 

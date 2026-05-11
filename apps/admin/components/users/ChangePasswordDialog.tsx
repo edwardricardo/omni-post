@@ -19,7 +19,7 @@ import {
   DialogFooter,
 } from "@packages/ui";
 import { useChangePassword } from "@/hooks/api/useChangePassword";
-import { getErrorMessage } from "@/lib/parseApiError";
+import { getErrorMessage } from "@packages/api-errors";
 import { ActionButton } from "@/components/ui/ActionButton";
 
 const INPUT_CLASS =

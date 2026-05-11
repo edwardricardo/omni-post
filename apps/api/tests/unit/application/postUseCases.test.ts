@@ -93,23 +93,25 @@ function createMockQueryRepository() {
       if (!post) return err(new EntityNotFoundError("Post", id.value));
       return ok(post);
     }),
-    listByProject: vi.fn(async (_projId: ProjectId, pagination?: any, _sort?: any) => {
-      const items = Array.from(store.values());
-      const page = pagination?.page ?? 1;
-      const limit = Math.min(pagination?.limit ?? 20, 100);
-      const total = items.length;
-      const totalPages = Math.ceil(total / limit);
-      const start = (page - 1) * limit;
-      return {
-        items: items.slice(start, start + limit),
-        total,
-        page,
-        limit,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrevious: page > 1,
-      };
-    }),
+    listByProject: vi.fn(
+      async (_projId: ProjectId, pagination?: any, _sort?: any, _filter?: any) => {
+        const items = Array.from(store.values());
+        const page = pagination?.page ?? 1;
+        const limit = Math.min(pagination?.limit ?? 20, 100);
+        const total = items.length;
+        const totalPages = Math.ceil(total / limit);
+        const start = (page - 1) * limit;
+        return {
+          items: items.slice(start, start + limit),
+          total,
+          page,
+          limit,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrevious: page > 1,
+        };
+      }
+    ),
     search: vi.fn(),
     getUpcoming: vi.fn(),
     getRecentlyPublished: vi.fn(),
@@ -631,6 +633,7 @@ describe("ListPostsUseCase", () => {
       expect(queryRepo.listByProject).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({ limit: 100 }),
+        undefined,
         undefined
       );
     });
@@ -640,6 +643,7 @@ describe("ListPostsUseCase", () => {
       expect(queryRepo.listByProject).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({ page: 1, limit: 20 }),
+        undefined,
         undefined
       );
     });

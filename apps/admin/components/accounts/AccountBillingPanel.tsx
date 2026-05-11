@@ -14,7 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@packages/ui";
 import { useAccountBilling } from "@/hooks/api/useAccountBilling";
 import { useAccountSessions, useRevokeAccountSessions } from "@/hooks/api/useAccountSessions";
-import { ApiError, getErrorMessage } from "@/lib/parseApiError";
+import { ApiError, getErrorMessage } from "@packages/api-errors";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { Badge } from "@/components/ui/Badge";
 import { ActionButton } from "@/components/ui/ActionButton";

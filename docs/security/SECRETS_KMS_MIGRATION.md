@@ -16,7 +16,7 @@ final canonical reference.
 
 ## 1. Scope
 
-**Covers**
+### Covers
 
 - Migration of the platform master key from `process.env.PLATFORM_ENCRYPTION_KEY`
   to a KMS-backed KEK
@@ -25,7 +25,7 @@ final canonical reference.
 - Performance and cost considerations
 - Rollback procedure
 
-**Does not cover**
+### Does not cover
 
 - Deployment-time secret delivery → [SECRETS_PRODUCTION_ARCHITECTURE.md](./SECRETS_PRODUCTION_ARCHITECTURE.md)
 - Per-secret rotation cadence and procedure → [T0A_SECRETS_ROTATION_RUNBOOK.md](./T0A_SECRETS_ROTATION_RUNBOOK.md)
@@ -33,7 +33,7 @@ final canonical reference.
 - Encryption-at-rest taxonomy and `keyVersion` columns → [SECRETS_DATABASE_INVENTORY.md](./SECRETS_DATABASE_INVENTORY.md)
 - Implementation code (refactor of `EncryptionService.ts`, KMS account setup) — that lives in operational documents once a KMS option is chosen
 
-**Audience**
+### Audience
 
 Engineers and security reviewers who need to understand the architecture of
 the proposed KMS migration: what changes in the data model, what changes in

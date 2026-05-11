@@ -1,13 +1,15 @@
 /**
  * @file PostsFilters.tsx
- * @description Search field + status dropdown + view-mode picker +
- *              refresh button row above the posts list. View mode is
- *              `grid` / `list` / `virtual`; the dispatcher in the page
- *              switches the renderer based on it.
+ * @description Filter + sort + view-mode controls above the posts list.
+ *              Supports multi-select status, tag CSV input, sort by field
+ *              + direction, three view modes (grid/list/virtual), and a
+ *              refresh button. The page owns all filter state and feeds
+ *              it back through the change callbacks.
  * @component PostsFilters
  * @layer infrastructure
  */
 
+import { useId } from "react";
 import { Filter, Search } from "lucide-react";
 import {
   Badge,
@@ -17,44 +19,80 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
   Input,
 } from "@packages/ui";
+import type { PostSortField, PostStatus } from "@/lib/api/clients/postsClient";
 
-export type PostStatusFilter = "ALL" | "DRAFT" | "SCHEDULED" | "PUBLISHED" | "FAILED";
+export type PostStatusFilter = "ALL" | PostStatus;
 export type PostViewMode = "grid" | "list" | "virtual";
+
+const STATUS_OPTIONS: PostStatus[] = [
+  "DRAFT",
+  "PENDING_REVIEW",
+  "SCHEDULED",
+  "PUBLISHING",
+  "PUBLISHED",
+  "FAILED",
+  "CANCELLED",
+];
+
+const SORT_OPTIONS: { field: PostSortField; label: string }[] = [
+  { field: "createdAt", label: "Created" },
+  { field: "updatedAt", label: "Updated" },
+  { field: "scheduledAt", label: "Scheduled for" },
+  { field: "publishedAt", label: "Published at" },
+  { field: "status", label: "Status" },
+];
 
 interface PostsFiltersProps {
   searchTerm: string;
-  statusFilter: PostStatusFilter;
+  selectedStatuses: ReadonlySet<PostStatus>;
+  tagsInput: string;
+  sortBy: PostSortField;
+  sortDirection: "asc" | "desc";
   viewMode: PostViewMode;
   isLoading: boolean;
   visibleCount: number;
   onSearchChange: (term: string) => void;
-  onStatusChange: (status: PostStatusFilter) => void;
+  onStatusToggle: (status: PostStatus) => void;
+  onClearStatuses: () => void;
+  onTagsInputChange: (raw: string) => void;
+  onSortByChange: (field: PostSortField) => void;
+  onSortDirectionChange: (direction: "asc" | "desc") => void;
   onViewModeChange: (mode: PostViewMode) => void;
   onRefresh: () => void;
 }
 
-const STATUS_OPTIONS: PostStatusFilter[] = ["ALL", "DRAFT", "SCHEDULED", "PUBLISHED", "FAILED"];
-
 export function PostsFilters({
   searchTerm,
-  statusFilter,
+  selectedStatuses,
+  tagsInput,
+  sortBy,
+  sortDirection,
   viewMode,
   isLoading,
   visibleCount,
   onSearchChange,
-  onStatusChange,
+  onStatusToggle,
+  onClearStatuses,
+  onTagsInputChange,
+  onSortByChange,
+  onSortDirectionChange,
   onViewModeChange,
   onRefresh,
 }: PostsFiltersProps) {
+  const tagsInputId = useId();
+  const statusButtonLabel =
+    selectedStatuses.size === 0 ? "Status: All" : `Status: ${selectedStatuses.size} selected`;
+  const sortLabel = SORT_OPTIONS.find((o) => o.field === sortBy)?.label ?? sortBy;
+
   return (
     <Card>
-      <CardContent className="pt-6">
-        <div className="flex items-center space-x-4">
-          <div className="flex-1 relative">
+      <CardContent className="pt-6 space-y-4">
+        {/* Row 1 — Search + status + sort + view + refresh */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[240px] flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search posts..."
@@ -67,7 +105,7 @@ export function PostsFilters({
                 variant="secondary"
                 className="absolute right-3 top-1/2 transform -translate-y-1/2"
               >
-                {visibleCount} results
+                {visibleCount} visible
               </Badge>
             )}
           </div>
@@ -76,17 +114,62 @@ export function PostsFilters({
             <DropdownMenuTrigger asChild>
               <Button variant="outline">
                 <Filter className="mr-2 h-4 w-4" />
-                Status: {statusFilter}
+                {statusButtonLabel}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56">
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  onClearStatuses();
+                }}
+              >
+                <span className="text-blue-600">Clear all</span>
+              </DropdownMenuItem>
+              {STATUS_OPTIONS.map((status) => {
+                const checked = selectedStatuses.has(status);
+                return (
+                  <DropdownMenuItem
+                    key={status}
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      onStatusToggle(status);
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      readOnly
+                      className="mr-2 h-4 w-4 rounded border-gray-300"
+                    />
+                    <span>
+                      {status.charAt(0) + status.slice(1).toLowerCase().replace(/_/g, " ")}
+                    </span>
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                Sort: {sortLabel} {sortDirection === "asc" ? "↑" : "↓"}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => onStatusChange("ALL")}>All Posts</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              {STATUS_OPTIONS.filter((opt) => opt !== "ALL").map((option) => (
-                <DropdownMenuItem key={option} onClick={() => onStatusChange(option)}>
-                  {option.charAt(0) + option.slice(1).toLowerCase()}
+              {SORT_OPTIONS.map((opt) => (
+                <DropdownMenuItem key={opt.field} onClick={() => onSortByChange(opt.field)}>
+                  {opt.label}
+                  {sortBy === opt.field && <span className="ml-2 text-blue-600">✓</span>}
                 </DropdownMenuItem>
               ))}
+              <DropdownMenuItem
+                onClick={() => onSortDirectionChange(sortDirection === "asc" ? "desc" : "asc")}
+              >
+                {sortDirection === "asc" ? "Descending ↓" : "Ascending ↑"}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -112,6 +195,20 @@ export function PostsFilters({
           <Button variant="outline" onClick={onRefresh} disabled={isLoading}>
             Refresh
           </Button>
+        </div>
+
+        {/* Row 2 — Tag CSV input */}
+        <div className="flex items-center gap-3">
+          <label htmlFor={tagsInputId} className="text-sm text-muted-foreground whitespace-nowrap">
+            Tags (CSV):
+          </label>
+          <Input
+            id={tagsInputId}
+            placeholder="e.g. launch,promo (any-match)"
+            value={tagsInput}
+            onChange={(e) => onTagsInputChange(e.target.value)}
+            className="max-w-md"
+          />
         </div>
       </CardContent>
     </Card>

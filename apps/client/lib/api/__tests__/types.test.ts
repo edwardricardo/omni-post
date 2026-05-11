@@ -1,12 +1,12 @@
 /**
  * @file types.test.ts
- * @description Smoke tests for the re-exported `ApiError` class — verifies the
- *              canonical (status, code, message, details?) signature works
- *              through the client's `lib/api/types` barrel.
+ * @description Smoke tests for the canonical `ApiError` class from
+ *              `@packages/api-errors` — verifies the
+ *              `(status, code, message, details?)` signature is intact.
  * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";
-import { ApiError } from "../types";
+import { ApiError } from "@packages/api-errors";
 
 describe("API Types", () => {
   describe("ApiError", () => {

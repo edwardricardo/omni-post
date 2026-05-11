@@ -8,7 +8,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { getErrorMessage } from "@/lib/parseApiError";
+import { getErrorMessage } from "@packages/api-errors";
 import {
   useWebhookEvents,
   useWebhookEventDetail,

@@ -7,7 +7,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ApiError } from "@/lib/parseApiError";
+import { ApiError } from "@packages/api-errors";
 
 interface AccountSession {
   id: string;

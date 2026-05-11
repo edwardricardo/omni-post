@@ -12,6 +12,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { setLocaleAction } from "@/app/actions/locale";
+import { logoutAction } from "@/app/actions/auth";
 import {
   LayoutDashboard,
   Users,
@@ -436,8 +437,8 @@ export function SidebarNav({ userName, userRole }: SidebarNavProps) {
           {!collapsed && <span>{theme === "dark" ? t("lightMode") : t("darkMode")}</span>}
         </button>
 
-        {/* Logout */}
-        <form action="/api/clear-session" method="GET">
+        {/* Logout — Server Action invalidates the JWT backend-side before clearing cookies. */}
+        <form action={logoutAction}>
           <button
             type="submit"
             aria-label={tc("logout")}

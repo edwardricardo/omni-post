@@ -151,6 +151,19 @@ export class PrismaChannelRepository implements ChannelRepository {
   }
 
   /**
+   * Lightweight ownership lookup — returns just the channel IDs without
+   * touching credentials. Avoids the decryption work (and the failure mode
+   * on placeholder fixtures) that toDomain() does for the full Channel.
+   */
+  async findIdsByProjectId(projectId: ProjectId): Promise<ChannelId[]> {
+    const rows = await this.prisma.channel.findMany({
+      where: { projectId: projectId.value, deletedAt: null },
+      select: { id: true },
+    });
+    return rows.map((r) => ChannelId.fromStringUnsafe(r.id));
+  }
+
+  /**
    * Find all channels for a specific (project, provider) pair (excludes soft-deleted)
    */
   async findByProjectAndProvider(projectId: ProjectId, provider: Provider): Promise<Channel[]> {

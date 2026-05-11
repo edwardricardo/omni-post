@@ -14,7 +14,7 @@ import { Worker, Queue } from "bullmq";
 import Redis from "ioredis";
 import pino from "pino";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
-import { prisma } from "@infra/prisma";
+import { prisma, verifyDatabaseAuth } from "@infra/prisma";
 import { registerGracefulShutdown } from "./lib/gracefulShutdown.js";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info", name: "auto-renewal-worker" });
@@ -22,12 +22,14 @@ const logger = pino({ level: process.env.LOG_LEVEL ?? "info", name: "auto-renewa
 const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
 const connection = new Redis(redisUrl, {
   maxRetriesPerRequest: null,
-  // ioredis defaults: commandTimeout = null (forever), connectTimeout = 10000.
-  // Both bounded so a hung Redis fails fast instead of stalling the daily
-  // cron. BullMQ requires maxRetriesPerRequest:null, so the timeout is the
-  // only escape hatch.
-  commandTimeout: 5_000,
-  connectTimeout: 5_000,
+  // No commandTimeout: BullMQ Worker uses blocking commands (BZPOPMIN,
+  // XREAD BLOCK) that legitimately wait indefinitely for jobs. Any
+  // commandTimeout interrupts those polls mid-flight and surfaces as
+  // spurious "Command timed out" errors (BullMQ issue #2619). Worker
+  // liveness is enforced via lockDuration + stalledInterval (BullMQ-side)
+  // and TCP keepAlive (transport-side).
+  connectTimeout: 10_000,
+  keepAlive: 30_000,
 });
 
 // ---------------------------------------------------------------------------
@@ -167,9 +169,14 @@ worker.on("failed", (job, err) => {
 // Start
 // ---------------------------------------------------------------------------
 
-setupCron().catch((err) => {
-  logger.error({ err }, "Failed to setup auto-renewal cron");
-});
+// Fail fast if DATABASE_URL credentials don't authenticate (typically a
+// stale Postgres volume after a password rotation without `down -v`).
+verifyDatabaseAuth()
+  .then(() => setupCron())
+  .catch((err) => {
+    logger.error({ err }, "Failed to start auto-renewal worker");
+    process.exit(1);
+  });
 
 logger.info("Auto-renewal worker started");
 

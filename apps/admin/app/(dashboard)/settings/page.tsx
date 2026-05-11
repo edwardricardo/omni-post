@@ -11,7 +11,7 @@ import { useTranslations } from "next-intl";
 
 import { useCurrentUser } from "@/providers/AuthProvider";
 import { useSettingsStatus } from "@/hooks/api/useSettings";
-import { isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
+import { isPermissionDenied, getErrorMessage } from "@packages/api-errors";
 
 import { PageHeader } from "@/components/ui/PageHeader";
 import { TabNav } from "@/components/ui/TabNav";

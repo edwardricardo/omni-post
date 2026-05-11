@@ -27,7 +27,7 @@ import { createTelegramAdapter } from "@providers/telegram";
 import { createPinterestAdapter } from "@providers/pinterest";
 import { createLinkedInAdapter } from "@providers/linkedin";
 import { createBlueskyAdapter } from "@providers/bluesky";
-import { prisma } from "@infra/prisma";
+import { prisma, verifyDatabaseAuth } from "@infra/prisma";
 import type { ProviderAdapter } from "@ports/core";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info", name: "inbox-sync-worker" });
@@ -155,15 +155,21 @@ async function processJob(jobData: {
 const authFailureRecorder = new ChannelAuthFailureRecorder({ prisma });
 
 async function start() {
+  // Fail fast if DATABASE_URL credentials don't authenticate (typically a
+  // stale Postgres volume after a password rotation without `down -v`).
+  await verifyDatabaseAuth();
+
   const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
     maxRetriesPerRequest: null,
     lazyConnect: true,
-    // ioredis defaults: commandTimeout = null (forever), connectTimeout = 10000.
-    // Both bounded here so a hung Redis fails fast instead of stalling the
-    // worker. BullMQ requires maxRetriesPerRequest:null, so the timeout is
-    // the only escape hatch.
-    commandTimeout: 5_000,
-    connectTimeout: 5_000,
+    // No commandTimeout: BullMQ Worker uses blocking commands (BZPOPMIN,
+    // XREAD BLOCK) that legitimately wait indefinitely for jobs. Any
+    // commandTimeout interrupts those polls mid-flight and surfaces as
+    // spurious "Command timed out" errors (BullMQ issue #2619). Worker
+    // liveness is enforced via lockDuration + stalledInterval (BullMQ-side)
+    // and TCP keepAlive (transport-side).
+    connectTimeout: 10_000,
+    keepAlive: 30_000,
   });
 
   const worker = new Worker(

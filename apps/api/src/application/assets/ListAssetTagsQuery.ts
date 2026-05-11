@@ -23,9 +23,11 @@ export interface ListAssetTagsInput {
  * @class ListAssetTagsQuery
  * @description Fetches all asset tags for an account from the repository.
  */
-export class ListAssetTagsQuery
-  implements UseCase<ListAssetTagsInput, AssetTagDTO[], UseCaseError>
-{
+export class ListAssetTagsQuery implements UseCase<
+  ListAssetTagsInput,
+  AssetTagDTO[],
+  UseCaseError
+> {
   constructor(private readonly assetTagRepository: AssetTagRepository) {}
 
   /**

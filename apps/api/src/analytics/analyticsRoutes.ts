@@ -749,7 +749,7 @@ const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Get comprehensive analytics dashboard data
   fastify.get(
-    "/dashboard",
+    "/analytics/dashboard",
     {
       preHandler: [requireClientAuth],
       schema: { tags: ["Analytics"], summary: "Get analytics dashboard" },

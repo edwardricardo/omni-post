@@ -12,7 +12,7 @@ import {
   useSecretRotationStatus,
   type SecretRotationStatusDTO,
 } from "@/hooks/api/useSecretRotationStatus";
-import { isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
+import { isPermissionDenied, getErrorMessage } from "@packages/api-errors";
 import { AccessDenied } from "@/components/shared/AccessDenied";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { PageHeader } from "@/components/ui/PageHeader";

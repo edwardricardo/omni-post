@@ -1,0 +1,68 @@
+# graphify ignore patterns — same syntax as .gitignore
+# Goal: exclude generated, build, and reporting artifacts so the knowledge graph
+# reflects only authored code + docs.
+
+# Node / pnpm
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+.next/
+.turbo/
+out/
+storybook-static/
+*.tsbuildinfo
+
+# Test coverage + reports
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+**/__snapshots__/
+**/*-snapshots/        # Playwright visual regression baseline images
+**/*.spec.ts-snapshots/
+
+# Mutation testing
+.stryker-tmp/
+**/.stryker-tmp/
+reports/mutation/
+**/reports/mutation/
+reports/stryker-incremental.json
+**/reports/stryker-incremental.json
+stryker-output-*.json
+**/stryker-output-*.json
+
+# Prisma generated client (regenerated on every build)
+infra/prisma/generated/
+
+# jscpd reports
+reports/jscpd/
+
+# Logs
+*.log
+logs/
+
+# Environment files (sensitive)
+.env
+.env.*
+!.env.example
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Backup files
+*.bak
+*.bak[0-9]*
+
+# Graphify own output (recursive — every per-app run writes its own graphify-out/)
+graphify-out/
+**/graphify-out/
+
+# Prisma migrations are valuable signal — DO NOT ignore
+# infra/prisma/migrations/  ← keep
+# infra/prisma/schema.prisma ← keep

@@ -18,9 +18,11 @@ import {
  * @class ListAIPromptTemplatesQuery
  * @description Returns all system templates plus account-specific templates.
  */
-export class ListAIPromptTemplatesQuery
-  implements UseCase<ListAIPromptTemplatesInput, AIPromptTemplateDto[], UseCaseError>
-{
+export class ListAIPromptTemplatesQuery implements UseCase<
+  ListAIPromptTemplatesInput,
+  AIPromptTemplateDto[],
+  UseCaseError
+> {
   constructor(private readonly repository: AIPromptTemplateRepository) {}
 
   /**

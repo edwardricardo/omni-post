@@ -12,7 +12,7 @@ import {
   type SortParams,
 } from "./Repository.js";
 import { PostAggregate } from "../aggregates/PostAggregate.js";
-import { PostId, ProjectId } from "../value-objects/EntityId.js";
+import { PostId, ProjectId, AccountId } from "../value-objects/EntityId.js";
 import { type PublishStatusValue } from "../value-objects/PublishStatus.js";
 import { EntityNotFoundError } from "../errors/index.js";
 
@@ -28,6 +28,13 @@ export interface PostFilterCriteria {
   createdAfter?: Date;
   hasMedia?: boolean;
   searchText?: string;
+  tags?: string[];
+  /**
+   * Include archived posts (those with archivedAt set). Default behaviour
+   * filters them out so the standard listing view never shows archived
+   * items. Set to `true` only for an explicit "Archive" view.
+   */
+  includeArchived?: boolean;
 }
 
 /**
@@ -100,10 +107,44 @@ export interface PostRepository extends Repository<PostAggregate, PostId> {
   bulkUpdateStatus(postIds: PostId[], status: PublishStatusValue): Promise<Result<void, Error>>;
 
   /**
+   * Bulk archive: stamp `archivedAt = now()` on every matching post that is
+   * not already soft-deleted. Idempotent — re-archiving an already-archived
+   * post is a no-op (the existing timestamp is preserved).
+   *
+   * @returns count of rows whose archivedAt was set in this call.
+   */
+  bulkArchive(postIds: PostId[]): Promise<Result<number, Error>>;
+
+  /**
+   * Bulk hard-delete: physically remove rows for every postId. Cascades to
+   * contents, media, publishLogs, etc. Irreversible — soft-deleted posts
+   * are also removed when included in the input set.
+   *
+   * @returns count of rows actually deleted.
+   */
+  bulkHardDelete(postIds: PostId[]): Promise<Result<number, Error>>;
+
+  /**
    * Hard-delete a post and all its data (irreversible).
    * Only callable by SUPER_ADMIN. Cascades to contents, media, publishLogs, etc.
    */
   hardDelete(id: PostId): Promise<Result<void, EntityNotFoundError>>;
+
+  /**
+   * Filter the input postIds to only those owned by `accountId` (joined via
+   * Project). Used by use cases that take a customer-supplied list of postIds
+   * to enforce cross-tenant isolation (CWE-639) — pass any input through this
+   * filter before bulk-mutating, and the operation can no longer touch posts
+   * the caller does not own. Returns an empty array if none match.
+   */
+  filterIdsByAccount(postIds: PostId[], accountId: AccountId): Promise<PostId[]>;
+
+  /**
+   * Resolve the accountId that owns this post (via Project.accountId). Used
+   * by single-post mutating use cases to assert caller ownership before
+   * proceeding. Returns null if the post does not exist.
+   */
+  findOwnerAccountId(postId: PostId): Promise<AccountId | null>;
 }
 
 /**
@@ -180,12 +221,17 @@ export interface PostQueryRepository {
   getById(id: PostId): Promise<Result<PostReadModel, EntityNotFoundError>>;
 
   /**
-   * List posts for a project (optimized for listing)
+   * List posts for a project (optimized for listing).
+   *
+   * Optional `filter` narrows the result set with the same criteria shape used
+   * by the command-side `findWithFilters`. `projectId` from the filter is
+   * ignored — the explicit `projectId` parameter is authoritative for scope.
    */
   listByProject(
     projectId: ProjectId,
     pagination?: PaginationParams,
-    sort?: SortParams<PostSortField>
+    sort?: SortParams<PostSortField>,
+    filter?: PostFilterCriteria
   ): Promise<PaginatedResult<PostReadModel>>;
 
   /**

@@ -17,7 +17,7 @@ let createIsPending = false;
 let updateIsPending = false;
 
 vi.mock("@/lib/api/hooks", () => ({
-  useCreatePost: () => ({ mutateAsync: createMutateAsync, isPending: createIsPending }),
+  useCreateDraftViaSaga: () => ({ mutateAsync: createMutateAsync, isPending: createIsPending }),
   useUpdatePost: () => ({ mutateAsync: updateMutateAsync, isPending: updateIsPending }),
 }));
 
@@ -170,7 +170,7 @@ describe("usePostDraft (Pattern Lazy)", () => {
     expect(mockLocalStorage.setItem).toHaveBeenCalled(); // localStorage still runs
   });
 
-  it("issues POST /posts on first save with body and projectId", async () => {
+  it("issues a draft create on first save with body and projectId", async () => {
     createMutateAsync.mockResolvedValue({ ok: true, data: { id: "new-post-id" } });
     const onPostCreated = vi.fn();
     const { result } = renderHook(() => usePostDraft(undefined, onPostCreated));

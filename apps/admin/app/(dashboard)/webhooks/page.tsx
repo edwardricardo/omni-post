@@ -26,7 +26,7 @@ import {
 } from "@packages/ui";
 import { AlertCircle, Activity } from "lucide-react";
 
-import { isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
+import { isPermissionDenied, getErrorMessage } from "@packages/api-errors";
 import { AccessDenied } from "@/components/shared/AccessDenied";
 import { useWebhookMetrics } from "@/hooks/api/useWebhooks";
 import { WebhookMetrics } from "@/components/webhooks/WebhookMetrics";

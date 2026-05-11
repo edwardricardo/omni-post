@@ -20,6 +20,7 @@ import {
   buildIntegration,
   makeStartRequest,
   passthroughReply,
+  TEST_CHANNEL_IDS,
   type MockEventService,
   type MockRedis,
 } from "./sagaIntegration.helpers";
@@ -54,7 +55,7 @@ describe("SagaIntegration - Queue Integration", () => {
 
     const request = makeStartRequest({
       body: "Queue integration test content",
-      channelIds: ["channel-queue-1"],
+      channelIds: [TEST_CHANNEL_IDS[0]!],
     });
 
     const result = await handler(request, passthroughReply);
@@ -79,7 +80,7 @@ describe("SagaIntegration - Queue Integration", () => {
 
     const request = makeStartRequest({
       body: "Event emission test",
-      channelIds: ["channel-event-1"],
+      channelIds: [TEST_CHANNEL_IDS[0]!],
     });
 
     const result = await handler(request, passthroughReply);
@@ -103,7 +104,7 @@ describe("SagaIntegration - Queue Integration", () => {
 
     const request = makeStartRequest({
       body: "CorrelationId test",
-      channelIds: ["channel-corr-1"],
+      channelIds: [TEST_CHANNEL_IDS[0]!],
     });
 
     const result = await handler(request, passthroughReply);
@@ -116,7 +117,7 @@ describe("SagaIntegration - Queue Integration", () => {
     const handler = routes.get("POST:/sagas/post-publishing/start");
     expect(handler).toBeTruthy();
 
-    const channelIds = ["ch-1", "ch-2", "ch-3"];
+    const channelIds = [TEST_CHANNEL_IDS[0]!, TEST_CHANNEL_IDS[1]!, TEST_CHANNEL_IDS[2]!];
     const request = makeStartRequest({
       body: "Multi-channel test",
       channelIds,
@@ -143,7 +144,7 @@ describe("SagaIntegration - Queue Integration", () => {
 
     const request = makeStartRequest({
       body: "SagaId in job payload test",
-      channelIds: ["channel-saga-1"],
+      channelIds: [TEST_CHANNEL_IDS[0]!],
     });
 
     const result = await handler(request, passthroughReply);
@@ -197,7 +198,7 @@ describe("SagaIntegration - Job Payload Shape", () => {
 
     const request = makeStartRequest({
       body: "Payload shape test content",
-      channelIds: ["channel-shape-1", "channel-shape-2"],
+      channelIds: [TEST_CHANNEL_IDS[0]!, TEST_CHANNEL_IDS[1]!],
     });
 
     const result = await handler(request, passthroughReply);
@@ -210,23 +211,22 @@ describe("SagaIntegration - Job Payload Shape", () => {
 
     const parsed = JSON.parse(sagaData);
 
-    // Verify context metadata contains postData
     expect(parsed.context.metadata.postData).toBeTruthy();
     expect(parsed.context.metadata.postData.body).toBe("Payload shape test content");
     expect(parsed.context.metadata.postData.channelIds).toStrictEqual([
-      "channel-shape-1",
-      "channel-shape-2",
+      TEST_CHANNEL_IDS[0],
+      TEST_CHANNEL_IDS[1],
     ]);
+    expect(parsed.context.metadata.mode).toBe("publish-now");
   });
 
-  it("should include priority in context metadata when provided", async () => {
+  it("should set mode metadata for draft requests", async () => {
     const handler = routes.get("POST:/sagas/post-publishing/start");
     expect(handler).toBeTruthy();
 
     const request = makeStartRequest({
-      body: "Priority test content",
-      channelIds: ["channel-priority-1"],
-      priority: "HIGH",
+      body: "Draft test content",
+      mode: "draft",
     });
 
     const result = await handler(request, passthroughReply);
@@ -238,6 +238,7 @@ describe("SagaIntegration - Job Payload Shape", () => {
 
     const parsed = JSON.parse(sagaData);
 
-    expect(parsed.context.metadata.priority).toBe("HIGH");
+    expect(parsed.context.metadata.mode).toBe("draft");
+    expect(parsed.context.metadata.postData.channelIds).toBeUndefined();
   });
 });

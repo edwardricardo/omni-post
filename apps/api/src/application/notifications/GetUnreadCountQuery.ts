@@ -20,9 +20,11 @@ export interface GetUnreadCountInput {
  * @class GetUnreadCountQuery
  * @description Returns the number of unread notifications for a recipient.
  */
-export class GetUnreadCountQuery
-  implements UseCase<GetUnreadCountInput, { count: number }, UseCaseError>
-{
+export class GetUnreadCountQuery implements UseCase<
+  GetUnreadCountInput,
+  { count: number },
+  UseCaseError
+> {
   constructor(private readonly repository: NotificationRepository) {}
 
   /**

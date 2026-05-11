@@ -606,7 +606,10 @@ export class RealtimeWebhookBroadcaster {
    * Set up Redis subscription for cross-server communication
    */
   private setupRedisSubscription(): void {
-    const subscriber = this.redis.duplicate();
+    // Override commandTimeout: subscribe() blocks indefinitely waiting for
+    // messages, so any commandTimeout inherited from the parent connection
+    // surfaces as spurious "Command timed out" errors.
+    const subscriber = this.redis.duplicate({ commandTimeout: 0 });
 
     subscriber.subscribe("webhook_events", (err) => {
       if (err) {

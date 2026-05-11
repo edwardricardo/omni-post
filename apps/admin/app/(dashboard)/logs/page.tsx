@@ -18,7 +18,7 @@ import {
   Search,
   Download,
 } from "lucide-react";
-import { ApiError, isPermissionDenied, getErrorMessage } from "@/lib/parseApiError";
+import { ApiError, isPermissionDenied, getErrorMessage } from "@packages/api-errors";
 import { AccessDenied } from "@/components/shared/AccessDenied";
 import { useAuditLogs } from "@/hooks/api/useAuditLogs";
 import { useAuditStats } from "@/hooks/api/useAuditStats";
