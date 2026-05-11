@@ -475,6 +475,244 @@ async function main() {
     }
   }
 
+  // Customer-side RBAC roles (scoped to CustomerUser within an Account).
+  // Names mirror the legacy TeamRole enum (OWNER/MANAGER/MEMBER/VIEWER) so
+  // the backfill from TeamMember.role can look up CustomerRole.id by name.
+  // OWNER and MANAGER are distinct here (fixing the latent bug in the legacy
+  // TeamRole VO where both had identical permission sets).
+  const customerSystemRoles = [
+    {
+      id: "role-owner",
+      name: "OWNER",
+      description: "Full access to the account, including billing and member role management",
+      level: 100,
+      isSystem: true,
+      permissions: [
+        // Posts
+        "post:read",
+        "post:create",
+        "post:edit",
+        "post:publish",
+        "post:delete",
+        // Channels
+        "channel:read",
+        "channel:connect",
+        "channel:disconnect",
+        "channel:manage",
+        // Analytics
+        "analytics:read",
+        "analytics:export",
+        // Members + RBAC (only OWNER can manage roles)
+        "member:read",
+        "member:invite",
+        "member:remove",
+        "member:manage_roles",
+        // Approvals
+        "approval:read",
+        "approval:submit",
+        "approval:review",
+        // Billing + account lifecycle (OWNER-only)
+        "billing:read",
+        "billing:manage",
+        "account:read",
+        "account:manage",
+        "account:delete",
+        // Campaigns
+        "campaign:read",
+        "campaign:create",
+        "campaign:manage",
+        // Templates
+        "template:read",
+        "template:create",
+        "template:manage",
+        // Comments
+        "comment:read",
+        "comment:create",
+        "comment:moderate",
+        // AI
+        "ai:use",
+        "ai:configure",
+        // Compliance
+        "compliance:read",
+        "compliance:manage",
+        // Notifications
+        "notification:read",
+        "notification:manage",
+        // Inbox
+        "inbox:read",
+        "inbox:respond",
+        // Tasks
+        "task:read",
+        "task:create",
+        "task:manage",
+        // EventSnapshot (tier-gated per billing — permission granted, runtime gates by tier)
+        "snapshot:view",
+        "snapshot:create",
+        "snapshot:manage",
+      ],
+    },
+    {
+      id: "role-manager",
+      name: "MANAGER",
+      description:
+        "Operational management — everything except billing, account deletion, and role assignment",
+      level: 50,
+      isSystem: true,
+      permissions: [
+        // Posts (full)
+        "post:read",
+        "post:create",
+        "post:edit",
+        "post:publish",
+        "post:delete",
+        // Channels (full)
+        "channel:read",
+        "channel:connect",
+        "channel:disconnect",
+        "channel:manage",
+        // Analytics (full)
+        "analytics:read",
+        "analytics:export",
+        // Members (no role management)
+        "member:read",
+        "member:invite",
+        "member:remove",
+        // Approvals (full)
+        "approval:read",
+        "approval:submit",
+        "approval:review",
+        // Billing (read only — no manage)
+        "billing:read",
+        "account:read",
+        // Campaigns (full)
+        "campaign:read",
+        "campaign:create",
+        "campaign:manage",
+        // Templates (full)
+        "template:read",
+        "template:create",
+        "template:manage",
+        // Comments (full)
+        "comment:read",
+        "comment:create",
+        "comment:moderate",
+        // AI (full)
+        "ai:use",
+        "ai:configure",
+        // Compliance (read only)
+        "compliance:read",
+        // Notifications
+        "notification:read",
+        "notification:manage",
+        // Inbox
+        "inbox:read",
+        "inbox:respond",
+        // Tasks
+        "task:read",
+        "task:create",
+        "task:manage",
+        // EventSnapshot (view + create, no manage)
+        "snapshot:view",
+        "snapshot:create",
+      ],
+    },
+    {
+      id: "role-member",
+      name: "MEMBER",
+      description: "Day-to-day contributor — create and publish content, view analytics",
+      level: 20,
+      isSystem: true,
+      permissions: [
+        // Posts (create + edit + publish own, no delete)
+        "post:read",
+        "post:create",
+        "post:edit",
+        "post:publish",
+        // Channels (read only)
+        "channel:read",
+        // Analytics (read only)
+        "analytics:read",
+        // Members (read only)
+        "member:read",
+        // Approvals (submit own)
+        "approval:read",
+        "approval:submit",
+        // Campaigns (read)
+        "campaign:read",
+        // Templates (read + create)
+        "template:read",
+        "template:create",
+        // Comments
+        "comment:read",
+        "comment:create",
+        // AI (use only)
+        "ai:use",
+        // Notifications
+        "notification:read",
+        // Inbox
+        "inbox:read",
+        "inbox:respond",
+        // Tasks
+        "task:read",
+        "task:create",
+        // EventSnapshot (view only)
+        "snapshot:view",
+      ],
+    },
+    {
+      id: "role-viewer",
+      name: "VIEWER",
+      description: "Read-only access to the account",
+      level: 10,
+      isSystem: true,
+      permissions: [
+        "post:read",
+        "channel:read",
+        "analytics:read",
+        "member:read",
+        "approval:read",
+        "campaign:read",
+        "template:read",
+        "comment:read",
+        "notification:read",
+        "inbox:read",
+        "task:read",
+      ],
+    },
+  ];
+
+  for (const roleDef of customerSystemRoles) {
+    await prisma.customerRole.upsert({
+      where: { id: roleDef.id },
+      update: {
+        description: roleDef.description,
+        level: roleDef.level,
+      },
+      create: {
+        id: roleDef.id,
+        name: roleDef.name,
+        description: roleDef.description,
+        level: roleDef.level,
+        isSystem: roleDef.isSystem,
+        isActive: true,
+      },
+    });
+
+    await prisma.customerRolePermission.deleteMany({ where: { roleId: roleDef.id } });
+    for (const perm of roleDef.permissions) {
+      await prisma.customerRolePermission.create({
+        data: { roleId: roleDef.id, permission: perm },
+      });
+    }
+  }
+  logger.info(
+    {
+      roles: customerSystemRoles.length,
+      permissions: customerSystemRoles.reduce((sum, r) => sum + r.permissions.length, 0),
+    },
+    "CustomerRole + CustomerRolePermission seeded"
+  );
+
   // Seed SUPER_ADMIN user for local development
   const adminPassword = process.env.ADMIN_PASSWORD ?? "Admin123!";
   const hashedPassword = await argon2.hash(adminPassword, {
