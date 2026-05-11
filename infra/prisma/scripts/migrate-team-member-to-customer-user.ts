@@ -1,17 +1,15 @@
 /**
  * @file migrate-team-member-to-customer-user.ts
- * @description Backfill script for workstream/customer-unification-rbac-v1 (Sub-fase 1.2).
- *              Unifies the parallel TeamMember and CustomerUser models. For each
- *              TeamMember row, ensures a corresponding CustomerUser exists
- *              (match by accountId+email, or create stub for pending invitations),
- *              copies invitation fields, resolves roleId from the TeamRole enum
- *              to CustomerRole.id, and back-fills the 14 customerUserId FKs across
- *              13 tables that previously referenced TeamMember.id.
+ * @description One-shot backfill that copies every TeamMember row into a
+ *              corresponding CustomerUser (matched by accountId+email, or
+ *              created as an invitation stub when no match exists), maps the
+ *              TeamRole enum to a CustomerRole.id, and populates the 14
+ *              customerUserId FKs on the 13 dependent tables.
  *
- *              Run AFTER Sub-fase 1.1 (schema columns exist) and Sub-fase 1.5
- *              (CustomerRole seed). Run BEFORE Sub-fase 1.3 (drop TeamMember).
+ *              Pre-conditions: schema with both columns present, CustomerRole
+ *              seeded with OWNER/MANAGER/MEMBER/VIEWER.
  *
- *              Idempotent: re-running over already-populated rows is a no-op.
+ *              Idempotent — only writes when the target columns are still null.
  *
  * @layer infrastructure
  */
@@ -101,7 +99,7 @@ async function resolveCustomerUserId(
         firstName: firstName || teamMember.email.split("@")[0]!,
         lastName,
         roleId: targetRoleId,
-        role: teamMember.role, // legacy enum kept in sync; dropped in Sub-fase 1.3
+        role: teamMember.role, // mirror the enum so reads via either column agree
         isActive: teamMember.isActive,
         isEmailVerified: false,
         invitedBy: teamMember.invitedBy,
@@ -404,7 +402,7 @@ async function backfillFks(
 }
 
 async function verifyIntegrity(): Promise<void> {
-  // For each table, count rows where the legacy FK is set but the new
+  // For each table, count rows where the TeamMember FK is set but the
   // customerUserId is still null. If non-zero, something didn't map.
   const checks = [
     {
@@ -490,7 +488,7 @@ async function verifyIntegrity(): Promise<void> {
 
   if (!allClean) {
     throw new Error(
-      "Backfill verification failed — orphan rows detected. Inspect logs and fix before Sub-fase 1.3."
+      "Backfill verification failed — orphan rows detected. Inspect logs and resolve before the TeamMember table can be removed."
     );
   }
 

@@ -91,8 +91,7 @@ export {
   type HistoricalTrendDto,
 } from "./AnalyticsReadRepository.js";
 
-// TeamMember repository port
-export { type TeamMemberRepository } from "./TeamMemberRepository.js";
+// Team-membership operations live on CustomerUserRepository (exported below).
 
 // Approval request repository port
 export { type ApprovalRequestRepository } from "./ApprovalRequestRepository.js";

@@ -39,9 +39,6 @@ export { TrackedLink, type TrackedLinkProps, type TrackedLinkCreateProps } from 
 
 export { LinkClick, type LinkClickProps, type LinkClickCreateProps } from "./LinkClick.js";
 
-// Team entities
-export { TeamMemberEntity } from "./TeamMember.js";
-
 // Notification entities
 export {
   NotificationEntity,
@@ -155,14 +152,14 @@ export {
   type CrmPlatformValue,
 } from "./CrmConnection.js";
 
-// CustomerUser entity (Customer-facing authentication)
+// CustomerUser entity — customer-side user with auth, membership, RBAC.
+// Roles live in the CustomerRole DB table; CustomerUser carries denormalised
+// roleId/roleName/roleLevel/permissions snapshots for fast checks.
 export {
   CustomerUser,
   type CustomerUserProps,
   type CreateCustomerUserInput,
   type CustomerUserPublicDto,
-  type CustomerRoleValue,
-  CUSTOMER_ROLE,
 } from "./CustomerUser.js";
 
 // Custom Report Builder entity

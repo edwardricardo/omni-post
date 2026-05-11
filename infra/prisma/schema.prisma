@@ -339,14 +339,14 @@ model TeamMember {
 }
 
 model CustomerUser {
-  id                String    @id @default(cuid())
+  id                String    @id @default(uuid())
   accountId         String
   email             String
   passwordHash      String
   firstName         String
   lastName          String
-  role              TeamRole  @default(MEMBER) // DEPRECATED — being replaced by roleId. Will be dropped in Migration 3.
-  roleId            String? // FK to CustomerRole. Nullable during backfill (Migration 1→2); becomes NOT NULL in Migration 3.
+  role              TeamRole  @default(MEMBER)
+  roleId            String?
   isActive          Boolean   @default(true)
   isEmailVerified   Boolean   @default(false)
   emailVerifyToken  String?   @unique
@@ -357,7 +357,6 @@ model CustomerUser {
   mfaSecret         String?
   lastLoginAt       DateTime? @db.Timestamptz(6)
   avatarUrl         String?
-  // Invitation fields absorbed from TeamMember during unification.
   invitedBy         String? // ID of the CustomerUser who sent the invitation
   inviteToken       String?   @unique
   inviteTokenExpiry DateTime? @db.Timestamptz(6)
@@ -369,8 +368,6 @@ model CustomerUser {
   account      Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
   customerRole CustomerRole? @relation(fields: [roleId], references: [id])
 
-  // Relations absorbed from TeamMember (populated by backfill in Migration 2).
-  // All currently optional; tightened to NOT NULL in Migration 3 after data migration.
   customerProjectMemberships    ProjectMember[]
   customerNotifications         Notification[]
   customerNotificationPrefs     NotificationPreference[]
@@ -395,8 +392,8 @@ model CustomerUser {
 model ProjectMember {
   id             String   @id @default(uuid())
   projectId      String
-  memberId       String // DEPRECATED — being replaced by customerUserId. Dropped in Migration 3.
-  customerUserId String? // Nullable during backfill (Migration 1→2); NOT NULL in Migration 3.
+  memberId       String
+  customerUserId String?
   permissions    String[] @default(["READ", "WRITE"])
   assignedAt     DateTime @default(now()) @db.Timestamptz(6)
 
@@ -418,8 +415,8 @@ enum TeamRole {
 
 model Notification {
   id                      String           @id @default(uuid())
-  recipientId             String // DEPRECATED — being replaced by recipientCustomerUserId. Dropped in Migration 3.
-  recipientCustomerUserId String? // Nullable during backfill; NOT NULL in Migration 3.
+  recipientId             String
+  recipientCustomerUserId String?
   type                    NotificationType
   title                   String
   body                    String
@@ -442,8 +439,8 @@ model Notification {
 
 model NotificationPreference {
   id             String           @id @default(uuid())
-  memberId       String // DEPRECATED — replaced by customerUserId. Dropped in Migration 3.
-  customerUserId String? // Nullable during backfill; NOT NULL in Migration 3.
+  memberId       String
+  customerUserId String?
   type           NotificationType
   enabled        Boolean          @default(true)
   updatedAt      DateTime         @updatedAt @db.Timestamptz(6)
@@ -490,8 +487,8 @@ model ApprovalWorkflowLevel {
   workflowId             String
   order                  Int
   role                   String?
-  assigneeId             String? // DEPRECATED — replaced by assigneeCustomerUserId. Dropped in Migration 3.
-  assigneeCustomerUserId String? // Backfilled from assigneeId in Migration 2.
+  assigneeId             String?
+  assigneeCustomerUserId String?
   requireAll             Boolean  @default(false)
   createdAt              DateTime @default(now()) @db.Timestamptz(6)
 
@@ -507,8 +504,8 @@ model ApprovalWorkflowLevel {
 model ApprovalRequest {
   id                      String         @id @default(uuid())
   postId                  String
-  submitterId             String // DEPRECATED — replaced by submitterCustomerUserId. Dropped in Migration 3.
-  submitterCustomerUserId String? // Backfilled from submitterId in Migration 2.
+  submitterId             String
+  submitterCustomerUserId String?
   workflowId              String?
   currentLevel            Int            @default(1)
   totalLevels             Int            @default(1)
@@ -532,8 +529,8 @@ model ApprovalRequest {
 model ApprovalReview {
   id                     String         @id @default(uuid())
   requestId              String
-  reviewerId             String // DEPRECATED — replaced by reviewerCustomerUserId. Dropped in Migration 3.
-  reviewerCustomerUserId String? // Backfilled in Migration 2.
+  reviewerId             String
+  reviewerCustomerUserId String?
   decision               ReviewDecision
   comment                String?
   level                  Int            @default(1)
@@ -570,10 +567,10 @@ model Task {
   description             String?      @db.Text
   status                  TaskStatus   @default(OPEN)
   priority                TaskPriority @default(MEDIUM)
-  assigneeId              String? // DEPRECATED — replaced by assigneeCustomerUserId. Dropped in Migration 3.
-  assigneeCustomerUserId  String? // Backfilled in Migration 2.
-  createdById             String // DEPRECATED — replaced by createdByCustomerUserId.
-  createdByCustomerUserId String? // Backfilled in Migration 2; NOT NULL in Migration 3.
+  assigneeId              String?
+  assigneeCustomerUserId  String?
+  createdById             String
+  createdByCustomerUserId String?
   dueDate                 DateTime?    @db.Timestamptz(6)
   completedAt             DateTime?    @db.Timestamptz(6)
   createdAt               DateTime     @default(now()) @db.Timestamptz(6)
@@ -600,8 +597,8 @@ model Task {
 model PostComment {
   id                   String    @id @default(uuid())
   postId               String
-  authorId             String // DEPRECATED — replaced by authorCustomerUserId. Dropped in Migration 3.
-  authorCustomerUserId String? // Backfilled in Migration 2; NOT NULL in Migration 3.
+  authorId             String
+  authorCustomerUserId String?
   parentId             String?
   body                 String
   mentions             String[]  @default([])
@@ -2212,8 +2209,8 @@ model SocialMessage {
   webhookEventId         String?             @unique
   relatedPostId          String?
   status                 SocialMessageStatus @default(UNREAD)
-  assigneeId             String? // DEPRECATED — replaced by assigneeCustomerUserId. Dropped in Migration 3.
-  assigneeCustomerUserId String? // Backfilled in Migration 2.
+  assigneeId             String?
+  assigneeCustomerUserId String?
   isArchived             Boolean             @default(false)
   priority               MessagePriority     @default(NORMAL)
   suggestedReplies       String[]            @default([])
@@ -2256,8 +2253,8 @@ model SocialConversation {
   lastMessageAt            DateTime  @db.Timestamptz(6)
   isResolved               Boolean   @default(false)
   resolvedAt               DateTime? @db.Timestamptz(6)
-  resolvedById             String? // DEPRECATED — replaced by resolvedByCustomerUserId. Dropped in Migration 3.
-  resolvedByCustomerUserId String? // Backfilled in Migration 2.
+  resolvedById             String?
+  resolvedByCustomerUserId String?
   rootProviderMessageId    String?
   createdAt                DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt                DateTime  @updatedAt @db.Timestamptz(6)
@@ -2279,8 +2276,8 @@ model SocialConversation {
 model ConversationNote {
   id                   String    @id @default(cuid())
   conversationId       String
-  authorId             String // DEPRECATED — replaced by authorCustomerUserId. Dropped in Migration 3.
-  authorCustomerUserId String? // Backfilled in Migration 2; NOT NULL in Migration 3.
+  authorId             String
+  authorCustomerUserId String?
   body                 String    @db.Text
   createdAt            DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt            DateTime  @updatedAt @db.Timestamptz(6)
@@ -2298,8 +2295,8 @@ model ConversationNote {
 model SocialOutboundReply {
   id                   String              @id @default(uuid())
   socialMessageId      String
-  authorId             String // DEPRECATED — replaced by authorCustomerUserId. Dropped in Migration 3.
-  authorCustomerUserId String? // Backfilled in Migration 2; NOT NULL in Migration 3.
+  authorId             String
+  authorCustomerUserId String?
   body                 String
   providerReplyId      String?
   status               OutboundReplyStatus @default(PENDING)
@@ -2708,8 +2705,8 @@ model CustomReport {
   shareToken              String?         @unique
   shareEnabled            Boolean         @default(false)
   shareExpiresAt          DateTime?       @db.Timestamptz(6)
-  createdById             String // DEPRECATED — replaced by createdByCustomerUserId. Dropped in Migration 3.
-  createdByCustomerUserId String? // Backfilled in Migration 2; NOT NULL in Migration 3.
+  createdById             String
+  createdByCustomerUserId String?
   createdAt               DateTime        @default(now()) @db.Timestamptz(6)
   updatedAt               DateTime        @updatedAt @db.Timestamptz(6)
 
