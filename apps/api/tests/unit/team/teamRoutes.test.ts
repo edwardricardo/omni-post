@@ -8,6 +8,10 @@
 import { randomBytes } from "node:crypto";
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 import { createMockPrismaModule, createStore, buildModelMock } from "../helpers/mockPrisma.js";
+import {
+  createCustomerRoleMocks,
+  decorateCustomerUserMockWithRoleHydration,
+} from "../helpers/seedCustomerRoles.js";
 
 // Provide a valid 256-bit key so EncryptionService (resolved transitively by
 // InviteTeamMemberUseCase → PlatformCredentialService) doesn't throw.
@@ -21,12 +25,10 @@ if (!process.env.PLATFORM_ENCRYPTION_KEY) {
 
 const { mockPrisma } = createMockPrismaModule();
 
-// CustomerUser store with compound unique key support + customerRole join hydration
 const customerUserStore = createStore<Record<string, unknown>>();
 const customerUserMock = buildModelMock(customerUserStore, {
   isActive: true,
   roleId: "role-member",
-  role: "MEMBER",
   isEmailVerified: false,
   mfaEnabled: false,
   invitedBy: null,
@@ -35,156 +37,15 @@ const customerUserMock = buildModelMock(customerUserStore, {
   deletedAt: null,
 });
 
-// CustomerRole + CustomerRolePermission stores seeded with the four canon roles.
-const customerRoleStore = createStore<Record<string, unknown>>();
-const customerRolePermissionStore = createStore<Record<string, unknown>>();
+// Customer-side RBAC: 4 canon roles + 118 permissions seeded into mock stores,
+// with permission-include hydration shims attached. Mirrors infra/prisma/seed.ts.
+const customerRoleMocks = createCustomerRoleMocks();
+decorateCustomerUserMockWithRoleHydration(customerUserMock, customerRoleMocks);
 
-const ROLE_SEED = [
-  {
-    id: "role-owner",
-    name: "OWNER",
-    level: 100,
-    isSystem: true,
-    isActive: true,
-    permissions: [
-      "post:read",
-      "post:create",
-      "post:edit",
-      "post:publish",
-      "post:delete",
-      "channel:manage",
-      "billing:manage",
-      "member:invite",
-      "member:remove",
-      "member:manage_roles",
-    ],
-  },
-  {
-    id: "role-manager",
-    name: "MANAGER",
-    level: 50,
-    isSystem: true,
-    isActive: true,
-    permissions: ["post:read", "post:create", "post:edit", "post:publish", "member:invite"],
-  },
-  {
-    id: "role-member",
-    name: "MEMBER",
-    level: 20,
-    isSystem: true,
-    isActive: true,
-    permissions: ["post:read", "post:create"],
-  },
-  {
-    id: "role-viewer",
-    name: "VIEWER",
-    level: 10,
-    isSystem: true,
-    isActive: true,
-    permissions: ["post:read"],
-  },
-];
-
-for (const r of ROLE_SEED) {
-  customerRoleStore.add({
-    id: r.id,
-    name: r.name,
-    description: "",
-    level: r.level,
-    isSystem: r.isSystem,
-    isActive: r.isActive,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
-  for (const perm of r.permissions) {
-    customerRolePermissionStore.add({
-      id: `${r.id}-${perm}`,
-      roleId: r.id,
-      permission: perm,
-      createdAt: new Date(),
-    });
-  }
-}
-
-const customerRoleMock = buildModelMock(customerRoleStore);
-// Hydrate `permissions` in customerRole reads (matches the Prisma include used
-// by the repository).
-const originalRoleFindUnique = customerRoleMock.findUnique;
-customerRoleMock.findUnique = vi.fn(
-  async (args: { where: Record<string, unknown>; include?: Record<string, unknown> }) => {
-    const result = await originalRoleFindUnique(args);
-    if (result && args.include?.permissions) {
-      result.permissions = customerRolePermissionStore
-        .all()
-        .filter((p: Record<string, unknown>) => p.roleId === result.id);
-    }
-    return result;
-  }
-);
-const originalRoleFindMany = customerRoleMock.findMany;
-customerRoleMock.findMany = vi.fn(
-  async (args?: { where?: Record<string, unknown>; include?: Record<string, unknown> }) => {
-    const rows = (await originalRoleFindMany(args ?? {})) as Record<string, unknown>[];
-    if (args?.include?.permissions) {
-      for (const r of rows) {
-        (r as { permissions?: unknown }).permissions = customerRolePermissionStore
-          .all()
-          .filter((p: Record<string, unknown>) => p.roleId === r.id);
-      }
-    }
-    return rows;
-  }
-);
-
-// CustomerUser reads with role include should hydrate customerRole + permissions.
-const originalUserFindFirst = customerUserMock.findFirst;
-customerUserMock.findFirst = vi.fn(
-  async (args: { where: Record<string, unknown>; include?: Record<string, unknown> }) => {
-    const result = await originalUserFindFirst(args);
-    if (result && args.include?.customerRole) {
-      const role = customerRoleStore
-        .all()
-        .find((r: Record<string, unknown>) => r.id === result.roleId);
-      if (role) {
-        result.customerRole = {
-          ...role,
-          permissions: customerRolePermissionStore
-            .all()
-            .filter((p: Record<string, unknown>) => p.roleId === role.id),
-        };
-      }
-    }
-    return result;
-  }
-);
-const originalUserFindMany = customerUserMock.findMany;
-customerUserMock.findMany = vi.fn(
-  async (args?: { where?: Record<string, unknown>; include?: Record<string, unknown> }) => {
-    const rows = (await originalUserFindMany(args ?? {})) as Record<string, unknown>[];
-    if (args?.include?.customerRole) {
-      for (const u of rows) {
-        const role = customerRoleStore
-          .all()
-          .find((r: Record<string, unknown>) => r.id === u.roleId);
-        if (role) {
-          (u as { customerRole?: unknown }).customerRole = {
-            ...role,
-            permissions: customerRolePermissionStore
-              .all()
-              .filter((p: Record<string, unknown>) => p.roleId === role.id),
-          };
-        }
-      }
-    }
-    return rows;
-  }
-);
-
-// Add extra models needed by team routes and their repositories
 const extraModels = {
   customerUser: customerUserMock,
-  customerRole: customerRoleMock,
-  customerRolePermission: buildModelMock(customerRolePermissionStore),
+  customerRole: customerRoleMocks.customerRoleMock,
+  customerRolePermission: customerRoleMocks.customerRolePermissionMock,
   projectMember: buildModelMock(createStore()),
   post: buildModelMock(createStore()),
   adminUserPermission: buildModelMock(createStore()),

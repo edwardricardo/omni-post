@@ -366,7 +366,9 @@ export function makeStartRequest(
     customerUser: {
       id: TEST_CUSTOMER_ID,
       accountId: overrides.accountId ?? TEST_ACCOUNT_ID,
-      role: "owner",
+      roleId: "role-owner",
+      roleName: "OWNER",
+      permissions: [],
     },
     headers: {},
     ip: "127.0.0.1",

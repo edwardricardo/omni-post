@@ -4957,3 +4957,12 @@ Attacker con acceso a repo tiene password dev+CI environments.
 
 **Cierre D0v4-8:** 2026-04-20.
 **Tramo D0-v4 CERRADO.** 647 findings totales (L-1..L-647) consolidados.
+
+---
+
+### 2026-05-11 — L-648: sagaCustomerFlow.test.ts firma `signCustomerAccessToken` con shape legacy
+
+**Encontrado durante:** Sub-fase 1.6 audit (customer-unification workstream)
+**Descripción:** `apps/api/tests/integration/sagaCustomerFlow.test.ts:186-195` invoca `signCustomerAccessToken({ sub, accountId, role: "OWNER" })`. La firma actual (post Sub-fase 1.4 → commit 9a9a885) es `Omit<CustomerJwtPayload, "type">` que requiere `{ sub, accountId, roleId, roleName, permissions }`. El error no aflora vía `pnpm typecheck` porque el tsconfig de `apps/api` solo incluye `src/`, no `tests/`. El integration suite (`pnpm test:integration`) emitirá tokens sin `roleName/permissions`, `verifyCustomerToken` los rechazará por payload incompleto y los assertions de auth caerán en 401/500.
+**Severidad estimada:** medio (test infrastructure broken — falsea cobertura del happy path saga + cross-tenant, pero no impacta producción mientras nadie corra `pnpm test:integration`).
+**Acción propuesta:** BACKLOG — fix actualizando los dos `signCustomerAccessToken` calls a la nueva shape (`roleId: "role-owner", roleName: "OWNER", permissions: [...]`) y verificando que el suite integration corra verde. Considerar también extender el `apps/api/tsconfig.json` include para tipechequear `tests/integration/` y prevenir este drift silencioso futuro.
