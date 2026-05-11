@@ -359,7 +359,8 @@ describe("authRoutes Integration Tests", () => {
 
       expect(response.statusCode).toBe(200);
       expect(body.data?.user?.id).toBeTruthy();
-      expect(body.data?.user?.role).toBeTruthy();
+      expect(body.data?.user?.roleName).toBeTruthy();
+      expect(Array.isArray(body.data?.user?.permissions)).toBeTruthy();
     });
 
     it("should reject without token", async () => {

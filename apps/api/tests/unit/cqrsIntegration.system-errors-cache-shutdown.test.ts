@@ -395,23 +395,25 @@ describe("CQRSIntegration - Event Publishing", () => {
   it("should not publish events if command fails", async () => {
     mockEventService.reset();
 
-    // Force channel validation failure by making channelRepository return not found
-    const failingChannelRepo = new MockChannelRepository();
-    failingChannelRepo.findById = async () => ({
-      ok: false as const,
-      error: { message: "Channel not found", code: "NOT_FOUND" },
-    });
+    // Canonical "command failed" path at the handler tier is a use-case
+    // failure. (The prior approach — forcing channelRepository.findById to
+    // fail — no longer triggers anything: CreatePostCommandHandler is
+    // platform-agnostic after the saga split and never calls channelRepo.)
+    // The invariant under test is the same: no events leak when a command
+    // returns success: false.
+    const failingUseCase = new MockCreatePostUseCase();
+    failingUseCase.shouldFail = true;
+    failingUseCase.failMessage = "Body cannot be empty";
 
-    // Need to create a new integration with the failing repo
     const fastify2 = Fastify({ logger: false });
     const mockEventService2 = new MockEventService();
     const integration2 = new CQRSIntegration({
       fastify: fastify2,
-      createPostUseCase: new MockCreatePostUseCase() as any,
+      createPostUseCase: failingUseCase as any,
       updatePostUseCase: new MockUpdatePostUseCase() as any,
       deletePostUseCase: new MockDeletePostUseCase() as any,
       postRepository: new MockPostRepository() as any,
-      channelRepository: failingChannelRepo as any,
+      channelRepository: new MockChannelRepository() as any,
       postQueryRepository: new MockPostQueryRepository() as any,
       eventService: mockEventService2 as any,
       redis: new MockRedis() as any,

@@ -134,8 +134,30 @@ async function createTestApp() {
   return { app: localApp, authSvc };
 }
 
+/**
+ * Builds a fake customer JWT for the channel-route tests. The mocked
+ * requireClientAuth decodes payload without verifying signature, so any
+ * well-formed three-segment token works as long as the payload carries
+ * sub + accountId + roleName + permissions.
+ */
+function fakeCustomerToken(opts: { sub: string; accountId: string; roleName?: string }): string {
+  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+  const payload = Buffer.from(
+    JSON.stringify({
+      sub: opts.sub,
+      accountId: opts.accountId,
+      roleId: `role-${(opts.roleName ?? "OWNER").toLowerCase()}`,
+      roleName: opts.roleName ?? "OWNER",
+      permissions: ["channel:read", "channel:connect", "channel:disconnect", "channel:manage"],
+      type: "customer",
+    })
+  ).toString("base64url");
+  return `${header}.${payload}.signature`;
+}
+
 describe("channelRoutes", () => {
   let authSvc: InstanceType<typeof AuthService>;
+  let customerToken: string;
 
   beforeAll(async () => {
     const result = await createTestApp();
@@ -162,6 +184,12 @@ describe("channelRoutes", () => {
     });
     testProjectId = project.id;
 
+    customerToken = fakeCustomerToken({
+      sub: "test-customer-user-id",
+      accountId: testAccountId,
+      roleName: "OWNER",
+    });
+
     // Register SUPER_ADMIN via AuthService
     await authSvc.registerAdmin(adminEmail, testPassword, "Channel Super Admin", "SUPER_ADMIN");
   });
@@ -170,11 +198,26 @@ describe("channelRoutes", () => {
     await app.close();
   });
 
+  /**
+   * Wraps app.inject to attach a customer Bearer token by default. Tests can
+   * override with their own headers (e.g. SUPER_ADMIN for hard-delete).
+   */
+  function injectCustomer(opts: Parameters<typeof app.inject>[0]): ReturnType<typeof app.inject> {
+    const o = opts as Record<string, unknown> & { headers?: Record<string, string> };
+    return app.inject({
+      ...o,
+      headers: {
+        authorization: `Bearer ${customerToken}`,
+        ...(o.headers ?? {}),
+      },
+    } as Parameters<typeof app.inject>[0]);
+  }
+
   // ── POST /channels ─────────────────────────────────────────────────────
 
   describe("POST /channels", () => {
     it("should create a channel successfully", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "POST",
         url: "/channels",
         payload: { projectId: testProjectId, name: "@testhandle", platform: "X" },
@@ -192,7 +235,7 @@ describe("channelRoutes", () => {
     });
 
     it("should create a channel with credentials", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "POST",
         url: "/channels",
         payload: {
@@ -209,7 +252,7 @@ describe("channelRoutes", () => {
     });
 
     it("should return 404 for non-existent project", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "POST",
         url: "/channels",
         payload: { projectId: NONEXISTENT_UUID, name: "@noproject", platform: "X" },
@@ -220,7 +263,7 @@ describe("channelRoutes", () => {
     });
 
     it("should return 400 for invalid platform", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "POST",
         url: "/channels",
         payload: { projectId: testProjectId, name: "@badplatform", platform: "SNAPCHAT" },
@@ -229,7 +272,7 @@ describe("channelRoutes", () => {
     });
 
     it("should return 400 for missing required fields", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "POST",
         url: "/channels",
         payload: { projectId: testProjectId },
@@ -242,7 +285,7 @@ describe("channelRoutes", () => {
 
   describe("GET /channels/:channelId", () => {
     it("should return channel by ID", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "GET",
         url: `/channels/${createdChannelId}`,
       });
@@ -254,7 +297,7 @@ describe("channelRoutes", () => {
     });
 
     it("should return 404 for non-existent channel", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "GET",
         url: `/channels/${NONEXISTENT_UUID}`,
       });
@@ -264,7 +307,7 @@ describe("channelRoutes", () => {
     });
 
     it("should return 400 for invalid UUID format", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "GET",
         url: "/channels/not-a-valid-uuid",
       });
@@ -276,7 +319,7 @@ describe("channelRoutes", () => {
 
   describe("GET /projects/:projectId/channels", () => {
     it("should list channels for a project", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "GET",
         url: `/projects/${testProjectId}/channels`,
       });
@@ -288,7 +331,7 @@ describe("channelRoutes", () => {
     });
 
     it("returns the rich DTO shape (UX fields populated)", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "GET",
         url: `/projects/${testProjectId}/channels`,
       });
@@ -318,7 +361,7 @@ describe("channelRoutes", () => {
     });
 
     it("should return 404 for non-existent project", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "GET",
         url: `/projects/${NONEXISTENT_UUID}/channels`,
       });
@@ -328,7 +371,7 @@ describe("channelRoutes", () => {
     });
 
     it("should return 400 for invalid project UUID", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "GET",
         url: "/projects/not-a-uuid/channels",
       });
@@ -340,7 +383,7 @@ describe("channelRoutes", () => {
 
   describe("PUT /channels/:channelId", () => {
     it("should update channel name", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "PUT",
         url: `/channels/${createdChannelId}`,
         payload: { name: "@updated-handle" },
@@ -352,7 +395,7 @@ describe("channelRoutes", () => {
     });
 
     it("should update channel credentials", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "PUT",
         url: `/channels/${createdChannelId}`,
         payload: { credentials: { accessToken: "new-token-456" } },
@@ -363,7 +406,7 @@ describe("channelRoutes", () => {
     });
 
     it("should return 404 for non-existent channel", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "PUT",
         url: `/channels/${NONEXISTENT_UUID}`,
         payload: { name: "@ghost" },
@@ -372,7 +415,7 @@ describe("channelRoutes", () => {
     });
 
     it("should return 400 for name exceeding max length", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "PUT",
         url: `/channels/${createdChannelId}`,
         payload: { name: "x".repeat(257) },
@@ -391,7 +434,7 @@ describe("channelRoutes", () => {
 
     beforeAll(async () => {
       // Two channels for the same provider in the same project — A then B.
-      const a = await app.inject({
+      const a = await injectCustomer({
         method: "POST",
         url: "/channels",
         payload: {
@@ -403,7 +446,7 @@ describe("channelRoutes", () => {
       });
       primaryChannelA = JSON.parse(a.body).data.id;
 
-      const b = await app.inject({
+      const b = await injectCustomer({
         method: "POST",
         url: "/channels",
         payload: {
@@ -417,7 +460,7 @@ describe("channelRoutes", () => {
     });
 
     it("promotes channel A to primary", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "PATCH",
         url: `/channels/${primaryChannelA}/set-primary`,
       });
@@ -429,7 +472,7 @@ describe("channelRoutes", () => {
     });
 
     it("swaps primary from A to B", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "PATCH",
         url: `/channels/${primaryChannelB}/set-primary`,
       });
@@ -440,7 +483,7 @@ describe("channelRoutes", () => {
     });
 
     it("is idempotent when channel is already primary", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "PATCH",
         url: `/channels/${primaryChannelB}/set-primary`,
       });
@@ -450,7 +493,7 @@ describe("channelRoutes", () => {
     });
 
     it("returns 404 for non-existent channel", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "PATCH",
         url: `/channels/${NONEXISTENT_UUID}/set-primary`,
       });
@@ -458,7 +501,7 @@ describe("channelRoutes", () => {
     });
 
     it("returns 400 for invalid channel id", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "PATCH",
         url: `/channels/not-a-uuid/set-primary`,
       });
@@ -470,7 +513,7 @@ describe("channelRoutes", () => {
     let softDeleteChannelId: string;
 
     beforeAll(async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "POST",
         url: "/channels",
         payload: { projectId: testProjectId, name: "@tobe-softdeleted", platform: "FACEBOOK" },
@@ -480,7 +523,7 @@ describe("channelRoutes", () => {
     });
 
     it("should soft-delete channel and return deleted: true", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "DELETE",
         url: `/channels/${softDeleteChannelId}`,
       });
@@ -491,7 +534,7 @@ describe("channelRoutes", () => {
     });
 
     it("should return 404 for non-existent channel", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "DELETE",
         url: `/channels/${NONEXISTENT_UUID}`,
       });
@@ -507,7 +550,7 @@ describe("channelRoutes", () => {
 
     beforeAll(async () => {
       // Login as SUPER_ADMIN
-      const loginRes = await app.inject({
+      const loginRes = await injectCustomer({
         method: "POST",
         url: "/auth/login",
         payload: { email: adminEmail, password: testPassword },
@@ -516,7 +559,7 @@ describe("channelRoutes", () => {
       superAdminToken = loginBody.data?.accessToken ?? "";
 
       // Create a channel to hard-delete
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "POST",
         url: "/channels",
         payload: { projectId: testProjectId, name: "@tobe-harddeleted", platform: "YOUTUBE" },
@@ -526,6 +569,7 @@ describe("channelRoutes", () => {
     });
 
     it("should return 401 without auth token", async () => {
+      // Hard-delete is admin-protected; use raw inject (no customer token).
       const res = await app.inject({
         method: "DELETE",
         url: `/channels/${hardDeleteChannelId}/hard`,
@@ -534,7 +578,7 @@ describe("channelRoutes", () => {
     });
 
     it("should hard-delete channel with SUPER_ADMIN token", async () => {
-      const res = await app.inject({
+      const res = await injectCustomer({
         method: "DELETE",
         url: `/channels/${hardDeleteChannelId}/hard`,
         headers: { authorization: `Bearer ${superAdminToken}` },

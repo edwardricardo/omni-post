@@ -16,6 +16,9 @@ interface DecodedToken {
   email?: string;
   name?: string;
   role?: string;
+  roleId?: string;
+  roleName?: string;
+  permissions?: readonly string[];
   sessionId?: string;
   accountId?: string;
 }
@@ -149,10 +152,13 @@ export function createCustomerAuthMock() {
       if (!decoded) {
         return sendError(reply, 401, "INVALID_TOKEN", "Authorization token required");
       }
+      const roleName = decoded.roleName || decoded.role || "OWNER";
       const userPayload = {
         id: decoded.sub || decoded.userId || "",
         accountId: decoded.accountId || "",
-        role: decoded.role || "OWNER",
+        roleId: decoded.roleId || `role-${roleName.toLowerCase()}`,
+        roleName,
+        permissions: decoded.permissions ?? [],
       };
       (request as Record<string, unknown>).customerUser = userPayload;
       // Also set request.user for routes that read it via BaseRouteHandler.getUserContext

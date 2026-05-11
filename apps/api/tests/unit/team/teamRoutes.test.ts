@@ -21,36 +21,170 @@ if (!process.env.PLATFORM_ENCRYPTION_KEY) {
 
 const { mockPrisma } = createMockPrismaModule();
 
-// TeamMember store with compound unique key support
-const teamMemberStore = createStore<Record<string, unknown>>();
-const teamMemberMock = buildModelMock(teamMemberStore, {
+// CustomerUser store with compound unique key support + customerRole join hydration
+const customerUserStore = createStore<Record<string, unknown>>();
+const customerUserMock = buildModelMock(customerUserStore, {
   isActive: true,
+  roleId: "role-member",
   role: "MEMBER",
-  avatarUrl: null,
+  isEmailVerified: false,
+  mfaEnabled: false,
   invitedBy: null,
+  inviteToken: null,
+  inviteTokenExpiry: null,
+  deletedAt: null,
 });
 
-// Override findUnique to support Prisma compound keys like accountId_email
-const originalFindUnique = teamMemberMock.findUnique;
-teamMemberMock.findUnique = vi.fn(
+// CustomerRole + CustomerRolePermission stores seeded with the four canon roles.
+const customerRoleStore = createStore<Record<string, unknown>>();
+const customerRolePermissionStore = createStore<Record<string, unknown>>();
+
+const ROLE_SEED = [
+  {
+    id: "role-owner",
+    name: "OWNER",
+    level: 100,
+    isSystem: true,
+    isActive: true,
+    permissions: [
+      "post:read",
+      "post:create",
+      "post:edit",
+      "post:publish",
+      "post:delete",
+      "channel:manage",
+      "billing:manage",
+      "member:invite",
+      "member:remove",
+      "member:manage_roles",
+    ],
+  },
+  {
+    id: "role-manager",
+    name: "MANAGER",
+    level: 50,
+    isSystem: true,
+    isActive: true,
+    permissions: ["post:read", "post:create", "post:edit", "post:publish", "member:invite"],
+  },
+  {
+    id: "role-member",
+    name: "MEMBER",
+    level: 20,
+    isSystem: true,
+    isActive: true,
+    permissions: ["post:read", "post:create"],
+  },
+  {
+    id: "role-viewer",
+    name: "VIEWER",
+    level: 10,
+    isSystem: true,
+    isActive: true,
+    permissions: ["post:read"],
+  },
+];
+
+for (const r of ROLE_SEED) {
+  customerRoleStore.add({
+    id: r.id,
+    name: r.name,
+    description: "",
+    level: r.level,
+    isSystem: r.isSystem,
+    isActive: r.isActive,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  for (const perm of r.permissions) {
+    customerRolePermissionStore.add({
+      id: `${r.id}-${perm}`,
+      roleId: r.id,
+      permission: perm,
+      createdAt: new Date(),
+    });
+  }
+}
+
+const customerRoleMock = buildModelMock(customerRoleStore);
+// Hydrate `permissions` in customerRole reads (matches the Prisma include used
+// by the repository).
+const originalRoleFindUnique = customerRoleMock.findUnique;
+customerRoleMock.findUnique = vi.fn(
   async (args: { where: Record<string, unknown>; include?: Record<string, unknown> }) => {
-    const { where } = args;
-    // Handle compound unique keys: { accountId_email: { accountId, email } }
-    if (where.accountId_email && typeof where.accountId_email === "object") {
-      const compound = where.accountId_email as Record<string, unknown>;
-      const flatWhere: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(compound)) {
-        flatWhere[k] = v;
-      }
-      return originalFindUnique({ where: flatWhere, include: args.include });
+    const result = await originalRoleFindUnique(args);
+    if (result && args.include?.permissions) {
+      result.permissions = customerRolePermissionStore
+        .all()
+        .filter((p: Record<string, unknown>) => p.roleId === result.id);
     }
-    return originalFindUnique(args);
+    return result;
+  }
+);
+const originalRoleFindMany = customerRoleMock.findMany;
+customerRoleMock.findMany = vi.fn(
+  async (args?: { where?: Record<string, unknown>; include?: Record<string, unknown> }) => {
+    const rows = (await originalRoleFindMany(args ?? {})) as Record<string, unknown>[];
+    if (args?.include?.permissions) {
+      for (const r of rows) {
+        (r as { permissions?: unknown }).permissions = customerRolePermissionStore
+          .all()
+          .filter((p: Record<string, unknown>) => p.roleId === r.id);
+      }
+    }
+    return rows;
+  }
+);
+
+// CustomerUser reads with role include should hydrate customerRole + permissions.
+const originalUserFindFirst = customerUserMock.findFirst;
+customerUserMock.findFirst = vi.fn(
+  async (args: { where: Record<string, unknown>; include?: Record<string, unknown> }) => {
+    const result = await originalUserFindFirst(args);
+    if (result && args.include?.customerRole) {
+      const role = customerRoleStore
+        .all()
+        .find((r: Record<string, unknown>) => r.id === result.roleId);
+      if (role) {
+        result.customerRole = {
+          ...role,
+          permissions: customerRolePermissionStore
+            .all()
+            .filter((p: Record<string, unknown>) => p.roleId === role.id),
+        };
+      }
+    }
+    return result;
+  }
+);
+const originalUserFindMany = customerUserMock.findMany;
+customerUserMock.findMany = vi.fn(
+  async (args?: { where?: Record<string, unknown>; include?: Record<string, unknown> }) => {
+    const rows = (await originalUserFindMany(args ?? {})) as Record<string, unknown>[];
+    if (args?.include?.customerRole) {
+      for (const u of rows) {
+        const role = customerRoleStore
+          .all()
+          .find((r: Record<string, unknown>) => r.id === u.roleId);
+        if (role) {
+          (u as { customerRole?: unknown }).customerRole = {
+            ...role,
+            permissions: customerRolePermissionStore
+              .all()
+              .filter((p: Record<string, unknown>) => p.roleId === role.id),
+          };
+        }
+      }
+    }
+    return rows;
   }
 );
 
 // Add extra models needed by team routes and their repositories
 const extraModels = {
-  teamMember: teamMemberMock,
+  customerUser: customerUserMock,
+  customerRole: customerRoleMock,
+  customerRolePermission: buildModelMock(customerRolePermissionStore),
   projectMember: buildModelMock(createStore()),
   post: buildModelMock(createStore()),
   adminUserPermission: buildModelMock(createStore()),
@@ -291,8 +425,8 @@ describe("teamRoutes Unit Tests", () => {
       const first = body.data[0];
       expect(first.id).toBeTruthy();
       expect(first.email).toBeTruthy();
-      expect(first.name).toBeTruthy();
-      expect(first.role).toBeTruthy();
+      expect(first.fullName).toBeTruthy();
+      expect(first.roleName).toBeTruthy();
       expect(typeof first.isActive === "boolean").toBeTruthy();
       expect(first.joinedAt).toBeTruthy();
     });

@@ -21,7 +21,7 @@ describe("MentionParser", () => {
       expect(result).toHaveLength(1);
       expect(result[0]).toEqual({
         displayName: "Alice Smith",
-        teamMemberId: "uuid-001",
+        customerUserId: "uuid-001",
         raw: "@[Alice Smith](uuid-001)",
       });
     });
@@ -31,8 +31,8 @@ describe("MentionParser", () => {
       const result = MentionParser.parse(text);
 
       expect(result).toHaveLength(2);
-      expect(result[0]?.teamMemberId).toBe("id-1");
-      expect(result[1]?.teamMemberId).toBe("id-2");
+      expect(result[0]?.customerUserId).toBe("id-1");
+      expect(result[1]?.customerUserId).toBe("id-2");
     });
 
     it("parses mentions with UUID-style IDs", () => {
@@ -40,7 +40,7 @@ describe("MentionParser", () => {
       const result = MentionParser.parse(text);
 
       expect(result).toHaveLength(1);
-      expect(result[0]?.teamMemberId).toBe("550e8400-e29b-41d4-a716-446655440000");
+      expect(result[0]?.customerUserId).toBe("550e8400-e29b-41d4-a716-446655440000");
     });
 
     it("ignores malformed mentions - plain @word without brackets", () => {
@@ -73,8 +73,8 @@ describe("MentionParser", () => {
   describe("validate", () => {
     it("returns true when all mentions reference valid team member IDs", () => {
       const mentions = [
-        { displayName: "Alice", teamMemberId: "id-1", raw: "@[Alice](id-1)" },
-        { displayName: "Bob", teamMemberId: "id-2", raw: "@[Bob](id-2)" },
+        { displayName: "Alice", customerUserId: "id-1", raw: "@[Alice](id-1)" },
+        { displayName: "Bob", customerUserId: "id-2", raw: "@[Bob](id-2)" },
       ];
       const validIds = ["id-1", "id-2", "id-3"];
 
@@ -83,8 +83,8 @@ describe("MentionParser", () => {
 
     it("returns false when a mention references an invalid team member ID", () => {
       const mentions = [
-        { displayName: "Alice", teamMemberId: "id-1", raw: "@[Alice](id-1)" },
-        { displayName: "Ghost", teamMemberId: "id-999", raw: "@[Ghost](id-999)" },
+        { displayName: "Alice", customerUserId: "id-1", raw: "@[Alice](id-1)" },
+        { displayName: "Ghost", customerUserId: "id-999", raw: "@[Ghost](id-999)" },
       ];
       const validIds = ["id-1", "id-2"];
 
@@ -96,7 +96,7 @@ describe("MentionParser", () => {
     });
 
     it("returns false when valid IDs array is empty but mentions exist", () => {
-      const mentions = [{ displayName: "Alice", teamMemberId: "id-1", raw: "@[Alice](id-1)" }];
+      const mentions = [{ displayName: "Alice", customerUserId: "id-1", raw: "@[Alice](id-1)" }];
       expect(MentionParser.validate(mentions, [])).toBe(false);
     });
   });

@@ -260,6 +260,7 @@ function createMockPostRepo() {
 function createMockChannelRepo() {
   return {
     findById: async () => ({ ok: false, error: {} }),
+    findIdsByProjectId: async () => TEST_CHANNEL_IDS.map((cid) => ({ toString: () => cid })) as any,
     findByProjectId: async () =>
       TEST_CHANNEL_IDS.map((cid) => ({
         id: { toString: () => cid },

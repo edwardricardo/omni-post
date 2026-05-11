@@ -33,7 +33,22 @@ const MOCK_POST_RESULT = {
 };
 
 export class MockCreatePostUseCase {
+  /**
+   * Toggle to simulate a use-case-level failure. Channel-validation failures
+   * are no longer triggerable from this layer (the CreatePostCommandHandler
+   * is platform-agnostic after the saga split), so use-case-level failure is
+   * the canonical "command failed" path for handler-tier tests.
+   */
+  public shouldFail = false;
+  public failMessage = "Validation failed";
+
   async execute() {
+    if (this.shouldFail) {
+      return {
+        ok: false as const,
+        error: { message: this.failMessage, code: "VALIDATION_FAILED" },
+      };
+    }
     return { ok: true as const, value: { ...MOCK_POST_RESULT, id: randomUUID() } };
   }
 }

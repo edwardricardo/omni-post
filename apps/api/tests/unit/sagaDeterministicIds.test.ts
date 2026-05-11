@@ -1,8 +1,9 @@
 /**
  * @file sagaDeterministicIds.test.ts
- * @description Verifies that saga steps emit deterministic command IDs
- *              keyed on (sagaId, stepId) so retries collapse to a single
- *              dedupeKey instead of fanning out per-attempt.
+ * @description Verifies that saga steps emit deterministic command IDs keyed
+ *              on (sagaId, stepId) so retries collapse to a single dedupeKey
+ *              instead of fanning out per-attempt. This is the canonical
+ *              dedup contract (Richardson saga + Azure §15-20 OCC).
  * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";
@@ -57,61 +58,48 @@ describe("Saga deterministic command IDs", () => {
     expect(forwardId).not.toBe(compensateId);
   });
 
-  it("UpdatePostStatusStep reads previousStatus from CreatePostStep stepData (not hardcoded)", async () => {
-    let revertCommand: Command | null = null;
+  it("UpdatePostStatusStep emits identical command IDs across retries of the same saga", async () => {
+    const ids: string[] = [];
     const step = new UpdatePostStatusStep(async (cmd: Command) => {
-      if (cmd.type === "post.update" && cmd.metadata.source?.includes("Compensation")) {
-        revertCommand = cmd;
-      }
+      ids.push(cmd.id);
       return { success: true, data: {} };
     });
 
     const ctx = makeContext();
-    ctx.stepData["create-post"] = {
-      postId: "post-1",
-      version: 1,
-      createdAt: new Date(),
-      initialStatus: "DRAFT",
-    };
-    ctx.stepData["wait-publishing-completion"] = {
-      publishingComplete: true,
-    };
-
-    const fwd = await step.execute(ctx);
-    expect(fwd.success).toBeTruthy();
-
-    const compensationData = (fwd as { compensationData?: unknown }).compensationData as {
-      previousStatus: string;
-    };
-    expect(compensationData.previousStatus).toBe("DRAFT");
-
-    await step.compensate?.(ctx, compensationData);
-
-    expect(revertCommand).toBeTruthy();
-    expect(revertCommand!.id).toBe("cmd-saga-fixed-id-update-post-status-compensate");
-    expect((revertCommand!.data as { status: string }).status).toBe("DRAFT");
-  });
-
-  it("UpdatePostStatusStep falls back to DRAFT only when CreatePostStep stepData is absent", async () => {
-    let revertCommand: Command | null = null;
-    const step = new UpdatePostStatusStep(async (cmd: Command) => {
-      if (cmd.type === "post.update" && cmd.metadata.source?.includes("Compensation")) {
-        revertCommand = cmd;
-      }
-      return { success: true, data: {} };
-    });
-
-    const ctx = makeContext();
-    ctx.stepData["create-post"] = { postId: "post-1" };
+    ctx.stepData["create-post"] = { postId: "post-1", version: 1 };
     ctx.stepData["wait-publishing-completion"] = { publishingComplete: true };
 
-    const fwd = await step.execute(ctx);
-    const compensationData = (fwd as { compensationData?: unknown }).compensationData as {
-      previousStatus: string;
-    };
-    expect(compensationData.previousStatus).toBe("DRAFT");
+    await step.execute(ctx);
+    await step.execute(ctx);
+    await step.execute(ctx);
 
-    await step.compensate?.(ctx, compensationData);
-    expect((revertCommand!.data as { status: string }).status).toBe("DRAFT");
+    expect(ids).toHaveLength(3);
+    expect(new Set(ids).size).toBe(1);
+    expect(ids[0]).toBe("cmd-saga-fixed-id-update-post-status");
+  });
+
+  it("UpdatePostStatusStep forwards expectedVersion from CreatePostStep stepData (OCC seed)", async () => {
+    let emitted: Command | null = null;
+    const step = new UpdatePostStatusStep(async (cmd: Command) => {
+      emitted = cmd;
+      return { success: true, data: {} };
+    });
+
+    const ctx = makeContext();
+    ctx.stepData["create-post"] = { postId: "post-1", version: 7 };
+    ctx.stepData["wait-publishing-completion"] = { publishingComplete: true };
+
+    await step.execute(ctx);
+
+    expect(emitted).toBeTruthy();
+    const data = emitted!.data as { status: string; expectedVersion?: number };
+    expect(data.expectedVersion).toBe(7);
+    expect(data.status).toBe("PUBLISHED");
+  });
+
+  it("UpdatePostStatusStep is a RetryableStep with no compensate (post-pivot canon)", () => {
+    const step = new UpdatePostStatusStep(async () => ({ success: true, data: {} }));
+    expect(step.class).toBe("retryable");
+    expect((step as unknown as { compensate?: unknown }).compensate).toBeUndefined();
   });
 });
