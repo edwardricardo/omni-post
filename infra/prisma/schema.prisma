@@ -119,6 +119,37 @@ model RolePermission {
   @@index([roleId])
 }
 
+// Customer-side RBAC (mirrors admin Role/RolePermission but scoped to CustomerUser).
+// Seeded with `owner`, `manager`, `member`, `viewer`. Permissions live in
+// CustomerRolePermission (no hardcoded VO). Replaces the TeamRole enum.
+model CustomerRole {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String   @default("")
+  level       Int      @default(1)
+  isSystem    Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  permissions CustomerRolePermission[]
+  users       CustomerUser[]
+
+  @@index([isActive])
+}
+
+model CustomerRolePermission {
+  id         String   @id @default(cuid())
+  roleId     String
+  permission String
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+
+  role CustomerRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permission])
+  @@index([roleId])
+}
+
 model AdminUser {
   id                    String    @id @default(uuid())
   email                 String    @unique
@@ -167,24 +198,24 @@ model AdminUser {
 }
 
 model AdminSession {
-  id String @id @default(uuid())
-  userId String
+  id               String    @id @default(uuid())
+  userId           String
   // SHA-256 hex digest of the refresh JWT. Plaintext token only exists in
   // the user's cookie / Authorization header; lookups hash the incoming
   // value and compare against this column. Same canonical pattern as
   // ApiKey.keyHash — protects against DB exfiltration leaking live tokens.
-  refreshTokenHash String   @unique
+  refreshTokenHash String    @unique
   ipAddress        String?
   userAgent        String?
-  isActive         Boolean  @default(true)
-  expiresAt        DateTime @db.Timestamptz(6)
-  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  isActive         Boolean   @default(true)
+  expiresAt        DateTime  @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @db.Timestamptz(6)
   revokedAt        DateTime? @db.Timestamptz(6)
-  csrfToken        String   @unique @default(uuid())
+  csrfToken        String    @unique @default(uuid())
   deviceId         String?
   deviceName       String?
   location         Json?
-  lastActivityAt   DateTime @default(now()) @db.Timestamptz(6)
+  lastActivityAt   DateTime  @default(now()) @db.Timestamptz(6)
   revokedBy        String?
   revokeReason     String?
 
@@ -314,7 +345,8 @@ model CustomerUser {
   passwordHash      String
   firstName         String
   lastName          String
-  role              TeamRole  @default(MEMBER)
+  role              TeamRole  @default(MEMBER) // DEPRECATED — being replaced by roleId. Will be dropped in Migration 3.
+  roleId            String? // FK to CustomerRole. Nullable during backfill (Migration 1→2); becomes NOT NULL in Migration 3.
   isActive          Boolean   @default(true)
   isEmailVerified   Boolean   @default(false)
   emailVerifyToken  String?   @unique
@@ -325,29 +357,56 @@ model CustomerUser {
   mfaSecret         String?
   lastLoginAt       DateTime? @db.Timestamptz(6)
   avatarUrl         String?
+  // Invitation fields absorbed from TeamMember during unification.
+  invitedBy         String? // ID of the CustomerUser who sent the invitation
+  inviteToken       String?   @unique
+  inviteTokenExpiry DateTime? @db.Timestamptz(6)
+  joinedAt          DateTime  @default(now()) @db.Timestamptz(6)
   createdAt         DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt         DateTime  @updatedAt @db.Timestamptz(6)
   deletedAt         DateTime? @db.Timestamptz(6)
 
-  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account      Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  customerRole CustomerRole? @relation(fields: [roleId], references: [id])
+
+  // Relations absorbed from TeamMember (populated by backfill in Migration 2).
+  // All currently optional; tightened to NOT NULL in Migration 3 after data migration.
+  customerProjectMemberships    ProjectMember[]
+  customerNotifications         Notification[]
+  customerNotificationPrefs     NotificationPreference[]
+  customerApprovalAssignments   ApprovalWorkflowLevel[]
+  customerSubmittedApprovals    ApprovalRequest[]        @relation("CustomerApprovalSubmitter")
+  customerReviewedApprovals     ApprovalReview[]         @relation("CustomerApprovalReviewer")
+  customerAssignedTasks         Task[]                   @relation("CustomerTaskAssignee")
+  customerCreatedTasks          Task[]                   @relation("CustomerTaskCreator")
+  customerComments              PostComment[]
+  customerAssignedMessages      SocialMessage[]          @relation("CustomerMessageAssignee")
+  customerResolvedConversations SocialConversation[]     @relation("CustomerConversationResolver")
+  customerConversationNotes     ConversationNote[]       @relation("CustomerNoteAuthor")
+  customerOutboundReplies       SocialOutboundReply[]
+  customerCreatedReports        CustomReport[]           @relation("CustomerCustomReportCreator")
 
   @@unique([accountId, email])
   @@index([accountId], where: { deletedAt: null })
   @@index([email], where: { deletedAt: null })
+  @@index([roleId])
 }
 
 model ProjectMember {
-  id          String   @id @default(uuid())
-  projectId   String
-  memberId    String
-  permissions String[] @default(["READ", "WRITE"])
-  assignedAt  DateTime @default(now()) @db.Timestamptz(6)
+  id             String   @id @default(uuid())
+  projectId      String
+  memberId       String // DEPRECATED — being replaced by customerUserId. Dropped in Migration 3.
+  customerUserId String? // Nullable during backfill (Migration 1→2); NOT NULL in Migration 3.
+  permissions    String[] @default(["READ", "WRITE"])
+  assignedAt     DateTime @default(now()) @db.Timestamptz(6)
 
-  project Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  member  TeamMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  member       TeamMember    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  customerUser CustomerUser? @relation(fields: [customerUserId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, memberId])
   @@index([memberId])
+  @@index([customerUserId])
 }
 
 enum TeamRole {
@@ -358,36 +417,42 @@ enum TeamRole {
 }
 
 model Notification {
-  id           String           @id @default(uuid())
-  recipientId  String
-  type         NotificationType
-  title        String
-  body         String
-  resourceType String?
-  resourceId   String?
-  actorId      String?
-  actorName    String?
-  isRead       Boolean          @default(false)
-  readAt       DateTime?        @db.Timestamptz(6)
-  metadata     Json?
-  createdAt    DateTime         @default(now()) @db.Timestamptz(6)
+  id                      String           @id @default(uuid())
+  recipientId             String // DEPRECATED — being replaced by recipientCustomerUserId. Dropped in Migration 3.
+  recipientCustomerUserId String? // Nullable during backfill; NOT NULL in Migration 3.
+  type                    NotificationType
+  title                   String
+  body                    String
+  resourceType            String?
+  resourceId              String?
+  actorId                 String?
+  actorName               String?
+  isRead                  Boolean          @default(false)
+  readAt                  DateTime?        @db.Timestamptz(6)
+  metadata                Json?
+  createdAt               DateTime         @default(now()) @db.Timestamptz(6)
 
-  recipient TeamMember @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  recipient             TeamMember    @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  recipientCustomerUser CustomerUser? @relation(fields: [recipientCustomerUserId], references: [id], onDelete: Cascade)
 
   @@index([recipientId, isRead, createdAt])
   @@index([recipientId, createdAt])
+  @@index([recipientCustomerUserId])
 }
 
 model NotificationPreference {
-  id        String           @id @default(uuid())
-  memberId  String
-  type      NotificationType
-  enabled   Boolean          @default(true)
-  updatedAt DateTime         @updatedAt @db.Timestamptz(6)
+  id             String           @id @default(uuid())
+  memberId       String // DEPRECATED — replaced by customerUserId. Dropped in Migration 3.
+  customerUserId String? // Nullable during backfill; NOT NULL in Migration 3.
+  type           NotificationType
+  enabled        Boolean          @default(true)
+  updatedAt      DateTime         @updatedAt @db.Timestamptz(6)
 
-  member TeamMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  member       TeamMember    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  customerUser CustomerUser? @relation(fields: [customerUserId], references: [id], onDelete: Cascade)
 
   @@unique([memberId, type])
+  @@index([customerUserId])
 }
 
 enum NotificationType {
@@ -421,57 +486,66 @@ model ApprovalWorkflow {
 }
 
 model ApprovalWorkflowLevel {
-  id         String   @id @default(cuid())
-  workflowId String
-  order      Int
-  role       String?
-  assigneeId String?
-  requireAll Boolean  @default(false)
-  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  id                     String   @id @default(cuid())
+  workflowId             String
+  order                  Int
+  role                   String?
+  assigneeId             String? // DEPRECATED — replaced by assigneeCustomerUserId. Dropped in Migration 3.
+  assigneeCustomerUserId String? // Backfilled from assigneeId in Migration 2.
+  requireAll             Boolean  @default(false)
+  createdAt              DateTime @default(now()) @db.Timestamptz(6)
 
-  workflow ApprovalWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  assignee TeamMember?      @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  workflow             ApprovalWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  assignee             TeamMember?      @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  assigneeCustomerUser CustomerUser?    @relation(fields: [assigneeCustomerUserId], references: [id], onDelete: SetNull)
 
   @@unique([workflowId, order])
   @@index([workflowId])
+  @@index([assigneeCustomerUserId])
 }
 
 model ApprovalRequest {
-  id           String         @id @default(uuid())
-  postId       String
-  submitterId  String
-  workflowId   String?
-  currentLevel Int            @default(1)
-  totalLevels  Int            @default(1)
-  status       ApprovalStatus @default(PENDING)
-  comment      String?
-  createdAt    DateTime       @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime       @updatedAt @db.Timestamptz(6)
+  id                      String         @id @default(uuid())
+  postId                  String
+  submitterId             String // DEPRECATED — replaced by submitterCustomerUserId. Dropped in Migration 3.
+  submitterCustomerUserId String? // Backfilled from submitterId in Migration 2.
+  workflowId              String?
+  currentLevel            Int            @default(1)
+  totalLevels             Int            @default(1)
+  status                  ApprovalStatus @default(PENDING)
+  comment                 String?
+  createdAt               DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt               DateTime       @updatedAt @db.Timestamptz(6)
 
-  post      Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
-  submitter TeamMember        @relation("ApprovalSubmitter", fields: [submitterId], references: [id])
-  workflow  ApprovalWorkflow? @relation(fields: [workflowId], references: [id])
-  reviews   ApprovalReview[]
+  post                  Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
+  submitter             TeamMember        @relation("ApprovalSubmitter", fields: [submitterId], references: [id])
+  submitterCustomerUser CustomerUser?     @relation("CustomerApprovalSubmitter", fields: [submitterCustomerUserId], references: [id])
+  workflow              ApprovalWorkflow? @relation(fields: [workflowId], references: [id])
+  reviews               ApprovalReview[]
 
   @@index([postId, status])
   @@index([submitterId, createdAt])
   @@index([workflowId])
+  @@index([submitterCustomerUserId])
 }
 
 model ApprovalReview {
-  id         String         @id @default(uuid())
-  requestId  String
-  reviewerId String
-  decision   ReviewDecision
-  comment    String?
-  level      Int            @default(1)
-  reviewedAt DateTime       @default(now()) @db.Timestamptz(6)
+  id                     String         @id @default(uuid())
+  requestId              String
+  reviewerId             String // DEPRECATED — replaced by reviewerCustomerUserId. Dropped in Migration 3.
+  reviewerCustomerUserId String? // Backfilled in Migration 2.
+  decision               ReviewDecision
+  comment                String?
+  level                  Int            @default(1)
+  reviewedAt             DateTime       @default(now()) @db.Timestamptz(6)
 
-  request  ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  reviewer TeamMember      @relation(fields: [reviewerId], references: [id])
+  request              ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  reviewer             TeamMember      @relation(fields: [reviewerId], references: [id])
+  reviewerCustomerUser CustomerUser?   @relation("CustomerApprovalReviewer", fields: [reviewerCustomerUserId], references: [id])
 
   @@index([requestId])
   @@index([reviewerId])
+  @@index([reviewerCustomerUserId])
 }
 
 enum TaskStatus {
@@ -489,55 +563,64 @@ enum TaskPriority {
 }
 
 model Task {
-  id          String       @id @default(cuid())
-  accountId   String
-  projectId   String?
-  title       String
-  description String?      @db.Text
-  status      TaskStatus   @default(OPEN)
-  priority    TaskPriority @default(MEDIUM)
-  assigneeId  String?
-  createdById String
-  dueDate     DateTime?    @db.Timestamptz(6)
-  completedAt DateTime?    @db.Timestamptz(6)
-  createdAt   DateTime     @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime     @updatedAt @db.Timestamptz(6)
-  deletedAt   DateTime?    @db.Timestamptz(6)
-  postId      String?
+  id                      String       @id @default(cuid())
+  accountId               String
+  projectId               String?
+  title                   String
+  description             String?      @db.Text
+  status                  TaskStatus   @default(OPEN)
+  priority                TaskPriority @default(MEDIUM)
+  assigneeId              String? // DEPRECATED — replaced by assigneeCustomerUserId. Dropped in Migration 3.
+  assigneeCustomerUserId  String? // Backfilled in Migration 2.
+  createdById             String // DEPRECATED — replaced by createdByCustomerUserId.
+  createdByCustomerUserId String? // Backfilled in Migration 2; NOT NULL in Migration 3.
+  dueDate                 DateTime?    @db.Timestamptz(6)
+  completedAt             DateTime?    @db.Timestamptz(6)
+  createdAt               DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt               DateTime     @updatedAt @db.Timestamptz(6)
+  deletedAt               DateTime?    @db.Timestamptz(6)
+  postId                  String?
 
-  account   Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  project   Project?    @relation(fields: [projectId], references: [id])
-  assignee  TeamMember? @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  createdBy TeamMember  @relation("TaskCreator", fields: [createdById], references: [id])
-  post      Post?       @relation(fields: [postId], references: [id], onDelete: SetNull)
+  account               Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project               Project?      @relation(fields: [projectId], references: [id])
+  assignee              TeamMember?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  assigneeCustomerUser  CustomerUser? @relation("CustomerTaskAssignee", fields: [assigneeCustomerUserId], references: [id])
+  createdBy             TeamMember    @relation("TaskCreator", fields: [createdById], references: [id])
+  createdByCustomerUser CustomerUser? @relation("CustomerTaskCreator", fields: [createdByCustomerUserId], references: [id])
+  post                  Post?         @relation(fields: [postId], references: [id], onDelete: SetNull)
 
   @@index([accountId], where: { deletedAt: null })
   @@index([assigneeId], where: { deletedAt: null })
   @@index([status], where: { deletedAt: null })
   @@index([createdById], where: { deletedAt: null })
+  @@index([assigneeCustomerUserId], where: { deletedAt: null })
+  @@index([createdByCustomerUserId], where: { deletedAt: null })
 }
 
 model PostComment {
-  id        String    @id @default(uuid())
-  postId    String
-  authorId  String
-  parentId  String?
-  body      String
-  mentions  String[]  @default([])
-  isEdited  Boolean   @default(false)
-  editedAt  DateTime? @db.Timestamptz(6)
-  deletedAt DateTime? @db.Timestamptz(6)
-  createdAt DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  id                   String    @id @default(uuid())
+  postId               String
+  authorId             String // DEPRECATED — replaced by authorCustomerUserId. Dropped in Migration 3.
+  authorCustomerUserId String? // Backfilled in Migration 2; NOT NULL in Migration 3.
+  parentId             String?
+  body                 String
+  mentions             String[]  @default([])
+  isEdited             Boolean   @default(false)
+  editedAt             DateTime? @db.Timestamptz(6)
+  deletedAt            DateTime? @db.Timestamptz(6)
+  createdAt            DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime  @updatedAt @db.Timestamptz(6)
 
-  post    Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author  TeamMember    @relation(fields: [authorId], references: [id])
-  parent  PostComment?  @relation("CommentReplies", fields: [parentId], references: [id])
-  replies PostComment[] @relation("CommentReplies")
+  post               Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author             TeamMember    @relation(fields: [authorId], references: [id])
+  authorCustomerUser CustomerUser? @relation(fields: [authorCustomerUserId], references: [id])
+  parent             PostComment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies            PostComment[] @relation("CommentReplies")
 
   @@index([postId, deletedAt, createdAt])
   @@index([parentId], where: { deletedAt: null })
   @@index([authorId], where: { deletedAt: null })
+  @@index([authorCustomerUserId], where: { deletedAt: null })
 }
 
 enum ApprovalStatus {
@@ -715,25 +798,25 @@ model PostMedia {
 }
 
 model Channel {
-  id        String   @id @default(uuid())
-  projectId String
-  provider  Provider
-  handle    String
+  id                        String                    @id @default(uuid())
+  projectId                 String
+  provider                  Provider
+  handle                    String
   // Provider-side account ID (Facebook page_id, Instagram account_id, X user_id, etc.).
   // Non-secret — kept as a queryable column so webhook processors can resolve a
   // channel by provider-supplied entity ID without needing to decrypt the
   // credentials envelope. Populated alongside credentials at OAuth-callback time.
-  providerAccountId String?
+  providerAccountId         String?
   // OAuth tokens + per-provider metadata, wrapped via EncryptionService
   // (AES-256-GCM). Plaintext only exists in-memory at request time —
   // ChannelService decrypts on read, encrypts on write. Stored as a
   // JSON-serialised envelope: the original credentials object is
   // canonicalised, encrypted, and the ciphertext + IV + auth tag live
   // in separate columns alongside the key version that wrapped them.
-  credentialsCiphertext String
-  credentialsIv         String
-  credentialsAuthTag    String
-  credentialsKeyVersion Int                       @default(1)
+  credentialsCiphertext     String
+  credentialsIv             String
+  credentialsAuthTag        String
+  credentialsKeyVersion     Int                       @default(1)
   isPrimary                 Boolean                   @default(false)
   // Display fields populated at OAuth callback time. `accountName` is the
   // provider-side display handle ("@miempresa", "Acme Inc"); `profileImage`
@@ -1531,9 +1614,9 @@ model WebhookSubscription {
   projectId String?
 
   // Subscription details
-  provider   Provider
-  webhookUrl String // Our webhook endpoint URL
-  secretKey  String // Secret for signature verification
+  provider                   Provider
+  webhookUrl                 String // Our webhook endpoint URL
+  secretKey                  String // Secret for signature verification
   // Grace-window pair populated during admin-triggered rotation (PR-43-B).
   // While `previousSecretKeyExpiresAt > now()`, the HMAC verifier accepts
   // signatures produced with `previousSecretKey` so in-flight webhooks
@@ -2111,115 +2194,127 @@ enum OutboundReplyStatus {
 }
 
 model SocialMessage {
-  id                String              @id @default(uuid())
-  accountId         String
-  projectId         String
-  channelId         String
-  conversationId    String?
-  provider          Provider
-  providerMessageId String
-  providerParentId  String?
-  messageType       SocialMessageType
-  authorName        String
-  authorHandle      String?
-  authorAvatarUrl   String?
-  authorProviderId  String
-  body              String
-  mediaUrls         String[]            @default([])
-  webhookEventId    String?             @unique
-  relatedPostId     String?
-  status            SocialMessageStatus @default(UNREAD)
-  assigneeId        String?
-  isArchived        Boolean             @default(false)
-  priority          MessagePriority     @default(NORMAL)
-  suggestedReplies  String[]            @default([])
-  crmContactId      String?
-  aiProcessedAt     DateTime?           @db.Timestamptz(6)
-  sentimentScore    Decimal?            @db.Decimal(3, 2)
-  providerCreatedAt DateTime            @db.Timestamptz(6)
-  createdAt         DateTime            @default(now()) @db.Timestamptz(6)
-  updatedAt         DateTime            @updatedAt @db.Timestamptz(6)
+  id                     String              @id @default(uuid())
+  accountId              String
+  projectId              String
+  channelId              String
+  conversationId         String?
+  provider               Provider
+  providerMessageId      String
+  providerParentId       String?
+  messageType            SocialMessageType
+  authorName             String
+  authorHandle           String?
+  authorAvatarUrl        String?
+  authorProviderId       String
+  body                   String
+  mediaUrls              String[]            @default([])
+  webhookEventId         String?             @unique
+  relatedPostId          String?
+  status                 SocialMessageStatus @default(UNREAD)
+  assigneeId             String? // DEPRECATED — replaced by assigneeCustomerUserId. Dropped in Migration 3.
+  assigneeCustomerUserId String? // Backfilled in Migration 2.
+  isArchived             Boolean             @default(false)
+  priority               MessagePriority     @default(NORMAL)
+  suggestedReplies       String[]            @default([])
+  crmContactId           String?
+  aiProcessedAt          DateTime?           @db.Timestamptz(6)
+  sentimentScore         Decimal?            @db.Decimal(3, 2)
+  providerCreatedAt      DateTime            @db.Timestamptz(6)
+  createdAt              DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime            @updatedAt @db.Timestamptz(6)
 
-  account         Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  project         Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  channel         Channel               @relation(fields: [channelId], references: [id])
-  conversation    SocialConversation?   @relation(fields: [conversationId], references: [id])
-  webhookEvent    WebhookEvent?         @relation(fields: [webhookEventId], references: [id], onDelete: SetNull)
-  relatedPost     Post?                 @relation(fields: [relatedPostId], references: [id], onDelete: SetNull)
-  assignee        TeamMember?           @relation("MessageAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  outboundReplies SocialOutboundReply[]
+  account              Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project              Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  channel              Channel               @relation(fields: [channelId], references: [id])
+  conversation         SocialConversation?   @relation(fields: [conversationId], references: [id])
+  webhookEvent         WebhookEvent?         @relation(fields: [webhookEventId], references: [id], onDelete: SetNull)
+  relatedPost          Post?                 @relation(fields: [relatedPostId], references: [id], onDelete: SetNull)
+  assignee             TeamMember?           @relation("MessageAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assigneeCustomerUser CustomerUser?         @relation("CustomerMessageAssignee", fields: [assigneeCustomerUserId], references: [id], onDelete: SetNull)
+  outboundReplies      SocialOutboundReply[]
 
   @@unique([provider, providerMessageId])
   @@index([accountId, projectId, status])
   @@index([conversationId])
   @@index([channelId, messageType])
   @@index([assigneeId, status])
+  @@index([assigneeCustomerUserId, status])
   @@index([providerCreatedAt])
   @@index([relatedPostId])
 }
 
 model SocialConversation {
-  id                    String    @id @default(uuid())
-  accountId             String
-  projectId             String
-  channelId             String
-  provider              Provider
-  subject               String?
-  participantCount      Int       @default(1)
-  messageCount          Int       @default(0)
-  lastMessageAt         DateTime  @db.Timestamptz(6)
-  isResolved            Boolean   @default(false)
-  resolvedAt            DateTime? @db.Timestamptz(6)
-  resolvedById          String?
-  rootProviderMessageId String?
-  createdAt             DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt             DateTime  @updatedAt @db.Timestamptz(6)
+  id                       String    @id @default(uuid())
+  accountId                String
+  projectId                String
+  channelId                String
+  provider                 Provider
+  subject                  String?
+  participantCount         Int       @default(1)
+  messageCount             Int       @default(0)
+  lastMessageAt            DateTime  @db.Timestamptz(6)
+  isResolved               Boolean   @default(false)
+  resolvedAt               DateTime? @db.Timestamptz(6)
+  resolvedById             String? // DEPRECATED — replaced by resolvedByCustomerUserId. Dropped in Migration 3.
+  resolvedByCustomerUserId String? // Backfilled in Migration 2.
+  rootProviderMessageId    String?
+  createdAt                DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt                DateTime  @updatedAt @db.Timestamptz(6)
 
-  account    Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  project    Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  channel    Channel            @relation(fields: [channelId], references: [id])
-  messages   SocialMessage[]
-  notes      ConversationNote[]
-  resolvedBy TeamMember?        @relation("ConversationResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  account                Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project                Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  channel                Channel            @relation(fields: [channelId], references: [id])
+  messages               SocialMessage[]
+  notes                  ConversationNote[]
+  resolvedBy             TeamMember?        @relation("ConversationResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedByCustomerUser CustomerUser?      @relation("CustomerConversationResolver", fields: [resolvedByCustomerUserId], references: [id], onDelete: SetNull)
 
   @@index([accountId, projectId, isResolved])
   @@index([channelId, provider])
   @@index([lastMessageAt])
+  @@index([resolvedByCustomerUserId])
 }
 
 model ConversationNote {
-  id             String    @id @default(cuid())
-  conversationId String
-  authorId       String
-  body           String    @db.Text
-  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt      DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt      DateTime? @db.Timestamptz(6)
+  id                   String    @id @default(cuid())
+  conversationId       String
+  authorId             String // DEPRECATED — replaced by authorCustomerUserId. Dropped in Migration 3.
+  authorCustomerUserId String? // Backfilled in Migration 2; NOT NULL in Migration 3.
+  body                 String    @db.Text
+  createdAt            DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt            DateTime? @db.Timestamptz(6)
 
-  conversation SocialConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  author       TeamMember         @relation("NoteAuthor", fields: [authorId], references: [id])
+  conversation       SocialConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author             TeamMember         @relation("NoteAuthor", fields: [authorId], references: [id])
+  authorCustomerUser CustomerUser?      @relation("CustomerNoteAuthor", fields: [authorCustomerUserId], references: [id])
 
   @@index([conversationId], where: { deletedAt: null })
   @@index([authorId], where: { deletedAt: null })
+  @@index([authorCustomerUserId], where: { deletedAt: null })
 }
 
 model SocialOutboundReply {
-  id              String              @id @default(uuid())
-  socialMessageId String
-  authorId        String
-  body            String
-  providerReplyId String?
-  status          OutboundReplyStatus @default(PENDING)
-  errorMessage    String?
-  sentAt          DateTime?           @db.Timestamptz(6)
-  createdAt       DateTime            @default(now()) @db.Timestamptz(6)
-  updatedAt       DateTime            @updatedAt @db.Timestamptz(6)
+  id                   String              @id @default(uuid())
+  socialMessageId      String
+  authorId             String // DEPRECATED — replaced by authorCustomerUserId. Dropped in Migration 3.
+  authorCustomerUserId String? // Backfilled in Migration 2; NOT NULL in Migration 3.
+  body                 String
+  providerReplyId      String?
+  status               OutboundReplyStatus @default(PENDING)
+  errorMessage         String?
+  sentAt               DateTime?           @db.Timestamptz(6)
+  createdAt            DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime            @updatedAt @db.Timestamptz(6)
 
-  socialMessage SocialMessage @relation(fields: [socialMessageId], references: [id], onDelete: Cascade)
-  author        TeamMember    @relation(fields: [authorId], references: [id])
+  socialMessage      SocialMessage @relation(fields: [socialMessageId], references: [id], onDelete: Cascade)
+  author             TeamMember    @relation(fields: [authorId], references: [id])
+  authorCustomerUser CustomerUser? @relation(fields: [authorCustomerUserId], references: [id])
 
   @@index([socialMessageId])
   @@index([authorId])
+  @@index([authorCustomerUserId])
   @@index([status])
 }
 
@@ -2335,9 +2430,9 @@ model ScheduledReport {
 // =============================================
 
 model ExternalNotificationConfig {
-  id        String @id @default(uuid())
-  projectId String
-  channel   String // "slack" | "teams"
+  id                   String   @id @default(uuid())
+  projectId            String
+  channel              String // "slack" | "teams"
   // Webhook URLs frequently embed bearer tokens (Slack incoming-webhook tokens,
   // Teams connector tokens). Wrapped via EncryptionService — plaintext only
   // exists in-memory at notification dispatch time.
@@ -2565,10 +2660,10 @@ model SamlSession {
 }
 
 model OidcConfiguration {
-  id        String @id @default(cuid())
-  accountId String @unique
-  issuerUrl String
-  clientId  String
+  id                     String   @id @default(cuid())
+  accountId              String   @unique
+  issuerUrl              String
+  clientId               String
   // OIDC client secret — wrapped via EncryptionService (AES-256-GCM).
   // Plaintext never persisted; the OAuth handshake decrypts on demand.
   clientSecretCiphertext String
@@ -2597,33 +2692,36 @@ enum ReportChartType {
 }
 
 model CustomReport {
-  id             String          @id @default(cuid())
-  accountId      String
-  projectId      String?
-  name           String
-  description    String?
-  metrics        String[]
-  dimensions     String[]
-  dateRange      String          @default("LAST_30_DAYS")
-  dateRangeStart DateTime?       @db.Timestamptz(6)
-  dateRangeEnd   DateTime?       @db.Timestamptz(6)
-  chartType      ReportChartType @default(LINE)
-  filters        Json?
-  isShared       Boolean         @default(false)
-  shareToken     String?         @unique
-  shareEnabled   Boolean         @default(false)
-  shareExpiresAt DateTime?       @db.Timestamptz(6)
-  createdById    String
-  createdAt      DateTime        @default(now()) @db.Timestamptz(6)
-  updatedAt      DateTime        @updatedAt @db.Timestamptz(6)
+  id                      String          @id @default(cuid())
+  accountId               String
+  projectId               String?
+  name                    String
+  description             String?
+  metrics                 String[]
+  dimensions              String[]
+  dateRange               String          @default("LAST_30_DAYS")
+  dateRangeStart          DateTime?       @db.Timestamptz(6)
+  dateRangeEnd            DateTime?       @db.Timestamptz(6)
+  chartType               ReportChartType @default(LINE)
+  filters                 Json?
+  isShared                Boolean         @default(false)
+  shareToken              String?         @unique
+  shareEnabled            Boolean         @default(false)
+  shareExpiresAt          DateTime?       @db.Timestamptz(6)
+  createdById             String // DEPRECATED — replaced by createdByCustomerUserId. Dropped in Migration 3.
+  createdByCustomerUserId String? // Backfilled in Migration 2; NOT NULL in Migration 3.
+  createdAt               DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt               DateTime        @updatedAt @db.Timestamptz(6)
 
-  schedules ReportSchedule[]
-  account   Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  project   Project?         @relation("CustomReportProject", fields: [projectId], references: [id])
-  createdBy TeamMember       @relation("CustomReportCreator", fields: [createdById], references: [id])
+  schedules             ReportSchedule[]
+  account               Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project               Project?         @relation("CustomReportProject", fields: [projectId], references: [id])
+  createdBy             TeamMember       @relation("CustomReportCreator", fields: [createdById], references: [id])
+  createdByCustomerUser CustomerUser?    @relation("CustomerCustomReportCreator", fields: [createdByCustomerUserId], references: [id])
 
   @@index([accountId])
   @@index([createdById])
+  @@index([createdByCustomerUserId])
 }
 
 model ReportSchedule {
