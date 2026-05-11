@@ -86,7 +86,7 @@ class CommentRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request body");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -129,7 +129,7 @@ class CommentRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid query parameters");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -172,7 +172,7 @@ class CommentRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request body");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -207,20 +207,15 @@ class CommentRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid comment ID");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
 
-    // Determine admin status from user role
-    const isAdmin = user.role === "SUPER_ADMIN" || user.role === "ADMIN";
-    const deleteBody = (request.body ?? {}) as { deleterId?: string };
-    const deleterId = deleteBody.deleterId ?? user.id;
-
     const result = await this.deleteUseCase.execute({
       commentId: paramsValidation.value.params.id,
-      deleterId,
-      isAdmin,
+      deleterId: user.id,
+      isAdmin: false,
     });
 
     if (!result.ok) {

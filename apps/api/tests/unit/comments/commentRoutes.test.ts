@@ -91,6 +91,7 @@ const { AuthService, setRedisInstance } = await import("../../../src/auth/authSe
 const { MfaService } = await import("../../../src/auth/mfaService.js");
 const { PrismaAdminUserRepository } =
   await import("../../../src/infrastructure/repositories/PrismaAdminUserRepository.js");
+const { signCustomerAccessToken } = await import("../../../src/auth/customerJwt.js");
 
 setRedisInstance(null as never);
 
@@ -380,22 +381,44 @@ describe("commentRoutes Integration Tests", () => {
 
   describe("DELETE /comments/:id", () => {
     let deletableCommentId: string;
+    let foreignCommentId: string;
+    let authorToken: string;
+    let strangerToken: string;
 
     beforeAll(async () => {
-      // Create a comment to delete
-      const createResponse = await app.inject({
+      // Mint customer tokens for the author and for an unrelated user.
+      // Moderation does not exist yet: only the comment author can delete.
+      authorToken = signCustomerAccessToken({
+        sub: testMemberId,
+        accountId: "test-account",
+        roleId: "role-member",
+        roleName: "MEMBER",
+        permissions: [],
+      });
+      strangerToken = signCustomerAccessToken({
+        sub: "stranger-user-id",
+        accountId: "test-account",
+        roleId: "role-owner",
+        roleName: "OWNER",
+        permissions: [],
+      });
+
+      // Create two comments authored by testMemberId
+      const createDeletable = await app.inject({
         method: "POST",
         url: `/posts/${testPostId}/comments`,
         headers: { authorization: `Bearer ${adminToken}` },
-        payload: {
-          authorId: testMemberId,
-          body: "Comment to be deleted",
-        },
+        payload: { authorId: testMemberId, body: "Comment to be deleted by author" },
       });
+      deletableCommentId = JSON.parse(createDeletable.body).data.id;
 
-      const createBody = JSON.parse(createResponse.body);
-      expect(createBody.data?.id).toBeTruthy();
-      deletableCommentId = createBody.data.id;
+      const createForeign = await app.inject({
+        method: "POST",
+        url: `/posts/${testPostId}/comments`,
+        headers: { authorization: `Bearer ${adminToken}` },
+        payload: { authorId: testMemberId, body: "Comment a stranger cannot delete" },
+      });
+      foreignCommentId = JSON.parse(createForeign.body).data.id;
     });
 
     it("returns 401 without auth token", async () => {
@@ -406,17 +429,29 @@ describe("commentRoutes Integration Tests", () => {
       expect(response.statusCode).toBe(401);
     });
 
-    it("soft deletes comment successfully", async () => {
+    it("soft deletes own comment when caller is the author", async () => {
       const response = await app.inject({
         method: "DELETE",
         url: `/comments/${deletableCommentId}`,
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${authorToken}` },
       });
 
       const parsed = JSON.parse(response.body);
       expect(response.statusCode).toBe(200);
       expect(parsed.ok).toBe(true);
       expect(parsed.data?.deleted).toBe(true);
+    });
+
+    it("rejects delete when caller is not the comment author", async () => {
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/comments/${foreignCommentId}`,
+        headers: { authorization: `Bearer ${strangerToken}` },
+      });
+
+      expect(response.statusCode).toBe(403);
+      const parsed = JSON.parse(response.body);
+      expect(parsed.ok).toBe(false);
     });
   });
 });
