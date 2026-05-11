@@ -42,9 +42,11 @@ export interface RecurringPostDetailDTO {
  * @class GetRecurringPostQuery
  * @description Retrieves a single recurring post by its ID, returning a detailed DTO.
  */
-export class GetRecurringPostQuery
-  implements UseCase<GetRecurringPostParams, RecurringPostDetailDTO | null, UseCaseError>
-{
+export class GetRecurringPostQuery implements UseCase<
+  GetRecurringPostParams,
+  RecurringPostDetailDTO | null,
+  UseCaseError
+> {
   constructor(private readonly recurringPostRepo: RecurringPostRepository) {}
 
   /**

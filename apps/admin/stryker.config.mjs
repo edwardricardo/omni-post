@@ -1,45 +1,45 @@
-import rootConfig from '../../stryker.config.mjs'
+import rootConfig from "../../stryker.config.mjs";
 
 /** @type {import('@stryker-mutator/core').PartialStrykerOptions} */
 export default {
   ...rootConfig,
-  incrementalFile: 'reports/stryker-incremental.json',
+  incrementalFile: "reports/stryker-incremental.json",
   htmlReporter: {
-    fileName: 'reports/mutation/index.html',
+    fileName: "reports/mutation/index.html",
   },
   vitest: {
-    configFile: 'vitest.config.ts',
+    configFile: "vitest.config.ts",
   },
-  coverageAnalysis: 'perTest',
+  coverageAnalysis: "perTest",
   checkers: [],
-  plugins: ['@stryker-mutator/vitest-runner'],
+  plugins: ["@stryker-mutator/vitest-runner"],
   concurrency: 4,
   mutate: [
     // Business logic — non-presentational
-    'lib/**/*.ts',
-    'lib/**/*.tsx',
-    '!lib/**/*.test.ts',
-    '!lib/**/*.test.tsx',
-    '!lib/**/*.spec.ts',
+    "lib/**/*.ts",
+    "lib/**/*.tsx",
+    "!lib/**/*.test.ts",
+    "!lib/**/*.test.tsx",
+    "!lib/**/*.spec.ts",
 
     // Hooks with logic
-    'hooks/**/*.ts',
-    'hooks/**/*.tsx',
-    '!hooks/**/*.test.ts',
-    '!hooks/**/*.test.tsx',
+    "hooks/**/*.ts",
+    "hooks/**/*.tsx",
+    "!hooks/**/*.test.ts",
+    "!hooks/**/*.test.tsx",
 
     // Utility functions
-    'components/**/*.ts',
-    '!components/**/*.test.ts',
-    '!components/**/*.stories.tsx',
+    "components/**/*.ts",
+    "!components/**/*.test.ts",
+    "!components/**/*.stories.tsx",
 
     // Exclude presentational-only files
-    '!**/*.css',
-    '!**/*.svg',
+    "!**/*.css",
+    "!**/*.svg",
   ],
   thresholds: {
     high: 80,
     low: 60,
     break: 71,
   },
-}
+};

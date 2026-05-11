@@ -34,9 +34,11 @@ export interface FirstCommentDTO {
  * @class GetFirstCommentQuery
  * @description Retrieves the first comment for a given post, returning a DTO.
  */
-export class GetFirstCommentQuery
-  implements UseCase<GetFirstCommentQueryParams, FirstCommentDTO | null, UseCaseError>
-{
+export class GetFirstCommentQuery implements UseCase<
+  GetFirstCommentQueryParams,
+  FirstCommentDTO | null,
+  UseCaseError
+> {
   constructor(private readonly firstCommentRepo: FirstCommentRepository) {}
 
   /**

@@ -27,9 +27,11 @@ export interface GetConversationInput {
  *   entity to a flat DTO for the read side. Returns NOT_FOUND if the
  *   conversation does not exist.
  */
-export class GetConversationQuery
-  implements UseCase<GetConversationInput, SocialConversationDTO, UseCaseError>
-{
+export class GetConversationQuery implements UseCase<
+  GetConversationInput,
+  SocialConversationDTO,
+  UseCaseError
+> {
   constructor(private readonly conversationRepo: SocialConversationRepository) {}
 
   /**

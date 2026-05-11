@@ -24,9 +24,11 @@ export interface GetCampaignInput {
  * @description Fetches a single campaign with its post count statistics.
  *   Returns null wrapped in Result if the campaign does not exist.
  */
-export class GetCampaignQuery
-  implements UseCase<GetCampaignInput, CampaignWithStats | null, UseCaseError>
-{
+export class GetCampaignQuery implements UseCase<
+  GetCampaignInput,
+  CampaignWithStats | null,
+  UseCaseError
+> {
   constructor(private readonly campaignQueryRepository: CampaignQueryRepository) {}
 
   /**

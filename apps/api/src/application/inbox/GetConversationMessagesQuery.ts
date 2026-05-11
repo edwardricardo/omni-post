@@ -29,10 +29,11 @@ export interface GetConversationMessagesInput {
  *   providerCreatedAt, with cursor-based pagination. Delegates directly to
  *   the read-model query repository.
  */
-export class GetConversationMessagesQuery
-  implements
-    UseCase<GetConversationMessagesInput, CursorPaginatedResult<SocialMessageDTO>, UseCaseError>
-{
+export class GetConversationMessagesQuery implements UseCase<
+  GetConversationMessagesInput,
+  CursorPaginatedResult<SocialMessageDTO>,
+  UseCaseError
+> {
   constructor(private readonly queryRepo: SocialMessageQueryRepository) {}
 
   /**

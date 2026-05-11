@@ -32,9 +32,11 @@ export interface TeamMemberDTO {
  * @class GetTeamMembersQuery
  * @description Retrieves all team members for an account, mapped to read-side DTOs.
  */
-export class GetTeamMembersQuery
-  implements UseCase<GetTeamMembersInput, TeamMemberDTO[], UseCaseError>
-{
+export class GetTeamMembersQuery implements UseCase<
+  GetTeamMembersInput,
+  TeamMemberDTO[],
+  UseCaseError
+> {
   constructor(private readonly repository: TeamMemberRepository) {}
 
   /**

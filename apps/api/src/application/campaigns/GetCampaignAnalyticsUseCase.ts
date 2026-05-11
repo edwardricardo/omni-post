@@ -26,9 +26,11 @@ export interface GetCampaignAnalyticsInput {
  *   associated post IDs, batch-loading their analytics records, and computing
  *   engagement metrics via the analytics repository's aggregation method.
  */
-export class GetCampaignAnalyticsUseCase
-  implements UseCase<GetCampaignAnalyticsInput, CampaignAnalyticsOutput, UseCaseError>
-{
+export class GetCampaignAnalyticsUseCase implements UseCase<
+  GetCampaignAnalyticsInput,
+  CampaignAnalyticsOutput,
+  UseCaseError
+> {
   constructor(
     private readonly campaignQueryRepository: CampaignQueryRepository,
     private readonly analyticsReadRepository: AnalyticsReadRepositoryPort

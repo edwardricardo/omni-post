@@ -22,9 +22,11 @@ export interface GetUnreadInboxCountInput {
  * @description Returns the number of unread messages in the Social Inbox for
  *   a given account, optionally filtered by project.
  */
-export class GetUnreadInboxCountQuery
-  implements UseCase<GetUnreadInboxCountInput, { count: number }, UseCaseError>
-{
+export class GetUnreadInboxCountQuery implements UseCase<
+  GetUnreadInboxCountInput,
+  { count: number },
+  UseCaseError
+> {
   constructor(private readonly queryRepo: SocialMessageQueryRepository) {}
 
   /**

@@ -52,9 +52,11 @@ export interface NotificationListDTO {
  * @description Retrieves notifications for a recipient, mapped to read-side DTOs
  *   with cursor-based pagination support.
  */
-export class GetNotificationsQuery
-  implements UseCase<GetNotificationsInput, NotificationListDTO, UseCaseError>
-{
+export class GetNotificationsQuery implements UseCase<
+  GetNotificationsInput,
+  NotificationListDTO,
+  UseCaseError
+> {
   constructor(private readonly repository: NotificationRepository) {}
 
   /**

@@ -17,9 +17,11 @@ import { type ListScheduledReportsInput } from "./types.js";
  * @class ListScheduledReportsQuery
  * @description Fetches all scheduled reports for a given project.
  */
-export class ListScheduledReportsQuery
-  implements UseCase<ListScheduledReportsInput, ScheduledReportDto[], UseCaseError>
-{
+export class ListScheduledReportsQuery implements UseCase<
+  ListScheduledReportsInput,
+  ScheduledReportDto[],
+  UseCaseError
+> {
   constructor(private readonly reportRepository: ScheduledReportRepository) {}
 
   /**

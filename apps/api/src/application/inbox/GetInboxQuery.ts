@@ -39,9 +39,11 @@ export interface GetInboxInput {
  *   and optional filters. Validates filter value objects before delegating to the
  *   read-model query repository.
  */
-export class GetInboxQuery
-  implements UseCase<GetInboxInput, CursorPaginatedResult<SocialMessageDTO>, UseCaseError>
-{
+export class GetInboxQuery implements UseCase<
+  GetInboxInput,
+  CursorPaginatedResult<SocialMessageDTO>,
+  UseCaseError
+> {
   constructor(private readonly queryRepo: SocialMessageQueryRepository) {}
 
   /**

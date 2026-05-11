@@ -21,9 +21,11 @@ export interface TestExternalNotificationInput {
  * @class TestExternalNotificationUseCase
  * @description Sends a test notification through a configured webhook.
  */
-export class TestExternalNotificationUseCase
-  implements UseCase<TestExternalNotificationInput, { delivered: boolean }, UseCaseError>
-{
+export class TestExternalNotificationUseCase implements UseCase<
+  TestExternalNotificationInput,
+  { delivered: boolean },
+  UseCaseError
+> {
   constructor(
     private readonly repository: ExternalNotificationConfigRepository,
     private readonly notifier: ExternalNotifierPort

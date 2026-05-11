@@ -17,9 +17,11 @@ export interface GetBrandVoiceInput {
 
 export type GetBrandVoiceOutput = BrandVoiceData | null;
 
-export class GetBrandVoiceQuery
-  implements UseCase<GetBrandVoiceInput, GetBrandVoiceOutput, UseCaseError>
-{
+export class GetBrandVoiceQuery implements UseCase<
+  GetBrandVoiceInput,
+  GetBrandVoiceOutput,
+  UseCaseError
+> {
   constructor(private readonly repository: BrandVoiceRepository) {}
 
   /**

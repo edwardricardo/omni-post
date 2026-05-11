@@ -27,9 +27,11 @@ export interface ListCampaignsInput {
  * @description Fetches campaigns for a project with optional status filtering
  *   and offset-based pagination. Reads directly from the query repository.
  */
-export class ListCampaignsQuery
-  implements UseCase<ListCampaignsInput, CampaignDto[], UseCaseError>
-{
+export class ListCampaignsQuery implements UseCase<
+  ListCampaignsInput,
+  CampaignDto[],
+  UseCaseError
+> {
   constructor(private readonly campaignQueryRepository: CampaignQueryRepository) {}
 
   /**
