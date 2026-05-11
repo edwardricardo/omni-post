@@ -43,7 +43,6 @@ model Account {
   webhookSubscriptions     WebhookSubscription[]
   templates                Template[]
   deletedAt                DateTime?                 @db.Timestamptz(6)
-  teamMembers              TeamMember[]
   socialMessages           SocialMessage[]
   socialConversations      SocialConversation[]
   aiPromptTemplates        AIPromptTemplate[]
@@ -303,41 +302,6 @@ model AdminRoleHistory {
   @@index([effectiveFrom, effectiveUntil])
 }
 
-model TeamMember {
-  id                String    @id @default(uuid())
-  accountId         String
-  email             String
-  name              String
-  role              TeamRole  @default(MEMBER)
-  isActive          Boolean   @default(true)
-  invitedBy         String?
-  inviteToken       String?   @unique
-  inviteTokenExpiry DateTime? @db.Timestamptz(6)
-  joinedAt          DateTime  @default(now()) @db.Timestamptz(6)
-  createdAt         DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt         DateTime  @updatedAt @db.Timestamptz(6)
-
-  account                  Account                  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  projectMemberships       ProjectMember[]
-  notifications            Notification[]
-  submittedApprovals       ApprovalRequest[]        @relation("ApprovalSubmitter")
-  reviews                  ApprovalReview[]
-  comments                 PostComment[]
-  assignedMessages         SocialMessage[]          @relation("MessageAssignee")
-  outboundReplies          SocialOutboundReply[]
-  resolvedConversations    SocialConversation[]     @relation("ConversationResolver")
-  conversationNotes        ConversationNote[]       @relation("NoteAuthor")
-  assignedTasks            Task[]                   @relation("TaskAssignee")
-  createdTasks             Task[]                   @relation("TaskCreator")
-  notificationPreferences  NotificationPreference[]
-  approvalLevelAssignments ApprovalWorkflowLevel[]
-  customReportsCreated     CustomReport[]           @relation("CustomReportCreator")
-
-  @@unique([accountId, email])
-  @@index([accountId, isActive])
-  @@index([email])
-}
-
 model CustomerUser {
   id                String    @id @default(uuid())
   accountId         String
@@ -345,7 +309,6 @@ model CustomerUser {
   passwordHash      String
   firstName         String
   lastName          String
-  role              TeamRole  @default(MEMBER)
   roleId            String?
   isActive          Boolean   @default(true)
   isEmailVerified   Boolean   @default(false)
@@ -368,20 +331,20 @@ model CustomerUser {
   account      Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
   customerRole CustomerRole? @relation(fields: [roleId], references: [id])
 
-  customerProjectMemberships    ProjectMember[]
-  customerNotifications         Notification[]
-  customerNotificationPrefs     NotificationPreference[]
-  customerApprovalAssignments   ApprovalWorkflowLevel[]
-  customerSubmittedApprovals    ApprovalRequest[]        @relation("CustomerApprovalSubmitter")
-  customerReviewedApprovals     ApprovalReview[]         @relation("CustomerApprovalReviewer")
-  customerAssignedTasks         Task[]                   @relation("CustomerTaskAssignee")
-  customerCreatedTasks          Task[]                   @relation("CustomerTaskCreator")
-  customerComments              PostComment[]
-  customerAssignedMessages      SocialMessage[]          @relation("CustomerMessageAssignee")
-  customerResolvedConversations SocialConversation[]     @relation("CustomerConversationResolver")
-  customerConversationNotes     ConversationNote[]       @relation("CustomerNoteAuthor")
-  customerOutboundReplies       SocialOutboundReply[]
-  customerCreatedReports        CustomReport[]           @relation("CustomerCustomReportCreator")
+  projectMemberships       ProjectMember[]
+  notifications            Notification[]
+  notificationPreferences  NotificationPreference[]
+  approvalLevelAssignments ApprovalWorkflowLevel[]
+  submittedApprovals       ApprovalRequest[]
+  reviews                  ApprovalReview[]
+  assignedTasks            Task[]                   @relation("TaskAssignee")
+  createdTasks             Task[]                   @relation("TaskCreator")
+  comments                 PostComment[]
+  assignedMessages         SocialMessage[]
+  resolvedConversations    SocialConversation[]
+  conversationNotes        ConversationNote[]
+  outboundReplies          SocialOutboundReply[]
+  customReportsCreated     CustomReport[]
 
   @@unique([accountId, email])
   @@index([accountId], where: { deletedAt: null })
@@ -390,66 +353,50 @@ model CustomerUser {
 }
 
 model ProjectMember {
-  id             String   @id @default(uuid())
-  projectId      String
-  memberId       String
-  customerUserId String?
-  permissions    String[] @default(["READ", "WRITE"])
-  assignedAt     DateTime @default(now()) @db.Timestamptz(6)
+  id          String   @id @default(uuid())
+  projectId   String
+  memberId    String
+  permissions String[] @default(["READ", "WRITE"])
+  assignedAt  DateTime @default(now()) @db.Timestamptz(6)
 
-  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  member       TeamMember    @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  customerUser CustomerUser? @relation(fields: [customerUserId], references: [id], onDelete: Cascade)
+  project Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  member  CustomerUser @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, memberId])
   @@index([memberId])
-  @@index([customerUserId])
-}
-
-enum TeamRole {
-  OWNER
-  MANAGER
-  MEMBER
-  VIEWER
 }
 
 model Notification {
-  id                      String           @id @default(uuid())
-  recipientId             String
-  recipientCustomerUserId String?
-  type                    NotificationType
-  title                   String
-  body                    String
-  resourceType            String?
-  resourceId              String?
-  actorId                 String?
-  actorName               String?
-  isRead                  Boolean          @default(false)
-  readAt                  DateTime?        @db.Timestamptz(6)
-  metadata                Json?
-  createdAt               DateTime         @default(now()) @db.Timestamptz(6)
+  id           String           @id @default(uuid())
+  recipientId  String
+  type         NotificationType
+  title        String
+  body         String
+  resourceType String?
+  resourceId   String?
+  actorId      String?
+  actorName    String?
+  isRead       Boolean          @default(false)
+  readAt       DateTime?        @db.Timestamptz(6)
+  metadata     Json?
+  createdAt    DateTime         @default(now()) @db.Timestamptz(6)
 
-  recipient             TeamMember    @relation(fields: [recipientId], references: [id], onDelete: Cascade)
-  recipientCustomerUser CustomerUser? @relation(fields: [recipientCustomerUserId], references: [id], onDelete: Cascade)
+  recipient CustomerUser @relation(fields: [recipientId], references: [id], onDelete: Cascade)
 
   @@index([recipientId, isRead, createdAt])
   @@index([recipientId, createdAt])
-  @@index([recipientCustomerUserId])
 }
 
 model NotificationPreference {
-  id             String           @id @default(uuid())
-  memberId       String
-  customerUserId String?
-  type           NotificationType
-  enabled        Boolean          @default(true)
-  updatedAt      DateTime         @updatedAt @db.Timestamptz(6)
+  id        String           @id @default(uuid())
+  memberId  String
+  type      NotificationType
+  enabled   Boolean          @default(true)
+  updatedAt DateTime         @updatedAt @db.Timestamptz(6)
 
-  member       TeamMember    @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  customerUser CustomerUser? @relation(fields: [customerUserId], references: [id], onDelete: Cascade)
+  member CustomerUser @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@unique([memberId, type])
-  @@index([customerUserId])
 }
 
 enum NotificationType {
@@ -483,66 +430,57 @@ model ApprovalWorkflow {
 }
 
 model ApprovalWorkflowLevel {
-  id                     String   @id @default(cuid())
-  workflowId             String
-  order                  Int
-  role                   String?
-  assigneeId             String?
-  assigneeCustomerUserId String?
-  requireAll             Boolean  @default(false)
-  createdAt              DateTime @default(now()) @db.Timestamptz(6)
+  id         String   @id @default(cuid())
+  workflowId String
+  order      Int
+  role       String?
+  assigneeId String?
+  requireAll Boolean  @default(false)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
 
-  workflow             ApprovalWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  assignee             TeamMember?      @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
-  assigneeCustomerUser CustomerUser?    @relation(fields: [assigneeCustomerUserId], references: [id], onDelete: SetNull)
+  workflow ApprovalWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  assignee CustomerUser?    @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
 
   @@unique([workflowId, order])
   @@index([workflowId])
-  @@index([assigneeCustomerUserId])
 }
 
 model ApprovalRequest {
-  id                      String         @id @default(uuid())
-  postId                  String
-  submitterId             String
-  submitterCustomerUserId String?
-  workflowId              String?
-  currentLevel            Int            @default(1)
-  totalLevels             Int            @default(1)
-  status                  ApprovalStatus @default(PENDING)
-  comment                 String?
-  createdAt               DateTime       @default(now()) @db.Timestamptz(6)
-  updatedAt               DateTime       @updatedAt @db.Timestamptz(6)
+  id           String         @id @default(uuid())
+  postId       String
+  submitterId  String
+  workflowId   String?
+  currentLevel Int            @default(1)
+  totalLevels  Int            @default(1)
+  status       ApprovalStatus @default(PENDING)
+  comment      String?
+  createdAt    DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime       @updatedAt @db.Timestamptz(6)
 
-  post                  Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
-  submitter             TeamMember        @relation("ApprovalSubmitter", fields: [submitterId], references: [id])
-  submitterCustomerUser CustomerUser?     @relation("CustomerApprovalSubmitter", fields: [submitterCustomerUserId], references: [id])
-  workflow              ApprovalWorkflow? @relation(fields: [workflowId], references: [id])
-  reviews               ApprovalReview[]
+  post      Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
+  submitter CustomerUser      @relation(fields: [submitterId], references: [id])
+  workflow  ApprovalWorkflow? @relation(fields: [workflowId], references: [id])
+  reviews   ApprovalReview[]
 
   @@index([postId, status])
   @@index([submitterId, createdAt])
   @@index([workflowId])
-  @@index([submitterCustomerUserId])
 }
 
 model ApprovalReview {
-  id                     String         @id @default(uuid())
-  requestId              String
-  reviewerId             String
-  reviewerCustomerUserId String?
-  decision               ReviewDecision
-  comment                String?
-  level                  Int            @default(1)
-  reviewedAt             DateTime       @default(now()) @db.Timestamptz(6)
+  id         String         @id @default(uuid())
+  requestId  String
+  reviewerId String
+  decision   ReviewDecision
+  comment    String?
+  level      Int            @default(1)
+  reviewedAt DateTime       @default(now()) @db.Timestamptz(6)
 
-  request              ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  reviewer             TeamMember      @relation(fields: [reviewerId], references: [id])
-  reviewerCustomerUser CustomerUser?   @relation("CustomerApprovalReviewer", fields: [reviewerCustomerUserId], references: [id])
+  request  ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  reviewer CustomerUser    @relation(fields: [reviewerId], references: [id])
 
   @@index([requestId])
   @@index([reviewerId])
-  @@index([reviewerCustomerUserId])
 }
 
 enum TaskStatus {
@@ -560,64 +498,55 @@ enum TaskPriority {
 }
 
 model Task {
-  id                      String       @id @default(cuid())
-  accountId               String
-  projectId               String?
-  title                   String
-  description             String?      @db.Text
-  status                  TaskStatus   @default(OPEN)
-  priority                TaskPriority @default(MEDIUM)
-  assigneeId              String?
-  assigneeCustomerUserId  String?
-  createdById             String
-  createdByCustomerUserId String?
-  dueDate                 DateTime?    @db.Timestamptz(6)
-  completedAt             DateTime?    @db.Timestamptz(6)
-  createdAt               DateTime     @default(now()) @db.Timestamptz(6)
-  updatedAt               DateTime     @updatedAt @db.Timestamptz(6)
-  deletedAt               DateTime?    @db.Timestamptz(6)
-  postId                  String?
+  id          String       @id @default(cuid())
+  accountId   String
+  projectId   String?
+  title       String
+  description String?      @db.Text
+  status      TaskStatus   @default(OPEN)
+  priority    TaskPriority @default(MEDIUM)
+  assigneeId  String?
+  createdById String
+  dueDate     DateTime?    @db.Timestamptz(6)
+  completedAt DateTime?    @db.Timestamptz(6)
+  createdAt   DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime     @updatedAt @db.Timestamptz(6)
+  deletedAt   DateTime?    @db.Timestamptz(6)
+  postId      String?
 
-  account               Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  project               Project?      @relation(fields: [projectId], references: [id])
-  assignee              TeamMember?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  assigneeCustomerUser  CustomerUser? @relation("CustomerTaskAssignee", fields: [assigneeCustomerUserId], references: [id])
-  createdBy             TeamMember    @relation("TaskCreator", fields: [createdById], references: [id])
-  createdByCustomerUser CustomerUser? @relation("CustomerTaskCreator", fields: [createdByCustomerUserId], references: [id])
-  post                  Post?         @relation(fields: [postId], references: [id], onDelete: SetNull)
+  account   Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project   Project?      @relation(fields: [projectId], references: [id])
+  assignee  CustomerUser? @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  createdBy CustomerUser  @relation("TaskCreator", fields: [createdById], references: [id])
+  post      Post?         @relation(fields: [postId], references: [id], onDelete: SetNull)
 
   @@index([accountId], where: { deletedAt: null })
   @@index([assigneeId], where: { deletedAt: null })
   @@index([status], where: { deletedAt: null })
   @@index([createdById], where: { deletedAt: null })
-  @@index([assigneeCustomerUserId], where: { deletedAt: null })
-  @@index([createdByCustomerUserId], where: { deletedAt: null })
 }
 
 model PostComment {
-  id                   String    @id @default(uuid())
-  postId               String
-  authorId             String
-  authorCustomerUserId String?
-  parentId             String?
-  body                 String
-  mentions             String[]  @default([])
-  isEdited             Boolean   @default(false)
-  editedAt             DateTime? @db.Timestamptz(6)
-  deletedAt            DateTime? @db.Timestamptz(6)
-  createdAt            DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt            DateTime  @updatedAt @db.Timestamptz(6)
+  id        String    @id @default(uuid())
+  postId    String
+  authorId  String
+  parentId  String?
+  body      String
+  mentions  String[]  @default([])
+  isEdited  Boolean   @default(false)
+  editedAt  DateTime? @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
 
-  post               Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author             TeamMember    @relation(fields: [authorId], references: [id])
-  authorCustomerUser CustomerUser? @relation(fields: [authorCustomerUserId], references: [id])
-  parent             PostComment?  @relation("CommentReplies", fields: [parentId], references: [id])
-  replies            PostComment[] @relation("CommentReplies")
+  post    Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author  CustomerUser  @relation(fields: [authorId], references: [id])
+  parent  PostComment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies PostComment[] @relation("CommentReplies")
 
   @@index([postId, deletedAt, createdAt])
   @@index([parentId], where: { deletedAt: null })
   @@index([authorId], where: { deletedAt: null })
-  @@index([authorCustomerUserId], where: { deletedAt: null })
 }
 
 enum ApprovalStatus {
@@ -2191,127 +2120,115 @@ enum OutboundReplyStatus {
 }
 
 model SocialMessage {
-  id                     String              @id @default(uuid())
-  accountId              String
-  projectId              String
-  channelId              String
-  conversationId         String?
-  provider               Provider
-  providerMessageId      String
-  providerParentId       String?
-  messageType            SocialMessageType
-  authorName             String
-  authorHandle           String?
-  authorAvatarUrl        String?
-  authorProviderId       String
-  body                   String
-  mediaUrls              String[]            @default([])
-  webhookEventId         String?             @unique
-  relatedPostId          String?
-  status                 SocialMessageStatus @default(UNREAD)
-  assigneeId             String?
-  assigneeCustomerUserId String?
-  isArchived             Boolean             @default(false)
-  priority               MessagePriority     @default(NORMAL)
-  suggestedReplies       String[]            @default([])
-  crmContactId           String?
-  aiProcessedAt          DateTime?           @db.Timestamptz(6)
-  sentimentScore         Decimal?            @db.Decimal(3, 2)
-  providerCreatedAt      DateTime            @db.Timestamptz(6)
-  createdAt              DateTime            @default(now()) @db.Timestamptz(6)
-  updatedAt              DateTime            @updatedAt @db.Timestamptz(6)
+  id                String              @id @default(uuid())
+  accountId         String
+  projectId         String
+  channelId         String
+  conversationId    String?
+  provider          Provider
+  providerMessageId String
+  providerParentId  String?
+  messageType       SocialMessageType
+  authorName        String
+  authorHandle      String?
+  authorAvatarUrl   String?
+  authorProviderId  String
+  body              String
+  mediaUrls         String[]            @default([])
+  webhookEventId    String?             @unique
+  relatedPostId     String?
+  status            SocialMessageStatus @default(UNREAD)
+  assigneeId        String?
+  isArchived        Boolean             @default(false)
+  priority          MessagePriority     @default(NORMAL)
+  suggestedReplies  String[]            @default([])
+  crmContactId      String?
+  aiProcessedAt     DateTime?           @db.Timestamptz(6)
+  sentimentScore    Decimal?            @db.Decimal(3, 2)
+  providerCreatedAt DateTime            @db.Timestamptz(6)
+  createdAt         DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime            @updatedAt @db.Timestamptz(6)
 
-  account              Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  project              Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  channel              Channel               @relation(fields: [channelId], references: [id])
-  conversation         SocialConversation?   @relation(fields: [conversationId], references: [id])
-  webhookEvent         WebhookEvent?         @relation(fields: [webhookEventId], references: [id], onDelete: SetNull)
-  relatedPost          Post?                 @relation(fields: [relatedPostId], references: [id], onDelete: SetNull)
-  assignee             TeamMember?           @relation("MessageAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  assigneeCustomerUser CustomerUser?         @relation("CustomerMessageAssignee", fields: [assigneeCustomerUserId], references: [id], onDelete: SetNull)
-  outboundReplies      SocialOutboundReply[]
+  account         Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project         Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  channel         Channel               @relation(fields: [channelId], references: [id])
+  conversation    SocialConversation?   @relation(fields: [conversationId], references: [id])
+  webhookEvent    WebhookEvent?         @relation(fields: [webhookEventId], references: [id], onDelete: SetNull)
+  relatedPost     Post?                 @relation(fields: [relatedPostId], references: [id], onDelete: SetNull)
+  assignee        CustomerUser?         @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  outboundReplies SocialOutboundReply[]
 
   @@unique([provider, providerMessageId])
   @@index([accountId, projectId, status])
   @@index([conversationId])
   @@index([channelId, messageType])
   @@index([assigneeId, status])
-  @@index([assigneeCustomerUserId, status])
   @@index([providerCreatedAt])
   @@index([relatedPostId])
 }
 
 model SocialConversation {
-  id                       String    @id @default(uuid())
-  accountId                String
-  projectId                String
-  channelId                String
-  provider                 Provider
-  subject                  String?
-  participantCount         Int       @default(1)
-  messageCount             Int       @default(0)
-  lastMessageAt            DateTime  @db.Timestamptz(6)
-  isResolved               Boolean   @default(false)
-  resolvedAt               DateTime? @db.Timestamptz(6)
-  resolvedById             String?
-  resolvedByCustomerUserId String?
-  rootProviderMessageId    String?
-  createdAt                DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt                DateTime  @updatedAt @db.Timestamptz(6)
+  id                    String    @id @default(uuid())
+  accountId             String
+  projectId             String
+  channelId             String
+  provider              Provider
+  subject               String?
+  participantCount      Int       @default(1)
+  messageCount          Int       @default(0)
+  lastMessageAt         DateTime  @db.Timestamptz(6)
+  isResolved            Boolean   @default(false)
+  resolvedAt            DateTime? @db.Timestamptz(6)
+  resolvedById          String?
+  rootProviderMessageId String?
+  createdAt             DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime  @updatedAt @db.Timestamptz(6)
 
-  account                Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  project                Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  channel                Channel            @relation(fields: [channelId], references: [id])
-  messages               SocialMessage[]
-  notes                  ConversationNote[]
-  resolvedBy             TeamMember?        @relation("ConversationResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
-  resolvedByCustomerUser CustomerUser?      @relation("CustomerConversationResolver", fields: [resolvedByCustomerUserId], references: [id], onDelete: SetNull)
+  account    Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project    Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  channel    Channel            @relation(fields: [channelId], references: [id])
+  messages   SocialMessage[]
+  notes      ConversationNote[]
+  resolvedBy CustomerUser?      @relation(fields: [resolvedById], references: [id], onDelete: SetNull)
 
   @@index([accountId, projectId, isResolved])
   @@index([channelId, provider])
   @@index([lastMessageAt])
-  @@index([resolvedByCustomerUserId])
 }
 
 model ConversationNote {
-  id                   String    @id @default(cuid())
-  conversationId       String
-  authorId             String
-  authorCustomerUserId String?
-  body                 String    @db.Text
-  createdAt            DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt            DateTime  @updatedAt @db.Timestamptz(6)
-  deletedAt            DateTime? @db.Timestamptz(6)
+  id             String    @id @default(cuid())
+  conversationId String
+  authorId       String
+  body           String    @db.Text
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt      DateTime? @db.Timestamptz(6)
 
-  conversation       SocialConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  author             TeamMember         @relation("NoteAuthor", fields: [authorId], references: [id])
-  authorCustomerUser CustomerUser?      @relation("CustomerNoteAuthor", fields: [authorCustomerUserId], references: [id])
+  conversation SocialConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author       CustomerUser       @relation(fields: [authorId], references: [id])
 
   @@index([conversationId], where: { deletedAt: null })
   @@index([authorId], where: { deletedAt: null })
-  @@index([authorCustomerUserId], where: { deletedAt: null })
 }
 
 model SocialOutboundReply {
-  id                   String              @id @default(uuid())
-  socialMessageId      String
-  authorId             String
-  authorCustomerUserId String?
-  body                 String
-  providerReplyId      String?
-  status               OutboundReplyStatus @default(PENDING)
-  errorMessage         String?
-  sentAt               DateTime?           @db.Timestamptz(6)
-  createdAt            DateTime            @default(now()) @db.Timestamptz(6)
-  updatedAt            DateTime            @updatedAt @db.Timestamptz(6)
+  id              String              @id @default(uuid())
+  socialMessageId String
+  authorId        String
+  body            String
+  providerReplyId String?
+  status          OutboundReplyStatus @default(PENDING)
+  errorMessage    String?
+  sentAt          DateTime?           @db.Timestamptz(6)
+  createdAt       DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime            @updatedAt @db.Timestamptz(6)
 
-  socialMessage      SocialMessage @relation(fields: [socialMessageId], references: [id], onDelete: Cascade)
-  author             TeamMember    @relation(fields: [authorId], references: [id])
-  authorCustomerUser CustomerUser? @relation(fields: [authorCustomerUserId], references: [id])
+  socialMessage SocialMessage @relation(fields: [socialMessageId], references: [id], onDelete: Cascade)
+  author        CustomerUser  @relation(fields: [authorId], references: [id])
 
   @@index([socialMessageId])
   @@index([authorId])
-  @@index([authorCustomerUserId])
   @@index([status])
 }
 
@@ -2689,36 +2606,33 @@ enum ReportChartType {
 }
 
 model CustomReport {
-  id                      String          @id @default(cuid())
-  accountId               String
-  projectId               String?
-  name                    String
-  description             String?
-  metrics                 String[]
-  dimensions              String[]
-  dateRange               String          @default("LAST_30_DAYS")
-  dateRangeStart          DateTime?       @db.Timestamptz(6)
-  dateRangeEnd            DateTime?       @db.Timestamptz(6)
-  chartType               ReportChartType @default(LINE)
-  filters                 Json?
-  isShared                Boolean         @default(false)
-  shareToken              String?         @unique
-  shareEnabled            Boolean         @default(false)
-  shareExpiresAt          DateTime?       @db.Timestamptz(6)
-  createdById             String
-  createdByCustomerUserId String?
-  createdAt               DateTime        @default(now()) @db.Timestamptz(6)
-  updatedAt               DateTime        @updatedAt @db.Timestamptz(6)
+  id             String          @id @default(cuid())
+  accountId      String
+  projectId      String?
+  name           String
+  description    String?
+  metrics        String[]
+  dimensions     String[]
+  dateRange      String          @default("LAST_30_DAYS")
+  dateRangeStart DateTime?       @db.Timestamptz(6)
+  dateRangeEnd   DateTime?       @db.Timestamptz(6)
+  chartType      ReportChartType @default(LINE)
+  filters        Json?
+  isShared       Boolean         @default(false)
+  shareToken     String?         @unique
+  shareEnabled   Boolean         @default(false)
+  shareExpiresAt DateTime?       @db.Timestamptz(6)
+  createdById    String
+  createdAt      DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime        @updatedAt @db.Timestamptz(6)
 
-  schedules             ReportSchedule[]
-  account               Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  project               Project?         @relation("CustomReportProject", fields: [projectId], references: [id])
-  createdBy             TeamMember       @relation("CustomReportCreator", fields: [createdById], references: [id])
-  createdByCustomerUser CustomerUser?    @relation("CustomerCustomReportCreator", fields: [createdByCustomerUserId], references: [id])
+  schedules ReportSchedule[]
+  account   Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project   Project?         @relation("CustomReportProject", fields: [projectId], references: [id])
+  createdBy CustomerUser     @relation(fields: [createdById], references: [id])
 
   @@index([accountId])
   @@index([createdById])
-  @@index([createdByCustomerUserId])
 }
 
 model ReportSchedule {

@@ -24,7 +24,6 @@ interface PrismaCustomerUserRowWithRole {
   passwordHash: string;
   firstName: string;
   lastName: string;
-  role: string; // TeamRole enum mirror of customerRole.name
   roleId: string | null;
   isActive: boolean;
   isEmailVerified: boolean;
@@ -117,17 +116,15 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
   }
 
   async findByProjectId(projectId: string): Promise<CustomerUser[]> {
-    // ProjectMember.customerUserId links Project ↔ CustomerUser.
     const memberships = await this.prisma.projectMember.findMany({
-      where: { projectId, customerUserId: { not: null } },
+      where: { projectId },
       include: {
-        customerUser: { include: CUSTOMER_ROLE_INCLUDE },
+        member: { include: CUSTOMER_ROLE_INCLUDE },
       },
     });
-    return memberships
-      .map((m) => m.customerUser)
-      .filter((u): u is NonNullable<typeof u> => u !== null)
-      .map((u) => this.toDomain(u as unknown as PrismaCustomerUserRowWithRole));
+    return memberships.map((m) =>
+      this.toDomain(m.member as unknown as PrismaCustomerUserRowWithRole)
+    );
   }
 
   async findByInviteToken(token: string): Promise<Result<CustomerUser, DomainError>> {
@@ -259,7 +256,7 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
    */
   private toDomain(row: PrismaCustomerUserRowWithRole): CustomerUser {
     const roleId = row.customerRole?.id ?? row.roleId ?? "";
-    const roleName = row.customerRole?.name ?? row.role;
+    const roleName = row.customerRole?.name ?? "VIEWER";
     const roleLevel = row.customerRole?.level ?? 0;
     const permissions: ReadonlySet<string> = new Set(
       (row.customerRole?.permissions ?? []).map((p) => p.permission)
