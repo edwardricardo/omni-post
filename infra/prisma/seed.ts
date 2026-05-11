@@ -1004,7 +1004,41 @@ async function seedTestAccounts() {
     },
   ];
 
-  for (const acct of testAccounts) {
+  // Canonical Argon2id params — mirror of apps/api/src/auth/passwordHashing.ts
+  // ARGON2_PARAMS. Drift between the two is a bug; keep them in sync. Bumping
+  // here without bumping the helper (or vice-versa) breaks transparent rehash
+  // on login because `needsRehash` compares against the helper's params.
+  const ARGON2_CANON = {
+    type: argon2.argon2id,
+    memoryCost: 65536,
+    timeCost: 3,
+    parallelism: 4,
+    hashLength: 32,
+  } as const;
+  const TEST_CUSTOMER_PASSWORD = "TestPassword123!";
+  // Hash once — every real-password test customer reuses this. Argon2id with
+  // m=64MiB/t=3/p=4 takes ~300ms; doing 50 hashes would add ~15s to seed.
+  const testCustomerHash = await argon2.hash(TEST_CUSTOMER_PASSWORD, ARGON2_CANON);
+
+  type TestUserRole = {
+    suffix: "owner" | "manager" | "member1" | "member2" | "viewer";
+    roleId: string;
+    firstName: string;
+    lastName: string;
+  };
+  const TEST_USERS_PER_ACCOUNT: readonly TestUserRole[] = [
+    { suffix: "owner", roleId: "role-owner", firstName: "Olivia", lastName: "Owner" },
+    { suffix: "manager", roleId: "role-manager", firstName: "Marcus", lastName: "Manager" },
+    { suffix: "member1", roleId: "role-member", firstName: "Mia", lastName: "Member" },
+    { suffix: "member2", roleId: "role-member", firstName: "Max", lastName: "Member" },
+    { suffix: "viewer", roleId: "role-viewer", firstName: "Victor", lastName: "Viewer" },
+  ];
+
+  let totalCustomerUsersCreated = 0;
+  let totalProjectMembersCreated = 0;
+
+  for (let acctIdx = 0; acctIdx < testAccounts.length; acctIdx++) {
+    const acct = testAccounts[acctIdx]!;
     const slug = acct.email.split("@")[0]!;
 
     const account = await prisma.account.upsert({
@@ -1032,6 +1066,69 @@ async function seedTestAccounts() {
         locale: acct.locale,
       },
     });
+
+    // Seed 5 CustomerUsers per test account (1 OWNER + 1 MANAGER + 2 MEMBER +
+    // 1 VIEWER), each wired to the account's project via ProjectMember. Emails
+    // are deterministic (`<slug>-<suffix>@test.omnipost.local`) so smoke tests
+    // can target known credentials. All real users share TEST_CUSTOMER_PASSWORD.
+    for (const u of TEST_USERS_PER_ACCOUNT) {
+      const userId = `cu-${slug}-${u.suffix}`;
+      const userEmail = `${slug}-${u.suffix}@test.omnipost.local`;
+      await prisma.customerUser.upsert({
+        where: { accountId_email: { accountId: account.id, email: userEmail } },
+        update: { roleId: u.roleId, isActive: true, isEmailVerified: true },
+        create: {
+          id: userId,
+          accountId: account.id,
+          email: userEmail,
+          passwordHash: testCustomerHash,
+          firstName: u.firstName,
+          lastName: u.lastName,
+          roleId: u.roleId,
+          isActive: true,
+          isEmailVerified: true,
+          mfaEnabled: false,
+        },
+      });
+      totalCustomerUsersCreated++;
+
+      await prisma.projectMember.upsert({
+        where: { projectId_memberId: { projectId: project.id, memberId: userId } },
+        update: {},
+        create: { projectId: project.id, memberId: userId },
+      });
+      totalProjectMembersCreated++;
+    }
+
+    // On the first test account, also seed one pending-invitation CustomerUser:
+    // passwordHash="" + active inviteToken. Exercises the unification
+    // stub-creation case from the backfill script + the acceptInvitation()
+    // domain path. The account is inactive until the invitee sets a password.
+    if (acctIdx === 0) {
+      const inviteeId = `cu-${slug}-invitee`;
+      const inviteeEmail = `${slug}-invitee@test.omnipost.local`;
+      const inviteToken = randomBytes(32).toString("base64url");
+      const inviteExpiry = daysFromNow(7);
+      await prisma.customerUser.upsert({
+        where: { accountId_email: { accountId: account.id, email: inviteeEmail } },
+        update: { inviteToken, inviteTokenExpiry: inviteExpiry, isActive: false },
+        create: {
+          id: inviteeId,
+          accountId: account.id,
+          email: inviteeEmail,
+          passwordHash: "",
+          firstName: "Pending",
+          lastName: "Invitee",
+          roleId: "role-member",
+          isActive: false,
+          isEmailVerified: false,
+          mfaEnabled: false,
+          inviteToken,
+          inviteTokenExpiry: inviteExpiry,
+        },
+      });
+      totalCustomerUsersCreated++;
+    }
 
     const channelsToCreate = acct.providers.slice(0, 2);
     for (let i = 0; i < channelsToCreate.length; i++) {
@@ -1091,7 +1188,14 @@ async function seedTestAccounts() {
     }
   }
 
-  logger.info({ count: testAccounts.length }, "Test accounts seeded");
+  logger.info(
+    {
+      accounts: testAccounts.length,
+      customerUsers: totalCustomerUsersCreated,
+      projectMembers: totalProjectMembersCreated,
+    },
+    "Test accounts + CustomerUsers seeded"
+  );
 
   // ─── Compliance Settings ──────────────────────────────────────────────────
   await prisma.gdprSettings.upsert({
