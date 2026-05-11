@@ -8,9 +8,10 @@
 import { type Result, ok, err } from "@shared/types";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import type { CustomerUserRepository } from "../../domain/repositories/CustomerUserRepository.js";
+import type { CustomerRoleRepository } from "../../domain/repositories/CustomerRoleRepository.js";
 import type { AccountRepositoryPort } from "../../domain/repositories/AccountRepository.js";
 import { Account, type SubscriptionTierValue } from "../../domain/entities/Account.js";
-import { CustomerUser, CUSTOMER_ROLE } from "../../domain/entities/CustomerUser.js";
+import { CustomerUser } from "../../domain/entities/CustomerUser.js";
 import { randomBytes } from "crypto";
 import { hashPassword } from "../../auth/passwordHashing.js";
 import type { AccountSubscriptionPort } from "../../domain/repositories/AccountSubscriptionPort.js";
@@ -52,6 +53,7 @@ export interface RegisterCustomerOutput {
 export class RegisterCustomerUseCase {
   constructor(
     private readonly customerUserRepo: CustomerUserRepository,
+    private readonly customerRoleRepo: CustomerRoleRepository,
     private readonly accountRepo: AccountRepositoryPort,
     private readonly accountSubscriptionPort?: AccountSubscriptionPort,
     private readonly unitOfWork?: UnitOfWork,
@@ -96,6 +98,17 @@ export class RegisterCustomerUseCase {
     // Hash password (application layer responsibility)
     const passwordHash = await hashPassword(input.password);
 
+    // Resolve the OWNER role snapshot — the account creator owns the account.
+    const ownerRoleResult = await this.customerRoleRepo.getSnapshotByName("OWNER");
+    if (!ownerRoleResult.ok) {
+      registrationLogger.error(
+        { err: ownerRoleResult.error.message },
+        "OWNER CustomerRole not seeded; cannot register customer"
+      );
+      return err("INTERNAL_ERROR");
+    }
+    const ownerRole = ownerRoleResult.value;
+
     // Create CustomerUser domain entity
     const userId = randomBytes(12).toString("hex");
     const userResult = CustomerUser.create({
@@ -105,7 +118,10 @@ export class RegisterCustomerUseCase {
       passwordHash,
       firstName: input.firstName,
       lastName: input.lastName,
-      role: CUSTOMER_ROLE.OWNER,
+      roleId: ownerRole.roleId,
+      roleName: ownerRole.roleName,
+      roleLevel: ownerRole.roleLevel,
+      permissions: ownerRole.permissions,
     });
 
     if (!userResult.ok) {
@@ -146,7 +162,9 @@ export class RegisterCustomerUseCase {
       const accessToken = signCustomerAccessToken({
         sub: user.id,
         accountId: user.accountId,
-        role: user.role,
+        roleId: user.roleId,
+        roleName: user.roleName,
+        permissions: [...user.permissions],
       });
       const refreshToken = signCustomerRefreshToken(user.id, sessionId);
 

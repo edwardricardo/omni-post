@@ -7,7 +7,7 @@
 
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
-import type { TeamMemberRepository } from "../../domain/repositories/TeamMemberRepository.js";
+import type { CustomerUserRepository } from "../../domain/repositories/CustomerUserRepository.js";
 
 /**
  * Input DTO for searching team members.
@@ -29,20 +29,20 @@ export interface TeamMemberSearchResult {
 
 /**
  * @class SearchTeamMembersQuery
- * @description Searches team members by name or email within an account.
- *   Returns up to `limit` (default 10) active members matching the query.
+ * @description Searches active team members (CustomerUsers) by name or email
+ *   within an account. Returns up to `limit` (default 10) matching members.
  */
 export class SearchTeamMembersQuery implements UseCase<
   SearchTeamMembersInput,
   TeamMemberSearchResult[],
   UseCaseError
 > {
-  constructor(private readonly teamMemberRepo: TeamMemberRepository) {}
+  constructor(private readonly customerUserRepo: CustomerUserRepository) {}
 
   /**
    * @method execute
-   * @description Fetches all active members for the account and filters client-side
-   *   by case-insensitive name or email match. Returns top N results.
+   * @description Fetches all members for the account and filters client-side by
+   *   case-insensitive name or email match. Returns top N active matches.
    * @param input - Account ID, search query string, and optional limit
    * @returns Result containing matched members on success
    */
@@ -56,43 +56,23 @@ export class SearchTeamMembersQuery implements UseCase<
       return err(new UseCaseError("Account ID is required", USE_CASE_ERRORS.VALIDATION_FAILED));
     }
 
-    const membersResult = await this.teamMemberRepo.findByAccount(input.accountId);
+    const users = await this.customerUserRepo.findByAccountId(input.accountId);
 
-    if (!membersResult.ok) {
-      return err(
-        new UseCaseError(
-          "Failed to search team members",
-          USE_CASE_ERRORS.INTERNAL_ERROR,
-          membersResult.error
-        )
-      );
-    }
-
-    const members = membersResult.value;
-
-    // Filter active members matching name or email, limited to `limit` results
     const matches: TeamMemberSearchResult[] = [];
 
-    for (const member of members) {
-      if (!member.isActive) continue;
+    for (const u of users) {
+      if (!u.isActive) continue;
+
+      const displayName = u.fullName;
 
       if (queryLower.length === 0) {
-        // Empty query returns all active members up to limit
-        matches.push({
-          id: member.id.value,
-          displayName: member.name,
-          email: member.email,
-        });
+        matches.push({ id: u.id, displayName, email: u.email });
       } else {
-        const nameMatch = member.name.toLowerCase().includes(queryLower);
-        const emailMatch = member.email.toLowerCase().includes(queryLower);
+        const nameMatch = displayName.toLowerCase().includes(queryLower);
+        const emailMatch = u.email.toLowerCase().includes(queryLower);
 
         if (nameMatch || emailMatch) {
-          matches.push({
-            id: member.id.value,
-            displayName: member.name,
-            email: member.email,
-          });
+          matches.push({ id: u.id, displayName, email: u.email });
         }
       }
 

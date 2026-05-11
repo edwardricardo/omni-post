@@ -34,8 +34,6 @@ import type { TrackedLinkRepository } from "../../domain/repositories/TrackedLin
 import { PrismaTrackedLinkRepository } from "../repositories/PrismaTrackedLinkRepository.js";
 import type { CrisisProjectRepository } from "../../application/crisis/types.js";
 import { PrismaCrisisProjectRepository } from "../repositories/PrismaCrisisProjectRepository.js";
-import type { TeamMemberRepository } from "../../domain/repositories/TeamMemberRepository.js";
-import { PrismaTeamMemberRepository } from "../repositories/PrismaTeamMemberRepository.js";
 import type { ApprovalRequestRepository } from "../../domain/repositories/ApprovalRequestRepository.js";
 import { PrismaApprovalRequestRepository } from "../repositories/PrismaApprovalRequestRepository.js";
 import type { ApprovalWorkflowRepository } from "../../domain/repositories/ApprovalWorkflowRepository.js";
@@ -190,13 +188,6 @@ export function setupRepositories(container: Container): void {
   container.register<ApprovalWorkflowRepository>(
     TOKENS.ApprovalWorkflowRepository,
     () => new PrismaApprovalWorkflowRepository(container.resolve(TOKENS.PrismaClient)),
-    true
-  );
-
-  // Register TeamMember Repository
-  container.register<TeamMemberRepository>(
-    TOKENS.TeamMemberRepository,
-    () => new PrismaTeamMemberRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
 

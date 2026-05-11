@@ -18,8 +18,13 @@ export interface CustomerJwtPayload {
   sub: string;
   /** Account ID -- always present for multi-tenant isolation */
   accountId: string;
-  /** TeamRole value */
-  role: string;
+  /** CustomerRole.id (FK on CustomerUser) */
+  roleId: string;
+  /** CustomerRole.name (denormalised for fast checks: "OWNER", "MANAGER", etc.) */
+  roleName: string;
+  /** Permission strings granted by the role at sign time. Snapshot — not refetched
+   *  per request. A role change invalidates the previous token (rotate via refresh). */
+  permissions: readonly string[];
   /** Discriminator to reject admin tokens */
   type: "customer";
 }

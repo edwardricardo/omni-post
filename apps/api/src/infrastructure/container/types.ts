@@ -173,7 +173,6 @@ export const TOKENS = {
   GetCrisisStatusUseCase: Symbol.for("GetCrisisStatusUseCase"),
 
   // Team Member
-  TeamMemberRepository: Symbol.for("TeamMemberRepository"),
   InviteTeamMemberUseCase: Symbol.for("InviteTeamMemberUseCase"),
   GetTeamMembersQuery: Symbol.for("GetTeamMembersQuery"),
   UpdateTeamMemberRoleUseCase: Symbol.for("UpdateTeamMemberRoleUseCase"),
@@ -400,6 +399,7 @@ export const TOKENS = {
   ScheduleCustomReportUseCase: Symbol.for("ScheduleCustomReportUseCase"),
   // Customer Auth
   CustomerUserRepository: Symbol.for("CustomerUserRepository"),
+  CustomerRoleRepository: Symbol.for("CustomerRoleRepository"),
   RegisterCustomerUseCase: Symbol.for("RegisterCustomerUseCase"),
   LoginCustomerUseCase: Symbol.for("LoginCustomerUseCase"),
   RefreshCustomerTokenUseCase: Symbol.for("RefreshCustomerTokenUseCase"),

@@ -1,31 +1,31 @@
 /**
  * @file PrismaCustomerUserRepository.ts
- * @description Infrastructure adapter implementing CustomerUserRepository port
- *   using Prisma ORM. Maps between Prisma database types and CustomerUser domain entity.
+ * @description Infrastructure adapter implementing CustomerUserRepository using
+ *   Prisma. Maps between the persisted shape (CustomerUser + CustomerRole +
+ *   CustomerRolePermission rows) and the CustomerUser domain entity, including
+ *   the denormalised role snapshot fields (roleName, roleLevel, permissions).
  * @layer infrastructure
  */
 
 import type { PrismaClient } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
 import type { CustomerUserRepository } from "../../domain/repositories/CustomerUserRepository.js";
-import {
-  CustomerUser,
-  type CustomerUserProps,
-  type CustomerRoleValue,
-} from "../../domain/entities/CustomerUser.js";
+import { CustomerUser, type CustomerUserProps } from "../../domain/entities/CustomerUser.js";
 import { EntityNotFoundError, type DomainError } from "../../domain/errors/index.js";
 
 /**
- * Raw Prisma row shape for type-safe mapping.
+ * Prisma row shape including the joined CustomerRole + permissions. This is
+ * what `findFirst({ include: customerRoleWithPermissions })` returns at runtime.
  */
-interface PrismaCustomerUserRow {
+interface PrismaCustomerUserRowWithRole {
   id: string;
   accountId: string;
   email: string;
   passwordHash: string;
   firstName: string;
   lastName: string;
-  role: string;
+  role: string; // TeamRole enum mirror of customerRole.name
+  roleId: string | null;
   isActive: boolean;
   isEmailVerified: boolean;
   emailVerifyToken: string | null;
@@ -35,10 +35,26 @@ interface PrismaCustomerUserRow {
   mfaEnabled: boolean;
   mfaSecret: string | null;
   lastLoginAt: Date | null;
+  invitedBy: string | null;
+  inviteToken: string | null;
+  inviteTokenExpiry: Date | null;
+  joinedAt: Date;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
+  customerRole: {
+    id: string;
+    name: string;
+    level: number;
+    permissions: { permission: string }[];
+  } | null;
 }
+
+const CUSTOMER_ROLE_INCLUDE = {
+  customerRole: {
+    include: { permissions: true },
+  },
+} as const;
 
 /**
  * @class PrismaCustomerUserRepository
@@ -47,21 +63,14 @@ interface PrismaCustomerUserRow {
 export class PrismaCustomerUserRepository implements CustomerUserRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  /**
-   * @method findById
-   * @description Finds a customer user by ID (excludes soft-deleted).
-   */
   async findById(id: string): Promise<Result<CustomerUser, DomainError>> {
     try {
       const row = await this.prisma.customerUser.findFirst({
         where: { id, deletedAt: null },
+        include: CUSTOMER_ROLE_INCLUDE,
       });
-
-      if (!row) {
-        return err(new EntityNotFoundError("CustomerUser", id));
-      }
-
-      return ok(this.toDomain(row as unknown as PrismaCustomerUserRow));
+      if (!row) return err(new EntityNotFoundError("CustomerUser", id));
+      return ok(this.toDomain(row as unknown as PrismaCustomerUserRowWithRole));
     } catch (error: unknown) {
       return err(
         new EntityNotFoundError(
@@ -72,25 +81,14 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
     }
   }
 
-  /**
-   * @method findByEmail
-   * @description Finds a non-deleted customer user by email within an account.
-   */
   async findByEmail(email: string, accountId: string): Promise<Result<CustomerUser, DomainError>> {
     try {
       const row = await this.prisma.customerUser.findFirst({
-        where: {
-          email: email.toLowerCase().trim(),
-          accountId,
-          deletedAt: null,
-        },
+        where: { email: email.toLowerCase().trim(), accountId, deletedAt: null },
+        include: CUSTOMER_ROLE_INCLUDE,
       });
-
-      if (!row) {
-        return err(new EntityNotFoundError("CustomerUser", email));
-      }
-
-      return ok(this.toDomain(row as unknown as PrismaCustomerUserRow));
+      if (!row) return err(new EntityNotFoundError("CustomerUser", email));
+      return ok(this.toDomain(row as unknown as PrismaCustomerUserRowWithRole));
     } catch (error: unknown) {
       return err(
         new EntityNotFoundError(
@@ -101,49 +99,67 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
     }
   }
 
-  /**
-   * @method findByEmailAcrossAccounts
-   * @description Finds all non-deleted customer users with a given email.
-   */
   async findByEmailAcrossAccounts(email: string): Promise<CustomerUser[]> {
     const rows = await this.prisma.customerUser.findMany({
-      where: {
-        email: email.toLowerCase().trim(),
-        deletedAt: null,
-      },
+      where: { email: email.toLowerCase().trim(), deletedAt: null },
+      include: CUSTOMER_ROLE_INCLUDE,
     });
-
-    return rows.map((r) => this.toDomain(r as unknown as PrismaCustomerUserRow));
+    return rows.map((r) => this.toDomain(r as unknown as PrismaCustomerUserRowWithRole));
   }
 
-  /**
-   * @method findByAccountId
-   * @description Lists all non-deleted customer users for an account.
-   */
   async findByAccountId(accountId: string): Promise<CustomerUser[]> {
     const rows = await this.prisma.customerUser.findMany({
       where: { accountId, deletedAt: null },
+      include: CUSTOMER_ROLE_INCLUDE,
       orderBy: { createdAt: "desc" },
     });
-
-    return rows.map((r) => this.toDomain(r as unknown as PrismaCustomerUserRow));
+    return rows.map((r) => this.toDomain(r as unknown as PrismaCustomerUserRowWithRole));
   }
 
-  /**
-   * @method findByResetToken
-   * @description Finds a non-deleted customer user by their password reset token.
-   */
+  async findByProjectId(projectId: string): Promise<CustomerUser[]> {
+    // ProjectMember.customerUserId links Project ↔ CustomerUser.
+    const memberships = await this.prisma.projectMember.findMany({
+      where: { projectId, customerUserId: { not: null } },
+      include: {
+        customerUser: { include: CUSTOMER_ROLE_INCLUDE },
+      },
+    });
+    return memberships
+      .map((m) => m.customerUser)
+      .filter((u): u is NonNullable<typeof u> => u !== null)
+      .map((u) => this.toDomain(u as unknown as PrismaCustomerUserRowWithRole));
+  }
+
+  async findByInviteToken(token: string): Promise<Result<CustomerUser, DomainError>> {
+    try {
+      const row = await this.prisma.customerUser.findFirst({
+        where: { inviteToken: token, deletedAt: null },
+        include: CUSTOMER_ROLE_INCLUDE,
+      });
+      if (!row) {
+        return err(new EntityNotFoundError("CustomerUser", `inviteToken:${token}`));
+      }
+      return ok(this.toDomain(row as unknown as PrismaCustomerUserRowWithRole));
+    } catch (error: unknown) {
+      return err(
+        new EntityNotFoundError(
+          "CustomerUser",
+          `inviteToken query failed: ${error instanceof Error ? error.message : String(error)}`
+        )
+      );
+    }
+  }
+
   async findByResetToken(token: string): Promise<Result<CustomerUser, DomainError>> {
     try {
       const row = await this.prisma.customerUser.findFirst({
         where: { resetToken: token, deletedAt: null },
+        include: CUSTOMER_ROLE_INCLUDE,
       });
-
       if (!row) {
         return err(new EntityNotFoundError("CustomerUser", `resetToken:${token}`));
       }
-
-      return ok(this.toDomain(row as unknown as PrismaCustomerUserRow));
+      return ok(this.toDomain(row as unknown as PrismaCustomerUserRowWithRole));
     } catch (error: unknown) {
       return err(
         new EntityNotFoundError(
@@ -154,51 +170,40 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
     }
   }
 
-  /**
-   * @method save
-   * @description Upserts a customer user record.
-   */
   async save(user: CustomerUser, passwordHash?: string): Promise<Result<void, DomainError>> {
     try {
       const hash = passwordHash ?? user.passwordHash;
+      // The `role` enum column mirrors customerRole.name (same string set).
+      // Both are populated from the entity's roleName.
+      const enumRole = user.roleName as "OWNER" | "MANAGER" | "MEMBER" | "VIEWER";
+
+      const baseData = {
+        email: user.email,
+        passwordHash: hash,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: enumRole,
+        roleId: user.roleId,
+        isActive: user.isActive,
+        isEmailVerified: user.isEmailVerified,
+        emailVerifyToken: user.emailVerifyToken ?? null,
+        emailVerifyExpiry: user.emailVerifyExpiry ?? null,
+        resetToken: user.resetToken ?? null,
+        resetTokenExpiry: user.resetTokenExpiry ?? null,
+        mfaEnabled: user.mfaEnabled,
+        mfaSecret: user.mfaSecret ?? null,
+        lastLoginAt: user.lastLoginAt ?? null,
+        invitedBy: user.invitedBy ?? null,
+        inviteToken: user.inviteToken ?? null,
+        inviteTokenExpiry: user.inviteTokenExpiry ?? null,
+        joinedAt: user.joinedAt,
+        deletedAt: user.deletedAt ?? null,
+      };
+
       await this.prisma.customerUser.upsert({
         where: { id: user.id },
-        create: {
-          id: user.id,
-          accountId: user.accountId,
-          email: user.email,
-          passwordHash: hash,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role,
-          isActive: user.isActive,
-          isEmailVerified: user.isEmailVerified,
-          emailVerifyToken: user.emailVerifyToken ?? null,
-          emailVerifyExpiry: user.emailVerifyExpiry ?? null,
-          resetToken: user.resetToken ?? null,
-          resetTokenExpiry: user.resetTokenExpiry ?? null,
-          mfaEnabled: user.mfaEnabled,
-          mfaSecret: user.mfaSecret ?? null,
-          lastLoginAt: user.lastLoginAt ?? null,
-          deletedAt: user.deletedAt ?? null,
-        },
-        update: {
-          email: user.email,
-          passwordHash: hash,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role,
-          isActive: user.isActive,
-          isEmailVerified: user.isEmailVerified,
-          emailVerifyToken: user.emailVerifyToken ?? null,
-          emailVerifyExpiry: user.emailVerifyExpiry ?? null,
-          resetToken: user.resetToken ?? null,
-          resetTokenExpiry: user.resetTokenExpiry ?? null,
-          mfaEnabled: user.mfaEnabled,
-          mfaSecret: user.mfaSecret ?? null,
-          lastLoginAt: user.lastLoginAt ?? null,
-          deletedAt: user.deletedAt ?? null,
-        },
+        create: { id: user.id, accountId: user.accountId, ...baseData },
+        update: baseData,
       });
 
       return ok(undefined);
@@ -212,10 +217,6 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
     }
   }
 
-  /**
-   * @method updatePasswordHash
-   * @description Updates only the password hash for a user.
-   */
   async updatePasswordHash(
     userId: string,
     passwordHash: string
@@ -225,7 +226,6 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
         where: { id: userId },
         data: { passwordHash },
       });
-
       return ok(undefined);
     } catch (error: unknown) {
       return err(
@@ -237,10 +237,6 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
     }
   }
 
-  /**
-   * @method delete
-   * @description Hard-deletes a customer user record.
-   */
   async delete(userId: string): Promise<Result<void, DomainError>> {
     try {
       await this.prisma.customerUser.delete({ where: { id: userId } });
@@ -256,10 +252,19 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
   }
 
   /**
-   * @method toDomain
-   * @description Maps a Prisma row to a CustomerUser domain entity.
+   * Map a Prisma row (with joined CustomerRole + permissions) to a CustomerUser
+   * domain entity. If the role join is missing (data integrity issue or a row
+   * with a null roleId), fall back to a "VIEWER-like" snapshot with no
+   * permissions so the entity stays constructible.
    */
-  private toDomain(row: PrismaCustomerUserRow): CustomerUser {
+  private toDomain(row: PrismaCustomerUserRowWithRole): CustomerUser {
+    const roleId = row.customerRole?.id ?? row.roleId ?? "";
+    const roleName = row.customerRole?.name ?? row.role;
+    const roleLevel = row.customerRole?.level ?? 0;
+    const permissions: ReadonlySet<string> = new Set(
+      (row.customerRole?.permissions ?? []).map((p) => p.permission)
+    );
+
     const props: CustomerUserProps = {
       id: row.id,
       accountId: row.accountId,
@@ -267,7 +272,10 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
       passwordHash: row.passwordHash,
       firstName: row.firstName,
       lastName: row.lastName,
-      role: row.role as CustomerRoleValue,
+      roleId,
+      roleName,
+      roleLevel,
+      permissions,
       isActive: row.isActive,
       isEmailVerified: row.isEmailVerified,
       ...(row.emailVerifyToken !== null && { emailVerifyToken: row.emailVerifyToken }),
@@ -277,6 +285,10 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
       mfaEnabled: row.mfaEnabled,
       ...(row.mfaSecret !== null && { mfaSecret: row.mfaSecret }),
       ...(row.lastLoginAt !== null && { lastLoginAt: row.lastLoginAt }),
+      ...(row.invitedBy !== null && { invitedBy: row.invitedBy }),
+      ...(row.inviteToken !== null && { inviteToken: row.inviteToken }),
+      ...(row.inviteTokenExpiry !== null && { inviteTokenExpiry: row.inviteTokenExpiry }),
+      joinedAt: row.joinedAt,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       ...(row.deletedAt !== null && { deletedAt: row.deletedAt }),

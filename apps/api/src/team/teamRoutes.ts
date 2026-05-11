@@ -150,7 +150,7 @@ class TeamRouteHandler extends BaseRouteHandler {
 
     const result = await this.updateRoleUseCase.execute({
       memberId: id,
-      newRole,
+      newRoleName: newRole,
       changerMemberId,
     });
 

@@ -10,12 +10,14 @@ import type { CachePort } from "@ports/core";
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import type { CustomerUserRepository } from "../../domain/repositories/CustomerUserRepository.js";
+import type { CustomerRoleRepository } from "../../domain/repositories/CustomerRoleRepository.js";
 import type { AccountRepositoryPort } from "../../domain/repositories/AccountRepository.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import type { EmailPort } from "../../domain/repositories/EmailPort.js";
 import type { PlatformCredentialService } from "../../security/PlatformCredentialService.js";
 import { PrismaAccountSubscriptionAdapter } from "../repositories/PrismaAccountSubscriptionAdapter.js";
 import { PrismaCustomerUserRepository } from "../repositories/PrismaCustomerUserRepository.js";
+import { PrismaCustomerRoleRepository } from "../repositories/PrismaCustomerRoleRepository.js";
 import {
   RegisterCustomerUseCase,
   LoginCustomerUseCase,
@@ -30,10 +32,16 @@ import {
  * @description Registers all customer auth dependencies in the DI container.
  */
 export function setupCustomerAuthUseCases(container: Container): void {
-  // Repository
+  // Repositories
   container.register<CustomerUserRepository>(
     TOKENS.CustomerUserRepository,
     () => new PrismaCustomerUserRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
+  container.register<CustomerRoleRepository>(
+    TOKENS.CustomerRoleRepository,
+    () => new PrismaCustomerRoleRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
 
@@ -43,6 +51,7 @@ export function setupCustomerAuthUseCases(container: Container): void {
     () =>
       new RegisterCustomerUseCase(
         container.resolve<CustomerUserRepository>(TOKENS.CustomerUserRepository),
+        container.resolve<CustomerRoleRepository>(TOKENS.CustomerRoleRepository),
         container.resolve<AccountRepositoryPort>(TOKENS.AccountRepository),
         new PrismaAccountSubscriptionAdapter(),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
