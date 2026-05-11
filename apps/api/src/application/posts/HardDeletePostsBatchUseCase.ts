@@ -8,16 +8,21 @@
 
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
-import { PostId, type PostRepository } from "../../domain/index.js";
+import { AccountId, PostId, type PostRepository } from "../../domain/index.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 const MAX_BATCH_SIZE = 100;
 
 /**
  * Input DTO for hard-deleting a batch of posts.
+ *
+ * `callerAccountId` is the cross-tenant isolation gate (CWE-639) — when set,
+ * the use case filters input postIds to only the caller's owned posts before
+ * deleting. Hard-delete is irreversible, so this gate is critical.
  */
 export interface HardDeletePostsBatchInput {
   postIds: string[];
+  callerAccountId?: string;
 }
 
 /**
@@ -80,8 +85,22 @@ export class HardDeletePostsBatchUseCase implements UseCase<
       return ok({ deleted: 0, invalidIds });
     }
 
+    // Cross-tenant filter (CWE-639). Hard-delete on someone else's post is
+    // catastrophic — silently drop unowned ids before deleteMany runs.
+    const ownedPostIds = input.callerAccountId
+      ? await (async () => {
+          const accountIdResult = AccountId.fromString(input.callerAccountId!);
+          if (!accountIdResult.ok) return [];
+          return this.postRepository.filterIdsByAccount(postIds, accountIdResult.value);
+        })()
+      : postIds;
+
+    if (ownedPostIds.length === 0) {
+      return ok({ deleted: 0, invalidIds });
+    }
+
     const doWork = async (): Promise<Result<HardDeletePostsBatchOutput, UseCaseError>> => {
-      const result = await this.postRepository.bulkHardDelete(postIds);
+      const result = await this.postRepository.bulkHardDelete(ownedPostIds);
       if (!result.ok) {
         return err(
           new UseCaseError(

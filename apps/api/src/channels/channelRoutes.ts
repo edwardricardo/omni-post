@@ -22,6 +22,7 @@ import type { ChannelRepository } from "../domain/repositories/ChannelRepository
 import type { ProjectRepositoryPort } from "../domain/repositories/ProjectRepository.js";
 import type { ChannelCredentialsCrypto } from "../security/ChannelCredentialsCrypto.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "../auth/rbacService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
@@ -160,6 +161,78 @@ class ChannelRouteHandler extends BaseRouteHandler {
   }
 
   /**
+   * Cross-tenant ownership gate. Resolves the project for the input id,
+   * checks that the calling customer's accountId matches the project's
+   * accountId, and returns the project on success. On miss returns null
+   * AFTER replying 404 — callers must early-return.
+   *
+   * Anti-IDOR canon: 404 (not 403) prevents cross-tenant project-id
+   * enumeration; the response shape is identical whether the project
+   * does not exist or belongs to another tenant.
+   */
+  private async assertCallerOwnsProject(
+    ctx: RouteContext,
+    projectId: string
+  ): Promise<{ id: ProjectId; name: string } | null> {
+    const customer = ctx.request.customerUser;
+    if (!customer) {
+      this.sendError(ctx, 401, "Authentication required");
+      return null;
+    }
+    const projectIdResult = ProjectId.fromString(projectId);
+    if (!projectIdResult.ok) {
+      this.sendError(ctx, 400, "Invalid project ID");
+      return null;
+    }
+    const projectResult = await this.projectRepo.findById(projectIdResult.value);
+    if (!projectResult.ok) {
+      this.sendError(ctx, 404, "Project not found");
+      return null;
+    }
+    const project = projectResult.value;
+    if (project.accountId.toString() !== customer.accountId) {
+      // Cross-tenant — 404 not 403 to prevent existence enumeration.
+      this.sendError(ctx, 404, "Project not found");
+      return null;
+    }
+    return { id: projectIdResult.value, name: project.name };
+  }
+
+  /**
+   * Cross-tenant ownership gate for channels. Loads the channel, then
+   * verifies its project belongs to the calling customer's account.
+   * Returns the channel on success, null after replying 404 on miss.
+   */
+  private async assertCallerOwnsChannel(
+    ctx: RouteContext,
+    channelId: string
+  ): Promise<Channel | null> {
+    const customer = ctx.request.customerUser;
+    if (!customer) {
+      this.sendError(ctx, 401, "Authentication required");
+      return null;
+    }
+    const channelIdResult = ChannelId.fromString(channelId);
+    if (!channelIdResult.ok) {
+      this.sendError(ctx, 400, "Invalid channel ID");
+      return null;
+    }
+    const findResult = await this.channelRepo.findById(channelIdResult.value);
+    if (!findResult.ok) {
+      this.sendError(ctx, 404, "Channel not found");
+      return null;
+    }
+    const channel = findResult.value;
+    const projectResult = await this.projectRepo.findById(channel.projectId);
+    if (!projectResult.ok || projectResult.value.accountId.toString() !== customer.accountId) {
+      // Cross-tenant — 404 to prevent enumeration.
+      this.sendError(ctx, 404, "Channel not found");
+      return null;
+    }
+    return channel;
+  }
+
+  /**
    * POST /channels
    * Create a new channel within a project. Credentials are optional at creation
    * time — the OAuth flow provides the access token after the channel is registered.
@@ -173,11 +246,9 @@ class ChannelRouteHandler extends BaseRouteHandler {
 
     const { projectId, name, platform, credentials } = bodyResult.value;
 
-    // Verify project exists
-    const projectResult = await this.projectRepo.findById(ProjectId.fromStringUnsafe(projectId));
-    if (!projectResult.ok) {
-      return this.sendError(ctx, 404, "Project not found");
-    }
+    // Cross-tenant ownership gate (CWE-639): caller must own the project.
+    const ownedProject = await this.assertCallerOwnsProject(ctx, projectId);
+    if (!ownedProject) return; // helper already replied
 
     // Resolve provider value object
     const providerResult = Provider.fromString(platform);
@@ -209,7 +280,7 @@ class ChannelRouteHandler extends BaseRouteHandler {
     this.logInfo(ctx, "Channel created", { channelId: channel.id.value });
     return this.sendSuccess(
       ctx,
-      toChannelView(channel, { projectName: projectResult.value.name, postsThisMonth: 0 }),
+      toChannelView(channel, { projectName: ownedProject.name, postsThisMonth: 0 }),
       201
     );
   }
@@ -239,15 +310,12 @@ class ChannelRouteHandler extends BaseRouteHandler {
     if (!paramsResult.ok) return this.sendError(ctx, 400, "Validation failed");
 
     const { channelId } = paramsResult.value;
-    const result = await this.channelRepo.findById(ChannelId.fromStringUnsafe(channelId));
 
-    if (!result.ok) {
-      return result.error instanceof EntityNotFoundError
-        ? this.sendError(ctx, 404, "Channel not found")
-        : this.sendError(ctx, 500, "Failed to get channel");
-    }
+    // Cross-tenant ownership gate (CWE-639).
+    const channel = await this.assertCallerOwnsChannel(ctx, channelId);
+    if (!channel) return;
 
-    return this.sendSuccess(ctx, await this.enrichChannelView(result.value));
+    return this.sendSuccess(ctx, await this.enrichChannelView(channel));
   }
 
   /**
@@ -265,14 +333,13 @@ class ChannelRouteHandler extends BaseRouteHandler {
 
     const { projectId } = paramsResult.value;
 
-    const projectResult = await this.projectRepo.findById(ProjectId.fromStringUnsafe(projectId));
-    if (!projectResult.ok) {
-      return this.sendError(ctx, 404, "Project not found");
-    }
+    // Cross-tenant ownership gate (CWE-639).
+    const ownedProject = await this.assertCallerOwnsProject(ctx, projectId);
+    if (!ownedProject) return;
 
-    const channels = await this.channelRepo.findByProjectId(ProjectId.fromStringUnsafe(projectId));
+    const channels = await this.channelRepo.findByProjectId(ownedProject.id);
     const usageMap = await this.channelRepo.findUsageByChannelIds(channels.map((c) => c.id.value));
-    const projectName = projectResult.value.name;
+    const projectName = ownedProject.name;
     const views = channels.map((c) =>
       toChannelView(c, {
         projectName,
@@ -299,14 +366,9 @@ class ChannelRouteHandler extends BaseRouteHandler {
     const { channelId } = paramsResult.value;
     const { name, credentials } = bodyResult.value;
 
-    const findResult = await this.channelRepo.findById(ChannelId.fromStringUnsafe(channelId));
-    if (!findResult.ok) {
-      return findResult.error instanceof EntityNotFoundError
-        ? this.sendError(ctx, 404, "Channel not found")
-        : this.sendError(ctx, 500, "Failed to find channel");
-    }
-
-    const existing = findResult.value;
+    // Cross-tenant ownership gate (CWE-639).
+    const existing = await this.assertCallerOwnsChannel(ctx, channelId);
+    if (!existing) return;
 
     // Immutable-entity update pattern: reconstitute with new values, then save.
     const updated = Channel.reconstitute(existing.id, {
@@ -344,7 +406,12 @@ class ChannelRouteHandler extends BaseRouteHandler {
     if (!paramsResult.ok) return this.sendError(ctx, 400, "Validation failed");
 
     const { channelId } = paramsResult.value;
-    const result = await this.channelRepo.delete(ChannelId.fromStringUnsafe(channelId));
+
+    // Cross-tenant ownership gate (CWE-639).
+    const channel = await this.assertCallerOwnsChannel(ctx, channelId);
+    if (!channel) return;
+
+    const result = await this.channelRepo.delete(channel.id);
 
     if (!result.ok) {
       return result.error instanceof EntityNotFoundError
@@ -372,11 +439,9 @@ class ChannelRouteHandler extends BaseRouteHandler {
 
     const { projectId, identifier, appPassword } = bodyResult.value;
 
-    // Verify project exists
-    const projectResult = await this.projectRepo.findById(ProjectId.fromStringUnsafe(projectId));
-    if (!projectResult.ok) {
-      return this.sendError(ctx, 404, "Project not found");
-    }
+    // Cross-tenant ownership gate (CWE-639).
+    const ownedProject = await this.assertCallerOwnsProject(ctx, projectId);
+    if (!ownedProject) return;
 
     // Validate Bluesky credentials immediately
     const client = new BlueskyClient({ identifier, appPassword });
@@ -451,6 +516,11 @@ class ChannelRouteHandler extends BaseRouteHandler {
     if (!paramsResult.ok) return this.sendError(ctx, 400, "Validation failed");
 
     const { channelId } = paramsResult.value;
+
+    // Cross-tenant ownership gate (CWE-639).
+    const owned = await this.assertCallerOwnsChannel(ctx, channelId);
+    if (!owned) return;
+
     const result = await this.setPrimaryUseCase.execute({ channelId });
 
     if (!result.ok) {
@@ -535,32 +605,48 @@ export const channelRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post(
     "/channels",
-    { schema: { tags: ["Channels"], summary: "Create a new channel" } },
+    {
+      preHandler: [requireClientAuth],
+      schema: { tags: ["Channels"], summary: "Create a new channel" },
+    },
     (req, reply) => handler.createChannel(req, reply)
   );
   fastify.post(
     "/channels/bluesky/connect",
-    { schema: { tags: ["Channels"], summary: "Connect a Bluesky account" } },
+    {
+      preHandler: [requireClientAuth],
+      schema: { tags: ["Channels"], summary: "Connect a Bluesky account" },
+    },
     (req, reply) => handler.connectBluesky(req, reply)
   );
   fastify.get(
     "/channels/:channelId",
-    { schema: { tags: ["Channels"], summary: "Get channel by ID" } },
+    {
+      preHandler: [requireClientAuth],
+      schema: { tags: ["Channels"], summary: "Get channel by ID" },
+    },
     (req, reply) => handler.getChannel(req, reply)
   );
   fastify.get(
     "/projects/:projectId/channels",
-    { schema: { tags: ["Channels"], summary: "List channels by project" } },
+    {
+      preHandler: [requireClientAuth],
+      schema: { tags: ["Channels"], summary: "List channels by project" },
+    },
     (req, reply) => handler.listChannelsByProject(req, reply)
   );
   fastify.put(
     "/channels/:channelId",
-    { schema: { tags: ["Channels"], summary: "Update a channel" } },
+    {
+      preHandler: [requireClientAuth],
+      schema: { tags: ["Channels"], summary: "Update a channel" },
+    },
     (req, reply) => handler.updateChannel(req, reply)
   );
   fastify.patch(
     "/channels/:channelId/set-primary",
     {
+      preHandler: [requireClientAuth],
       schema: {
         tags: ["Channels"],
         summary: "Mark a channel as the primary one for its (project, provider) pair",
@@ -570,7 +656,10 @@ export const channelRoutes: FastifyPluginAsync = async (fastify) => {
   );
   fastify.delete(
     "/channels/:channelId",
-    { schema: { tags: ["Channels"], summary: "Soft-delete a channel" } },
+    {
+      preHandler: [requireClientAuth],
+      schema: { tags: ["Channels"], summary: "Soft-delete a channel" },
+    },
     (req, reply) => handler.deleteChannel(req, reply)
   );
   fastify.delete(

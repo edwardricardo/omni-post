@@ -98,7 +98,7 @@ class NotificationRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid query parameters");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -130,7 +130,7 @@ class NotificationRouteHandler extends BaseRouteHandler {
   async getUnreadCount(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -180,7 +180,7 @@ class NotificationRouteHandler extends BaseRouteHandler {
   async markAllAsRead(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -255,7 +255,7 @@ class NotificationRouteHandler extends BaseRouteHandler {
   async getPreferences(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -279,7 +279,7 @@ class NotificationRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request body");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -300,7 +300,7 @@ class NotificationRouteHandler extends BaseRouteHandler {
    * @description GET /notifications/stream -- SSE endpoint for real-time notifications
    */
   async streamNotifications(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return reply.code(401).send({ ok: false, error: "Authentication required" });
     }

@@ -18,6 +18,7 @@ import {
   PostAggregate,
   PostId,
   ProjectId,
+  AccountId,
   type PublishStatusValue,
   PUBLISH_STATUS,
   EntityNotFoundError,
@@ -402,6 +403,37 @@ export class PrismaPostRepository implements PostRepository {
     } catch (error) {
       return err(error instanceof Error ? error : new Error(String(error)));
     }
+  }
+
+  /**
+   * Filter input postIds to only those owned by accountId (joined via
+   * Project.accountId). Cross-tenant isolation gate for bulk mutating
+   * use cases per CWE-639.
+   */
+  async filterIdsByAccount(postIds: PostId[], accountId: AccountId): Promise<PostId[]> {
+    if (postIds.length === 0) return [];
+    const rows = await this.prisma.post.findMany({
+      where: {
+        id: { in: postIds.map((id) => id.value) },
+        deletedAt: null,
+        project: { accountId: accountId.value },
+      },
+      select: { id: true },
+    });
+    return rows.map((r) => PostId.fromStringUnsafe(r.id));
+  }
+
+  /**
+   * Lookup the accountId that owns this post via the Project relationship.
+   * Returns null if the post does not exist or is soft-deleted.
+   */
+  async findOwnerAccountId(postId: PostId): Promise<AccountId | null> {
+    const row = await this.prisma.post.findFirst({
+      where: { id: postId.value, deletedAt: null },
+      select: { project: { select: { accountId: true } } },
+    });
+    if (!row) return null;
+    return AccountId.fromStringUnsafe(row.project.accountId);
   }
 
   // Private helper methods

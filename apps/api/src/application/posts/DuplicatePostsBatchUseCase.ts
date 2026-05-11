@@ -11,6 +11,7 @@
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import {
+  AccountId,
   PostAggregate,
   PostId,
   type PostRepository,
@@ -22,9 +23,14 @@ const MAX_BATCH_SIZE = 50;
 
 /**
  * Input DTO for duplicating a batch of posts.
+ *
+ * `callerAccountId` enforces cross-tenant isolation (CWE-639) — sources
+ * not owned by the caller are filtered out before the read+clone loop
+ * runs, so duplication can never copy content from another tenant.
  */
 export interface DuplicatePostsBatchInput {
   postIds: string[];
+  callerAccountId?: string;
 }
 
 /**
@@ -92,11 +98,31 @@ export class DuplicatePostsBatchUseCase implements UseCase<
       }
     }
 
+    // Cross-tenant filter (CWE-639). Drop ids not owned by caller — these
+    // become "not found" from the caller's perspective rather than leaking
+    // existence by attempting and failing later.
+    const ownedIds = input.callerAccountId
+      ? await (async () => {
+          const accountIdResult = AccountId.fromString(input.callerAccountId!);
+          if (!accountIdResult.ok) return [];
+          return this.postRepository.filterIdsByAccount(validIds, accountIdResult.value);
+        })()
+      : validIds;
+
     const doWork = async (): Promise<Result<DuplicatePostsBatchOutput, UseCaseError>> => {
       const duplicates: Array<{ sourceId: string; newId: string }> = [];
       const notFoundIds: string[] = [];
 
-      for (const sourceId of validIds) {
+      // Anything dropped by the cross-tenant filter is reported as not-found
+      // (canon: do not leak existence of cross-tenant posts).
+      const ownedIdSet = new Set(ownedIds.map((id) => id.value));
+      for (const id of validIds) {
+        if (!ownedIdSet.has(id.value)) {
+          notFoundIds.push(id.value);
+        }
+      }
+
+      for (const sourceId of ownedIds) {
         const findResult = await this.postRepository.findById(sourceId);
         if (!findResult.ok) {
           notFoundIds.push(sourceId.value);
