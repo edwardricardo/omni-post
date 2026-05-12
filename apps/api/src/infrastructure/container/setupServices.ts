@@ -47,10 +47,6 @@ import { RedisCacheManager, RedisCacheAdapter, createCacheManager } from "@adapt
 import type { CachePort } from "@ports/core";
 import { getRedisUrl } from "../../lib/redis.js";
 import { dbLogger, createLogger } from "../../lib/logger.js";
-import { CredentialManager } from "../../orchestration/CredentialManager.js";
-import { RateLimitManager } from "../../orchestration/RateLimitManager.js";
-import { ProviderCoordinator } from "../../orchestration/ProviderCoordinator.js";
-import type { ProviderHealthMonitor } from "../../orchestration/ProviderHealthMonitor.js";
 import { SagaManagerImpl } from "../../saga/SagaManager.js";
 import type { IntegrationEventPublisher } from "../integration-events/IntegrationEventPort.js";
 import { EventSchemaRegistry } from "../integration-events/EventSchemaRegistry.js";
@@ -416,33 +412,6 @@ export function setupServices(
   );
   // Future: GeoAnalyticsService — deleted (100% fake geographic distribution)
 
-  // Register CredentialManager + RateLimitManager
-  container.register<CredentialManager>(
-    TOKENS.CredentialManager,
-    () => {
-      const redis = createRedisConnection();
-      redis.on("error", () => {});
-      return new CredentialManager({
-        prisma: container.resolve(TOKENS.PrismaClient),
-        redis,
-        credentialsCrypto: container.resolve<ChannelCredentialsCrypto>(
-          TOKENS.ChannelCredentialsCrypto
-        ),
-        cache: container.resolve<CachePort>(TOKENS.CachePort),
-      });
-    },
-    true
-  );
-  container.register<RateLimitManager>(
-    TOKENS.RateLimitManager,
-    () => {
-      const redis = createRedisConnection();
-      redis.on("error", () => {});
-      return new RateLimitManager({ redis });
-    },
-    true
-  );
-
   // Register PostsService — shares the application-wide RedisCacheManager
   // singleton (prefix `api:`) instead of opening a second pool. Cache keys
   // built inside the service are namespaced via the `dashboard:posts:` /
@@ -459,32 +428,6 @@ export function setupServices(
       const cacheManager = container.resolve<RedisCacheManager>(TOKENS.RedisCacheManager);
       return createPostsService(dbOptimizer, cacheManager);
     },
-    true
-  );
-
-  // Register ProviderCoordinator
-  container.register<ProviderCoordinator>(
-    TOKENS.ProviderCoordinator,
-    () => {
-      const redis = createRedisConnection();
-      redis.on("error", () => {});
-      const eventService = new EventService({
-        prisma: container.resolve(TOKENS.PrismaClient),
-        redis,
-        scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
-      });
-      return new ProviderCoordinator({
-        prisma: container.resolve(TOKENS.PrismaClient),
-        redis,
-        eventService,
-        scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
-      });
-    },
-    true
-  );
-  container.register<ProviderHealthMonitor>(
-    TOKENS.ProviderHealthMonitor,
-    () => container.resolve<ProviderCoordinator>(TOKENS.ProviderCoordinator).getHealthMonitor(),
     true
   );
 
