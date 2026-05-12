@@ -57,15 +57,15 @@ Cada finding que cambia comportamiento end-to-end deja un rastro en **§Flow inv
 | Métrica                                       |   Count |
 | --------------------------------------------- | ------: |
 | Total findings                                |      49 |
-| PENDING                                       |      40 |
+| PENDING                                       |      38 |
 | IN_REVIEW                                     |       0 |
 | APPROVED (awaiting execution)                 |       0 |
 | CHANGE-ACTION (awaiting execution)            |       0 |
 | REJECTED                                      |       0 |
 | DEFERRED                                      |       0 |
-| RESOLVED                                      |       9 |
-| **% reviewed**                                | **18%** |
-| **% closed (resolved + rejected + deferred)** | **18%** |
+| RESOLVED                                      |      11 |
+| **% reviewed**                                | **22%** |
+| **% closed (resolved + rejected + deferred)** | **22%** |
 
 > Nota: FN-012 cuenta como 1 finding global con 19 sub-items, todos cerrados. Side effects cerraron FN-030 + FN-034 + FN-035 + FN-038 automáticamente — sumados como RESOLVED. Lateral findings nuevos generados: L-649, L-650, L-651, L-652.
 
@@ -76,7 +76,7 @@ Cada finding que cambia comportamiento end-to-end deja un rastro en **§Flow inv
 | §1 API               |    13 |        0 |      0 |       0% |
 | §2 Workers           |     3 |        3 |      3 | **100%** |
 | §3 Admin             |     2 |        2 |      2 | **100%** |
-| §4 Client            |     2 |        0 |      0 |       0% |
+| §4 Client            |     2 |        2 |      2 | **100%** |
 | §5 Packages          |    13 |        0 |      0 |       0% |
 | §6 Cross-application |    16 |        4 |      4 |  **25%** |
 
@@ -387,24 +387,26 @@ Quedan 18 archivos clasificados DEAD por el auditor; cada uno requiere 3-pregunt
 
 - **Surface(s):** client
 - **Categoría:** mismatch (security + functional)
-- **Status:** `PENDING`
+- **Status:** `RESOLVED`
 - **Auditor recommendation:** `FIX-NOW`
-- **Edward decision:** —
-- **Decision date:** —
-- **Action taken:** —
-- **Notes:** NEEDS_EDWARD — feature client o admin? Hook devuelve siempre 401 en prod, feature rota silenciosa. ~2-4h.
-- **Blocked by:** —
+- **Edward decision:** `APPROVE` (DELETE clean-slate + DEFER backend a L-651)
+- **Decision date:** 2026-05-11
+- **Action taken:** Deleted toda la cadena rota: `apps/client/app/dashboard/analytics/insights/page.tsx` (wrapper con `accountId=""` hardcoded), `apps/client/hooks/api/usePerformanceInsights.ts` (URL incorrecta llamando admin endpoint), `apps/client/components/analytics/PerformanceInsights.tsx` (274 LOC UI design), y la subdir `apps/client/components/analytics/insights/` (9 archivos chain dead: PerformanceInsightsHeader, AudienceInsightsPanel, HashtagPerformancePanel, OptimalTimingPanel, RecommendationsList, TopPerformingContent, LoadingState, types.ts, utils.ts). Total: 12 archivos + 1 ruta Next removida.
+- **Flows tocados:** ninguno actualmente (feature estaba rota); flow futuro se documentará cuando L-651 se implemente.
+- **Notes:** Decisión clean-slate: preservar scaffolding aspiracional creaba chain dead que el próximo audit re-flagería. Git history retiene los ~454 LOC del cliente + admin orphan como referencia de diseño. L-651 actualizado: Fase 4 + Fase 5 ahora describen "build fresh", no "wire URL". Typecheck cliente clean.
+- **Blocked by:** L-651 (backend pipeline + endpoints + UI build) cuando producto priorice.
 
 ### FN-037 — useReports paths para verificar
 
 - **Surface(s):** client
-- **Categoría:** mismatch (potencial)
-- **Status:** `PENDING`
+- **Categoría:** mismatch (potencial → falso positivo confirmado)
+- **Status:** `RESOLVED`
 - **Auditor recommendation:** `VERIFY`
-- **Edward decision:** —
-- **Decision date:** —
-- **Action taken:** —
-- **Notes:** Listar cada endpoint que invoca vs route table. Si todos existen → VÁLIDO. Si falta alguno → mover a MISMATCH.
+- **Edward decision:** `REJECT` (verificación pasa, falso positivo)
+- **Decision date:** 2026-05-11
+- **Action taken:** Verificación URL-por-URL: los 4 endpoints del hook (`GET/POST/DELETE /reports` + `POST /reports/:id/generate`) existen en `apps/api/src/reports/reportRoutes.ts` (líneas 324/362/342/351). Consumers reales: `CreateReportForm.tsx` + `ScheduledReportsList.tsx` montados en `apps/client/app/dashboard/analytics/reports/page.tsx`. flow-014 documentado. NO se borra.
+- **Flows tocados:** flow-014 (client scheduled reports management).
+- **Notes:** Backend además tiene `PATCH /reports/:id` que el hook no usa (update functionality no expuesta, no bloquea). Gap separado: FN-024 (Scheduled Reports cron no wired) — manual generation funciona, recurring automático no.
 - **Blocked by:** —
 
 ---
@@ -875,6 +877,14 @@ Quedan 18 archivos clasificados DEAD por el auditor; cada uno requiere 3-pregunt
 - **Smoke check propuesto:** (1) Login admin con `Permission.DASHBOARD_VIEW`. (2) Navegar `/subscriptions`. (3) Verificar StatCards: total subscriptions, breakdown por status (ACTIVE / TRIALING / GRANDFATHERED / CANCELED / EXPIRED), MRR, distribución por plan. (4) Si seed contiene los 10 test accounts: verificar conteos coinciden con la distribución seedeada (alpha=ACTIVE, beta=TRIALING, etc.). (5) `refetch()` post-mutation de account (e.g., cancel trial vía admin) → confirmar valores actualizan.
 - **Notas:** Stale time 60s (refresh manual or wait). Crítico para revenue oversight; cualquier regression aquí oculta métricas business del platform-operator.
 
+### flow-014 — Client scheduled reports management
+
+- **Descripción:** Página cliente para gestionar scheduled analytics reports: listar reports configurados, crear nuevo (con cron schedule + format + recipients), eliminar, y generar manualmente (trigger immediate generation bypass del cron).
+- **Findings:** FN-037 (false-positive — confirmado canonical, NO borrado).
+- **Componentes end-to-end:** Client browser → `app/dashboard/analytics/reports/page.tsx` → `components/analytics/{CreateReportForm,ScheduledReportsList}.tsx` → `hooks/api/useReports.ts` (4 hooks: useReports + useCreateReport + useDeleteReport + useGenerateReport) → fetch `/api/backend/reports{,/:id,/:id/generate}` → Next.js proxy → API Fastify `apps/api/src/reports/reportRoutes.ts` (líneas 324/362/342/351 — GET/POST/DELETE/POST-generate registrados con `requireClientAuth`) → use cases (`CreateScheduledReportUseCase`, `UpdateScheduledReportUseCase`, `DeleteScheduledReportUseCase`, `ListScheduledReportsQuery`, `GenerateReportUseCase`) → Prisma → tablas `ScheduledReport` + queues BullMQ para generación.
+- **Smoke check propuesto:** (1) Login cliente. (2) Navegar `/dashboard/analytics/reports`. (3) Crear nuevo report con `CreateReportForm`: name, cronSchedule (`0 9 * * MON`), format `CSV`, recipients (`email@example.com`). (4) Confirmar `POST /api/backend/reports` retorna 200 + el report aparece en `ScheduledReportsList`. (5) Click "Generate Now" → confirmar `POST /api/backend/reports/:id/generate` retorna 200 + se encola job en BullMQ + el report se genera (verificar `lastRunAt` se actualiza tras procesamiento). (6) Delete report → confirmar `DELETE /api/backend/reports/:id` retorna 200 + desaparece de la lista. (7) Test negativo: customer A intenta DELETE reportId de customer B → 403.
+- **Notas:** El hook NO usa `PATCH /reports/:id` que el backend SÍ expone (update functionality no implementada todavía — gap menor, no bloquea). Banner visible en la página: _"Manual generation only — cron not wired"_ (FN-024 separado, cross-app finding). Cron automático espera implementación del scheduler trigger en workers.
+
 ---
 
 ## Changelog del tracking
@@ -906,3 +916,6 @@ Quedan 18 archivos clasificados DEAD por el auditor; cada uno requiere 3-pregunt
 - **2026-05-11** — FN-012.18 (`postsClient.ts`) `RESOLVED` (APPROVE → DELETE). Chain dead post-FN-012.14: 0 consumers tras delete del único caller (usePosts). Deleted file + trimmed 7 líneas en apiClient.ts (1 import + 6 re-exports).
 - **2026-05-11** — FN-012.19 (`types/multi-platform-scheduling.ts`) `RESOLVED` (APPROVE → DELETE). Chain dead post-FN-012.11. Deleted file + empty parent dir `apps/admin/types/`. Cierra FN-035 admin-side.
 - **2026-05-11** — **FN-012 GLOBAL CLOSED** (19/19 sub-items). Side effects automáticos: FN-030, FN-034 (admin-side), FN-035 (admin-side), FN-038 — todos RESOLVED. §3 Admin: 100%.
+- **2026-05-11** — FN-036 `RESOLVED` (APPROVE → DELETE clean-slate + DEFER backend a L-651). Deleted 12 archivos client: page `analytics/insights/` + hook usePerformanceInsights + componente principal + subdir `components/analytics/insights/` completa (9 archivos chain dead). L-651 actualizado: Fase 4 + Fase 5 ahora "build fresh".
+- **2026-05-11** — FN-037 `RESOLVED` (REJECT, falso positivo). Verificación URL-por-URL pasa: 4 endpoints existen en `reportRoutes.ts` + 2 consumers reales + page live `/dashboard/analytics/reports`. flow-014 documentado.
+- **2026-05-11** — **§4 Client CLOSED** (2/2 findings). 11/49 RESOLVED global (22%). §2 + §3 + §4 completos.

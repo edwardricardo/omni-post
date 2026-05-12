@@ -5075,11 +5075,15 @@ Por lo tanto: incluso si el cliente lograra autenticarse contra `/admin/analytic
 
 **Estado actual del scaffolding:**
 
-- `apps/admin/hooks/api/usePerformanceInsights.ts` — **DELETED** en FN-012.13 (admin orphan, 0 callers, types subset inferior).
-- `apps/admin/tests/unit/hooks/usePerformanceInsights.test.tsx` — **DELETED**.
-- `apps/client/hooks/api/usePerformanceInsights.ts` — PRESERVADO. URL incorrecta + endpoint backend no produce shape esperado. Bug latente: cliente 401 silent en producción + tipos aspiracionales.
-- `apps/client/components/analytics/PerformanceInsights.tsx` — PRESERVADO. Componente con UI rica esperando data que el backend no produce. Usa `post.metrics?.engagement`, `post.factors?.timeOfDay`, `post.score`, `hashtagPerformance`, `audienceInsights.demographics`, etc.
-- `apps/api/src/admin/dashboardRoutes.ts:166` — endpoint `/admin/analytics/overview` registrado pero hace cosa distinta (business metrics, sin `projectId`).
+- `apps/admin/hooks/api/usePerformanceInsights.ts` — **DELETED** en FN-012.13 (admin orphan).
+- `apps/admin/tests/unit/hooks/usePerformanceInsights.test.tsx` — **DELETED** en FN-012.13.
+- `apps/client/hooks/api/usePerformanceInsights.ts` — **DELETED** en FN-036 (2026-05-11). URL incorrecta + tipos aspiracionales sin backend pareja. Recuperable desde git history si los tipos informan rediseño.
+- `apps/client/components/analytics/PerformanceInsights.tsx` — **DELETED** en FN-036 (274 LOC). UI design con mappers + estados loading/error/empty preservados en git history como referencia para Fase 5.
+- `apps/client/components/analytics/insights/` (subdir 9 archivos: PerformanceInsightsHeader, AudienceInsightsPanel, HashtagPerformancePanel, OptimalTimingPanel, RecommendationsList, TopPerformingContent, LoadingState, types.ts, utils.ts) — **DELETED** en FN-036 como chain dead (sus únicos callers eran el componente principal).
+- `apps/client/app/dashboard/analytics/insights/page.tsx` — **DELETED** en FN-036 (wrapper trivial con `accountId=""` hardcoded — diseño defectuoso aun con backend correcto). Ruta `/dashboard/analytics/insights` removida del routes type de Next.
+- `apps/api/src/admin/dashboardRoutes.ts:166` — endpoint `/admin/analytics/overview` AÚN registrado pero retorna business metrics (no content insights). Cleanup en Fase 6.
+
+**Decisión de cleanup (Edward 2026-05-11):** preservar scaffolding aspiracional creaba chain dead que el próximo audit re-flagería. Clean-slate fue la decisión correcta. L-651 se construye fresh cuando producto priorice; git history retiene el design work (~454 LOC del cliente + admin orphans) como referencia.
 
 **Plan completo (~2-3 días de trabajo cuando se priorice):**
 
@@ -5125,21 +5129,26 @@ Por lo tanto: incluso si el cliente lograra autenticarse contra `/admin/analytic
   - `ipAddress, userAgent` del request
 - Invoca `GetPerformanceInsightsQuery` con `accountId = path.accountId, projectId = query.projectId`.
 
-#### Fase 4 — Wire client (~30 min)
+#### Fase 4 — Build client (~3-4h, fresh tras clean-slate de FN-036)
 
-- `apps/client/hooks/api/usePerformanceInsights.ts`: cambiar URL del fetch línea 129 → `/api/backend/analytics/performance-insights?${params.toString()}`.
-- Mantener tipos ricos `DashboardInsightsData` y staleTime + retry intactos.
-- Confirmar que `apps/client/components/analytics/PerformanceInsights.tsx` ya consume estos tipos correctamente (verificado: usa `post.metrics`, `post.factors`, `post.score`, etc.).
+- Crear desde cero `apps/client/hooks/api/usePerformanceInsights.ts` (versión anterior borrada en FN-036; ver git history si tipos `DashboardInsightsData` aspiracionales son referencia):
+  - URL: `/api/backend/analytics/performance-insights?projectId=X&dateFrom=...&dateTo=...&providers=...`.
+  - Tipos: alinear con la shape que `GetPerformanceInsightsQuery` produce realmente (Fase 1), NO con los tipos aspiracionales antiguos que asumían campos sin backend.
+  - staleTime 5min, retry 2 (canon TanStack admin/client).
+- Recrear el componente que renderea los insights — opciones:
+  - **A: Mover a `@packages/ui/analytics-insights`** desde el inicio (preferible para no-drift con admin Fase 5).
+  - **B: Construir client-side, luego refactor cuando admin lo necesite**.
+- Recrear la página `apps/client/app/dashboard/analytics/insights/page.tsx` con `accountId` + `projectId` resueltos de session/context (NO hardcoded `""` como el wrapper anterior).
+- Wire link en nav del cliente bajo "Analytics → Insights" cuando la feature está lista.
 
-#### Fase 5 — Wire admin (~1-2h)
+#### Fase 5 — Build admin (~3-4h, fresh)
 
 - Crear `apps/admin/hooks/api/usePerformanceInsightsForAccount.ts`:
   - Acepta `(accountId, projectId, options?)` params.
   - Fetcha `/api/backend/admin/accounts/:accountId/analytics/performance-insights?projectId=X`.
-  - Returns mismo shape `DashboardInsightsData` que client (compartir tipo via `@shared/analytics-types` o `@packages/analytics-types`).
+  - Reusa los tipos compartidos `DashboardInsightsData` de `@packages/ui/analytics-insights` (Fase 4 opción A) o `@shared/analytics-types`.
 - En `apps/admin/app/(dashboard)/analytics/page.tsx` (que actualmente usa `useAnalytics` para business metrics):
-  - Agregar nueva sección o tab "Customer Insights" donde el admin selecciona un account + project → renderea el equivalente del componente cliente `PerformanceInsights.tsx`.
-  - Considerar mover el componente `PerformanceInsights.tsx` a `@packages/ui/analytics-insights` para reusar entre admin y client (no-drift). Acepta el shape `DashboardInsightsData` + props para mostrar metadata extra admin-side (justification input, accountId / projectId selector).
+  - Agregar nueva sección o tab "Customer Insights" con account + project selector que invoca el hook admin.
 - Justification field obligatorio en UI admin: textarea pidiendo razón de acceso antes de cargar (incrementa fricción, blinda legalmente — patrón paralelo a L-650 compliance content access).
 
 #### Fase 6 — Cleanup endpoint legacy (~30 min)
