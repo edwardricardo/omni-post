@@ -116,7 +116,6 @@ import { customReportRoutes } from "./custom-reports/customReportRoutes.js";
 import { crmRoutes } from "./crm/crmRoutes.js";
 import { customerAuthRoutes } from "./auth/customerAuthRoutes.js";
 
-import { DatabaseOptimizer } from "./utils/dbOptimization.js";
 import { SecurityManager } from "./security/securityHeaders.js";
 import { PerformanceMonitor } from "./monitoring/performanceMonitor.js";
 import { analyticsRoutes } from "./analytics/analyticsRoutes.js";
@@ -307,9 +306,6 @@ async function createApp(): Promise<FastifyInstance> {
     redis,
     container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
   );
-
-  // Initialize database optimizer
-  const _dbOptimizer = new DatabaseOptimizer(apiMetrics);
 
   // Initialize tenant health monitor
   const tenantHealthMonitor = createTenantHealthMonitor(
