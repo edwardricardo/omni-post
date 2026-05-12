@@ -149,24 +149,26 @@ Cada finding que cambia comportamiento end-to-end deja un rastro en **§Flow inv
 
 - **Surface(s):** api
 - **Categoría:** dead-code
-- **Status:** `PENDING`
+- **Status:** `RESOLVED`
 - **Auditor recommendation:** `DELETE-NOW`
-- **Edward decision:** —
-- **Decision date:** —
-- **Action taken:** —
-- **Notes:** Bloqueado por FN-008 (verificar que `database/DatabaseOptimizer.ts` cubre todas las funciones antes de borrar).
-- **Blocked by:** FN-008
+- **Edward decision:** `APPROVE`
+- **Decision date:** 2026-05-12
+- **Action taken:** Deleted `apps/api/src/utils/dbOptimization.ts` + `apps/api/tests/unit/dbOptimization.test.ts`. Removed dead import + `const _dbOptimizer = new DatabaseOptimizer(apiMetrics)` (variable bloqueada con `_` prefix) en `apps/api/src/index.ts:119,312`. Typecheck green.
+- **Flows tocados:** flow-001 (API bootstrap — removed dead initialization).
+- **Notes:** Competitive lens (WebSearch): ningún competidor (Hootsuite/Sprout/Buffer/Later/Agorapulse) diferencia ni expone DB internals al usuario. La canon `database/DatabaseOptimizer.ts` (DI-registered, consumida por postsService) cubre el uso interno legítimo. Side effect: cierra FN-008.
+- **Blocked by:** —
 
 ### FN-008 — DatabaseOptimizer vs dbOptimization (REDUNDANTE)
 
 - **Surface(s):** api
 - **Categoría:** dead-code
-- **Status:** `PENDING`
+- **Status:** `RESOLVED`
 - **Auditor recommendation:** `DELETE-NOW` (borrar el de utils, mantener database)
-- **Edward decision:** —
-- **Decision date:** —
-- **Action taken:** —
-- **Notes:** Confirmar que `DatabaseOptimizer` está DI-registered.
+- **Edward decision:** `APPROVE` (cluster con FN-007)
+- **Decision date:** 2026-05-12
+- **Action taken:** Resuelto como side effect de FN-007. Canon `database/DatabaseOptimizer.ts` confirmada DI-registered en `setupServices.ts:45`, consumida por `postsService.ts:8` + tipo en `postsService.test.ts`.
+- **Flows tocados:** flow-001 (compartido con FN-007).
+- **Notes:** Mismo cluster.
 - **Blocked by:** —
 
 ### FN-009 — optimizedPostsRoutes nunca registrado
