@@ -8,6 +8,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { SidebarNav } from "@/components/shared/SidebarNav";
+import { SkipLink } from "@/components/shared/SkipLink";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { verifyAccessToken } from "@/lib/auth/backend-client";
@@ -26,6 +27,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <QueryProvider>
       <AuthProvider userId={user.id} userName={user.name} userRole={user.role}>
+        <SkipLink />
         <div className="flex min-h-screen bg-[var(--bg-base)]">
           <SidebarNav userName={user.name} userRole={user.role} />
 
