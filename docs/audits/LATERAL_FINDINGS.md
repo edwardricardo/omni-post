@@ -4966,3 +4966,324 @@ Attacker con acceso a repo tiene password dev+CI environments.
 **Descripción:** `apps/api/tests/integration/sagaCustomerFlow.test.ts:186-195` invoca `signCustomerAccessToken({ sub, accountId, role: "OWNER" })`. La firma actual (post Sub-fase 1.4 → commit 9a9a885) es `Omit<CustomerJwtPayload, "type">` que requiere `{ sub, accountId, roleId, roleName, permissions }`. El error no aflora vía `pnpm typecheck` porque el tsconfig de `apps/api` solo incluye `src/`, no `tests/`. El integration suite (`pnpm test:integration`) emitirá tokens sin `roleName/permissions`, `verifyCustomerToken` los rechazará por payload incompleto y los assertions de auth caerán en 401/500.
 **Severidad estimada:** medio (test infrastructure broken — falsea cobertura del happy path saga + cross-tenant, pero no impacta producción mientras nadie corra `pnpm test:integration`).
 **Acción propuesta:** BACKLOG — fix actualizando los dos `signCustomerAccessToken` calls a la nueva shape (`roleId: "role-owner", roleName: "OWNER", permissions: [...]`) y verificando que el suite integration corra verde. Considerar también extender el `apps/api/tsconfig.json` include para tipechequear `tests/integration/` y prevenir este drift silencioso futuro.
+
+---
+
+### 2026-05-11 — L-649: SkipLink WCAG 2.1 ausente en apps/client (gap de consistencia cross-app)
+
+**Encontrado durante:** Revisión FN-012.6 (admin SkipLink wire-up).
+**Descripción:** Durante el wire del SkipLink en admin (FN-012.6 `RESOLVED` → componente montado en `apps/admin/app/(dashboard)/layout.tsx` apuntando a `#main-content`), se verificó que **apps/client no tiene equivalente**: no hay componente SkipLink en `apps/client/components/` y los layouts (`apps/client/app/layout.tsx`, `apps/client/app/dashboard/layout.tsx`) tampoco tienen anchor `id="main-content"`. Resulta en un gap de consistencia: el admin internal cumple WCAG 2.1 "Skip to main content" pero el cliente customer-facing — más relevante para a11y por ser público — NO.
+**Severidad estimada:** medio (a11y gap en surface customer-facing; usuarios de teclado / screen-reader en clientes corporativos pueden requerir el patrón para cumplir contratos / RGPD / ADA).
+**Acción propuesta:** REVIEW + IMPLEMENT en `apps/client` para consistencia de diseño con admin. Trabajo (~10 min): (1) portar `apps/admin/components/shared/SkipLink.tsx` a `apps/client/components/shared/SkipLink.tsx` (o mover ambos a `packages/ui/SkipLink` y reusar — preferible para no-drift); (2) añadir `id="main-content"` al `<main>` del client dashboard layout; (3) montar `<SkipLink />` como primer hijo del layout, antes del nav lateral. Posible flow nuevo: `flow-007 — Client a11y skip-link` post-implementación.
+
+---
+
+### 2026-05-11 — L-650: Admin Compliance Content Access — scaffolding intencional, feature pendiente de wire-up completo
+
+**Encontrado durante:** Revisión FN-012.9 (`useContentLibrary.ts`) — DEFERRED con plan.
+**Categoría:** scaffolding intencional / forgotten-feature de compliance.
+
+**Contexto del negocio (Edward 2026-05-11, intent literal):** _"esta es una feature para compliance, creo que deben tener cierta clase de acceso a las publicaciones canonicas de los clientes por si estos, incumplen o violan cualquier normativa o permisologia con su contenido, no es espiar, es tener evidencia de que dijo lo que dijo para que la empresa omnipost pueda guardar sus espaldas."_
+
+**Propósito legal:** OmniPost necesita acceso read-only a posts publicados por clientes con trail de auditoría inmutable. La feature protege legalmente a la empresa contra:
+
+- Reclamos de clientes que publicaron contenido infractor y luego niegan haberlo hecho.
+- Reguladores que requieren evidencia de moderación / vigilancia razonable.
+- Disputas RGPD / DSA / ADA donde OmniPost debe demostrar capacidad de auditoría.
+
+NO es vigilancia arbitraria: acceso de admin queda registrado, justificado y proporcionado.
+
+**Estado actual del scaffolding:**
+
+- `apps/admin/hooks/api/useContentLibrary.ts` — hook TanStack Query con types (`ContentLibraryPost`, `ListPostsResponse`) y paginación. **URL incorrecta** (`/api/backend/posts` apunta a endpoint cliente-tenant, no admin). 0 callers UI.
+- `apps/admin/tests/unit/hooks/useContentLibrary.test.tsx` — test del hook (preservado como evidencia de intención).
+- `apps/admin/app/(dashboard)/compliance/page.tsx` ALIVE — el módulo compliance existe con DSAR + Breach reports. La feature `content access` podría integrarse aquí como tab o ruta hija (`/compliance/content`).
+- Backend tiene rutas en `apps/api/src/compliance/complianceRoutes.ts` para DSAR/breach pero NADA para "content review cross-tenant".
+
+**No tocar el hook hasta que se implemente el plan**. Borrar destruye sustrato útil de una feature monetizable + legalmente protectora.
+
+**Plan completo (~1-2 días de trabajo cuando se priorice):**
+
+1. **Backend admin endpoint cross-tenant** (~4-8 h)
+   - Nueva ruta `GET /admin/compliance/content` (Fastify, dentro de `complianceRoutes.ts` o nuevo archivo `complianceContentRoutes.ts`).
+   - Filtros: `tenantId?`, `accountId?`, `provider?`, `status?`, `dateFrom?`, `dateTo?`, `q?` (text search), pagination `page/limit`.
+   - Respuesta: lista paginada de Posts con metadata: `id, projectId, accountId, status, body, title, tags, locale, provider, channelHandle, scheduledAt, publishedAt, providerPostId, authorEmail, authorName`.
+   - **Role gate**: `requireAdminAuth` + verificación de role específica. Crear `AdminRole = "COMPLIANCE_OFFICER"` (nuevo) o usar `SUPER_ADMIN` directo. Decisión pendiente.
+   - Sin caching: cada query directa a `prisma.post` con join a `Account` y `Channel`. Que admin vea el estado actual.
+
+2. **Audit trail inmutable** (~1-2 h)
+   - Cada request a `GET /admin/compliance/content` inserta entry en `AuditLog` ANTES de retornar:
+     - `actorId = adminUser.id`
+     - `actorType = "ADMIN"`
+     - `action = "compliance.content.viewed"`
+     - `resourceType = "Post"` (o `"PostList"` para queries de listado)
+     - `resourceId = listOfIds.join(",")` o `null` para queries de búsqueda
+     - `metadata = { filters: {...}, resultCount, justification?: string }`
+     - `ipAddress, userAgent` del request
+   - **Sin este audit trail la feature pierde su valor legal**. Sin trace, OmniPost no puede demostrar acceso justificado.
+   - Considerar requerir un campo `justification: string` en el query string (mínimo 10 caracteres) que se persista en `AuditLog.metadata.justification`. Aumenta fricción pero blinda legalmente.
+
+3. **Fix del hook URL** (~5 min)
+   - `apps/admin/hooks/api/useContentLibrary.ts:62` cambiar `/api/backend/posts` → `/api/backend/admin/compliance/content`.
+   - Agregar parámetro opcional `justification` que se reenvíe como query param.
+   - Tipos: agregar `accountId`, `provider`, `channelHandle`, `providerPostId`, `authorEmail`, `authorName` al `ContentLibraryPost` interface (alinear con backend).
+
+4. **UI page** (~4-6 h)
+   - Opción A (recomendada): nueva ruta `apps/admin/app/(dashboard)/compliance/content/page.tsx`. Acceso desde tab en `/compliance` o link en SidebarNav bajo "Compliance".
+   - Opción B: tab dentro de `/compliance/page.tsx` existente. Más cohesivo con DSAR + breach, pero ya hay tabs ahí y crece complejidad.
+   - Layout: tabla con filtros (date range picker, provider select, account/tenant search, text search), paginación, columna "Justificación" obligatoria antes de listar resultados.
+   - Click sobre row → detalle modal: contenido literal del post, autor (CustomerUser), canal (provider + handle), timestamps, screenshots si aplicable, link al provider post original.
+
+5. **Role + permission system** (~2-4 h, solo si COMPLIANCE_OFFICER no existe ya)
+   - Si decisión es nuevo rol: agregar `COMPLIANCE_OFFICER` a `AdminRole` enum + seed, crear seed de permission `"compliance:content_access"`, agregar gate en el endpoint y check en frontend para mostrar/ocultar la pantalla.
+   - Si decisión es `SUPER_ADMIN` solo: el gate es directo, menos flexible pero más simple. Documentar que solo super-admins acceden.
+
+**Dependencias / blockers:**
+
+- Decisión de producto / legal sobre: ¿qué role accede? ¿se requiere justificación en cada query? ¿retención del audit trail (90 días? 7 años?)? ¿exportación de evidencia (PDF firmado)? Cada respuesta moldea la implementación.
+- L-649 (SkipLink en client) NO bloquea esto.
+
+**Verificación post-implementación (smoke / e2e):**
+
+1. Login admin con role COMPLIANCE_OFFICER (o SUPER_ADMIN).
+2. Navegar a `/compliance/content`.
+3. Filtrar por un tenant específico + date range + justificación. Confirmar tabla con posts del tenant.
+4. Verificar en `AuditLog` que aparece entry con `action = "compliance.content.viewed"` + `actorId`, `filters`, `justification`.
+5. Click en un post → detalle muestra contenido literal + channel + author + provider post ID.
+6. Login con admin role inferior → verificar 403 en el endpoint + UI escondida.
+7. **Test de tampering del audit trail**: intentar borrar / modificar la entry → debe fallar (audit log es append-only).
+
+**Severidad estimada:** alto (deuda en feature monetizable + protectora; oportunidad de cumplimiento). Pero no urgente: la empresa puede operar sin esto mientras el riesgo legal sea aceptable.
+
+**Acción propuesta:** BACKLOG con plan completo arriba. NO borrar el hook ni el test. Cuando producto/legal priorice, este L-650 es el handover.
+
+---
+
+### 2026-05-11 — L-651: Performance Insights feature — scaffolding aspiracional sin backend implementado
+
+**Encontrado durante:** Revisión FN-012.13 (`usePerformanceInsights.ts` admin orphan). Análisis profundo expuso que la feature completa no existe en backend.
+
+**Contexto del negocio (Edward 2026-05-11):** _"si quiero que esa informacion analitica de los clientes sea accesible desde admin"_ — confirmado intent admin de ver content analytics per-account (escalation/support + ops insight). Aplicar pattern C (admin + customer endpoints separados, use case compartido, audit log admin-side).
+
+**Hallazgo crítico:** ambos hooks `usePerformanceInsights` (admin orphan ya borrado + client roto) y el componente `apps/client/components/analytics/PerformanceInsights.tsx` con sus tipos `DashboardInsightsData` ricos (engagement / metrics / factors / topPosts / mediaPerformance / optimalTiming / hashtagPerformance / audienceInsights) representan **una feature DISEÑADA en frontend pero NUNCA construida en backend**:
+
+- El endpoint que los hooks llaman, `GET /admin/analytics/overview`, **ignora `projectId`** y retorna `AnalyticsSummary` (business metrics platform-ops: revenue, MRR, churn, uptime) — el shape que el hook hermano `useAnalytics` consume correctamente.
+- No existe ninguna use case `GetPerformanceInsightsQuery` (verificado con grep cross-codebase).
+- Las queries de agregación necesarias (engagement per-post ranking, time series, optimal timing analysis, hashtag analysis, audience insights) no están implementadas en ningún servicio del backend.
+
+Por lo tanto: incluso si el cliente lograra autenticarse contra `/admin/analytics/overview`, recibiría business metrics (no insights de contenido), y el componente `PerformanceInsights.tsx` rendererearia con `?.` defensivos resolviendo en `undefined/0/[]` — la página quedaría vacía/blanca en producción.
+
+**Estado actual del scaffolding:**
+
+- `apps/admin/hooks/api/usePerformanceInsights.ts` — **DELETED** en FN-012.13 (admin orphan, 0 callers, types subset inferior).
+- `apps/admin/tests/unit/hooks/usePerformanceInsights.test.tsx` — **DELETED**.
+- `apps/client/hooks/api/usePerformanceInsights.ts` — PRESERVADO. URL incorrecta + endpoint backend no produce shape esperado. Bug latente: cliente 401 silent en producción + tipos aspiracionales.
+- `apps/client/components/analytics/PerformanceInsights.tsx` — PRESERVADO. Componente con UI rica esperando data que el backend no produce. Usa `post.metrics?.engagement`, `post.factors?.timeOfDay`, `post.score`, `hashtagPerformance`, `audienceInsights.demographics`, etc.
+- `apps/api/src/admin/dashboardRoutes.ts:166` — endpoint `/admin/analytics/overview` registrado pero hace cosa distinta (business metrics, sin `projectId`).
+
+**Plan completo (~2-3 días de trabajo cuando se priorice):**
+
+#### Fase 1 — Backend pipeline de content insights (~1-1.5 días)
+
+1. **Use case nuevo: `GetPerformanceInsightsQuery`** en `apps/api/src/application/analytics/`:
+   - Input: `{ accountId, projectId, dateRange?, providers? }`.
+   - Output: shape `DashboardInsightsData` (mismos campos que el client component espera).
+   - Resolver de scope: caller pasa `accountId` (customer del JWT, admin del path). Cross-tenant guard a nivel handler, no use case.
+   - Internamente: agregación de `AnalyticsDailySummary` (poblado por FN-016 que ya cableamos) + `Post` + `SocialMessage` para los campos engagement/metrics/factors.
+
+2. **Queries de agregación**:
+   - **engagement summary**: `SUM(impressions, engagement, clicks) FROM AnalyticsDailySummary WHERE project IN (...)`.
+   - **top engaging posts**: SELECT top N posts by engagement rate within project + period, JOIN with `Post` for content/platform metadata.
+   - **time series**: GROUP BY date, ARRAY_AGG metrics. Necesita índice `(projectId, date)` en `AnalyticsDailySummary` — confirmar existe.
+   - **media performance**: agrupar por `media.type` (image/video/carousel), avg engagement per type.
+   - **optimal timing**: histograma engagement por (dayOfWeek, hour) — calcular con función ventana o stored procedure si volumen alto.
+   - **hashtag performance**: `UNNEST(tags) FROM Post WHERE projectId=...`, agregar engagement per hashtag.
+   - **audience insights**: requiere data de los providers (`Channel.followers`, demographics). Si el provider no expone esto, marcar campo como N/A.
+
+3. **Materialized view (opcional)**: si volumen es grande, crear `mv_post_performance_insights` refreshed daily/hourly. Inicialmente sin MV (compute on-demand), refactor a MV si latencia > 500ms en producción.
+
+#### Fase 2 — Endpoint customer-scoped (~3-4h)
+
+- `GET /analytics/performance-insights?projectId=X[&dateFrom][&dateTo][&providers]`
+- `preHandler: [requireClientAuth]` — JWT customer obligatorio.
+- **Cross-tenant guard**: handler valida `projectId.accountId === jwt.accountId` antes de invocar la use case. Si mismatch → 403 inmediato + entry en AuditLog.
+- Invoca `GetPerformanceInsightsQuery` con `accountId = jwt.accountId, projectId = query.projectId`.
+- Retorna `{ ok: true, data: DashboardInsightsData }` (canon BaseRouteHandler).
+
+#### Fase 3 — Endpoint admin-scoped (pattern C) (~3-4h)
+
+- `GET /admin/accounts/:accountId/analytics/performance-insights?projectId=X[&dateFrom][&dateTo][&providers]`
+- `preHandler: [requireAdminAuth, requirePermission(Permission.CUSTOMER_ANALYTICS_VIEW)]`. Crear nueva `Permission.CUSTOMER_ANALYTICS_VIEW` y otorgarla a SUPER_ADMIN + SUPPORT roles (decisión de Edward sobre quién más la tiene).
+- **Validación**: `accountId` de path debe existir, `projectId` de query debe pertenecer al `accountId`. Si mismatch → 404.
+- **Audit log automático** (mandatorio, by-construction): ANTES de retornar, INSERT en `AuditLog`:
+  - `actorId = adminUser.id`
+  - `actorType = "ADMIN"`
+  - `action = "admin.customer.analytics.viewed"`
+  - `resourceType = "Project"`
+  - `resourceId = projectId`
+  - `metadata = { accountId, projectId, filters: { dateFrom, dateTo, providers }, viewedAt, justification?: string }`
+  - `ipAddress, userAgent` del request
+- Invoca `GetPerformanceInsightsQuery` con `accountId = path.accountId, projectId = query.projectId`.
+
+#### Fase 4 — Wire client (~30 min)
+
+- `apps/client/hooks/api/usePerformanceInsights.ts`: cambiar URL del fetch línea 129 → `/api/backend/analytics/performance-insights?${params.toString()}`.
+- Mantener tipos ricos `DashboardInsightsData` y staleTime + retry intactos.
+- Confirmar que `apps/client/components/analytics/PerformanceInsights.tsx` ya consume estos tipos correctamente (verificado: usa `post.metrics`, `post.factors`, `post.score`, etc.).
+
+#### Fase 5 — Wire admin (~1-2h)
+
+- Crear `apps/admin/hooks/api/usePerformanceInsightsForAccount.ts`:
+  - Acepta `(accountId, projectId, options?)` params.
+  - Fetcha `/api/backend/admin/accounts/:accountId/analytics/performance-insights?projectId=X`.
+  - Returns mismo shape `DashboardInsightsData` que client (compartir tipo via `@shared/analytics-types` o `@packages/analytics-types`).
+- En `apps/admin/app/(dashboard)/analytics/page.tsx` (que actualmente usa `useAnalytics` para business metrics):
+  - Agregar nueva sección o tab "Customer Insights" donde el admin selecciona un account + project → renderea el equivalente del componente cliente `PerformanceInsights.tsx`.
+  - Considerar mover el componente `PerformanceInsights.tsx` a `@packages/ui/analytics-insights` para reusar entre admin y client (no-drift). Acepta el shape `DashboardInsightsData` + props para mostrar metadata extra admin-side (justification input, accountId / projectId selector).
+- Justification field obligatorio en UI admin: textarea pidiendo razón de acceso antes de cargar (incrementa fricción, blinda legalmente — patrón paralelo a L-650 compliance content access).
+
+#### Fase 6 — Cleanup endpoint legacy (~30 min)
+
+- Decidir destino de `/admin/analytics/overview` actual:
+  - Si `useAnalytics` admin (la página de analytics live) sigue dependiendo, **renombrar** a `/admin/dashboard/business-metrics` con cambio coordinado del hook + página. Más correcto semánticamente.
+  - O dejar como está (URL legacy pero funcional) y solo documentar.
+- En cualquier caso: el endpoint NO debe coexistir con un nombre que sugiera "analytics overview" cuando la feature de analytics overview real va a vivir en el nuevo endpoint `/admin/accounts/:id/analytics/performance-insights`.
+
+**Dependencias / blockers:**
+
+- Schema readiness: confirmar que `AnalyticsDailySummary` tiene los campos necesarios para todas las agregaciones (impresiones, engagement, clicks, follow growth, etc.). Si falta alguno, primero migration. **Bloquea**: si la pipeline FN-016 (`DispatchAnalyticsIngestionUseCase` + `analyticsIngestWorker`) no está poblando la tabla con todos los providers + sus métricas, la feature retorna data parcial. Verificar el shape canónico de `AnalyticsDailySummary` antes de Fase 1.
+- Permission new `CUSTOMER_ANALYTICS_VIEW`: requiere migration + seed update + RBAC docs.
+- L-650 (compliance content) podría compartir el justification pattern y audit trail — considerar unificar la infraestructura de audit "admin observa cliente" antes de duplicar lógica.
+
+**Verificación post-implementación (smoke / e2e):**
+
+1. Customer:
+   - Login customer. Navegar `/dashboard/analytics`.
+   - Componente `PerformanceInsights.tsx` carga sin 401. Muestra engagement, top posts, time series, etc. con data real.
+   - Test cross-tenant: customer A intenta `projectId` de customer B → 403.
+2. Admin:
+   - Login admin con permission CUSTOMER_ANALYTICS_VIEW. Navegar `/dashboard/analytics`.
+   - Sección "Customer Insights" con account/project selector.
+   - Cargar insights con justification → verificar entry en AuditLog con `action="admin.customer.analytics.viewed"`, actor, target, filtros.
+   - Login admin sin permission → 403 + sección oculta.
+   - Login con permission pero account no existe → 404 antes de log.
+
+**Severidad estimada:** alto — feature monetizable (paid analytics feature para customer es estándar SaaS) + feature operacional admin para support/ops, ambas con valor de negocio claro. Pero **no urgente**: en producción la feature está silenciosamente rota; ningún customer la ve funcionando.
+
+**Acción propuesta:** BACKLOG con plan completo de 6 fases. Admin orphan ya eliminado (FN-012.13 RESOLVED). Cliente componente + hook PRESERVADOS como scaffolding. Cuando producto priorice, este L-651 es el handover end-to-end.
+
+---
+
+### 2026-05-11 — L-652: Admin Post Moderation Pattern — feature ausente, requerida legalmente
+
+**Encontrado durante:** Revisión FN-012.14 (`usePosts.ts` admin orphan) — borrar el hook expuso que NO existe infraestructura admin para moderación de posts, cuando legalmente la plataforma DEBE poder ejecutar deletes en escenarios documentados.
+
+**Contexto del negocio (Edward 2026-05-11 + análisis legal):** Admin debe tener derecho a eliminar posts de clientes en circunstancias legítimas documentadas en el ToS. Estos escenarios obligan que la plataforma actúe sin consentimiento del cliente (o time-critical sin esperarlo):
+
+1. **Violaciones de ToS OmniPost**: contenido ilegal, spam, fraude, doxxing, abuse.
+2. **Cumplimiento legal forzoso**: orden judicial, DMCA takedown, RGPD erasure de terceros, demanda regulatoria.
+3. **Cumplimiento con providers** (X/Meta/etc.): proveedor demanda remover post o pierde la integración para TODOS los clientes.
+4. **Incidentes de seguridad**: cuenta cliente comprometida, atacante publica contenido dañino.
+5. **CSAM / NCII / contenido ilegal jurisdiccional**: obligación no-negociable.
+6. **DSAR-erasure** ejecutado por admin en nombre del cliente.
+7. **Bug containment**: pipeline produjo posts malformados, admin limpia.
+
+NO es violación de derechos del cliente con las garantías: justificación documentada, notificación cuando aplique, audit trail inmutable, derecho a apelación, soft-delete con preservación de evidencia.
+
+**Estado actual:** la infraestructura **no existe** en backend ni en frontend admin:
+
+- `apps/admin/hooks/api/usePosts.ts` — DELETED en FN-012.14 (orphan con shape cliente, no servía como scaffolding admin).
+- `apps/api/src/admin/` — no hay rutas de moderación post (las rutas admin existentes son dashboard, pricing, oidc, billing, etc.; nada para acción punitiva sobre content).
+- `Post.deletedAt` campo existe en schema (soft-delete genérico) pero sin distinción entre customer-initiated delete y admin-moderation delete.
+- `AuditLog` table existe — sustrato listo para registrar acciones admin.
+
+**Plan completo (~1-2 días de trabajo cuando se priorice):**
+
+#### Fase 1 — Schema (~2-3h)
+
+1. Agregar a `Post`:
+   - `deletedByAdminAt: DateTime?` — distinguir admin-moderation delete de customer self-delete.
+   - `deletedByAdminId: String?` (FK a `AdminUser`) — quién moderó.
+   - `deletedByAdminReason: String?` — justificación obligatoria.
+   - `moderationCategory: ModerationCategory?` — enum: `TOS_VIOLATION` / `LEGAL_COMPULSION` / `PROVIDER_REQUEST` / `SECURITY_INCIDENT` / `CSAM` / `DSAR_ERASURE` / `BUG_CONTAINMENT` / `OTHER`.
+   - `contentSnapshotAtDelete: Json?` — snapshot del contenido literal pre-delete para evidencia legal. **CRITICAL** para defender la decisión si el cliente apela.
+2. Migration con backfill no necesaria (todos los campos null por default).
+3. Nueva tabla `PostModerationAppeal` para que clientes apelen decisiones admin: `id, postId, accountId, customerUserId, reason, status (PENDING/UPHELD/REVERSED), submittedAt, reviewedById, reviewedAt, reviewerNotes`.
+
+#### Fase 2 — Permission + Role (~1-2h)
+
+1. Crear `Permission.CONTENT_MODERATE` en el RBAC admin (no en customer RBAC — esto es admin-only).
+2. Otorgar a `SUPER_ADMIN` + nueva role `COMPLIANCE_OFFICER` (paralelo a L-650/L-651 que también la usan — coordinar). Si la role ya existe por L-650/L-651, agregar este permiso. Si no, crear ahora y compartir.
+3. NO otorgar a `SUPPORT` ni `ADMIN` genérico — la moderación destructiva exige rol explícito.
+
+#### Fase 3 — Endpoints admin (~4-6h)
+
+1. **`POST /admin/accounts/:accountId/posts/:postId/moderate-delete`**:
+   - `preHandler: [requireAdminAuth, requirePermission(Permission.CONTENT_MODERATE)]`.
+   - Body schema (Zod): `{ reason: string (min 20 chars), category: ModerationCategory, notifyCustomer: boolean }`.
+   - Validar `postId.accountId === path.accountId`. Si mismatch → 404.
+   - Si `post.deletedAt !== null` o `post.deletedByAdminAt !== null` → 409 (already deleted).
+   - Snapshot del contenido: `contentSnapshotAtDelete = { body, mediaUrls, tags, scheduledAt, publishedAt, channelIds }`.
+   - Soft-delete: `deletedByAdminAt = now()`, `deletedByAdminId = admin.id`, `deletedByAdminReason = reason`, `moderationCategory = category`.
+   - Audit log: `action: "admin.post.moderate_delete"`, `actorId, resourceId = postId, metadata = { accountId, category, reason, contentSnapshot: {...} }`.
+   - Si `notifyCustomer`: crear `Notification` o `ExternalNotification` al CustomerUser owner del account con razón sanitizada (algunos motivos como LEGAL_COMPULSION pueden requerir gag).
+   - Si el post ya está PUBLISHED en provider: side-effect opcional de también remover del provider via `provider.deletePost(channelPostId)` (best-effort; failure no aborta la moderación local).
+
+2. **`POST /admin/accounts/:accountId/posts/:postId/restore`**:
+   - Mismo gate.
+   - Body: `{ reason: string }`.
+   - Solo permite restore si `deletedByAdminAt !== null` (no toca customer self-deletes).
+   - Limpia los campos `deletedByAdminAt/Id/Reason`, `moderationCategory`, `contentSnapshotAtDelete`.
+   - Audit log: `action: "admin.post.moderate_restore"`.
+   - Notifica al customer si la moderación original lo había notificado.
+
+3. **`GET /admin/accounts/:accountId/posts/moderated`**:
+   - Lista posts moderados por admin para auditoria interna. Filtros: category, date range, admin actor.
+   - Audit log entry por query (paralelo a L-650 pattern).
+
+4. **Customer-facing endpoints**:
+   - `POST /posts/:postId/moderation-appeal`: customer apela una decisión admin. Crea entry en `PostModerationAppeal`.
+   - `GET /posts/:postId/moderation-status`: customer ve el estado de su apelación.
+
+#### Fase 4 — Frontend admin (~3-4h)
+
+1. Sección nueva en `apps/admin/app/(dashboard)/compliance/moderation/page.tsx` (o tab en `/compliance`):
+   - Search posts por account + filtros.
+   - Action button "Moderate Delete" abre modal con: category dropdown, reason textarea (min 20 chars), notifyCustomer checkbox, "Acknowledge legal & customer rights implications" checkbox obligatorio.
+   - Lista de posts moderados con audit info.
+   - Lista de appeals pending review.
+
+2. Componentes nuevos:
+   - `apps/admin/components/moderation/PostModerationDialog.tsx`
+   - `apps/admin/components/moderation/ModeratedPostsTable.tsx`
+   - `apps/admin/components/moderation/AppealReviewDialog.tsx`
+
+3. Hooks:
+   - `usePostModerateDelete()`, `usePostRestore()`, `useModeratedPostsList()`, `usePendingAppeals()`.
+
+#### Fase 5 — Frontend cliente (~2-3h)
+
+1. En `apps/client/components/posts/PostCard.tsx` o equivalente:
+   - Si `post.deletedByAdminAt`: mostrar banner explicando que el post fue moderado, con razón sanitizada (depende de category — LEGAL_COMPULSION oculta), link a "Submit appeal".
+2. Modal de appeal con reason field.
+3. Página `apps/client/app/dashboard/posts/appeals/page.tsx`: lista de appeals del customer + estado.
+
+#### Fase 6 — Integration con L-650 + L-651 (~1-2h)
+
+- Compartir infraestructura de audit con L-650 (compliance content access) — mismo `Permission.CONTENT_MODERATE` + role `COMPLIANCE_OFFICER`.
+- Cuando L-650 wirea content review, "Moderate Delete" puede ser action button inline desde esa vista. Eso evita context-switching del admin compliance officer.
+
+**Verificación post-implementación:**
+
+1. Admin con rol COMPLIANCE_OFFICER puede moderar.
+2. Admin sin permission → 403.
+3. Customer self-delete NO toca `deletedByAdminAt` (preserved).
+4. Customer puede submit appeal y verlo en su dashboard.
+5. Audit log inmutable: tentativa de modificar/borrar entry falla.
+6. Snapshot pre-delete recuperable para evidencia legal.
+7. Provider-side delete best-effort no aborta moderación local.
+8. Customer notification se respeta para categorías non-gag.
+
+**Severidad estimada:** alto — la ausencia de esta infraestructura **expone legalmente a OmniPost**. En el momento que un regulador o tribunal demande remover contenido y la plataforma no pueda hacerlo (porque solo el customer tiene delete rights), OmniPost queda expuesta a fines, demands, ToS violations con providers, y daño reputacional. No urgente sólo porque hasta hoy no ha ocurrido un incidente real.
+
+**Acción propuesta:** BACKLOG con plan completo de 6 fases. Admin orphan ya eliminado (FN-012.14 RESOLVED). Schema + permission + endpoints + frontends nuevos. Considera unificar permission/role con L-650 + L-651 (mismo COMPLIANCE_OFFICER actor en los 3 features). Cuando producto/legal priorice, este L-652 es el handover.
