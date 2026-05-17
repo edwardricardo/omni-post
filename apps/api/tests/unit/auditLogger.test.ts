@@ -45,7 +45,7 @@ vi.mock("../../src/lib/logger.js", () => {
 
 const { AuditLogger, createAuditLogger, AuditConfigs } =
   await import("../../src/security/auditLogger.js");
-const Redis = (await import("ioredis")).default;
+const { createInMemoryRedis } = await import("./inMemoryRedis.test-helpers.js");
 
 // ---------------------------------------------------------------------------
 // Test Utilities
@@ -69,11 +69,9 @@ function createMockRequest(overrides?: Partial<FastifyRequest>): FastifyRequest 
 // Test Setup
 // ---------------------------------------------------------------------------
 
-let redis: InstanceType<typeof Redis>;
+let redis: ReturnType<typeof createInMemoryRedis>;
 let auditLogger: InstanceType<typeof AuditLogger>;
 const scheduler = new NoopBackgroundTaskScheduler();
-
-const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 
 // ---------------------------------------------------------------------------
 // Main Test Suite
@@ -81,16 +79,7 @@ const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 
 describe("AuditLogger Tests", () => {
   beforeAll(async () => {
-    redis = new Redis(REDIS_URL);
-
-    // Wait for Redis connection
-    await new Promise<void>((resolve) => {
-      if (redis.status === "ready") {
-        resolve();
-      } else {
-        redis.once("ready", () => resolve());
-      }
-    });
+    redis = createInMemoryRedis();
 
     // Flush audit cache keys
     const keys = await redis.keys("audit_recent:*");
