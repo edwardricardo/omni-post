@@ -21,6 +21,7 @@ export const PROVIDERS = {
   SNAPCHAT: "SNAPCHAT",
   PINTEREST: "PINTEREST",
   BLUESKY: "BLUESKY",
+  THREADS: "THREADS",
 } as const;
 
 export type ProviderType = (typeof PROVIDERS)[keyof typeof PROVIDERS];
@@ -220,6 +221,23 @@ const PROVIDER_CAPABILITIES: Record<ProviderType, ProviderCapabilities> = {
     maxImages: 4,
     maxVideoDurationSeconds: 0,
   },
+  [PROVIDERS.THREADS]: {
+    supportsImages: true,
+    supportsVideos: true,
+    supportsGifs: true,
+    supportsThreads: true,
+    supportsStories: false,
+    supportsReels: false,
+    supportsScheduling: false,
+    supportsCarousel: true,
+    supportsHashtags: true,
+    supportsMentions: true,
+    supportsLinks: true,
+    supportsPolls: false,
+    maxCharacters: 500,
+    maxImages: 10,
+    maxVideoDurationSeconds: 300,
+  },
 };
 
 /**
@@ -236,6 +254,7 @@ const PROVIDER_DISPLAY: Record<ProviderType, { name: string; icon: string; color
   [PROVIDERS.SNAPCHAT]: { name: "Snapchat", icon: "snapchat", color: "#FFFC00" },
   [PROVIDERS.PINTEREST]: { name: "Pinterest", icon: "pinterest", color: "#E60023" },
   [PROVIDERS.BLUESKY]: { name: "Bluesky", icon: "bluesky", color: "#0085ff" },
+  [PROVIDERS.THREADS]: { name: "Threads", icon: "threads", color: "#000000" },
 };
 
 /**
@@ -312,6 +331,10 @@ export class Provider {
 
   static bluesky(): Provider {
     return new Provider(PROVIDERS.BLUESKY);
+  }
+
+  static threads(): Provider {
+    return new Provider(PROVIDERS.THREADS);
   }
 
   /**
@@ -444,6 +467,10 @@ export class Provider {
 
   isPinterest(): boolean {
     return this._type === PROVIDERS.PINTEREST;
+  }
+
+  isThreads(): boolean {
+    return this._type === PROVIDERS.THREADS;
   }
 
   /**

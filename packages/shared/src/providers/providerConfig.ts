@@ -327,6 +327,62 @@ export const PROVIDER_CONFIGS: Record<string, ProviderMetadata> = {
     authType: "oauth",
     requiredScopes: ["boards:read", "pins:read", "pins:write"],
   },
+
+  bluesky: {
+    id: "bluesky",
+    name: "bluesky",
+    displayName: "Bluesky",
+    icon: "/providers/bluesky-icon.svg",
+    color: "#0085FF",
+    capabilities: {
+      publish: true,
+      schedule: false,
+      analytics: false,
+      comments: true,
+      replies: true,
+      threading: false,
+    },
+    limits: {
+      maxChars: 300,
+      maxMediaPerPost: 4,
+      allowedMedia: ["image"],
+      aspectRatios: ["1:1", "16:9"],
+      maxImageSize: 1024 * 1024, // 1MB (AT Protocol blob limit)
+    },
+    status: "active",
+    description: "Post to Bluesky via the AT Protocol",
+    authType: "username_password",
+  },
+
+  threads: {
+    id: "threads",
+    name: "threads",
+    displayName: "Threads",
+    icon: "/providers/threads-icon.svg",
+    color: "#000000",
+    capabilities: {
+      publish: true,
+      schedule: false,
+      analytics: true,
+      comments: true,
+      replies: true,
+      threading: true,
+      carousel: true,
+    },
+    limits: {
+      maxChars: 500,
+      maxMediaPerPost: 10,
+      allowedMedia: ["image", "video"],
+      aspectRatios: ["1:1", "9:16", "16:9"],
+      maxVideoDuration: 300, // 5 minutes
+      maxImageSize: 8 * 1024 * 1024, // 8MB
+      maxVideoSize: 1 * 1024 * 1024 * 1024, // 1GB
+    },
+    status: "active",
+    description: "Post text, images, and video to Threads",
+    authType: "oauth",
+    requiredScopes: ["threads_basic", "threads_content_publish"],
+  },
 } as const;
 
 /**
