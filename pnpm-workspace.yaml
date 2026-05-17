@@ -8,5 +8,7 @@ packages:
   - packages/observability/*
   - infra/*
 
+enableGlobalVirtualStore: true
+
 ignoredBuiltDependencies:
   - bcrypt
