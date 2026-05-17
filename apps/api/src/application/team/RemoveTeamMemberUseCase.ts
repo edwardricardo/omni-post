@@ -1,14 +1,13 @@
 /**
  * @file RemoveTeamMemberUseCase.ts
  * @description Application use case for deactivating a team member.
- *   Loads the member, calls deactivate(), and persists the updated entity.
+ *   Loads the CustomerUser, calls deactivate(), and persists the updated entity.
  * @layer application
  */
 
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
-import type { TeamMemberRepository } from "../../domain/repositories/TeamMemberRepository.js";
-import { TeamMemberId } from "../../domain/value-objects/TeamMemberId.js";
+import type { CustomerUserRepository } from "../../domain/repositories/CustomerUserRepository.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 /**
@@ -21,46 +20,40 @@ export interface RemoveTeamMemberInput {
 
 /**
  * @class RemoveTeamMemberUseCase
- * @description Deactivates a team member after verifying they can be removed.
+ * @description Deactivates a team member (CustomerUser) after verifying they
+ *   can be removed (the domain entity refuses to deactivate OWNERs).
  */
 export class RemoveTeamMemberUseCase implements UseCase<RemoveTeamMemberInput, void, UseCaseError> {
   constructor(
-    private readonly repository: TeamMemberRepository,
+    private readonly customerUserRepo: CustomerUserRepository,
     private readonly unitOfWork?: UnitOfWork
   ) {}
 
   /**
    * @method execute
    * @description Loads the member, deactivates through the domain entity, and persists.
-   * @param input - The removal parameters including member and changer IDs
-   * @returns Result<void> on success
    */
   async execute(input: RemoveTeamMemberInput): Promise<Result<void, UseCaseError>> {
-    // Validate member ID
-    const memberIdResult = TeamMemberId.fromString(input.memberId);
-    if (!memberIdResult.ok) {
+    if (!input.memberId || input.memberId.trim().length === 0) {
       return err(
         new UseCaseError(`Invalid member ID: ${input.memberId}`, USE_CASE_ERRORS.VALIDATION_FAILED)
       );
     }
 
-    // Load member
-    const memberResult = await this.repository.findById(memberIdResult.value);
+    const memberResult = await this.customerUserRepo.findById(input.memberId);
     if (!memberResult.ok) {
       return err(
         new UseCaseError(`Team member not found: ${input.memberId}`, USE_CASE_ERRORS.NOT_FOUND)
       );
     }
 
-    // Deactivate through domain entity
     const deactivateResult = memberResult.value.deactivate();
     if (!deactivateResult.ok) {
       return err(new UseCaseError(deactivateResult.error.message, USE_CASE_ERRORS.FORBIDDEN));
     }
 
-    // Persist (atomically via UoW when available)
     const doWork = async (): Promise<Result<void, UseCaseError>> => {
-      const saveResult = await this.repository.save(memberResult.value);
+      const saveResult = await this.customerUserRepo.save(memberResult.value);
       if (!saveResult.ok) {
         return err(
           new UseCaseError(

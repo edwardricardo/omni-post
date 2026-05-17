@@ -29,7 +29,7 @@ import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import { decryptChannelCredentials } from "@shared/types";
 import type { ProviderAdapter } from "@ports/core";
 import type { Provider as PrismaProvider } from "@infra/prisma";
-import { registerGracefulShutdown } from "./lib/gracefulShutdown.js";
+import { registerGracefulShutdown, type ShutdownTarget } from "./lib/gracefulShutdown.js";
 import { handleProviderAuthError } from "./lib/handleProviderAuthError.js";
 import { ChannelAuthFailureRecorder } from "./services/ChannelAuthFailureRecorder.js";
 import { CredentialResolver } from "./services/CredentialResolver.js";
@@ -187,7 +187,23 @@ async function processJob(jobData: {
 
 const authFailureRecorder = new ChannelAuthFailureRecorder({ prisma });
 
-async function start() {
+export interface StartAnalyticsIngestWorkerOptions {
+  /**
+   * When false, callers must register their own graceful-shutdown handler
+   * (typical for composed bootstrap that drains multiple workers as a unit).
+   * Default true: the worker registers its own SIGTERM / SIGINT handler.
+   */
+  registerShutdown?: boolean;
+}
+
+/**
+ * @function startAnalyticsIngestWorker
+ * @description Boots the analytics-ingest BullMQ worker + its Redis connection.
+ * @returns ShutdownTarget so a composer (`bootstrap.ts`) can drain it.
+ */
+export async function startAnalyticsIngestWorker(
+  options?: StartAnalyticsIngestWorkerOptions
+): Promise<ShutdownTarget> {
   // Fail fast if DATABASE_URL credentials don't authenticate (typically a
   // stale Postgres volume after a password rotation without `down -v`).
   await verifyDatabaseAuth();
@@ -241,16 +257,26 @@ async function start() {
     logger.error({ err: error }, "Worker error");
   });
 
-  registerGracefulShutdown({
-    name: "analytics-ingest",
-    target: { workers: [worker], connections: [connection], prisma },
-    logger,
-  });
+  const target: ShutdownTarget = {
+    workers: [worker],
+    connections: [connection],
+    prisma,
+  };
+
+  if (options?.registerShutdown !== false) {
+    registerGracefulShutdown({ name: "analytics-ingest", target, logger });
+  }
 
   logger.info(
     "Analytics ingest worker started, listening on queue: %s",
     QUEUE_NAMES.ANALYTICS_AGGREGATION
   );
+  return target;
 }
 
-start();
+// Standalone entry point: when invoked directly (e.g., `node dist/analyticsIngestWorker.js`)
+// rather than imported by `bootstrap.ts`, kick off the worker.
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+if (isMainModule) {
+  void startAnalyticsIngestWorker();
+}

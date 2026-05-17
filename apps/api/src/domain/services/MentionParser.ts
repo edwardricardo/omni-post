@@ -1,7 +1,7 @@
 /**
  * @file MentionParser.ts
  * @description Pure domain service for parsing @mention markup in text content.
- *   Mention format: @[DisplayName](teamMemberId)
+ *   Mention format: @[DisplayName](customerUserId)
  *   No external dependencies -- all functions are pure and stateless.
  * @layer domain
  */
@@ -11,14 +11,14 @@
  */
 export interface ParsedMention {
   readonly displayName: string;
-  readonly teamMemberId: string;
+  readonly customerUserId: string;
   /** The full raw match string, e.g. "@[Alice](uuid-123)" */
   readonly raw: string;
 }
 
 /**
- * Regex pattern matching the @[DisplayName](teamMemberId) format.
- * Captures: group 1 = display name, group 2 = team member ID
+ * Regex pattern matching the @[DisplayName](customerUserId) format.
+ * Captures: group 1 = display name, group 2 = customer user ID
  */
 const MENTION_PATTERN = /@\[([^\]]+)\]\(([^)]+)\)/g;
 
@@ -41,12 +41,12 @@ export class MentionParser {
 
     while (match !== null) {
       const displayName = match[1];
-      const teamMemberId = match[2];
+      const customerUserId = match[2];
 
-      if (displayName && teamMemberId) {
+      if (displayName && customerUserId) {
         mentions.push({
           displayName,
-          teamMemberId,
+          customerUserId,
           raw: match[0],
         });
       }
@@ -59,21 +59,21 @@ export class MentionParser {
 
   /**
    * @method validate
-   * @description Checks whether all mentioned team member IDs exist in the
-   *   provided set of valid account team member IDs.
+   * @description Checks whether all mentioned CustomerUser IDs exist in the
+   *   provided set of valid account-scoped CustomerUser IDs.
    * @param mentions - Array of parsed mentions to validate
-   * @param accountTeamMemberIds - Set or array of valid team member IDs for the account
-   * @returns true if every mention references a valid team member ID, false otherwise
+   * @param accountCustomerUserIds - Set or array of valid CustomerUser IDs for the account
+   * @returns true if every mention references a valid CustomerUser ID, false otherwise
    */
   static validate(
     mentions: readonly ParsedMention[],
-    accountTeamMemberIds: readonly string[]
+    accountCustomerUserIds: readonly string[]
   ): boolean {
     if (mentions.length === 0) {
       return true;
     }
-    const validIds = new Set(accountTeamMemberIds);
-    return mentions.every((m) => validIds.has(m.teamMemberId));
+    const validIds = new Set(accountCustomerUserIds);
+    return mentions.every((m) => validIds.has(m.customerUserId));
   }
 
   /**
@@ -92,12 +92,12 @@ export class MentionParser {
 
   /**
    * @method extractUniqueIds
-   * @description Extracts a deduplicated array of team member IDs from the text.
+   * @description Extracts a deduplicated array of CustomerUser IDs from the text.
    * @param text - The text content containing mentions
-   * @returns Array of unique team member IDs mentioned in the text
+   * @returns Array of unique CustomerUser IDs mentioned in the text
    */
   static extractUniqueIds(text: string): string[] {
     const mentions = MentionParser.parse(text);
-    return [...new Set(mentions.map((m) => m.teamMemberId))];
+    return [...new Set(mentions.map((m) => m.customerUserId))];
   }
 }

@@ -1,0 +1,6574 @@
+{
+  "backendRoutes": [
+    {
+      "file": "apps/api/src/accounts/accountRoutes.ts",
+      "line": 361,
+      "method": "POST",
+      "path": "/accounts"
+    },
+    {
+      "file": "apps/api/src/accounts/accountRoutes.ts",
+      "line": 371,
+      "method": "GET",
+      "path": "/accounts/:accountId"
+    },
+    {
+      "file": "apps/api/src/accounts/accountRoutes.ts",
+      "line": 381,
+      "method": "GET",
+      "path": "/accounts"
+    },
+    {
+      "file": "apps/api/src/accounts/accountRoutes.ts",
+      "line": 391,
+      "method": "PUT",
+      "path": "/accounts/:accountId"
+    },
+    {
+      "file": "apps/api/src/accounts/accountRoutes.ts",
+      "line": 401,
+      "method": "DELETE",
+      "path": "/accounts/:accountId"
+    },
+    {
+      "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+      "line": 913,
+      "method": "POST",
+      "path": "/admin/accounts"
+    },
+    {
+      "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+      "line": 923,
+      "method": "GET",
+      "path": "/admin/accounts"
+    },
+    {
+      "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+      "line": 933,
+      "method": "GET",
+      "path": "/admin/accounts/stats"
+    },
+    {
+      "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+      "line": 943,
+      "method": "GET",
+      "path": "/admin/accounts/:accountId"
+    },
+    {
+      "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+      "line": 953,
+      "method": "PUT",
+      "path": "/admin/accounts/:accountId"
+    },
+    {
+      "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+      "line": 963,
+      "method": "PUT",
+      "path": "/admin/accounts/:accountId/status"
+    },
+    {
+      "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+      "line": 973,
+      "method": "GET",
+      "path": "/admin/accounts/:accountId/billing"
+    },
+    {
+      "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+      "line": 983,
+      "method": "POST",
+      "path": "/admin/accounts/:accountId/suspend"
+    },
+    {
+      "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+      "line": 993,
+      "method": "POST",
+      "path": "/admin/accounts/:accountId/reactivate"
+    },
+    {
+      "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+      "line": 1003,
+      "method": "POST",
+      "path": "/admin/accounts/:accountId/reset-password"
+    },
+    {
+      "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+      "line": 1013,
+      "method": "DELETE",
+      "path": "/admin/accounts/:accountId"
+    },
+    {
+      "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+      "line": 1023,
+      "method": "GET",
+      "path": "/admin/accounts/:accountId/sessions"
+    },
+    {
+      "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+      "line": 1033,
+      "method": "POST",
+      "path": "/admin/accounts/:accountId/revoke-sessions"
+    },
+    {
+      "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+      "line": 1043,
+      "method": "PATCH",
+      "path": "/admin/accounts/:accountId/grandfathering"
+    },
+    {
+      "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+      "line": 1053,
+      "method": "POST",
+      "path": "/admin/accounts/bulk/suspend"
+    },
+    {
+      "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+      "line": 1063,
+      "method": "POST",
+      "path": "/admin/accounts/bulk/reactivate"
+    },
+    {
+      "file": "apps/api/src/admin/adminUserRoutes.ts",
+      "line": 534,
+      "method": "GET",
+      "path": "/admin/users"
+    },
+    {
+      "file": "apps/api/src/admin/adminUserRoutes.ts",
+      "line": 543,
+      "method": "POST",
+      "path": "/admin/users"
+    },
+    {
+      "file": "apps/api/src/admin/adminUserRoutes.ts",
+      "line": 552,
+      "method": "GET",
+      "path": "/admin/users/:id"
+    },
+    {
+      "file": "apps/api/src/admin/adminUserRoutes.ts",
+      "line": 561,
+      "method": "PUT",
+      "path": "/admin/users/:id"
+    },
+    {
+      "file": "apps/api/src/admin/adminUserRoutes.ts",
+      "line": 570,
+      "method": "POST",
+      "path": "/admin/users/:id/deactivate"
+    },
+    {
+      "file": "apps/api/src/admin/adminUserRoutes.ts",
+      "line": 579,
+      "method": "POST",
+      "path": "/admin/users/:id/activate"
+    },
+    {
+      "file": "apps/api/src/admin/adminUserRoutes.ts",
+      "line": 595,
+      "method": "POST",
+      "path": "/admin/users/:id/password-reset"
+    },
+    {
+      "file": "apps/api/src/admin/analyticsRoutes.ts",
+      "line": 31,
+      "method": "GET",
+      "path": "/admin/analytics/metrics"
+    },
+    {
+      "file": "apps/api/src/admin/analyticsRoutes.ts",
+      "line": 41,
+      "method": "GET",
+      "path": "/admin/compliance/metrics"
+    },
+    {
+      "file": "apps/api/src/admin/analyticsRoutes.ts",
+      "line": 51,
+      "method": "GET",
+      "path": "/admin/compliance/audit-logs"
+    },
+    {
+      "file": "apps/api/src/admin/analyticsRoutes.ts",
+      "line": 61,
+      "method": "GET",
+      "path": "/admin/compliance/gdpr"
+    },
+    {
+      "file": "apps/api/src/admin/analyticsRoutes.ts",
+      "line": 73,
+      "method": "PUT",
+      "path": "/admin/accounts/:id/settings"
+    },
+    {
+      "file": "apps/api/src/admin/apiKeyAdminRoutes.ts",
+      "line": 81,
+      "method": "POST",
+      "path": "/admin/api-keys/:id/rotate"
+    },
+    {
+      "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+      "line": 564,
+      "method": "POST",
+      "path": "/admin/auth/login"
+    },
+    {
+      "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+      "line": 574,
+      "method": "POST",
+      "path": "/admin/auth/refresh"
+    },
+    {
+      "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+      "line": 581,
+      "method": "POST",
+      "path": "/admin/auth/password/reset"
+    },
+    {
+      "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+      "line": 591,
+      "method": "POST",
+      "path": "/admin/auth/password/reset/confirm"
+    },
+    {
+      "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+      "line": 601,
+      "method": "POST",
+      "path": "/admin/auth/password/validate"
+    },
+    {
+      "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+      "line": 612,
+      "method": "GET",
+      "path": "/admin/auth/me"
+    },
+    {
+      "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+      "line": 622,
+      "method": "POST",
+      "path": "/admin/auth/logout"
+    },
+    {
+      "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+      "line": 632,
+      "method": "PUT",
+      "path": "/admin/auth/profile"
+    },
+    {
+      "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+      "line": 656,
+      "method": "POST",
+      "path": "/admin/auth/password/change"
+    },
+    {
+      "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+      "line": 670,
+      "method": "POST",
+      "path": "/admin/auth/mfa/setup"
+    },
+    {
+      "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+      "line": 677,
+      "method": "POST",
+      "path": "/admin/auth/mfa/verify"
+    },
+    {
+      "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+      "line": 687,
+      "method": "POST",
+      "path": "/admin/auth/mfa/disable"
+    },
+    {
+      "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+      "line": 694,
+      "method": "GET",
+      "path": "/admin/auth/mfa/status"
+    },
+    {
+      "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+      "line": 705,
+      "method": "GET",
+      "path": "/admin/auth/sessions"
+    },
+    {
+      "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+      "line": 715,
+      "method": "POST",
+      "path": "/admin/auth/sessions/revoke"
+    },
+    {
+      "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+      "line": 722,
+      "method": "POST",
+      "path": "/admin/auth/sessions/revoke-all"
+    },
+    {
+      "file": "apps/api/src/admin/channelReauthRoutes.ts",
+      "line": 96,
+      "method": "POST",
+      "path": "/admin/channels/:id/force-reauth"
+    },
+    {
+      "file": "apps/api/src/admin/dashboardRoutes.ts",
+      "line": 125,
+      "method": "GET",
+      "path": "/admin/dashboard/stats"
+    },
+    {
+      "file": "apps/api/src/admin/dashboardRoutes.ts",
+      "line": 135,
+      "method": "GET",
+      "path": "/admin/accounts/summary"
+    },
+    {
+      "file": "apps/api/src/admin/dashboardRoutes.ts",
+      "line": 145,
+      "method": "GET",
+      "path": "/admin/accounts/export"
+    },
+    {
+      "file": "apps/api/src/admin/dashboardRoutes.ts",
+      "line": 155,
+      "method": "GET",
+      "path": "/admin/subscriptions/summary"
+    },
+    {
+      "file": "apps/api/src/admin/dashboardRoutes.ts",
+      "line": 165,
+      "method": "GET",
+      "path": "/admin/analytics/overview"
+    },
+    {
+      "file": "apps/api/src/admin/massReauthRoutes.ts",
+      "line": 105,
+      "method": "POST",
+      "path": "/admin/providers/:provider/force-mass-reauth"
+    },
+    {
+      "file": "apps/api/src/admin/oidcAdminRoutes.ts",
+      "line": 90,
+      "method": "POST",
+      "path": "/admin/oidc/configurations/:accountId/replace-client-secret"
+    },
+    {
+      "file": "apps/api/src/admin/pricingRoutes.ts",
+      "line": 443,
+      "method": "GET",
+      "path": "/admin/pricing/tiers"
+    },
+    {
+      "file": "apps/api/src/admin/pricingRoutes.ts",
+      "line": 452,
+      "method": "PUT",
+      "path": "/admin/pricing/provider-tiers/:id"
+    },
+    {
+      "file": "apps/api/src/admin/pricingRoutes.ts",
+      "line": 461,
+      "method": "PUT",
+      "path": "/admin/pricing/account-tiers/:id"
+    },
+    {
+      "file": "apps/api/src/admin/pricingRoutes.ts",
+      "line": 470,
+      "method": "PUT",
+      "path": "/admin/pricing/bundles/:id"
+    },
+    {
+      "file": "apps/api/src/admin/pricingRoutes.ts",
+      "line": 479,
+      "method": "POST",
+      "path": "/admin/pricing/bundles"
+    },
+    {
+      "file": "apps/api/src/admin/pricingRoutes.ts",
+      "line": 488,
+      "method": "DELETE",
+      "path": "/admin/pricing/bundles/:id"
+    },
+    {
+      "file": "apps/api/src/admin/pricingRoutes.ts",
+      "line": 497,
+      "method": "POST",
+      "path": "/admin/pricing/provider-tiers"
+    },
+    {
+      "file": "apps/api/src/admin/pricingRoutes.ts",
+      "line": 506,
+      "method": "POST",
+      "path": "/admin/pricing/account-tiers"
+    },
+    {
+      "file": "apps/api/src/admin/pricingRoutes.ts",
+      "line": 515,
+      "method": "PATCH",
+      "path": "/admin/pricing/provider-tiers/:id/status"
+    },
+    {
+      "file": "apps/api/src/admin/pricingRoutes.ts",
+      "line": 524,
+      "method": "PATCH",
+      "path": "/admin/pricing/account-tiers/:id/status"
+    },
+    {
+      "file": "apps/api/src/admin/queueRoutes.ts",
+      "line": 275,
+      "method": "GET",
+      "path": "/admin/queue/stats"
+    },
+    {
+      "file": "apps/api/src/admin/queueRoutes.ts",
+      "line": 285,
+      "method": "GET",
+      "path": "/admin/queue/jobs"
+    },
+    {
+      "file": "apps/api/src/admin/queueRoutes.ts",
+      "line": 295,
+      "method": "GET",
+      "path": "/admin/queue/jobs/:id"
+    },
+    {
+      "file": "apps/api/src/admin/queueRoutes.ts",
+      "line": 305,
+      "method": "POST",
+      "path": "/admin/queue/jobs/:id/retry"
+    },
+    {
+      "file": "apps/api/src/admin/queueRoutes.ts",
+      "line": 315,
+      "method": "POST",
+      "path": "/admin/queue/jobs/:id/remove"
+    },
+    {
+      "file": "apps/api/src/admin/schedulingRoutes.ts",
+      "line": 23,
+      "method": "GET",
+      "path": "/admin/posts/scheduled"
+    },
+    {
+      "file": "apps/api/src/admin/schedulingRoutes.ts",
+      "line": 32,
+      "method": "POST",
+      "path": "/admin/posts/:id/cancel"
+    },
+    {
+      "file": "apps/api/src/admin/schedulingRoutes.ts",
+      "line": 41,
+      "method": "POST",
+      "path": "/admin/posts/:id/reschedule"
+    },
+    {
+      "file": "apps/api/src/admin/secretsRotationRoutes.ts",
+      "line": 40,
+      "method": "GET",
+      "path": "/admin/security/secrets/rotation-status"
+    },
+    {
+      "file": "apps/api/src/admin/webhookAdminRoutes.ts",
+      "line": 98,
+      "method": "POST",
+      "path": "/admin/webhooks/:id/rotate-secret"
+    },
+    {
+      "file": "apps/api/src/ai/promptTemplateRoutes.ts",
+      "line": 201,
+      "method": "GET",
+      "path": "/ai-templates"
+    },
+    {
+      "file": "apps/api/src/ai/promptTemplateRoutes.ts",
+      "line": 210,
+      "method": "POST",
+      "path": "/ai-templates"
+    },
+    {
+      "file": "apps/api/src/ai/promptTemplateRoutes.ts",
+      "line": 219,
+      "method": "PATCH",
+      "path": "/ai-templates/:id"
+    },
+    {
+      "file": "apps/api/src/ai/promptTemplateRoutes.ts",
+      "line": 228,
+      "method": "DELETE",
+      "path": "/ai-templates/:id"
+    },
+    {
+      "file": "apps/api/src/ai/routes.ts",
+      "line": 369,
+      "method": "POST",
+      "path": "/generate"
+    },
+    {
+      "file": "apps/api/src/ai/routes.ts",
+      "line": 378,
+      "method": "POST",
+      "path": "/analyze"
+    },
+    {
+      "file": "apps/api/src/ai/routes.ts",
+      "line": 384,
+      "method": "POST",
+      "path": "/optimize"
+    },
+    {
+      "file": "apps/api/src/ai/routes.ts",
+      "line": 393,
+      "method": "POST",
+      "path": "/predict"
+    },
+    {
+      "file": "apps/api/src/ai/routes.ts",
+      "line": 402,
+      "method": "POST",
+      "path": "/variations"
+    },
+    {
+      "file": "apps/api/src/ai/routes.ts",
+      "line": 411,
+      "method": "POST",
+      "path": "/smart-analysis"
+    },
+    {
+      "file": "apps/api/src/ai/routes.ts",
+      "line": 430,
+      "method": "POST",
+      "path": "/predict-timing"
+    },
+    {
+      "file": "apps/api/src/ai/routes.ts",
+      "line": 448,
+      "method": "POST",
+      "path": "/predict-audience"
+    },
+    {
+      "file": "apps/api/src/ai/routes.ts",
+      "line": 467,
+      "method": "DELETE",
+      "path": "/cache"
+    },
+    {
+      "file": "apps/api/src/ai-image/aiImageRoutes.ts",
+      "line": 149,
+      "method": "POST",
+      "path": "/ai/generate-image"
+    },
+    {
+      "file": "apps/api/src/ai-image/aiImageRoutes.ts",
+      "line": 159,
+      "method": "GET",
+      "path": "/ai/generated-images"
+    },
+    {
+      "file": "apps/api/src/analytics/analyticsRoutes.ts",
+      "line": 684,
+      "method": "GET",
+      "path": "/analytics/project/:projectId"
+    },
+    {
+      "file": "apps/api/src/analytics/analyticsRoutes.ts",
+      "line": 691,
+      "method": "GET",
+      "path": "/threads/:threadId/performance"
+    },
+    {
+      "file": "apps/api/src/analytics/analyticsRoutes.ts",
+      "line": 701,
+      "method": "GET",
+      "path": "/threads/compare"
+    },
+    {
+      "file": "apps/api/src/analytics/analyticsRoutes.ts",
+      "line": 711,
+      "method": "GET",
+      "path": "/engagement/trends"
+    },
+    {
+      "file": "apps/api/src/analytics/analyticsRoutes.ts",
+      "line": 721,
+      "method": "GET",
+      "path": "/posts/best-times"
+    },
+    {
+      "file": "apps/api/src/analytics/analyticsRoutes.ts",
+      "line": 731,
+      "method": "GET",
+      "path": "/engagement/geographic"
+    },
+    {
+      "file": "apps/api/src/analytics/analyticsRoutes.ts",
+      "line": 741,
+      "method": "GET",
+      "path": "/content/media-performance"
+    },
+    {
+      "file": "apps/api/src/analytics/analyticsRoutes.ts",
+      "line": 751,
+      "method": "GET",
+      "path": "/analytics/dashboard"
+    },
+    {
+      "file": "apps/api/src/analytics/analyticsRoutes.ts",
+      "line": 761,
+      "method": "GET",
+      "path": "/export"
+    },
+    {
+      "file": "apps/api/src/analytics/analyticsRoutes.ts",
+      "line": 776,
+      "method": "GET",
+      "path": "/analytics/roi"
+    },
+    {
+      "file": "apps/api/src/analytics/analyticsRoutes.ts",
+      "line": 793,
+      "method": "GET",
+      "path": "/analytics/cross-platform"
+    },
+    {
+      "file": "apps/api/src/announcements/announcementRoutes.ts",
+      "line": 32,
+      "method": "GET",
+      "path": "/announcements/active"
+    },
+    {
+      "file": "apps/api/src/announcements/announcementRoutes.ts",
+      "line": 60,
+      "method": "GET",
+      "path": "/admin/announcements"
+    },
+    {
+      "file": "apps/api/src/announcements/announcementRoutes.ts",
+      "line": 74,
+      "method": "POST",
+      "path": "/admin/announcements"
+    },
+    {
+      "file": "apps/api/src/announcements/announcementRoutes.ts",
+      "line": 100,
+      "method": "PUT",
+      "path": "/admin/announcements/:id"
+    },
+    {
+      "file": "apps/api/src/announcements/announcementRoutes.ts",
+      "line": 128,
+      "method": "DELETE",
+      "path": "/admin/announcements/:id"
+    },
+    {
+      "file": "apps/api/src/approvals/approvalRoutes.ts",
+      "line": 281,
+      "method": "POST",
+      "path": "/posts/:postId/submit-for-review"
+    },
+    {
+      "file": "apps/api/src/approvals/approvalRoutes.ts",
+      "line": 291,
+      "method": "POST",
+      "path": "/approvals/:id/approve"
+    },
+    {
+      "file": "apps/api/src/approvals/approvalRoutes.ts",
+      "line": 301,
+      "method": "POST",
+      "path": "/approvals/:id/reject"
+    },
+    {
+      "file": "apps/api/src/approvals/approvalRoutes.ts",
+      "line": 311,
+      "method": "GET",
+      "path": "/posts/:postId/approvals"
+    },
+    {
+      "file": "apps/api/src/approvals/approvalRoutes.ts",
+      "line": 321,
+      "method": "GET",
+      "path": "/approvals/pending"
+    },
+    {
+      "file": "apps/api/src/approvals/approvalWorkflowRoutes.ts",
+      "line": 299,
+      "method": "GET",
+      "path": "/approval-workflows"
+    },
+    {
+      "file": "apps/api/src/approvals/approvalWorkflowRoutes.ts",
+      "line": 309,
+      "method": "POST",
+      "path": "/approval-workflows"
+    },
+    {
+      "file": "apps/api/src/approvals/approvalWorkflowRoutes.ts",
+      "line": 319,
+      "method": "GET",
+      "path": "/approval-workflows/:id"
+    },
+    {
+      "file": "apps/api/src/approvals/approvalWorkflowRoutes.ts",
+      "line": 329,
+      "method": "PATCH",
+      "path": "/approval-workflows/:id"
+    },
+    {
+      "file": "apps/api/src/approvals/approvalWorkflowRoutes.ts",
+      "line": 339,
+      "method": "DELETE",
+      "path": "/approval-workflows/:id"
+    },
+    {
+      "file": "apps/api/src/assets/assetRoutes.ts",
+      "line": 560,
+      "method": "GET",
+      "path": "/assets/tags"
+    },
+    {
+      "file": "apps/api/src/assets/assetRoutes.ts",
+      "line": 569,
+      "method": "POST",
+      "path": "/assets/tags"
+    },
+    {
+      "file": "apps/api/src/assets/assetRoutes.ts",
+      "line": 578,
+      "method": "DELETE",
+      "path": "/assets/tags/:id"
+    },
+    {
+      "file": "apps/api/src/assets/assetRoutes.ts",
+      "line": 589,
+      "method": "GET",
+      "path": "/assets/folders"
+    },
+    {
+      "file": "apps/api/src/assets/assetRoutes.ts",
+      "line": 598,
+      "method": "POST",
+      "path": "/assets/folders"
+    },
+    {
+      "file": "apps/api/src/assets/assetRoutes.ts",
+      "line": 609,
+      "method": "POST",
+      "path": "/assets/import/google-drive"
+    },
+    {
+      "file": "apps/api/src/assets/assetRoutes.ts",
+      "line": 620,
+      "method": "GET",
+      "path": "/assets"
+    },
+    {
+      "file": "apps/api/src/assets/assetRoutes.ts",
+      "line": 629,
+      "method": "POST",
+      "path": "/assets"
+    },
+    {
+      "file": "apps/api/src/assets/assetRoutes.ts",
+      "line": 638,
+      "method": "GET",
+      "path": "/assets/:id"
+    },
+    {
+      "file": "apps/api/src/assets/assetRoutes.ts",
+      "line": 647,
+      "method": "PATCH",
+      "path": "/assets/:id"
+    },
+    {
+      "file": "apps/api/src/assets/assetRoutes.ts",
+      "line": 656,
+      "method": "DELETE",
+      "path": "/assets/:id"
+    },
+    {
+      "file": "apps/api/src/assets/assetRoutes.ts",
+      "line": 665,
+      "method": "POST",
+      "path": "/assets/:id/tags"
+    },
+    {
+      "file": "apps/api/src/audit/activityFeedRoutes.ts",
+      "line": 76,
+      "method": "GET",
+      "path": "/activity-feed"
+    },
+    {
+      "file": "apps/api/src/audit/auditRoutes.ts",
+      "line": 427,
+      "method": "GET",
+      "path": "/admin/audit/logs"
+    },
+    {
+      "file": "apps/api/src/audit/auditRoutes.ts",
+      "line": 434,
+      "method": "GET",
+      "path": "/admin/audit/stats"
+    },
+    {
+      "file": "apps/api/src/audit/auditRoutes.ts",
+      "line": 441,
+      "method": "GET",
+      "path": "/admin/audit/users/:userId/logs"
+    },
+    {
+      "file": "apps/api/src/audit/auditRoutes.ts",
+      "line": 448,
+      "method": "GET",
+      "path": "/admin/audit/resources/:resource/logs"
+    },
+    {
+      "file": "apps/api/src/audit/auditRoutes.ts",
+      "line": 455,
+      "method": "POST",
+      "path": "/admin/audit/logs"
+    },
+    {
+      "file": "apps/api/src/audit/auditRoutes.ts",
+      "line": 462,
+      "method": "POST",
+      "path": "/admin/audit/cleanup"
+    },
+    {
+      "file": "apps/api/src/audit/auditRoutes.ts",
+      "line": 469,
+      "method": "GET",
+      "path": "/admin/audit/my-logs"
+    },
+    {
+      "file": "apps/api/src/audit/auditRoutes.ts",
+      "line": 476,
+      "method": "GET",
+      "path": "/admin/audit/export"
+    },
+    {
+      "file": "apps/api/src/auth/apiKeyRoutes.ts",
+      "line": 269,
+      "method": "GET",
+      "path": "/api-keys"
+    },
+    {
+      "file": "apps/api/src/auth/apiKeyRoutes.ts",
+      "line": 277,
+      "method": "POST",
+      "path": "/api-keys"
+    },
+    {
+      "file": "apps/api/src/auth/apiKeyRoutes.ts",
+      "line": 285,
+      "method": "POST",
+      "path": "/api-keys/:id/rotate"
+    },
+    {
+      "file": "apps/api/src/auth/apiKeyRoutes.ts",
+      "line": 293,
+      "method": "DELETE",
+      "path": "/api-keys/:id"
+    },
+    {
+      "file": "apps/api/src/auth/authRoutes.ts",
+      "line": 366,
+      "method": "POST",
+      "path": "/auth/register"
+    },
+    {
+      "file": "apps/api/src/auth/authRoutes.ts",
+      "line": 378,
+      "method": "POST",
+      "path": "/auth/login"
+    },
+    {
+      "file": "apps/api/src/auth/authRoutes.ts",
+      "line": 390,
+      "method": "POST",
+      "path": "/auth/refresh"
+    },
+    {
+      "file": "apps/api/src/auth/authRoutes.ts",
+      "line": 402,
+      "method": "POST",
+      "path": "/auth/logout"
+    },
+    {
+      "file": "apps/api/src/auth/authRoutes.ts",
+      "line": 414,
+      "method": "GET",
+      "path": "/auth/me"
+    },
+    {
+      "file": "apps/api/src/auth/authRoutes.ts",
+      "line": 426,
+      "method": "GET",
+      "path": "/auth/sessions"
+    },
+    {
+      "file": "apps/api/src/auth/authRoutes.ts",
+      "line": 438,
+      "method": "POST",
+      "path": "/auth/revoke-all"
+    },
+    {
+      "file": "apps/api/src/auth/customerAuthRoutes.ts",
+      "line": 322,
+      "method": "POST",
+      "path": "/auth/customer/register"
+    },
+    {
+      "file": "apps/api/src/auth/customerAuthRoutes.ts",
+      "line": 334,
+      "method": "POST",
+      "path": "/auth/customer/login"
+    },
+    {
+      "file": "apps/api/src/auth/customerAuthRoutes.ts",
+      "line": 346,
+      "method": "POST",
+      "path": "/auth/customer/logout"
+    },
+    {
+      "file": "apps/api/src/auth/customerAuthRoutes.ts",
+      "line": 358,
+      "method": "POST",
+      "path": "/auth/customer/refresh"
+    },
+    {
+      "file": "apps/api/src/auth/customerAuthRoutes.ts",
+      "line": 370,
+      "method": "POST",
+      "path": "/auth/customer/request-password-reset"
+    },
+    {
+      "file": "apps/api/src/auth/customerAuthRoutes.ts",
+      "line": 385,
+      "method": "POST",
+      "path": "/auth/customer/reset-password"
+    },
+    {
+      "file": "apps/api/src/auth/customerAuthRoutes.ts",
+      "line": 397,
+      "method": "GET",
+      "path": "/auth/customer/me"
+    },
+    {
+      "file": "apps/api/src/auth/mfaRoutes.ts",
+      "line": 403,
+      "method": "GET",
+      "path": "/auth/mfa/status"
+    },
+    {
+      "file": "apps/api/src/auth/mfaRoutes.ts",
+      "line": 413,
+      "method": "POST",
+      "path": "/auth/mfa/setup"
+    },
+    {
+      "file": "apps/api/src/auth/mfaRoutes.ts",
+      "line": 423,
+      "method": "POST",
+      "path": "/auth/mfa/verify-setup"
+    },
+    {
+      "file": "apps/api/src/auth/mfaRoutes.ts",
+      "line": 433,
+      "method": "POST",
+      "path": "/auth/mfa/verify"
+    },
+    {
+      "file": "apps/api/src/auth/mfaRoutes.ts",
+      "line": 440,
+      "method": "POST",
+      "path": "/auth/mfa/disable"
+    },
+    {
+      "file": "apps/api/src/auth/mfaRoutes.ts",
+      "line": 447,
+      "method": "POST",
+      "path": "/auth/mfa/regenerate-backup-codes"
+    },
+    {
+      "file": "apps/api/src/auth/mfaRoutes.ts",
+      "line": 457,
+      "method": "GET",
+      "path": "/admin/users/:userId/mfa/status"
+    },
+    {
+      "file": "apps/api/src/auth/mfaRoutes.ts",
+      "line": 467,
+      "method": "POST",
+      "path": "/admin/users/:userId/mfa/force-disable"
+    },
+    {
+      "file": "apps/api/src/auth/oidcRoutes.ts",
+      "line": 233,
+      "method": "GET",
+      "path": "/oidc/config"
+    },
+    {
+      "file": "apps/api/src/auth/oidcRoutes.ts",
+      "line": 242,
+      "method": "PUT",
+      "path": "/oidc/config"
+    },
+    {
+      "file": "apps/api/src/auth/oidcRoutes.ts",
+      "line": 251,
+      "method": "POST",
+      "path": "/oidc/enable"
+    },
+    {
+      "file": "apps/api/src/auth/oidcRoutes.ts",
+      "line": 260,
+      "method": "POST",
+      "path": "/oidc/disable"
+    },
+    {
+      "file": "apps/api/src/auth/oidcRoutes.ts",
+      "line": 271,
+      "method": "GET",
+      "path": "/auth/oidc/:accountId/login"
+    },
+    {
+      "file": "apps/api/src/auth/oidcRoutes.ts",
+      "line": 329,
+      "method": "GET",
+      "path": "/auth/oidc/:accountId/callback"
+    },
+    {
+      "file": "apps/api/src/auth/rbacRoutes.ts",
+      "line": 538,
+      "method": "GET",
+      "path": "/auth/permissions"
+    },
+    {
+      "file": "apps/api/src/auth/rbacRoutes.ts",
+      "line": 547,
+      "method": "POST",
+      "path": "/auth/permissions/check"
+    },
+    {
+      "file": "apps/api/src/auth/rbacRoutes.ts",
+      "line": 557,
+      "method": "GET",
+      "path": "/admin/rbac/roles"
+    },
+    {
+      "file": "apps/api/src/auth/rbacRoutes.ts",
+      "line": 566,
+      "method": "GET",
+      "path": "/admin/rbac/roles/:role"
+    },
+    {
+      "file": "apps/api/src/auth/rbacRoutes.ts",
+      "line": 575,
+      "method": "GET",
+      "path": "/admin/rbac/roles/:role/users"
+    },
+    {
+      "file": "apps/api/src/auth/rbacRoutes.ts",
+      "line": 584,
+      "method": "GET",
+      "path": "/admin/rbac/hierarchy"
+    },
+    {
+      "file": "apps/api/src/auth/rbacRoutes.ts",
+      "line": 593,
+      "method": "GET",
+      "path": "/admin/rbac/status"
+    },
+    {
+      "file": "apps/api/src/auth/rbacRoutes.ts",
+      "line": 603,
+      "method": "PUT",
+      "path": "/admin/rbac/users/:userId/role"
+    },
+    {
+      "file": "apps/api/src/auth/rbacRoutes.ts",
+      "line": 612,
+      "method": "POST",
+      "path": "/admin/rbac/roles"
+    },
+    {
+      "file": "apps/api/src/auth/rbacRoutes.ts",
+      "line": 621,
+      "method": "PUT",
+      "path": "/admin/rbac/roles/:roleId"
+    },
+    {
+      "file": "apps/api/src/auth/rbacRoutes.ts",
+      "line": 630,
+      "method": "PUT",
+      "path": "/admin/rbac/roles/:roleId/permissions"
+    },
+    {
+      "file": "apps/api/src/auth/rbacRoutes.ts",
+      "line": 639,
+      "method": "DELETE",
+      "path": "/admin/rbac/roles/:roleId"
+    },
+    {
+      "file": "apps/api/src/auth/samlRoutes.ts",
+      "line": 204,
+      "method": "GET",
+      "path": "/saml/config"
+    },
+    {
+      "file": "apps/api/src/auth/samlRoutes.ts",
+      "line": 213,
+      "method": "PUT",
+      "path": "/saml/config"
+    },
+    {
+      "file": "apps/api/src/auth/samlRoutes.ts",
+      "line": 222,
+      "method": "POST",
+      "path": "/saml/enable"
+    },
+    {
+      "file": "apps/api/src/auth/samlRoutes.ts",
+      "line": 231,
+      "method": "POST",
+      "path": "/saml/disable"
+    },
+    {
+      "file": "apps/api/src/auth/samlRoutes.ts",
+      "line": 242,
+      "method": "GET",
+      "path": "/auth/saml/:accountId/metadata"
+    },
+    {
+      "file": "apps/api/src/auth/samlRoutes.ts",
+      "line": 265,
+      "method": "GET",
+      "path": "/auth/saml/:accountId/login"
+    },
+    {
+      "file": "apps/api/src/auth/samlRoutes.ts",
+      "line": 288,
+      "method": "POST",
+      "path": "/auth/saml/:accountId/callback"
+    },
+    {
+      "file": "apps/api/src/billing/adminBillingRoutes.ts",
+      "line": 27,
+      "method": "GET",
+      "path": "/admin/billing/gateway-switches"
+    },
+    {
+      "file": "apps/api/src/billing/adminBillingRoutes.ts",
+      "line": 56,
+      "method": "GET",
+      "path": "/admin/billing/gateway-switches/:id"
+    },
+    {
+      "file": "apps/api/src/billing/adminBillingRoutes.ts",
+      "line": 78,
+      "method": "POST",
+      "path": "/admin/billing/gateway-switches/:id/extend"
+    },
+    {
+      "file": "apps/api/src/billing/adminBillingRoutes.ts",
+      "line": 118,
+      "method": "POST",
+      "path": "/admin/billing/gateway-switches/:id/force-complete"
+    },
+    {
+      "file": "apps/api/src/billing/adminBillingRoutes.ts",
+      "line": 146,
+      "method": "POST",
+      "path": "/admin/billing/gateway-switches/:id/force-suspend"
+    },
+    {
+      "file": "apps/api/src/billing/adminBillingRoutes.ts",
+      "line": 177,
+      "method": "GET",
+      "path": "/admin/billing/invoices"
+    },
+    {
+      "file": "apps/api/src/billing/billingWebhookRoutes.ts",
+      "line": 166,
+      "method": "POST",
+      "path": "/webhooks/stripe"
+    },
+    {
+      "file": "apps/api/src/billing/billingWebhookRoutes.ts",
+      "line": 215,
+      "method": "POST",
+      "path": "/webhooks/paddle"
+    },
+    {
+      "file": "apps/api/src/billing/clientBillingRoutes.ts",
+      "line": 24,
+      "method": "GET",
+      "path": "/billing/gateway/status"
+    },
+    {
+      "file": "apps/api/src/billing/clientBillingRoutes.ts",
+      "line": 45,
+      "method": "POST",
+      "path": "/billing/gateway/switch"
+    },
+    {
+      "file": "apps/api/src/billing/clientBillingRoutes.ts",
+      "line": 88,
+      "method": "DELETE",
+      "path": "/billing/gateway/switch"
+    },
+    {
+      "file": "apps/api/src/billing/clientBillingRoutes.ts",
+      "line": 115,
+      "method": "GET",
+      "path": "/billing/plans"
+    },
+    {
+      "file": "apps/api/src/billing/clientBillingRoutes.ts",
+      "line": 130,
+      "method": "POST",
+      "path": "/billing/checkout"
+    },
+    {
+      "file": "apps/api/src/billing/clientBillingRoutes.ts",
+      "line": 176,
+      "method": "GET",
+      "path": "/billing/portal"
+    },
+    {
+      "file": "apps/api/src/billing/clientBillingRoutes.ts",
+      "line": 209,
+      "method": "GET",
+      "path": "/billing/invoices"
+    },
+    {
+      "file": "apps/api/src/billing/subscriptionRoutes.ts",
+      "line": 35,
+      "method": "GET",
+      "path": "/admin/billing/plans"
+    },
+    {
+      "file": "apps/api/src/billing/subscriptionRoutes.ts",
+      "line": 45,
+      "method": "GET",
+      "path": "/admin/billing/plans/:tier"
+    },
+    {
+      "file": "apps/api/src/billing/subscriptionRoutes.ts",
+      "line": 55,
+      "method": "GET",
+      "path": "/admin/billing/accounts/:accountId/subscription"
+    },
+    {
+      "file": "apps/api/src/billing/subscriptionRoutes.ts",
+      "line": 65,
+      "method": "PUT",
+      "path": "/admin/billing/accounts/:accountId/subscription"
+    },
+    {
+      "file": "apps/api/src/billing/subscriptionRoutes.ts",
+      "line": 75,
+      "method": "GET",
+      "path": "/admin/billing/subscriptions"
+    },
+    {
+      "file": "apps/api/src/billing/subscriptionRoutes.ts",
+      "line": 85,
+      "method": "GET",
+      "path": "/admin/billing/stats"
+    },
+    {
+      "file": "apps/api/src/billing/subscriptionRoutes.ts",
+      "line": 95,
+      "method": "POST",
+      "path": "/admin/billing/accounts/:accountId/validate-limits"
+    },
+    {
+      "file": "apps/api/src/billing/subscriptionRoutes.ts",
+      "line": 105,
+      "method": "POST",
+      "path": "/admin/billing/accounts/:accountId/suspend"
+    },
+    {
+      "file": "apps/api/src/billing/subscriptionRoutes.ts",
+      "line": 115,
+      "method": "POST",
+      "path": "/admin/billing/bulk/upgrade"
+    },
+    {
+      "file": "apps/api/src/billing/subscriptionRoutes.ts",
+      "line": 127,
+      "method": "GET",
+      "path": "/admin/billing/health"
+    },
+    {
+      "file": "apps/api/src/billing/subscriptionRoutes.ts",
+      "line": 137,
+      "method": "GET",
+      "path": "/admin/billing/export"
+    },
+    {
+      "file": "apps/api/src/billing/subscriptionRoutes.ts",
+      "line": 147,
+      "method": "POST",
+      "path": "/admin/billing/accounts/:accountId/trial/start"
+    },
+    {
+      "file": "apps/api/src/billing/subscriptionRoutes.ts",
+      "line": 157,
+      "method": "POST",
+      "path": "/admin/billing/accounts/:accountId/trial/end"
+    },
+    {
+      "file": "apps/api/src/billing/subscriptionRoutes.ts",
+      "line": 167,
+      "method": "POST",
+      "path": "/admin/billing/accounts/:accountId/trial/convert"
+    },
+    {
+      "file": "apps/api/src/billing/subscriptionRoutes.ts",
+      "line": 177,
+      "method": "GET",
+      "path": "/admin/billing/trials/expiring"
+    },
+    {
+      "file": "apps/api/src/billing/subscriptionRoutes.ts",
+      "line": 187,
+      "method": "POST",
+      "path": "/admin/billing/auto-renewals/process"
+    },
+    {
+      "file": "apps/api/src/billing/subscriptionRoutes.ts",
+      "line": 197,
+      "method": "GET",
+      "path": "/admin/billing/trials/stats"
+    },
+    {
+      "file": "apps/api/src/brand-kit/brandKitRoutes.ts",
+      "line": 142,
+      "method": "GET",
+      "path": "/brand-kit/:accountId"
+    },
+    {
+      "file": "apps/api/src/brand-kit/brandKitRoutes.ts",
+      "line": 151,
+      "method": "PUT",
+      "path": "/brand-kit/:accountId"
+    },
+    {
+      "file": "apps/api/src/brand-kit/brandKitRoutes.ts",
+      "line": 160,
+      "method": "DELETE",
+      "path": "/brand-kit/:accountId"
+    },
+    {
+      "file": "apps/api/src/brand-voice/brandVoiceRoutes.ts",
+      "line": 128,
+      "method": "GET",
+      "path": "/ai/brand-voice"
+    },
+    {
+      "file": "apps/api/src/brand-voice/brandVoiceRoutes.ts",
+      "line": 137,
+      "method": "POST",
+      "path": "/ai/brand-voice"
+    },
+    {
+      "file": "apps/api/src/brand-voice/brandVoiceRoutes.ts",
+      "line": 146,
+      "method": "PUT",
+      "path": "/ai/brand-voice/:accountId"
+    },
+    {
+      "file": "apps/api/src/brand-voice/brandVoiceRoutes.ts",
+      "line": 155,
+      "method": "DELETE",
+      "path": "/ai/brand-voice/:accountId"
+    },
+    {
+      "file": "apps/api/src/campaigns/campaignRoutes.ts",
+      "line": 428,
+      "method": "POST",
+      "path": "/campaigns"
+    },
+    {
+      "file": "apps/api/src/campaigns/campaignRoutes.ts",
+      "line": 437,
+      "method": "PATCH",
+      "path": "/campaigns/:id"
+    },
+    {
+      "file": "apps/api/src/campaigns/campaignRoutes.ts",
+      "line": 446,
+      "method": "POST",
+      "path": "/campaigns/:id/archive"
+    },
+    {
+      "file": "apps/api/src/campaigns/campaignRoutes.ts",
+      "line": 455,
+      "method": "POST",
+      "path": "/campaigns/:id/posts/:postId"
+    },
+    {
+      "file": "apps/api/src/campaigns/campaignRoutes.ts",
+      "line": 464,
+      "method": "DELETE",
+      "path": "/campaigns/:id/posts/:postId"
+    },
+    {
+      "file": "apps/api/src/campaigns/campaignRoutes.ts",
+      "line": 475,
+      "method": "GET",
+      "path": "/campaigns"
+    },
+    {
+      "file": "apps/api/src/campaigns/campaignRoutes.ts",
+      "line": 484,
+      "method": "GET",
+      "path": "/campaigns/:id"
+    },
+    {
+      "file": "apps/api/src/campaigns/campaignRoutes.ts",
+      "line": 493,
+      "method": "GET",
+      "path": "/campaigns/:id/analytics"
+    },
+    {
+      "file": "apps/api/src/channels/channelRoutes.ts",
+      "line": 606,
+      "method": "POST",
+      "path": "/channels"
+    },
+    {
+      "file": "apps/api/src/channels/channelRoutes.ts",
+      "line": 614,
+      "method": "POST",
+      "path": "/channels/bluesky/connect"
+    },
+    {
+      "file": "apps/api/src/channels/channelRoutes.ts",
+      "line": 622,
+      "method": "GET",
+      "path": "/channels/:channelId"
+    },
+    {
+      "file": "apps/api/src/channels/channelRoutes.ts",
+      "line": 630,
+      "method": "GET",
+      "path": "/projects/:projectId/channels"
+    },
+    {
+      "file": "apps/api/src/channels/channelRoutes.ts",
+      "line": 638,
+      "method": "PUT",
+      "path": "/channels/:channelId"
+    },
+    {
+      "file": "apps/api/src/channels/channelRoutes.ts",
+      "line": 646,
+      "method": "PATCH",
+      "path": "/channels/:channelId/set-primary"
+    },
+    {
+      "file": "apps/api/src/channels/channelRoutes.ts",
+      "line": 657,
+      "method": "DELETE",
+      "path": "/channels/:channelId"
+    },
+    {
+      "file": "apps/api/src/channels/channelRoutes.ts",
+      "line": 665,
+      "method": "DELETE",
+      "path": "/channels/:channelId/hard"
+    },
+    {
+      "file": "apps/api/src/comments/commentRoutes.ts",
+      "line": 248,
+      "method": "POST",
+      "path": "/posts/:postId/comments"
+    },
+    {
+      "file": "apps/api/src/comments/commentRoutes.ts",
+      "line": 258,
+      "method": "GET",
+      "path": "/posts/:postId/comments"
+    },
+    {
+      "file": "apps/api/src/comments/commentRoutes.ts",
+      "line": 268,
+      "method": "PATCH",
+      "path": "/comments/:id"
+    },
+    {
+      "file": "apps/api/src/comments/commentRoutes.ts",
+      "line": 278,
+      "method": "DELETE",
+      "path": "/comments/:id"
+    },
+    {
+      "file": "apps/api/src/compliance/complianceRoutes.ts",
+      "line": 36,
+      "method": "GET",
+      "path": "/admin/compliance/settings/gdpr"
+    },
+    {
+      "file": "apps/api/src/compliance/complianceRoutes.ts",
+      "line": 45,
+      "method": "PUT",
+      "path": "/admin/compliance/settings/gdpr"
+    },
+    {
+      "file": "apps/api/src/compliance/complianceRoutes.ts",
+      "line": 64,
+      "method": "GET",
+      "path": "/admin/compliance/settings/security"
+    },
+    {
+      "file": "apps/api/src/compliance/complianceRoutes.ts",
+      "line": 73,
+      "method": "PUT",
+      "path": "/admin/compliance/settings/security"
+    },
+    {
+      "file": "apps/api/src/compliance/complianceRoutes.ts",
+      "line": 92,
+      "method": "GET",
+      "path": "/admin/compliance/score"
+    },
+    {
+      "file": "apps/api/src/compliance/complianceRoutes.ts",
+      "line": 103,
+      "method": "GET",
+      "path": "/admin/compliance/dsar"
+    },
+    {
+      "file": "apps/api/src/compliance/complianceRoutes.ts",
+      "line": 116,
+      "method": "GET",
+      "path": "/admin/compliance/dsar/:id"
+    },
+    {
+      "file": "apps/api/src/compliance/complianceRoutes.ts",
+      "line": 129,
+      "method": "POST",
+      "path": "/admin/compliance/dsar/:id/acknowledge"
+    },
+    {
+      "file": "apps/api/src/compliance/complianceRoutes.ts",
+      "line": 143,
+      "method": "POST",
+      "path": "/admin/compliance/dsar/:id/complete"
+    },
+    {
+      "file": "apps/api/src/compliance/complianceRoutes.ts",
+      "line": 162,
+      "method": "POST",
+      "path": "/admin/compliance/dsar/:id/reject"
+    },
+    {
+      "file": "apps/api/src/compliance/complianceRoutes.ts",
+      "line": 182,
+      "method": "GET",
+      "path": "/admin/compliance/breaches"
+    },
+    {
+      "file": "apps/api/src/compliance/complianceRoutes.ts",
+      "line": 195,
+      "method": "POST",
+      "path": "/admin/compliance/breaches"
+    },
+    {
+      "file": "apps/api/src/compliance/complianceRoutes.ts",
+      "line": 212,
+      "method": "POST",
+      "path": "/admin/compliance/breaches/:id/notify"
+    },
+    {
+      "file": "apps/api/src/compliance/complianceRoutes.ts",
+      "line": 228,
+      "method": "POST",
+      "path": "/compliance/dsar"
+    },
+    {
+      "file": "apps/api/src/content/contentRoutes.ts",
+      "line": 73,
+      "method": "POST",
+      "path": "/content/sync/:postId"
+    },
+    {
+      "file": "apps/api/src/content/contentRoutes.ts",
+      "line": 87,
+      "method": "GET",
+      "path": "/content/sync/metrics"
+    },
+    {
+      "file": "apps/api/src/content/contentRoutes.ts",
+      "line": 101,
+      "method": "GET",
+      "path": "/content/sync/metrics/:channelId"
+    },
+    {
+      "file": "apps/api/src/content/contentRoutes.ts",
+      "line": 115,
+      "method": "POST",
+      "path": "/content/sync/:transactionId/rollback"
+    },
+    {
+      "file": "apps/api/src/content/contentRoutes.ts",
+      "line": 133,
+      "method": "POST",
+      "path": "/content/channels"
+    },
+    {
+      "file": "apps/api/src/content/contentRoutes.ts",
+      "line": 148,
+      "method": "POST",
+      "path": "/content/channels/realtime/start"
+    },
+    {
+      "file": "apps/api/src/content/contentRoutes.ts",
+      "line": 162,
+      "method": "POST",
+      "path": "/content/channels/realtime/stop/:postId"
+    },
+    {
+      "file": "apps/api/src/content/contentRoutes.ts",
+      "line": 179,
+      "method": "GET",
+      "path": "/content/versions/:postId"
+    },
+    {
+      "file": "apps/api/src/content/contentRoutes.ts",
+      "line": 195,
+      "method": "POST",
+      "path": "/content/versions/:postId"
+    },
+    {
+      "file": "apps/api/src/content/contentRoutes.ts",
+      "line": 212,
+      "method": "POST",
+      "path": "/content/versions/:postId/restore/:versionId"
+    },
+    {
+      "file": "apps/api/src/content/contentRoutes.ts",
+      "line": 227,
+      "method": "POST",
+      "path": "/content/versions/compare"
+    },
+    {
+      "file": "apps/api/src/content/contentRoutes.ts",
+      "line": 245,
+      "method": "POST",
+      "path": "/content/conflicts/resolve"
+    },
+    {
+      "file": "apps/api/src/content/contentRoutes.ts",
+      "line": 260,
+      "method": "GET",
+      "path": "/content/conflicts/history/:channelId"
+    },
+    {
+      "file": "apps/api/src/content/contentRoutes.ts",
+      "line": 278,
+      "method": "POST",
+      "path": "/content/transform"
+    },
+    {
+      "file": "apps/api/src/content/contentRoutes.ts",
+      "line": 294,
+      "method": "POST",
+      "path": "/content/transform/multi"
+    },
+    {
+      "file": "apps/api/src/content/contentRoutes.ts",
+      "line": 311,
+      "method": "POST",
+      "path": "/content/transform/recommendations"
+    },
+    {
+      "file": "apps/api/src/content/contentRoutes.ts",
+      "line": 327,
+      "method": "POST",
+      "path": "/content/render/:provider"
+    },
+    {
+      "file": "apps/api/src/content/contentRoutes.ts",
+      "line": 344,
+      "method": "POST",
+      "path": "/content/diff"
+    },
+    {
+      "file": "apps/api/src/crm/crmRoutes.ts",
+      "line": 195,
+      "method": "GET",
+      "path": "/crm/connections"
+    },
+    {
+      "file": "apps/api/src/crm/crmRoutes.ts",
+      "line": 204,
+      "method": "POST",
+      "path": "/crm/:platform/connect"
+    },
+    {
+      "file": "apps/api/src/crm/crmRoutes.ts",
+      "line": 213,
+      "method": "POST",
+      "path": "/crm/:platform/sync"
+    },
+    {
+      "file": "apps/api/src/crm/crmRoutes.ts",
+      "line": 222,
+      "method": "DELETE",
+      "path": "/crm/:platform/disconnect"
+    },
+    {
+      "file": "apps/api/src/crm/crmRoutes.ts",
+      "line": 231,
+      "method": "GET",
+      "path": "/crm/:platform/sync-logs"
+    },
+    {
+      "file": "apps/api/src/crm/crmRoutes.ts",
+      "line": 241,
+      "method": "GET",
+      "path": "/crm/hubspot/authorize"
+    },
+    {
+      "file": "apps/api/src/crm/crmRoutes.ts",
+      "line": 263,
+      "method": "GET",
+      "path": "/crm/salesforce/authorize"
+    },
+    {
+      "file": "apps/api/src/custom-reports/customReportRoutes.ts",
+      "line": 356,
+      "method": "GET",
+      "path": "/reports/schema"
+    },
+    {
+      "file": "apps/api/src/custom-reports/customReportRoutes.ts",
+      "line": 368,
+      "method": "GET",
+      "path": "/custom-reports"
+    },
+    {
+      "file": "apps/api/src/custom-reports/customReportRoutes.ts",
+      "line": 377,
+      "method": "POST",
+      "path": "/custom-reports"
+    },
+    {
+      "file": "apps/api/src/custom-reports/customReportRoutes.ts",
+      "line": 386,
+      "method": "GET",
+      "path": "/custom-reports/:id"
+    },
+    {
+      "file": "apps/api/src/custom-reports/customReportRoutes.ts",
+      "line": 395,
+      "method": "PATCH",
+      "path": "/custom-reports/:id"
+    },
+    {
+      "file": "apps/api/src/custom-reports/customReportRoutes.ts",
+      "line": 404,
+      "method": "DELETE",
+      "path": "/custom-reports/:id"
+    },
+    {
+      "file": "apps/api/src/custom-reports/customReportRoutes.ts",
+      "line": 413,
+      "method": "POST",
+      "path": "/custom-reports/:id/run"
+    },
+    {
+      "file": "apps/api/src/custom-reports/customReportRoutes.ts",
+      "line": 422,
+      "method": "POST",
+      "path": "/custom-reports/:id/schedules"
+    },
+    {
+      "file": "apps/api/src/external-notifications/externalNotificationRoutes.ts",
+      "line": 197,
+      "method": "POST",
+      "path": "/external-notifications"
+    },
+    {
+      "file": "apps/api/src/external-notifications/externalNotificationRoutes.ts",
+      "line": 205,
+      "method": "GET",
+      "path": "/external-notifications"
+    },
+    {
+      "file": "apps/api/src/external-notifications/externalNotificationRoutes.ts",
+      "line": 213,
+      "method": "DELETE",
+      "path": "/external-notifications/:id"
+    },
+    {
+      "file": "apps/api/src/external-notifications/externalNotificationRoutes.ts",
+      "line": 221,
+      "method": "POST",
+      "path": "/external-notifications/:id/test"
+    },
+    {
+      "file": "apps/api/src/first-comment/firstCommentRoutes.ts",
+      "line": 166,
+      "method": "PUT",
+      "path": "/posts/:postId/first-comment"
+    },
+    {
+      "file": "apps/api/src/first-comment/firstCommentRoutes.ts",
+      "line": 176,
+      "method": "GET",
+      "path": "/posts/:postId/first-comment"
+    },
+    {
+      "file": "apps/api/src/first-comment/firstCommentRoutes.ts",
+      "line": 186,
+      "method": "DELETE",
+      "path": "/posts/:postId/first-comment"
+    },
+    {
+      "file": "apps/api/src/health/healthRoutes.ts",
+      "line": 115,
+      "method": "GET",
+      "path": "/health"
+    },
+    {
+      "file": "apps/api/src/health/healthRoutes.ts",
+      "line": 146,
+      "method": "GET",
+      "path": "/health/detailed"
+    },
+    {
+      "file": "apps/api/src/health/healthRoutes.ts",
+      "line": 199,
+      "method": "GET",
+      "path": "/health/live"
+    },
+    {
+      "file": "apps/api/src/health/healthRoutes.ts",
+      "line": 219,
+      "method": "GET",
+      "path": "/health/ready"
+    },
+    {
+      "file": "apps/api/src/health/healthRoutes.ts",
+      "line": 256,
+      "method": "GET",
+      "path": "/health/dependency/:name"
+    },
+    {
+      "file": "apps/api/src/inbox/conversationNoteRoutes.ts",
+      "line": 198,
+      "method": "GET",
+      "path": "/inbox/conversations/:id/notes"
+    },
+    {
+      "file": "apps/api/src/inbox/conversationNoteRoutes.ts",
+      "line": 207,
+      "method": "POST",
+      "path": "/inbox/conversations/:id/notes"
+    },
+    {
+      "file": "apps/api/src/inbox/conversationNoteRoutes.ts",
+      "line": 216,
+      "method": "DELETE",
+      "path": "/inbox/conversations/:conversationId/notes/:noteId"
+    },
+    {
+      "file": "apps/api/src/inbox/inboxRoutes.ts",
+      "line": 618,
+      "method": "GET",
+      "path": "/inbox"
+    },
+    {
+      "file": "apps/api/src/inbox/inboxRoutes.ts",
+      "line": 627,
+      "method": "GET",
+      "path": "/inbox/unread-count"
+    },
+    {
+      "file": "apps/api/src/inbox/inboxRoutes.ts",
+      "line": 636,
+      "method": "GET",
+      "path": "/inbox/mentions"
+    },
+    {
+      "file": "apps/api/src/inbox/inboxRoutes.ts",
+      "line": 642,
+      "method": "GET",
+      "path": "/inbox/conversations/:id"
+    },
+    {
+      "file": "apps/api/src/inbox/inboxRoutes.ts",
+      "line": 651,
+      "method": "GET",
+      "path": "/inbox/conversations/:id/messages"
+    },
+    {
+      "file": "apps/api/src/inbox/inboxRoutes.ts",
+      "line": 663,
+      "method": "PATCH",
+      "path": "/inbox/messages/:id/read"
+    },
+    {
+      "file": "apps/api/src/inbox/inboxRoutes.ts",
+      "line": 672,
+      "method": "PATCH",
+      "path": "/inbox/messages/:id/archive"
+    },
+    {
+      "file": "apps/api/src/inbox/inboxRoutes.ts",
+      "line": 681,
+      "method": "PATCH",
+      "path": "/inbox/messages/:id/assign"
+    },
+    {
+      "file": "apps/api/src/inbox/inboxRoutes.ts",
+      "line": 690,
+      "method": "POST",
+      "path": "/inbox/messages/:id/reply"
+    },
+    {
+      "file": "apps/api/src/inbox/inboxRoutes.ts",
+      "line": 701,
+      "method": "PATCH",
+      "path": "/inbox/conversations/:id/resolve"
+    },
+    {
+      "file": "apps/api/src/inbox/inboxRoutes.ts",
+      "line": 710,
+      "method": "PATCH",
+      "path": "/inbox/conversations/:id/reopen"
+    },
+    {
+      "file": "apps/api/src/inbox/inboxRoutes.ts",
+      "line": 721,
+      "method": "POST",
+      "path": "/inbox/sync/:channelId"
+    },
+    {
+      "file": "apps/api/src/integrations/makeRoutes.ts",
+      "line": 104,
+      "method": "GET",
+      "path": "/make/keys"
+    },
+    {
+      "file": "apps/api/src/integrations/makeRoutes.ts",
+      "line": 127,
+      "method": "POST",
+      "path": "/make/keys"
+    },
+    {
+      "file": "apps/api/src/integrations/makeRoutes.ts",
+      "line": 159,
+      "method": "DELETE",
+      "path": "/make/keys/:id"
+    },
+    {
+      "file": "apps/api/src/integrations/makeRoutes.ts",
+      "line": 196,
+      "method": "POST",
+      "path": "/make/subscribe"
+    },
+    {
+      "file": "apps/api/src/integrations/makeRoutes.ts",
+      "line": 231,
+      "method": "DELETE",
+      "path": "/make/subscribe/:id"
+    },
+    {
+      "file": "apps/api/src/integrations/makeRoutes.ts",
+      "line": 268,
+      "method": "POST",
+      "path": "/make/actions/create-draft"
+    },
+    {
+      "file": "apps/api/src/integrations/makeRoutes.ts",
+      "line": 297,
+      "method": "POST",
+      "path": "/make/actions/schedule-post"
+    },
+    {
+      "file": "apps/api/src/integrations/makeRoutes.ts",
+      "line": 347,
+      "method": "GET",
+      "path": "/make/triggers/posts-published"
+    },
+    {
+      "file": "apps/api/src/integrations/zapierRoutes.ts",
+      "line": 101,
+      "method": "GET",
+      "path": "/zapier/keys"
+    },
+    {
+      "file": "apps/api/src/integrations/zapierRoutes.ts",
+      "line": 122,
+      "method": "POST",
+      "path": "/zapier/keys"
+    },
+    {
+      "file": "apps/api/src/integrations/zapierRoutes.ts",
+      "line": 154,
+      "method": "DELETE",
+      "path": "/zapier/keys/:id"
+    },
+    {
+      "file": "apps/api/src/integrations/zapierRoutes.ts",
+      "line": 191,
+      "method": "POST",
+      "path": "/zapier/subscribe"
+    },
+    {
+      "file": "apps/api/src/integrations/zapierRoutes.ts",
+      "line": 226,
+      "method": "DELETE",
+      "path": "/zapier/subscribe/:id"
+    },
+    {
+      "file": "apps/api/src/integrations/zapierRoutes.ts",
+      "line": 263,
+      "method": "POST",
+      "path": "/zapier/actions/create-draft"
+    },
+    {
+      "file": "apps/api/src/integrations/zapierRoutes.ts",
+      "line": 292,
+      "method": "POST",
+      "path": "/zapier/actions/schedule-post"
+    },
+    {
+      "file": "apps/api/src/integrations/zapierRoutes.ts",
+      "line": 342,
+      "method": "GET",
+      "path": "/zapier/triggers/posts-published"
+    },
+    {
+      "file": "apps/api/src/links/linkRoutes.ts",
+      "line": 232,
+      "method": "POST",
+      "path": "/links"
+    },
+    {
+      "file": "apps/api/src/links/linkRoutes.ts",
+      "line": 240,
+      "method": "GET",
+      "path": "/links/:id"
+    },
+    {
+      "file": "apps/api/src/links/linkRoutes.ts",
+      "line": 248,
+      "method": "GET",
+      "path": "/links/:id/stats"
+    },
+    {
+      "file": "apps/api/src/links/linkRoutes.ts",
+      "line": 256,
+      "method": "DELETE",
+      "path": "/links/:id"
+    },
+    {
+      "file": "apps/api/src/links/linkRoutes.ts",
+      "line": 266,
+      "method": "GET",
+      "path": "/r/:shortCode"
+    },
+    {
+      "file": "apps/api/src/monitoring/cacheStatsRoutes.ts",
+      "line": 34,
+      "method": "GET",
+      "path": "/cache/stats"
+    },
+    {
+      "file": "apps/api/src/monitoring/cacheStatsRoutes.ts",
+      "line": 93,
+      "method": "GET",
+      "path": "/cache/health"
+    },
+    {
+      "file": "apps/api/src/monitoring/cacheStatsRoutes.ts",
+      "line": 134,
+      "method": "POST",
+      "path": "/cache/flush"
+    },
+    {
+      "file": "apps/api/src/monitoring/cacheStatsRoutes.ts",
+      "line": 232,
+      "method": "GET",
+      "path": "/cache/hot-keys"
+    },
+    {
+      "file": "apps/api/src/monitoring/cacheStatsRoutes.ts",
+      "line": 270,
+      "method": "POST",
+      "path": "/cache/warm"
+    },
+    {
+      "file": "apps/api/src/notifications/notificationRoutes.ts",
+      "line": 388,
+      "method": "GET",
+      "path": "/notifications"
+    },
+    {
+      "file": "apps/api/src/notifications/notificationRoutes.ts",
+      "line": 398,
+      "method": "GET",
+      "path": "/notifications/unread-count"
+    },
+    {
+      "file": "apps/api/src/notifications/notificationRoutes.ts",
+      "line": 408,
+      "method": "PATCH",
+      "path": "/notifications/:id/read"
+    },
+    {
+      "file": "apps/api/src/notifications/notificationRoutes.ts",
+      "line": 418,
+      "method": "POST",
+      "path": "/notifications/mark-all-read"
+    },
+    {
+      "file": "apps/api/src/notifications/notificationRoutes.ts",
+      "line": 428,
+      "method": "POST",
+      "path": "/notifications"
+    },
+    {
+      "file": "apps/api/src/notifications/notificationRoutes.ts",
+      "line": 438,
+      "method": "GET",
+      "path": "/notifications/preferences"
+    },
+    {
+      "file": "apps/api/src/notifications/notificationRoutes.ts",
+      "line": 448,
+      "method": "PUT",
+      "path": "/notifications/preferences"
+    },
+    {
+      "file": "apps/api/src/notifications/notificationRoutes.ts",
+      "line": 458,
+      "method": "GET",
+      "path": "/notifications/stream"
+    },
+    {
+      "file": "apps/api/src/onboarding/onboardingRoutes.ts",
+      "line": 28,
+      "method": "GET",
+      "path": "/onboarding"
+    },
+    {
+      "file": "apps/api/src/onboarding/onboardingRoutes.ts",
+      "line": 89,
+      "method": "POST",
+      "path": "/onboarding/step/:stepKey/complete"
+    },
+    {
+      "file": "apps/api/src/onboarding/onboardingRoutes.ts",
+      "line": 131,
+      "method": "POST",
+      "path": "/onboarding/dismiss"
+    },
+    {
+      "file": "apps/api/src/outbox/outboxAdminRoutes.ts",
+      "line": 22,
+      "method": "GET",
+      "path": "/admin/outbox/dead-letter"
+    },
+    {
+      "file": "apps/api/src/outbox/outboxAdminRoutes.ts",
+      "line": 46,
+      "method": "POST",
+      "path": "/admin/outbox/dead-letter/:id/retry"
+    },
+    {
+      "file": "apps/api/src/outbox/outboxAdminRoutes.ts",
+      "line": 88,
+      "method": "POST",
+      "path": "/admin/outbox/dead-letter/:id/resolve"
+    },
+    {
+      "file": "apps/api/src/posts/optimizedPostsRoutes.ts",
+      "line": 139,
+      "method": "GET",
+      "path": "/posts/optimized"
+    },
+    {
+      "file": "apps/api/src/posts/optimizedPostsRoutes.ts",
+      "line": 154,
+      "method": "GET",
+      "path": "/dashboard/stats"
+    },
+    {
+      "file": "apps/api/src/posts/optimizedPostsRoutes.ts",
+      "line": 169,
+      "method": "POST",
+      "path": "/cache/warm/:accountId"
+    },
+    {
+      "file": "apps/api/src/posts/postRoutes.ts",
+      "line": 552,
+      "method": "GET",
+      "path": "/posts"
+    },
+    {
+      "file": "apps/api/src/posts/postRoutes.ts",
+      "line": 559,
+      "method": "GET",
+      "path": "/posts/:id"
+    },
+    {
+      "file": "apps/api/src/posts/postRoutes.ts",
+      "line": 569,
+      "method": "PATCH",
+      "path": "/posts/:id"
+    },
+    {
+      "file": "apps/api/src/posts/postRoutes.ts",
+      "line": 576,
+      "method": "DELETE",
+      "path": "/posts/:id"
+    },
+    {
+      "file": "apps/api/src/posts/postRoutes.ts",
+      "line": 583,
+      "method": "PATCH",
+      "path": "/posts/batch/archive"
+    },
+    {
+      "file": "apps/api/src/posts/postRoutes.ts",
+      "line": 593,
+      "method": "DELETE",
+      "path": "/posts/batch"
+    },
+    {
+      "file": "apps/api/src/posts/postRoutes.ts",
+      "line": 603,
+      "method": "POST",
+      "path": "/posts/batch/duplicate"
+    },
+    {
+      "file": "apps/api/src/projects/crisisRoutes.ts",
+      "line": 154,
+      "method": "POST",
+      "path": "/projects/:projectId/crisis"
+    },
+    {
+      "file": "apps/api/src/projects/crisisRoutes.ts",
+      "line": 162,
+      "method": "DELETE",
+      "path": "/projects/:projectId/crisis"
+    },
+    {
+      "file": "apps/api/src/projects/crisisRoutes.ts",
+      "line": 170,
+      "method": "GET",
+      "path": "/projects/:projectId/crisis"
+    },
+    {
+      "file": "apps/api/src/projects/projectRoutes.ts",
+      "line": 350,
+      "method": "POST",
+      "path": "/accounts/:accountId/projects"
+    },
+    {
+      "file": "apps/api/src/projects/projectRoutes.ts",
+      "line": 360,
+      "method": "GET",
+      "path": "/accounts/:accountId/projects"
+    },
+    {
+      "file": "apps/api/src/projects/projectRoutes.ts",
+      "line": 370,
+      "method": "GET",
+      "path": "/projects/:projectId"
+    },
+    {
+      "file": "apps/api/src/projects/projectRoutes.ts",
+      "line": 380,
+      "method": "GET",
+      "path": "/projects/:projectId/publish-logs"
+    },
+    {
+      "file": "apps/api/src/projects/projectRoutes.ts",
+      "line": 390,
+      "method": "DELETE",
+      "path": "/projects/:projectId"
+    },
+    {
+      "file": "apps/api/src/providers/providerRoutes.ts",
+      "line": 251,
+      "method": "GET",
+      "path": "/providers"
+    },
+    {
+      "file": "apps/api/src/providers/providerRoutes.ts",
+      "line": 259,
+      "method": "GET",
+      "path": "/providers/active"
+    },
+    {
+      "file": "apps/api/src/providers/providerRoutes.ts",
+      "line": 270,
+      "method": "GET",
+      "path": "/providers/by-capability/:capability"
+    },
+    {
+      "file": "apps/api/src/providers/providerRoutes.ts",
+      "line": 281,
+      "method": "GET",
+      "path": "/providers/:id"
+    },
+    {
+      "file": "apps/api/src/providers/providerRoutes.ts",
+      "line": 292,
+      "method": "GET",
+      "path": "/providers/:id/health"
+    },
+    {
+      "file": "apps/api/src/providers/providerRoutes.ts",
+      "line": 303,
+      "method": "GET",
+      "path": "/providers/health/all"
+    },
+    {
+      "file": "apps/api/src/providers/providerRoutes.ts",
+      "line": 314,
+      "method": "GET",
+      "path": "/providers/connections/:projectId"
+    },
+    {
+      "file": "apps/api/src/recurring/recurringPostRoutes.ts",
+      "line": 296,
+      "method": "POST",
+      "path": "/recurring-posts"
+    },
+    {
+      "file": "apps/api/src/recurring/recurringPostRoutes.ts",
+      "line": 306,
+      "method": "GET",
+      "path": "/recurring-posts"
+    },
+    {
+      "file": "apps/api/src/recurring/recurringPostRoutes.ts",
+      "line": 316,
+      "method": "GET",
+      "path": "/recurring-posts/:id"
+    },
+    {
+      "file": "apps/api/src/recurring/recurringPostRoutes.ts",
+      "line": 326,
+      "method": "PATCH",
+      "path": "/recurring-posts/:id"
+    },
+    {
+      "file": "apps/api/src/recurring/recurringPostRoutes.ts",
+      "line": 336,
+      "method": "DELETE",
+      "path": "/recurring-posts/:id"
+    },
+    {
+      "file": "apps/api/src/reports/reportRoutes.ts",
+      "line": 323,
+      "method": "POST",
+      "path": "/reports"
+    },
+    {
+      "file": "apps/api/src/reports/reportRoutes.ts",
+      "line": 332,
+      "method": "PATCH",
+      "path": "/reports/:id"
+    },
+    {
+      "file": "apps/api/src/reports/reportRoutes.ts",
+      "line": 341,
+      "method": "DELETE",
+      "path": "/reports/:id"
+    },
+    {
+      "file": "apps/api/src/reports/reportRoutes.ts",
+      "line": 350,
+      "method": "POST",
+      "path": "/reports/:id/generate"
+    },
+    {
+      "file": "apps/api/src/reports/reportRoutes.ts",
+      "line": 361,
+      "method": "GET",
+      "path": "/reports"
+    },
+    {
+      "file": "apps/api/src/reports/reportRoutes.ts",
+      "line": 370,
+      "method": "GET",
+      "path": "/reports/:id"
+    },
+    {
+      "file": "apps/api/src/repurpose/repurposeRoutes.ts",
+      "line": 45,
+      "method": "GET",
+      "path": "/repurpose/proposals"
+    },
+    {
+      "file": "apps/api/src/repurpose/repurposeRoutes.ts",
+      "line": 62,
+      "method": "POST",
+      "path": "/admin/ai/detect-repurpose"
+    },
+    {
+      "file": "apps/api/src/scheduling/schedulingClientRoutes.ts",
+      "line": 21,
+      "method": "GET",
+      "path": "/scheduling/slots"
+    },
+    {
+      "file": "apps/api/src/scheduling/schedulingClientRoutes.ts",
+      "line": 30,
+      "method": "GET",
+      "path": "/analytics/optimal-times"
+    },
+    {
+      "file": "apps/api/src/scheduling/schedulingClientRoutes.ts",
+      "line": 39,
+      "method": "GET",
+      "path": "/scheduling/rules"
+    },
+    {
+      "file": "apps/api/src/scheduling/schedulingClientRoutes.ts",
+      "line": 48,
+      "method": "POST",
+      "path": "/scheduling/slots"
+    },
+    {
+      "file": "apps/api/src/scheduling/schedulingClientRoutes.ts",
+      "line": 57,
+      "method": "POST",
+      "path": "/scheduling/slots/bulk"
+    },
+    {
+      "file": "apps/api/src/settings/settingsRoutes.ts",
+      "line": 40,
+      "method": "GET",
+      "path": "/admin/settings/status"
+    },
+    {
+      "file": "apps/api/src/settings/settingsRoutes.ts",
+      "line": 54,
+      "method": "GET",
+      "path": "/admin/settings/:group"
+    },
+    {
+      "file": "apps/api/src/settings/settingsRoutes.ts",
+      "line": 75,
+      "method": "PUT",
+      "path": "/admin/settings/:group"
+    },
+    {
+      "file": "apps/api/src/settings/settingsRoutes.ts",
+      "line": 108,
+      "method": "POST",
+      "path": "/admin/settings/:group/test"
+    },
+    {
+      "file": "apps/api/src/settings/settingsRoutes.ts",
+      "line": 129,
+      "method": "DELETE",
+      "path": "/admin/settings/:group/:key"
+    },
+    {
+      "file": "apps/api/src/settings/settingsRoutes.ts",
+      "line": 155,
+      "method": "POST",
+      "path": "/admin/settings/encryption/rotate"
+    },
+    {
+      "file": "apps/api/src/settings/settingsRoutes.ts",
+      "line": 183,
+      "method": "GET",
+      "path": "/settings/ai"
+    },
+    {
+      "file": "apps/api/src/settings/settingsRoutes.ts",
+      "line": 202,
+      "method": "PUT",
+      "path": "/settings/ai/byok"
+    },
+    {
+      "file": "apps/api/src/settings/settingsRoutes.ts",
+      "line": 228,
+      "method": "DELETE",
+      "path": "/settings/ai/byok/:provider"
+    },
+    {
+      "file": "apps/api/src/settings/settingsRoutes.ts",
+      "line": 254,
+      "method": "POST",
+      "path": "/settings/ai/byok/test"
+    },
+    {
+      "file": "apps/api/src/settings/settingsRoutes.ts",
+      "line": 275,
+      "method": "GET",
+      "path": "/settings/public"
+    },
+    {
+      "file": "apps/api/src/tasks/taskRoutes.ts",
+      "line": 319,
+      "method": "GET",
+      "path": "/tasks"
+    },
+    {
+      "file": "apps/api/src/tasks/taskRoutes.ts",
+      "line": 328,
+      "method": "POST",
+      "path": "/tasks"
+    },
+    {
+      "file": "apps/api/src/tasks/taskRoutes.ts",
+      "line": 337,
+      "method": "GET",
+      "path": "/tasks/:id"
+    },
+    {
+      "file": "apps/api/src/tasks/taskRoutes.ts",
+      "line": 346,
+      "method": "PATCH",
+      "path": "/tasks/:id"
+    },
+    {
+      "file": "apps/api/src/tasks/taskRoutes.ts",
+      "line": 355,
+      "method": "POST",
+      "path": "/tasks/:id/complete"
+    },
+    {
+      "file": "apps/api/src/tasks/taskRoutes.ts",
+      "line": 364,
+      "method": "POST",
+      "path": "/tasks/:id/cancel"
+    },
+    {
+      "file": "apps/api/src/tasks/taskRoutes.ts",
+      "line": 373,
+      "method": "DELETE",
+      "path": "/tasks/:id"
+    },
+    {
+      "file": "apps/api/src/team/teamRoutes.ts",
+      "line": 268,
+      "method": "GET",
+      "path": "/team"
+    },
+    {
+      "file": "apps/api/src/team/teamRoutes.ts",
+      "line": 277,
+      "method": "GET",
+      "path": "/team/mention-search"
+    },
+    {
+      "file": "apps/api/src/team/teamRoutes.ts",
+      "line": 286,
+      "method": "POST",
+      "path": "/team/invite"
+    },
+    {
+      "file": "apps/api/src/team/teamRoutes.ts",
+      "line": 295,
+      "method": "PATCH",
+      "path": "/team/:id/role"
+    },
+    {
+      "file": "apps/api/src/team/teamRoutes.ts",
+      "line": 304,
+      "method": "DELETE",
+      "path": "/team/:id"
+    },
+    {
+      "file": "apps/api/src/templates/templateRoutes.ts",
+      "line": 34,
+      "method": "GET",
+      "path": "/projects/:projectId/templates"
+    },
+    {
+      "file": "apps/api/src/templates/templateRoutes.ts",
+      "line": 43,
+      "method": "GET",
+      "path": "/projects/:projectId/templates/:templateId"
+    },
+    {
+      "file": "apps/api/src/templates/templateRoutes.ts",
+      "line": 52,
+      "method": "POST",
+      "path": "/projects/:projectId/templates"
+    },
+    {
+      "file": "apps/api/src/templates/templateRoutes.ts",
+      "line": 61,
+      "method": "PUT",
+      "path": "/projects/:projectId/templates/:templateId"
+    },
+    {
+      "file": "apps/api/src/templates/templateRoutes.ts",
+      "line": 70,
+      "method": "DELETE",
+      "path": "/projects/:projectId/templates/:templateId"
+    },
+    {
+      "file": "apps/api/src/templates/templateRoutes.ts",
+      "line": 81,
+      "method": "POST",
+      "path": "/projects/:projectId/templates/:templateId/duplicate"
+    },
+    {
+      "file": "apps/api/src/templates/templateRoutes.ts",
+      "line": 90,
+      "method": "POST",
+      "path": "/projects/:projectId/templates/:templateId/compile"
+    },
+    {
+      "file": "apps/api/src/templates/templateRoutes.ts",
+      "line": 99,
+      "method": "POST",
+      "path": "/projects/:projectId/templates/:templateId/validate"
+    },
+    {
+      "file": "apps/api/src/templates/templateRoutes.ts",
+      "line": 110,
+      "method": "GET",
+      "path": "/projects/:projectId/templates/:templateId/versions"
+    },
+    {
+      "file": "apps/api/src/templates/templateRoutes.ts",
+      "line": 119,
+      "method": "POST",
+      "path": "/projects/:projectId/templates/:templateId/versions"
+    },
+    {
+      "file": "apps/api/src/templates/templateRoutes.ts",
+      "line": 128,
+      "method": "POST",
+      "path": "/projects/:projectId/templates/:templateId/versions/:versionId/restore"
+    },
+    {
+      "file": "apps/api/src/templates/templateRoutes.ts",
+      "line": 139,
+      "method": "GET",
+      "path": "/projects/:projectId/templates/analytics"
+    },
+    {
+      "file": "apps/api/src/templates/templateRoutes.ts",
+      "line": 148,
+      "method": "POST",
+      "path": "/projects/:projectId/templates/:templateId/usage"
+    },
+    {
+      "file": "apps/api/src/templates/templateRoutes.ts",
+      "line": 159,
+      "method": "GET",
+      "path": "/projects/:projectId/templates/ab-tests"
+    },
+    {
+      "file": "apps/api/src/templates/templateRoutes.ts",
+      "line": 168,
+      "method": "POST",
+      "path": "/projects/:projectId/templates/ab-tests"
+    },
+    {
+      "file": "apps/api/src/templates/templateRoutes.ts",
+      "line": 177,
+      "method": "POST",
+      "path": "/projects/:projectId/templates/ab-tests/:testId/start"
+    },
+    {
+      "file": "apps/api/src/templates/templateRoutes.ts",
+      "line": 186,
+      "method": "POST",
+      "path": "/projects/:projectId/templates/ab-tests/:testId/stop"
+    },
+    {
+      "file": "apps/api/src/templates/templateRoutes.ts",
+      "line": 195,
+      "method": "GET",
+      "path": "/projects/:projectId/templates/ab-tests/:testId/results"
+    },
+    {
+      "file": "apps/api/src/templates/templateRoutes.ts",
+      "line": 206,
+      "method": "GET",
+      "path": "/platforms/:platform/limits"
+    },
+    {
+      "file": "apps/api/src/templates/templateRoutes.ts",
+      "line": 215,
+      "method": "GET",
+      "path": "/platforms"
+    },
+    {
+      "file": "apps/api/src/trends/trendRoutes.ts",
+      "line": 357,
+      "method": "GET",
+      "path": "/trends/analysis"
+    },
+    {
+      "file": "apps/api/src/trends/trendRoutes.ts",
+      "line": 367,
+      "method": "GET",
+      "path": "/trends/viral"
+    },
+    {
+      "file": "apps/api/src/trends/trendRoutes.ts",
+      "line": 377,
+      "method": "GET",
+      "path": "/trends/opportunities"
+    },
+    {
+      "file": "apps/api/src/trends/trendRoutes.ts",
+      "line": 387,
+      "method": "GET",
+      "path": "/trends/predictions"
+    },
+    {
+      "file": "apps/api/src/trends/trendRoutes.ts",
+      "line": 397,
+      "method": "GET",
+      "path": "/trends/report"
+    },
+    {
+      "file": "apps/api/src/usage/usageRoutes.ts",
+      "line": 76,
+      "method": "GET",
+      "path": "/accounts/:accountId/usage"
+    },
+    {
+      "file": "apps/api/src/utm/utmRoutes.ts",
+      "line": 171,
+      "method": "POST",
+      "path": "/links/:id/utm"
+    },
+    {
+      "file": "apps/api/src/utm/utmRoutes.ts",
+      "line": 180,
+      "method": "GET",
+      "path": "/links/:id/utm-url"
+    },
+    {
+      "file": "apps/api/src/webhooks/webhookDashboardRoutes.ts",
+      "line": 303,
+      "method": "GET",
+      "path": "/webhooks/dashboard/metrics"
+    },
+    {
+      "file": "apps/api/src/webhooks/webhookDashboardRoutes.ts",
+      "line": 313,
+      "method": "GET",
+      "path": "/webhooks/dashboard/events"
+    },
+    {
+      "file": "apps/api/src/webhooks/webhookDashboardRoutes.ts",
+      "line": 323,
+      "method": "GET",
+      "path": "/webhooks/dashboard/events/:eventId"
+    },
+    {
+      "file": "apps/api/src/webhooks/webhookDashboardRoutes.ts",
+      "line": 333,
+      "method": "GET",
+      "path": "/webhooks/dashboard/subscriptions"
+    },
+    {
+      "file": "apps/api/src/webhooks/webhookDashboardRoutes.ts",
+      "line": 343,
+      "method": "GET",
+      "path": "/webhooks/dashboard/dead-letter"
+    },
+    {
+      "file": "apps/api/src/webhooks/webhookDashboardRoutes.ts",
+      "line": 353,
+      "method": "GET",
+      "path": "/webhooks/dashboard/dead-letter/metrics"
+    },
+    {
+      "file": "apps/api/src/webhooks/webhookDashboardRoutes.ts",
+      "line": 366,
+      "method": "POST",
+      "path": "/webhooks/dashboard/dead-letter/retry-all"
+    },
+    {
+      "file": "apps/api/src/webhooks/webhookDashboardRoutes.ts",
+      "line": 376,
+      "method": "POST",
+      "path": "/webhooks/dashboard/dead-letter/:eventId/retry"
+    },
+    {
+      "file": "apps/api/src/webhooks/webhookDashboardRoutes.ts",
+      "line": 386,
+      "method": "GET",
+      "path": "/webhooks/dashboard/stream"
+    },
+    {
+      "file": "apps/api/src/webhooks/webhookDashboardRoutes.ts",
+      "line": 396,
+      "method": "GET",
+      "path": "/webhooks/dashboard/export"
+    }
+  ],
+  "frontendCalls": [
+    {
+      "file": "apps/admin/hooks/api/useAccountBilling.ts",
+      "line": 55,
+      "surface": "admin",
+      "url": "/api/backend/admin/accounts/${accountId}/billing"
+    },
+    {
+      "file": "apps/admin/hooks/api/useAccountSessions.ts",
+      "line": 32,
+      "surface": "admin",
+      "url": "/api/backend/admin/accounts/${accountId}/sessions"
+    },
+    {
+      "file": "apps/admin/hooks/api/useAccountSessions.ts",
+      "line": 60,
+      "surface": "admin",
+      "url": "/api/backend/admin/accounts/${accountId}/revoke-sessions"
+    },
+    {
+      "file": "apps/admin/hooks/api/useAccounts.ts",
+      "line": 57,
+      "surface": "admin",
+      "url": "/api/backend/admin/accounts/${id}/status"
+    },
+    {
+      "file": "apps/admin/hooks/api/useAdminPasswordReset.ts",
+      "line": 19,
+      "surface": "admin",
+      "url": "/api/backend/admin/users/${userId}/password-reset"
+    },
+    {
+      "file": "apps/admin/hooks/api/useAdminUsers/api.ts",
+      "line": 17,
+      "surface": "admin",
+      "url": "/api/backend/admin/users"
+    },
+    {
+      "file": "apps/admin/hooks/api/useAdminUsers/api.ts",
+      "line": 32,
+      "surface": "admin",
+      "url": "/api/backend/admin/users"
+    },
+    {
+      "file": "apps/admin/hooks/api/useAdminUsers/api.ts",
+      "line": 48,
+      "surface": "admin",
+      "url": "/api/backend/admin/users/${userId}/deactivate"
+    },
+    {
+      "file": "apps/admin/hooks/api/useAdminUsers/api.ts",
+      "line": 60,
+      "surface": "admin",
+      "url": "/api/backend/admin/users/${userId}/activate"
+    },
+    {
+      "file": "apps/admin/hooks/api/useAdminUsers/api.ts",
+      "line": 75,
+      "surface": "admin",
+      "url": "/api/backend/admin/users/${input.id}"
+    },
+    {
+      "file": "apps/admin/hooks/api/useAuditStats.ts",
+      "line": 29,
+      "surface": "admin",
+      "url": "/api/backend/admin/audit/stats"
+    },
+    {
+      "file": "apps/admin/hooks/api/useBillingStats.ts",
+      "line": 27,
+      "surface": "admin",
+      "url": "/api/backend/admin/billing/stats"
+    },
+    {
+      "file": "apps/admin/hooks/api/useChangePassword.ts",
+      "line": 26,
+      "surface": "admin",
+      "url": "/api/backend/admin/auth/password/change"
+    },
+    {
+      "file": "apps/admin/hooks/api/useCompliance/api.ts",
+      "line": 38,
+      "surface": "admin",
+      "url": "/api/backend/admin/compliance/metrics"
+    },
+    {
+      "file": "apps/admin/hooks/api/useCompliance/api.ts",
+      "line": 39,
+      "surface": "admin",
+      "url": "/api/backend/admin/compliance/audit-logs"
+    },
+    {
+      "file": "apps/admin/hooks/api/useCompliance/api.ts",
+      "line": 121,
+      "surface": "admin",
+      "url": "/api/backend/admin/compliance/settings/gdpr"
+    },
+    {
+      "file": "apps/admin/hooks/api/useCompliance/api.ts",
+      "line": 134,
+      "surface": "admin",
+      "url": "/api/backend/admin/compliance/settings/gdpr"
+    },
+    {
+      "file": "apps/admin/hooks/api/useCompliance/api.ts",
+      "line": 153,
+      "surface": "admin",
+      "url": "/api/backend/admin/compliance/settings/security"
+    },
+    {
+      "file": "apps/admin/hooks/api/useCompliance/api.ts",
+      "line": 168,
+      "surface": "admin",
+      "url": "/api/backend/admin/compliance/settings/security"
+    },
+    {
+      "file": "apps/admin/hooks/api/useCompliance/api.ts",
+      "line": 187,
+      "surface": "admin",
+      "url": "/api/backend/admin/compliance/score"
+    },
+    {
+      "file": "apps/admin/hooks/api/useCompliance/api.ts",
+      "line": 209,
+      "surface": "admin",
+      "url": "/api/backend/admin/compliance/dsar?${params.toString()}"
+    },
+    {
+      "file": "apps/admin/hooks/api/useCompliance/api.ts",
+      "line": 222,
+      "surface": "admin",
+      "url": "/api/backend/admin/compliance/dsar/${id}/acknowledge"
+    },
+    {
+      "file": "apps/admin/hooks/api/useCompliance/api.ts",
+      "line": 233,
+      "surface": "admin",
+      "url": "/api/backend/admin/compliance/dsar/${params.id}/complete"
+    },
+    {
+      "file": "apps/admin/hooks/api/useCompliance/api.ts",
+      "line": 248,
+      "surface": "admin",
+      "url": "/api/backend/admin/compliance/dsar/${params.id}/reject"
+    },
+    {
+      "file": "apps/admin/hooks/api/useCompliance/api.ts",
+      "line": 269,
+      "surface": "admin",
+      "url": "/api/backend/admin/compliance/breaches?${params.toString()}"
+    },
+    {
+      "file": "apps/admin/hooks/api/useCompliance/api.ts",
+      "line": 282,
+      "surface": "admin",
+      "url": "/api/backend/admin/compliance/breaches"
+    },
+    {
+      "file": "apps/admin/hooks/api/useCompliance/api.ts",
+      "line": 297,
+      "surface": "admin",
+      "url": "/api/backend/admin/compliance/breaches/${id}/notify"
+    },
+    {
+      "file": "apps/admin/hooks/api/useContentLibrary.ts",
+      "line": 62,
+      "surface": "admin",
+      "url": "/api/backend/posts?${params.toString()}"
+    },
+    {
+      "file": "apps/admin/hooks/api/usePricingTiers/api.ts",
+      "line": 17,
+      "surface": "admin",
+      "url": "/api/backend/admin/pricing/tiers"
+    },
+    {
+      "file": "apps/admin/hooks/api/usePricingTiers/api.ts",
+      "line": 33,
+      "surface": "admin",
+      "url": "/api/backend/admin/pricing/provider-tiers/${input.id}"
+    },
+    {
+      "file": "apps/admin/hooks/api/usePricingTiers/api.ts",
+      "line": 50,
+      "surface": "admin",
+      "url": "/api/backend/admin/pricing/account-tiers/${input.id}"
+    },
+    {
+      "file": "apps/admin/hooks/api/usePricingTiers/api.ts",
+      "line": 67,
+      "surface": "admin",
+      "url": "/api/backend/admin/pricing/bundles/${input.id}"
+    },
+    {
+      "file": "apps/admin/hooks/api/usePricingTiers/api.ts",
+      "line": 81,
+      "surface": "admin",
+      "url": "/api/backend/admin/pricing/bundles"
+    },
+    {
+      "file": "apps/admin/hooks/api/usePricingTiers/api.ts",
+      "line": 95,
+      "surface": "admin",
+      "url": "/api/backend/admin/pricing/provider-tiers"
+    },
+    {
+      "file": "apps/admin/hooks/api/usePricingTiers/api.ts",
+      "line": 109,
+      "surface": "admin",
+      "url": "/api/backend/admin/pricing/account-tiers"
+    },
+    {
+      "file": "apps/admin/hooks/api/usePricingTiers/api.ts",
+      "line": 128,
+      "surface": "admin",
+      "url": "/api/backend/admin/pricing/${segment}/${input.id}/status"
+    },
+    {
+      "file": "apps/admin/hooks/api/usePricingTiers/api.ts",
+      "line": 142,
+      "surface": "admin",
+      "url": "/api/backend/admin/pricing/bundles/${id}"
+    },
+    {
+      "file": "apps/admin/hooks/api/useQueueManagement.ts",
+      "line": 48,
+      "surface": "admin",
+      "url": "/api/backend/admin/queue/stats"
+    },
+    {
+      "file": "apps/admin/hooks/api/useQueueManagement.ts",
+      "line": 72,
+      "surface": "admin",
+      "url": "/api/backend/admin/queue/jobs?types=failed&start=0&end=50"
+    },
+    {
+      "file": "apps/admin/hooks/api/useQueueManagement.ts",
+      "line": 96,
+      "surface": "admin",
+      "url": "/api/backend/admin/queue/jobs/${jobId}/retry"
+    },
+    {
+      "file": "apps/admin/hooks/api/useResetAccountPassword.ts",
+      "line": 28,
+      "surface": "admin",
+      "url": "/api/backend/admin/accounts/${accountId}/reset-password"
+    },
+    {
+      "file": "apps/admin/hooks/api/useSubscriptionMutations.ts",
+      "line": 32,
+      "surface": "admin",
+      "url": "/api/backend/admin/billing/accounts/${accountId}/trial/start"
+    },
+    {
+      "file": "apps/admin/hooks/api/useSubscriptionMutations.ts",
+      "line": 66,
+      "surface": "admin",
+      "url": "/api/backend/admin/billing/accounts/${accountId}/trial/end"
+    },
+    {
+      "file": "apps/admin/hooks/api/useSubscriptionMutations.ts",
+      "line": 95,
+      "surface": "admin",
+      "url": "/api/backend/admin/billing/accounts/${accountId}/trial/convert"
+    },
+    {
+      "file": "apps/admin/hooks/api/useUsageMetrics.ts",
+      "line": 27,
+      "surface": "admin",
+      "url": "/api/backend/accounts/${accountId}/usage?year=${year}&month=${month}"
+    },
+    {
+      "file": "apps/admin/hooks/api/useWebhooks/api.ts",
+      "line": 92,
+      "surface": "admin",
+      "url": "/api/backend/projects"
+    },
+    {
+      "file": "apps/admin/hooks/api/useWebhooks/api.ts",
+      "line": 172,
+      "surface": "admin",
+      "url": "/api/backend/webhooks/dashboard/export?${params}"
+    },
+    {
+      "file": "apps/admin/hooks/api/useWebhooks/api.ts",
+      "line": 239,
+      "surface": "admin",
+      "url": "/api/backend/admin/outbox/dead-letter/${id}/retry"
+    },
+    {
+      "file": "apps/admin/hooks/api/useWebhooks/api.ts",
+      "line": 247,
+      "surface": "admin",
+      "url": "/api/backend/admin/outbox/dead-letter/${id}/resolve"
+    },
+    {
+      "file": "apps/admin/app/(dashboard)/accounts/page.tsx",
+      "line": 261,
+      "surface": "admin",
+      "url": "/api/backend/admin/accounts/${editingId}/settings"
+    },
+    {
+      "file": "apps/admin/app/(dashboard)/accounts/page.tsx",
+      "line": 293,
+      "surface": "admin",
+      "url": "/api/backend/admin/accounts"
+    },
+    {
+      "file": "apps/admin/app/(dashboard)/announcements/page.tsx",
+      "line": 55,
+      "surface": "admin",
+      "url": "/api/backend/admin/announcements"
+    },
+    {
+      "file": "apps/admin/app/(dashboard)/announcements/page.tsx",
+      "line": 121,
+      "surface": "admin",
+      "url": "/api/backend/admin/announcements/${id}"
+    },
+    {
+      "file": "apps/admin/app/(dashboard)/logs/page.tsx",
+      "line": 99,
+      "surface": "admin",
+      "url": "/api/backend/admin/audit/export?${params}"
+    },
+    {
+      "file": "apps/admin/app/(dashboard)/subscriptions/page.tsx",
+      "line": 167,
+      "surface": "admin",
+      "url": "/api/backend/admin/billing/auto-renewals/process"
+    },
+    {
+      "file": "apps/admin/app/(dashboard)/subscriptions/page.tsx",
+      "line": 286,
+      "surface": "admin",
+      "url": "/api/backend/admin/billing/export?format=csv"
+    },
+    {
+      "file": "apps/admin/app/reset-password/page.tsx",
+      "line": 40,
+      "surface": "admin",
+      "url": "/api/backend/settings/public"
+    },
+    {
+      "file": "apps/admin/app/reset-password/page.tsx",
+      "line": 86,
+      "surface": "admin",
+      "url": "/api/backend/admin/auth/password/reset/confirm"
+    },
+    {
+      "file": "apps/admin/components/accounts/AccountBillingPanel.tsx",
+      "line": 63,
+      "surface": "admin",
+      "url": "/api/backend/admin/accounts/${accountId}/grandfathering"
+    },
+    {
+      "file": "apps/admin/components/accounts/exportAccountsToCSV.ts",
+      "line": 17,
+      "surface": "admin",
+      "url": "/api/backend/admin/accounts/export?${params.toString()}"
+    },
+    {
+      "file": "apps/admin/components/maintenance/ScheduledJobsPanel.tsx",
+      "line": 101,
+      "surface": "admin",
+      "url": "/api/backend/admin/audit/logs?action=${job.auditAction}&limit=1"
+    },
+    {
+      "file": "apps/admin/components/security/RbacManager.tsx",
+      "line": 137,
+      "surface": "admin",
+      "url": "/api/backend${endpoint}"
+    },
+    {
+      "file": "apps/admin/components/subscriptions/ChangePlanDialog.tsx",
+      "line": 134,
+      "surface": "admin",
+      "url": "/api/backend/admin/pricing/tiers"
+    },
+    {
+      "file": "apps/admin/components/subscriptions/ChangePlanDialog.tsx",
+      "line": 198,
+      "surface": "admin",
+      "url": "/api/backend/admin/billing/accounts/${accountId}/subscription"
+    },
+    {
+      "file": "apps/client/hooks/api/useAIImages.ts",
+      "line": 39,
+      "surface": "client",
+      "url": "/api/backend/ai/generate-image"
+    },
+    {
+      "file": "apps/client/hooks/api/useAIImages.ts",
+      "line": 52,
+      "surface": "client",
+      "url": "/api/backend/ai/generated-images?projectId=${projectId}"
+    },
+    {
+      "file": "apps/client/hooks/api/useAnalytics.ts",
+      "line": 71,
+      "surface": "client",
+      "url": "/api/backend/analytics/dashboard?${params.toString()}"
+    },
+    {
+      "file": "apps/client/hooks/api/useApprovals.ts",
+      "line": 33,
+      "surface": "client",
+      "url": "/api/backend/approvals/pending?reviewerId=${reviewerId}"
+    },
+    {
+      "file": "apps/client/hooks/api/useApprovals.ts",
+      "line": 47,
+      "surface": "client",
+      "url": "/api/backend/posts/${postId}/submit-for-review"
+    },
+    {
+      "file": "apps/client/hooks/api/useApprovals.ts",
+      "line": 64,
+      "surface": "client",
+      "url": "/api/backend/approvals/${approvalId}/approve"
+    },
+    {
+      "file": "apps/client/hooks/api/useApprovals.ts",
+      "line": 74,
+      "surface": "client",
+      "url": "/api/backend/approvals/${approvalId}/reject"
+    },
+    {
+      "file": "apps/client/hooks/api/useAssets/api.ts",
+      "line": 21,
+      "surface": "client",
+      "url": "/api/backend/assets?${searchParams.toString()}"
+    },
+    {
+      "file": "apps/client/hooks/api/useAssets/api.ts",
+      "line": 31,
+      "surface": "client",
+      "url": "/api/backend/assets/folders"
+    },
+    {
+      "file": "apps/client/hooks/api/useAssets/api.ts",
+      "line": 41,
+      "surface": "client",
+      "url": "/api/backend/assets/tags"
+    },
+    {
+      "file": "apps/client/hooks/api/useAssets/api.ts",
+      "line": 51,
+      "surface": "client",
+      "url": "/api/backend/assets"
+    },
+    {
+      "file": "apps/client/hooks/api/useAssets/api.ts",
+      "line": 64,
+      "surface": "client",
+      "url": "/api/backend/assets/${assetId}"
+    },
+    {
+      "file": "apps/client/hooks/api/useAssets/api.ts",
+      "line": 72,
+      "surface": "client",
+      "url": "/api/backend/assets/folders"
+    },
+    {
+      "file": "apps/client/hooks/api/useBilling/api.ts",
+      "line": 16,
+      "surface": "client",
+      "url": "/api/backend/billing/gateway/status"
+    },
+    {
+      "file": "apps/client/hooks/api/useBilling/api.ts",
+      "line": 32,
+      "surface": "client",
+      "url": "/api/backend/billing/gateway/switch"
+    },
+    {
+      "file": "apps/client/hooks/api/useBilling/api.ts",
+      "line": 48,
+      "surface": "client",
+      "url": "/api/backend/billing/gateway/switch"
+    },
+    {
+      "file": "apps/client/hooks/api/useBilling/api.ts",
+      "line": 57,
+      "surface": "client",
+      "url": "/api/backend/billing/invoices?page=${page}&limit=${limit}"
+    },
+    {
+      "file": "apps/client/hooks/api/useBilling/api.ts",
+      "line": 69,
+      "surface": "client",
+      "url": "/api/backend/billing/checkout"
+    },
+    {
+      "file": "apps/client/hooks/api/useBilling/api.ts",
+      "line": 85,
+      "surface": "client",
+      "url": "/api/backend/billing/portal"
+    },
+    {
+      "file": "apps/client/hooks/api/useBilling/queries.ts",
+      "line": 36,
+      "surface": "client",
+      "url": "/api/backend/billing/plans"
+    },
+    {
+      "file": "apps/client/hooks/api/useCampaigns/api.ts",
+      "line": 17,
+      "surface": "client",
+      "url": "/api/backend/campaigns?${searchParams.toString()}"
+    },
+    {
+      "file": "apps/client/hooks/api/useCampaigns/api.ts",
+      "line": 27,
+      "surface": "client",
+      "url": "/api/backend/campaigns/${campaignId}"
+    },
+    {
+      "file": "apps/client/hooks/api/useCampaigns/api.ts",
+      "line": 38,
+      "surface": "client",
+      "url": "/api/backend/campaigns/${campaignId}/analytics"
+    },
+    {
+      "file": "apps/client/hooks/api/useCampaigns/api.ts",
+      "line": 60,
+      "surface": "client",
+      "url": "/api/backend/campaigns"
+    },
+    {
+      "file": "apps/client/hooks/api/useCampaigns/api.ts",
+      "line": 73,
+      "surface": "client",
+      "url": "/api/backend/campaigns/${campaignId}/archive"
+    },
+    {
+      "file": "apps/client/hooks/api/useComments.ts",
+      "line": 30,
+      "surface": "client",
+      "url": "/api/backend/posts/${postId}/comments"
+    },
+    {
+      "file": "apps/client/hooks/api/useComments.ts",
+      "line": 45,
+      "surface": "client",
+      "url": "/api/backend/posts/${postId}/comments"
+    },
+    {
+      "file": "apps/client/hooks/api/useCrm.ts",
+      "line": 42,
+      "surface": "client",
+      "url": "/api/backend/crm/connections"
+    },
+    {
+      "file": "apps/client/hooks/api/useCrm.ts",
+      "line": 52,
+      "surface": "client",
+      "url": "/api/backend/crm/${platform.toLowerCase()}/sync-logs"
+    },
+    {
+      "file": "apps/client/hooks/api/useCrm.ts",
+      "line": 62,
+      "surface": "client",
+      "url": "/api/backend/crm/${platform.toLowerCase()}/disconnect"
+    },
+    {
+      "file": "apps/client/hooks/api/useCrm.ts",
+      "line": 70,
+      "surface": "client",
+      "url": "/api/backend/crm/${platform.toLowerCase()}/sync"
+    },
+    {
+      "file": "apps/client/hooks/api/useExternalNotifications.ts",
+      "line": 37,
+      "surface": "client",
+      "url": "/api/backend/external-notifications?projectId=${projectId}"
+    },
+    {
+      "file": "apps/client/hooks/api/useExternalNotifications.ts",
+      "line": 47,
+      "surface": "client",
+      "url": "/api/backend/external-notifications"
+    },
+    {
+      "file": "apps/client/hooks/api/useExternalNotifications.ts",
+      "line": 60,
+      "surface": "client",
+      "url": "/api/backend/external-notifications/${id}"
+    },
+    {
+      "file": "apps/client/hooks/api/useExternalNotifications.ts",
+      "line": 68,
+      "surface": "client",
+      "url": "/api/backend/external-notifications/${id}/test"
+    },
+    {
+      "file": "apps/client/hooks/api/useInbox/api.ts",
+      "line": 32,
+      "surface": "client",
+      "url": "/api/backend/inbox?${params.toString()}"
+    },
+    {
+      "file": "apps/client/hooks/api/useInbox/api.ts",
+      "line": 49,
+      "surface": "client",
+      "url": "/api/backend/inbox/mentions?${params.toString()}"
+    },
+    {
+      "file": "apps/client/hooks/api/useInbox/api.ts",
+      "line": 59,
+      "surface": "client",
+      "url": "/api/backend/inbox/conversations/${id}"
+    },
+    {
+      "file": "apps/client/hooks/api/useInbox/api.ts",
+      "line": 76,
+      "surface": "client",
+      "url": "/api/backend/inbox/conversations/${conversationId}/messages?${params.toString()}"
+    },
+    {
+      "file": "apps/client/hooks/api/useInbox/api.ts",
+      "line": 86,
+      "surface": "client",
+      "url": "/api/backend/inbox/messages/${messageId}/reply"
+    },
+    {
+      "file": "apps/client/hooks/api/useInbox/api.ts",
+      "line": 102,
+      "surface": "client",
+      "url": "/api/backend/inbox/conversations/${conversationId}/resolve"
+    },
+    {
+      "file": "apps/client/hooks/api/useInbox/api.ts",
+      "line": 112,
+      "surface": "client",
+      "url": "/api/backend/inbox/conversations/${conversationId}/reopen"
+    },
+    {
+      "file": "apps/client/hooks/api/useInbox/api.ts",
+      "line": 120,
+      "surface": "client",
+      "url": "/api/backend/inbox/messages/${messageId}/assign"
+    },
+    {
+      "file": "apps/client/hooks/api/useInbox/api.ts",
+      "line": 130,
+      "surface": "client",
+      "url": "/api/backend/inbox/messages/${messageId}/read"
+    },
+    {
+      "file": "apps/client/hooks/api/useMultiPlatformScheduling.ts",
+      "line": 37,
+      "surface": "client",
+      "url": "/api/backend/scheduling/slots?${params}"
+    },
+    {
+      "file": "apps/client/hooks/api/useMultiPlatformScheduling.ts",
+      "line": 64,
+      "surface": "client",
+      "url": "/api/backend/analytics/optimal-times?${params}"
+    },
+    {
+      "file": "apps/client/hooks/api/useMultiPlatformScheduling.ts",
+      "line": 91,
+      "surface": "client",
+      "url": "/api/backend/scheduling/rules?${params}"
+    },
+    {
+      "file": "apps/client/hooks/api/useMultiPlatformScheduling.ts",
+      "line": 117,
+      "surface": "client",
+      "url": "/api/backend/scheduling/slots"
+    },
+    {
+      "file": "apps/client/hooks/api/useMultiPlatformScheduling.ts",
+      "line": 149,
+      "surface": "client",
+      "url": "/api/backend/scheduling/slots/bulk"
+    },
+    {
+      "file": "apps/client/hooks/api/useMultiPlatformScheduling.ts",
+      "line": 207,
+      "surface": "client",
+      "url": "/api/backend/scheduling/rules"
+    },
+    {
+      "file": "apps/client/hooks/api/useMultiPlatformScheduling.ts",
+      "line": 245,
+      "surface": "client",
+      "url": "/api/backend/scheduling/rules/${ruleId}"
+    },
+    {
+      "file": "apps/client/hooks/api/useMultiPlatformScheduling.ts",
+      "line": 277,
+      "surface": "client",
+      "url": "/api/backend/scheduling/rules/${ruleId}/toggle"
+    },
+    {
+      "file": "apps/client/hooks/api/useOnboarding.ts",
+      "line": 34,
+      "surface": "client",
+      "url": "/api/backend/onboarding"
+    },
+    {
+      "file": "apps/client/hooks/api/useOnboarding.ts",
+      "line": 52,
+      "surface": "client",
+      "url": "/api/backend/onboarding/step/${stepKey}/complete"
+    },
+    {
+      "file": "apps/client/hooks/api/useOnboarding.ts",
+      "line": 74,
+      "surface": "client",
+      "url": "/api/backend/onboarding/dismiss"
+    },
+    {
+      "file": "apps/client/hooks/api/usePrivacy.ts",
+      "line": 37,
+      "surface": "client",
+      "url": "/api/backend/compliance/dsar"
+    },
+    {
+      "file": "apps/client/hooks/api/useRecurringPosts.ts",
+      "line": 40,
+      "surface": "client",
+      "url": "/api/backend/recurring-posts?${params}"
+    },
+    {
+      "file": "apps/client/hooks/api/useRecurringPosts.ts",
+      "line": 66,
+      "surface": "client",
+      "url": "/api/backend/recurring-posts/${id}"
+    },
+    {
+      "file": "apps/client/hooks/api/useRecurringPosts.ts",
+      "line": 111,
+      "surface": "client",
+      "url": "/api/backend/recurring-posts"
+    },
+    {
+      "file": "apps/client/hooks/api/useRecurringPosts.ts",
+      "line": 150,
+      "surface": "client",
+      "url": "/api/backend/recurring-posts/${id}"
+    },
+    {
+      "file": "apps/client/hooks/api/useReports.ts",
+      "line": 44,
+      "surface": "client",
+      "url": "/api/backend/reports?${params.toString()}"
+    },
+    {
+      "file": "apps/client/hooks/api/useReports.ts",
+      "line": 70,
+      "surface": "client",
+      "url": "/api/backend/reports"
+    },
+    {
+      "file": "apps/client/hooks/api/useReports.ts",
+      "line": 99,
+      "surface": "client",
+      "url": "/api/backend/reports/${id}"
+    },
+    {
+      "file": "apps/client/hooks/api/useReports.ts",
+      "line": 124,
+      "surface": "client",
+      "url": "/api/backend/reports/${id}/generate"
+    },
+    {
+      "file": "apps/client/hooks/api/useScheduledPosts.ts",
+      "line": 39,
+      "surface": "client",
+      "url": "/api/backend/admin/posts/scheduled?${params}"
+    },
+    {
+      "file": "apps/client/hooks/api/useScheduledPosts.ts",
+      "line": 65,
+      "surface": "client",
+      "url": "/api/backend/admin/posts/${postId}/cancel"
+    },
+    {
+      "file": "apps/client/hooks/api/useSso/api.ts",
+      "line": 16,
+      "surface": "client",
+      "url": "/api/backend/saml/config"
+    },
+    {
+      "file": "apps/client/hooks/api/useSso/api.ts",
+      "line": 26,
+      "surface": "client",
+      "url": "/api/backend/oidc/config"
+    },
+    {
+      "file": "apps/client/hooks/api/useSso/api.ts",
+      "line": 36,
+      "surface": "client",
+      "url": "/api/backend/saml/config"
+    },
+    {
+      "file": "apps/client/hooks/api/useSso/api.ts",
+      "line": 49,
+      "surface": "client",
+      "url": "/api/backend/oidc/config"
+    },
+    {
+      "file": "apps/client/hooks/api/useSso/api.ts",
+      "line": 62,
+      "surface": "client",
+      "url": "/api/backend/saml/enable"
+    },
+    {
+      "file": "apps/client/hooks/api/useSso/api.ts",
+      "line": 70,
+      "surface": "client",
+      "url": "/api/backend/oidc/enable"
+    },
+    {
+      "file": "apps/client/hooks/api/useSso/api.ts",
+      "line": 78,
+      "surface": "client",
+      "url": "/api/backend/${provider}/disable"
+    },
+    {
+      "file": "apps/client/hooks/api/useTasks/api.ts",
+      "line": 18,
+      "surface": "client",
+      "url": "/api/backend/tasks?${searchParams.toString()}"
+    },
+    {
+      "file": "apps/client/hooks/api/useTasks/api.ts",
+      "line": 28,
+      "surface": "client",
+      "url": "/api/backend/tasks/${taskId}?accountId=${accountId}"
+    },
+    {
+      "file": "apps/client/hooks/api/useTasks/api.ts",
+      "line": 39,
+      "surface": "client",
+      "url": "/api/backend/tasks"
+    },
+    {
+      "file": "apps/client/hooks/api/useTasks/api.ts",
+      "line": 52,
+      "surface": "client",
+      "url": "/api/backend/tasks/${taskId}"
+    },
+    {
+      "file": "apps/client/hooks/api/useTasks/api.ts",
+      "line": 66,
+      "surface": "client",
+      "url": "/api/backend/tasks/${taskId}/complete"
+    },
+    {
+      "file": "apps/client/hooks/api/useTasks/api.ts",
+      "line": 80,
+      "surface": "client",
+      "url": "/api/backend/tasks/${taskId}/cancel"
+    },
+    {
+      "file": "apps/client/hooks/api/useTeam.ts",
+      "line": 39,
+      "surface": "client",
+      "url": "/api/backend/team?accountId=${accountId}"
+    },
+    {
+      "file": "apps/client/hooks/api/useTeam.ts",
+      "line": 49,
+      "surface": "client",
+      "url": "/api/backend/team/invite"
+    },
+    {
+      "file": "apps/client/hooks/api/useTeam.ts",
+      "line": 69,
+      "surface": "client",
+      "url": "/api/backend/team/${memberId}/role"
+    },
+    {
+      "file": "apps/client/hooks/api/useTeam.ts",
+      "line": 79,
+      "surface": "client",
+      "url": "/api/backend/team/${memberId}"
+    },
+    {
+      "file": "apps/client/lib/hooks/useProjectChannels/api.ts",
+      "line": 33,
+      "surface": "client",
+      "url": "/api/backend/projects/${projectId}/channels"
+    },
+    {
+      "file": "apps/client/lib/hooks/useProjectChannels/api.ts",
+      "line": 61,
+      "surface": "client",
+      "url": "/api/backend/channels/bluesky/connect"
+    },
+    {
+      "file": "apps/client/lib/hooks/useProjectChannels/api.ts",
+      "line": 82,
+      "surface": "client",
+      "url": "/api/backend/channels/${channelId}"
+    },
+    {
+      "file": "apps/client/lib/hooks/useProjectChannels/api.ts",
+      "line": 98,
+      "surface": "client",
+      "url": "/api/backend/channels/${channelId}/set-primary"
+    },
+    {
+      "file": "apps/client/app/api/backend/[...path]/route.ts",
+      "line": 23,
+      "surface": "client",
+      "url": "/api/backend/posts"
+    },
+    {
+      "file": "apps/client/app/api/backend/[...path]/route.ts",
+      "line": 24,
+      "surface": "client",
+      "url": "/api/backend/auth/customer/me"
+    },
+    {
+      "file": "apps/client/app/api/backend/[...path]/route.ts",
+      "line": 25,
+      "surface": "client",
+      "url": "/api/backend/auth/customer/login"
+    },
+    {
+      "file": "apps/client/app/dashboard/ai/repurpose/page.tsx",
+      "line": 51,
+      "surface": "client",
+      "url": "/api/backend/repurpose/proposals?accountId=${accountId}"
+    },
+    {
+      "file": "apps/client/app/dashboard/ai/repurpose/page.tsx",
+      "line": 77,
+      "surface": "client",
+      "url": "/api/backend/approvals/${proposalId}/${action}"
+    },
+    {
+      "file": "apps/client/app/dashboard/ai/trends/page.tsx",
+      "line": 43,
+      "surface": "client",
+      "url": "/api/backend/trends/radar?accountId=${accountId}"
+    },
+    {
+      "file": "apps/client/app/dashboard/scheduling/recurring/[id]/edit/page.tsx",
+      "line": 26,
+      "surface": "client",
+      "url": "/api/backend/recurring-posts/${id}"
+    },
+    {
+      "file": "apps/client/app/dashboard/settings/referral/page.tsx",
+      "line": 33,
+      "surface": "client",
+      "url": "/api/backend/referral/code?accountId=${accountId}"
+    },
+    {
+      "file": "apps/client/app/reports/shared/[token]/page.tsx",
+      "line": 34,
+      "surface": "client",
+      "url": "/api/backend/reports/public/${token}"
+    },
+    {
+      "file": "apps/client/components/content/templates/useTemplateData.ts",
+      "line": 38,
+      "surface": "client",
+      "url": "/api/backend/projects/${projectId}/templates"
+    }
+  ],
+  "unmatchedFrontendCalls": [
+    {
+      "call": {
+        "file": "apps/admin/hooks/api/usePricingTiers/api.ts",
+        "line": 128,
+        "surface": "admin",
+        "url": "/api/backend/admin/pricing/${segment}/${input.id}/status"
+      },
+      "canonicalUrl": "/admin/pricing/:p/:p/status"
+    },
+    {
+      "call": {
+        "file": "apps/admin/hooks/api/useWebhooks/api.ts",
+        "line": 92,
+        "surface": "admin",
+        "url": "/api/backend/projects"
+      },
+      "canonicalUrl": "/projects"
+    },
+    {
+      "call": {
+        "file": "apps/admin/components/security/RbacManager.tsx",
+        "line": 137,
+        "surface": "admin",
+        "url": "/api/backend${endpoint}"
+      },
+      "canonicalUrl": "/:p"
+    },
+    {
+      "call": {
+        "file": "apps/client/hooks/api/useMultiPlatformScheduling.ts",
+        "line": 245,
+        "surface": "client",
+        "url": "/api/backend/scheduling/rules/${ruleId}"
+      },
+      "canonicalUrl": "/scheduling/rules/:p"
+    },
+    {
+      "call": {
+        "file": "apps/client/hooks/api/useMultiPlatformScheduling.ts",
+        "line": 277,
+        "surface": "client",
+        "url": "/api/backend/scheduling/rules/${ruleId}/toggle"
+      },
+      "canonicalUrl": "/scheduling/rules/:p/toggle"
+    },
+    {
+      "call": {
+        "file": "apps/client/hooks/api/useSso/api.ts",
+        "line": 78,
+        "surface": "client",
+        "url": "/api/backend/${provider}/disable"
+      },
+      "canonicalUrl": "/:p/disable"
+    },
+    {
+      "call": {
+        "file": "apps/client/app/dashboard/ai/repurpose/page.tsx",
+        "line": 77,
+        "surface": "client",
+        "url": "/api/backend/approvals/${proposalId}/${action}"
+      },
+      "canonicalUrl": "/approvals/:p/:p"
+    },
+    {
+      "call": {
+        "file": "apps/client/app/dashboard/ai/trends/page.tsx",
+        "line": 43,
+        "surface": "client",
+        "url": "/api/backend/trends/radar?accountId=${accountId}"
+      },
+      "canonicalUrl": "/trends/radar"
+    },
+    {
+      "call": {
+        "file": "apps/client/app/dashboard/settings/referral/page.tsx",
+        "line": 33,
+        "surface": "client",
+        "url": "/api/backend/referral/code?accountId=${accountId}"
+      },
+      "canonicalUrl": "/referral/code"
+    },
+    {
+      "call": {
+        "file": "apps/client/app/reports/shared/[token]/page.tsx",
+        "line": 34,
+        "surface": "client",
+        "url": "/api/backend/reports/public/${token}"
+      },
+      "canonicalUrl": "/reports/public/:p"
+    }
+  ],
+  "unconsumedBackendRoutes": [
+    {
+      "route": {
+        "file": "apps/api/src/accounts/accountRoutes.ts",
+        "line": 371,
+        "method": "GET",
+        "path": "/accounts/:accountId"
+      },
+      "canonicalUrl": "/accounts/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/accounts/accountRoutes.ts",
+        "line": 391,
+        "method": "PUT",
+        "path": "/accounts/:accountId"
+      },
+      "canonicalUrl": "/accounts/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/accounts/accountRoutes.ts",
+        "line": 401,
+        "method": "DELETE",
+        "path": "/accounts/:accountId"
+      },
+      "canonicalUrl": "/accounts/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+        "line": 933,
+        "method": "GET",
+        "path": "/admin/accounts/stats"
+      },
+      "canonicalUrl": "/admin/accounts/stats"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+        "line": 943,
+        "method": "GET",
+        "path": "/admin/accounts/:accountId"
+      },
+      "canonicalUrl": "/admin/accounts/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+        "line": 953,
+        "method": "PUT",
+        "path": "/admin/accounts/:accountId"
+      },
+      "canonicalUrl": "/admin/accounts/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+        "line": 983,
+        "method": "POST",
+        "path": "/admin/accounts/:accountId/suspend"
+      },
+      "canonicalUrl": "/admin/accounts/:p/suspend"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+        "line": 993,
+        "method": "POST",
+        "path": "/admin/accounts/:accountId/reactivate"
+      },
+      "canonicalUrl": "/admin/accounts/:p/reactivate"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+        "line": 1013,
+        "method": "DELETE",
+        "path": "/admin/accounts/:accountId"
+      },
+      "canonicalUrl": "/admin/accounts/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+        "line": 1053,
+        "method": "POST",
+        "path": "/admin/accounts/bulk/suspend"
+      },
+      "canonicalUrl": "/admin/accounts/bulk/suspend"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/accountLifecycleRoutes.ts",
+        "line": 1063,
+        "method": "POST",
+        "path": "/admin/accounts/bulk/reactivate"
+      },
+      "canonicalUrl": "/admin/accounts/bulk/reactivate"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/analyticsRoutes.ts",
+        "line": 31,
+        "method": "GET",
+        "path": "/admin/analytics/metrics"
+      },
+      "canonicalUrl": "/admin/analytics/metrics"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/analyticsRoutes.ts",
+        "line": 61,
+        "method": "GET",
+        "path": "/admin/compliance/gdpr"
+      },
+      "canonicalUrl": "/admin/compliance/gdpr"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/apiKeyAdminRoutes.ts",
+        "line": 81,
+        "method": "POST",
+        "path": "/admin/api-keys/:id/rotate"
+      },
+      "canonicalUrl": "/admin/api-keys/:p/rotate"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+        "line": 564,
+        "method": "POST",
+        "path": "/admin/auth/login"
+      },
+      "canonicalUrl": "/admin/auth/login"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+        "line": 574,
+        "method": "POST",
+        "path": "/admin/auth/refresh"
+      },
+      "canonicalUrl": "/admin/auth/refresh"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+        "line": 581,
+        "method": "POST",
+        "path": "/admin/auth/password/reset"
+      },
+      "canonicalUrl": "/admin/auth/password/reset"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+        "line": 601,
+        "method": "POST",
+        "path": "/admin/auth/password/validate"
+      },
+      "canonicalUrl": "/admin/auth/password/validate"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+        "line": 612,
+        "method": "GET",
+        "path": "/admin/auth/me"
+      },
+      "canonicalUrl": "/admin/auth/me"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+        "line": 622,
+        "method": "POST",
+        "path": "/admin/auth/logout"
+      },
+      "canonicalUrl": "/admin/auth/logout"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+        "line": 632,
+        "method": "PUT",
+        "path": "/admin/auth/profile"
+      },
+      "canonicalUrl": "/admin/auth/profile"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+        "line": 670,
+        "method": "POST",
+        "path": "/admin/auth/mfa/setup"
+      },
+      "canonicalUrl": "/admin/auth/mfa/setup"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+        "line": 677,
+        "method": "POST",
+        "path": "/admin/auth/mfa/verify"
+      },
+      "canonicalUrl": "/admin/auth/mfa/verify"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+        "line": 687,
+        "method": "POST",
+        "path": "/admin/auth/mfa/disable"
+      },
+      "canonicalUrl": "/admin/auth/mfa/disable"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+        "line": 694,
+        "method": "GET",
+        "path": "/admin/auth/mfa/status"
+      },
+      "canonicalUrl": "/admin/auth/mfa/status"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+        "line": 705,
+        "method": "GET",
+        "path": "/admin/auth/sessions"
+      },
+      "canonicalUrl": "/admin/auth/sessions"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+        "line": 715,
+        "method": "POST",
+        "path": "/admin/auth/sessions/revoke"
+      },
+      "canonicalUrl": "/admin/auth/sessions/revoke"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+        "line": 722,
+        "method": "POST",
+        "path": "/admin/auth/sessions/revoke-all"
+      },
+      "canonicalUrl": "/admin/auth/sessions/revoke-all"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/channelReauthRoutes.ts",
+        "line": 96,
+        "method": "POST",
+        "path": "/admin/channels/:id/force-reauth"
+      },
+      "canonicalUrl": "/admin/channels/:p/force-reauth"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/dashboardRoutes.ts",
+        "line": 125,
+        "method": "GET",
+        "path": "/admin/dashboard/stats"
+      },
+      "canonicalUrl": "/admin/dashboard/stats"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/dashboardRoutes.ts",
+        "line": 135,
+        "method": "GET",
+        "path": "/admin/accounts/summary"
+      },
+      "canonicalUrl": "/admin/accounts/summary"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/dashboardRoutes.ts",
+        "line": 155,
+        "method": "GET",
+        "path": "/admin/subscriptions/summary"
+      },
+      "canonicalUrl": "/admin/subscriptions/summary"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/dashboardRoutes.ts",
+        "line": 165,
+        "method": "GET",
+        "path": "/admin/analytics/overview"
+      },
+      "canonicalUrl": "/admin/analytics/overview"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/massReauthRoutes.ts",
+        "line": 105,
+        "method": "POST",
+        "path": "/admin/providers/:provider/force-mass-reauth"
+      },
+      "canonicalUrl": "/admin/providers/:p/force-mass-reauth"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/oidcAdminRoutes.ts",
+        "line": 90,
+        "method": "POST",
+        "path": "/admin/oidc/configurations/:accountId/replace-client-secret"
+      },
+      "canonicalUrl": "/admin/oidc/configurations/:p/replace-client-secret"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/pricingRoutes.ts",
+        "line": 515,
+        "method": "PATCH",
+        "path": "/admin/pricing/provider-tiers/:id/status"
+      },
+      "canonicalUrl": "/admin/pricing/provider-tiers/:p/status"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/pricingRoutes.ts",
+        "line": 524,
+        "method": "PATCH",
+        "path": "/admin/pricing/account-tiers/:id/status"
+      },
+      "canonicalUrl": "/admin/pricing/account-tiers/:p/status"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/queueRoutes.ts",
+        "line": 295,
+        "method": "GET",
+        "path": "/admin/queue/jobs/:id"
+      },
+      "canonicalUrl": "/admin/queue/jobs/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/queueRoutes.ts",
+        "line": 315,
+        "method": "POST",
+        "path": "/admin/queue/jobs/:id/remove"
+      },
+      "canonicalUrl": "/admin/queue/jobs/:p/remove"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/schedulingRoutes.ts",
+        "line": 41,
+        "method": "POST",
+        "path": "/admin/posts/:id/reschedule"
+      },
+      "canonicalUrl": "/admin/posts/:p/reschedule"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/secretsRotationRoutes.ts",
+        "line": 40,
+        "method": "GET",
+        "path": "/admin/security/secrets/rotation-status"
+      },
+      "canonicalUrl": "/admin/security/secrets/rotation-status"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/admin/webhookAdminRoutes.ts",
+        "line": 98,
+        "method": "POST",
+        "path": "/admin/webhooks/:id/rotate-secret"
+      },
+      "canonicalUrl": "/admin/webhooks/:p/rotate-secret"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/ai/promptTemplateRoutes.ts",
+        "line": 201,
+        "method": "GET",
+        "path": "/ai-templates"
+      },
+      "canonicalUrl": "/ai-templates"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/ai/promptTemplateRoutes.ts",
+        "line": 210,
+        "method": "POST",
+        "path": "/ai-templates"
+      },
+      "canonicalUrl": "/ai-templates"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/ai/promptTemplateRoutes.ts",
+        "line": 219,
+        "method": "PATCH",
+        "path": "/ai-templates/:id"
+      },
+      "canonicalUrl": "/ai-templates/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/ai/promptTemplateRoutes.ts",
+        "line": 228,
+        "method": "DELETE",
+        "path": "/ai-templates/:id"
+      },
+      "canonicalUrl": "/ai-templates/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/ai/routes.ts",
+        "line": 369,
+        "method": "POST",
+        "path": "/generate"
+      },
+      "canonicalUrl": "/generate"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/ai/routes.ts",
+        "line": 378,
+        "method": "POST",
+        "path": "/analyze"
+      },
+      "canonicalUrl": "/analyze"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/ai/routes.ts",
+        "line": 384,
+        "method": "POST",
+        "path": "/optimize"
+      },
+      "canonicalUrl": "/optimize"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/ai/routes.ts",
+        "line": 393,
+        "method": "POST",
+        "path": "/predict"
+      },
+      "canonicalUrl": "/predict"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/ai/routes.ts",
+        "line": 402,
+        "method": "POST",
+        "path": "/variations"
+      },
+      "canonicalUrl": "/variations"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/ai/routes.ts",
+        "line": 411,
+        "method": "POST",
+        "path": "/smart-analysis"
+      },
+      "canonicalUrl": "/smart-analysis"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/ai/routes.ts",
+        "line": 430,
+        "method": "POST",
+        "path": "/predict-timing"
+      },
+      "canonicalUrl": "/predict-timing"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/ai/routes.ts",
+        "line": 448,
+        "method": "POST",
+        "path": "/predict-audience"
+      },
+      "canonicalUrl": "/predict-audience"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/ai/routes.ts",
+        "line": 467,
+        "method": "DELETE",
+        "path": "/cache"
+      },
+      "canonicalUrl": "/cache"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/analytics/analyticsRoutes.ts",
+        "line": 684,
+        "method": "GET",
+        "path": "/analytics/project/:projectId"
+      },
+      "canonicalUrl": "/analytics/project/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/analytics/analyticsRoutes.ts",
+        "line": 691,
+        "method": "GET",
+        "path": "/threads/:threadId/performance"
+      },
+      "canonicalUrl": "/threads/:p/performance"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/analytics/analyticsRoutes.ts",
+        "line": 701,
+        "method": "GET",
+        "path": "/threads/compare"
+      },
+      "canonicalUrl": "/threads/compare"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/analytics/analyticsRoutes.ts",
+        "line": 711,
+        "method": "GET",
+        "path": "/engagement/trends"
+      },
+      "canonicalUrl": "/engagement/trends"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/analytics/analyticsRoutes.ts",
+        "line": 721,
+        "method": "GET",
+        "path": "/posts/best-times"
+      },
+      "canonicalUrl": "/posts/best-times"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/analytics/analyticsRoutes.ts",
+        "line": 731,
+        "method": "GET",
+        "path": "/engagement/geographic"
+      },
+      "canonicalUrl": "/engagement/geographic"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/analytics/analyticsRoutes.ts",
+        "line": 741,
+        "method": "GET",
+        "path": "/content/media-performance"
+      },
+      "canonicalUrl": "/content/media-performance"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/analytics/analyticsRoutes.ts",
+        "line": 761,
+        "method": "GET",
+        "path": "/export"
+      },
+      "canonicalUrl": "/export"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/analytics/analyticsRoutes.ts",
+        "line": 776,
+        "method": "GET",
+        "path": "/analytics/roi"
+      },
+      "canonicalUrl": "/analytics/roi"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/analytics/analyticsRoutes.ts",
+        "line": 793,
+        "method": "GET",
+        "path": "/analytics/cross-platform"
+      },
+      "canonicalUrl": "/analytics/cross-platform"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/announcements/announcementRoutes.ts",
+        "line": 32,
+        "method": "GET",
+        "path": "/announcements/active"
+      },
+      "canonicalUrl": "/announcements/active"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/approvals/approvalRoutes.ts",
+        "line": 311,
+        "method": "GET",
+        "path": "/posts/:postId/approvals"
+      },
+      "canonicalUrl": "/posts/:p/approvals"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/approvals/approvalWorkflowRoutes.ts",
+        "line": 299,
+        "method": "GET",
+        "path": "/approval-workflows"
+      },
+      "canonicalUrl": "/approval-workflows"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/approvals/approvalWorkflowRoutes.ts",
+        "line": 309,
+        "method": "POST",
+        "path": "/approval-workflows"
+      },
+      "canonicalUrl": "/approval-workflows"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/approvals/approvalWorkflowRoutes.ts",
+        "line": 319,
+        "method": "GET",
+        "path": "/approval-workflows/:id"
+      },
+      "canonicalUrl": "/approval-workflows/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/approvals/approvalWorkflowRoutes.ts",
+        "line": 329,
+        "method": "PATCH",
+        "path": "/approval-workflows/:id"
+      },
+      "canonicalUrl": "/approval-workflows/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/approvals/approvalWorkflowRoutes.ts",
+        "line": 339,
+        "method": "DELETE",
+        "path": "/approval-workflows/:id"
+      },
+      "canonicalUrl": "/approval-workflows/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/assets/assetRoutes.ts",
+        "line": 578,
+        "method": "DELETE",
+        "path": "/assets/tags/:id"
+      },
+      "canonicalUrl": "/assets/tags/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/assets/assetRoutes.ts",
+        "line": 609,
+        "method": "POST",
+        "path": "/assets/import/google-drive"
+      },
+      "canonicalUrl": "/assets/import/google-drive"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/assets/assetRoutes.ts",
+        "line": 665,
+        "method": "POST",
+        "path": "/assets/:id/tags"
+      },
+      "canonicalUrl": "/assets/:p/tags"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/audit/activityFeedRoutes.ts",
+        "line": 76,
+        "method": "GET",
+        "path": "/activity-feed"
+      },
+      "canonicalUrl": "/activity-feed"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/audit/auditRoutes.ts",
+        "line": 441,
+        "method": "GET",
+        "path": "/admin/audit/users/:userId/logs"
+      },
+      "canonicalUrl": "/admin/audit/users/:p/logs"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/audit/auditRoutes.ts",
+        "line": 448,
+        "method": "GET",
+        "path": "/admin/audit/resources/:resource/logs"
+      },
+      "canonicalUrl": "/admin/audit/resources/:p/logs"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/audit/auditRoutes.ts",
+        "line": 462,
+        "method": "POST",
+        "path": "/admin/audit/cleanup"
+      },
+      "canonicalUrl": "/admin/audit/cleanup"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/audit/auditRoutes.ts",
+        "line": 469,
+        "method": "GET",
+        "path": "/admin/audit/my-logs"
+      },
+      "canonicalUrl": "/admin/audit/my-logs"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/apiKeyRoutes.ts",
+        "line": 269,
+        "method": "GET",
+        "path": "/api-keys"
+      },
+      "canonicalUrl": "/api-keys"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/apiKeyRoutes.ts",
+        "line": 277,
+        "method": "POST",
+        "path": "/api-keys"
+      },
+      "canonicalUrl": "/api-keys"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/apiKeyRoutes.ts",
+        "line": 285,
+        "method": "POST",
+        "path": "/api-keys/:id/rotate"
+      },
+      "canonicalUrl": "/api-keys/:p/rotate"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/apiKeyRoutes.ts",
+        "line": 293,
+        "method": "DELETE",
+        "path": "/api-keys/:id"
+      },
+      "canonicalUrl": "/api-keys/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/authRoutes.ts",
+        "line": 366,
+        "method": "POST",
+        "path": "/auth/register"
+      },
+      "canonicalUrl": "/auth/register"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/authRoutes.ts",
+        "line": 378,
+        "method": "POST",
+        "path": "/auth/login"
+      },
+      "canonicalUrl": "/auth/login"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/authRoutes.ts",
+        "line": 390,
+        "method": "POST",
+        "path": "/auth/refresh"
+      },
+      "canonicalUrl": "/auth/refresh"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/authRoutes.ts",
+        "line": 402,
+        "method": "POST",
+        "path": "/auth/logout"
+      },
+      "canonicalUrl": "/auth/logout"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/authRoutes.ts",
+        "line": 414,
+        "method": "GET",
+        "path": "/auth/me"
+      },
+      "canonicalUrl": "/auth/me"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/authRoutes.ts",
+        "line": 426,
+        "method": "GET",
+        "path": "/auth/sessions"
+      },
+      "canonicalUrl": "/auth/sessions"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/authRoutes.ts",
+        "line": 438,
+        "method": "POST",
+        "path": "/auth/revoke-all"
+      },
+      "canonicalUrl": "/auth/revoke-all"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/customerAuthRoutes.ts",
+        "line": 322,
+        "method": "POST",
+        "path": "/auth/customer/register"
+      },
+      "canonicalUrl": "/auth/customer/register"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/customerAuthRoutes.ts",
+        "line": 346,
+        "method": "POST",
+        "path": "/auth/customer/logout"
+      },
+      "canonicalUrl": "/auth/customer/logout"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/customerAuthRoutes.ts",
+        "line": 358,
+        "method": "POST",
+        "path": "/auth/customer/refresh"
+      },
+      "canonicalUrl": "/auth/customer/refresh"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/customerAuthRoutes.ts",
+        "line": 370,
+        "method": "POST",
+        "path": "/auth/customer/request-password-reset"
+      },
+      "canonicalUrl": "/auth/customer/request-password-reset"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/customerAuthRoutes.ts",
+        "line": 385,
+        "method": "POST",
+        "path": "/auth/customer/reset-password"
+      },
+      "canonicalUrl": "/auth/customer/reset-password"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/mfaRoutes.ts",
+        "line": 403,
+        "method": "GET",
+        "path": "/auth/mfa/status"
+      },
+      "canonicalUrl": "/auth/mfa/status"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/mfaRoutes.ts",
+        "line": 413,
+        "method": "POST",
+        "path": "/auth/mfa/setup"
+      },
+      "canonicalUrl": "/auth/mfa/setup"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/mfaRoutes.ts",
+        "line": 423,
+        "method": "POST",
+        "path": "/auth/mfa/verify-setup"
+      },
+      "canonicalUrl": "/auth/mfa/verify-setup"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/mfaRoutes.ts",
+        "line": 433,
+        "method": "POST",
+        "path": "/auth/mfa/verify"
+      },
+      "canonicalUrl": "/auth/mfa/verify"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/mfaRoutes.ts",
+        "line": 440,
+        "method": "POST",
+        "path": "/auth/mfa/disable"
+      },
+      "canonicalUrl": "/auth/mfa/disable"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/mfaRoutes.ts",
+        "line": 447,
+        "method": "POST",
+        "path": "/auth/mfa/regenerate-backup-codes"
+      },
+      "canonicalUrl": "/auth/mfa/regenerate-backup-codes"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/mfaRoutes.ts",
+        "line": 457,
+        "method": "GET",
+        "path": "/admin/users/:userId/mfa/status"
+      },
+      "canonicalUrl": "/admin/users/:p/mfa/status"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/mfaRoutes.ts",
+        "line": 467,
+        "method": "POST",
+        "path": "/admin/users/:userId/mfa/force-disable"
+      },
+      "canonicalUrl": "/admin/users/:p/mfa/force-disable"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/oidcRoutes.ts",
+        "line": 260,
+        "method": "POST",
+        "path": "/oidc/disable"
+      },
+      "canonicalUrl": "/oidc/disable"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/oidcRoutes.ts",
+        "line": 271,
+        "method": "GET",
+        "path": "/auth/oidc/:accountId/login"
+      },
+      "canonicalUrl": "/auth/oidc/:p/login"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/oidcRoutes.ts",
+        "line": 329,
+        "method": "GET",
+        "path": "/auth/oidc/:accountId/callback"
+      },
+      "canonicalUrl": "/auth/oidc/:p/callback"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/rbacRoutes.ts",
+        "line": 538,
+        "method": "GET",
+        "path": "/auth/permissions"
+      },
+      "canonicalUrl": "/auth/permissions"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/rbacRoutes.ts",
+        "line": 547,
+        "method": "POST",
+        "path": "/auth/permissions/check"
+      },
+      "canonicalUrl": "/auth/permissions/check"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/rbacRoutes.ts",
+        "line": 557,
+        "method": "GET",
+        "path": "/admin/rbac/roles"
+      },
+      "canonicalUrl": "/admin/rbac/roles"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/rbacRoutes.ts",
+        "line": 566,
+        "method": "GET",
+        "path": "/admin/rbac/roles/:role"
+      },
+      "canonicalUrl": "/admin/rbac/roles/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/rbacRoutes.ts",
+        "line": 575,
+        "method": "GET",
+        "path": "/admin/rbac/roles/:role/users"
+      },
+      "canonicalUrl": "/admin/rbac/roles/:p/users"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/rbacRoutes.ts",
+        "line": 584,
+        "method": "GET",
+        "path": "/admin/rbac/hierarchy"
+      },
+      "canonicalUrl": "/admin/rbac/hierarchy"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/rbacRoutes.ts",
+        "line": 593,
+        "method": "GET",
+        "path": "/admin/rbac/status"
+      },
+      "canonicalUrl": "/admin/rbac/status"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/rbacRoutes.ts",
+        "line": 603,
+        "method": "PUT",
+        "path": "/admin/rbac/users/:userId/role"
+      },
+      "canonicalUrl": "/admin/rbac/users/:p/role"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/rbacRoutes.ts",
+        "line": 612,
+        "method": "POST",
+        "path": "/admin/rbac/roles"
+      },
+      "canonicalUrl": "/admin/rbac/roles"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/rbacRoutes.ts",
+        "line": 621,
+        "method": "PUT",
+        "path": "/admin/rbac/roles/:roleId"
+      },
+      "canonicalUrl": "/admin/rbac/roles/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/rbacRoutes.ts",
+        "line": 630,
+        "method": "PUT",
+        "path": "/admin/rbac/roles/:roleId/permissions"
+      },
+      "canonicalUrl": "/admin/rbac/roles/:p/permissions"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/rbacRoutes.ts",
+        "line": 639,
+        "method": "DELETE",
+        "path": "/admin/rbac/roles/:roleId"
+      },
+      "canonicalUrl": "/admin/rbac/roles/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/samlRoutes.ts",
+        "line": 231,
+        "method": "POST",
+        "path": "/saml/disable"
+      },
+      "canonicalUrl": "/saml/disable"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/samlRoutes.ts",
+        "line": 242,
+        "method": "GET",
+        "path": "/auth/saml/:accountId/metadata"
+      },
+      "canonicalUrl": "/auth/saml/:p/metadata"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/samlRoutes.ts",
+        "line": 265,
+        "method": "GET",
+        "path": "/auth/saml/:accountId/login"
+      },
+      "canonicalUrl": "/auth/saml/:p/login"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/auth/samlRoutes.ts",
+        "line": 288,
+        "method": "POST",
+        "path": "/auth/saml/:accountId/callback"
+      },
+      "canonicalUrl": "/auth/saml/:p/callback"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/billing/adminBillingRoutes.ts",
+        "line": 27,
+        "method": "GET",
+        "path": "/admin/billing/gateway-switches"
+      },
+      "canonicalUrl": "/admin/billing/gateway-switches"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/billing/adminBillingRoutes.ts",
+        "line": 56,
+        "method": "GET",
+        "path": "/admin/billing/gateway-switches/:id"
+      },
+      "canonicalUrl": "/admin/billing/gateway-switches/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/billing/adminBillingRoutes.ts",
+        "line": 78,
+        "method": "POST",
+        "path": "/admin/billing/gateway-switches/:id/extend"
+      },
+      "canonicalUrl": "/admin/billing/gateway-switches/:p/extend"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/billing/adminBillingRoutes.ts",
+        "line": 118,
+        "method": "POST",
+        "path": "/admin/billing/gateway-switches/:id/force-complete"
+      },
+      "canonicalUrl": "/admin/billing/gateway-switches/:p/force-complete"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/billing/adminBillingRoutes.ts",
+        "line": 146,
+        "method": "POST",
+        "path": "/admin/billing/gateway-switches/:id/force-suspend"
+      },
+      "canonicalUrl": "/admin/billing/gateway-switches/:p/force-suspend"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/billing/billingWebhookRoutes.ts",
+        "line": 166,
+        "method": "POST",
+        "path": "/webhooks/stripe"
+      },
+      "canonicalUrl": "/webhooks/stripe"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/billing/billingWebhookRoutes.ts",
+        "line": 215,
+        "method": "POST",
+        "path": "/webhooks/paddle"
+      },
+      "canonicalUrl": "/webhooks/paddle"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/billing/subscriptionRoutes.ts",
+        "line": 45,
+        "method": "GET",
+        "path": "/admin/billing/plans/:tier"
+      },
+      "canonicalUrl": "/admin/billing/plans/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/billing/subscriptionRoutes.ts",
+        "line": 75,
+        "method": "GET",
+        "path": "/admin/billing/subscriptions"
+      },
+      "canonicalUrl": "/admin/billing/subscriptions"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/billing/subscriptionRoutes.ts",
+        "line": 95,
+        "method": "POST",
+        "path": "/admin/billing/accounts/:accountId/validate-limits"
+      },
+      "canonicalUrl": "/admin/billing/accounts/:p/validate-limits"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/billing/subscriptionRoutes.ts",
+        "line": 105,
+        "method": "POST",
+        "path": "/admin/billing/accounts/:accountId/suspend"
+      },
+      "canonicalUrl": "/admin/billing/accounts/:p/suspend"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/billing/subscriptionRoutes.ts",
+        "line": 115,
+        "method": "POST",
+        "path": "/admin/billing/bulk/upgrade"
+      },
+      "canonicalUrl": "/admin/billing/bulk/upgrade"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/billing/subscriptionRoutes.ts",
+        "line": 127,
+        "method": "GET",
+        "path": "/admin/billing/health"
+      },
+      "canonicalUrl": "/admin/billing/health"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/billing/subscriptionRoutes.ts",
+        "line": 177,
+        "method": "GET",
+        "path": "/admin/billing/trials/expiring"
+      },
+      "canonicalUrl": "/admin/billing/trials/expiring"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/billing/subscriptionRoutes.ts",
+        "line": 197,
+        "method": "GET",
+        "path": "/admin/billing/trials/stats"
+      },
+      "canonicalUrl": "/admin/billing/trials/stats"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/brand-kit/brandKitRoutes.ts",
+        "line": 142,
+        "method": "GET",
+        "path": "/brand-kit/:accountId"
+      },
+      "canonicalUrl": "/brand-kit/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/brand-kit/brandKitRoutes.ts",
+        "line": 151,
+        "method": "PUT",
+        "path": "/brand-kit/:accountId"
+      },
+      "canonicalUrl": "/brand-kit/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/brand-kit/brandKitRoutes.ts",
+        "line": 160,
+        "method": "DELETE",
+        "path": "/brand-kit/:accountId"
+      },
+      "canonicalUrl": "/brand-kit/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/brand-voice/brandVoiceRoutes.ts",
+        "line": 128,
+        "method": "GET",
+        "path": "/ai/brand-voice"
+      },
+      "canonicalUrl": "/ai/brand-voice"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/brand-voice/brandVoiceRoutes.ts",
+        "line": 137,
+        "method": "POST",
+        "path": "/ai/brand-voice"
+      },
+      "canonicalUrl": "/ai/brand-voice"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/brand-voice/brandVoiceRoutes.ts",
+        "line": 146,
+        "method": "PUT",
+        "path": "/ai/brand-voice/:accountId"
+      },
+      "canonicalUrl": "/ai/brand-voice/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/brand-voice/brandVoiceRoutes.ts",
+        "line": 155,
+        "method": "DELETE",
+        "path": "/ai/brand-voice/:accountId"
+      },
+      "canonicalUrl": "/ai/brand-voice/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/campaigns/campaignRoutes.ts",
+        "line": 455,
+        "method": "POST",
+        "path": "/campaigns/:id/posts/:postId"
+      },
+      "canonicalUrl": "/campaigns/:p/posts/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/campaigns/campaignRoutes.ts",
+        "line": 464,
+        "method": "DELETE",
+        "path": "/campaigns/:id/posts/:postId"
+      },
+      "canonicalUrl": "/campaigns/:p/posts/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/channels/channelRoutes.ts",
+        "line": 606,
+        "method": "POST",
+        "path": "/channels"
+      },
+      "canonicalUrl": "/channels"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/channels/channelRoutes.ts",
+        "line": 665,
+        "method": "DELETE",
+        "path": "/channels/:channelId/hard"
+      },
+      "canonicalUrl": "/channels/:p/hard"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/comments/commentRoutes.ts",
+        "line": 268,
+        "method": "PATCH",
+        "path": "/comments/:id"
+      },
+      "canonicalUrl": "/comments/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/comments/commentRoutes.ts",
+        "line": 278,
+        "method": "DELETE",
+        "path": "/comments/:id"
+      },
+      "canonicalUrl": "/comments/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/compliance/complianceRoutes.ts",
+        "line": 116,
+        "method": "GET",
+        "path": "/admin/compliance/dsar/:id"
+      },
+      "canonicalUrl": "/admin/compliance/dsar/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/content/contentRoutes.ts",
+        "line": 73,
+        "method": "POST",
+        "path": "/content/sync/:postId"
+      },
+      "canonicalUrl": "/content/sync/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/content/contentRoutes.ts",
+        "line": 87,
+        "method": "GET",
+        "path": "/content/sync/metrics"
+      },
+      "canonicalUrl": "/content/sync/metrics"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/content/contentRoutes.ts",
+        "line": 101,
+        "method": "GET",
+        "path": "/content/sync/metrics/:channelId"
+      },
+      "canonicalUrl": "/content/sync/metrics/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/content/contentRoutes.ts",
+        "line": 115,
+        "method": "POST",
+        "path": "/content/sync/:transactionId/rollback"
+      },
+      "canonicalUrl": "/content/sync/:p/rollback"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/content/contentRoutes.ts",
+        "line": 133,
+        "method": "POST",
+        "path": "/content/channels"
+      },
+      "canonicalUrl": "/content/channels"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/content/contentRoutes.ts",
+        "line": 148,
+        "method": "POST",
+        "path": "/content/channels/realtime/start"
+      },
+      "canonicalUrl": "/content/channels/realtime/start"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/content/contentRoutes.ts",
+        "line": 162,
+        "method": "POST",
+        "path": "/content/channels/realtime/stop/:postId"
+      },
+      "canonicalUrl": "/content/channels/realtime/stop/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/content/contentRoutes.ts",
+        "line": 179,
+        "method": "GET",
+        "path": "/content/versions/:postId"
+      },
+      "canonicalUrl": "/content/versions/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/content/contentRoutes.ts",
+        "line": 195,
+        "method": "POST",
+        "path": "/content/versions/:postId"
+      },
+      "canonicalUrl": "/content/versions/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/content/contentRoutes.ts",
+        "line": 212,
+        "method": "POST",
+        "path": "/content/versions/:postId/restore/:versionId"
+      },
+      "canonicalUrl": "/content/versions/:p/restore/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/content/contentRoutes.ts",
+        "line": 227,
+        "method": "POST",
+        "path": "/content/versions/compare"
+      },
+      "canonicalUrl": "/content/versions/compare"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/content/contentRoutes.ts",
+        "line": 245,
+        "method": "POST",
+        "path": "/content/conflicts/resolve"
+      },
+      "canonicalUrl": "/content/conflicts/resolve"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/content/contentRoutes.ts",
+        "line": 260,
+        "method": "GET",
+        "path": "/content/conflicts/history/:channelId"
+      },
+      "canonicalUrl": "/content/conflicts/history/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/content/contentRoutes.ts",
+        "line": 278,
+        "method": "POST",
+        "path": "/content/transform"
+      },
+      "canonicalUrl": "/content/transform"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/content/contentRoutes.ts",
+        "line": 294,
+        "method": "POST",
+        "path": "/content/transform/multi"
+      },
+      "canonicalUrl": "/content/transform/multi"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/content/contentRoutes.ts",
+        "line": 311,
+        "method": "POST",
+        "path": "/content/transform/recommendations"
+      },
+      "canonicalUrl": "/content/transform/recommendations"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/content/contentRoutes.ts",
+        "line": 327,
+        "method": "POST",
+        "path": "/content/render/:provider"
+      },
+      "canonicalUrl": "/content/render/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/content/contentRoutes.ts",
+        "line": 344,
+        "method": "POST",
+        "path": "/content/diff"
+      },
+      "canonicalUrl": "/content/diff"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/crm/crmRoutes.ts",
+        "line": 204,
+        "method": "POST",
+        "path": "/crm/:platform/connect"
+      },
+      "canonicalUrl": "/crm/:p/connect"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/crm/crmRoutes.ts",
+        "line": 241,
+        "method": "GET",
+        "path": "/crm/hubspot/authorize"
+      },
+      "canonicalUrl": "/crm/hubspot/authorize"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/crm/crmRoutes.ts",
+        "line": 263,
+        "method": "GET",
+        "path": "/crm/salesforce/authorize"
+      },
+      "canonicalUrl": "/crm/salesforce/authorize"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/custom-reports/customReportRoutes.ts",
+        "line": 356,
+        "method": "GET",
+        "path": "/reports/schema"
+      },
+      "canonicalUrl": "/reports/schema"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/custom-reports/customReportRoutes.ts",
+        "line": 368,
+        "method": "GET",
+        "path": "/custom-reports"
+      },
+      "canonicalUrl": "/custom-reports"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/custom-reports/customReportRoutes.ts",
+        "line": 377,
+        "method": "POST",
+        "path": "/custom-reports"
+      },
+      "canonicalUrl": "/custom-reports"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/custom-reports/customReportRoutes.ts",
+        "line": 386,
+        "method": "GET",
+        "path": "/custom-reports/:id"
+      },
+      "canonicalUrl": "/custom-reports/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/custom-reports/customReportRoutes.ts",
+        "line": 395,
+        "method": "PATCH",
+        "path": "/custom-reports/:id"
+      },
+      "canonicalUrl": "/custom-reports/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/custom-reports/customReportRoutes.ts",
+        "line": 404,
+        "method": "DELETE",
+        "path": "/custom-reports/:id"
+      },
+      "canonicalUrl": "/custom-reports/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/custom-reports/customReportRoutes.ts",
+        "line": 413,
+        "method": "POST",
+        "path": "/custom-reports/:id/run"
+      },
+      "canonicalUrl": "/custom-reports/:p/run"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/custom-reports/customReportRoutes.ts",
+        "line": 422,
+        "method": "POST",
+        "path": "/custom-reports/:id/schedules"
+      },
+      "canonicalUrl": "/custom-reports/:p/schedules"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/first-comment/firstCommentRoutes.ts",
+        "line": 166,
+        "method": "PUT",
+        "path": "/posts/:postId/first-comment"
+      },
+      "canonicalUrl": "/posts/:p/first-comment"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/first-comment/firstCommentRoutes.ts",
+        "line": 176,
+        "method": "GET",
+        "path": "/posts/:postId/first-comment"
+      },
+      "canonicalUrl": "/posts/:p/first-comment"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/first-comment/firstCommentRoutes.ts",
+        "line": 186,
+        "method": "DELETE",
+        "path": "/posts/:postId/first-comment"
+      },
+      "canonicalUrl": "/posts/:p/first-comment"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/health/healthRoutes.ts",
+        "line": 115,
+        "method": "GET",
+        "path": "/health"
+      },
+      "canonicalUrl": "/health"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/health/healthRoutes.ts",
+        "line": 146,
+        "method": "GET",
+        "path": "/health/detailed"
+      },
+      "canonicalUrl": "/health/detailed"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/health/healthRoutes.ts",
+        "line": 199,
+        "method": "GET",
+        "path": "/health/live"
+      },
+      "canonicalUrl": "/health/live"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/health/healthRoutes.ts",
+        "line": 219,
+        "method": "GET",
+        "path": "/health/ready"
+      },
+      "canonicalUrl": "/health/ready"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/health/healthRoutes.ts",
+        "line": 256,
+        "method": "GET",
+        "path": "/health/dependency/:name"
+      },
+      "canonicalUrl": "/health/dependency/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/inbox/conversationNoteRoutes.ts",
+        "line": 198,
+        "method": "GET",
+        "path": "/inbox/conversations/:id/notes"
+      },
+      "canonicalUrl": "/inbox/conversations/:p/notes"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/inbox/conversationNoteRoutes.ts",
+        "line": 207,
+        "method": "POST",
+        "path": "/inbox/conversations/:id/notes"
+      },
+      "canonicalUrl": "/inbox/conversations/:p/notes"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/inbox/conversationNoteRoutes.ts",
+        "line": 216,
+        "method": "DELETE",
+        "path": "/inbox/conversations/:conversationId/notes/:noteId"
+      },
+      "canonicalUrl": "/inbox/conversations/:p/notes/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/inbox/inboxRoutes.ts",
+        "line": 627,
+        "method": "GET",
+        "path": "/inbox/unread-count"
+      },
+      "canonicalUrl": "/inbox/unread-count"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/inbox/inboxRoutes.ts",
+        "line": 672,
+        "method": "PATCH",
+        "path": "/inbox/messages/:id/archive"
+      },
+      "canonicalUrl": "/inbox/messages/:p/archive"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/inbox/inboxRoutes.ts",
+        "line": 721,
+        "method": "POST",
+        "path": "/inbox/sync/:channelId"
+      },
+      "canonicalUrl": "/inbox/sync/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/integrations/makeRoutes.ts",
+        "line": 104,
+        "method": "GET",
+        "path": "/make/keys"
+      },
+      "canonicalUrl": "/make/keys"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/integrations/makeRoutes.ts",
+        "line": 127,
+        "method": "POST",
+        "path": "/make/keys"
+      },
+      "canonicalUrl": "/make/keys"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/integrations/makeRoutes.ts",
+        "line": 159,
+        "method": "DELETE",
+        "path": "/make/keys/:id"
+      },
+      "canonicalUrl": "/make/keys/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/integrations/makeRoutes.ts",
+        "line": 196,
+        "method": "POST",
+        "path": "/make/subscribe"
+      },
+      "canonicalUrl": "/make/subscribe"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/integrations/makeRoutes.ts",
+        "line": 231,
+        "method": "DELETE",
+        "path": "/make/subscribe/:id"
+      },
+      "canonicalUrl": "/make/subscribe/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/integrations/makeRoutes.ts",
+        "line": 268,
+        "method": "POST",
+        "path": "/make/actions/create-draft"
+      },
+      "canonicalUrl": "/make/actions/create-draft"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/integrations/makeRoutes.ts",
+        "line": 297,
+        "method": "POST",
+        "path": "/make/actions/schedule-post"
+      },
+      "canonicalUrl": "/make/actions/schedule-post"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/integrations/makeRoutes.ts",
+        "line": 347,
+        "method": "GET",
+        "path": "/make/triggers/posts-published"
+      },
+      "canonicalUrl": "/make/triggers/posts-published"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/integrations/zapierRoutes.ts",
+        "line": 101,
+        "method": "GET",
+        "path": "/zapier/keys"
+      },
+      "canonicalUrl": "/zapier/keys"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/integrations/zapierRoutes.ts",
+        "line": 122,
+        "method": "POST",
+        "path": "/zapier/keys"
+      },
+      "canonicalUrl": "/zapier/keys"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/integrations/zapierRoutes.ts",
+        "line": 154,
+        "method": "DELETE",
+        "path": "/zapier/keys/:id"
+      },
+      "canonicalUrl": "/zapier/keys/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/integrations/zapierRoutes.ts",
+        "line": 191,
+        "method": "POST",
+        "path": "/zapier/subscribe"
+      },
+      "canonicalUrl": "/zapier/subscribe"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/integrations/zapierRoutes.ts",
+        "line": 226,
+        "method": "DELETE",
+        "path": "/zapier/subscribe/:id"
+      },
+      "canonicalUrl": "/zapier/subscribe/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/integrations/zapierRoutes.ts",
+        "line": 263,
+        "method": "POST",
+        "path": "/zapier/actions/create-draft"
+      },
+      "canonicalUrl": "/zapier/actions/create-draft"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/integrations/zapierRoutes.ts",
+        "line": 292,
+        "method": "POST",
+        "path": "/zapier/actions/schedule-post"
+      },
+      "canonicalUrl": "/zapier/actions/schedule-post"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/integrations/zapierRoutes.ts",
+        "line": 342,
+        "method": "GET",
+        "path": "/zapier/triggers/posts-published"
+      },
+      "canonicalUrl": "/zapier/triggers/posts-published"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/links/linkRoutes.ts",
+        "line": 232,
+        "method": "POST",
+        "path": "/links"
+      },
+      "canonicalUrl": "/links"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/links/linkRoutes.ts",
+        "line": 240,
+        "method": "GET",
+        "path": "/links/:id"
+      },
+      "canonicalUrl": "/links/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/links/linkRoutes.ts",
+        "line": 248,
+        "method": "GET",
+        "path": "/links/:id/stats"
+      },
+      "canonicalUrl": "/links/:p/stats"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/links/linkRoutes.ts",
+        "line": 256,
+        "method": "DELETE",
+        "path": "/links/:id"
+      },
+      "canonicalUrl": "/links/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/links/linkRoutes.ts",
+        "line": 266,
+        "method": "GET",
+        "path": "/r/:shortCode"
+      },
+      "canonicalUrl": "/r/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/monitoring/cacheStatsRoutes.ts",
+        "line": 34,
+        "method": "GET",
+        "path": "/cache/stats"
+      },
+      "canonicalUrl": "/cache/stats"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/monitoring/cacheStatsRoutes.ts",
+        "line": 93,
+        "method": "GET",
+        "path": "/cache/health"
+      },
+      "canonicalUrl": "/cache/health"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/monitoring/cacheStatsRoutes.ts",
+        "line": 134,
+        "method": "POST",
+        "path": "/cache/flush"
+      },
+      "canonicalUrl": "/cache/flush"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/monitoring/cacheStatsRoutes.ts",
+        "line": 232,
+        "method": "GET",
+        "path": "/cache/hot-keys"
+      },
+      "canonicalUrl": "/cache/hot-keys"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/monitoring/cacheStatsRoutes.ts",
+        "line": 270,
+        "method": "POST",
+        "path": "/cache/warm"
+      },
+      "canonicalUrl": "/cache/warm"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/notifications/notificationRoutes.ts",
+        "line": 388,
+        "method": "GET",
+        "path": "/notifications"
+      },
+      "canonicalUrl": "/notifications"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/notifications/notificationRoutes.ts",
+        "line": 398,
+        "method": "GET",
+        "path": "/notifications/unread-count"
+      },
+      "canonicalUrl": "/notifications/unread-count"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/notifications/notificationRoutes.ts",
+        "line": 408,
+        "method": "PATCH",
+        "path": "/notifications/:id/read"
+      },
+      "canonicalUrl": "/notifications/:p/read"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/notifications/notificationRoutes.ts",
+        "line": 418,
+        "method": "POST",
+        "path": "/notifications/mark-all-read"
+      },
+      "canonicalUrl": "/notifications/mark-all-read"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/notifications/notificationRoutes.ts",
+        "line": 428,
+        "method": "POST",
+        "path": "/notifications"
+      },
+      "canonicalUrl": "/notifications"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/notifications/notificationRoutes.ts",
+        "line": 438,
+        "method": "GET",
+        "path": "/notifications/preferences"
+      },
+      "canonicalUrl": "/notifications/preferences"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/notifications/notificationRoutes.ts",
+        "line": 448,
+        "method": "PUT",
+        "path": "/notifications/preferences"
+      },
+      "canonicalUrl": "/notifications/preferences"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/notifications/notificationRoutes.ts",
+        "line": 458,
+        "method": "GET",
+        "path": "/notifications/stream"
+      },
+      "canonicalUrl": "/notifications/stream"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/outbox/outboxAdminRoutes.ts",
+        "line": 22,
+        "method": "GET",
+        "path": "/admin/outbox/dead-letter"
+      },
+      "canonicalUrl": "/admin/outbox/dead-letter"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/posts/optimizedPostsRoutes.ts",
+        "line": 139,
+        "method": "GET",
+        "path": "/posts/optimized"
+      },
+      "canonicalUrl": "/posts/optimized"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/posts/optimizedPostsRoutes.ts",
+        "line": 154,
+        "method": "GET",
+        "path": "/dashboard/stats"
+      },
+      "canonicalUrl": "/dashboard/stats"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/posts/optimizedPostsRoutes.ts",
+        "line": 169,
+        "method": "POST",
+        "path": "/cache/warm/:accountId"
+      },
+      "canonicalUrl": "/cache/warm/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/posts/postRoutes.ts",
+        "line": 559,
+        "method": "GET",
+        "path": "/posts/:id"
+      },
+      "canonicalUrl": "/posts/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/posts/postRoutes.ts",
+        "line": 569,
+        "method": "PATCH",
+        "path": "/posts/:id"
+      },
+      "canonicalUrl": "/posts/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/posts/postRoutes.ts",
+        "line": 576,
+        "method": "DELETE",
+        "path": "/posts/:id"
+      },
+      "canonicalUrl": "/posts/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/posts/postRoutes.ts",
+        "line": 583,
+        "method": "PATCH",
+        "path": "/posts/batch/archive"
+      },
+      "canonicalUrl": "/posts/batch/archive"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/posts/postRoutes.ts",
+        "line": 593,
+        "method": "DELETE",
+        "path": "/posts/batch"
+      },
+      "canonicalUrl": "/posts/batch"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/posts/postRoutes.ts",
+        "line": 603,
+        "method": "POST",
+        "path": "/posts/batch/duplicate"
+      },
+      "canonicalUrl": "/posts/batch/duplicate"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/projects/crisisRoutes.ts",
+        "line": 154,
+        "method": "POST",
+        "path": "/projects/:projectId/crisis"
+      },
+      "canonicalUrl": "/projects/:p/crisis"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/projects/crisisRoutes.ts",
+        "line": 162,
+        "method": "DELETE",
+        "path": "/projects/:projectId/crisis"
+      },
+      "canonicalUrl": "/projects/:p/crisis"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/projects/crisisRoutes.ts",
+        "line": 170,
+        "method": "GET",
+        "path": "/projects/:projectId/crisis"
+      },
+      "canonicalUrl": "/projects/:p/crisis"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/projects/projectRoutes.ts",
+        "line": 350,
+        "method": "POST",
+        "path": "/accounts/:accountId/projects"
+      },
+      "canonicalUrl": "/accounts/:p/projects"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/projects/projectRoutes.ts",
+        "line": 360,
+        "method": "GET",
+        "path": "/accounts/:accountId/projects"
+      },
+      "canonicalUrl": "/accounts/:p/projects"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/projects/projectRoutes.ts",
+        "line": 370,
+        "method": "GET",
+        "path": "/projects/:projectId"
+      },
+      "canonicalUrl": "/projects/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/projects/projectRoutes.ts",
+        "line": 380,
+        "method": "GET",
+        "path": "/projects/:projectId/publish-logs"
+      },
+      "canonicalUrl": "/projects/:p/publish-logs"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/projects/projectRoutes.ts",
+        "line": 390,
+        "method": "DELETE",
+        "path": "/projects/:projectId"
+      },
+      "canonicalUrl": "/projects/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/providers/providerRoutes.ts",
+        "line": 251,
+        "method": "GET",
+        "path": "/providers"
+      },
+      "canonicalUrl": "/providers"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/providers/providerRoutes.ts",
+        "line": 259,
+        "method": "GET",
+        "path": "/providers/active"
+      },
+      "canonicalUrl": "/providers/active"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/providers/providerRoutes.ts",
+        "line": 270,
+        "method": "GET",
+        "path": "/providers/by-capability/:capability"
+      },
+      "canonicalUrl": "/providers/by-capability/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/providers/providerRoutes.ts",
+        "line": 281,
+        "method": "GET",
+        "path": "/providers/:id"
+      },
+      "canonicalUrl": "/providers/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/providers/providerRoutes.ts",
+        "line": 292,
+        "method": "GET",
+        "path": "/providers/:id/health"
+      },
+      "canonicalUrl": "/providers/:p/health"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/providers/providerRoutes.ts",
+        "line": 303,
+        "method": "GET",
+        "path": "/providers/health/all"
+      },
+      "canonicalUrl": "/providers/health/all"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/providers/providerRoutes.ts",
+        "line": 314,
+        "method": "GET",
+        "path": "/providers/connections/:projectId"
+      },
+      "canonicalUrl": "/providers/connections/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/repurpose/repurposeRoutes.ts",
+        "line": 62,
+        "method": "POST",
+        "path": "/admin/ai/detect-repurpose"
+      },
+      "canonicalUrl": "/admin/ai/detect-repurpose"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/settings/settingsRoutes.ts",
+        "line": 40,
+        "method": "GET",
+        "path": "/admin/settings/status"
+      },
+      "canonicalUrl": "/admin/settings/status"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/settings/settingsRoutes.ts",
+        "line": 54,
+        "method": "GET",
+        "path": "/admin/settings/:group"
+      },
+      "canonicalUrl": "/admin/settings/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/settings/settingsRoutes.ts",
+        "line": 75,
+        "method": "PUT",
+        "path": "/admin/settings/:group"
+      },
+      "canonicalUrl": "/admin/settings/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/settings/settingsRoutes.ts",
+        "line": 108,
+        "method": "POST",
+        "path": "/admin/settings/:group/test"
+      },
+      "canonicalUrl": "/admin/settings/:p/test"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/settings/settingsRoutes.ts",
+        "line": 129,
+        "method": "DELETE",
+        "path": "/admin/settings/:group/:key"
+      },
+      "canonicalUrl": "/admin/settings/:p/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/settings/settingsRoutes.ts",
+        "line": 155,
+        "method": "POST",
+        "path": "/admin/settings/encryption/rotate"
+      },
+      "canonicalUrl": "/admin/settings/encryption/rotate"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/settings/settingsRoutes.ts",
+        "line": 183,
+        "method": "GET",
+        "path": "/settings/ai"
+      },
+      "canonicalUrl": "/settings/ai"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/settings/settingsRoutes.ts",
+        "line": 202,
+        "method": "PUT",
+        "path": "/settings/ai/byok"
+      },
+      "canonicalUrl": "/settings/ai/byok"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/settings/settingsRoutes.ts",
+        "line": 228,
+        "method": "DELETE",
+        "path": "/settings/ai/byok/:provider"
+      },
+      "canonicalUrl": "/settings/ai/byok/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/settings/settingsRoutes.ts",
+        "line": 254,
+        "method": "POST",
+        "path": "/settings/ai/byok/test"
+      },
+      "canonicalUrl": "/settings/ai/byok/test"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/team/teamRoutes.ts",
+        "line": 277,
+        "method": "GET",
+        "path": "/team/mention-search"
+      },
+      "canonicalUrl": "/team/mention-search"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/templates/templateRoutes.ts",
+        "line": 43,
+        "method": "GET",
+        "path": "/projects/:projectId/templates/:templateId"
+      },
+      "canonicalUrl": "/projects/:p/templates/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/templates/templateRoutes.ts",
+        "line": 61,
+        "method": "PUT",
+        "path": "/projects/:projectId/templates/:templateId"
+      },
+      "canonicalUrl": "/projects/:p/templates/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/templates/templateRoutes.ts",
+        "line": 70,
+        "method": "DELETE",
+        "path": "/projects/:projectId/templates/:templateId"
+      },
+      "canonicalUrl": "/projects/:p/templates/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/templates/templateRoutes.ts",
+        "line": 81,
+        "method": "POST",
+        "path": "/projects/:projectId/templates/:templateId/duplicate"
+      },
+      "canonicalUrl": "/projects/:p/templates/:p/duplicate"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/templates/templateRoutes.ts",
+        "line": 90,
+        "method": "POST",
+        "path": "/projects/:projectId/templates/:templateId/compile"
+      },
+      "canonicalUrl": "/projects/:p/templates/:p/compile"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/templates/templateRoutes.ts",
+        "line": 99,
+        "method": "POST",
+        "path": "/projects/:projectId/templates/:templateId/validate"
+      },
+      "canonicalUrl": "/projects/:p/templates/:p/validate"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/templates/templateRoutes.ts",
+        "line": 110,
+        "method": "GET",
+        "path": "/projects/:projectId/templates/:templateId/versions"
+      },
+      "canonicalUrl": "/projects/:p/templates/:p/versions"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/templates/templateRoutes.ts",
+        "line": 119,
+        "method": "POST",
+        "path": "/projects/:projectId/templates/:templateId/versions"
+      },
+      "canonicalUrl": "/projects/:p/templates/:p/versions"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/templates/templateRoutes.ts",
+        "line": 128,
+        "method": "POST",
+        "path": "/projects/:projectId/templates/:templateId/versions/:versionId/restore"
+      },
+      "canonicalUrl": "/projects/:p/templates/:p/versions/:p/restore"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/templates/templateRoutes.ts",
+        "line": 139,
+        "method": "GET",
+        "path": "/projects/:projectId/templates/analytics"
+      },
+      "canonicalUrl": "/projects/:p/templates/analytics"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/templates/templateRoutes.ts",
+        "line": 148,
+        "method": "POST",
+        "path": "/projects/:projectId/templates/:templateId/usage"
+      },
+      "canonicalUrl": "/projects/:p/templates/:p/usage"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/templates/templateRoutes.ts",
+        "line": 159,
+        "method": "GET",
+        "path": "/projects/:projectId/templates/ab-tests"
+      },
+      "canonicalUrl": "/projects/:p/templates/ab-tests"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/templates/templateRoutes.ts",
+        "line": 168,
+        "method": "POST",
+        "path": "/projects/:projectId/templates/ab-tests"
+      },
+      "canonicalUrl": "/projects/:p/templates/ab-tests"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/templates/templateRoutes.ts",
+        "line": 177,
+        "method": "POST",
+        "path": "/projects/:projectId/templates/ab-tests/:testId/start"
+      },
+      "canonicalUrl": "/projects/:p/templates/ab-tests/:p/start"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/templates/templateRoutes.ts",
+        "line": 186,
+        "method": "POST",
+        "path": "/projects/:projectId/templates/ab-tests/:testId/stop"
+      },
+      "canonicalUrl": "/projects/:p/templates/ab-tests/:p/stop"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/templates/templateRoutes.ts",
+        "line": 195,
+        "method": "GET",
+        "path": "/projects/:projectId/templates/ab-tests/:testId/results"
+      },
+      "canonicalUrl": "/projects/:p/templates/ab-tests/:p/results"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/templates/templateRoutes.ts",
+        "line": 206,
+        "method": "GET",
+        "path": "/platforms/:platform/limits"
+      },
+      "canonicalUrl": "/platforms/:p/limits"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/templates/templateRoutes.ts",
+        "line": 215,
+        "method": "GET",
+        "path": "/platforms"
+      },
+      "canonicalUrl": "/platforms"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/trends/trendRoutes.ts",
+        "line": 357,
+        "method": "GET",
+        "path": "/trends/analysis"
+      },
+      "canonicalUrl": "/trends/analysis"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/trends/trendRoutes.ts",
+        "line": 367,
+        "method": "GET",
+        "path": "/trends/viral"
+      },
+      "canonicalUrl": "/trends/viral"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/trends/trendRoutes.ts",
+        "line": 377,
+        "method": "GET",
+        "path": "/trends/opportunities"
+      },
+      "canonicalUrl": "/trends/opportunities"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/trends/trendRoutes.ts",
+        "line": 387,
+        "method": "GET",
+        "path": "/trends/predictions"
+      },
+      "canonicalUrl": "/trends/predictions"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/trends/trendRoutes.ts",
+        "line": 397,
+        "method": "GET",
+        "path": "/trends/report"
+      },
+      "canonicalUrl": "/trends/report"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/utm/utmRoutes.ts",
+        "line": 171,
+        "method": "POST",
+        "path": "/links/:id/utm"
+      },
+      "canonicalUrl": "/links/:p/utm"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/utm/utmRoutes.ts",
+        "line": 180,
+        "method": "GET",
+        "path": "/links/:id/utm-url"
+      },
+      "canonicalUrl": "/links/:p/utm-url"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/webhooks/webhookDashboardRoutes.ts",
+        "line": 303,
+        "method": "GET",
+        "path": "/webhooks/dashboard/metrics"
+      },
+      "canonicalUrl": "/webhooks/dashboard/metrics"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/webhooks/webhookDashboardRoutes.ts",
+        "line": 313,
+        "method": "GET",
+        "path": "/webhooks/dashboard/events"
+      },
+      "canonicalUrl": "/webhooks/dashboard/events"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/webhooks/webhookDashboardRoutes.ts",
+        "line": 323,
+        "method": "GET",
+        "path": "/webhooks/dashboard/events/:eventId"
+      },
+      "canonicalUrl": "/webhooks/dashboard/events/:p"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/webhooks/webhookDashboardRoutes.ts",
+        "line": 333,
+        "method": "GET",
+        "path": "/webhooks/dashboard/subscriptions"
+      },
+      "canonicalUrl": "/webhooks/dashboard/subscriptions"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/webhooks/webhookDashboardRoutes.ts",
+        "line": 343,
+        "method": "GET",
+        "path": "/webhooks/dashboard/dead-letter"
+      },
+      "canonicalUrl": "/webhooks/dashboard/dead-letter"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/webhooks/webhookDashboardRoutes.ts",
+        "line": 353,
+        "method": "GET",
+        "path": "/webhooks/dashboard/dead-letter/metrics"
+      },
+      "canonicalUrl": "/webhooks/dashboard/dead-letter/metrics"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/webhooks/webhookDashboardRoutes.ts",
+        "line": 366,
+        "method": "POST",
+        "path": "/webhooks/dashboard/dead-letter/retry-all"
+      },
+      "canonicalUrl": "/webhooks/dashboard/dead-letter/retry-all"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/webhooks/webhookDashboardRoutes.ts",
+        "line": 376,
+        "method": "POST",
+        "path": "/webhooks/dashboard/dead-letter/:eventId/retry"
+      },
+      "canonicalUrl": "/webhooks/dashboard/dead-letter/:p/retry"
+    },
+    {
+      "route": {
+        "file": "apps/api/src/webhooks/webhookDashboardRoutes.ts",
+        "line": 386,
+        "method": "GET",
+        "path": "/webhooks/dashboard/stream"
+      },
+      "canonicalUrl": "/webhooks/dashboard/stream"
+    }
+  ]
+}

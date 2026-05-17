@@ -41,6 +41,20 @@ export interface CustomerUserRepository {
   findByAccountId(accountId: string): Promise<CustomerUser[]>;
 
   /**
+   * @method findByProjectId
+   * @description Lists customer users assigned to a given project via the
+   *   ProjectMember table.
+   */
+  findByProjectId(projectId: string): Promise<CustomerUser[]>;
+
+  /**
+   * @method findByInviteToken
+   * @description Finds a customer user by an active invitation token. Used
+   *   during invitation acceptance flow.
+   */
+  findByInviteToken(token: string): Promise<Result<CustomerUser, DomainError>>;
+
+  /**
    * @method findByResetToken
    * @description Finds a customer user by their password reset token.
    */

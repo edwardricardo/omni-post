@@ -43,7 +43,6 @@ model Account {
   webhookSubscriptions     WebhookSubscription[]
   templates                Template[]
   deletedAt                DateTime?                 @db.Timestamptz(6)
-  teamMembers              TeamMember[]
   socialMessages           SocialMessage[]
   socialConversations      SocialConversation[]
   aiPromptTemplates        AIPromptTemplate[]
@@ -119,6 +118,37 @@ model RolePermission {
   @@index([roleId])
 }
 
+// Customer-side RBAC (mirrors admin Role/RolePermission but scoped to CustomerUser).
+// Seeded with `owner`, `manager`, `member`, `viewer`. Permissions live in
+// CustomerRolePermission (no hardcoded VO). Replaces the TeamRole enum.
+model CustomerRole {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String   @default("")
+  level       Int      @default(1)
+  isSystem    Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  permissions CustomerRolePermission[]
+  users       CustomerUser[]
+
+  @@index([isActive])
+}
+
+model CustomerRolePermission {
+  id         String   @id @default(cuid())
+  roleId     String
+  permission String
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+
+  role CustomerRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permission])
+  @@index([roleId])
+}
+
 model AdminUser {
   id                    String    @id @default(uuid())
   email                 String    @unique
@@ -167,24 +197,24 @@ model AdminUser {
 }
 
 model AdminSession {
-  id String @id @default(uuid())
-  userId String
+  id               String    @id @default(uuid())
+  userId           String
   // SHA-256 hex digest of the refresh JWT. Plaintext token only exists in
   // the user's cookie / Authorization header; lookups hash the incoming
   // value and compare against this column. Same canonical pattern as
   // ApiKey.keyHash — protects against DB exfiltration leaking live tokens.
-  refreshTokenHash String   @unique
+  refreshTokenHash String    @unique
   ipAddress        String?
   userAgent        String?
-  isActive         Boolean  @default(true)
-  expiresAt        DateTime @db.Timestamptz(6)
-  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  isActive         Boolean   @default(true)
+  expiresAt        DateTime  @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @db.Timestamptz(6)
   revokedAt        DateTime? @db.Timestamptz(6)
-  csrfToken        String   @unique @default(uuid())
+  csrfToken        String    @unique @default(uuid())
   deviceId         String?
   deviceName       String?
   location         Json?
-  lastActivityAt   DateTime @default(now()) @db.Timestamptz(6)
+  lastActivityAt   DateTime  @default(now()) @db.Timestamptz(6)
   revokedBy        String?
   revokeReason     String?
 
@@ -272,49 +302,14 @@ model AdminRoleHistory {
   @@index([effectiveFrom, effectiveUntil])
 }
 
-model TeamMember {
-  id                String    @id @default(uuid())
-  accountId         String
-  email             String
-  name              String
-  role              TeamRole  @default(MEMBER)
-  isActive          Boolean   @default(true)
-  invitedBy         String?
-  inviteToken       String?   @unique
-  inviteTokenExpiry DateTime? @db.Timestamptz(6)
-  joinedAt          DateTime  @default(now()) @db.Timestamptz(6)
-  createdAt         DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt         DateTime  @updatedAt @db.Timestamptz(6)
-
-  account                  Account                  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  projectMemberships       ProjectMember[]
-  notifications            Notification[]
-  submittedApprovals       ApprovalRequest[]        @relation("ApprovalSubmitter")
-  reviews                  ApprovalReview[]
-  comments                 PostComment[]
-  assignedMessages         SocialMessage[]          @relation("MessageAssignee")
-  outboundReplies          SocialOutboundReply[]
-  resolvedConversations    SocialConversation[]     @relation("ConversationResolver")
-  conversationNotes        ConversationNote[]       @relation("NoteAuthor")
-  assignedTasks            Task[]                   @relation("TaskAssignee")
-  createdTasks             Task[]                   @relation("TaskCreator")
-  notificationPreferences  NotificationPreference[]
-  approvalLevelAssignments ApprovalWorkflowLevel[]
-  customReportsCreated     CustomReport[]           @relation("CustomReportCreator")
-
-  @@unique([accountId, email])
-  @@index([accountId, isActive])
-  @@index([email])
-}
-
 model CustomerUser {
-  id                String    @id @default(cuid())
+  id                String    @id @default(uuid())
   accountId         String
   email             String
   passwordHash      String
   firstName         String
   lastName          String
-  role              TeamRole  @default(MEMBER)
+  roleId            String?
   isActive          Boolean   @default(true)
   isEmailVerified   Boolean   @default(false)
   emailVerifyToken  String?   @unique
@@ -325,15 +320,36 @@ model CustomerUser {
   mfaSecret         String?
   lastLoginAt       DateTime? @db.Timestamptz(6)
   avatarUrl         String?
+  invitedBy         String? // ID of the CustomerUser who sent the invitation
+  inviteToken       String?   @unique
+  inviteTokenExpiry DateTime? @db.Timestamptz(6)
+  joinedAt          DateTime  @default(now()) @db.Timestamptz(6)
   createdAt         DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt         DateTime  @updatedAt @db.Timestamptz(6)
   deletedAt         DateTime? @db.Timestamptz(6)
 
-  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account      Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  customerRole CustomerRole? @relation(fields: [roleId], references: [id])
+
+  projectMemberships       ProjectMember[]
+  notifications            Notification[]
+  notificationPreferences  NotificationPreference[]
+  approvalLevelAssignments ApprovalWorkflowLevel[]
+  submittedApprovals       ApprovalRequest[]
+  reviews                  ApprovalReview[]
+  assignedTasks            Task[]                   @relation("TaskAssignee")
+  createdTasks             Task[]                   @relation("TaskCreator")
+  comments                 PostComment[]
+  assignedMessages         SocialMessage[]
+  resolvedConversations    SocialConversation[]
+  conversationNotes        ConversationNote[]
+  outboundReplies          SocialOutboundReply[]
+  customReportsCreated     CustomReport[]
 
   @@unique([accountId, email])
   @@index([accountId], where: { deletedAt: null })
   @@index([email], where: { deletedAt: null })
+  @@index([roleId])
 }
 
 model ProjectMember {
@@ -343,18 +359,11 @@ model ProjectMember {
   permissions String[] @default(["READ", "WRITE"])
   assignedAt  DateTime @default(now()) @db.Timestamptz(6)
 
-  project Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  member  TeamMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  project Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  member  CustomerUser @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, memberId])
   @@index([memberId])
-}
-
-enum TeamRole {
-  OWNER
-  MANAGER
-  MEMBER
-  VIEWER
 }
 
 model Notification {
@@ -372,7 +381,7 @@ model Notification {
   metadata     Json?
   createdAt    DateTime         @default(now()) @db.Timestamptz(6)
 
-  recipient TeamMember @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  recipient CustomerUser @relation(fields: [recipientId], references: [id], onDelete: Cascade)
 
   @@index([recipientId, isRead, createdAt])
   @@index([recipientId, createdAt])
@@ -385,7 +394,7 @@ model NotificationPreference {
   enabled   Boolean          @default(true)
   updatedAt DateTime         @updatedAt @db.Timestamptz(6)
 
-  member TeamMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  member CustomerUser @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@unique([memberId, type])
 }
@@ -430,7 +439,7 @@ model ApprovalWorkflowLevel {
   createdAt  DateTime @default(now()) @db.Timestamptz(6)
 
   workflow ApprovalWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  assignee TeamMember?      @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  assignee CustomerUser?    @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
 
   @@unique([workflowId, order])
   @@index([workflowId])
@@ -449,7 +458,7 @@ model ApprovalRequest {
   updatedAt    DateTime       @updatedAt @db.Timestamptz(6)
 
   post      Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
-  submitter TeamMember        @relation("ApprovalSubmitter", fields: [submitterId], references: [id])
+  submitter CustomerUser      @relation(fields: [submitterId], references: [id])
   workflow  ApprovalWorkflow? @relation(fields: [workflowId], references: [id])
   reviews   ApprovalReview[]
 
@@ -468,7 +477,7 @@ model ApprovalReview {
   reviewedAt DateTime       @default(now()) @db.Timestamptz(6)
 
   request  ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  reviewer TeamMember      @relation(fields: [reviewerId], references: [id])
+  reviewer CustomerUser    @relation(fields: [reviewerId], references: [id])
 
   @@index([requestId])
   @@index([reviewerId])
@@ -505,11 +514,11 @@ model Task {
   deletedAt   DateTime?    @db.Timestamptz(6)
   postId      String?
 
-  account   Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  project   Project?    @relation(fields: [projectId], references: [id])
-  assignee  TeamMember? @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  createdBy TeamMember  @relation("TaskCreator", fields: [createdById], references: [id])
-  post      Post?       @relation(fields: [postId], references: [id], onDelete: SetNull)
+  account   Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project   Project?      @relation(fields: [projectId], references: [id])
+  assignee  CustomerUser? @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  createdBy CustomerUser  @relation("TaskCreator", fields: [createdById], references: [id])
+  post      Post?         @relation(fields: [postId], references: [id], onDelete: SetNull)
 
   @@index([accountId], where: { deletedAt: null })
   @@index([assigneeId], where: { deletedAt: null })
@@ -531,7 +540,7 @@ model PostComment {
   updatedAt DateTime  @updatedAt @db.Timestamptz(6)
 
   post    Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author  TeamMember    @relation(fields: [authorId], references: [id])
+  author  CustomerUser  @relation(fields: [authorId], references: [id])
   parent  PostComment?  @relation("CommentReplies", fields: [parentId], references: [id])
   replies PostComment[] @relation("CommentReplies")
 
@@ -715,25 +724,25 @@ model PostMedia {
 }
 
 model Channel {
-  id        String   @id @default(uuid())
-  projectId String
-  provider  Provider
-  handle    String
+  id                        String                    @id @default(uuid())
+  projectId                 String
+  provider                  Provider
+  handle                    String
   // Provider-side account ID (Facebook page_id, Instagram account_id, X user_id, etc.).
   // Non-secret — kept as a queryable column so webhook processors can resolve a
   // channel by provider-supplied entity ID without needing to decrypt the
   // credentials envelope. Populated alongside credentials at OAuth-callback time.
-  providerAccountId String?
+  providerAccountId         String?
   // OAuth tokens + per-provider metadata, wrapped via EncryptionService
   // (AES-256-GCM). Plaintext only exists in-memory at request time —
   // ChannelService decrypts on read, encrypts on write. Stored as a
   // JSON-serialised envelope: the original credentials object is
   // canonicalised, encrypted, and the ciphertext + IV + auth tag live
   // in separate columns alongside the key version that wrapped them.
-  credentialsCiphertext String
-  credentialsIv         String
-  credentialsAuthTag    String
-  credentialsKeyVersion Int                       @default(1)
+  credentialsCiphertext     String
+  credentialsIv             String
+  credentialsAuthTag        String
+  credentialsKeyVersion     Int                       @default(1)
   isPrimary                 Boolean                   @default(false)
   // Display fields populated at OAuth callback time. `accountName` is the
   // provider-side display handle ("@miempresa", "Acme Inc"); `profileImage`
@@ -1531,9 +1540,9 @@ model WebhookSubscription {
   projectId String?
 
   // Subscription details
-  provider   Provider
-  webhookUrl String // Our webhook endpoint URL
-  secretKey  String // Secret for signature verification
+  provider                   Provider
+  webhookUrl                 String // Our webhook endpoint URL
+  secretKey                  String // Secret for signature verification
   // Grace-window pair populated during admin-triggered rotation (PR-43-B).
   // While `previousSecretKeyExpiresAt > now()`, the HMAC verifier accepts
   // signatures produced with `previousSecretKey` so in-flight webhooks
@@ -2146,7 +2155,7 @@ model SocialMessage {
   conversation    SocialConversation?   @relation(fields: [conversationId], references: [id])
   webhookEvent    WebhookEvent?         @relation(fields: [webhookEventId], references: [id], onDelete: SetNull)
   relatedPost     Post?                 @relation(fields: [relatedPostId], references: [id], onDelete: SetNull)
-  assignee        TeamMember?           @relation("MessageAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assignee        CustomerUser?         @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
   outboundReplies SocialOutboundReply[]
 
   @@unique([provider, providerMessageId])
@@ -2180,7 +2189,7 @@ model SocialConversation {
   channel    Channel            @relation(fields: [channelId], references: [id])
   messages   SocialMessage[]
   notes      ConversationNote[]
-  resolvedBy TeamMember?        @relation("ConversationResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedBy CustomerUser?      @relation(fields: [resolvedById], references: [id], onDelete: SetNull)
 
   @@index([accountId, projectId, isResolved])
   @@index([channelId, provider])
@@ -2197,7 +2206,7 @@ model ConversationNote {
   deletedAt      DateTime? @db.Timestamptz(6)
 
   conversation SocialConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  author       TeamMember         @relation("NoteAuthor", fields: [authorId], references: [id])
+  author       CustomerUser       @relation(fields: [authorId], references: [id])
 
   @@index([conversationId], where: { deletedAt: null })
   @@index([authorId], where: { deletedAt: null })
@@ -2216,7 +2225,7 @@ model SocialOutboundReply {
   updatedAt       DateTime            @updatedAt @db.Timestamptz(6)
 
   socialMessage SocialMessage @relation(fields: [socialMessageId], references: [id], onDelete: Cascade)
-  author        TeamMember    @relation(fields: [authorId], references: [id])
+  author        CustomerUser  @relation(fields: [authorId], references: [id])
 
   @@index([socialMessageId])
   @@index([authorId])
@@ -2335,9 +2344,9 @@ model ScheduledReport {
 // =============================================
 
 model ExternalNotificationConfig {
-  id        String @id @default(uuid())
-  projectId String
-  channel   String // "slack" | "teams"
+  id                   String   @id @default(uuid())
+  projectId            String
+  channel              String // "slack" | "teams"
   // Webhook URLs frequently embed bearer tokens (Slack incoming-webhook tokens,
   // Teams connector tokens). Wrapped via EncryptionService — plaintext only
   // exists in-memory at notification dispatch time.
@@ -2565,10 +2574,10 @@ model SamlSession {
 }
 
 model OidcConfiguration {
-  id        String @id @default(cuid())
-  accountId String @unique
-  issuerUrl String
-  clientId  String
+  id                     String   @id @default(cuid())
+  accountId              String   @unique
+  issuerUrl              String
+  clientId               String
   // OIDC client secret — wrapped via EncryptionService (AES-256-GCM).
   // Plaintext never persisted; the OAuth handshake decrypts on demand.
   clientSecretCiphertext String
@@ -2620,7 +2629,7 @@ model CustomReport {
   schedules ReportSchedule[]
   account   Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
   project   Project?         @relation("CustomReportProject", fields: [projectId], references: [id])
-  createdBy TeamMember       @relation("CustomReportCreator", fields: [createdById], references: [id])
+  createdBy CustomerUser     @relation(fields: [createdById], references: [id])
 
   @@index([accountId])
   @@index([createdById])

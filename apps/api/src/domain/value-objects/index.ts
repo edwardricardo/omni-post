@@ -41,9 +41,10 @@ export { ScheduledTime, type ScheduledTimeProps, type Timezone } from "./Schedul
 // Provider value objects
 export { Provider, PROVIDERS, type ProviderType, type ProviderCapabilities } from "./Provider.js";
 
-// Team value objects
-export { TeamMemberId } from "./TeamMemberId.js";
-export { TeamRole, TEAM_ROLE, type TeamRoleValue, type TeamPermission } from "./TeamRole.js";
+// Customer-side user identity. Role + permissions live on CustomerUser
+// (roleId FK to CustomerRole) plus denormalised snapshot fields
+// (roleName/roleLevel/permissions); no value object for role itself.
+export { CustomerUserId } from "./CustomerUserId.js";
 
 // Notification value objects
 export { NotificationId } from "./NotificationId.js";

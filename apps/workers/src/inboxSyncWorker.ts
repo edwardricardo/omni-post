@@ -4,6 +4,10 @@
  *              Each job fetches comments for a single channel from its
  *              provider adapter and ingests them into the social inbox.
  *              Runs every 30 minutes via coordinator pattern.
+ *
+ *              Exports `startInboxSyncWorker()` for composition under
+ *              `bootstrap.ts`; also runs standalone when invoked directly
+ *              (`node dist/inboxSyncWorker.js`).
  * @layer infrastructure
  */
 
@@ -14,7 +18,7 @@ import { Worker } from "bullmq";
 import Redis from "ioredis";
 import pino from "pino";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
-import { registerGracefulShutdown } from "./lib/gracefulShutdown.js";
+import { registerGracefulShutdown, type ShutdownTarget } from "./lib/gracefulShutdown.js";
 import { handleProviderAuthError } from "./lib/handleProviderAuthError.js";
 import { ChannelAuthFailureRecorder } from "./services/ChannelAuthFailureRecorder.js";
 import { createXAdapter } from "@providers/x";
@@ -154,7 +158,23 @@ async function processJob(jobData: {
 
 const authFailureRecorder = new ChannelAuthFailureRecorder({ prisma });
 
-async function start() {
+export interface StartInboxSyncWorkerOptions {
+  /**
+   * When false, callers must register their own graceful-shutdown handler
+   * (typical for composed bootstrap that drains multiple workers as a unit).
+   * Default true: the worker registers its own SIGTERM / SIGINT handler.
+   */
+  registerShutdown?: boolean;
+}
+
+/**
+ * @function startInboxSyncWorker
+ * @description Boots the inbox-sync BullMQ worker + its Redis connection.
+ * @returns ShutdownTarget so a composer (`bootstrap.ts`) can drain it.
+ */
+export async function startInboxSyncWorker(
+  options?: StartInboxSyncWorkerOptions
+): Promise<ShutdownTarget> {
   // Fail fast if DATABASE_URL credentials don't authenticate (typically a
   // stale Postgres volume after a password rotation without `down -v`).
   await verifyDatabaseAuth();
@@ -206,13 +226,23 @@ async function start() {
     logger.error({ err: error }, "Worker error");
   });
 
-  registerGracefulShutdown({
-    name: "inbox-sync",
-    target: { workers: [worker], connections: [connection], prisma },
-    logger,
-  });
+  const target: ShutdownTarget = {
+    workers: [worker],
+    connections: [connection],
+    prisma,
+  };
+
+  if (options?.registerShutdown !== false) {
+    registerGracefulShutdown({ name: "inbox-sync", target, logger });
+  }
 
   logger.info("Inbox sync worker started, listening on queue: %s", QUEUE_NAMES.INBOX_SYNC);
+  return target;
 }
 
-start();
+// Standalone entry point: when invoked directly (e.g., `node dist/inboxSyncWorker.js`)
+// rather than imported by `bootstrap.ts`, kick off the worker.
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+if (isMainModule) {
+  void startInboxSyncWorker();
+}

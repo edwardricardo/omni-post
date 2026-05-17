@@ -475,6 +475,244 @@ async function main() {
     }
   }
 
+  // Customer-side RBAC roles (scoped to CustomerUser within an Account).
+  // Names mirror the legacy TeamRole enum (OWNER/MANAGER/MEMBER/VIEWER) so
+  // the backfill from TeamMember.role can look up CustomerRole.id by name.
+  // OWNER and MANAGER are distinct here (fixing the latent bug in the legacy
+  // TeamRole VO where both had identical permission sets).
+  const customerSystemRoles = [
+    {
+      id: "role-owner",
+      name: "OWNER",
+      description: "Full access to the account, including billing and member role management",
+      level: 100,
+      isSystem: true,
+      permissions: [
+        // Posts
+        "post:read",
+        "post:create",
+        "post:edit",
+        "post:publish",
+        "post:delete",
+        // Channels
+        "channel:read",
+        "channel:connect",
+        "channel:disconnect",
+        "channel:manage",
+        // Analytics
+        "analytics:read",
+        "analytics:export",
+        // Members + RBAC (only OWNER can manage roles)
+        "member:read",
+        "member:invite",
+        "member:remove",
+        "member:manage_roles",
+        // Approvals
+        "approval:read",
+        "approval:submit",
+        "approval:review",
+        // Billing + account lifecycle (OWNER-only)
+        "billing:read",
+        "billing:manage",
+        "account:read",
+        "account:manage",
+        "account:delete",
+        // Campaigns
+        "campaign:read",
+        "campaign:create",
+        "campaign:manage",
+        // Templates
+        "template:read",
+        "template:create",
+        "template:manage",
+        // Comments
+        "comment:read",
+        "comment:create",
+        "comment:moderate",
+        // AI
+        "ai:use",
+        "ai:configure",
+        // Compliance
+        "compliance:read",
+        "compliance:manage",
+        // Notifications
+        "notification:read",
+        "notification:manage",
+        // Inbox
+        "inbox:read",
+        "inbox:respond",
+        // Tasks
+        "task:read",
+        "task:create",
+        "task:manage",
+        // EventSnapshot (tier-gated per billing — permission granted, runtime gates by tier)
+        "snapshot:view",
+        "snapshot:create",
+        "snapshot:manage",
+      ],
+    },
+    {
+      id: "role-manager",
+      name: "MANAGER",
+      description:
+        "Operational management — everything except billing, account deletion, and role assignment",
+      level: 50,
+      isSystem: true,
+      permissions: [
+        // Posts (full)
+        "post:read",
+        "post:create",
+        "post:edit",
+        "post:publish",
+        "post:delete",
+        // Channels (full)
+        "channel:read",
+        "channel:connect",
+        "channel:disconnect",
+        "channel:manage",
+        // Analytics (full)
+        "analytics:read",
+        "analytics:export",
+        // Members (no role management)
+        "member:read",
+        "member:invite",
+        "member:remove",
+        // Approvals (full)
+        "approval:read",
+        "approval:submit",
+        "approval:review",
+        // Billing (read only — no manage)
+        "billing:read",
+        "account:read",
+        // Campaigns (full)
+        "campaign:read",
+        "campaign:create",
+        "campaign:manage",
+        // Templates (full)
+        "template:read",
+        "template:create",
+        "template:manage",
+        // Comments (full)
+        "comment:read",
+        "comment:create",
+        "comment:moderate",
+        // AI (full)
+        "ai:use",
+        "ai:configure",
+        // Compliance (read only)
+        "compliance:read",
+        // Notifications
+        "notification:read",
+        "notification:manage",
+        // Inbox
+        "inbox:read",
+        "inbox:respond",
+        // Tasks
+        "task:read",
+        "task:create",
+        "task:manage",
+        // EventSnapshot (view + create, no manage)
+        "snapshot:view",
+        "snapshot:create",
+      ],
+    },
+    {
+      id: "role-member",
+      name: "MEMBER",
+      description: "Day-to-day contributor — create and publish content, view analytics",
+      level: 20,
+      isSystem: true,
+      permissions: [
+        // Posts (create + edit + publish own, no delete)
+        "post:read",
+        "post:create",
+        "post:edit",
+        "post:publish",
+        // Channels (read only)
+        "channel:read",
+        // Analytics (read only)
+        "analytics:read",
+        // Members (read only)
+        "member:read",
+        // Approvals (submit own)
+        "approval:read",
+        "approval:submit",
+        // Campaigns (read)
+        "campaign:read",
+        // Templates (read + create)
+        "template:read",
+        "template:create",
+        // Comments
+        "comment:read",
+        "comment:create",
+        // AI (use only)
+        "ai:use",
+        // Notifications
+        "notification:read",
+        // Inbox
+        "inbox:read",
+        "inbox:respond",
+        // Tasks
+        "task:read",
+        "task:create",
+        // EventSnapshot (view only)
+        "snapshot:view",
+      ],
+    },
+    {
+      id: "role-viewer",
+      name: "VIEWER",
+      description: "Read-only access to the account",
+      level: 10,
+      isSystem: true,
+      permissions: [
+        "post:read",
+        "channel:read",
+        "analytics:read",
+        "member:read",
+        "approval:read",
+        "campaign:read",
+        "template:read",
+        "comment:read",
+        "notification:read",
+        "inbox:read",
+        "task:read",
+      ],
+    },
+  ];
+
+  for (const roleDef of customerSystemRoles) {
+    await prisma.customerRole.upsert({
+      where: { id: roleDef.id },
+      update: {
+        description: roleDef.description,
+        level: roleDef.level,
+      },
+      create: {
+        id: roleDef.id,
+        name: roleDef.name,
+        description: roleDef.description,
+        level: roleDef.level,
+        isSystem: roleDef.isSystem,
+        isActive: true,
+      },
+    });
+
+    await prisma.customerRolePermission.deleteMany({ where: { roleId: roleDef.id } });
+    for (const perm of roleDef.permissions) {
+      await prisma.customerRolePermission.create({
+        data: { roleId: roleDef.id, permission: perm },
+      });
+    }
+  }
+  logger.info(
+    {
+      roles: customerSystemRoles.length,
+      permissions: customerSystemRoles.reduce((sum, r) => sum + r.permissions.length, 0),
+    },
+    "CustomerRole + CustomerRolePermission seeded"
+  );
+
   // Seed SUPER_ADMIN user for local development
   const adminPassword = process.env.ADMIN_PASSWORD ?? "Admin123!";
   const hashedPassword = await argon2.hash(adminPassword, {
@@ -766,7 +1004,41 @@ async function seedTestAccounts() {
     },
   ];
 
-  for (const acct of testAccounts) {
+  // Canonical Argon2id params — mirror of apps/api/src/auth/passwordHashing.ts
+  // ARGON2_PARAMS. Drift between the two is a bug; keep them in sync. Bumping
+  // here without bumping the helper (or vice-versa) breaks transparent rehash
+  // on login because `needsRehash` compares against the helper's params.
+  const ARGON2_CANON = {
+    type: argon2.argon2id,
+    memoryCost: 65536,
+    timeCost: 3,
+    parallelism: 4,
+    hashLength: 32,
+  } as const;
+  const TEST_CUSTOMER_PASSWORD = "TestPassword123!";
+  // Hash once — every real-password test customer reuses this. Argon2id with
+  // m=64MiB/t=3/p=4 takes ~300ms; doing 50 hashes would add ~15s to seed.
+  const testCustomerHash = await argon2.hash(TEST_CUSTOMER_PASSWORD, ARGON2_CANON);
+
+  type TestUserRole = {
+    suffix: "owner" | "manager" | "member1" | "member2" | "viewer";
+    roleId: string;
+    firstName: string;
+    lastName: string;
+  };
+  const TEST_USERS_PER_ACCOUNT: readonly TestUserRole[] = [
+    { suffix: "owner", roleId: "role-owner", firstName: "Olivia", lastName: "Owner" },
+    { suffix: "manager", roleId: "role-manager", firstName: "Marcus", lastName: "Manager" },
+    { suffix: "member1", roleId: "role-member", firstName: "Mia", lastName: "Member" },
+    { suffix: "member2", roleId: "role-member", firstName: "Max", lastName: "Member" },
+    { suffix: "viewer", roleId: "role-viewer", firstName: "Victor", lastName: "Viewer" },
+  ];
+
+  let totalCustomerUsersCreated = 0;
+  let totalProjectMembersCreated = 0;
+
+  for (let acctIdx = 0; acctIdx < testAccounts.length; acctIdx++) {
+    const acct = testAccounts[acctIdx]!;
     const slug = acct.email.split("@")[0]!;
 
     const account = await prisma.account.upsert({
@@ -794,6 +1066,69 @@ async function seedTestAccounts() {
         locale: acct.locale,
       },
     });
+
+    // Seed 5 CustomerUsers per test account (1 OWNER + 1 MANAGER + 2 MEMBER +
+    // 1 VIEWER), each wired to the account's project via ProjectMember. Emails
+    // are deterministic (`<slug>-<suffix>@test.omnipost.local`) so smoke tests
+    // can target known credentials. All real users share TEST_CUSTOMER_PASSWORD.
+    for (const u of TEST_USERS_PER_ACCOUNT) {
+      const userId = `cu-${slug}-${u.suffix}`;
+      const userEmail = `${slug}-${u.suffix}@test.omnipost.local`;
+      await prisma.customerUser.upsert({
+        where: { accountId_email: { accountId: account.id, email: userEmail } },
+        update: { roleId: u.roleId, isActive: true, isEmailVerified: true },
+        create: {
+          id: userId,
+          accountId: account.id,
+          email: userEmail,
+          passwordHash: testCustomerHash,
+          firstName: u.firstName,
+          lastName: u.lastName,
+          roleId: u.roleId,
+          isActive: true,
+          isEmailVerified: true,
+          mfaEnabled: false,
+        },
+      });
+      totalCustomerUsersCreated++;
+
+      await prisma.projectMember.upsert({
+        where: { projectId_memberId: { projectId: project.id, memberId: userId } },
+        update: {},
+        create: { projectId: project.id, memberId: userId },
+      });
+      totalProjectMembersCreated++;
+    }
+
+    // On the first test account, also seed one pending-invitation CustomerUser:
+    // passwordHash="" + active inviteToken. Exercises the unification
+    // stub-creation case from the backfill script + the acceptInvitation()
+    // domain path. The account is inactive until the invitee sets a password.
+    if (acctIdx === 0) {
+      const inviteeId = `cu-${slug}-invitee`;
+      const inviteeEmail = `${slug}-invitee@test.omnipost.local`;
+      const inviteToken = randomBytes(32).toString("base64url");
+      const inviteExpiry = daysFromNow(7);
+      await prisma.customerUser.upsert({
+        where: { accountId_email: { accountId: account.id, email: inviteeEmail } },
+        update: { inviteToken, inviteTokenExpiry: inviteExpiry, isActive: false },
+        create: {
+          id: inviteeId,
+          accountId: account.id,
+          email: inviteeEmail,
+          passwordHash: "",
+          firstName: "Pending",
+          lastName: "Invitee",
+          roleId: "role-member",
+          isActive: false,
+          isEmailVerified: false,
+          mfaEnabled: false,
+          inviteToken,
+          inviteTokenExpiry: inviteExpiry,
+        },
+      });
+      totalCustomerUsersCreated++;
+    }
 
     const channelsToCreate = acct.providers.slice(0, 2);
     for (let i = 0; i < channelsToCreate.length; i++) {
@@ -853,7 +1188,14 @@ async function seedTestAccounts() {
     }
   }
 
-  logger.info({ count: testAccounts.length }, "Test accounts seeded");
+  logger.info(
+    {
+      accounts: testAccounts.length,
+      customerUsers: totalCustomerUsersCreated,
+      projectMembers: totalProjectMembersCreated,
+    },
+    "Test accounts + CustomerUsers seeded"
+  );
 
   // ─── Compliance Settings ──────────────────────────────────────────────────
   await prisma.gdprSettings.upsert({

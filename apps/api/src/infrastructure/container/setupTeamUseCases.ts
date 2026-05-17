@@ -11,7 +11,8 @@ import type { PlatformCredentialService } from "../../security/PlatformCredentia
 import type { PostRepository } from "../../domain/index.js";
 import type { ApprovalRequestRepository } from "../../domain/repositories/ApprovalRequestRepository.js";
 import type { ApprovalWorkflowRepository } from "../../domain/repositories/ApprovalWorkflowRepository.js";
-import type { TeamMemberRepository } from "../../domain/repositories/TeamMemberRepository.js";
+import type { CustomerUserRepository } from "../../domain/repositories/CustomerUserRepository.js";
+import type { CustomerRoleRepository } from "../../domain/repositories/CustomerRoleRepository.js";
 import type { PostCommentRepository } from "../../domain/repositories/PostCommentRepository.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import {
@@ -134,7 +135,8 @@ export function setupTeamUseCases(container: Container): void {
     TOKENS.InviteTeamMemberUseCase,
     () =>
       new InviteTeamMemberUseCase(
-        container.resolve<TeamMemberRepository>(TOKENS.TeamMemberRepository),
+        container.resolve<CustomerUserRepository>(TOKENS.CustomerUserRepository),
+        container.resolve<CustomerRoleRepository>(TOKENS.CustomerRoleRepository),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
         container.resolve<EmailPort>(TOKENS.EmailPort),
         container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService)
@@ -144,14 +146,17 @@ export function setupTeamUseCases(container: Container): void {
   container.register<GetTeamMembersQuery>(
     TOKENS.GetTeamMembersQuery,
     () =>
-      new GetTeamMembersQuery(container.resolve<TeamMemberRepository>(TOKENS.TeamMemberRepository)),
+      new GetTeamMembersQuery(
+        container.resolve<CustomerUserRepository>(TOKENS.CustomerUserRepository)
+      ),
     true
   );
   container.register<UpdateTeamMemberRoleUseCase>(
     TOKENS.UpdateTeamMemberRoleUseCase,
     () =>
       new UpdateTeamMemberRoleUseCase(
-        container.resolve<TeamMemberRepository>(TOKENS.TeamMemberRepository),
+        container.resolve<CustomerUserRepository>(TOKENS.CustomerUserRepository),
+        container.resolve<CustomerRoleRepository>(TOKENS.CustomerRoleRepository),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
@@ -160,7 +165,7 @@ export function setupTeamUseCases(container: Container): void {
     TOKENS.RemoveTeamMemberUseCase,
     () =>
       new RemoveTeamMemberUseCase(
-        container.resolve<TeamMemberRepository>(TOKENS.TeamMemberRepository),
+        container.resolve<CustomerUserRepository>(TOKENS.CustomerUserRepository),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
@@ -169,7 +174,7 @@ export function setupTeamUseCases(container: Container): void {
     TOKENS.SearchTeamMembersQuery,
     () =>
       new SearchTeamMembersQuery(
-        container.resolve<TeamMemberRepository>(TOKENS.TeamMemberRepository)
+        container.resolve<CustomerUserRepository>(TOKENS.CustomerUserRepository)
       ),
     true
   );

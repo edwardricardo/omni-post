@@ -82,7 +82,9 @@ export class RefreshCustomerTokenUseCase {
       const accessToken = signCustomerAccessToken({
         sub: user.id,
         accountId: user.accountId,
-        role: user.role,
+        roleId: user.roleId,
+        roleName: user.roleName,
+        permissions: [...user.permissions],
       });
       const refreshToken = signCustomerRefreshToken(user.id, sessionId);
 

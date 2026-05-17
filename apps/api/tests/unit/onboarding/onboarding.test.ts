@@ -52,6 +52,22 @@ describe("Welcome email on registration", () => {
   let emailPort: EmailPort;
   let credService: PlatformCredentialService;
 
+  function makeMockCustomerRoleRepo() {
+    return {
+      getSnapshotByName: vi.fn().mockResolvedValue({
+        ok: true,
+        value: {
+          roleId: "role-owner",
+          roleName: "OWNER",
+          roleLevel: 100,
+          permissions: new Set(["post:read", "billing:manage"]),
+        },
+      }),
+      getSnapshotById: vi.fn(),
+      listAll: vi.fn().mockResolvedValue([]),
+    } as never;
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
     emailPort = makeMockEmailPort();
@@ -61,6 +77,7 @@ describe("Welcome email on registration", () => {
   it("sends welcome email after successful registration", async () => {
     const useCase = new RegisterCustomerUseCase(
       makeMockCustomerUserRepo(),
+      makeMockCustomerRoleRepo(),
       makeMockAccountRepo(),
       undefined,
       undefined,
@@ -88,6 +105,7 @@ describe("Welcome email on registration", () => {
 
     const useCase = new RegisterCustomerUseCase(
       makeMockCustomerUserRepo(),
+      makeMockCustomerRoleRepo(),
       makeMockAccountRepo(),
       undefined,
       undefined,
@@ -106,6 +124,7 @@ describe("Welcome email on registration", () => {
   it("uses baseUrl from PLATFORM settings", async () => {
     const useCase = new RegisterCustomerUseCase(
       makeMockCustomerUserRepo(),
+      makeMockCustomerRoleRepo(),
       makeMockAccountRepo(),
       undefined,
       undefined,
@@ -125,7 +144,11 @@ describe("Welcome email on registration", () => {
   });
 
   it("works without email port (backward compatible)", async () => {
-    const useCase = new RegisterCustomerUseCase(makeMockCustomerUserRepo(), makeMockAccountRepo());
+    const useCase = new RegisterCustomerUseCase(
+      makeMockCustomerUserRepo(),
+      makeMockCustomerRoleRepo(),
+      makeMockAccountRepo()
+    );
 
     const result = await useCase.execute(validInput);
 

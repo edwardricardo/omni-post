@@ -116,7 +116,6 @@ import { customReportRoutes } from "./custom-reports/customReportRoutes.js";
 import { crmRoutes } from "./crm/crmRoutes.js";
 import { customerAuthRoutes } from "./auth/customerAuthRoutes.js";
 
-import { DatabaseOptimizer } from "./utils/dbOptimization.js";
 import { SecurityManager } from "./security/securityHeaders.js";
 import { PerformanceMonitor } from "./monitoring/performanceMonitor.js";
 import { analyticsRoutes } from "./analytics/analyticsRoutes.js";
@@ -307,9 +306,6 @@ async function createApp(): Promise<FastifyInstance> {
     redis,
     container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
   );
-
-  // Initialize database optimizer
-  const _dbOptimizer = new DatabaseOptimizer(apiMetrics);
 
   // Initialize tenant health monitor
   const tenantHealthMonitor = createTenantHealthMonitor(
@@ -770,6 +766,46 @@ async function start() {
       "data-retention-cleanup",
       () => dataRetention.runRetentionCleanup(),
       24 * 60 * 60 * 1000
+    );
+
+    // Inbox sync coordinator — every 30 minutes.
+    // Enqueues one inbox-sync job per active channel into BullMQ; the
+    // workers' bootstrap consumes from QUEUE_NAMES.INBOX_SYNC and ingests
+    // comments / mentions into SocialMessage. (Audit finding FN-015.)
+    const { DispatchInboxSyncUseCase: _DispatchInboxSyncType } =
+      await import("./application/inbox/DispatchInboxSyncUseCase.js");
+    const dispatchInboxSync = app.container!.resolve<InstanceType<typeof _DispatchInboxSyncType>>(
+      TOKENS.DispatchInboxSyncUseCase
+    );
+    scheduler.register(
+      "inbox-sync-dispatch",
+      async () => {
+        const result = await dispatchInboxSync.execute({});
+        if (!result.ok) {
+          logger.warn({ err: result.error }, "Inbox sync dispatch failed");
+        }
+      },
+      30 * 60 * 1000
+    );
+
+    // Analytics ingestion coordinator — every 6 hours.
+    // Enqueues one analytics-ingest job per active channel into BullMQ; the
+    // workers' bootstrap consumes from QUEUE_NAMES.ANALYTICS_AGGREGATION and
+    // upserts metrics into AnalyticsDailySummary. (Audit finding FN-016.)
+    const { DispatchAnalyticsIngestionUseCase: _DispatchAnalyticsType } =
+      await import("./application/analytics/DispatchAnalyticsIngestionUseCase.js");
+    const dispatchAnalyticsIngestion = app.container!.resolve<
+      InstanceType<typeof _DispatchAnalyticsType>
+    >(TOKENS.DispatchAnalyticsIngestionUseCase);
+    scheduler.register(
+      "analytics-ingest-dispatch",
+      async () => {
+        const result = await dispatchAnalyticsIngestion.execute({});
+        if (!result.ok) {
+          logger.warn({ err: result.error }, "Analytics ingest dispatch failed");
+        }
+      },
+      6 * 60 * 60 * 1000
     );
 
     const port = env.PORT;

@@ -1,13 +1,13 @@
 /**
  * @file GetTeamMembersQuery.ts
- * @description Application query handler for listing team members of an account.
- *   Returns DTOs (not domain objects) following the CQRS read-side pattern.
+ * @description Application query handler for listing the team members of an
+ *   account. Returns DTOs (not domain objects) following the CQRS read pattern.
  * @layer application
  */
 
-import { type Result, ok, err } from "@shared/types";
-import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
-import type { TeamMemberRepository } from "../../domain/repositories/TeamMemberRepository.js";
+import { type Result, ok } from "@shared/types";
+import { type UseCase, UseCaseError } from "../UseCase.js";
+import type { CustomerUserRepository } from "../../domain/repositories/CustomerUserRepository.js";
 
 /**
  * Input DTO for querying team members
@@ -22,49 +22,52 @@ export interface GetTeamMembersInput {
 export interface TeamMemberDTO {
   id: string;
   email: string;
-  name: string;
-  role: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  roleId: string;
+  roleName: string;
+  roleLevel: number;
   isActive: boolean;
+  isEmailVerified: boolean;
+  isPendingInvitation: boolean;
   joinedAt: Date;
 }
 
 /**
  * @class GetTeamMembersQuery
- * @description Retrieves all team members for an account, mapped to read-side DTOs.
+ * @description Retrieves all team members (CustomerUsers) for an account,
+ *   mapped to read-side DTOs.
  */
 export class GetTeamMembersQuery implements UseCase<
   GetTeamMembersInput,
   TeamMemberDTO[],
   UseCaseError
 > {
-  constructor(private readonly repository: TeamMemberRepository) {}
+  constructor(private readonly customerUserRepo: CustomerUserRepository) {}
 
   /**
    * @method execute
-   * @description Loads all team members for the given account and maps to DTOs.
+   * @description Loads all customer users for the given account and maps to DTOs.
    * @param input - Query parameters including accountId
    * @returns Result<TeamMemberDTO[]> on success
    */
   async execute(input: GetTeamMembersInput): Promise<Result<TeamMemberDTO[], UseCaseError>> {
-    const result = await this.repository.findByAccount(input.accountId);
+    const users = await this.customerUserRepo.findByAccountId(input.accountId);
 
-    if (!result.ok) {
-      return err(
-        new UseCaseError(
-          "Failed to fetch team members",
-          USE_CASE_ERRORS.INTERNAL_ERROR,
-          result.error
-        )
-      );
-    }
-
-    const dtos: TeamMemberDTO[] = result.value.map((member) => ({
-      id: member.id.value,
-      email: member.email,
-      name: member.name,
-      role: member.role.value,
-      isActive: member.isActive,
-      joinedAt: member.joinedAt,
+    const dtos: TeamMemberDTO[] = users.map((u) => ({
+      id: u.id,
+      email: u.email,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      fullName: u.fullName,
+      roleId: u.roleId,
+      roleName: u.roleName,
+      roleLevel: u.roleLevel,
+      isActive: u.isActive,
+      isEmailVerified: u.isEmailVerified,
+      isPendingInvitation: u.isPendingInvitation,
+      joinedAt: u.joinedAt,
     }));
 
     return ok(dtos);

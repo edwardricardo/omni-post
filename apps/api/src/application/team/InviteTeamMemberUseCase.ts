@@ -1,16 +1,18 @@
 /**
  * @file InviteTeamMemberUseCase.ts
- * @description Application use case for inviting a new team member to an account.
- *   Validates that the member does not already exist, creates the entity, and persists it.
+ * @description Application use case for inviting a new team member to an
+ *   account. Creates a CustomerUser stub with an active inviteToken, resolves
+ *   the requested role (default MEMBER) from the CustomerRole catalog, and
+ *   persists. The invitee completes the stub on accept.
  * @layer application
  */
 
 import { randomUUID } from "node:crypto";
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
-import type { TeamMemberRepository } from "../../domain/repositories/TeamMemberRepository.js";
-import { TeamMemberEntity } from "../../domain/entities/TeamMember.js";
-import type { TeamRoleValue } from "../../domain/value-objects/TeamRole.js";
+import type { CustomerUserRepository } from "../../domain/repositories/CustomerUserRepository.js";
+import type { CustomerRoleRepository } from "../../domain/repositories/CustomerRoleRepository.js";
+import { CustomerUser } from "../../domain/entities/CustomerUser.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import type { EmailPort } from "../../domain/repositories/EmailPort.js";
 import type { PlatformCredentialService } from "../../security/PlatformCredentialService.js";
@@ -25,14 +27,18 @@ const inviteLogger = createLogger("team-invite");
 export interface InviteTeamMemberInput {
   accountId: string;
   email: string;
+  /** Display name; split into firstName + lastName on the first whitespace. */
   name: string;
-  role?: TeamRoleValue;
+  /** Role name (OWNER / MANAGER / MEMBER / VIEWER). Defaults to MEMBER. */
+  role?: string;
+  /** CustomerUser.id of the inviter (used for audit + email From). */
   invitedBy?: string;
 }
 
 /**
  * @class InviteTeamMemberUseCase
- * @description Creates a new team member within an account after checking for duplicates.
+ * @description Creates a CustomerUser stub (passwordHash="" + active inviteToken)
+ *   for the invitee. The invitee sets a real password on acceptance.
  */
 export class InviteTeamMemberUseCase implements UseCase<
   InviteTeamMemberInput,
@@ -40,25 +46,16 @@ export class InviteTeamMemberUseCase implements UseCase<
   UseCaseError
 > {
   constructor(
-    private readonly repository: TeamMemberRepository,
+    private readonly customerUserRepo: CustomerUserRepository,
+    private readonly customerRoleRepo: CustomerRoleRepository,
     private readonly unitOfWork?: UnitOfWork,
     private readonly emailPort?: EmailPort,
     private readonly credentialService?: PlatformCredentialService
   ) {}
 
-  /**
-   * @method execute
-   * @description Invites a new team member to the account.
-   * @param input - The invitation parameters
-   * @returns Result<string> with the new member's ID on success
-   */
   async execute(input: InviteTeamMemberInput): Promise<Result<string, UseCaseError>> {
-    // Check if member already exists in account
-    const existingResult = await this.repository.findByAccountAndEmail(
-      input.accountId,
-      input.email
-    );
-
+    // Duplicate guard: a CustomerUser with this email already exists in the account.
+    const existingResult = await this.customerUserRepo.findByEmail(input.email, input.accountId);
     if (existingResult.ok) {
       return err(
         new UseCaseError(
@@ -68,13 +65,38 @@ export class InviteTeamMemberUseCase implements UseCase<
       );
     }
 
-    // Create domain entity
-    const createResult = TeamMemberEntity.create({
+    // Resolve role snapshot (default MEMBER).
+    const roleName = input.role ?? "MEMBER";
+    const roleResult = await this.customerRoleRepo.getSnapshotByName(roleName);
+    if (!roleResult.ok) {
+      return err(
+        new UseCaseError(`Role not found: ${roleName}`, USE_CASE_ERRORS.VALIDATION_FAILED)
+      );
+    }
+    const role = roleResult.value;
+
+    // Split display name into first + last on first whitespace.
+    const trimmedName = input.name.trim();
+    const [firstName, ...rest] = trimmedName.split(/\s+/);
+    const lastName = rest.join(" ") || "—";
+
+    const inviteToken = randomUUID();
+    const inviteTokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    const createResult = CustomerUser.create({
+      id: randomUUID(),
       accountId: input.accountId,
       email: input.email,
-      name: input.name,
-      ...(input.role !== undefined && { role: input.role }),
+      passwordHash: "", // stub — set when the invitee accepts the invitation
+      firstName: firstName ?? input.email.split("@")[0]!,
+      lastName,
+      roleId: role.roleId,
+      roleName: role.roleName,
+      roleLevel: role.roleLevel,
+      permissions: role.permissions,
       ...(input.invitedBy !== undefined && { invitedBy: input.invitedBy }),
+      inviteToken,
+      inviteTokenExpiry,
     });
 
     if (!createResult.ok) {
@@ -89,14 +111,8 @@ export class InviteTeamMemberUseCase implements UseCase<
 
     const member = createResult.value;
 
-    // Generate invitation token (expires in 7 days)
-    const inviteToken = randomUUID();
-    const inviteTokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    member.setInviteToken(inviteToken, inviteTokenExpiry);
-
-    // Persist (atomically via UoW when available)
     const doWork = async (): Promise<Result<string, UseCaseError>> => {
-      const saveResult = await this.repository.save(member);
+      const saveResult = await this.customerUserRepo.save(member);
       if (!saveResult.ok) {
         return err(
           new UseCaseError(
@@ -106,13 +122,13 @@ export class InviteTeamMemberUseCase implements UseCase<
           )
         );
       }
-      return ok(member.id.value);
+      return ok(member.id);
     };
 
     try {
       let result: Result<string, UseCaseError>;
       if (this.unitOfWork) {
-        result = ok(member.id.value);
+        result = ok(member.id);
         await this.unitOfWork.executeInTransaction(async () => {
           result = await doWork();
         });
@@ -120,9 +136,8 @@ export class InviteTeamMemberUseCase implements UseCase<
         result = await doWork();
       }
 
-      // Send invitation email after successful persist (fire-and-forget)
       if (result.ok && this.emailPort) {
-        this.sendInvitationEmail(input, inviteToken).catch((e) =>
+        this.sendInvitationEmail(input, inviteToken, roleName).catch((e) =>
           inviteLogger.warn({ err: e }, "Failed to send invitation email")
         );
       }
@@ -141,7 +156,8 @@ export class InviteTeamMemberUseCase implements UseCase<
 
   private async sendInvitationEmail(
     input: InviteTeamMemberInput,
-    inviteToken: string
+    inviteToken: string,
+    roleName: string
   ): Promise<void> {
     if (!this.emailPort) return;
 
@@ -156,7 +172,7 @@ export class InviteTeamMemberUseCase implements UseCase<
     const content = await teamInvitationEmail({
       inviterName: input.invitedBy ?? "An admin",
       accountName: input.accountId,
-      role: input.role ?? "MEMBER",
+      role: roleName,
       acceptUrl: `${baseUrl}/accept-invitation?token=${inviteToken}`,
     });
 

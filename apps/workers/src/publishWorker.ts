@@ -26,7 +26,7 @@ import { createLinkedInAdapter } from "@providers/linkedin";
 import { createBlueskyAdapter } from "@providers/bluesky";
 import { createThreadsAdapter } from "@providers/threads";
 import { createBullMQConsumerAdapter, QUEUE_NAMES } from "@adapters/queue-bullmq";
-import { registerGracefulShutdown } from "./lib/gracefulShutdown.js";
+import { registerGracefulShutdown, type ShutdownTarget } from "./lib/gracefulShutdown.js";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import { verifyDatabaseAuth } from "@infra/prisma";
 import { decryptChannelCredentials } from "@shared/types";
@@ -124,7 +124,25 @@ const handler = new PublishHandler({
   notifyRedis,
 });
 
-async function start() {
+export interface StartPublishWorkerOptions {
+  /**
+   * When false, callers must register their own graceful-shutdown handler
+   * (typical for composed bootstrap that drains multiple workers as a unit).
+   * Default true: the worker registers its own SIGTERM / SIGINT handler.
+   */
+  registerShutdown?: boolean;
+}
+
+/**
+ * @function startPublishWorker
+ * @description Boots the publish BullMQ worker, metrics HTTP server, and
+ *              auxiliary connections (notifyRedis for saga signals, BullMQ
+ *              consumer adapter, recurring-task scheduler).
+ * @returns ShutdownTarget so a composer (`bootstrap.ts`) can drain it.
+ */
+export async function startPublishWorker(
+  options?: StartPublishWorkerOptions
+): Promise<ShutdownTarget> {
   // Fail fast if DATABASE_URL credentials don't authenticate (typically a
   // stale Postgres volume after a password rotation without `down -v`).
   await verifyDatabaseAuth();
@@ -179,16 +197,11 @@ async function start() {
       workerMetrics.setHealthy();
       logger.info({ metricsPort }, "Enhanced metrics server listening");
     });
-}
 
-start();
-
-// Graceful shutdown — closes the consumer (waits for active jobs), the
-// scheduler (cancels recurring tasks), and the saga notification Redis
-// connection. The shared helper covers SIGTERM and SIGINT identically.
-registerGracefulShutdown({
-  name: "publish",
-  target: {
+  // Graceful shutdown — closes the consumer (waits for active jobs), the
+  // scheduler (cancels recurring tasks), and the saga notification Redis
+  // connection. The shared helper covers SIGTERM and SIGINT identically.
+  const target: ShutdownTarget = {
     connections: [notifyRedis],
     afterTeardown: async () => {
       await consumer.close();
@@ -197,6 +210,18 @@ registerGracefulShutdown({
         logger.warn({ shutdownResult }, "BackgroundTaskScheduler shutdown timed out");
       }
     },
-  },
-  logger,
-});
+  };
+
+  if (options?.registerShutdown !== false) {
+    registerGracefulShutdown({ name: "publish", target, logger });
+  }
+
+  return target;
+}
+
+// Standalone entry point: when invoked directly (e.g., `node dist/publishWorker.js`)
+// rather than imported by `bootstrap.ts`, kick off the worker.
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+if (isMainModule) {
+  void startPublishWorker();
+}

@@ -702,18 +702,22 @@ describe("CQRSIntegration - Event Publishing", () => {
   it("should not publish events if command fails", async () => {
     mockEventService.reset();
 
+    // Canonical "command failed" path at the handler tier is a use-case
+    // failure. (The prior approach — forcing channelRepository.findById to
+    // fail — no longer triggers anything: CreatePostCommandHandler is
+    // platform-agnostic after the saga split and never calls channelRepo.)
+    // The invariant under test is the same: no events leak when a command
+    // returns success: false.
+    const failingUseCase = new MockCreatePostUseCase();
+    failingUseCase.shouldFail = true;
+    failingUseCase.failMessage = "Body cannot be empty";
+
     const fastify2 = Fastify({ logger: false });
     const mockEventService2 = new MockEventService();
-    const failingChannelRepo = new MockChannelRepository();
-    failingChannelRepo.findById = async () => ({
-      ok: false as const,
-      error: { message: "Channel not found", code: "NOT_FOUND" },
-    });
-
     const integration2 = new CQRSIntegration(
       buildConfig(fastify2, {
         eventService: mockEventService2,
-        channelRepository: failingChannelRepo,
+        createPostUseCase: failingUseCase,
       })
     );
     await integration2.initialize();

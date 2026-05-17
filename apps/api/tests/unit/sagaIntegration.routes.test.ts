@@ -26,7 +26,13 @@ import {
 
 const makeAuthedStatusRequest = (sagaId: string) => ({
   params: { sagaId },
-  customerUser: { id: TEST_CUSTOMER_ID, accountId: TEST_ACCOUNT_ID, role: "owner" },
+  customerUser: {
+    id: TEST_CUSTOMER_ID,
+    accountId: TEST_ACCOUNT_ID,
+    roleId: "role-owner",
+    roleName: "OWNER",
+    permissions: [],
+  },
 });
 
 // Suppress verbose background-execution logs so they don't corrupt the TAP

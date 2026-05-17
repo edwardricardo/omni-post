@@ -63,10 +63,14 @@ function makeExistingUser(overrides?: Record<string, unknown>) {
     passwordHash: "will-be-replaced",
     firstName: "Existing",
     lastName: "User",
-    role: "OWNER",
+    roleId: "role-owner",
+    roleName: "OWNER",
+    roleLevel: 100,
+    permissions: new Set(["post:read", "billing:manage"]),
     isActive: true,
     isEmailVerified: false,
     mfaEnabled: false,
+    joinedAt: now,
     createdAt: now,
     updatedAt: now,
     ...overrides,
@@ -75,18 +79,42 @@ function makeExistingUser(overrides?: Record<string, unknown>) {
 
 // ---- Tests ----
 
+function makeCustomerRoleRepo() {
+  return {
+    getSnapshotByName: vi.fn().mockResolvedValue({
+      ok: true,
+      value: {
+        roleId: "role-owner",
+        roleName: "OWNER",
+        roleLevel: 100,
+        permissions: new Set(["post:read", "billing:manage"]),
+      },
+    }),
+    getSnapshotById: vi.fn(),
+    listAll: vi.fn().mockResolvedValue([]),
+  } as never;
+}
+
 describe("RegisterCustomerUseCase", () => {
   let useCase: RegisterCustomerUseCase;
   let customerUserRepo: ReturnType<typeof makeCustomerUserRepo>;
+  let customerRoleRepo: ReturnType<typeof makeCustomerRoleRepo>;
   let accountRepo: ReturnType<typeof makeAccountRepo>;
   let unitOfWork: ReturnType<typeof makeUnitOfWork>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     customerUserRepo = makeCustomerUserRepo();
+    customerRoleRepo = makeCustomerRoleRepo();
     accountRepo = makeAccountRepo();
     unitOfWork = makeUnitOfWork();
-    useCase = new RegisterCustomerUseCase(customerUserRepo, accountRepo, undefined, unitOfWork);
+    useCase = new RegisterCustomerUseCase(
+      customerUserRepo,
+      customerRoleRepo,
+      accountRepo,
+      undefined,
+      unitOfWork
+    );
   });
 
   it("creates Account + CustomerUser atomically and returns tokens", async () => {
@@ -507,7 +535,9 @@ describe("customerAuthMiddleware", () => {
     const token = signCustomerAccessToken({
       sub: "user-001",
       accountId: "acc-001",
-      role: "OWNER",
+      roleId: "role-owner",
+      roleName: "OWNER",
+      permissions: ["post:read", "billing:manage"],
     });
 
     const request = {
@@ -526,7 +556,9 @@ describe("customerAuthMiddleware", () => {
     expect((request as Record<string, unknown>).customerUser).toEqual({
       id: "user-001",
       accountId: "acc-001",
-      role: "OWNER",
+      roleId: "role-owner",
+      roleName: "OWNER",
+      permissions: ["post:read", "billing:manage"],
     });
   });
 });

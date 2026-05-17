@@ -38,7 +38,6 @@ export {
   OutboundReplyStatus,
   CampaignStatus,
   ReportFormat,
-  TeamRole,
   NotificationType,
   ApprovalStatus,
   ReviewDecision,

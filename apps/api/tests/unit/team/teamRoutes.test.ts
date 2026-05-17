@@ -8,6 +8,10 @@
 import { randomBytes } from "node:crypto";
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 import { createMockPrismaModule, createStore, buildModelMock } from "../helpers/mockPrisma.js";
+import {
+  createCustomerRoleMocks,
+  decorateCustomerUserMockWithRoleHydration,
+} from "../helpers/seedCustomerRoles.js";
 
 // Provide a valid 256-bit key so EncryptionService (resolved transitively by
 // InviteTeamMemberUseCase → PlatformCredentialService) doesn't throw.
@@ -21,36 +25,27 @@ if (!process.env.PLATFORM_ENCRYPTION_KEY) {
 
 const { mockPrisma } = createMockPrismaModule();
 
-// TeamMember store with compound unique key support
-const teamMemberStore = createStore<Record<string, unknown>>();
-const teamMemberMock = buildModelMock(teamMemberStore, {
+const customerUserStore = createStore<Record<string, unknown>>();
+const customerUserMock = buildModelMock(customerUserStore, {
   isActive: true,
-  role: "MEMBER",
-  avatarUrl: null,
+  roleId: "role-member",
+  isEmailVerified: false,
+  mfaEnabled: false,
   invitedBy: null,
+  inviteToken: null,
+  inviteTokenExpiry: null,
+  deletedAt: null,
 });
 
-// Override findUnique to support Prisma compound keys like accountId_email
-const originalFindUnique = teamMemberMock.findUnique;
-teamMemberMock.findUnique = vi.fn(
-  async (args: { where: Record<string, unknown>; include?: Record<string, unknown> }) => {
-    const { where } = args;
-    // Handle compound unique keys: { accountId_email: { accountId, email } }
-    if (where.accountId_email && typeof where.accountId_email === "object") {
-      const compound = where.accountId_email as Record<string, unknown>;
-      const flatWhere: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(compound)) {
-        flatWhere[k] = v;
-      }
-      return originalFindUnique({ where: flatWhere, include: args.include });
-    }
-    return originalFindUnique(args);
-  }
-);
+// Customer-side RBAC: 4 canon roles + 118 permissions seeded into mock stores,
+// with permission-include hydration shims attached. Mirrors infra/prisma/seed.ts.
+const customerRoleMocks = createCustomerRoleMocks();
+decorateCustomerUserMockWithRoleHydration(customerUserMock, customerRoleMocks);
 
-// Add extra models needed by team routes and their repositories
 const extraModels = {
-  teamMember: teamMemberMock,
+  customerUser: customerUserMock,
+  customerRole: customerRoleMocks.customerRoleMock,
+  customerRolePermission: customerRoleMocks.customerRolePermissionMock,
   projectMember: buildModelMock(createStore()),
   post: buildModelMock(createStore()),
   adminUserPermission: buildModelMock(createStore()),
@@ -291,8 +286,8 @@ describe("teamRoutes Unit Tests", () => {
       const first = body.data[0];
       expect(first.id).toBeTruthy();
       expect(first.email).toBeTruthy();
-      expect(first.name).toBeTruthy();
-      expect(first.role).toBeTruthy();
+      expect(first.fullName).toBeTruthy();
+      expect(first.roleName).toBeTruthy();
       expect(typeof first.isActive === "boolean").toBeTruthy();
       expect(first.joinedAt).toBeTruthy();
     });

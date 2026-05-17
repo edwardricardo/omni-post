@@ -15,7 +15,6 @@ import { authClient } from "./api/clients/authClient";
 import { dashboardClient } from "./api/clients/dashboardClient";
 import { healthClient } from "./api/clients/healthClient";
 import { mfaClient } from "./api/clients/mfaClient";
-import { postsClient } from "./api/clients/postsClient";
 import { rbacClient } from "./api/clients/rbacClient";
 import { secretsClient } from "./api/clients/secretsClient";
 import { channelsAdminClient } from "./api/clients/channelsAdminClient";
@@ -44,14 +43,6 @@ export type {
 export const api = {
   // Health
   health: healthClient.health,
-
-  // Legacy posts/logs
-  listPosts: postsClient.listPosts,
-  createPost: postsClient.createPost,
-  getPost: postsClient.getPost,
-  publish: postsClient.publish,
-  listLogs: postsClient.listLogs,
-  deletePost: postsClient.deletePost,
 
   // Admin Dashboard
   admin: {

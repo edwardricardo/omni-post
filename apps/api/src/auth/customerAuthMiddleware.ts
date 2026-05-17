@@ -16,7 +16,10 @@ import { authLogger } from "../lib/logger.js";
 export interface CustomerRequestUser {
   id: string;
   accountId: string;
-  role: string;
+  roleId: string;
+  roleName: string;
+  /** Permission strings granted by the role at sign time (snapshot from JWT). */
+  permissions: readonly string[];
 }
 
 /**
@@ -55,7 +58,9 @@ export async function requireClientAuth(
     request.customerUser = {
       id: payload.sub,
       accountId: payload.accountId,
-      role: payload.role,
+      roleId: payload.roleId,
+      roleName: payload.roleName,
+      permissions: payload.permissions,
     };
   } catch (error: unknown) {
     authLogger.warn({ err: error }, "Customer authentication failed");

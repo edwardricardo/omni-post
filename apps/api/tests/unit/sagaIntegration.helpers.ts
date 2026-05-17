@@ -260,6 +260,7 @@ function createMockPostRepo() {
 function createMockChannelRepo() {
   return {
     findById: async () => ({ ok: false, error: {} }),
+    findIdsByProjectId: async () => TEST_CHANNEL_IDS.map((cid) => ({ toString: () => cid })) as any,
     findByProjectId: async () =>
       TEST_CHANNEL_IDS.map((cid) => ({
         id: { toString: () => cid },
@@ -365,7 +366,9 @@ export function makeStartRequest(
     customerUser: {
       id: TEST_CUSTOMER_ID,
       accountId: overrides.accountId ?? TEST_ACCOUNT_ID,
-      role: "owner",
+      roleId: "role-owner",
+      roleName: "OWNER",
+      permissions: [],
     },
     headers: {},
     ip: "127.0.0.1",

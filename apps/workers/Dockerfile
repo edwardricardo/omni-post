@@ -73,4 +73,4 @@ USER nonroot
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
   CMD node -e "const Redis=require('ioredis');const redis=new Redis(process.env.REDIS_URL||'redis://localhost:6379');redis.ping().then(()=>{redis.disconnect();process.exit(0)}).catch(()=>process.exit(1));"
 
-CMD ["dist/publishWorker.js"]
+CMD ["dist/bootstrap.js"]
