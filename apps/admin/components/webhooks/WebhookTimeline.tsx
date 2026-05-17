@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useRef } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/Badge";
 import { ActionButton } from "@/components/ui/ActionButton";
@@ -37,14 +38,27 @@ export function WebhookTimeline({ data, timeRange }: WebhookTimelineProps) {
   const tt = useTranslations("webhooks.timeline");
   const tc = useTranslations("common");
   const [isRealTime, setIsRealTime] = useState(false);
-  const [realtimeData, setRealtimeData] = useState<TimelineDataPoint[]>(data);
+  const [sseDelta, setSseDelta] = useState<TimelineDataPoint[] | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
 
-  // Update local data when props change
-  useEffect(() => {
-    setRealtimeData(data);
-  }, [data]);
+  // Derive from props; SSE deltas (when streaming) supersede until the next
+  // prop payload arrives, which resets the accumulated stream.
+  const lastDataRef = useRef<TimelineDataPoint[]>(data);
+  if (lastDataRef.current !== data) {
+    lastDataRef.current = data;
+    if (sseDelta !== null) setSseDelta(null);
+  }
+  const realtimeData = sseDelta ?? data;
+
+  const setRealtimeData: Dispatch<SetStateAction<TimelineDataPoint[]>> = (value) => {
+    setSseDelta((prev) => {
+      const base = prev ?? lastDataRef.current;
+      return typeof value === "function"
+        ? (value as (p: TimelineDataPoint[]) => TimelineDataPoint[])(base)
+        : value;
+    });
+  };
 
   // Real-time updates
   useEffect(() => {

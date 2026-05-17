@@ -10,7 +10,7 @@
  * @layer infrastructure
  */
 import { QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import dynamic from "next/dynamic";
 import { useState, ReactNode } from "react";
 import { Toaster, toast } from "@packages/ui";
 import { ConsoleLoggerAdapter } from "@observability/browser-logger";
@@ -18,6 +18,13 @@ import { LoggerProvider } from "@observability/browser-logger";
 import { createAppQueryClient } from "@packages/query-client";
 import { AuthProvider } from "@/lib/auth/authContext";
 import { ApiProvider } from "@/lib/api";
+
+const ReactQueryDevtools =
+  process.env.NODE_ENV === "production"
+    ? (_props: { initialIsOpen?: boolean }) => null
+    : dynamic(() => import("@tanstack/react-query-devtools").then((m) => m.ReactQueryDevtools), {
+        ssr: false,
+      });
 
 interface ProvidersProps {
   children: ReactNode;

@@ -26,14 +26,13 @@ export function useSecurityOverview() {
   return useQuery({
     queryKey: ["security", "overview"],
     queryFn: async (): Promise<SecurityOverviewData> => {
-      // Fetch security statistics
-      const securityResponse = await api.security.rbac.getStatus();
+      const [securityResponse, rbacResponse] = await Promise.all([
+        api.security.rbac.getStatus(),
+        api.security.rbac.getHierarchy(),
+      ]);
       if (!securityResponse.ok) {
         throw new Error("Failed to fetch security stats");
       }
-
-      // Fetch RBAC hierarchy
-      const rbacResponse = await api.security.rbac.getHierarchy();
       if (!rbacResponse.ok) {
         throw new Error("Failed to fetch RBAC data");
       }

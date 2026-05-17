@@ -8,9 +8,10 @@
 
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
-import data from "@emoji-mart/data";
-import Picker from "@emoji-mart/react";
+import React, { useState, useRef, useEffect, useCallback, Suspense, lazy } from "react";
+import type { EmojiMartData } from "@emoji-mart/data";
+
+const Picker = lazy(() => import("@emoji-mart/react"));
 
 interface EmojiPickerButtonProps {
   onEmojiSelect: (emoji: string) => void;
@@ -30,6 +31,7 @@ export function EmojiPickerButton({
   className = "",
 }: EmojiPickerButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [emojiData, setEmojiData] = useState<EmojiMartData | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleEmojiSelect = useCallback(
@@ -61,6 +63,15 @@ export function EmojiPickerButton({
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (isOpen && emojiData === null) {
+      void import("@emoji-mart/data").then((m) => {
+        const mod = m as unknown as { default?: EmojiMartData } & EmojiMartData;
+        setEmojiData(mod.default ?? mod);
+      });
+    }
+  }, [isOpen, emojiData]);
+
   return (
     <div ref={containerRef} className={`relative inline-block ${className}`}>
       <button
@@ -76,17 +87,19 @@ export function EmojiPickerButton({
           😊
         </span>
       </button>
-      {isOpen && (
+      {isOpen && emojiData && (
         <div className="absolute z-50 bottom-full mb-2 left-0">
-          <Picker
-            data={data}
-            onEmojiSelect={handleEmojiSelect}
-            theme="light"
-            previewPosition="none"
-            skinTonePosition="search"
-            maxFrequentRows={2}
-            perLine={8}
-          />
+          <Suspense fallback={<div className="p-3 text-sm text-muted-foreground">Loading…</div>}>
+            <Picker
+              data={emojiData}
+              onEmojiSelect={handleEmojiSelect}
+              theme="light"
+              previewPosition="none"
+              skinTonePosition="search"
+              maxFrequentRows={2}
+              perLine={8}
+            />
+          </Suspense>
         </div>
       )}
     </div>

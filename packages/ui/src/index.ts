@@ -33,14 +33,19 @@ export * from "./components/toast";
 export * from "./components/toaster";
 export * from "./components/tooltip";
 export * from "./components/use-toast";
-export * from "./components/VirtualScrollList";
+export {
+  VirtualScrollList,
+  memoizeVirtualItem,
+  useVirtualScroll,
+} from "./components/VirtualScrollList";
 
 // Business Components
 export * from "./components/business/ChannelMultiSelect";
 export * from "./components/business/ContentVersioning";
 export * from "./components/business/ContentEditorCore";
 export { EmojiPickerButton } from "./components/business/EmojiPickerButton";
-export * from "./components/business/TipTapContentEditor";
+// TipTapContentEditor NOT re-exported: pulls @tiptap/* into every consumer.
+// Import via subpath "@packages/ui/components/business/TipTapContentEditor" + next/dynamic.
 export * from "./components/business/ValidationContentEditor";
 
 // Hooks

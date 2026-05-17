@@ -7,21 +7,17 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useAnalytics } from "@/hooks/api/useAnalytics";
 import { useProject } from "@/providers/ProjectProvider";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { BarChart3 } from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from "recharts";
+
+const PlatformMetricsChart = dynamic(
+  () => import("./PlatformMetricsChart").then((m) => m.PlatformMetricsChart),
+  { ssr: false }
+);
 
 /**
  * @component AnalyticsPageContent
@@ -162,17 +158,7 @@ function AnalyticsPageContent() {
             <h2 id="platform-chart" className="text-lg font-semibold text-gray-900 mb-4">
               Engagement by Platform
             </h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={platformMetrics}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="platformName" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="totalEngagement" fill="#3B82F6" name="Engagement" />
-                <Bar dataKey="totalReach" fill="#10B981" name="Reach" />
-              </BarChart>
-            </ResponsiveContainer>
+            <PlatformMetricsChart data={platformMetrics} />
           </div>
         )}
 

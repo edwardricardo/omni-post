@@ -7,7 +7,7 @@
  * both grid and virtual-scroll list view modes.
  */
 
-import React from "react";
+import React, { memo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@packages/ui";
 import { Button } from "@packages/ui";
 import { Badge } from "@packages/ui";
@@ -35,7 +35,9 @@ import { format } from "date-fns";
 import type { Template } from "@/lib/templates/templateEngine";
 import type { TemplateLibraryGridProps } from "./templateLibraryTypes";
 
-function TemplateCard({
+const EMPTY_TEMPLATE_STATS = { views: 0, uses: 0, likes: 0 };
+
+function TemplateCardComponent({
   template,
   isFavorite,
   stats,
@@ -210,6 +212,8 @@ function TemplateCard({
   );
 }
 
+const TemplateCard = memo(TemplateCardComponent);
+
 function TemplateListItem({
   template,
   isFavorite,
@@ -320,7 +324,7 @@ export function TemplateLibraryGrid({
               <TemplateCard
                 template={template}
                 isFavorite={favorites.includes(template.id)}
-                stats={analytics[template.id] || { views: 0, uses: 0, likes: 0 }}
+                stats={analytics[template.id] || EMPTY_TEMPLATE_STATS}
                 showAnalytics={showAnalytics}
                 allowEdit={allowEdit}
                 allowDelete={allowDelete}
@@ -344,7 +348,7 @@ export function TemplateLibraryGrid({
         <TemplateListItem
           template={template}
           isFavorite={favorites.includes(template.id)}
-          stats={analytics[template.id] || { views: 0, uses: 0, likes: 0 }}
+          stats={analytics[template.id] || EMPTY_TEMPLATE_STATS}
           showAnalytics={showAnalytics}
           actions={actions}
         />

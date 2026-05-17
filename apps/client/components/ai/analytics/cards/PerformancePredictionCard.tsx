@@ -5,7 +5,7 @@
  * posting time recommendations.
  */
 
-import React from "react";
+import React, { memo } from "react";
 import { TrendingUp, Eye, Clock } from "lucide-react";
 import { PerformancePrediction } from "../types";
 import { getConfidenceColor, formatNumber, getViralPotentialColor } from "../utils";
@@ -19,7 +19,7 @@ interface PerformancePredictionCardProps {
  * @description Card showing AI-predicted performance for a platform post, including
  * expected engagement, reach with confidence intervals, viral potential, and optimal posting time.
  */
-export const PerformancePredictionCard: React.FC<PerformancePredictionCardProps> = ({
+const PerformancePredictionCardComponent: React.FC<PerformancePredictionCardProps> = ({
   prediction,
 }) => {
   return (
@@ -124,3 +124,5 @@ export const PerformancePredictionCard: React.FC<PerformancePredictionCardProps>
     </div>
   );
 };
+
+export const PerformancePredictionCard = memo(PerformancePredictionCardComponent);

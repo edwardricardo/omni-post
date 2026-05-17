@@ -9,11 +9,13 @@
 import { useCallback } from "react";
 import { CampaignStatusBadge } from "./CampaignStatusBadge";
 import { useCampaignAnalytics } from "@/hooks/api/useCampaigns";
-import type { CampaignDto } from "@/hooks/api/useCampaigns";
+import type { CampaignAnalyticsDto, CampaignDto } from "@/hooks/api/useCampaigns";
 
 interface CampaignCardProps {
   campaign: CampaignDto;
   onClick: (campaign: CampaignDto) => void;
+  /** Pre-fetched analytics. When provided, the per-campaign analytics query is skipped. */
+  analytics?: CampaignAnalyticsDto;
 }
 
 function formatDate(dateStr: string | null): string {
@@ -30,8 +32,11 @@ function formatDate(dateStr: string | null): string {
  * @description Individual campaign card displaying name, date range, status badge,
  * and analytics summary with click-through to the campaign detail view.
  */
-export function CampaignCard({ campaign, onClick }: CampaignCardProps) {
-  const { data: analytics } = useCampaignAnalytics(campaign.id);
+export function CampaignCard({ campaign, onClick, analytics: analyticsProp }: CampaignCardProps) {
+  // Fall back to a per-campaign fetch only when the parent did not supply
+  // batched analytics. Passing "" disables the query (hook gates on campaignId).
+  const { data: fetchedAnalytics } = useCampaignAnalytics(analyticsProp ? "" : campaign.id);
+  const analytics = analyticsProp ?? fetchedAnalytics;
 
   const handleClick = useCallback(() => {
     onClick(campaign);

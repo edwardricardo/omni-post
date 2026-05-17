@@ -37,6 +37,25 @@ export interface TipTapContentEditorProps extends Omit<
   commonEmojis?: string[];
 }
 
+const DEFAULT_COMMON_EMOJIS = [
+  "😀",
+  "😂",
+  "🥰",
+  "😎",
+  "🤔",
+  "👍",
+  "👏",
+  "🔥",
+  "💯",
+  "✨",
+  "🚀",
+  "💡",
+  "📱",
+  "💻",
+  "🎉",
+  "❤️",
+];
+
 /**
  * TipTap-enhanced Content Editor
  * Extends ContentEditorCore with TipTap rich text editing capabilities
@@ -50,24 +69,7 @@ export function TipTapContentEditor({
   showToolbar = true,
   editorClassName,
   placeholder = "What's on your mind?",
-  commonEmojis = [
-    "😀",
-    "😂",
-    "🥰",
-    "😎",
-    "🤔",
-    "👍",
-    "👏",
-    "🔥",
-    "💯",
-    "✨",
-    "🚀",
-    "💡",
-    "📱",
-    "💻",
-    "🎉",
-    "❤️",
-  ],
+  commonEmojis = DEFAULT_COMMON_EMOJIS,
   onContentChange,
   ...baseProps
 }: TipTapContentEditorProps) {

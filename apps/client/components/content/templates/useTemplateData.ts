@@ -4,7 +4,8 @@
  * exposes client-side filtering, sorting, and optimistic local mutation support.
  */
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ContentTemplate, AutomationTemplate, FilterOptions, SortOption } from "./types";
 
@@ -48,16 +49,29 @@ export const useTemplateData = (
   });
 
   // ------------------------------------------------------------------
-  // Local state — seeded from remote data so that optimistic mutations
-  // (e.g. duplicate) applied via setTemplates are reflected immediately.
+  // Local override — null while in sync with the server. Optimistic
+  // mutations (e.g. duplicate) via setTemplates populate it; a fresh
+  // server payload supersedes any stale override.
   // ------------------------------------------------------------------
-  const [templates, setTemplates] = useState<ContentTemplate[]>([]);
+  const [override, setOverride] = useState<ContentTemplate[] | null>(null);
+  const lastServerRef = useRef<ContentTemplate[] | undefined>(undefined);
 
-  useEffect(() => {
-    if (serverTemplates !== undefined) {
-      setTemplates(serverTemplates);
-    }
-  }, [serverTemplates]);
+  const serverList = serverTemplates ?? [];
+  if (lastServerRef.current !== serverTemplates) {
+    lastServerRef.current = serverTemplates;
+    if (override !== null) setOverride(null);
+  }
+
+  const templates = override ?? serverList;
+
+  const setTemplates = useCallback<Dispatch<SetStateAction<ContentTemplate[]>>>((value) => {
+    setOverride((prev) => {
+      const base = prev ?? lastServerRef.current ?? [];
+      return typeof value === "function"
+        ? (value as (p: ContentTemplate[]) => ContentTemplate[])(base)
+        : value;
+    });
+  }, []);
 
   // ------------------------------------------------------------------
   // Automations — no endpoint yet; kept as empty static list

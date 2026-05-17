@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useCampaigns } from "@/hooks/api/useCampaigns";
 import type { CampaignDto } from "@/hooks/api/useCampaigns";
 import { CampaignCard } from "./CampaignCard";
@@ -32,10 +32,12 @@ const STATUS_TABS = [
 export function CampaignList({ projectId, onCampaignClick }: CampaignListProps) {
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
 
-  const { data: campaigns = [], isLoading } = useCampaigns({
-    projectId,
-    ...(statusFilter ? { status: statusFilter } : {}),
-  });
+  const campaignParams = useMemo(
+    () => ({ projectId, ...(statusFilter ? { status: statusFilter } : {}) }),
+    [projectId, statusFilter]
+  );
+
+  const { data: campaigns = [], isLoading } = useCampaigns(campaignParams);
 
   return (
     <div className="space-y-4">

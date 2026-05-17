@@ -18,6 +18,23 @@ import {
 import type { BreachFilters, DsarFilters } from "./types";
 
 /**
+ * Deterministic, value-stable serialization of a flat primitive filter object
+ * so an inline-object argument does not create a new query key reference on
+ * every render.
+ */
+function serializeFilters(filters: object): string {
+  const entries = Object.entries(filters) as Array<[string, string | number | boolean | undefined]>;
+  return JSON.stringify(
+    entries
+      .sort(([a], [b]) => a.localeCompare(b))
+      .reduce<Record<string, string | number | boolean>>((acc, [key, value]) => {
+        if (value !== undefined) acc[key] = value;
+        return acc;
+      }, {})
+  );
+}
+
+/**
  * @hook useCompliance
  * @description Fetches compliance overview data combining metrics and audit logs
  *   into a unified ComplianceData structure with compliance scores and audit events.
@@ -82,7 +99,7 @@ export function useComplianceScore() {
  */
 export function useDsarRequests(filters: DsarFilters) {
   return useQuery({
-    queryKey: ["compliance", "dsar", filters],
+    queryKey: ["compliance", "dsar", serializeFilters(filters)],
     queryFn: () => fetchDsarRequests(filters),
     staleTime: 30_000,
   });
@@ -96,7 +113,7 @@ export function useDsarRequests(filters: DsarFilters) {
  */
 export function useBreachReports(filters: BreachFilters) {
   return useQuery({
-    queryKey: ["compliance", "breaches", filters],
+    queryKey: ["compliance", "breaches", serializeFilters(filters)],
     queryFn: () => fetchBreachReports(filters),
     staleTime: 30_000,
   });

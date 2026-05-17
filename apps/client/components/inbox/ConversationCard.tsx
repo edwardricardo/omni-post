@@ -8,6 +8,7 @@
 
 "use client";
 
+import { memo } from "react";
 import { formatDistanceToNow } from "date-fns";
 import type { ConversationListItem, InboxMessageType } from "@/hooks/api/useInbox";
 
@@ -60,7 +61,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 interface ConversationCardProps {
   conversation: ConversationListItem;
   selected: boolean;
-  onClick: () => void;
+  onSelect: (id: string) => void;
 }
 
 /**
@@ -70,9 +71,9 @@ interface ConversationCardProps {
  *              message type badge, and unread dot.
  * @param props.conversation - The conversation list item data
  * @param props.selected - Whether this conversation is currently active
- * @param props.onClick - Callback when the card is clicked
+ * @param props.onSelect - Callback when the card is clicked
  */
-export function ConversationCard({ conversation, selected, onClick }: ConversationCardProps) {
+function ConversationCardComponent({ conversation, selected, onSelect }: ConversationCardProps) {
   const colour = PROVIDER_COLOURS[conversation.provider] ?? "bg-gray-500 text-white";
   const label =
     PROVIDER_LABELS[conversation.provider] ?? conversation.provider.slice(0, 2).toUpperCase();
@@ -84,7 +85,7 @@ export function ConversationCard({ conversation, selected, onClick }: Conversati
 
   return (
     <button
-      onClick={onClick}
+      onClick={() => onSelect(conversation.id)}
       className={[
         "w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors",
         selected && "bg-indigo-50 border-l-2 border-l-indigo-500",
@@ -145,3 +146,5 @@ export function ConversationCard({ conversation, selected, onClick }: Conversati
     </button>
   );
 }
+
+export const ConversationCard = memo(ConversationCardComponent);

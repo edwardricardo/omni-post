@@ -14,6 +14,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useMemo,
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
@@ -152,16 +153,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [login]
   );
 
-  const value: AuthContextType = {
-    user,
-    isLoading,
-    isAuthenticated: !!user,
-    login,
-    register,
-    logout,
-    refreshSession,
-    error,
-  };
+  const value: AuthContextType = useMemo(
+    () => ({
+      user,
+      isLoading,
+      isAuthenticated: !!user,
+      login,
+      register,
+      logout,
+      refreshSession,
+      error,
+    }),
+    [user, isLoading, login, register, logout, refreshSession, error]
+  );
 
   return <AuthContext value={value}>{children}</AuthContext>;
 }

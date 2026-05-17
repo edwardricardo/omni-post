@@ -8,11 +8,17 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .tsbuildinfo dist"
+  },
   "dependencies": {
     "pino": "10.3.1"
   },
   "devDependencies": {
     "@types/node": "24.5.2",
-    "typescript": "6.0.2"
+    "typescript": "6.0.2",
+    "vitest": "4.0.18"
   }
 }

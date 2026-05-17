@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 import {
   useNotificationPreferences,
   useSaveNotificationPreferences,
@@ -93,7 +93,7 @@ function Toggle({
  *              mount and persists changes via PUT endpoint with save confirmation toast.
  */
 export function NotificationPreferences() {
-  const [localPrefs, setLocalPrefs] = useState<NotificationPreference[]>([]);
+  const [edits, setEdits] = useState<NotificationPreference[] | null>(null);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   // Canon: `tanstack-query-v5-migration-patterns-from-raw-fetch` —
@@ -102,10 +102,14 @@ export function NotificationPreferences() {
   // queryClient.invalidateQueries needed in this component).
   const { data: serverPrefs, isLoading, isError } = useNotificationPreferences();
 
-  // Initialise local state from server data
-  useEffect(() => {
-    if (serverPrefs) setLocalPrefs(serverPrefs);
-  }, [serverPrefs]);
+  // Derive the edit buffer from server data, discarding stale local edits
+  // whenever a fresh server payload lands.
+  const lastServerRef = useRef<NotificationPreference[] | undefined>(undefined);
+  if (lastServerRef.current !== serverPrefs) {
+    lastServerRef.current = serverPrefs;
+    if (edits !== null) setEdits(null);
+  }
+  const localPrefs = edits ?? serverPrefs ?? [];
 
   const showToast = useCallback((type: "success" | "error", message: string) => {
     setToast({ type, message });
@@ -115,7 +119,9 @@ export function NotificationPreferences() {
   const saveMutation = useSaveNotificationPreferences();
 
   const handleToggle = (type: string, enabled: boolean) => {
-    setLocalPrefs((prev) => prev.map((p) => (p.type === type ? { ...p, enabled } : p)));
+    setEdits((prev) =>
+      (prev ?? serverPrefs ?? []).map((p) => (p.type === type ? { ...p, enabled } : p))
+    );
   };
 
   const handleSave = () =>

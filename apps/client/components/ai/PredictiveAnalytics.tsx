@@ -28,6 +28,8 @@ interface PredictiveAnalyticsProps {
   showAdvanced?: boolean;
 }
 
+const DEFAULT_PLATFORMS: string[] = ["twitter", "linkedin", "facebook", "instagram"];
+
 /**
  * @component PredictiveAnalytics
  * @description Predictive analytics dashboard with tabbed views for Performance, Audience,
@@ -39,7 +41,7 @@ interface PredictiveAnalyticsProps {
 const PredictiveAnalytics: React.FC<PredictiveAnalyticsProps> = ({
   accountId = "default",
   contentId: _contentId,
-  platforms = ["twitter", "linkedin", "facebook", "instagram"],
+  platforms = DEFAULT_PLATFORMS,
   timeframe = "30d",
   analysisType = "performance",
   onPredictionUpdate,

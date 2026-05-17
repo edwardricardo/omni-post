@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useConversation, useConversationMessages, useMarkMessageRead } from "@/hooks/api/useInbox";
 import { MessageBubble } from "./MessageBubble";
 import { ConversationHeader } from "./ConversationHeader";
@@ -43,7 +43,10 @@ export function ConversationThread({ conversationId, userId }: ConversationThrea
     setSuggestedText(undefined);
   }, []);
 
-  const allMessages = messagesData?.pages.flatMap((p) => p.items) ?? [];
+  const allMessages = useMemo(
+    () => messagesData?.pages.flatMap((p) => p.items) ?? [],
+    [messagesData]
+  );
 
   // Scroll to bottom on initial load and on new message
   useEffect(() => {

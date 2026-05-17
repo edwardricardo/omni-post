@@ -6,7 +6,7 @@
  * time suggestions per platform, and quick-pick presets (e.g. tomorrow, next week).
  */
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@packages/ui";
 import { Button } from "@packages/ui";
 import { Input } from "@packages/ui";
@@ -132,21 +132,15 @@ export function SchedulePicker({
 }: SchedulePickerProps) {
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedTime, setSelectedTime] = useState<string>("");
-  const [timezone, setTimezone] = useState<string>("America/New_York");
+  const [timezone, setTimezone] = useState<string>(() => {
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return TIMEZONES.some((tz) => tz.value === userTimezone) ? userTimezone : "America/New_York";
+  });
   const [, setCustomDateTime] = useState<Date | null>(null);
   const [showOptimalTimes, setShowOptimalTimes] = useState(true);
 
-  // Initialize with user's local timezone
-  useEffect(() => {
-    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const matchingTimezone = TIMEZONES.find((tz) => tz.value === userTimezone);
-    if (matchingTimezone) {
-      setTimezone(userTimezone);
-    }
-  }, []);
-
   // Generate next 7 days for quick selection
-  const getQuickDateOptions = () => {
+  const quickDateOptions = useMemo(() => {
     const options = [];
     for (let i = 0; i < 7; i++) {
       const date = addDays(new Date(), i);
@@ -157,18 +151,24 @@ export function SchedulePicker({
       });
     }
     return options;
-  };
-
-  const quickDateOptions = getQuickDateOptions();
+  }, []);
 
   // Get optimal times for selected date
-  const getOptimalTimesForDate = () => {
+  const optimalTimes = useMemo(() => {
     if (!selectedDate) return [];
     const date = parse(selectedDate, "yyyy-MM-dd", new Date());
     return getOptimalTimes(selectedProviders, date);
-  };
+  }, [selectedDate, selectedProviders]);
 
-  const optimalTimes = getOptimalTimesForDate();
+  const isScheduledTimeInPast = useMemo(() => {
+    if (!selectedDate || !selectedTime) return false;
+    const parts = selectedTime.split(":");
+    const hours = Number(parts[0] ?? 0);
+    const minutes = Number(parts[1] ?? 0);
+    const date = parse(selectedDate, "yyyy-MM-dd", new Date());
+    const scheduledDateTime = setMinutes(setHours(date, hours), minutes);
+    return !isAfter(scheduledDateTime, new Date());
+  }, [selectedDate, selectedTime]);
 
   const handleOptimalTimeSelect = (optimalTime: OptimalTime) => {
     const time = format(
@@ -362,24 +362,17 @@ export function SchedulePicker({
       {getSchedulePreview()}
 
       {/* Warning for past times */}
-      {selectedDate &&
-        selectedTime &&
-        (() => {
-          const date = parse(selectedDate, "yyyy-MM-dd", new Date());
-          const { hours, minutes } = parseTime(selectedTime);
-          const scheduledDateTime = setMinutes(setHours(date, hours), minutes);
-          return !isAfter(scheduledDateTime, new Date());
-        })() && (
-          <div
-            role="alert"
-            className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800"
-          >
-            <AlertCircle aria-hidden="true" className="h-4 w-4" />
-            <span className="text-sm">
-              Selected time is in the past. Please choose a future date and time.
-            </span>
-          </div>
-        )}
+      {selectedDate && selectedTime && isScheduledTimeInPast && (
+        <div
+          role="alert"
+          className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800"
+        >
+          <AlertCircle aria-hidden="true" className="h-4 w-4" />
+          <span className="text-sm">
+            Selected time is in the past. Please choose a future date and time.
+          </span>
+        </div>
+      )}
 
       {/* Actions */}
       {!inline && (
@@ -389,17 +382,7 @@ export function SchedulePicker({
           </Button>
           <Button
             onClick={handleSchedule}
-            disabled={
-              !selectedDate ||
-              !selectedTime ||
-              (() => {
-                if (!selectedDate || !selectedTime) return true;
-                const date = parse(selectedDate, "yyyy-MM-dd", new Date());
-                const { hours, minutes } = parseTime(selectedTime);
-                const scheduledDateTime = setMinutes(setHours(date, hours), minutes);
-                return !isAfter(scheduledDateTime, new Date());
-              })()
-            }
+            disabled={!selectedDate || !selectedTime || isScheduledTimeInPast}
           >
             <Calendar className="h-4 w-4 mr-2" />
             Schedule Post
@@ -409,16 +392,7 @@ export function SchedulePicker({
 
       {inline && selectedDate && selectedTime && (
         <div className="pt-4 border-t">
-          <Button
-            onClick={handleSchedule}
-            className="w-full"
-            disabled={(() => {
-              const date = parse(selectedDate, "yyyy-MM-dd", new Date());
-              const { hours, minutes } = parseTime(selectedTime);
-              const scheduledDateTime = setMinutes(setHours(date, hours), minutes);
-              return !isAfter(scheduledDateTime, new Date());
-            })()}
-          >
+          <Button onClick={handleSchedule} className="w-full" disabled={isScheduledTimeInPast}>
             <Calendar className="h-4 w-4 mr-2" />
             Schedule for {format(parse(selectedDate, "yyyy-MM-dd", new Date()), "MMM d")} at{" "}
             {selectedTime}

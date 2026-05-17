@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useCallback } from "react";
+import { memo, useCallback } from "react";
 import { FileImage, Film, FileText, Music, Paperclip } from "lucide-react";
 import type { MediaAssetDto } from "@/hooks/api/useAssets";
 
@@ -41,7 +41,7 @@ function formatSize(bytes: number): string {
  * @param props.onSelect - Callback to toggle selection state
  * @param props.onClick - Callback when the thumbnail body is clicked
  */
-export function AssetThumbnail({ asset, selected, onSelect, onClick }: AssetThumbnailProps) {
+function AssetThumbnailComponent({ asset, selected, onSelect, onClick }: AssetThumbnailProps) {
   const isImage = asset.mimeType.startsWith("image/");
   const Icon = getTypeIcon(asset.mimeType);
 
@@ -100,3 +100,5 @@ export function AssetThumbnail({ asset, selected, onSelect, onClick }: AssetThum
     </div>
   );
 }
+
+export const AssetThumbnail = memo(AssetThumbnailComponent);

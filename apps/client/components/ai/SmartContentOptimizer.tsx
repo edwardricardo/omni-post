@@ -50,6 +50,8 @@ import { ApiError } from "@packages/api-errors";
 
 type ActiveTab = "overview" | "suggestions" | "hashtags" | "tone" | "metrics";
 
+const DEFAULT_PLATFORMS: string[] = ["twitter", "linkedin", "facebook"];
+
 const SmartContentOptimizer: React.FC<SmartContentOptimizerProps> = ({
   content,
   platforms = ["twitter", "linkedin", "facebook"],
