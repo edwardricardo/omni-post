@@ -100,13 +100,17 @@ export class CostCalculator {
   getDefaultCostModel(): CostModel {
     return {
       platformCosts: {
-        twitter: 0, // Free organic
-        instagram: 0,
-        facebook: 0,
-        linkedin: 29, // LinkedIn Premium
-        youtube: 0,
-        tiktok: 0,
-        pinterest: 0,
+        X: 0, // Free organic
+        INSTAGRAM: 0,
+        FACEBOOK: 0,
+        LINKEDIN: 29, // LinkedIn Premium
+        YOUTUBE: 0,
+        TIKTOK: 0,
+        PINTEREST: 0,
+        SNAPCHAT: 0,
+        TELEGRAM: 0,
+        BLUESKY: 0,
+        THREADS: 0,
       },
       contentCreationCostPerPost: 25, // Average cost to create content
       personnelCostPerHour: 50, // Social media manager rate

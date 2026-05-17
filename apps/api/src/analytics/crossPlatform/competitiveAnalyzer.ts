@@ -347,7 +347,7 @@ async function identifyOpportunities(
       ? [
           {
             contentType: "video" as ContentType,
-            provider: "instagram" as const,
+            provider: "INSTAGRAM" as const,
             opportunity: "Video content shows high engagement among competitors",
             potentialReach: Math.round(
               (competitorData.reduce((sum, c) => sum + c.followers, 0) / competitorData.length) *

@@ -11,13 +11,17 @@ import { CostCalculator } from "../../../src/analytics/roi/CostCalculator.js";
 function makeCostModel(overrides: Record<string, unknown> = {}) {
   return {
     platformCosts: {
-      twitter: 0,
-      instagram: 0,
-      facebook: 0,
-      linkedin: 29,
-      youtube: 0,
-      tiktok: 0,
-      pinterest: 0,
+      X: 0,
+      INSTAGRAM: 0,
+      FACEBOOK: 0,
+      LINKEDIN: 29,
+      YOUTUBE: 0,
+      TIKTOK: 0,
+      PINTEREST: 0,
+      SNAPCHAT: 0,
+      TELEGRAM: 0,
+      BLUESKY: 0,
+      THREADS: 0,
     },
     contentCreationCostPerPost: 25,
     personnelCostPerHour: 50,
@@ -113,15 +117,15 @@ describe("CostCalculator", () => {
     });
 
     it("calculates platform costs scaled by time period", () => {
-      const model = makeCostModel({ platformCosts: { twitter: 0, linkedin: 30 } });
+      const model = makeCostModel({ platformCosts: { X: 0, LINKEDIN: 30 } });
       const start = new Date("2025-01-01");
       const end = new Date("2025-01-31"); // ~30 days = 1 month
 
       const result = calc.calculateCosts([], model as any, start, end);
 
-      assert.ok(result.platformCosts.linkedin !== undefined);
+      assert.ok(result.platformCosts.LINKEDIN !== undefined);
       // ~30 * (30/30) = ~30
-      assert.ok(Math.abs((result.platformCosts as any).linkedin - 30) < 2);
+      assert.ok(Math.abs((result.platformCosts as any).LINKEDIN - 30) < 2);
     });
   });
 
@@ -209,12 +213,12 @@ describe("CostCalculator", () => {
 
     it("includes LinkedIn premium cost", () => {
       const model = calc.getDefaultCostModel();
-      assert.equal(model.platformCosts.linkedin, 29);
+      assert.equal(model.platformCosts.LINKEDIN, 29);
     });
 
-    it("has free organic for Twitter", () => {
+    it("has free organic for X", () => {
       const model = calc.getDefaultCostModel();
-      assert.equal(model.platformCosts.twitter, 0);
+      assert.equal(model.platformCosts.X, 0);
     });
   });
 });

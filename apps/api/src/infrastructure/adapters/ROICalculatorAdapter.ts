@@ -185,15 +185,18 @@ export class ROICalculatorAdapter implements ROICalculatorPort {
     const advertisingBudget = investment.adSpend;
 
     // Build a CostModel with zeroed-out platform costs for each provider.
-    // Keys must match ProviderType (lowercase) from @shared/analytics.
     const emptyPlatformCosts: Record<ProviderType, number> = {
-      twitter: 0,
-      instagram: 0,
-      facebook: 0,
-      linkedin: 0,
-      youtube: 0,
-      tiktok: 0,
-      pinterest: 0,
+      X: 0,
+      INSTAGRAM: 0,
+      FACEBOOK: 0,
+      LINKEDIN: 0,
+      YOUTUBE: 0,
+      TIKTOK: 0,
+      PINTEREST: 0,
+      SNAPCHAT: 0,
+      TELEGRAM: 0,
+      BLUESKY: 0,
+      THREADS: 0,
     };
 
     return {

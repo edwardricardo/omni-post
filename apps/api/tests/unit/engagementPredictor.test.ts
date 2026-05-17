@@ -30,29 +30,29 @@ describe("EngagementPredictor - Initialization", () => {
 
 describe("EngagementPredictor - Platform Configuration", () => {
   it("Twitter optimal length is 120 characters", () => {
-    expect(PLATFORM_MULTIPLIERS.twitter.textOptimal).toBe(120);
+    expect(PLATFORM_MULTIPLIERS.X.textOptimal).toBe(120);
   });
 
   it("Instagram optimal length is 150 characters", () => {
-    expect(PLATFORM_MULTIPLIERS.instagram.textOptimal).toBe(150);
+    expect(PLATFORM_MULTIPLIERS.INSTAGRAM.textOptimal).toBe(150);
   });
 
   it("LinkedIn optimal length is 300 characters", () => {
-    expect(PLATFORM_MULTIPLIERS.linkedin.textOptimal).toBe(300);
+    expect(PLATFORM_MULTIPLIERS.LINKEDIN.textOptimal).toBe(300);
   });
 });
 
 describe("EngagementPredictor - Hashtag Configuration", () => {
   it("Twitter prefers 2 hashtags", () => {
-    expect(PLATFORM_MULTIPLIERS.twitter.hashtagOptimal).toBe(2);
+    expect(PLATFORM_MULTIPLIERS.X.hashtagOptimal).toBe(2);
   });
 
   it("Instagram prefers 8 hashtags", () => {
-    expect(PLATFORM_MULTIPLIERS.instagram.hashtagOptimal).toBe(8);
+    expect(PLATFORM_MULTIPLIERS.INSTAGRAM.hashtagOptimal).toBe(8);
   });
 
   it("LinkedIn prefers 5 hashtags", () => {
-    expect(PLATFORM_MULTIPLIERS.linkedin.hashtagOptimal).toBe(5);
+    expect(PLATFORM_MULTIPLIERS.LINKEDIN.hashtagOptimal).toBe(5);
   });
 });
 
@@ -60,17 +60,17 @@ describe("EngagementPredictor - Peak Hours Configuration", () => {
   it("Twitter has 4 peak hours", () => {
     const expectedPeakHours = [9, 12, 17, 19];
 
-    expect(Array.isArray(PLATFORM_MULTIPLIERS.twitter.peakHours)).toBeTruthy();
-    expect(PLATFORM_MULTIPLIERS.twitter.peakHours.length).toBe(expectedPeakHours.length);
+    expect(Array.isArray(PLATFORM_MULTIPLIERS.X.peakHours)).toBeTruthy();
+    expect(PLATFORM_MULTIPLIERS.X.peakHours.length).toBe(expectedPeakHours.length);
 
     expectedPeakHours.forEach((hour) => {
-      expect(PLATFORM_MULTIPLIERS.twitter.peakHours.includes(hour)).toBeTruthy();
+      expect(PLATFORM_MULTIPLIERS.X.peakHours.includes(hour)).toBeTruthy();
     });
   });
 
   it("Instagram has more peak hours than Twitter", () => {
-    const twitterPeakHours = PLATFORM_MULTIPLIERS.twitter.peakHours;
-    const instagramPeakHours = PLATFORM_MULTIPLIERS.instagram.peakHours;
+    const twitterPeakHours = PLATFORM_MULTIPLIERS.X.peakHours;
+    const instagramPeakHours = PLATFORM_MULTIPLIERS.INSTAGRAM.peakHours;
 
     expect(instagramPeakHours.length >= twitterPeakHours.length).toBeTruthy();
   });
@@ -78,18 +78,18 @@ describe("EngagementPredictor - Peak Hours Configuration", () => {
 
 describe("EngagementPredictor - Content Type Multipliers", () => {
   it("video content has high multiplier on TikTok", () => {
-    const videoMultiplier = PLATFORM_MULTIPLIERS.tiktok.contentTypeMultipliers.video;
+    const videoMultiplier = PLATFORM_MULTIPLIERS.TIKTOK.contentTypeMultipliers.video;
     expect(videoMultiplier > 2.0).toBeTruthy();
   });
 
   it("reel content performs best on Instagram", () => {
-    const reelMultiplier = PLATFORM_MULTIPLIERS.instagram.contentTypeMultipliers.reel;
+    const reelMultiplier = PLATFORM_MULTIPLIERS.INSTAGRAM.contentTypeMultipliers.reel;
     expect(reelMultiplier > 2.0).toBeTruthy();
   });
 
   it("text content performs relatively better on LinkedIn", () => {
-    const linkedinTextMultiplier = PLATFORM_MULTIPLIERS.linkedin.contentTypeMultipliers.text;
-    const instagramTextMultiplier = PLATFORM_MULTIPLIERS.instagram.contentTypeMultipliers.text;
+    const linkedinTextMultiplier = PLATFORM_MULTIPLIERS.LINKEDIN.contentTypeMultipliers.text;
+    const instagramTextMultiplier = PLATFORM_MULTIPLIERS.INSTAGRAM.contentTypeMultipliers.text;
 
     expect(linkedinTextMultiplier > instagramTextMultiplier).toBeTruthy();
   });

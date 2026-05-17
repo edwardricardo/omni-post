@@ -165,13 +165,13 @@ export function calculateViralPotential(
 
   // Platform multipliers
   const platformViralMultipliers: Partial<Record<ProviderType, number>> = {
-    tiktok: 1.8,
-    instagram: 1.5,
-    twitter: 1.3,
-    youtube: 1.4,
-    facebook: 1.1,
-    linkedin: 0.8,
-    pinterest: 1.0,
+    TIKTOK: 1.8,
+    INSTAGRAM: 1.5,
+    X: 1.3,
+    YOUTUBE: 1.4,
+    FACEBOOK: 1.1,
+    LINKEDIN: 0.8,
+    PINTEREST: 1.0,
   };
 
   viralScore *= platformViralMultipliers[provider] ?? 1.0;
@@ -265,39 +265,59 @@ export function getMonthName(month: number): string {
 
 export function buildPlatformBenchmarks(): HistoricalContext["platformBenchmarks"] {
   return {
-    twitter: {
+    X: {
       avgEngagementRate: 1.5,
       peakHours: [9, 12, 17, 19],
       contentTypeMultipliers: {} as Record<ContentType, number>,
     },
-    instagram: {
+    INSTAGRAM: {
       avgEngagementRate: 3.2,
       peakHours: [11, 13, 17, 19, 21],
       contentTypeMultipliers: {} as Record<ContentType, number>,
     },
-    facebook: {
+    FACEBOOK: {
       avgEngagementRate: 1.8,
       peakHours: [10, 14, 15, 20],
       contentTypeMultipliers: {} as Record<ContentType, number>,
     },
-    linkedin: {
+    LINKEDIN: {
       avgEngagementRate: 2.1,
       peakHours: [8, 12, 17, 18],
       contentTypeMultipliers: {} as Record<ContentType, number>,
     },
-    youtube: {
+    YOUTUBE: {
       avgEngagementRate: 4.5,
       peakHours: [14, 16, 18, 20, 21],
       contentTypeMultipliers: {} as Record<ContentType, number>,
     },
-    tiktok: {
+    TIKTOK: {
       avgEngagementRate: 8.2,
       peakHours: [16, 18, 19, 20, 21, 22],
       contentTypeMultipliers: {} as Record<ContentType, number>,
     },
-    pinterest: {
+    PINTEREST: {
       avgEngagementRate: 0.9,
       peakHours: [10, 14, 20, 21],
+      contentTypeMultipliers: {} as Record<ContentType, number>,
+    },
+    SNAPCHAT: {
+      avgEngagementRate: 1.5,
+      peakHours: [16, 18, 20, 22],
+      contentTypeMultipliers: {} as Record<ContentType, number>,
+    },
+    TELEGRAM: {
+      avgEngagementRate: 2.0,
+      peakHours: [9, 13, 18, 21],
+      contentTypeMultipliers: {} as Record<ContentType, number>,
+    },
+    BLUESKY: {
+      avgEngagementRate: 1.2,
+      peakHours: [9, 12, 17, 20],
+      contentTypeMultipliers: {} as Record<ContentType, number>,
+    },
+    THREADS: {
+      avgEngagementRate: 2.5,
+      peakHours: [9, 12, 18, 20],
       contentTypeMultipliers: {} as Record<ContentType, number>,
     },
   };

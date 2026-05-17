@@ -366,7 +366,7 @@ export class PerformanceAnalyzer {
    * @private
    */
   private getLengthCategory(length: number, provider: ProviderType): "short" | "medium" | "long" {
-    if (provider === "twitter") {
+    if (provider === "X") {
       if (length <= 100) return "short";
       if (length <= 200) return "medium";
       return "long";
