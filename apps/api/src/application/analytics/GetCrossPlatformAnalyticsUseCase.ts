@@ -4,14 +4,9 @@
  * @layer application
  */
 
-import { type Result, ok, err } from "@shared/types";
+import { type Result, ok, err, isProviderName } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
-import type {
-  GetAnalyticsInput,
-  GetAnalyticsOutput,
-  AnalyticsSummary,
-  ProviderType,
-} from "./types.js";
+import type { GetAnalyticsInput, GetAnalyticsOutput, AnalyticsSummary } from "./types.js";
 
 /**
  * Cross-Platform Analytics Engine interface (port)
@@ -103,9 +98,10 @@ export class GetCrossPlatformAnalyticsUseCase implements UseCase<
         totalEngagements: metrics.summary.totalEngagements,
         avgEngagementRate: metrics.summary.avgEngagementRate,
         totalReach: metrics.summary.totalReach,
-        ...(metrics.summary.topPerformingProvider !== undefined && {
-          topPerformingProvider: metrics.summary.topPerformingProvider as ProviderType,
-        }),
+        ...(metrics.summary.topPerformingProvider !== undefined &&
+          isProviderName(metrics.summary.topPerformingProvider) && {
+            topPerformingProvider: metrics.summary.topPerformingProvider,
+          }),
       };
 
       return ok({
