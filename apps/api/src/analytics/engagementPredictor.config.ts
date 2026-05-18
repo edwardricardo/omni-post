@@ -50,7 +50,7 @@ export interface PlatformConfig {
  * Per-platform constants that drive content scoring and timing optimisation.
  */
 export const PLATFORM_MULTIPLIERS: Record<ProviderType, PlatformConfig> = {
-  twitter: {
+  X: {
     textOptimal: 120,
     hashtagOptimal: 2,
     mediaBoost: 1.3,
@@ -67,7 +67,7 @@ export const PLATFORM_MULTIPLIERS: Record<ProviderType, PlatformConfig> = {
       live: 2.1,
     },
   },
-  instagram: {
+  INSTAGRAM: {
     textOptimal: 150,
     hashtagOptimal: 8,
     mediaBoost: 2.1,
@@ -84,7 +84,7 @@ export const PLATFORM_MULTIPLIERS: Record<ProviderType, PlatformConfig> = {
       live: 1.8,
     },
   },
-  facebook: {
+  FACEBOOK: {
     textOptimal: 200,
     hashtagOptimal: 3,
     mediaBoost: 1.4,
@@ -101,7 +101,7 @@ export const PLATFORM_MULTIPLIERS: Record<ProviderType, PlatformConfig> = {
       live: 1.9,
     },
   },
-  linkedin: {
+  LINKEDIN: {
     textOptimal: 300,
     hashtagOptimal: 5,
     mediaBoost: 1.2,
@@ -118,7 +118,7 @@ export const PLATFORM_MULTIPLIERS: Record<ProviderType, PlatformConfig> = {
       live: 1.7,
     },
   },
-  youtube: {
+  YOUTUBE: {
     textOptimal: 500,
     hashtagOptimal: 10,
     mediaBoost: 3.0,
@@ -135,7 +135,7 @@ export const PLATFORM_MULTIPLIERS: Record<ProviderType, PlatformConfig> = {
       live: 2.8,
     },
   },
-  tiktok: {
+  TIKTOK: {
     textOptimal: 100,
     hashtagOptimal: 6,
     mediaBoost: 2.8,
@@ -152,7 +152,7 @@ export const PLATFORM_MULTIPLIERS: Record<ProviderType, PlatformConfig> = {
       live: 2.2,
     },
   },
-  pinterest: {
+  PINTEREST: {
     textOptimal: 200,
     hashtagOptimal: 10,
     mediaBoost: 2.5,
@@ -167,6 +167,74 @@ export const PLATFORM_MULTIPLIERS: Record<ProviderType, PlatformConfig> = {
       thread: 0.3,
       poll: 1.1,
       live: 0.8,
+    },
+  },
+  SNAPCHAT: {
+    textOptimal: 80,
+    hashtagOptimal: 0,
+    mediaBoost: 2.6,
+    peakHours: [16, 18, 20, 22],
+    contentTypeMultipliers: {
+      text: 0.2,
+      image: 1.6,
+      video: 2.4,
+      carousel: 0.6,
+      story: 2.8,
+      reel: 1.2,
+      thread: 0.2,
+      poll: 0.7,
+      live: 1.0,
+    },
+  },
+  TELEGRAM: {
+    textOptimal: 400,
+    hashtagOptimal: 3,
+    mediaBoost: 1.3,
+    peakHours: [9, 13, 18, 21],
+    contentTypeMultipliers: {
+      text: 1.1,
+      image: 1.3,
+      video: 1.5,
+      carousel: 1.2,
+      story: 0.6,
+      reel: 0.7,
+      thread: 0.9,
+      poll: 1.4,
+      live: 1.2,
+    },
+  },
+  BLUESKY: {
+    textOptimal: 250,
+    hashtagOptimal: 2,
+    mediaBoost: 1.3,
+    peakHours: [9, 12, 17, 20],
+    contentTypeMultipliers: {
+      text: 1.1,
+      image: 1.3,
+      video: 0.9,
+      carousel: 0.8,
+      story: 0.5,
+      reel: 0.6,
+      thread: 1.2,
+      poll: 0.8,
+      live: 0.7,
+    },
+  },
+  THREADS: {
+    textOptimal: 200,
+    hashtagOptimal: 3,
+    mediaBoost: 1.6,
+    peakHours: [9, 12, 18, 20],
+    contentTypeMultipliers: {
+      text: 1.1,
+      image: 1.4,
+      video: 1.6,
+      carousel: 1.3,
+      story: 0.7,
+      reel: 0.9,
+      thread: 1.3,
+      poll: 0.9,
+      live: 1.1,
     },
   },
 };

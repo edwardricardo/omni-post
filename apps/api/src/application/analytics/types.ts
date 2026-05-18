@@ -4,10 +4,14 @@
  * @layer application
  */
 
+import type { ProviderName } from "@shared/types";
+
 // ============ Common Types ============
 
 export type TimeRange = "7d" | "30d" | "90d" | "1y" | "custom";
-export type ProviderType = "X" | "FACEBOOK" | "INSTAGRAM" | "TIKTOK" | "YOUTUBE" | "LINKEDIN";
+// Canonical: aliased to ProviderName (11 platforms, Prisma-aligned) so this
+// application DTO type no longer diverges from the shared/domain model.
+export type ProviderType = ProviderName;
 export type ContentType = "text" | "image" | "video" | "carousel" | "story" | "reel";
 export type MetricType =
   | "engagement_rate"

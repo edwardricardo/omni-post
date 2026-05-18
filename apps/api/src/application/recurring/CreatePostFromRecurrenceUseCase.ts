@@ -36,7 +36,7 @@ export interface CreatePostFromRecurrenceInput {
   channels: string[];
   /** When the new Post should publish (recurrence's intended fire time). */
   dueAt: Date;
-  /** Content variation strategy — only `EXACT` supported in Phase 1. */
+  /** Content variation strategy — only `EXACT` is currently supported. */
   contentVariation: string;
 }
 
