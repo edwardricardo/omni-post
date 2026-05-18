@@ -4,61 +4,17 @@
  * @description Tests for autoCacheMiddleware - Registration and GET Caching
  * @layer infrastructure
  */
-import { describe, it, beforeAll, afterAll, expect } from "vitest";
+import { describe, it, expect } from "vitest";
 import Fastify from "fastify";
 import { autoCachePlugin } from "../../src/middleware/autoCacheMiddleware.js";
-import { RedisCacheManager, RedisCacheAdapter } from "@adapters/cache-redis";
-import Redis from "ioredis";
-
-const testRedis = new Redis({
-  host: process.env.REDIS_HOST || "localhost",
-  port: parseInt(process.env.REDIS_PORT || "6379"),
-  db: 15,
-});
-
-let cacheManager: RedisCacheManager;
+import { InMemoryCacheAdapter } from "@adapters/cache-redis";
 
 describe("autoCacheMiddleware - Registration and GET Caching", () => {
-  beforeAll(async () => {
-    const redisHost = process.env.REDIS_HOST || "localhost";
-    const redisPort = process.env.REDIS_PORT || "6379";
-    cacheManager = new RedisCacheManager({
-      redisUrl: `redis://${redisHost}:${redisPort}/15`,
-      defaultTtl: 300,
-      keyPrefix: "test:",
-    });
-
-    const keys = await testRedis.keys("test:*");
-    if (keys.length > 0) {
-      await testRedis.del(...keys);
-    }
-  });
-
-  afterAll(async () => {
-    try {
-      const keys = await testRedis.keys("test:*");
-      if (keys.length > 0) {
-        await testRedis.del(...keys);
-      }
-    } catch {
-      // Ignore cleanup errors
-    }
-    try {
-      await cacheManager.close();
-    } catch {
-      // Ignore close errors
-    }
-    try {
-      await testRedis.quit();
-    } catch {
-      // Ignore quit errors
-    }
-  });
 
   describe("Plugin Registration", () => {
     it("should register plugin with default options", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", new RedisCacheAdapter(cacheManager));
+      app.decorate("cache", new InMemoryCacheAdapter());
 
       await app.register(autoCachePlugin);
 
@@ -68,7 +24,7 @@ describe("autoCacheMiddleware - Registration and GET Caching", () => {
 
     it("should register plugin with custom options", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", new RedisCacheAdapter(cacheManager));
+      app.decorate("cache", new InMemoryCacheAdapter());
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -94,7 +50,7 @@ describe("autoCacheMiddleware - Registration and GET Caching", () => {
   describe("GET Request Caching", () => {
     it("should cache GET request responses", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", new RedisCacheAdapter(cacheManager));
+      app.decorate("cache", new InMemoryCacheAdapter());
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -127,7 +83,7 @@ describe("autoCacheMiddleware - Registration and GET Caching", () => {
 
     it("should not cache non-GET requests", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", new RedisCacheAdapter(cacheManager));
+      app.decorate("cache", new InMemoryCacheAdapter());
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -153,7 +109,7 @@ describe("autoCacheMiddleware - Registration and GET Caching", () => {
 
     it("should exclude routes from caching", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", new RedisCacheAdapter(cacheManager));
+      app.decorate("cache", new InMemoryCacheAdapter());
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -179,7 +135,7 @@ describe("autoCacheMiddleware - Registration and GET Caching", () => {
 
     it("should not cache error responses", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", new RedisCacheAdapter(cacheManager));
+      app.decorate("cache", new InMemoryCacheAdapter());
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -210,7 +166,7 @@ describe("autoCacheMiddleware - Registration and GET Caching", () => {
 
     it("should add cache metadata headers", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", new RedisCacheAdapter(cacheManager));
+      app.decorate("cache", new InMemoryCacheAdapter());
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
