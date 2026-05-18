@@ -9,6 +9,7 @@
  */
 
 import React from "react";
+import dynamic from "next/dynamic";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@packages/ui";
 import { Button } from "@packages/ui";
 import { Badge } from "@packages/ui";
@@ -30,9 +31,10 @@ import {
   BookOpen,
   Zap,
 } from "lucide-react";
-import Editor from "@monaco-editor/react";
 import { VariableInserter } from "./VariableInserter";
-import TipTapEditor from "./TipTapEditor";
+
+const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
+const TipTapEditor = dynamic(() => import("./TipTapEditor"), { ssr: false });
 import type { EditorTab, TemplateEditorCanvasProps } from "./templateEditorTypes";
 
 export function TemplateEditorCanvas({

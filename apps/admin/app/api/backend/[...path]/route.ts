@@ -96,12 +96,13 @@ function sendUpstream(
 }
 
 async function proxy(req: NextRequest, segments: string[]): Promise<NextResponse> {
-  const cookieStore = await cookies();
-  const session = cookieStore.get("admin-session");
-
-  const url = buildTargetUrl(req, segments);
   const hasBody = !["GET", "HEAD"].includes(req.method);
-  const bodyText = hasBody ? await req.text() : null;
+  const [cookieStore, bodyText] = await Promise.all([
+    cookies(),
+    hasBody ? req.text() : Promise.resolve(null),
+  ]);
+  const session = cookieStore.get("admin-session");
+  const url = buildTargetUrl(req, segments);
 
   let upstream: Response;
   try {

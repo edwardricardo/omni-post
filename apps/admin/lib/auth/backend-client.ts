@@ -5,6 +5,8 @@
  * verification, token refresh, logout, and health-check functions.
  */
 
+import { cache } from "react";
+
 import { ConsoleLoggerAdapter } from "@observability/browser-logger";
 
 import type { AdminUserProfile, AuthenticateAdminResult, TokenPair } from "./types";
@@ -146,32 +148,34 @@ export async function authenticateAdmin(
  * @param accessToken - JWT access token to verify
  * @returns Promise resolving to user profile on success, null on failure
  */
-export async function verifyAccessToken(accessToken: string): Promise<AdminUserProfile | null> {
-  try {
-    const response = await fetch(`${API_URL}/admin/auth/me`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      cache: "no-store",
-    });
+export const verifyAccessToken = cache(
+  async (accessToken: string): Promise<AdminUserProfile | null> => {
+    try {
+      const response = await fetch(`${API_URL}/admin/auth/me`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        cache: "no-store",
+      });
 
-    if (!response.ok) {
+      if (!response.ok) {
+        return null;
+      }
+
+      const data: ApiResponse<UserResponseData> = await response.json();
+
+      if (!data.ok || !data.data?.user) {
+        return null;
+      }
+
+      return data.data.user;
+    } catch (error) {
+      log.error("Network or parsing error during token verification", error);
       return null;
     }
-
-    const data: ApiResponse<UserResponseData> = await response.json();
-
-    if (!data.ok || !data.data?.user) {
-      return null;
-    }
-
-    return data.data.user;
-  } catch (error) {
-    log.error("Network or parsing error during token verification", error);
-    return null;
   }
-}
+);
 
 /**
  * Logout user from backend

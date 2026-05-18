@@ -10,7 +10,6 @@ import { autoCachePlugin } from "../../src/middleware/autoCacheMiddleware.js";
 import { InMemoryCacheAdapter } from "@adapters/cache-redis";
 
 describe("autoCacheMiddleware - Registration and GET Caching", () => {
-
   describe("Plugin Registration", () => {
     it("should register plugin with default options", async () => {
       const app = Fastify({ logger: false });

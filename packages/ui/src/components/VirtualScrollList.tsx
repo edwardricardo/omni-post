@@ -341,8 +341,7 @@ export function VirtualScrollList<T>({
   );
 }
 
-// HOC for memoized item rendering to prevent unnecessary re-renders
-export function memo<T>(
+export function memoizeVirtualItem<T>(
   component: React.ComponentType<{ item: T; index: number; style: React.CSSProperties }>
 ): React.ComponentType<{ item: T; index: number; style: React.CSSProperties }> {
   return React.memo(component, (prevProps, nextProps) => {

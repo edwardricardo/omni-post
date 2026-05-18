@@ -184,7 +184,7 @@ function useToast() {
         listeners.splice(index, 1);
       }
     };
-  }, [state]);
+  }, []);
 
   // Convenience methods for common toast types (backward compatibility)
   const success = React.useCallback(

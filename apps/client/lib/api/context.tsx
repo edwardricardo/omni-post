@@ -5,7 +5,7 @@
  * @description React context and provider for the API client, exposing a shared ApiClient instance and centralized error handling to all descendant components.
  */
 
-import React, { createContext, useContext, ReactNode } from "react";
+import React, { createContext, useContext, useCallback, useMemo, ReactNode } from "react";
 import { apiClient } from "./client";
 import { ApiError } from "@packages/api-errors";
 
@@ -22,19 +22,23 @@ interface ApiProviderProps {
 }
 
 export function ApiProvider({ children, onError }: ApiProviderProps) {
-  const handleError = (error: ApiError) => {
-    // Call custom error handler if provided
-    onError?.(error);
+  const handleError = useCallback(
+    (error: ApiError) => {
+      // Status-specific handling is deferred to the custom onError callback.
+      // Components consuming useApi().handleError should provide their own
+      // toast/redirect logic based on error.status.
+      onError?.(error);
+    },
+    [onError]
+  );
 
-    // Status-specific handling is deferred to the custom onError callback.
-    // Components consuming useApi().handleError should provide their own
-    // toast/redirect logic based on error.status.
-  };
-
-  const value = {
-    client: apiClient,
-    handleError,
-  };
+  const value = useMemo(
+    () => ({
+      client: apiClient,
+      handleError,
+    }),
+    [handleError]
+  );
 
   return <ApiContext value={value}>{children}</ApiContext>;
 }

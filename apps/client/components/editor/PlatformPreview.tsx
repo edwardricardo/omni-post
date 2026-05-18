@@ -45,6 +45,8 @@ interface PlatformPreviewProps {
   };
 }
 
+const DEFAULT_USER_INFO = { name: "Your Name", username: "yourusername" } as const;
+
 /**
  * @component PlatformPreview
  * @description Live preview rendering post content as it would appear on each selected
@@ -57,7 +59,7 @@ export function PlatformPreview({
   content,
   mediaFiles,
   selectedProviders,
-  userInfo = { name: "Your Name", username: "yourusername" },
+  userInfo = DEFAULT_USER_INFO,
 }: PlatformPreviewProps) {
   const [activeProvider, setActiveProvider] = useState<string>(selectedProviders[0] || "x");
 

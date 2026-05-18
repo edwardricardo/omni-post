@@ -7,6 +7,7 @@
 
 "use client";
 
+import { memo } from "react";
 import { formatDistanceToNow } from "date-fns";
 import type { Message } from "@/hooks/api/useInbox";
 
@@ -24,7 +25,7 @@ interface MessageBubbleProps {
  * @param props.message - The message data to render
  * @param props.onSelectReply - Callback when a suggested reply chip is clicked
  */
-export function MessageBubble({ message, onSelectReply }: MessageBubbleProps) {
+function MessageBubbleComponent({ message, onSelectReply }: MessageBubbleProps) {
   const isOutbound = message.direction === "OUTBOUND";
   const timeAgo = formatDistanceToNow(new Date(message.createdAt), { addSuffix: true });
 
@@ -95,3 +96,5 @@ export function MessageBubble({ message, onSelectReply }: MessageBubbleProps) {
     </div>
   );
 }
+
+export const MessageBubble = memo(MessageBubbleComponent);

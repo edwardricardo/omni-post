@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useTasks, useCompleteTask, useCancelTask } from "@/hooks/api/useTasks";
 import type { TaskDto } from "@/hooks/api/useTasks";
 import { TaskCard } from "./TaskCard";
@@ -37,11 +37,16 @@ export function TaskList({ accountId, userId, onTaskClick }: TaskListProps) {
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [priorityFilter, setPriorityFilter] = useState<string | undefined>(undefined);
 
-  const { data: tasks = [], isLoading } = useTasks({
-    accountId,
-    ...(statusFilter ? { status: statusFilter } : {}),
-    ...(priorityFilter ? { priority: priorityFilter } : {}),
-  });
+  const taskParams = useMemo(
+    () => ({
+      accountId,
+      ...(statusFilter ? { status: statusFilter } : {}),
+      ...(priorityFilter ? { priority: priorityFilter } : {}),
+    }),
+    [accountId, statusFilter, priorityFilter]
+  );
+
+  const { data: tasks = [], isLoading } = useTasks(taskParams);
 
   const completeMutation = useCompleteTask();
   const cancelMutation = useCancelTask();

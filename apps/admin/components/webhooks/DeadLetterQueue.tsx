@@ -6,7 +6,7 @@
  * filtering, inspection, retry, and bulk operations on events that exhausted delivery attempts.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { getErrorMessage } from "@packages/api-errors";
 import { LoadingSpinner } from "../shared/LoadingSpinner";
@@ -76,11 +76,11 @@ export function DeadLetterQueue() {
   const retryOutbox = useRetryOutboxDlq();
   const resolveOutbox = useResolveOutboxDlq();
 
-  // Debounce search input — schedule a pending update without an effect.
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search);
-  if (debouncedSearch !== filters.search) {
-    setTimeout(() => setDebouncedSearch(filters.search), 500);
-  }
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(filters.search), 500);
+    return () => clearTimeout(timer);
+  }, [filters.search]);
 
   const eventsQuery = useWebhookDeadLetterEvents({
     page,

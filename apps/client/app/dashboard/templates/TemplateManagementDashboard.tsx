@@ -7,7 +7,7 @@
  * @component TemplateManagementDashboard
  * @layer infrastructure
  */
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@packages/ui";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@packages/ui";
 import { Button } from "@packages/ui";
@@ -84,19 +84,25 @@ export function TemplateManagementDashboard({
   } = useTemplateVersions(selectedTemplate?.id, projectId);
 
   // Template statistics
-  const templateStats = {
-    total: templates.length,
-    active: templates.filter((t) => t.version && t.version > 0).length,
-    draft: templates.filter((t) => !t.version || t.version === 0).length,
-    categories: [...new Set(templates.map((t) => t.category))].length,
-  };
+  const templateStats = useMemo(
+    () => ({
+      total: templates.length,
+      active: templates.filter((t) => t.version && t.version > 0).length,
+      draft: templates.filter((t) => !t.version || t.version === 0).length,
+      categories: [...new Set(templates.map((t) => t.category))].length,
+    }),
+    [templates]
+  );
 
-  const abTestStats = {
-    total: abTests.length,
-    running: abTests.filter((t) => t.status === "running").length,
-    completed: abTests.filter((t) => t.status === "completed").length,
-    draft: abTests.filter((t) => t.status === "draft").length,
-  };
+  const abTestStats = useMemo(
+    () => ({
+      total: abTests.length,
+      running: abTests.filter((t) => t.status === "running").length,
+      completed: abTests.filter((t) => t.status === "completed").length,
+      draft: abTests.filter((t) => t.status === "draft").length,
+    }),
+    [abTests]
+  );
 
   // Event handlers
   const handleTemplateSelect = useCallback((template: Template) => {
@@ -180,15 +186,21 @@ export function TemplateManagementDashboard({
     setActiveTab("library");
   }, []);
 
+  const topPerforming = useMemo(
+    () =>
+      templates.slice(0, 5).map((t) => ({
+        templateId: t.id,
+        templateName: t.name,
+        views: 0,
+        uses: 0,
+        conversionRate: 0,
+      })),
+    [templates]
+  );
+
   // TODO: wire real template analytics data from API
   const templateAnalytics = {
-    topPerforming: templates.slice(0, 5).map((t) => ({
-      templateId: t.id,
-      templateName: t.name,
-      views: 0,
-      uses: 0,
-      conversionRate: 0,
-    })),
+    topPerforming,
     recentActivity: [
       { action: "Template Created", template: "Product Launch", time: "2 hours ago" },
       { action: "A/B Test Started", template: "Newsletter", time: "4 hours ago" },

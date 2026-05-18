@@ -6,6 +6,9 @@ const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
+  experimental: {
+    optimizePackageImports: ["lucide-react", "@packages/ui", "recharts", "date-fns"],
+  },
 };
 
 const config = withNextIntl(nextConfig);

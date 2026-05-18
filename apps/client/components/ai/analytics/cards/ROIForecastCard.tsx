@@ -4,7 +4,7 @@
  * media campaign, covering estimated revenue, cost breakdown, and net ROI percentage.
  */
 
-import React from "react";
+import React, { memo } from "react";
 import { DollarSign } from "lucide-react";
 import { ROIForecast } from "../types";
 import { formatNumber } from "../utils";
@@ -18,7 +18,7 @@ interface ROIForecastCardProps {
  * @description Card rendering projected return-on-investment figures for a campaign,
  * covering estimated revenue, cost breakdown, and net ROI percentage.
  */
-export const ROIForecastCard: React.FC<ROIForecastCardProps> = ({ forecast }) => {
+const ROIForecastCardComponent: React.FC<ROIForecastCardProps> = ({ forecast }) => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -94,3 +94,5 @@ export const ROIForecastCard: React.FC<ROIForecastCardProps> = ({ forecast }) =>
     </div>
   );
 };
+
+export const ROIForecastCard = memo(ROIForecastCardComponent);
