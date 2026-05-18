@@ -90,9 +90,12 @@ jobs:
       - name: Setup test environment
         run: |
           cp .env.example .env
-          echo "DATABASE_URL=postgresql://postgres:password123@localhost:5432/omnipostdb" >> .env
-          echo "SHADOW_DATABASE_URL=postgresql://postgres:password123@localhost:5432/omnipostdb_shadow" >> .env
-          echo "REDIS_URL=redis://localhost:6379" >> .env
+          # env.ts loads `.env.test` when NODE_ENV=test; the tracked file was
+          # removed for credential hygiene, so CI synthesizes it (deterministic
+          # non-production secrets). DB/Redis are passed in, not hardcoded here.
+          export DATABASE_URL="postgresql://postgres:password123@localhost:5432/omnipostdb?schema=test"
+          export REDIS_URL="redis://localhost:6379"
+          bash scripts/ci-setup-test-env.sh
 
       - name: Generate Prisma client
         run: pnpm --filter @infra/prisma exec prisma generate

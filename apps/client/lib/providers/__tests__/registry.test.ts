@@ -85,8 +85,9 @@ describe("providerRegistry.getProvider", () => {
   });
 
   it("uses 5MB default when maxImageSize is undefined", () => {
-    // Provider without maxImageSize in centralized config
-    const config = providerRegistry.getProvider("bluesky");
+    // Provider without maxImageSize in centralized config (video platform —
+    // no image-size limit defined, so the registry applies the 5MB default).
+    const config = providerRegistry.getProvider("youtube");
     if (config) {
       expect(config.mediaLimits.maxFileSize).toBe(5 * 1024 * 1024);
     }
