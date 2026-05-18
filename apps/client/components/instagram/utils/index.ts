@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-export { formatDuration, formatFileSize, formatTime } from "./format";
+export { formatFileSize, formatTime } from "./format";
 export { generateVideoThumbnail } from "./generateVideoThumbnail";
 export { readImageMetadata, type ImageFileMetadata } from "./useImageMetadata";
 export { readVideoMetadata, type VideoFileMetadata } from "./useVideoMetadata";

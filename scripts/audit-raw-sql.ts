@@ -77,9 +77,6 @@ function walk(dir: string, files: string[] = []): string[] {
   return files;
 }
 
-const SQL_CALL_RE =
-  /\$(queryRaw|queryRawUnsafe|executeRaw|executeRawUnsafe)(?:<[\s\S]*?>)?\s*[`(]/g;
-
 // Detector: locate every $queryRaw/$executeRaw marker and extract SQL from
 // the FIRST template literal (`...`) that follows. This handles both:
 //   prisma.$queryRaw<T>`SELECT ...`          (direct template)

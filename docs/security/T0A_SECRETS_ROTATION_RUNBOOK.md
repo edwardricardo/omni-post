@@ -19,8 +19,8 @@
 **L-591** — `.env` tracked en git con secrets reales. Documentado en:
 
 - [`docs/audits/LATERAL_FINDINGS.md`](../audits/LATERAL_FINDINGS.md) entry L-591
-- [`docs/audits/D0v4_8_INFRASTRUCTURE_REPORT.md`](../audits/D0v4_8_INFRASTRUCTURE_REPORT.md) §15.4 item 9 (CRITICAL)
-- [`docs/audits/REMEDIATION_ROADMAP.md`](../audits/REMEDIATION_ROADMAP.md) §5.0 T0-A
+- `docs/audits/D0v4_8_INFRASTRUCTURE_REPORT.md` §15.4 item 9 (CRITICAL)
+- `docs/audits/REMEDIATION_ROADMAP.md` §5.0 T0-A
 
 ### Corrección de scope (descubierta 2026-04-21 en exploración T0-A)
 
@@ -572,8 +572,8 @@ Si durante la rotación algo falla catastróficamente (DB inaccesible, servicio 
 
 ## Anexo B — Cross-references
 
-- [`docs/audits/REMEDIATION_ROADMAP.md`](../audits/REMEDIATION_ROADMAP.md) §5.0 — batch T0-A
-- [`docs/audits/REMEDIATION_ROADMAP.md`](../audits/REMEDIATION_ROADMAP.md) §5.4 T4-V — RBAC + seeds split (incluye fix ADMIN_PASSWORD weak L-546)
-- [`docs/audits/REMEDIATION_ROADMAP.md`](../audits/REMEDIATION_ROADMAP.md) §5.2 T2-F — CI workflows urgentes (incluye L-623 password123 en workflows)
+- `docs/audits/REMEDIATION_ROADMAP.md` §5.0 — batch T0-A
+- `docs/audits/REMEDIATION_ROADMAP.md` §5.4 T4-V — RBAC + seeds split (incluye fix ADMIN_PASSWORD weak L-546)
+- `docs/audits/REMEDIATION_ROADMAP.md` §5.2 T2-F — CI workflows urgentes (incluye L-623 password123 en workflows)
 - [`docs/audits/LATERAL_FINDINGS.md`](../audits/LATERAL_FINDINGS.md) L-591, L-586, L-583, L-584
 - CLAUDE.md — "Automated Compliance Checks" (fitness functions pendientes wire en T4-P)

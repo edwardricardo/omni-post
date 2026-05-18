@@ -8,7 +8,7 @@
  * @layer infrastructure
  */
 
-import { formatDuration, formatFileSize } from "../utils";
+import { formatTime, formatFileSize } from "../utils";
 import type { MediaFile } from "./types";
 
 interface UploadedFileCardProps {
@@ -94,7 +94,7 @@ export function UploadedFileCard({
         {file.type === "video" && file.duration && (
           <div className="absolute top-2 right-2">
             <span className="px-2 py-1 text-xs font-medium bg-black/75 text-white rounded-sm">
-              {formatDuration(file.duration)}
+              {formatTime(file.duration)}
             </span>
           </div>
         )}

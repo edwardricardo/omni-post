@@ -111,6 +111,13 @@ jobs:
 
       - uses: ./.github/actions/setup-node-pnpm-cache
 
+      - name: Setup test environment (.env.test)
+        # env.ts loads `.env.test` when NODE_ENV=test; the tracked file was
+        # removed for credential hygiene. DATABASE_URL / REDIS_URL come from
+        # the job `env:` block above; the script synthesizes deterministic
+        # non-production secrets.
+        run: bash scripts/ci-setup-test-env.sh
+
       - name: Apply Prisma migrations
         run: pnpm --filter @infra/prisma exec prisma migrate deploy
 
@@ -192,6 +199,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: ./.github/actions/setup-node-pnpm-cache
+
+      - name: Setup test environment (.env.test)
+        # env.ts loads `.env.test` when NODE_ENV=test; the tracked file was
+        # removed for credential hygiene. DATABASE_URL / REDIS_URL come from
+        # the job `env:` block above; the script synthesizes deterministic
+        # non-production secrets.
+        run: bash scripts/ci-setup-test-env.sh
 
       - name: Apply Prisma migrations
         run: pnpm --filter @infra/prisma exec prisma migrate deploy

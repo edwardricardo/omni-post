@@ -1,5 +1,5 @@
 {
-  "threshold": 5,
+  "threshold": 4.84,
   "minLines": 10,
   "minTokens": 50,
   "ignore": [
@@ -12,7 +12,8 @@
     "**/tests/**",
     "**/*.test.ts",
     "**/*.test.tsx",
-    "**/*.stories.tsx"
+    "**/*.stories.tsx",
+    "**/*.config.ts"
   ],
   "format": ["typescript", "typescriptreact"],
   "absolute": true

@@ -566,15 +566,20 @@ describe("AuditLogger Tests", () => {
 
   describe("Error Handling", () => {
     it("should handle database errors gracefully", async () => {
-      // Create logger with invalid Redis to trigger errors
-      const badRedis = new Redis({
-        host: "invalid-host",
-        port: 9999,
-        maxRetriesPerRequest: 0,
-        connectTimeout: 500,
-        lazyConnect: true,
-        retryStrategy: () => null,
-      });
+      // Redis stub whose every data operation rejects, simulating an
+      // unavailable backend. No real ioredis connection (this suite uses the
+      // in-memory fake); AuditLogger must degrade gracefully and not throw.
+      const badRedis = new Proxy(
+        {},
+        {
+          get(_target, prop) {
+            if (prop === "on" || prop === "disconnect" || prop === "quit") {
+              return () => undefined;
+            }
+            return () => Promise.reject(new Error("Redis unavailable (test stub)"));
+          },
+        }
+      ) as unknown as ReturnType<typeof createInMemoryRedis>;
 
       const badLogger = new AuditLogger(badRedis, scheduler, {
         enableRealTimeAlerts: false,

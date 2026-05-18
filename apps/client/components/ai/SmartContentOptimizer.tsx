@@ -54,7 +54,7 @@ const DEFAULT_PLATFORMS: string[] = ["twitter", "linkedin", "facebook"];
 
 const SmartContentOptimizer: React.FC<SmartContentOptimizerProps> = ({
   content,
-  platforms = ["twitter", "linkedin", "facebook"],
+  platforms = DEFAULT_PLATFORMS,
   targetAudience: _targetAudience = "general",
   brandVoice = "professional",
   onContentUpdate,

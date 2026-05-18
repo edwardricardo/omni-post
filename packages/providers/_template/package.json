@@ -10,6 +10,7 @@
     "./*": "./src/*"
   },
   "dependencies": {
+    "@observability/logger": "workspace:*",
     "@adapters/external-apis": "workspace:*",
     "@ports/core": "workspace:*",
     "@shared/types": "workspace:*",
