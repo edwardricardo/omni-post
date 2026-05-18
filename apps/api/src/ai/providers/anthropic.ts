@@ -14,6 +14,7 @@ import type {
   ContentOptimization,
   PerformancePrediction,
   AIProviderConfig,
+  StructuredOutputSpec,
 } from "../types.js";
 import { AppError } from "../../lib/errors/AppError.js";
 import { logger } from "../../lib/logger.js";
@@ -82,6 +83,61 @@ export class AnthropicProvider implements AIProvider {
     } catch (error: unknown) {
       aiLogger.error({ err: error }, "Anthropic generation failed");
       throw AppError.externalService("Anthropic", `Anthropic generation failed: ${error}`);
+    }
+  }
+
+  /**
+   * @method generateStructured
+   * @description Schema-validated generation via Claude forced tool-use: the
+   *   schema is registered as a single tool and `tool_choice` forces it, so
+   *   Claude returns structured `input` matching the schema. Output is routed
+   *   through `spec.parse` so callers get a validated `T`, never raw text.
+   * @param messages - Conversation messages.
+   * @param spec - Technology-free structured-output spec (name/schema/parse).
+   * @param options - Generation options (model, tokens, temperature).
+   * @returns The validated structured value `T`.
+   */
+  async generateStructured<T>(
+    messages: AIMessage[],
+    spec: StructuredOutputSpec<T>,
+    options: GenerationOptions = {}
+  ): Promise<T> {
+    try {
+      const systemMessage = messages.find((m) => m.role === "system");
+      const userMessages = messages
+        .filter((m) => m.role !== "system")
+        .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+
+      const response = await this.client.messages.create({
+        model: options.model || this.config.model || "claude-sonnet-4-6",
+        max_tokens: options.maxTokens || 1000,
+        ...(systemMessage && { system: systemMessage.content }),
+        messages: userMessages,
+        temperature: options.temperature ?? 0.7,
+        tools: [
+          {
+            name: spec.name,
+            ...(spec.description !== undefined && { description: spec.description }),
+            input_schema: spec.jsonSchema as Anthropic.Tool.InputSchema,
+          },
+        ],
+        tool_choice: { type: "tool", name: spec.name },
+      });
+
+      const toolUse = response.content.find((b) => b.type === "tool_use");
+      if (!toolUse || toolUse.type !== "tool_use") {
+        throw AppError.externalService(
+          "Anthropic",
+          "Anthropic returned no tool_use block for structured output"
+        );
+      }
+      return spec.parse(toolUse.input);
+    } catch (error: unknown) {
+      aiLogger.error({ err: error }, "Anthropic structured generation failed");
+      throw AppError.externalService(
+        "Anthropic",
+        `Anthropic structured generation failed: ${error}`
+      );
     }
   }
 

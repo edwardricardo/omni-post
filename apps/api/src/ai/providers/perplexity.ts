@@ -12,6 +12,7 @@ import {
   ContentOptimization,
   PerformancePrediction,
   AIProviderConfig,
+  StructuredOutputSpec,
 } from "../types.js";
 import { AppError } from "../../lib/errors/AppError.js";
 import { logger } from "../../lib/logger.js";
@@ -89,6 +90,62 @@ export class PerplexityProvider implements AIProvider {
     } catch (_error: unknown) {
       aiLogger.error({ err: _error }, "Perplexity generation failed");
       throw AppError.externalService("Perplexity", `Perplexity generation failed: ${_error}`);
+    }
+  }
+
+  /**
+   * @method generateStructured
+   * @description Schema-validated generation via Perplexity `response_format`
+   *   JSON-schema mode. `spec.parse` is the authoritative validation gate, so
+   *   even if the model drifts the caller still gets a validated `T` or a
+   *   thrown error (mapped to Result at the port boundary) — never raw text.
+   * @param messages - Conversation messages.
+   * @param spec - Technology-free structured-output spec (name/schema/parse).
+   * @param options - Generation options (model, tokens, temperature).
+   * @returns The validated structured value `T`.
+   */
+  async generateStructured<T>(
+    messages: AIMessage[],
+    spec: StructuredOutputSpec<T>,
+    options: GenerationOptions = {}
+  ): Promise<T> {
+    try {
+      const response = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.config.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: options.model || this.config.model || "llama-3.1-sonar-small-128k-online",
+          messages: messages.map((msg) => ({ role: msg.role, content: msg.content })),
+          max_tokens: options.maxTokens || 1000,
+          temperature: options.temperature ?? 0.7,
+          response_format: {
+            type: "json_schema",
+            json_schema: { name: spec.name, schema: spec.jsonSchema },
+          },
+          stream: false,
+        }),
+        signal: AbortSignal.timeout(120_000),
+      });
+
+      if (!response.ok) {
+        throw AppError.externalService(
+          "Perplexity",
+          `Perplexity API error: ${response.status} ${response.statusText}`
+        );
+      }
+
+      const data = await response.json();
+      const content: string = data.choices?.[0]?.message?.content ?? "";
+      return spec.parse(JSON.parse(content));
+    } catch (error: unknown) {
+      aiLogger.error({ err: error }, "Perplexity structured generation failed");
+      throw AppError.externalService(
+        "Perplexity",
+        `Perplexity structured generation failed: ${error}`
+      );
     }
   }
 

@@ -10,7 +10,8 @@
  * @layer domain
  */
 
-import type { AIMessage, GenerationOptions } from "../../ai/types.js";
+import type { Result } from "@shared/types";
+import type { AIMessage, GenerationOptions, StructuredOutputSpec } from "../../ai/types.js";
 
 export type AnalysisType = "sentiment" | "tone" | "readability" | "engagement";
 
@@ -64,4 +65,22 @@ export interface AIServicePort {
     options?: GenerationOptions,
     accountId?: string
   ): Promise<GenerateContentResult>;
+
+  /**
+   * Schema-validated structured generation. Returns a `Result` of the
+   * validated `T`: the provider's native structured-output capability plus
+   * `spec.parse` guarantee a typed value, never unparsed text. `spec` is
+   * technology-free (the domain has no schema-library dependency);
+   * infrastructure constructs it.
+   *
+   * The error is a single `"AI_ERROR"`: any provider, transport, or
+   * schema-validation failure resolves to this one outcome, so the contract
+   * never advertises an error variant the implementation cannot produce.
+   */
+  generateStructured<T>(
+    messages: AIMessage[],
+    spec: StructuredOutputSpec<T>,
+    options?: GenerationOptions,
+    accountId?: string
+  ): Promise<Result<T, "AI_ERROR">>;
 }

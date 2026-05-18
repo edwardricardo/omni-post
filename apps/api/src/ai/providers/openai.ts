@@ -16,6 +16,7 @@ import {
   AIProviderConfig,
   ImageGenerationOptions,
   ImageGenerationResult,
+  StructuredOutputSpec,
 } from "../types.js";
 import { AppError } from "../../lib/errors/AppError.js";
 import { logger } from "../../lib/logger.js";
@@ -66,6 +67,48 @@ export class OpenAIProvider implements AIProvider {
     } catch (error: unknown) {
       aiLogger.error({ err: error }, "OpenAI generation failed");
       throw AppError.externalService("OpenAI", `OpenAI generation failed: ${error}`);
+    }
+  }
+
+  /**
+   * @method generateStructured
+   * @description Schema-validated generation via OpenAI native Structured
+   *   Outputs (`response_format: json_schema`, `strict: true`). The model is
+   *   constrained to the schema server-side; output is still routed through
+   *   `spec.parse` so callers get a validated `T`, never unparsed text.
+   * @param messages - Conversation messages.
+   * @param spec - Technology-free structured-output spec (name/schema/parse).
+   * @param options - Generation options (model, tokens, temperature).
+   * @returns The validated structured value `T`.
+   */
+  async generateStructured<T>(
+    messages: AIMessage[],
+    spec: StructuredOutputSpec<T>,
+    options: GenerationOptions = {}
+  ): Promise<T> {
+    try {
+      const response = await this.client.chat.completions.create({
+        model: options.model || this.config.model || "gpt-4",
+        messages: messages.map((msg) => ({ role: msg.role, content: msg.content })),
+        max_tokens: options.maxTokens || 1000,
+        temperature: options.temperature ?? 0.7,
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: spec.name,
+            ...(spec.description !== undefined && { description: spec.description }),
+            schema: spec.jsonSchema,
+            strict: true,
+          },
+        },
+        stream: false,
+      });
+
+      const content = response.choices[0]?.message?.content ?? "";
+      return spec.parse(JSON.parse(content));
+    } catch (error: unknown) {
+      aiLogger.error({ err: error }, "OpenAI structured generation failed");
+      throw AppError.externalService("OpenAI", `OpenAI structured generation failed: ${error}`);
     }
   }
 

@@ -21,6 +21,7 @@ import {
   PerformancePrediction,
   ImageGenerationOptions,
   ImageGenerationResult,
+  StructuredOutputSpec,
 } from "./types.js";
 import { AppError } from "../lib/errors/AppError.js";
 import { logger } from "../lib/logger.js";
@@ -478,6 +479,142 @@ export class AIOrchestrator {
       type: "generate",
       data: { messages, ...(options !== undefined && { options }) },
     });
+  }
+
+  /**
+   * @method generateStructured
+   * @description Schema-validated structured generation with the same
+   *   provider-selection, rate-limit, availability, retry/backoff, metrics and
+   *   cache semantics as `executeTask`, but routed to each provider's NATIVE
+   *   structured-output capability via `provider.generateStructured`. The
+   *   cache key is derived ONLY from serializable spec fields (name +
+   *   jsonSchema) + messages + options — never `spec.parse` (a function).
+   * @param messages - Conversation messages.
+   * @param spec - Technology-free structured-output spec (name/schema/parse).
+   * @param options - Generation options (model, tokens, temperature).
+   * @param config - Cache/retry overrides (same shape as `executeTask`).
+   * @returns AIResponse with the validated value `T`, or an all-failed error.
+   */
+  async generateStructured<T>(
+    messages: AIMessage[],
+    spec: StructuredOutputSpec<T>,
+    options?: GenerationOptions,
+    config?: Partial<AITaskConfig>
+  ): Promise<AIResponse<T>> {
+    const startTime = Date.now();
+    const normalized = stableStringify({
+      kind: "structured",
+      name: spec.name,
+      jsonSchema: spec.jsonSchema,
+      messages,
+      ...(options !== undefined && { options }),
+      promptTemplate: PROMPT_TEMPLATE_VERSION,
+    });
+    const cacheKey = `ai:structured:${createHash("sha256").update(normalized).digest("hex")}`;
+
+    if (config?.cacheResults !== false) {
+      const cachedResult = await this.cache.get<T>(cacheKey);
+      if (cachedResult !== null) {
+        this.cacheHitStats.hits++;
+        return {
+          ok: true,
+          value: cachedResult,
+          metadata: {
+            provider: "cache",
+            model: "cached",
+            tokensUsed: 0,
+            latency: Date.now() - startTime,
+            cached: true,
+          },
+        };
+      }
+      this.cacheHitStats.misses++;
+    }
+
+    const providerOrder = this.getOptimalProvider({
+      type: "generate",
+      data: { messages, ...(options !== undefined && { options }) },
+    });
+    const maxRetries = config?.retryAttempts || 3;
+
+    for (const providerName of providerOrder) {
+      const provider = this.providers.get(providerName);
+      if (!provider) continue;
+
+      if (!(await this.checkRateLimit(providerName))) {
+        aiLogger.warn({ provider: providerName }, "Rate limit exceeded, trying next provider");
+        continue;
+      }
+
+      if (!(await provider.isAvailable())) {
+        aiLogger.warn({ provider: providerName }, "Provider not available, trying next provider");
+        continue;
+      }
+
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          const taskStartTime = Date.now();
+          const value = await provider.generateStructured<T>(messages, spec, options);
+          const latency = Date.now() - taskStartTime;
+          const estimatedTokens = 1000;
+
+          this.updateMetrics(providerName, true, latency, estimatedTokens);
+
+          if (config?.cacheResults !== false) {
+            const ttlMs = config?.cacheTTL ?? 3_600_000;
+            const ttlSeconds = Math.max(1, Math.floor(ttlMs / 1000));
+            await this.cache.set(cacheKey, value, {
+              ttlSeconds,
+              tags: ["ai", "ai:task:structured", `ai:model:${provider.name}`],
+            });
+          }
+
+          if (this.onTokensUsed && estimatedTokens > 0) {
+            await this.onTokensUsed(providerName, estimatedTokens).catch((err) =>
+              aiLogger.warn({ err }, "Failed to track token usage")
+            );
+          }
+
+          return {
+            ok: true,
+            value,
+            metadata: {
+              provider: providerName,
+              model: provider.name,
+              tokensUsed: estimatedTokens,
+              latency,
+              cached: false,
+            },
+          };
+        } catch (_error: unknown) {
+          const latency = Date.now() - startTime;
+          this.updateMetrics(providerName, false, latency, 0);
+          aiLogger.error(
+            { err: _error, attempt: attempt + 1, provider: providerName },
+            "AI structured provider attempt failed"
+          );
+          if (attempt === maxRetries - 1) break;
+          await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+        }
+      }
+    }
+
+    return {
+      ok: false,
+      error: {
+        code: "ALL_PROVIDERS_FAILED",
+        message: "All AI providers failed to complete the structured task",
+        provider: "none",
+        retryable: true,
+      },
+      metadata: {
+        provider: "none",
+        model: "none",
+        tokensUsed: 0,
+        latency: Date.now() - startTime,
+        cached: false,
+      },
+    };
   }
 
   async analyzeContent(
