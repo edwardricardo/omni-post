@@ -397,6 +397,24 @@ describe("Domain Value Objects - Provider", () => {
     expect(result.ok).toBeFalsy();
   });
 
+  it("creates a Threads provider from string with correct capabilities", () => {
+    const result = Provider.fromString("threads");
+    expect(result.ok).toBeTruthy();
+    if (result.ok) {
+      expect(result.value.isThreads()).toBeTruthy();
+      expect(result.value.displayName).toBe("Threads");
+      expect(result.value.supportsCarousel()).toBeTruthy();
+      expect(result.value.supportsThreads()).toBeTruthy();
+      expect(result.value.maxCharacters).toBe(500);
+    }
+  });
+
+  it("includes Threads in Provider.all()", () => {
+    const types = Provider.all().map((p) => p.type);
+    expect(types).toContain("THREADS");
+    expect(types).toContain("BLUESKY");
+  });
+
   it("should have complete capability matrix for X", () => {
     const x = Provider.x();
     expect(x.supportsImages()).toBeTruthy();
@@ -526,8 +544,8 @@ describe("Domain Value Objects - Provider", () => {
 
   it("should return all providers", () => {
     const all = Provider.all();
-    // 10 providers: X, Instagram, Facebook, YouTube, TikTok, Snapchat, Telegram, Pinterest, LinkedIn, Bluesky
-    expect(all.length).toBe(10);
+    // 11 providers: X, Instagram, Facebook, YouTube, TikTok, Snapchat, Telegram, Pinterest, LinkedIn, Bluesky, Threads
+    expect(all.length).toBe(11);
     expect(all.some((p) => p.isX())).toBeTruthy();
     expect(all.some((p) => p.isInstagram())).toBeTruthy();
     expect(all.some((p) => p.isFacebook())).toBeTruthy();

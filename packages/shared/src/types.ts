@@ -216,6 +216,11 @@ export const PROVIDER_NAMES: ProviderName[] = [
   "THREADS",
 ];
 
+/** Runtime type guard: narrows an arbitrary string to a canonical ProviderName. */
+export function isProviderName(value: string): value is ProviderName {
+  return (PROVIDER_NAMES as readonly string[]).includes(value);
+}
+
 /** Admin user roles — now DB-driven via the Role table */
 export type AdminRole = string;
 

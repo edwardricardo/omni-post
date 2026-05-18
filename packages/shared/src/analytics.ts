@@ -4,6 +4,8 @@
  *              and analytics shapes shared by admin and client analytics features.
  * @layer domain
  */
+import type { ProviderName } from "./types";
+
 // Advanced Analytics & ML Integration Types
 export type TimeRange = "7d" | "30d" | "90d" | "1y" | "custom";
 export type MetricType =
@@ -22,14 +24,7 @@ export type MetricType =
   | "cost_per_engagement"
   | "roi";
 
-export type ProviderType =
-  | "twitter"
-  | "instagram"
-  | "facebook"
-  | "linkedin"
-  | "youtube"
-  | "tiktok"
-  | "pinterest";
+export type ProviderType = ProviderName;
 
 export type ContentType =
   | "text"

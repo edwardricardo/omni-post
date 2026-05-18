@@ -4,7 +4,7 @@
  * @layer application
  */
 
-import { type Result, ok, err } from "@shared/types";
+import { type Result, ok, err, isProviderName } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import type { CalculateROIInput, CalculateROIOutput, ChannelROI, ProviderType } from "./types.js";
 
@@ -106,7 +106,9 @@ export class CalculateROIUseCase implements UseCase<
         });
 
         channelBreakdown = channelResult.channels;
-        bestPerformingChannel = channelResult.bestPerforming as ProviderType;
+        bestPerformingChannel = isProviderName(channelResult.bestPerforming)
+          ? channelResult.bestPerforming
+          : undefined;
         recommendations = channelResult.recommendations;
       }
 

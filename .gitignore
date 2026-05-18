@@ -35,13 +35,12 @@ test-results/
 stryker-output-*.json
 **/stryker-output-*.json
 
-# Environment variables
+# Environment variables — local/secret. Only *.example templates are committed.
+# Covers root and per-app (.env, .env.test, .env.<anything>) at any depth.
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env*.local
+.env.*
+!.env.example
+!.env.*.example
 
 # Logs
 logs/
@@ -146,6 +145,7 @@ docker-compose.local.yml
 .claude/stryker-tiktok-run.log
 .claude/agent-memory/
 .claude/worktrees/
+.claude/.allowed/
 .claude/hooks-py/__pycache__/
 **/__pycache__/
 
