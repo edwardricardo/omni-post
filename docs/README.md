@@ -85,7 +85,7 @@
 | Directory                       | Content                                  |
 | ------------------------------- | ---------------------------------------- |
 | [Audits](reports/audits/)       | Deep audits, remediation reports         |
-| [Sessions](reports/sessions/)   | Development session reports              |
+| Sessions                        | Development session reports              |
 | [Mutations](reports/mutations/) | Stryker mutation testing reports         |
 | [Updates](reports/updates/)     | Dependency update session reports        |
 | [Testing](reports/testing/)     | Testing audit and infrastructure reports |
