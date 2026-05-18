@@ -10,6 +10,7 @@
     "./*": "./src/*"
   },
   "dependencies": {
+    "@adapters/cache-redis": "workspace:*",
     "@observability/background-scheduler": "workspace:*",
     "@ports/core": "workspace:*",
     "@shared/types": "workspace:*",

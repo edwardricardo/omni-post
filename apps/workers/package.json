@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@infra/prisma": "workspace:*",
     "@adapters/db-prisma": "workspace:*",
     "@adapters/external-apis": "workspace:*",
     "@adapters/queue-bullmq": "workspace:*",

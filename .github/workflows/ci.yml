@@ -248,6 +248,6 @@ jobs:
         uses: ./.github/actions/setup-node-pnpm-cache
 
       - name: Run Cache Redis tests
-        run: node --import tsx --test --test-force-exit packages/adapters/cache-redis/tests/**/*.test.ts
+        run: pnpm --filter @adapters/cache-redis test
         env:
           REDIS_URL: redis://localhost:6379
