@@ -5,9 +5,10 @@
  * @layer infrastructure
  */
 import { FastifyInstance } from "fastify";
-import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+import type { CachePort } from "@ports/core";
 import type { ChannelRepository } from "../domain/repositories/ChannelRepository.js";
 import { ProviderOAuthHandler } from "./providerOAuthFlow.js";
+import { OAuthFlowStore } from "./oauth/OAuthFlowStore.js";
 import { requireClientAuth } from "./customerAuthMiddleware.js";
 
 // Re-export for backward compatibility
@@ -22,10 +23,10 @@ export type { OAuthConfig, OAuthProvider } from "./providerOAuthConfigs.js";
  */
 export async function registerOAuthRoutes(
   fastify: FastifyInstance,
-  scheduler: BackgroundTaskScheduler,
+  cache: CachePort,
   channelRepository: ChannelRepository
 ) {
-  const handler = new ProviderOAuthHandler(scheduler, channelRepository);
+  const handler = new ProviderOAuthHandler(new OAuthFlowStore(cache), channelRepository);
 
   // Requires auth: user must be logged in to initiate an OAuth connection
   fastify.get("/auth/:provider", { preHandler: [requireClientAuth] }, async (request, reply) => {

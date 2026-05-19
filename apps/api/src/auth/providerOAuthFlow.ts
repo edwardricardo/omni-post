@@ -12,13 +12,12 @@ import {
   type RouteContext,
   type OAuthErrorContext,
 } from "../lib/route-handler/index.js";
-import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { ProviderId } from "../providers/providerAdapter.interface.js";
 import { prisma } from "@infra/prisma";
-import { randomBytes, createHash } from "crypto";
+import type { OAuthFlowStorePort } from "@ports/core";
 import { oauthProviders } from "./providerOAuthConfigs.js";
 import { AppError } from "../lib/errors/AppError.js";
-import { getRedisInstance } from "./redisSessionHelpers.js";
+import { buildAuthorizationUrl, consumeOAuthFlow } from "./oauth/oauthFlow.js";
 import { env } from "../config/env.js";
 import type { ChannelRepository } from "../domain/repositories/ChannelRepository.js";
 import { Channel } from "../domain/entities/Channel.js";
@@ -63,63 +62,30 @@ const DisconnectProviderSchema = z.object({
 });
 
 // ===========================
-// OAuth State Management
-// ===========================
-
-interface OAuthStateData {
-  providerId: ProviderId;
-  accountId: string;
-  projectId: string;
-  createdAt: Date;
-}
-
-const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
-
-// ===========================
 // Route Handler Implementation
 // ===========================
 
 export class ProviderOAuthHandler extends BaseRouteHandler {
   protected routeName = "provider-oauth";
 
-  private readonly oauthStates = new Map<string, OAuthStateData>();
-
   constructor(
-    scheduler: BackgroundTaskScheduler,
+    private readonly store: OAuthFlowStorePort,
     private readonly channelRepository: ChannelRepository
   ) {
     super();
-    // Clean up expired OAuth states every 10 minutes. TTL equals cadence;
-    // an entry older than its TTL on the sweep is discarded.
-    scheduler.register(
-      "provider-oauth-state-cleanup",
-      () => {
-        const now = Date.now();
-        for (const [state, data] of this.oauthStates.entries()) {
-          if (now - data.createdAt.getTime() > OAUTH_STATE_TTL_MS) {
-            this.oauthStates.delete(state);
-          }
-        }
-      },
-      OAUTH_STATE_TTL_MS
-    );
   }
 
   /**
-   * Generate OAuth authorization URL for the given provider.
-   *
-   * For X/Twitter, implements PKCE (Proof Key for Code Exchange) with S256 method:
-   * 1. Generates a cryptographically random `code_verifier` (32 bytes, base64url-encoded)
-   * 2. Derives a `code_challenge` by SHA-256 hashing the verifier and base64url-encoding the digest
-   * 3. Stores the `code_verifier` in Redis with key `pkce:{state}` and 600s TTL (10 minutes)
-   * 4. Sends only the `code_challenge` to the authorization server
-   *
-   * The verifier is stored in Redis (not in-memory) because it must survive across two
-   * separate HTTP requests (authorization redirect and callback) in a stateless server
-   * environment. The 10-minute TTL matches the typical OAuth authorization timeout window.
-   *
-   * During the callback phase, the verifier is retrieved from Redis and sent to the token
-   * endpoint, where the authorization server verifies it against the original challenge.
+   * @method generateOAuthUrl
+   * @description Builds the provider authorization URL. `state` and the PKCE
+   *   verifier are persisted cross-pod via the flow store (TTL, single-use).
+   *   X/Twitter additionally sends the S256 `code_challenge` (OAuth 2.1
+   *   PKCE); the other providers use the same state-bound flow without a
+   *   challenge on the wire.
+   * @param providerId - Target provider.
+   * @param accountId - Initiating account (tenant binding).
+   * @param projectId - Project the resulting channel belongs to.
+   * @returns The authorization URL to redirect the user to.
    */
   private async generateOAuthUrl(
     providerId: ProviderId,
@@ -131,36 +97,17 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
       throw AppError.badRequest(`OAuth not configured for provider: ${providerId}`);
     }
 
-    const state = randomBytes(32).toString("hex");
-    this.oauthStates.set(state, {
+    return buildAuthorizationUrl({
+      authUrl: provider.config.authUrl,
+      clientId: provider.config.clientId,
+      redirectUri: provider.config.redirectUri,
+      scopes: provider.config.scopes,
       providerId,
       accountId,
       projectId,
-      createdAt: new Date(),
+      store: this.store,
+      sendChallenge: providerId === "x",
     });
-
-    const params = new URLSearchParams({
-      client_id: provider.config.clientId,
-      redirect_uri: provider.config.redirectUri,
-      scope: provider.config.scopes.join(" "),
-      state,
-      response_type: "code",
-    });
-
-    if (providerId === "x") {
-      const codeVerifier = randomBytes(32).toString("base64url");
-      const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
-
-      params.set("code_challenge", codeChallenge);
-      params.set("code_challenge_method", "S256");
-
-      const redis = getRedisInstance();
-      if (redis) {
-        await redis.setex(`pkce:${state}`, 600, codeVerifier);
-      }
-    }
-
-    return `${provider.config.authUrl}?${params.toString()}`;
   }
 
   /**
@@ -178,12 +125,7 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
     code: string,
     state: string
   ): Promise<void> {
-    const stateData = this.oauthStates.get(state);
-    if (!stateData || stateData.providerId !== providerId) {
-      throw AppError.unauthorized("OAuth state validation failed");
-    }
-
-    this.oauthStates.delete(state);
+    const record = await consumeOAuthFlow(this.store, providerId, state);
 
     const provider = oauthProviders[providerId];
     if (!provider) {
@@ -193,17 +135,17 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
     const oauthContext: OAuthErrorContext = {
       provider: providerId,
       operation: "oauth_callback",
-      accountId: stateData.accountId,
+      accountId: record.accountId,
     };
 
     try {
-      const authResult = await provider.validateCode(code, state);
+      const authResult = await provider.validateCode(code, state, record.codeVerifier);
 
       const expiresAt = authResult.expiresIn
         ? new Date(Date.now() + authResult.expiresIn * 1000)
         : undefined;
 
-      const projectIdResult = ProjectId.fromString(stateData.projectId);
+      const projectIdResult = ProjectId.fromString(record.projectId);
       if (!projectIdResult.ok) {
         throw AppError.internal("Invalid projectId in OAuth state");
       }
@@ -277,7 +219,7 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
 
       this.logInfo(ctx, "OAuth connection successful", {
         provider: providerId,
-        accountId: stateData.accountId,
+        accountId: record.accountId,
         channelId,
       });
     } catch (error) {

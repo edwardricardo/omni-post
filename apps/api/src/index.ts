@@ -561,7 +561,7 @@ async function createApp(): Promise<FastifyInstance> {
   // Register OAuth routes
   await registerOAuthRoutes(
     typedApp,
-    typedApp.container!.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
+    typedApp.container!.resolve<CachePort>(TOKENS.CachePort),
     typedApp.container!.resolve(TOKENS.ChannelRepository)
   );
 
