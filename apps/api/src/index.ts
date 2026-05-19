@@ -49,7 +49,10 @@ import { createDeadLetterQueue } from "@adapters/dead-letter-queue";
 import { QUEUE_NAMES, createBullMQConsumerAdapter } from "@adapters/queue-bullmq";
 import type { CachePort, AgentOrchestrationPort } from "@ports/core";
 import { processRepurposeGenerateJob } from "./ai/consumers/repurposeGenerateHandler.js";
+import { processRepurposeDetectJob } from "./ai/consumers/repurposeDetectHandler.js";
 import { PrismaRepurposeVariantAdapter } from "./infrastructure/repositories/PrismaRepurposeVariantAdapter.js";
+import type { DetectRepurposeCandidatesUseCase } from "./application/ai/DetectRepurposeCandidatesUseCase.js";
+import type { DispatchDetectRepurposeUseCase } from "./application/ai/DispatchDetectRepurposeUseCase.js";
 import type { RedisCacheManager } from "@adapters/cache-redis";
 import fastifyCookie from "@fastify/cookie";
 import { createTenantHealthMonitor } from "@monitoring/health-checks";
@@ -810,6 +813,22 @@ async function start() {
       6 * 60 * 60 * 1000
     );
 
+    // Repurpose detection coordinator — daily. Enqueues one
+    // DETECT_REPURPOSE job per account with active channels.
+    const dispatchDetectRepurpose = app.container!.resolve<DispatchDetectRepurposeUseCase>(
+      TOKENS.DispatchDetectRepurposeUseCase
+    );
+    scheduler.register(
+      "detect-repurpose-dispatch",
+      async () => {
+        const result = await dispatchDetectRepurpose.execute({});
+        if (!result.ok) {
+          logger.warn({ err: result.error }, "Detect repurpose dispatch failed");
+        }
+      },
+      24 * 60 * 60 * 1000
+    );
+
     // GENERATE_REPURPOSE consumer — runs the plan→act→reflect agent graph
     // per target platform and persists each draft as a pending repurpose
     // variant. Hosted here because the agent stack lives in this process.
@@ -828,6 +847,22 @@ async function start() {
     });
     logger.info("GENERATE_REPURPOSE consumer started");
 
+    // DETECT_REPURPOSE consumer — scans an account's high performers and
+    // proposes repurpose candidates; each proposal enqueues a GENERATE job.
+    const detectRepurposeUseCase = app.container!.resolve<DetectRepurposeCandidatesUseCase>(
+      TOKENS.DetectRepurposeCandidatesUseCase
+    );
+    const detectRepurposeConsumer = createBullMQConsumerAdapter({
+      queueName: QUEUE_NAMES.DETECT_REPURPOSE,
+    });
+    await detectRepurposeConsumer.subscribe(async (job) => {
+      await processRepurposeDetectJob(
+        { detect: detectRepurposeUseCase, logger },
+        job.payload as { accountId: string }
+      );
+    });
+    logger.info("DETECT_REPURPOSE consumer started");
+
     const port = env.PORT;
     const host = env.HOST;
 
@@ -842,6 +877,7 @@ async function start() {
       outboxRelay.stop();
       outboxCleaner.stop();
       await repurposeConsumer.close();
+      await detectRepurposeConsumer.close();
 
       // Shutdown saga integration (closes pub/sub subscriber and saga manager)
       const saga = (app as unknown as Record<string, unknown>).sagaIntegration as

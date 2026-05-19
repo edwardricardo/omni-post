@@ -13,6 +13,8 @@ import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { ApproveRepurposeVariantUseCase } from "../../application/ai/ApproveRepurposeVariantUseCase.js";
 import { RejectRepurposeVariantUseCase } from "../../application/ai/RejectRepurposeVariantUseCase.js";
 import { DetectRepurposeCandidatesUseCase } from "../../application/ai/DetectRepurposeCandidatesUseCase.js";
+import { DispatchDetectRepurposeUseCase } from "../../application/ai/DispatchDetectRepurposeUseCase.js";
+import type { ChannelQueryForIngestion } from "../../domain/repositories/ChannelQueryForIngestion.js";
 import {
   GenerateRepurposeVariantsUseCase,
   type NotificationPort,
@@ -80,6 +82,22 @@ export function setupRepurposeUseCases(container: Container): void {
             .forQueue(QUEUE_NAMES.GENERATE_REPURPOSE),
           QUEUE_NAMES.GENERATE_REPURPOSE
         ),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+
+  // DispatchDetectRepurposeUseCase — daily coordinator: one DETECT job per
+  // account with active channels.
+  container.register<DispatchDetectRepurposeUseCase>(
+    TOKENS.DispatchDetectRepurposeUseCase,
+    () =>
+      new DispatchDetectRepurposeUseCase(
+        container.resolve<ChannelQueryForIngestion>(TOKENS.ChannelQueryForIngestion),
+        container
+          .resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
+          .forQueue(QUEUE_NAMES.DETECT_REPURPOSE),
+        QUEUE_NAMES.DETECT_REPURPOSE,
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true

@@ -18,11 +18,11 @@
 | Bloque                       | Tareas | Hechas | Estado |
 | ---------------------------- | ------ | ------ | ------ |
 | Bloqueantes compartidos (B)  | 5      | 5      | ✅     |
-| Fase 0 — Funciones autónomas | 11     | 0      | 🟦     |
+| Fase 0 — Funciones autónomas | 11     | 1      | 🟦     |
 | Fase 1 — Necesarias          | 16     | 0      | ⬜     |
 | Fase 2 — Bueno tenerla       | 21     | 0      | ⬜     |
 | Fase 3 — Interesantes        | 14     | 0      | ⬜     |
-| **Total**                    | **67** | **5**  | **7%** |
+| **Total**                    | **67** | **6**  | **9%** |
 
 > Actualizar esta tabla al cerrar cada tarea. `Estado`: ⬜ no iniciado · 🟦 en progreso · ✅ completo.
 
@@ -46,7 +46,7 @@
 
 ### Slice A — Repurposing
 
-- [~] **F0-WRK-1** `[M]` Worker consumidor de `DETECT_REPURPOSE`/`GENERATE_REPURPOSE` con grafo de agente (canon §9.1). 🔗 dep:B1. **DoD:** worker procesa un job real end-to-end con mock de LLM determinista; idempotente (inbox dedupe). → consumer `GENERATE_REPURPOSE` hospedado en apps/api sobre el grafo B1 (idempotente, interrupt HITL → variante PENDING) hecho + test determinista; consumer `DETECT_REPURPOSE` = siguiente task slice A.
+- [x] **F0-WRK-1** `[M]` Worker consumidor de `DETECT_REPURPOSE`/`GENERATE_REPURPOSE` con grafo de agente (canon §9.1). 🔗 dep:B1. **DoD:** worker procesa un job real end-to-end con mock de LLM determinista; idempotente (inbox dedupe). → consumers `GENERATE_REPURPOSE` (grafo B1, interrupt HITL → variante PENDING) y `DETECT_REPURPOSE` (high-performers → proposals → encola GENERATE) hospedados en apps/api + coordinador diario `DispatchDetectRepurposeUseCase`; idempotentes; tests deterministas.
 - [ ] **F0-API-1** `[S]` Retirar `501` de `repurposeRoutes.ts`, exponer endpoints + DTOs + UoW. 🔗 dep:F0-WRK-1. **DoD:** endpoint responde 2xx, encola job, integration test verde.
 - [ ] **F0-CLI-1** `[M]` UI de control de repurpose en client. 🔗 dep:F0-API-1. **DoD:** usuario dispara/ve resultado; test de componente.
 

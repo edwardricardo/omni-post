@@ -483,6 +483,7 @@ export const TOKENS = {
   ApproveRepurposeVariantUseCase: Symbol.for("ApproveRepurposeVariantUseCase"),
   RejectRepurposeVariantUseCase: Symbol.for("RejectRepurposeVariantUseCase"),
   DetectRepurposeCandidatesUseCase: Symbol.for("DetectRepurposeCandidatesUseCase"),
+  DispatchDetectRepurposeUseCase: Symbol.for("DispatchDetectRepurposeUseCase"),
   GenerateRepurposeVariantsUseCase: Symbol.for("GenerateRepurposeVariantsUseCase"),
 
   // Platform Encryption
