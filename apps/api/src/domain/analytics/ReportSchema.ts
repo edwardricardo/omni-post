@@ -7,32 +7,38 @@
  */
 
 /**
- * Available metrics that can be selected for custom reports.
- * Each metric has a display label and a value type for formatting.
+ * Available metrics that can be selected for custom reports — the typed,
+ * validated vocabulary. Every key here is computed by exactly one governed
+ * definition in `MetricRegistry` (the single source of truth for formulas);
+ * a parity test asserts this set never drifts from the registry. Metrics
+ * that the AnalyticsDailySummary read model cannot honestly compute
+ * (reach, saves, video views, watch time, follower growth, link clicks)
+ * are intentionally absent rather than returning a misleading zero.
  */
 export const AVAILABLE_METRICS = {
   impressions: { label: "Impressions", type: "number" },
-  reach: { label: "Reach", type: "number" },
-  engagement_rate: { label: "Engagement Rate", type: "percentage" },
   likes: { label: "Likes", type: "number" },
   comments: { label: "Comments", type: "number" },
   shares: { label: "Shares", type: "number" },
-  saves: { label: "Saves", type: "number" },
-  video_views: { label: "Video Views", type: "number" },
-  watch_time: { label: "Watch Time (min)", type: "number" },
-  follower_growth: { label: "Follower Growth", type: "number" },
-  link_clicks: { label: "Link Clicks", type: "number" },
+  engagement: { label: "Engagement", type: "number" },
+  engagement_rate: { label: "Engagement Rate", type: "percentage" },
   post_count: { label: "Posts Published", type: "number" },
+  avg_views_per_post: { label: "Avg Views / Post", type: "number" },
+  avg_engagement_per_post: { label: "Avg Engagement / Post", type: "number" },
+  records: { label: "Captured Records", type: "number" },
 } as const;
 
 /**
- * Available dimensions for grouping report data.
+ * Available dimensions for grouping report data. Only dimensions derivable
+ * from AnalyticsSummaryRow are listed; `post_type` / `campaign` are absent
+ * because the read model carries no such columns (advertising them would
+ * silently group everything by date). Parity-tested against
+ * `DimensionRegistry`.
  */
 export const AVAILABLE_DIMENSIONS = {
   date: { label: "Date" },
   platform: { label: "Platform" },
-  post_type: { label: "Post Type" },
-  campaign: { label: "Campaign" },
+  channel: { label: "Channel" },
 } as const;
 
 /**

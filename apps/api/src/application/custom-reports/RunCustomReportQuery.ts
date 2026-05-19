@@ -13,6 +13,8 @@ import type {
   AnalyticsAggregationQueryPort,
   AnalyticsSummaryRow,
 } from "../../domain/repositories/AnalyticsAggregationQueryPort.js";
+import { metricRegistry, type MetricDefinition } from "../../domain/analytics/MetricRegistry.js";
+import { dimensionRegistry } from "../../domain/analytics/DimensionRegistry.js";
 
 /**
  * @class RunCustomReportQuery
@@ -129,66 +131,39 @@ function resolveDateRange(
   }
 }
 
-function getMetricValue(row: AnalyticsSummaryRow, metric: string): number {
-  switch (metric) {
-    case "views":
-    case "impressions":
-      return row.views;
-    case "likes":
-    case "reactions":
-      return row.likes;
-    case "comments":
-      return row.comments;
-    case "shares":
-    case "reposts":
-      return row.shares;
-    case "engagement":
-      return row.likes + row.comments + row.shares;
-    default:
-      return 0;
-  }
-}
-
+/**
+ * Groups rows by the requested dimension and computes each requested metric
+ * per bucket via the governed registries. Unknown metrics are omitted (not
+ * emitted as a misleading zero series); an unknown dimension falls back to
+ * the default (`date`). Metric/dimension semantics live in one place — the
+ * registries — so every consumer gets the same numbers.
+ */
 function aggregateByDimension(
   rows: AnalyticsSummaryRow[],
   dimension: string,
   metrics: string[]
 ): { labels: string[]; datasets: { label: string; data: number[] }[] } {
-  const buckets = new Map<string, Map<string, number>>();
+  const dim = dimensionRegistry.resolve(dimension);
 
+  const buckets = new Map<string, AnalyticsSummaryRow[]>();
   for (const row of rows) {
-    const key = getDimensionKey(row, dimension);
-
-    if (!buckets.has(key)) {
-      buckets.set(key, new Map<string, number>());
-    }
-    const metricMap = buckets.get(key)!;
-
-    for (const metric of metrics) {
-      const current = metricMap.get(metric) ?? 0;
-      metricMap.set(metric, current + getMetricValue(row, metric));
+    const key = dim.keyOf(row);
+    const bucket = buckets.get(key);
+    if (bucket) {
+      bucket.push(row);
+    } else {
+      buckets.set(key, [row]);
     }
   }
 
   const labels = Array.from(buckets.keys());
-  const datasets = metrics.map((metric) => ({
-    label: metric,
-    data: labels.map((label) => buckets.get(label)?.get(metric) ?? 0),
-  }));
+  const datasets = metrics
+    .map((metric): MetricDefinition | undefined => metricRegistry.get(metric))
+    .filter((def): def is MetricDefinition => def !== undefined)
+    .map((def) => ({
+      label: def.key,
+      data: labels.map((label) => def.aggregate(buckets.get(label) ?? [])),
+    }));
 
   return { labels, datasets };
-}
-
-function getDimensionKey(row: AnalyticsSummaryRow, dimension: string): string {
-  switch (dimension) {
-    case "platform":
-    case "provider":
-      return row.provider;
-    case "date":
-      return row.date.toISOString().slice(0, 10);
-    case "channel":
-      return row.channelId;
-    default:
-      return row.date.toISOString().slice(0, 10);
-  }
 }

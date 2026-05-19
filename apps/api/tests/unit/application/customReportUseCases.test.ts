@@ -31,7 +31,7 @@ function makeReportDto(overrides?: Partial<CustomReportDto>): CustomReportDto {
     projectId: null,
     name: "Test Report",
     description: null,
-    metrics: ["impressions", "reach"],
+    metrics: ["impressions", "engagement_rate"],
     dimensions: ["date"],
     dateRange: "LAST_30_DAYS",
     dateRangeStart: null,
