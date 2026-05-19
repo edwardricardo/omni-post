@@ -15,14 +15,14 @@
 
 ## Dashboard de progreso
 
-| Bloque                       | Tareas | Hechas | Estado |
-| ---------------------------- | ------ | ------ | ------ |
-| Bloqueantes compartidos (B)  | 5      | 5      | ✅     |
-| Fase 0 — Funciones autónomas | 11     | 1      | 🟦     |
-| Fase 1 — Necesarias          | 16     | 0      | ⬜     |
-| Fase 2 — Bueno tenerla       | 21     | 0      | ⬜     |
-| Fase 3 — Interesantes        | 14     | 0      | ⬜     |
-| **Total**                    | **67** | **6**  | **9%** |
+| Bloque                       | Tareas | Hechas | Estado  |
+| ---------------------------- | ------ | ------ | ------- |
+| Bloqueantes compartidos (B)  | 5      | 5      | ✅      |
+| Fase 0 — Funciones autónomas | 11     | 2      | 🟦      |
+| Fase 1 — Necesarias          | 16     | 0      | ⬜      |
+| Fase 2 — Bueno tenerla       | 21     | 0      | ⬜      |
+| Fase 3 — Interesantes        | 14     | 0      | ⬜      |
+| **Total**                    | **67** | **7**  | **10%** |
 
 > Actualizar esta tabla al cerrar cada tarea. `Estado`: ⬜ no iniciado · 🟦 en progreso · ✅ completo.
 
@@ -47,7 +47,7 @@
 ### Slice A — Repurposing
 
 - [x] **F0-WRK-1** `[M]` Worker consumidor de `DETECT_REPURPOSE`/`GENERATE_REPURPOSE` con grafo de agente (canon §9.1). 🔗 dep:B1. **DoD:** worker procesa un job real end-to-end con mock de LLM determinista; idempotente (inbox dedupe). → consumers `GENERATE_REPURPOSE` (grafo B1, interrupt HITL → variante PENDING) y `DETECT_REPURPOSE` (high-performers → proposals → encola GENERATE) hospedados en apps/api + coordinador diario `DispatchDetectRepurposeUseCase`; idempotentes; tests deterministas.
-- [ ] **F0-API-1** `[S]` Retirar `501` de `repurposeRoutes.ts`, exponer endpoints + DTOs + UoW. 🔗 dep:F0-WRK-1. **DoD:** endpoint responde 2xx, encola job, integration test verde.
+- [x] **F0-API-1** `[S]` Retirar `501` de `repurposeRoutes.ts`, exponer endpoints + DTOs + UoW. 🔗 dep:F0-WRK-1. **DoD:** endpoint responde 2xx, encola job, integration test verde. → `GET /repurpose/proposals` (CQRS read-side propio: `RepurposeProposalQueryRepository` + `ListRepurposeProposalsQuery` + adapter Prisma, Decimal→Number) y `POST /repurpose/detect` (client-auth scoped al JWT, corrige el framing admin equivocado; invoca `DetectRepurposeCandidatesUseCase` ya UoW/idempotente, encola GENERATE); unit + integration tests (fail-loud).
 - [ ] **F0-CLI-1** `[M]` UI de control de repurpose en client. 🔗 dep:F0-API-1. **DoD:** usuario dispara/ve resultado; test de componente.
 
 ### Slice B — Inbox triage

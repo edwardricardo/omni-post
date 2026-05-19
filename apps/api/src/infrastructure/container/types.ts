@@ -485,6 +485,7 @@ export const TOKENS = {
   DetectRepurposeCandidatesUseCase: Symbol.for("DetectRepurposeCandidatesUseCase"),
   DispatchDetectRepurposeUseCase: Symbol.for("DispatchDetectRepurposeUseCase"),
   GenerateRepurposeVariantsUseCase: Symbol.for("GenerateRepurposeVariantsUseCase"),
+  ListRepurposeProposalsQuery: Symbol.for("ListRepurposeProposalsQuery"),
 
   // Platform Encryption
   EncryptionService: Symbol.for("EncryptionService"),
