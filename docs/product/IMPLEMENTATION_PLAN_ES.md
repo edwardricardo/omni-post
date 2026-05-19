@@ -17,12 +17,12 @@
 
 | Bloque                       | Tareas | Hechas | Estado |
 | ---------------------------- | ------ | ------ | ------ |
-| Bloqueantes compartidos (B)  | 5      | 0      | ⬜     |
+| Bloqueantes compartidos (B)  | 5      | 4      | 🟦     |
 | Fase 0 — Funciones autónomas | 11     | 0      | ⬜     |
 | Fase 1 — Necesarias          | 16     | 0      | ⬜     |
 | Fase 2 — Bueno tenerla       | 21     | 0      | ⬜     |
 | Fase 3 — Interesantes        | 14     | 0      | ⬜     |
-| **Total**                    | **67** | **0**  | **0%** |
+| **Total**                    | **67** | **4**  | **6%** |
 
 > Actualizar esta tabla al cerrar cada tarea. `Estado`: ⬜ no iniciado · 🟦 en progreso · ✅ completo.
 
@@ -32,10 +32,10 @@
 
 > Estos 5 son independientes **entre sí** y cada uno desbloquea un set distinto. Pueden ejecutarse en paralelo en 5 tracks separados. Ninguna fase posterior arranca sin su bloqueante.
 
-- [ ] **B1** `[M]` **Decisión + spike orquestación de agentes (LangGraph vs propio)** — ⛔ bloquea: Fase 0 completa. Spike de LangGraph (grafo con estado, ReAct, evals de trayectoria) sobre 1 caso (repurpose). **DoD:** ADR en `docs/technical/` con decisión, PoC mínimo que ejecuta un grafo plan→act→reflect y un eval de trayectoria en CI.
-- [ ] **B2** `[M]` **Migración BullMQ repeatable jobs → Job Schedulers (`upsert`)** (API+WRK) — ⛔ bloquea: RSS, recycling, scheduled reports, scheduling tz. Repeatable deprecado desde 5.16.0. **DoD:** cero usos de `repeat:` legacy; todos los recurrentes vía Job Scheduler; tests verdes; sin jobs duplicados tras deploy.
-- [ ] **B3** `[M]` **Sustrato OAuth 2.1 + PKCE compartido** (API) — ⛔ bloquea: Canva, MCP, hardening connect. Helper único Auth Code + PKCE (S256), state server-side, refresh token rotation, tokens cifrados at-rest. **DoD:** módulo reutilizable + tests; redirect exact-match; un proveedor piloto migrado.
-- [ ] **B4** `[S]` **Decisión de producto: alcance multi-idioma** — ⛔ bloquea: Fase 1 multi-idioma. Decisión de negocio (locales objetivo LATAM, ¿UI + generación IA?). **DoD:** decisión registrada en `docs/product/` con locales y alcance (UI / contenido IA / ambos).
+- [x] **B1** `[M]` **Decisión + spike orquestación de agentes (LangGraph vs propio)** — ⛔ bloquea: Fase 0 completa. Spike de LangGraph (grafo con estado, ReAct, evals de trayectoria) sobre 1 caso (repurpose). **DoD:** ADR en `docs/technical/` con decisión, PoC mínimo que ejecuta un grafo plan→act→reflect y un eval de trayectoria en CI.
+- [x] **B2** `[M]` **Migración BullMQ repeatable jobs → Job Schedulers (`upsert`)** (API+WRK) — ⛔ bloquea: RSS, recycling, scheduled reports, scheduling tz. Repeatable deprecado desde 5.16.0. **DoD:** cero usos de `repeat:` legacy; todos los recurrentes vía Job Scheduler; tests verdes; sin jobs duplicados tras deploy.
+- [x] **B3** `[M]` **Sustrato OAuth 2.1 + PKCE compartido** (API) — ⛔ bloquea: Canva, MCP, hardening connect. Helper único Auth Code + PKCE (S256), state server-side, refresh token rotation, tokens cifrados at-rest. **DoD:** módulo reutilizable + tests; redirect exact-match; un proveedor piloto migrado.
+- [x] **B4** `[S]` **Decisión de producto: alcance multi-idioma** — ⛔ bloquea: Fase 1 multi-idioma. Decisión de negocio (locales objetivo LATAM, ¿UI + generación IA?). **DoD:** decisión registrada en `docs/product/` con locales y alcance (UI / contenido IA / ambos). → [MULTILINGUAL_SCOPE_ES.md](MULTILINGUAL_SCOPE_ES.md) (es/en, default es, alcance UI+IA, extensible).
 - [ ] **B5** `[M]` **Semantic layer mínimo (métricas/dims gobernadas)** (API) — ⛔ bloquea: custom report builder, Looker connector. Definición única de métricas (engagement rate, alcance…) que compila queries. **DoD:** capa con ≥10 métricas core, una métrica = una definición; consumida por al menos un reporte existente.
 
 ---
