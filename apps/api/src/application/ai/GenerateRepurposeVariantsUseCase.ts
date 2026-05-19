@@ -33,6 +33,11 @@ export interface RepurposeVariantPort {
     content: string;
     hashtags: string[];
   }): Promise<void>;
+  /**
+   * Platforms that already have a persisted variant for this proposal.
+   * Enables idempotent (re)processing — only missing platforms regenerate.
+   */
+  existingVariantPlatforms(proposalId: string): Promise<string[]>;
 }
 
 export interface NotificationPort {

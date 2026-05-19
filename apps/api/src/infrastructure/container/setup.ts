@@ -14,6 +14,7 @@ import { setupRepositories } from "./setupRepositories.js";
 import { setupUseCases } from "./setupUseCases.js";
 import { setupBillingUseCases } from "./setupBillingUseCases.js";
 import { setupServices } from "./setupServices.js";
+import { setupAgentOrchestration } from "./setupAgentOrchestration.js";
 
 /**
  * Container setup options
@@ -69,6 +70,7 @@ export function setupContainer(options: ContainerSetupOptions): Container {
 
   // Register all services
   setupServices(container, options.integrationEventPublisher);
+  setupAgentOrchestration(container);
 
   return container;
 }

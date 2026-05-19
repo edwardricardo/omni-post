@@ -46,8 +46,10 @@ import { ApiMetrics } from "./metrics/apiMetrics.js";
 import { createMetricsMiddleware } from "./middleware/metricsMiddleware.js";
 import { createCircuitBreakerMonitor } from "@monitoring/circuit-breaker";
 import { createDeadLetterQueue } from "@adapters/dead-letter-queue";
-import { QUEUE_NAMES } from "@adapters/queue-bullmq";
-import type { CachePort } from "@ports/core";
+import { QUEUE_NAMES, createBullMQConsumerAdapter } from "@adapters/queue-bullmq";
+import type { CachePort, AgentOrchestrationPort } from "@ports/core";
+import { processRepurposeGenerateJob } from "./ai/consumers/repurposeGenerateHandler.js";
+import { PrismaRepurposeVariantAdapter } from "./infrastructure/repositories/PrismaRepurposeVariantAdapter.js";
 import type { RedisCacheManager } from "@adapters/cache-redis";
 import fastifyCookie from "@fastify/cookie";
 import { createTenantHealthMonitor } from "@monitoring/health-checks";
@@ -808,6 +810,24 @@ async function start() {
       6 * 60 * 60 * 1000
     );
 
+    // GENERATE_REPURPOSE consumer — runs the plan→act→reflect agent graph
+    // per target platform and persists each draft as a pending repurpose
+    // variant. Hosted here because the agent stack lives in this process.
+    const repurposeAgent = app.container!.resolve<AgentOrchestrationPort>(
+      TOKENS.AgentOrchestrationPort
+    );
+    const repurposeVariantPort = new PrismaRepurposeVariantAdapter();
+    const repurposeConsumer = createBullMQConsumerAdapter({
+      queueName: QUEUE_NAMES.GENERATE_REPURPOSE,
+    });
+    await repurposeConsumer.subscribe(async (job) => {
+      await processRepurposeGenerateJob(
+        { agent: repurposeAgent, variants: repurposeVariantPort, logger },
+        job.payload as { proposalId: string }
+      );
+    });
+    logger.info("GENERATE_REPURPOSE consumer started");
+
     const port = env.PORT;
     const host = env.HOST;
 
@@ -821,6 +841,7 @@ async function start() {
       logger.info({ signal }, "Shutting down gracefully...");
       outboxRelay.stop();
       outboxCleaner.stop();
+      await repurposeConsumer.close();
 
       // Shutdown saga integration (closes pub/sub subscriber and saga manager)
       const saga = (app as unknown as Record<string, unknown>).sagaIntegration as

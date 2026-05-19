@@ -110,6 +110,7 @@ export const TOKENS = {
   ActivityFeedService: Symbol.for("ActivityFeedService"),
   AIService: Symbol.for("AIService"),
   AIServicePort: Symbol.for("AIServicePort"),
+  AgentOrchestrationPort: Symbol.for("AgentOrchestrationPort"),
   HttpClientPort: Symbol.for("HttpClientPort"),
   CachePort: Symbol.for("CachePort"),
   RedisCacheManager: Symbol.for("RedisCacheManager"),

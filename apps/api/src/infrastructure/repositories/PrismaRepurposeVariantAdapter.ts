@@ -75,4 +75,14 @@ export class PrismaRepurposeVariantAdapter implements RepurposeVariantPort {
       },
     });
   }
+
+  async existingVariantPlatforms(proposalId: string): Promise<string[]> {
+    const rows = await prisma.repurposeVariant.findMany({
+      where: { proposalId },
+      select: { platform: true },
+      distinct: ["platform"],
+    });
+
+    return rows.map((r) => r.platform);
+  }
 }
