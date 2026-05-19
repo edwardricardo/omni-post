@@ -21,12 +21,17 @@ import json
 import re
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
 
 LOG_PATH = Path(".claude/hooks.log")
+
+# Time-boxed authorization tokens created by `.claude/bin/omnipost-allow`.
+# One token per operation (`push`, `sensitive-edit`, ...). Validated
+# identically by pre-bash and pre-edit (shared contract, no drift).
+ALLOWED_TOKENS_DIR = Path(".claude/.allowed")
 
 # Regex compartida entre pre-bash y post-bash. Matchea 'git' y 'push' como
 # tokens separados aunque haya flags intermedias (-C /path, --git-dir=...).
@@ -83,3 +88,39 @@ def current_branch() -> str:
         return result.stdout.strip()
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
         return ""
+
+
+def check_grant_token(operation: str, log_fn: Callable[[str], None]) -> str | None:
+    """Validate the time-boxed token for `operation` in .claude/.allowed/<op>.
+
+    Returns None when the token is valid (not expired). Returns the reason
+    ("missing"|"corrupt"|"malformed"|"expired") otherwise, deleting the file
+    when expired. Identical contract for `push` and `sensitive-edit`.
+    """
+    token_path = ALLOWED_TOKENS_DIR / operation
+    if not token_path.exists():
+        return "missing"
+    try:
+        with token_path.open("r") as f:
+            token_data = json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        log_fn(f"ERROR: token {operation} unreadable: {e}")
+        return "corrupt"
+    expires_at_str = token_data.get("expires_at")
+    if not expires_at_str:
+        log_fn(f"ERROR: token {operation} missing expires_at")
+        return "malformed"
+    try:
+        expires_at = datetime.fromisoformat(expires_at_str)
+    except ValueError as e:
+        log_fn(f"ERROR: token {operation} invalid expires_at: {e}")
+        return "malformed"
+    if datetime.now(timezone.utc) >= expires_at:
+        log_fn(f"token {operation} expired (was {expires_at_str})")
+        try:
+            token_path.unlink()
+        except OSError:
+            pass
+        return "expired"
+    log_fn(f"token {operation} valid (expires {expires_at_str})")
+    return None

@@ -9,7 +9,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import GIT_PUSH_RE, current_branch, make_logger, read_hook_input  # noqa: E402
+from _common import (  # noqa: E402
+    GIT_PUSH_RE,
+    check_grant_token,
+    current_branch,
+    make_logger,
+    read_hook_input,
+)
 
 HOOK_NAME = "pre-bash"
 ALLOWED_BRANCH_PREFIX = "workstream/"
@@ -33,61 +39,41 @@ log, block, allow = make_logger(HOOK_NAME)
 # ────────────────────────────────────────────────────────────────────
 
 def gate_git_push_requires_token(command: str) -> None:
-    """Bloquea git push salvo que exista un token válido (no expirado).
+    """Block the remote-publish command unless a valid token exists.
 
-    LIMITACIÓN: detecta variantes con flags intermedias (-C /path,
-    --git-dir, etc.) pero no composición con && (cd /path && ...).
+    Validation delegated to the shared `check_grant_token` helper — the
+    same contract pre-edit uses for `sensitive-edit` (no drift).
+
+    LIMITATION: matches variants with intermediate flags (-C /path,
+    --git-dir, ...) but not && composition (cd /path && ...).
     """
     if not GIT_PUSH_RE.search(command):
         return
 
-    token_path = Path(".claude/.allowed/push")
+    status = check_grant_token("push", log)
+    if status is None:
+        log("push token valid, deferring consumption to post-hook")
+        allow("remote publish authorized via valid token")
 
-    if not token_path.exists():
-        block(
-            "git push requiere autorización. Pedile permiso a Edward en el chat. "
-            "Si te lo concede, él ejecutará 'omnipost-allow push' y vas a poder reintentar."
-        )
-
-    try:
-        with token_path.open("r") as f:
-            token_data = json.load(f)
-    except (json.JSONDecodeError, OSError) as e:
-        log(f"ERROR: token corrupto o no legible: {e}")
-        block(
-            "Token de autorización corrupto. Edward debe revisar .claude/.allowed/push, "
-            "borrarlo, y ejecutar 'omnipost-allow push' nuevamente."
-        )
-
-    expires_at_str = token_data.get("expires_at")
-    if not expires_at_str:
-        log("ERROR: token sin campo expires_at")
-        block(
-            "Token de autorización malformado (falta expires_at). "
-            "Edward debe ejecutar 'omnipost-allow push' nuevamente."
-        )
-
-    try:
-        expires_at = datetime.fromisoformat(expires_at_str)
-    except ValueError as e:
-        log(f"ERROR: expires_at inválido: {e}")
-        block(
-            "Token con fecha de expiración malformada. "
-            "Edward debe ejecutar 'omnipost-allow push' nuevamente."
-        )
-
-    now = datetime.now(timezone.utc)
-
-    if now >= expires_at:
-        log(f"token de push expirado (expiraba a las {expires_at_str}, ahora {now.isoformat()})")
-        token_path.unlink()
-        block(
-            f"Token de push expirado. Fue creado para expirar a las {expires_at_str}. "
-            "Pedile a Edward un token nuevo con 'omnipost-allow push'."
-        )
-
-    log(f"push token válido (expira a las {expires_at_str}), deferring consumption to post-hook")
-    allow("git push authorized via valid token")
+    messages = {
+        "missing": (
+            "Remote publish requires authorization. Ask Edward in chat; "
+            "he runs 'omnipost-allow push' and you retry."
+        ),
+        "corrupt": (
+            "Authorization token corrupt. Edward must inspect "
+            ".claude/.allowed/push, delete it, and re-run 'omnipost-allow push'."
+        ),
+        "malformed": (
+            "Authorization token malformed (missing/!expires_at). "
+            "Edward must re-run 'omnipost-allow push'."
+        ),
+        "expired": (
+            "Authorization token expired. "
+            "Ask Edward for a fresh one via 'omnipost-allow push'."
+        ),
+    }
+    block(messages[status])
 
 
 def gate_no_npm_or_yarn(command: str) -> None:
