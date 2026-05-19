@@ -18,11 +18,11 @@
 | Bloque                       | Tareas | Hechas | Estado  |
 | ---------------------------- | ------ | ------ | ------- |
 | Bloqueantes compartidos (B)  | 5      | 5      | ✅      |
-| Fase 0 — Funciones autónomas | 11     | 2      | 🟦      |
+| Fase 0 — Funciones autónomas | 11     | 3      | 🟦      |
 | Fase 1 — Necesarias          | 16     | 0      | ⬜      |
 | Fase 2 — Bueno tenerla       | 21     | 0      | ⬜      |
 | Fase 3 — Interesantes        | 14     | 0      | ⬜      |
-| **Total**                    | **67** | **7**  | **10%** |
+| **Total**                    | **67** | **8**  | **12%** |
 
 > Actualizar esta tabla al cerrar cada tarea. `Estado`: ⬜ no iniciado · 🟦 en progreso · ✅ completo.
 
@@ -48,7 +48,7 @@
 
 - [x] **F0-WRK-1** `[M]` Worker consumidor de `DETECT_REPURPOSE`/`GENERATE_REPURPOSE` con grafo de agente (canon §9.1). 🔗 dep:B1. **DoD:** worker procesa un job real end-to-end con mock de LLM determinista; idempotente (inbox dedupe). → consumers `GENERATE_REPURPOSE` (grafo B1, interrupt HITL → variante PENDING) y `DETECT_REPURPOSE` (high-performers → proposals → encola GENERATE) hospedados en apps/api + coordinador diario `DispatchDetectRepurposeUseCase`; idempotentes; tests deterministas.
 - [x] **F0-API-1** `[S]` Retirar `501` de `repurposeRoutes.ts`, exponer endpoints + DTOs + UoW. 🔗 dep:F0-WRK-1. **DoD:** endpoint responde 2xx, encola job, integration test verde. → `GET /repurpose/proposals` (CQRS read-side propio: `RepurposeProposalQueryRepository` + `ListRepurposeProposalsQuery` + adapter Prisma, Decimal→Number) y `POST /repurpose/detect` (client-auth scoped al JWT, corrige el framing admin equivocado; invoca `DetectRepurposeCandidatesUseCase` ya UoW/idempotente, encola GENERATE); unit + integration tests (fail-loud).
-- [ ] **F0-CLI-1** `[M]` UI de control de repurpose en client. 🔗 dep:F0-API-1. **DoD:** usuario dispara/ve resultado; test de componente.
+- [x] **F0-CLI-1** `[M]` UI de control de repurpose en client. 🔗 dep:F0-API-1. **DoD:** usuario dispara/ve resultado; test de componente. → `apps/client` `/dashboard/ai/repurpose` reescrita al contrato real (hook dedicado `useRepurpose` espejo de `useReports`): lista proposals (DTO real) + botón "Detect now" (POST /repurpose/detect, toast con counts + refetch); banner 501 muerto retirado; integration test de componente (lista/vacío/error/detect). Scope list+detect; approve/reject variantes + nav IA → backlog vivo (SMELL-3/4). Cierra slice A (WRK+API+CLI).
 
 ### Slice B — Inbox triage
 
