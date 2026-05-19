@@ -21,6 +21,7 @@ import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { registerGracefulShutdown, type ShutdownTarget } from "./lib/gracefulShutdown.js";
 import { handleProviderAuthError } from "./lib/handleProviderAuthError.js";
 import { ChannelAuthFailureRecorder } from "./services/ChannelAuthFailureRecorder.js";
+import { CredentialResolver } from "./services/CredentialResolver.js";
 import { createXAdapter } from "@providers/x";
 import { createInstagramAdapter } from "@providers/instagram";
 import { createFacebookAdapter } from "@providers/facebook";
@@ -32,9 +33,25 @@ import { createPinterestAdapter } from "@providers/pinterest";
 import { createLinkedInAdapter } from "@providers/linkedin";
 import { createBlueskyAdapter } from "@providers/bluesky";
 import { prisma, verifyDatabaseAuth } from "@infra/prisma";
+import { createPrismaRepoAdapter } from "@adapters/db-prisma";
+import { decryptChannelCredentials } from "@shared/types";
 import type { ProviderAdapter } from "@ports/core";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info", name: "inbox-sync-worker" });
+
+const platformEncryptionKey = process.env.PLATFORM_ENCRYPTION_KEY;
+if (!platformEncryptionKey) {
+  throw new Error("PLATFORM_ENCRYPTION_KEY is required for the inbox sync worker");
+}
+const decryptCredentialsForWorker = (envelope: {
+  credentialsCiphertext: string;
+  credentialsIv: string;
+  credentialsAuthTag: string;
+  credentialsKeyVersion: number;
+}) => decryptChannelCredentials(envelope, platformEncryptionKey);
+
+const repo = createPrismaRepoAdapter({ decryptChannelCredentials: decryptCredentialsForWorker });
+const credentialResolver = new CredentialResolver(repo);
 
 const providerAdapters: Record<string, ProviderAdapter> = {
   x: createXAdapter({ logger }),
@@ -59,7 +76,7 @@ async function processJob(jobData: {
 
   const channel = await prisma.channel.findFirst({
     where: { id: channelId, deletedAt: null },
-    select: { id: true, provider: true, credentials: true },
+    select: { id: true, provider: true },
   });
 
   if (!channel) {
@@ -82,13 +99,28 @@ async function processJob(jobData: {
     "Syncing inbox comments"
   );
 
+  const credentialResult = await credentialResolver.resolve(channelId);
+  if (!credentialResult.ok) {
+    logger.warn(
+      { channelId, provider: providerName },
+      "Credential lookup failed — flagging channel as needing reauth"
+    );
+    await handleProviderAuthError(
+      authFailureRecorder,
+      channelId,
+      providerName,
+      "Credential lookup failed during inbox sync"
+    );
+    throw new Error(`Provider ${providerName} returned error: AUTH`);
+  }
+
   let cursor: string | undefined;
   let synced = 0;
   let skipped = 0;
 
   do {
     const commentsResult = await adapter.getComments({
-      channelCredentials: channel.credentials,
+      channelCredentials: credentialResult.value,
       since,
       ...(cursor !== undefined && { cursor }),
       limit: 100,
