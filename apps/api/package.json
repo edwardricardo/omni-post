@@ -65,7 +65,7 @@
     "@adapters/fallback-strategies": "workspace:*",
     "@adapters/queue-bullmq": "workspace:*",
     "@adapters/storage-s3": "workspace:*",
-    "@anthropic-ai/sdk": "^0.88.0",
+    "@anthropic-ai/sdk": "0.91.1",
     "@core/engine": "workspace:*",
     "@fastify/cookie": "11.0.2",
     "@fastify/cors": "11.1.0",
@@ -139,6 +139,7 @@
     "@types/xml2js": "0.4.14",
     "@vitest/coverage-v8": "4.0.18",
     "cross-env": "10.0.0",
+    "msw": "2.14.3",
     "tsx": "4.20.5",
     "vitest": "4.0.18"
   }

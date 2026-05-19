@@ -17,6 +17,12 @@ import {
 } from "../types.js";
 import { AppError } from "../../lib/errors/AppError.js";
 import { logger } from "../../lib/logger.js";
+import {
+  analysisSpec,
+  optimizationSpec,
+  predictionSpec,
+  variationsSpec,
+} from "../structuredSchemas.js";
 
 const aiLogger = logger.child({ module: "ai", provider: "gemini" });
 
@@ -180,20 +186,10 @@ Return only a JSON response with:
 Content to analyze: "${content}"`,
     };
 
-    try {
-      const response = await this.generateText([{ role: "user", content: prompts[analysisType] }]);
-
-      // Clean the response to extract JSON
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
-
-      return JSON.parse(response);
-    } catch (error: unknown) {
-      aiLogger.error({ err: error }, "Gemini analysis failed");
-      throw AppError.externalService("Gemini", `Gemini analysis failed: ${error}`);
-    }
+    return this.generateStructured(
+      [{ role: "user", content: prompts[analysisType] }],
+      analysisSpec(analysisType)
+    );
   }
 
   async optimizeContent(
@@ -229,20 +225,7 @@ Return only a JSON response with:
 
 Original content to optimize: "${content}"`;
 
-    try {
-      const response = await this.generateText([{ role: "user", content: prompt }]);
-
-      // Clean the response to extract JSON
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
-
-      return JSON.parse(response);
-    } catch (error: unknown) {
-      aiLogger.error({ err: error }, "Gemini optimization failed");
-      throw AppError.externalService("Gemini", `Gemini optimization failed: ${error}`);
-    }
+    return this.generateStructured([{ role: "user", content: prompt }], optimizationSpec);
   }
 
   async predictPerformance(
@@ -279,20 +262,7 @@ Return only a JSON response with:
 
 Content to analyze: "${content}"`;
 
-    try {
-      const response = await this.generateText([{ role: "user", content: prompt }]);
-
-      // Clean the response to extract JSON
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
-
-      return JSON.parse(response);
-    } catch (error: unknown) {
-      aiLogger.error({ err: error }, "Gemini prediction failed");
-      throw AppError.externalService("Gemini", `Gemini prediction failed: ${error}`);
-    }
+    return this.generateStructured([{ role: "user", content: prompt }], predictionSpec);
   }
 
   async generateVariations(
@@ -340,19 +310,6 @@ Return only a JSON array of exactly ${count} strings. No additional formatting, 
 
 Original content: "${content}"`;
 
-    try {
-      const response = await this.generateText([{ role: "user", content: prompt }]);
-
-      // Clean the response to extract JSON array
-      const jsonMatch = response.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
-
-      return JSON.parse(response);
-    } catch (error: unknown) {
-      aiLogger.error({ err: error }, "Gemini variation generation failed");
-      throw AppError.externalService("Gemini", `Gemini variation generation failed: ${error}`);
-    }
+    return this.generateStructured([{ role: "user", content: prompt }], variationsSpec());
   }
 }

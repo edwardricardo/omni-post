@@ -20,6 +20,12 @@ import {
 } from "../types.js";
 import { AppError } from "../../lib/errors/AppError.js";
 import { logger } from "../../lib/logger.js";
+import {
+  analysisSpec,
+  optimizationSpec,
+  predictionSpec,
+  variationsSpec,
+} from "../structuredSchemas.js";
 
 const aiLogger = logger.child({ module: "ai", provider: "openai" });
 
@@ -123,20 +129,13 @@ export class OpenAIProvider implements AIProvider {
       engagement: `Analyze the engagement potential of this content and return a JSON response with score (0-100) and specific factors that impact engagement:\n\n"${content}"`,
     };
 
-    try {
-      const response = await this.generateText([
-        {
-          role: "system",
-          content: "You are an expert content analyzer. Always respond with valid JSON only.",
-        },
+    return this.generateStructured(
+      [
+        { role: "system", content: "You are an expert content analyzer." },
         { role: "user", content: prompts[analysisType] },
-      ]);
-
-      return JSON.parse(response);
-    } catch (error: unknown) {
-      aiLogger.error({ err: error }, "OpenAI analysis failed");
-      throw AppError.externalService("OpenAI", `OpenAI analysis failed: ${error}`);
-    }
+      ],
+      analysisSpec(analysisType)
+    );
   }
 
   async optimizeContent(
@@ -157,21 +156,13 @@ Return a JSON response with:
 Content to optimize:
 "${content}"`;
 
-    try {
-      const response = await this.generateText([
-        {
-          role: "system",
-          content:
-            "You are an expert social media content optimizer. Always respond with valid JSON only.",
-        },
+    return this.generateStructured(
+      [
+        { role: "system", content: "You are an expert social media content optimizer." },
         { role: "user", content: prompt },
-      ]);
-
-      return JSON.parse(response);
-    } catch (error: unknown) {
-      aiLogger.error({ err: error }, "OpenAI optimization failed");
-      throw AppError.externalService("OpenAI", `OpenAI optimization failed: ${error}`);
-    }
+      ],
+      optimizationSpec
+    );
   }
 
   async predictPerformance(
@@ -191,21 +182,13 @@ Return a JSON response with:
 Content:
 "${content}"`;
 
-    try {
-      const response = await this.generateText([
-        {
-          role: "system",
-          content:
-            "You are an expert social media performance analyst. Always respond with valid JSON only.",
-        },
+    return this.generateStructured(
+      [
+        { role: "system", content: "You are an expert social media performance analyst." },
         { role: "user", content: prompt },
-      ]);
-
-      return JSON.parse(response);
-    } catch (error: unknown) {
-      aiLogger.error({ err: error }, "OpenAI prediction failed");
-      throw AppError.externalService("OpenAI", `OpenAI prediction failed: ${error}`);
-    }
+      ],
+      predictionSpec
+    );
   }
 
   /**
@@ -293,20 +276,12 @@ Content:
 
 Return as a JSON array of strings.`;
 
-    try {
-      const response = await this.generateText([
-        {
-          role: "system",
-          content:
-            "You are an expert content variation generator. Always respond with a valid JSON array of strings only.",
-        },
+    return this.generateStructured(
+      [
+        { role: "system", content: "You are an expert content variation generator." },
         { role: "user", content: prompt },
-      ]);
-
-      return JSON.parse(response);
-    } catch (error: unknown) {
-      aiLogger.error({ err: error }, "OpenAI variation generation failed");
-      throw AppError.externalService("OpenAI", `OpenAI variation generation failed: ${error}`);
-    }
+      ],
+      variationsSpec()
+    );
   }
 }

@@ -16,6 +16,12 @@ import {
 } from "../types.js";
 import { AppError } from "../../lib/errors/AppError.js";
 import { logger } from "../../lib/logger.js";
+import {
+  analysisSpec,
+  optimizationSpec,
+  predictionSpec,
+  variationsSpec,
+} from "../structuredSchemas.js";
 
 const aiLogger = logger.child({ module: "ai", provider: "perplexity" });
 
@@ -171,21 +177,16 @@ export class PerplexityProvider implements AIProvider {
 "${content}"`,
     };
 
-    try {
-      const response = await this.generateText([
+    return this.generateStructured(
+      [
         {
           role: "system",
-          content:
-            "You are an expert content analyst with access to current research. Always respond with valid JSON only.",
+          content: "You are an expert content analyst with access to current research.",
         },
         { role: "user", content: prompts[analysisType] },
-      ]);
-
-      return JSON.parse(response);
-    } catch (_error: unknown) {
-      aiLogger.error({ err: _error }, "Perplexity analysis failed");
-      throw AppError.externalService("Perplexity", `Perplexity analysis failed: ${_error}`);
-    }
+      ],
+      analysisSpec(analysisType)
+    );
   }
 
   async optimizeContent(
@@ -199,21 +200,17 @@ Return a JSON response with optimizedText, changes, hashtags, mentions, mediasug
 
 Content: "${content}"`;
 
-    try {
-      const response = await this.generateText([
+    return this.generateStructured(
+      [
         {
           role: "system",
           content:
-            "You are an expert social media optimizer with access to current platform data and research. Always respond with valid JSON only.",
+            "You are an expert social media optimizer with access to current platform data and research.",
         },
         { role: "user", content: prompt },
-      ]);
-
-      return JSON.parse(response);
-    } catch (_error: unknown) {
-      aiLogger.error({ err: _error }, "Perplexity optimization failed");
-      throw AppError.externalService("Perplexity", `Perplexity optimization failed: ${_error}`);
-    }
+      ],
+      optimizationSpec
+    );
   }
 
   async predictPerformance(
@@ -229,21 +226,17 @@ Return a JSON response with platform, metrics (expectedEngagement, expectedReach
 
 Content: "${content}"`;
 
-    try {
-      const response = await this.generateText([
+    return this.generateStructured(
+      [
         {
           role: "system",
           content:
-            "You are an expert social media performance analyst with access to current platform data and trends. Always respond with valid JSON only.",
+            "You are an expert social media performance analyst with access to current platform data and trends.",
         },
         { role: "user", content: prompt },
-      ]);
-
-      return JSON.parse(response);
-    } catch (_error: unknown) {
-      aiLogger.error({ err: _error }, "Perplexity prediction failed");
-      throw AppError.externalService("Perplexity", `Perplexity prediction failed: ${_error}`);
-    }
+      ],
+      predictionSpec
+    );
   }
 
   async generateVariations(
@@ -257,23 +250,15 @@ Return as a JSON array of exactly ${count} strings.
 
 Original content: "${content}"`;
 
-    try {
-      const response = await this.generateText([
+    return this.generateStructured(
+      [
         {
           role: "system",
-          content:
-            "You are an expert content creator with access to current research and trends. Always respond with a valid JSON array of strings only.",
+          content: "You are an expert content creator with access to current research and trends.",
         },
         { role: "user", content: prompt },
-      ]);
-
-      return JSON.parse(response);
-    } catch (_error: unknown) {
-      aiLogger.error({ err: _error }, "Perplexity variation generation failed");
-      throw AppError.externalService(
-        "Perplexity",
-        `Perplexity variation generation failed: ${_error}`
-      );
-    }
+      ],
+      variationsSpec()
+    );
   }
 }
