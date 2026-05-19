@@ -898,7 +898,7 @@ All comments in **English**.
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request`. Threshold: **hard-zero** for all 18 — any new occurrence fails the workflow with an `::error` annotation. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request`. Threshold: **hard-zero** for all 20 — any new occurrence fails the workflow with an `::error` annotation. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 ```bash
 # 1. No Prisma singleton imports in routes
@@ -1041,6 +1041,18 @@ grep -rnE "process\.env\." packages/providers/*/src/*Adapter.ts 2>/dev/null | \
 # `needsRehash` from the helper.
 grep -rnE "argon2\.(hash|verify)\(" apps/api/src --include="*.ts" | \
   grep -v "passwordHashing\.ts\|/tests/\|\.test\." | wc -l
+
+# 20. No legacy BullMQ repeatable API. Reason: `addRepeatable` /
+# `getRepeatableJobs` / `removeRepeatableByKey` / `removeRepeatable` are
+# deprecated since BullMQ 5.16.0 and removed in v6; the canonical recurring
+# primitive is `Queue.upsertJobScheduler` (idempotent by scheduler id, no
+# manual de-dup). The four method names are BullMQ-exclusive, so this is a
+# precise hard-zero with no false positives (unlike a bare `repeat:` which
+# collides with domain fields like `cronExpression` and provider API params
+# such as Facebook insights `repeat: number`). Excludes tests + sandboxes.
+grep -rnE "\.(addRepeatable|getRepeatableJobs|removeRepeatableByKey|removeRepeatable)\(" \
+  apps/*/src packages/*/src --include="*.ts" | \
+  grep -vE "node_modules|/dist/|\.test\.|/tests/|\.stryker" | wc -l
 ```
 
 **Extending the suite.** Adding a new fitness check requires three coordinated edits, in order:

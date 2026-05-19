@@ -356,12 +356,33 @@ jobs:
             exit 1
           fi
 
+      - name: "#20 No legacy BullMQ repeatable API"
+        if: always()
+        run: |
+          set -uo pipefail
+          # addRepeatable / getRepeatableJobs / removeRepeatableByKey /
+          # removeRepeatable are deprecated since BullMQ 5.16.0 (removed in
+          # v6). The canonical recurring primitive is upsertJobScheduler
+          # (idempotent by scheduler id). The four method names are
+          # BullMQ-exclusive so this is a precise hard-zero with no false
+          # positives (unlike a bare `repeat:` which collides with domain
+          # fields and provider API params). Excludes tests + sandboxes.
+          MATCHES=$(grep -rnE "\.(addRepeatable|getRepeatableJobs|removeRepeatableByKey|removeRepeatable)\(" apps/*/src packages/*/src --include="*.ts" 2>/dev/null | \
+            grep -vE "node_modules|/dist/|\.test\.|/tests/|\.stryker" || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #20 violation::$COUNT legacy BullMQ repeatable API call(s) (expected 0). Use Queue.upsertJobScheduler / getJobSchedulers / removeJobScheduler — deprecated since BullMQ 5.16.0."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
       - name: Fitness summary
         if: always()
         run: |
           echo "## Fitness Functions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "18 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
+          echo "20 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
           echo "Hard-zero threshold: any new occurrence fails this workflow with an \`::error\` annotation." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "See individual step results above for any violations." >> $GITHUB_STEP_SUMMARY

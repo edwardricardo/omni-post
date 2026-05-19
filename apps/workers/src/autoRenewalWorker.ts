@@ -16,6 +16,7 @@ import pino from "pino";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { prisma, verifyDatabaseAuth } from "@infra/prisma";
 import { registerGracefulShutdown } from "./lib/gracefulShutdown.js";
+import { upsertAutoRenewalSchedule } from "./autoRenewalScheduler.js";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info", name: "auto-renewal-worker" });
 
@@ -33,30 +34,10 @@ const connection = new Redis(redisUrl, {
 });
 
 // ---------------------------------------------------------------------------
-// Cron scheduler — enqueues the job daily at 2:00 AM UTC
+// Recurring schedule — daily at 02:00 UTC via the BullMQ Job Scheduler
 // ---------------------------------------------------------------------------
 
 const queue = new Queue(QUEUE_NAMES.AUTO_RENEWAL, { connection });
-
-async function setupCron() {
-  // Remove any existing repeatable jobs to avoid duplicates on restart
-  const existing = await queue.getRepeatableJobs();
-  for (const job of existing) {
-    await queue.removeRepeatableByKey(job.key);
-  }
-
-  await queue.add(
-    "process-auto-renewals",
-    {},
-    {
-      repeat: { pattern: "0 2 * * *" }, // Every day at 2:00 AM UTC
-      removeOnComplete: { count: 30 }, // Keep last 30 completed
-      removeOnFail: { count: 30 },
-    }
-  );
-
-  logger.info("Auto-renewal cron scheduled: daily at 2:00 AM UTC");
-}
 
 // ---------------------------------------------------------------------------
 // Worker — processes the auto-renewal job
@@ -172,7 +153,8 @@ worker.on("failed", (job, err) => {
 // Fail fast if DATABASE_URL credentials don't authenticate (typically a
 // stale Postgres volume after a password rotation without `down -v`).
 verifyDatabaseAuth()
-  .then(() => setupCron())
+  .then(() => upsertAutoRenewalSchedule(queue))
+  .then(() => logger.info("Auto-renewal scheduler upserted: daily at 02:00 UTC"))
   .catch((err) => {
     logger.error({ err }, "Failed to start auto-renewal worker");
     process.exit(1);
