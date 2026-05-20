@@ -1,11 +1,9 @@
 /**
  * @file dead-letter-queue-adapter.test.ts
  * @description Tests for `BullMQDeadLetterQueueAdapter`.
- *   - `archive()`: serialises canonical entry shape and enqueues to the DLQ
- *     queue via the supplied `QueuePortRegistry`.
- *   - `list()` / `retry()`: return `NOT_IMPLEMENTED` for now — these
- *     methods are tracked in the backlog and will be implemented when a
- *     consumer drives their final shape.
+ *   - `archive()`: serialises the canonical entry shape and enqueues to
+ *     the DLQ queue via the supplied `QueuePortRegistry`.
+ *   - `list()` / `retry()`: return `NOT_IMPLEMENTED`.
  * @layer infrastructure
  */
 

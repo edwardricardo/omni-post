@@ -418,7 +418,7 @@ export const TOKENS = {
   // legacy token resolves to the PUBLISH queue for backwards compat and
   // will be removed once all callers migrate.
   QueuePortRegistry: Symbol.for("QueuePortRegistry"),
-  // Producer-side DLQ port (archive only; list/retry deferred to backlog).
+  // Producer-side DLQ port (archive only).
   DeadLetterQueuePort: Symbol.for("DeadLetterQueuePort"),
 
   // Analytics Aggregation

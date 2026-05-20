@@ -12,11 +12,8 @@ import { OrchestrationResult, ContentVersion } from "@shared/orchestration";
 import { EventService } from "../events/EventService";
 import { VersionBranch } from "./contentVersionTypes";
 
-// `branchCache` is preserved as a write-only path: the original
-// `Map<string, VersionBranch>` was set on creation but never read. Migrating
-// to the port preserves that exact pattern (set-only) instead of introducing
-// new read paths during a cache-consolidation refactor. The dead-read
-// investigation is tracked separately as PR-30 in the backlog.
+// `branchCache` is intentionally write-only: entries are stored on
+// creation and the read path goes through Redis directly.
 export class BranchManager {
   private redis: Redis;
   private eventService: EventService;

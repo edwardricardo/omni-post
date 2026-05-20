@@ -63,10 +63,8 @@ export default function ScheduledReportsPage() {
           <p className="text-sm font-semibold">Manual generation only</p>
           <p className="mt-1 text-sm">
             You can create scheduled reports and trigger them manually via the &quot;Generate&quot;
-            button. Cron-driven automated delivery is scaffolded but not yet wired — emails on the
-            recurring schedule will not fire until{" "}
-            <code className="font-mono text-xs">PR-Scheduled-Reports-Cron</code> lands. Tracked in
-            the post-remediation backlog.
+            button. Cron-driven automated delivery is not yet wired — emails on the recurring
+            schedule will not fire automatically.
           </p>
         </div>
 

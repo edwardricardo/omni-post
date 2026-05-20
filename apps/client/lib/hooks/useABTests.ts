@@ -69,10 +69,9 @@ function makeAbTestsApi(projectId: string) {
       });
       return res.data;
     },
-    // Backend route for AB-test UPDATE is not exposed (PR-46 backlog: needs
-    // product decision on which fields are mutable post-creation). Routing
-    // through canonical client keeps the contract consistent for when the
-    // backend route lands.
+    // The backend route for AB-test UPDATE is not currently exposed;
+    // routing through the canonical client keeps the contract consistent
+    // for when it lands.
     async updateABTest(test: ABTest): Promise<ABTest> {
       const res = await request<{ data: ABTest }>(PROXY_BASE, `${base}/${test.id}`, {
         method: "PUT",
@@ -86,7 +85,7 @@ function makeAbTestsApi(projectId: string) {
       });
       return res.data;
     },
-    // Backend route for AB-test PAUSE is not exposed (PR-46 backlog).
+    // The backend route for AB-test PAUSE is not currently exposed.
     async pauseABTest(testId: string): Promise<ABTest> {
       const res = await request<{ data: ABTest }>(PROXY_BASE, `${base}/${testId}/pause`, {
         method: "POST",
@@ -99,7 +98,7 @@ function makeAbTestsApi(projectId: string) {
       });
       return res.data;
     },
-    // Backend route for AB-test DELETE is not exposed (PR-46 backlog).
+    // The backend route for AB-test DELETE is not currently exposed.
     async deleteABTest(testId: string): Promise<void> {
       await request<void>(PROXY_BASE, `${base}/${testId}`, {
         method: "DELETE",

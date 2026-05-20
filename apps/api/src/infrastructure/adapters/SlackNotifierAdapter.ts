@@ -1,9 +1,10 @@
 /**
  * @file SlackNotifierAdapter.ts
- * @description Infrastructure adapter for sending Slack webhook notifications
- *   using Block Kit message format. Delegates HTTP transport to HttpClientPort
- *   (canon T4-X — Result-based outbound HTTP, AbortSignal.timeout, error union
- *   TIMEOUT/NETWORK/BAD_RESPONSE).
+ * @description Infrastructure adapter for sending Slack webhook
+ *   notifications using the Block Kit message format. Delegates HTTP
+ *   transport to `HttpClientPort` — Result-based outbound HTTP with
+ *   `AbortSignal.timeout` and the error union TIMEOUT / NETWORK /
+ *   BAD_RESPONSE.
  * @layer infrastructure
  */
 

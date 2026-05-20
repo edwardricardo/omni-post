@@ -50,10 +50,9 @@ function makeVersionsApi(projectId: string, templateId: string) {
         method: "POST",
       });
     },
-    // Backend route for version DELETE is not exposed (PR-46 backlog: needs
-    // product decision on retention policy + UI authorization). Consumer's
-    // delete button currently 404s; routing through canonical client keeps
-    // the contract consistent for when the backend route lands.
+    // The backend route for version DELETE is not currently exposed;
+    // the delete button receives 404. Routing through the canonical
+    // client keeps the contract consistent for when it lands.
     async deleteVersion(versionId: string): Promise<void> {
       await request<void>(PROXY_BASE, `${base}/${versionId}`, {
         method: "DELETE",

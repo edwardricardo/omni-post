@@ -72,9 +72,10 @@ export function useWebhookSubscriptions() {
 
 /**
  * @hook useProjectsForSubscriptionForm
- * @description Fetches projects for the subscription form's project selector.
- *   Cached for 5 minutes. See PR-15 in POST_REMEDIATION_BACKLOG.md — backend
- *   endpoint currently 404s, hook returns [] until product decision is made.
+ * @description Fetches projects for the subscription form's project
+ *   selector. Cached for 5 minutes. The backend endpoint currently
+ *   returns 404, so the hook returns an empty array on that response
+ *   rather than surfacing a hard error.
  * @returns Query result with { data: Array<{ id, name }>, isLoading, error }
  */
 export function useProjectsForSubscriptionForm() {

@@ -204,7 +204,7 @@ async function createApp(): Promise<FastifyInstance> {
 
   // Expose raw JSON spec
   typedApp.get("/docs/json", async (_request, reply) => {
-    return reply.send(typedApp.swagger());
+    return reply.send(typedApp.swagger?.() ?? {});
   });
 
   // Initialize Redis for advanced rate limiting
@@ -245,8 +245,12 @@ async function createApp(): Promise<FastifyInstance> {
     excludeRoutes: ["/health", "/metrics"],
   });
 
-  // Initialize cookie support
-  await typedApp.register(fastifyCookie, {
+  // Initialize cookie support. The plugin uses CommonJS-style export
+  // (`export = fastifyCookie`) and the default import surfaces as the
+  // `FastifyCookie` namespace, which does not satisfy
+  // `FastifyPluginCallback` directly under strict type checks.
+  type CookiePlugin = Parameters<typeof typedApp.register>[0];
+  await typedApp.register(fastifyCookie as unknown as CookiePlugin, {
     secret: env.COOKIE_SECRET,
   });
 

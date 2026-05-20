@@ -4,7 +4,7 @@
  *              renders an App Password form and uses `useConnectBluesky`
  *              to call the backend; for OAuth providers it currently
  *              acts as a placeholder ("Connect Account" closes the
- *              dialog — actual OAuth redirect lives in PR-18 / L-94).
+ *              dialog — the OAuth redirect itself is not wired here).
  * @component ConnectProviderDialog
  * @layer infrastructure
  */

@@ -1,8 +1,7 @@
 /**
  * @file channelsAdminClient.ts
- * @description Admin client for channel-level admin actions. Today exposes
- *              force-reauth (PR-43-A); list / detail endpoints land in a
- *              follow-up sub-batch.
+ * @description Admin client for channel-level admin actions. Exposes
+ *              the force-reauth endpoint.
  * @layer infrastructure
  */
 

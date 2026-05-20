@@ -230,7 +230,7 @@ describe("useWebhookSubscriptions", () => {
 });
 
 describe("useProjectsForSubscriptionForm", () => {
-  it("returns [] when backend route 404s (PR-15 — known broken)", async () => {
+  it("returns [] when the backend route responds 404", async () => {
     mockFetch.mockResolvedValueOnce(errorResponse(404, "Not found"));
 
     const { result } = renderHook(() => useProjectsForSubscriptionForm(), {

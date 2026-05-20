@@ -129,7 +129,7 @@ describe("FetchHttpClient", () => {
   });
 
   // ─────────────────────────────────────────────────────────────────
-  // GET / HEAD / PUT / DELETE tests (new — PR-45.0)
+  // GET / HEAD / PUT / DELETE tests
   // ─────────────────────────────────────────────────────────────────
 
   it("get() forwards method=GET without body, no Content-Type added", async () => {

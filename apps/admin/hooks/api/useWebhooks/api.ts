@@ -77,13 +77,11 @@ export async function fetchWebhookSubscriptions(): Promise<WebhookSubscription[]
 }
 
 /**
- * @description Fetches the list of projects for the subscription form selector.
- *              NOTE: see PR-15 in POST_REMEDIATION_BACKLOG.md — the backend
- *              route `GET /api/backend/projects` does not currently exist.
- *              The fetch resolves with `[]` (selector empty in production).
- *              Behavior is preserved here verbatim from the pre-T3-N code;
- *              fixing this requires a product decision on cross-account vs
- *              per-account project listing scope.
+ * @description Fetches the list of projects for the subscription form
+ *              selector. The backend route `GET /api/backend/projects`
+ *              does not currently exist; the fetch resolves with `[]`
+ *              (selector empty in production) instead of surfacing a
+ *              hard error.
  */
 export async function fetchProjectsForSubscriptionForm(): Promise<
   Array<{ id: string; name: string }>

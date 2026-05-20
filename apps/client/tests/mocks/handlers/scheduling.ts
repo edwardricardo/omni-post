@@ -1,14 +1,13 @@
 /**
  * @file scheduling.ts
- * @description MSW v2 handlers for the scheduling-domain endpoints consumed
- *              by `useSchedulingDashboardSidebar` (PR-51.A POC). Default
- *              responses match the canonical envelope shape produced by
- *              `BaseRouteHandler.sendSuccess` (`{ ok: true, data: T }`) so
- *              that consumer hooks see what the real backend would send.
- *              Per-test scenarios (4xx/5xx, missing data, etc.) override
- *              these via `server.use(...)` inside the failing-case `it()`.
- *
- *              Canon: `msw-v2-setup-for-vitest-tests-with-tanstack-query`.
+ * @description MSW v2 handlers for the scheduling-domain endpoints
+ *              consumed by `useSchedulingDashboardSidebar`. Default
+ *              responses match the envelope shape produced by
+ *              `BaseRouteHandler.sendSuccess` (`{ ok: true, data: T }`)
+ *              so consumer hooks see what the real backend would send.
+ *              Per-test scenarios (4xx/5xx, missing data, etc.)
+ *              override these via `server.use(...)` inside the
+ *              failing-case `it()`.
  * @layer infrastructure
  */
 

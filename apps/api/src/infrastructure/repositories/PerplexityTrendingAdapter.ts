@@ -1,11 +1,10 @@
 /**
  * @file PerplexityTrendingAdapter.ts
- * @description Trending-topic source backed by Perplexity Sonar's real-time
- *              web access. Calls `AIServicePort.generateStructured` with
- *              `trendDiscoverySpec` and embeds requested source URLs inside
- *              the structured output (the native Perplexity citation surface
- *              is not yet exposed by `AIServicePort` — tracked as a backlog
- *              smell).
+ * @description Trending-topic source backed by Perplexity Sonar's
+ *              real-time web access. Calls
+ *              `AIServicePort.generateStructured` with
+ *              `trendDiscoverySpec` and embeds requested source URLs
+ *              inside the structured output.
  * @layer infrastructure
  */
 

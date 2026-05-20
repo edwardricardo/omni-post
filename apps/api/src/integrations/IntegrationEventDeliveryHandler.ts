@@ -10,9 +10,7 @@
  *
  *              Delivery semantic: the outbox guarantees the handler runs
  *              at-least-once. The fire() call itself is best-effort
- *              (Promise.allSettled, no per-subscription retry). True
- *              at-least-once to customer URLs requires per-subscription
- *              delivery jobs with their own retry/DLQ — tracked in PR-59.
+ *              (Promise.allSettled, no per-subscription retry).
  * @layer infrastructure
  */
 

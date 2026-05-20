@@ -2,10 +2,11 @@
  * @file dead-letter-queue-adapter.ts
  * @description `DeadLetterQueuePort` adapter implementation backed by
  *              BullMQ. Producer side (`archive`) is fully implemented —
- *              wraps the canonical `DeadLetterEntry` shape into the BullMQ
- *              job payload of the configured DLQ queue. The consumer-side
- *              methods (`list`, `retry`) return `NOT_IMPLEMENTED` until a
- *              consumer drives their final shape (PR-26 backlog).
+ *              wraps the canonical `DeadLetterEntry` shape into the
+ *              BullMQ job payload of the configured DLQ queue. The
+ *              consumer-side methods (`list`, `retry`) return
+ *              `NOT_IMPLEMENTED` until a consumer drives their final
+ *              shape.
  * @layer infrastructure
  */
 import { err, type Result } from "@shared/types";

@@ -151,8 +151,8 @@ describe("useAnalytics", () => {
 
   it("surfaces the error via TanStack Query when the analytics endpoint fails", async () => {
     // Only the analytics endpoint fails; dashboard + billing still succeed.
-    // After the T2-C fix fetchJSON throws on !res.ok, so the query must expose
-    // the failure through isError instead of silently returning partial data.
+    // `fetchJSON` throws on `!res.ok`, so the query exposes the failure
+    // through `isError` instead of silently returning partial data.
     mockFetch.mockImplementation(async (url: string) => {
       if (url.includes("/admin/analytics/metrics")) {
         return {

@@ -60,11 +60,11 @@ export interface SagaContext {
 }
 
 // ============================================================================
-// Step classification (Azure canon §4-8)
+// Step classification
 // ============================================================================
 
 /**
- * Step classes per Azure Architecture Center "Saga design pattern":
+ * Step classes:
  *
  * - "compensable" — pre-pivot step. MUST implement compensate(). Idempotent.
  *   On saga failure pre-pivot, compensable steps are walked in reverse order
@@ -81,7 +81,7 @@ export interface SagaContext {
 export type StepClass = "compensable" | "pivot" | "retryable";
 
 // ============================================================================
-// Countermeasures (Azure canon §15-20)
+// Countermeasures
 // ============================================================================
 
 /**

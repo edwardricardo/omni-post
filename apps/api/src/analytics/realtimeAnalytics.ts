@@ -93,12 +93,19 @@ export class RealtimeAnalyticsService extends BaseService {
     const websocketPlugin = await import("@fastify/websocket");
     await fastify.register(websocketPlugin.default);
 
-    // WebSocket endpoint for real-time analytics
+    // WebSocket endpoint for real-time analytics. `@fastify/websocket`
+    // rebinds the handler so `connection` is the upgraded socket
+    // wrapper; the upstream type augmentation is not picked up because
+    // the plugin loads dynamically — we cast the handler to the loose
+    // shape Fastify ultimately invokes.
     const self = this;
     fastify.register(async function (fastify) {
-      fastify.get("/ws/analytics", { websocket: true }, async (connection, req) => {
+      fastify.get("/ws/analytics", { websocket: true }, (async (
+        connection: WebSocket.WebSocket,
+        req: FastifyRequest
+      ) => {
         await self.handleWebSocketConnection(connection, req);
-      });
+      }) as never);
     });
   }
 

@@ -1,14 +1,12 @@
 /**
  * @file useNotifications.integration.test.tsx
- * @description Integration tests for the PR-51.client.B notifications hooks
- *              (`useNotificationsApi/{queries,mutations}`). Verifies the
- *              canon pattern wiring: queryOptions factory consumed by
- *              useQuery, partial-key hierarchy invalidation from mutations,
- *              query gating via `enabled`, and envelope shape matches the
- *              backend's `{ ok, data }` (post Phase A audit).
- *
- *              Canon: `msw-v2-setup-for-vitest-tests-with-tanstack-query`
- *              (per-test-file lifecycle, NOT global setupFiles).
+ * @description Integration tests for the notifications hooks
+ *              (`useNotificationsApi/{queries,mutations}`). Verifies
+ *              that the queryOptions factory is consumed by `useQuery`,
+ *              partial-key hierarchy invalidation from mutations, query
+ *              gating via `enabled`, and the envelope shape matches the
+ *              backend's `{ ok, data }`. MSW lifecycle is per-test-file
+ *              (not global `setupFiles`).
  * @layer infrastructure
  */
 
