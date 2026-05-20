@@ -1543,11 +1543,11 @@ model WebhookSubscription {
   provider                   Provider
   webhookUrl                 String // Our webhook endpoint URL
   secretKey                  String // Secret for signature verification
-  // Grace-window pair populated during admin-triggered rotation (PR-43-B).
-  // While `previousSecretKeyExpiresAt > now()`, the HMAC verifier accepts
-  // signatures produced with `previousSecretKey` so in-flight webhooks
-  // delivered with the old shared secret are not rejected. Both columns
-  // null = no rotation in progress.
+  // Grace-window pair populated during admin-triggered rotation.
+  // While `previousSecretKeyExpiresAt > now()`, the HMAC verifier
+  // accepts signatures produced with `previousSecretKey` so in-flight
+  // webhooks delivered with the old shared secret are not rejected.
+  // Both columns null = no rotation in progress.
   previousSecretKey          String?
   previousSecretKeyExpiresAt DateTime? @db.Timestamptz(6)
   isActive                   Boolean   @default(true)
@@ -1985,7 +1985,7 @@ model TemplateAnalytics {
   // Performance metrics
   avgEngagement    Float?
   conversionRate   Float?
-  /// Money: Decimal(19,4) — canon T4-U para precisión financiera.
+  /// Money: Decimal(19,4) for financial precision.
   revenueGenerated Decimal? @db.Decimal(19, 4)
 
   // Time-based metrics
