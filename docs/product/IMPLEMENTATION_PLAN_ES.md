@@ -18,11 +18,11 @@
 | Bloque                       | Tareas | Hechas | Estado  |
 | ---------------------------- | ------ | ------ | ------- |
 | Bloqueantes compartidos (B)  | 5      | 5      | ✅      |
-| Fase 0 — Funciones autónomas | 11     | 10     | 🟦      |
+| Fase 0 — Funciones autónomas | 11     | 11     | ✅      |
 | Fase 1 — Necesarias          | 16     | 0      | ⬜      |
 | Fase 2 — Bueno tenerla       | 21     | 0      | ⬜      |
 | Fase 3 — Interesantes        | 14     | 0      | ⬜      |
-| **Total**                    | **67** | **15** | **22%** |
+| **Total**                    | **67** | **16** | **24%** |
 
 > Actualizar esta tabla al cerrar cada tarea. `Estado`: ⬜ no iniciado · 🟦 en progreso · ✅ completo.
 
@@ -65,7 +65,7 @@
 ### Transversal de fase
 
 - [x] **F0-API-4** `[M]` Guardrails pre/post acción + telemetría de tasa-de-fallo (canon §9.1). 🔗 dep:F0-API-1. **DoD:** acción irreversible pasa por guardrail; métrica de fallo expuesta. → Nuevo `GuardrailPort` (domain) + `GuardrailRegistry` composer (application, cascade fail-fast con Prometheus instrumentation) + dos adapters concretos en infrastructure (`ContentPolicyGuardrail` rules-based max length + banned terms; `PIIRedactionGuardrail` regex sobre email/phone/SSN + Luhn check para credit-card). DI registrado via `setupGuardrailUseCases.ts`. Wire en `SendReplyUseCase` pre-acción (rechaza con `GUARDRAIL_REJECTED` antes de cualquier persistencia/provider call; mapping a HTTP 422 en `inboxRoutes.ts`) y `TriageInboxMessageUseCase` post-AI (filtra `suggestedReplies` AI-generated, drop silencioso de cualquier item bloqueado — graceful degradation). Métricas Prometheus expuestas en `/metrics`: `omnipost_guardrail_evaluations_total{guardrail,action,decision}` counter + `omnipost_guardrail_duration_seconds{guardrail,action}` histogram (registro singleton-safe via `getSingleMetric`). Nuevo error code `GUARDRAIL_REJECTED` en `USE_CASE_ERRORS`. Tests: 38 unit (port contract + 2 guardrails + composer + métricas + DI setup + wire SendReply) + 2 integration fail-loud (HTTP 422 + counter incremento verificado en `/metrics`). Coverage: ambos paths canon (pre y post acción).
-- [ ] **F0-API-5** `[S]` Evals de trayectoria en CI (mocks deterministas) para los 3 slices. 🔗 dep:F0-WRK-1,F0-WRK-2,F0-WRK-3. **DoD:** CI falla si la trayectoria/coste se degrada.
+- [x] **F0-API-5** `[S]` Evals de trayectoria en CI (mocks deterministas) para los 3 slices. 🔗 dep:F0-WRK-1,F0-WRK-2,F0-WRK-3. **DoD:** CI falla si la trayectoria/coste se degrada. → Nueva suite dedicada `apps/api/tests/eval/`: `repurposeTrajectory.eval.test.ts` (4 tests — node order plan→act→reflect, upper-bound de tokenCost via `TrajectoryRecorder.snapshot()`, HITL `interrupt()` después de reflect, resume to terminal), `triageTrajectory.eval.test.ts` (5 tests — call order loadMessage→generateStructured→updateMessageTriage via vi.fn() ordering, MAX_TRIAGE_AI_CALLS=1, suggestedReplies cardinality=3, sentimentScore range, priority enum), `trendsTrajectory.eval.test.ts` (5 tests — pipeline stage order fetch→score→persist, MAX_TRENDS_AI_CALLS=1, relevance threshold ≥6 policy, short-circuit on empty fetch, provenance source propagation). Todos los runs son deterministas (mocks de `AIServicePort`, `TrendingDataPort`, etc. — sin red, sin Prisma, sin Redis). Nuevo `test:eval` script en `apps/api/package.json`. Nuevo workflow `.github/workflows/eval.yml` corre el job en push/PR; falla del eval bloquea merge.
 
 ---
 

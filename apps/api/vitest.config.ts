@@ -86,7 +86,7 @@ export default defineConfig({
       // are imported transitively. No real connection is ever established.
       DATABASE_URL: "postgresql://test:test@localhost:5432/testdb",
     },
-    include: ["tests/unit/**/*.test.ts"],
+    include: ["tests/unit/**/*.test.ts", "tests/eval/**/*.test.ts"],
     exclude: ["**/node_modules/**"],
     pool: "forks",
     coverage: {

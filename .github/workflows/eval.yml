@@ -1,0 +1,46 @@
+name: AI Trajectory Evals
+
+# Runs the deterministic trajectory evals for the three AI slices
+# (repurpose, triage, trends). Failure blocks merge: a regression in
+# pipeline shape, AI-call budget, or output policy must surface here
+# before the change reaches main.
+
+on:
+  push:
+    branches: [main, "workstream/**"]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: eval-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  trajectory:
+    name: Trajectory evals (mocks deterministas)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @infra/prisma exec prisma generate
+
+      - name: Run trajectory evals
+        env:
+          NODE_OPTIONS: "--max-old-space-size=8192"
+        run: pnpm --filter @apps/api run test:eval
