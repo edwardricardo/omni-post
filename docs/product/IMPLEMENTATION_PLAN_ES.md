@@ -18,11 +18,11 @@
 | Bloque                       | Tareas | Hechas | Estado  |
 | ---------------------------- | ------ | ------ | ------- |
 | Bloqueantes compartidos (B)  | 5      | 5      | ✅      |
-| Fase 0 — Funciones autónomas | 11     | 5      | 🟦      |
+| Fase 0 — Funciones autónomas | 11     | 6      | 🟦      |
 | Fase 1 — Necesarias          | 16     | 0      | ⬜      |
 | Fase 2 — Bueno tenerla       | 21     | 0      | ⬜      |
 | Fase 3 — Interesantes        | 14     | 0      | ⬜      |
-| **Total**                    | **67** | **10** | **15%** |
+| **Total**                    | **67** | **11** | **16%** |
 
 > Actualizar esta tabla al cerrar cada tarea. `Estado`: ⬜ no iniciado · 🟦 en progreso · ✅ completo.
 
@@ -54,7 +54,7 @@
 
 - [x] **F0-WRK-2** `[M]` Worker `TRIAGE_INBOX`: clasificación intent/sentimiento con **structured outputs** + few-shot (canon §9.1). 🔗 dep:B1. **DoD:** clasifica mensaje a schema fijo; eval set de consistencia en CI. → `TriageInboxMessageUseCase` migrado a `AIServicePort.generateStructured` con `triageSpec` (zod: priority enum + sentimentScore en [-1,1] + suggestedReplies length=3) + few-shot embebido en messages; `TriageAIPort` retirado (wrapper 1:1 sin valor); nuevo `TriageDispatchEventHandler` (infra, mirror `IntegrationEventDeliveryHandler`) suscrito al `EventDispatcher` para `SocialMessageReceived`, encola `TRIAGE_INBOX` dedupeKey por messageId; consumer `triageInboxHandler` en apps/api wireado en `index.ts` (BullMQ subscribe + shutdown close); eval set vitest determinista (3 archivos / 28 tests). Cobertura sync (inboxSyncWorker bypass) reconocida como gap → SMELL-11 backlog.
 - [x] **F0-API-2** `[S]` Endpoints de triage + persistencia (`priority`, `suggestedReplies`, `sentimentScore`). 🔗 dep:F0-WRK-2. **DoD:** integration test; campos poblados. → `SocialMessageDTO` extendido con 5 triage fields (`priority`, `sentimentScore` con `Decimal→Number`, `suggestedReplies`, `aiProcessedAt`, `crmContactId`); los 3 endpoints existentes (`GET /inbox`, `/inbox/mentions`, `/inbox/conversations/:id/messages`) los exponen automáticamente vía `toDTO()` en `PrismaSocialMessageQueryRepository`. Bug pre-existente del accessor (`request.user` → `request.customerUser`, mismo anti-pattern que SMELL-2) corregido en `inboxRoutes.ts` (14 sitios) para que el customer JWT path funcione end-to-end. Integration test fail-loud (5 casos: 3 endpoints + cross-tenant + 401).
-- [ ] **F0-CLI-2** `[M]` Vista de triage en la bandeja (prioridad/sentimiento/sugerencias). 🔗 dep:F0-API-2. **DoD:** bandeja muestra clasificación; test componente.
+- [x] **F0-CLI-2** `[M]` Vista de triage en la bandeja (prioridad/sentimiento/sugerencias). 🔗 dep:F0-API-2. **DoD:** bandeja muestra clasificación; test componente. → Rewrite completo del cliente inbox alineado al backend canon (regla durable: frontend acopla a backend). Types client mirror server DTOs 1:1 (`InboxMessage`/`InboxMessagesPage`/`InboxConversation`); hooks renombrados (`useInboxMessages`); 7 components reescritos para consumir flat `SocialMessageDTO` (priority badge URGENT/HIGH, sentiment label negative/neutral/positive, message-type badge, In-CRM badge, suggested-reply chips click → composer). Integration test 5/5 (empty, render con triage, abre thread on click, chip → pre-fill composer, error state). 4 smells localizados al backlog (SMELL-12..15). Cierra slice B.
 
 ### Slice C — Trend radar
 

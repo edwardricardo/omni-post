@@ -65,7 +65,7 @@ export function ReplyComposer({
     }
   }, [suggestedText, onSuggestedTextConsumed]);
 
-  const isSupported = REPLY_SUPPORTED_PROVIDERS.has(provider);
+  const isSupported = REPLY_SUPPORTED_PROVIDERS.has(provider.toLowerCase());
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);
@@ -107,7 +107,8 @@ export function ReplyComposer({
   const isWarning = charCount >= WARN_THRESHOLD;
 
   if (!isSupported) {
-    const providerLabel = provider.charAt(0).toUpperCase() + provider.slice(1);
+    const normalized = provider.toLowerCase();
+    const providerLabel = normalized.charAt(0).toUpperCase() + normalized.slice(1);
     return (
       <div className="border-t border-gray-200 bg-gray-50 px-4 py-3">
         <p className="text-xs text-gray-500 text-center">

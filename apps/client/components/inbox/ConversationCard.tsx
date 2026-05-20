@@ -1,8 +1,9 @@
 /**
  * @file ConversationCard.tsx
- * @description Single conversation row in the inbox conversation list.
- *              Shows: platform badge, sender name, message preview, relative time,
- *              and unread dot.
+ * @description Single inbox-message row in the inbox list. Shows platform badge,
+ *              priority indicator, AI sentiment label, message-type badge, author
+ *              name, message preview, relative time, unread highlight, and an
+ *              optional "In CRM" badge when the sender matches a CRM contact.
  * @layer infrastructure
  */
 
@@ -10,137 +11,180 @@
 
 import { memo } from "react";
 import { formatDistanceToNow } from "date-fns";
-import type { ConversationListItem, InboxMessageType } from "@/hooks/api/useInbox";
+import type { InboxMessage, InboxMessageWireType, InboxPriority } from "@/hooks/api/useInbox";
 
 // ---------------------------------------------------------------------------
 // Platform badge colours
 // ---------------------------------------------------------------------------
 
 const PROVIDER_COLOURS: Record<string, string> = {
-  x: "bg-black text-white",
-  instagram: "bg-gradient-to-br from-purple-500 to-pink-500 text-white",
-  facebook: "bg-blue-600 text-white",
-  youtube: "bg-red-600 text-white",
-  tiktok: "bg-black text-white",
-  snapchat: "bg-yellow-400 text-black",
-  telegram: "bg-sky-500 text-white",
-  pinterest: "bg-red-500 text-white",
-  linkedin: "bg-blue-700 text-white",
-};
-
-const MESSAGE_TYPE_STYLES: Record<InboxMessageType, string> = {
-  COMPLAINT: "bg-red-100 text-red-700",
-  LEAD: "bg-green-100 text-green-700",
-  QUESTION: "bg-blue-100 text-blue-700",
-  SPAM: "bg-gray-100 text-gray-500",
-  FEEDBACK: "bg-gray-100 text-gray-600",
-};
-
-const PRIORITY_COLOURS: Record<string, string> = {
-  URGENT: "bg-red-500",
-  HIGH: "bg-orange-500",
-  LOW: "bg-gray-400",
+  X: "bg-black text-white",
+  INSTAGRAM: "bg-gradient-to-br from-purple-500 to-pink-500 text-white",
+  FACEBOOK: "bg-blue-600 text-white",
+  YOUTUBE: "bg-red-600 text-white",
+  TIKTOK: "bg-black text-white",
+  SNAPCHAT: "bg-yellow-400 text-black",
+  TELEGRAM: "bg-sky-500 text-white",
+  PINTEREST: "bg-red-500 text-white",
+  LINKEDIN: "bg-blue-700 text-white",
 };
 
 const PROVIDER_LABELS: Record<string, string> = {
-  x: "X",
-  instagram: "IG",
-  facebook: "FB",
-  youtube: "YT",
-  tiktok: "TK",
-  snapchat: "SC",
-  telegram: "TG",
-  pinterest: "PI",
-  linkedin: "LI",
+  X: "X",
+  INSTAGRAM: "IG",
+  FACEBOOK: "FB",
+  YOUTUBE: "YT",
+  TIKTOK: "TK",
+  SNAPCHAT: "SC",
+  TELEGRAM: "TG",
+  PINTEREST: "PI",
+  LINKEDIN: "LI",
 };
+
+const PRIORITY_COLOURS: Record<InboxPriority, string> = {
+  URGENT: "bg-red-500",
+  HIGH: "bg-orange-500",
+  NORMAL: "bg-gray-300",
+  LOW: "bg-gray-200",
+};
+
+const MESSAGE_TYPE_STYLES: Record<InboxMessageWireType, string> = {
+  COMMENT: "bg-blue-100 text-blue-700",
+  MENTION: "bg-purple-100 text-purple-700",
+  REPLY: "bg-green-100 text-green-700",
+  DIRECT_MESSAGE: "bg-amber-100 text-amber-700",
+};
+
+const MESSAGE_TYPE_LABELS: Record<InboxMessageWireType, string> = {
+  COMMENT: "Comment",
+  MENTION: "Mention",
+  REPLY: "Reply",
+  DIRECT_MESSAGE: "DM",
+};
+
+// ---------------------------------------------------------------------------
+// Sentiment label
+// ---------------------------------------------------------------------------
+
+function sentimentLabel(score: number | null): {
+  text: string;
+  className: string;
+} | null {
+  if (score === null) return null;
+  if (score > 0.2) {
+    return { text: "positive", className: "bg-green-100 text-green-700" };
+  }
+  if (score < -0.2) {
+    return { text: "negative", className: "bg-red-100 text-red-700" };
+  }
+  return { text: "neutral", className: "bg-gray-100 text-gray-600" };
+}
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 interface ConversationCardProps {
-  conversation: ConversationListItem;
+  message: InboxMessage;
   selected: boolean;
-  onSelect: (id: string) => void;
+  /** Fires with the message's conversationId when clicked (no-op if null). */
+  onSelect: (conversationId: string) => void;
 }
 
 /**
  * @component ConversationCard
- * @description Single conversation row in the inbox list. Displays platform badge,
- *              sender name, message preview, relative timestamp, priority indicator,
- *              message type badge, and unread dot.
- * @param props.conversation - The conversation list item data
- * @param props.selected - Whether this conversation is currently active
- * @param props.onSelect - Callback when the card is clicked
+ * @description Single inbox-message row. Surfaces the AI triage classification
+ *              (priority, sentiment, CRM hint) alongside the message metadata so
+ *              the user can prioritise the queue at a glance.
+ * @param props.message - The inbox message data (flat DTO).
+ * @param props.selected - Whether this row is currently active.
+ * @param props.onSelect - Callback when the row is clicked. Receives the
+ *   conversationId; the card is non-interactive when the message has none.
  */
-function ConversationCardComponent({ conversation, selected, onSelect }: ConversationCardProps) {
-  const colour = PROVIDER_COLOURS[conversation.provider] ?? "bg-gray-500 text-white";
-  const label =
-    PROVIDER_LABELS[conversation.provider] ?? conversation.provider.slice(0, 2).toUpperCase();
-  const preview = conversation.lastMessage?.body ?? "No messages yet";
-  const truncatedPreview = preview.length > 80 ? `${preview.slice(0, 80)}…` : preview;
-  const timeAgo = conversation.lastMessage
-    ? formatDistanceToNow(new Date(conversation.lastMessage.createdAt), { addSuffix: true })
-    : "";
+function ConversationCardComponent({ message, selected, onSelect }: ConversationCardProps) {
+  const providerKey = message.provider.toUpperCase();
+  const colour = PROVIDER_COLOURS[providerKey] ?? "bg-gray-500 text-white";
+  const label = PROVIDER_LABELS[providerKey] ?? providerKey.slice(0, 2);
+  const preview = message.body.length > 80 ? `${message.body.slice(0, 80)}…` : message.body;
+  const timeAgo = formatDistanceToNow(new Date(message.providerCreatedAt), { addSuffix: true });
+  const sentiment = sentimentLabel(message.sentimentScore);
+  const isUnread = message.status === "UNREAD";
+  const showPriority = message.priority !== "NORMAL" && message.priority !== "LOW";
+  const canOpen = message.conversationId !== null;
+
+  const handleClick = (): void => {
+    if (canOpen) onSelect(message.conversationId!);
+  };
 
   return (
     <button
-      onClick={() => onSelect(conversation.id)}
+      onClick={handleClick}
+      disabled={!canOpen}
       className={[
         "w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors",
         selected && "bg-indigo-50 border-l-2 border-l-indigo-500",
-        conversation.unreadCount > 0 && !selected && "bg-blue-50/30",
+        isUnread && !selected && "bg-blue-50/30",
+        !canOpen && "cursor-default opacity-90",
       ]
         .filter(Boolean)
         .join(" ")}
-      aria-label={`Conversation with ${conversation.lastMessage?.senderName ?? "unknown"} on ${conversation.provider}`}
+      aria-label={`${MESSAGE_TYPE_LABELS[message.messageType]} from ${message.authorName} on ${message.provider}`}
       aria-current={selected ? "true" : undefined}
     >
       <div className="flex items-start gap-3">
-        {/* Unread dot */}
         <div className="mt-1.5 shrink-0 w-2">
-          {conversation.unreadCount > 0 && (
+          {isUnread && (
             <span className="block h-2 w-2 rounded-full bg-blue-500" aria-label="Unread" />
           )}
         </div>
 
-        {/* Platform badge */}
         <span
           className={`shrink-0 flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold ${colour}`}
-          aria-label={conversation.provider}
+          aria-label={message.provider}
         >
           {label}
         </span>
 
-        {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 min-w-0">
-              {/* Priority indicator */}
-              {conversation.priority && conversation.priority !== "NORMAL" && (
+              {showPriority && (
                 <span
-                  className={`inline-block h-2 w-2 shrink-0 rounded-full ${PRIORITY_COLOURS[conversation.priority] ?? ""}`}
-                  title={conversation.priority}
-                  aria-label={`Priority: ${conversation.priority}`}
+                  className={`inline-block h-2 w-2 shrink-0 rounded-full ${PRIORITY_COLOURS[message.priority]}`}
+                  title={message.priority}
+                  aria-label={`Priority: ${message.priority}`}
                 />
               )}
               <p
-                className={`text-sm truncate ${conversation.unreadCount > 0 ? "font-semibold text-gray-900" : "font-medium text-gray-700"}`}
+                className={`text-sm truncate ${isUnread ? "font-semibold text-gray-900" : "font-medium text-gray-700"}`}
               >
-                {conversation.lastMessage?.senderName ?? "Unknown sender"}
+                {message.authorName}
               </p>
-              {/* Message type badge */}
-              {conversation.messageType && conversation.messageType !== "FEEDBACK" && (
+              <span
+                className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded font-medium ${MESSAGE_TYPE_STYLES[message.messageType]}`}
+              >
+                {MESSAGE_TYPE_LABELS[message.messageType]}
+              </span>
+              {sentiment && (
                 <span
-                  className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded font-medium ${MESSAGE_TYPE_STYLES[conversation.messageType]}`}
+                  className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded ${sentiment.className}`}
+                  title={`Sentiment ${message.sentimentScore?.toFixed(2) ?? ""}`}
                 >
-                  {conversation.messageType}
+                  {sentiment.text}
+                </span>
+              )}
+              {message.crmContactId && (
+                <span
+                  className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 font-medium"
+                  title="Sender is a known CRM contact"
+                >
+                  In CRM
                 </span>
               )}
             </div>
-            {timeAgo && <span className="shrink-0 text-xs text-gray-400">{timeAgo}</span>}
+            <span className="shrink-0 text-xs text-gray-400">{timeAgo}</span>
           </div>
-          <p className="mt-0.5 text-xs text-gray-500 line-clamp-1">{truncatedPreview}</p>
+          <p className="mt-0.5 text-xs text-gray-500 line-clamp-1">{preview}</p>
         </div>
       </div>
     </button>

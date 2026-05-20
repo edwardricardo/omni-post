@@ -7,21 +7,16 @@
  */
 
 export type {
-  Conversation,
-  ConversationListItem,
+  InboxConversation,
   InboxFilters,
-  InboxMessageType,
+  InboxMessage,
+  InboxMessagesPage,
+  InboxMessageStatus,
+  InboxMessageWireType,
   InboxPriority,
-  Message,
-  PagedResult,
 } from "./types";
 
-export {
-  useConversation,
-  useConversationMessages,
-  useInboxConversations,
-  useMentions,
-} from "./queries";
+export { useConversation, useConversationMessages, useInboxMessages, useMentions } from "./queries";
 
 export {
   useAssignMessage,

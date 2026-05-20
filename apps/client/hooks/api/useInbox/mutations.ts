@@ -29,8 +29,10 @@ export function useSendReply(conversationId: string) {
     mutationFn: ({ messageId, body }: { messageId: string; body: string }) =>
       sendReply(messageId, body),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["inbox", "messages", conversationId] });
-      void queryClient.invalidateQueries({ queryKey: ["inbox", "conversations"] });
+      void queryClient.invalidateQueries({
+        queryKey: ["inbox", "conversation-messages", conversationId],
+      });
+      void queryClient.invalidateQueries({ queryKey: ["inbox", "messages"] });
     },
   });
 }

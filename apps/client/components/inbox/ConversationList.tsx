@@ -1,34 +1,39 @@
 /**
  * @file ConversationList.tsx
- * @description Virtualized conversation list with infinite scroll.
- *              Uses TanStack Query infinite query + IntersectionObserver for
- *              automatic next-page loading.
+ * @description Scrollable inbox message list with infinite scroll via
+ *              IntersectionObserver. Switches between the general inbox feed
+ *              and the mentions-only feed based on the active filter.
  * @layer infrastructure
  */
 
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import { useInboxConversations, useMentions } from "@/hooks/api/useInbox";
+import {
+  useInboxMessages,
+  useMentions,
+  type InboxFilters as ServerInboxFilters,
+} from "@/hooks/api/useInbox";
 import { ConversationCard } from "./ConversationCard";
-import type { InboxFilters } from "./InboxSidebar";
+import type { InboxFilters as UiInboxFilters } from "./InboxSidebar";
 
 interface ConversationListProps {
-  filters: InboxFilters;
+  filters: UiInboxFilters;
   selectedId: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (conversationId: string) => void;
   projectId?: string;
 }
 
 /**
  * @component ConversationList
- * @description Scrollable conversation list with infinite scroll via IntersectionObserver.
- *              Supports filtering by provider, status, and message type, and switches
- *              between conversations and mentions queries.
- * @param props.filters - Active inbox filter selections
- * @param props.selectedId - ID of the currently selected conversation
- * @param props.onSelect - Callback when a conversation is selected
- * @param props.projectId - Optional project scope for filtering
+ * @description Scrollable inbox message list with infinite scroll. Maps the
+ *              UI filter pills to the server `InboxFilter` enums and switches
+ *              to the mentions-only endpoint when the user filters by Mentions.
+ * @param props.filters - Active UI filter selections (sidebar pills).
+ * @param props.selectedId - Currently selected conversation id (highlights row).
+ * @param props.onSelect - Fired with the message's conversationId when a row
+ *   is clicked.
+ * @param props.projectId - Optional project scope for filtering.
  */
 export function ConversationList({
   filters,
@@ -36,26 +41,25 @@ export function ConversationList({
   onSelect,
   projectId,
 }: ConversationListProps) {
-  const isMentions = filters.messageType === "mentions";
+  const isMentions = filters.messageType === "MENTION";
 
-  // Build API filters from UI filters — use conditional spread for exactOptionalPropertyTypes
-  const apiFilters = {
+  const apiFilters: ServerInboxFilters = {
     ...(projectId !== undefined && { projectId }),
     ...(filters.provider !== "all" && { provider: filters.provider }),
     ...(filters.status !== "all" && { status: filters.status }),
-    ...(filters.messageType === "comments" && { messageType: "COMMENT" }),
+    ...(filters.messageType !== "all" &&
+      filters.messageType !== "MENTION" && { messageType: filters.messageType }),
   };
 
-  const conversationsQuery = useInboxConversations(apiFilters);
+  const inboxQuery = useInboxMessages(apiFilters);
   const mentionsQuery = useMentions(projectId);
 
-  const activeQuery = isMentions ? mentionsQuery : conversationsQuery;
+  const activeQuery = isMentions ? mentionsQuery : inboxQuery;
   const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } =
     activeQuery;
 
-  const allItems = data?.pages.flatMap((p) => p.items) ?? [];
+  const allMessages = data?.pages.flatMap((p) => p.items) ?? [];
 
-  // Infinite scroll sentinel
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const loadMore = useCallback(() => {
@@ -77,10 +81,6 @@ export function ConversationList({
     return () => observer.disconnect();
   }, [loadMore]);
 
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
-
   if (isLoading) {
     return (
       <div className="divide-y divide-gray-100">
@@ -101,7 +101,7 @@ export function ConversationList({
   if (isError) {
     return (
       <div className="flex flex-col items-center gap-2 px-4 py-12 text-center">
-        <p className="text-sm text-gray-500">Failed to load conversations</p>
+        <p className="text-sm text-gray-500">Failed to load inbox</p>
         <button
           onClick={() => void refetch()}
           className="text-xs text-blue-600 hover:text-blue-700"
@@ -112,11 +112,11 @@ export function ConversationList({
     );
   }
 
-  if (allItems.length === 0) {
+  if (allMessages.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 px-4 py-12 text-center">
         <p className="text-sm font-medium text-gray-700">
-          {isMentions ? "No mentions yet" : "No conversations yet"}
+          {isMentions ? "No mentions yet" : "No messages yet"}
         </p>
         <p className="text-xs text-gray-400">
           {isMentions
@@ -130,17 +130,16 @@ export function ConversationList({
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="divide-y divide-gray-100">
-        {allItems.map((conversation) => (
+        {allMessages.map((message) => (
           <ConversationCard
-            key={conversation.id}
-            conversation={conversation}
-            selected={conversation.id === selectedId}
+            key={message.id}
+            message={message}
+            selected={message.conversationId === selectedId}
             onSelect={onSelect}
           />
         ))}
       </div>
 
-      {/* Infinite scroll sentinel */}
       <div ref={sentinelRef} className="h-4" aria-hidden="true" />
 
       {isFetchingNextPage && (

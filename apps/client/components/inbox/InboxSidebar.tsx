@@ -1,11 +1,15 @@
 /**
  * @file InboxSidebar.tsx
  * @description Filter sidebar for the Social Inbox. Provides platform, status,
- *              and message type (All / Mentions / Comments) filter pills.
+ *              and message-type filter pills. Filter values mirror the server
+ *              `InboxFilter` enums (`status: UNREAD|READ|REPLIED|ARCHIVED`,
+ *              `messageType: COMMENT|MENTION|REPLY|DIRECT_MESSAGE`).
  * @layer infrastructure
  */
 
 "use client";
+
+import type { InboxMessageStatus, InboxMessageWireType } from "@/hooks/api/useInbox";
 
 type Provider =
   | "all"
@@ -18,13 +22,14 @@ type Provider =
   | "telegram"
   | "pinterest"
   | "linkedin";
-type Status = "all" | "OPEN" | "RESOLVED" | "ARCHIVED";
-type MessageType = "all" | "mentions" | "comments";
+
+type StatusFilter = "all" | InboxMessageStatus;
+type MessageTypeFilter = "all" | InboxMessageWireType;
 
 export interface InboxFilters {
   provider: Provider;
-  status: Status;
-  messageType: MessageType;
+  status: StatusFilter;
+  messageType: MessageTypeFilter;
 }
 
 interface InboxSidebarProps {
@@ -45,17 +50,20 @@ const PROVIDERS: { label: string; value: Provider }[] = [
   { label: "LinkedIn", value: "linkedin" },
 ];
 
-const STATUSES: { label: string; value: Status }[] = [
-  { label: "Open", value: "OPEN" },
-  { label: "Resolved", value: "RESOLVED" },
-  { label: "Archived", value: "ARCHIVED" },
+const STATUSES: { label: string; value: StatusFilter }[] = [
   { label: "All", value: "all" },
+  { label: "Unread", value: "UNREAD" },
+  { label: "Read", value: "READ" },
+  { label: "Replied", value: "REPLIED" },
+  { label: "Archived", value: "ARCHIVED" },
 ];
 
-const MESSAGE_TYPES: { label: string; value: MessageType }[] = [
+const MESSAGE_TYPES: { label: string; value: MessageTypeFilter }[] = [
   { label: "All", value: "all" },
-  { label: "Mentions", value: "mentions" },
-  { label: "Comments", value: "comments" },
+  { label: "Mentions", value: "MENTION" },
+  { label: "Comments", value: "COMMENT" },
+  { label: "Replies", value: "REPLY" },
+  { label: "DMs", value: "DIRECT_MESSAGE" },
 ];
 
 function FilterPill({
@@ -82,8 +90,9 @@ function FilterPill({
 
 /**
  * @component InboxSidebar
- * @description Filter sidebar for the social inbox. Provides pill-based filters for
- *              message type (All/Mentions/Comments), conversation status, and platform.
+ * @description Filter sidebar for the social inbox. Provides pill-based filters
+ *              for message type, status, and platform, mirroring the server's
+ *              `InboxFilter` enums exactly.
  * @param props.filters - Current filter selections
  * @param props.onChange - Callback when any filter value changes
  */
@@ -95,7 +104,6 @@ export function InboxSidebar({ filters, onChange }: InboxSidebarProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
-        {/* Type filter */}
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Type</p>
           <div className="flex flex-wrap gap-1.5">
@@ -110,7 +118,6 @@ export function InboxSidebar({ filters, onChange }: InboxSidebarProps) {
           </div>
         </div>
 
-        {/* Status filter */}
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
             Status
@@ -127,7 +134,6 @@ export function InboxSidebar({ filters, onChange }: InboxSidebarProps) {
           </div>
         </div>
 
-        {/* Platform filter */}
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
             Platform

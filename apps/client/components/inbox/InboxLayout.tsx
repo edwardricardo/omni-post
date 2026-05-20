@@ -20,7 +20,7 @@ interface InboxLayoutProps {
 
 const DEFAULT_FILTERS: InboxFilters = {
   provider: "all",
-  status: "OPEN",
+  status: "all",
   messageType: "all",
 };
 
