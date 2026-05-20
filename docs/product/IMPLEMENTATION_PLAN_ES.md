@@ -18,11 +18,11 @@
 | Bloque                       | Tareas | Hechas | Estado  |
 | ---------------------------- | ------ | ------ | ------- |
 | Bloqueantes compartidos (B)  | 5      | 5      | ✅      |
-| Fase 0 — Funciones autónomas | 11     | 7      | 🟦      |
+| Fase 0 — Funciones autónomas | 11     | 8      | 🟦      |
 | Fase 1 — Necesarias          | 16     | 0      | ⬜      |
 | Fase 2 — Bueno tenerla       | 21     | 0      | ⬜      |
 | Fase 3 — Interesantes        | 14     | 0      | ⬜      |
-| **Total**                    | **67** | **12** | **18%** |
+| **Total**                    | **67** | **13** | **19%** |
 
 > Actualizar esta tabla al cerrar cada tarea. `Estado`: ⬜ no iniciado · 🟦 en progreso · ✅ completo.
 
@@ -59,7 +59,7 @@
 ### Slice C — Trend radar
 
 - [x] **F0-WRK-3** `[L]` Worker `TREND_RADAR` (detección de tendencias del nicho, multi-source con provenance). 🔗 dep:B1. **DoD:** genera trend report desde datos reales; idempotente. → Originalmente `[M]`, expandido a `[L]` por decisión de Edward (multi-source completo desde día 1). Schema `TrendRadarResult` extendido con `source` (`TrendSource` enum: `PERPLEXITY_WEB` / `ACCOUNT_ANALYTICS` / `INBOX_MENTIONS`) + `sourceUrl`; migración `20260520024657_add_trendradar_source_provenance`. `ScoreTrendRelevanceUseCase` migrado a `AIServicePort.generateStructured` (drop wrapper `ScoreTrendAIPort`, canon B1) con nuevo `trendScoringSpec` y `trendDiscoverySpec`. `TrendingDataPort` rediseñado con provenance por trend; 3 adapters (`PerplexityTrendingAdapter` via Sonar — canon INVESTOR_EN.md:231, `AccountAnalyticsTrendingAdapter` via `AnalyticsDailySummary`+`PostContent.tags`, `InboxMentionsTrendingAdapter` via regex Unicode sobre `SocialMessage.body`) compuestos por `MultiSourceTrendingDataAdapter` (Promise.allSettled, fail-soft). `DetectTrendsUseCase` orquesta fetch→score→persist con normalización `Provider` enum + idempotent upsert día-bucketed via `PrismaTrendRadarResultAdapter`. `DispatchDetectTrendsUseCase` coordinator (mirror `DispatchDetectRepurposeUseCase`, dedupeKey `trend-radar-${accountId}-${day}`). Consumer `trendRadarHandler` wireado en `apps/api/src/index.ts` + scheduler 24h. Tests vitest deterministas (9 archivos / 64 tests: handler, dispatcher, orchestrator, fetch+score, TrendRadarResultPort + 5 adapters Perplexity/AccountAnalytics/InboxMentions/MultiSource/PrismaTrendRadarResult). 2 SMELLs nuevos al backlog: gating Perplexity plan-tier / on-demand (SMELL-16); citation surface gap en `AIServicePort` (SMELL-17).
-- [ ] **F0-API-3** `[S]` Endpoints trend radar + DTOs. 🔗 dep:F0-WRK-3. **DoD:** integration test verde.
+- [x] **F0-API-3** `[S]` Endpoints trend radar + DTOs. 🔗 dep:F0-WRK-3. **DoD:** integration test verde. → `GET /trends/radar` (account-scoped, JWT-authed, cross-tenant guard 403 si `accountId` query param ≠ JWT account). CQRS read-side: `TrendRadarQueryRepository` port (domain) + `ScoredTrendDTO` (10 fields: topic, platform, source, sourceUrl, relevanceScore, postIdea, bestPlatform, urgency, volume, fetchedAt) + `GetTrendRadarQuery` use case (limit clamped [1,50], default 20) + `PrismaTrendRadarQueryAdapter` (filtra `expiresAt > now`, order by relevanceScore desc + fetchedAt desc, Decimal→Number). Plugin Fastify nuevo `trendRadarRoutes.ts` registrado en `index.ts` después del legacy. DI: 2 nuevos tokens (`TrendRadarQueryRepository`, `GetTrendRadarQuery`). Tests vitest (4 archivos / 28 tests: port contract + use case + adapter + route plugin via Fastify inject) + integration fail-loud `tests/integration/trendRadarRoutes.test.ts` (5 casos: happy path con provenance + expiresAt filter + 401 + 403 cross-tenant + cross-tenant data isolation). Sistema legacy `/trends/{analysis,viral,opportunities,predictions,report}` deliberadamente intacto → SMELL-18 backlog (chain-delete requiere audit propio).
 - [ ] **F0-CLI-3** `[M]` UI trend radar. 🔗 dep:F0-API-3. **DoD:** panel renderiza tendencias; test componente.
 
 ### Transversal de fase

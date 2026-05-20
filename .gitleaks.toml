@@ -25,6 +25,10 @@ paths = [
   # (Zod-validated typed env constant) — these files hold dev-only values.
   '''^\.env$''',
   '''^\.env\.test$''',
+  # Hook + session logs: gitignored, written by Claude Code hooks at runtime.
+  # `gitleaks --no-git` would otherwise flag rule-pattern matches that show
+  # up in the log text (e.g. an example payload echoed back). Never commit.
+  '''\.claude/.*\.log$''',
 ]
 
 regexes = [

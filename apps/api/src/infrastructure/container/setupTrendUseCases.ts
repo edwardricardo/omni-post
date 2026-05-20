@@ -24,6 +24,9 @@ import { InboxMentionsTrendingAdapter } from "../repositories/InboxMentionsTrend
 import { MultiSourceTrendingDataAdapter } from "../repositories/MultiSourceTrendingDataAdapter.js";
 import { PrismaTrendRadarResultAdapter } from "../repositories/PrismaTrendRadarResultAdapter.js";
 import type { TrendRadarResultPort } from "../../application/trends/TrendRadarResultPort.js";
+import { PrismaTrendRadarQueryAdapter } from "../repositories/PrismaTrendRadarQueryAdapter.js";
+import type { TrendRadarQueryRepository } from "../../domain/repositories/TrendRadarQueryRepository.js";
+import { GetTrendRadarQuery } from "../../application/trends/GetTrendRadarQuery.js";
 
 import {
   FetchTrendingTopicsUseCase,
@@ -106,6 +109,20 @@ export function setupTrendUseCases(container: Container): void {
           .forQueue(QUEUE_NAMES.TREND_RADAR),
         QUEUE_NAMES.TREND_RADAR,
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+
+  container.registerInstance<TrendRadarQueryRepository>(
+    TOKENS.TrendRadarQueryRepository,
+    new PrismaTrendRadarQueryAdapter(prisma)
+  );
+
+  container.register<GetTrendRadarQuery>(
+    TOKENS.GetTrendRadarQuery,
+    () =>
+      new GetTrendRadarQuery(
+        container.resolve<TrendRadarQueryRepository>(TOKENS.TrendRadarQueryRepository)
       ),
     true
   );

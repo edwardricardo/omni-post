@@ -555,6 +555,7 @@ async function createApp(): Promise<FastifyInstance> {
   const { apiKeyAdminRoutes } = await import("./admin/apiKeyAdminRoutes.js");
   const { massReauthRoutes } = await import("./admin/massReauthRoutes.js");
   const { trendRoutes } = await import("./trends/trendRoutes.js");
+  const { trendRadarRoutes } = await import("./trends/trendRadarRoutes.js");
   const { registerWebhookDashboardRoutes } = await import("./webhooks/webhookDashboardRoutes.js");
   await typedApp.register(templateRoutes);
   await typedApp.register(contentRoutes);
@@ -566,6 +567,7 @@ async function createApp(): Promise<FastifyInstance> {
   await typedApp.register(apiKeyAdminRoutes);
   await typedApp.register(massReauthRoutes);
   await typedApp.register(trendRoutes);
+  await typedApp.register(trendRadarRoutes);
   await registerWebhookDashboardRoutes(typedApp);
 
   // Register cache monitoring routes

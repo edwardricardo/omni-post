@@ -479,9 +479,11 @@ export const TOKENS = {
   ScoreTrendRelevanceUseCase: Symbol.for("ScoreTrendRelevanceUseCase"),
   TrendingDataPort: Symbol.for("TrendingDataPort"),
   TrendRadarResultPort: Symbol.for("TrendRadarResultPort"),
+  TrendRadarQueryRepository: Symbol.for("TrendRadarQueryRepository"),
   FetchTrendingTopicsUseCase: Symbol.for("FetchTrendingTopicsUseCase"),
   DetectTrendsUseCase: Symbol.for("DetectTrendsUseCase"),
   DispatchDetectTrendsUseCase: Symbol.for("DispatchDetectTrendsUseCase"),
+  GetTrendRadarQuery: Symbol.for("GetTrendRadarQuery"),
 
   // AI Repurpose Use Cases
   ApproveRepurposeVariantUseCase: Symbol.for("ApproveRepurposeVariantUseCase"),
