@@ -11,5 +11,6 @@
 
 import { notificationsHandlers } from "./notifications";
 import { schedulingHandlers } from "./scheduling";
+import { trendRadarHandlers } from "./trendRadar";
 
-export const handlers = [...schedulingHandlers, ...notificationsHandlers];
+export const handlers = [...schedulingHandlers, ...notificationsHandlers, ...trendRadarHandlers];

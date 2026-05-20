@@ -19,14 +19,13 @@ const nextConfig = {
       },
     ],
   },
-  async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: "http://localhost:3000/:path*", // Proxy to API server
-      },
-    ];
-  },
+  // No global `/api/:path*` rewrite. All client→API traffic goes through the
+  // explicit Next.js route handler `app/api/backend/[...path]/route.ts`,
+  // which injects the customer Bearer token from the httpOnly session
+  // cookie and handles auth-flow cookie lifecycle. A global rewrite would
+  // pre-empt the route handler (Next.js evaluates rewrites before file
+  // system route matching) and forward raw paths with `backend/` prefixed
+  // to the API, producing 404s and stripping auth headers.
   experimental: {
     serverActions: {
       bodySizeLimit: "10mb",

@@ -40,19 +40,44 @@ import {
   Puzzle,
   Shield,
   BrainCircuit,
+  ChevronDown,
+  ChevronRight,
+  TrendingUp,
+  Recycle,
+  Wand2,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 
-const navigation = [
+type IconType = ComponentType<{ className?: string }>;
+
+interface NavItem {
+  name: string;
+  href?: string;
+  icon: IconType;
+  children?: ReadonlyArray<{ name: string; href: string; icon: IconType }>;
+}
+
+const navigation: ReadonlyArray<NavItem> = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
   { name: "Posts", href: "/dashboard/posts", icon: FileText },
   { name: "Inbox", href: "/dashboard/inbox", icon: Inbox },
   { name: "Scheduling", href: "/dashboard/scheduling", icon: Calendar },
   { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
   { name: "Campaigns", href: "/dashboard/campaigns", icon: Megaphone },
-  { name: "AI", href: "/dashboard/ai/generate", icon: Sparkles },
+  {
+    name: "AI",
+    icon: Sparkles,
+    children: [
+      { name: "Generate", href: "/dashboard/ai/generate", icon: Sparkles },
+      { name: "Trends", href: "/dashboard/ai/trends", icon: TrendingUp },
+      { name: "Repurpose", href: "/dashboard/ai/repurpose", icon: Recycle },
+      { name: "Optimizer", href: "/dashboard/ai/optimizer", icon: Wand2 },
+      { name: "Templates", href: "/dashboard/ai/templates", icon: FileText },
+      { name: "AI Analytics", href: "/dashboard/ai/analytics", icon: BarChart3 },
+    ],
+  },
   { name: "Approvals", href: "/dashboard/approvals", icon: CheckCircle },
   { name: "Assets", href: "/dashboard/assets", icon: Image },
   { name: "Tasks", href: "/dashboard/tasks", icon: ClipboardList },
@@ -68,6 +93,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [aiExpanded, setAiExpanded] = useState(
+    () => pathname?.startsWith("/dashboard/ai/") ?? false
+  );
+
+  useEffect(() => {
+    if (pathname?.startsWith("/dashboard/ai/")) {
+      setAiExpanded(true);
+    }
+  }, [pathname]);
 
   const handleLogout = async () => {
     await logout();
@@ -146,11 +180,68 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         >
           <nav className="flex-1 space-y-1 p-4">
             {navigation.map((item) => {
-              const isActive = pathname === item.href;
+              if (item.children) {
+                const groupActive = pathname?.startsWith("/dashboard/ai/") ?? false;
+                return (
+                  <div key={item.name}>
+                    <button
+                      type="button"
+                      aria-expanded={aiExpanded}
+                      aria-controls={`nav-group-${item.name}`}
+                      onClick={() => setAiExpanded((v) => !v)}
+                      className={`
+                        flex w-full items-center px-2 py-2 text-sm font-medium rounded-md transition-colors
+                        ${
+                          groupActive
+                            ? "text-foreground"
+                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                        }
+                      `}
+                    >
+                      <item.icon className="mr-3 h-5 w-5" />
+                      <span className="flex-1 text-left">{item.name}</span>
+                      {aiExpanded ? (
+                        <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                      )}
+                    </button>
+                    {aiExpanded ? (
+                      <ul id={`nav-group-${item.name}`} className="mt-1 ml-6 space-y-1">
+                        {item.children.map((child) => {
+                          const isActive = pathname === child.href;
+                          return (
+                            <li key={child.name}>
+                              <Link
+                                href={child.href}
+                                className={`
+                                  flex items-center px-2 py-1.5 text-sm rounded-md transition-colors
+                                  ${
+                                    isActive
+                                      ? "bg-primary text-primary-foreground"
+                                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                                  }
+                                `}
+                                onClick={() => setSidebarOpen(false)}
+                              >
+                                <child.icon className="mr-2 h-4 w-4" />
+                                {child.name}
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : null}
+                  </div>
+                );
+              }
+
+              const href = item.href ?? "#";
+              const isActive = pathname === href;
               return (
                 <Link
                   key={item.name}
-                  href={item.href}
+                  href={href}
                   className={`
                     flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors
                     ${
