@@ -128,7 +128,7 @@ describe("Settings Schemas", () => {
     it("accepts valid BYOK input", () => {
       const result = setByokSchema.safeParse({
         provider: "openai",
-        apiKey: "sk-proj-abc123def456",
+        apiKey: "FAKE-byok-test-fixture",
       });
       expect(result.success).toBe(true);
     });
@@ -136,7 +136,7 @@ describe("Settings Schemas", () => {
     it("rejects invalid provider", () => {
       const result = setByokSchema.safeParse({
         provider: "invalid-provider",
-        apiKey: "sk-proj-abc123def456",
+        apiKey: "FAKE-byok-test-fixture",
       });
       expect(result.success).toBe(false);
     });
@@ -150,7 +150,7 @@ describe("Settings Schemas", () => {
       for (const provider of ["openai", "anthropic", "gemini", "perplexity"]) {
         const result = setByokSchema.safeParse({
           provider,
-          apiKey: "valid-api-key-12345",
+          apiKey: "FAKE-byok-test-fixture",
         });
         expect(result.success).toBe(true);
       }

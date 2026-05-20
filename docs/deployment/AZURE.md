@@ -314,8 +314,8 @@ az webapp config appsettings set \
     PERPLEXITY_API_KEY="pplx-xxxxxxxxxxxx" \
     PERPLEXITY_MODEL=llama-3.1-sonar-small-128k-online \
     PAYMENT_PROVIDER=stripe \
-    STRIPE_SECRET_KEY="sk_live_xxxxxxxxxxxx" \
-    STRIPE_WEBHOOK_SECRET="whsec_xxxxxxxxxxxx" \
+    STRIPE_SECRET_KEY="sk_live_<YOUR_STRIPE_LIVE_KEY>" \
+    STRIPE_WEBHOOK_SECRET="whsec_<YOUR_WEBHOOK_SECRET>" \
     TRACING_ENABLED=true \
     OTEL_EXPORTER_OTLP_ENDPOINT="https://your-otel-collector:4318" \
     OTEL_SERVICE_NAME=omnipost-api \
