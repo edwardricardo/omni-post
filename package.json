@@ -166,6 +166,9 @@
         "GHSA-p8p7-x288-28g6",
         "GHSA-848j-6mx2-7j84"
       ]
+    },
+    "patchedDependencies": {
+      "@secretlint/node@12.3.1": "patches/@secretlint__node@12.3.1.patch"
     }
   },
   "lint-staged": {
