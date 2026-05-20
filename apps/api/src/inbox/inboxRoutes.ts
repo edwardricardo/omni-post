@@ -133,7 +133,7 @@ class InboxRouteHandler extends BaseRouteHandler {
    * @returns The accountId string, or an empty string if unavailable
    */
   private extractAccountId(request: FastifyRequest): string {
-    return request.user?.accountId ?? "";
+    return request.customerUser?.accountId ?? "";
   }
 
   // --------------------------------------------------------------------------
@@ -153,7 +153,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid query parameters");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -192,7 +192,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid query parameters");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -226,7 +226,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid query parameters");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -261,7 +261,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid conversation ID format");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -295,7 +295,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid query parameters");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -331,7 +331,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid message ID format");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -359,7 +359,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid message ID format");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -393,7 +393,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request body: assigneeId (UUID) is required");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -431,7 +431,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request body: body (non-empty string) is required");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -473,7 +473,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request body: resolvedById (UUID) is required");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -506,7 +506,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid conversation ID format");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -542,7 +542,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid channel ID format");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }

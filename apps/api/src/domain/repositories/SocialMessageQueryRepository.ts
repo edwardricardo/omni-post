@@ -33,6 +33,16 @@ export interface SocialMessageDTO {
   status: string;
   assigneeId: string | null;
   isArchived: boolean;
+  /** AI-assigned priority bucket (URGENT/HIGH/NORMAL/LOW). */
+  priority: string;
+  /** Sentiment score in [-1, 1]; null until AI triage runs. */
+  sentimentScore: number | null;
+  /** Three ready-to-send reply suggestions; empty until AI triage runs. */
+  suggestedReplies: string[];
+  /** Timestamp when AI triage completed; null until it has run. */
+  aiProcessedAt: Date | null;
+  /** Matching CRM contact id when triage found one; null otherwise. */
+  crmContactId: string | null;
   providerCreatedAt: Date;
   createdAt: Date;
   updatedAt: Date;
