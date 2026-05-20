@@ -18,11 +18,11 @@
 | Bloque                       | Tareas | Hechas | Estado  |
 | ---------------------------- | ------ | ------ | ------- |
 | Bloqueantes compartidos (B)  | 5      | 5      | ✅      |
-| Fase 0 — Funciones autónomas | 11     | 3      | 🟦      |
+| Fase 0 — Funciones autónomas | 11     | 4      | 🟦      |
 | Fase 1 — Necesarias          | 16     | 0      | ⬜      |
 | Fase 2 — Bueno tenerla       | 21     | 0      | ⬜      |
 | Fase 3 — Interesantes        | 14     | 0      | ⬜      |
-| **Total**                    | **67** | **8**  | **12%** |
+| **Total**                    | **67** | **9**  | **13%** |
 
 > Actualizar esta tabla al cerrar cada tarea. `Estado`: ⬜ no iniciado · 🟦 en progreso · ✅ completo.
 
@@ -52,7 +52,7 @@
 
 ### Slice B — Inbox triage
 
-- [ ] **F0-WRK-2** `[M]` Worker `TRIAGE_INBOX`: clasificación intent/sentimiento con **structured outputs** + few-shot (canon §9.1). 🔗 dep:B1. **DoD:** clasifica mensaje a schema fijo; eval set de consistencia en CI.
+- [x] **F0-WRK-2** `[M]` Worker `TRIAGE_INBOX`: clasificación intent/sentimiento con **structured outputs** + few-shot (canon §9.1). 🔗 dep:B1. **DoD:** clasifica mensaje a schema fijo; eval set de consistencia en CI. → `TriageInboxMessageUseCase` migrado a `AIServicePort.generateStructured` con `triageSpec` (zod: priority enum + sentimentScore en [-1,1] + suggestedReplies length=3) + few-shot embebido en messages; `TriageAIPort` retirado (wrapper 1:1 sin valor); nuevo `TriageDispatchEventHandler` (infra, mirror `IntegrationEventDeliveryHandler`) suscrito al `EventDispatcher` para `SocialMessageReceived`, encola `TRIAGE_INBOX` dedupeKey por messageId; consumer `triageInboxHandler` en apps/api wireado en `index.ts` (BullMQ subscribe + shutdown close); eval set vitest determinista (3 archivos / 28 tests). Cobertura sync (inboxSyncWorker bypass) reconocida como gap → SMELL-11 backlog.
 - [ ] **F0-API-2** `[S]` Endpoints de triage + persistencia (`priority`, `suggestedReplies`, `sentimentScore`). 🔗 dep:F0-WRK-2. **DoD:** integration test; campos poblados.
 - [ ] **F0-CLI-2** `[M]` Vista de triage en la bandeja (prioridad/sentimiento/sugerencias). 🔗 dep:F0-API-2. **DoD:** bandeja muestra clasificación; test componente.
 

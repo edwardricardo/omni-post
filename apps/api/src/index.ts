@@ -50,6 +50,12 @@ import { QUEUE_NAMES, createBullMQConsumerAdapter } from "@adapters/queue-bullmq
 import type { CachePort, AgentOrchestrationPort } from "@ports/core";
 import { processRepurposeGenerateJob } from "./ai/consumers/repurposeGenerateHandler.js";
 import { processRepurposeDetectJob } from "./ai/consumers/repurposeDetectHandler.js";
+import { processTriageInboxJob } from "./ai/consumers/triageInboxHandler.js";
+import {
+  TriageDispatchEventHandler,
+  TRIAGE_HANDLED_EVENT_TYPES,
+} from "./inbox/handlers/TriageDispatchEventHandler.js";
+import type { TriageInboxMessageUseCase } from "./application/inbox/TriageInboxMessageUseCase.js";
 import { PrismaRepurposeVariantAdapter } from "./infrastructure/repositories/PrismaRepurposeVariantAdapter.js";
 import type { DetectRepurposeCandidatesUseCase } from "./application/ai/DetectRepurposeCandidatesUseCase.js";
 import type { DispatchDetectRepurposeUseCase } from "./application/ai/DispatchDetectRepurposeUseCase.js";
@@ -718,6 +724,16 @@ async function start() {
       eventDispatcher.register(eventType, integrationDeliveryHandler);
     }
 
+    // Bridge: SocialMessageReceived domain event → TRIAGE_INBOX BullMQ job.
+    // The handler reads {messageId, accountId} from the outbox-reconstructed
+    // payload and enqueues triage classification. Idempotent via dedupeKey.
+    const triageDispatchHandler = app.container!.resolve<TriageDispatchEventHandler>(
+      TOKENS.TriageDispatchEventHandler
+    );
+    for (const eventType of TRIAGE_HANDLED_EVENT_TYPES) {
+      eventDispatcher.register(eventType, triageDispatchHandler);
+    }
+
     outboxRelay.start();
     outboxCleaner.start();
 
@@ -863,6 +879,23 @@ async function start() {
     });
     logger.info("DETECT_REPURPOSE consumer started");
 
+    // TRIAGE_INBOX consumer — classifies an inbound social message via
+    // schema-validated structured output (priority + sentiment + 3 replies)
+    // and persists the result on the SocialMessage row.
+    const triageInboxUseCase = app.container!.resolve<TriageInboxMessageUseCase>(
+      TOKENS.TriageInboxMessageUseCase
+    );
+    const triageInboxConsumer = createBullMQConsumerAdapter({
+      queueName: QUEUE_NAMES.TRIAGE_INBOX,
+    });
+    await triageInboxConsumer.subscribe(async (job) => {
+      await processTriageInboxJob(
+        { triage: triageInboxUseCase, logger },
+        job.payload as { messageId: string; accountId: string }
+      );
+    });
+    logger.info("TRIAGE_INBOX consumer started");
+
     const port = env.PORT;
     const host = env.HOST;
 
@@ -878,6 +911,7 @@ async function start() {
       outboxCleaner.stop();
       await repurposeConsumer.close();
       await detectRepurposeConsumer.close();
+      await triageInboxConsumer.close();
 
       // Shutdown saga integration (closes pub/sub subscriber and saga manager)
       const saga = (app as unknown as Record<string, unknown>).sagaIntegration as

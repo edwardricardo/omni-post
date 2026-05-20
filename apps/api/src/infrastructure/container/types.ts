@@ -470,9 +470,9 @@ export const TOKENS = {
 
   // Inbox Triage
   TriageMessagePort: Symbol.for("TriageMessagePort"),
-  TriageAIPort: Symbol.for("TriageAIPort"),
   TriageCrmPort: Symbol.for("TriageCrmPort"),
   TriageInboxMessageUseCase: Symbol.for("TriageInboxMessageUseCase"),
+  TriageDispatchEventHandler: Symbol.for("TriageDispatchEventHandler"),
 
   // Trend Scoring
   ScoreTrendAIPort: Symbol.for("ScoreTrendAIPort"),

@@ -105,6 +105,18 @@ const performancePredictionSchema = z.object({
 
 const variationsSchema = z.object({ variations: z.array(z.string()) });
 
+const triageSchema = z.object({
+  priority: z.enum(["URGENT", "HIGH", "NORMAL", "LOW"]),
+  sentimentScore: z.number().min(-1).max(1),
+  suggestedReplies: z.array(z.string()).length(3),
+});
+
+/**
+ * Structured classification of an inbound social-inbox message: priority bucket,
+ * sentiment score in `[-1, 1]`, and exactly three reply suggestions.
+ */
+export type TriageClassification = z.infer<typeof triageSchema>;
+
 /**
  * @function analysisSpec
  * @description Builds the structured-output spec for a single analysis type.
@@ -150,3 +162,12 @@ export function variationsSpec(): StructuredOutputSpec<string[]> {
     parse: (raw: unknown): string[] => variationsSchema.parse(raw).variations,
   };
 }
+
+/** Structured-output spec for AI-powered inbox-message triage. */
+export const triageSpec: StructuredOutputSpec<TriageClassification> = {
+  name: "inbox_triage",
+  description:
+    "Classify an inbound social-inbox message: priority bucket, sentiment score, and three ready-to-send reply suggestions.",
+  jsonSchema: z.toJSONSchema(triageSchema) as Record<string, unknown>,
+  parse: (raw: unknown): TriageClassification => triageSchema.parse(raw),
+};

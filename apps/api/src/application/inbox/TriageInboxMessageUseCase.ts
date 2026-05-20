@@ -1,15 +1,20 @@
 /**
  * @file TriageInboxMessageUseCase.ts
- * @description AI-powered message triage: classifies type, scores priority,
- *              generates 3 reply suggestions in Brand Voice, checks CRM context.
- *              Runs asynchronously after message ingestion. Never throws — triage
- *              is an enhancement, not a requirement for inbox to function.
+ * @description AI-powered message triage: classifies priority, scores sentiment,
+ *              and generates three ready-to-send reply suggestions via the
+ *              schema-validated structured-output path (`AIServicePort.
+ *              generateStructured`). Optional CRM lookup enriches the prompt.
+ *              Runs asynchronously after message ingestion. Never throws —
+ *              triage is an enhancement, not a requirement for inbox to function.
  * @layer application
  */
 
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { AIServicePort } from "../../domain/repositories/AIServicePort.js";
+import type { AIMessage } from "../../ai/types.js";
+import { triageSpec, type TriageClassification } from "../../ai/structuredSchemas.js";
 
 export interface TriageInboxInput {
   messageId: string;
@@ -55,11 +60,85 @@ export interface TriageCrmPort {
   } | null>;
 }
 
-export interface TriageAIPort {
-  generateContent(
-    messages: Array<{ role: string; content: string }>,
-    options?: Record<string, unknown>
-  ): Promise<{ success: boolean; value?: string }>;
+const DEFAULT_TRIAGE_OUTPUT = {
+  priority: "NORMAL",
+  suggestedReplies: [] as string[],
+  sentimentScore: 0,
+} as const;
+
+const SYSTEM_PROMPT = [
+  "You triage inbound social-inbox messages.",
+  "Priority rules:",
+  '- "URGENT": complaints, negative feedback, or potential sales leads.',
+  '- "HIGH": direct questions needing answers.',
+  '- "NORMAL": general comments, compliments.',
+  '- "LOW": spam or automated messages.',
+  "Always produce exactly three reply suggestions in different tones (professional, warm, direct), 1-3 sentences each, ready to send without editing.",
+  "Sentiment score is a number in [-1, 1] (negative = hostile, 0 = neutral, positive = warm).",
+].join("\n");
+
+const FEW_SHOT_EXAMPLES: AIMessage[] = [
+  {
+    role: "user",
+    content: 'Message (INSTAGRAM): "This product is terrible, I want a refund!"',
+  },
+  {
+    role: "assistant",
+    content: JSON.stringify({
+      priority: "URGENT",
+      sentimentScore: -0.85,
+      suggestedReplies: [
+        "We are sorry to hear about your experience. Please DM us your order number and we will resolve this right away.",
+        "That sounds really frustrating — we want to make it right. Could you share your order details so we can start the refund?",
+        "Apologies for the trouble. Reply with your order ID and we will process the refund today.",
+      ],
+    }),
+  },
+  {
+    role: "user",
+    content: 'Message (X): "Do you ship to Mexico?"',
+  },
+  {
+    role: "assistant",
+    content: JSON.stringify({
+      priority: "HIGH",
+      sentimentScore: 0.1,
+      suggestedReplies: [
+        "Yes, we ship to Mexico. You will see the available rates at checkout once you enter your address.",
+        "We do! Pop your address in at checkout and shipping options will appear, usually 5-7 business days.",
+        "Yes — shipping to Mexico is available at checkout.",
+      ],
+    }),
+  },
+  {
+    role: "user",
+    content: 'Message (FACEBOOK): "Love the new launch, great work!"',
+  },
+  {
+    role: "assistant",
+    content: JSON.stringify({
+      priority: "NORMAL",
+      sentimentScore: 0.9,
+      suggestedReplies: [
+        "Thank you so much — we are thrilled you love it!",
+        "Appreciate you! Glad it landed well — more on the way soon.",
+        "Thanks for the kind words!",
+      ],
+    }),
+  },
+];
+
+function buildUserPrompt(
+  message: { body: string; provider: string },
+  context: string,
+  crmContext: string,
+  brandVoice: string | undefined
+): string {
+  const lines = [`Message (${message.provider}): "${message.body}"`];
+  if (crmContext) lines.push(crmContext);
+  if (context) lines.push(context);
+  if (brandVoice) lines.push(`Match this brand voice: ${brandVoice}`);
+  return lines.join("\n");
 }
 
 export class TriageInboxMessageUseCase implements UseCase<
@@ -69,7 +148,7 @@ export class TriageInboxMessageUseCase implements UseCase<
 > {
   constructor(
     private readonly port: TriageMessagePort,
-    private readonly aiPort: TriageAIPort,
+    private readonly aiServicePort: AIServicePort,
     private readonly crmPort?: TriageCrmPort,
     private readonly brandVoiceResolver?: (accountId: string) => Promise<string | undefined>,
     private readonly unitOfWork?: UnitOfWork
@@ -86,7 +165,7 @@ export class TriageInboxMessageUseCase implements UseCase<
       if (message.conversationId) {
         const prevMessages = await this.port.getConversationContext(message.conversationId, 5);
         if (prevMessages.length > 0) {
-          context = `\nConversation context (last ${prevMessages.length} messages):\n${prevMessages.join("\n")}`;
+          context = `Conversation context (last ${prevMessages.length} messages):\n${prevMessages.join("\n")}`;
         }
       }
 
@@ -99,7 +178,7 @@ export class TriageInboxMessageUseCase implements UseCase<
         );
         if (contact) {
           crmContactId = contact.id;
-          crmContext = `\nThis sender is ${contact.name}${contact.company ? ` from ${contact.company}` : ""} (known CRM contact).`;
+          crmContext = `Sender is ${contact.name}${contact.company ? ` from ${contact.company}` : ""} (known CRM contact).`;
         }
       }
 
@@ -107,54 +186,44 @@ export class TriageInboxMessageUseCase implements UseCase<
         ? await this.brandVoiceResolver(input.accountId)
         : undefined;
 
-      const prompt = `Analyze this social media message and respond with ONLY valid JSON:
-{
-  "priority": "URGENT|HIGH|NORMAL|LOW",
-  "sentimentScore": <number between -1.0 and 1.0>,
-  "replies": ["reply1", "reply2", "reply3"]
-}
+      const messages: AIMessage[] = [
+        { role: "system", content: SYSTEM_PROMPT },
+        ...FEW_SHOT_EXAMPLES,
+        {
+          role: "user",
+          content: buildUserPrompt(message, context, crmContext, brandVoice),
+        },
+      ];
 
-Rules for priority:
-- URGENT: complaints, negative feedback, or potential leads
-- HIGH: direct questions needing answers
-- NORMAL: general comments, compliments
-- LOW: spam, automated messages
+      const aiResult = await this.aiServicePort.generateStructured<TriageClassification>(
+        messages,
+        triageSpec,
+        { temperature: 0.3 },
+        input.accountId
+      );
 
-Generate 3 reply suggestions:
-- Different tones: professional, warm, direct
-- 1-3 sentences each
-- Ready to send without editing
-${brandVoice ? `- Use this brand voice: ${brandVoice}` : ""}
-${crmContext}
-${context}
-
-Message (${message.provider}): "${message.body}"`;
-
-      const result = await this.aiPort.generateContent([{ role: "user", content: prompt }]);
-
-      if (!result.success || !result.value) {
+      if (!aiResult.ok) {
         return ok({
-          priority: "NORMAL",
-          suggestedReplies: [],
-          sentimentScore: 0,
+          ...DEFAULT_TRIAGE_OUTPUT,
+          suggestedReplies: [...DEFAULT_TRIAGE_OUTPUT.suggestedReplies],
           crmContactId,
         });
       }
 
-      const parsed = this.parseTriageResponse(result.value);
+      const classification = aiResult.value;
 
       await this.port.updateMessageTriage(input.messageId, {
-        priority: parsed.priority,
-        suggestedReplies: parsed.replies,
-        sentimentScore: parsed.sentimentScore,
+        priority: classification.priority,
+        suggestedReplies: classification.suggestedReplies,
+        sentimentScore: classification.sentimentScore,
         ...(crmContactId !== null ? { crmContactId } : {}),
         aiProcessedAt: new Date(),
       });
 
       return ok({
-        priority: parsed.priority,
-        suggestedReplies: parsed.replies,
-        sentimentScore: parsed.sentimentScore,
+        priority: classification.priority,
+        suggestedReplies: classification.suggestedReplies,
+        sentimentScore: classification.sentimentScore,
         crmContactId,
       });
     };
@@ -162,9 +231,8 @@ Message (${message.provider}): "${message.body}"`;
     try {
       if (this.unitOfWork) {
         let result: Result<TriageInboxOutput, UseCaseError> = ok({
-          priority: "NORMAL",
-          suggestedReplies: [],
-          sentimentScore: 0,
+          ...DEFAULT_TRIAGE_OUTPUT,
+          suggestedReplies: [...DEFAULT_TRIAGE_OUTPUT.suggestedReplies],
           crmContactId: null,
         });
         await this.unitOfWork.executeInTransaction(async () => {
@@ -181,32 +249,6 @@ Message (${message.provider}): "${message.body}"`;
           error instanceof Error ? error : undefined
         )
       );
-    }
-  }
-
-  private parseTriageResponse(raw: string): {
-    priority: string;
-    sentimentScore: number;
-    replies: string[];
-  } {
-    try {
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) return { priority: "NORMAL", sentimentScore: 0, replies: [] };
-
-      const data = JSON.parse(jsonMatch[0]) as {
-        priority?: string;
-        sentimentScore?: number;
-        replies?: string[];
-      };
-
-      const validPriorities = new Set(["URGENT", "HIGH", "NORMAL", "LOW"]);
-      const priority = validPriorities.has(data.priority ?? "") ? data.priority! : "NORMAL";
-      const sentimentScore = Math.max(-1, Math.min(1, data.sentimentScore ?? 0));
-      const replies = (data.replies ?? []).filter((r) => typeof r === "string").slice(0, 3);
-
-      return { priority, sentimentScore, replies };
-    } catch {
-      return { priority: "NORMAL", sentimentScore: 0, replies: [] };
     }
   }
 }
