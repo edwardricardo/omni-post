@@ -53,6 +53,7 @@ import {
 import type { AIServicePort } from "../../domain/repositories/AIServicePort.js";
 import type { BrandVoiceRepository } from "../../domain/repositories/BrandVoiceRepository.js";
 import { TriageDispatchEventHandler } from "../../inbox/handlers/TriageDispatchEventHandler.js";
+import type { GuardrailRegistry } from "../../application/guardrails/GuardrailRegistry.js";
 
 /**
  * Register social inbox commands, queries, and event handlers
@@ -110,7 +111,8 @@ export function setupInboxUseCases(container: Container): void {
         container.resolve<EventDispatcher>(TOKENS.EventDispatcher),
         container.resolve<ChannelRepository>(TOKENS.ChannelRepository),
         { resolve: (provider) => registry.getAdapter(provider) },
-        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
+        container.resolve<GuardrailRegistry>(TOKENS.GuardrailRegistry)
       );
     },
     true
@@ -269,7 +271,8 @@ export function setupInboxUseCases(container: Container): void {
         container.resolve<AIServicePort>(TOKENS.AIServicePort),
         container.resolve<TriageCrmPort>(TOKENS.TriageCrmPort),
         brandVoiceResolver,
-        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
+        container.resolve<GuardrailRegistry>(TOKENS.GuardrailRegistry)
       );
     },
     true

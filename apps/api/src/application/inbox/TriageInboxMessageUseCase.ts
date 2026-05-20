@@ -15,6 +15,7 @@ import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import type { AIServicePort } from "../../domain/repositories/AIServicePort.js";
 import type { AIMessage } from "../../ai/types.js";
 import { triageSpec, type TriageClassification } from "../../ai/structuredSchemas.js";
+import type { GuardrailRegistry } from "../guardrails/GuardrailRegistry.js";
 
 export interface TriageInboxInput {
   messageId: string;
@@ -151,8 +152,32 @@ export class TriageInboxMessageUseCase implements UseCase<
     private readonly aiServicePort: AIServicePort,
     private readonly crmPort?: TriageCrmPort,
     private readonly brandVoiceResolver?: (accountId: string) => Promise<string | undefined>,
-    private readonly unitOfWork?: UnitOfWork
+    private readonly unitOfWork?: UnitOfWork,
+    private readonly guardrails?: GuardrailRegistry
   ) {}
+
+  /**
+   * Filters AI-generated suggested replies through the guardrail registry.
+   * Blocked replies are dropped silently — the user sees a smaller
+   * suggestion set rather than a full failure. When no registry is wired
+   * the input is returned unchanged.
+   */
+  private async filterSuggestedReplies(
+    replies: ReadonlyArray<string>,
+    accountId: string
+  ): Promise<string[]> {
+    if (!this.guardrails) return [...replies];
+    const filtered: string[] = [];
+    for (const reply of replies) {
+      const decision = await this.guardrails.evaluate({
+        action: "triage-suggestion",
+        text: reply,
+        accountId,
+      });
+      if (decision.allow) filtered.push(reply);
+    }
+    return filtered;
+  }
 
   async execute(input: TriageInboxInput): Promise<Result<TriageInboxOutput, UseCaseError>> {
     const doWork = async (): Promise<Result<TriageInboxOutput, UseCaseError>> => {
@@ -212,9 +237,14 @@ export class TriageInboxMessageUseCase implements UseCase<
 
       const classification = aiResult.value;
 
+      const safeSuggestedReplies = await this.filterSuggestedReplies(
+        classification.suggestedReplies,
+        input.accountId
+      );
+
       await this.port.updateMessageTriage(input.messageId, {
         priority: classification.priority,
-        suggestedReplies: classification.suggestedReplies,
+        suggestedReplies: safeSuggestedReplies,
         sentimentScore: classification.sentimentScore,
         ...(crmContactId !== null ? { crmContactId } : {}),
         aiProcessedAt: new Date(),
@@ -222,7 +252,7 @@ export class TriageInboxMessageUseCase implements UseCase<
 
       return ok({
         priority: classification.priority,
-        suggestedReplies: classification.suggestedReplies,
+        suggestedReplies: safeSuggestedReplies,
         sentimentScore: classification.sentimentScore,
         crmContactId,
       });

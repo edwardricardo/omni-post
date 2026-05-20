@@ -1,11 +1,11 @@
 /**
  * @file DashboardLayoutAISubMenu.integration.test.tsx
- * @description Integration tests for the dashboard sidebar's AI sub-menu
- *              (closes SMELL-4): renders 6 sub-entries (Generate, Trends,
- *              Repurpose, Optimizer, Templates, Analytics), auto-expands
- *              when the route starts with `/dashboard/ai/`, toggles
- *              manually on button click, and exposes `aria-expanded` on
- *              the toggle for assistive tech.
+ * @description Integration tests for the dashboard sidebar's AI
+ *              sub-menu: renders 6 sub-entries (Generate, Trends,
+ *              Repurpose, Optimizer, Templates, AI Analytics),
+ *              auto-expands when the route starts with `/dashboard/ai/`,
+ *              toggles manually on button click, and exposes
+ *              `aria-expanded` on the toggle for assistive tech.
  * @layer infrastructure
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -62,7 +62,7 @@ function renderLayout() {
   );
 }
 
-describe("DashboardLayout — AI sub-menu (SMELL-4)", () => {
+describe("DashboardLayout — AI sub-menu", () => {
   it("renders the AI group with the chevron-right glyph (collapsed by default on non-AI routes)", () => {
     mockPathname = "/dashboard";
 

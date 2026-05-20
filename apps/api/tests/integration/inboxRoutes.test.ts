@@ -1,8 +1,8 @@
 /**
  * Integration Tests — Client Inbox Routes (Triage Exposure)
  *
- * Exercises the inbox read endpoints to confirm the triage fields the
- * F0-WRK-2 worker persists are surfaced through `SocialMessageDTO`.
+ * Exercises the inbox read endpoints to confirm the triage fields
+ * persisted on `SocialMessage` are surfaced through `SocialMessageDTO`.
  * Coverage:
  *   - GET /inbox returns the seeded message with priority/sentimentScore/
  *     suggestedReplies/aiProcessedAt/crmContactId populated.
@@ -12,8 +12,7 @@
  *   - Missing token → 401 on the inbox listing.
  *
  * The dev environment (`pnpm dev`) MUST be up — API on 3000. Tests fail
- * loud if the API is unreachable (canon: "Never skip tests because
- * services are down — start them").
+ * loud if the API is unreachable.
  *
  * @file inboxRoutes.test.ts
  * @description Tests for the client-facing inbox routes (triage data exposure)

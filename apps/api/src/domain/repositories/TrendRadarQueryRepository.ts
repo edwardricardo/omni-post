@@ -35,9 +35,8 @@ export interface TrendRadarQueryOptions {
 }
 
 /**
- * Page-style result; `total` lets future cursor pagination work without a
- * second round-trip. F0-API-3 callers ignore it but the contract is
- * future-proof.
+ * Page-style result. `total` is the unpaginated count for the same
+ * filter, enabling cursor pagination without a second round-trip.
  */
 export interface TrendRadarListResult {
   scored: ScoredTrendDTO[];

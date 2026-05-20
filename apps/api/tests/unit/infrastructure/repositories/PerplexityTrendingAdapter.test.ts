@@ -4,8 +4,7 @@
  *              honours the per-source filter, calls
  *              `AIServicePort.generateStructured` with `trendDiscoverySpec`,
  *              tags every result with `source: "perplexity-web"`, and
- *              propagates the structured `sourceUrl` field (citation
- *              surface workaround documented in SMELL-17).
+ *              propagates the structured `sourceUrl` field.
  * @layer infrastructure
  */
 import { describe, it, vi } from "vitest";

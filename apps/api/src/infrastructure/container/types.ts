@@ -485,6 +485,11 @@ export const TOKENS = {
   DispatchDetectTrendsUseCase: Symbol.for("DispatchDetectTrendsUseCase"),
   GetTrendRadarQuery: Symbol.for("GetTrendRadarQuery"),
 
+  // Guardrails
+  GuardrailPort_ContentPolicy: Symbol.for("GuardrailPort_ContentPolicy"),
+  GuardrailPort_PIIRedaction: Symbol.for("GuardrailPort_PIIRedaction"),
+  GuardrailRegistry: Symbol.for("GuardrailRegistry"),
+
   // AI Repurpose Use Cases
   ApproveRepurposeVariantUseCase: Symbol.for("ApproveRepurposeVariantUseCase"),
   RejectRepurposeVariantUseCase: Symbol.for("RejectRepurposeVariantUseCase"),

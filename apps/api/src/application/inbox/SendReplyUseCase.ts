@@ -19,6 +19,7 @@ import { SocialMessageId } from "../../domain/value-objects/SocialMessageId.js";
 import { type ProviderAdapter } from "@ports/core";
 import { type ProviderType } from "../../domain/value-objects/Provider.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { GuardrailRegistry } from "../guardrails/GuardrailRegistry.js";
 
 /**
  * Resolves a ProviderAdapter by provider type. Injected via DI.
@@ -64,7 +65,8 @@ export class SendReplyUseCase implements UseCase<SendReplyInput, SendReplyOutput
     private readonly eventDispatcher: EventDispatcher,
     private readonly channelRepository?: ChannelRepository,
     private readonly providerAdapterResolver?: ProviderAdapterResolver,
-    private readonly unitOfWork?: UnitOfWork
+    private readonly unitOfWork?: UnitOfWork,
+    private readonly guardrails?: GuardrailRegistry
   ) {}
 
   /**
@@ -112,6 +114,26 @@ export class SendReplyUseCase implements UseCase<SendReplyInput, SendReplyOutput
     }
 
     const aggregate = findResult.value;
+
+    // Evaluate the body against the guardrail registry before any
+    // persistence or provider call. Hard block on first violation.
+    if (this.guardrails) {
+      const accountId =
+        typeof aggregate.accountId === "string" ? aggregate.accountId : String(aggregate.accountId);
+      const decision = await this.guardrails.evaluate({
+        action: "send-reply",
+        text: input.body.trim(),
+        accountId,
+      });
+      if (!decision.allow) {
+        return err(
+          new UseCaseError(
+            `Reply rejected by ${decision.guardrailName}: ${decision.reason}`,
+            USE_CASE_ERRORS.GUARDRAIL_REJECTED
+          )
+        );
+      }
+    }
 
     // 3. Create outbound reply record
     const replyResult = await this.outboundReplyRepository.save({

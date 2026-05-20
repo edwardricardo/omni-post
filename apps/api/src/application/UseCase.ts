@@ -77,6 +77,13 @@ export const USE_CASE_ERRORS = {
    * UX, not a generic 500.
    */
   NOT_IMPLEMENTED: "NOT_IMPLEMENTED",
+  /**
+   * A content/policy guardrail rejected the action. Distinct from
+   * `VALIDATION_FAILED` (schema/shape) — the input was well-formed but
+   * violated a runtime policy. Caller should surface the guardrail name
+   * and reason so the user can retry with corrected content.
+   */
+  GUARDRAIL_REJECTED: "GUARDRAIL_REJECTED",
 } as const;
 
 export type UseCaseErrorCode = (typeof USE_CASE_ERRORS)[keyof typeof USE_CASE_ERRORS];

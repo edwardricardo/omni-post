@@ -35,12 +35,15 @@ import { setupReferralUseCases } from "./setupReferralUseCases.js";
 import { setupTrendUseCases } from "./setupTrendUseCases.js";
 import { setupRepurposeUseCases } from "./setupRepurposeUseCases.js";
 import { setupChannelUseCases } from "./setupChannelUseCases.js";
+import { setupGuardrailUseCases } from "./setupGuardrailUseCases.js";
 
 /**
  * @method setupUseCases
  * @description Register all use cases by delegating to domain-specific sub-modules.
  */
 export function setupUseCases(container: Container): void {
+  // Guardrails first so downstream use cases can resolve the registry.
+  setupGuardrailUseCases(container);
   setupPostUseCases(container);
   setupChannelUseCases(container);
   setupApiKeyUseCases(container);

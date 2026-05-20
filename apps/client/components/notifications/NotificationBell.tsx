@@ -58,10 +58,9 @@ export function NotificationBell() {
     refetch,
   } = useNotificationsList({ enabled: open });
 
-  // Sync server notifications into Zustand store when data arrives. Zustand
-  // stays as the intermediary because `useNotificationStream` (SSE) pushes
-  // real-time additions directly into the store; replacing it with TanStack
-  // cache writes from the SSE handler is tracked as future canon work.
+  // Sync server notifications into the Zustand store when data arrives.
+  // The store is the merge point for both the fetched list and the
+  // real-time additions pushed by `useNotificationStream` over SSE.
   useEffect(() => {
     if (serverNotifications) {
       setNotifications(serverNotifications);
