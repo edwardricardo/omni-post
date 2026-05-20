@@ -171,3 +171,63 @@ export const triageSpec: StructuredOutputSpec<TriageClassification> = {
   jsonSchema: z.toJSONSchema(triageSchema) as Record<string, unknown>,
   parse: (raw: unknown): TriageClassification => triageSchema.parse(raw),
 };
+
+// ---------------------------------------------------------------------------
+// Trend Radar specs
+// ---------------------------------------------------------------------------
+
+const trendingTopicSchema = z.object({
+  topic: z.string(),
+  platform: z.string().nullable(),
+  sourceUrl: z.string().nullable(),
+  volume: z.number().nullable(),
+  trend: z.enum(["rising", "stable", "declining"]).nullable(),
+});
+
+const trendingTopicsSchema = z.object({
+  topics: z.array(trendingTopicSchema).max(20),
+});
+
+/**
+ * Structured trending-topics discovery payload. `platform` and `sourceUrl`
+ * are optional because not every source surfaces them (e.g. own analytics
+ * has a platform but no URL; perplexity web search has a URL but the
+ * platform may be unknown).
+ */
+export type TrendingTopicsClassification = z.infer<typeof trendingTopicsSchema>;
+
+/** Spec for the Perplexity (web-grounded) trending-topics discovery call. */
+export const trendDiscoverySpec: StructuredOutputSpec<TrendingTopicsClassification> = {
+  name: "trending_topics",
+  description:
+    "Discover up to 20 trending topics relevant to the brand from real-time web search. Cite the source URL when available.",
+  jsonSchema: z.toJSONSchema(trendingTopicsSchema) as Record<string, unknown>,
+  parse: (raw: unknown): TrendingTopicsClassification => trendingTopicsSchema.parse(raw),
+};
+
+const trendScoreSchema = z.object({
+  index: z.number().int().min(1),
+  score: z.number().int().min(1).max(10),
+  postIdea: z.string().nullable(),
+  bestPlatform: z.string().nullable(),
+  urgency: z.enum(["NOW", "TODAY", "THIS_WEEK"]),
+});
+
+const trendScoresSchema = z.object({
+  scores: z.array(trendScoreSchema).max(20),
+});
+
+/**
+ * Structured trend-scoring payload: per topic, a 1-10 relevance score, a
+ * post-idea suggestion, the best target platform, and an urgency bucket.
+ */
+export type TrendScoresClassification = z.infer<typeof trendScoresSchema>;
+
+/** Spec for AI-powered trend relevance scoring against brand voice + insights. */
+export const trendScoringSpec: StructuredOutputSpec<TrendScoresClassification> = {
+  name: "trend_scoring",
+  description:
+    "Score each trending topic 1-10 for brand relevance. For topics scoring 6+, propose a post idea, best target platform, and urgency bucket.",
+  jsonSchema: z.toJSONSchema(trendScoresSchema) as Record<string, unknown>,
+  parse: (raw: unknown): TrendScoresClassification => trendScoresSchema.parse(raw),
+};

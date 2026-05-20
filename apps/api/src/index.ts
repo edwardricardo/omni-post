@@ -51,6 +51,9 @@ import type { CachePort, AgentOrchestrationPort } from "@ports/core";
 import { processRepurposeGenerateJob } from "./ai/consumers/repurposeGenerateHandler.js";
 import { processRepurposeDetectJob } from "./ai/consumers/repurposeDetectHandler.js";
 import { processTriageInboxJob } from "./ai/consumers/triageInboxHandler.js";
+import { processTrendRadarJob } from "./ai/consumers/trendRadarHandler.js";
+import type { DetectTrendsUseCase } from "./application/trends/DetectTrendsUseCase.js";
+import type { DispatchDetectTrendsUseCase } from "./application/trends/DispatchDetectTrendsUseCase.js";
 import {
   TriageDispatchEventHandler,
   TRIAGE_HANDLED_EVENT_TYPES,
@@ -845,6 +848,20 @@ async function start() {
       24 * 60 * 60 * 1000
     );
 
+    const dispatchDetectTrends = app.container!.resolve<DispatchDetectTrendsUseCase>(
+      TOKENS.DispatchDetectTrendsUseCase
+    );
+    scheduler.register(
+      "trend-radar-dispatch",
+      async () => {
+        const result = await dispatchDetectTrends.execute({});
+        if (!result.ok) {
+          logger.warn({ err: result.error }, "Trend radar dispatch failed");
+        }
+      },
+      24 * 60 * 60 * 1000
+    );
+
     // GENERATE_REPURPOSE consumer — runs the plan→act→reflect agent graph
     // per target platform and persists each draft as a pending repurpose
     // variant. Hosted here because the agent stack lives in this process.
@@ -896,6 +913,23 @@ async function start() {
     });
     logger.info("TRIAGE_INBOX consumer started");
 
+    // TREND_RADAR consumer — runs the multi-source trend-detection pipeline
+    // (Perplexity web + own analytics + inbox mentions) and persists scored
+    // results to TrendRadarResult.
+    const detectTrendsUseCase = app.container!.resolve<DetectTrendsUseCase>(
+      TOKENS.DetectTrendsUseCase
+    );
+    const trendRadarConsumer = createBullMQConsumerAdapter({
+      queueName: QUEUE_NAMES.TREND_RADAR,
+    });
+    await trendRadarConsumer.subscribe(async (job) => {
+      await processTrendRadarJob(
+        { detect: detectTrendsUseCase, logger },
+        job.payload as { accountId: string }
+      );
+    });
+    logger.info("TREND_RADAR consumer started");
+
     const port = env.PORT;
     const host = env.HOST;
 
@@ -912,6 +946,7 @@ async function start() {
       await repurposeConsumer.close();
       await detectRepurposeConsumer.close();
       await triageInboxConsumer.close();
+      await trendRadarConsumer.close();
 
       // Shutdown saga integration (closes pub/sub subscriber and saga manager)
       const saga = (app as unknown as Record<string, unknown>).sagaIntegration as

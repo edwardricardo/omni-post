@@ -3314,6 +3314,11 @@ model TrendRadarResult {
   accountId      String
   topic          String
   platform       Provider
+  /// Provenance: which data source surfaced this trend (web search, own
+  /// analytics, inbox mentions). Required so callers can distinguish signal.
+  source         TrendSource  @default(PERPLEXITY_WEB)
+  /// Optional citation URL when the source supplies one (Perplexity web).
+  sourceUrl      String?      @db.Text
   relevanceScore Int
   postIdea       String?      @db.Text
   bestPlatform   Provider?
@@ -3325,12 +3330,19 @@ model TrendRadarResult {
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([accountId, expiresAt])
+  @@index([accountId, topic, fetchedAt])
 }
 
 enum TrendUrgency {
   NOW
   TODAY
   THIS_WEEK
+}
+
+enum TrendSource {
+  PERPLEXITY_WEB
+  ACCOUNT_ANALYTICS
+  INBOX_MENTIONS
 }
 
 // ─── Platform Configuration ──────────────────────────────────────────────────

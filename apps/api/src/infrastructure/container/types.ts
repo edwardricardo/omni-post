@@ -475,9 +475,13 @@ export const TOKENS = {
   TriageDispatchEventHandler: Symbol.for("TriageDispatchEventHandler"),
 
   // Trend Scoring
-  ScoreTrendAIPort: Symbol.for("ScoreTrendAIPort"),
   ScoreTrendContextPort: Symbol.for("ScoreTrendContextPort"),
   ScoreTrendRelevanceUseCase: Symbol.for("ScoreTrendRelevanceUseCase"),
+  TrendingDataPort: Symbol.for("TrendingDataPort"),
+  TrendRadarResultPort: Symbol.for("TrendRadarResultPort"),
+  FetchTrendingTopicsUseCase: Symbol.for("FetchTrendingTopicsUseCase"),
+  DetectTrendsUseCase: Symbol.for("DetectTrendsUseCase"),
+  DispatchDetectTrendsUseCase: Symbol.for("DispatchDetectTrendsUseCase"),
 
   // AI Repurpose Use Cases
   ApproveRepurposeVariantUseCase: Symbol.for("ApproveRepurposeVariantUseCase"),

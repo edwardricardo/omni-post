@@ -1,61 +1,111 @@
 /**
  * @file setupTrendUseCases.ts
- * @description DI registrations for trend scoring use cases.
- *              Wires AI and context adapters for ScoreTrendRelevanceUseCase.
+ * @description DI registrations for the trend-radar pipeline: per-source
+ *              trending data adapters (Perplexity / account analytics / inbox
+ *              mentions), the multi-source composite, scoring + fetching use
+ *              cases, the persistence port, and the orchestrator + daily
+ *              coordinator.
  * @layer infrastructure
  */
 
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import { prisma } from "@infra/prisma";
+import type { CachePort, QueuePortRegistry } from "@ports/core";
+import { QUEUE_NAMES } from "@adapters/queue-bullmq";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { AIServicePort } from "../../domain/repositories/AIServicePort.js";
+import type { ChannelQueryForIngestion } from "../../domain/repositories/ChannelQueryForIngestion.js";
 
 import { PrismaScoreTrendContextAdapter } from "../repositories/PrismaScoreTrendContextAdapter.js";
-import type { ScoreTrendAIPort } from "../../application/trends/ScoreTrendRelevanceUseCase.js";
-import type { ScoreTrendContextPort } from "../../application/trends/ScoreTrendRelevanceUseCase.js";
-import { ScoreTrendRelevanceUseCase } from "../../application/trends/ScoreTrendRelevanceUseCase.js";
-import type { AIService } from "../../ai/aiService.js";
+import { PerplexityTrendingAdapter } from "../repositories/PerplexityTrendingAdapter.js";
+import { AccountAnalyticsTrendingAdapter } from "../repositories/AccountAnalyticsTrendingAdapter.js";
+import { InboxMentionsTrendingAdapter } from "../repositories/InboxMentionsTrendingAdapter.js";
+import { MultiSourceTrendingDataAdapter } from "../repositories/MultiSourceTrendingDataAdapter.js";
+import { PrismaTrendRadarResultAdapter } from "../repositories/PrismaTrendRadarResultAdapter.js";
+import type { TrendRadarResultPort } from "../../application/trends/TrendRadarResultPort.js";
+
+import {
+  FetchTrendingTopicsUseCase,
+  type TrendingDataPort,
+} from "../../application/trends/FetchTrendingTopicsUseCase.js";
+import {
+  ScoreTrendRelevanceUseCase,
+  type ScoreTrendContextPort,
+} from "../../application/trends/ScoreTrendRelevanceUseCase.js";
+import { DetectTrendsUseCase } from "../../application/trends/DetectTrendsUseCase.js";
+import { DispatchDetectTrendsUseCase } from "../../application/trends/DispatchDetectTrendsUseCase.js";
 
 /**
  * @method setupTrendUseCases
- * @description Registers trend scoring ports, adapters, and use cases.
+ * @description Registers trend-radar ports, adapters, and use cases.
  */
 export function setupTrendUseCases(container: Container): void {
-  // ScoreTrendContextPort — Prisma adapter for brand voice + performance insights
   container.registerInstance<ScoreTrendContextPort>(
     TOKENS.ScoreTrendContextPort,
     new PrismaScoreTrendContextAdapter(prisma)
   );
 
-  // ScoreTrendAIPort — wraps AIService to match the port interface
-  container.register<ScoreTrendAIPort>(
-    TOKENS.ScoreTrendAIPort,
+  container.register<TrendingDataPort>(
+    TOKENS.TrendingDataPort,
     () => {
-      const aiService = container.resolve<AIService>(TOKENS.AIService);
-      return {
-        async generateContent(
-          messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
-          _options?: Record<string, unknown>
-        ): Promise<{ success: boolean; value?: string }> {
-          try {
-            const result = await aiService.generateContent(messages);
-            const value = typeof result.content === "string" ? result.content : undefined;
-            return { success: true, ...(value !== undefined && { value }) };
-          } catch {
-            return { success: false };
-          }
-        },
-      };
+      const aiServicePort = container.resolve<AIServicePort>(TOKENS.AIServicePort);
+      return new MultiSourceTrendingDataAdapter([
+        new PerplexityTrendingAdapter(aiServicePort),
+        new AccountAnalyticsTrendingAdapter(prisma),
+        new InboxMentionsTrendingAdapter(prisma),
+      ]);
     },
     true
   );
 
-  // ScoreTrendRelevanceUseCase
+  container.registerInstance<TrendRadarResultPort>(
+    TOKENS.TrendRadarResultPort,
+    new PrismaTrendRadarResultAdapter(prisma)
+  );
+
+  container.register<FetchTrendingTopicsUseCase>(
+    TOKENS.FetchTrendingTopicsUseCase,
+    () =>
+      new FetchTrendingTopicsUseCase(
+        container.resolve<TrendingDataPort>(TOKENS.TrendingDataPort),
+        container.resolve<CachePort>(TOKENS.CachePort)
+      ),
+    true
+  );
+
   container.register<ScoreTrendRelevanceUseCase>(
     TOKENS.ScoreTrendRelevanceUseCase,
     () =>
       new ScoreTrendRelevanceUseCase(
-        container.resolve<ScoreTrendAIPort>(TOKENS.ScoreTrendAIPort),
+        container.resolve<AIServicePort>(TOKENS.AIServicePort),
         container.resolve<ScoreTrendContextPort>(TOKENS.ScoreTrendContextPort)
+      ),
+    true
+  );
+
+  container.register<DetectTrendsUseCase>(
+    TOKENS.DetectTrendsUseCase,
+    () =>
+      new DetectTrendsUseCase(
+        container.resolve<FetchTrendingTopicsUseCase>(TOKENS.FetchTrendingTopicsUseCase),
+        container.resolve<ScoreTrendRelevanceUseCase>(TOKENS.ScoreTrendRelevanceUseCase),
+        container.resolve<TrendRadarResultPort>(TOKENS.TrendRadarResultPort),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+
+  container.register<DispatchDetectTrendsUseCase>(
+    TOKENS.DispatchDetectTrendsUseCase,
+    () =>
+      new DispatchDetectTrendsUseCase(
+        container.resolve<ChannelQueryForIngestion>(TOKENS.ChannelQueryForIngestion),
+        container
+          .resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
+          .forQueue(QUEUE_NAMES.TREND_RADAR),
+        QUEUE_NAMES.TREND_RADAR,
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );
