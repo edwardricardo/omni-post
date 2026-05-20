@@ -1,8 +1,10 @@
+import path from "node:path";
 import { withSentryConfig } from "@sentry/nextjs";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
+  turbopack: { root: path.join(import.meta.dirname, "..", "..") },
   reactStrictMode: true,
   images: {
     remotePatterns: [
