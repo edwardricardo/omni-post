@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth/authContext";
 import { ProjectProvider } from "@/providers/ProjectProvider";
 import { AnnouncementBanner } from "@/components/announcements/AnnouncementBanner";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 import { Button } from "@packages/ui";
 import { Avatar, AvatarFallback, AvatarInitial } from "@packages/ui";
 import {
@@ -126,6 +127,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           <div className="flex-1">
             <h1 className="text-xl font-semibold text-foreground ml-2 lg:ml-0">OmniPost</h1>
+          </div>
+
+          {/* Language Switcher */}
+          <div className="mr-1">
+            <LanguageSwitcher />
           </div>
 
           {/* Notification Bell */}
