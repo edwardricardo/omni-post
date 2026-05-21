@@ -8,7 +8,7 @@
 "use client";
 
 import { useState, useCallback, useId } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { toast } from "@packages/ui";
 import { useProject } from "@/providers/ProjectProvider";
 import { useProjectChannels } from "@/lib/hooks/useProjectChannels";

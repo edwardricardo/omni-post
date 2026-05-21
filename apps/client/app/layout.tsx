@@ -1,28 +1,14 @@
 /**
  * @file layout.tsx
- * @description Root layout for the client app — sets HTML shell, loads Inter font, globals.css,
- *              and wraps children in the Providers tree.
+ * @description Passthrough root layout. With next-intl i18n routing the
+ *              real HTML shell (`<html>`/`<body>`) lives in
+ *              `app/[locale]/layout.tsx`; this root only forwards children.
+ *              Next.js still requires a root layout to exist (e.g. for the
+ *              global `app/not-found.tsx`), so it is kept as a thin
+ *              passthrough.
  * @component RootLayout
  * @layer infrastructure
  */
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-import { Providers } from "./providers";
-
-const inter = Inter({ subsets: ["latin"] });
-
-export const metadata: Metadata = {
-  title: "OmniPost - Universal Client Dashboard",
-  description: "Manage your social media content across all platforms",
-};
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
-        <Providers>{children}</Providers>
-      </body>
-    </html>
-  );
+  return children;
 }

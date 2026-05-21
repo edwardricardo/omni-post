@@ -10,7 +10,7 @@
 import { useState, useMemo } from "react";
 import { Input } from "@packages/ui";
 import { Search, ExternalLink } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import {
   INTEGRATIONS,
   type IntegrationCategory,

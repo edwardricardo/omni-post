@@ -8,7 +8,7 @@
 "use client";
 
 import { useCallback } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { X, Check, Circle, Link2, FileText, Users, CreditCard } from "lucide-react";
 import { useOnboarding, useDismissOnboarding } from "@/hooks/api/useOnboarding";
 

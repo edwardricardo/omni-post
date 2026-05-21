@@ -9,7 +9,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import type { NotificationItem as NotificationItemType } from "@/lib/stores/notificationStore";
 
 // ---------------------------------------------------------------------------

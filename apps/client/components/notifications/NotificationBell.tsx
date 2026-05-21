@@ -16,7 +16,7 @@ import { useNotificationStore } from "@/lib/stores/notificationStore";
 import type { NotificationItem as NotificationItemType } from "@/lib/stores/notificationStore";
 import { useNotificationStream } from "@/hooks/useNotificationStream";
 import { NotificationItem } from "./NotificationItem";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import {
   useMarkAllNotificationsRead,
   useMarkNotificationRead,

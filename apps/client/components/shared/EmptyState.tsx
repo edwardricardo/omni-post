@@ -6,7 +6,7 @@
 "use client";
 
 import type { LucideIcon } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { Button } from "@packages/ui";
 
 interface EmptyStateProps {

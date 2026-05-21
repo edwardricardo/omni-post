@@ -1,0 +1,13 @@
+{
+  "common": {
+    "appName": "OmniPost",
+    "loading": "Cargando...",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "create": "Crear",
+    "search": "Buscar",
+    "language": "Idioma"
+  }
+}

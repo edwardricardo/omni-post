@@ -1,54 +1,59 @@
 /**
  * @file proxy.ts
- * @description Next.js 16 proxy for authentication — protects routes based on session cookie,
- *              redirects unauthenticated users to login and authenticated users away from auth pages.
+ * @description Next.js 16 proxy composing next-intl locale routing with the
+ *              customer auth gate. next-intl runs first (resolves locale,
+ *              redirects "/" -> "/es", prepends the locale prefix); the auth
+ *              logic then works against the locale-stripped pathname:
+ *              unauthenticated users on protected routes are sent to the
+ *              locale-prefixed login, and authenticated users on auth pages
+ *              are sent to the locale-prefixed dashboard.
  * @layer infrastructure
  */
+import createMiddleware from "next-intl/middleware";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { routing } from "./i18n/routing";
 
-const publicPaths = ["/login", "/register", "/"];
-const authPaths = ["/login", "/register"];
+const handleI18nRouting = createMiddleware(routing);
+
+// Paths compared AFTER stripping the locale prefix.
+const PUBLIC_PATHS = ["/login", "/register", "/"];
+const AUTH_PATHS = ["/login", "/register"];
+
+const LOCALE_PREFIX_RE = /^\/(es|en)(?=\/|$)/;
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check for session cookie (set by Server Actions)
-  const session = request.cookies.get("customer-session");
+  const localeMatch = pathname.match(LOCALE_PREFIX_RE);
+  const locale = localeMatch?.[1] ?? routing.defaultLocale;
+  const pathWithoutLocale = localeMatch ? pathname.slice(localeMatch[0].length) || "/" : pathname;
 
-  // Allow public paths
-  if (publicPaths.includes(pathname)) {
-    // If user is already authenticated and tries to access auth pages, redirect to dashboard
-    if (session && authPaths.includes(pathname)) {
-      // Check if there's a returnTo parameter from Server Action redirect
+  const session = request.cookies.get("customer-session");
+  const isPublic = PUBLIC_PATHS.includes(pathWithoutLocale);
+  const isAuthPage = AUTH_PATHS.includes(pathWithoutLocale);
+
+  if (isPublic) {
+    // Authenticated user on an auth page → dashboard (locale-prefixed).
+    if (session && isAuthPage) {
       const returnTo = request.nextUrl.searchParams.get("returnTo");
-      const redirectUrl = new URL(returnTo || "/dashboard", request.url);
-      return NextResponse.redirect(redirectUrl);
+      const target = returnTo || `/${locale}/dashboard`;
+      return NextResponse.redirect(new URL(target, request.url));
     }
-    return NextResponse.next();
+    return handleI18nRouting(request);
   }
 
-  // For all other paths (including /dashboard/*), require authentication
+  // Protected path without a session → login (locale-prefixed), preserving
+  // the originally requested path for post-login return.
   if (!session) {
-    // Redirect to login with return URL
-    const loginUrl = new URL("/login", request.url);
+    const loginUrl = new URL(`/${locale}/login`, request.url);
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  return handleI18nRouting(request);
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public files (images, etc.)
-     */
-    "/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)",
-  ],
+  matcher: ["/((?!api|_next|_vercel|.*\\..*).*)"],
 };
