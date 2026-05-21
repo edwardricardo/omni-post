@@ -5,6 +5,7 @@
  * @layer infrastructure
  */
 import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { ComponentProps } from "react";
 import { action } from "storybook/actions";
 import { Input } from "@packages/ui";
 import { Label } from "@packages/ui";
@@ -12,7 +13,7 @@ import { Button } from "@packages/ui";
 import { Eye, EyeOff, Search, Mail, Lock, DollarSign, Phone, Globe, AtSign } from "lucide-react";
 import { useState } from "react";
 
-const meta: Meta<typeof Input> = {
+const meta = {
   title: "Components/UI/Input",
   component: Input,
   parameters: {
@@ -69,7 +70,7 @@ A flexible input component that supports various input types and styling states.
     onBlur: action("blurred"),
   },
   tags: ["autodocs"],
-};
+} satisfies Meta<typeof Input>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -82,7 +83,7 @@ export const Default: Story = {
 };
 
 export const WithLabel: Story = {
-  render: (args) => (
+  render: (args: ComponentProps<typeof Input>) => (
     <div className="space-y-2">
       <Label htmlFor="input-with-label">Email Address</Label>
       <Input {...args} id="input-with-label" type="email" placeholder="Enter your email" />

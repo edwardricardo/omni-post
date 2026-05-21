@@ -80,10 +80,10 @@ export function DonutChart({
             contentStyle={TOOLTIP_CONTENT}
             itemStyle={TOOLTIP_TEXT}
             labelStyle={TOOLTIP_TEXT}
-            formatter={(value: number, name: string) => [
-              `${value} (${((value / total) * 100).toFixed(1)}%)`,
-              name,
-            ]}
+            formatter={(value, name) => {
+              const num = typeof value === "number" ? value : Number(value);
+              return [`${num} (${((num / total) * 100).toFixed(1)}%)`, name];
+            }}
           />
         </PieChart>
       </ResponsiveContainer>

@@ -2,21 +2,55 @@
  * @file VersionCompareView.tsx
  * @component VersionCompareView
  * @description Inline compare tab content and full-screen compare dialog for template version diffs.
+ * @layer infrastructure
  */
 
+"use client";
+
+import { useMemo } from "react";
 import { Card, CardContent } from "@packages/ui";
 import { ScrollArea } from "@packages/ui";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@packages/ui";
 import { GitCompare } from "lucide-react";
-import ReactDiffViewer from "react-diff-viewer";
+import { DiffView, DiffModeEnum } from "@git-diff-view/react";
+import { generateDiffFile } from "@git-diff-view/file";
+import "@git-diff-view/react/styles/diff-view.css";
 import type { TemplateVersion } from "./templateVersionControlTypes";
 
-const DIFF_STYLES = {
-  contentText: {
-    fontSize: "12px",
-    fontFamily: "monospace",
-  },
-} as const;
+interface TemplateVersionDiffProps {
+  left: TemplateVersion | undefined;
+  right: TemplateVersion | undefined;
+}
+
+/**
+ * @component TemplateVersionDiff
+ * @description Renders a split diff of two template version contents.
+ */
+function TemplateVersionDiff({ left, right }: TemplateVersionDiffProps) {
+  const diffFile = useMemo(() => {
+    const file = generateDiffFile(
+      `Version ${left?.version ?? ""}`,
+      left?.content ?? "",
+      `Version ${right?.version ?? ""}`,
+      right?.content ?? "",
+      "plaintext",
+      "plaintext"
+    );
+    file.init();
+    file.buildSplitDiffLines();
+    return file;
+  }, [left?.version, left?.content, right?.version, right?.content]);
+
+  return (
+    <DiffView
+      diffFile={diffFile}
+      diffViewMode={DiffModeEnum.Split}
+      diffViewHighlight={false}
+      diffViewWrap
+      diffViewFontSize={12}
+    />
+  );
+}
 
 interface VersionCompareTabProps {
   canCompare: boolean;
@@ -50,15 +84,7 @@ export function VersionCompareTab({ canCompare, selectedVersionObjects }: Versio
       </div>
       <Card>
         <CardContent className="p-0">
-          <ReactDiffViewer
-            oldValue={selectedVersionObjects[0]?.content || ""}
-            newValue={selectedVersionObjects[1]?.content || ""}
-            splitView={true}
-            leftTitle={`Version ${selectedVersionObjects[0]?.version}`}
-            rightTitle={`Version ${selectedVersionObjects[1]?.version}`}
-            showDiffOnly={false}
-            styles={DIFF_STYLES}
-          />
+          <TemplateVersionDiff left={selectedVersionObjects[0]} right={selectedVersionObjects[1]} />
         </CardContent>
       </Card>
     </div>
@@ -90,14 +116,9 @@ export function VersionCompareDialog({
         </DialogHeader>
         <ScrollArea className="max-h-[70vh]">
           {canCompare && (
-            <ReactDiffViewer
-              oldValue={selectedVersionObjects[0]?.content || ""}
-              newValue={selectedVersionObjects[1]?.content || ""}
-              splitView={true}
-              leftTitle={`Version ${selectedVersionObjects[0]?.version}`}
-              rightTitle={`Version ${selectedVersionObjects[1]?.version}`}
-              showDiffOnly={false}
-              styles={DIFF_STYLES}
+            <TemplateVersionDiff
+              left={selectedVersionObjects[0]}
+              right={selectedVersionObjects[1]}
             />
           )}
         </ScrollArea>

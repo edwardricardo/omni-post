@@ -235,7 +235,7 @@ export function WebhookMetrics({ metrics }: WebhookMetricsProps) {
               value: count,
             }))}
             height={Math.max(200, topEventTypes.length * 40)}
-            formatValue={(v) => v.toLocaleString()}
+            formatValue={(v: number) => v.toLocaleString()}
             emptyMessage={tm("noEventTypes")}
           />
         </div>

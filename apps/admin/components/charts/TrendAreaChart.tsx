@@ -89,7 +89,10 @@ export function TrendAreaChart({
             contentStyle={TOOLTIP_CONTENT}
             itemStyle={TOOLTIP_TEXT}
             labelStyle={TOOLTIP_TEXT}
-            formatter={(value: number) => [formatValue ? formatValue(value) : value, "Value"]}
+            formatter={(value) => {
+              const num = typeof value === "number" ? value : Number(value);
+              return [formatValue ? formatValue(num) : num, "Value"];
+            }}
           />
           <Area
             type="monotone"

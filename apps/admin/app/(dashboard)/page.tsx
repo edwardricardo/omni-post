@@ -172,7 +172,7 @@ function DashboardContent() {
           <HorizontalBarChart
             data={revenueChartData}
             height={140}
-            formatValue={(v) => `$${v.toLocaleString()}`}
+            formatValue={(v: number) => `$${v.toLocaleString()}`}
           />
           {stats?.revenue?.total !== undefined && (
             <div className="mt-3 pt-3 border-t border-[var(--border-subtle)] flex justify-between">

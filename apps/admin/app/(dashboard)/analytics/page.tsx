@@ -356,7 +356,7 @@ function AnalyticsPageContent() {
             }))}
             height={192}
             color={colors.accent}
-            formatValue={(v) => `$${v.toLocaleString()}`}
+            formatValue={(v: number) => `$${v.toLocaleString()}`}
             emptyMessage={te("trends.noData")}
           />
         </div>
@@ -369,7 +369,7 @@ function AnalyticsPageContent() {
             data={(summary?.trends?.users ?? []).map((v, i) => ({ label: `P${i + 1}`, value: v }))}
             height={192}
             color={colors.success}
-            formatValue={(v) => v.toLocaleString()}
+            formatValue={(v: number) => v.toLocaleString()}
             emptyMessage={te("trends.noData")}
           />
         </div>
