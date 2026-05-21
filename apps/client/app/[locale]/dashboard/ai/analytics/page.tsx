@@ -7,17 +7,19 @@
  * @layer infrastructure
  */
 
+import { getTranslations } from "next-intl/server";
 import PredictiveAnalytics from "@/components/ai/PredictiveAnalytics";
 /**
  * @component AIAnalyticsPage
  * @description Displays AI-powered content intelligence analytics with performance insights and trend analysis.
  */
-export default function AIAnalyticsPage() {
+export default async function AIAnalyticsPage() {
+  const t = await getTranslations("ai");
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Content Intelligence</h1>
-        <p className="text-gray-600">Performance insights and trend analysis</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t("analytics.title")}</h1>
+        <p className="text-gray-600">{t("analytics.subtitle")}</p>
       </div>
       <PredictiveAnalytics />
     </div>

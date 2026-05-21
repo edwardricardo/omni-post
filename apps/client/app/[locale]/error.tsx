@@ -10,6 +10,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { useLogger } from "@observability/browser-logger";
 
 export default function Error({
@@ -19,6 +20,7 @@ export default function Error({
   error: Error & { digest?: string };
   unstable_retry: () => void;
 }) {
+  const t = useTranslations("errors");
   const logger = useLogger("client.error-page");
 
   useEffect(() => {
@@ -32,21 +34,23 @@ export default function Error({
   // show the real message to keep debugging friction low.
   const isDev = process.env.NODE_ENV === "development";
   const displayMessage = isDev
-    ? error.message || "An unexpected error occurred"
-    : "Something went wrong. Please try again or contact support.";
+    ? error.message || t("boundary.unexpected")
+    : t("boundary.description");
 
   return (
     <div role="alert" className="flex min-h-screen flex-col items-center justify-center">
-      <h2 className="text-2xl font-bold mb-4">Something went wrong!</h2>
+      <h2 className="text-2xl font-bold mb-4">{t("boundary.title")}</h2>
       <p className="text-gray-600 mb-4">{displayMessage}</p>
       {!isDev && error.digest && (
-        <p className="text-sm text-gray-500 mb-4">Error ID: {error.digest}</p>
+        <p className="text-sm text-gray-500 mb-4">
+          {t("boundary.errorId", { digest: error.digest })}
+        </p>
       )}
       <button
         onClick={() => unstable_retry()}
         className="px-4 py-2 bg-blue-500 text-white rounded-sm hover:bg-blue-600"
       >
-        Try again
+        {t("boundary.tryAgain")}
       </button>
     </div>
   );

@@ -8,6 +8,7 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import type { BillingPlan, GatewayProvider } from "@/hooks/api/useBilling";
 import { calcBundle } from "../utils/pricing";
@@ -33,6 +34,7 @@ export function BundlesTab({
   isCheckoutPending,
   onCheckout,
 }: BundlesTabProps) {
+  const t = useTranslations("settings");
   return (
     <div className="grid sm:grid-cols-3 gap-4 mb-6">
       {isLoading ? (
@@ -49,15 +51,15 @@ export function BundlesTab({
       ) : isError ? (
         <div className="col-span-3 rounded-lg border border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-950/30 p-6 text-center">
           <p className="text-sm text-red-800 dark:text-red-200">
-            Failed to load plans. Please try again.
+            {t("billing.components.bundles.loadError")}
           </p>
           <Button variant="outline" size="sm" className="mt-3" onClick={onRetry}>
-            Retry
+            {t("billing.components.bundles.retry")}
           </Button>
         </div>
       ) : !plans?.length ? (
         <div className="col-span-3 rounded-lg border bg-card p-6 text-center">
-          <p className="text-sm text-muted-foreground">No plans available at this time.</p>
+          <p className="text-sm text-muted-foreground">{t("billing.components.bundles.noPlans")}</p>
         </div>
       ) : (
         plans.map((bundle) => {
@@ -68,11 +70,15 @@ export function BundlesTab({
               <p className="text-sm text-muted-foreground mt-1">{bundle.description ?? ""}</p>
               <div className="mt-4">
                 <span className="text-3xl font-bold">${total}</span>
-                <span className="text-muted-foreground">/mo</span>
+                <span className="text-muted-foreground">
+                  {t("billing.components.bundles.perMonth")}
+                </span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {bundle.providers.length} platforms, {accountCount} account
-                {accountCount > 1 ? "s" : ""}
+                {t("billing.components.bundles.platformsAccounts", {
+                  platforms: bundle.providers.length,
+                  accounts: accountCount,
+                })}
               </p>
               <ul className="mt-3 space-y-1">
                 {bundle.providers.map((p: string) => (
@@ -86,7 +92,9 @@ export function BundlesTab({
                 disabled={isCheckoutPending}
                 onClick={() => onCheckout(checkoutGateway)}
               >
-                {isCheckoutPending ? "Redirecting..." : "Subscribe"}
+                {isCheckoutPending
+                  ? t("billing.components.bundles.redirecting")
+                  : t("billing.components.bundles.subscribe")}
               </Button>
             </div>
           );

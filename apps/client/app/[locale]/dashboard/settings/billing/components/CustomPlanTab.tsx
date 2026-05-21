@@ -9,6 +9,7 @@
  */
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import type { GatewayProvider } from "@/hooks/api/useBilling";
 import { calcCustom, getProviderPrice, PROVIDER_OPTIONS } from "../utils/pricing";
@@ -36,6 +37,7 @@ export function CustomPlanTab({
   onCycleChange,
   onCheckout,
 }: CustomPlanTabProps) {
+  const t = useTranslations("settings");
   const customPrice = useMemo(
     () => calcCustom(selectedProviders.size, accountCount),
     [selectedProviders.size, accountCount]
@@ -45,7 +47,9 @@ export function CustomPlanTab({
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-sm font-medium mb-2">Select providers</h3>
+        <h3 className="text-sm font-medium mb-2">
+          {t("billing.components.customPlan.selectProviders")}
+        </h3>
         <div className="flex flex-wrap gap-2">
           {PROVIDER_OPTIONS.map((p) => (
             <button
@@ -63,13 +67,20 @@ export function CustomPlanTab({
           ))}
         </div>
         <p className="text-xs text-muted-foreground mt-2">
-          {selectedProviders.size} provider{selectedProviders.size !== 1 ? "s" : ""} selected
-          {selectedProviders.size > 0 && ` @ $${getProviderPrice(selectedProviders.size)}/provider`}
+          {t("billing.components.customPlan.providersSelected", {
+            count: selectedProviders.size,
+          })}
+          {selectedProviders.size > 0 &&
+            t("billing.components.customPlan.perProviderPrice", {
+              price: getProviderPrice(selectedProviders.size),
+            })}
         </p>
       </div>
 
       <div>
-        <h3 className="text-sm font-medium mb-2">Social accounts: {accountCount}</h3>
+        <h3 className="text-sm font-medium mb-2">
+          {t("billing.components.customPlan.socialAccounts", { count: accountCount })}
+        </h3>
         <input
           type="range"
           min={1}
@@ -79,7 +90,7 @@ export function CustomPlanTab({
           className="w-full"
         />
         <p className="text-xs text-muted-foreground mt-1">
-          Volume discount: accounts 2-3 at 80%, 4-9 at 65%, 10+ at 50%
+          {t("billing.components.customPlan.volumeDiscount")}
         </p>
       </div>
 
@@ -89,7 +100,11 @@ export function CustomPlanTab({
             <span className="text-3xl font-bold">
               ${cycle === "monthly" ? customPrice : yearlyPrice}
             </span>
-            <span className="text-muted-foreground">/{cycle === "monthly" ? "mo" : "yr"}</span>
+            <span className="text-muted-foreground">
+              {cycle === "monthly"
+                ? t("billing.components.customPlan.perMonth")
+                : t("billing.components.customPlan.perYear")}
+            </span>
           </div>
           <div className="flex rounded-lg border overflow-hidden text-sm">
             <button
@@ -99,7 +114,7 @@ export function CustomPlanTab({
                 cycle === "monthly" ? "bg-primary text-primary-foreground" : ""
               }`}
             >
-              Monthly
+              {t("billing.components.customPlan.monthly")}
             </button>
             <button
               type="button"
@@ -108,7 +123,7 @@ export function CustomPlanTab({
                 cycle === "yearly" ? "bg-primary text-primary-foreground" : ""
               }`}
             >
-              Yearly (2mo free)
+              {t("billing.components.customPlan.yearly")}
             </button>
           </div>
         </div>
@@ -118,7 +133,9 @@ export function CustomPlanTab({
             disabled={isCheckoutPending}
             onClick={() => onCheckout(checkoutGateway)}
           >
-            {isCheckoutPending ? "Redirecting..." : "Subscribe"}
+            {isCheckoutPending
+              ? t("billing.components.customPlan.redirecting")
+              : t("billing.components.customPlan.subscribe")}
           </Button>
         )}
       </div>

@@ -750,6 +750,10 @@
         "delete": "Delete",
         "deleteAria": "Delete {name}"
       }
+    },
+    "analytics": {
+      "title": "Content Intelligence",
+      "subtitle": "Performance insights and trend analysis"
     }
   },
   "scheduling": {
@@ -1108,7 +1112,69 @@
       "toastTryAgain": "Please try again.",
       "primary": "Primary",
       "saving": "Saving…",
-      "setAsPrimary": "Set as primary"
+      "setAsPrimary": "Set as primary",
+      "connect": {
+        "title": "Connect {provider}",
+        "description": "Connect your {provider} account to start publishing content.",
+        "closeDialog": "Close connect provider dialog",
+        "cancel": "Cancel",
+        "cancelAria": "Cancel connection",
+        "connectAccount": "Connect Account",
+        "connectAccountAria": "Connect {provider} account",
+        "oauthTitle": "OAuth flow — will redirect to provider authorization page",
+        "noActiveProject": "No active project — refresh the page and try again.",
+        "permissions": {
+          "heading": "Required Permissions:",
+          "x": {
+            "readWrite": "Read and write tweets",
+            "profile": "Access user profile information",
+            "media": "Upload media"
+          },
+          "instagram": {
+            "manageContent": "Manage Instagram content",
+            "insights": "Access Instagram insights",
+            "publish": "Publish photos and videos",
+            "facebookPages": "Access connected Facebook Pages"
+          }
+        },
+        "instagram": {
+          "requirementsTitle": "Instagram Requirements",
+          "requirementsDescription": "You need a Business or Creator account connected to a Facebook Page. Personal accounts are not supported by the Instagram Graph API."
+        },
+        "bluesky": {
+          "appPasswordTitle": "App Password required",
+          "appPasswordDescription": "Bluesky uses App Passwords instead of OAuth. Generate one at <link>bsky.app/settings/app-passwords →</link>",
+          "handleLabel": "Handle",
+          "handlePlaceholder": "yourhandle.bsky.social",
+          "appPasswordLabel": "App Password",
+          "requiredFields": "Handle and App Password are required.",
+          "invalidCredentials": "Invalid handle or App Password.",
+          "connected": "Bluesky connected",
+          "connecting": "Connecting...",
+          "connectButton": "Connect Bluesky",
+          "connectAria": "Connect Bluesky account"
+        }
+      },
+      "table": {
+        "regionLabel": "Connected channels table",
+        "tableLabel": "Connected channels",
+        "selectAll": "Select all channels",
+        "selectChannel": "Select channel {channel}",
+        "columns": {
+          "channel": "Channel",
+          "status": "Status",
+          "usage": "Usage",
+          "lastUsed": "Last Used",
+          "connected": "Connected",
+          "actions": "Actions"
+        },
+        "primary": "PRIMARY",
+        "postsThisMonth": "{count} {count, plural, one {post} other {posts}} this month",
+        "disconnect": "Disconnect",
+        "disconnectChannel": "Disconnect {channel}",
+        "emptyTitle": "No channels connected yet",
+        "emptyDescription": "Connect your first social media account to get started"
+      }
     }
   },
   "integrations": {
@@ -1171,7 +1237,56 @@
       "manageBilling": "Manage Billing",
       "managePortalHint": "View invoices, update payment method, or manage your subscription.",
       "tabBundles": "Bundles",
-      "tabCustom": "Custom Plan"
+      "tabCustom": "Custom Plan",
+      "components": {
+        "switchDialog": {
+          "title": "Switch payment processor",
+          "description": "Change your billing from {from} to {to}.",
+          "currentlyUsing": "Currently using:",
+          "switchTo": "Switch to:",
+          "noteEndOfPeriod": "The switch applies at the end of your current billing period.",
+          "noteReenterCard": "You must re-enter your card on {gateway}.",
+          "noteGracePeriod": "You'll have {hours} hours to complete payment after the switch date.",
+          "cancel": "Cancel",
+          "confirming": "Confirming...",
+          "confirm": "Confirm switch"
+        },
+        "gatewaySelector": {
+          "title": "Payment processor",
+          "stripeRecommended": "Recommended for US, Canada and Europe.",
+          "stripeMethods": "Visa, Mastercard, Amex, Apple Pay, Google Pay.",
+          "paddleRecommended": "Recommended for rest of the world.",
+          "paddleMethods": "VAT and local tax handling included. Visa, Mastercard, PayPal and more."
+        },
+        "bundles": {
+          "loadError": "Failed to load plans. Please try again.",
+          "retry": "Retry",
+          "noPlans": "No plans available at this time.",
+          "perMonth": "/mo",
+          "platformsAccounts": "{platforms} platforms, {accounts} {accounts, plural, one {account} other {accounts}}",
+          "redirecting": "Redirecting...",
+          "subscribe": "Subscribe"
+        },
+        "activeBanner": {
+          "title": "Active payment processor:",
+          "noteReenterCard": "Switching processors requires re-entering your card.",
+          "noteNoTransfer": "Payment data cannot be transferred between processors.",
+          "switchButton": "Switch payment processor"
+        },
+        "customPlan": {
+          "selectProviders": "Select providers",
+          "providersSelected": "{count} {count, plural, one {provider selected} other {providers selected}}",
+          "perProviderPrice": " @ ${price}/provider",
+          "socialAccounts": "Social accounts: {count}",
+          "volumeDiscount": "Volume discount: accounts 2-3 at 80%, 4-9 at 65%, 10+ at 50%",
+          "perMonth": "/mo",
+          "perYear": "/yr",
+          "monthly": "Monthly",
+          "yearly": "Yearly (2mo free)",
+          "redirecting": "Redirecting...",
+          "subscribe": "Subscribe"
+        }
+      }
     },
     "brandVoice": {
       "title": "Brand Voice",
@@ -2190,7 +2305,62 @@
       }
     },
     "title": "Template Management",
-    "subtitle": "Create, manage, and optimize your content templates with advanced features like A/B testing, version control, and performance analytics."
+    "subtitle": "Create, manage, and optimize your content templates with advanced features like A/B testing, version control, and performance analytics.",
+    "dashboard": {
+      "copyName": "{name} (Copy)",
+      "toast": {
+        "createSuccess": "Template created successfully!",
+        "updateSuccess": "Template updated successfully!",
+        "saveError": "Failed to save template",
+        "deleteSuccess": "Template deleted successfully!",
+        "deleteError": "Failed to delete template",
+        "duplicateSuccess": "Template duplicated successfully!",
+        "duplicateError": "Failed to duplicate template"
+      },
+      "stats": {
+        "totalTemplates": "Total Templates",
+        "activeTemplates": "Active Templates",
+        "runningAbTests": "Running A/B Tests",
+        "categories": "Categories"
+      },
+      "tabs": {
+        "library": "Library",
+        "editor": "Editor",
+        "abTesting": "A/B Testing",
+        "versions": "Versions",
+        "analytics": "Analytics"
+      },
+      "library": {
+        "title": "Template Library",
+        "subtitle": "Browse and manage your content templates",
+        "newTemplate": "New Template"
+      },
+      "versions": {
+        "emptyTitle": "No Template Selected",
+        "emptyDescription": "Select a template from the library to view its version history and manage versions.",
+        "browseTemplates": "Browse Templates"
+      },
+      "activity": {
+        "templateCreated": "Template Created",
+        "abTestStarted": "A/B Test Started",
+        "templateUsed": "Template Used",
+        "hoursAgo": "{count} {count, plural, one {hour} other {hours}} ago"
+      },
+      "analytics": {
+        "topPerformingTitle": "Top Performing Templates",
+        "topPerformingDescription": "Templates with highest engagement and conversion rates",
+        "views": "{count} {count, plural, one {view} other {views}}",
+        "uses": "{count} {count, plural, one {use} other {uses}}",
+        "rate": "{rate}% rate",
+        "recentActivityTitle": "Recent Activity",
+        "recentActivityDescription": "Latest template and A/B testing activities",
+        "engineStatsTitle": "Template Engine Statistics",
+        "engineStatsDescription": "Performance metrics and usage statistics",
+        "activeAbTests": "Active A/B Tests",
+        "helperFunctions": "Helper Functions",
+        "activeVersions": "Active Versions"
+      }
+    }
   },
   "assets": {
     "title": "Asset Library",
@@ -2430,5 +2600,19 @@
     "metrics": "Metrics",
     "period": "Period",
     "poweredBy": "Powered by OmniPost"
+  },
+  "errors": {
+    "notFound": {
+      "title": "Not Found",
+      "description": "Could not find the requested resource",
+      "returnHome": "Return Home"
+    },
+    "boundary": {
+      "title": "Something went wrong!",
+      "description": "Something went wrong. Please try again or contact support.",
+      "unexpected": "An unexpected error occurred",
+      "errorId": "Error ID: {digest}",
+      "tryAgain": "Try again"
+    }
   }
 }

@@ -8,6 +8,7 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import {
   Button,
   Dialog,
@@ -35,42 +36,53 @@ export function SwitchConfirmDialog({
   onConfirm,
   isSubmitting,
 }: SwitchConfirmDialogProps) {
+  const t = useTranslations("settings");
   const target = getAlternativeGateway(currentGateway);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Switch payment processor</DialogTitle>
+          <DialogTitle>{t("billing.components.switchDialog.title")}</DialogTitle>
           <DialogDescription>
-            Change your billing from {GATEWAY_LABELS[currentGateway]} to {GATEWAY_LABELS[target]}.
+            {t("billing.components.switchDialog.description", {
+              from: GATEWAY_LABELS[currentGateway],
+              to: GATEWAY_LABELS[target],
+            })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 py-2">
           <div className="text-sm text-foreground">
             <p>
-              Currently using:{" "}
+              {t("billing.components.switchDialog.currentlyUsing")}{" "}
               <span className="font-semibold">{GATEWAY_LABELS[currentGateway]}</span>
             </p>
             <p className="mt-1">
-              Switch to: <span className="font-semibold">{GATEWAY_LABELS[target]}</span>
+              {t("billing.components.switchDialog.switchTo")}{" "}
+              <span className="font-semibold">{GATEWAY_LABELS[target]}</span>
             </p>
           </div>
 
           <div className="rounded-md bg-muted p-3 text-xs text-muted-foreground space-y-1.5">
-            <p>The switch applies at the end of your current billing period.</p>
-            <p>You must re-enter your card on {GATEWAY_LABELS[target]}.</p>
-            <p>You&apos;ll have 48 hours to complete payment after the switch date.</p>
+            <p>{t("billing.components.switchDialog.noteEndOfPeriod")}</p>
+            <p>
+              {t("billing.components.switchDialog.noteReenterCard", {
+                gateway: GATEWAY_LABELS[target],
+              })}
+            </p>
+            <p>{t("billing.components.switchDialog.noteGracePeriod", { hours: 48 })}</p>
           </div>
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-            Cancel
+            {t("billing.components.switchDialog.cancel")}
           </Button>
           <Button onClick={() => onConfirm(target)} disabled={isSubmitting}>
-            {isSubmitting ? "Confirming..." : "Confirm switch"}
+            {isSubmitting
+              ? t("billing.components.switchDialog.confirming")
+              : t("billing.components.switchDialog.confirm")}
           </Button>
         </DialogFooter>
       </DialogContent>

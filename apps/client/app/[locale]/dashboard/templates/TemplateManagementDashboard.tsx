@@ -25,6 +25,7 @@ import { useABTests } from "@/lib/hooks/useABTests";
 import { useProjects } from "@/lib/api/hooks";
 import { useTemplateVersions } from "@/lib/hooks/useTemplateVersions";
 import { useToast } from "@packages/ui";
+import { useTranslations } from "next-intl";
 import {
   FileText,
   TestTube,
@@ -47,6 +48,7 @@ export function TemplateManagementDashboard({
   const { data: projectsData } = useProjects();
   const projectId = projectIdProp || projectsData?.data?.[0]?.id || "";
   const { success, error } = useToast();
+  const t = useTranslations("templates");
 
   // State management
   const [activeTab, setActiveTab] = useState<
@@ -135,35 +137,35 @@ export function TemplateManagementDashboard({
             ...(template.description !== undefined && { description: template.description }),
             ...(template.tags !== undefined && { tags: template.tags }),
           });
-          success({ description: "Template created successfully!" });
+          success({ description: t("dashboard.toast.createSuccess") });
         } else {
           await updateTemplate.mutateAsync({
             templateId: template.id,
             ...template,
           });
-          success({ description: "Template updated successfully!" });
+          success({ description: t("dashboard.toast.updateSuccess") });
         }
         setActiveTab("library");
       } catch {
-        error({ description: "Failed to save template" });
+        error({ description: t("dashboard.toast.saveError") });
       }
     },
-    [editorMode, createTemplate, updateTemplate, success, error]
+    [editorMode, createTemplate, updateTemplate, success, error, t]
   );
 
   const handleTemplateDelete = useCallback(
     async (template: Template) => {
       try {
         await deleteTemplate.mutateAsync(template.id);
-        success({ description: "Template deleted successfully!" });
+        success({ description: t("dashboard.toast.deleteSuccess") });
         if (selectedTemplate?.id === template.id) {
           setSelectedTemplate(null);
         }
       } catch {
-        error({ description: "Failed to delete template" });
+        error({ description: t("dashboard.toast.deleteError") });
       }
     },
-    [deleteTemplate, selectedTemplate, success, error]
+    [deleteTemplate, selectedTemplate, success, error, t]
   );
 
   const handleTemplateDuplicate = useCallback(
@@ -171,14 +173,14 @@ export function TemplateManagementDashboard({
       try {
         await duplicateTemplate.mutateAsync({
           templateId: template.id,
-          name: `${template.name} (Copy)`,
+          name: t("dashboard.copyName", { name: template.name }),
         });
-        success({ description: "Template duplicated successfully!" });
+        success({ description: t("dashboard.toast.duplicateSuccess") });
       } catch {
-        error({ description: "Failed to duplicate template" });
+        error({ description: t("dashboard.toast.duplicateError") });
       }
     },
-    [duplicateTemplate, success, error]
+    [duplicateTemplate, success, error, t]
   );
 
   const handleEditorCancel = useCallback(() => {
@@ -202,9 +204,21 @@ export function TemplateManagementDashboard({
   const templateAnalytics = {
     topPerforming,
     recentActivity: [
-      { action: "Template Created", template: "Product Launch", time: "2 hours ago" },
-      { action: "A/B Test Started", template: "Newsletter", time: "4 hours ago" },
-      { action: "Template Used", template: "Social Media Post", time: "6 hours ago" },
+      {
+        action: t("dashboard.activity.templateCreated"),
+        template: "Product Launch",
+        time: t("dashboard.activity.hoursAgo", { count: 2 }),
+      },
+      {
+        action: t("dashboard.activity.abTestStarted"),
+        template: "Newsletter",
+        time: t("dashboard.activity.hoursAgo", { count: 4 }),
+      },
+      {
+        action: t("dashboard.activity.templateUsed"),
+        template: "Social Media Post",
+        time: t("dashboard.activity.hoursAgo", { count: 6 }),
+      },
     ],
   };
 
@@ -219,7 +233,9 @@ export function TemplateManagementDashboard({
                 <FileText className="h-5 w-5 text-blue-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Templates</p>
+                <p className="text-sm font-medium text-gray-600">
+                  {t("dashboard.stats.totalTemplates")}
+                </p>
                 <p className="text-2xl font-bold">{templateStats.total}</p>
               </div>
             </div>
@@ -233,7 +249,9 @@ export function TemplateManagementDashboard({
                 <Zap className="h-5 w-5 text-green-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Active Templates</p>
+                <p className="text-sm font-medium text-gray-600">
+                  {t("dashboard.stats.activeTemplates")}
+                </p>
                 <p className="text-2xl font-bold">{templateStats.active}</p>
               </div>
             </div>
@@ -247,7 +265,9 @@ export function TemplateManagementDashboard({
                 <TestTube className="h-5 w-5 text-purple-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Running A/B Tests</p>
+                <p className="text-sm font-medium text-gray-600">
+                  {t("dashboard.stats.runningAbTests")}
+                </p>
                 <p className="text-2xl font-bold">{abTestStats.running}</p>
               </div>
             </div>
@@ -261,7 +281,9 @@ export function TemplateManagementDashboard({
                 <Target className="h-5 w-5 text-orange-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-600">Categories</p>
+                <p className="text-sm font-medium text-gray-600">
+                  {t("dashboard.stats.categories")}
+                </p>
                 <p className="text-2xl font-bold">{templateStats.categories}</p>
               </div>
             </div>
@@ -279,35 +301,35 @@ export function TemplateManagementDashboard({
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="library" className="flex items-center space-x-2">
             <FileText className="h-4 w-4" />
-            <span>Library</span>
+            <span>{t("dashboard.tabs.library")}</span>
           </TabsTrigger>
           <TabsTrigger value="editor" className="flex items-center space-x-2">
             <Lightbulb className="h-4 w-4" />
-            <span>Editor</span>
+            <span>{t("dashboard.tabs.editor")}</span>
           </TabsTrigger>
           <TabsTrigger value="ab-testing" className="flex items-center space-x-2">
             <TestTube className="h-4 w-4" />
-            <span>A/B Testing</span>
+            <span>{t("dashboard.tabs.abTesting")}</span>
           </TabsTrigger>
           <TabsTrigger value="versions" className="flex items-center space-x-2">
             <GitBranch className="h-4 w-4" />
-            <span>Versions</span>
+            <span>{t("dashboard.tabs.versions")}</span>
           </TabsTrigger>
           <TabsTrigger value="analytics" className="flex items-center space-x-2">
             <BarChart3 className="h-4 w-4" />
-            <span>Analytics</span>
+            <span>{t("dashboard.tabs.analytics")}</span>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="library" className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-semibold">Template Library</h2>
-              <p className="text-gray-600">Browse and manage your content templates</p>
+              <h2 className="text-xl font-semibold">{t("dashboard.library.title")}</h2>
+              <p className="text-gray-600">{t("dashboard.library.subtitle")}</p>
             </div>
             <Button onClick={handleTemplateCreate} className="flex items-center space-x-1">
               <Plus className="h-4 w-4" />
-              <span>New Template</span>
+              <span>{t("dashboard.library.newTemplate")}</span>
             </Button>
           </div>
 
@@ -376,13 +398,12 @@ export function TemplateManagementDashboard({
             <Card>
               <CardContent className="p-8 text-center">
                 <GitBranch className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Template Selected</h3>
-                <p className="text-gray-600 mb-4">
-                  Select a template from the library to view its version history and manage
-                  versions.
-                </p>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  {t("dashboard.versions.emptyTitle")}
+                </h3>
+                <p className="text-gray-600 mb-4">{t("dashboard.versions.emptyDescription")}</p>
                 <Button onClick={() => setActiveTab("library")} variant="outline">
-                  Browse Templates
+                  {t("dashboard.versions.browseTemplates")}
                 </Button>
               </CardContent>
             </Card>
@@ -394,9 +415,9 @@ export function TemplateManagementDashboard({
             {/* Top Performing Templates */}
             <Card>
               <CardHeader>
-                <CardTitle>Top Performing Templates</CardTitle>
+                <CardTitle>{t("dashboard.analytics.topPerformingTitle")}</CardTitle>
                 <CardDescription>
-                  Templates with highest engagement and conversion rates
+                  {t("dashboard.analytics.topPerformingDescription")}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -409,13 +430,19 @@ export function TemplateManagementDashboard({
                         </div>
                         <div>
                           <p className="font-medium text-sm">{template.templateName}</p>
-                          <p className="text-xs text-gray-600">{template.views} views</p>
+                          <p className="text-xs text-gray-600">
+                            {t("dashboard.analytics.views", { count: template.views })}
+                          </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium text-sm">{template.uses} uses</p>
+                        <p className="font-medium text-sm">
+                          {t("dashboard.analytics.uses", { count: template.uses })}
+                        </p>
                         <p className="text-xs text-gray-600">
-                          {(template.conversionRate * 100).toFixed(1)}% rate
+                          {t("dashboard.analytics.rate", {
+                            rate: (template.conversionRate * 100).toFixed(1),
+                          })}
                         </p>
                       </div>
                     </div>
@@ -427,8 +454,10 @@ export function TemplateManagementDashboard({
             {/* Recent Activity */}
             <Card>
               <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Latest template and A/B testing activities</CardDescription>
+                <CardTitle>{t("dashboard.analytics.recentActivityTitle")}</CardTitle>
+                <CardDescription>
+                  {t("dashboard.analytics.recentActivityDescription")}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -451,30 +480,36 @@ export function TemplateManagementDashboard({
             {/* Usage Statistics */}
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle>Template Engine Statistics</CardTitle>
-                <CardDescription>Performance metrics and usage statistics</CardDescription>
+                <CardTitle>{t("dashboard.analytics.engineStatsTitle")}</CardTitle>
+                <CardDescription>{t("dashboard.analytics.engineStatsDescription")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="text-center">
                     <p className="text-2xl font-bold text-blue-600">{templateStats.total}</p>
-                    <p className="text-sm text-gray-600">Total Templates</p>
+                    <p className="text-sm text-gray-600">{t("dashboard.stats.totalTemplates")}</p>
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-bold text-green-600">{abTestStats.running}</p>
-                    <p className="text-sm text-gray-600">Active A/B Tests</p>
+                    <p className="text-sm text-gray-600">
+                      {t("dashboard.analytics.activeAbTests")}
+                    </p>
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-bold text-purple-600">
                       {templateEngine.getRegisteredHelpers().length}
                     </p>
-                    <p className="text-sm text-gray-600">Helper Functions</p>
+                    <p className="text-sm text-gray-600">
+                      {t("dashboard.analytics.helperFunctions")}
+                    </p>
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-bold text-orange-600">
                       {versions.filter((v) => v.isActive).length}
                     </p>
-                    <p className="text-sm text-gray-600">Active Versions</p>
+                    <p className="text-sm text-gray-600">
+                      {t("dashboard.analytics.activeVersions")}
+                    </p>
                   </div>
                 </div>
               </CardContent>

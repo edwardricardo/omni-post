@@ -750,6 +750,10 @@
         "delete": "Eliminar",
         "deleteAria": "Eliminar {name}"
       }
+    },
+    "analytics": {
+      "title": "Inteligencia de contenido",
+      "subtitle": "Información de rendimiento y análisis de tendencias"
     }
   },
   "scheduling": {
@@ -1108,7 +1112,69 @@
       "toastTryAgain": "Inténtalo de nuevo.",
       "primary": "Principal",
       "saving": "Guardando…",
-      "setAsPrimary": "Establecer como principal"
+      "setAsPrimary": "Establecer como principal",
+      "connect": {
+        "title": "Conectar {provider}",
+        "description": "Conecta tu cuenta de {provider} para empezar a publicar contenido.",
+        "closeDialog": "Cerrar diálogo de conexión de proveedor",
+        "cancel": "Cancelar",
+        "cancelAria": "Cancelar conexión",
+        "connectAccount": "Conectar cuenta",
+        "connectAccountAria": "Conectar cuenta de {provider}",
+        "oauthTitle": "Flujo OAuth — redirigirá a la página de autorización del proveedor",
+        "noActiveProject": "No hay proyecto activo — actualiza la página e intenta de nuevo.",
+        "permissions": {
+          "heading": "Permisos requeridos:",
+          "x": {
+            "readWrite": "Leer y escribir publicaciones",
+            "profile": "Acceder a la información del perfil del usuario",
+            "media": "Subir contenido multimedia"
+          },
+          "instagram": {
+            "manageContent": "Administrar contenido de Instagram",
+            "insights": "Acceder a las estadísticas de Instagram",
+            "publish": "Publicar fotos y videos",
+            "facebookPages": "Acceder a las páginas de Facebook conectadas"
+          }
+        },
+        "instagram": {
+          "requirementsTitle": "Requisitos de Instagram",
+          "requirementsDescription": "Necesitas una cuenta de Empresa o Creador conectada a una página de Facebook. La API Graph de Instagram no admite cuentas personales."
+        },
+        "bluesky": {
+          "appPasswordTitle": "App Password requerido",
+          "appPasswordDescription": "Bluesky usa App Passwords en lugar de OAuth. Genera una en <link>bsky.app/settings/app-passwords →</link>",
+          "handleLabel": "Identificador",
+          "handlePlaceholder": "tuusuario.bsky.social",
+          "appPasswordLabel": "App Password",
+          "requiredFields": "El identificador y el App Password son obligatorios.",
+          "invalidCredentials": "Identificador o App Password inválido.",
+          "connected": "Bluesky conectado",
+          "connecting": "Conectando...",
+          "connectButton": "Conectar Bluesky",
+          "connectAria": "Conectar cuenta de Bluesky"
+        }
+      },
+      "table": {
+        "regionLabel": "Tabla de canales conectados",
+        "tableLabel": "Canales conectados",
+        "selectAll": "Seleccionar todos los canales",
+        "selectChannel": "Seleccionar canal {channel}",
+        "columns": {
+          "channel": "Canal",
+          "status": "Estado",
+          "usage": "Uso",
+          "lastUsed": "Último uso",
+          "connected": "Conectado",
+          "actions": "Acciones"
+        },
+        "primary": "PRINCIPAL",
+        "postsThisMonth": "{count} {count, plural, one {publicación} other {publicaciones}} este mes",
+        "disconnect": "Desconectar",
+        "disconnectChannel": "Desconectar {channel}",
+        "emptyTitle": "Aún no hay canales conectados",
+        "emptyDescription": "Conecta tu primera cuenta de redes sociales para empezar"
+      }
     }
   },
   "integrations": {
@@ -1171,7 +1237,56 @@
       "manageBilling": "Gestionar facturación",
       "managePortalHint": "Consulta facturas, actualiza el método de pago o gestiona tu suscripción.",
       "tabBundles": "Paquetes",
-      "tabCustom": "Plan personalizado"
+      "tabCustom": "Plan personalizado",
+      "components": {
+        "switchDialog": {
+          "title": "Cambiar procesador de pago",
+          "description": "Cambia tu facturación de {from} a {to}.",
+          "currentlyUsing": "Actualmente usando:",
+          "switchTo": "Cambiar a:",
+          "noteEndOfPeriod": "El cambio se aplica al final de tu período de facturación actual.",
+          "noteReenterCard": "Debes volver a ingresar tu tarjeta en {gateway}.",
+          "noteGracePeriod": "Tendrás {hours} horas para completar el pago después de la fecha del cambio.",
+          "cancel": "Cancelar",
+          "confirming": "Confirmando...",
+          "confirm": "Confirmar cambio"
+        },
+        "gatewaySelector": {
+          "title": "Procesador de pago",
+          "stripeRecommended": "Recomendado para EE. UU., Canadá y Europa.",
+          "stripeMethods": "Visa, Mastercard, Amex, Apple Pay, Google Pay.",
+          "paddleRecommended": "Recomendado para el resto del mundo.",
+          "paddleMethods": "Incluye gestión de IVA e impuestos locales. Visa, Mastercard, PayPal y más."
+        },
+        "bundles": {
+          "loadError": "No se pudieron cargar los planes. Intenta de nuevo.",
+          "retry": "Reintentar",
+          "noPlans": "No hay planes disponibles en este momento.",
+          "perMonth": "/mes",
+          "platformsAccounts": "{platforms} plataformas, {accounts} {accounts, plural, one {cuenta} other {cuentas}}",
+          "redirecting": "Redirigiendo...",
+          "subscribe": "Suscribirse"
+        },
+        "activeBanner": {
+          "title": "Procesador de pago activo:",
+          "noteReenterCard": "Cambiar de procesador requiere volver a ingresar tu tarjeta.",
+          "noteNoTransfer": "Los datos de pago no se pueden transferir entre procesadores.",
+          "switchButton": "Cambiar procesador de pago"
+        },
+        "customPlan": {
+          "selectProviders": "Selecciona proveedores",
+          "providersSelected": "{count} {count, plural, one {proveedor seleccionado} other {proveedores seleccionados}}",
+          "perProviderPrice": " @ ${price}/proveedor",
+          "socialAccounts": "Cuentas sociales: {count}",
+          "volumeDiscount": "Descuento por volumen: cuentas 2-3 al 80%, 4-9 al 65%, 10+ al 50%",
+          "perMonth": "/mes",
+          "perYear": "/año",
+          "monthly": "Mensual",
+          "yearly": "Anual (2 meses gratis)",
+          "redirecting": "Redirigiendo...",
+          "subscribe": "Suscribirse"
+        }
+      }
     },
     "brandVoice": {
       "title": "Voz de marca",
@@ -2190,7 +2305,62 @@
       }
     },
     "title": "Gestión de plantillas",
-    "subtitle": "Crea, gestiona y optimiza tus plantillas de contenido con funciones avanzadas como pruebas A/B, control de versiones y análisis de rendimiento."
+    "subtitle": "Crea, gestiona y optimiza tus plantillas de contenido con funciones avanzadas como pruebas A/B, control de versiones y análisis de rendimiento.",
+    "dashboard": {
+      "copyName": "{name} (Copia)",
+      "toast": {
+        "createSuccess": "¡Plantilla creada con éxito!",
+        "updateSuccess": "¡Plantilla actualizada con éxito!",
+        "saveError": "No se pudo guardar la plantilla",
+        "deleteSuccess": "¡Plantilla eliminada con éxito!",
+        "deleteError": "No se pudo eliminar la plantilla",
+        "duplicateSuccess": "¡Plantilla duplicada con éxito!",
+        "duplicateError": "No se pudo duplicar la plantilla"
+      },
+      "stats": {
+        "totalTemplates": "Total de plantillas",
+        "activeTemplates": "Plantillas activas",
+        "runningAbTests": "Pruebas A/B en curso",
+        "categories": "Categorías"
+      },
+      "tabs": {
+        "library": "Biblioteca",
+        "editor": "Editor",
+        "abTesting": "Pruebas A/B",
+        "versions": "Versiones",
+        "analytics": "Analíticas"
+      },
+      "library": {
+        "title": "Biblioteca de plantillas",
+        "subtitle": "Explora y administra tus plantillas de contenido",
+        "newTemplate": "Nueva plantilla"
+      },
+      "versions": {
+        "emptyTitle": "Ninguna plantilla seleccionada",
+        "emptyDescription": "Selecciona una plantilla de la biblioteca para ver su historial de versiones y administrarlas.",
+        "browseTemplates": "Explorar plantillas"
+      },
+      "activity": {
+        "templateCreated": "Plantilla creada",
+        "abTestStarted": "Prueba A/B iniciada",
+        "templateUsed": "Plantilla usada",
+        "hoursAgo": "hace {count} {count, plural, one {hora} other {horas}}"
+      },
+      "analytics": {
+        "topPerformingTitle": "Plantillas con mejor desempeño",
+        "topPerformingDescription": "Plantillas con mayor interacción y tasas de conversión",
+        "views": "{count} {count, plural, one {vista} other {vistas}}",
+        "uses": "{count} {count, plural, one {uso} other {usos}}",
+        "rate": "{rate}% de tasa",
+        "recentActivityTitle": "Actividad reciente",
+        "recentActivityDescription": "Últimas actividades de plantillas y pruebas A/B",
+        "engineStatsTitle": "Estadísticas del motor de plantillas",
+        "engineStatsDescription": "Métricas de rendimiento y estadísticas de uso",
+        "activeAbTests": "Pruebas A/B activas",
+        "helperFunctions": "Funciones auxiliares",
+        "activeVersions": "Versiones activas"
+      }
+    }
   },
   "assets": {
     "title": "Biblioteca de recursos",
@@ -2430,5 +2600,19 @@
     "metrics": "Métricas",
     "period": "Periodo",
     "poweredBy": "Desarrollado con OmniPost"
+  },
+  "errors": {
+    "notFound": {
+      "title": "No encontrado",
+      "description": "No se pudo encontrar el recurso solicitado",
+      "returnHome": "Volver al inicio"
+    },
+    "boundary": {
+      "title": "¡Algo salió mal!",
+      "description": "Algo salió mal. Intenta de nuevo o contacta a soporte.",
+      "unexpected": "Ocurrió un error inesperado",
+      "errorId": "ID de error: {digest}",
+      "tryAgain": "Intentar de nuevo"
+    }
   }
 }

@@ -7,6 +7,7 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import type { GatewayProvider } from "@/hooks/api/useBilling";
 
 interface GatewaySelectorProps {
@@ -15,9 +16,12 @@ interface GatewaySelectorProps {
 }
 
 export function GatewaySelector({ selected, onChange }: GatewaySelectorProps) {
+  const t = useTranslations("settings");
   return (
     <div className="rounded-lg border bg-card p-5 mb-6">
-      <h3 className="text-sm font-medium text-foreground mb-3">Procesador de pago</h3>
+      <h3 className="text-sm font-medium text-foreground mb-3">
+        {t("billing.components.gatewaySelector.title")}
+      </h3>
       <div className="space-y-3">
         <div className="flex items-start gap-3">
           <input
@@ -32,10 +36,10 @@ export function GatewaySelector({ selected, onChange }: GatewaySelectorProps) {
           <label htmlFor="gateway-stripe" className="cursor-pointer">
             <span className="text-sm font-medium text-foreground">Stripe</span>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Recommended for US, Canada and Europe.
+              {t("billing.components.gatewaySelector.stripeRecommended")}
             </p>
             <p className="text-xs text-muted-foreground">
-              Visa, Mastercard, Amex, Apple Pay, Google Pay.
+              {t("billing.components.gatewaySelector.stripeMethods")}
             </p>
           </label>
         </div>
@@ -52,10 +56,10 @@ export function GatewaySelector({ selected, onChange }: GatewaySelectorProps) {
           <label htmlFor="gateway-paddle" className="cursor-pointer">
             <span className="text-sm font-medium text-foreground">Paddle</span>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Recommended for rest of the world.
+              {t("billing.components.gatewaySelector.paddleRecommended")}
             </p>
             <p className="text-xs text-muted-foreground">
-              VAT and local tax handling included. Visa, Mastercard, PayPal and more.
+              {t("billing.components.gatewaySelector.paddleMethods")}
             </p>
           </label>
         </div>

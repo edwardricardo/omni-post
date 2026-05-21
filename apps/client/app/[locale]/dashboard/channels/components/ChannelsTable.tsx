@@ -8,6 +8,7 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import type { ProjectChannel } from "@/lib/hooks/useProjectChannels";
 import { ChannelAvatar } from "./ChannelAvatar";
 import { ChannelStatusBadge } from "./ChannelStatusBadge";
@@ -26,6 +27,15 @@ export function ChannelsTable({
   onSelectChannel,
   onDisconnect,
 }: ChannelsTableProps) {
+  const t = useTranslations("channels");
+  const columns = [
+    { key: "channel", label: t("components.table.columns.channel") },
+    { key: "status", label: t("components.table.columns.status") },
+    { key: "usage", label: t("components.table.columns.usage") },
+    { key: "lastUsed", label: t("components.table.columns.lastUsed") },
+    { key: "connected", label: t("components.table.columns.connected") },
+    { key: "actions", label: t("components.table.columns.actions") },
+  ];
   return (
     <div
       className="bg-white rounded-lg shadow-sm overflow-hidden"
@@ -33,13 +43,13 @@ export function ChannelsTable({
       aria-labelledby="channels-table"
     >
       <h3 id="channels-table" className="sr-only">
-        Connected channels table
+        {t("components.table.regionLabel")}
       </h3>
       <div className="overflow-x-auto">
         <table
           className="min-w-full divide-y divide-gray-200"
           role="table"
-          aria-label="Connected channels"
+          aria-label={t("components.table.tableLabel")}
         >
           <thead className="bg-gray-50">
             <tr>
@@ -47,16 +57,16 @@ export function ChannelsTable({
                 <input
                   type="checkbox"
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  aria-label="Select all channels"
+                  aria-label={t("components.table.selectAll")}
                 />
               </th>
-              {["Channel", "Status", "Usage", "Last Used", "Connected", "Actions"].map((label) => (
+              {columns.map((column) => (
                 <th
-                  key={label}
+                  key={column.key}
                   scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
-                  {label}
+                  {column.label}
                 </th>
               ))}
             </tr>
@@ -72,7 +82,7 @@ export function ChannelsTable({
                       checked={selectedChannels.has(channel.id)}
                       onChange={(e) => onSelectChannel(channel.id, e.target.checked)}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      aria-label={`Select channel ${display}`}
+                      aria-label={t("components.table.selectChannel", { channel: display })}
                     />
                   </td>
                   <td className="px-6 py-4">
@@ -83,7 +93,7 @@ export function ChannelsTable({
                           {channel.providerName}
                           {channel.isPrimary && (
                             <span className="ml-2 px-1.5 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-800 rounded">
-                              PRIMARY
+                              {t("components.table.primary")}
                             </span>
                           )}
                         </div>
@@ -96,7 +106,9 @@ export function ChannelsTable({
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-sm text-gray-900">
-                      {channel.usage.postsThisMonth} posts this month
+                      {t("components.table.postsThisMonth", {
+                        count: channel.usage.postsThisMonth,
+                      })}
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
@@ -110,9 +122,9 @@ export function ChannelsTable({
                       <button
                         onClick={() => onDisconnect(channel.id)}
                         className="text-red-600 hover:text-red-900 text-sm focus:outline-hidden focus:underline"
-                        aria-label={`Disconnect ${display}`}
+                        aria-label={t("components.table.disconnectChannel", { channel: display })}
                       >
-                        Disconnect
+                        {t("components.table.disconnect")}
                       </button>
                     </div>
                   </td>
@@ -125,10 +137,8 @@ export function ChannelsTable({
 
       {channels.length === 0 && (
         <div className="text-center py-12" role="status">
-          <div className="text-gray-500">No channels connected yet</div>
-          <p className="text-sm text-gray-400 mt-1">
-            Connect your first social media account to get started
-          </p>
+          <div className="text-gray-500">{t("components.table.emptyTitle")}</div>
+          <p className="text-sm text-gray-400 mt-1">{t("components.table.emptyDescription")}</p>
         </div>
       )}
     </div>
