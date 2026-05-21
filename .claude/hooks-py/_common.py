@@ -35,8 +35,11 @@ ALLOWED_TOKENS_DIR = Path(".claude/.allowed")
 
 # Regex compartida entre pre-bash y post-bash. Matchea 'git' y 'push' como
 # tokens separados aunque haya flags intermedias (-C /path, --git-dir=...).
+# El negative lookahead excluye `git stash push`/`git stash pop` (operaciones
+# LOCALES del stash, no publicación remota) — sin él, "stash push" disparaba
+# el gate de autorización como si fuera `git push`.
 # Limitación: no detecta composición con && (cd /path && ...).
-GIT_PUSH_RE = re.compile(r"\bgit\b\s.*\bpush\b")
+GIT_PUSH_RE = re.compile(r"\bgit\b(?!\s+stash\b)\s.*\bpush\b")
 
 
 def make_logger(hook_name: str) -> tuple[Callable[[str], None], Callable[[str], None], Callable[[str], None]]:
