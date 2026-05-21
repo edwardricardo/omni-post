@@ -7,6 +7,7 @@
  * @component DashboardPage
  * @layer infrastructure
  */
+import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth/authContext";
 import { usePosts, useProjects, useApiProviders } from "@/lib/api/hooks";
@@ -27,6 +28,7 @@ import {
  * @description Main dashboard overview showing key stats, recent posts, connected providers, and quick actions.
  */
 export default function DashboardPage() {
+  const t = useTranslations("dashboard");
   const router = useRouter();
   const { user } = useAuth();
   const { data: postsData, isLoading: postsLoading } = usePosts({ limit: 5 });
@@ -41,22 +43,22 @@ export default function DashboardPage() {
 
   const stats = [
     {
-      title: "Total Posts",
+      title: t("statTotalPosts"),
       value: isLoading ? "..." : String(totalPosts),
       icon: FileText,
     },
     {
-      title: "Connected Accounts",
+      title: t("statConnectedAccounts"),
       value: isLoading ? "..." : String(connectedProviders),
       icon: Users,
     },
     {
-      title: "Projects",
+      title: t("statProjects"),
       value: isLoading ? "..." : String(projectsData?.total ?? 0),
       icon: TrendingUp,
     },
     {
-      title: "Published",
+      title: t("statPublished"),
       value: isLoading ? "..." : String(recentPosts.filter((p) => p.status === "PUBLISHED").length),
       icon: Activity,
     },
@@ -71,15 +73,13 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">
-            Welcome back, {user?.name?.split(" ")[0] || "User"}!
+            {t("welcomeBack", { name: user?.name?.split(" ")[0] || t("defaultUser") })}
           </h1>
-          <p className="text-muted-foreground">
-            Here&apos;s an overview of your social media management
-          </p>
+          <p className="text-muted-foreground">{t("overviewSubtitle")}</p>
         </div>
         <Button onClick={() => router.push("/dashboard/posts/new")}>
           <PlusCircle className="mr-2 h-4 w-4" />
-          Create Post
+          {t("createPost")}
         </Button>
       </div>
 
@@ -102,8 +102,8 @@ export default function DashboardPage() {
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common tasks to manage your content</CardDescription>
+            <CardTitle>{t("quickActions")}</CardTitle>
+            <CardDescription>{t("quickActionsSubtitle")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-2">
@@ -113,7 +113,7 @@ export default function DashboardPage() {
                 onClick={() => router.push("/dashboard/posts/new")}
               >
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Create New Post
+                {t("createNewPost")}
               </Button>
               <Button
                 className="w-full justify-start"
@@ -121,7 +121,7 @@ export default function DashboardPage() {
                 onClick={() => router.push("/dashboard/analytics")}
               >
                 <BarChart3 className="mr-2 h-4 w-4" />
-                View Analytics
+                {t("viewAnalytics")}
               </Button>
               <Button
                 className="w-full justify-start"
@@ -129,7 +129,7 @@ export default function DashboardPage() {
                 onClick={() => router.push("/dashboard/settings")}
               >
                 <Users className="mr-2 h-4 w-4" />
-                Manage Accounts
+                {t("manageAccounts")}
               </Button>
             </div>
           </CardContent>
@@ -137,8 +137,8 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Your latest posts</CardDescription>
+            <CardTitle>{t("recentActivity")}</CardTitle>
+            <CardDescription>{t("recentActivitySubtitle")}</CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -146,9 +146,7 @@ export default function DashboardPage() {
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
             ) : recentPosts.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4">
-                No posts yet. Create your first post to get started!
-              </p>
+              <p className="text-sm text-muted-foreground py-4">{t("noPostsYet")}</p>
             ) : (
               <div className="space-y-4">
                 {recentPosts.slice(0, 5).map((post) => (
@@ -166,7 +164,7 @@ export default function DashboardPage() {
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">
-                        {post.title || "Untitled post"}
+                        {post.title || t("untitledPost")}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {post.status} &middot; {new Date(post.createdAt).toLocaleDateString()}

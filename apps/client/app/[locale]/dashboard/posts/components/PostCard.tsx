@@ -9,6 +9,7 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import { format } from "date-fns";
 import {
   BarChart3,
@@ -82,10 +83,11 @@ function SelectionCheckbox({
   onSelectChange: (postId: string, next: boolean) => void;
   className?: string;
 }) {
+  const t = useTranslations("posts");
   return (
     <input
       type="checkbox"
-      aria-label={`Select post ${postId}`}
+      aria-label={t("card.selectPost")}
       checked={isSelected}
       onChange={(e) => onSelectChange(postId, e.target.checked)}
       onClick={(e) => e.stopPropagation()}
@@ -104,9 +106,11 @@ export function PostCard({
   isSelected,
   onSelectChange,
 }: PostCardProps) {
+  const t = useTranslations("posts");
   const StatusIcon = STATUS_ICONS[post.status as keyof typeof STATUS_ICONS];
   const statusClass = STATUS_COLORS[post.status as keyof typeof STATUS_COLORS];
   const showSelection = onSelectChange !== undefined && isSelected !== undefined;
+  const statusLabel = t(`status.${post.status}`);
 
   if (isCompact) {
     return (
@@ -122,14 +126,14 @@ export function PostCard({
         )}
         <div className="flex-1">
           <div className="flex items-center justify-between">
-            <h4 className="font-medium text-sm truncate">{post.title || "Untitled Post"}</h4>
+            <h4 className="font-medium text-sm truncate">{post.title || t("card.untitled")}</h4>
             <Badge className={cn("text-xs ml-2", statusClass)}>
               <StatusIcon className="mr-1 h-3 w-3" />
-              {post.status}
+              {statusLabel}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground truncate mt-1">
-            {getPostPreview(post.body || "No content", 60)}
+            {getPostPreview(post.body || t("card.noContent"), 60)}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
             {format(new Date(post.createdAt), "MMM d, yyyy")}
@@ -154,7 +158,9 @@ export function PostCard({
               />
             )}
             <div className="flex-1">
-              <CardTitle className="text-lg leading-6">{post.title || "Untitled Post"}</CardTitle>
+              <CardTitle className="text-lg leading-6">
+                {post.title || t("card.untitled")}
+              </CardTitle>
               <CardDescription className="mt-1">
                 {format(new Date(post.createdAt), "MMM d, yyyy")}
               </CardDescription>
@@ -163,7 +169,7 @@ export function PostCard({
           <div className="flex items-center gap-2">
             <Badge className={cn("text-xs", statusClass)}>
               <StatusIcon className="mr-1 h-3 w-3" />
-              {post.status}
+              {statusLabel}
             </Badge>
             <PostActionsMenu
               post={post}
@@ -176,7 +182,7 @@ export function PostCard({
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground line-clamp-3">
-          {getPostPreview(post.body || "No content")}
+          {getPostPreview(post.body || t("card.noContent"))}
         </p>
         {post.tags && post.tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-3">
@@ -208,6 +214,7 @@ function PostActionsMenu({
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
+  const t = useTranslations("posts");
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -218,16 +225,16 @@ function PostActionsMenu({
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={() => onPreview(post.id)}>
           <Eye className="mr-2 h-4 w-4" />
-          Preview
+          {t("actions.preview")}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onEdit(post.id)}>
           <Edit className="mr-2 h-4 w-4" />
-          Edit
+          {t("actions.edit")}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => onDelete(post.id)} className="text-red-600">
           <Trash2 className="mr-2 h-4 w-4" />
-          Delete
+          {t("actions.delete")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

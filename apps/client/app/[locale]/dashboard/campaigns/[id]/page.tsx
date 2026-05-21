@@ -8,6 +8,7 @@
 
 import { useCallback } from "react";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { Button } from "@packages/ui";
 import { ArrowLeft, Archive } from "lucide-react";
@@ -19,6 +20,7 @@ import { CampaignStatusBadge } from "@/components/campaigns/CampaignStatusBadge"
  * @description Shows campaign details including analytics, post list, and archive controls for a specific campaign.
  */
 export default function CampaignDetailPage() {
+  const t = useTranslations("campaigns");
   const params = useParams();
   const router = useRouter();
   const campaignId = params.id as string;
@@ -33,11 +35,11 @@ export default function CampaignDetailPage() {
   }, [campaignId, archiveMutation, router]);
 
   if (isLoading) {
-    return <div className="text-center py-8 text-muted-foreground">Loading campaign...</div>;
+    return <div className="text-center py-8 text-muted-foreground">{t("loadingDetail")}</div>;
   }
 
   if (!campaign) {
-    return <div className="text-center py-8 text-muted-foreground">Campaign not found</div>;
+    return <div className="text-center py-8 text-muted-foreground">{t("notFound")}</div>;
   }
 
   const canArchive = campaign.status !== "ARCHIVED";
@@ -51,7 +53,7 @@ export default function CampaignDetailPage() {
         className="mb-4"
       >
         <ArrowLeft className="h-4 w-4 mr-1" />
-        Back to Campaigns
+        {t("backToCampaigns")}
       </Button>
 
       <div className="flex items-start justify-between mb-6">
@@ -66,14 +68,14 @@ export default function CampaignDetailPage() {
           <p className="text-xs text-muted-foreground mt-2">
             {campaign.startDate
               ? new Date(campaign.startDate).toLocaleDateString()
-              : "No start date"}
+              : t("noStartDate")}
             {campaign.endDate ? ` - ${new Date(campaign.endDate).toLocaleDateString()}` : ""}
           </p>
         </div>
         {canArchive && (
           <Button variant="outline" onClick={handleArchive} disabled={archiveMutation.isPending}>
             <Archive className="h-4 w-4 mr-2" />
-            {archiveMutation.isPending ? "Archiving..." : "Archive"}
+            {archiveMutation.isPending ? t("archiving") : t("archive")}
           </Button>
         )}
       </div>
@@ -81,19 +83,19 @@ export default function CampaignDetailPage() {
       {analytics && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
           <div className="rounded-lg border bg-card p-4">
-            <p className="text-xs text-muted-foreground">Posts</p>
+            <p className="text-xs text-muted-foreground">{t("statPosts")}</p>
             <p className="text-2xl font-bold">{analytics.totalPosts}</p>
           </div>
           <div className="rounded-lg border bg-card p-4">
-            <p className="text-xs text-muted-foreground">Views</p>
+            <p className="text-xs text-muted-foreground">{t("statViews")}</p>
             <p className="text-2xl font-bold">{analytics.totalViews.toLocaleString()}</p>
           </div>
           <div className="rounded-lg border bg-card p-4">
-            <p className="text-xs text-muted-foreground">Engagement</p>
+            <p className="text-xs text-muted-foreground">{t("statEngagement")}</p>
             <p className="text-2xl font-bold">{analytics.totalEngagement.toLocaleString()}</p>
           </div>
           <div className="rounded-lg border bg-card p-4">
-            <p className="text-xs text-muted-foreground">Eng. Rate</p>
+            <p className="text-xs text-muted-foreground">{t("statEngRate")}</p>
             <p className="text-2xl font-bold">{analytics.avgEngagementRate.toFixed(1)}%</p>
           </div>
         </div>
@@ -101,10 +103,10 @@ export default function CampaignDetailPage() {
 
       {campaign.utmSource && (
         <div className="rounded-lg border bg-muted/30 p-4 mb-6">
-          <h3 className="text-sm font-medium mb-2">UTM Parameters</h3>
+          <h3 className="text-sm font-medium mb-2">{t("utmParameters")}</h3>
           <div className="flex gap-4 text-sm text-muted-foreground">
-            {campaign.utmSource && <span>source: {campaign.utmSource}</span>}
-            {campaign.utmMedium && <span>medium: {campaign.utmMedium}</span>}
+            {campaign.utmSource && <span>{t("utmSource", { value: campaign.utmSource })}</span>}
+            {campaign.utmMedium && <span>{t("utmMedium", { value: campaign.utmMedium })}</span>}
           </div>
         </div>
       )}

@@ -7,6 +7,7 @@
  */
 
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import {
   SubmitButton,
@@ -24,16 +25,15 @@ import { Mail, Lock, User } from "lucide-react";
 import { registerAction } from "@/app/actions/auth";
 
 export default function RegisterPage() {
+  const t = useTranslations("auth");
   const [state, formAction] = useActionState(registerAction, null);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Create an account</CardTitle>
-          <CardDescription className="text-center">
-            Enter your information to get started
-          </CardDescription>
+          <CardTitle className="text-2xl font-bold text-center">{t("registerTitle")}</CardTitle>
+          <CardDescription className="text-center">{t("registerSubtitle")}</CardDescription>
         </CardHeader>
 
         <form action={formAction}>
@@ -45,14 +45,14 @@ export default function RegisterPage() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="name">{t("nameLabel")}</Label>
               <div className="relative">
                 <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
                   id="name"
                   name="name"
                   type="text"
-                  placeholder="John Doe"
+                  placeholder={t("namePlaceholder")}
                   className="pl-10"
                   required
                 />
@@ -60,14 +60,14 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("emailLabel")}</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
                   id="email"
                   name="email"
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder={t("emailPlaceholder")}
                   className="pl-10"
                   required
                 />
@@ -75,7 +75,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t("passwordLabel")}</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
@@ -88,11 +88,11 @@ export default function RegisterPage() {
                   minLength={8}
                 />
               </div>
-              <p className="text-xs text-gray-500">Must be at least 8 characters</p>
+              <p className="text-xs text-gray-500">{t("passwordHint")}</p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Label htmlFor="confirmPassword">{t("confirmPasswordLabel")}</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
@@ -116,27 +116,31 @@ export default function RegisterPage() {
                 className="h-4 w-4 rounded-sm border-gray-300 text-primary focus:ring-primary mt-1"
               />
               <Label htmlFor="terms" className="ml-2 block text-sm text-gray-700">
-                I agree to the{" "}
-                <Link href="/terms" className="text-primary hover:underline">
-                  Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link href="/privacy" className="text-primary hover:underline">
-                  Privacy Policy
-                </Link>
+                {t.rich("termsAgreement", {
+                  termsLink: (chunks) => (
+                    <Link href="/terms" className="text-primary hover:underline">
+                      {chunks}
+                    </Link>
+                  ),
+                  privacyLink: (chunks) => (
+                    <Link href="/privacy" className="text-primary hover:underline">
+                      {chunks}
+                    </Link>
+                  ),
+                })}
               </Label>
             </div>
           </CardContent>
 
           <CardFooter className="flex flex-col space-y-4">
-            <SubmitButton className="w-full" pendingText="Creating account...">
-              Create account
+            <SubmitButton className="w-full" pendingText={t("creatingAccount")}>
+              {t("createAccount")}
             </SubmitButton>
 
             <p className="text-sm text-center text-gray-600">
-              Already have an account?{" "}
+              {t("haveAccount")}{" "}
               <Link href="/login" className="font-medium text-primary hover:underline">
-                Sign in
+                {t("signIn")}
               </Link>
             </p>
           </CardFooter>

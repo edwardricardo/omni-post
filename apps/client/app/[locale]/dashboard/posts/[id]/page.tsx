@@ -8,6 +8,7 @@
  * @layer infrastructure
  */
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
 import { usePost, useProjects } from "@/lib/api/hooks";
@@ -45,6 +46,7 @@ import { format } from "date-fns";
  */
 export default function EditPostPage() {
   const router = useRouter();
+  const t = useTranslations("posts");
   const params = useParams();
   const postId = params.id as string;
 
@@ -109,16 +111,16 @@ export default function EditPostPage() {
   const handlePublishNow = useCallback(async () => {
     if (selectedChannelIds.length === 0) {
       toast({
-        title: "Select channels first",
-        description: "Pick at least one channel to publish to.",
+        title: t("toast.selectChannels"),
+        description: t("toast.selectChannelsDesc"),
         variant: "destructive",
       });
       return;
     }
     if (!post?.projectId) {
       toast({
-        title: "Post not loaded",
-        description: "Please wait for the post data to finish loading.",
+        title: t("toast.postNotLoaded"),
+        description: t("toast.postNotLoadedDesc"),
         variant: "destructive",
       });
       return;
@@ -142,21 +144,21 @@ export default function EditPostPage() {
         // than the default 60s.
         { pollIntervalMs: 1000, timeoutMs: 120_000 }
       );
-      toast({ title: "Post published" });
+      toast({ title: t("toast.postPublished") });
       refetch();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to publish post.";
-      toast({ title: "Publish failed", description: message, variant: "destructive" });
+      const message = error instanceof Error ? error.message : t("toast.publishFailedDesc");
+      toast({ title: t("toast.publishFailed"), description: message, variant: "destructive" });
     } finally {
       setIsPublishing(false);
     }
-  }, [postId, post?.projectId, selectedChannelIds, refetch]);
+  }, [postId, post?.projectId, selectedChannelIds, refetch, t]);
 
   const handleSchedulePost = useCallback(async () => {
     if (!scheduleDate) {
       toast({
-        title: "Date required",
-        description: "Please select a date and time.",
+        title: t("toast.dateRequired"),
+        description: t("toast.dateRequiredDesc"),
         variant: "destructive",
       });
       return;
@@ -164,8 +166,8 @@ export default function EditPostPage() {
 
     if (selectedChannelIds.length === 0) {
       toast({
-        title: "Channel required",
-        description: "Pick at least one channel to publish to.",
+        title: t("toast.channelRequired"),
+        description: t("toast.selectChannelsDesc"),
         variant: "destructive",
       });
       return;
@@ -177,15 +179,15 @@ export default function EditPostPage() {
         scheduledFor: new Date(scheduleDate).toISOString(),
         channelIds: selectedChannelIds,
       });
-      toast({ title: "Post scheduled" });
+      toast({ title: t("toast.postScheduled") });
       setShowScheduleDialog(false);
       setScheduleDate("");
       refetch();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to schedule post.";
-      toast({ title: "Schedule failed", description: message, variant: "destructive" });
+      const message = error instanceof Error ? error.message : t("toast.scheduleFailedDesc");
+      toast({ title: t("toast.scheduleFailed"), description: message, variant: "destructive" });
     }
-  }, [postId, scheduleDate, selectedChannelIds, scheduleMutation, refetch]);
+  }, [postId, scheduleDate, selectedChannelIds, scheduleMutation, refetch, t]);
 
   const handleSaveChanges = useCallback(async () => {
     if (!post) return;
@@ -203,15 +205,15 @@ export default function EditPostPage() {
         ...(post.title && { title: post.title }),
         ...(post.body && { body: post.body }),
       });
-      toast({ title: "Changes saved" });
+      toast({ title: t("toast.changesSaved") });
       refetch();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to save changes.";
-      toast({ title: "Save failed", description: message, variant: "destructive" });
+      const message = error instanceof Error ? error.message : t("toast.saveFailedDesc");
+      toast({ title: t("toast.saveFailed"), description: message, variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
-  }, [postId, post, locale, tags, refetch]);
+  }, [postId, post, locale, tags, refetch, t]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -247,13 +249,13 @@ export default function EditPostPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="text-center text-red-600">
-              <p>Failed to load post. Please try again later.</p>
+              <p>{t("loadError")}</p>
               <Button
                 variant="outline"
                 onClick={() => router.push("/dashboard/posts")}
                 className="mt-4"
               >
-                Back to Posts
+                {t("backToPosts")}
               </Button>
             </div>
           </CardContent>
@@ -314,15 +316,17 @@ export default function EditPostPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">Edit Post</h1>
+            <h1 className="text-3xl font-bold">{t("edit.title")}</h1>
             <p className="text-muted-foreground">
-              Last updated {format(new Date(post.updatedAt), "MMM d, yyyy 'at' h:mm a")}
+              {t("edit.lastUpdated", {
+                date: format(new Date(post.updatedAt), "MMM d, yyyy 'at' h:mm a"),
+              })}
             </p>
           </div>
         </div>
         <Badge className={getStatusColor(post.status)}>
           <StatusIcon className="mr-1 h-3 w-3" />
-          {post.status}
+          {t(`status.${post.status}`)}
         </Badge>
       </div>
 
@@ -332,50 +336,52 @@ export default function EditPostPage() {
           {/* Post Info */}
           <Card>
             <CardHeader>
-              <CardTitle>Post Information</CardTitle>
-              <CardDescription>Basic information about this post</CardDescription>
+              <CardTitle>{t("info.title")}</CardTitle>
+              <CardDescription>{t("info.description")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Project</Label>
+                  <Label>{t("fields.project")}</Label>
                   <div className="p-2 bg-muted rounded-sm">
-                    {project?.name || "Unknown Project"}
+                    {project?.name || t("info.unknownProject")}
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="locale">Language</Label>
+                  <Label htmlFor="locale">{t("fields.language")}</Label>
                   <Select value={locale} onValueChange={(value: "en" | "es") => setLocale(value)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="en">English</SelectItem>
-                      <SelectItem value="es">Spanish</SelectItem>
+                      <SelectItem value="en">{t("language.en")}</SelectItem>
+                      <SelectItem value="es">{t("language.es")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="tags">Tags</Label>
+                <Label htmlFor="tags">{t("fields.tags")}</Label>
                 <Input
                   id="tags"
-                  placeholder="tag1, tag2, tag3"
+                  placeholder={t("fields.tagsPlaceholder")}
                   value={tags}
                   onChange={(e) => setTags(e.target.value)}
                 />
-                <p className="text-xs text-muted-foreground">Separate tags with commas</p>
+                <p className="text-xs text-muted-foreground">{t("fields.tagsHint")}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <Label className="text-xs text-muted-foreground">Created</Label>
+                  <Label className="text-xs text-muted-foreground">{t("fields.created")}</Label>
                   <p>{format(new Date(post.createdAt), "MMM d, yyyy 'at' h:mm a")}</p>
                 </div>
                 <div>
-                  <Label className="text-xs text-muted-foreground">Last Modified</Label>
+                  <Label className="text-xs text-muted-foreground">
+                    {t("fields.lastModified")}
+                  </Label>
                   <p>{format(new Date(post.updatedAt), "MMM d, yyyy 'at' h:mm a")}</p>
                 </div>
               </div>
@@ -401,15 +407,15 @@ export default function EditPostPage() {
           {/* Publishing Actions */}
           <Card>
             <CardHeader>
-              <CardTitle>Actions</CardTitle>
-              <CardDescription>Manage this post</CardDescription>
+              <CardTitle>{t("actions.title")}</CardTitle>
+              <CardDescription>{t("actions.manageDescription")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {post.status === "DRAFT" && (
                 <>
                   <Button className="w-full" onClick={handlePublishNow} disabled={isPublishing}>
                     <Send className="mr-2 h-4 w-4" />
-                    {isPublishing ? "Publishing..." : "Publish Now"}
+                    {isPublishing ? t("actions.publishing") : t("actions.publishNow")}
                   </Button>
                   <Button
                     variant="outline"
@@ -417,12 +423,12 @@ export default function EditPostPage() {
                     onClick={() => setShowScheduleDialog((prev) => !prev)}
                   >
                     <Calendar className="mr-2 h-4 w-4" />
-                    Schedule Post
+                    {t("actions.schedule")}
                   </Button>
                   {showScheduleDialog && (
                     <div className="space-y-3 p-3 border rounded-md bg-muted/50">
                       <Label htmlFor="schedule-date" className="text-sm">
-                        Select date and time
+                        {t("schedule.selectDateTime")}
                       </Label>
                       <Input
                         id="schedule-date"
@@ -443,7 +449,7 @@ export default function EditPostPage() {
                         onClick={handleSchedulePost}
                         disabled={isScheduling || !scheduleDate || selectedChannelIds.length === 0}
                       >
-                        {isScheduling ? "Scheduling..." : "Confirm Schedule"}
+                        {isScheduling ? t("actions.scheduling") : t("actions.confirmSchedule")}
                       </Button>
                     </div>
                   )}
@@ -457,7 +463,7 @@ export default function EditPostPage() {
                   onClick={() => router.push("/dashboard/analytics")}
                 >
                   <BarChart3 className="mr-2 h-4 w-4" />
-                  View Analytics
+                  {t("actions.viewAnalytics")}
                 </Button>
               )}
 
@@ -469,12 +475,12 @@ export default function EditPostPage() {
                     onClick={() => setShowScheduleDialog((prev) => !prev)}
                   >
                     <Clock className="mr-2 h-4 w-4" />
-                    Modify Schedule
+                    {t("actions.modifySchedule")}
                   </Button>
                   {showScheduleDialog && (
                     <div className="space-y-3 p-3 border rounded-md bg-muted/50">
                       <Label htmlFor="reschedule-date" className="text-sm">
-                        New date and time
+                        {t("schedule.newDateTime")}
                       </Label>
                       <Input
                         id="reschedule-date"
@@ -495,7 +501,7 @@ export default function EditPostPage() {
                         onClick={handleSchedulePost}
                         disabled={isScheduling || !scheduleDate || selectedChannelIds.length === 0}
                       >
-                        {isScheduling ? "Rescheduling..." : "Confirm New Schedule"}
+                        {isScheduling ? t("actions.rescheduling") : t("actions.confirmNewSchedule")}
                       </Button>
                     </div>
                   )}
@@ -509,7 +515,7 @@ export default function EditPostPage() {
                 disabled={isSaving}
               >
                 <Save className="mr-2 h-4 w-4" />
-                {isSaving ? "Saving..." : "Save Changes"}
+                {isSaving ? t("actions.saving") : t("actions.saveChanges")}
               </Button>
 
               <Button
@@ -517,7 +523,7 @@ export default function EditPostPage() {
                 className="w-full"
                 onClick={() => router.push(`/dashboard/posts/${postId}/preview`)}
               >
-                Preview Post
+                {t("actions.previewPost")}
               </Button>
             </CardContent>
           </Card>
@@ -526,26 +532,26 @@ export default function EditPostPage() {
           {post.status === "PUBLISHED" && (
             <Card>
               <CardHeader>
-                <CardTitle>Performance</CardTitle>
-                <CardDescription>How this post is performing</CardDescription>
+                <CardTitle>{t("performance.title")}</CardTitle>
+                <CardDescription>{t("performance.description")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm">Total Reach</span>
-                    <span className="font-medium text-muted-foreground">Loading...</span>
+                    <span className="text-sm">{t("performance.totalReach")}</span>
+                    <span className="font-medium text-muted-foreground">{t("common.loading")}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm">Engagement Rate</span>
-                    <span className="font-medium text-muted-foreground">Loading...</span>
+                    <span className="text-sm">{t("performance.engagementRate")}</span>
+                    <span className="font-medium text-muted-foreground">{t("common.loading")}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm">Clicks</span>
-                    <span className="font-medium text-muted-foreground">Loading...</span>
+                    <span className="text-sm">{t("performance.clicks")}</span>
+                    <span className="font-medium text-muted-foreground">{t("common.loading")}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm">Shares</span>
-                    <span className="font-medium text-muted-foreground">Loading...</span>
+                    <span className="text-sm">{t("performance.shares")}</span>
+                    <span className="font-medium text-muted-foreground">{t("common.loading")}</span>
                   </div>
                 </div>
               </CardContent>
@@ -555,31 +561,31 @@ export default function EditPostPage() {
           {/* Revision History */}
           <Card>
             <CardHeader>
-              <CardTitle>Revision History</CardTitle>
-              <CardDescription>Track changes to this post</CardDescription>
+              <CardTitle>{t("revisions.title")}</CardTitle>
+              <CardDescription>{t("revisions.description")}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="font-medium">Current version</p>
-                    <p className="text-muted-foreground">Auto-saved changes</p>
+                    <p className="font-medium">{t("revisions.currentVersion")}</p>
+                    <p className="text-muted-foreground">{t("revisions.autoSaved")}</p>
                   </div>
-                  <span className="text-xs text-muted-foreground">now</span>
+                  <span className="text-xs text-muted-foreground">{t("revisions.now")}</span>
                 </div>
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="font-medium">Manual save</p>
-                    <p className="text-muted-foreground">Updated content and tags</p>
+                    <p className="font-medium">{t("revisions.manualSave")}</p>
+                    <p className="text-muted-foreground">{t("revisions.updatedContent")}</p>
                   </div>
-                  <span className="text-xs text-muted-foreground">2h ago</span>
+                  <span className="text-xs text-muted-foreground">{t("revisions.hoursAgo")}</span>
                 </div>
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="font-medium">Created</p>
-                    <p className="text-muted-foreground">Initial post creation</p>
+                    <p className="font-medium">{t("revisions.created")}</p>
+                    <p className="text-muted-foreground">{t("revisions.initialCreation")}</p>
                   </div>
-                  <span className="text-xs text-muted-foreground">1d ago</span>
+                  <span className="text-xs text-muted-foreground">{t("revisions.dayAgo")}</span>
                 </div>
               </div>
             </CardContent>

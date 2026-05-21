@@ -7,6 +7,7 @@
  */
 
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import {
   SubmitButton,
@@ -24,16 +25,15 @@ import { Mail, Lock } from "lucide-react";
 import { loginAction } from "@/app/actions/auth";
 
 export default function LoginPage() {
+  const t = useTranslations("auth");
   const [state, formAction] = useActionState(loginAction, null);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Welcome back</CardTitle>
-          <CardDescription className="text-center">
-            Enter your credentials to access your account
-          </CardDescription>
+          <CardTitle className="text-2xl font-bold text-center">{t("loginTitle")}</CardTitle>
+          <CardDescription className="text-center">{t("loginSubtitle")}</CardDescription>
         </CardHeader>
 
         <form action={formAction}>
@@ -45,14 +45,14 @@ export default function LoginPage() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("emailLabel")}</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
                   id="email"
                   name="email"
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder={t("emailPlaceholder")}
                   className="pl-10"
                   required
                 />
@@ -60,7 +60,7 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t("passwordLabel")}</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
@@ -86,25 +86,25 @@ export default function LoginPage() {
                   htmlFor="remember-me"
                   className="ml-2 block text-sm text-gray-700 cursor-pointer"
                 >
-                  Remember me
+                  {t("rememberMe")}
                 </Label>
               </div>
 
               <Link href="/forgot-password" className="text-sm text-primary hover:underline">
-                Forgot password?
+                {t("forgotPassword")}
               </Link>
             </div>
           </CardContent>
 
           <CardFooter className="flex flex-col space-y-4">
-            <SubmitButton className="w-full" pendingText="Signing in...">
-              Sign in
+            <SubmitButton className="w-full" pendingText={t("signingIn")}>
+              {t("signIn")}
             </SubmitButton>
 
             <p className="text-sm text-center text-gray-600">
-              Don't have an account?{" "}
+              {t("noAccount")}{" "}
               <Link href="/register" className="font-medium text-primary hover:underline">
-                Sign up
+                {t("signUp")}
               </Link>
             </p>
           </CardFooter>

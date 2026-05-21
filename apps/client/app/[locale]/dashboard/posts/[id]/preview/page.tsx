@@ -8,6 +8,7 @@
  * @layer infrastructure
  */
 import { useState, useCallback, useEffect, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
 import { usePost } from "@/lib/api/hooks";
@@ -39,6 +40,7 @@ import { useProviders } from "@/lib/hooks/useProviders";
  */
 export default function PreviewPostPage() {
   const router = useRouter();
+  const t = useTranslations("posts");
   const params = useParams();
   const postId = params.id as string;
 
@@ -76,16 +78,16 @@ export default function PreviewPostPage() {
   const handlePublishNow = useCallback(async () => {
     if (selectedChannelIds.length === 0) {
       toast({
-        title: "Select channels first",
-        description: "Pick at least one channel to publish to.",
+        title: t("toast.selectChannels"),
+        description: t("toast.selectChannelsDesc"),
         variant: "destructive",
       });
       return;
     }
     if (!post?.projectId) {
       toast({
-        title: "Post not loaded",
-        description: "Please wait for the post data to finish loading.",
+        title: t("toast.postNotLoaded"),
+        description: t("toast.postNotLoadedDesc"),
         variant: "destructive",
       });
       return;
@@ -105,15 +107,15 @@ export default function PreviewPostPage() {
         },
         { pollIntervalMs: 1000, timeoutMs: 120_000 }
       );
-      toast({ title: "Post published" });
+      toast({ title: t("toast.postPublished") });
       refetch();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to publish post.";
-      toast({ title: "Publish failed", description: message, variant: "destructive" });
+      const message = error instanceof Error ? error.message : t("toast.publishFailedDesc");
+      toast({ title: t("toast.publishFailed"), description: message, variant: "destructive" });
     } finally {
       setIsPublishing(false);
     }
-  }, [postId, post?.projectId, selectedChannelIds, refetch]);
+  }, [postId, post?.projectId, selectedChannelIds, refetch, t]);
 
   const handleSharePreview = useCallback(async () => {
     try {
@@ -122,18 +124,18 @@ export default function PreviewPostPage() {
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast({
-        title: "Copy failed",
-        description: "Failed to copy link to clipboard.",
+        title: t("toast.copyFailed"),
+        description: t("toast.copyFailedDesc"),
         variant: "destructive",
       });
     }
-  }, []);
+  }, [t]);
 
   const handleSchedulePost = useCallback(async () => {
     if (!scheduleDate) {
       toast({
-        title: "Date required",
-        description: "Please select a date and time.",
+        title: t("toast.dateRequired"),
+        description: t("toast.dateRequiredDesc"),
         variant: "destructive",
       });
       return;
@@ -141,8 +143,8 @@ export default function PreviewPostPage() {
 
     if (selectedChannelIds.length === 0) {
       toast({
-        title: "Channel required",
-        description: "Pick at least one channel to publish to.",
+        title: t("toast.channelRequired"),
+        description: t("toast.selectChannelsDesc"),
         variant: "destructive",
       });
       return;
@@ -154,20 +156,20 @@ export default function PreviewPostPage() {
         scheduledFor: new Date(scheduleDate).toISOString(),
         channelIds: selectedChannelIds,
       });
-      toast({ title: "Post scheduled" });
+      toast({ title: t("toast.postScheduled") });
       setShowScheduleDialog(false);
       setScheduleDate("");
       refetch();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to schedule post.";
-      toast({ title: "Schedule failed", description: message, variant: "destructive" });
+      const message = error instanceof Error ? error.message : t("toast.scheduleFailedDesc");
+      toast({ title: t("toast.scheduleFailed"), description: message, variant: "destructive" });
     }
-  }, [postId, scheduleDate, selectedChannelIds, scheduleMutation, refetch]);
+  }, [postId, scheduleDate, selectedChannelIds, scheduleMutation, refetch, t]);
 
   // Use real user data for preview, with fallbacks
   const userInfo = {
-    name: user?.name || "Your Name",
-    username: user?.email?.split("@")[0] || "yourusername",
+    name: user?.name || t("preview.defaultName"),
+    username: user?.email?.split("@")[0] || t("preview.defaultUsername"),
     // Avatar not available in current user model - omitting property
   };
 
@@ -192,13 +194,13 @@ export default function PreviewPostPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="text-center text-red-600">
-              <p>Failed to load post. Please try again later.</p>
+              <p>{t("loadError")}</p>
               <Button
                 variant="outline"
                 onClick={() => router.push("/dashboard/posts")}
                 className="mt-4"
               >
-                Back to Posts
+                {t("backToPosts")}
               </Button>
             </div>
           </CardContent>
@@ -249,17 +251,15 @@ export default function PreviewPostPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">Preview Post</h1>
-            <p className="text-muted-foreground">
-              See how your post will appear on different platforms
-            </p>
+            <h1 className="text-3xl font-bold">{t("preview.title")}</h1>
+            <p className="text-muted-foreground">{t("preview.subtitle")}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Badge className={getStatusColor(post.status)}>{post.status}</Badge>
+          <Badge className={getStatusColor(post.status)}>{t(`status.${post.status}`)}</Badge>
           <Button variant="outline" onClick={() => router.push(`/dashboard/posts/${postId}`)}>
             <Edit className="mr-2 h-4 w-4" />
-            Edit
+            {t("actions.edit")}
           </Button>
         </div>
       </div>
@@ -280,27 +280,35 @@ export default function PreviewPostPage() {
           {/* Post Details */}
           <Card>
             <CardHeader>
-              <CardTitle>Post Details</CardTitle>
+              <CardTitle>{t("details.title")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <h4 className="text-sm font-medium text-muted-foreground">Title</h4>
-                <p className="mt-1">{post.title || "Untitled Post"}</p>
+                <h4 className="text-sm font-medium text-muted-foreground">
+                  {t("details.postTitle")}
+                </h4>
+                <p className="mt-1">{post.title || t("card.untitled")}</p>
               </div>
 
               <div>
-                <h4 className="text-sm font-medium text-muted-foreground">Content Length</h4>
-                <p className="mt-1">{post.body?.length || 0} characters</p>
+                <h4 className="text-sm font-medium text-muted-foreground">
+                  {t("details.contentLength")}
+                </h4>
+                <p className="mt-1">{t("details.characters", { count: post.body?.length || 0 })}</p>
               </div>
 
               <div>
-                <h4 className="text-sm font-medium text-muted-foreground">Language</h4>
-                <p className="mt-1">{post.locale === "en" ? "English" : "Spanish"}</p>
+                <h4 className="text-sm font-medium text-muted-foreground">
+                  {t("fields.language")}
+                </h4>
+                <p className="mt-1">{post.locale === "en" ? t("language.en") : t("language.es")}</p>
               </div>
 
               {post.tags && post.tags.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-medium text-muted-foreground mb-2">Tags</h4>
+                  <h4 className="text-sm font-medium text-muted-foreground mb-2">
+                    {t("fields.tags")}
+                  </h4>
                   <div className="flex flex-wrap gap-1">
                     {post.tags.map((tag, index) => (
                       <Badge key={index} variant="secondary" className="text-xs">
@@ -312,14 +320,16 @@ export default function PreviewPostPage() {
               )}
 
               <div>
-                <h4 className="text-sm font-medium text-muted-foreground">Created</h4>
+                <h4 className="text-sm font-medium text-muted-foreground">{t("fields.created")}</h4>
                 <p className="mt-1 text-sm">
                   {format(new Date(post.createdAt), "MMM d, yyyy 'at' h:mm a")}
                 </p>
               </div>
 
               <div>
-                <h4 className="text-sm font-medium text-muted-foreground">Last Updated</h4>
+                <h4 className="text-sm font-medium text-muted-foreground">
+                  {t("details.lastUpdated")}
+                </h4>
                 <p className="mt-1 text-sm">
                   {format(new Date(post.updatedAt), "MMM d, yyyy 'at' h:mm a")}
                 </p>
@@ -330,14 +340,14 @@ export default function PreviewPostPage() {
           {/* Actions */}
           <Card>
             <CardHeader>
-              <CardTitle>Actions</CardTitle>
+              <CardTitle>{t("actions.title")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {post.status === "DRAFT" && (
                 <>
                   <Button className="w-full" onClick={handlePublishNow} disabled={isPublishing}>
                     <Send className="mr-2 h-4 w-4" />
-                    {isPublishing ? "Publishing..." : "Publish Now"}
+                    {isPublishing ? t("actions.publishing") : t("actions.publishNow")}
                   </Button>
                   <Button
                     variant="outline"
@@ -345,12 +355,12 @@ export default function PreviewPostPage() {
                     onClick={() => setShowScheduleDialog((prev) => !prev)}
                   >
                     <Calendar className="mr-2 h-4 w-4" />
-                    Schedule Post
+                    {t("actions.schedule")}
                   </Button>
                   {showScheduleDialog && (
                     <div className="space-y-3 p-3 border rounded-md bg-muted/50">
                       <label htmlFor="preview-schedule-date" className="block text-sm font-medium">
-                        Select date and time
+                        {t("schedule.selectDateTime")}
                       </label>
                       <input
                         id="preview-schedule-date"
@@ -371,7 +381,7 @@ export default function PreviewPostPage() {
                         onClick={handleSchedulePost}
                         disabled={isScheduling || !scheduleDate || selectedChannelIds.length === 0}
                       >
-                        {isScheduling ? "Scheduling..." : "Confirm Schedule"}
+                        {isScheduling ? t("actions.scheduling") : t("actions.confirmSchedule")}
                       </Button>
                     </div>
                   )}
@@ -380,7 +390,7 @@ export default function PreviewPostPage() {
 
               <Button variant="outline" className="w-full" onClick={handleSharePreview}>
                 <Share2 className="mr-2 h-4 w-4" />
-                {copied ? "Link Copied!" : "Share Preview"}
+                {copied ? t("actions.linkCopied") : t("actions.sharePreview")}
               </Button>
 
               <Button
@@ -389,7 +399,7 @@ export default function PreviewPostPage() {
                 onClick={() => router.push(`/dashboard/posts/${postId}`)}
               >
                 <Edit className="mr-2 h-4 w-4" />
-                Edit Post
+                {t("actions.editPost")}
               </Button>
             </CardContent>
           </Card>
@@ -397,8 +407,8 @@ export default function PreviewPostPage() {
           {/* Platform Analysis */}
           <Card>
             <CardHeader>
-              <CardTitle>Platform Analysis</CardTitle>
-              <CardDescription>How this content performs on each platform</CardDescription>
+              <CardTitle>{t("platformAnalysis.title")}</CardTitle>
+              <CardDescription>{t("platformAnalysis.description")}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -424,12 +434,22 @@ export default function PreviewPostPage() {
                           variant={isOptimal ? "default" : willThread ? "secondary" : "destructive"}
                           className="text-xs"
                         >
-                          {isOptimal ? "Optimal" : willThread ? "Threading" : "Too Long"}
+                          {isOptimal
+                            ? t("platformAnalysis.optimal")
+                            : willThread
+                              ? t("platformAnalysis.threading")
+                              : t("platformAnalysis.tooLong")}
                         </Badge>
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {contentLength} / {config.charLimit} characters
-                        {willThread && ` (${Math.ceil(contentLength / config.charLimit)} posts)`}
+                        {t("platformAnalysis.charCount", {
+                          count: contentLength,
+                          limit: config.charLimit,
+                        })}
+                        {willThread &&
+                          ` ${t("platformAnalysis.threadCount", {
+                            count: Math.ceil(contentLength / config.charLimit),
+                          })}`}
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-1">
                         <div
@@ -451,26 +471,34 @@ export default function PreviewPostPage() {
           {/* Performance Estimate */}
           <Card>
             <CardHeader>
-              <CardTitle>Performance Estimate</CardTitle>
-              <CardDescription>Rule-based estimate from similar content</CardDescription>
+              <CardTitle>{t("performanceEstimate.title")}</CardTitle>
+              <CardDescription>{t("performanceEstimate.description")}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm">Expected Reach</span>
-                  <span className="font-medium text-muted-foreground">Not available</span>
+                  <span className="text-sm">{t("performanceEstimate.expectedReach")}</span>
+                  <span className="font-medium text-muted-foreground">
+                    {t("common.notAvailable")}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm">Engagement Rate</span>
-                  <span className="font-medium text-muted-foreground">Not available</span>
+                  <span className="text-sm">{t("performance.engagementRate")}</span>
+                  <span className="font-medium text-muted-foreground">
+                    {t("common.notAvailable")}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm">Estimated Clicks</span>
-                  <span className="font-medium text-muted-foreground">Not available</span>
+                  <span className="text-sm">{t("performanceEstimate.estimatedClicks")}</span>
+                  <span className="font-medium text-muted-foreground">
+                    {t("common.notAvailable")}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm">Best Time to Post</span>
-                  <span className="font-medium text-muted-foreground">Not available</span>
+                  <span className="text-sm">{t("performanceEstimate.bestTime")}</span>
+                  <span className="font-medium text-muted-foreground">
+                    {t("common.notAvailable")}
+                  </span>
                 </div>
               </div>
             </CardContent>

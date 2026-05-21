@@ -13,6 +13,7 @@
  */
 
 import { useCallback, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { Button, ConfirmDialog, toast } from "@packages/ui";
 import { PlusCircle } from "lucide-react";
@@ -53,6 +54,7 @@ function parseTagsCsv(raw: string): string[] {
  */
 export default function PostsPage() {
   const router = useRouter();
+  const t = useTranslations("posts");
 
   // ── filter / sort / view state ─────────────────────────────────────────
   const [searchTerm, setSearchTerm] = useState("");
@@ -103,14 +105,14 @@ export default function PostsPage() {
     if (!deleteTarget) return;
     try {
       await deletePost.mutateAsync(deleteTarget);
-      toast({ title: "Post deleted" });
+      toast({ title: t("toast.postDeleted") });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to delete post.";
-      toast({ title: "Delete failed", description: message, variant: "destructive" });
+      const message = err instanceof Error ? err.message : t("toast.deleteFailedDesc");
+      toast({ title: t("toast.deleteFailed"), description: message, variant: "destructive" });
     } finally {
       setDeleteTarget(null);
     }
-  }, [deletePost, deleteTarget]);
+  }, [deletePost, deleteTarget, t]);
 
   const handleStatusToggle = useCallback((status: PostStatus) => {
     setSelectedStatuses((prev) => {
@@ -138,53 +140,51 @@ export default function PostsPage() {
     try {
       const result = await archiveBatch.mutateAsync(ids);
       toast({
-        title: `Archived ${result.archived} ${result.archived === 1 ? "post" : "posts"}`,
+        title: t("toast.archived", { count: result.archived }),
       });
       setSelectedIds(new Set());
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to archive posts.";
-      toast({ title: "Archive failed", description: message, variant: "destructive" });
+      const message = err instanceof Error ? err.message : t("toast.archiveFailedDesc");
+      toast({ title: t("toast.archiveFailed"), description: message, variant: "destructive" });
     } finally {
       setPendingBulkAction(null);
     }
-  }, [archiveBatch, selectedIds]);
+  }, [archiveBatch, selectedIds, t]);
 
   const runBulkDelete = useCallback(async () => {
     const ids = Array.from(selectedIds);
     try {
       const result = await hardDeleteBatch.mutateAsync(ids);
       toast({
-        title: `Deleted ${result.deleted} ${result.deleted === 1 ? "post" : "posts"}`,
+        title: t("toast.deleted", { count: result.deleted }),
       });
       setSelectedIds(new Set());
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to delete posts.";
-      toast({ title: "Delete failed", description: message, variant: "destructive" });
+      const message = err instanceof Error ? err.message : t("toast.bulkDeleteFailedDesc");
+      toast({ title: t("toast.deleteFailed"), description: message, variant: "destructive" });
     } finally {
       setPendingBulkAction(null);
     }
-  }, [hardDeleteBatch, selectedIds]);
+  }, [hardDeleteBatch, selectedIds, t]);
 
   const runBulkDuplicate = useCallback(async () => {
     const ids = Array.from(selectedIds);
     try {
       const result = await duplicateBatch.mutateAsync(ids);
       toast({
-        title: `Duplicated ${result.duplicates.length} ${
-          result.duplicates.length === 1 ? "post" : "posts"
-        }`,
+        title: t("toast.duplicated", { count: result.duplicates.length }),
         ...(result.notFoundIds.length > 0 && {
-          description: `${result.notFoundIds.length} source(s) not found and skipped.`,
+          description: t("toast.duplicatedSkipped", { count: result.notFoundIds.length }),
         }),
       });
       setSelectedIds(new Set());
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to duplicate posts.";
-      toast({ title: "Duplicate failed", description: message, variant: "destructive" });
+      const message = err instanceof Error ? err.message : t("toast.duplicateFailedDesc");
+      toast({ title: t("toast.duplicateFailed"), description: message, variant: "destructive" });
     } finally {
       setPendingBulkAction(null);
     }
-  }, [duplicateBatch, selectedIds]);
+  }, [duplicateBatch, selectedIds, t]);
 
   // Confirm-dialog dispatch — deletion is destructive; duplicate + archive run inline.
   const handleBulkAction = useCallback(
@@ -228,14 +228,12 @@ export default function PostsPage() {
     <div className="container mx-auto py-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Posts</h1>
-          <p className="text-muted-foreground">
-            Manage your content across all platforms • {posts.length} posts
-          </p>
+          <h1 className="text-3xl font-bold">{t("title")}</h1>
+          <p className="text-muted-foreground">{t("subtitle", { count: posts.length })}</p>
         </div>
         <Button onClick={goToCreate}>
           <PlusCircle className="mr-2 h-4 w-4" />
-          Create Post
+          {t("createButton")}
         </Button>
       </div>
 
@@ -308,9 +306,9 @@ export default function PostsPage() {
         onOpenChange={(open) => {
           if (!open) setDeleteTarget(null);
         }}
-        title="Delete post?"
-        description="Are you sure you want to delete this post? This action cannot be undone."
-        confirmLabel="Delete"
+        title={t("confirmDelete.title")}
+        description={t("confirmDelete.description")}
+        confirmLabel={t("confirmDelete.confirm")}
         variant="danger"
         onConfirm={handleConfirmDelete}
         loading={deletePost.isPending}
@@ -322,11 +320,9 @@ export default function PostsPage() {
         onOpenChange={(open) => {
           if (!open) setPendingBulkAction(null);
         }}
-        title={`Permanently delete ${selectedIds.size} ${
-          selectedIds.size === 1 ? "post" : "posts"
-        }?`}
-        description="This will hard-delete the selected posts and all related data (contents, media, publish logs). This action cannot be undone."
-        confirmLabel="Delete permanently"
+        title={t("confirmBulkDelete.title", { count: selectedIds.size })}
+        description={t("confirmBulkDelete.description")}
+        confirmLabel={t("confirmBulkDelete.confirm")}
         variant="danger"
         onConfirm={runBulkDelete}
         loading={hardDeleteBatch.isPending}

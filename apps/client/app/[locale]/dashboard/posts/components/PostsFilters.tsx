@@ -10,6 +10,7 @@
  */
 
 import { useId } from "react";
+import { useTranslations } from "next-intl";
 import { Filter, Search } from "lucide-react";
 import {
   Badge,
@@ -37,12 +38,12 @@ const STATUS_OPTIONS: PostStatus[] = [
   "CANCELLED",
 ];
 
-const SORT_OPTIONS: { field: PostSortField; label: string }[] = [
-  { field: "createdAt", label: "Created" },
-  { field: "updatedAt", label: "Updated" },
-  { field: "scheduledAt", label: "Scheduled for" },
-  { field: "publishedAt", label: "Published at" },
-  { field: "status", label: "Status" },
+const SORT_FIELDS: PostSortField[] = [
+  "createdAt",
+  "updatedAt",
+  "scheduledAt",
+  "publishedAt",
+  "status",
 ];
 
 interface PostsFiltersProps {
@@ -82,10 +83,13 @@ export function PostsFilters({
   onViewModeChange,
   onRefresh,
 }: PostsFiltersProps) {
+  const t = useTranslations("posts");
   const tagsInputId = useId();
   const statusButtonLabel =
-    selectedStatuses.size === 0 ? "Status: All" : `Status: ${selectedStatuses.size} selected`;
-  const sortLabel = SORT_OPTIONS.find((o) => o.field === sortBy)?.label ?? sortBy;
+    selectedStatuses.size === 0
+      ? t("filters.statusAll")
+      : t("filters.statusSelected", { count: selectedStatuses.size });
+  const sortLabel = t(`sort.${sortBy}`);
 
   return (
     <Card>
@@ -95,7 +99,7 @@ export function PostsFilters({
           <div className="relative min-w-[240px] flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search posts..."
+              placeholder={t("filters.searchPlaceholder")}
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
               className="pl-10"
@@ -105,7 +109,7 @@ export function PostsFilters({
                 variant="secondary"
                 className="absolute right-3 top-1/2 transform -translate-y-1/2"
               >
-                {visibleCount} visible
+                {t("filters.visibleCount", { count: visibleCount })}
               </Badge>
             )}
           </div>
@@ -124,7 +128,7 @@ export function PostsFilters({
                   onClearStatuses();
                 }}
               >
-                <span className="text-blue-600">Clear all</span>
+                <span className="text-blue-600">{t("filters.clearAll")}</span>
               </DropdownMenuItem>
               {STATUS_OPTIONS.map((status) => {
                 const checked = selectedStatuses.has(status);
@@ -143,9 +147,7 @@ export function PostsFilters({
                       readOnly
                       className="mr-2 h-4 w-4 rounded border-gray-300"
                     />
-                    <span>
-                      {status.charAt(0) + status.slice(1).toLowerCase().replace(/_/g, " ")}
-                    </span>
+                    <span>{t(`status.${status}`)}</span>
                   </DropdownMenuItem>
                 );
               })}
@@ -155,20 +157,20 @@ export function PostsFilters({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
-                Sort: {sortLabel} {sortDirection === "asc" ? "↑" : "↓"}
+                {t("filters.sortLabel", { field: sortLabel })} {sortDirection === "asc" ? "↑" : "↓"}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              {SORT_OPTIONS.map((opt) => (
-                <DropdownMenuItem key={opt.field} onClick={() => onSortByChange(opt.field)}>
-                  {opt.label}
-                  {sortBy === opt.field && <span className="ml-2 text-blue-600">✓</span>}
+              {SORT_FIELDS.map((field) => (
+                <DropdownMenuItem key={field} onClick={() => onSortByChange(field)}>
+                  {t(`sort.${field}`)}
+                  {sortBy === field && <span className="ml-2 text-blue-600">✓</span>}
                 </DropdownMenuItem>
               ))}
               <DropdownMenuItem
                 onClick={() => onSortDirectionChange(sortDirection === "asc" ? "desc" : "asc")}
               >
-                {sortDirection === "asc" ? "Descending ↓" : "Ascending ↑"}
+                {sortDirection === "asc" ? t("filters.descending") : t("filters.ascending")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -176,35 +178,35 @@ export function PostsFilters({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
-                View: {viewMode.charAt(0).toUpperCase() + viewMode.slice(1)}
+                {t("filters.viewLabel", { mode: t(`view.${viewMode}`) })}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem onClick={() => onViewModeChange("grid")}>
-                Grid View
+                {t("view.grid")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onViewModeChange("list")}>
-                List View
+                {t("view.list")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onViewModeChange("virtual")}>
-                Virtual Scroll
+                {t("view.virtual")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
           <Button variant="outline" onClick={onRefresh} disabled={isLoading}>
-            Refresh
+            {t("filters.refresh")}
           </Button>
         </div>
 
         {/* Row 2 — Tag CSV input */}
         <div className="flex items-center gap-3">
           <label htmlFor={tagsInputId} className="text-sm text-muted-foreground whitespace-nowrap">
-            Tags (CSV):
+            {t("filters.tagsLabel")}
           </label>
           <Input
             id={tagsInputId}
-            placeholder="e.g. launch,promo (any-match)"
+            placeholder={t("filters.tagsPlaceholder")}
             value={tagsInput}
             onChange={(e) => onTagsInputChange(e.target.value)}
             className="max-w-md"

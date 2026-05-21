@@ -7,6 +7,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth/authContext";
 import { Button } from "@packages/ui";
@@ -20,6 +21,7 @@ import type { CampaignDto } from "@/hooks/api/useCampaigns";
  * @description Lists all campaigns for the current project with creation modal and navigation to campaign details.
  */
 export default function CampaignsPage() {
+  const t = useTranslations("campaigns");
   const { user } = useAuth();
   const router = useRouter();
   const [showCreate, setShowCreate] = useState(false);
@@ -30,14 +32,12 @@ export default function CampaignsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Campaigns</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Organize posts by campaign and track performance
-          </p>
+          <h1 className="text-2xl font-bold text-foreground">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("subtitle")}</p>
         </div>
         <Button onClick={() => setShowCreate(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          New Campaign
+          {t("newCampaign")}
         </Button>
       </div>
 

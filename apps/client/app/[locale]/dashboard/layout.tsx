@@ -48,49 +48,52 @@ import {
 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { usePathname } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useState, type ComponentType } from "react";
 
 type IconType = ComponentType<{ className?: string }>;
 
 interface NavItem {
-  name: string;
+  key: string;
   href?: string;
   icon: IconType;
-  children?: ReadonlyArray<{ name: string; href: string; icon: IconType }>;
+  children?: ReadonlyArray<{ key: string; href: string; icon: IconType }>;
 }
 
 const navigation: ReadonlyArray<NavItem> = [
-  { name: "Dashboard", href: "/dashboard", icon: Home },
-  { name: "Posts", href: "/dashboard/posts", icon: FileText },
-  { name: "Inbox", href: "/dashboard/inbox", icon: Inbox },
-  { name: "Scheduling", href: "/dashboard/scheduling", icon: Calendar },
-  { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-  { name: "Campaigns", href: "/dashboard/campaigns", icon: Megaphone },
+  { key: "dashboard", href: "/dashboard", icon: Home },
+  { key: "posts", href: "/dashboard/posts", icon: FileText },
+  { key: "inbox", href: "/dashboard/inbox", icon: Inbox },
+  { key: "scheduling", href: "/dashboard/scheduling", icon: Calendar },
+  { key: "analytics", href: "/dashboard/analytics", icon: BarChart3 },
+  { key: "campaigns", href: "/dashboard/campaigns", icon: Megaphone },
   {
-    name: "AI",
+    key: "ai",
     icon: Sparkles,
     children: [
-      { name: "Generate", href: "/dashboard/ai/generate", icon: Sparkles },
-      { name: "Trends", href: "/dashboard/ai/trends", icon: TrendingUp },
-      { name: "Repurpose", href: "/dashboard/ai/repurpose", icon: Recycle },
-      { name: "Optimizer", href: "/dashboard/ai/optimizer", icon: Wand2 },
-      { name: "Templates", href: "/dashboard/ai/templates", icon: FileText },
-      { name: "AI Analytics", href: "/dashboard/ai/analytics", icon: BarChart3 },
+      { key: "aiGenerate", href: "/dashboard/ai/generate", icon: Sparkles },
+      { key: "aiTrends", href: "/dashboard/ai/trends", icon: TrendingUp },
+      { key: "aiRepurpose", href: "/dashboard/ai/repurpose", icon: Recycle },
+      { key: "aiOptimizer", href: "/dashboard/ai/optimizer", icon: Wand2 },
+      { key: "aiTemplates", href: "/dashboard/ai/templates", icon: FileText },
+      { key: "aiAnalytics", href: "/dashboard/ai/analytics", icon: BarChart3 },
     ],
   },
-  { name: "Approvals", href: "/dashboard/approvals", icon: CheckCircle },
-  { name: "Assets", href: "/dashboard/assets", icon: Image },
-  { name: "Tasks", href: "/dashboard/tasks", icon: ClipboardList },
-  { name: "Queue", href: "/dashboard/queue", icon: ListTodo },
-  { name: "Channels", href: "/dashboard/channels", icon: Share2 },
-  { name: "Integrations", href: "/dashboard/integrations", icon: Puzzle },
-  { name: "Settings", href: "/dashboard/settings/brand-voice", icon: Settings },
-  { name: "Privacy", href: "/dashboard/settings/privacy", icon: Shield },
-  { name: "AI Settings", href: "/dashboard/settings/ai", icon: BrainCircuit },
+  { key: "approvals", href: "/dashboard/approvals", icon: CheckCircle },
+  { key: "assets", href: "/dashboard/assets", icon: Image },
+  { key: "tasks", href: "/dashboard/tasks", icon: ClipboardList },
+  { key: "queue", href: "/dashboard/queue", icon: ListTodo },
+  { key: "channels", href: "/dashboard/channels", icon: Share2 },
+  { key: "integrations", href: "/dashboard/integrations", icon: Puzzle },
+  { key: "settings", href: "/dashboard/settings/brand-voice", icon: Settings },
+  { key: "privacy", href: "/dashboard/settings/privacy", icon: Shield },
+  { key: "aiSettings", href: "/dashboard/settings/ai", icon: BrainCircuit },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
+  const t = useTranslations("nav");
+  const tCommon = useTranslations("common");
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [aiExpanded, setAiExpanded] = useState(
@@ -155,13 +158,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <DropdownMenuItem asChild>
                 <Link href="/dashboard/settings">
                   <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
+                  <span>{tCommon("settings")}</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
+                <span>{tCommon("logout")}</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -183,11 +186,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               if (item.children) {
                 const groupActive = pathname?.startsWith("/dashboard/ai/") ?? false;
                 return (
-                  <div key={item.name}>
+                  <div key={item.key}>
                     <button
                       type="button"
                       aria-expanded={aiExpanded}
-                      aria-controls={`nav-group-${item.name}`}
+                      aria-controls={`nav-group-${item.key}`}
                       onClick={() => setAiExpanded((v) => !v)}
                       className={`
                         flex w-full items-center px-2 py-2 text-sm font-medium rounded-md transition-colors
@@ -199,7 +202,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       `}
                     >
                       <item.icon className="mr-3 h-5 w-5" />
-                      <span className="flex-1 text-left">{item.name}</span>
+                      <span className="flex-1 text-left">{t(item.key)}</span>
                       {aiExpanded ? (
                         <ChevronDown className="h-4 w-4" aria-hidden="true" />
                       ) : (
@@ -207,11 +210,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       )}
                     </button>
                     {aiExpanded ? (
-                      <ul id={`nav-group-${item.name}`} className="mt-1 ml-6 space-y-1">
+                      <ul id={`nav-group-${item.key}`} className="mt-1 ml-6 space-y-1">
                         {item.children.map((child) => {
                           const isActive = pathname === child.href;
                           return (
-                            <li key={child.name}>
+                            <li key={child.key}>
                               <Link
                                 href={child.href}
                                 className={`
@@ -225,7 +228,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 onClick={() => setSidebarOpen(false)}
                               >
                                 <child.icon className="mr-2 h-4 w-4" />
-                                {child.name}
+                                {t(child.key)}
                               </Link>
                             </li>
                           );
@@ -240,7 +243,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               const isActive = pathname === href;
               return (
                 <Link
-                  key={item.name}
+                  key={item.key}
                   href={href}
                   className={`
                     flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors
@@ -253,7 +256,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   onClick={() => setSidebarOpen(false)}
                 >
                   <item.icon className="mr-3 h-5 w-5" />
-                  {item.name}
+                  {t(item.key)}
                 </Link>
               );
             })}
@@ -273,7 +276,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {sidebarOpen && (
         <button
           type="button"
-          aria-label="Close sidebar"
+          aria-label={tCommon("closeSidebar")}
           className="fixed inset-0 z-40 bg-black bg-opacity-25 lg:hidden cursor-default"
           onClick={() => setSidebarOpen(false)}
         />

@@ -9,6 +9,7 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { ScheduledReportsList } from "@/components/analytics/ScheduledReportsList";
 import { CreateReportForm } from "@/components/analytics/CreateReportForm";
 
@@ -17,6 +18,7 @@ import { CreateReportForm } from "@/components/analytics/CreateReportForm";
  * @description Manages scheduled analytics reports with list, create, delete, and manual trigger capabilities.
  */
 export default function ScheduledReportsPage() {
+  const t = useTranslations("analytics");
   const searchParams = useSearchParams();
   const projectId = searchParams.get("projectId");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -25,13 +27,13 @@ export default function ScheduledReportsPage() {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-6 py-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Scheduled Reports</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">{t("reportsTitle")}</h1>
           <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-4 py-3">
-            No project selected. Append{" "}
-            <code className="font-mono text-xs bg-amber-100 px-1 rounded">
-              ?projectId=&lt;uuid&gt;
-            </code>{" "}
-            to the URL to manage reports for a specific project.
+            {t.rich("reportsNoProject", {
+              code: (chunks) => (
+                <code className="font-mono text-xs bg-amber-100 px-1 rounded">{chunks}</code>
+              ),
+            })}
           </p>
         </div>
       </div>
@@ -43,16 +45,14 @@ export default function ScheduledReportsPage() {
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Scheduled Reports</h1>
-            <p className="text-gray-600 mt-2">
-              Automate analytics delivery to your team via email on a recurring schedule.
-            </p>
+            <h1 className="text-3xl font-bold text-gray-900">{t("reportsTitle")}</h1>
+            <p className="text-gray-600 mt-2">{t("reportsSubtitle")}</p>
           </div>
           <button
             onClick={() => setIsDialogOpen(true)}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
-            Create Report
+            {t("reportsCreate")}
           </button>
         </div>
 
@@ -60,12 +60,8 @@ export default function ScheduledReportsPage() {
           role="status"
           className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900"
         >
-          <p className="text-sm font-semibold">Manual generation only</p>
-          <p className="mt-1 text-sm">
-            You can create scheduled reports and trigger them manually via the &quot;Generate&quot;
-            button. Cron-driven automated delivery is not yet wired — emails on the recurring
-            schedule will not fire automatically.
-          </p>
+          <p className="text-sm font-semibold">{t("reportsManualTitle")}</p>
+          <p className="mt-1 text-sm">{t("reportsManualBody")}</p>
         </div>
 
         <ScheduledReportsList projectId={projectId} onCreateClick={() => setIsDialogOpen(true)} />

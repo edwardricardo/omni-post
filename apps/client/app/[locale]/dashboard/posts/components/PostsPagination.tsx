@@ -8,6 +8,7 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 
 interface PostsPaginationProps {
@@ -17,6 +18,7 @@ interface PostsPaginationProps {
 }
 
 export function PostsPagination({ currentPage, totalPages, onPageChange }: PostsPaginationProps) {
+  const t = useTranslations("posts");
   return (
     <div className="flex justify-center space-x-2">
       <Button
@@ -24,7 +26,7 @@ export function PostsPagination({ currentPage, totalPages, onPageChange }: Posts
         disabled={currentPage === 1}
         onClick={() => onPageChange(Math.max(1, currentPage - 1))}
       >
-        Previous
+        {t("pagination.previous")}
       </Button>
       <div className="flex items-center space-x-1">
         {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
@@ -46,7 +48,7 @@ export function PostsPagination({ currentPage, totalPages, onPageChange }: Posts
         disabled={currentPage === totalPages}
         onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
       >
-        Next
+        {t("pagination.next")}
       </Button>
     </div>
   );

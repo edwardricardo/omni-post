@@ -9,6 +9,7 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import { Copy, Archive, Trash2, X } from "lucide-react";
 
@@ -31,27 +32,28 @@ export function PostsBulkActionsBar({
   onArchive,
   onDelete,
 }: PostsBulkActionsBarProps) {
+  const t = useTranslations("posts");
   if (selectedCount === 0) return null;
 
   return (
     <div
       role="toolbar"
-      aria-label={`Bulk actions for ${selectedCount} selected posts`}
+      aria-label={t("bulk.toolbarLabel", { count: selectedCount })}
       className="sticky top-4 z-20 flex items-center justify-between rounded-md border border-blue-200 bg-blue-50 px-4 py-3 shadow-sm"
     >
       <div className="flex items-center gap-3">
         <span className="text-sm font-medium text-blue-900">
-          {selectedCount} {selectedCount === 1 ? "post" : "posts"} selected
+          {t("bulk.selectedCount", { count: selectedCount })}
         </span>
         <Button
           type="button"
           variant="ghost"
           size="sm"
           onClick={onClear}
-          aria-label="Clear selection"
+          aria-label={t("bulk.clearSelection")}
         >
           <X className="mr-1 h-4 w-4" />
-          Clear
+          {t("bulk.clear")}
         </Button>
       </div>
       <div className="flex items-center gap-2">
@@ -63,11 +65,11 @@ export function PostsBulkActionsBar({
           onClick={onDuplicate}
         >
           <Copy className="mr-2 h-4 w-4" />
-          Duplicate
+          {t("bulk.duplicate")}
         </Button>
         <Button type="button" variant="outline" size="sm" disabled={isPending} onClick={onArchive}>
           <Archive className="mr-2 h-4 w-4" />
-          Archive
+          {t("bulk.archive")}
         </Button>
         <Button
           type="button"
@@ -77,7 +79,7 @@ export function PostsBulkActionsBar({
           onClick={onDelete}
         >
           <Trash2 className="mr-2 h-4 w-4" />
-          Delete
+          {t("bulk.delete")}
         </Button>
       </div>
     </div>
