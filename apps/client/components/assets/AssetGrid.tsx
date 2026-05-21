@@ -7,6 +7,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import { Trash2 } from "lucide-react";
 import { useAssets, useDeleteAsset } from "@/hooks/api/useAssets";
@@ -28,6 +29,7 @@ interface AssetGridProps {
  * @param props.onAssetClick - Callback when an asset thumbnail is clicked
  */
 export function AssetGrid({ folderId, search, onAssetClick }: AssetGridProps) {
+  const t = useTranslations("assets.components");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const { data, isLoading } = useAssets({
     ...(folderId ? { folderId } : {}),
@@ -57,14 +59,14 @@ export function AssetGrid({ folderId, search, onAssetClick }: AssetGridProps) {
   }, [selectedIds, deleteMutation]);
 
   if (isLoading) {
-    return <div className="text-center py-8 text-muted-foreground">Loading assets...</div>;
+    return <div className="text-center py-8 text-muted-foreground">{t("loading")}</div>;
   }
 
   if (assets.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
-        <p className="text-lg font-medium">No assets yet</p>
-        <p className="text-sm mt-1">Upload your first file to get started.</p>
+        <p className="text-lg font-medium">{t("emptyTitle")}</p>
+        <p className="text-sm mt-1">{t("emptyDescription")}</p>
       </div>
     );
   }
@@ -73,7 +75,9 @@ export function AssetGrid({ folderId, search, onAssetClick }: AssetGridProps) {
     <div>
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-3 p-3 mb-4 rounded-lg border bg-muted/50">
-          <span className="text-sm font-medium">{selectedIds.size} selected</span>
+          <span className="text-sm font-medium">
+            {t("selectedCount", { count: selectedIds.size })}
+          </span>
           <Button
             size="sm"
             variant="destructive"
@@ -81,10 +85,10 @@ export function AssetGrid({ folderId, search, onAssetClick }: AssetGridProps) {
             disabled={deleteMutation.isPending}
           >
             <Trash2 className="h-3 w-3 mr-1" />
-            Delete
+            {t("delete")}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
-            Clear
+            {t("clear")}
           </Button>
         </div>
       )}

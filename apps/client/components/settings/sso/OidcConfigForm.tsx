@@ -8,6 +8,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Button, Input, Label } from "@packages/ui";
 import { Copy, Check } from "lucide-react";
 import { useOidcConfig, useConfigureOidc, useEnableOidc } from "@/hooks/api/useSso";
@@ -17,6 +18,7 @@ interface OidcConfigFormProps {
 }
 
 export function OidcConfigForm({ accountId }: OidcConfigFormProps) {
+  const t = useTranslations("settings.components");
   const { data: config } = useOidcConfig();
   const configureMutation = useConfigureOidc();
   const enableMutation = useEnableOidc();
@@ -73,10 +75,8 @@ export function OidcConfigForm({ accountId }: OidcConfigFormProps) {
     <div className="space-y-6">
       {/* Redirect URI (read-only) */}
       <div className="rounded-lg border p-4 bg-muted/30">
-        <h3 className="text-sm font-medium mb-2">Redirect URI</h3>
-        <p className="text-xs text-muted-foreground mb-2">
-          Add this URI to your OIDC provider&apos;s allowed redirect URIs.
-        </p>
+        <h3 className="text-sm font-medium mb-2">{t("oidc.redirectUri")}</h3>
+        <p className="text-xs text-muted-foreground mb-2">{t("oidc.redirectUriHint")}</p>
         <div className="flex items-center gap-2">
           <code className="flex-1 text-sm bg-background rounded px-2 py-1 border font-mono truncate">
             {redirectUri}
@@ -93,10 +93,10 @@ export function OidcConfigForm({ accountId }: OidcConfigFormProps) {
 
       {/* Provider Configuration */}
       <div className="space-y-4">
-        <h3 className="text-sm font-medium">Provider Configuration</h3>
+        <h3 className="text-sm font-medium">{t("oidc.providerConfig")}</h3>
 
         <div>
-          <Label htmlFor="oidc-issuer">Issuer URL *</Label>
+          <Label htmlFor="oidc-issuer">{t("oidc.issuerUrl")}</Label>
           {(() => {
             const issuerInvalid = !!issuerUrl && !issuerUrl.startsWith("https://");
             return (
@@ -112,7 +112,7 @@ export function OidcConfigForm({ accountId }: OidcConfigFormProps) {
                 />
                 {issuerInvalid && (
                   <p id="oidc-issuer-error" role="alert" className="text-xs text-red-600 mt-1">
-                    Must use HTTPS
+                    {t("oidc.mustUseHttps")}
                   </p>
                 )}
               </>
@@ -121,7 +121,7 @@ export function OidcConfigForm({ accountId }: OidcConfigFormProps) {
         </div>
 
         <div>
-          <Label htmlFor="oidc-client-id">Client ID *</Label>
+          <Label htmlFor="oidc-client-id">{t("oidc.clientId")}</Label>
           <Input
             id="oidc-client-id"
             value={clientId}
@@ -131,7 +131,7 @@ export function OidcConfigForm({ accountId }: OidcConfigFormProps) {
         </div>
 
         <div>
-          <Label htmlFor="oidc-client-secret">Client Secret *</Label>
+          <Label htmlFor="oidc-client-secret">{t("oidc.clientSecret")}</Label>
           <Input
             id="oidc-client-secret"
             type="password"
@@ -142,23 +142,23 @@ export function OidcConfigForm({ accountId }: OidcConfigFormProps) {
         </div>
 
         <div>
-          <Label htmlFor="oidc-scopes">Scopes</Label>
+          <Label htmlFor="oidc-scopes">{t("oidc.scopes")}</Label>
           <Input
             id="oidc-scopes"
             value={scopes}
             onChange={(e) => setScopes(e.target.value)}
             placeholder="openid, email, profile"
           />
-          <p className="text-xs text-muted-foreground mt-1">Comma-separated list</p>
+          <p className="text-xs text-muted-foreground mt-1">{t("oidc.commaSeparated")}</p>
         </div>
       </div>
 
       {/* Attribute Mapping */}
       <div className="space-y-3">
-        <h3 className="text-sm font-medium">Claim Mapping</h3>
+        <h3 className="text-sm font-medium">{t("oidc.claimMapping")}</h3>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label htmlFor="oidc-email">Email Claim *</Label>
+            <Label htmlFor="oidc-email">{t("oidc.emailClaim")}</Label>
             <Input
               id="oidc-email"
               value={emailAttr}
@@ -167,7 +167,7 @@ export function OidcConfigForm({ accountId }: OidcConfigFormProps) {
             />
           </div>
           <div>
-            <Label htmlFor="oidc-name">Name Claim</Label>
+            <Label htmlFor="oidc-name">{t("oidc.nameClaim")}</Label>
             <Input
               id="oidc-name"
               value={nameAttr}
@@ -181,11 +181,15 @@ export function OidcConfigForm({ accountId }: OidcConfigFormProps) {
       {/* Actions */}
       <div className="flex gap-2 pt-2">
         <Button onClick={handleSave} disabled={!canSave || configureMutation.isPending}>
-          {configureMutation.isPending ? "Saving..." : saved ? "Saved!" : "Save Configuration"}
+          {configureMutation.isPending
+            ? t("oidc.saving")
+            : saved
+              ? t("oidc.saved")
+              : t("oidc.saveConfiguration")}
         </Button>
         {config && !config.isActive && (
           <Button variant="outline" onClick={handleEnable} disabled={enableMutation.isPending}>
-            {enableMutation.isPending ? "Enabling..." : "Enable OIDC SSO"}
+            {enableMutation.isPending ? t("oidc.enabling") : t("oidc.enableSso")}
           </Button>
         )}
       </div>

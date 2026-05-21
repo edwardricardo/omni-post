@@ -8,6 +8,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import { Shield, ShieldAlert } from "lucide-react";
 import { useDisableSso } from "@/hooks/api/useSso";
@@ -18,6 +19,7 @@ interface SsoStatusBannerProps {
 }
 
 export function SsoStatusBanner({ provider, isActive }: SsoStatusBannerProps) {
+  const t = useTranslations("settings.components");
   const [showConfirm, setShowConfirm] = useState(false);
   const disableMutation = useDisableSso();
 
@@ -33,10 +35,8 @@ export function SsoStatusBanner({ provider, isActive }: SsoStatusBannerProps) {
       <div className="rounded-lg border bg-muted/50 p-4 flex items-center gap-3">
         <Shield className="h-5 w-5 text-muted-foreground" />
         <div>
-          <p className="font-medium text-muted-foreground">SSO is not configured</p>
-          <p className="text-sm text-muted-foreground">
-            Configure SAML 2.0 or OpenID Connect below to enable single sign-on.
-          </p>
+          <p className="font-medium text-muted-foreground">{t("ssoBanner.notConfigured")}</p>
+          <p className="text-sm text-muted-foreground">{t("ssoBanner.notConfiguredHint")}</p>
         </div>
       </div>
     );
@@ -48,10 +48,8 @@ export function SsoStatusBanner({ provider, isActive }: SsoStatusBannerProps) {
         <div className="flex items-center gap-3">
           <Shield className="h-5 w-5 text-green-600" />
           <div>
-            <p className="font-medium text-green-800">SSO is active ({provider})</p>
-            <p className="text-sm text-green-700">
-              Team members must log in via your identity provider.
-            </p>
+            <p className="font-medium text-green-800">{t("ssoBanner.active", { provider })}</p>
+            <p className="text-sm text-green-700">{t("ssoBanner.activeHint")}</p>
           </div>
         </div>
         <Button
@@ -60,7 +58,7 @@ export function SsoStatusBanner({ provider, isActive }: SsoStatusBannerProps) {
           onClick={() => setShowConfirm(true)}
           className="text-red-600 border-red-200 hover:bg-red-50"
         >
-          Disable SSO
+          {t("ssoBanner.disable")}
         </Button>
       </div>
 
@@ -69,13 +67,8 @@ export function SsoStatusBanner({ provider, isActive }: SsoStatusBannerProps) {
           <div className="flex items-start gap-2">
             <ShieldAlert aria-hidden="true" className="h-5 w-5 text-red-600 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-red-800">
-                Are you sure you want to disable SSO?
-              </p>
-              <p className="text-sm text-red-700 mt-1">
-                Team members will need to use email/password login. This cannot be undone
-                automatically.
-              </p>
+              <p className="text-sm font-medium text-red-800">{t("ssoBanner.confirmTitle")}</p>
+              <p className="text-sm text-red-700 mt-1">{t("ssoBanner.confirmBody")}</p>
               <div className="flex gap-2 mt-3">
                 <Button
                   size="sm"
@@ -83,10 +76,12 @@ export function SsoStatusBanner({ provider, isActive }: SsoStatusBannerProps) {
                   onClick={handleDisable}
                   disabled={disableMutation.isPending}
                 >
-                  {disableMutation.isPending ? "Disabling..." : "Yes, Disable SSO"}
+                  {disableMutation.isPending
+                    ? t("ssoBanner.disabling")
+                    : t("ssoBanner.confirmDisable")}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setShowConfirm(false)}>
-                  Cancel
+                  {t("ssoBanner.cancel")}
                 </Button>
               </div>
             </div>

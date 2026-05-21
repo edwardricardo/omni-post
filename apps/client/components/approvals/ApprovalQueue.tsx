@@ -7,6 +7,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { usePendingApprovals } from "@/hooks/api/useApprovals";
 import type { ApprovalRequest } from "@/hooks/api/useApprovals";
 import { ApprovalCard } from "./ApprovalCard";
@@ -25,6 +26,7 @@ interface ApprovalQueueProps {
  * @param props.reviewerId - ID of the current reviewer used for approve/reject actions
  */
 export function ApprovalQueue({ reviewerId }: ApprovalQueueProps) {
+  const t = useTranslations("approvals.components");
   const [selectedApproval, setSelectedApproval] = useState<ApprovalRequest | null>(null);
   const { data: approvals = [], isLoading, isError, refetch } = usePendingApprovals(reviewerId);
 
@@ -54,12 +56,12 @@ export function ApprovalQueue({ reviewerId }: ApprovalQueueProps) {
   if (isError) {
     return (
       <div className="flex flex-col items-center gap-3 py-16 text-center">
-        <p className="text-sm text-gray-500">Failed to load pending approvals</p>
+        <p className="text-sm text-gray-500">{t("loadFailed")}</p>
         <button
           onClick={() => void refetch()}
           className="text-xs text-blue-600 hover:text-blue-700"
         >
-          Retry
+          {t("retry")}
         </button>
       </div>
     );
@@ -71,8 +73,8 @@ export function ApprovalQueue({ reviewerId }: ApprovalQueueProps) {
         <div className="h-12 w-12 rounded-full bg-green-50 flex items-center justify-center">
           <CheckSquare className="h-6 w-6 text-green-500" aria-hidden="true" />
         </div>
-        <p className="text-sm font-medium text-gray-900">No pending approvals</p>
-        <p className="text-xs text-gray-400">All caught up! Nothing waiting for review.</p>
+        <p className="text-sm font-medium text-gray-900">{t("emptyTitle")}</p>
+        <p className="text-xs text-gray-400">{t("emptyDescription")}</p>
       </div>
     );
   }

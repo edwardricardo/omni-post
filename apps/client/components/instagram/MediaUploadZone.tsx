@@ -12,6 +12,7 @@
  */
 
 import { useCallback, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "@packages/ui";
 import { VideoSplitPreview } from "./VideoSplitPreview";
 import { VideoSplitOptions, VideoSegment } from "@providers/instagram/src/mediaProcessor";
@@ -47,18 +48,22 @@ export function MediaUploadZone({
   maxFileSize = 100,
   className = "",
 }: MediaUploadZoneProps) {
+  const t = useTranslations("instagram.components");
   const [showVideoPreview, setShowVideoPreview] = useState<{
     file: MediaFile;
     options: VideoSplitOptions;
   } | null>(null);
 
-  const handleValidationErrors = useCallback((errors: string[]) => {
-    toast({
-      title: errors.length === 1 ? "File rejected" : `${errors.length} files rejected`,
-      description: errors.join("\n"),
-      variant: "destructive",
-    });
-  }, []);
+  const handleValidationErrors = useCallback(
+    (errors: string[]) => {
+      toast({
+        title: t("mediaUpload.filesRejected", { count: errors.length }),
+        description: errors.join("\n"),
+        variant: "destructive",
+      });
+    },
+    [t]
+  );
 
   const handleVideoNeedsSplit = useCallback((file: MediaFile) => {
     setShowVideoPreview({ file, options: DEFAULT_SPLIT_OPTIONS });
@@ -115,7 +120,7 @@ export function MediaUploadZone({
         {uploadedFiles.length > 0 && (
           <div className="mt-6">
             <h3 className="font-medium text-gray-900 mb-4">
-              Uploaded Files ({uploadedFiles.length})
+              {t("mediaUpload.uploadedFiles", { count: uploadedFiles.length })}
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
               {uploadedFiles.map((file) => (

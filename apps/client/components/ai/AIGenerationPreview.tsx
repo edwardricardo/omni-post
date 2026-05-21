@@ -10,19 +10,21 @@
 
 import React from "react";
 import { Brain } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 /**
  * @component AIGenerationPreview
  * @description Loading indicator shown while AI content generation is in progress.
  */
 export function AIGenerationPreview() {
+  const t = useTranslations("ai.components");
   return (
     <div className="text-center py-12" role="status" aria-live="polite">
       <div className="inline-flex items-center space-x-3 mb-4">
         <Brain className="w-8 h-8 text-purple-600 animate-pulse" aria-hidden="true" />
-        <div className="text-xl font-semibold text-gray-900">Generating your content…</div>
+        <div className="text-xl font-semibold text-gray-900">{t("preview.generating")}</div>
       </div>
-      <p className="text-sm text-gray-600">This usually takes a few seconds.</p>
+      <p className="text-sm text-gray-600">{t("preview.takesSeconds")}</p>
     </div>
   );
 }

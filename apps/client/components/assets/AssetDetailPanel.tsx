@@ -7,6 +7,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import { X, Trash2, Download, Copy } from "lucide-react";
 import type { MediaAssetDto } from "@/hooks/api/useAssets";
@@ -32,6 +33,7 @@ function formatSize(bytes: number): string {
  * @param props.onClose - Callback to dismiss the panel
  */
 export function AssetDetailPanel({ asset, onClose }: AssetDetailPanelProps) {
+  const t = useTranslations("assets.components");
   const deleteMutation = useDeleteAsset();
 
   const handleDelete = useCallback(async () => {
@@ -53,14 +55,14 @@ export function AssetDetailPanel({ asset, onClose }: AssetDetailPanelProps) {
     <div className="fixed inset-0 z-50 flex justify-end">
       <button
         type="button"
-        aria-label="Close asset details"
+        aria-label={t("closeDetailsAria")}
         className="fixed inset-0 bg-black/25 cursor-default"
         onClick={onClose}
       />
       <div className="relative z-50 w-full max-w-md bg-card border-l shadow-lg overflow-y-auto">
         <div className="sticky top-0 bg-card border-b px-6 py-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Asset Details</h2>
-          <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close asset details">
+          <h2 className="text-lg font-semibold">{t("detailsTitle")}</h2>
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label={t("closeDetailsAria")}>
             <X aria-hidden="true" className="h-4 w-4" />
           </Button>
         </div>
@@ -81,23 +83,23 @@ export function AssetDetailPanel({ asset, onClose }: AssetDetailPanelProps) {
 
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <span className="text-muted-foreground">Type</span>
+              <span className="text-muted-foreground">{t("metaType")}</span>
               <p className="font-medium">{asset.mimeType}</p>
             </div>
             <div>
-              <span className="text-muted-foreground">Size</span>
+              <span className="text-muted-foreground">{t("metaSize")}</span>
               <p className="font-medium">{formatSize(asset.sizeBytes)}</p>
             </div>
             {asset.width && asset.height && (
               <div>
-                <span className="text-muted-foreground">Dimensions</span>
+                <span className="text-muted-foreground">{t("metaDimensions")}</span>
                 <p className="font-medium">
                   {asset.width} x {asset.height}
                 </p>
               </div>
             )}
             <div>
-              <span className="text-muted-foreground">Uploaded</span>
+              <span className="text-muted-foreground">{t("metaUploaded")}</span>
               <p className="font-medium">{new Date(asset.createdAt).toLocaleDateString()}</p>
             </div>
           </div>
@@ -105,7 +107,7 @@ export function AssetDetailPanel({ asset, onClose }: AssetDetailPanelProps) {
           <div className="flex gap-2 pt-4 border-t">
             <Button variant="outline" size="sm" onClick={handleCopyUrl} className="flex-1">
               <Copy className="h-4 w-4 mr-1" />
-              Copy URL
+              {t("copyUrl")}
             </Button>
             <a
               href={asset.url}
@@ -116,7 +118,7 @@ export function AssetDetailPanel({ asset, onClose }: AssetDetailPanelProps) {
             >
               <Button variant="outline" size="sm" className="w-full">
                 <Download className="h-4 w-4 mr-1" />
-                Download
+                {t("download")}
               </Button>
             </a>
           </div>
@@ -130,7 +132,7 @@ export function AssetDetailPanel({ asset, onClose }: AssetDetailPanelProps) {
               className="w-full"
             >
               <Trash2 className="h-4 w-4 mr-1" />
-              {deleteMutation.isPending ? "Deleting..." : "Delete Asset"}
+              {deleteMutation.isPending ? t("deleting") : t("deleteAsset")}
             </Button>
           </div>
         </div>

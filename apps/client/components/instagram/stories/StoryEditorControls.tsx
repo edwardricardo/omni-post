@@ -3,9 +3,11 @@
  * @component StoryEditorControls
  * @description Editor controls panel for a single story slide, providing options to add
  * text overlays, stickers, link stickers, and video split configuration.
+ * @layer infrastructure
  */
 
 import React, { useId } from "react";
+import { useTranslations } from "next-intl";
 import { StoryContent, VideoSplitOptions } from "./types";
 
 interface StoryEditorControlsProps {
@@ -23,6 +25,7 @@ export function StoryEditorControls({
   onUpdateStory,
   onUpdateVideoSplitOptions,
 }: StoryEditorControlsProps) {
+  const t = useTranslations("instagram.components");
   const storyTextId = useId();
   const durationId = useId();
   const segmentLengthId = useId();
@@ -35,7 +38,7 @@ export function StoryEditorControls({
         {/* Text Editor */}
         <div>
           <label htmlFor={storyTextId} className="block text-sm font-medium text-gray-700 mb-2">
-            Story Text
+            {t("storyControls.storyText")}
           </label>
           <textarea
             id={storyTextId}
@@ -47,14 +50,14 @@ export function StoryEditorControls({
             }
             className="w-full px-3 py-2 border rounded-lg resize-none"
             rows={3}
-            placeholder="Add text to your story..."
+            placeholder={t("storyControls.storyTextPlaceholder")}
           />
         </div>
 
         {/* Duration Control */}
         <div>
           <label htmlFor={durationId} className="block text-sm font-medium text-gray-700 mb-2">
-            Display Duration: {story.duration}s
+            {t("storyControls.displayDuration", { seconds: story.duration })}
           </label>
           <input
             id={durationId}
@@ -66,8 +69,8 @@ export function StoryEditorControls({
             className="w-full"
           />
           <div className="flex justify-between text-xs text-gray-500 mt-1">
-            <span>3s</span>
-            <span>15s</span>
+            <span>{t("storyControls.durationMin")}</span>
+            <span>{t("storyControls.durationMax")}</span>
           </div>
         </div>
 
@@ -75,7 +78,7 @@ export function StoryEditorControls({
         {!story.media.url && (
           <div>
             <span id={backgroundHeadingId} className="block text-sm font-medium text-gray-700 mb-2">
-              Background
+              {t("storyControls.background")}
             </span>
             <div
               role="group"
@@ -91,7 +94,7 @@ export function StoryEditorControls({
                 <button
                   key={index}
                   type="button"
-                  aria-label={`Background option ${index + 1}`}
+                  aria-label={t("storyControls.backgroundOption", { number: index + 1 })}
                   onClick={() =>
                     onUpdateStory(storyIndex, {
                       background: { gradient },
@@ -109,12 +112,12 @@ export function StoryEditorControls({
         {story.media.type === "video" && story.media.duration && story.media.duration > 15 && (
           <fieldset className="border-0 p-0 m-0 min-w-0">
             <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">
-              Video Split Options
+              {t("storyControls.videoSplitOptions")}
             </legend>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor={segmentLengthId} className="block text-xs text-gray-600 mb-1">
-                  Segment Length
+                  {t("storyControls.segmentLength")}
                 </label>
                 <select
                   id={segmentLengthId}
@@ -127,13 +130,13 @@ export function StoryEditorControls({
                   }
                   className="w-full px-3 py-2 border rounded-sm text-sm"
                 >
-                  <option value={10}>10 seconds</option>
-                  <option value={15}>15 seconds</option>
+                  <option value={10}>{t("storyControls.seconds10")}</option>
+                  <option value={15}>{t("storyControls.seconds15")}</option>
                 </select>
               </div>
               <div>
                 <label htmlFor={qualityId} className="block text-xs text-gray-600 mb-1">
-                  Quality
+                  {t("storyControls.quality")}
                 </label>
                 <select
                   id={qualityId}
@@ -146,9 +149,9 @@ export function StoryEditorControls({
                   }
                   className="w-full px-3 py-2 border rounded-sm text-sm"
                 >
-                  <option value="high">High</option>
-                  <option value="medium">Medium</option>
-                  <option value="low">Low</option>
+                  <option value="high">{t("storyControls.qualityHigh")}</option>
+                  <option value="medium">{t("storyControls.qualityMedium")}</option>
+                  <option value="low">{t("storyControls.qualityLow")}</option>
                 </select>
               </div>
             </div>

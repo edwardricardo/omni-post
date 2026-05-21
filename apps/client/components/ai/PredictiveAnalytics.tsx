@@ -8,6 +8,7 @@
  */
 
 import React, { useState } from "react";
+import { useTranslations } from "next-intl";
 import { AnalyticsHeader } from "./analytics/AnalyticsHeader";
 import { LoadingState } from "./analytics/LoadingState";
 import { TabNavigation } from "./analytics/TabNavigation";
@@ -47,6 +48,7 @@ const PredictiveAnalytics: React.FC<PredictiveAnalyticsProps> = ({
   onPredictionUpdate,
   showAdvanced: _showAdvanced = false,
 }) => {
+  const t = useTranslations("ai.components");
   const [activeTab, setActiveTab] = useState<AnalysisTab>(analysisType);
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>(timeframe);
 
@@ -82,11 +84,8 @@ const PredictiveAnalytics: React.FC<PredictiveAnalyticsProps> = ({
           className="mx-6 mt-4 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"
           role="status"
         >
-          <p className="font-medium">Predictive analytics: backend in development</p>
-          <p className="mt-1 text-xs">
-            The four predictive endpoints (timing, audience, ROI, competitive) are scaffolded but
-            their implementation is pending. The dashboard will populate once the backend ships.
-          </p>
+          <p className="font-medium">{t("predictive.notImplementedTitle")}</p>
+          <p className="mt-1 text-xs">{t("predictive.notImplementedBody")}</p>
         </div>
       )}
 
@@ -95,10 +94,8 @@ const PredictiveAnalytics: React.FC<PredictiveAnalyticsProps> = ({
           className="mx-6 mt-4 rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-900"
           role="alert"
         >
-          <p className="font-medium">Failed to load predictive analytics</p>
-          <p className="mt-1 text-xs break-all">
-            {error?.message ?? "An unknown error occurred while contacting the backend."}
-          </p>
+          <p className="font-medium">{t("predictive.loadFailed")}</p>
+          <p className="mt-1 text-xs break-all">{error?.message ?? t("predictive.unknownError")}</p>
         </div>
       )}
 

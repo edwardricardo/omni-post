@@ -8,6 +8,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { X } from "lucide-react";
 import { useApprovePost, useRejectPost } from "@/hooks/api/useApprovals";
 import type { ApprovalRequest } from "@/hooks/api/useApprovals";
@@ -49,6 +50,7 @@ interface ReviewPanelProps {
  * @param props.onClose - Callback to dismiss the panel
  */
 export function ReviewPanel({ approval, reviewerId, onClose }: ReviewPanelProps) {
+  const t = useTranslations("approvals.components");
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [toast, setToast] = useState<string | null>(null);
@@ -68,10 +70,10 @@ export function ReviewPanel({ approval, reviewerId, onClose }: ReviewPanelProps)
       { approvalId: approval.id, reviewerId },
       {
         onSuccess: () => {
-          showToast("Post approved");
+          showToast(t("toastApproved"));
           onClose();
         },
-        onError: () => showToast("Failed to approve. Please try again."),
+        onError: () => showToast(t("toastApproveFailed")),
       }
     );
   };
@@ -82,12 +84,12 @@ export function ReviewPanel({ approval, reviewerId, onClose }: ReviewPanelProps)
       { approvalId: approval.id, reviewerId, comment: rejectReason.trim() },
       {
         onSuccess: () => {
-          showToast(`Post rejected: "${rejectReason.trim().slice(0, 60)}…"`);
+          showToast(t("toastRejected", { reason: rejectReason.trim().slice(0, 60) }));
           setShowRejectDialog(false);
           setRejectReason("");
           onClose();
         },
-        onError: () => showToast("Failed to reject. Please try again."),
+        onError: () => showToast(t("toastRejectFailed")),
       }
     );
   };
@@ -119,13 +121,15 @@ export function ReviewPanel({ approval, reviewerId, onClose }: ReviewPanelProps)
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 shrink-0">
           <div>
             <h2 id="review-panel-title" className="text-base font-semibold text-gray-900">
-              Review Post
+              {t("reviewPostTitle")}
             </h2>
-            <p className="text-xs text-gray-500 mt-0.5">Submitted by {approval.submitterName}</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {t("submittedBy", { name: approval.submitterName })}
+            </p>
           </div>
           <button
             onClick={onClose}
-            aria-label="Close review panel"
+            aria-label={t("closePanelAria")}
             className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100"
           >
             <X aria-hidden="true" className="h-4 w-4" />
@@ -152,10 +156,10 @@ export function ReviewPanel({ approval, reviewerId, onClose }: ReviewPanelProps)
           {/* Post content */}
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 mb-6">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
-              Post content
+              {t("postContentLabel")}
             </p>
             <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-              {approval.postContent || "(no content)"}
+              {approval.postContent || t("noContent")}
             </p>
           </div>
 
@@ -166,14 +170,14 @@ export function ReviewPanel({ approval, reviewerId, onClose }: ReviewPanelProps)
               disabled={approveMutation.isPending || rejectMutation.isPending}
               className="flex-1 rounded-md bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
             >
-              {approveMutation.isPending ? "Approving…" : "✓ Approve"}
+              {approveMutation.isPending ? t("approving") : t("approve")}
             </button>
             <button
               onClick={() => setShowRejectDialog(true)}
               disabled={approveMutation.isPending || rejectMutation.isPending}
               className="flex-1 rounded-md bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
             >
-              ✗ Reject
+              {t("reject")}
             </button>
           </div>
 
@@ -192,7 +196,7 @@ export function ReviewPanel({ approval, reviewerId, onClose }: ReviewPanelProps)
         >
           <button
             type="button"
-            aria-label="Close reject dialog"
+            aria-label={t("closeRejectDialogAria")}
             className="absolute inset-0 cursor-default"
             onClick={() => {
               setShowRejectDialog(false);
@@ -201,16 +205,14 @@ export function ReviewPanel({ approval, reviewerId, onClose }: ReviewPanelProps)
           />
           <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
             <h3 id="reject-dialog-title" className="text-base font-semibold text-gray-900">
-              Reject Post
+              {t("rejectPostTitle")}
             </h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Provide a reason for rejection (minimum 10 characters).
-            </p>
+            <p className="mt-1 text-sm text-gray-500">{t("rejectReasonHint")}</p>
 
             <textarea
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
-              placeholder="Explain why this post is being rejected…"
+              placeholder={t("rejectReasonPlaceholder")}
               rows={4}
               minLength={10}
               aria-invalid={
@@ -225,7 +227,7 @@ export function ReviewPanel({ approval, reviewerId, onClose }: ReviewPanelProps)
             />
             {rejectReason.length > 0 && rejectReason.length < 10 && (
               <p id="reject-reason-error" role="alert" className="mt-1 text-xs text-red-500">
-                Reason must be at least 10 characters ({rejectReason.length}/10)
+                {t("rejectReasonError", { count: rejectReason.length })}
               </p>
             )}
 
@@ -237,14 +239,14 @@ export function ReviewPanel({ approval, reviewerId, onClose }: ReviewPanelProps)
                 }}
                 className="rounded-md px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
               >
-                Cancel
+                {t("cancel")}
               </button>
               <button
                 onClick={handleReject}
                 disabled={rejectReason.trim().length < 10 || rejectMutation.isPending}
                 className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
               >
-                {rejectMutation.isPending ? "Rejecting…" : "Confirm Reject"}
+                {rejectMutation.isPending ? t("rejecting") : t("confirmReject")}
               </button>
             </div>
           </div>

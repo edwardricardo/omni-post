@@ -19,6 +19,7 @@ import {
   Sparkles,
   AlertTriangle,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type {
   ContentAnalysis,
   OptimizationSuggestion,
@@ -62,6 +63,7 @@ const SmartContentOptimizer: React.FC<SmartContentOptimizerProps> = ({
   realTimeAnalysis = true,
   showAdvancedMetrics = false,
 }) => {
+  const t = useTranslations("ai.components");
   const [analysis, setAnalysis] = useState<ContentAnalysis | null>(null);
   const [suggestions, setSuggestions] = useState<OptimizationSuggestion[]>([]);
   const [hashtagAnalysis, setHashtagAnalysis] = useState<HashtagAnalysis[]>([]);
@@ -100,7 +102,7 @@ const SmartContentOptimizer: React.FC<SmartContentOptimizerProps> = ({
         );
 
         if (!json.ok || !json.data) {
-          throw new Error("Unexpected response format from AI service");
+          throw new Error(t("optimizer.unexpectedResponse"));
         }
 
         const apiData = json.data;
@@ -143,11 +145,11 @@ const SmartContentOptimizer: React.FC<SmartContentOptimizerProps> = ({
           (error instanceof Error && /unavailable/i.test(error.message));
 
         if (isUnavailable) {
-          setAnalysisError(
-            "AI service is not available. Ensure at least one AI provider API key is configured on the server."
-          );
+          setAnalysisError(t("optimizer.serviceUnavailable"));
         } else {
-          setAnalysisError(error instanceof Error ? error.message : "Content analysis failed");
+          setAnalysisError(
+            error instanceof Error ? error.message : t("optimizer.analysisFailedMsg")
+          );
         }
 
         // Clear stale results on error
@@ -159,7 +161,7 @@ const SmartContentOptimizer: React.FC<SmartContentOptimizerProps> = ({
         setIsAnalyzing(false);
       }
     },
-    [platforms, brandVoice]
+    [platforms, brandVoice, t]
   );
 
   useEffect(() => {
@@ -203,7 +205,7 @@ const SmartContentOptimizer: React.FC<SmartContentOptimizerProps> = ({
       <div className="bg-white rounded-lg shadow-lg p-6">
         <div className="flex items-center justify-center space-x-3 py-8">
           <RefreshCw className="w-6 h-6 text-blue-600 animate-spin" />
-          <div className="text-lg font-medium text-gray-900">Analyzing content with AI...</div>
+          <div className="text-lg font-medium text-gray-900">{t("optimizer.analyzing")}</div>
         </div>
         <div className="grid grid-cols-3 gap-4 mt-6">
           {[1, 2, 3].map((i) => (
@@ -223,14 +225,16 @@ const SmartContentOptimizer: React.FC<SmartContentOptimizerProps> = ({
       <div className="bg-white rounded-lg shadow-lg p-6">
         <div role="alert" className="text-center py-8">
           <AlertTriangle aria-hidden="true" className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Analysis Failed</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            {t("optimizer.analysisFailed")}
+          </h3>
           <p className="text-gray-600 mb-4 max-w-md mx-auto">{analysisError}</p>
           <button
             onClick={() => analyzeContent(content)}
             disabled={!content.trim()}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Retry Analysis
+            {t("optimizer.retryAnalysis")}
           </button>
         </div>
       </div>
@@ -243,14 +247,14 @@ const SmartContentOptimizer: React.FC<SmartContentOptimizerProps> = ({
       <div className="bg-white rounded-lg shadow-lg p-6">
         <div className="text-center py-8">
           <Brain className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Smart Content Optimizer</h3>
-          <p className="text-gray-600 mb-4">Enter content to get optimization suggestions</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">{t("optimizer.title")}</h3>
+          <p className="text-gray-600 mb-4">{t("optimizer.emptyPrompt")}</p>
           <button
             onClick={() => analyzeContent(content)}
             disabled={!content.trim()}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Analyze Content
+            {t("optimizer.analyzeContent")}
           </button>
         </div>
       </div>
@@ -259,12 +263,12 @@ const SmartContentOptimizer: React.FC<SmartContentOptimizerProps> = ({
 
   // Tab configuration
   const tabs = [
-    { id: "overview" as const, label: "Overview", icon: BarChart3 },
-    { id: "suggestions" as const, label: "Suggestions", icon: Lightbulb },
-    { id: "hashtags" as const, label: "Hashtags", icon: Hash },
-    { id: "tone" as const, label: "Tone Analysis", icon: MessageCircle },
+    { id: "overview" as const, label: t("optimizer.tabOverview"), icon: BarChart3 },
+    { id: "suggestions" as const, label: t("optimizer.tabSuggestions"), icon: Lightbulb },
+    { id: "hashtags" as const, label: t("optimizer.tabHashtags"), icon: Hash },
+    { id: "tone" as const, label: t("optimizer.tabTone"), icon: MessageCircle },
     ...(showAdvancedMetrics
-      ? [{ id: "metrics" as const, label: "Advanced Metrics", icon: Target }]
+      ? [{ id: "metrics" as const, label: t("optimizer.tabMetrics"), icon: Target }]
       : []),
   ];
 
@@ -278,20 +282,20 @@ const SmartContentOptimizer: React.FC<SmartContentOptimizerProps> = ({
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Smart Content Optimizer</h3>
-              <p className="text-sm text-gray-600">Content analysis and optimization</p>
+              <h3 className="text-lg font-semibold text-gray-900">{t("optimizer.title")}</h3>
+              <p className="text-sm text-gray-600">{t("optimizer.subtitle")}</p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
             <div
               className={`px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(analysis.overallScore)}`}
             >
-              Overall Score: {Math.round(analysis.overallScore)}%
+              {t("optimizer.overallScore", { score: Math.round(analysis.overallScore) })}
             </div>
             <button
               onClick={() => analyzeContent(content)}
               className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
-              title="Re-analyze"
+              title={t("optimizer.reAnalyze")}
             >
               <RefreshCw className="w-4 h-4" />
             </button>
@@ -340,8 +344,8 @@ const SmartContentOptimizer: React.FC<SmartContentOptimizerProps> = ({
           ) : (
             <div className="text-center py-8 text-gray-500">
               <MessageCircle className="w-10 h-10 mx-auto mb-3 text-gray-400" />
-              <p>Tone analysis data is not available for this content.</p>
-              <p className="text-sm mt-1">Try re-analyzing with more text.</p>
+              <p>{t("optimizer.toneUnavailable")}</p>
+              <p className="text-sm mt-1">{t("optimizer.toneUnavailableHint")}</p>
             </div>
           ))}
 

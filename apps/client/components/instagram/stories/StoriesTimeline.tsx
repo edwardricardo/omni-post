@@ -3,9 +3,11 @@
  * @component StoriesTimeline
  * @description Horizontal timeline strip showing all story slides as thumbnails, supporting
  * drag-to-reorder, selection, and add/remove operations for the Stories editor.
+ * @layer infrastructure
  */
 
 import React, { useRef } from "react";
+import { useTranslations } from "next-intl";
 import { StoryContent } from "./types";
 
 interface StoriesTimelineProps {
@@ -29,13 +31,16 @@ export function StoriesTimeline({
   onVideoUpload,
   onAddTextStory,
 }: StoriesTimelineProps) {
+  const t = useTranslations("instagram.components");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div className="w-64 bg-white border-r flex flex-col">
       <div className="p-4 border-b">
-        <h3 className="font-medium text-gray-900 mb-3">Stories ({stories.length})</h3>
+        <h3 className="font-medium text-gray-900 mb-3">
+          {t("storiesTimeline.title", { count: stories.length })}
+        </h3>
 
         {/* Add Story Buttons */}
         <div className="space-y-2">
@@ -44,7 +49,7 @@ export function StoriesTimeline({
             disabled={isDisabled}
             className="w-full px-3 py-2 border border-dashed border-gray-300 rounded-lg text-sm hover:border-gray-400 disabled:opacity-50"
           >
-            📷 Add Photo
+            {t("storiesTimeline.addPhoto")}
           </button>
 
           <button
@@ -52,7 +57,7 @@ export function StoriesTimeline({
             disabled={isDisabled}
             className="w-full px-3 py-2 border border-dashed border-gray-300 rounded-lg text-sm hover:border-gray-400 disabled:opacity-50"
           >
-            🎥 Add Video
+            {t("storiesTimeline.addVideo")}
           </button>
 
           <button
@@ -60,7 +65,7 @@ export function StoriesTimeline({
             disabled={isDisabled}
             className="w-full px-3 py-2 border border-dashed border-gray-300 rounded-lg text-sm hover:border-gray-400 disabled:opacity-50"
           >
-            📝 Add Text
+            {t("storiesTimeline.addText")}
           </button>
         </div>
 
@@ -90,7 +95,7 @@ export function StoriesTimeline({
             role="button"
             tabIndex={0}
             aria-pressed={selectedStoryIndex === index}
-            aria-label={`Select story ${index + 1}`}
+            aria-label={t("storiesTimeline.selectStory", { number: index + 1 })}
             className={`relative p-3 rounded-lg border cursor-pointer transition-colors ${
               selectedStoryIndex === index
                 ? "border-blue-500 bg-blue-50"
@@ -115,7 +120,7 @@ export function StoriesTimeline({
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">
-                      Text
+                      {t("storiesTimeline.textBadge")}
                     </div>
                   )
                 ) : (
@@ -124,14 +129,19 @@ export function StoriesTimeline({
               </div>
 
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-900">Story {index + 1}</div>
+                <div className="text-sm font-medium text-gray-900">
+                  {t("storiesTimeline.storyLabel", { number: index + 1 })}
+                </div>
                 <div className="text-xs text-gray-500">
-                  {story.media.type} • {story.duration}s
+                  {t("storiesTimeline.storyMeta", {
+                    type: story.media.type,
+                    duration: story.duration,
+                  })}
                 </div>
                 {story.text && <div className="text-xs text-gray-400 truncate">{story.text}</div>}
                 {story.media.segments && (
                   <div className="text-xs text-blue-600">
-                    {story.media.segments.length} segments
+                    {t("storiesTimeline.segmentsCount", { count: story.media.segments.length })}
                   </div>
                 )}
               </div>
@@ -152,8 +162,8 @@ export function StoriesTimeline({
         {stories.length === 0 && (
           <div className="text-center py-8 text-gray-500">
             <div className="text-4xl mb-2">📱</div>
-            <div className="text-sm">No stories yet</div>
-            <div className="text-xs text-gray-400">Add photos, videos, or text to get started</div>
+            <div className="text-sm">{t("storiesTimeline.emptyTitle")}</div>
+            <div className="text-xs text-gray-400">{t("storiesTimeline.emptyHint")}</div>
           </div>
         )}
       </div>

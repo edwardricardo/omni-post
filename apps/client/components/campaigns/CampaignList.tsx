@@ -7,6 +7,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { useCampaigns } from "@/hooks/api/useCampaigns";
 import type { CampaignDto } from "@/hooks/api/useCampaigns";
 import { CampaignCard } from "./CampaignCard";
@@ -17,11 +18,11 @@ interface CampaignListProps {
 }
 
 const STATUS_TABS = [
-  { label: "All", value: undefined },
-  { label: "Active", value: "ACTIVE" },
-  { label: "Draft", value: "DRAFT" },
-  { label: "Completed", value: "COMPLETED" },
-  { label: "Archived", value: "ARCHIVED" },
+  { labelKey: "tabAll", value: undefined },
+  { labelKey: "tabActive", value: "ACTIVE" },
+  { labelKey: "tabDraft", value: "DRAFT" },
+  { labelKey: "tabCompleted", value: "COMPLETED" },
+  { labelKey: "tabArchived", value: "ARCHIVED" },
 ] as const;
 
 /**
@@ -30,6 +31,7 @@ const STATUS_TABS = [
  * Completed, Archived) rendering CampaignCard items.
  */
 export function CampaignList({ projectId, onCampaignClick }: CampaignListProps) {
+  const t = useTranslations("campaigns.components");
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
 
   const campaignParams = useMemo(
@@ -44,7 +46,7 @@ export function CampaignList({ projectId, onCampaignClick }: CampaignListProps) 
       <div className="flex rounded-lg border overflow-hidden">
         {STATUS_TABS.map((tab) => (
           <button
-            key={tab.label}
+            key={tab.labelKey}
             type="button"
             onClick={() => setStatusFilter(tab.value)}
             className={`px-3 py-1.5 text-sm font-medium transition-colors ${
@@ -53,17 +55,17 @@ export function CampaignList({ projectId, onCampaignClick }: CampaignListProps) 
                 : "bg-background text-muted-foreground hover:bg-accent"
             }`}
           >
-            {tab.label}
+            {t(tab.labelKey)}
           </button>
         ))}
       </div>
 
       {isLoading ? (
-        <div className="text-center py-8 text-muted-foreground">Loading campaigns...</div>
+        <div className="text-center py-8 text-muted-foreground">{t("loading")}</div>
       ) : campaigns.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
-          <p className="text-lg font-medium">No campaigns yet</p>
-          <p className="text-sm mt-1">Create your first campaign to organize your content.</p>
+          <p className="text-lg font-medium">{t("emptyTitle")}</p>
+          <p className="text-sm mt-1">{t("emptyDescription")}</p>
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">

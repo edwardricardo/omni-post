@@ -8,6 +8,7 @@
 
 import React from "react";
 import { Copy, Save, Camera, Video } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { GeneratedContent } from "../../types/ai-content";
 import { getCharacterLimitColor } from "../../lib/ai-content-utils";
 
@@ -33,17 +34,18 @@ export function AIContentResults({
   onSaveAll,
   onNewGeneration,
 }: AIContentResultsProps) {
+  const t = useTranslations("ai.components");
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h4 className="text-lg font-semibold text-gray-900">Generated Content</h4>
+        <h4 className="text-lg font-semibold text-gray-900">{t("results.title")}</h4>
         <div className="flex space-x-2">
           <button
             onClick={onNewGeneration}
             className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
           >
-            New Generation
+            {t("results.newGeneration")}
           </button>
           {onSaveAll && (
             <button
@@ -51,7 +53,7 @@ export function AIContentResults({
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center space-x-2"
             >
               <Save className="w-4 h-4" aria-hidden="true" />
-              <span>Save All</span>
+              <span>{t("results.saveAll")}</span>
             </button>
           )}
         </div>
@@ -70,8 +72,8 @@ export function AIContentResults({
                 <button
                   onClick={() => onCopy(item.content.text)}
                   className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-sm"
-                  title="Copy to clipboard"
-                  aria-label="Copy content to clipboard"
+                  title={t("results.copyToClipboard")}
+                  aria-label={t("results.copyContentAria")}
                 >
                   <Copy className="w-4 h-4" />
                 </button>
@@ -79,8 +81,8 @@ export function AIContentResults({
                   <button
                     onClick={() => onSave(item)}
                     className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-sm"
-                    title="Save content"
-                    aria-label="Save this content"
+                    title={t("results.saveContent")}
+                    aria-label={t("results.saveContentAria")}
                   >
                     <Save className="w-4 h-4" />
                   </button>
@@ -112,22 +114,22 @@ export function AIContentResults({
                 >
                   {item.metrics.characterCount}
                 </div>
-                <div className="text-xs text-gray-600">Characters</div>
+                <div className="text-xs text-gray-600">{t("results.characters")}</div>
               </div>
               <div className="text-center">
                 <div className="font-semibold text-gray-900">{item.metrics.wordCount}</div>
-                <div className="text-xs text-gray-600">Words</div>
+                <div className="text-xs text-gray-600">{t("results.words")}</div>
               </div>
               <div className="text-center">
                 <div className="font-semibold text-gray-900">{item.metrics.hashtagCount}</div>
-                <div className="text-xs text-gray-600">Hashtags</div>
+                <div className="text-xs text-gray-600">{t("results.hashtags")}</div>
               </div>
             </div>
 
             {/* Media Suggestions */}
             {item.content.media && item.content.media.length > 0 && (
               <div className="mb-4">
-                <h6 className="font-medium text-gray-900 mb-2">Media Suggestions</h6>
+                <h6 className="font-medium text-gray-900 mb-2">{t("results.mediaSuggestions")}</h6>
                 <div className="space-y-2">
                   {item.content.media.map((media, idx) => (
                     <div
@@ -141,7 +143,9 @@ export function AIContentResults({
                       )}
                       <div className="flex-1">
                         <div className="text-sm font-medium text-gray-900">{media.suggestion}</div>
-                        <div className="text-xs text-gray-600">Recommended: {media.dimensions}</div>
+                        <div className="text-xs text-gray-600">
+                          {t("results.recommended", { dimensions: media.dimensions })}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -152,7 +156,9 @@ export function AIContentResults({
             {/* Variations */}
             {item.variations.length > 0 && (
               <div className="border-t pt-4">
-                <h6 className="font-medium text-gray-900 mb-3">Alternative Versions</h6>
+                <h6 className="font-medium text-gray-900 mb-3">
+                  {t("results.alternativeVersions")}
+                </h6>
                 <div className="space-y-3">
                   {item.variations.map((variation) => (
                     <div key={variation.id} className="bg-gray-50 rounded-lg p-3">
@@ -168,7 +174,7 @@ export function AIContentResults({
                         <button
                           onClick={() => onCopy(variation.text)}
                           className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-sm"
-                          aria-label={`Copy ${variation.tone} variation`}
+                          aria-label={t("results.copyVariationAria", { tone: variation.tone })}
                         >
                           <Copy className="w-3 h-3" />
                         </button>

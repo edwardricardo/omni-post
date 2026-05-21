@@ -10,6 +10,7 @@
  */
 
 import { useId } from "react";
+import { useTranslations } from "next-intl";
 import type { VideoMetadata, VideoSplitOptions } from "@providers/instagram/src/mediaProcessor";
 import { formatFileSize, formatTime } from "../utils";
 import type { PreviewSegment } from "./types";
@@ -29,6 +30,7 @@ export function SplitSettingsPanel({
   segments,
   onOptionsChange,
 }: SplitSettingsPanelProps) {
+  const t = useTranslations("instagram.components");
   const segmentLengthId = useId();
   const maxSegmentsId = useId();
   const qualityId = useId();
@@ -52,28 +54,28 @@ export function SplitSettingsPanel({
 
   return (
     <div className="w-80 bg-gray-50 p-6 overflow-y-auto">
-      <h3 className="font-semibold text-gray-900 mb-4">Split Settings</h3>
+      <h3 className="font-semibold text-gray-900 mb-4">{t("splitSettings.title")}</h3>
 
       {videoMetadata && (
         <div className="mb-6 p-4 bg-white rounded-lg border">
-          <h4 className="font-medium text-gray-900 mb-2">Video Information</h4>
+          <h4 className="font-medium text-gray-900 mb-2">{t("splitSettings.videoInformation")}</h4>
           <div className="space-y-2 text-sm text-gray-600">
             <div className="flex justify-between">
-              <span>Duration:</span>
+              <span>{t("splitSettings.duration")}</span>
               <span>{formatTime(videoMetadata.duration)}</span>
             </div>
             <div className="flex justify-between">
-              <span>Size:</span>
+              <span>{t("splitSettings.size")}</span>
               <span>{formatFileSize(videoFile.size)}</span>
             </div>
             <div className="flex justify-between">
-              <span>Resolution:</span>
+              <span>{t("splitSettings.resolution")}</span>
               <span>
                 {videoMetadata.width}×{videoMetadata.height}
               </span>
             </div>
             <div className="flex justify-between">
-              <span>Format:</span>
+              <span>{t("splitSettings.format")}</span>
               <span>{videoMetadata.format}</span>
             </div>
           </div>
@@ -82,7 +84,7 @@ export function SplitSettingsPanel({
 
       <div className="mb-6">
         <label htmlFor={segmentLengthId} className="block text-sm font-medium text-gray-700 mb-2">
-          Segment Length: {splitOptions.segmentLength}s
+          {t("splitSettings.segmentLength", { seconds: splitOptions.segmentLength ?? 0 })}
         </label>
         <input
           id={segmentLengthId}
@@ -102,7 +104,7 @@ export function SplitSettingsPanel({
 
       <div className="mb-6">
         <label htmlFor={maxSegmentsId} className="block text-sm font-medium text-gray-700 mb-2">
-          Max Segments: {splitOptions.maxSegments}
+          {t("splitSettings.maxSegments", { count: splitOptions.maxSegments ?? 0 })}
         </label>
         <input
           id={maxSegmentsId}
@@ -121,7 +123,7 @@ export function SplitSettingsPanel({
 
       <div className="mb-6">
         <label htmlFor={qualityId} className="block text-sm font-medium text-gray-700 mb-2">
-          Quality
+          {t("splitSettings.quality")}
         </label>
         <select
           id={qualityId}
@@ -129,15 +131,15 @@ export function SplitSettingsPanel({
           onChange={(e) => handleQualityChange(e.target.value as "low" | "medium" | "high")}
           className="w-full px-3 py-2 border rounded-lg"
         >
-          <option value="high">High (Best quality, larger files)</option>
-          <option value="medium">Medium (Balanced)</option>
-          <option value="low">Low (Smaller files, faster upload)</option>
+          <option value="high">{t("splitSettings.qualityHigh")}</option>
+          <option value="medium">{t("splitSettings.qualityMedium")}</option>
+          <option value="low">{t("splitSettings.qualityLow")}</option>
         </select>
       </div>
 
       <div className="mb-6">
         <label htmlFor={aspectRatioId} className="block text-sm font-medium text-gray-700 mb-2">
-          Aspect Ratio
+          {t("splitSettings.aspectRatio")}
         </label>
         <select
           id={aspectRatioId}
@@ -150,9 +152,9 @@ export function SplitSettingsPanel({
           }
           className="w-full px-3 py-2 border rounded-lg"
         >
-          <option value="9:16">9:16 (Stories)</option>
-          <option value="1:1">1:1 (Square)</option>
-          <option value="16:9">16:9 (Landscape)</option>
+          <option value="9:16">{t("splitSettings.aspectStories")}</option>
+          <option value="1:1">{t("splitSettings.aspectSquare")}</option>
+          <option value="16:9">{t("splitSettings.aspectLandscape")}</option>
         </select>
       </div>
 
@@ -164,19 +166,21 @@ export function SplitSettingsPanel({
             onChange={(e) => handleTransitionsChange(e.target.checked)}
             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
           />
-          <span className="ml-2 text-sm text-gray-700">Add fade transitions</span>
+          <span className="ml-2 text-sm text-gray-700">{t("splitSettings.addTransitions")}</span>
         </label>
-        <p className="text-xs text-gray-500 mt-1">Smooth transitions between segments</p>
+        <p className="text-xs text-gray-500 mt-1">{t("splitSettings.addTransitionsHint")}</p>
       </div>
 
       <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-        <h4 className="font-medium text-blue-900 mb-2">Split Results</h4>
+        <h4 className="font-medium text-blue-900 mb-2">{t("splitSettings.results")}</h4>
         <div className="space-y-1 text-sm text-blue-800">
-          <div>Segments: {segments.length}</div>
-          <div>Avg duration: {avgDuration.toFixed(1)}s</div>
+          <div>{t("splitSettings.resultSegments", { count: segments.length })}</div>
+          <div>{t("splitSettings.resultAvgDuration", { duration: avgDuration.toFixed(1) })}</div>
           {videoMetadata && (
             <div>
-              Coverage: {((totalSegmentDuration / videoMetadata.duration) * 100).toFixed(0)}%
+              {t("splitSettings.resultCoverage", {
+                percent: ((totalSegmentDuration / videoMetadata.duration) * 100).toFixed(0),
+              })}
             </div>
           )}
         </div>

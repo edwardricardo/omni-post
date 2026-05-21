@@ -8,6 +8,7 @@
  */
 
 import React, { type DragEvent, useCallback, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 
 interface DropZoneProps {
   acceptedTypes: string[];
@@ -25,6 +26,7 @@ export function DropZone({
   isUploading,
   onFiles,
 }: DropZoneProps) {
+  const t = useTranslations("instagram.components");
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -69,7 +71,7 @@ export function DropZone({
     <div
       role="button"
       tabIndex={0}
-      aria-label="Upload media — click or drop files"
+      aria-label={t("dropZone.ariaLabel")}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -100,23 +102,21 @@ export function DropZone({
 
         <div>
           <div className="text-lg font-medium text-gray-900">
-            {isDragOver ? "Drop files here" : "Upload media files"}
+            {isDragOver ? t("dropZone.dropHere") : t("dropZone.uploadTitle")}
           </div>
-          <div className="text-sm text-gray-600 mt-1">Drag & drop or click to select files</div>
+          <div className="text-sm text-gray-600 mt-1">{t("dropZone.dragOrClick")}</div>
         </div>
 
         <div className="text-xs text-gray-500">
-          <div>Supported: {acceptedTypes.join(", ")}</div>
-          <div>
-            Max size: {maxFileSize}MB per file • Max files: {maxFiles}
-          </div>
-          <div>Videos longer than 15s will be automatically split for Stories</div>
+          <div>{t("dropZone.supported", { types: acceptedTypes.join(", ") })}</div>
+          <div>{t("dropZone.limits", { maxFileSize, maxFiles })}</div>
+          <div>{t("dropZone.autoSplit")}</div>
         </div>
 
         {isUploading && (
           <div className="flex items-center justify-center space-x-2">
             <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-            <span className="text-sm text-gray-600">Processing files...</span>
+            <span className="text-sm text-gray-600">{t("dropZone.processing")}</span>
           </div>
         )}
       </div>

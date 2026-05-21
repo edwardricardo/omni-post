@@ -7,6 +7,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { CampaignStatusBadge } from "./CampaignStatusBadge";
 import { useCampaignAnalytics } from "@/hooks/api/useCampaigns";
 import type { CampaignAnalyticsDto, CampaignDto } from "@/hooks/api/useCampaigns";
@@ -18,8 +19,8 @@ interface CampaignCardProps {
   analytics?: CampaignAnalyticsDto;
 }
 
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "No date";
+function formatDate(dateStr: string | null, noDateLabel: string): string {
+  if (!dateStr) return noDateLabel;
   return new Date(dateStr).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -33,6 +34,7 @@ function formatDate(dateStr: string | null): string {
  * and analytics summary with click-through to the campaign detail view.
  */
 export function CampaignCard({ campaign, onClick, analytics: analyticsProp }: CampaignCardProps) {
+  const t = useTranslations("campaigns.components");
   // Fall back to a per-campaign fetch only when the parent did not supply
   // batched analytics. Passing "" disables the query (hook gates on campaignId).
   const { data: fetchedAnalytics } = useCampaignAnalytics(analyticsProp ? "" : campaign.id);
@@ -65,15 +67,17 @@ export function CampaignCard({ campaign, onClick, analytics: analyticsProp }: Ca
       </div>
 
       <div className="text-xs text-muted-foreground mt-2">
-        {formatDate(campaign.startDate)}
-        {campaign.endDate ? ` - ${formatDate(campaign.endDate)}` : " - No end date"}
+        {formatDate(campaign.startDate, t("noDate"))}
+        {campaign.endDate
+          ? ` - ${formatDate(campaign.endDate, t("noDate"))}`
+          : ` - ${t("noEndDate")}`}
       </div>
 
       {analytics && analytics.totalPosts > 0 && (
         <div className="flex gap-4 mt-3 text-xs text-muted-foreground">
-          <span>{analytics.totalPosts} posts</span>
-          <span>{analytics.totalViews.toLocaleString()} views</span>
-          <span>{analytics.totalEngagement.toLocaleString()} engagements</span>
+          <span>{t("statPosts", { count: analytics.totalPosts })}</span>
+          <span>{t("statViews", { count: analytics.totalViews })}</span>
+          <span>{t("statEngagements", { count: analytics.totalEngagement })}</span>
         </div>
       )}
     </div>

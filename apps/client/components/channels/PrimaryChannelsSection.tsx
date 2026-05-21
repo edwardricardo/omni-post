@@ -11,6 +11,7 @@
  */
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { useProject } from "@/providers/ProjectProvider";
 import { useProjectChannels, type ProjectChannel } from "@/lib/hooks/useProjectChannels";
 import { Badge } from "@packages/ui";
@@ -26,6 +27,7 @@ import { SetPrimaryChannelButton } from "./SetPrimaryChannelButton";
  *   without requiring the rest of the page to be rewritten first.
  */
 export function PrimaryChannelsSection() {
+  const t = useTranslations("channels.components");
   const { projectId } = useProject();
   const channelsQuery = useProjectChannels(projectId);
 
@@ -41,9 +43,7 @@ export function PrimaryChannelsSection() {
   }, [channelsQuery.data]);
 
   if (!projectId) {
-    return (
-      <p className="text-sm text-muted-foreground">Select a project to manage primary channels.</p>
-    );
+    return <p className="text-sm text-muted-foreground">{t("selectProject")}</p>;
   }
 
   if (channelsQuery.isPending) {
@@ -57,26 +57,23 @@ export function PrimaryChannelsSection() {
   if (channelsQuery.isError) {
     return (
       <p role="alert" className="text-sm text-destructive">
-        Failed to load channels:{" "}
-        {channelsQuery.error instanceof Error ? channelsQuery.error.message : "unknown error"}
+        {t("loadFailed", {
+          error:
+            channelsQuery.error instanceof Error ? channelsQuery.error.message : t("unknownError"),
+        })}
       </p>
     );
   }
 
   if (grouped.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">No channels connected for this project yet.</p>
-    );
+    return <p className="text-sm text-muted-foreground">{t("noChannels")}</p>;
   }
 
   return (
     <div className="space-y-6">
       <header>
-        <h2 className="text-lg font-semibold">Primary channels</h2>
-        <p className="text-sm text-muted-foreground">
-          The primary channel becomes the default selection when scheduling posts to that platform.
-          You can override it from the editor at any time.
-        </p>
+        <h2 className="text-lg font-semibold">{t("title")}</h2>
+        <p className="text-sm text-muted-foreground">{t("description")}</p>
       </header>
 
       {grouped.map(([provider, channels]) => (
@@ -97,8 +94,8 @@ export function PrimaryChannelsSection() {
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">{channel.name}</span>
                   {channel.isPrimary && (
-                    <Badge variant="secondary" aria-label="Default channel">
-                      Default
+                    <Badge variant="secondary" aria-label={t("defaultChannelAria")}>
+                      {t("defaultBadge")}
                     </Badge>
                   )}
                 </div>

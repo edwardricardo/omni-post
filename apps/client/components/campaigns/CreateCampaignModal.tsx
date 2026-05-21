@@ -7,6 +7,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { Button, Input, Label } from "@packages/ui";
 import { useCreateCampaign } from "@/hooks/api/useCampaigns";
 
@@ -22,6 +23,7 @@ interface CreateCampaignModalProps {
  * and optional UTM parameter configuration.
  */
 export function CreateCampaignModal({ projectId, open, onClose }: CreateCampaignModalProps) {
+  const t = useTranslations("campaigns.components");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -84,32 +86,32 @@ export function CreateCampaignModal({ projectId, open, onClose }: CreateCampaign
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <button
         type="button"
-        aria-label="Close modal"
+        aria-label={t("closeModalAria")}
         className="fixed inset-0 bg-black/25 cursor-default"
         onClick={onClose}
       />
       <div className="relative z-50 w-full max-w-lg rounded-lg bg-card border shadow-lg p-6">
-        <h2 className="text-lg font-semibold mb-4">New Campaign</h2>
+        <h2 className="text-lg font-semibold mb-4">{t("newCampaign")}</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="campaign-name">Name *</Label>
+            <Label htmlFor="campaign-name">{t("labelName")}</Label>
             <Input
               ref={nameInputRef}
               id="campaign-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Spring Product Launch"
+              placeholder={t("placeholderName")}
             />
           </div>
 
           <div>
-            <Label htmlFor="campaign-desc">Description</Label>
+            <Label htmlFor="campaign-desc">{t("labelDescription")}</Label>
             <textarea
               id="campaign-desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Campaign objectives and notes..."
+              placeholder={t("placeholderDescription")}
               rows={2}
               className="w-full rounded-md border px-3 py-2 text-sm bg-background resize-none"
             />
@@ -117,7 +119,7 @@ export function CreateCampaignModal({ projectId, open, onClose }: CreateCampaign
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="campaign-start">Start Date</Label>
+              <Label htmlFor="campaign-start">{t("labelStartDate")}</Label>
               <Input
                 id="campaign-start"
                 type="date"
@@ -126,7 +128,7 @@ export function CreateCampaignModal({ projectId, open, onClose }: CreateCampaign
               />
             </div>
             <div>
-              <Label htmlFor="campaign-end">End Date</Label>
+              <Label htmlFor="campaign-end">{t("labelEndDate")}</Label>
               <Input
                 id="campaign-end"
                 type="date"
@@ -142,7 +144,7 @@ export function CreateCampaignModal({ projectId, open, onClose }: CreateCampaign
               onClick={() => setShowUtm(!showUtm)}
               className="text-sm text-primary hover:underline"
             >
-              {showUtm ? "Hide UTM Parameters" : "Add UTM Parameters"}
+              {showUtm ? t("hideUtm") : t("addUtm")}
             </button>
 
             {showUtm && (
@@ -171,10 +173,10 @@ export function CreateCampaignModal({ projectId, open, onClose }: CreateCampaign
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" onClick={onClose}>
-              Cancel
+              {t("cancel")}
             </Button>
             <Button type="submit" disabled={!canSubmit}>
-              {createMutation.isPending ? "Creating..." : "Create Campaign"}
+              {createMutation.isPending ? t("creating") : t("createCampaign")}
             </Button>
           </div>
         </form>

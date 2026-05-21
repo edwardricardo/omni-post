@@ -9,6 +9,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import {
   useExternalNotificationConfigs,
   useCreateWebhook,
@@ -34,6 +35,7 @@ const CHANNEL_COLOURS: Record<string, string> = {
 };
 
 export function ExternalNotificationConfigs({ projectId }: ExternalNotificationConfigsProps) {
+  const t = useTranslations("settings.components");
   const [showAddForm, setShowAddForm] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -59,9 +61,9 @@ export function ExternalNotificationConfigs({ projectId }: ExternalNotificationC
       {
         onSuccess: () => {
           setShowAddForm(false);
-          showToast("success", "Webhook added successfully");
+          showToast("success", t("notifications.toastAdded"));
         },
-        onError: () => showToast("error", "Failed to add webhook"),
+        onError: () => showToast("error", t("notifications.toastAddFailed")),
       }
     );
   };
@@ -70,17 +72,20 @@ export function ExternalNotificationConfigs({ projectId }: ExternalNotificationC
     deleteMutation.mutate(id, {
       onSuccess: () => {
         setDeleteId(null);
-        showToast("success", "Webhook deleted");
+        showToast("success", t("notifications.toastDeleted"));
       },
-      onError: () => showToast("error", "Failed to delete webhook"),
+      onError: () => showToast("error", t("notifications.toastDeleteFailed")),
     });
   };
 
   const handleTest = (id: string) => {
     testMutation.mutate(id, {
       onSuccess: ({ sent }) =>
-        showToast(sent ? "success" : "error", sent ? "Test notification sent!" : "Test failed"),
-      onError: () => showToast("error", "Test request failed"),
+        showToast(
+          sent ? "success" : "error",
+          sent ? t("notifications.toastTestSent") : t("notifications.toastTestFailed")
+        ),
+      onError: () => showToast("error", t("notifications.toastTestRequestFailed")),
     });
   };
 
@@ -105,17 +110,15 @@ export function ExternalNotificationConfigs({ projectId }: ExternalNotificationC
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base font-semibold text-gray-900">External Notifications</h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Send notifications to Slack or Teams channels via webhooks.
-            </p>
+            <h2 className="text-base font-semibold text-gray-900">{t("notifications.title")}</h2>
+            <p className="text-xs text-gray-500 mt-0.5">{t("notifications.subtitle")}</p>
           </div>
           <button
             onClick={() => setShowAddForm(true)}
             className="flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-700"
           >
             <Plus className="h-3.5 w-3.5" />
-            Add Webhook
+            {t("notifications.addWebhook")}
           </button>
         </div>
 
@@ -144,20 +147,20 @@ export function ExternalNotificationConfigs({ projectId }: ExternalNotificationC
             role="alert"
             className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3"
           >
-            <p className="text-sm text-red-700">Failed to load webhook configs</p>
+            <p className="text-sm text-red-700">{t("notifications.loadError")}</p>
             <button
               onClick={() => void refetch()}
               className="text-xs text-red-600 hover:underline ml-auto"
             >
-              Retry
+              {t("notifications.retry")}
             </button>
           </div>
         )}
 
         {!isLoading && !isError && configs.length === 0 && (
           <div className="rounded-xl border border-dashed border-gray-300 py-10 text-center">
-            <p className="text-sm text-gray-500">No webhook integrations configured</p>
-            <p className="text-xs text-gray-400 mt-1">Add one using the button above</p>
+            <p className="text-sm text-gray-500">{t("notifications.emptyTitle")}</p>
+            <p className="text-xs text-gray-400 mt-1">{t("notifications.emptyHint")}</p>
           </div>
         )}
 
@@ -175,7 +178,7 @@ export function ExternalNotificationConfigs({ projectId }: ExternalNotificationC
               <div>
                 <p className="text-sm font-medium text-gray-900">{config.label}</p>
                 <p className="text-xs text-gray-500">
-                  {config.events.length} event{config.events.length !== 1 ? "s" : ""}
+                  {t("notifications.eventCount", { count: config.events.length })}
                 </p>
               </div>
             </div>
@@ -183,15 +186,15 @@ export function ExternalNotificationConfigs({ projectId }: ExternalNotificationC
               <button
                 onClick={() => handleTest(config.id)}
                 disabled={testMutation.isPending}
-                title="Send test notification"
+                title={t("notifications.testTitle")}
                 className="flex items-center gap-1.5 rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
               >
                 <TestTube2 className="h-3.5 w-3.5" />
-                Test
+                {t("notifications.test")}
               </button>
               <button
                 onClick={() => setDeleteId(config.id)}
-                title="Delete webhook"
+                title={t("notifications.deleteTitle")}
                 className="rounded-md border border-red-200 p-1.5 text-red-600 hover:bg-red-50"
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -220,30 +223,28 @@ export function ExternalNotificationConfigs({ projectId }: ExternalNotificationC
         >
           <button
             type="button"
-            aria-label="Close delete webhook dialog"
+            aria-label={t("notifications.closeDeleteDialog")}
             className="absolute inset-0 cursor-default"
             onClick={() => setDeleteId(null)}
           />
           <div className="relative w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
             <h3 id="delete-webhook-title" className="text-base font-semibold text-gray-900">
-              Delete Webhook
+              {t("notifications.deleteDialogTitle")}
             </h3>
-            <p className="mt-2 text-sm text-gray-500">
-              Are you sure you want to delete this webhook? This action cannot be undone.
-            </p>
+            <p className="mt-2 text-sm text-gray-500">{t("notifications.deleteDialogBody")}</p>
             <div className="mt-5 flex justify-end gap-3">
               <button
                 onClick={() => setDeleteId(null)}
                 className="rounded-md px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
               >
-                Cancel
+                {t("notifications.cancel")}
               </button>
               <button
                 onClick={() => handleDelete(deleteId)}
                 disabled={deleteMutation.isPending}
                 className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
               >
-                {deleteMutation.isPending ? "Deleting…" : "Delete"}
+                {deleteMutation.isPending ? t("notifications.deleting") : t("notifications.delete")}
               </button>
             </div>
           </div>

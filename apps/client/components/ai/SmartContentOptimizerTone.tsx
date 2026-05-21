@@ -8,6 +8,7 @@
 
 import React from "react";
 import { MessageCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { ToneAnalysis } from "./smartContentOptimizerUtils";
 
 interface SmartContentOptimizerToneProps {
@@ -20,10 +21,11 @@ interface SmartContentOptimizerToneProps {
  * emotional analysis bars, and tone adjustment recommendations.
  */
 export function SmartContentOptimizerTone({ toneAnalysis }: SmartContentOptimizerToneProps) {
+  const t = useTranslations("ai.components");
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h4 className="text-lg font-semibold text-gray-900">Tone Analysis</h4>
+        <h4 className="text-lg font-semibold text-gray-900">{t("tone.title")}</h4>
         <div
           className={`px-3 py-1 rounded-full text-sm font-medium ${
             toneAnalysis.confidence >= 80
@@ -33,13 +35,13 @@ export function SmartContentOptimizerTone({ toneAnalysis }: SmartContentOptimize
                 : "bg-red-100 text-red-800"
           }`}
         >
-          {Math.round(toneAnalysis.confidence)}% confidence
+          {t("tone.confidence", { confidence: Math.round(toneAnalysis.confidence) })}
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <h5 className="font-semibold text-gray-900 mb-3">Detected Tone</h5>
+          <h5 className="font-semibold text-gray-900 mb-3">{t("tone.detectedTone")}</h5>
           <div className="bg-blue-50 rounded-lg p-4">
             <div className="flex items-center space-x-2 mb-2">
               <MessageCircle className="w-5 h-5 text-blue-600" />
@@ -48,17 +50,17 @@ export function SmartContentOptimizerTone({ toneAnalysis }: SmartContentOptimize
               </span>
             </div>
             <p className="text-sm text-blue-700">
-              Appropriate for: {toneAnalysis.appropriateFor.join(", ")}
+              {t("tone.appropriateFor", { list: toneAnalysis.appropriateFor.join(", ") })}
             </p>
           </div>
         </div>
 
         <div>
-          <h5 className="font-semibold text-gray-900 mb-3">Emotional Analysis</h5>
+          <h5 className="font-semibold text-gray-900 mb-3">{t("tone.emotionalAnalysis")}</h5>
           <div className="space-y-3">
             <div>
               <div className="flex justify-between mb-1">
-                <span className="text-sm text-gray-600">Positive</span>
+                <span className="text-sm text-gray-600">{t("tone.positive")}</span>
                 <span className="text-sm font-medium">
                   {Math.round(toneAnalysis.emotionalTone.positive * 100)}%
                 </span>
@@ -73,7 +75,7 @@ export function SmartContentOptimizerTone({ toneAnalysis }: SmartContentOptimize
 
             <div>
               <div className="flex justify-between mb-1">
-                <span className="text-sm text-gray-600">Neutral</span>
+                <span className="text-sm text-gray-600">{t("tone.neutral")}</span>
                 <span className="text-sm font-medium">
                   {Math.round(toneAnalysis.emotionalTone.neutral * 100)}%
                 </span>
@@ -88,7 +90,7 @@ export function SmartContentOptimizerTone({ toneAnalysis }: SmartContentOptimize
 
             <div>
               <div className="flex justify-between mb-1">
-                <span className="text-sm text-gray-600">Negative</span>
+                <span className="text-sm text-gray-600">{t("tone.negative")}</span>
                 <span className="text-sm font-medium">
                   {Math.round(toneAnalysis.emotionalTone.negative * 100)}%
                 </span>
@@ -106,11 +108,12 @@ export function SmartContentOptimizerTone({ toneAnalysis }: SmartContentOptimize
 
       {toneAnalysis.suggestedTone && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-          <h5 className="font-semibold text-amber-900 mb-2">Tone Recommendation</h5>
+          <h5 className="font-semibold text-amber-900 mb-2">{t("tone.recommendationTitle")}</h5>
           <p className="text-amber-800">
-            Consider adjusting to a more{" "}
-            <span className="font-semibold">{toneAnalysis.suggestedTone}</span> tone for better
-            alignment with your target audience and platform.
+            {t.rich("tone.recommendationBody", {
+              tone: toneAnalysis.suggestedTone,
+              strong: (chunks) => <span className="font-semibold">{chunks}</span>,
+            })}
           </p>
         </div>
       )}

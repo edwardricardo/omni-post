@@ -8,6 +8,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import { RefreshCw, Unplug, ExternalLink } from "lucide-react";
 import { useDisconnectCrm, useSyncCrm } from "@/hooks/api/useCrm";
@@ -34,6 +35,7 @@ const PLATFORM_INFO = {
 } as const;
 
 export function CrmConnectionCard({ platform, connection }: CrmConnectionCardProps) {
+  const t = useTranslations("settings.components");
   const [showConfirm, setShowConfirm] = useState(false);
   const disconnectMutation = useDisconnectCrm();
   const syncMutation = useSyncCrm();
@@ -70,7 +72,7 @@ export function CrmConnectionCard({ platform, connection }: CrmConnectionCardPro
         <div>
           <h3 className="font-medium">{info.name}</h3>
           <p className="text-xs text-muted-foreground">
-            {isConnected ? "Connected" : "Not connected"}
+            {isConnected ? t("crmCard.connected") : t("crmCard.notConnected")}
           </p>
         </div>
       </div>
@@ -78,26 +80,28 @@ export function CrmConnectionCard({ platform, connection }: CrmConnectionCardPro
       {!isConnected ? (
         <div>
           <p className="text-sm text-muted-foreground mb-4">
-            Sync contacts and log social activities in {info.name}.
+            {t("crmCard.description", { name: info.name })}
           </p>
           <Button onClick={handleConnect} className="w-full">
             <ExternalLink className="h-4 w-4 mr-2" />
-            Connect {info.name}
+            {t("crmCard.connect", { name: info.name })}
           </Button>
         </div>
       ) : (
         <div className="space-y-3">
           {connection?.portalId && (
-            <p className="text-xs text-muted-foreground">Portal: {connection.portalId}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("crmCard.portal", { id: connection.portalId })}
+            </p>
           )}
           {connection?.instanceUrl && (
             <p className="text-xs text-muted-foreground truncate">
-              Instance: {connection.instanceUrl}
+              {t("crmCard.instance", { url: connection.instanceUrl })}
             </p>
           )}
           {connection?.lastSyncAt && (
             <p className="text-xs text-muted-foreground">
-              Last sync: {new Date(connection.lastSyncAt).toLocaleString()}
+              {t("crmCard.lastSync", { date: new Date(connection.lastSyncAt).toLocaleString() })}
             </p>
           )}
 
@@ -112,7 +116,7 @@ export function CrmConnectionCard({ platform, connection }: CrmConnectionCardPro
               <RefreshCw
                 className={`h-4 w-4 mr-1 ${syncMutation.isPending ? "animate-spin" : ""}`}
               />
-              {syncMutation.isPending ? "Syncing..." : "Sync Now"}
+              {syncMutation.isPending ? t("crmCard.syncing") : t("crmCard.syncNow")}
             </Button>
             <Button
               variant="outline"
@@ -126,8 +130,10 @@ export function CrmConnectionCard({ platform, connection }: CrmConnectionCardPro
 
           {showConfirm && (
             <div role="alert" className="p-3 rounded-md bg-red-50 border border-red-200 text-sm">
-              <p className="font-medium text-red-800">Disconnect {info.name}?</p>
-              <p className="text-red-700 text-xs mt-1">Contact sync will stop.</p>
+              <p className="font-medium text-red-800">
+                {t("crmCard.disconnectConfirm", { name: info.name })}
+              </p>
+              <p className="text-red-700 text-xs mt-1">{t("crmCard.disconnectWarning")}</p>
               <div className="flex gap-2 mt-2">
                 <Button
                   size="sm"
@@ -135,10 +141,10 @@ export function CrmConnectionCard({ platform, connection }: CrmConnectionCardPro
                   onClick={handleDisconnect}
                   disabled={disconnectMutation.isPending}
                 >
-                  Disconnect
+                  {t("crmCard.disconnect")}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setShowConfirm(false)}>
-                  Cancel
+                  {t("crmCard.cancel")}
                 </Button>
               </div>
             </div>

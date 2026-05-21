@@ -9,6 +9,7 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import { formatTime } from "../utils";
 import type { PreviewSegment } from "./types";
 
@@ -27,14 +28,17 @@ export function SegmentsGrid({
   progress,
   onPlay,
 }: SegmentsGridProps) {
+  const t = useTranslations("instagram.components");
   return (
     <div className="flex-1 p-6 overflow-y-auto">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-gray-900">Preview Segments ({segments.length})</h3>
+        <h3 className="font-semibold text-gray-900">
+          {t("segmentsGrid.title", { count: segments.length })}
+        </h3>
         {isProcessing && (
           <div className="flex items-center space-x-2 text-sm text-gray-600">
             <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-            <span>Generating thumbnails... {progress.toFixed(0)}%</span>
+            <span>{t("segmentsGrid.generatingThumbnails", { progress: progress.toFixed(0) })}</span>
           </div>
         )}
       </div>
@@ -45,7 +49,7 @@ export function SegmentsGrid({
             key={segment.id}
             role="button"
             tabIndex={0}
-            aria-label={`Play segment ${index + 1}`}
+            aria-label={t("segmentsGrid.playSegment", { number: index + 1 })}
             aria-pressed={index === currentPreviewIndex}
             className={`relative border-2 rounded-lg overflow-hidden cursor-pointer transition-all ${
               index === currentPreviewIndex
@@ -64,7 +68,7 @@ export function SegmentsGrid({
               {segment.thumbnail ? (
                 <img
                   src={segment.thumbnail}
-                  alt={`Segment ${index + 1}`}
+                  alt={t("segmentsGrid.segmentAlt", { number: index + 1 })}
                   className="w-full h-full object-cover"
                 />
               ) : segment.isGenerating ? (
@@ -100,7 +104,7 @@ export function SegmentsGrid({
       {segments.length === 0 && (
         <div className="text-center py-12 text-gray-500">
           <div className="text-4xl mb-4">🎬</div>
-          <div>Generating segments...</div>
+          <div>{t("segmentsGrid.generatingSegments")}</div>
         </div>
       )}
     </div>
