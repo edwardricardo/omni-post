@@ -19,10 +19,10 @@
 | ---------------------------- | ------ | ------ | ------- |
 | Bloqueantes compartidos (B)  | 5      | 5      | ✅      |
 | Fase 0 — Funciones autónomas | 11     | 11     | ✅      |
-| Fase 1 — Necesarias          | 16     | 0      | ⬜      |
+| Fase 1 — Necesarias          | 16     | 1      | 🟦      |
 | Fase 2 — Bueno tenerla       | 21     | 0      | ⬜      |
 | Fase 3 — Interesantes        | 14     | 0      | ⬜      |
-| **Total**                    | **67** | **16** | **24%** |
+| **Total**                    | **67** | **17** | **25%** |
 
 > Actualizar esta tabla al cerrar cada tarea. `Estado`: ⬜ no iniciado · 🟦 en progreso · ✅ completo.
 
@@ -75,7 +75,7 @@
 
 ### Multi-idioma 🔗 dep:B4
 
-- [ ] **F1-API-1** `[M]` Generación IA **nativa por locale** + RAG sobre glosario/style-guide (canon §9.1). 🔗 dep:B4. **DoD:** generación produce contenido nativo por locale objetivo; test por locale.
+- [x] **F1-API-1** `[L]` Generación IA **nativa por locale** + RAG vectorial (pgvector + embeddings multi-provider + retrieval semántico) sobre glosario/style-guide por locale (canon §9.1). 🔗 dep:B4. **DoD:** generación produce contenido nativo por locale objetivo; test por locale.
 - [ ] **F1-CLI-1** `[M]` `next-intl` App Router: segmento `[locale]`, middleware, ICU MessageFormat (canon §9.5). 🔗 dep:B4. **DoD:** UI client conmuta locale; `generateStaticParams` por locale; sin strings concatenados.
 - [ ] **F1-CLI-2** `[S]` Migrar catálogos de strings a ICU + revisar pluralización. 🔗 dep:F1-CLI-1. **DoD:** catálogos ICU-válidos; lint de i18n verde.
 

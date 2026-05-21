@@ -196,6 +196,39 @@ export class AIService extends BaseService {
   }
 
   /**
+   * @method generateEmbeddings
+   * @description Generates dense vector embeddings via the orchestrator's
+   *   cross-provider routing. Providers without `supportsEmbeddings` are
+   *   skipped automatically.
+   * @param texts - One or more strings to embed.
+   * @param options - Override the model or dimensions (default 768).
+   * @param _accountId - Per-account routing key; unused until BYOK
+   *   embeddings routing is wired.
+   * @returns Result of the embedding matrix, or `"AI_ERROR"`.
+   */
+  async generateEmbeddings(
+    texts: string[],
+    options?: { model?: string; dimensions?: number },
+    _accountId?: string
+  ): Promise<Result<number[][], "AI_ERROR">> {
+    try {
+      const orchestrator = this.getAdminOrchestrator();
+      const res = await orchestrator.generateEmbeddings(texts, options);
+      if (!res.ok || res.value === undefined) {
+        aiServiceLogger.warn(
+          { textCount: texts.length, error: res.error?.code ?? "UNKNOWN" },
+          "Embeddings generation failed across all providers"
+        );
+        return err("AI_ERROR");
+      }
+      return ok(res.value);
+    } catch (error: unknown) {
+      aiServiceLogger.error({ err: error, textCount: texts.length }, "Embeddings generation threw");
+      return err("AI_ERROR");
+    }
+  }
+
+  /**
    * @method analyzeContent
    * @description Analyzes content via BYOK or pool provider.
    */

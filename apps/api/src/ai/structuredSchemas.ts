@@ -231,3 +231,28 @@ export const trendScoringSpec: StructuredOutputSpec<TrendScoresClassification> =
   jsonSchema: z.toJSONSchema(trendScoresSchema) as Record<string, unknown>,
   parse: (raw: unknown): TrendScoresClassification => trendScoresSchema.parse(raw),
 };
+
+// ---------------------------------------------------------------------------
+// Localized content generation
+// ---------------------------------------------------------------------------
+
+const localizedContentSchema = z.object({
+  content: z.string().min(1),
+  rationale: z.string().nullable(),
+});
+
+/**
+ * Structured payload for locale-native content generation. The model is
+ * instructed to write directly in the target locale and to include a brief
+ * rationale (optional) that justifies the chosen angle.
+ */
+export type LocalizedContentClassification = z.infer<typeof localizedContentSchema>;
+
+/** Spec for locale-native content generation grounded by glossary + style-guide. */
+export const localizedContentSpec: StructuredOutputSpec<LocalizedContentClassification> = {
+  name: "localized_content",
+  description:
+    "Generate a single piece of content written natively in the target locale, grounded by the supplied glossary terms and style-guide rules. Never translate from another language.",
+  jsonSchema: z.toJSONSchema(localizedContentSchema) as Record<string, unknown>,
+  parse: (raw: unknown): LocalizedContentClassification => localizedContentSchema.parse(raw),
+};

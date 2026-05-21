@@ -617,6 +617,86 @@ export class AIOrchestrator {
     };
   }
 
+  /**
+   * @method generateEmbeddings
+   * @description Generates dense vector embeddings via the first available
+   *   provider that declares `supportsEmbeddings`. Order is governed by
+   *   `EMBEDDINGS_PROVIDER_PREFERENCE` (default `openai,gemini`). Providers
+   *   without embeddings (Anthropic, Perplexity) are skipped.
+   * @param texts - One or more strings to embed.
+   * @param options - Override the model or dimensions (default 768).
+   * @returns AIResponse with the embedding matrix (`texts.length × dim`).
+   */
+  async generateEmbeddings(
+    texts: string[],
+    options?: { model?: string; dimensions?: number }
+  ): Promise<AIResponse<number[][]>> {
+    const startTime = Date.now();
+    const preference = env.EMBEDDINGS_PROVIDER_PREFERENCE.split(",")
+      .map((name) => name.trim().toLowerCase())
+      .filter((name) => name.length > 0);
+
+    for (const providerName of preference) {
+      const provider = this.providers.get(providerName);
+      if (!provider || !provider.supportsEmbeddings || !provider.generateEmbeddings) {
+        continue;
+      }
+
+      if (!(await this.checkRateLimit(providerName))) {
+        aiLogger.warn({ provider: providerName }, "Embeddings rate limit exceeded, trying next");
+        continue;
+      }
+
+      if (!(await provider.isAvailable())) {
+        aiLogger.warn({ provider: providerName }, "Embeddings provider unavailable, trying next");
+        continue;
+      }
+
+      try {
+        const taskStart = Date.now();
+        const vectors = await provider.generateEmbeddings(texts, options);
+        const latency = Date.now() - taskStart;
+        this.updateMetrics(providerName, true, latency, texts.length);
+
+        return {
+          ok: true,
+          value: vectors,
+          metadata: {
+            provider: providerName,
+            model: options?.model ?? `${providerName}-embeddings`,
+            tokensUsed: texts.length,
+            latency,
+            cached: false,
+          },
+        };
+      } catch (error: unknown) {
+        this.updateMetrics(providerName, false, Date.now() - startTime, 0);
+        aiLogger.error(
+          { err: error, provider: providerName },
+          "Embeddings provider attempt failed"
+        );
+      }
+    }
+
+    return {
+      ok: false,
+      error: {
+        code: "ALL_PROVIDERS_FAILED",
+        message:
+          "All embeddings providers failed (no provider supports embeddings or all unavailable)",
+        provider: "none",
+        retryable: true,
+      },
+      metadata: {
+        provider: "none",
+        model: "none",
+        tokensUsed: 0,
+        latency: Date.now() - startTime,
+        cached: false,
+      },
+    };
+  }
+
   async analyzeContent(
     content: string,
     analysisType: "sentiment" | "tone" | "readability" | "engagement"

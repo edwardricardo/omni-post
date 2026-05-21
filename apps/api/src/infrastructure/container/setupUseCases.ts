@@ -36,6 +36,7 @@ import { setupTrendUseCases } from "./setupTrendUseCases.js";
 import { setupRepurposeUseCases } from "./setupRepurposeUseCases.js";
 import { setupChannelUseCases } from "./setupChannelUseCases.js";
 import { setupGuardrailUseCases } from "./setupGuardrailUseCases.js";
+import { setupLocalizedGenerationUseCases } from "./setupLocalizedGenerationUseCases.js";
 
 /**
  * @method setupUseCases
@@ -44,6 +45,7 @@ import { setupGuardrailUseCases } from "./setupGuardrailUseCases.js";
 export function setupUseCases(container: Container): void {
   // Guardrails first so downstream use cases can resolve the registry.
   setupGuardrailUseCases(container);
+  setupLocalizedGenerationUseCases(container);
   setupPostUseCases(container);
   setupChannelUseCases(container);
   setupApiKeyUseCases(container);

@@ -178,6 +178,23 @@ export interface AIProvider {
     count: number
   ): Promise<string[]>;
   generateImage?(options: ImageGenerationOptions): Promise<AIResponse<ImageGenerationResult>>;
+
+  /**
+   * Whether this provider exposes a native embeddings API.
+   * Providers without native embeddings (Anthropic, Perplexity) declare
+   * `false` and omit `generateEmbeddings`; the orchestrator falls back to
+   * the next configured provider that supports them.
+   */
+  readonly supportsEmbeddings: boolean;
+  /**
+   * Optional embeddings generation. Implementations target a uniform
+   * dimension (default 768) so vectors are comparable across providers
+   * without re-embedding.
+   */
+  generateEmbeddings?(
+    texts: string[],
+    options?: { model?: string; dimensions?: number }
+  ): Promise<number[][]>;
 }
 
 export interface AITaskConfig {

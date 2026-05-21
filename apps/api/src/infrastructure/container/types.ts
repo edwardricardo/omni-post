@@ -485,6 +485,19 @@ export const TOKENS = {
   DispatchDetectTrendsUseCase: Symbol.for("DispatchDetectTrendsUseCase"),
   GetTrendRadarQuery: Symbol.for("GetTrendRadarQuery"),
 
+  // Localized generation (RAG) — per-locale glossary + style-guide
+  GlossaryRepository: Symbol.for("GlossaryRepository"),
+  StyleGuideRuleRepository: Symbol.for("StyleGuideRuleRepository"),
+  SemanticRetrievalPort: Symbol.for("SemanticRetrievalPort"),
+  EmbeddingService: Symbol.for("EmbeddingService"),
+  UpsertGlossaryTermUseCase: Symbol.for("UpsertGlossaryTermUseCase"),
+  DeleteGlossaryTermUseCase: Symbol.for("DeleteGlossaryTermUseCase"),
+  ListGlossaryByLocaleQuery: Symbol.for("ListGlossaryByLocaleQuery"),
+  UpsertStyleGuideRuleUseCase: Symbol.for("UpsertStyleGuideRuleUseCase"),
+  DeleteStyleGuideRuleUseCase: Symbol.for("DeleteStyleGuideRuleUseCase"),
+  ListStyleGuideRulesByLocaleQuery: Symbol.for("ListStyleGuideRulesByLocaleQuery"),
+  GenerateLocalizedContentUseCase: Symbol.for("GenerateLocalizedContentUseCase"),
+
   // Guardrails
   GuardrailPort_ContentPolicy: Symbol.for("GuardrailPort_ContentPolicy"),
   GuardrailPort_PIIRedaction: Symbol.for("GuardrailPort_PIIRedaction"),

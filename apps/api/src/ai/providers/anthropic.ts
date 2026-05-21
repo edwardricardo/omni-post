@@ -33,6 +33,7 @@ const aiLogger = logger.child({ module: "ai", provider: "anthropic" });
  */
 export class AnthropicProvider implements AIProvider {
   name = "anthropic" as const;
+  readonly supportsEmbeddings = false;
   private client: Anthropic;
   private config: AIProviderConfig;
 

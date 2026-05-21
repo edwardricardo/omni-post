@@ -28,6 +28,7 @@ const aiLogger = logger.child({ module: "ai", provider: "gemini" });
 
 export class GeminiProvider implements AIProvider {
   name = "gemini" as const;
+  readonly supportsEmbeddings = true;
   private client: GoogleGenAI;
   private config: AIProviderConfig;
 
@@ -311,5 +312,29 @@ Return only a JSON array of exactly ${count} strings. No additional formatting, 
 Original content: "${content}"`;
 
     return this.generateStructured([{ role: "user", content: prompt }], variationsSpec());
+  }
+
+  /**
+   * @method generateEmbeddings
+   * @description Generates dense vector embeddings via the Gemini embedding
+   *   API. Uses `outputDimensionality` so the output aligns with the
+   *   project's uniform embedding dimension across providers.
+   * @param texts - One or more strings to embed.
+   * @param options - Override the model or output dimensions.
+   * @returns Array of embedding vectors, one per input text.
+   */
+  async generateEmbeddings(
+    texts: string[],
+    options: { model?: string; dimensions?: number } = {}
+  ): Promise<number[][]> {
+    const model = options.model ?? "gemini-embedding-001";
+    const outputDimensionality = options.dimensions ?? 768;
+    const result = await this.client.models.embedContent({
+      model,
+      contents: texts,
+      config: { outputDimensionality },
+    });
+    const embeddings = result.embeddings ?? [];
+    return embeddings.map((entry) => entry.values ?? []);
   }
 }

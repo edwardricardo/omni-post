@@ -160,10 +160,14 @@ export const env = createEnv({
     // ── AI providers (CONDITIONAL — features auto-disable if missing) ───
     OPENAI_API_KEY: z.string().optional(),
     OPENAI_MODEL: z.string().optional(),
+    OPENAI_EMBEDDINGS_MODEL: z.string().default("text-embedding-3-small"),
     PERPLEXITY_API_KEY: z.string().optional(),
     PERPLEXITY_MODEL: z.string().optional(),
     GEMINI_API_KEY: z.string().optional(),
     GEMINI_MODEL: z.string().optional(),
+    GEMINI_EMBEDDINGS_MODEL: z.string().default("gemini-embedding-001"),
+    EMBEDDINGS_DIMENSIONS: z.coerce.number().int().positive().default(768),
+    EMBEDDINGS_PROVIDER_PREFERENCE: z.string().default("openai,gemini"),
 
     // ── Email (Resend) ──────────────────────────────────────────────────
     RESEND_API_KEY: z.string().optional(),

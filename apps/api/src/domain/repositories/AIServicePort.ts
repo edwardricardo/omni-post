@@ -83,4 +83,21 @@ export interface AIServicePort {
     options?: GenerationOptions,
     accountId?: string
   ): Promise<Result<T, "AI_ERROR">>;
+
+  /**
+   * Generates dense vector embeddings for the input texts. The orchestrator
+   * routes the call to the first configured provider whose
+   * `supportsEmbeddings` is `true` (canonical order:
+   * `EMBEDDINGS_PROVIDER_PREFERENCE` env). Anthropic and Perplexity declare
+   * `supportsEmbeddings = false` and are skipped.
+   *
+   * Returns one vector per input text. Dimensions default to 768 so the
+   * output is comparable across providers without re-embedding (OpenAI
+   * truncates Matryoshka-style; Gemini produces 768 natively).
+   */
+  generateEmbeddings(
+    texts: string[],
+    options?: { model?: string; dimensions?: number },
+    accountId?: string
+  ): Promise<Result<number[][], "AI_ERROR">>;
 }

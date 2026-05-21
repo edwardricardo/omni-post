@@ -27,6 +27,7 @@ const aiLogger = logger.child({ module: "ai", provider: "perplexity" });
 
 export class PerplexityProvider implements AIProvider {
   name = "perplexity" as const;
+  readonly supportsEmbeddings = false;
   private config: AIProviderConfig;
   private baseUrl: string;
 

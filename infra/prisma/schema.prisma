@@ -1,11 +1,12 @@
 generator client {
   provider        = "prisma-client"
   output          = "./generated/prisma/client"
-  previewFeatures = ["fullTextSearchPostgres", "relationJoins", "partialIndexes"]
+  previewFeatures = ["fullTextSearchPostgres", "relationJoins", "partialIndexes", "postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  extensions = [vector]
 }
 
 model Account {
@@ -70,6 +71,8 @@ model Account {
   referralCode             ReferralCode?
   repurposeProposals       RepurposeProposal[]
   trendRadarResults        TrendRadarResult[]
+  glossaryEntries          Glossary[]
+  styleGuideRules          StyleGuideRule[]
   gatewayProvider          GatewayProvider           @default(STRIPE)
   gatewayCustomerId        String?
   pendingGatewayProvider   GatewayProvider?
@@ -3469,4 +3472,43 @@ model EventSnapshot {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@map("event_snapshots")
+}
+
+/// Glossary term per (account, locale). Powers RAG over the customer's
+/// terminology for locale-native AI content generation.
+model Glossary {
+  id             String                       @id @default(uuid())
+  accountId      String
+  locale         String
+  term           String
+  definition     String                       @db.Text
+  usage          String?                      @db.Text
+  embedding      Unsupported("vector(768)")?
+  embeddingModel String                       @default("text-embedding-3-small")
+  createdAt      DateTime                     @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime                     @updatedAt @db.Timestamptz(6)
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, locale, term])
+  @@index([accountId, locale])
+}
+
+/// Style-guide rule per (account, locale). Powers RAG over the customer's
+/// writing rules for locale-native AI content generation.
+model StyleGuideRule {
+  id             String                       @id @default(uuid())
+  accountId      String
+  locale         String
+  rule           String                       @db.Text
+  example        String?                      @db.Text
+  category       String?
+  embedding      Unsupported("vector(768)")?
+  embeddingModel String                       @default("text-embedding-3-small")
+  createdAt      DateTime                     @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime                     @updatedAt @db.Timestamptz(6)
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, locale])
 }

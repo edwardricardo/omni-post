@@ -31,6 +31,7 @@ const aiLogger = logger.child({ module: "ai", provider: "openai" });
 
 export class OpenAIProvider implements AIProvider {
   name = "openai" as const;
+  readonly supportsEmbeddings = true;
   private client: OpenAI;
   private config: AIProviderConfig;
 
@@ -283,5 +284,29 @@ Return as a JSON array of strings.`;
       ],
       variationsSpec()
     );
+  }
+
+  /**
+   * @method generateEmbeddings
+   * @description Generates dense vector embeddings for the input texts.
+   *   Uses the OpenAI embeddings API with optional dimension truncation
+   *   (Matryoshka-style) so vectors align with the project's uniform
+   *   dimension across providers.
+   * @param texts - One or more strings to embed.
+   * @param options - Override the model or output dimensions.
+   * @returns Array of embedding vectors, one per input text.
+   */
+  async generateEmbeddings(
+    texts: string[],
+    options: { model?: string; dimensions?: number } = {}
+  ): Promise<number[][]> {
+    const model = options.model ?? "text-embedding-3-small";
+    const dimensions = options.dimensions ?? 768;
+    const response = await this.client.embeddings.create({
+      model,
+      input: texts,
+      dimensions,
+    });
+    return response.data.map((item) => item.embedding);
   }
 }
