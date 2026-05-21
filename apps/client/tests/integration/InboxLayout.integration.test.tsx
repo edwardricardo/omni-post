@@ -13,6 +13,7 @@ import { render, screen, waitFor, fireEvent, within } from "@testing-library/rea
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { InboxLayout } from "../../components/inbox/InboxLayout";
+import { IntlTestProvider } from "../intl-test-utils";
 import type { InboxConversation, InboxMessage, InboxMessagesPage } from "../../hooks/api/useInbox";
 
 const mockFetch = vi.fn();
@@ -104,7 +105,9 @@ function renderInbox() {
   const client = makeClient();
   return render(
     <QueryClientProvider client={client}>
-      <InboxLayout userId="user-1" />
+      <IntlTestProvider>
+        <InboxLayout userId="user-1" />
+      </IntlTestProvider>
     </QueryClientProvider>
   );
 }
@@ -126,7 +129,7 @@ describe("InboxLayout", () => {
 
     renderInbox();
 
-    await waitFor(() => expect(screen.getByText("No messages yet")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Aún no hay mensajes")).toBeInTheDocument());
   });
 
   it("renders an inbox message with priority, sentiment, message-type, and CRM badges", async () => {
@@ -138,10 +141,10 @@ describe("InboxLayout", () => {
     renderInbox();
 
     await waitFor(() => expect(screen.getByText("Angry Customer")).toBeInTheDocument());
-    expect(screen.getByText("Comment")).toBeInTheDocument();
-    expect(screen.getByText("negative")).toBeInTheDocument();
-    expect(screen.getByText("In CRM")).toBeInTheDocument();
-    expect(screen.getByLabelText("Priority: URGENT")).toBeInTheDocument();
+    expect(screen.getByText("Comentario")).toBeInTheDocument();
+    expect(screen.getByText("negativo")).toBeInTheDocument();
+    expect(screen.getByText("En CRM")).toBeInTheDocument();
+    expect(screen.getByLabelText("Prioridad: URGENT")).toBeInTheDocument();
   });
 
   it("opens the conversation thread when a message is clicked", async () => {
@@ -165,7 +168,7 @@ describe("InboxLayout", () => {
     fireEvent.click(screen.getByText("Angry Customer"));
 
     await waitFor(() => expect(screen.getByText("Refund request")).toBeInTheDocument());
-    expect(screen.getByText("Open")).toBeInTheDocument();
+    expect(screen.getByText("Abierto")).toBeInTheDocument();
     // body appears both as the list preview and inside the message bubble
     expect(screen.getAllByText(seededMessage.body).length).toBeGreaterThanOrEqual(2);
   });
@@ -197,7 +200,7 @@ describe("InboxLayout", () => {
     fireEvent.click(screen.getByText("We are sorry to hear about your experience."));
 
     await waitFor(() => {
-      const textarea = screen.getByLabelText("Reply text") as HTMLTextAreaElement;
+      const textarea = screen.getByLabelText("Texto de la respuesta") as HTMLTextAreaElement;
       expect(textarea.value).toBe("We are sorry to hear about your experience.");
     });
   });
@@ -210,7 +213,9 @@ describe("InboxLayout", () => {
 
     renderInbox();
 
-    await waitFor(() => expect(screen.getByText("Failed to load inbox")).toBeInTheDocument());
-    expect(within(document.body).getByRole("button", { name: /retry/i })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText("No se pudo cargar la bandeja de entrada")).toBeInTheDocument()
+    );
+    expect(within(document.body).getByRole("button", { name: /reintentar/i })).toBeInTheDocument();
   });
 });

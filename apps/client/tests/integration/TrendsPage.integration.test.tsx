@@ -16,8 +16,9 @@ import React from "react";
 import { http, HttpResponse } from "msw";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import TrendsPage from "../../app/dashboard/ai/trends/page";
+import TrendsPage from "../../app/[locale]/dashboard/ai/trends/page";
 import { server } from "../mocks/server";
+import { IntlTestProvider } from "../intl-test-utils";
 import type { ScoredTrend } from "../../hooks/api/useTrendRadar";
 
 const PROXY = "/api/backend";
@@ -47,7 +48,9 @@ function makeClient(): QueryClient {
 function renderPage() {
   return render(
     <QueryClientProvider client={makeClient()}>
-      <TrendsPage />
+      <IntlTestProvider>
+        <TrendsPage />
+      </IntlTestProvider>
     </QueryClientProvider>
   );
 }
@@ -81,7 +84,7 @@ describe("TrendsPage", () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByText("#DefaultTrend")).toBeInTheDocument());
-    expect(screen.getByText("Today")).toBeInTheDocument();
+    expect(screen.getByText("Hoy")).toBeInTheDocument();
   });
 
   it("renders a SourceBadge per provenance with the canonical label", async () => {
@@ -95,8 +98,8 @@ describe("TrendsPage", () => {
 
     await waitFor(() => expect(screen.getByText("#FromWeb")).toBeInTheDocument());
     expect(screen.getByText("Web")).toBeInTheDocument();
-    expect(screen.getByText("Your posts")).toBeInTheDocument();
-    expect(screen.getByText("Inbox")).toBeInTheDocument();
+    expect(screen.getByText("Tus publicaciones")).toBeInTheDocument();
+    expect(screen.getByText("Bandeja")).toBeInTheDocument();
   });
 
   it("renders an external link when `sourceUrl` is present", async () => {
@@ -107,7 +110,7 @@ describe("TrendsPage", () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByText("#WithUrl")).toBeInTheDocument());
-    const link = screen.getByLabelText("Open source for #WithUrl");
+    const link = screen.getByLabelText("Abrir fuente de #WithUrl");
     expect(link).toHaveAttribute("href", "https://example.test/foo");
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
@@ -119,7 +122,7 @@ describe("TrendsPage", () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByText("#NoUrl")).toBeInTheDocument());
-    expect(screen.queryByLabelText("Open source for #NoUrl")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Abrir fuente de #NoUrl")).not.toBeInTheDocument();
   });
 
   it("groups trends by urgency and renders each group with its count", async () => {
@@ -132,9 +135,9 @@ describe("TrendsPage", () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByText("#Now1")).toBeInTheDocument());
-    expect(screen.getByText("Post Now")).toBeInTheDocument();
+    expect(screen.getByText("Publicar ahora")).toBeInTheDocument();
     expect(screen.getByText("(2)")).toBeInTheDocument();
-    expect(screen.getByText("Today")).toBeInTheDocument();
+    expect(screen.getByText("Hoy")).toBeInTheDocument();
     expect(screen.getByText("(1)")).toBeInTheDocument();
   });
 
@@ -143,7 +146,9 @@ describe("TrendsPage", () => {
 
     renderPage();
 
-    await waitFor(() => expect(screen.getByText("No trending topics yet")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("Aún no hay temas en tendencia")).toBeInTheDocument()
+    );
   });
 
   it("renders the error state when the backend returns 500", async () => {
@@ -155,7 +160,9 @@ describe("TrendsPage", () => {
 
     renderPage();
 
-    await waitFor(() => expect(screen.getByText("Could not load trend radar")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("No se pudo cargar el radar de tendencias")).toBeInTheDocument()
+    );
     expect(screen.getByText("backend down")).toBeInTheDocument();
   });
 });

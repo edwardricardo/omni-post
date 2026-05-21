@@ -9,6 +9,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { TeamMemberRow } from "./TeamMemberRow";
+import { IntlTestProvider } from "../../tests/intl-test-utils";
 import type { TeamMemberDto } from "@/hooks/api/useTeam";
 
 vi.mock("@packages/ui", () => ({
@@ -73,13 +74,15 @@ describe("TeamMemberRow", () => {
       const member = makeMember({ role: "MEMBER" });
 
       render(
-        <TeamMemberRow
-          member={member}
-          currentUserRole="OWNER"
-          currentUserId={CURRENT_USER_ID}
-          onUpdateRole={onUpdateRole}
-          onRemove={onRemove}
-        />
+        <IntlTestProvider>
+          <TeamMemberRow
+            member={member}
+            currentUserRole="OWNER"
+            currentUserId={CURRENT_USER_ID}
+            onUpdateRole={onUpdateRole}
+            onRemove={onRemove}
+          />
+        </IntlTestProvider>
       );
 
       const select = screen.getByRole("combobox");
@@ -94,16 +97,18 @@ describe("TeamMemberRow", () => {
       const member = makeMember();
 
       render(
-        <TeamMemberRow
-          member={member}
-          currentUserRole="OWNER"
-          currentUserId={CURRENT_USER_ID}
-          onUpdateRole={onUpdateRole}
-          onRemove={onRemove}
-        />
+        <IntlTestProvider>
+          <TeamMemberRow
+            member={member}
+            currentUserRole="OWNER"
+            currentUserId={CURRENT_USER_ID}
+            onUpdateRole={onUpdateRole}
+            onRemove={onRemove}
+          />
+        </IntlTestProvider>
       );
 
-      const removeButton = screen.getByTitle("Remove");
+      const removeButton = screen.getByTitle("Eliminar");
       expect(removeButton).toBeInTheDocument();
     });
 
@@ -114,13 +119,15 @@ describe("TeamMemberRow", () => {
       const member = makeMember({ id: CURRENT_USER_ID, role: "OWNER" });
 
       render(
-        <TeamMemberRow
-          member={member}
-          currentUserRole="OWNER"
-          currentUserId={CURRENT_USER_ID}
-          onUpdateRole={onUpdateRole}
-          onRemove={onRemove}
-        />
+        <IntlTestProvider>
+          <TeamMemberRow
+            member={member}
+            currentUserRole="OWNER"
+            currentUserId={CURRENT_USER_ID}
+            onUpdateRole={onUpdateRole}
+            onRemove={onRemove}
+          />
+        </IntlTestProvider>
       );
 
       expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
@@ -133,16 +140,18 @@ describe("TeamMemberRow", () => {
       const member = makeMember({ id: CURRENT_USER_ID, role: "OWNER" });
 
       render(
-        <TeamMemberRow
-          member={member}
-          currentUserRole="OWNER"
-          currentUserId={CURRENT_USER_ID}
-          onUpdateRole={onUpdateRole}
-          onRemove={onRemove}
-        />
+        <IntlTestProvider>
+          <TeamMemberRow
+            member={member}
+            currentUserRole="OWNER"
+            currentUserId={CURRENT_USER_ID}
+            onUpdateRole={onUpdateRole}
+            onRemove={onRemove}
+          />
+        </IntlTestProvider>
       );
 
-      expect(screen.queryByTitle("Remove")).not.toBeInTheDocument();
+      expect(screen.queryByTitle("Eliminar")).not.toBeInTheDocument();
     });
 
     // -----------------------------------------------------------------------
@@ -152,13 +161,15 @@ describe("TeamMemberRow", () => {
       const member = makeMember({ id: "other-owner", role: "OWNER" });
 
       render(
-        <TeamMemberRow
-          member={member}
-          currentUserRole="OWNER"
-          currentUserId={CURRENT_USER_ID}
-          onUpdateRole={onUpdateRole}
-          onRemove={onRemove}
-        />
+        <IntlTestProvider>
+          <TeamMemberRow
+            member={member}
+            currentUserRole="OWNER"
+            currentUserId={CURRENT_USER_ID}
+            onUpdateRole={onUpdateRole}
+            onRemove={onRemove}
+          />
+        </IntlTestProvider>
       );
 
       expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
@@ -174,13 +185,15 @@ describe("TeamMemberRow", () => {
       const member = makeMember();
 
       render(
-        <TeamMemberRow
-          member={member}
-          currentUserRole="MANAGER"
-          currentUserId={CURRENT_USER_ID}
-          onUpdateRole={onUpdateRole}
-          onRemove={onRemove}
-        />
+        <IntlTestProvider>
+          <TeamMemberRow
+            member={member}
+            currentUserRole="MANAGER"
+            currentUserId={CURRENT_USER_ID}
+            onUpdateRole={onUpdateRole}
+            onRemove={onRemove}
+          />
+        </IntlTestProvider>
       );
 
       expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
@@ -190,16 +203,18 @@ describe("TeamMemberRow", () => {
       const member = makeMember();
 
       render(
-        <TeamMemberRow
-          member={member}
-          currentUserRole="MANAGER"
-          currentUserId={CURRENT_USER_ID}
-          onUpdateRole={onUpdateRole}
-          onRemove={onRemove}
-        />
+        <IntlTestProvider>
+          <TeamMemberRow
+            member={member}
+            currentUserRole="MANAGER"
+            currentUserId={CURRENT_USER_ID}
+            onUpdateRole={onUpdateRole}
+            onRemove={onRemove}
+          />
+        </IntlTestProvider>
       );
 
-      expect(screen.queryByTitle("Remove")).not.toBeInTheDocument();
+      expect(screen.queryByTitle("Eliminar")).not.toBeInTheDocument();
     });
   });
 
@@ -211,13 +226,15 @@ describe("TeamMemberRow", () => {
       const member = makeMember({ id: "other-member" });
 
       render(
-        <TeamMemberRow
-          member={member}
-          currentUserRole="MEMBER"
-          currentUserId={CURRENT_USER_ID}
-          onUpdateRole={onUpdateRole}
-          onRemove={onRemove}
-        />
+        <IntlTestProvider>
+          <TeamMemberRow
+            member={member}
+            currentUserRole="MEMBER"
+            currentUserId={CURRENT_USER_ID}
+            onUpdateRole={onUpdateRole}
+            onRemove={onRemove}
+          />
+        </IntlTestProvider>
       );
 
       expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
@@ -227,16 +244,18 @@ describe("TeamMemberRow", () => {
       const member = makeMember({ id: "other-member" });
 
       render(
-        <TeamMemberRow
-          member={member}
-          currentUserRole="MEMBER"
-          currentUserId={CURRENT_USER_ID}
-          onUpdateRole={onUpdateRole}
-          onRemove={onRemove}
-        />
+        <IntlTestProvider>
+          <TeamMemberRow
+            member={member}
+            currentUserRole="MEMBER"
+            currentUserId={CURRENT_USER_ID}
+            onUpdateRole={onUpdateRole}
+            onRemove={onRemove}
+          />
+        </IntlTestProvider>
       );
 
-      expect(screen.queryByTitle("Remove")).not.toBeInTheDocument();
+      expect(screen.queryByTitle("Eliminar")).not.toBeInTheDocument();
     });
   });
 
@@ -248,13 +267,15 @@ describe("TeamMemberRow", () => {
       const member = makeMember({ id: "some-member" });
 
       render(
-        <TeamMemberRow
-          member={member}
-          currentUserRole="VIEWER"
-          currentUserId={CURRENT_USER_ID}
-          onUpdateRole={onUpdateRole}
-          onRemove={onRemove}
-        />
+        <IntlTestProvider>
+          <TeamMemberRow
+            member={member}
+            currentUserRole="VIEWER"
+            currentUserId={CURRENT_USER_ID}
+            onUpdateRole={onUpdateRole}
+            onRemove={onRemove}
+          />
+        </IntlTestProvider>
       );
 
       expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
@@ -264,16 +285,18 @@ describe("TeamMemberRow", () => {
       const member = makeMember({ id: "some-member" });
 
       render(
-        <TeamMemberRow
-          member={member}
-          currentUserRole="VIEWER"
-          currentUserId={CURRENT_USER_ID}
-          onUpdateRole={onUpdateRole}
-          onRemove={onRemove}
-        />
+        <IntlTestProvider>
+          <TeamMemberRow
+            member={member}
+            currentUserRole="VIEWER"
+            currentUserId={CURRENT_USER_ID}
+            onUpdateRole={onUpdateRole}
+            onRemove={onRemove}
+          />
+        </IntlTestProvider>
       );
 
-      expect(screen.queryByTitle("Remove")).not.toBeInTheDocument();
+      expect(screen.queryByTitle("Eliminar")).not.toBeInTheDocument();
     });
   });
 
@@ -285,13 +308,15 @@ describe("TeamMemberRow", () => {
       const member = makeMember({ name: "Bob Smith", email: "bob@example.com" });
 
       render(
-        <TeamMemberRow
-          member={member}
-          currentUserRole="VIEWER"
-          currentUserId={CURRENT_USER_ID}
-          onUpdateRole={onUpdateRole}
-          onRemove={onRemove}
-        />
+        <IntlTestProvider>
+          <TeamMemberRow
+            member={member}
+            currentUserRole="VIEWER"
+            currentUserId={CURRENT_USER_ID}
+            onUpdateRole={onUpdateRole}
+            onRemove={onRemove}
+          />
+        </IntlTestProvider>
       );
 
       expect(screen.getByText("Bob Smith")).toBeInTheDocument();
@@ -305,13 +330,15 @@ describe("TeamMemberRow", () => {
       const member = makeMember({ role: "MANAGER" });
 
       render(
-        <TeamMemberRow
-          member={member}
-          currentUserRole="MANAGER"
-          currentUserId={CURRENT_USER_ID}
-          onUpdateRole={onUpdateRole}
-          onRemove={onRemove}
-        />
+        <IntlTestProvider>
+          <TeamMemberRow
+            member={member}
+            currentUserRole="MANAGER"
+            currentUserId={CURRENT_USER_ID}
+            onUpdateRole={onUpdateRole}
+            onRemove={onRemove}
+          />
+        </IntlTestProvider>
       );
 
       const badge = screen.getByTestId("role-badge");

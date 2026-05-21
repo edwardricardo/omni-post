@@ -10,7 +10,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import RepurposePage from "../../app/dashboard/ai/repurpose/page";
+import RepurposePage from "../../app/[locale]/dashboard/ai/repurpose/page";
+import { IntlTestProvider } from "../intl-test-utils";
 
 const toastSpy = vi.fn();
 // Mock @packages/ui to the surface the page uses — the full barrel pulls
@@ -66,7 +67,9 @@ function renderPage() {
   const client = makeClient();
   return render(
     <QueryClientProvider client={client}>
-      <RepurposePage />
+      <IntlTestProvider>
+        <RepurposePage />
+      </IntlTestProvider>
     </QueryClientProvider>
   );
 }
@@ -85,8 +88,8 @@ describe("RepurposePage", () => {
 
     await waitFor(() => expect(screen.getByText("X")).toBeInTheDocument());
     expect(screen.getByText("PENDING")).toBeInTheDocument();
-    expect(screen.getByText("3.1× average")).toBeInTheDocument();
-    expect(screen.getByText(/2 variants/)).toBeInTheDocument();
+    expect(screen.getByText("3.1× promedio")).toBeInTheDocument();
+    expect(screen.getByText(/2 variantes/)).toBeInTheDocument();
   });
 
   it("shows the empty state when there are no proposals", async () => {
@@ -95,7 +98,7 @@ describe("RepurposePage", () => {
     renderPage();
 
     await waitFor(() =>
-      expect(screen.getByText("No repurpose opportunities yet")).toBeInTheDocument()
+      expect(screen.getByText("Aún no hay oportunidades de reutilización")).toBeInTheDocument()
     );
   });
 
@@ -104,7 +107,9 @@ describe("RepurposePage", () => {
 
     renderPage();
 
-    await waitFor(() => expect(screen.getByText("Could not load proposals")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("No se pudieron cargar las propuestas")).toBeInTheDocument()
+    );
     expect(screen.getByText("backend down")).toBeInTheDocument();
   });
 
@@ -121,10 +126,10 @@ describe("RepurposePage", () => {
     renderPage();
 
     await waitFor(() =>
-      expect(screen.getByText("No repurpose opportunities yet")).toBeInTheDocument()
+      expect(screen.getByText("Aún no hay oportunidades de reutilización")).toBeInTheDocument()
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /detect now/i }));
+    fireEvent.click(screen.getByRole("button", { name: /detectar ahora/i }));
 
     await waitFor(() =>
       expect(mockFetch).toHaveBeenCalledWith(
@@ -134,8 +139,8 @@ describe("RepurposePage", () => {
     );
     await waitFor(() => expect(toastSpy).toHaveBeenCalled());
     expect(toastSpy.mock.calls[0]?.[0]).toMatchObject({
-      title: "Detection complete",
-      description: "2 detected, 1 already proposed",
+      title: "Detección completada",
+      description: "2 detectadas, 1 ya propuestas",
     });
   });
 });

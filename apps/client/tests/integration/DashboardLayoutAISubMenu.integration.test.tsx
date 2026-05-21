@@ -11,10 +11,27 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
+import { IntlTestProvider } from "../intl-test-utils";
 
 let mockPathname = "/dashboard";
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
+}));
+
+// The layout navigates via the locale-aware primitives from `@/i18n/navigation`
+// (next-intl). Mock them with a plain anchor so the rendered hrefs stay the
+// unprefixed paths the assertions expect, without pulling the routing/context.
+vi.mock("@/i18n/navigation", () => ({
+  usePathname: () => mockPathname,
+  Link: ({
+    children,
+    href,
+    ...rest
+  }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
 }));
 
 vi.mock("@/lib/auth/authContext", () => ({
@@ -33,6 +50,10 @@ vi.mock("@/components/notifications/NotificationBell", () => ({
   NotificationBell: () => null,
 }));
 
+vi.mock("@/components/shared/LanguageSwitcher", () => ({
+  LanguageSwitcher: () => null,
+}));
+
 // Minimal @packages/ui surface used by DashboardLayout.
 vi.mock("@packages/ui", () => ({
   Button: ({ children, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
@@ -48,7 +69,7 @@ vi.mock("@packages/ui", () => ({
   DropdownMenuSeparator: () => null,
 }));
 
-import DashboardLayout from "../../app/dashboard/layout";
+import DashboardLayout from "../../app/[locale]/dashboard/layout";
 
 beforeEach(() => {
   mockPathname = "/dashboard";
@@ -56,9 +77,11 @@ beforeEach(() => {
 
 function renderLayout() {
   return render(
-    <DashboardLayout>
-      <div>child</div>
-    </DashboardLayout>
+    <IntlTestProvider>
+      <DashboardLayout>
+        <div>child</div>
+      </DashboardLayout>
+    </IntlTestProvider>
   );
 }
 
@@ -68,7 +91,7 @@ describe("DashboardLayout — AI sub-menu", () => {
 
     renderLayout();
 
-    const toggle = screen.getByRole("button", { name: /^AI/ });
+    const toggle = screen.getByRole("button", { name: /^IA/ });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
   });
 
@@ -77,7 +100,7 @@ describe("DashboardLayout — AI sub-menu", () => {
 
     renderLayout();
 
-    const toggle = screen.getByRole("button", { name: /^AI/ });
+    const toggle = screen.getByRole("button", { name: /^IA/ });
     expect(toggle).toHaveAttribute("aria-expanded", "true");
   });
 
@@ -87,12 +110,12 @@ describe("DashboardLayout — AI sub-menu", () => {
     renderLayout();
 
     const expectedSubEntries: ReadonlyArray<[string, string]> = [
-      ["Generate", "/dashboard/ai/generate"],
-      ["Trends", "/dashboard/ai/trends"],
-      ["Repurpose", "/dashboard/ai/repurpose"],
-      ["Optimizer", "/dashboard/ai/optimizer"],
-      ["Templates", "/dashboard/ai/templates"],
-      ["AI Analytics", "/dashboard/ai/analytics"],
+      ["Generar", "/dashboard/ai/generate"],
+      ["Tendencias", "/dashboard/ai/trends"],
+      ["Reutilizar", "/dashboard/ai/repurpose"],
+      ["Optimizador", "/dashboard/ai/optimizer"],
+      ["Plantillas", "/dashboard/ai/templates"],
+      ["Analíticas de IA", "/dashboard/ai/analytics"],
     ];
 
     for (const [name, href] of expectedSubEntries) {
@@ -106,7 +129,7 @@ describe("DashboardLayout — AI sub-menu", () => {
 
     renderLayout();
 
-    const toggle = screen.getByRole("button", { name: /^AI/ });
+    const toggle = screen.getByRole("button", { name: /^IA/ });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
 
     fireEvent.click(toggle);
@@ -121,6 +144,6 @@ describe("DashboardLayout — AI sub-menu", () => {
 
     renderLayout();
 
-    expect(screen.queryByRole("link", { name: "Trends" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Tendencias" })).not.toBeInTheDocument();
   });
 });
