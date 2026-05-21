@@ -8,6 +8,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { InboxSidebar } from "./InboxSidebar";
 import type { InboxFilters } from "./InboxSidebar";
 import { ConversationList } from "./ConversationList";
@@ -33,6 +34,7 @@ const DEFAULT_FILTERS: InboxFilters = {
  * @param props.projectId - Optional project scope for conversation filtering
  */
 export function InboxLayout({ projectId, userId }: InboxLayoutProps) {
+  const t = useTranslations("inbox.components");
   const [filters, setFilters] = useState<InboxFilters>(DEFAULT_FILTERS);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
 
@@ -60,10 +62,8 @@ export function InboxLayout({ projectId, userId }: InboxLayoutProps) {
                 💬
               </span>
             </div>
-            <h3 className="text-sm font-semibold text-gray-900">Select a conversation</h3>
-            <p className="mt-1 text-xs text-gray-500">
-              Choose a conversation from the left panel to view the thread and reply.
-            </p>
+            <h3 className="text-sm font-semibold text-gray-900">{t("emptyThreadTitle")}</h3>
+            <p className="mt-1 text-xs text-gray-500">{t("emptyThreadDescription")}</p>
           </div>
         )}
       </div>

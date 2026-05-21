@@ -6,6 +6,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { MediaUploadZone } from "@/components/instagram";
 import { VideoSegment } from "@providers/instagram/src/mediaProcessor";
 
@@ -38,6 +39,7 @@ interface ProcessedVideo {
  * @description Handles Instagram media upload with file selection, validation, processing progress, and video segment extraction.
  */
 export default function InstagramUploadPage() {
+  const t = useTranslations("instagram");
   const [uploadedFiles, setUploadedFiles] = useState<MediaFile[]>([]);
   const [processedVideos, setProcessedVideos] = useState<ProcessedVideo[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
@@ -120,10 +122,8 @@ export default function InstagramUploadPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Instagram Media Upload</h1>
-          <p className="text-gray-600 mt-2">
-            Upload and process images and videos for Instagram Stories, Reels, and Feed posts
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900">{t("uploadTitle")}</h1>
+          <p className="text-gray-600 mt-2">{t("uploadSubtitle")}</p>
         </div>
 
         {/* Stats Bar */}
@@ -133,26 +133,26 @@ export default function InstagramUploadPage() {
               <div className="flex items-center space-x-6">
                 <div className="text-sm">
                   <span className="font-medium text-gray-900">{stats.total}</span>
-                  <span className="text-gray-600"> files</span>
+                  <span className="text-gray-600"> {t("statFiles")}</span>
                 </div>
                 <div className="text-sm">
                   <span className="font-medium text-gray-900">{stats.images}</span>
-                  <span className="text-gray-600"> images</span>
+                  <span className="text-gray-600"> {t("statImages")}</span>
                 </div>
                 <div className="text-sm">
                   <span className="font-medium text-gray-900">{stats.videos}</span>
-                  <span className="text-gray-600"> videos</span>
+                  <span className="text-gray-600"> {t("statVideos")}</span>
                 </div>
                 <div className="text-sm">
                   <span className="font-medium text-gray-900">
                     {formatFileSize(getTotalFileSize())}
                   </span>
-                  <span className="text-gray-600"> total size</span>
+                  <span className="text-gray-600"> {t("statTotalSize")}</span>
                 </div>
                 {processedVideos.length > 0 && (
                   <div className="text-sm">
                     <span className="font-medium text-gray-900">{processedVideos.length}</span>
-                    <span className="text-gray-600"> processed videos</span>
+                    <span className="text-gray-600"> {t("statProcessedVideos")}</span>
                   </div>
                 )}
               </div>
@@ -160,24 +160,26 @@ export default function InstagramUploadPage() {
               {/* Batch Actions */}
               {selectedFiles.length > 0 && (
                 <div className="flex items-center space-x-3">
-                  <span className="text-sm text-gray-600">{selectedFiles.length} selected</span>
+                  <span className="text-sm text-gray-600">
+                    {t("selectedCount", { count: selectedFiles.length })}
+                  </span>
                   <button
                     onClick={handleCreateStories}
                     className="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
                   >
-                    Create Stories
+                    {t("createStories")}
                   </button>
                   <button
                     onClick={handleBatchRemove}
                     className="px-3 py-1 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700"
                   >
-                    Remove Selected
+                    {t("removeSelected")}
                   </button>
                   <button
                     onClick={handleDeselectAll}
                     className="px-3 py-1 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50"
                   >
-                    Deselect All
+                    {t("deselectAll")}
                   </button>
                 </div>
               )}
@@ -187,7 +189,7 @@ export default function InstagramUploadPage() {
                   onClick={handleSelectAll}
                   className="px-3 py-1 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50"
                 >
-                  Select All
+                  {t("selectAll")}
                 </button>
               )}
             </div>
@@ -210,7 +212,7 @@ export default function InstagramUploadPage() {
             {uploadedFiles.length > 0 && (
               <div className="mt-8">
                 <h3 className="font-medium text-gray-900 mb-4">
-                  Uploaded Files ({uploadedFiles.length})
+                  {t("uploadedFiles", { count: uploadedFiles.length })}
                 </h3>
 
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -220,7 +222,7 @@ export default function InstagramUploadPage() {
                       role="button"
                       tabIndex={0}
                       aria-pressed={selectedFiles.includes(file.id)}
-                      aria-label={`Select file ${file.id}`}
+                      aria-label={t("selectFileAria", { id: file.id })}
                       className={`relative group border-2 rounded-lg overflow-hidden bg-white transition-all cursor-pointer ${
                         selectedFiles.includes(file.id)
                           ? "border-blue-500 ring-2 ring-blue-200"
@@ -302,7 +304,7 @@ export default function InstagramUploadPage() {
                                 >
                                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
                                 </svg>
-                                <div className="text-xs">Error</div>
+                                <div className="text-xs">{t("statusError")}</div>
                               </div>
                             ) : null}
                           </div>
@@ -357,7 +359,7 @@ export default function InstagramUploadPage() {
           <div className="space-y-6">
             {/* Processing Queue */}
             <div className="bg-white rounded-lg border p-4">
-              <h3 className="font-medium text-gray-900 mb-3">Processing Status</h3>
+              <h3 className="font-medium text-gray-900 mb-3">{t("processingStatus")}</h3>
 
               {uploadedFiles.length === 0 ? (
                 <div className="text-center py-6 text-gray-500">
@@ -374,7 +376,7 @@ export default function InstagramUploadPage() {
                       d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                     />
                   </svg>
-                  <div className="text-sm">No files uploaded yet</div>
+                  <div className="text-sm">{t("noFilesYet")}</div>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -406,13 +408,13 @@ export default function InstagramUploadPage() {
                         </div>
                         <div className="text-xs text-gray-500">
                           {file.status === "ready"
-                            ? "Ready"
+                            ? t("statusReady")
                             : file.status === "processing"
-                              ? `Processing ${file.progress}%`
+                              ? t("statusProcessing", { progress: file.progress ?? 0 })
                               : file.status === "uploading"
-                                ? `Uploading ${file.progress}%`
+                                ? t("statusUploading", { progress: file.progress ?? 0 })
                                 : file.status === "error"
-                                  ? "Error"
+                                  ? t("statusError")
                                   : file.status}
                         </div>
                       </div>
@@ -431,7 +433,7 @@ export default function InstagramUploadPage() {
 
                   {uploadedFiles.length > 5 && (
                     <div className="text-xs text-gray-500 text-center">
-                      and {uploadedFiles.length - 5} more files...
+                      {t("andMoreFiles", { count: uploadedFiles.length - 5 })}
                     </div>
                   )}
                 </div>
@@ -441,7 +443,7 @@ export default function InstagramUploadPage() {
             {/* Video Split Results */}
             {processedVideos.length > 0 && (
               <div className="bg-white rounded-lg border p-4">
-                <h3 className="font-medium text-gray-900 mb-3">Split Videos</h3>
+                <h3 className="font-medium text-gray-900 mb-3">{t("splitVideos")}</h3>
 
                 <div className="space-y-4">
                   {processedVideos.map((processed, index) => (
@@ -464,7 +466,7 @@ export default function InstagramUploadPage() {
                       </div>
 
                       <div className="text-xs text-gray-600 mb-2">
-                        Split into {processed.segments.length} segments
+                        {t("splitIntoSegments", { count: processed.segments.length })}
                       </div>
 
                       <div className="grid grid-cols-3 gap-1">
@@ -490,7 +492,7 @@ export default function InstagramUploadPage() {
 
             {/* Quick Actions */}
             <div className="bg-white rounded-lg border p-4">
-              <h3 className="font-medium text-gray-900 mb-3">Quick Actions</h3>
+              <h3 className="font-medium text-gray-900 mb-3">{t("quickActions")}</h3>
 
               <div className="space-y-2">
                 <button
@@ -498,21 +500,21 @@ export default function InstagramUploadPage() {
                   disabled={selectedFiles.length === 0}
                   className="w-full px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Create Stories ({selectedFiles.length})
+                  {t("createStoriesCount", { count: selectedFiles.length })}
                 </button>
 
                 <button
                   disabled={uploadedFiles.filter((f) => f.type === "video").length === 0}
                   className="w-full px-3 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Create Reels
+                  {t("createReels")}
                 </button>
 
                 <button
                   disabled={uploadedFiles.length === 0}
                   className="w-full px-3 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Create Carousel
+                  {t("createCarousel")}
                 </button>
               </div>
             </div>

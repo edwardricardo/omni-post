@@ -8,6 +8,7 @@
  */
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@packages/ui";
 import { Button } from "@packages/ui";
 import { Label } from "@packages/ui";
@@ -46,6 +47,7 @@ export function TemplateVersionControl({
   allowBranching = false,
   currentUser = { id: "user-1", name: "Current User" },
 }: TemplateVersionControlProps) {
+  const t = useTranslations("templates.components.versionControl");
   const {
     activeTab,
     setActiveTab,
@@ -96,8 +98,8 @@ export function TemplateVersionControl({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Version Control</h2>
-          <p className="text-muted-foreground">Manage template versions and changes</p>
+          <h2 className="text-2xl font-bold">{t("title")}</h2>
+          <p className="text-muted-foreground">{t("subtitle")}</p>
         </div>
         <div className="flex items-center space-x-2">
           {allowVersioning && (
@@ -131,25 +133,28 @@ export function TemplateVersionControl({
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div>
-                <p className="text-sm font-medium">Current Version</p>
+                <p className="text-sm font-medium">{t("currentVersion")}</p>
                 <p className="text-xs text-muted-foreground">
-                  v{activeVersion?.version || "Unknown"} on {selectedBranch}
+                  {t("versionOnBranch", {
+                    version: activeVersion?.version ?? t("unknown"),
+                    branch: selectedBranch,
+                  })}
                 </p>
               </div>
               <Separator orientation="vertical" className="h-8" />
               <div>
-                <p className="text-sm font-medium">Total Versions</p>
+                <p className="text-sm font-medium">{t("totalVersions")}</p>
                 <p className="text-xs text-muted-foreground">
-                  {sortedVersions.length} version{sortedVersions.length !== 1 ? "s" : ""}
+                  {t("versionCount", { count: sortedVersions.length })}
                 </p>
               </div>
               {allowBranching && (
                 <>
                   <Separator orientation="vertical" className="h-8" />
                   <div>
-                    <p className="text-sm font-medium">Branches</p>
+                    <p className="text-sm font-medium">{t("branches")}</p>
                     <p className="text-xs text-muted-foreground">
-                      {branches.length} branch{branches.length !== 1 ? "es" : ""}
+                      {t("branchCount", { count: branches.length })}
                     </p>
                   </div>
                 </>
@@ -163,7 +168,7 @@ export function TemplateVersionControl({
                 className="flex items-center space-x-1"
               >
                 <GitCompare className="h-3 w-3" />
-                <span>Compare Selected</span>
+                <span>{t("compareSelected")}</span>
               </Button>
             )}
           </div>
@@ -175,17 +180,17 @@ export function TemplateVersionControl({
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="history" className="flex items-center space-x-1">
             <History className="h-4 w-4" />
-            <span>History</span>
+            <span>{t("tabHistory")}</span>
           </TabsTrigger>
           {allowBranching && (
             <TabsTrigger value="branches" className="flex items-center space-x-1">
               <GitBranch className="h-4 w-4" />
-              <span>Branches</span>
+              <span>{t("tabBranches")}</span>
             </TabsTrigger>
           )}
           <TabsTrigger value="compare" className="flex items-center space-x-1">
             <GitCompare className="h-4 w-4" />
-            <span>Compare</span>
+            <span>{t("tabCompare")}</span>
           </TabsTrigger>
         </TabsList>
 
@@ -193,7 +198,7 @@ export function TemplateVersionControl({
           {/* Branch selector */}
           {allowBranching && branches.length > 0 && (
             <div className="flex items-center space-x-2">
-              <Label>Branch:</Label>
+              <Label>{t("branchLabel")}</Label>
               <Select value={selectedBranch} onValueChange={setSelectedBranch}>
                 <SelectTrigger className="w-40">
                   <SelectValue />
@@ -232,8 +237,8 @@ export function TemplateVersionControl({
               <CardContent className="p-8 text-center">
                 <div className="text-muted-foreground">
                   <History className="h-8 w-8 mx-auto mb-2" />
-                  <p>No versions found for this branch.</p>
-                  <p className="text-sm">Create your first version to get started.</p>
+                  <p>{t("noVersionsTitle")}</p>
+                  <p className="text-sm">{t("noVersionsDescription")}</p>
                 </div>
               </CardContent>
             </Card>
@@ -259,8 +264,8 @@ export function TemplateVersionControl({
                 <CardContent className="p-8 text-center">
                   <div className="text-muted-foreground">
                     <GitBranch className="h-8 w-8 mx-auto mb-2" />
-                    <p>No branches found.</p>
-                    <p className="text-sm">Create a branch for parallel development.</p>
+                    <p>{t("noBranchesTitle")}</p>
+                    <p className="text-sm">{t("noBranchesDescription")}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -288,15 +293,14 @@ export function TemplateVersionControl({
       <AlertDialog open={restoreConfirmOpen} onOpenChange={setRestoreConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Restore Version</AlertDialogTitle>
+            <AlertDialogTitle>{t("restoreTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to restore to version {versionToRestore?.version}? This will
-              create a new version with the restored content.
+              {t("restoreDescription", { version: versionToRestore?.version ?? "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmRestore}>Restore</AlertDialogAction>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRestore}>{t("restore")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -305,15 +309,14 @@ export function TemplateVersionControl({
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Version</AlertDialogTitle>
+            <AlertDialogTitle>{t("deleteTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete version {versionToDelete?.version}? This action cannot
-              be undone.
+              {t("deleteDescription", { version: versionToDelete?.version ?? "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>{t("delete")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

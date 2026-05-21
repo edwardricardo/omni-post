@@ -4,9 +4,12 @@
  * @file SchedulePicker.tsx
  * @description Date/time scheduling dialog with timezone selection, optimal posting
  * time suggestions per platform, and quick-pick presets (e.g. tomorrow, next week).
+ * @component SchedulePicker
+ * @layer infrastructure
  */
 
 import { useState, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@packages/ui";
 import { Button } from "@packages/ui";
 import { Input } from "@packages/ui";
@@ -35,21 +38,22 @@ interface OptimalTime {
   hour: number;
   minute: number;
   score: number;
-  reason: string;
+  reasonKey: string;
 }
 
-// Common timezone options
+// Common timezone options. `labelKey` resolves under `editor.schedule.timezones.*`;
+// the abbreviation/offset suffix is appended at render time.
 const TIMEZONES = [
-  { value: "America/New_York", label: "Eastern Time (ET)", offset: "-05:00" },
-  { value: "America/Chicago", label: "Central Time (CT)", offset: "-06:00" },
-  { value: "America/Denver", label: "Mountain Time (MT)", offset: "-07:00" },
-  { value: "America/Los_Angeles", label: "Pacific Time (PT)", offset: "-08:00" },
-  { value: "Europe/London", label: "Greenwich Mean Time (GMT)", offset: "+00:00" },
-  { value: "Europe/Paris", label: "Central European Time (CET)", offset: "+01:00" },
-  { value: "Asia/Tokyo", label: "Japan Standard Time (JST)", offset: "+09:00" },
-  { value: "Asia/Shanghai", label: "China Standard Time (CST)", offset: "+08:00" },
-  { value: "Australia/Sydney", label: "Australian Eastern Time (AET)", offset: "+11:00" },
-  { value: "UTC", label: "Coordinated Universal Time (UTC)", offset: "+00:00" },
+  { value: "America/New_York", labelKey: "easternTime", offset: "-05:00" },
+  { value: "America/Chicago", labelKey: "centralTime", offset: "-06:00" },
+  { value: "America/Denver", labelKey: "mountainTime", offset: "-07:00" },
+  { value: "America/Los_Angeles", labelKey: "pacificTime", offset: "-08:00" },
+  { value: "Europe/London", labelKey: "greenwichMeanTime", offset: "+00:00" },
+  { value: "Europe/Paris", labelKey: "centralEuropeanTime", offset: "+01:00" },
+  { value: "Asia/Tokyo", labelKey: "japanStandardTime", offset: "+09:00" },
+  { value: "Asia/Shanghai", labelKey: "chinaStandardTime", offset: "+08:00" },
+  { value: "Australia/Sydney", labelKey: "australianEasternTime", offset: "+11:00" },
+  { value: "UTC", labelKey: "coordinatedUniversalTime", offset: "+00:00" },
 ];
 
 // Heuristic optimal posting times based on platform and day of week
@@ -62,14 +66,14 @@ const getOptimalTimes = (providers: string[], date: Date): OptimalTime[] => {
   if (providers.includes("x") || providers.includes("twitter")) {
     if (isWeekday) {
       optimalTimes.push(
-        { hour: 9, minute: 0, score: 85, reason: "High engagement during morning commute" },
-        { hour: 12, minute: 0, score: 90, reason: "Peak lunch break activity" },
-        { hour: 17, minute: 0, score: 88, reason: "Evening commute peak time" }
+        { hour: 9, minute: 0, score: 85, reasonKey: "morningCommute" },
+        { hour: 12, minute: 0, score: 90, reasonKey: "lunchPeak" },
+        { hour: 17, minute: 0, score: 88, reasonKey: "eveningCommute" }
       );
     } else {
       optimalTimes.push(
-        { hour: 10, minute: 0, score: 75, reason: "Weekend morning activity" },
-        { hour: 14, minute: 0, score: 80, reason: "Weekend afternoon engagement" }
+        { hour: 10, minute: 0, score: 75, reasonKey: "weekendMorning" },
+        { hour: 14, minute: 0, score: 80, reasonKey: "weekendAfternoon" }
       );
     }
   }
@@ -77,25 +81,25 @@ const getOptimalTimes = (providers: string[], date: Date): OptimalTime[] => {
   if (providers.includes("linkedin")) {
     if (isWeekday) {
       optimalTimes.push(
-        { hour: 8, minute: 0, score: 92, reason: "Professional network morning check" },
-        { hour: 12, minute: 0, score: 85, reason: "Business lunch break" },
-        { hour: 17, minute: 0, score: 88, reason: "End of workday networking" }
+        { hour: 8, minute: 0, score: 92, reasonKey: "professionalMorning" },
+        { hour: 12, minute: 0, score: 85, reasonKey: "businessLunch" },
+        { hour: 17, minute: 0, score: 88, reasonKey: "endOfWorkday" }
       );
     } else {
       optimalTimes.push({
         hour: 10,
         minute: 0,
         score: 60,
-        reason: "Lower weekend professional activity",
+        reasonKey: "weekendProfessional",
       });
     }
   }
 
   if (providers.includes("instagram")) {
     optimalTimes.push(
-      { hour: 11, minute: 0, score: 85, reason: "Visual content prime time" },
-      { hour: 14, minute: 0, score: 88, reason: "Afternoon scroll peak" },
-      { hour: 19, minute: 0, score: 92, reason: "Evening leisure browsing" }
+      { hour: 11, minute: 0, score: 85, reasonKey: "visualPrimeTime" },
+      { hour: 14, minute: 0, score: 88, reasonKey: "afternoonScroll" },
+      { hour: 19, minute: 0, score: 92, reasonKey: "eveningLeisure" }
     );
   }
 
@@ -130,6 +134,7 @@ export function SchedulePicker({
   selectedProviders = [],
   inline = false,
 }: SchedulePickerProps) {
+  const t = useTranslations("editor");
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [timezone, setTimezone] = useState<string>(() => {
@@ -146,12 +151,17 @@ export function SchedulePicker({
       const date = addDays(new Date(), i);
       options.push({
         value: format(date, "yyyy-MM-dd"),
-        label: i === 0 ? "Today" : i === 1 ? "Tomorrow" : format(date, "EEEE, MMM d"),
+        label:
+          i === 0
+            ? t("schedule.today")
+            : i === 1
+              ? t("schedule.tomorrow")
+              : format(date, "EEEE, MMM d"),
         date,
       });
     }
     return options;
-  }, []);
+  }, [t]);
 
   // Get optimal times for selected date
   const optimalTimes = useMemo(() => {
@@ -199,8 +209,8 @@ export function SchedulePicker({
     // Validate that the scheduled time is in the future
     if (!isAfter(scheduledDateTime, new Date())) {
       toast({
-        title: "Invalid schedule time",
-        description: "Scheduled time must be in the future.",
+        title: t("schedule.invalidTimeTitle"),
+        description: t("schedule.invalidTimeDescription"),
         variant: "destructive",
       });
       return;
@@ -227,10 +237,11 @@ export function SchedulePicker({
 
     return (
       <div className="mt-4 p-3 bg-muted rounded-lg">
-        <h4 className="font-medium mb-2">Scheduled for:</h4>
+        <h4 className="font-medium mb-2">{t("schedule.scheduledForLabel")}</h4>
         <p className="text-sm">{format(scheduledDateTime, "EEEE, MMMM d, yyyy 'at' h:mm a")}</p>
         <p className="text-xs text-muted-foreground mt-1">
-          {selectedTimezone?.label} ({selectedTimezone?.offset})
+          {selectedTimezone ? t(`schedule.timezones.${selectedTimezone.labelKey}`) : ""} (
+          {selectedTimezone?.offset})
         </p>
       </div>
     );
@@ -240,7 +251,7 @@ export function SchedulePicker({
     <div className="space-y-6">
       {/* Quick Date Selection */}
       <div className="space-y-3">
-        <Label>Select Date</Label>
+        <Label>{t("schedule.selectDate")}</Label>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {quickDateOptions.map((option) => (
             <Button
@@ -257,7 +268,7 @@ export function SchedulePicker({
 
         <div className="flex items-center gap-2">
           <Label htmlFor="custom-date" className="text-sm">
-            Or pick a custom date:
+            {t("schedule.customDate")}
           </Label>
           <Input
             id="custom-date"
@@ -276,12 +287,9 @@ export function SchedulePicker({
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <TrendingUp className="h-4 w-4" />
-              Suggested Times
+              {t("schedule.suggestedTimes")}
             </CardTitle>
-            <CardDescription>
-              Typical high-engagement windows for your selected platforms (general heuristic — tune
-              via analytics once enough post history is collected).
-            </CardDescription>
+            <CardDescription>{t("schedule.suggestedTimesDescription")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -299,7 +307,9 @@ export function SchedulePicker({
                         {format(setMinutes(setHours(new Date(), time.hour), time.minute), "h:mm a")}
                       </span>
                     </div>
-                    <span className="text-sm text-muted-foreground">{time.reason}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {t(`schedule.reasons.${time.reasonKey}`)}
+                    </span>
                   </div>
                 </button>
               ))}
@@ -311,7 +321,7 @@ export function SchedulePicker({
               onClick={() => setShowOptimalTimes(false)}
               className="w-full mt-3"
             >
-              Choose custom time instead
+              {t("schedule.chooseCustomTime")}
             </Button>
           </CardContent>
         </Card>
@@ -321,11 +331,11 @@ export function SchedulePicker({
       {selectedDate && (!showOptimalTimes || optimalTimes.length === 0) && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <Label>Select Time</Label>
+            <Label>{t("schedule.selectTime")}</Label>
             {optimalTimes.length > 0 && (
               <Button variant="ghost" size="sm" onClick={() => setShowOptimalTimes(true)}>
                 <TrendingUp className="h-4 w-4 mr-1" />
-                Show optimal times
+                {t("schedule.showOptimalTimes")}
               </Button>
             )}
           </div>
@@ -342,7 +352,7 @@ export function SchedulePicker({
       <div className="space-y-3">
         <Label className="flex items-center gap-2">
           <Globe className="h-4 w-4" />
-          Timezone
+          {t("schedule.timezone")}
         </Label>
         <Select value={timezone} onValueChange={setTimezone}>
           <SelectTrigger>
@@ -351,7 +361,7 @@ export function SchedulePicker({
           <SelectContent>
             {TIMEZONES.map((tz) => (
               <SelectItem key={tz.value} value={tz.value}>
-                {tz.label} ({tz.offset})
+                {t(`schedule.timezones.${tz.labelKey}`)} ({tz.offset})
               </SelectItem>
             ))}
           </SelectContent>
@@ -368,9 +378,7 @@ export function SchedulePicker({
           className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800"
         >
           <AlertCircle aria-hidden="true" className="h-4 w-4" />
-          <span className="text-sm">
-            Selected time is in the past. Please choose a future date and time.
-          </span>
+          <span className="text-sm">{t("schedule.pastTimeWarning")}</span>
         </div>
       )}
 
@@ -378,14 +386,14 @@ export function SchedulePicker({
       {!inline && (
         <div className="flex justify-end gap-3 pt-4 border-t">
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t("schedule.cancel")}
           </Button>
           <Button
             onClick={handleSchedule}
             disabled={!selectedDate || !selectedTime || isScheduledTimeInPast}
           >
             <Calendar className="h-4 w-4 mr-2" />
-            Schedule Post
+            {t("schedule.schedulePost")}
           </Button>
         </div>
       )}
@@ -394,8 +402,10 @@ export function SchedulePicker({
         <div className="pt-4 border-t">
           <Button onClick={handleSchedule} className="w-full" disabled={isScheduledTimeInPast}>
             <Calendar className="h-4 w-4 mr-2" />
-            Schedule for {format(parse(selectedDate, "yyyy-MM-dd", new Date()), "MMM d")} at{" "}
-            {selectedTime}
+            {t("schedule.scheduleForInline", {
+              date: format(parse(selectedDate, "yyyy-MM-dd", new Date()), "MMM d"),
+              time: selectedTime,
+            })}
           </Button>
         </div>
       )}
@@ -412,11 +422,9 @@ export function SchedulePicker({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Schedule Post
+            {t("schedule.schedulePost")}
           </DialogTitle>
-          <DialogDescription>
-            Choose when to publish your post for maximum engagement.
-          </DialogDescription>
+          <DialogDescription>{t("schedule.dialogDescription")}</DialogDescription>
         </DialogHeader>
         {scheduleContent}
       </DialogContent>

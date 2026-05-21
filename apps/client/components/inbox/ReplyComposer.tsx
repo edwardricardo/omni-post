@@ -9,6 +9,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Send } from "lucide-react";
 import { useSendReply } from "@/hooks/api/useInbox";
 
@@ -46,6 +47,7 @@ export function ReplyComposer({
   suggestedText,
   onSuggestedTextConsumed,
 }: ReplyComposerProps) {
+  const t = useTranslations("inbox.components");
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -112,8 +114,7 @@ export function ReplyComposer({
     return (
       <div className="border-t border-gray-200 bg-gray-50 px-4 py-3">
         <p className="text-xs text-gray-500 text-center">
-          Replies are not supported for {providerLabel} via API. Reply directly in the{" "}
-          {providerLabel} app.
+          {t("replyUnsupported", { provider: providerLabel })}
         </p>
       </div>
     );
@@ -126,7 +127,7 @@ export function ReplyComposer({
           role="alert"
           className="mb-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-600 border border-red-200"
         >
-          Failed to send reply. Please try again.
+          {t("replySendError")}
         </div>
       )}
 
@@ -137,7 +138,7 @@ export function ReplyComposer({
             value={text}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            placeholder="Type a reply… (Ctrl+Enter to send)"
+            placeholder={t("replyPlaceholder")}
             disabled={sendReplyMutation.isPending}
             maxLength={MAX_CHARS}
             rows={2}
@@ -149,7 +150,7 @@ export function ReplyComposer({
               isOverLimit ? "border-red-400" : "border-gray-200",
             ].join(" ")}
             style={{ minHeight: "80px" }}
-            aria-label="Reply text"
+            aria-label={t("replyTextLabel")}
           />
           <div className="mt-1 flex justify-end">
             <span
@@ -170,7 +171,7 @@ export function ReplyComposer({
         <button
           onClick={handleSend}
           disabled={!text.trim() || isOverLimit || sendReplyMutation.isPending || !lastMessageId}
-          aria-label="Send reply"
+          aria-label={t("sendReply")}
           className={[
             "mb-6 flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium",
             "transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
@@ -183,7 +184,7 @@ export function ReplyComposer({
           ) : (
             <Send className="h-4 w-4" aria-hidden="true" />
           )}
-          Reply
+          {t("replyButton")}
         </button>
       </div>
     </div>

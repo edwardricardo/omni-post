@@ -7,12 +7,14 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import { HashtagText } from "./HashtagText";
 import type { PreviewProps } from "./types";
 
 const TIKTOK_CAPTION_LIMIT = 150;
 
 export function TikTokPreview({ content, media, userInfo }: PreviewProps) {
+  const t = useTranslations("editor");
   const caption =
     content.length > TIKTOK_CAPTION_LIMIT
       ? content.slice(0, TIKTOK_CAPTION_LIMIT) + "..."
@@ -26,7 +28,7 @@ export function TikTokPreview({ content, media, userInfo }: PreviewProps) {
         <img src={media[0].url} alt="" className="w-full h-full object-cover" />
       ) : (
         <div className="w-full h-full flex items-center justify-center text-gray-600 text-sm">
-          <span>9:16 Video</span>
+          <span>{t("preview.tiktokVideoPlaceholder")}</span>
         </div>
       )}
       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">

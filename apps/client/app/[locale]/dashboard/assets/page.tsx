@@ -7,6 +7,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Button, Input, toast } from "@packages/ui";
 import { Upload, Search, Loader2 } from "lucide-react";
 import { FolderSidebar } from "@/components/assets/FolderSidebar";
@@ -20,6 +21,7 @@ import type { MediaAssetDto } from "@/hooks/api/useAssets";
  * @description Provides a standalone asset library with folder navigation, grid browsing, upload, and detail panel.
  */
 export default function AssetsPage() {
+  const t = useTranslations("assets");
   const [selectedFolderId, setSelectedFolderId] = useState<string | undefined>(undefined);
   const [selectedAsset, setSelectedAsset] = useState<MediaAssetDto | null>(null);
   const [search, setSearch] = useState("");
@@ -31,32 +33,33 @@ export default function AssetsPage() {
     fileInputRef.current?.click();
   }, []);
 
-  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleFileSelect = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
 
-    setUploading(true);
-    try {
-      const fileType = file.type.startsWith("video/") ? ("video" as const) : ("image" as const);
-      await apiClient.uploadFile(file, fileType);
-      setUploadKey((prev) => prev + 1);
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Upload failed";
-      toast({ title: "Upload failed", description: msg, variant: "destructive" });
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  }, []);
+      setUploading(true);
+      try {
+        const fileType = file.type.startsWith("video/") ? ("video" as const) : ("image" as const);
+        await apiClient.uploadFile(file, fileType);
+        setUploadKey((prev) => prev + 1);
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : t("uploadFailed");
+        toast({ title: t("uploadFailed"), description: msg, variant: "destructive" });
+      } finally {
+        setUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    },
+    [t]
+  );
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Asset Library</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Upload and organize your brand assets
-          </p>
+          <h1 className="text-2xl font-bold text-foreground">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("subtitle")}</p>
         </div>
         <input
           type="file"
@@ -71,7 +74,7 @@ export default function AssetsPage() {
           ) : (
             <Upload className="h-4 w-4 mr-2" />
           )}
-          {uploading ? "Uploading..." : "Upload"}
+          {uploading ? t("uploading") : t("upload")}
         </Button>
       </div>
 
@@ -86,7 +89,7 @@ export default function AssetsPage() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search assets..."
+              placeholder={t("searchPlaceholder")}
               className="pl-9"
             />
           </div>

@@ -6,12 +6,14 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import { Avatar, AvatarFallback, AvatarImage, Button } from "@packages/ui";
 import { Bookmark, Heart, MessageCircle, MoreHorizontal, Share } from "lucide-react";
 import { HashtagText } from "./HashtagText";
 import type { PreviewProps } from "./types";
 
 export function InstagramPreview({ content, media, userInfo }: PreviewProps) {
+  const t = useTranslations("editor");
   return (
     <div className="bg-white border rounded-lg max-w-sm mx-auto">
       <div className="p-3 border-b flex items-center space-x-3">
@@ -44,7 +46,7 @@ export function InstagramPreview({ content, media, userInfo }: PreviewProps) {
         </div>
 
         <div className="text-sm">
-          <span className="font-semibold">1,234 likes</span>
+          <span className="font-semibold">{t("preview.instagramLikes", { count: 1234 })}</span>
         </div>
 
         <div className="mt-1">
@@ -54,7 +56,7 @@ export function InstagramPreview({ content, media, userInfo }: PreviewProps) {
           </span>
         </div>
 
-        <div className="text-gray-500 text-xs mt-1">2 HOURS AGO</div>
+        <div className="text-gray-500 text-xs mt-1">{t("preview.instagramTimeAgo")}</div>
       </div>
     </div>
   );

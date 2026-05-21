@@ -6,6 +6,7 @@
 
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@packages/ui";
 import { Badge } from "@packages/ui";
 import { Alert, AlertDescription } from "@packages/ui";
@@ -17,14 +18,15 @@ interface ABTestResultsTabProps {
 }
 
 export function ABTestResultsTab({ completedTests }: ABTestResultsTabProps) {
+  const t = useTranslations("templates.components.abTest");
   if (completedTests.length === 0) {
     return (
       <Card>
         <CardContent className="p-8 text-center">
           <div className="text-muted-foreground">
             <BarChart3 className="h-8 w-8 mx-auto mb-2" />
-            <p>No completed tests with results.</p>
-            <p className="text-sm">Results will appear here once tests are completed.</p>
+            <p>{t("results.empty")}</p>
+            <p className="text-sm">{t("results.emptyHint")}</p>
           </div>
         </CardContent>
       </Card>
@@ -46,23 +48,23 @@ export function ABTestResultsTab({ completedTests }: ABTestResultsTabProps) {
                 <div className="grid grid-cols-3 gap-4">
                   <div className="text-center">
                     <p className="text-2xl font-bold">{test.results.totalViews}</p>
-                    <p className="text-sm text-muted-foreground">Total Views</p>
+                    <p className="text-sm text-muted-foreground">{t("results.totalViews")}</p>
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-bold">{test.results.totalConversions}</p>
-                    <p className="text-sm text-muted-foreground">Conversions</p>
+                    <p className="text-sm text-muted-foreground">{t("results.conversions")}</p>
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-bold">
                       {(test.results.overallConversionRate * 100).toFixed(2)}%
                     </p>
-                    <p className="text-sm text-muted-foreground">Conversion Rate</p>
+                    <p className="text-sm text-muted-foreground">{t("results.conversionRate")}</p>
                   </div>
                 </div>
 
                 {/* Variant results */}
                 <div className="space-y-2">
-                  <h4 className="font-medium">Variant Performance</h4>
+                  <h4 className="font-medium">{t("results.variantPerformance")}</h4>
                   {test.results.variants.map((result) => {
                     const variant = test.config.variants.find((v) => v.id === result.variantId);
                     return (
@@ -74,23 +76,25 @@ export function ABTestResultsTab({ completedTests }: ABTestResultsTabProps) {
                           <div className="text-sm font-medium">{variant?.name}</div>
                           {result.isWinner && (
                             <Badge variant="default" className="text-xs">
-                              Winner
+                              {t("results.winner")}
                             </Badge>
                           )}
                           {result.isStatisticallySignificant && (
                             <Badge variant="outline" className="text-xs">
-                              Significant
+                              {t("results.significant")}
                             </Badge>
                           )}
                         </div>
                         <div className="flex items-center space-x-4 text-sm">
-                          <span>{result.views} views</span>
-                          <span>{result.conversions} conversions</span>
+                          <span>{t("results.viewsCount", { count: result.views })}</span>
+                          <span>
+                            {t("results.conversionsCount", { count: result.conversions })}
+                          </span>
                           <span className="font-medium">
                             {(result.conversionRate * 100).toFixed(2)}%
                           </span>
                           <span className="text-muted-foreground">
-                            {result.confidence.toFixed(1)}% conf.
+                            {t("results.confidence", { value: result.confidence.toFixed(1) })}
                           </span>
                         </div>
                       </div>
@@ -103,14 +107,14 @@ export function ABTestResultsTab({ completedTests }: ABTestResultsTabProps) {
                   <Alert>
                     <Info aria-hidden="true" className="h-4 w-4" />
                     <AlertDescription>
-                      <strong>Recommendation:</strong>{" "}
+                      <strong>{t("results.recommendation")}</strong>{" "}
                       {test.results.recommendedAction.replace(/_/g, " ")}
                     </AlertDescription>
                   </Alert>
                 )}
               </div>
             ) : (
-              <p className="text-muted-foreground">No results available yet.</p>
+              <p className="text-muted-foreground">{t("results.noneYet")}</p>
             )}
           </CardContent>
         </Card>

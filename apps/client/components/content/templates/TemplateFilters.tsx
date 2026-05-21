@@ -4,9 +4,12 @@
  * @file TemplateFilters.tsx
  * @description Filter and view controls for the templates list, providing search input,
  * category filtering, sort options, and grid/list view mode toggle.
+ * @component TemplateFilters
+ * @layer infrastructure
  */
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import { Search, Grid, List } from "lucide-react";
 import type { FilterOptions, SortOption, ViewMode } from "./types";
 
@@ -36,13 +39,14 @@ export const TemplateFilters: React.FC<TemplateFiltersProps> = ({
   viewMode,
   onViewModeChange,
 }) => {
+  const t = useTranslations("content");
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
         <input
           type="text"
-          placeholder="Search templates..."
+          placeholder={t("filters.searchPlaceholder")}
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -59,11 +63,11 @@ export const TemplateFilters: React.FC<TemplateFiltersProps> = ({
         }
         className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
       >
-        <option value="">All Categories</option>
-        <option value="announcements">Announcements</option>
-        <option value="educational">Educational</option>
-        <option value="events">Events</option>
-        <option value="promotional">Promotional</option>
+        <option value="">{t("filters.allCategories")}</option>
+        <option value="announcements">{t("filters.categoryAnnouncements")}</option>
+        <option value="educational">{t("filters.categoryEducational")}</option>
+        <option value="events">{t("filters.categoryEvents")}</option>
+        <option value="promotional">{t("filters.categoryPromotional")}</option>
       </select>
 
       <select
@@ -71,10 +75,10 @@ export const TemplateFilters: React.FC<TemplateFiltersProps> = ({
         onChange={(e) => onSortChange(e.target.value as SortOption)}
         className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
       >
-        <option value="newest">Newest First</option>
-        <option value="oldest">Oldest First</option>
-        <option value="popular">Most Popular</option>
-        <option value="performance">Best Performance</option>
+        <option value="newest">{t("filters.sortNewest")}</option>
+        <option value="oldest">{t("filters.sortOldest")}</option>
+        <option value="popular">{t("filters.sortPopular")}</option>
+        <option value="performance">{t("filters.sortPerformance")}</option>
       </select>
 
       <div className="flex items-center space-x-2">

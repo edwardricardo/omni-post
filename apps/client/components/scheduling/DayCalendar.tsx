@@ -8,6 +8,7 @@
 "use client";
 
 import { useMemo, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { DashboardScheduledPost } from "./schedulingDashboardTypes";
@@ -45,6 +46,7 @@ export function DayCalendar({
   onDayNavigate,
   onToday,
 }: DayCalendarProps) {
+  const t = useTranslations("scheduling.components");
   const today = new Date();
   const isToday = isSameDay(currentDate, today);
 
@@ -76,21 +78,21 @@ export function DayCalendar({
             <ChevronRight className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="sm" onClick={onToday}>
-            Today
+            {t("today")}
           </Button>
         </div>
         <h3 className={`text-sm font-medium ${isToday ? "text-primary" : ""}`}>
           {dateLabel}
           {isToday && (
             <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-              Today
+              {t("today")}
             </span>
           )}
         </h3>
       </div>
 
       <div className="text-xs text-muted-foreground mb-2">
-        {dayPosts.length} post{dayPosts.length !== 1 ? "s" : ""} scheduled
+        {t("postsScheduledCount", { count: dayPosts.length })}
       </div>
 
       <div className="flex-1 overflow-auto border rounded-lg">
@@ -126,7 +128,7 @@ export function DayCalendar({
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-medium truncate">
-                        {post.title || "Untitled post"}
+                        {post.title || t("untitledPost")}
                       </span>
                       <span className="text-xs shrink-0">
                         {new Date(post.scheduledAt).toLocaleTimeString("en-US", {

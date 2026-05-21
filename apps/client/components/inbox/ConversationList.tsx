@@ -9,6 +9,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import {
   useInboxMessages,
   useMentions,
@@ -41,6 +42,7 @@ export function ConversationList({
   onSelect,
   projectId,
 }: ConversationListProps) {
+  const t = useTranslations("inbox.components");
   const isMentions = filters.messageType === "MENTION";
 
   const apiFilters: ServerInboxFilters = {
@@ -101,12 +103,12 @@ export function ConversationList({
   if (isError) {
     return (
       <div className="flex flex-col items-center gap-2 px-4 py-12 text-center">
-        <p className="text-sm text-gray-500">Failed to load inbox</p>
+        <p className="text-sm text-gray-500">{t("listLoadError")}</p>
         <button
           onClick={() => void refetch()}
           className="text-xs text-blue-600 hover:text-blue-700"
         >
-          Retry
+          {t("retry")}
         </button>
       </div>
     );
@@ -116,12 +118,10 @@ export function ConversationList({
     return (
       <div className="flex flex-col items-center gap-2 px-4 py-12 text-center">
         <p className="text-sm font-medium text-gray-700">
-          {isMentions ? "No mentions yet" : "No messages yet"}
+          {isMentions ? t("emptyMentionsTitle") : t("emptyMessagesTitle")}
         </p>
         <p className="text-xs text-gray-400">
-          {isMentions
-            ? "Mentions from connected platforms will appear here."
-            : "Incoming messages from connected platforms will appear here."}
+          {isMentions ? t("emptyMentionsDescription") : t("emptyMessagesDescription")}
         </p>
       </div>
     );
@@ -143,7 +143,7 @@ export function ConversationList({
       <div ref={sentinelRef} className="h-4" aria-hidden="true" />
 
       {isFetchingNextPage && (
-        <div className="py-3 text-center text-xs text-gray-400">Loading more…</div>
+        <div className="py-3 text-center text-xs text-gray-400">{t("loadingMore")}</div>
       )}
     </div>
   );

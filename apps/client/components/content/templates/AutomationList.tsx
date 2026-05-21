@@ -4,9 +4,12 @@
  * @file AutomationList.tsx
  * @description List container that renders a collection of AutomationCard components,
  * displaying all automation rules with an empty state when none exist.
+ * @component AutomationList
+ * @layer infrastructure
  */
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import { Wand2 } from "lucide-react";
 import { AutomationCard } from "./AutomationCard";
 import type { AutomationTemplate } from "./types";
@@ -27,16 +30,17 @@ export const AutomationList: React.FC<AutomationListProps> = ({
   onAutomationToggle,
   onAutomationCreate,
 }) => {
+  const t = useTranslations("content");
   if (automations.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
         <Wand2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-        <p>No automation rules configured</p>
+        <p>{t("automationList.empty")}</p>
         <button
           onClick={() => onAutomationCreate({})}
           className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
         >
-          Create Your First Automation
+          {t("automationList.createFirst")}
         </button>
       </div>
     );

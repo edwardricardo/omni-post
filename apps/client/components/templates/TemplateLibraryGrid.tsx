@@ -8,6 +8,7 @@
  */
 
 import React, { memo } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@packages/ui";
 import { Button } from "@packages/ui";
 import { Badge } from "@packages/ui";
@@ -54,6 +55,7 @@ function TemplateCardComponent({
   allowDelete: boolean;
   actions: TemplateLibraryGridProps["actions"];
 }) {
+  const t = useTranslations("templates.components.library");
   return (
     <div className="p-2 h-full">
       <Card className="group hover:shadow-lg transition-shadow duration-200 h-full flex flex-col">
@@ -87,30 +89,30 @@ function TemplateCardComponent({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("grid.actions")}</DropdownMenuLabel>
                   <DropdownMenuItem onClick={() => actions.onPreview(template)}>
                     <Eye className="h-3 w-3 mr-1" />
-                    Preview
+                    {t("grid.preview")}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => actions.onUse(template)}>
                     <Plus className="h-3 w-3 mr-1" />
-                    Use Template
+                    {t("grid.useTemplate")}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => actions.onCopy(template)}>
                     <Copy className="h-3 w-3 mr-1" />
-                    Copy Content
+                    {t("grid.copyContent")}
                   </DropdownMenuItem>
                   {actions.onDuplicate && (
                     <DropdownMenuItem onClick={() => actions.onDuplicate?.(template)}>
                       <Copy className="h-3 w-3 mr-1" />
-                      Duplicate
+                      {t("grid.duplicate")}
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator />
                   {allowEdit && actions.onEdit && (
                     <DropdownMenuItem onClick={() => actions.onEdit?.(template)}>
                       <Edit className="h-3 w-3 mr-1" />
-                      Edit
+                      {t("grid.edit")}
                     </DropdownMenuItem>
                   )}
                   {allowDelete && actions.onDelete && (
@@ -119,7 +121,7 @@ function TemplateCardComponent({
                       className="text-red-600"
                     >
                       <Trash2 className="h-3 w-3 mr-1" />
-                      Delete
+                      {t("grid.delete")}
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
@@ -151,9 +153,7 @@ function TemplateCardComponent({
           {/* Variables and analytics */}
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             {template.variables.length > 0 && (
-              <span>
-                {template.variables.length} var{template.variables.length !== 1 ? "s" : ""}
-              </span>
+              <span>{t("grid.varsCount", { count: template.variables.length })}</span>
             )}
             {showAnalytics && (
               <div className="flex items-center space-x-2">
@@ -188,7 +188,7 @@ function TemplateCardComponent({
           {/* Actions */}
           <div className="flex space-x-2 mt-auto">
             <Button size="sm" onClick={() => actions.onUse(template)} className="flex-1 text-xs">
-              Use
+              {t("grid.use")}
             </Button>
             <Button
               size="sm"
@@ -227,6 +227,7 @@ function TemplateListItem({
   showAnalytics: boolean;
   actions: TemplateLibraryGridProps["actions"];
 }) {
+  const t = useTranslations("templates.components.library");
   return (
     <div className="p-1 h-full">
       <Card className="p-3 hover:shadow-md transition-shadow duration-200 h-full">
@@ -256,13 +257,13 @@ function TemplateListItem({
               </div>
               {showAnalytics && (
                 <div className="flex items-center space-x-3 text-xs text-muted-foreground shrink-0">
-                  <span>{stats.uses} uses</span>
-                  <span>{stats.views} views</span>
+                  <span>{t("grid.usesCount", { count: stats.uses })}</span>
+                  <span>{t("grid.viewsCount", { count: stats.views })}</span>
                 </div>
               )}
               <div className="flex items-center space-x-1 shrink-0">
                 <Button size="sm" onClick={() => actions.onUse(template)} className="text-xs">
-                  Use
+                  {t("grid.use")}
                 </Button>
                 <Button
                   size="sm"
@@ -301,14 +302,15 @@ export function TemplateLibraryGrid({
   allowDelete,
   actions,
 }: TemplateLibraryGridProps) {
+  const t = useTranslations("templates.components.library");
   if (templates.length === 0) {
     return (
       <Card>
         <CardContent className="p-8 text-center">
           <div className="text-muted-foreground">
             <Search className="h-8 w-8 mx-auto mb-2" />
-            <p>No templates found matching your criteria.</p>
-            <p className="text-sm">Try adjusting your search or filters.</p>
+            <p>{t("grid.emptyTitle")}</p>
+            <p className="text-sm">{t("grid.emptyDescription")}</p>
           </div>
         </CardContent>
       </Card>

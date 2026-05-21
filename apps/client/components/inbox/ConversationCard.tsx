@@ -11,6 +11,7 @@
 
 import { memo } from "react";
 import { formatDistanceToNow } from "date-fns";
+import { useTranslations } from "next-intl";
 import type { InboxMessage, InboxMessageWireType, InboxPriority } from "@/hooks/api/useInbox";
 
 // ---------------------------------------------------------------------------
@@ -55,11 +56,11 @@ const MESSAGE_TYPE_STYLES: Record<InboxMessageWireType, string> = {
   DIRECT_MESSAGE: "bg-amber-100 text-amber-700",
 };
 
-const MESSAGE_TYPE_LABELS: Record<InboxMessageWireType, string> = {
-  COMMENT: "Comment",
-  MENTION: "Mention",
-  REPLY: "Reply",
-  DIRECT_MESSAGE: "DM",
+const MESSAGE_TYPE_LABEL_KEYS: Record<InboxMessageWireType, string> = {
+  COMMENT: "messageType.COMMENT",
+  MENTION: "messageType.MENTION",
+  REPLY: "messageType.REPLY",
+  DIRECT_MESSAGE: "messageType.DIRECT_MESSAGE",
 };
 
 // ---------------------------------------------------------------------------
@@ -67,17 +68,17 @@ const MESSAGE_TYPE_LABELS: Record<InboxMessageWireType, string> = {
 // ---------------------------------------------------------------------------
 
 function sentimentLabel(score: number | null): {
-  text: string;
+  key: string;
   className: string;
 } | null {
   if (score === null) return null;
   if (score > 0.2) {
-    return { text: "positive", className: "bg-green-100 text-green-700" };
+    return { key: "sentiment.positive", className: "bg-green-100 text-green-700" };
   }
   if (score < -0.2) {
-    return { text: "negative", className: "bg-red-100 text-red-700" };
+    return { key: "sentiment.negative", className: "bg-red-100 text-red-700" };
   }
-  return { text: "neutral", className: "bg-gray-100 text-gray-600" };
+  return { key: "sentiment.neutral", className: "bg-gray-100 text-gray-600" };
 }
 
 // ---------------------------------------------------------------------------
@@ -102,6 +103,7 @@ interface ConversationCardProps {
  *   conversationId; the card is non-interactive when the message has none.
  */
 function ConversationCardComponent({ message, selected, onSelect }: ConversationCardProps) {
+  const t = useTranslations("inbox.components");
   const providerKey = message.provider.toUpperCase();
   const colour = PROVIDER_COLOURS[providerKey] ?? "bg-gray-500 text-white";
   const label = PROVIDER_LABELS[providerKey] ?? providerKey.slice(0, 2);
@@ -128,13 +130,17 @@ function ConversationCardComponent({ message, selected, onSelect }: Conversation
       ]
         .filter(Boolean)
         .join(" ")}
-      aria-label={`${MESSAGE_TYPE_LABELS[message.messageType]} from ${message.authorName} on ${message.provider}`}
+      aria-label={t("cardAriaLabel", {
+        type: t(MESSAGE_TYPE_LABEL_KEYS[message.messageType]),
+        author: message.authorName,
+        provider: message.provider,
+      })}
       aria-current={selected ? "true" : undefined}
     >
       <div className="flex items-start gap-3">
         <div className="mt-1.5 shrink-0 w-2">
           {isUnread && (
-            <span className="block h-2 w-2 rounded-full bg-blue-500" aria-label="Unread" />
+            <span className="block h-2 w-2 rounded-full bg-blue-500" aria-label={t("unread")} />
           )}
         </div>
 
@@ -152,7 +158,7 @@ function ConversationCardComponent({ message, selected, onSelect }: Conversation
                 <span
                   className={`inline-block h-2 w-2 shrink-0 rounded-full ${PRIORITY_COLOURS[message.priority]}`}
                   title={message.priority}
-                  aria-label={`Priority: ${message.priority}`}
+                  aria-label={t("priorityAriaLabel", { priority: message.priority })}
                 />
               )}
               <p
@@ -163,22 +169,24 @@ function ConversationCardComponent({ message, selected, onSelect }: Conversation
               <span
                 className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded font-medium ${MESSAGE_TYPE_STYLES[message.messageType]}`}
               >
-                {MESSAGE_TYPE_LABELS[message.messageType]}
+                {t(MESSAGE_TYPE_LABEL_KEYS[message.messageType])}
               </span>
               {sentiment && (
                 <span
                   className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded ${sentiment.className}`}
-                  title={`Sentiment ${message.sentimentScore?.toFixed(2) ?? ""}`}
+                  title={t("sentimentTitle", {
+                    score: message.sentimentScore?.toFixed(2) ?? "",
+                  })}
                 >
-                  {sentiment.text}
+                  {t(sentiment.key)}
                 </span>
               )}
               {message.crmContactId && (
                 <span
                   className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 font-medium"
-                  title="Sender is a known CRM contact"
+                  title={t("crmTitle")}
                 >
-                  In CRM
+                  {t("inCrm")}
                 </span>
               )}
             </div>

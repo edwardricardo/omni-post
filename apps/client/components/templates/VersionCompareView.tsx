@@ -8,6 +8,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@packages/ui";
 import { ScrollArea } from "@packages/ui";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@packages/ui";
@@ -58,14 +59,15 @@ interface VersionCompareTabProps {
 }
 
 export function VersionCompareTab({ canCompare, selectedVersionObjects }: VersionCompareTabProps) {
+  const t = useTranslations("templates.components.versionControl");
   if (!canCompare) {
     return (
       <Card>
         <CardContent className="p-8 text-center">
           <div className="text-muted-foreground">
             <GitCompare className="h-8 w-8 mx-auto mb-2" />
-            <p>Select exactly 2 versions to compare.</p>
-            <p className="text-sm">Use the checkboxes in the History tab to select versions.</p>
+            <p>{t("compare.selectTwo")}</p>
+            <p className="text-sm">{t("compare.useCheckboxes")}</p>
           </div>
         </CardContent>
       </Card>
@@ -75,10 +77,10 @@ export function VersionCompareTab({ canCompare, selectedVersionObjects }: Versio
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium">Compare Versions</h3>
+        <h3 className="text-lg font-medium">{t("compare.title")}</h3>
         <div className="flex items-center space-x-2 text-sm text-muted-foreground">
           <span>v{selectedVersionObjects[0]?.version}</span>
-          <span>vs</span>
+          <span>{t("compare.vs")}</span>
           <span>v{selectedVersionObjects[1]?.version}</span>
         </div>
       </div>
@@ -104,14 +106,17 @@ export function VersionCompareDialog({
   canCompare,
   selectedVersionObjects,
 }: VersionCompareDialogProps) {
+  const t = useTranslations("templates.components.versionControl");
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle>Version Comparison</DialogTitle>
+          <DialogTitle>{t("compare.dialogTitle")}</DialogTitle>
           <DialogDescription>
-            Comparing v{selectedVersionObjects[0]?.version} with v
-            {selectedVersionObjects[1]?.version}
+            {t("compare.dialogDescription", {
+              left: selectedVersionObjects[0]?.version ?? "",
+              right: selectedVersionObjects[1]?.version ?? "",
+            })}
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[70vh]">

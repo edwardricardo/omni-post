@@ -8,6 +8,7 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth/authContext";
 import { ApprovalQueue } from "@/components/approvals/ApprovalQueue";
 
@@ -16,6 +17,7 @@ import { ApprovalQueue } from "@/components/approvals/ApprovalQueue";
  * @description Displays the approval queue showing posts pending the current user's review.
  */
 export default function ApprovalsPage() {
+  const t = useTranslations("approvals");
   const { user } = useAuth();
 
   if (!user) return null;
@@ -23,8 +25,8 @@ export default function ApprovalsPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Approval Queue</h1>
-        <p className="mt-1 text-sm text-gray-600">Posts pending your review.</p>
+        <h1 className="text-2xl font-semibold text-gray-900">{t("title")}</h1>
+        <p className="mt-1 text-sm text-gray-600">{t("subtitle")}</p>
       </div>
       <ApprovalQueue reviewerId={user.id} />
     </div>

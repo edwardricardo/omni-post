@@ -17,6 +17,7 @@
  */
 
 import React, { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import {
   TemplatesHeader,
   TemplatesTabs,
@@ -67,6 +68,7 @@ const ContentTemplates: React.FC<ContentTemplatesProps> = ({
   showAutomation = true,
   maxTemplates: _maxTemplates = 50,
 }) => {
+  const t = useTranslations("content");
   // ---------------------------------------------------------------
   // UI state
   // ---------------------------------------------------------------
@@ -110,11 +112,11 @@ const ContentTemplates: React.FC<ContentTemplatesProps> = ({
       const newTemplate: ContentTemplate = {
         ...template,
         id: `${template.id}_copy`,
-        name: `${template.name} (Copy)`,
+        name: t("copySuffix", { name: template.name }),
       };
       setTemplates((prev) => [...prev, newTemplate]);
     },
-    [setTemplates]
+    [setTemplates, t]
   );
 
   const handleEdit = useCallback(

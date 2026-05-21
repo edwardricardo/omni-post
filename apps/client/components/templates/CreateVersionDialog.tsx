@@ -2,8 +2,10 @@
  * @file CreateVersionDialog.tsx
  * @component CreateVersionDialog
  * @description Dialog for creating a new template version with commit message, change log, and branch selection.
+ * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import { Input } from "@packages/ui";
 import { Label } from "@packages/ui";
@@ -40,42 +42,43 @@ export function CreateVersionDialog({
   allowBranching,
   branches,
 }: CreateVersionDialogProps) {
+  const t = useTranslations("templates.components.versionControl");
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline" className="flex items-center space-x-1">
           <GitCommit className="h-4 w-4" />
-          <span>Create Version</span>
+          <span>{t("createVersion")}</span>
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create New Version</DialogTitle>
-          <DialogDescription>Create a new version of this template</DialogDescription>
+          <DialogTitle>{t("createDialogTitle")}</DialogTitle>
+          <DialogDescription>{t("createDialogDescription")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="commit-message">Commit Message</Label>
+            <Label htmlFor="commit-message">{t("commitMessage")}</Label>
             <Input
               id="commit-message"
               value={form.commitMessage}
               onChange={(e) => onFormChange((prev) => ({ ...prev, commitMessage: e.target.value }))}
-              placeholder="Brief summary of changes"
+              placeholder={t("commitMessagePlaceholder")}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="change-log">Change Log *</Label>
+            <Label htmlFor="change-log">{t("changeLog")}</Label>
             <Textarea
               id="change-log"
               value={form.changeLog}
               onChange={(e) => onFormChange((prev) => ({ ...prev, changeLog: e.target.value }))}
-              placeholder="Describe what changed in this version"
+              placeholder={t("changeLogPlaceholder")}
               rows={3}
             />
           </div>
           {allowBranching && (
             <div className="space-y-2">
-              <Label htmlFor="branch-select">Branch</Label>
+              <Label htmlFor="branch-select">{t("branch")}</Label>
               <Select
                 value={form.branchName}
                 onValueChange={(value) => onFormChange((prev) => ({ ...prev, branchName: value }))}
@@ -99,10 +102,10 @@ export function CreateVersionDialog({
         </div>
         <div className="flex justify-end space-x-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("cancel")}
           </Button>
           <Button onClick={onSubmit} disabled={!form.changeLog.trim()}>
-            Create Version
+            {t("createVersion")}
           </Button>
         </div>
       </DialogContent>

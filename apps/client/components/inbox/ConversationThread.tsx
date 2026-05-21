@@ -10,6 +10,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { useConversation, useConversationMessages, useMarkMessageRead } from "@/hooks/api/useInbox";
 import { MessageBubble } from "./MessageBubble";
 import { ConversationHeader } from "./ConversationHeader";
@@ -30,6 +31,7 @@ interface ConversationThreadProps {
  * @param props.userId - Current user id used for header actions.
  */
 export function ConversationThread({ conversationId, userId }: ConversationThreadProps) {
+  const t = useTranslations("inbox.components");
   const { data: conversation, isLoading: convLoading } = useConversation(conversationId);
   const { data: messagesData, isLoading: msgLoading } = useConversationMessages(conversationId);
   const markRead = useMarkMessageRead();
@@ -91,9 +93,7 @@ export function ConversationThread({ conversationId, userId }: ConversationThrea
 
       <div className="flex-1 overflow-y-auto py-4">
         {allMessages.length === 0 && (
-          <p className="py-12 text-center text-sm text-gray-400">
-            No messages in this conversation
-          </p>
+          <p className="py-12 text-center text-sm text-gray-400">{t("emptyConversation")}</p>
         )}
 
         {allMessages.map((message) => (

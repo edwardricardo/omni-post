@@ -6,12 +6,14 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import { Avatar, AvatarFallback } from "@packages/ui";
 import type { PreviewProps } from "./types";
 
 const SNAPCHAT_LIMIT = 250;
 
 export function SnapchatPreview({ content, media, userInfo }: PreviewProps) {
+  const t = useTranslations("editor");
   const tooLong = content.length > SNAPCHAT_LIMIT;
   return (
     <div
@@ -37,7 +39,10 @@ export function SnapchatPreview({ content, media, userInfo }: PreviewProps) {
       {tooLong && (
         <div className="absolute bottom-4 left-4 right-4 bg-yellow-400/90 rounded-md p-2">
           <p className="text-xs text-gray-900 font-medium text-center">
-            ⚠ Caption exceeds 250 characters ({content.length - SNAPCHAT_LIMIT} over limit)
+            {t("preview.snapchatTooLong", {
+              limit: SNAPCHAT_LIMIT,
+              over: content.length - SNAPCHAT_LIMIT,
+            })}
           </p>
         </div>
       )}

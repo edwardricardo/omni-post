@@ -8,6 +8,7 @@
  */
 
 import React, { useMemo, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import type {
   AvailableSlot,
   OptimalTime,
@@ -36,6 +37,7 @@ export function CalendarView({
   onCreateSchedule,
   onSmartSchedule,
 }: CalendarViewProps) {
+  const t = useTranslations("scheduling.components");
   // Generate calendar grid for current week
   const calendarDays = useMemo((): CalendarDay[] => {
     const startOfWeek = new Date(currentWeek);
@@ -81,9 +83,9 @@ export function CalendarView({
         <button
           onClick={() => onWeekChange("prev")}
           className="px-4 py-2 border rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-blue-500"
-          aria-label="Previous week"
+          aria-label={t("previousWeek")}
         >
-          ← Previous Week
+          ← {t("previousWeek")}
         </button>
 
         <h3 className="text-lg font-medium">
@@ -96,9 +98,9 @@ export function CalendarView({
         <button
           onClick={() => onWeekChange("next")}
           className="px-4 py-2 border rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-blue-500"
-          aria-label="Next week"
+          aria-label={t("nextWeek")}
         >
-          Next Week →
+          {t("nextWeek")} →
         </button>
       </div>
 
@@ -122,12 +124,15 @@ export function CalendarView({
             {/* Optimal times indicators */}
             {day.optimalTimes.length > 0 && (
               <div className="mb-2">
-                <div className="text-xs text-green-600 mb-1" aria-label="Optimal posting times">
-                  ⭐ Optimal:
+                <div className="text-xs text-green-600 mb-1" aria-label={t("optimalTimesAria")}>
+                  ⭐ {t("optimalLabel")}
                 </div>
                 {day.optimalTimes.slice(0, 2).map((time, i) => (
                   <div key={i} className="text-xs text-green-600">
-                    {time.hour}:00 ({Math.round(time.avgEngagement)}% eng.)
+                    {t("optimalTimeEntry", {
+                      hour: time.hour,
+                      engagement: Math.round(time.avgEngagement),
+                    })}
                   </div>
                 ))}
               </div>
@@ -139,7 +144,15 @@ export function CalendarView({
                 <div
                   key={slotIndex}
                   className={`p-2 rounded-sm text-xs border ${getSlotColor(slot.available)}`}
-                  aria-label={`Slot at ${new Date(slot.datetime).toLocaleTimeString()} — ${slot.available ? "available" : "unavailable"}`}
+                  aria-label={
+                    slot.available
+                      ? t("slotAvailableAria", {
+                          time: new Date(slot.datetime).toLocaleTimeString(),
+                        })
+                      : t("slotUnavailableAria", {
+                          time: new Date(slot.datetime).toLocaleTimeString(),
+                        })
+                  }
                 >
                   <div className="font-medium">
                     {new Date(slot.datetime).toLocaleTimeString("en-US", {
@@ -164,9 +177,9 @@ export function CalendarView({
                 });
               }}
               className="w-full mt-2 p-2 border-2 border-dashed border-gray-300 rounded-sm text-xs text-gray-500 hover:border-blue-300 hover:text-blue-600 focus:ring-2 focus:ring-blue-500"
-              aria-label={`Add post on ${day.date.toLocaleDateString()}`}
+              aria-label={t("addPostOnDate", { date: day.date.toLocaleDateString() })}
             >
-              + Add Post
+              {t("addPost")}
             </button>
           </div>
         ))}
@@ -174,7 +187,7 @@ export function CalendarView({
 
       {/* Quick scheduling actions */}
       <div className="bg-gray-50 rounded-lg p-4">
-        <h4 className="font-medium mb-3">Quick Actions</h4>
+        <h4 className="font-medium mb-3">{t("quickActions")}</h4>
         <div className="flex space-x-4">
           <button
             onClick={() => onSmartSchedule(selectedProviders, 3)}
@@ -182,7 +195,7 @@ export function CalendarView({
             className="px-4 py-2 bg-green-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-700 focus:ring-2 focus:ring-green-500"
             aria-disabled={selectedProviders.length === 0 || !selectedContent}
           >
-            🎯 Smart Schedule (3 posts)
+            🎯 {t("smartSchedule")}
           </button>
           <button
             onClick={() => onSmartSchedule(selectedProviders, 1)}
@@ -190,7 +203,7 @@ export function CalendarView({
             className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 focus:ring-2 focus:ring-blue-500"
             aria-disabled={selectedProviders.length === 0 || !selectedContent}
           >
-            ⚡ Schedule at Optimal Time
+            ⚡ {t("scheduleAtOptimal")}
           </button>
         </div>
       </div>

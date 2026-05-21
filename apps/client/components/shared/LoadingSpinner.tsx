@@ -3,9 +3,13 @@
  * @component LoadingSpinner
  * @description Accessible loading indicator with ARIA live region.
  * Announces loading state to screen readers.
+ * @layer infrastructure
  */
 
+"use client";
+
 import React from "react";
+import { useTranslations } from "next-intl";
 
 interface LoadingSpinnerProps {
   size?: "sm" | "md" | "lg";
@@ -13,11 +17,9 @@ interface LoadingSpinnerProps {
   className?: string;
 }
 
-export function LoadingSpinner({
-  size = "md",
-  label = "Loading...",
-  className = "",
-}: LoadingSpinnerProps) {
+export function LoadingSpinner({ size = "md", label, className = "" }: LoadingSpinnerProps) {
+  const t = useTranslations("shared");
+  const resolvedLabel = label ?? t("loading");
   const sizeClasses = {
     sm: "w-4 h-4 border-2",
     md: "w-8 h-8 border-2",
@@ -34,7 +36,7 @@ export function LoadingSpinner({
         className={`${sizeClasses[size]} border-blue-600 border-t-transparent rounded-full animate-spin`}
         aria-hidden="true"
       />
-      <span className="sr-only">{label}</span>
+      <span className="sr-only">{resolvedLabel}</span>
     </div>
   );
 }

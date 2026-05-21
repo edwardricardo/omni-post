@@ -8,6 +8,7 @@
  */
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Plus, X } from "lucide-react";
 import { Button, Card, Input } from "@packages/ui";
 import type { TemplateContext } from "@/lib/templates/templateEngine";
@@ -20,6 +21,7 @@ interface ContextTabProps {
 }
 
 export function ContextTab({ context, onAdd, onRemove, onUpdate }: ContextTabProps) {
+  const t = useTranslations("templates.components.variableInserter");
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
 
@@ -36,16 +38,16 @@ export function ContextTab({ context, onAdd, onRemove, onUpdate }: ContextTabPro
     <div className="space-y-4">
       <Card className="p-3">
         <div className="space-y-2">
-          <h4 className="text-sm font-medium">Add Context Variable</h4>
+          <h4 className="text-sm font-medium">{t("addContextVariable")}</h4>
           <div className="flex space-x-2">
             <Input
-              placeholder="Variable name"
+              placeholder={t("variableNamePlaceholder")}
               value={newKey}
               onChange={(e) => setNewKey(e.target.value)}
               className="text-xs"
             />
             <Input
-              placeholder="Value"
+              placeholder={t("valuePlaceholder")}
               value={newValue}
               onChange={(e) => setNewValue(e.target.value)}
               className="text-xs"
@@ -58,13 +60,13 @@ export function ContextTab({ context, onAdd, onRemove, onUpdate }: ContextTabPro
             className="w-full text-xs"
           >
             <Plus className="h-3 w-3 mr-1" />
-            Add Variable
+            {t("addVariable")}
           </Button>
         </div>
       </Card>
 
       <div className="space-y-2">
-        <h4 className="text-sm font-medium text-muted-foreground">Current Context</h4>
+        <h4 className="text-sm font-medium text-muted-foreground">{t("currentContext")}</h4>
         {entries.length > 0 ? (
           <div className="space-y-2">
             {entries.map(([key, value]) => (
@@ -83,7 +85,7 @@ export function ContextTab({ context, onAdd, onRemove, onUpdate }: ContextTabPro
                     size="sm"
                     onClick={() => onRemove(key)}
                     className="h-6 w-6 p-0 shrink-0"
-                    aria-label={`Remove context variable ${key}`}
+                    aria-label={t("removeContextVariable", { key })}
                   >
                     <X aria-hidden="true" className="h-3 w-3" />
                   </Button>
@@ -92,9 +94,7 @@ export function ContextTab({ context, onAdd, onRemove, onUpdate }: ContextTabPro
             ))}
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground text-center py-4">
-            No context variables set. Add some above to see them here.
-          </p>
+          <p className="text-xs text-muted-foreground text-center py-4">{t("contextEmpty")}</p>
         )}
       </div>
     </div>

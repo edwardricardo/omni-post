@@ -9,6 +9,7 @@
 
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { InboxMessageStatus, InboxMessageWireType } from "@/hooks/api/useInbox";
 
 type Provider =
@@ -50,20 +51,20 @@ const PROVIDERS: { label: string; value: Provider }[] = [
   { label: "LinkedIn", value: "linkedin" },
 ];
 
-const STATUSES: { label: string; value: StatusFilter }[] = [
-  { label: "All", value: "all" },
-  { label: "Unread", value: "UNREAD" },
-  { label: "Read", value: "READ" },
-  { label: "Replied", value: "REPLIED" },
-  { label: "Archived", value: "ARCHIVED" },
+const STATUSES: { labelKey: string; value: StatusFilter }[] = [
+  { labelKey: "filterAll", value: "all" },
+  { labelKey: "statusUnread", value: "UNREAD" },
+  { labelKey: "statusRead", value: "READ" },
+  { labelKey: "statusReplied", value: "REPLIED" },
+  { labelKey: "statusArchived", value: "ARCHIVED" },
 ];
 
-const MESSAGE_TYPES: { label: string; value: MessageTypeFilter }[] = [
-  { label: "All", value: "all" },
-  { label: "Mentions", value: "MENTION" },
-  { label: "Comments", value: "COMMENT" },
-  { label: "Replies", value: "REPLY" },
-  { label: "DMs", value: "DIRECT_MESSAGE" },
+const MESSAGE_TYPES: { labelKey: string; value: MessageTypeFilter }[] = [
+  { labelKey: "filterAll", value: "all" },
+  { labelKey: "typeMentions", value: "MENTION" },
+  { labelKey: "typeComments", value: "COMMENT" },
+  { labelKey: "typeReplies", value: "REPLY" },
+  { labelKey: "typeDms", value: "DIRECT_MESSAGE" },
 ];
 
 function FilterPill({
@@ -97,22 +98,25 @@ function FilterPill({
  * @param props.onChange - Callback when any filter value changes
  */
 export function InboxSidebar({ filters, onChange }: InboxSidebarProps) {
+  const t = useTranslations("inbox.components");
   return (
     <div className="h-full flex flex-col border-r border-gray-200 bg-white">
       <div className="p-4 border-b border-gray-200">
-        <h2 className="text-sm font-semibold text-gray-900">Inbox</h2>
+        <h2 className="text-sm font-semibold text-gray-900">{t("sidebarTitle")}</h2>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Type</p>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+            {t("filterTypeHeading")}
+          </p>
           <div className="flex flex-wrap gap-1.5">
-            {MESSAGE_TYPES.map((t) => (
+            {MESSAGE_TYPES.map((mt) => (
               <FilterPill
-                key={t.value}
-                label={t.label}
-                active={filters.messageType === t.value}
-                onClick={() => onChange({ ...filters, messageType: t.value })}
+                key={mt.value}
+                label={t(mt.labelKey)}
+                active={filters.messageType === mt.value}
+                onClick={() => onChange({ ...filters, messageType: mt.value })}
               />
             ))}
           </div>
@@ -120,13 +124,13 @@ export function InboxSidebar({ filters, onChange }: InboxSidebarProps) {
 
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-            Status
+            {t("filterStatusHeading")}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {STATUSES.map((s) => (
               <FilterPill
                 key={s.value}
-                label={s.label}
+                label={t(s.labelKey)}
                 active={filters.status === s.value}
                 onClick={() => onChange({ ...filters, status: s.value })}
               />
@@ -136,13 +140,13 @@ export function InboxSidebar({ filters, onChange }: InboxSidebarProps) {
 
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-            Platform
+            {t("filterPlatformHeading")}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {PROVIDERS.map((p) => (
               <FilterPill
                 key={p.value}
-                label={p.label}
+                label={p.value === "all" ? t("filterAll") : p.label}
                 active={filters.provider === p.value}
                 onClick={() => onChange({ ...filters, provider: p.value })}
               />

@@ -6,6 +6,7 @@
 
 import { Suspense } from "react";
 import { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { TemplateManagementDashboard } from "./TemplateManagementDashboard";
 
 export const metadata: Metadata = {
@@ -27,15 +28,14 @@ function TemplateManagementSkeleton() {
   );
 }
 
-export default function TemplatesPage() {
+export default async function TemplatesPage() {
+  const t = await getTranslations("templates");
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Template Management</h1>
-        <p className="text-gray-600 mt-2">
-          Create, manage, and optimize your content templates with advanced features like A/B
-          testing, version control, and performance analytics.
-        </p>
+        <h1 className="text-3xl font-bold text-gray-900">{t("title")}</h1>
+        <p className="text-gray-600 mt-2">{t("subtitle")}</p>
       </div>
 
       <Suspense fallback={<TemplateManagementSkeleton />}>

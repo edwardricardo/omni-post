@@ -8,6 +8,7 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import { Badge, Button, Separator } from "@packages/ui";
 import type { TemplateVariable } from "@/lib/templates/templateEngine";
@@ -24,11 +25,12 @@ export function VariablesTab({
   filteredGroups,
   onInsertVariable,
 }: VariablesTabProps) {
+  const t = useTranslations("templates.components.variableInserter");
   return (
     <div className="space-y-4">
       {detectedVariables.length > 0 && (
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-muted-foreground">Detected Variables</h4>
+          <h4 className="text-sm font-medium text-muted-foreground">{t("detectedVariables")}</h4>
           <div className="space-y-1">
             {detectedVariables.map((variable, index) => (
               <Button
@@ -50,7 +52,7 @@ export function VariablesTab({
       )}
 
       <div className="space-y-3">
-        <h4 className="text-sm font-medium text-muted-foreground">Common Variables</h4>
+        <h4 className="text-sm font-medium text-muted-foreground">{t("commonVariables")}</h4>
         {filteredGroups.map((group, groupIndex) => {
           const Icon = group.Icon;
           return (

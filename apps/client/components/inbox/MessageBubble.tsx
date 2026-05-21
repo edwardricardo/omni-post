@@ -12,6 +12,7 @@
 
 import { memo } from "react";
 import { formatDistanceToNow } from "date-fns";
+import { useTranslations } from "next-intl";
 import type { InboxMessage } from "@/hooks/api/useInbox";
 
 interface MessageBubbleProps {
@@ -29,6 +30,7 @@ interface MessageBubbleProps {
  * @param props.onSelectReply - Callback when a suggested reply chip is clicked.
  */
 function MessageBubbleComponent({ message, onSelectReply }: MessageBubbleProps) {
+  const t = useTranslations("inbox.components");
   const timeAgo = formatDistanceToNow(new Date(message.providerCreatedAt), { addSuffix: true });
 
   const initials = message.authorName
@@ -60,7 +62,7 @@ function MessageBubbleComponent({ message, onSelectReply }: MessageBubbleProps) 
                 key={i}
                 onClick={() => onSelectReply?.(reply)}
                 className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs text-blue-700 transition-colors hover:bg-blue-100"
-                aria-label={`Use suggested reply: ${reply}`}
+                aria-label={t("useSuggestedReply", { reply })}
               >
                 {reply}
               </button>

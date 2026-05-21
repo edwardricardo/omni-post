@@ -8,6 +8,7 @@
 "use client";
 
 import { useState, useCallback, useId } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { toast } from "@packages/ui";
 import { useProject } from "@/providers/ProjectProvider";
@@ -28,24 +29,13 @@ interface RecurringPostFormProps {
 const TIMEZONES = Intl.supportedValuesOf("timeZone");
 
 const CONTENT_VARIATION_OPTIONS = [
-  {
-    value: "EXACT" as const,
-    label: "Contenido exacto",
-    description: "Publica el mismo contenido en cada ocurrencia",
-  },
-  {
-    value: "ROTATED" as const,
-    label: "Rotación de biblioteca",
-    description: "Rota entre múltiples variantes de contenido",
-  },
-  {
-    value: "AI_GENERATED" as const,
-    label: "IA genera cada vez",
-    description: "La IA genera contenido nuevo en cada publicación",
-  },
+  { value: "EXACT" as const },
+  { value: "ROTATED" as const },
+  { value: "AI_GENERATED" as const },
 ];
 
 export function RecurringPostForm({ existing }: RecurringPostFormProps) {
+  const t = useTranslations("scheduling.components");
   const router = useRouter();
   const { projectId } = useProject();
   const { data: channels = [] } = useProjectChannels(projectId);
@@ -87,9 +77,9 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
 
   function validate(): boolean {
     const next: Record<string, string> = {};
-    if (!name.trim()) next.name = "El nombre es obligatorio";
-    if (selectedChannels.length === 0) next.channels = "Selecciona al menos un canal";
-    if (!cronExpression.trim()) next.cron = "La expresión cron es obligatoria";
+    if (!name.trim()) next.name = t("formNameRequired");
+    if (selectedChannels.length === 0) next.channels = t("formChannelsRequired");
+    if (!cronExpression.trim()) next.cron = t("formCronRequired");
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -112,17 +102,17 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
     try {
       if (existing) {
         await updateMutation.mutateAsync({ id: existing.id, input });
-        toast({ title: "Cambios guardados", description: name.trim() });
+        toast({ title: t("formSavedToast"), description: name.trim() });
       } else {
         await createMutation.mutateAsync(input);
-        toast({ title: "Publicación recurrente creada", description: name.trim() });
+        toast({ title: t("formCreatedToast"), description: name.trim() });
       }
       router.push("/dashboard/scheduling/recurring");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Error al guardar";
+      const message = err instanceof Error ? err.message : t("formSaveError");
       setErrors({ submit: message });
       toast({
-        title: existing ? "No se pudo guardar" : "No se pudo crear",
+        title: existing ? t("formSaveFailedToast") : t("formCreateFailedToast"),
         description: message,
         variant: "destructive",
       });
@@ -134,7 +124,7 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
       {/* Name */}
       <div>
         <label htmlFor={nameId} className="block text-sm font-medium text-gray-700">
-          Nombre{" "}
+          {t("formNameLabel")}{" "}
           <span aria-hidden="true" className="text-red-500">
             *
           </span>
@@ -144,7 +134,7 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Ej: Post semanal de LinkedIn"
+          placeholder={t("formNamePlaceholder")}
           required
           aria-required="true"
           aria-invalid={errors.name ? "true" : undefined}
@@ -161,7 +151,7 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
       {/* Recurrence */}
       <div>
         <span id={recurrenceHeadingId} className="block text-sm font-medium text-gray-700 mb-2">
-          Recurrencia{" "}
+          {t("formRecurrenceLabel")}{" "}
           <span aria-hidden="true" className="text-red-500">
             *
           </span>
@@ -183,7 +173,7 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
       {/* Timezone */}
       <div>
         <label htmlFor={timezoneId} className="block text-sm font-medium text-gray-700">
-          Zona horaria
+          {t("formTimezoneLabel")}
         </label>
         <select
           id={timezoneId}
@@ -205,13 +195,13 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
         aria-describedby={errors.channels ? "channels-error" : undefined}
       >
         <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">
-          Canales{" "}
+          {t("formChannelsLabel")}{" "}
           <span aria-hidden="true" className="text-red-500">
             *
           </span>
         </legend>
         {channels.length === 0 ? (
-          <p className="text-sm text-gray-500">No hay canales conectados.</p>
+          <p className="text-sm text-gray-500">{t("formNoChannels")}</p>
         ) : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {channels.map((ch) => (
@@ -246,7 +236,7 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
       {/* Content variation */}
       <fieldset className="border-0 p-0 m-0 min-w-0">
         <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">
-          Variación de contenido
+          {t("formContentVariationLabel")}
         </legend>
         <div className="space-y-2">
           {CONTENT_VARIATION_OPTIONS.map((opt) => (
@@ -261,8 +251,10 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
                 className="mt-0.5 text-blue-600"
               />
               <label htmlFor={`content-variation-${opt.value}`} className="cursor-pointer">
-                <span className="text-sm font-medium text-gray-900">{opt.label}</span>
-                <p className="text-xs text-gray-500">{opt.description}</p>
+                <span className="text-sm font-medium text-gray-900">
+                  {t(`contentVariation.${opt.value}`)}
+                </span>
+                <p className="text-xs text-gray-500">{t(`contentVariationDesc.${opt.value}`)}</p>
               </label>
             </div>
           ))}
@@ -273,7 +265,7 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label htmlFor={maxOccurrencesId} className="block text-sm font-medium text-gray-700">
-            Máximo de ocurrencias
+            {t("formMaxOccurrencesLabel")}
           </label>
           <input
             id={maxOccurrencesId}
@@ -281,13 +273,13 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
             min="1"
             value={maxOccurrences}
             onChange={(e) => setMaxOccurrences(e.target.value)}
-            placeholder="Sin límite"
+            placeholder={t("formMaxOccurrencesPlaceholder")}
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
         <div>
           <label htmlFor={endDateId} className="block text-sm font-medium text-gray-700">
-            Fecha de fin
+            {t("formEndDateLabel")}
           </label>
           <input
             id={endDateId}
@@ -313,14 +305,14 @@ export function RecurringPostForm({ existing }: RecurringPostFormProps) {
           onClick={() => router.push("/dashboard/scheduling/recurring")}
           className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
-          Cancelar
+          {t("cancel")}
         </button>
         <button
           type="submit"
           disabled={isSubmitting}
           className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          {isSubmitting ? "Guardando..." : existing ? "Guardar cambios" : "Crear publicación"}
+          {isSubmitting ? t("formSaving") : existing ? t("formSaveChanges") : t("formCreatePost")}
         </button>
       </div>
     </form>

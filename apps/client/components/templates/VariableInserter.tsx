@@ -12,6 +12,7 @@
  */
 
 import { useCallback, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@packages/ui";
 import { Button } from "@packages/ui";
 import { Input, ScrollArea } from "@packages/ui";
@@ -37,10 +38,10 @@ interface VariableInserterProps {
 }
 
 type EditorTab = "variables" | "helpers" | "context";
-const TAB_DEFS: ReadonlyArray<{ id: EditorTab; label: string; Icon: typeof Zap }> = [
-  { id: "variables", label: "Variables", Icon: Zap },
-  { id: "helpers", label: "Helpers", Icon: Code },
-  { id: "context", label: "Context", Icon: Type },
+const TAB_DEFS: ReadonlyArray<{ id: EditorTab; labelKey: string; Icon: typeof Zap }> = [
+  { id: "variables", labelKey: "variables", Icon: Zap },
+  { id: "helpers", labelKey: "helpers", Icon: Code },
+  { id: "context", labelKey: "context", Icon: Type },
 ];
 
 export function VariableInserter({
@@ -49,6 +50,7 @@ export function VariableInserter({
   context,
   onContextChange,
 }: VariableInserterProps) {
+  const t = useTranslations("templates.components.variableInserter");
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<EditorTab>("variables");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -81,9 +83,9 @@ export function VariableInserter({
   const handleInsertVariable = useCallback(
     (variableName: string) => {
       onVariableInsert(variableName);
-      toast({ title: `Inserted variable: {{${variableName}}}` });
+      toast({ title: t("toast.insertedVariable", { name: variableName }) });
     },
-    [onVariableInsert]
+    [onVariableInsert, t]
   );
 
   const handleInsertHelper = useCallback(
@@ -93,27 +95,30 @@ export function VariableInserter({
       // pair of braces, which corrupted block helpers like `{{#if}}…{{/if}}`
       // by leaving the closing tag with mismatched braces.
       onVariableInsert(helper.syntax);
-      toast({ title: `Inserted helper: ${helper.name}` });
+      toast({ title: t("toast.insertedHelper", { name: helper.name }) });
     },
-    [onVariableInsert]
+    [onVariableInsert, t]
   );
 
-  const handleCopyHelper = useCallback(async (syntax: string) => {
-    try {
-      await navigator.clipboard.writeText(syntax);
-      toast({ title: "Helper syntax copied to clipboard!" });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Clipboard not available";
-      toast({ title: "Copy failed", description: message, variant: "destructive" });
-    }
-  }, []);
+  const handleCopyHelper = useCallback(
+    async (syntax: string) => {
+      try {
+        await navigator.clipboard.writeText(syntax);
+        toast({ title: t("toast.copied") });
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : t("toast.clipboardUnavailable");
+        toast({ title: t("toast.copyFailed"), description: message, variant: "destructive" });
+      }
+    },
+    [t]
+  );
 
   const handleAddContextVariable = useCallback(
     (key: string, value: string) => {
       onContextChange({ ...context, [key]: value });
-      toast({ title: `Added context variable: ${key}` });
+      toast({ title: t("toast.addedContext", { key }) });
     },
-    [context, onContextChange]
+    [context, onContextChange, t]
   );
 
   const handleRemoveContextVariable = useCallback(
@@ -121,9 +126,9 @@ export function VariableInserter({
       const next = { ...context };
       delete next[key];
       onContextChange(next);
-      toast({ title: `Removed context variable: ${key}` });
+      toast({ title: t("toast.removedContext", { key }) });
     },
-    [context, onContextChange]
+    [context, onContextChange, t]
   );
 
   const handleUpdateContextVariable = useCallback(
@@ -137,17 +142,15 @@ export function VariableInserter({
     <TooltipProvider>
       <Card className="h-full">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Template Assistant</CardTitle>
-          <CardDescription className="text-sm">
-            Insert variables, helpers, and manage context
-          </CardDescription>
+          <CardTitle className="text-base">{t("title")}</CardTitle>
+          <CardDescription className="text-sm">{t("description")}</CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-4">
           <div className="relative">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search variables or helpers..."
+              placeholder={t("searchPlaceholder")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-8"
@@ -155,7 +158,7 @@ export function VariableInserter({
           </div>
 
           <div className="flex space-x-1">
-            {TAB_DEFS.map(({ id, label, Icon }) => (
+            {TAB_DEFS.map(({ id, labelKey, Icon }) => (
               <Button
                 key={id}
                 variant={activeTab === id ? "default" : "ghost"}
@@ -164,7 +167,7 @@ export function VariableInserter({
                 className="flex-1 text-xs"
               >
                 <Icon className="h-3 w-3 mr-1" />
-                {label}
+                {t(`tabs.${labelKey}`)}
               </Button>
             ))}
           </div>

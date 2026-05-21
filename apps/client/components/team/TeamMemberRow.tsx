@@ -8,6 +8,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import { Trash2 } from "lucide-react";
 import { RoleBadge } from "./RoleBadge";
@@ -30,6 +31,7 @@ export function TeamMemberRow({
   onUpdateRole,
   onRemove,
 }: TeamMemberRowProps) {
+  const t = useTranslations("team");
   const [showConfirm, setShowConfirm] = useState(false);
   const isSelf = member.id === currentUserId;
   const canChangeRole = currentUserRole === "OWNER" && !isSelf && member.role !== "OWNER";
@@ -63,7 +65,7 @@ export function TeamMemberRow({
         <div className="min-w-0">
           <p className="text-sm font-medium truncate">
             {member.name}
-            {isSelf && <span className="text-muted-foreground ml-1">(you)</span>}
+            {isSelf && <span className="text-muted-foreground ml-1">{t("you")}</span>}
           </p>
           <p className="text-xs text-muted-foreground truncate">{member.email}</p>
         </div>
@@ -78,7 +80,7 @@ export function TeamMemberRow({
           >
             {ASSIGNABLE_ROLES.map((r) => (
               <option key={r} value={r}>
-                {r}
+                {t(`roles.${r}`)}
               </option>
             ))}
           </select>
@@ -91,7 +93,12 @@ export function TeamMemberRow({
         </span>
 
         {canRemove && !showConfirm && (
-          <Button variant="ghost" size="sm" onClick={() => setShowConfirm(true)} title="Remove">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowConfirm(true)}
+            title={t("remove")}
+          >
             <Trash2 className="h-4 w-4 text-red-500" />
           </Button>
         )}
@@ -99,10 +106,10 @@ export function TeamMemberRow({
         {showConfirm && (
           <div className="flex gap-1">
             <Button size="sm" variant="destructive" onClick={handleRemove}>
-              Remove
+              {t("remove")}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setShowConfirm(false)}>
-              Cancel
+              {t("cancel")}
             </Button>
           </div>
         )}

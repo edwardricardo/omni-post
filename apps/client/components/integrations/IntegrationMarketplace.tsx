@@ -8,6 +8,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { Input } from "@packages/ui";
 import { Search, ExternalLink } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -17,16 +18,17 @@ import {
   type IntegrationDefinition,
 } from "@/lib/integrations/registry";
 
-const CATEGORIES: Array<{ label: string; value: IntegrationCategory | "all" }> = [
-  { label: "All", value: "all" },
-  { label: "Automation", value: "automation" },
-  { label: "CRM", value: "crm" },
-  { label: "Storage", value: "storage" },
-  { label: "Security", value: "security" },
-  { label: "Coming Soon", value: "coming_soon" },
+const CATEGORIES: Array<{ labelKey: string; value: IntegrationCategory | "all" }> = [
+  { labelKey: "all", value: "all" },
+  { labelKey: "automation", value: "automation" },
+  { labelKey: "crm", value: "crm" },
+  { labelKey: "storage", value: "storage" },
+  { labelKey: "security", value: "security" },
+  { labelKey: "comingSoon", value: "coming_soon" },
 ];
 
 function IntegrationCard({ integration }: { integration: IntegrationDefinition }) {
+  const t = useTranslations("integrations.components");
   const isComingSoon = integration.isComingSoon === true;
 
   return (
@@ -40,7 +42,7 @@ function IntegrationCard({ integration }: { integration: IntegrationDefinition }
         </div>
         {isComingSoon && (
           <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full shrink-0">
-            Coming Soon
+            {t("comingSoonBadge")}
           </span>
         )}
       </div>
@@ -59,7 +61,7 @@ function IntegrationCard({ integration }: { integration: IntegrationDefinition }
           href={integration.settingsPath}
           className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
         >
-          Configure
+          {t("configure")}
           <ExternalLink className="h-3 w-3" />
         </Link>
       )}
@@ -68,6 +70,7 @@ function IntegrationCard({ integration }: { integration: IntegrationDefinition }
 }
 
 export function IntegrationMarketplace() {
+  const t = useTranslations("integrations.components");
   const [category, setCategory] = useState<IntegrationCategory | "all">("all");
   const [search, setSearch] = useState("");
 
@@ -95,11 +98,11 @@ export function IntegrationMarketplace() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search integrations..."
+            placeholder={t("searchPlaceholder")}
             className="pl-9"
           />
         </div>
-        <p className="text-sm text-muted-foreground">{liveCount} integrations available</p>
+        <p className="text-sm text-muted-foreground">{t("available", { count: liveCount })}</p>
       </div>
 
       <div className="flex gap-2 overflow-x-auto">
@@ -114,7 +117,7 @@ export function IntegrationMarketplace() {
                 : "bg-background text-muted-foreground hover:bg-accent"
             }`}
           >
-            {cat.label}
+            {t(`categories.${cat.labelKey}`)}
           </button>
         ))}
       </div>
@@ -126,9 +129,7 @@ export function IntegrationMarketplace() {
       </div>
 
       {filtered.length === 0 && (
-        <div className="text-center py-8 text-muted-foreground">
-          No integrations match your search.
-        </div>
+        <div className="text-center py-8 text-muted-foreground">{t("empty")}</div>
       )}
     </div>
   );

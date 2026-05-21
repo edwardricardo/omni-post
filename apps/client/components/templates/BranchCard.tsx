@@ -2,8 +2,10 @@
  * @file BranchCard.tsx
  * @component BranchCard
  * @description Card component representing a version branch with metadata, author info, and merge/delete actions.
+ * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@packages/ui";
 import { Button } from "@packages/ui";
 import { Badge } from "@packages/ui";
@@ -33,6 +35,7 @@ export function BranchCard({
   onSwitchBranch,
   onMergeBranch,
 }: BranchCardProps) {
+  const t = useTranslations("templates.components.versionControl");
   return (
     <Card className={branch.isMain ? "ring-2 ring-blue-500" : ""}>
       <CardContent className="p-4">
@@ -43,7 +46,7 @@ export function BranchCard({
               <h3 className="text-sm font-medium">{branch.name}</h3>
               {branch.isMain && (
                 <Badge variant="default" className="text-xs">
-                  Main
+                  {t("mainBadge")}
                 </Badge>
               )}
             </div>
@@ -62,7 +65,7 @@ export function BranchCard({
               </div>
               <div className="flex items-center space-x-1">
                 <GitCommit className="h-3 w-3" />
-                <span>{branch.versionCount} versions</span>
+                <span>{t("versionCount", { count: branch.versionCount })}</span>
               </div>
               <div className="flex items-center space-x-1">
                 <Clock className="h-3 w-3" />
@@ -78,7 +81,7 @@ export function BranchCard({
               onClick={() => onSwitchBranch(branch.name)}
               className="text-xs"
             >
-              Switch
+              {t("switch")}
             </Button>
             {!branch.isMain && allowBranching && (
               <DropdownMenu>
@@ -88,19 +91,19 @@ export function BranchCard({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
                   <DropdownMenuItem onClick={() => onMergeBranch(branch.name, "main")}>
                     <GitMerge className="h-3 w-3 mr-1" />
-                    Merge to Main
+                    {t("mergeToMain")}
                   </DropdownMenuItem>
                   <DropdownMenuItem>
                     <Copy className="h-3 w-3 mr-1" />
-                    Create from Branch
+                    {t("createFromBranch")}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem className="text-red-600">
                     <Trash2 className="h-3 w-3 mr-1" />
-                    Delete Branch
+                    {t("deleteBranch")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

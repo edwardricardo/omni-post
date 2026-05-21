@@ -7,11 +7,13 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import { Avatar, AvatarFallback, AvatarImage, Button } from "@packages/ui";
 import { MessageCircle, MoreHorizontal, Repeat2, Share } from "lucide-react";
 import type { PreviewProps } from "./types";
 
 export function LinkedInPreview({ content, media, userInfo }: PreviewProps) {
+  const t = useTranslations("editor");
   return (
     <div className="bg-white border rounded-lg max-w-lg mx-auto">
       <div className="p-4">
@@ -24,8 +26,8 @@ export function LinkedInPreview({ content, media, userInfo }: PreviewProps) {
             <div className="flex items-center space-x-1">
               <span className="font-semibold text-gray-900">{userInfo.name}</span>
             </div>
-            <div className="text-sm text-gray-500">Professional Title • 1st</div>
-            <div className="text-xs text-gray-500">now</div>
+            <div className="text-sm text-gray-500">{t("preview.linkedinHeadline")}</div>
+            <div className="text-xs text-gray-500">{t("preview.now")}</div>
           </div>
           <Button variant="ghost" size="sm">
             <MoreHorizontal className="w-4 h-4" />
@@ -46,19 +48,19 @@ export function LinkedInPreview({ content, media, userInfo }: PreviewProps) {
           <div className="flex items-center space-x-6">
             <Button variant="ghost" size="sm" className="flex items-center space-x-2">
               <span>👍</span>
-              <span className="text-sm">Like</span>
+              <span className="text-sm">{t("preview.like")}</span>
             </Button>
             <Button variant="ghost" size="sm" className="flex items-center space-x-2">
               <MessageCircle className="w-4 h-4" />
-              <span className="text-sm">Comment</span>
+              <span className="text-sm">{t("preview.comment")}</span>
             </Button>
             <Button variant="ghost" size="sm" className="flex items-center space-x-2">
               <Repeat2 className="w-4 h-4" />
-              <span className="text-sm">Repost</span>
+              <span className="text-sm">{t("preview.repost")}</span>
             </Button>
             <Button variant="ghost" size="sm" className="flex items-center space-x-2">
               <Share className="w-4 h-4" />
-              <span className="text-sm">Send</span>
+              <span className="text-sm">{t("preview.send")}</span>
             </Button>
           </div>
         </div>

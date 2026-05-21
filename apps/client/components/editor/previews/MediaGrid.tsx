@@ -8,6 +8,7 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import { cn } from "@packages/ui";
 import type { PreviewMedia } from "./types";
 
@@ -23,6 +24,7 @@ interface MediaGridProps {
  * 2=side-by-side, 3=one tall + two square, 4=2x2.
  */
 export function MediaGrid({ media, showOverflowBadge = false }: MediaGridProps) {
+  const t = useTranslations("editor");
   if (media.length === 0) return null;
   const visible = media.slice(0, 4);
   const overflowCount = Math.max(0, media.length - 3);
@@ -46,7 +48,7 @@ export function MediaGrid({ media, showOverflowBadge = false }: MediaGridProps) 
             <img src={item.url} alt="" className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full bg-black flex items-center justify-center text-white">
-              Video
+              {t("preview.video")}
             </div>
           )}
           {showOverflowBadge && media.length > 4 && index === 3 && (

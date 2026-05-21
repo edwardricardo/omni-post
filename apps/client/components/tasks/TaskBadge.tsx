@@ -7,6 +7,8 @@
 
 "use client";
 
+import { useTranslations } from "next-intl";
+
 const PRIORITY_STYLES = {
   LOW: "bg-gray-100 text-gray-700",
   MEDIUM: "bg-blue-100 text-blue-700",
@@ -21,19 +23,13 @@ const STATUS_STYLES = {
   CANCELLED: "bg-red-100 text-red-600",
 } as const;
 
-const STATUS_LABELS = {
-  OPEN: "Open",
-  IN_PROGRESS: "In Progress",
-  COMPLETED: "Completed",
-  CANCELLED: "Cancelled",
-} as const;
-
 export function PriorityBadge({ priority }: { priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT" }) {
+  const t = useTranslations("tasks.components");
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${PRIORITY_STYLES[priority]}`}
     >
-      {priority}
+      {t(`priority.${priority}`)}
     </span>
   );
 }
@@ -43,11 +39,12 @@ export function StatusBadge({
 }: {
   status: "OPEN" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
 }) {
+  const t = useTranslations("tasks.components");
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[status]}`}
     >
-      {STATUS_LABELS[status]}
+      {t(`status.${status}`)}
     </span>
   );
 }

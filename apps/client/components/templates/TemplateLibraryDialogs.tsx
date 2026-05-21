@@ -8,6 +8,7 @@
  */
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@packages/ui";
 import { Button } from "@packages/ui";
 import { Badge } from "@packages/ui";
@@ -36,6 +37,7 @@ export function TemplateLibraryDialogs({
   onCopyTemplate,
   onConfirmDelete,
 }: TemplateLibraryDialogsProps) {
+  const t = useTranslations("templates.components.library");
   return (
     <>
       {/* Template Preview Dialog */}
@@ -70,11 +72,11 @@ export function TemplateLibraryDialogs({
                   }}
                   className="flex-1"
                 >
-                  Use This Template
+                  {t("dialogs.useThisTemplate")}
                 </Button>
                 <Button variant="outline" onClick={() => onCopyTemplate(selectedTemplate)}>
                   <Copy className="h-4 w-4 mr-1" />
-                  Copy
+                  {t("dialogs.copy")}
                 </Button>
               </div>
             </div>
@@ -86,15 +88,14 @@ export function TemplateLibraryDialogs({
       <AlertDialog open={deleteConfirmOpen} onOpenChange={onDeleteConfirmClose}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Template</AlertDialogTitle>
+            <AlertDialogTitle>{t("dialogs.deleteTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete &quot;{templateToDelete?.name}&quot;? This action
-              cannot be undone.
+              {t("dialogs.deleteDescription", { name: templateToDelete?.name ?? "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={onConfirmDelete}>Delete</AlertDialogAction>
+            <AlertDialogCancel>{t("dialogs.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={onConfirmDelete}>{t("dialogs.delete")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

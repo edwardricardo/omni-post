@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import { Plus } from "lucide-react";
 import Fuse from "fuse.js";
@@ -40,6 +41,7 @@ export function TemplateLibrary({
   allowEdit = true,
   allowDelete = true,
 }: TemplateLibraryProps) {
+  const t = useTranslations("templates.components.library");
   const { success, error } = useToast();
 
   // -- State ------------------------------------------------------------------
@@ -161,9 +163,9 @@ export function TemplateLibrary({
   const handleTemplateUse = useCallback(
     (template: Template) => {
       onTemplateSelect?.(template);
-      success({ description: `Selected template: ${template.name}` });
+      success({ description: t("toast.selected", { name: template.name }) });
     },
-    [onTemplateSelect, success]
+    [onTemplateSelect, success, t]
   );
 
   const handleTemplateEdit = useCallback(
@@ -179,19 +181,19 @@ export function TemplateLibrary({
         const duplicatedTemplate: Template = {
           ...template,
           id: `${template.id}-copy-${Date.now()}`,
-          name: `${template.name} (Copy)`,
+          name: t("copySuffix", { name: template.name }),
           createdAt: new Date(),
           updatedAt: new Date(),
           version: 1,
         };
 
         onTemplateDuplicate?.(duplicatedTemplate);
-        success({ description: `Duplicated template: ${template.name}` });
+        success({ description: t("toast.duplicated", { name: template.name }) });
       } catch {
-        error({ description: "Failed to duplicate template" });
+        error({ description: t("toast.duplicateFailed") });
       }
     },
-    [onTemplateDuplicate, success, error]
+    [onTemplateDuplicate, success, error, t]
   );
 
   const handleTemplateDelete = useCallback((template: Template) => {
@@ -202,11 +204,11 @@ export function TemplateLibrary({
   const confirmDelete = useCallback(() => {
     if (templateToDelete) {
       onTemplateDelete?.(templateToDelete);
-      success({ description: `Deleted template: ${templateToDelete.name}` });
+      success({ description: t("toast.deleted", { name: templateToDelete.name }) });
     }
     setDeleteConfirmOpen(false);
     setTemplateToDelete(null);
-  }, [templateToDelete, onTemplateDelete, success]);
+  }, [templateToDelete, onTemplateDelete, success, t]);
 
   const handleToggleFavorite = useCallback(
     (template: Template) => {
@@ -214,23 +216,23 @@ export function TemplateLibrary({
       const isFavorite = favorites.includes(template.id);
       success({
         description: isFavorite
-          ? `Removed ${template.name} from favorites`
-          : `Added ${template.name} to favorites`,
+          ? t("toast.removedFavorite", { name: template.name })
+          : t("toast.addedFavorite", { name: template.name }),
       });
     },
-    [favorites, onToggleFavorite, success]
+    [favorites, onToggleFavorite, success, t]
   );
 
   const handleCopyTemplate = useCallback(
     async (template: Template) => {
       try {
         await navigator.clipboard.writeText(template.content);
-        success({ description: "Template content copied to clipboard!" });
+        success({ description: t("toast.copied") });
       } catch {
-        error({ description: "Failed to copy to clipboard" });
+        error({ description: t("toast.copyFailed") });
       }
     },
-    [success, error]
+    [success, error, t]
   );
 
   const resetFilters = useCallback(() => {
@@ -274,15 +276,15 @@ export function TemplateLibrary({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Template Library</h2>
+          <h2 className="text-2xl font-bold">{t("title")}</h2>
           <p className="text-muted-foreground">
-            {filteredTemplates.length} of {templates.length} templates
+            {t("count", { shown: filteredTemplates.length, total: templates.length })}
           </p>
         </div>
         {onTemplateCreate && (
           <Button onClick={onTemplateCreate} className="flex items-center space-x-1">
             <Plus className="h-4 w-4" />
-            <span>Create Template</span>
+            <span>{t("createTemplate")}</span>
           </Button>
         )}
       </div>

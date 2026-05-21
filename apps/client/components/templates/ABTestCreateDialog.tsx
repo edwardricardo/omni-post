@@ -6,6 +6,7 @@
 
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import { Card, CardContent, CardHeader, CardTitle } from "@packages/ui";
 import { Input } from "@packages/ui";
@@ -50,37 +51,38 @@ export function ABTestCreateDialog({
   onUpdateVariantContent,
   onUpdateTrafficSplit,
 }: ABTestCreateDialogProps) {
+  const t = useTranslations("templates.components.abTest");
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <Button className="flex items-center space-x-1">
           <Plus className="h-4 w-4" />
-          <span>Create A/B Test</span>
+          <span>{t("create.trigger")}</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle>Create A/B Test</DialogTitle>
-          <DialogDescription>Set up a new A/B test to compare template variants</DialogDescription>
+          <DialogTitle>{t("create.title")}</DialogTitle>
+          <DialogDescription>{t("create.description")}</DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[70vh] pr-4">
           <div className="space-y-6">
             {/* Basic Info */}
             <div className="space-y-4">
-              <h3 className="text-lg font-medium">Test Information</h3>
+              <h3 className="text-lg font-medium">{t("create.testInformation")}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="test-name">Test Name *</Label>
+                  <Label htmlFor="test-name">{t("create.testName")}</Label>
                   <Input
                     id="test-name"
                     value={createForm.name}
                     onChange={(e) => setCreateForm((prev) => ({ ...prev, name: e.target.value }))}
-                    placeholder="Enter test name"
+                    placeholder={t("create.testNamePlaceholder")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="template-select">Base Template *</Label>
+                  <Label htmlFor="template-select">{t("create.baseTemplate")}</Label>
                   <Select
                     value={createForm.templateId}
                     onValueChange={(value) =>
@@ -88,7 +90,7 @@ export function ABTestCreateDialog({
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select a template" />
+                      <SelectValue placeholder={t("create.selectTemplate")} />
                     </SelectTrigger>
                     <SelectContent>
                       {templates.map((template) => (
@@ -101,14 +103,14 @@ export function ABTestCreateDialog({
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="test-description">Description</Label>
+                <Label htmlFor="test-description">{t("create.descriptionLabel")}</Label>
                 <Textarea
                   id="test-description"
                   value={createForm.description}
                   onChange={(e) =>
                     setCreateForm((prev) => ({ ...prev, description: e.target.value }))
                   }
-                  placeholder="Describe what you're testing"
+                  placeholder={t("create.descriptionPlaceholder")}
                   rows={3}
                 />
               </div>
@@ -119,7 +121,7 @@ export function ABTestCreateDialog({
             {/* Variants */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium">Variants</h3>
+                <h3 className="text-lg font-medium">{t("create.variants")}</h3>
                 <Button
                   type="button"
                   variant="outline"
@@ -128,7 +130,7 @@ export function ABTestCreateDialog({
                   disabled={createForm.variants.length >= 5}
                 >
                   <Plus className="h-3 w-3 mr-1" />
-                  Add Variant
+                  {t("create.addVariant")}
                 </Button>
               </div>
 
@@ -154,7 +156,7 @@ export function ABTestCreateDialog({
                       <Textarea
                         value={variant.content}
                         onChange={(e) => onUpdateVariantContent(index, e.target.value)}
-                        placeholder="Enter variant content..."
+                        placeholder={t("create.variantContentPlaceholder")}
                         rows={6}
                         className="font-mono text-sm"
                       />
@@ -177,13 +179,13 @@ export function ABTestCreateDialog({
 
         <div className="flex justify-end space-x-2 pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("create.cancel")}
           </Button>
           <Button
             onClick={onCreateTest}
             disabled={!createForm.name.trim() || !createForm.templateId}
           >
-            Create Test
+            {t("create.submit")}
           </Button>
         </div>
       </DialogContent>
@@ -206,13 +208,14 @@ function TestConfigSection({
   setCreateForm,
   onUpdateTrafficSplit,
 }: TestConfigSectionProps) {
+  const t = useTranslations("templates.components.abTest");
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-medium">Test Configuration</h3>
+      <h3 className="text-lg font-medium">{t("create.testConfiguration")}</h3>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="start-date">Start Date</Label>
+          <Label htmlFor="start-date">{t("create.startDate")}</Label>
           <Input
             id="start-date"
             type="date"
@@ -221,7 +224,7 @@ function TestConfigSection({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="duration">Duration (days)</Label>
+          <Label htmlFor="duration">{t("create.duration")}</Label>
           <Input
             id="duration"
             type="number"
@@ -237,7 +240,7 @@ function TestConfigSection({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="confidence">Confidence Threshold (%)</Label>
+          <Label htmlFor="confidence">{t("create.confidenceThreshold")}</Label>
           <Input
             id="confidence"
             type="number"
@@ -255,7 +258,7 @@ function TestConfigSection({
       </div>
 
       <div className="space-y-2">
-        <Label>Traffic Split</Label>
+        <Label>{t("create.trafficSplit")}</Label>
         <div className="space-y-2">
           {createForm.variants.map((variant, index) => (
             <div key={index} className="flex items-center space-x-3">
@@ -281,7 +284,7 @@ function TestConfigSection({
           ))}
         </div>
         <div className="text-xs text-muted-foreground">
-          Total: {createForm.trafficSplit.reduce((sum, val) => sum + val, 0)}%
+          {t("create.total", { value: createForm.trafficSplit.reduce((sum, val) => sum + val, 0) })}
         </div>
       </div>
 
@@ -292,7 +295,7 @@ function TestConfigSection({
           onCheckedChange={(checked) => setCreateForm((prev) => ({ ...prev, autoStop: checked }))}
         />
         <Label htmlFor="auto-stop" className="text-sm">
-          Auto-stop when confidence threshold is reached
+          {t("create.autoStop")}
         </Label>
       </div>
     </div>

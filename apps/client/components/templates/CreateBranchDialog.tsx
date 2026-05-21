@@ -2,8 +2,10 @@
  * @file CreateBranchDialog.tsx
  * @component CreateBranchDialog
  * @description Dialog for creating a new version branch with name, description, and source version selection.
+ * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import { Input } from "@packages/ui";
 import { Label } from "@packages/ui";
@@ -38,22 +40,23 @@ export function CreateBranchDialog({
   onSubmit,
   versions,
 }: CreateBranchDialogProps) {
+  const t = useTranslations("templates.components.versionControl");
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline" className="flex items-center space-x-1">
           <GitBranch className="h-4 w-4" />
-          <span>Create Branch</span>
+          <span>{t("createBranch")}</span>
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create New Branch</DialogTitle>
-          <DialogDescription>Create a new branch for parallel development</DialogDescription>
+          <DialogTitle>{t("createBranchDialogTitle")}</DialogTitle>
+          <DialogDescription>{t("createBranchDialogDescription")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="branch-name">Branch Name *</Label>
+            <Label htmlFor="branch-name">{t("branchName")}</Label>
             <Input
               id="branch-name"
               value={form.name}
@@ -62,23 +65,23 @@ export function CreateBranchDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="branch-description">Description</Label>
+            <Label htmlFor="branch-description">{t("description")}</Label>
             <Textarea
               id="branch-description"
               value={form.description}
               onChange={(e) => onFormChange((prev) => ({ ...prev, description: e.target.value }))}
-              placeholder="Describe the purpose of this branch"
+              placeholder={t("branchDescriptionPlaceholder")}
               rows={3}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="from-version">From Version</Label>
+            <Label htmlFor="from-version">{t("fromVersion")}</Label>
             <Select
               value={form.fromVersion}
               onValueChange={(value) => onFormChange((prev) => ({ ...prev, fromVersion: value }))}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select starting version" />
+                <SelectValue placeholder={t("selectStartingVersion")} />
               </SelectTrigger>
               <SelectContent>
                 {versions.map((version) => (
@@ -92,10 +95,10 @@ export function CreateBranchDialog({
         </div>
         <div className="flex justify-end space-x-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("cancel")}
           </Button>
           <Button onClick={onSubmit} disabled={!form.name.trim()}>
-            Create Branch
+            {t("createBranch")}
           </Button>
         </div>
       </DialogContent>

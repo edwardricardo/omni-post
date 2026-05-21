@@ -8,8 +8,19 @@
  */
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import type { DashboardScheduledPost, DashboardCalendarDay } from "./schedulingDashboardTypes";
 import { getStatusColor, getContentTypeIcon } from "./schedulingDashboardUtils";
+
+const DAY_KEYS = [
+  "daysShort.sun",
+  "daysShort.mon",
+  "daysShort.tue",
+  "daysShort.wed",
+  "daysShort.thu",
+  "daysShort.fri",
+  "daysShort.sat",
+] as const;
 
 // ---------------------------------------------------------------------------
 // Props
@@ -34,6 +45,7 @@ export function SchedulingDashboardCalendar({
   onMonthNavigate,
   onToday,
 }: SchedulingDashboardCalendarProps) {
+  const t = useTranslations("scheduling.components");
   return (
     <div className="flex-1 flex flex-col">
       {/* Calendar Header */}
@@ -76,7 +88,7 @@ export function SchedulingDashboardCalendar({
           onClick={onToday}
           className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
         >
-          Today
+          {t("today")}
         </button>
       </div>
 
@@ -84,12 +96,12 @@ export function SchedulingDashboardCalendar({
       <div className="flex-1 bg-white">
         {/* Day Headers */}
         <div className="grid grid-cols-7 border-b">
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+          {DAY_KEYS.map((dayKey) => (
             <div
-              key={day}
+              key={dayKey}
               className="p-3 text-center text-sm font-medium text-gray-700 border-r last:border-r-0"
             >
-              {day}
+              {t(dayKey)}
             </div>
           ))}
         </div>
@@ -101,7 +113,7 @@ export function SchedulingDashboardCalendar({
               key={index}
               role="button"
               tabIndex={0}
-              aria-label={`Select ${day.date.toDateString()}`}
+              aria-label={t("selectDate", { date: day.date.toDateString() })}
               className={`border-r last:border-r-0 border-b last:border-b-0 p-2 cursor-pointer hover:bg-gray-50 ${
                 !day.isCurrentMonth ? "bg-gray-50" : ""
               } ${day.isToday ? "bg-blue-50" : ""}`}
@@ -132,7 +144,7 @@ export function SchedulingDashboardCalendar({
                       key={post.id}
                       role="button"
                       tabIndex={0}
-                      aria-label={`Open post ${post.title}`}
+                      aria-label={t("openPost", { title: post.title })}
                       className={`text-xs px-1.5 py-0.5 rounded-sm ${getStatusColor(post.status)} truncate`}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -150,7 +162,9 @@ export function SchedulingDashboardCalendar({
                     </div>
                   ))}
                   {day.posts.length > 3 && (
-                    <div className="text-xs text-gray-500 px-1.5">+{day.posts.length - 3} more</div>
+                    <div className="text-xs text-gray-500 px-1.5">
+                      {t("moreCount", { count: day.posts.length - 3 })}
+                    </div>
                   )}
                 </div>
               </div>

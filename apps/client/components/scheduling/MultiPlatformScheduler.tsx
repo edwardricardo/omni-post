@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { toast, InputDialog } from "@packages/ui";
 import type {
   CreatedSlot,
@@ -50,6 +51,7 @@ export function MultiPlatformScheduler({
   onScheduleUpdated: _onScheduleUpdated,
   onScheduleDeleted: _onScheduleDeleted,
 }: MultiPlatformSchedulerProps) {
+  const t = useTranslations("scheduling.components");
   // State
   const [view, setView] = useState<SchedulerView>("calendar");
   const [currentWeek, setCurrentWeek] = useState(new Date());
@@ -177,7 +179,7 @@ export function MultiPlatformScheduler({
   );
 
   const handleAddRule = useCallback(async () => {
-    const name = `Rule ${schedulingRules.length + 1}`;
+    const name = t("ruleDefaultName", { number: schedulingRules.length + 1 });
     try {
       await createRuleMutation.mutateAsync({
         projectId,
@@ -186,12 +188,12 @@ export function MultiPlatformScheduler({
         frequency: "daily",
         active: true,
       });
-      toast({ title: "Rule created", description: name });
+      toast({ title: t("ruleCreatedToast"), description: name });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to create rule.";
-      toast({ title: "Rule creation failed", description: message, variant: "destructive" });
+      const message = error instanceof Error ? error.message : t("ruleCreateFailedFallback");
+      toast({ title: t("ruleCreateFailedToast"), description: message, variant: "destructive" });
     }
-  }, [createRuleMutation, projectId, schedulingRules.length, selectedProviders]);
+  }, [createRuleMutation, projectId, schedulingRules.length, selectedProviders, t]);
 
   const handleEditRule = useCallback((ruleId: string) => {
     setEditRuleTarget(ruleId);
@@ -202,15 +204,15 @@ export function MultiPlatformScheduler({
       if (!editRuleTarget) return;
       try {
         await updateRuleMutation.mutateAsync({ ruleId: editRuleTarget, name });
-        toast({ title: "Rule updated", description: name });
+        toast({ title: t("ruleUpdatedToast"), description: name });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to update rule.";
-        toast({ title: "Rule update failed", description: message, variant: "destructive" });
+        const message = error instanceof Error ? error.message : t("ruleUpdateFailedFallback");
+        toast({ title: t("ruleUpdateFailedToast"), description: message, variant: "destructive" });
       } finally {
         setEditRuleTarget(null);
       }
     },
-    [editRuleTarget, updateRuleMutation]
+    [editRuleTarget, updateRuleMutation, t]
   );
 
   const handleToggleRule = useCallback(
@@ -218,24 +220,24 @@ export function MultiPlatformScheduler({
       try {
         await toggleRuleMutation.mutateAsync({ ruleId, active });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to toggle rule.";
-        toast({ title: "Toggle failed", description: message, variant: "destructive" });
+        const message = error instanceof Error ? error.message : t("ruleToggleFailedFallback");
+        toast({ title: t("ruleToggleFailedToast"), description: message, variant: "destructive" });
       }
     },
-    [toggleRuleMutation]
+    [toggleRuleMutation, t]
   );
 
   return (
     <div className="multi-platform-scheduler">
       {/* Header with view toggle */}
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Content Scheduler</h2>
-        <div className="flex space-x-2" role="tablist" aria-label="Scheduler views">
+        <h2 className="text-2xl font-bold text-gray-900">{t("schedulerTitle")}</h2>
+        <div className="flex space-x-2" role="tablist" aria-label={t("schedulerViewsAria")}>
           {[
-            { id: "calendar" as const, name: "Calendar", icon: "📅" },
-            { id: "optimal" as const, name: "Optimal Times", icon: "⏰" },
-            { id: "rules" as const, name: "Rules", icon: "⚙️" },
-            { id: "bulk" as const, name: "Bulk Schedule", icon: "📊" },
+            { id: "calendar" as const, name: t("viewCalendar"), icon: "📅" },
+            { id: "optimal" as const, name: t("viewOptimal"), icon: "⏰" },
+            { id: "rules" as const, name: t("viewRules"), icon: "⚙️" },
+            { id: "bulk" as const, name: t("viewBulk"), icon: "📊" },
           ].map((viewOption) => (
             <button
               key={viewOption.id}
@@ -291,11 +293,11 @@ export function MultiPlatformScheduler({
         onOpenChange={(open) => {
           if (!open) setEditRuleTarget(null);
         }}
-        title="Rename rule"
-        description="Enter a new name for this scheduling rule."
-        inputLabel="New rule name"
-        inputPlaceholder="Updated rule name"
-        confirmLabel="Save"
+        title={t("renameRuleTitle")}
+        description={t("renameRuleDescription")}
+        inputLabel={t("renameRuleInputLabel")}
+        inputPlaceholder={t("renameRuleInputPlaceholder")}
+        confirmLabel={t("save")}
         loading={updateRuleMutation.isPending}
         onConfirm={handleEditRuleName}
       />

@@ -8,6 +8,7 @@
 
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useResolveConversation, useReopenConversation } from "@/hooks/api/useInbox";
 import type { InboxConversation } from "@/hooks/api/useInbox";
 
@@ -26,16 +27,15 @@ interface ConversationHeaderProps {
  *   marking the conversation resolved.
  */
 export function ConversationHeader({ conversation, userId }: ConversationHeaderProps) {
+  const t = useTranslations("inbox.components");
   const resolveMutation = useResolveConversation();
   const reopenMutation = useReopenConversation();
 
-  const statusLabel = conversation.isResolved ? "Resolved" : "Open";
+  const statusLabel = conversation.isResolved ? t("statusResolved") : t("statusOpen");
   const statusColour = conversation.isResolved
     ? "bg-gray-100 text-gray-600"
     : "bg-green-100 text-green-700";
-  const subject =
-    conversation.subject ??
-    `${conversation.messageCount} message${conversation.messageCount === 1 ? "" : "s"}`;
+  const subject = conversation.subject ?? t("messageCount", { count: conversation.messageCount });
 
   return (
     <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
@@ -56,7 +56,7 @@ export function ConversationHeader({ conversation, userId }: ConversationHeaderP
           disabled={reopenMutation.isPending}
           className="rounded-md bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-60"
         >
-          {reopenMutation.isPending ? "Reopening…" : "Reopen"}
+          {reopenMutation.isPending ? t("reopening") : t("reopen")}
         </button>
       ) : (
         <button
@@ -66,7 +66,7 @@ export function ConversationHeader({ conversation, userId }: ConversationHeaderP
           disabled={resolveMutation.isPending}
           className="rounded-md bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-60"
         >
-          {resolveMutation.isPending ? "Resolving…" : "Resolve"}
+          {resolveMutation.isPending ? t("resolving") : t("resolve")}
         </button>
       )}
     </div>

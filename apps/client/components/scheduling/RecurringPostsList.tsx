@@ -6,6 +6,7 @@
  */
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { useRecurringPosts, useDeactivateRecurringPost } from "@/hooks/api/useRecurringPosts";
 import { RecurringPostCard } from "./RecurringPostCard";
@@ -15,6 +16,7 @@ interface RecurringPostsListProps {
 }
 
 export function RecurringPostsList({ projectId }: RecurringPostsListProps) {
+  const t = useTranslations("scheduling.components");
   const { data: posts, isLoading, isError, refetch } = useRecurringPosts({ projectId });
   const deactivate = useDeactivateRecurringPost();
 
@@ -31,12 +33,12 @@ export function RecurringPostsList({ projectId }: RecurringPostsListProps) {
   if (isError) {
     return (
       <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-center">
-        <p className="text-sm text-red-700">Error al cargar las publicaciones recurrentes.</p>
+        <p className="text-sm text-red-700">{t("recurringListError")}</p>
         <button
           onClick={() => refetch()}
           className="mt-2 text-sm font-medium text-red-600 underline hover:no-underline"
         >
-          Reintentar
+          {t("retry")}
         </button>
       </div>
     );
@@ -45,12 +47,12 @@ export function RecurringPostsList({ projectId }: RecurringPostsListProps) {
   if (!posts || posts.length === 0) {
     return (
       <div className="rounded-lg border-2 border-dashed border-gray-200 py-16 text-center">
-        <p className="text-gray-500">No hay publicaciones recurrentes configuradas.</p>
+        <p className="text-gray-500">{t("recurringListEmpty")}</p>
         <Link
           href="/dashboard/scheduling/recurring/new"
           className="mt-3 inline-block rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
         >
-          Crear primera publicación recurrente
+          {t("recurringListCreateFirst")}
         </Link>
       </div>
     );

@@ -8,6 +8,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { X, Check, Circle, Link2, FileText, Users, CreditCard } from "lucide-react";
 import { useOnboarding, useDismissOnboarding } from "@/hooks/api/useOnboarding";
@@ -24,6 +25,7 @@ const STEP_CONFIG: Record<string, { icon: typeof Link2; href: string }> = {
  * @description Progress checklist for new users. Hidden when completed or dismissed.
  */
 export function OnboardingChecklist() {
+  const t = useTranslations("onboarding");
   const { data, isLoading } = useOnboarding();
   const dismissMutation = useDismissOnboarding();
 
@@ -40,9 +42,9 @@ export function OnboardingChecklist() {
     <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-5 mb-6">
       <div className="flex items-start justify-between mb-3">
         <div>
-          <h3 className="text-base font-semibold text-zinc-100">Get started with OmniPost</h3>
+          <h3 className="text-base font-semibold text-zinc-100">{t("title")}</h3>
           <p className="text-sm text-zinc-400 mt-0.5">
-            {data.completedCount}/{data.totalSteps} steps completed
+            {t("progress", { completed: data.completedCount, total: data.totalSteps })}
           </p>
         </div>
         <button
@@ -50,7 +52,7 @@ export function OnboardingChecklist() {
           onClick={handleDismiss}
           disabled={dismissMutation.isPending}
           className="text-zinc-500 hover:text-zinc-300 p-1"
-          aria-label="Dismiss onboarding"
+          aria-label={t("dismiss")}
         >
           <X aria-hidden="true" className="h-4 w-4" />
         </button>
@@ -90,7 +92,7 @@ export function OnboardingChecklist() {
                   className="inline-flex items-center gap-1 rounded px-2.5 py-1 text-xs font-medium text-indigo-400 hover:text-indigo-300 hover:bg-zinc-800"
                 >
                   <Icon className="h-3 w-3" />
-                  Go
+                  {t("go")}
                 </Link>
               )}
             </li>
@@ -104,7 +106,7 @@ export function OnboardingChecklist() {
         disabled={dismissMutation.isPending}
         className="mt-4 text-xs text-zinc-500 hover:text-zinc-400 underline"
       >
-        Skip for now
+        {t("skip")}
       </button>
     </div>
   );

@@ -7,6 +7,7 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import { Avatar, AvatarFallback, AvatarImage } from "@packages/ui";
 import type { PreviewProps } from "./types";
 
@@ -14,6 +15,7 @@ const YOUTUBE_TITLE_LIMIT = 70;
 const YOUTUBE_DESCRIPTION_LIMIT = 200;
 
 export function YouTubePreview({ content, media, userInfo }: PreviewProps) {
+  const t = useTranslations("editor");
   const title =
     content.length > YOUTUBE_TITLE_LIMIT ? content.slice(0, YOUTUBE_TITLE_LIMIT) : content;
   const description = content.slice(0, YOUTUBE_DESCRIPTION_LIMIT);
@@ -35,7 +37,9 @@ export function YouTubePreview({ content, media, userInfo }: PreviewProps) {
           </Avatar>
           <div>
             <p className="text-xs font-medium text-gray-800">{userInfo.name}</p>
-            <p className="text-xs text-gray-500">0 views · Just now</p>
+            <p className="text-xs text-gray-500">
+              {t("preview.youtubeViews", { count: 0 })} · {t("preview.justNow")}
+            </p>
           </div>
         </div>
         {content.length > 0 && (

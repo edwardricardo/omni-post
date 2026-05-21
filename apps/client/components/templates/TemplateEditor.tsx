@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useCallback, useEffect, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { TooltipProvider } from "@packages/ui";
 import {
   type Template,
@@ -35,6 +36,7 @@ export function TemplateEditor({
   availablePlatforms = DEFAULT_PLATFORMS,
   categories = DEFAULT_CATEGORIES,
 }: TemplateEditorProps) {
+  const t = useTranslations("templates.components.editor");
   const { success, error } = useToast();
 
   // -- State ------------------------------------------------------------------
@@ -171,24 +173,24 @@ export function TemplateEditor({
     const validation = templateEngine.validateTemplate(formData.content);
 
     if (validation.valid) {
-      success({ description: "Template syntax is valid!" });
+      success({ description: t("toast.syntaxValid") });
     } else {
       error({
-        description: `Template validation failed: ${validation.errors.join(", ")}`,
+        description: t("toast.validationFailed", { errors: validation.errors.join(", ") }),
       });
     }
-  }, [formData.content, success, error]);
+  }, [formData.content, success, error, t]);
 
   const handleSave = useCallback(async () => {
     if (!formData.name?.trim() || !formData.content?.trim()) {
-      error({ description: "Template name and content are required" });
+      error({ description: t("toast.nameContentRequired") });
       return;
     }
 
     const validation = templateEngine.validateTemplate(formData.content);
     if (!validation.valid) {
       error({
-        description: `Cannot save template with syntax errors: ${validation.errors.join(", ")}`,
+        description: t("toast.cannotSaveSyntaxErrors", { errors: validation.errors.join(", ") }),
       });
       return;
     }
@@ -210,26 +212,28 @@ export function TemplateEditor({
       };
 
       await onSave(templateToSave);
-      success({ description: "Template saved successfully!" });
+      success({ description: t("toast.savedSuccess") });
     } catch (err) {
       error({
-        description: `Failed to save template: ${err instanceof Error ? err.message : "Unknown error"}`,
+        description: t("toast.saveFailed", {
+          error: err instanceof Error ? err.message : t("toast.unknownError"),
+        }),
       });
     } finally {
       setIsSaving(false);
     }
-  }, [formData, extractedVariables, template, onSave, success, error]);
+  }, [formData, extractedVariables, template, onSave, success, error, t]);
 
   const handleCopyToClipboard = useCallback(async () => {
     if (compilationResult?.content) {
       try {
         await navigator.clipboard.writeText(compilationResult.content);
-        success({ description: "Content copied to clipboard!" });
+        success({ description: t("toast.copiedClipboard") });
       } catch {
-        error({ description: "Failed to copy to clipboard" });
+        error({ description: t("toast.copyFailed") });
       }
     }
-  }, [compilationResult?.content, success, error]);
+  }, [compilationResult?.content, success, error, t]);
 
   const generateSampleContext = useCallback(() => {
     const sampleContext: TemplateContext = {
