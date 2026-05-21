@@ -8,6 +8,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth/authContext";
 import { Button } from "@packages/ui";
 import { UserPlus } from "lucide-react";
@@ -16,6 +17,7 @@ import { InviteMemberModal } from "@/components/team/InviteMemberModal";
 import { useTeamMembers } from "@/hooks/api/useTeam";
 
 export default function TeamSettingsPage() {
+  const t = useTranslations("settings");
   const { user } = useAuth();
   const [showInvite, setShowInvite] = useState(false);
 
@@ -34,15 +36,15 @@ export default function TeamSettingsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Team</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t("team.title")}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {activeCount} member{activeCount !== 1 ? "s" : ""}
+            {t("team.memberCount", { count: activeCount })}
           </p>
         </div>
         {canInvite && (
           <Button onClick={() => setShowInvite(true)}>
             <UserPlus className="h-4 w-4 mr-2" />
-            Invite Member
+            {t("team.inviteMember")}
           </Button>
         )}
       </div>

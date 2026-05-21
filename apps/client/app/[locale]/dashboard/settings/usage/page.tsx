@@ -7,6 +7,7 @@
 
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth/authContext";
 import { useAccountUsage } from "@/hooks/api/useUsage";
 
@@ -22,6 +23,8 @@ function UsageMeter({
   limit: number | null;
   unit?: string;
 }) {
+  const t = useTranslations("settings");
+
   // Unlimited tier — show count only, no progress bar.
   if (limit === null) {
     return (
@@ -29,7 +32,7 @@ function UsageMeter({
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium">{label}</span>
           <span className="text-sm text-muted-foreground">
-            {current.toLocaleString()} {unit ?? ""} · Unlimited
+            {t("usage.unlimitedValue", { current: current.toLocaleString(), unit: unit ?? "" })}
           </span>
         </div>
       </div>
@@ -45,7 +48,11 @@ function UsageMeter({
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm font-medium">{label}</span>
         <span className="text-sm text-muted-foreground">
-          {current.toLocaleString()} / {limit.toLocaleString()} {unit ?? ""}
+          {t("usage.limitValue", {
+            current: current.toLocaleString(),
+            limit: limit.toLocaleString(),
+            unit: unit ?? "",
+          })}
         </span>
       </div>
       <div className="h-2 rounded-full bg-muted overflow-hidden">
@@ -56,7 +63,7 @@ function UsageMeter({
       </div>
       {percentage >= 80 && (
         <p className="text-xs text-orange-600 mt-1">
-          {percentage >= 95 ? "Limit almost reached" : "Approaching limit"}
+          {percentage >= 95 ? t("usage.limitAlmostReached") : t("usage.approachingLimit")}
         </p>
       )}
     </div>
@@ -64,27 +71,33 @@ function UsageMeter({
 }
 
 export default function UsagePage() {
+  const t = useTranslations("settings");
   const { user } = useAuth();
   const accountId = ((user as Record<string, unknown> | null)?.accountId as string) ?? "";
   const { data: usage, isLoading } = useAccountUsage(accountId);
 
   if (isLoading) {
-    return <div className="text-center py-8 text-muted-foreground">Loading usage data...</div>;
+    return <div className="text-center py-8 text-muted-foreground">{t("usage.loading")}</div>;
   }
 
   if (!usage) {
-    return <div className="text-center py-8 text-muted-foreground">Unable to load usage data.</div>;
+    return <div className="text-center py-8 text-muted-foreground">{t("usage.loadError")}</div>;
   }
 
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Usage</h1>
+        <h1 className="text-2xl font-bold text-foreground">{t("usage.title")}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Current plan: <strong>{usage.plan}</strong>
+          {t.rich("usage.currentPlan", {
+            plan: usage.plan,
+            strong: (chunks) => <strong>{chunks}</strong>,
+          })}
           {usage.isOnTrial && usage.trialEndDate && (
             <span className="ml-2 text-orange-600">
-              Trial ends {new Date(usage.trialEndDate).toLocaleDateString()}
+              {t("usage.trialEnds", {
+                date: new Date(usage.trialEndDate).toLocaleDateString(),
+              })}
             </span>
           )}
         </p>
@@ -92,22 +105,22 @@ export default function UsagePage() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <UsageMeter
-          label="Posts this month"
+          label={t("usage.postsThisMonth")}
           current={usage.postsPublished}
           limit={usage.postsLimit}
         />
         <UsageMeter
-          label="Social channels"
+          label={t("usage.socialChannels")}
           current={usage.channelsCount}
           limit={usage.channelsLimit}
         />
         <UsageMeter
-          label="Team members"
+          label={t("usage.teamMembers")}
           current={usage.teamMemberCount}
           limit={usage.teamMembersLimit}
         />
         <UsageMeter
-          label="Storage"
+          label={t("usage.storage")}
           current={Math.round(usage.storageGb * 10) / 10}
           limit={usage.storageLimitGb}
           unit="GB"
@@ -116,7 +129,9 @@ export default function UsagePage() {
 
       {usage.nextBillingDate && (
         <p className="text-sm text-muted-foreground mt-6">
-          Next billing date: {new Date(usage.nextBillingDate).toLocaleDateString()}
+          {t("usage.nextBillingDate", {
+            date: new Date(usage.nextBillingDate).toLocaleDateString(),
+          })}
         </p>
       )}
     </div>

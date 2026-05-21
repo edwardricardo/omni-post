@@ -8,6 +8,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { toast, InputDialog } from "@packages/ui";
 import { SchedulingDashboard } from "@/components/scheduling";
@@ -27,30 +28,20 @@ import {
 
 type TabId = "calendar" | "multi-platform" | "bulk" | "optimal" | "rules";
 
-interface Tab {
-  id: TabId;
-  label: string;
-}
+const TAB_IDS: TabId[] = ["calendar", "multi-platform", "bulk", "optimal", "rules"];
 
-const TABS: Tab[] = [
-  { id: "calendar", label: "Calendar & Posts" },
-  { id: "multi-platform", label: "Multi-Platform" },
-  { id: "bulk", label: "Bulk Schedule" },
-  { id: "optimal", label: "Optimal Times" },
-  { id: "rules", label: "Rules" },
-];
-
-const DAY_NAMES = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
+const DAY_KEYS = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
 ] as const;
 
 export default function SchedulingPage() {
+  const t = useTranslations("scheduling");
   const { projectId, accountId } = useProject();
   const [activeTab, setActiveTab] = useState<TabId>("calendar");
   const [addRuleOpen, setAddRuleOpen] = useState(false);
@@ -101,24 +92,32 @@ export default function SchedulingPage() {
           slots: slotInputs,
         });
         toast({
-          title: "Bulk schedule created",
-          description: `${created.length} slot${created.length === 1 ? "" : "s"} scheduled.`,
+          title: t("bulkScheduleCreatedTitle"),
+          description: t("bulkScheduleCreatedDescription", { count: created.length }),
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to create bulk schedule.";
-        toast({ title: "Bulk schedule failed", description: message, variant: "destructive" });
+        const message = error instanceof Error ? error.message : t("bulkScheduleFailedFallback");
+        toast({
+          title: t("bulkScheduleFailedTitle"),
+          description: message,
+          variant: "destructive",
+        });
       }
     },
-    [bulkCreateMutation, projectId]
+    [bulkCreateMutation, projectId, t]
   );
 
-  const handleScheduleAtTime = useCallback((dayOfWeek: number, hour: number) => {
-    const dayName = DAY_NAMES[dayOfWeek] ?? "Unknown";
-    toast({
-      title: "Optimal time selected",
-      description: `${dayName} at ${hour}:00. Open a post to schedule it at this time.`,
-    });
-  }, []);
+  const handleScheduleAtTime = useCallback(
+    (dayOfWeek: number, hour: number) => {
+      const dayKey = DAY_KEYS[dayOfWeek];
+      const dayName = dayKey ? t(`days.${dayKey}`) : t("days.unknown");
+      toast({
+        title: t("optimalTimeSelectedTitle"),
+        description: t("optimalTimeSelectedDescription", { day: dayName, hour }),
+      });
+    },
+    [t]
+  );
 
   const handleAddRuleName = useCallback((name: string) => {
     setPendingRuleName(name);
@@ -135,8 +134,8 @@ export default function SchedulingPage() {
         .filter(Boolean);
       if (providers.length === 0) {
         toast({
-          title: "Rule not created",
-          description: "At least one platform is required.",
+          title: t("ruleNotCreatedTitle"),
+          description: t("ruleNotCreatedDescription"),
           variant: "destructive",
         });
         setAddRulePlatformsOpen(false);
@@ -150,17 +149,21 @@ export default function SchedulingPage() {
           providers,
           active: true,
         });
-        toast({ title: "Rule created", description: pendingRuleName });
+        toast({ title: t("ruleCreatedTitle"), description: pendingRuleName });
         setActiveTab("rules");
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to add rule.";
-        toast({ title: "Rule creation failed", description: message, variant: "destructive" });
+        const message = error instanceof Error ? error.message : t("ruleCreationFailedFallback");
+        toast({
+          title: t("ruleCreationFailedTitle"),
+          description: message,
+          variant: "destructive",
+        });
       } finally {
         setAddRulePlatformsOpen(false);
         setPendingRuleName(null);
       }
     },
-    [createRuleMutation, pendingRuleName, projectId]
+    [createRuleMutation, pendingRuleName, projectId, t]
   );
 
   const handleAddRule = useCallback(() => {
@@ -172,15 +175,15 @@ export default function SchedulingPage() {
       if (!editRuleTarget) return;
       try {
         await updateRuleMutation.mutateAsync({ ruleId: editRuleTarget, name });
-        toast({ title: "Rule updated", description: name });
+        toast({ title: t("ruleUpdatedTitle"), description: name });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to edit rule.";
-        toast({ title: "Rule update failed", description: message, variant: "destructive" });
+        const message = error instanceof Error ? error.message : t("ruleUpdateFailedFallback");
+        toast({ title: t("ruleUpdateFailedTitle"), description: message, variant: "destructive" });
       } finally {
         setEditRuleTarget(null);
       }
     },
-    [editRuleTarget, updateRuleMutation]
+    [editRuleTarget, updateRuleMutation, t]
   );
 
   const handleEditRule = useCallback((ruleId: string) => {
@@ -192,32 +195,32 @@ export default function SchedulingPage() {
       try {
         await toggleRuleMutation.mutateAsync({ ruleId, active });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to toggle rule.";
-        toast({ title: "Toggle failed", description: message, variant: "destructive" });
+        const message = error instanceof Error ? error.message : t("ruleToggleFailedFallback");
+        toast({ title: t("ruleToggleFailedTitle"), description: message, variant: "destructive" });
       }
     },
-    [toggleRuleMutation]
+    [toggleRuleMutation, t]
   );
 
   return (
     <div className="flex flex-col h-full">
       {/* Tab bar */}
       <div className="border-b border-gray-200 bg-white px-6">
-        <div className="-mb-px flex space-x-6" role="tablist" aria-label="Scheduling views">
-          {TABS.map((tab) => (
+        <div className="-mb-px flex space-x-6" role="tablist" aria-label={t("tablistLabel")}>
+          {TAB_IDS.map((tabId) => (
             <button
-              key={tab.id}
+              key={tabId}
               role="tab"
-              aria-selected={activeTab === tab.id}
-              aria-controls={`tab-panel-${tab.id}`}
-              onClick={() => setActiveTab(tab.id)}
+              aria-selected={activeTab === tabId}
+              aria-controls={`tab-panel-${tabId}`}
+              onClick={() => setActiveTab(tabId)}
               className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
-                activeTab === tab.id
+                activeTab === tabId
                   ? "border-blue-600 text-blue-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
             >
-              {tab.label}
+              {t(`tabs.${tabId}`)}
             </button>
           ))}
         </div>
@@ -229,14 +232,14 @@ export default function SchedulingPage() {
           href="/dashboard/scheduling/recurring"
           className="text-sm font-medium text-blue-600 hover:text-blue-700"
         >
-          Publicaciones recurrentes →
+          {t("recurringShortcut")}
         </Link>
       </div>
 
       {/* Tab panels */}
       <div className="flex-1 overflow-auto">
         {activeTab === "calendar" && (
-          <div role="tabpanel" id="tab-panel-calendar" aria-label="Calendar & Posts">
+          <div role="tabpanel" id="tab-panel-calendar" aria-label={t("tabs.calendar")}>
             <SchedulingDashboard
               projectId={projectId}
               accountId={accountId}
@@ -252,7 +255,7 @@ export default function SchedulingPage() {
           <div
             role="tabpanel"
             id="tab-panel-multi-platform"
-            aria-label="Multi-Platform"
+            aria-label={t("tabs.multi-platform")}
             className="p-6"
           >
             <MultiPlatformScheduler
@@ -264,19 +267,24 @@ export default function SchedulingPage() {
         )}
 
         {activeTab === "bulk" && (
-          <div role="tabpanel" id="tab-panel-bulk" aria-label="Bulk Schedule" className="p-6">
+          <div role="tabpanel" id="tab-panel-bulk" aria-label={t("tabs.bulk")} className="p-6">
             <BulkScheduleView onBulkSchedule={handleBulkSchedule} projectId={projectId} />
           </div>
         )}
 
         {activeTab === "optimal" && (
-          <div role="tabpanel" id="tab-panel-optimal" aria-label="Optimal Times" className="p-6">
+          <div
+            role="tabpanel"
+            id="tab-panel-optimal"
+            aria-label={t("tabs.optimal")}
+            className="p-6"
+          >
             <OptimalTimesView optimalTimes={optimalTimes} onScheduleAtTime={handleScheduleAtTime} />
           </div>
         )}
 
         {activeTab === "rules" && (
-          <div role="tabpanel" id="tab-panel-rules" aria-label="Rules" className="p-6">
+          <div role="tabpanel" id="tab-panel-rules" aria-label={t("tabs.rules")} className="p-6">
             <RulesView
               rules={rules}
               onAddRule={handleAddRule}
@@ -291,11 +299,11 @@ export default function SchedulingPage() {
       <InputDialog
         open={addRuleOpen}
         onOpenChange={setAddRuleOpen}
-        title="New scheduling rule"
-        description="Name this rule so you can identify it in the list."
-        inputLabel="Rule name"
-        inputPlaceholder="e.g. Weekday morning posts"
-        confirmLabel="Next"
+        title={t("addRuleNameTitle")}
+        description={t("addRuleNameDescription")}
+        inputLabel={t("addRuleNameLabel")}
+        inputPlaceholder={t("addRuleNamePlaceholder")}
+        confirmLabel={t("nextButton")}
         onConfirm={handleAddRuleName}
       />
       <InputDialog
@@ -304,11 +312,11 @@ export default function SchedulingPage() {
           setAddRulePlatformsOpen(open);
           if (!open) setPendingRuleName(null);
         }}
-        title="Platforms for this rule"
-        description="Comma-separated list of platform identifiers."
-        inputLabel="Platforms"
-        inputPlaceholder="x,instagram,facebook"
-        confirmLabel="Create rule"
+        title={t("addRulePlatformsTitle")}
+        description={t("addRulePlatformsDescription")}
+        inputLabel={t("addRulePlatformsLabel")}
+        inputPlaceholder={t("addRulePlatformsPlaceholder")}
+        confirmLabel={t("createRuleButton")}
         loading={createRuleMutation.isPending}
         onConfirm={handleAddRulePlatforms}
       />
@@ -317,11 +325,11 @@ export default function SchedulingPage() {
         onOpenChange={(open) => {
           if (!open) setEditRuleTarget(null);
         }}
-        title="Rename rule"
-        description="Enter a new name for this scheduling rule."
-        inputLabel="New rule name"
-        inputPlaceholder="Updated rule name"
-        confirmLabel="Save"
+        title={t("renameRuleTitle")}
+        description={t("renameRuleDescription")}
+        inputLabel={t("renameRuleLabel")}
+        inputPlaceholder={t("renameRulePlaceholder")}
+        confirmLabel={t("saveButton")}
         loading={updateRuleMutation.isPending}
         onConfirm={handleEditRuleName}
       />

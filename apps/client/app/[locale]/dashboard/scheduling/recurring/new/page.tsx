@@ -6,10 +6,13 @@
  * @layer infrastructure
  */
 
+import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { RecurringPostForm } from "@/components/scheduling/RecurringPostForm";
 
-export default function NewRecurringPostPage() {
+export default async function NewRecurringPostPage() {
+  const t = await getTranslations("scheduling");
+
   return (
     <div className="p-6">
       <div className="mb-6">
@@ -17,9 +20,9 @@ export default function NewRecurringPostPage() {
           href="/dashboard/scheduling/recurring"
           className="text-sm text-gray-500 hover:text-gray-700"
         >
-          ← Publicaciones recurrentes
+          {t("recurringBackLink")}
         </Link>
-        <h1 className="mt-2 text-xl font-semibold text-gray-900">Nueva publicación recurrente</h1>
+        <h1 className="mt-2 text-xl font-semibold text-gray-900">{t("recurringNewTitle")}</h1>
       </div>
 
       <div className="max-w-2xl">

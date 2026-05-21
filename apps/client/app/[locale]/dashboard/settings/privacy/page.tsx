@@ -11,6 +11,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth/authContext";
 import { useSubmitDsarRequest } from "@/hooks/api/usePrivacy";
 import type { DsarSubmitResult } from "@/hooks/api/usePrivacy";
@@ -20,20 +21,16 @@ import { Button } from "@packages/ui";
 // Constants
 // ---------------------------------------------------------------------------
 
-const REQUEST_TYPES = [
-  { value: "ACCESS", label: "Access my data" },
-  { value: "EXPORT", label: "Export my data" },
-  { value: "DELETION", label: "Delete my account and data" },
-] as const;
+const REQUEST_TYPES = ["ACCESS", "EXPORT", "DELETION"] as const;
 
-type RequestType = (typeof REQUEST_TYPES)[number]["value"];
+type RequestType = (typeof REQUEST_TYPES)[number];
 
 const JURISDICTIONS = [
-  { value: "GDPR", label: "European Union (GDPR - 30 days)", days: 30 },
-  { value: "LGPD", label: "Brazil (LGPD - 15 days)", days: 15 },
-  { value: "CCPA", label: "United States (CCPA - 45 days)", days: 45 },
-  { value: "PIPEDA", label: "Canada (PIPEDA - 30 days)", days: 30 },
-  { value: "OTHER", label: "Other (30 days)", days: 30 },
+  { value: "GDPR", days: 30 },
+  { value: "LGPD", days: 15 },
+  { value: "CCPA", days: 45 },
+  { value: "PIPEDA", days: 30 },
+  { value: "OTHER", days: 30 },
 ] as const;
 
 type Jurisdiction = (typeof JURISDICTIONS)[number]["value"];
@@ -62,25 +59,32 @@ function ConfirmationCard({
   jurisdiction: Jurisdiction;
   onReset: () => void;
 }) {
+  const t = useTranslations("settings");
   const days = getDeadlineDays(jurisdiction);
 
   return (
     <div className="rounded-lg border-2 border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-950/30 p-6">
-      <h2 className="text-lg font-semibold text-foreground">Request received</h2>
+      <h2 className="text-lg font-semibold text-foreground">{t("privacy.requestReceived")}</h2>
       <div className="mt-4 space-y-2 text-sm text-foreground">
         <p>
-          <span className="font-medium">Reference ID:</span> {result.id}
+          {t.rich("privacy.referenceId", {
+            id: result.id,
+            label: (chunks) => <span className="font-medium">{chunks}</span>,
+          })}
         </p>
         <p>
-          We will respond to <span className="font-medium">{email}</span> within{" "}
-          <span className="font-medium">{days} days</span>.
+          {t.rich("privacy.respondWithin", {
+            email,
+            days,
+            strong: (chunks) => <span className="font-medium">{chunks}</span>,
+          })}
         </p>
       </div>
       <div className="mt-4 rounded-md bg-muted p-3 text-xs text-muted-foreground">
-        Keep this reference ID if you need to follow up.
+        {t("privacy.keepReferenceId")}
       </div>
       <Button variant="outline" size="sm" className="mt-4" onClick={onReset}>
-        Submit another request
+        {t("privacy.submitAnother")}
       </Button>
     </div>
   );
@@ -91,6 +95,7 @@ function ConfirmationCard({
 // ---------------------------------------------------------------------------
 
 export default function PrivacyPage() {
+  const t = useTranslations("settings");
   const { user } = useAuth();
   const submitDsar = useSubmitDsarRequest();
 
@@ -113,7 +118,7 @@ export default function PrivacyPage() {
 
       const trimmedEmail = email.trim();
       if (!trimmedEmail) {
-        setFormError("Email address is required.");
+        setFormError(t("privacy.errorEmailRequired"));
         return;
       }
 
@@ -131,14 +136,12 @@ export default function PrivacyPage() {
             setSubmittedJurisdiction(jurisdiction);
           },
           onError: (error) => {
-            setFormError(
-              error instanceof Error ? error.message : "Request failed. Please try again."
-            );
+            setFormError(error instanceof Error ? error.message : t("privacy.errorRequestFailed"));
           },
         }
       );
     },
-    [email, name, requestType, jurisdiction, submitDsar]
+    [email, name, requestType, jurisdiction, submitDsar, t]
   );
 
   const handleReset = useCallback(() => {
@@ -153,7 +156,7 @@ export default function PrivacyPage() {
     return (
       <div className="max-w-2xl">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground">Your Privacy Rights</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t("privacy.title")}</h1>
         </div>
         <ConfirmationCard
           result={submittedResult}
@@ -168,29 +171,27 @@ export default function PrivacyPage() {
   return (
     <div className="max-w-2xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Your Privacy Rights</h1>
-        <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-          OmniPost stores personal data to provide its services. Under GDPR, LGPD, CCPA, and other
-          privacy regulations, you have rights over your data. Use this form to exercise those
-          rights.
-        </p>
+        <h1 className="text-2xl font-bold text-foreground">{t("privacy.title")}</h1>
+        <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{t("privacy.intro")}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Request type */}
         <fieldset className="border-0 p-0 m-0 min-w-0 space-y-3">
-          <legend className="text-sm font-medium text-foreground">Request type</legend>
+          <legend className="text-sm font-medium text-foreground">
+            {t("privacy.requestTypeLegend")}
+          </legend>
           {REQUEST_TYPES.map((rt) => (
-            <label key={rt.value} className="flex items-center gap-3 cursor-pointer">
+            <label key={rt} className="flex items-center gap-3 cursor-pointer">
               <input
                 type="radio"
                 name="requestType"
-                value={rt.value}
-                checked={requestType === rt.value}
-                onChange={() => setRequestType(rt.value)}
+                value={rt}
+                checked={requestType === rt}
+                onChange={() => setRequestType(rt)}
                 className="mt-0.5"
               />
-              <span className="text-sm text-foreground">{rt.label}</span>
+              <span className="text-sm text-foreground">{t(`privacy.requestType.${rt}`)}</span>
             </label>
           ))}
         </fieldset>
@@ -198,7 +199,7 @@ export default function PrivacyPage() {
         {/* Email */}
         <div className="space-y-1.5">
           <label htmlFor="dsar-email" className="text-sm font-medium text-foreground">
-            Email address
+            {t("privacy.emailLabel")}
           </label>
           <input
             id="dsar-email"
@@ -206,7 +207,7 @@ export default function PrivacyPage() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
+            placeholder={t("privacy.emailPlaceholder")}
             className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
@@ -214,14 +215,15 @@ export default function PrivacyPage() {
         {/* Name (optional) */}
         <div className="space-y-1.5">
           <label htmlFor="dsar-name" className="text-sm font-medium text-foreground">
-            Name <span className="text-muted-foreground">(optional)</span>
+            {t("privacy.nameLabel")}{" "}
+            <span className="text-muted-foreground">{t("privacy.optional")}</span>
           </label>
           <input
             id="dsar-name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Your full name"
+            placeholder={t("privacy.namePlaceholder")}
             className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
@@ -229,7 +231,7 @@ export default function PrivacyPage() {
         {/* Jurisdiction */}
         <div className="space-y-1.5">
           <label htmlFor="dsar-jurisdiction" className="text-sm font-medium text-foreground">
-            Region
+            {t("privacy.regionLabel")}
           </label>
           <select
             id="dsar-jurisdiction"
@@ -239,7 +241,7 @@ export default function PrivacyPage() {
           >
             {JURISDICTIONS.map((j) => (
               <option key={j.value} value={j.value}>
-                {j.label}
+                {t(`privacy.jurisdiction.${j.value}`, { days: j.days })}
               </option>
             ))}
           </select>
@@ -255,14 +257,13 @@ export default function PrivacyPage() {
         {/* Deletion warning */}
         {requestType === "DELETION" && (
           <div className="rounded-md bg-muted p-3 text-xs text-muted-foreground">
-            Account deletion is permanent. All your data, posts, and connected accounts will be
-            removed. This action cannot be undone.
+            {t("privacy.deletionWarning")}
           </div>
         )}
 
         {/* Submit */}
         <Button type="submit" disabled={submitDsar.isPending}>
-          {submitDsar.isPending ? "Submitting..." : "Submit request"}
+          {submitDsar.isPending ? t("privacy.submitting") : t("privacy.submit")}
         </Button>
       </form>
     </div>

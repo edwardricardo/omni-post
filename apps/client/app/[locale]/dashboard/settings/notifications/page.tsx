@@ -6,20 +6,24 @@
  * @layer infrastructure
  */
 
+import { getTranslations } from "next-intl/server";
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
 
-export const metadata = {
-  title: "Notification Preferences — OmniPost",
-};
+export async function generateMetadata() {
+  const t = await getTranslations("settings");
+  return {
+    title: t("notifications.metaTitle"),
+  };
+}
 
-export default function NotificationPreferencesPage() {
+export default async function NotificationPreferencesPage() {
+  const t = await getTranslations("settings");
+
   return (
     <div className="max-w-2xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Notification Preferences</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Choose which notifications you receive in the notification center.
-        </p>
+        <h1 className="text-2xl font-semibold text-gray-900">{t("notifications.title")}</h1>
+        <p className="mt-1 text-sm text-gray-600">{t("notifications.subtitle")}</p>
       </div>
       <NotificationPreferences />
     </div>

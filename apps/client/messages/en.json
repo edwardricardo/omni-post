@@ -152,8 +152,14 @@
       "FAILED": "Failed",
       "CANCELLED": "Cancelled"
     },
-    "language": { "en": "English", "es": "Spanish" },
-    "common": { "loading": "Loading...", "notAvailable": "Not available" },
+    "language": {
+      "en": "English",
+      "es": "Spanish"
+    },
+    "common": {
+      "loading": "Loading...",
+      "notAvailable": "Not available"
+    },
     "fields": {
       "project": "Project",
       "projectPlaceholder": "Select a project",
@@ -225,8 +231,15 @@
       "publishedAt": "Published at",
       "status": "Status"
     },
-    "view": { "grid": "Grid View", "list": "List View", "virtual": "Virtual Scroll" },
-    "pagination": { "previous": "Previous", "next": "Next" },
+    "view": {
+      "grid": "Grid View",
+      "list": "List View",
+      "virtual": "Virtual Scroll"
+    },
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next"
+    },
     "empty": {
       "heading": "No posts found",
       "filtered": "No posts match your current filters.",
@@ -283,7 +296,10 @@
       "selectProjectPrompt": "Please select a project to start creating your post.",
       "createProject": "Create New Project"
     },
-    "edit": { "title": "Edit Post", "lastUpdated": "Last updated {date}" },
+    "edit": {
+      "title": "Edit Post",
+      "lastUpdated": "Last updated {date}"
+    },
     "info": {
       "title": "Post Information",
       "description": "Basic information about this post",
@@ -338,6 +354,280 @@
       "expectedReach": "Expected Reach",
       "estimatedClicks": "Estimated Clicks",
       "bestTime": "Best Time to Post"
+    }
+  },
+  "ai": {
+    "generate": {
+      "title": "AI Generation",
+      "subtitle": "Generate optimized content and images using AI",
+      "tabContent": "Content",
+      "tabImages": "Images"
+    },
+    "optimizer": {
+      "title": "Smart Content Optimizer",
+      "subtitle": "Content analysis and optimization for your social media posts",
+      "contentLabel": "Your content",
+      "contentPlaceholder": "Paste or type your social media content here to get optimization suggestions..."
+    },
+    "repurpose": {
+      "title": "Repurpose Opportunities",
+      "subtitle": "High-performing posts ready for cross-platform repurposing",
+      "detectNow": "Detect now",
+      "detecting": "Detecting…",
+      "detectSuccessTitle": "Detection complete",
+      "detectSuccessDescription": "{detected} detected, {alreadyProposed} already proposed",
+      "detectErrorTitle": "Detection failed",
+      "unknownError": "Unknown error",
+      "loading": "Loading…",
+      "loadErrorTitle": "Could not load proposals",
+      "tryAgain": "Please try again.",
+      "emptyTitle": "No repurpose opportunities yet",
+      "emptyDescription": "OmniPost monitors your posts and proposes repurposing when one performs exceptionally. Use \"Detect now\" to scan immediately.",
+      "multiplier": "{value}× average",
+      "variantCount": "{count, plural, one {# variant} other {# variants}}"
+    },
+    "templates": {
+      "title": "Prompt Library",
+      "subtitle": "Manage reusable AI prompt templates. System templates are read-only; create custom templates for your account.",
+      "accountIdHint": "Append <code>?accountId=&lt;uuid&gt;</code> to the URL to manage account-specific templates.",
+      "loading": "Loading..."
+    },
+    "trends": {
+      "title": "Trend Radar",
+      "subtitle": "Trending topics relevant to your brand, scored against your voice and performance.",
+      "activeCount": "{count, plural, one {# active} other {# active}}",
+      "loading": "Loading trends…",
+      "loadErrorTitle": "Could not load trend radar",
+      "tryAgain": "Please try again.",
+      "emptyTitle": "No trending topics yet",
+      "emptyDescription": "OmniPost scans real-time web search, your own analytics, and inbox mentions every day. Check back soon, or connect more channels to broaden the signal.",
+      "urgencyNow": "Post Now",
+      "urgencyToday": "Today",
+      "urgencyThisWeek": "This Week",
+      "sourceWeb": "Web",
+      "sourceYourPosts": "Your posts",
+      "sourceInbox": "Inbox",
+      "openSourceLabel": "Open source for {topic}",
+      "relevanceLabel": "Relevance {score} of 10",
+      "postCount": "{count, number} posts"
+    }
+  },
+  "scheduling": {
+    "tablistLabel": "Scheduling views",
+    "tabs": {
+      "calendar": "Calendar & Posts",
+      "multi-platform": "Multi-Platform",
+      "bulk": "Bulk Schedule",
+      "optimal": "Optimal Times",
+      "rules": "Rules"
+    },
+    "days": {
+      "sunday": "Sunday",
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday",
+      "unknown": "Unknown"
+    },
+    "recurringShortcut": "Recurring posts →",
+    "bulkScheduleCreatedTitle": "Bulk schedule created",
+    "bulkScheduleCreatedDescription": "{count, plural, one {# slot scheduled.} other {# slots scheduled.}}",
+    "bulkScheduleFailedTitle": "Bulk schedule failed",
+    "bulkScheduleFailedFallback": "Failed to create bulk schedule.",
+    "optimalTimeSelectedTitle": "Optimal time selected",
+    "optimalTimeSelectedDescription": "{day} at {hour}:00. Open a post to schedule it at this time.",
+    "ruleNotCreatedTitle": "Rule not created",
+    "ruleNotCreatedDescription": "At least one platform is required.",
+    "ruleCreatedTitle": "Rule created",
+    "ruleCreationFailedTitle": "Rule creation failed",
+    "ruleCreationFailedFallback": "Failed to add rule.",
+    "ruleUpdatedTitle": "Rule updated",
+    "ruleUpdateFailedTitle": "Rule update failed",
+    "ruleUpdateFailedFallback": "Failed to edit rule.",
+    "ruleToggleFailedTitle": "Toggle failed",
+    "ruleToggleFailedFallback": "Failed to toggle rule.",
+    "addRuleNameTitle": "New scheduling rule",
+    "addRuleNameDescription": "Name this rule so you can identify it in the list.",
+    "addRuleNameLabel": "Rule name",
+    "addRuleNamePlaceholder": "e.g. Weekday morning posts",
+    "nextButton": "Next",
+    "addRulePlatformsTitle": "Platforms for this rule",
+    "addRulePlatformsDescription": "Comma-separated list of platform identifiers.",
+    "addRulePlatformsLabel": "Platforms",
+    "addRulePlatformsPlaceholder": "x,instagram,facebook",
+    "createRuleButton": "Create rule",
+    "renameRuleTitle": "Rename rule",
+    "renameRuleDescription": "Enter a new name for this scheduling rule.",
+    "renameRuleLabel": "New rule name",
+    "renameRulePlaceholder": "Updated rule name",
+    "saveButton": "Save",
+    "recurringListTitle": "Recurring posts",
+    "recurringListSubtitle": "Posts that repeat automatically on a schedule.",
+    "recurringNewButton": "+ New recurring post",
+    "recurringBackLink": "← Recurring posts",
+    "recurringNewTitle": "New recurring post",
+    "recurringEditTitle": "Edit recurring post",
+    "recurringLoadError": "Failed to load recurring post."
+  },
+  "channels": {
+    "pageTitle": "Channel Management",
+    "loadingChannels": "Loading channels...",
+    "loadErrorDev": "Failed to load channels",
+    "loadErrorProd": "Failed to load channels. Please try again.",
+    "retryButton": "Retry",
+    "retryAriaLabel": "Retry loading channels",
+    "subtitleWithProject": "Channels for {projectName}",
+    "subtitleDefault": "Connect and manage your social media accounts",
+    "refreshButton": "Refresh",
+    "refreshAriaLabel": "Refresh channels",
+    "connectedChannels": "Connected Channels",
+    "availableProviders": "Available Providers",
+    "disconnectedTitle": "Channel disconnected",
+    "disconnectFailedTitle": "Disconnect failed",
+    "disconnectFailedFallback": "Failed to disconnect channel.",
+    "disconnectDialogTitle": "Disconnect channel?",
+    "disconnectDialogDescription": "Are you sure you want to disconnect this channel? Future posts will fail until reconnected.",
+    "disconnectButton": "Disconnect"
+  },
+  "integrations": {
+    "pageTitle": "Integrations",
+    "pageSubtitle": "Connect OmniPost with your favorite tools"
+  },
+  "settings": {
+    "ai": {
+      "title": "AI Settings",
+      "subtitle": "Configure your own AI provider keys or use the shared pool.",
+      "loading": "Loading AI settings...",
+      "loadError": "Unable to load AI settings.",
+      "poolUsage": "Pool Usage",
+      "tokensUsage": "{used} / {budget} tokens",
+      "resets": "Resets: {date}",
+      "byokTitle": "Bring Your Own Key (BYOK)",
+      "byokSubtitle": "Use your own API keys for unlimited AI features without consuming from the shared pool.",
+      "statusConfigured": "Configured",
+      "statusNotConfigured": "Not configured",
+      "placeholderUpdateKey": "Enter new key to update",
+      "placeholderEnterKey": "Enter API key",
+      "save": "Save",
+      "saving": "Saving...",
+      "test": "Test",
+      "testing": "Testing...",
+      "remove": "Remove",
+      "removing": "Removing...",
+      "cancel": "Cancel",
+      "connected": "Connected",
+      "failed": "Failed",
+      "errorKeyTooShort": "API key must be at least 10 characters",
+      "errorKeyPrefix": "Key must start with \"{prefix}\"",
+      "errorSaveFailed": "Failed to save API key",
+      "errorRemoveFailed": "Failed to remove API key",
+      "errorTestFailed": "Test request failed",
+      "removeDialogTitle": "Remove {provider} API Key?",
+      "removeDialogDescription": "This will delete your {provider} BYOK key. AI requests will fall back to the shared pool."
+    },
+    "billing": {
+      "title": "Billing",
+      "subtitle": "Manage your subscription and plan",
+      "successMessage": "Subscription activated successfully!",
+      "canceledMessage": "Payment canceled. You can try again anytime.",
+      "openingPortal": "Opening portal...",
+      "manageBilling": "Manage Billing",
+      "managePortalHint": "View invoices, update payment method, or manage your subscription.",
+      "tabBundles": "Bundles",
+      "tabCustom": "Custom Plan"
+    },
+    "brandVoice": {
+      "title": "Brand Voice",
+      "loading": "Loading...",
+      "descriptionNoAccount": "Define your brand's tone and style. This profile is automatically applied to all AI content generation requests for the selected account.",
+      "noAccountSelected": "No account selected. Append <code>?accountId=&lt;uuid&gt;</code> to the URL to manage a specific account's brand voice.",
+      "descriptionWithAccount": "Define your brand's tone and style. This profile is automatically applied to all AI content generation requests for account <code></code>."
+    },
+    "crm": {
+      "title": "CRM Integrations",
+      "subtitle": "Sync contacts and log social media activities in your CRM."
+    },
+    "integrations": {
+      "title": "Integrations",
+      "subtitle": "Connect external services to receive notifications."
+    },
+    "notifications": {
+      "metaTitle": "Notification Preferences — OmniPost",
+      "title": "Notification Preferences",
+      "subtitle": "Choose which notifications you receive in the notification center."
+    },
+    "privacy": {
+      "title": "Your Privacy Rights",
+      "intro": "OmniPost stores personal data to provide its services. Under GDPR, LGPD, CCPA, and other privacy regulations, you have rights over your data. Use this form to exercise those rights.",
+      "requestTypeLegend": "Request type",
+      "requestType": {
+        "ACCESS": "Access my data",
+        "EXPORT": "Export my data",
+        "DELETION": "Delete my account and data"
+      },
+      "emailLabel": "Email address",
+      "emailPlaceholder": "you@example.com",
+      "nameLabel": "Name",
+      "optional": "(optional)",
+      "namePlaceholder": "Your full name",
+      "regionLabel": "Region",
+      "jurisdiction": {
+        "GDPR": "European Union (GDPR - {days} days)",
+        "LGPD": "Brazil (LGPD - {days} days)",
+        "CCPA": "United States (CCPA - {days} days)",
+        "PIPEDA": "Canada (PIPEDA - {days} days)",
+        "OTHER": "Other ({days} days)"
+      },
+      "errorEmailRequired": "Email address is required.",
+      "errorRequestFailed": "Request failed. Please try again.",
+      "deletionWarning": "Account deletion is permanent. All your data, posts, and connected accounts will be removed. This action cannot be undone.",
+      "submit": "Submit request",
+      "submitting": "Submitting...",
+      "requestReceived": "Request received",
+      "referenceId": "<label>Reference ID:</label> {id}",
+      "respondWithin": "We will respond to <strong>{email}</strong> within <strong>{days} days</strong>.",
+      "keepReferenceId": "Keep this reference ID if you need to follow up.",
+      "submitAnother": "Submit another request"
+    },
+    "referral": {
+      "title": "Referral Program",
+      "loading": "Loading...",
+      "subtitle": "Earn 30 days free for every customer you refer",
+      "yourLink": "Your referral link",
+      "signups": "Signups",
+      "conversions": "Conversions",
+      "freeDaysEarned": "Free days earned",
+      "howItWorks": "How it works",
+      "step1": "Share your unique referral link with others",
+      "step2": "They sign up and become a paying customer",
+      "step3": "You get 30 free days added to your subscription per conversion"
+    },
+    "sso": {
+      "title": "Single Sign-On (SSO)",
+      "subtitle": "Allow your team to log in with your company identity provider."
+    },
+    "team": {
+      "title": "Team",
+      "memberCount": "{count, plural, one {# member} other {# members}}",
+      "inviteMember": "Invite Member"
+    },
+    "usage": {
+      "title": "Usage",
+      "loading": "Loading usage data...",
+      "loadError": "Unable to load usage data.",
+      "currentPlan": "Current plan: <strong>{plan}</strong>",
+      "trialEnds": "Trial ends {date}",
+      "postsThisMonth": "Posts this month",
+      "socialChannels": "Social channels",
+      "teamMembers": "Team members",
+      "storage": "Storage",
+      "unlimitedValue": "{current} {unit} · Unlimited",
+      "limitValue": "{current} / {limit} {unit}",
+      "limitAlmostReached": "Limit almost reached",
+      "approachingLimit": "Approaching limit",
+      "nextBillingDate": "Next billing date: {date}"
     }
   }
 }

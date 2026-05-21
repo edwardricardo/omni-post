@@ -11,6 +11,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { ProviderMetadata } from "@shared/types";
 import { ConfirmDialog, toast } from "@packages/ui";
 import { useDisconnectChannel, useProjectChannels } from "@/lib/hooks/useProjectChannels";
@@ -24,6 +25,7 @@ import { ChannelsTable } from "./components/ChannelsTable";
 import { ConnectProviderDialog } from "./components/ConnectProviderDialog";
 
 function ChannelsPageContent() {
+  const t = useTranslations("channels");
   const { projectId } = useProject();
 
   const {
@@ -63,10 +65,10 @@ function ChannelsPageContent() {
     if (!disconnectTarget) return;
     try {
       await disconnectChannelMutation.mutateAsync(disconnectTarget);
-      toast({ title: "Channel disconnected" });
+      toast({ title: t("disconnectedTitle") });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to disconnect channel.";
-      toast({ title: "Disconnect failed", description: message, variant: "destructive" });
+      const message = err instanceof Error ? err.message : t("disconnectFailedFallback");
+      toast({ title: t("disconnectFailedTitle"), description: message, variant: "destructive" });
     } finally {
       setDisconnectTarget(null);
     }
@@ -76,9 +78,9 @@ function ChannelsPageContent() {
     return (
       <div className="min-h-screen bg-gray-50 p-6">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">Channel Management</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-8">{t("pageTitle")}</h1>
           <div className="flex justify-center items-center h-64">
-            <LoadingSpinner size="lg" label="Loading channels..." />
+            <LoadingSpinner size="lg" label={t("loadingChannels")} />
           </div>
         </div>
       </div>
@@ -87,21 +89,19 @@ function ChannelsPageContent() {
 
   if (error) {
     const isDev = process.env.NODE_ENV === "development";
-    const displayMessage = isDev
-      ? error.message || "Failed to load channels"
-      : "Failed to load channels. Please try again.";
+    const displayMessage = isDev ? error.message || t("loadErrorDev") : t("loadErrorProd");
     return (
       <div className="min-h-screen bg-gray-50 p-6">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">Channel Management</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-8">{t("pageTitle")}</h1>
           <div className="flex justify-center items-center h-64" role="alert">
             <div className="text-lg text-red-600">{displayMessage}</div>
             <button
               onClick={() => refetchChannels()}
               className="ml-4 px-4 py-2 bg-blue-600 text-white rounded-sm hover:bg-blue-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              aria-label="Retry loading channels"
+              aria-label={t("retryAriaLabel")}
             >
-              Retry
+              {t("retryButton")}
             </button>
           </div>
         </div>
@@ -116,11 +116,9 @@ function ChannelsPageContent() {
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Channel Management</h1>
+            <h1 className="text-3xl font-bold text-gray-900">{t("pageTitle")}</h1>
             <p className="text-gray-600 mt-2">
-              {projectName
-                ? `Channels for ${projectName}`
-                : "Connect and manage your social media accounts"}
+              {projectName ? t("subtitleWithProject", { projectName }) : t("subtitleDefault")}
             </p>
           </div>
           <div className="flex space-x-4">
@@ -128,15 +126,15 @@ function ChannelsPageContent() {
               onClick={() => refetchChannels()}
               disabled={isLoading}
               className="px-4 py-2 bg-blue-600 text-white rounded-sm hover:bg-blue-700 disabled:opacity-50 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              aria-label="Refresh channels"
+              aria-label={t("refreshAriaLabel")}
             >
-              Refresh
+              {t("refreshButton")}
             </button>
           </div>
         </div>
 
         <div className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Connected Channels</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">{t("connectedChannels")}</h2>
           <ChannelsTable
             channels={channels ?? []}
             selectedChannels={selectedChannels}
@@ -146,7 +144,7 @@ function ChannelsPageContent() {
         </div>
 
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Available Providers</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">{t("availableProviders")}</h2>
           <AvailableProvidersGrid
             providers={providers}
             onConnect={(provider) => setConnectingProvider(provider)}
@@ -169,9 +167,9 @@ function ChannelsPageContent() {
         onOpenChange={(open) => {
           if (!open) setDisconnectTarget(null);
         }}
-        title="Disconnect channel?"
-        description="Are you sure you want to disconnect this channel? Future posts will fail until reconnected."
-        confirmLabel="Disconnect"
+        title={t("disconnectDialogTitle")}
+        description={t("disconnectDialogDescription")}
+        confirmLabel={t("disconnectButton")}
         variant="danger"
         onConfirm={handleConfirmDisconnect}
         loading={disconnectChannelMutation.isPending}

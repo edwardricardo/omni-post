@@ -7,6 +7,7 @@
  */
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -14,6 +15,7 @@ import { RecurringPostForm } from "@/components/scheduling/RecurringPostForm";
 import type { RecurringPost } from "@/hooks/api/useRecurringPosts";
 
 export default function EditRecurringPostPage() {
+  const t = useTranslations("scheduling");
   const { id } = useParams<{ id: string }>();
 
   const {
@@ -45,9 +47,9 @@ export default function EditRecurringPostPage() {
           href="/dashboard/scheduling/recurring"
           className="text-sm text-gray-500 hover:text-gray-700"
         >
-          ← Publicaciones recurrentes
+          {t("recurringBackLink")}
         </Link>
-        <h1 className="mt-2 text-xl font-semibold text-gray-900">Editar publicación recurrente</h1>
+        <h1 className="mt-2 text-xl font-semibold text-gray-900">{t("recurringEditTitle")}</h1>
       </div>
 
       <div className="max-w-2xl">
@@ -60,9 +62,7 @@ export default function EditRecurringPostPage() {
         )}
 
         {isError && (
-          <p className="rounded-md bg-red-50 p-4 text-sm text-red-700">
-            No se pudo cargar la publicación recurrente.
-          </p>
+          <p className="rounded-md bg-red-50 p-4 text-sm text-red-700">{t("recurringLoadError")}</p>
         )}
 
         {post && <RecurringPostForm existing={post} />}

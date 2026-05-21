@@ -9,19 +9,19 @@
  * @layer infrastructure
  */
 
+import { getTranslations } from "next-intl/server";
 import { ExternalNotificationConfigs } from "@/components/settings/ExternalNotificationConfigs";
 
-export default function IntegrationsPage() {
+export default async function IntegrationsPage() {
+  const t = await getTranslations("settings");
   // TODO: Replace with real project context when multi-project support is added
   const projectId = "default";
 
   return (
     <div className="max-w-2xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Integrations</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Connect external services to receive notifications.
-        </p>
+        <h1 className="text-2xl font-semibold text-gray-900">{t("integrations.title")}</h1>
+        <p className="mt-1 text-sm text-gray-600">{t("integrations.subtitle")}</p>
       </div>
       <ExternalNotificationConfigs projectId={projectId} />
     </div>

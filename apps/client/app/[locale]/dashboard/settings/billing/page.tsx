@@ -12,6 +12,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@packages/ui";
@@ -27,6 +28,7 @@ import { InvoiceHistory } from "@/components/billing/InvoiceHistory";
 import { BundlesTab, CustomPlanTab, GatewaySection } from "./components";
 
 export default function BillingPage() {
+  const tr = useTranslations("settings");
   const { user: _user } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -76,21 +78,21 @@ export default function BillingPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Billing</h1>
-        <p className="text-sm text-muted-foreground mt-1">Manage your subscription and plan</p>
+        <h1 className="text-2xl font-bold text-foreground">{tr("billing.title")}</h1>
+        <p className="text-sm text-muted-foreground mt-1">{tr("billing.subtitle")}</p>
       </div>
 
       {isSuccess && (
         <div className="rounded-lg border border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-950/30 p-4 mb-4">
           <p className="text-sm font-medium text-green-800 dark:text-green-200">
-            Subscription activated successfully!
+            {tr("billing.successMessage")}
           </p>
         </div>
       )}
       {isCanceled && (
         <div className="rounded-lg border border-yellow-300 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-950/30 p-4 mb-4">
           <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-            Payment canceled. You can try again anytime.
+            {tr("billing.canceledMessage")}
           </p>
         </div>
       )}
@@ -105,11 +107,9 @@ export default function BillingPage() {
             onClick={() => portal.mutate()}
             disabled={portal.isPending}
           >
-            {portal.isPending ? "Opening portal..." : "Manage Billing"}
+            {portal.isPending ? tr("billing.openingPortal") : tr("billing.manageBilling")}
           </Button>
-          <p className="text-xs text-muted-foreground mt-1">
-            View invoices, update payment method, or manage your subscription.
-          </p>
+          <p className="text-xs text-muted-foreground mt-1">{tr("billing.managePortalHint")}</p>
         </div>
       )}
 
@@ -123,7 +123,7 @@ export default function BillingPage() {
               tab === t ? "border-primary text-primary" : "border-transparent text-muted-foreground"
             }`}
           >
-            {t === "bundles" ? "Bundles" : "Custom Plan"}
+            {t === "bundles" ? tr("billing.tabBundles") : tr("billing.tabCustom")}
           </button>
         ))}
       </div>

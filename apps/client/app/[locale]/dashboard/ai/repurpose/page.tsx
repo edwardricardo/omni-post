@@ -10,6 +10,7 @@
  */
 
 import { useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Button, Badge, Card, CardContent, toast } from "@packages/ui";
 import { Sparkles } from "lucide-react";
 import {
@@ -30,6 +31,7 @@ function formatDate(iso: string): string {
  *   the authenticated customer.
  */
 export default function RepurposePage() {
+  const t = useTranslations("ai");
   const { data, isLoading, error } = useRepurposeProposals();
   const detect = useTriggerRepurposeDetect();
 
@@ -37,19 +39,22 @@ export default function RepurposePage() {
     detect.mutate(undefined, {
       onSuccess: (result) => {
         toast({
-          title: "Detection complete",
-          description: `${result.detected} detected, ${result.alreadyProposed} already proposed`,
+          title: t("repurpose.detectSuccessTitle"),
+          description: t("repurpose.detectSuccessDescription", {
+            detected: result.detected,
+            alreadyProposed: result.alreadyProposed,
+          }),
         });
       },
       onError: (err: unknown) => {
         toast({
-          title: "Detection failed",
-          description: err instanceof Error ? err.message : "Unknown error",
+          title: t("repurpose.detectErrorTitle"),
+          description: err instanceof Error ? err.message : t("repurpose.unknownError"),
           variant: "destructive",
         });
       },
     });
-  }, [detect]);
+  }, [detect, t]);
 
   const proposals: RepurposeProposal[] = data?.proposals ?? [];
 
@@ -57,38 +62,33 @@ export default function RepurposePage() {
     <div>
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Repurpose Opportunities</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            High-performing posts ready for cross-platform repurposing
-          </p>
+          <h1 className="text-2xl font-bold text-foreground">{t("repurpose.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("repurpose.subtitle")}</p>
         </div>
         <Button onClick={handleDetect} disabled={detect.isPending} size="sm">
           <Sparkles className="h-4 w-4 mr-2" aria-hidden="true" />
-          {detect.isPending ? "Detecting…" : "Detect now"}
+          {detect.isPending ? t("repurpose.detecting") : t("repurpose.detectNow")}
         </Button>
       </div>
 
       {isLoading ? (
         <div role="status" className="text-center py-8 text-muted-foreground">
-          Loading…
+          {t("repurpose.loading")}
         </div>
       ) : error ? (
         <div
           role="alert"
           className="rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-destructive"
         >
-          <p className="text-base font-semibold">Could not load proposals</p>
+          <p className="text-base font-semibold">{t("repurpose.loadErrorTitle")}</p>
           <p className="mt-2 text-sm">
-            {error instanceof Error ? error.message : "Please try again."}
+            {error instanceof Error ? error.message : t("repurpose.tryAgain")}
           </p>
         </div>
       ) : proposals.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
-          <p className="text-lg font-medium">No repurpose opportunities yet</p>
-          <p className="text-sm mt-1">
-            OmniPost monitors your posts and proposes repurposing when one performs exceptionally.
-            Use “Detect now” to scan immediately.
-          </p>
+          <p className="text-lg font-medium">{t("repurpose.emptyTitle")}</p>
+          <p className="text-sm mt-1">{t("repurpose.emptyDescription")}</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -100,11 +100,11 @@ export default function RepurposePage() {
                     <span className="text-sm font-medium">{proposal.sourcePlatform}</span>
                     <Badge variant="secondary">{proposal.status}</Badge>
                     <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                      {proposal.engagementMultiplier}× average
+                      {t("repurpose.multiplier", { value: proposal.engagementMultiplier })}
                     </span>
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    {proposal.variantCount} variant{proposal.variantCount === 1 ? "" : "s"} ·{" "}
+                    {t("repurpose.variantCount", { count: proposal.variantCount })} ·{" "}
                     {formatDate(proposal.detectedAt)}
                   </span>
                 </div>

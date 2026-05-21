@@ -7,20 +7,20 @@
 
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth/authContext";
 import { SsoSettings } from "@/components/settings/sso/SsoSettings";
 
 export default function SsoSettingsPage() {
+  const t = useTranslations("settings");
   const { user } = useAuth();
   const accountId = ((user as Record<string, unknown> | null)?.accountId as string) ?? "";
 
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Single Sign-On (SSO)</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Allow your team to log in with your company identity provider.
-        </p>
+        <h1 className="text-2xl font-bold text-foreground">{t("sso.title")}</h1>
+        <p className="text-sm text-muted-foreground mt-1">{t("sso.subtitle")}</p>
       </div>
 
       <SsoSettings accountId={accountId} />

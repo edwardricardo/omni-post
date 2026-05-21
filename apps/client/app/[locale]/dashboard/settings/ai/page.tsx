@@ -9,6 +9,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Sparkles, Trash2, FlaskConical } from "lucide-react";
 import {
   Button,
@@ -53,15 +54,16 @@ function PoolUsageMeter({
   budget: number;
   resetDate: string;
 }) {
+  const t = useTranslations("settings");
   const pct = budget > 0 ? Math.min((used / budget) * 100, 100) : 0;
   const barColor = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-orange-500" : "bg-primary";
 
   return (
     <div className="rounded-lg border bg-card p-4 mb-6">
-      <h2 className="text-sm font-semibold mb-2">Pool Usage</h2>
+      <h2 className="text-sm font-semibold mb-2">{t("ai.poolUsage")}</h2>
       <div className="flex items-center justify-between mb-1">
         <span className="text-sm text-muted-foreground">
-          {used.toLocaleString()} / {budget.toLocaleString()} tokens
+          {t("ai.tokensUsage", { used: used.toLocaleString(), budget: budget.toLocaleString() })}
         </span>
         <span className="text-sm text-muted-foreground">{pct.toFixed(1)}%</span>
       </div>
@@ -72,7 +74,7 @@ function PoolUsageMeter({
         />
       </div>
       <p className="text-xs text-muted-foreground mt-2">
-        Resets: {new Date(resetDate).toLocaleDateString()}
+        {t("ai.resets", { date: new Date(resetDate).toLocaleDateString() })}
       </p>
     </div>
   );
@@ -89,6 +91,7 @@ function ProviderCard({
   provider: (typeof PROVIDERS)[number];
   configured: boolean;
 }) {
+  const t = useTranslations("settings");
   const [apiKey, setApiKey] = useState("");
   const [error, setError] = useState("");
   const [testResult, setTestResult] = useState<ByokTestResult | null>(null);
@@ -100,13 +103,13 @@ function ProviderCard({
 
   const validate = useCallback(
     (key: string): string | null => {
-      if (key.length < 10) return "API key must be at least 10 characters";
+      if (key.length < 10) return t("ai.errorKeyTooShort");
       if (provider.prefix && !key.startsWith(provider.prefix)) {
-        return `Key must start with "${provider.prefix}"`;
+        return t("ai.errorKeyPrefix", { prefix: provider.prefix });
       }
       return null;
     },
-    [provider.prefix]
+    [provider.prefix, t]
   );
 
   const handleSave = useCallback(async () => {
@@ -121,9 +124,9 @@ function ProviderCard({
       setApiKey("");
       setTestResult(null);
     } catch {
-      setError("Failed to save API key");
+      setError(t("ai.errorSaveFailed"));
     }
-  }, [apiKey, provider.id, setMutation, validate]);
+  }, [apiKey, provider.id, setMutation, validate, t]);
 
   const handleDelete = useCallback(async () => {
     try {
@@ -131,9 +134,9 @@ function ProviderCard({
       setConfirmDelete(false);
       setTestResult(null);
     } catch {
-      setError("Failed to remove API key");
+      setError(t("ai.errorRemoveFailed"));
     }
-  }, [provider.id, deleteMutation]);
+  }, [provider.id, deleteMutation, t]);
 
   const handleTest = useCallback(async () => {
     setTestResult(null);
@@ -144,16 +147,16 @@ function ProviderCard({
       });
       setTestResult(result);
     } catch {
-      setTestResult({ success: false, message: "Test request failed" });
+      setTestResult({ success: false, message: t("ai.errorTestFailed") });
     }
-  }, [provider.id, apiKey, testMutation]);
+  }, [provider.id, apiKey, testMutation, t]);
 
   return (
     <div className="rounded-lg border bg-card p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold">{provider.name}</h3>
         <Badge variant={configured ? "default" : "secondary"}>
-          {configured ? "Configured" : "Not configured"}
+          {configured ? t("ai.statusConfigured") : t("ai.statusNotConfigured")}
         </Badge>
       </div>
 
@@ -165,11 +168,11 @@ function ProviderCard({
             setApiKey(e.target.value);
             setError("");
           }}
-          placeholder={configured ? "Enter new key to update" : "Enter API key"}
+          placeholder={configured ? t("ai.placeholderUpdateKey") : t("ai.placeholderEnterKey")}
           className="flex-1 h-9 rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         />
         <Button size="sm" onClick={handleSave} disabled={!apiKey || setMutation.isPending}>
-          {setMutation.isPending ? "Saving..." : "Save"}
+          {setMutation.isPending ? t("ai.saving") : t("ai.save")}
         </Button>
       </div>
 
@@ -184,7 +187,7 @@ function ProviderCard({
             disabled={testMutation.isPending}
           >
             <FlaskConical className="h-3 w-3 mr-1" />
-            {testMutation.isPending ? "Testing..." : "Test"}
+            {testMutation.isPending ? t("ai.testing") : t("ai.test")}
           </Button>
           <Button
             variant="outline"
@@ -194,7 +197,7 @@ function ProviderCard({
             className="text-red-500 hover:text-red-600"
           >
             <Trash2 className="h-3 w-3 mr-1" />
-            Remove
+            {t("ai.remove")}
           </Button>
         </div>
       )}
@@ -202,7 +205,7 @@ function ProviderCard({
       {testResult && (
         <div className="flex items-center gap-2 mt-2">
           <Badge variant={testResult.success ? "default" : "destructive"}>
-            {testResult.success ? "Connected" : "Failed"}
+            {testResult.success ? t("ai.connected") : t("ai.failed")}
           </Badge>
           <span className="text-xs text-muted-foreground">{testResult.message}</span>
           {testResult.latencyMs !== undefined && (
@@ -214,22 +217,21 @@ function ProviderCard({
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Remove {provider.name} API Key?</DialogTitle>
+            <DialogTitle>{t("ai.removeDialogTitle", { provider: provider.name })}</DialogTitle>
             <DialogDescription>
-              This will delete your {provider.name} BYOK key. AI requests will fall back to the
-              shared pool.
+              {t("ai.removeDialogDescription", { provider: provider.name })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmDelete(false)}>
-              Cancel
+              {t("ai.cancel")}
             </Button>
             <Button
               variant="destructive"
               onClick={handleDelete}
               disabled={deleteMutation.isPending}
             >
-              {deleteMutation.isPending ? "Removing..." : "Remove"}
+              {deleteMutation.isPending ? t("ai.removing") : t("ai.remove")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -243,16 +245,15 @@ function ProviderCard({
 // ---------------------------------------------------------------------------
 
 export default function AiSettingsPage() {
+  const t = useTranslations("settings");
   const { data: status, isLoading } = useAiStatus();
 
   if (isLoading) {
-    return <div className="text-center py-8 text-muted-foreground">Loading AI settings...</div>;
+    return <div className="text-center py-8 text-muted-foreground">{t("ai.loading")}</div>;
   }
 
   if (!status) {
-    return (
-      <div className="text-center py-8 text-muted-foreground">Unable to load AI settings.</div>
-    );
+    return <div className="text-center py-8 text-muted-foreground">{t("ai.loadError")}</div>;
   }
 
   return (
@@ -260,11 +261,9 @@ export default function AiSettingsPage() {
       <div className="mb-6">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-primary" />
-          <h1 className="text-2xl font-bold text-foreground">AI Settings</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t("ai.title")}</h1>
         </div>
-        <p className="text-sm text-muted-foreground mt-1">
-          Configure your own AI provider keys or use the shared pool.
-        </p>
+        <p className="text-sm text-muted-foreground mt-1">{t("ai.subtitle")}</p>
       </div>
 
       {!status.hasOwnKey && (
@@ -276,10 +275,8 @@ export default function AiSettingsPage() {
       )}
 
       <div className="mb-4">
-        <h2 className="text-lg font-semibold text-foreground">Bring Your Own Key (BYOK)</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Use your own API keys for unlimited AI features without consuming from the shared pool.
-        </p>
+        <h2 className="text-lg font-semibold text-foreground">{t("ai.byokTitle")}</h2>
+        <p className="text-sm text-muted-foreground mt-1">{t("ai.byokSubtitle")}</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
