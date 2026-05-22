@@ -16,13 +16,18 @@ ambos), para no construir sobre supuestos.
 
 ### 1. Locales soportados
 
-| Locale  | Tag BCP-47                  | Rol                                      |
-| ------- | --------------------------- | ---------------------------------------- |
-| Español | `es` (ref. `es-419`, LATAM) | **Locale por defecto** (ICP LATAM-first) |
-| Inglés  | `en`                        | Segundo locale soportado                 |
+| Locale  | Tag BCP-47                  | Rol                                          |
+| ------- | --------------------------- | -------------------------------------------- |
+| Inglés  | `en`                        | **Locale por defecto** (revisado 2026-05-22) |
+| Español | `es` (ref. `es-419`, LATAM) | Locale first-class soportado (ICP LATAM)     |
 
-- Español es el **default** (el producto y los materiales —investor,
-  marketing— ya son ES-first; el ICP es LATAM).
+- **`en` es el default** (revisado el 2026-05-22): se unificó el default en
+  `en` para `apps/client` y `apps/admin` por consistencia operativa entre
+  ambas apps. El default anterior era `es`.
+- **Español sigue siendo first-class**: el ICP es LATAM y los materiales
+  (investor, marketing) son ES-first; `es` está totalmente soportado y es
+  conmutable por el usuario. Solo cambia el locale al que resuelve `/` sin
+  prefijo.
 - La variante de referencia del español es **`es-419`** (español de América
   Latina y el Caribe, región UN M49 419). El emparejamiento usa el algoritmo
   **best-fit** de `@formatjs/intl-localematcher` (no el `lookup` de RFC 4647),
@@ -58,7 +63,7 @@ ambos), para no construir sobre supuestos.
   1. Prefijo de locale en el pathname (`/es/...`, `/en/...`).
   2. Cookie con el locale previamente detectado (`NEXT_LOCALE`).
   3. Header `accept-language` (best-fit matcher).
-  4. `defaultLocale` (`es`) como último recurso.
+  4. `defaultLocale` (`en`) como último recurso.
 
 ### 4. No-objetivos (explícito)
 
