@@ -61,6 +61,9 @@ import {
 import type { TriageInboxMessageUseCase } from "./application/inbox/TriageInboxMessageUseCase.js";
 import { PrismaRepurposeVariantAdapter } from "./infrastructure/repositories/PrismaRepurposeVariantAdapter.js";
 import type { DetectRepurposeCandidatesUseCase } from "./application/ai/DetectRepurposeCandidatesUseCase.js";
+import { startBulkScheduleWorker } from "./bulk-scheduling/bulkScheduleWorker.js";
+import type { ProcessBulkScheduleRowUseCase } from "./application/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
+import type { FailBulkScheduleRowUseCase } from "./application/bulk-scheduling/FailBulkScheduleRowUseCase.js";
 import type { DispatchDetectRepurposeUseCase } from "./application/ai/DispatchDetectRepurposeUseCase.js";
 import type { RedisCacheManager } from "@adapters/cache-redis";
 import fastifyCookie from "@fastify/cookie";
@@ -108,6 +111,7 @@ import { announcementRoutes } from "./announcements/announcementRoutes.js";
 import { commentRoutes } from "./comments/commentRoutes.js";
 import { inboxRoutes } from "./inbox/inboxRoutes.js";
 import { listeningRoutes } from "./listening/listeningRoutes.js";
+import { bulkScheduleRoutes } from "./bulk-scheduling/bulkScheduleRoutes.js";
 import { conversationNoteRoutes } from "./inbox/conversationNoteRoutes.js";
 import { campaignRoutes } from "./campaigns/campaignRoutes.js";
 import { utmRoutes } from "./utm/utmRoutes.js";
@@ -524,6 +528,7 @@ async function createApp(): Promise<FastifyInstance> {
   await typedApp.register(commentRoutes);
   await typedApp.register(inboxRoutes);
   await typedApp.register(listeningRoutes);
+  await typedApp.register(bulkScheduleRoutes);
   await typedApp.register(conversationNoteRoutes);
   await typedApp.register(campaignRoutes);
   await typedApp.register(utmRoutes);
@@ -970,6 +975,22 @@ async function start() {
     });
     logger.info("TREND_RADAR consumer started");
 
+    // BULK_SCHEDULE worker — one job per validated CSV row: create + schedule a
+    // post (idempotent). Hosted here so it resolves use cases from the app
+    // container (no direct Prisma). Rows that exhaust their retries are moved to
+    // the DLQ and marked FAILED in the manifest so the batch can complete.
+    const bulkScheduleWorker = await startBulkScheduleWorker({
+      process: app.container!.resolve<ProcessBulkScheduleRowUseCase>(
+        TOKENS.ProcessBulkScheduleRowUseCase
+      ),
+      fail: app.container!.resolve<FailBulkScheduleRowUseCase>(TOKENS.FailBulkScheduleRowUseCase),
+      deadLetter: app
+        .container!.resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
+        .forQueue(QUEUE_NAMES.BULK_SCHEDULE_DEAD_LETTER),
+      logger,
+    });
+    logger.info("BULK_SCHEDULE worker started");
+
     const port = env.PORT;
     const host = env.HOST;
 
@@ -987,6 +1008,7 @@ async function start() {
       await detectRepurposeConsumer.close();
       await triageInboxConsumer.close();
       await trendRadarConsumer.close();
+      await bulkScheduleWorker.close();
 
       // Shutdown saga integration (closes pub/sub subscriber and saga manager)
       const saga = (app as unknown as Record<string, unknown>).sagaIntegration as

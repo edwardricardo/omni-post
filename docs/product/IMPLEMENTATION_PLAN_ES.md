@@ -88,7 +88,7 @@
 ### Bulk / CSV scheduling (completar 🟡)
 
 - [x] **F1-API-2** `[S]` Parser CSV + validación Zod por fila. **DoD:** CSV inválido reporta errores por fila; tests. → `parseSchedulingCsv` (`application/bulk-scheduling/schedulingCsv.ts`) con `csv-parse/sync` (canon server-side, no papaparse) + Zod por fila + VOs `Provider`/`ScheduledTime`; errores por fila (1-based, 0=header/parse); 13 tests. Lo consume F1-API-3.
-- [ ] **F1-API-3** `[M]` FlowProducer parent+children con `continueParentOnFailure: true` + DLQ (canon §9.3). 🔗 dep:F1-API-2. **DoD:** una fila mala no aborta el batch; manifiesto por fila.
+- [x] **F1-API-3** `[M]` Bulk CSV scheduling: fan-out `addBulk` (1 job por fila válida) + DLQ + manifiesto persistido (canon §9.3). 🔗 dep:F1-API-2. **DoD:** una fila mala no aborta el batch; manifiesto por fila. → modelos `BulkScheduleBatch`/`BulkScheduleItem` (manifiesto por fila), `QueuePort.enqueueBulk`→`Queue.addBulk` (canon: `addBulk` no `FlowProducer`+`continueParentOnFailure` — éste arranca el parent al primer fallo y no encaja con N jobs independientes/delay lejano), use cases `ImportSchedulingCsvUseCase`/`ProcessBulkScheduleRowUseCase` (idempotente, reúsa `CreatePostUseCase`+`SchedulePostUseCase` vía DI)/`FailBulkScheduleRowUseCase`/`GetBulkScheduleBatchQuery`, **worker in-process en `apps/api`** (resuelve use cases del container, cero Prisma directo) con DLQ vía `worker.on("failed")`+`attemptsMade`, rutas `POST /bulk-scheduling/imports` (202) + `GET /bulk-scheduling/imports/:batchId` (manifiesto), 66 tests (61 unit + 5 integración DB). Lo consume F1-CLI-4.
 - [ ] **F1-CLI-4** `[M]` UI de carga CSV + reporte de resultado por fila. 🔗 dep:F1-API-3. **DoD:** usuario sube CSV y ve outcome por fila; test componente.
 
 ### Canva 🔗 dep:B3

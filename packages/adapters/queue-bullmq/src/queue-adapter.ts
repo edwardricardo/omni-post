@@ -91,6 +91,25 @@ export function createBullMQQueueAdapter(options: BullMQQueueAdapterOptions): Bu
     }
   );
 
+  const enqueueBulkBreaker = createCircuitBreaker(
+    async (jobs: QueueJob[]) => {
+      const bulk = jobs.map((job) => {
+        const opts: { jobId: string; delay?: number } = { jobId: job.dedupeKey };
+        if (job.runAt) {
+          opts.delay = Math.max(0, job.runAt.getTime() - Date.now());
+        }
+        return { name: options.queueName, data: job.payload, opts };
+      });
+      const created = await queue.addBulk(bulk);
+      return created.map((bullJob) => bullJob.id as string);
+    },
+    {
+      timeout: 15000,
+      errorThresholdPercentage: 60,
+      resetTimeout: 30000,
+    }
+  );
+
   const healthBreaker = createCircuitBreaker(async () => {
     await connection.ping();
     const waiting = await queue.getWaiting();
@@ -116,6 +135,7 @@ export function createBullMQQueueAdapter(options: BullMQQueueAdapterOptions): Bu
   });
 
   metricsCollector.setupCircuitBreakerMetrics(enqueueBreaker);
+  metricsCollector.setupCircuitBreakerMetrics(enqueueBulkBreaker);
   metricsCollector.setupCircuitBreakerMetrics(healthBreaker);
   metricsCollector.setupCircuitBreakerMetrics(removeBreaker);
 
@@ -127,6 +147,29 @@ export function createBullMQQueueAdapter(options: BullMQQueueAdapterOptions): Bu
           baseDelay: 200,
         })) as string;
         return ok(jobId);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          (error.message.includes("connection") || error.message.includes("timeout"))
+        ) {
+          return err("CONNECTION_ERROR");
+        }
+        return err("VALIDATION_ERROR");
+      }
+    },
+
+    async enqueueBulk(
+      jobs: QueueJob[]
+    ): Promise<Result<string[], "CONNECTION_ERROR" | "VALIDATION_ERROR">> {
+      if (jobs.length === 0) {
+        return ok([]);
+      }
+      try {
+        const ids = (await withExponentialBackoff(() => enqueueBulkBreaker.fire(jobs), {
+          maxRetries: 2,
+          baseDelay: 200,
+        })) as string[];
+        return ok(ids);
       } catch (error) {
         if (
           error instanceof Error &&

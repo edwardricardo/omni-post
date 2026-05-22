@@ -47,6 +47,7 @@ model Account {
   socialMessages           SocialMessage[]
   socialConversations      SocialConversation[]
   mentions                 Mention[]
+  bulkScheduleBatches      BulkScheduleBatch[]
   trackedTerms             TrackedTerm[]
   aiPromptTemplates        AIPromptTemplate[]
   usageMetrics             UsageMetric[]
@@ -624,6 +625,7 @@ model Project {
   socialMessages              SocialMessage[]
   socialConversations         SocialConversation[]
   mentions                    Mention[]
+  bulkScheduleBatches         BulkScheduleBatch[]
   trackedTerms                TrackedTerm[]
   campaigns                   Campaign[]
   scheduledReports            ScheduledReport[]
@@ -2203,6 +2205,52 @@ model Mention {
   @@index([accountId, projectId, providerCreatedAt])
   @@index([projectId, trackedTermId])
   @@index([provider, providerCreatedAt])
+}
+
+enum BulkScheduleBatchStatus {
+  PROCESSING
+  COMPLETED
+}
+
+enum BulkScheduleItemStatus {
+  PENDING
+  SCHEDULED
+  FAILED
+}
+
+// Manifest of a bulk CSV scheduling import. One batch per upload; one item per
+// CSV data row. Items advance independently (one BullMQ job per row); the batch
+// is COMPLETED once no item remains PENDING.
+model BulkScheduleBatch {
+  id        String                  @id @default(uuid())
+  accountId String
+  projectId String
+  totalRows Int
+  status    BulkScheduleBatchStatus @default(PROCESSING)
+  createdAt DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime                @updatedAt @db.Timestamptz(6)
+
+  account Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  items   BulkScheduleItem[]
+
+  @@index([accountId, projectId])
+}
+
+model BulkScheduleItem {
+  id           String                 @id @default(uuid())
+  batchId      String
+  rowNumber    Int
+  provider     String
+  status       BulkScheduleItemStatus @default(PENDING)
+  postId       String?
+  errorMessage String?
+  createdAt    DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime               @updatedAt @db.Timestamptz(6)
+
+  batch BulkScheduleBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId])
 }
 
 model SocialMessage {

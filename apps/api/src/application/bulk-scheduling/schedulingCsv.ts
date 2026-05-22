@@ -18,6 +18,8 @@ import { ScheduledTime } from "../../domain/value-objects/ScheduledTime.js";
 
 /** A validated, normalized scheduling row ready for enqueue (F1-API-3). */
 export interface SchedulingCsvRow {
+  /** 1-based CSV data row number (header excluded) — maps to the batch manifest item. */
+  row: number;
   provider: string;
   content: string;
   /** ISO 8601 string (normalized from the parsed date). */
@@ -169,6 +171,7 @@ export function parseSchedulingCsv(csv: string): ParseSchedulingCsvResult {
     }
 
     validRows.push({
+      row,
       provider: provider.type,
       content: data.content,
       scheduledFor: dateTime.toISOString(),

@@ -13,6 +13,11 @@ import type {
   ChannelRepository,
 } from "../../domain/index.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { QueuePortRegistry } from "@ports/core";
+import { QUEUE_NAMES } from "@adapters/queue-bullmq";
+import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
+import type { BulkScheduleBatchRepository } from "../../domain/repositories/BulkScheduleBatchRepository.js";
+import type { BulkScheduleQueryRepository } from "../../domain/repositories/BulkScheduleQueryRepository.js";
 import {
   CreatePostUseCase,
   GetPostUseCase,
@@ -26,6 +31,10 @@ import {
   HardDeletePostsBatchUseCase,
   DuplicatePostsBatchUseCase,
 } from "../../application/posts/index.js";
+import { ImportSchedulingCsvUseCase } from "../../application/bulk-scheduling/ImportSchedulingCsvUseCase.js";
+import { ProcessBulkScheduleRowUseCase } from "../../application/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
+import { FailBulkScheduleRowUseCase } from "../../application/bulk-scheduling/FailBulkScheduleRowUseCase.js";
+import { GetBulkScheduleBatchQuery } from "../../application/bulk-scheduling/GetBulkScheduleBatchQuery.js";
 
 /**
  * Register all post use cases in the container
@@ -124,6 +133,50 @@ export function setupPostUseCases(container: Container): void {
     TOKENS.ListPostsGlobalQuery,
     () =>
       new ListPostsGlobalQuery(container.resolve<PostQueryRepository>(TOKENS.PostQueryRepository)),
+    true
+  );
+
+  // Register Bulk CSV Scheduling Use Cases
+  container.register<ImportSchedulingCsvUseCase>(
+    TOKENS.ImportSchedulingCsvUseCase,
+    () =>
+      new ImportSchedulingCsvUseCase(
+        container.resolve<ProjectQueryRepositoryPort>(TOKENS.ProjectQueryRepository),
+        container.resolve<BulkScheduleBatchRepository>(TOKENS.BulkScheduleBatchRepository),
+        container
+          .resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
+          .forQueue(QUEUE_NAMES.BULK_SCHEDULE),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+  container.register<ProcessBulkScheduleRowUseCase>(
+    TOKENS.ProcessBulkScheduleRowUseCase,
+    () =>
+      new ProcessBulkScheduleRowUseCase(
+        container.resolve<BulkScheduleBatchRepository>(TOKENS.BulkScheduleBatchRepository),
+        container.resolve<ChannelRepository>(TOKENS.ChannelRepository),
+        container.resolve<CreatePostUseCase>(TOKENS.CreatePostUseCase),
+        container.resolve<SchedulePostUseCase>(TOKENS.SchedulePostUseCase),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+  container.register<FailBulkScheduleRowUseCase>(
+    TOKENS.FailBulkScheduleRowUseCase,
+    () =>
+      new FailBulkScheduleRowUseCase(
+        container.resolve<BulkScheduleBatchRepository>(TOKENS.BulkScheduleBatchRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+  container.register<GetBulkScheduleBatchQuery>(
+    TOKENS.GetBulkScheduleBatchQuery,
+    () =>
+      new GetBulkScheduleBatchQuery(
+        container.resolve<BulkScheduleQueryRepository>(TOKENS.BulkScheduleQueryRepository)
+      ),
     true
   );
 }

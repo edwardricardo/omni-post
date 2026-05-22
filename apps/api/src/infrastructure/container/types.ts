@@ -440,6 +440,14 @@ export const TOKENS = {
   GetShareOfVoiceQuery: Symbol.for("GetShareOfVoiceQuery"),
   ListMentionsQuery: Symbol.for("ListMentionsQuery"),
 
+  // Bulk CSV Scheduling
+  BulkScheduleBatchRepository: Symbol.for("BulkScheduleBatchRepository"),
+  BulkScheduleQueryRepository: Symbol.for("BulkScheduleQueryRepository"),
+  ImportSchedulingCsvUseCase: Symbol.for("ImportSchedulingCsvUseCase"),
+  ProcessBulkScheduleRowUseCase: Symbol.for("ProcessBulkScheduleRowUseCase"),
+  FailBulkScheduleRowUseCase: Symbol.for("FailBulkScheduleRowUseCase"),
+  GetBulkScheduleBatchQuery: Symbol.for("GetBulkScheduleBatchQuery"),
+
   // Payment Billing
   PaymentAdapter: Symbol.for("PaymentAdapter"),
 

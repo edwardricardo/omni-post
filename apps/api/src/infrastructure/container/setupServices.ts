@@ -308,10 +308,15 @@ export function setupServices(
           attempts: 5,
           backoff: { type: "exponential" as const, delay: 2000, jitter: 0.3 },
         },
+        [QUEUE_NAMES.BULK_SCHEDULE]: {
+          attempts: 3,
+          backoff: { type: "exponential" as const, delay: 5000, jitter: 0.5 },
+        },
         // DLQs: terminal — no retry policy.
         [QUEUE_NAMES.DEAD_LETTER_QUEUE]: { attempts: 1 },
         [QUEUE_NAMES.WEBHOOK_DEAD_LETTER]: { attempts: 1 },
         [QUEUE_NAMES.FAILED_OPERATIONS_DLQ]: { attempts: 1 },
+        [QUEUE_NAMES.BULK_SCHEDULE_DEAD_LETTER]: { attempts: 1 },
       };
       return new BullMQQueuePortRegistry({ connection, defaultJobOptionsByQueue });
     },

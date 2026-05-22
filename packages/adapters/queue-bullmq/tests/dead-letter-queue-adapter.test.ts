@@ -21,8 +21,10 @@ function createMockRegistry(): {
   const enqueue = vi.fn(async () => ok("dlq-job-123"));
   const port: QueuePort = {
     enqueue,
+    enqueueBulk: vi.fn(async () => ok([] as string[])),
     health: vi.fn(),
     remove: vi.fn(),
+    getJobStates: vi.fn(async () => ok({ completed: 0, failed: 0, pending: 0 })),
   };
   const forQueueCalls: string[] = [];
   const registry: QueuePortRegistry = {

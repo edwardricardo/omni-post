@@ -53,6 +53,10 @@ import { PrismaSocialMessageRepository } from "../repositories/PrismaSocialMessa
 import { PrismaSocialMessageQueryRepository } from "../repositories/PrismaSocialMessageQueryRepository.js";
 import type { MentionQueryRepository } from "../../domain/repositories/MentionQueryRepository.js";
 import { PrismaMentionQueryRepository } from "../repositories/PrismaMentionQueryRepository.js";
+import type { BulkScheduleBatchRepository } from "../../domain/repositories/BulkScheduleBatchRepository.js";
+import { PrismaBulkScheduleBatchRepository } from "../repositories/PrismaBulkScheduleBatchRepository.js";
+import type { BulkScheduleQueryRepository } from "../../domain/repositories/BulkScheduleQueryRepository.js";
+import { PrismaBulkScheduleQueryRepository } from "../repositories/PrismaBulkScheduleQueryRepository.js";
 import { PrismaSocialConversationRepository } from "../repositories/PrismaSocialConversationRepository.js";
 import { PrismaSocialOutboundReplyRepository } from "../repositories/PrismaSocialOutboundReplyRepository.js";
 import type { ConversationNoteRepository } from "../../domain/repositories/ConversationNoteRepository.js";
@@ -227,6 +231,16 @@ export function setupRepositories(container: Container): void {
   container.register<MentionQueryRepository>(
     TOKENS.MentionQueryRepository,
     () => new PrismaMentionQueryRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<BulkScheduleBatchRepository>(
+    TOKENS.BulkScheduleBatchRepository,
+    () => new PrismaBulkScheduleBatchRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<BulkScheduleQueryRepository>(
+    TOKENS.BulkScheduleQueryRepository,
+    () => new PrismaBulkScheduleQueryRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
   container.register<SocialConversationRepository>(

@@ -24,6 +24,9 @@ describe("parseSchedulingCsv", () => {
     assert.strictEqual(result.validRows[0]?.provider, "X");
     assert.strictEqual(result.validRows[0]?.content, "Hello world");
     assert.strictEqual(result.validRows[0]?.timezone, "UTC");
+    // 1-based row numbers map each valid row back to its CSV line.
+    assert.strictEqual(result.validRows[0]?.row, 1);
+    assert.strictEqual(result.validRows[1]?.row, 2);
   });
 
   it("collects per-row errors with the correct 1-based row number on a mixed CSV", () => {
@@ -34,6 +37,15 @@ describe("parseSchedulingCsv", () => {
     assert.strictEqual(result.errors.length, 1);
     assert.strictEqual(result.errors[0]?.row, 2);
     assert.strictEqual(result.errors[0]?.field, "provider");
+  });
+
+  it("preserves the true CSV row number on a valid row that follows an invalid one", () => {
+    const csv = `${HEADER}\nMYSPACE,Bad,${future(TWO_DAYS)}\nX,Good,${future(TWO_DAYS)}`;
+    const result = parseSchedulingCsv(csv);
+
+    assert.strictEqual(result.validRows.length, 1);
+    assert.strictEqual(result.validRows[0]?.row, 2); // row number is the CSV line, not the validRows index
+    assert.strictEqual(result.errors[0]?.row, 1);
   });
 
   it("reports one error per row when all rows are invalid", () => {

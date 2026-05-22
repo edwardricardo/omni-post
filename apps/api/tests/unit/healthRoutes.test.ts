@@ -235,11 +235,16 @@ describe("healthRoutes - Unit Tests", () => {
     // BullMQ or Redis.
     const stubQueuePort = {
       enqueue: vi.fn(async () => ({ ok: true as const, value: "stub-id" })),
+      enqueueBulk: vi.fn(async () => ({ ok: true as const, value: [] as string[] })),
       health: vi.fn(async () => ({
         ok: true as const,
         value: { connected: true, waiting: 0, active: 0, completed: 0, failed: 0 },
       })),
       remove: vi.fn(async () => ({ ok: true as const, value: true })),
+      getJobStates: vi.fn(async () => ({
+        ok: true as const,
+        value: { completed: 0, failed: 0, pending: 0 },
+      })),
     };
     container.registerInstance(TOKENS.QueuePortRegistry, {
       forQueue: () => stubQueuePort,

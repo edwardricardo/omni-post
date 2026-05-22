@@ -37,6 +37,12 @@ export type JobStatesAggregate = {
 
 export interface QueuePort {
   enqueue(job: QueueJob): Promise<Result<string, "CONNECTION_ERROR" | "VALIDATION_ERROR">>;
+  /**
+   * Enqueue many jobs in a single round-trip (BullMQ `addBulk`). Used for bulk
+   * imports (e.g. CSV scheduling) where one row = one independent job; a single
+   * failed job never aborts the others. Returns the enqueued job ids in order.
+   */
+  enqueueBulk(jobs: QueueJob[]): Promise<Result<string[], "CONNECTION_ERROR" | "VALIDATION_ERROR">>;
   health(): Promise<Result<QueueHealth, "CONNECTION_ERROR">>;
   remove(jobId: string): Promise<Result<boolean, "CONNECTION_ERROR" | "NOT_FOUND">>;
   /**
