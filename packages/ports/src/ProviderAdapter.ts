@@ -68,6 +68,25 @@ export interface ProviderComment {
 }
 
 /**
+ * Normalized brand-mention fetched from a provider's search API (market-wide
+ * keyword search) or resolved from a webhook notification (own-brand mention).
+ * The canonical shape every provider normalizes to before the mention lands in
+ * the listening corpus.
+ */
+export interface ProviderMention {
+  providerMentionId: string;
+  url?: string;
+  authorName: string;
+  authorHandle?: string;
+  authorAvatarUrl?: string;
+  authorProviderId: string;
+  body: string;
+  lang?: string;
+  mediaUrls?: string[];
+  createdAt: Date;
+}
+
+/**
  * Result of posting a reply through the provider API.
  */
 export interface ProviderReplyResult {
@@ -96,6 +115,7 @@ export interface ProviderAdapter {
     comments: boolean;
     replies: boolean;
     threading: boolean;
+    mentions: boolean;
   };
 
   /**
@@ -150,4 +170,33 @@ export interface ProviderAdapter {
     inReplyToProviderMessageId: string;
     body: string;
   }): Promise<Result<ProviderReplyResult, "AUTH" | "NETWORK" | "RATE_LIMIT">>;
+
+  /**
+   * Search the provider for public posts mentioning the given terms
+   * (market-wide brand listening). Pull model: the listening worker drives this
+   * on a schedule. Implemented only by providers with a keyword search API
+   * (e.g. X recent search, Bluesky searchPosts). `terms` are matched as an OR
+   * set; `nextCursor` paginates the result window.
+   */
+  searchMentions?(params: {
+    channelCredentials: unknown;
+    terms: string[];
+    since?: Date;
+    cursor?: string;
+    limit?: number;
+  }): Promise<
+    Result<{ mentions: ProviderMention[]; nextCursor?: string }, "AUTH" | "NETWORK" | "RATE_LIMIT">
+  >;
+
+  /**
+   * Resolve a single mention by its provider id. Push model: a webhook delivers
+   * a mention notification (id only), and the worker calls this to fetch the
+   * full object before persisting (fetch-before-process). Implemented by
+   * providers that push own-brand mentions via webhook (e.g. Meta Graph
+   * Instagram/Facebook).
+   */
+  fetchMentionById?(params: {
+    channelCredentials: unknown;
+    providerMentionId: string;
+  }): Promise<Result<ProviderMention, "AUTH" | "NETWORK" | "NOT_FOUND">>;
 }

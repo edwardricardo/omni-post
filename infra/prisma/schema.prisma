@@ -46,6 +46,8 @@ model Account {
   deletedAt                DateTime?                 @db.Timestamptz(6)
   socialMessages           SocialMessage[]
   socialConversations      SocialConversation[]
+  mentions                 Mention[]
+  trackedTerms             TrackedTerm[]
   aiPromptTemplates        AIPromptTemplate[]
   usageMetrics             UsageMetric[]
   brandVoice               BrandVoice?
@@ -621,6 +623,8 @@ model Project {
   members                     ProjectMember[]
   socialMessages              SocialMessage[]
   socialConversations         SocialConversation[]
+  mentions                    Mention[]
+  trackedTerms                TrackedTerm[]
   campaigns                   Campaign[]
   scheduledReports            ScheduledReport[]
   externalNotificationConfigs ExternalNotificationConfig[]
@@ -769,6 +773,7 @@ model Channel {
   analytics                 Analytics[]
   socialMessages            SocialMessage[]
   socialConversations       SocialConversation[]
+  mentions                  Mention[]
   analyticsDailySummaries   AnalyticsDailySummary[]
   analyticsMonthlySummaries AnalyticsMonthlySummary[]
   deletedAt                 DateTime?                 @db.Timestamptz(6)
@@ -2120,6 +2125,84 @@ enum OutboundReplyStatus {
   SENDING
   SENT
   FAILED
+}
+
+// Social Listening (brand mentions)
+
+enum MentionSource {
+  WEBHOOK
+  SEARCH
+}
+
+enum TrackedTermKind {
+  BRAND
+  MARKET
+}
+
+enum MentionSentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+}
+
+/// Brand-listening keyword tracked per project. `kind` drives Share of Voice:
+/// BRAND terms feed the numerator (mentions_marca), MARKET terms the denominator
+/// (mentions_mercado).
+model TrackedTerm {
+  id        String          @id @default(uuid())
+  accountId String
+  projectId String
+  term      String
+  kind      TrackedTermKind
+  isActive  Boolean         @default(true)
+  createdAt DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime        @updatedAt @db.Timestamptz(6)
+
+  account  Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  mentions Mention[]
+
+  @@unique([projectId, term])
+  @@index([projectId, isActive])
+}
+
+/// Normalized brand-mention corpus. Append-only ingestion read model written by
+/// the mention-ingest worker (search polling + webhook fetch). Deduplicated by
+/// (provider, externalId). Sentiment fields are nullable — populated later by a
+/// decoupled enrichment step, never blocking ingestion.
+model Mention {
+  id                String            @id @default(uuid())
+  accountId         String
+  projectId         String
+  provider          Provider
+  externalId        String
+  trackedTermId     String?
+  channelId         String?
+  source            MentionSource
+  authorName        String
+  authorHandle      String?
+  authorAvatarUrl   String?
+  authorProviderId  String
+  url               String?
+  body              String
+  lang              String?
+  mediaUrls         String[]          @default([])
+  sentimentScore    Decimal?          @db.Decimal(3, 2)
+  sentimentLabel    MentionSentiment?
+  providerCreatedAt DateTime          @db.Timestamptz(6)
+  ingestedAt        DateTime          @default(now()) @db.Timestamptz(6)
+  createdAt         DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime          @updatedAt @db.Timestamptz(6)
+
+  account     Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  channel     Channel?     @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  trackedTerm TrackedTerm? @relation(fields: [trackedTermId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, externalId])
+  @@index([accountId, projectId, providerCreatedAt])
+  @@index([projectId, trackedTermId])
+  @@index([provider, providerCreatedAt])
 }
 
 model SocialMessage {
@@ -3477,16 +3560,16 @@ model EventSnapshot {
 /// Glossary term per (account, locale). Powers RAG over the customer's
 /// terminology for locale-native AI content generation.
 model Glossary {
-  id             String                       @id @default(uuid())
+  id             String                      @id @default(uuid())
   accountId      String
   locale         String
   term           String
-  definition     String                       @db.Text
-  usage          String?                      @db.Text
+  definition     String                      @db.Text
+  usage          String?                     @db.Text
   embedding      Unsupported("vector(768)")?
-  embeddingModel String                       @default("text-embedding-3-small")
-  createdAt      DateTime                     @default(now()) @db.Timestamptz(6)
-  updatedAt      DateTime                     @updatedAt @db.Timestamptz(6)
+  embeddingModel String                      @default("text-embedding-3-small")
+  createdAt      DateTime                    @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime                    @updatedAt @db.Timestamptz(6)
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
@@ -3497,16 +3580,16 @@ model Glossary {
 /// Style-guide rule per (account, locale). Powers RAG over the customer's
 /// writing rules for locale-native AI content generation.
 model StyleGuideRule {
-  id             String                       @id @default(uuid())
+  id             String                      @id @default(uuid())
   accountId      String
   locale         String
-  rule           String                       @db.Text
-  example        String?                      @db.Text
+  rule           String                      @db.Text
+  example        String?                     @db.Text
   category       String?
   embedding      Unsupported("vector(768)")?
-  embeddingModel String                       @default("text-embedding-3-small")
-  createdAt      DateTime                     @default(now()) @db.Timestamptz(6)
-  updatedAt      DateTime                     @updatedAt @db.Timestamptz(6)
+  embeddingModel String                      @default("text-embedding-3-small")
+  createdAt      DateTime                    @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime                    @updatedAt @db.Timestamptz(6)
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 

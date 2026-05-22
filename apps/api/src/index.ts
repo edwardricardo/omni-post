@@ -820,6 +820,36 @@ async function start() {
       30 * 60 * 1000
     );
 
+    // Mention search coordinator — frequent recent-window pass every 30 minutes,
+    // plus a wide-window reconciliation every 12 hours as a safety net for
+    // mentions missed by webhooks or transient search failures. Both enqueue
+    // jobs into QUEUE_NAMES.MENTION_INGEST consumed by the workers' bootstrap.
+    const { DispatchMentionSearchUseCase: _DispatchMentionSearchType } =
+      await import("./application/listening/DispatchMentionSearchUseCase.js");
+    const dispatchMentionSearch = app.container!.resolve<
+      InstanceType<typeof _DispatchMentionSearchType>
+    >(TOKENS.DispatchMentionSearchUseCase);
+    scheduler.register(
+      "mention-search-dispatch",
+      async () => {
+        const result = await dispatchMentionSearch.execute({});
+        if (!result.ok) {
+          logger.warn({ err: result.error }, "Mention search dispatch failed");
+        }
+      },
+      30 * 60 * 1000
+    );
+    scheduler.register(
+      "mention-reconcile-dispatch",
+      async () => {
+        const result = await dispatchMentionSearch.execute({ lookbackMs: 48 * 60 * 60 * 1000 });
+        if (!result.ok) {
+          logger.warn({ err: result.error }, "Mention reconcile dispatch failed");
+        }
+      },
+      12 * 60 * 60 * 1000
+    );
+
     // Analytics ingestion coordinator — every 6 hours.
     // Enqueues one analytics-ingest job per active channel into BullMQ; the
     // workers' bootstrap consumes from QUEUE_NAMES.ANALYTICS_AGGREGATION and

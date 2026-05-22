@@ -67,6 +67,7 @@ const LINKEDIN_METADATA: ProviderMetadata = {
 
 const LINKEDIN_CAPABILITIES = {
   publish: true,
+  mentions: false,
   schedule: true,
   analytics: true,
   comments: true,

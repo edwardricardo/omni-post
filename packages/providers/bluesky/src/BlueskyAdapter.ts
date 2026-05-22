@@ -14,6 +14,7 @@ import type {
   ProviderLimits,
   PublishInput,
   PublishReceipt,
+  ProviderMention,
 } from "@ports/core";
 import type {
   CanonicalPost,
@@ -63,6 +64,7 @@ const BLUESKY_METADATA: ProviderMetadata = {
 
 const BLUESKY_CAPABILITIES = {
   publish: true,
+  mentions: true,
   schedule: false,
   analytics: false,
   comments: false,
@@ -254,6 +256,88 @@ export class BlueskyAdapter implements ProviderAdapter {
         error: error instanceof Error ? error.message : String(error),
       });
       return err(mapErrorToPublishError(error));
+    }
+  }
+
+  /**
+   * @method searchMentions
+   * @description Searches recent public Bluesky posts mentioning any of the
+   *   given terms (market-wide brand listening) using the connected channel's
+   *   authenticated session, and normalizes them to ProviderMention.
+   * @param params - Resolved credentials, search terms, and pagination/window.
+   * @returns Result with normalized mentions + optional nextCursor, or an
+   *   AUTH / NETWORK / RATE_LIMIT error.
+   */
+  async searchMentions(params: {
+    channelCredentials: unknown;
+    terms: string[];
+    since?: Date;
+    cursor?: string;
+    limit?: number;
+  }): Promise<
+    Result<{ mentions: ProviderMention[]; nextCursor?: string }, "AUTH" | "NETWORK" | "RATE_LIMIT">
+  > {
+    if (!params.terms || params.terms.length === 0) {
+      return ok({ mentions: [] });
+    }
+
+    const validation = validateCredentialStructure<BlueskyProviderCredentials>(
+      params.channelCredentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
+      return err("AUTH");
+    }
+
+    try {
+      const client = this.clientFactory(validation.value);
+      const loginResult = await client.login();
+      if (!loginResult.ok) {
+        return err("AUTH");
+      }
+
+      const phrases = params.terms.map((t) => (t.includes(" ") ? `"${t}"` : t));
+      const query = phrases.join(" OR ");
+
+      const result = await client.searchPosts(
+        query,
+        params.limit || 25,
+        params.since?.toISOString(),
+        params.cursor
+      );
+
+      if (!result.ok) {
+        return err(result.error);
+      }
+
+      const mentions: ProviderMention[] = result.value.posts.map((p) => {
+        const handlePath = p.uri.split("/").pop() ?? "";
+        return {
+          providerMentionId: p.uri,
+          url: `https://bsky.app/profile/${p.authorHandle}/post/${handlePath}`,
+          authorName: p.authorDisplayName || p.authorHandle,
+          authorHandle: p.authorHandle,
+          authorProviderId: p.authorDid,
+          body: p.text,
+          createdAt: new Date(p.createdAt),
+          ...(p.authorAvatar ? { authorAvatarUrl: p.authorAvatar } : {}),
+          ...(p.lang ? { lang: p.lang } : {}),
+        };
+      });
+
+      return ok({
+        mentions,
+        ...(result.value.cursor ? { nextCursor: result.value.cursor } : {}),
+      });
+    } catch (error: unknown) {
+      this.logger.error({
+        provider: this.id,
+        operation: "searchMentions",
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return err("NETWORK");
     }
   }
 }

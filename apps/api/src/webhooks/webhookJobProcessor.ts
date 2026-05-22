@@ -11,6 +11,7 @@ import { UniversalWebhookHandler } from "./webhookHandler.js";
 import type { WebhookEventType, Provider } from "@infra/prisma";
 import { webhookLogger } from "../lib/logger.js";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
+import type { MentionFetchEnqueue, MentionFetchJob } from "./mentionFetchEnqueue.js";
 
 export interface WebhookJobData {
   eventId: string;
@@ -40,6 +41,7 @@ export interface WebhookJobResult {
 export class WebhookJobProcessor {
   private webhookQueue: Queue<WebhookJobData, WebhookJobResult>;
   private deadLetterQueue: Queue<WebhookJobData, WebhookJobResult>;
+  private mentionIngestQueue: Queue<MentionFetchJob>;
   private worker!: Worker<WebhookJobData, WebhookJobResult>;
   private deadLetterWorker!: Worker<WebhookJobData, WebhookJobResult>;
   private redis: Redis;
@@ -47,7 +49,24 @@ export class WebhookJobProcessor {
 
   constructor(redisConnection: Redis) {
     this.redis = redisConnection;
-    this.webhookHandler = new UniversalWebhookHandler();
+
+    // Mention-fetch producer: a mention webhook is a notification, so the
+    // handler enqueues a fetch-before-process job for the mention-ingest worker.
+    this.mentionIngestQueue = new Queue<MentionFetchJob>(QUEUE_NAMES.MENTION_INGEST, {
+      connection: this.redis,
+      defaultJobOptions: {
+        removeOnComplete: 200,
+        removeOnFail: 100,
+        attempts: 3,
+        backoff: { type: "exponential", delay: 5000 },
+      },
+    });
+    const mentionEnqueue: MentionFetchEnqueue = async (job) => {
+      await this.mentionIngestQueue.add("mention-fetch", job, {
+        jobId: `mention-fetch-${job.provider}-${job.providerMentionId}`,
+      });
+    };
+    this.webhookHandler = new UniversalWebhookHandler(undefined, mentionEnqueue);
 
     // Initialize queues
     this.webhookQueue = new Queue<WebhookJobData, WebhookJobResult>(
@@ -480,7 +499,11 @@ export class WebhookJobProcessor {
 
     await Promise.all([this.worker.close(), this.deadLetterWorker.close()]);
 
-    await Promise.all([this.webhookQueue.close(), this.deadLetterQueue.close()]);
+    await Promise.all([
+      this.webhookQueue.close(),
+      this.deadLetterQueue.close(),
+      this.mentionIngestQueue.close(),
+    ]);
 
     webhookLogger.info("Webhook job processor shutdown complete");
   }

@@ -7,7 +7,7 @@
 import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
 import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
 import client from "prom-client";
-import { TwitterApi, type SendTweetV2Params, type TweetV2 } from "twitter-api-v2";
+import { TwitterApi, type SendTweetV2Params, type TweetV2, type UserV2 } from "twitter-api-v2";
 import { createLogger } from "@observability/logger";
 
 const logger = createLogger("provider:x:api-client");
@@ -68,6 +68,25 @@ export interface XSearchReplyResult {
 
 export interface XSearchRepliesResponse {
   data: XSearchReplyResult[];
+  meta?: {
+    next_token?: string;
+    result_count: number;
+  };
+}
+
+export interface XMentionResult {
+  id: string;
+  text: string;
+  author_id?: string;
+  author_name?: string;
+  author_username?: string;
+  author_avatar_url?: string;
+  created_at?: string;
+  lang?: string;
+}
+
+export interface XSearchMentionsResponse {
+  data: XMentionResult[];
   meta?: {
     next_token?: string;
     result_count: number;
@@ -366,6 +385,84 @@ export class XApiClient {
     };
 
     return circuitBreaker.call("x-api", "search-replies", apiCall, [], {
+      timeout: 15000,
+      errorThresholdPercentage: 60,
+      resetTimeout: 60000,
+      maxRetries: 3,
+      baseDelay: 2000,
+      maxDelay: 30000,
+      jitterEnabled: true,
+      cacheEnabled: true,
+      cacheTtl: 60000,
+      fallbackEnabled: true,
+      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+    });
+  }
+
+  /**
+   * @method searchMentions
+   * @description Searches recent public tweets mentioning any of the given terms
+   *              (market-wide brand listening). Uses GET /2/tweets/search/recent
+   *              with an OR query and author expansions. Retweets are excluded to
+   *              reduce duplication. Requires a paid tier with read access.
+   * @param terms - Brand/competitor keywords or phrases (matched as an OR set)
+   * @param maxResults - Maximum results per page (10-100, default 50)
+   * @param startTime - ISO timestamp lower bound (maps to start_time)
+   * @param nextToken - Pagination token from a previous response
+   */
+  async searchMentions(
+    terms: string[],
+    maxResults: number = 50,
+    startTime?: string,
+    nextToken?: string
+  ): Promise<XSearchMentionsResponse> {
+    const apiCall = async (): Promise<XSearchMentionsResponse> => {
+      const phrases = terms.map((t) => (t.includes(" ") ? `"${t}"` : t));
+      const query = `(${phrases.join(" OR ")}) -is:retweet`;
+      const searchResult = await this.twitterApi.v2.search(query, {
+        max_results: Math.min(Math.max(maxResults, 10), 100),
+        expansions: ["author_id"],
+        "tweet.fields": ["author_id", "created_at", "lang"],
+        "user.fields": ["username", "name", "profile_image_url"],
+        ...(startTime ? { start_time: startTime } : {}),
+        ...(nextToken ? { next_token: nextToken } : {}),
+      });
+
+      const users = new Map<string, UserV2>();
+      for (const u of searchResult.data.includes?.users ?? []) {
+        users.set(u.id, u);
+      }
+
+      const mentions: XMentionResult[] = (searchResult.data.data || []).map((tweet: TweetV2) => {
+        const author = tweet.author_id ? users.get(tweet.author_id) : undefined;
+        return {
+          id: tweet.id,
+          text: tweet.text,
+          ...(tweet.author_id ? { author_id: tweet.author_id } : {}),
+          ...(author?.name ? { author_name: author.name } : {}),
+          ...(author?.username ? { author_username: author.username } : {}),
+          ...(author?.profile_image_url ? { author_avatar_url: author.profile_image_url } : {}),
+          ...(tweet.created_at ? { created_at: tweet.created_at } : {}),
+          ...(tweet.lang ? { lang: tweet.lang } : {}),
+        };
+      });
+
+      return {
+        data: mentions,
+        ...(searchResult.data.meta
+          ? {
+              meta: {
+                result_count: searchResult.data.meta.result_count,
+                ...(searchResult.data.meta.next_token
+                  ? { next_token: searchResult.data.meta.next_token }
+                  : {}),
+              },
+            }
+          : {}),
+      };
+    };
+
+    return circuitBreaker.call("x-api", "search-mentions", apiCall, [], {
       timeout: 15000,
       errorThresholdPercentage: 60,
       resetTimeout: 60000,

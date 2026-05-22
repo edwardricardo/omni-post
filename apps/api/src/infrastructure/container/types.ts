@@ -433,6 +433,10 @@ export const TOKENS = {
   // Inbox Sync
   DispatchInboxSyncUseCase: Symbol.for("DispatchInboxSyncUseCase"),
 
+  // Social Listening (mentions)
+  TrackedTermQuery: Symbol.for("TrackedTermQuery"),
+  DispatchMentionSearchUseCase: Symbol.for("DispatchMentionSearchUseCase"),
+
   // Payment Billing
   PaymentAdapter: Symbol.for("PaymentAdapter"),
 

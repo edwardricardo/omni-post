@@ -36,6 +36,9 @@ export const QUEUE_NAMES = {
   /** Inbox sync queue (polling provider comments every 30 minutes) */
   INBOX_SYNC: "inbox-sync",
 
+  /** Mention ingest queue (brand-listening: search polling + webhook fetch) */
+  MENTION_INGEST: "mention-ingest",
+
   /** Detect high-performing posts for repurposing */
   DETECT_REPURPOSE: "detect-repurpose",
 

@@ -70,6 +70,7 @@ const TELEGRAM_METADATA: ProviderMetadata = {
 
 const TELEGRAM_CAPABILITIES = {
   publish: true,
+  mentions: false,
   schedule: false,
   analytics: true,
   comments: false,

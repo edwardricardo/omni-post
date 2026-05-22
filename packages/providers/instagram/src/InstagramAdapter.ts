@@ -16,6 +16,7 @@ import type {
   PublishInput,
   PublishReceipt,
   ProviderComment,
+  ProviderMention,
   ProviderReplyResult,
 } from "@ports/core";
 import type {
@@ -76,6 +77,7 @@ const INSTAGRAM_METADATA: ProviderMetadata = {
 
 const INSTAGRAM_CAPABILITIES = {
   publish: true,
+  mentions: true,
   schedule: false,
   analytics: true,
   comments: true,
@@ -628,6 +630,60 @@ export class InstagramAdapter implements ProviderAdapter {
       });
     } catch (error: unknown) {
       this.logError("getComments", error);
+      return err("NETWORK");
+    }
+  }
+
+  /**
+   * @method fetchMentionById
+   * @description Fetches a single media object the account was @mentioned in by
+   *   its provider id and normalizes it to ProviderMention. Drives the
+   *   webhook-first listening path (fetch-before-process).
+   * @param params - Resolved credentials and the provider mention id.
+   * @returns Result with the normalized mention, or AUTH / NETWORK / NOT_FOUND.
+   */
+  async fetchMentionById(params: {
+    channelCredentials: unknown;
+    providerMentionId: string;
+  }): Promise<Result<ProviderMention, "AUTH" | "NETWORK" | "NOT_FOUND">> {
+    const validation = validateCredentialStructure<InstagramCredentials>(
+      params.channelCredentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
+      return err("AUTH");
+    }
+
+    try {
+      const apiClient = this.apiClientFactory(validation.value);
+      const media = await apiClient.getMentionById(params.providerMentionId);
+
+      const mention: ProviderMention = {
+        providerMentionId: media.id,
+        authorName: media.username ?? "unknown",
+        authorProviderId: media.username ?? "unknown",
+        body: media.caption ?? "",
+        createdAt: media.timestamp ? new Date(media.timestamp) : new Date(),
+        ...(media.username ? { authorHandle: media.username } : {}),
+        ...(media.permalink ? { url: media.permalink } : {}),
+        ...(media.media_url ? { mediaUrls: [media.media_url] } : {}),
+      };
+
+      return ok(mention);
+    } catch (error: unknown) {
+      this.logError("fetchMentionById", error);
+      const status =
+        error instanceof Error && "status" in error
+          ? (error as Record<string, unknown>).status
+          : undefined;
+      if (status === 401 || status === 403) {
+        return err("AUTH");
+      }
+      if (status === 400 || status === 404) {
+        return err("NOT_FOUND");
+      }
       return err("NETWORK");
     }
   }

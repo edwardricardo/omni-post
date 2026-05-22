@@ -566,6 +566,30 @@ export class InstagramApiClient {
   }
 
   /**
+   * @method getMentionById
+   * @description Fetches a single media object the account was @mentioned in via
+   *              GET /{media-id}. Drives the brand-listening webhook path
+   *              (fetch-before-process).
+   * @param mediaId - The Instagram media ID delivered by the mention webhook
+   */
+  async getMentionById(mediaId: string): Promise<{
+    id: string;
+    caption?: string;
+    permalink?: string;
+    timestamp?: string;
+    username?: string;
+    media_url?: string;
+    media_type?: string;
+  }> {
+    const url =
+      `${this.baseUrl}/${mediaId}` +
+      `?fields=id,caption,permalink,timestamp,username,media_url,media_type` +
+      `&access_token=${this.credentials.accessToken}`;
+
+    return this.makeRequest("get-mention-by-id", url, { method: "GET" });
+  }
+
+  /**
    * @method replyToComment
    * @description Posts a reply to a comment via POST /{comment-id}/replies.
    *              Requires instagram_manage_comments scope.

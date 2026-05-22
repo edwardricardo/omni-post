@@ -577,6 +577,26 @@ export class FacebookApiClient {
   }
 
   /**
+   * @method getMentionById
+   * @description Fetches a single object (post or comment) the page was tagged in
+   *              via GET /{object-id}. Used by the brand-listening webhook path to
+   *              fetch the full mention object before persisting.
+   * @param objectId - The Facebook post or comment ID from the mention webhook
+   */
+  async getMentionById(objectId: string): Promise<{
+    id: string;
+    message?: string;
+    story?: string;
+    from?: { id: string; name: string };
+    created_time?: string;
+    permalink_url?: string;
+  }> {
+    const url = `/${objectId}?fields=id,message,story,from,created_time,permalink_url`;
+    const response = await this.makeApiRequest(url);
+    return response.json();
+  }
+
+  /**
    * @method replyToComment
    * @description Posts a reply to a comment via POST /{comment-id}/comments.
    * @param commentId - The comment ID to reply to

@@ -38,6 +38,7 @@ import pino from "pino";
 import { startPublishWorker } from "./publishWorker.js";
 import { startInboxSyncWorker } from "./inboxSyncWorker.js";
 import { startAnalyticsIngestWorker } from "./analyticsIngestWorker.js";
+import { startMentionIngestWorker } from "./mentionIngestWorker.js";
 import { registerGracefulShutdown, type ShutdownTarget } from "./lib/gracefulShutdown.js";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info", name: "workers-bootstrap" });
@@ -49,6 +50,7 @@ async function main(): Promise<void> {
     startPublishWorker({ registerShutdown: false }),
     startInboxSyncWorker({ registerShutdown: false }),
     startAnalyticsIngestWorker({ registerShutdown: false }),
+    startMentionIngestWorker({ registerShutdown: false }),
   ]);
 
   // Merge the per-worker shutdown targets into one. Order matters during drain:
@@ -78,7 +80,7 @@ async function main(): Promise<void> {
   registerGracefulShutdown({ name: "workers-bootstrap", target: composed, logger });
 
   logger.info(
-    { workers: ["publish", "inbox-sync", "analytics-ingest"] },
+    { workers: ["publish", "inbox-sync", "analytics-ingest", "mention-ingest"] },
     "All workers started; bootstrap idle (waiting on signals)"
   );
 }

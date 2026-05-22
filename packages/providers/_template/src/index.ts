@@ -58,6 +58,7 @@ export const templateProviderAdapter: ProviderAdapter = {
     comments: true, // Set based on provider capabilities
     replies: true, // Set based on provider capabilities
     threading: true, // Set based on provider capabilities
+    mentions: false, // Set true only with a brand-mention search/webhook impl
   },
 
   async validateCredentials(

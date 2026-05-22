@@ -15,6 +15,7 @@ import type {
   PublishInput,
   PublishReceipt,
   ProviderComment,
+  ProviderMention,
   ProviderReplyResult,
 } from "@ports/core";
 import type {
@@ -66,6 +67,7 @@ const X_METADATA: ProviderMetadata = {
 
 const X_CAPABILITIES = {
   publish: true,
+  mentions: true,
   schedule: true,
   analytics: true,
   comments: true,
@@ -500,6 +502,75 @@ export class XAdapter implements ProviderAdapter {
         error: error instanceof Error ? error.message : String(error),
       });
 
+      if (
+        error instanceof Error &&
+        (error.message?.includes("401") || error.message?.includes("403"))
+      ) {
+        return err("AUTH");
+      }
+
+      return err("NETWORK");
+    }
+  }
+
+  /**
+   * @method searchMentions
+   * @description Searches recent public tweets mentioning any of the given terms
+   *   (market-wide brand listening) and normalizes them to ProviderMention.
+   * @param params - Resolved credentials, search terms, and pagination/window.
+   * @returns Result with normalized mentions + optional nextCursor, or an
+   *   AUTH / NETWORK / RATE_LIMIT error.
+   */
+  async searchMentions(params: {
+    channelCredentials: unknown;
+    terms: string[];
+    since?: Date;
+    cursor?: string;
+    limit?: number;
+  }): Promise<
+    Result<{ mentions: ProviderMention[]; nextCursor?: string }, "AUTH" | "NETWORK" | "RATE_LIMIT">
+  > {
+    if (!params.terms || params.terms.length === 0) {
+      return ok({ mentions: [] });
+    }
+
+    try {
+      const credentials = params.channelCredentials as XCredentials;
+      const apiClient = this.apiClientFactory(credentials);
+
+      const result = await apiClient.searchMentions(
+        params.terms,
+        params.limit || 50,
+        params.since?.toISOString(),
+        params.cursor
+      );
+
+      const mentions: ProviderMention[] = result.data.map((m) => ({
+        providerMentionId: m.id,
+        url: `https://x.com/i/web/status/${m.id}`,
+        authorName: m.author_name || m.author_username || m.author_id || "unknown",
+        authorProviderId: m.author_id || "unknown",
+        body: m.text,
+        createdAt: m.created_at ? new Date(m.created_at) : new Date(),
+        ...(m.author_username ? { authorHandle: m.author_username } : {}),
+        ...(m.author_avatar_url ? { authorAvatarUrl: m.author_avatar_url } : {}),
+        ...(m.lang ? { lang: m.lang } : {}),
+      }));
+
+      return ok({
+        mentions,
+        ...(result.meta?.next_token ? { nextCursor: result.meta.next_token } : {}),
+      });
+    } catch (error: unknown) {
+      this.logger.error({
+        provider: this.id,
+        operation: "searchMentions",
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      if (error instanceof Error && error.message?.includes("429")) {
+        return err("RATE_LIMIT");
+      }
       if (
         error instanceof Error &&
         (error.message?.includes("401") || error.message?.includes("403"))

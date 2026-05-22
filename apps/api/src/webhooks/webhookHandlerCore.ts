@@ -19,6 +19,7 @@ import { TikTokWebhookProcessor } from "./processors/tiktokWebhookProcessor.js";
 import { LinkedInWebhookProcessor } from "./processors/linkedinWebhookProcessor.js";
 import { SnapchatWebhookProcessor } from "./processors/snapchatWebhookProcessor.js";
 import { TelegramWebhookProcessor } from "./processors/telegramWebhookProcessor.js";
+import type { MentionFetchEnqueue } from "./mentionFetchEnqueue.js";
 import type {
   WebhookEventInput,
   WebhookProcessingResult,
@@ -87,17 +88,27 @@ export class UniversalWebhookHandler {
   private maxRetries = 3;
   private retryDelayMs = 5000;
   private broadcaster: RealtimeWebhookBroadcaster | undefined;
+  private mentionEnqueue: MentionFetchEnqueue | undefined;
 
-  constructor(broadcaster?: RealtimeWebhookBroadcaster) {
+  constructor(broadcaster?: RealtimeWebhookBroadcaster, mentionEnqueue?: MentionFetchEnqueue) {
     if (broadcaster !== undefined) {
       this.broadcaster = broadcaster;
+    }
+    if (mentionEnqueue !== undefined) {
+      this.mentionEnqueue = mentionEnqueue;
     }
     this.registerProcessors();
   }
 
   private registerProcessors(): void {
-    this.processors.set("INSTAGRAM", new InstagramWebhookProcessor(this.broadcaster));
-    this.processors.set("FACEBOOK", new FacebookWebhookProcessor(this.broadcaster));
+    this.processors.set(
+      "INSTAGRAM",
+      new InstagramWebhookProcessor(this.broadcaster, this.mentionEnqueue)
+    );
+    this.processors.set(
+      "FACEBOOK",
+      new FacebookWebhookProcessor(this.broadcaster, this.mentionEnqueue)
+    );
     this.processors.set("X", new XWebhookProcessor(this.broadcaster));
     this.processors.set("YOUTUBE", new YouTubeWebhookProcessor(this.broadcaster));
     this.processors.set("TIKTOK", new TikTokWebhookProcessor(this.broadcaster));

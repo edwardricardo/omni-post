@@ -29,6 +29,23 @@ export interface BlueskyPostResult {
   cid: string;
 }
 
+export interface BlueskyMentionResult {
+  uri: string;
+  cid: string;
+  authorDid: string;
+  authorHandle: string;
+  authorDisplayName?: string;
+  authorAvatar?: string;
+  text: string;
+  lang?: string;
+  createdAt: string;
+}
+
+export interface BlueskySearchResult {
+  posts: BlueskyMentionResult[];
+  cursor?: string;
+}
+
 const BSKY_SERVICE = new URL("https://bsky.social");
 
 /**
@@ -186,6 +203,64 @@ export class BlueskyClient {
       return ok({ uri: response.uri, cid: response.cid });
     } catch {
       return err("PUBLISH");
+    }
+  }
+
+  /**
+   * @method searchPosts
+   * @description Searches recent public posts matching the query (brand-mention
+   *   listening) via app.bsky.feed.searchPosts. Assumes the session has been
+   *   established via `login()` first. Sorted latest-first; paginated by cursor.
+   * @param query - Search query (terms joined with OR / quoted phrases)
+   * @param limit - Max results per page (1-100, default 25)
+   * @param since - ISO timestamp lower bound
+   * @param cursor - Pagination cursor from a previous response
+   */
+  async searchPosts(
+    query: string,
+    limit: number = 25,
+    since?: string,
+    cursor?: string
+  ): Promise<Result<BlueskySearchResult, "NETWORK" | "RATE_LIMIT">> {
+    try {
+      const res = await this.agent.app.bsky.feed.searchPosts({
+        q: query,
+        limit: Math.min(Math.max(limit, 1), 100),
+        sort: "latest",
+        ...(since ? { since } : {}),
+        ...(cursor ? { cursor } : {}),
+      });
+
+      const posts: BlueskyMentionResult[] = res.data.posts.map((p) => {
+        const record = (p.record ?? {}) as {
+          text?: string;
+          createdAt?: string;
+          langs?: string[];
+        };
+        const firstLang = record.langs?.[0];
+        return {
+          uri: p.uri,
+          cid: p.cid,
+          authorDid: p.author.did,
+          authorHandle: p.author.handle,
+          text: record.text ?? "",
+          createdAt: record.createdAt ?? p.indexedAt,
+          ...(p.author.displayName ? { authorDisplayName: p.author.displayName } : {}),
+          ...(p.author.avatar ? { authorAvatar: p.author.avatar } : {}),
+          ...(firstLang ? { lang: firstLang } : {}),
+        };
+      });
+
+      return ok({ posts, ...(res.data.cursor ? { cursor: res.data.cursor } : {}) });
+    } catch (error: unknown) {
+      const status =
+        error instanceof Error && "status" in error
+          ? (error as Record<string, unknown>).status
+          : undefined;
+      if (status === 429) {
+        return err("RATE_LIMIT");
+      }
+      return err("NETWORK");
     }
   }
 }

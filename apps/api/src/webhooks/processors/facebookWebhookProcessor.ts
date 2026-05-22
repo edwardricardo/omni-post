@@ -10,6 +10,8 @@ import { prisma } from "@infra/prisma";
 import { webhookLogger } from "../../lib/logger.js";
 import { AppError } from "../../lib/errors/AppError.js";
 import { AbstractWebhookProcessor } from "./AbstractWebhookProcessor.js";
+import type { RealtimeWebhookBroadcaster } from "../realtimeWebhookBroadcaster.js";
+import type { MentionFetchEnqueue } from "../mentionFetchEnqueue.js";
 
 /**
  * Facebook Webhook Processor
@@ -27,6 +29,15 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   protected override providerId: ProviderName = "FACEBOOK";
   protected override signaturePrefix = "sha256=";
   protected override signatureEncoding: "hex" | "base64" = "hex";
+
+  private readonly mentionEnqueue?: MentionFetchEnqueue;
+
+  constructor(broadcaster?: RealtimeWebhookBroadcaster, mentionEnqueue?: MentionFetchEnqueue) {
+    super(broadcaster);
+    if (mentionEnqueue) {
+      this.mentionEnqueue = mentionEnqueue;
+    }
+  }
 
   /**
    * Parse Facebook webhook payload and normalize data
@@ -523,14 +534,35 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   }
 
   /**
-   * Handle mention received event
+   * Handle mention received event. The webhook is a notification only — enqueue
+   * a fetch-before-process job so the mention-ingest worker resolves credentials,
+   * fetches the full object, and persists it to the listening corpus.
    */
   private async handleMentionReceived(
     data: Record<string, unknown>,
-    _entities: Record<string, unknown>
+    entities: Record<string, unknown>
   ): Promise<void> {
-    // Future: mention tracking, notifications, and brand monitoring analytics
-    webhookLogger.info({ provider: "FACEBOOK", mention: data }, "Facebook mention received");
+    const channelId = entities.channelId as string | undefined;
+    const accountId = entities.accountId as string | undefined;
+    const projectId = entities.projectId as string | undefined;
+    const providerMentionId = data.postId as string | undefined;
+
+    if (this.mentionEnqueue && channelId && accountId && projectId && providerMentionId) {
+      await this.mentionEnqueue({
+        kind: "fetch",
+        channelId,
+        accountId,
+        projectId,
+        provider: "facebook",
+        providerMentionId,
+      });
+      return;
+    }
+
+    webhookLogger.info(
+      { provider: "FACEBOOK", mention: data },
+      "Facebook mention received but not enqueued (missing context or no queue)"
+    );
   }
 
   /**

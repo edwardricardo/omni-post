@@ -70,6 +70,7 @@ const SNAPCHAT_METADATA: ProviderMetadata = {
 
 const SNAPCHAT_CAPABILITIES = {
   publish: true,
+  mentions: false,
   schedule: false,
   analytics: true,
   comments: false,

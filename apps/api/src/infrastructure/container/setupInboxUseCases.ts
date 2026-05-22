@@ -39,7 +39,11 @@ import type { NotifyMentionedUsersService } from "../../application/mentions/ind
 import { InboxEventHandlers } from "../../application/inbox/handlers/InboxEventHandlers.js";
 import type { ProviderRegistryService } from "../../providers/providerRegistry.js";
 import { DispatchInboxSyncUseCase } from "../../application/inbox/DispatchInboxSyncUseCase.js";
+import { DispatchMentionSearchUseCase } from "../../application/listening/DispatchMentionSearchUseCase.js";
 import type { ChannelQueryForIngestion } from "../../domain/repositories/ChannelQueryForIngestion.js";
+import type { TrackedTermQuery } from "../../domain/repositories/TrackedTermQuery.js";
+import { PrismaTrackedTermQuery } from "../repositories/PrismaTrackedTermQuery.js";
+import { providerRegistry } from "../../providers/providerRegistry.js";
 import type { QueuePortRegistry } from "@ports/core";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { prisma } from "@infra/prisma";
@@ -229,6 +233,27 @@ export function setupInboxUseCases(container: Container): void {
           .resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
           .forQueue(QUEUE_NAMES.INBOX_SYNC),
         QUEUE_NAMES.INBOX_SYNC,
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+
+  // Social Listening — tracked-term read model + mention-search coordinator
+  container.register<TrackedTermQuery>(
+    TOKENS.TrackedTermQuery,
+    () => new PrismaTrackedTermQuery(prisma),
+    true
+  );
+  container.register<DispatchMentionSearchUseCase>(
+    TOKENS.DispatchMentionSearchUseCase,
+    () =>
+      new DispatchMentionSearchUseCase(
+        container.resolve<TrackedTermQuery>(TOKENS.TrackedTermQuery),
+        container.resolve<ChannelQueryForIngestion>(TOKENS.ChannelQueryForIngestion),
+        container
+          .resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
+          .forQueue(QUEUE_NAMES.MENTION_INGEST),
+        providerRegistry.getMentionSearchProviders(),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
