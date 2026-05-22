@@ -1113,6 +1113,31 @@
       "primary": "Primary",
       "saving": "Saving…",
       "setAsPrimary": "Set as primary",
+      "providersGrid": {
+        "capabilitiesHeading": "Capabilities",
+        "status": {
+          "active": "Active",
+          "beta": "Beta",
+          "coming_soon": "Coming Soon",
+          "maintenance": "Maintenance"
+        },
+        "connect": "Connect {name}",
+        "connectAria": "Connect {name}",
+        "connectBeta": "Connect (Beta)",
+        "connectBetaAria": "Connect {name} (Beta)",
+        "unavailableAria": "{name} - {status}",
+        "capabilities": {
+          "publish": "Publish",
+          "schedule": "Schedule",
+          "analytics": "Analytics",
+          "comments": "Comments",
+          "replies": "Replies",
+          "threading": "Threading",
+          "stories": "Stories",
+          "reels": "Reels",
+          "carousel": "Carousel"
+        }
+      },
       "connect": {
         "title": "Connect {provider}",
         "description": "Connect your {provider} account to start publishing content.",
@@ -1239,6 +1264,15 @@
       "tabBundles": "Bundles",
       "tabCustom": "Custom Plan",
       "components": {
+        "pendingSwitch": {
+          "scheduledText": "Switch scheduled: your subscription moves to <semibold>{gateway}</semibold> on <medium>{date}</medium>.",
+          "scheduledSubtext": "You'll continue being billed by the current processor until then.",
+          "cancelling": "Cancelling...",
+          "cancelSwitch": "Cancel switch",
+          "checkoutText": "Your previous billing period has ended. Complete your subscription on <semibold>{gateway}</semibold>.",
+          "checkoutSubtext": "You have until <medium>{date}</medium>.",
+          "completeOn": "Complete on {gateway}"
+        },
         "switchDialog": {
           "title": "Switch payment processor",
           "description": "Change your billing from {from} to {to}.",
@@ -2170,7 +2204,8 @@
           "draft": "draft",
           "running": "running",
           "paused": "paused",
-          "completed": "completed"
+          "completed": "completed",
+          "stopped": "stopped"
         },
         "stats": {
           "totalTests": "Total Tests",

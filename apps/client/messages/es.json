@@ -1113,6 +1113,31 @@
       "primary": "Principal",
       "saving": "Guardando…",
       "setAsPrimary": "Establecer como principal",
+      "providersGrid": {
+        "capabilitiesHeading": "Capacidades",
+        "status": {
+          "active": "Activo",
+          "beta": "Beta",
+          "coming_soon": "Próximamente",
+          "maintenance": "Mantenimiento"
+        },
+        "connect": "Conectar {name}",
+        "connectAria": "Conectar {name}",
+        "connectBeta": "Conectar (Beta)",
+        "connectBetaAria": "Conectar {name} (Beta)",
+        "unavailableAria": "{name} - {status}",
+        "capabilities": {
+          "publish": "Publicación",
+          "schedule": "Programación",
+          "analytics": "Analíticas",
+          "comments": "Comentarios",
+          "replies": "Respuestas",
+          "threading": "Hilos",
+          "stories": "Historias",
+          "reels": "Reels",
+          "carousel": "Carrusel"
+        }
+      },
       "connect": {
         "title": "Conectar {provider}",
         "description": "Conecta tu cuenta de {provider} para empezar a publicar contenido.",
@@ -1239,6 +1264,15 @@
       "tabBundles": "Paquetes",
       "tabCustom": "Plan personalizado",
       "components": {
+        "pendingSwitch": {
+          "scheduledText": "Cambio programado: tu suscripción pasa a <semibold>{gateway}</semibold> el <medium>{date}</medium>.",
+          "scheduledSubtext": "Seguirás siendo facturado por el procesador actual hasta entonces.",
+          "cancelling": "Cancelando...",
+          "cancelSwitch": "Cancelar cambio",
+          "checkoutText": "Tu período de facturación anterior terminó. Completa tu suscripción en <semibold>{gateway}</semibold>.",
+          "checkoutSubtext": "Tienes hasta <medium>{date}</medium>.",
+          "completeOn": "Completar en {gateway}"
+        },
         "switchDialog": {
           "title": "Cambiar procesador de pago",
           "description": "Cambia tu facturación de {from} a {to}.",
@@ -2170,7 +2204,8 @@
           "draft": "borrador",
           "running": "en ejecución",
           "paused": "pausada",
-          "completed": "completada"
+          "completed": "completada",
+          "stopped": "detenida"
         },
         "stats": {
           "totalTests": "Pruebas totales",

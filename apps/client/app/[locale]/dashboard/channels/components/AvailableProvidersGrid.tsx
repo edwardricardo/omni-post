@@ -7,8 +7,10 @@
  * @component AvailableProvidersGrid
  * @layer infrastructure
  */
+"use client";
 
-import type { ProviderMetadata } from "@shared/types";
+import { useTranslations } from "next-intl";
+import type { ProviderMetadata, ProviderCapabilities } from "@shared/types";
 
 const STATUS_BADGE_COLORS: Record<ProviderMetadata["status"], string> = {
   active: "bg-green-100 text-green-800",
@@ -16,17 +18,12 @@ const STATUS_BADGE_COLORS: Record<ProviderMetadata["status"], string> = {
   coming_soon: "bg-gray-100 text-gray-800",
   maintenance: "bg-orange-100 text-orange-800",
 };
-const STATUS_BADGE_LABELS: Record<ProviderMetadata["status"], string> = {
-  active: "Active",
-  beta: "Beta",
-  coming_soon: "Coming Soon",
-  maintenance: "Maintenance",
-};
 
 function ProviderStatusBadge({ status }: { status: ProviderMetadata["status"] }) {
+  const t = useTranslations("channels.components.providersGrid");
   return (
     <span className={`px-2 py-1 text-xs font-medium rounded-full ${STATUS_BADGE_COLORS[status]}`}>
-      {STATUS_BADGE_LABELS[status]}
+      {t(`status.${status}`)}
     </span>
   );
 }
@@ -37,6 +34,7 @@ interface AvailableProvidersGridProps {
 }
 
 export function AvailableProvidersGrid({ providers, onConnect }: AvailableProvidersGridProps) {
+  const t = useTranslations("channels.components.providersGrid");
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {providers.map((provider) => (
@@ -65,16 +63,20 @@ export function AvailableProvidersGrid({ providers, onConnect }: AvailableProvid
 
             <div className="space-y-3">
               <div>
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Capabilities</h4>
+                <h4 className="text-sm font-medium text-gray-700 mb-2">
+                  {t("capabilitiesHeading")}
+                </h4>
                 <div className="flex flex-wrap gap-1">
-                  {Object.entries(provider.capabilities).map(
+                  {(
+                    Object.entries(provider.capabilities) as [keyof ProviderCapabilities, boolean][]
+                  ).map(
                     ([key, enabled]) =>
                       enabled && (
                         <span
                           key={key}
                           className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-sm"
                         >
-                          {key.charAt(0).toUpperCase() + key.slice(1)}
+                          {t(`capabilities.${key}`)}
                         </span>
                       )
                   )}
@@ -86,26 +88,29 @@ export function AvailableProvidersGrid({ providers, onConnect }: AvailableProvid
                   <button
                     onClick={() => onConnect(provider)}
                     className="w-full px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-sm hover:bg-blue-700 transition-colors focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                    aria-label={`Connect ${provider.displayName}`}
+                    aria-label={t("connectAria", { name: provider.displayName })}
                   >
-                    Connect {provider.displayName}
+                    {t("connect", { name: provider.displayName })}
                   </button>
                 ) : provider.status === "beta" ? (
                   <button
                     onClick={() => onConnect(provider)}
                     className="w-full px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-sm hover:bg-orange-700 transition-colors focus:outline-hidden focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-                    aria-label={`Connect ${provider.displayName} (Beta)`}
+                    aria-label={t("connectBetaAria", { name: provider.displayName })}
                   >
-                    Connect (Beta)
+                    {t("connectBeta")}
                   </button>
                 ) : (
                   <button
                     disabled
                     className="w-full px-4 py-2 bg-gray-300 text-gray-500 text-sm font-medium rounded-sm cursor-not-allowed"
-                    aria-label={`${provider.displayName} - ${provider.status === "coming_soon" ? "Coming Soon" : "Under Maintenance"}`}
+                    aria-label={t("unavailableAria", {
+                      name: provider.displayName,
+                      status: t(`status.${provider.status}`),
+                    })}
                     aria-disabled="true"
                   >
-                    {provider.status === "coming_soon" ? "Coming Soon" : "Maintenance"}
+                    {t(`status.${provider.status}`)}
                   </button>
                 )}
               </div>

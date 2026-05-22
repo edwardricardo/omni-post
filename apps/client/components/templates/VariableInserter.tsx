@@ -38,11 +38,11 @@ interface VariableInserterProps {
 }
 
 type EditorTab = "variables" | "helpers" | "context";
-const TAB_DEFS: ReadonlyArray<{ id: EditorTab; labelKey: string; Icon: typeof Zap }> = [
+const TAB_DEFS = [
   { id: "variables", labelKey: "variables", Icon: Zap },
   { id: "helpers", labelKey: "helpers", Icon: Code },
   { id: "context", labelKey: "context", Icon: Type },
-];
+] as const satisfies ReadonlyArray<{ id: EditorTab; labelKey: string; Icon: typeof Zap }>;
 
 export function VariableInserter({
   onVariableInsert,

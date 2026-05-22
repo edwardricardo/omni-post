@@ -24,7 +24,7 @@ const TONE_OPTIONS = [
   "Conversational",
 ] as const;
 
-const TONE_KEYS: Record<string, string> = {
+const TONE_KEYS = {
   Professional: "professional",
   Casual: "casual",
   Witty: "witty",
@@ -33,7 +33,7 @@ const TONE_KEYS: Record<string, string> = {
   Inspirational: "inspirational",
   Educational: "educational",
   Conversational: "conversational",
-};
+} as const satisfies Record<(typeof TONE_OPTIONS)[number], string>;
 
 const MAX_SYSTEM_PROMPT = 2000;
 const MAX_EXAMPLES = 3;

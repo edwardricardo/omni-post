@@ -51,21 +51,21 @@ const PROVIDERS: { label: string; value: Provider }[] = [
   { label: "LinkedIn", value: "linkedin" },
 ];
 
-const STATUSES: { labelKey: string; value: StatusFilter }[] = [
+const STATUSES = [
   { labelKey: "filterAll", value: "all" },
   { labelKey: "statusUnread", value: "UNREAD" },
   { labelKey: "statusRead", value: "READ" },
   { labelKey: "statusReplied", value: "REPLIED" },
   { labelKey: "statusArchived", value: "ARCHIVED" },
-];
+] as const satisfies ReadonlyArray<{ labelKey: string; value: StatusFilter }>;
 
-const MESSAGE_TYPES: { labelKey: string; value: MessageTypeFilter }[] = [
+const MESSAGE_TYPES = [
   { labelKey: "filterAll", value: "all" },
   { labelKey: "typeMentions", value: "MENTION" },
   { labelKey: "typeComments", value: "COMMENT" },
   { labelKey: "typeReplies", value: "REPLY" },
   { labelKey: "typeDms", value: "DIRECT_MESSAGE" },
-];
+] as const satisfies ReadonlyArray<{ labelKey: string; value: MessageTypeFilter }>;
 
 function FilterPill({
   label,

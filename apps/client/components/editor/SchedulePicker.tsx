@@ -25,6 +25,10 @@ import {
 } from "@packages/ui";
 import { Calendar, Clock, Globe, TrendingUp, AlertCircle } from "lucide-react";
 import { format, addDays, setHours, setMinutes, parse, isAfter } from "date-fns";
+import type esMessages from "@/messages/es.json";
+
+type TimezoneLabelKey = keyof (typeof esMessages)["editor"]["schedule"]["timezones"];
+type ReasonKey = keyof (typeof esMessages)["editor"]["schedule"]["reasons"];
 
 interface SchedulePickerProps {
   isOpen: boolean;
@@ -38,7 +42,7 @@ interface OptimalTime {
   hour: number;
   minute: number;
   score: number;
-  reasonKey: string;
+  reasonKey: ReasonKey;
 }
 
 // Common timezone options. `labelKey` resolves under `editor.schedule.timezones.*`;
@@ -54,7 +58,7 @@ const TIMEZONES = [
   { value: "Asia/Shanghai", labelKey: "chinaStandardTime", offset: "+08:00" },
   { value: "Australia/Sydney", labelKey: "australianEasternTime", offset: "+11:00" },
   { value: "UTC", labelKey: "coordinatedUniversalTime", offset: "+00:00" },
-];
+] as const satisfies ReadonlyArray<{ value: string; labelKey: TimezoneLabelKey; offset: string }>;
 
 // Heuristic optimal posting times based on platform and day of week
 const getOptimalTimes = (providers: string[], date: Date): OptimalTime[] => {

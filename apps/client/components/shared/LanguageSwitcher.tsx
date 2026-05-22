@@ -19,7 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@packages/ui";
 import { usePathname, useRouter } from "@/i18n/navigation";
-import { routing } from "@/i18n/routing";
+import { routing, type AppLocale } from "@/i18n/routing";
 
 const LOCALE_LABELS: Record<string, string> = {
   es: "Español",
@@ -36,7 +36,7 @@ export function LanguageSwitcher() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const handleSelect = (next: string) => {
+  const handleSelect = (next: AppLocale) => {
     if (next === locale) return;
     router.replace(pathname, { locale: next });
   };

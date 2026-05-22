@@ -56,19 +56,19 @@ const MESSAGE_TYPE_STYLES: Record<InboxMessageWireType, string> = {
   DIRECT_MESSAGE: "bg-amber-100 text-amber-700",
 };
 
-const MESSAGE_TYPE_LABEL_KEYS: Record<InboxMessageWireType, string> = {
+const MESSAGE_TYPE_LABEL_KEYS = {
   COMMENT: "messageType.COMMENT",
   MENTION: "messageType.MENTION",
   REPLY: "messageType.REPLY",
   DIRECT_MESSAGE: "messageType.DIRECT_MESSAGE",
-};
+} as const satisfies Record<InboxMessageWireType, string>;
 
 // ---------------------------------------------------------------------------
 // Sentiment label
 // ---------------------------------------------------------------------------
 
 function sentimentLabel(score: number | null): {
-  key: string;
+  key: "sentiment.positive" | "sentiment.negative" | "sentiment.neutral";
   className: string;
 } | null {
   if (score === null) return null;

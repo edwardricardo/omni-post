@@ -16,12 +16,12 @@ interface TabConfig {
   icon: LucideIcon;
 }
 
-const tabs: TabConfig[] = [
+const tabs = [
   { id: "performance", labelKey: "tabNav.performance", icon: BarChart3 },
   { id: "roi", labelKey: "tabNav.roi", icon: DollarSign },
   { id: "audience", labelKey: "tabNav.audience", icon: Users },
   { id: "competitive", labelKey: "tabNav.competitive", icon: Target },
-];
+] as const satisfies ReadonlyArray<TabConfig>;
 
 interface TabNavigationProps {
   activeTab: AnalysisTab;

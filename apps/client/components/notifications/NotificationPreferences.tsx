@@ -173,9 +173,9 @@ export function NotificationPreferences() {
       {/* Preferences list */}
       <div className="space-y-3">
         {localPrefs.map((pref) => {
-          const known = isKnownType(pref.type);
-          const label = known ? t(`types.${pref.type}.label`) : pref.type;
-          const description = known ? t(`types.${pref.type}.description`) : "";
+          const knownType = isKnownType(pref.type) ? pref.type : null;
+          const label = knownType ? t(`types.${knownType}.label`) : pref.type;
+          const description = knownType ? t(`types.${knownType}.description`) : "";
           const toggleId = `notif-toggle-${pref.type}`;
 
           return (

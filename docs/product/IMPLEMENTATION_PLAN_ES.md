@@ -19,10 +19,10 @@
 | ---------------------------- | ------ | ------ | ------- |
 | Bloqueantes compartidos (B)  | 5      | 5      | ✅      |
 | Fase 0 — Funciones autónomas | 11     | 11     | ✅      |
-| Fase 1 — Necesarias          | 16     | 2      | 🟦      |
+| Fase 1 — Necesarias          | 16     | 3      | 🟦      |
 | Fase 2 — Bueno tenerla       | 21     | 0      | ⬜      |
 | Fase 3 — Interesantes        | 14     | 0      | ⬜      |
-| **Total**                    | **67** | **18** | **27%** |
+| **Total**                    | **67** | **19** | **28%** |
 
 > Actualizar esta tabla al cerrar cada tarea. `Estado`: ⬜ no iniciado · 🟦 en progreso · ✅ completo.
 
@@ -77,7 +77,7 @@
 
 - [x] **F1-API-1** `[L]` Generación IA **nativa por locale** + RAG vectorial (pgvector + embeddings multi-provider + retrieval semántico) sobre glosario/style-guide por locale (canon §9.1). 🔗 dep:B4. **DoD:** generación produce contenido nativo por locale objetivo; test por locale.
 - [x] **F1-CLI-1** `[L]` `next-intl` App Router: segmento `[locale]`, proxy (Next 16), ICU MessageFormat (canon §9.5). 🔗 dep:B4. **DoD:** UI client conmuta locale; `generateStaticParams` por locale; sin strings concatenados. _(Alcance ampliado: migración completa de ~2164 claves es/en + remediación React 19 de recharts/react-diff-viewer.)_
-- [ ] **F1-CLI-2** `[S]` Migrar catálogos de strings a ICU + revisar pluralización. 🔗 dep:F1-CLI-1. **DoD:** catálogos ICU-válidos; lint de i18n verde.
+- [x] **F1-CLI-2** `[S]` Migrar catálogos de strings a ICU + revisar pluralización. 🔗 dep:F1-CLI-1. **DoD:** catálogos ICU-válidos; lint de i18n verde. _(type-safe messages vía `global.ts` AppConfig + `i18n:lint` script: ICU + paridad de claves/args es↔en; residuales capturados.)_
 
 ### Social listening (webhook-first)
 

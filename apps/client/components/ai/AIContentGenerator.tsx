@@ -33,10 +33,10 @@ interface AIContentGeneratorProps {
 }
 
 const TAB_CONFIG = [
-  { id: "templates" as const, labelKey: "generator.tabTemplates", icon: Target },
-  { id: "generate" as const, labelKey: "generator.tabGenerate", icon: Wand2 },
-  { id: "results" as const, labelKey: "generator.tabResults", icon: Eye },
-];
+  { id: "templates", labelKey: "generator.tabTemplates", icon: Target },
+  { id: "generate", labelKey: "generator.tabGenerate", icon: Wand2 },
+  { id: "results", labelKey: "generator.tabResults", icon: Eye },
+] as const;
 
 /**
  * @component AIContentGenerator

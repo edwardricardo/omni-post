@@ -18,14 +18,14 @@ import {
   type IntegrationDefinition,
 } from "@/lib/integrations/registry";
 
-const CATEGORIES: Array<{ labelKey: string; value: IntegrationCategory | "all" }> = [
+const CATEGORIES = [
   { labelKey: "all", value: "all" },
   { labelKey: "automation", value: "automation" },
   { labelKey: "crm", value: "crm" },
   { labelKey: "storage", value: "storage" },
   { labelKey: "security", value: "security" },
   { labelKey: "comingSoon", value: "coming_soon" },
-];
+] as const satisfies ReadonlyArray<{ labelKey: string; value: IntegrationCategory | "all" }>;
 
 function IntegrationCard({ integration }: { integration: IntegrationDefinition }) {
   const t = useTranslations("integrations.components");

@@ -8,7 +8,9 @@
  * @component PendingSwitchBanner
  * @layer infrastructure
  */
+"use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import type { GatewayProvider } from "@/hooks/api/useBilling";
 import { formatBillingDate, GATEWAY_LABELS } from "../utils/pricing";
@@ -30,22 +32,27 @@ export function PendingSwitchBanner({
   onCancel,
   isCancelling,
 }: PendingSwitchBannerProps) {
+  const t = useTranslations("settings.billing.components.pendingSwitch");
+  const semibold = (chunks: React.ReactNode) => <span className="font-semibold">{chunks}</span>;
+  const medium = (chunks: React.ReactNode) => <span className="font-medium">{chunks}</span>;
+
   if (status === "SCHEDULED") {
     return (
       <div className="rounded-lg border border-yellow-300 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-950/30 p-4 mb-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="text-sm text-foreground">
             <p>
-              Switch scheduled: your subscription moves to{" "}
-              <span className="font-semibold">{GATEWAY_LABELS[toGateway]}</span> on{" "}
-              <span className="font-medium">{formatBillingDate(scheduledFor)}</span>.
+              {t.rich("scheduledText", {
+                gateway: GATEWAY_LABELS[toGateway],
+                date: formatBillingDate(scheduledFor),
+                semibold,
+                medium,
+              })}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              You&apos;ll continue being billed by the current processor until then.
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">{t("scheduledSubtext")}</p>
           </div>
           <Button variant="outline" size="sm" onClick={onCancel} disabled={isCancelling}>
-            {isCancelling ? "Cancelling..." : "Cancel switch"}
+            {isCancelling ? t("cancelling") : t("cancelSwitch")}
           </Button>
         </div>
       </div>
@@ -56,17 +63,14 @@ export function PendingSwitchBanner({
     <div className="rounded-lg border border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-950/30 p-4 mb-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="text-sm text-foreground">
-          <p>
-            Your previous billing period has ended. Complete your subscription on{" "}
-            <span className="font-semibold">{GATEWAY_LABELS[toGateway]}</span>.
-          </p>
+          <p>{t.rich("checkoutText", { gateway: GATEWAY_LABELS[toGateway], semibold })}</p>
           <p className="text-xs text-muted-foreground mt-1">
-            You have until <span className="font-medium">{formatBillingDate(extendedUntil)}</span>.
+            {t.rich("checkoutSubtext", { date: formatBillingDate(extendedUntil), medium })}
           </p>
         </div>
         <Button variant="default" size="sm" asChild>
           <a href={`/dashboard/settings/billing/checkout/${toGateway}`}>
-            Complete on {GATEWAY_LABELS[toGateway]}
+            {t("completeOn", { gateway: GATEWAY_LABELS[toGateway] })}
           </a>
         </Button>
       </div>

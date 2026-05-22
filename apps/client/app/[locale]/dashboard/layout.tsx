@@ -51,14 +51,17 @@ import { Link } from "@/i18n/navigation";
 import { usePathname } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, type ComponentType } from "react";
+import type esMessages from "@/messages/es.json";
 
 type IconType = ComponentType<{ className?: string }>;
 
+type NavMessageKey = keyof (typeof esMessages)["nav"];
+
 interface NavItem {
-  key: string;
+  key: NavMessageKey;
   href?: string;
   icon: IconType;
-  children?: ReadonlyArray<{ key: string; href: string; icon: IconType }>;
+  children?: ReadonlyArray<{ key: NavMessageKey; href: string; icon: IconType }>;
 }
 
 const navigation: ReadonlyArray<NavItem> = [

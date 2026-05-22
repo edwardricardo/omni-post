@@ -21,17 +21,17 @@ const URGENCY_STYLES: Record<ScoredTrend["urgency"], string> = {
   THIS_WEEK: "bg-green-100 text-green-700",
 };
 
-const URGENCY_LABEL_KEY: Record<ScoredTrend["urgency"], string> = {
+const URGENCY_LABEL_KEY = {
   NOW: "trends.urgencyNow",
   TODAY: "trends.urgencyToday",
   THIS_WEEK: "trends.urgencyThisWeek",
-};
+} as const satisfies Record<ScoredTrend["urgency"], string>;
 
-const SOURCE_LABEL_KEY: Record<ScoredTrend["source"], string> = {
+const SOURCE_LABEL_KEY = {
   PERPLEXITY_WEB: "trends.sourceWeb",
   ACCOUNT_ANALYTICS: "trends.sourceYourPosts",
   INBOX_MENTIONS: "trends.sourceInbox",
-};
+} as const satisfies Record<ScoredTrend["source"], string>;
 
 const SOURCE_ICON: Record<ScoredTrend["source"], typeof Globe> = {
   PERPLEXITY_WEB: Globe,

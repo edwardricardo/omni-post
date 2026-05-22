@@ -17,11 +17,11 @@ interface RecurringPostCardProps {
   isDeactivating: boolean;
 }
 
-const CONTENT_VARIATION_KEYS: Record<RecurringPost["contentVariation"], string> = {
+const CONTENT_VARIATION_KEYS = {
   EXACT: "contentVariation.EXACT",
   ROTATED: "contentVariation.ROTATED",
   AI_GENERATED: "contentVariation.AI_GENERATED",
-};
+} as const satisfies Record<RecurringPost["contentVariation"], string>;
 
 function humanCron(expression: string): string {
   try {

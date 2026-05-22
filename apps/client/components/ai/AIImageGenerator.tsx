@@ -19,21 +19,21 @@ import { useProject } from "@/providers/ProjectProvider";
 // Constants
 // ---------------------------------------------------------------------------
 
-const SIZES: { labelKey: string; dimensions: string; value: ImageSize }[] = [
+const SIZES = [
   { labelKey: "imageGenerator.sizeSquare", dimensions: "1024×1024", value: "1024x1024" },
   { labelKey: "imageGenerator.sizePortrait", dimensions: "1024×1792", value: "1024x1792" },
   { labelKey: "imageGenerator.sizeLandscape", dimensions: "1792×1024", value: "1792x1024" },
-];
+] as const satisfies ReadonlyArray<{ labelKey: string; dimensions: string; value: ImageSize }>;
 
-const QUALITIES: { labelKey: string; value: ImageQuality }[] = [
+const QUALITIES = [
   { labelKey: "imageGenerator.qualityStandard", value: "standard" },
   { labelKey: "imageGenerator.qualityHd", value: "hd" },
-];
+] as const satisfies ReadonlyArray<{ labelKey: string; value: ImageQuality }>;
 
-const STYLES: { labelKey: string; value: ImageStyle }[] = [
+const STYLES = [
   { labelKey: "imageGenerator.styleNatural", value: "natural" },
   { labelKey: "imageGenerator.styleVivid", value: "vivid" },
-];
+] as const satisfies ReadonlyArray<{ labelKey: string; value: ImageStyle }>;
 
 // ---------------------------------------------------------------------------
 // Component
