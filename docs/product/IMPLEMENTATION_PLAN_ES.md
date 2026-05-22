@@ -19,10 +19,10 @@
 | ---------------------------- | ------ | ------ | ------- |
 | Bloqueantes compartidos (B)  | 5      | 5      | ✅      |
 | Fase 0 — Funciones autónomas | 11     | 11     | ✅      |
-| Fase 1 — Necesarias          | 16     | 6      | 🟦      |
+| Fase 1 — Necesarias          | 16     | 7      | 🟦      |
 | Fase 2 — Bueno tenerla       | 21     | 0      | ⬜      |
 | Fase 3 — Interesantes        | 14     | 0      | ⬜      |
-| **Total**                    | **67** | **22** | **33%** |
+| **Total**                    | **67** | **23** | **34%** |
 
 > Actualizar esta tabla al cerrar cada tarea. `Estado`: ⬜ no iniciado · 🟦 en progreso · ✅ completo.
 
@@ -87,7 +87,7 @@
 
 ### Bulk / CSV scheduling (completar 🟡)
 
-- [ ] **F1-API-2** `[S]` Parser CSV + validación Zod por fila. **DoD:** CSV inválido reporta errores por fila; tests.
+- [x] **F1-API-2** `[S]` Parser CSV + validación Zod por fila. **DoD:** CSV inválido reporta errores por fila; tests. → `parseSchedulingCsv` (`application/bulk-scheduling/schedulingCsv.ts`) con `csv-parse/sync` (canon server-side, no papaparse) + Zod por fila + VOs `Provider`/`ScheduledTime`; errores por fila (1-based, 0=header/parse); 13 tests. Lo consume F1-API-3.
 - [ ] **F1-API-3** `[M]` FlowProducer parent+children con `continueParentOnFailure: true` + DLQ (canon §9.3). 🔗 dep:F1-API-2. **DoD:** una fila mala no aborta el batch; manifiesto por fila.
 - [ ] **F1-CLI-4** `[M]` UI de carga CSV + reporte de resultado por fila. 🔗 dep:F1-API-3. **DoD:** usuario sube CSV y ve outcome por fila; test componente.
 
