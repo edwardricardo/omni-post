@@ -46,6 +46,7 @@ import {
   TrendingUp,
   Recycle,
   Wand2,
+  Radio,
 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { usePathname } from "@/i18n/navigation";
@@ -70,6 +71,7 @@ const navigation: ReadonlyArray<NavItem> = [
   { key: "inbox", href: "/dashboard/inbox", icon: Inbox },
   { key: "scheduling", href: "/dashboard/scheduling", icon: Calendar },
   { key: "analytics", href: "/dashboard/analytics", icon: BarChart3 },
+  { key: "listening", href: "/dashboard/listening", icon: Radio },
   { key: "campaigns", href: "/dashboard/campaigns", icon: Megaphone },
   {
     key: "ai",

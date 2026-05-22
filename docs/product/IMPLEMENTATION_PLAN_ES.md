@@ -19,10 +19,10 @@
 | ---------------------------- | ------ | ------ | ------- |
 | Bloqueantes compartidos (B)  | 5      | 5      | ✅      |
 | Fase 0 — Funciones autónomas | 11     | 11     | ✅      |
-| Fase 1 — Necesarias          | 16     | 5      | 🟦      |
+| Fase 1 — Necesarias          | 16     | 6      | 🟦      |
 | Fase 2 — Bueno tenerla       | 21     | 0      | ⬜      |
 | Fase 3 — Interesantes        | 14     | 0      | ⬜      |
-| **Total**                    | **67** | **21** | **31%** |
+| **Total**                    | **67** | **22** | **33%** |
 
 > Actualizar esta tabla al cerrar cada tarea. `Estado`: ⬜ no iniciado · 🟦 en progreso · ✅ completo.
 
@@ -83,7 +83,7 @@
 
 - [x] **F1-WRK-1** `[M]` Worker de ingesta fan-in (webhook + polling backfill), normalización a schema canónico (canon §9.2). **DoD:** menciones aterrizan normalizadas; idempotente; fetch-before-process. → capability `searchMentions`/`fetchMentionById` en el port (X/Bluesky search + IG/FB webhook fetch), modelos `Mention`+`TrackedTerm`, `mentionIngestWorker`, coordinador `DispatchMentionSearchUseCase` (search + reconcile 48-72h).
 - [x] **F1-API-1b** `[M]` Modelo de menciones + queries de Share of Voice sobre read model. 🔗 dep:F1-WRK-1. **DoD:** SoV calculado desde corpus normalizado; test. → read-side CQRS: `MentionQueryRepository` + `PrismaMentionQueryRepository` (SoV vía count/groupBy consistente, `sov = marca/mercado`), use cases `GetShareOfVoiceQuery` + `ListMentionsQuery`, rutas `GET /listening/share-of-voice` + `/listening/mentions` (multi-tenant por token).
-- [ ] **F1-CLI-3** `[M]` Dashboard de listening (menciones, sentimiento, SoV). 🔗 dep:F1-API-1b. **DoD:** dashboard renderiza datos reales; test componente.
+- [x] **F1-CLI-3** `[M]` Dashboard de listening (menciones, sentimiento, SoV). 🔗 dep:F1-API-1b. **DoD:** dashboard renderiza datos reales; test componente. → `app/[locale]/dashboard/listening` (page + `ListeningDashboard` con selector de ventana + tarjetas SoV + charts recharts + feed), hooks `useShareOfVoice`/`useMentions` (acoplados a los DTOs del API vía proxy), i18n es/en, tests vitest+MSW (7) + smoke proxy (401). _Cierra el track de Social listening 3/3._
 
 ### Bulk / CSV scheduling (completar 🟡)
 
