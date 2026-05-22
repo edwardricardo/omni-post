@@ -1,42 +1,13 @@
 /**
  * @file layout.tsx
- * @description Root layout for the admin dashboard. Configures Geist font family,
- *   next-intl i18n, ThemeProvider (dark/light), and the AdminToaster for notifications.
+ * @description Passthrough root layout. With next-intl i18n routing the real
+ *              HTML shell (`<html>`/`<body>`) lives in
+ *              `app/[locale]/layout.tsx`; this root only forwards children.
+ *              Next.js still requires a root layout to exist (e.g. for the
+ *              global `app/not-found.tsx`), so it is kept as a thin
+ *              passthrough.
  * @layer infrastructure
  */
-import React from "react";
-import { GeistSans } from "geist/font/sans";
-import { GeistMono } from "geist/font/mono";
-import { NextIntlClientProvider } from "next-intl";
-import { getLocale, getMessages } from "next-intl/server";
-import { LoggerProvider } from "@observability/browser-logger";
-
-import { ThemeProvider } from "@/providers/ThemeProvider";
-import { AdminToaster } from "@/components/ui/AdminToaster";
-import "./globals.css";
-
-export const metadata = { title: "Admin", description: "CMS Multicanal" };
-
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const locale = await getLocale();
-  const messages = await getMessages();
-
-  return (
-    <html
-      lang={locale}
-      className={`dark ${GeistSans.variable} ${GeistMono.variable}`}
-      suppressHydrationWarning
-    >
-      <body className="font-sans antialiased">
-        <LoggerProvider defaultContext={{ app: "admin" }}>
-          <ThemeProvider>
-            <NextIntlClientProvider locale={locale} messages={messages}>
-              {children}
-              <AdminToaster />
-            </NextIntlClientProvider>
-          </ThemeProvider>
-        </LoggerProvider>
-      </body>
-    </html>
-  );
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return children;
 }

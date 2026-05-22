@@ -8,10 +8,8 @@
 "use client";
 
 import React, { useState, useCallback, useTransition } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { useTranslations, useLocale } from "next-intl";
-import { setLocaleAction } from "@/app/actions/locale";
 import { logoutAction } from "@/app/actions/auth";
 import {
   LayoutDashboard,
@@ -238,6 +236,7 @@ function CollapsibleGroup({
  */
 export function SidebarNav({ userName, userRole }: SidebarNavProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const t = useTranslations("nav");
   const tc = useTranslations("common");
   const locale = useLocale();
@@ -252,10 +251,10 @@ export function SidebarNav({ userName, userRole }: SidebarNavProps) {
     (next: "en" | "es") => {
       if (next === locale) return;
       startLocaleTransition(() => {
-        void setLocaleAction(next);
+        router.replace(pathname, { locale: next });
       });
     },
-    [locale]
+    [locale, pathname, router]
   );
 
   // Build translation map for items

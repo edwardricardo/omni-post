@@ -7,7 +7,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, type Messages } from "next-intl";
 import {
   LayoutDashboard,
   Users,
@@ -39,8 +39,13 @@ interface HelpSection {
   concepts: { term: string; definition: string }[];
 }
 
+/** Help-namespace keys whose value is a section object (excludes scalar labels). */
+type HelpSectionKey = {
+  [K in keyof Messages["help"]]: Messages["help"][K] extends string ? never : K;
+}[keyof Messages["help"]];
+
 /** Translation keys in the help namespace, mapped to their icons. */
-const SECTION_KEYS: { key: string; id: string; icon: LucideIcon }[] = [
+const SECTION_KEYS: { key: HelpSectionKey; id: string; icon: LucideIcon }[] = [
   { key: "dashboard", id: "dashboard", icon: LayoutDashboard },
   { key: "accounts", id: "accounts", icon: Users },
   { key: "subscriptions", id: "subscriptions", icon: CreditCard },

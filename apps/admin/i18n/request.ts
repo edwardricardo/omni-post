@@ -1,38 +1,19 @@
 /**
  * @file request.ts
- * @description next-intl server configuration. Resolves locale from
- * the NEXT_LOCALE cookie (set by the language switcher) or falls back
- * to the browser's Accept-Language header, defaulting to English.
+ * @description next-intl request-scoped configuration. Resolves the active
+ *              locale from the request (locale path segment via the proxy /
+ *              routing), validates it against the supported set, falls back
+ *              to the default locale, and loads the matching message catalogue
+ *              from `messages/{locale}.json`.
  * @layer infrastructure
  */
 import { getRequestConfig } from "next-intl/server";
-import { cookies } from "next/headers";
-
-const SUPPORTED_LOCALES = ["en", "es"] as const;
-type Locale = (typeof SUPPORTED_LOCALES)[number];
-
-function isValidLocale(locale: string): locale is Locale {
-  return SUPPORTED_LOCALES.includes(locale as Locale);
-}
+import { hasLocale } from "next-intl";
+import { routing } from "./routing";
 
 export default getRequestConfig(async ({ requestLocale }) => {
-  // 1. Try requestLocale (from middleware or [locale] routing)
-  let locale: Locale = "en";
   const requested = await requestLocale;
-  if (requested && isValidLocale(requested)) {
-    locale = requested;
-  } else {
-    // 2. Fall back to NEXT_LOCALE cookie (set by language switcher)
-    try {
-      const cookieStore = await cookies();
-      const cookieLocale = cookieStore.get("NEXT_LOCALE")?.value;
-      if (cookieLocale && isValidLocale(cookieLocale)) {
-        locale = cookieLocale;
-      }
-    } catch {
-      // cookies() may throw in certain contexts — use default
-    }
-  }
+  const locale = hasLocale(routing.locales, requested) ? requested : routing.defaultLocale;
 
   return {
     locale,

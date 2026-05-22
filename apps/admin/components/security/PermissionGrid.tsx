@@ -9,15 +9,18 @@
 
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { Save, ShieldAlert, ChevronRight, ChevronDown } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations, type Messages } from "next-intl";
 import { toast } from "@packages/ui";
 
 import { ApiError, getErrorMessage } from "@packages/api-errors";
 import { api, type RoleInfo } from "../../lib/apiClient";
 import { ActionButton } from "../ui/ActionButton";
 
+/** Union of every permission category key declared under `security.permissions.categories`. */
+type PermissionCategory = keyof Messages["security"]["permissions"]["categories"];
+
 /** Permission category keys mapped to their individual permissions */
-const CATEGORY_KEYS: Record<string, string[]> = {
+const CATEGORY_KEYS: Record<PermissionCategory, string[]> = {
   userManagement: ["user:read", "user:manage", "user:manage_roles"],
   accountManagement: ["account:read", "account:manage"],
   billingSubscriptions: ["billing:read", "billing:manage"],
@@ -86,11 +89,16 @@ export function PermissionGrid({ role, onPermissionsSaved }: PermissionGridProps
   const allPermissions = useMemo(() => Object.values(CATEGORY_KEYS).flat(), []);
   const categories = useMemo(
     () =>
-      Object.entries(CATEGORY_KEYS).map(([key, permissions]) => ({
-        key,
-        label: tp(`categories.${key}`),
-        permissions,
-      })),
+      // `Object.entries` widens keys to `string`; `CATEGORY_KEYS` is keyed by
+      // `PermissionCategory` by construction, so narrowing the entries back to
+      // that union is sound and lets `tp(\`categories.${key}\`)` type-check.
+      (Object.entries(CATEGORY_KEYS) as [PermissionCategory, string[]][]).map(
+        ([key, permissions]) => ({
+          key,
+          label: tp(`categories.${key}`),
+          permissions,
+        })
+      ),
     [tp]
   );
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(

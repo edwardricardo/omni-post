@@ -10,6 +10,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest --coverage",
     "typecheck": "tsc --noEmit",
+    "i18n:lint": "node scripts/i18n-validate.mjs",
     "storybook": "storybook dev -p 6007",
     "build-storybook": "storybook build",
     "storybook:test": "test-storybook"
@@ -37,6 +38,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "4.10.2",
+    "@formatjs/icu-messageformat-parser": "3.5.9",
     "@playwright/test": "1.55.1",
     "@storybook/addon-a11y": "10.2.13",
     "@storybook/addon-docs": "10.2.13",

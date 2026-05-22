@@ -5,13 +5,25 @@
  * @layer infrastructure
  */
 
+import type { Messages } from "next-intl";
+import type { useTranslations } from "next-intl";
+
+/** Translator scoped to the "settings" namespace (next-intl type-safe). */
+type SettingsTranslator = ReturnType<typeof useTranslations<"settings">>;
+
+/** Union of every field key declared under the `settings.fields` catalog. */
+type SettingsFieldKey = keyof Messages["settings"]["fields"];
+
+/** Union of every credential group key declared under the `settings.groups` catalog. */
+type CredentialGroup = keyof Messages["settings"]["groups"];
+
 export interface FieldDef {
-  key: string;
+  key: SettingsFieldKey;
   label: string;
   isSecret: boolean;
 }
 
-const CREDENTIAL_KEYS: Record<string, string[]> = {
+const CREDENTIAL_KEYS: Record<CredentialGroup, SettingsFieldKey[]> = {
   STRIPE: [
     "secretKey",
     "webhookSecret",
@@ -114,7 +126,7 @@ export const SOCIAL_GROUPS = [
 ] as const;
 
 /** Tab key to credential group(s) mapping for overview navigation */
-export const TAB_GROUP_MAP: Record<string, string[]> = {
+export const TAB_GROUP_MAP: Record<string, CredentialGroup[]> = {
   gateways: ["STRIPE", "PADDLE"],
   email: ["RESEND"],
   ai: ["AI_POOL"],
@@ -124,6 +136,8 @@ export const TAB_GROUP_MAP: Record<string, string[]> = {
   social: [...SOCIAL_GROUPS],
 };
 
+export type { CredentialGroup, SettingsFieldKey };
+
 /**
  * @function buildFieldDefs
  * @description Builds FieldDef array for a credential group using i18n labels.
@@ -131,7 +145,7 @@ export const TAB_GROUP_MAP: Record<string, string[]> = {
  * @param t - Translation function scoped to "settings"
  * @returns Array of field definitions with label and secret flag
  */
-export function buildFieldDefs(group: string, t: (key: string) => string): FieldDef[] {
+export function buildFieldDefs(group: CredentialGroup, t: SettingsTranslator): FieldDef[] {
   return (CREDENTIAL_KEYS[group] ?? []).map((key) => ({
     key,
     label: t(`fields.${key}`),

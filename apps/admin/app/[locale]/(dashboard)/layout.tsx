@@ -6,6 +6,7 @@
  */
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { getLocale } from "next-intl/server";
 
 import { SidebarNav } from "@/components/shared/SidebarNav";
 import { SkipLink } from "@/components/shared/SkipLink";
@@ -16,7 +17,7 @@ import { verifyAccessToken } from "@/lib/auth/backend-client";
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
   const token = cookieStore.get("admin-session")?.value;
-  if (!token) redirect("/login");
+  if (!token) redirect(`/${await getLocale()}/login`);
 
   const user = await verifyAccessToken(token);
   if (!user) {

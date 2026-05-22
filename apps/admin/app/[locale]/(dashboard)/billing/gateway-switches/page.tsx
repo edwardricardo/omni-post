@@ -8,7 +8,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { ArrowRightLeft, Calendar, Clock, RefreshCw, X } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations, type Messages } from "next-intl";
 import { isPermissionDenied, getErrorMessage } from "@packages/api-errors";
 import { AccessDenied } from "@/components/shared/AccessDenied";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
@@ -48,7 +48,17 @@ const GATEWAY_COLORS: Record<string, string> = {
   PADDLE: "#05E27B",
 };
 
-const TAB_KEYS = ["ALL", "SCHEDULED", "PENDING_CHECKOUT", "COMPLETED", "SUSPENDED", "CANCELLED"];
+/** Union of status keys declared under the `gatewaySwitches.status` catalog. */
+type GatewaySwitchStatusKey = keyof Messages["gatewaySwitches"]["status"];
+
+/** Status tabs shown in the filter bar (excludes the synthetic "ALL" tab). */
+const STATUS_TAB_KEYS = [
+  "SCHEDULED",
+  "PENDING_CHECKOUT",
+  "COMPLETED",
+  "SUSPENDED",
+  "CANCELLED",
+] as const satisfies GatewaySwitchStatusKey[];
 const EXTEND_OPTIONS = [12, 24, 48, 72];
 
 // ---------------------------------------------------------------------------
@@ -420,7 +430,7 @@ function GatewaySwitchesPageContent() {
   const tabsFinal = useMemo(
     () => [
       { key: "ALL", label: `${tc("status")} (${total})` },
-      ...TAB_KEYS.slice(1).map((key) => ({ key, label: t(`status.${key}`) })),
+      ...STATUS_TAB_KEYS.map((key) => ({ key, label: t(`status.${key}`) })),
     ],
     [t, tc, total]
   );
