@@ -436,6 +436,9 @@ export const TOKENS = {
   // Social Listening (mentions)
   TrackedTermQuery: Symbol.for("TrackedTermQuery"),
   DispatchMentionSearchUseCase: Symbol.for("DispatchMentionSearchUseCase"),
+  MentionQueryRepository: Symbol.for("MentionQueryRepository"),
+  GetShareOfVoiceQuery: Symbol.for("GetShareOfVoiceQuery"),
+  ListMentionsQuery: Symbol.for("ListMentionsQuery"),
 
   // Payment Billing
   PaymentAdapter: Symbol.for("PaymentAdapter"),

@@ -51,6 +51,8 @@ import type { SocialConversationRepository } from "../../domain/repositories/Soc
 import type { SocialOutboundReplyRepository } from "../../domain/repositories/SocialOutboundReplyRepository.js";
 import { PrismaSocialMessageRepository } from "../repositories/PrismaSocialMessageRepository.js";
 import { PrismaSocialMessageQueryRepository } from "../repositories/PrismaSocialMessageQueryRepository.js";
+import type { MentionQueryRepository } from "../../domain/repositories/MentionQueryRepository.js";
+import { PrismaMentionQueryRepository } from "../repositories/PrismaMentionQueryRepository.js";
 import { PrismaSocialConversationRepository } from "../repositories/PrismaSocialConversationRepository.js";
 import { PrismaSocialOutboundReplyRepository } from "../repositories/PrismaSocialOutboundReplyRepository.js";
 import type { ConversationNoteRepository } from "../../domain/repositories/ConversationNoteRepository.js";
@@ -220,6 +222,11 @@ export function setupRepositories(container: Container): void {
   container.register<SocialMessageQueryRepository>(
     TOKENS.SocialMessageQueryRepository,
     () => new PrismaSocialMessageQueryRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<MentionQueryRepository>(
+    TOKENS.MentionQueryRepository,
+    () => new PrismaMentionQueryRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
   container.register<SocialConversationRepository>(

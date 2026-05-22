@@ -107,6 +107,7 @@ import { onboardingRoutes } from "./onboarding/onboardingRoutes.js";
 import { announcementRoutes } from "./announcements/announcementRoutes.js";
 import { commentRoutes } from "./comments/commentRoutes.js";
 import { inboxRoutes } from "./inbox/inboxRoutes.js";
+import { listeningRoutes } from "./listening/listeningRoutes.js";
 import { conversationNoteRoutes } from "./inbox/conversationNoteRoutes.js";
 import { campaignRoutes } from "./campaigns/campaignRoutes.js";
 import { utmRoutes } from "./utm/utmRoutes.js";
@@ -522,6 +523,7 @@ async function createApp(): Promise<FastifyInstance> {
   await typedApp.register(approvalWorkflowRoutes);
   await typedApp.register(commentRoutes);
   await typedApp.register(inboxRoutes);
+  await typedApp.register(listeningRoutes);
   await typedApp.register(conversationNoteRoutes);
   await typedApp.register(campaignRoutes);
   await typedApp.register(utmRoutes);

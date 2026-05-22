@@ -40,8 +40,11 @@ import { InboxEventHandlers } from "../../application/inbox/handlers/InboxEventH
 import type { ProviderRegistryService } from "../../providers/providerRegistry.js";
 import { DispatchInboxSyncUseCase } from "../../application/inbox/DispatchInboxSyncUseCase.js";
 import { DispatchMentionSearchUseCase } from "../../application/listening/DispatchMentionSearchUseCase.js";
+import { GetShareOfVoiceQuery } from "../../application/listening/GetShareOfVoiceQuery.js";
+import { ListMentionsQuery } from "../../application/listening/ListMentionsQuery.js";
 import type { ChannelQueryForIngestion } from "../../domain/repositories/ChannelQueryForIngestion.js";
 import type { TrackedTermQuery } from "../../domain/repositories/TrackedTermQuery.js";
+import type { MentionQueryRepository } from "../../domain/repositories/MentionQueryRepository.js";
 import { PrismaTrackedTermQuery } from "../repositories/PrismaTrackedTermQuery.js";
 import { providerRegistry } from "../../providers/providerRegistry.js";
 import type { QueuePortRegistry } from "@ports/core";
@@ -255,6 +258,22 @@ export function setupInboxUseCases(container: Container): void {
           .forQueue(QUEUE_NAMES.MENTION_INGEST),
         providerRegistry.getMentionSearchProviders(),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+  container.register<GetShareOfVoiceQuery>(
+    TOKENS.GetShareOfVoiceQuery,
+    () =>
+      new GetShareOfVoiceQuery(
+        container.resolve<MentionQueryRepository>(TOKENS.MentionQueryRepository)
+      ),
+    true
+  );
+  container.register<ListMentionsQuery>(
+    TOKENS.ListMentionsQuery,
+    () =>
+      new ListMentionsQuery(
+        container.resolve<MentionQueryRepository>(TOKENS.MentionQueryRepository)
       ),
     true
   );
