@@ -20,8 +20,11 @@ import { env } from "../config/env.js";
 
 // Webhook subscription schemas
 const CreateWebhookSubscriptionSchema = z.object({
-  provider: z.enum(["X", "INSTAGRAM", "FACEBOOK", "YOUTUBE", "TIKTOK"]),
+  provider: z.enum(["X", "INSTAGRAM", "FACEBOOK", "YOUTUBE", "TIKTOK", "TELEGRAM", "THREADS"]),
   projectId: z.string().uuid().optional(),
+  // Provider signing secret. Meta/X verify with the developer's app secret, so
+  // the caller supplies it; Telegram/YouTube secrets we choose, so it may be omitted.
+  secretKey: z.string().min(1).optional(),
   eventTypes: z.array(
     z.enum([
       "POST_PUBLISHED",
@@ -119,8 +122,9 @@ export class WebhookManager {
     const webhookUrl =
       validated.webhookUrl || `${env.API_BASE_URL}/webhooks/${validated.provider.toLowerCase()}`;
 
-    // Generate secret key for signature verification
-    const secretKey = this.generateSecretKey();
+    // Provider signing secret: the caller's app secret (Meta/X) or a generated
+    // one when we own the secret (Telegram/YouTube).
+    const secretKey = validated.secretKey || this.generateSecretKey();
 
     // Generate verification token for platforms that need it (Facebook)
     const verifyToken = validated.verifyToken || this.generateVerifyToken();

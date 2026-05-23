@@ -88,6 +88,7 @@ import { clientBillingRoutes } from "./billing/clientBillingRoutes.js";
 import { adminBillingRoutes } from "./billing/adminBillingRoutes.js";
 import { billingWebhookRoutes } from "./billing/billingWebhookRoutes.js";
 import { webhookInboundRoutes } from "./webhooks/webhookInboundRoutes.js";
+import { webhookSubscriptionRoutes } from "./webhooks/webhookSubscriptionRoutes.js";
 import { complianceRoutes } from "./compliance/complianceRoutes.js";
 import { settingsRoutes } from "./settings/settingsRoutes.js";
 import { outboxAdminRoutes } from "./outbox/outboxAdminRoutes.js";
@@ -533,6 +534,7 @@ async function createApp(): Promise<FastifyInstance> {
   await typedApp.register(inboxRoutes);
   await typedApp.register(listeningRoutes);
   await typedApp.register(bulkScheduleRoutes);
+  await typedApp.register(webhookSubscriptionRoutes);
   await typedApp.register(conversationNoteRoutes);
   await typedApp.register(campaignRoutes);
   await typedApp.register(utmRoutes);
