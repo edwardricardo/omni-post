@@ -32,6 +32,11 @@ const stubAccountRepository = {
   findByProjectId: async () => [],
 } as unknown as never;
 
+// The pure-computation tests never reach the analytics / project read ports,
+// so empty stubs are sufficient.
+const stubAnalyticsRepository = {} as unknown as never;
+const stubProjectRepository = {} as unknown as never;
+
 // ========================================
 // SETUP
 // ========================================
@@ -51,7 +56,9 @@ beforeAll(() => {
     mockRedis,
     stubAccountRepository,
     scheduler,
-    cache
+    cache,
+    stubAnalyticsRepository,
+    stubProjectRepository
   );
 });
 

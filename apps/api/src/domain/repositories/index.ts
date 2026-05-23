@@ -91,6 +91,9 @@ export {
   type HistoricalTrendDto,
 } from "./AnalyticsReadRepository.js";
 
+// Thread read-model port (analytics consumers)
+export { type ThreadReadRepositoryPort } from "./ThreadReadRepository.js";
+
 // Team-membership operations live on CustomerUserRepository (exported below).
 export {
   type CustomerRoleRepository,
@@ -244,6 +247,10 @@ export {
   type PostMediaDto,
   type ChannelDto,
   type AnalyticsDto,
+  type ThreadDto,
+  type TweetDto,
+  type ThreadWithRelations,
+  type ThreadWithTweets,
   type AdminUserDto,
   type SsoProviderKind,
 } from "./ReadModelDtos.js";

@@ -12,6 +12,7 @@ import type { AuditLogRepository } from "../../domain/repositories/AuditLogRepos
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import { AccountLifecycleQueryService } from "../../admin/accountLifecycleQueryService.js";
 import type { AnalyticsReadRepositoryPort } from "../../domain/repositories/AnalyticsReadRepository.js";
+import type { ThreadReadRepositoryPort } from "../../domain/repositories/ThreadReadRepository.js";
 import type { EventDispatcher as _EventDispatcher } from "../../domain/index.js";
 import { AuthService } from "../../auth/authService.js";
 import { MfaService } from "../../auth/mfaService.js";
@@ -489,7 +490,8 @@ export function setupServices(
       new ThreadAnalytics(
         container.resolve<CachePort>(TOKENS.CachePort),
         {} as ApiMetrics,
-        container.resolve<AnalyticsReadRepositoryPort>(TOKENS.AnalyticsReadRepository)
+        container.resolve<AnalyticsReadRepositoryPort>(TOKENS.AnalyticsReadRepository),
+        container.resolve<ThreadReadRepositoryPort>(TOKENS.ThreadReadRepository)
       ),
     true
   );

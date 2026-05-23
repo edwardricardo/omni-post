@@ -11,6 +11,7 @@ import type { CachePort } from "@ports/core";
 import type { CampaignRepository } from "../../domain/repositories/CampaignRepository.js";
 import type { CampaignQueryRepository } from "../../domain/repositories/CampaignQueryRepository.js";
 import type { AnalyticsReadRepositoryPort } from "../../domain/repositories/AnalyticsReadRepository.js";
+import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
 import type { TrackedLinkRepository } from "../../domain/repositories/TrackedLinkRepository.js";
 import {
   GetCrossPlatformAnalyticsUseCase,
@@ -56,15 +57,21 @@ export function setupAnalyticsUseCases(container: Container): void {
   // Register Analytics Port Adapters
   container.register<CrossPlatformAnalyticsAdapter>(
     TOKENS.CrossPlatformAnalyticsAdapter,
-    () => new CrossPlatformAnalyticsAdapter(container.resolve<CachePort>(TOKENS.CachePort)),
+    () =>
+      new CrossPlatformAnalyticsAdapter(
+        container.resolve<CachePort>(TOKENS.CachePort),
+        container.resolve<ProjectQueryRepositoryPort>(TOKENS.ProjectQueryRepository),
+        container.resolve<AnalyticsReadRepositoryPort>(TOKENS.AnalyticsReadRepository)
+      ),
     true
   );
   container.register<PerformanceComparatorAdapter>(
     TOKENS.PerformanceComparatorAdapter,
     () =>
       new PerformanceComparatorAdapter(
-        container.resolve<PrismaClient>(TOKENS.PrismaClient),
-        container.resolve<CachePort>(TOKENS.CachePort)
+        container.resolve<CachePort>(TOKENS.CachePort),
+        container.resolve<ProjectQueryRepositoryPort>(TOKENS.ProjectQueryRepository),
+        container.resolve<AnalyticsReadRepositoryPort>(TOKENS.AnalyticsReadRepository)
       ),
     true
   );
@@ -72,8 +79,8 @@ export function setupAnalyticsUseCases(container: Container): void {
     TOKENS.ROICalculatorAdapter,
     () =>
       new ROICalculatorAdapter(
-        container.resolve<PrismaClient>(TOKENS.PrismaClient),
-        container.resolve<CachePort>(TOKENS.CachePort)
+        container.resolve<CachePort>(TOKENS.CachePort),
+        container.resolve<ProjectQueryRepositoryPort>(TOKENS.ProjectQueryRepository)
       ),
     true
   );

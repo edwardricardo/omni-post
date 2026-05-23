@@ -10,6 +10,7 @@ import type {
   PostMediaDto,
   ProjectDto,
   AnalyticsDto,
+  ChannelDto,
 } from "./ReadModelDtos.js";
 
 /**
@@ -100,6 +101,18 @@ export interface ProjectQueryRepositoryPort {
    * Return a single project by ID, or null if not found.
    */
   findById(projectId: string): Promise<ProjectDto | null>;
+
+  /**
+   * Return whether the given account owns the given project. Used by realtime
+   * analytics to authorize a WebSocket subscription against a project.
+   */
+  getProjectAccess(accountId: string, projectId: string): Promise<boolean>;
+
+  /**
+   * Return all channels belonging to a project as flat DTOs. Used by
+   * cross-platform analytics to enumerate a project's connected channels.
+   */
+  getChannelsByProject(projectId: string): Promise<ChannelDto[]>;
 }
 
 /**

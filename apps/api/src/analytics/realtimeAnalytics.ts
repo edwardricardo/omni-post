@@ -9,7 +9,6 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import type * as WebSocket from "ws";
 import Redis from "ioredis";
 import { z } from "zod";
-import { prisma } from "@infra/prisma";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { CachePort } from "@ports/core";
 import { createLogger } from "../lib/logger.js";
@@ -19,6 +18,8 @@ const analyticsLogger = createLogger("analytics");
 // Note: Authentication is handled within this service
 import jwt from "jsonwebtoken";
 import type { AccountQueryRepositoryPort } from "../domain/repositories/AccountQueryRepository.js";
+import type { AnalyticsReadRepositoryPort } from "../domain/repositories/AnalyticsReadRepository.js";
+import type { ProjectQueryRepositoryPort } from "../domain/repositories/ProjectQueryRepository.js";
 import { BaseService } from "../services/BaseService";
 
 interface RealtimeMetrics {
@@ -78,7 +79,9 @@ export class RealtimeAnalyticsService extends BaseService {
     redis: Redis,
     private readonly accountRepository: AccountQueryRepositoryPort,
     private readonly scheduler: BackgroundTaskScheduler,
-    private readonly cache: CachePort
+    private readonly cache: CachePort,
+    private readonly analyticsRepository: AnalyticsReadRepositoryPort,
+    private readonly projectRepository: ProjectQueryRepositoryPort
   ) {
     super("RealtimeAnalyticsService");
     this.redis = redis;
@@ -375,15 +378,8 @@ export class RealtimeAnalyticsService extends BaseService {
 
     try {
       // Get latest analytics for subscribed posts
-      const analytics = await prisma.analytics.findMany({
-        where: {
-          postId: {
-            in: subscribedPostIds,
-          },
-        },
-        orderBy: {
-          capturedAt: "desc",
-        },
+      const analytics = await this.analyticsRepository.getByPostIds(subscribedPostIds, {
+        orderBy: { capturedAt: "desc" },
       });
 
       // Group by postId and provider
@@ -564,13 +560,7 @@ export class RealtimeAnalyticsService extends BaseService {
    */
   private async verifyProjectAccess(userId: string, projectId: string): Promise<boolean> {
     try {
-      const project = await prisma.project.findFirst({
-        where: {
-          id: projectId,
-          accountId: userId,
-        },
-      });
-      return !!project;
+      return await this.projectRepository.getProjectAccess(userId, projectId);
     } catch (_error: unknown) {
       analyticsLogger.error({ err: _error }, "Error verifying project access");
       return false;
@@ -582,11 +572,7 @@ export class RealtimeAnalyticsService extends BaseService {
    */
   private async getProjectPostIds(projectId: string): Promise<string[]> {
     try {
-      const posts = await prisma.post.findMany({
-        where: { projectId },
-        select: { id: true },
-      });
-      return posts.map((p) => p.id);
+      return await this.projectRepository.getPostIds(projectId);
     } catch (_error: unknown) {
       analyticsLogger.error({ err: _error }, "Error getting project post IDs");
       return [];
@@ -598,10 +584,7 @@ export class RealtimeAnalyticsService extends BaseService {
    */
   private async getCurrentMetrics(postId: string): Promise<RealtimeMetrics | null> {
     try {
-      const analytics = await prisma.analytics.findFirst({
-        where: { postId },
-        orderBy: { capturedAt: "desc" },
-      });
+      const [analytics] = await this.analyticsRepository.getLatestForPosts([postId]);
 
       if (!analytics) return null;
 

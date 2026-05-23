@@ -186,6 +186,53 @@ export interface ChannelDto {
 }
 
 /**
+ * Flat DTO for a persisted Thread row.
+ * Mirrors `Prisma.Thread` without the Prisma import.
+ */
+export interface ThreadDto {
+  id: string;
+  postId: string;
+  strategy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * Flat DTO for a persisted Tweet row (a single entry within a thread).
+ * Mirrors `Prisma.Tweet` without the Prisma import.
+ */
+export interface TweetDto {
+  id: string;
+  threadId: string;
+  sequenceNumber: number;
+  content: string;
+  media: unknown;
+  tweetId: string | null;
+  parentTweetId: string | null;
+  status: string;
+  publishedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * Thread DTO eagerly joined with its parent post (and the post's project)
+ * plus its ordered tweets. Mirrors the `findUnique`/`findMany` include shape
+ * used by thread analytics.
+ */
+export interface ThreadWithRelations extends ThreadDto {
+  post: PostDto & { project: ProjectDto };
+  tweets: TweetDto[];
+}
+
+/**
+ * Thread DTO joined only with its ordered tweets (no post/project join).
+ */
+export interface ThreadWithTweets extends ThreadDto {
+  tweets: TweetDto[];
+}
+
+/**
  * Flat DTO for a persisted Analytics row.
  * Mirrors `Prisma.Analytics` without the Prisma import.
  */

@@ -17,25 +17,29 @@
  * @layer infrastructure
  */
 
-import { describe, it, beforeAll, afterAll, expect } from "vitest";
+import { describe, it, beforeAll, expect } from "vitest";
 import { ThreadAnalytics } from "../../src/analytics/threadAnalytics.js";
-import Redis from "ioredis";
+import { InMemoryCacheAdapter } from "@adapters/cache-redis";
+import type { ApiMetrics } from "../../src/metrics/apiMetrics.js";
+import type { AnalyticsReadRepositoryPort } from "../../src/domain/repositories/AnalyticsReadRepository.js";
+import type { ThreadReadRepositoryPort } from "../../src/domain/repositories/ThreadReadRepository.js";
 
-let mockRedis: Redis;
 let threadAnalytics: ThreadAnalytics;
 
-beforeAll(async () => {
-  mockRedis = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
-  const mockMetrics: any = {
-    metrics: {
-      cacheHits: { inc: () => {} },
-    },
-  };
-  threadAnalytics = new ThreadAnalytics(mockRedis, mockMetrics);
-});
+// Minimal stubs — the performance-rating tests only exercise pure computation,
+// so the cache + repositories are never reached.
+const stubAnalyticsRepository = {} as unknown as AnalyticsReadRepositoryPort;
+const stubThreadRepository = {} as unknown as ThreadReadRepositoryPort;
 
-afterAll(() => {
-  mockRedis.disconnect();
+beforeAll(() => {
+  const cache = new InMemoryCacheAdapter();
+  const mockMetrics = {} as unknown as ApiMetrics;
+  threadAnalytics = new ThreadAnalytics(
+    cache,
+    mockMetrics,
+    stubAnalyticsRepository,
+    stubThreadRepository
+  );
 });
 
 // ========================================

@@ -14,7 +14,7 @@ import type {
   PublishedPost,
   MediaTypeCount,
 } from "../../domain/repositories/ProjectQueryRepository.js";
-import type { ProjectDto } from "../../domain/repositories/ReadModelDtos.js";
+import type { ProjectDto, ChannelDto } from "../../domain/repositories/ReadModelDtos.js";
 
 /**
  * PrismaProjectQueryRepository
@@ -157,5 +157,26 @@ export class PrismaProjectQueryRepository implements ProjectQueryRepositoryPort 
       where: { id: projectId },
     });
     return row ? (row as unknown as ProjectDto) : null;
+  }
+
+  /**
+   * Return whether the given account owns the given project.
+   */
+  async getProjectAccess(accountId: string, projectId: string): Promise<boolean> {
+    const count = await this.prisma.project.count({
+      where: { id: projectId, accountId },
+    });
+    return count > 0;
+  }
+
+  /**
+   * Return all channels belonging to a project as flat DTOs.
+   */
+  async getChannelsByProject(projectId: string): Promise<ChannelDto[]> {
+    const rows = await this.prisma.channel.findMany({
+      where: { projectId },
+    });
+    // Prisma enum values are identical string literals at runtime — safe cast.
+    return rows as unknown as ChannelDto[];
   }
 }

@@ -10,6 +10,8 @@ import type { CrossPlatformAnalyticsPort } from "../../application/analytics/Get
 import { CrossPlatformAnalyticsEngine } from "../../analytics/crossPlatform/index.js";
 import type { CrossPlatformAnalyticsOptions } from "../../analytics/crossPlatform/types.js";
 import type { TimeRange, ProviderType } from "@shared/analytics";
+import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
+import type { AnalyticsReadRepositoryPort } from "../../domain/repositories/AnalyticsReadRepository.js";
 
 /**
  * Adapter that implements CrossPlatformAnalyticsPort by delegating to CrossPlatformAnalyticsEngine.
@@ -25,8 +27,12 @@ import type { TimeRange, ProviderType } from "@shared/analytics";
 export class CrossPlatformAnalyticsAdapter implements CrossPlatformAnalyticsPort {
   private readonly engine: CrossPlatformAnalyticsEngine;
 
-  constructor(cache: CachePort) {
-    this.engine = new CrossPlatformAnalyticsEngine(cache);
+  constructor(
+    cache: CachePort,
+    projectRepository: ProjectQueryRepositoryPort,
+    analyticsRepository: AnalyticsReadRepositoryPort
+  ) {
+    this.engine = new CrossPlatformAnalyticsEngine(cache, projectRepository, analyticsRepository);
   }
 
   async generateCrossPlatformMetrics(options: {

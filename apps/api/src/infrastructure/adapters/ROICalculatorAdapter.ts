@@ -12,8 +12,6 @@ import { ROICalculator } from "../../analytics/roiCalculator.js";
 import type { ROICalculationOptions } from "../../analytics/roi/types.js";
 import type { TimeRange, ProviderType } from "@shared/analytics";
 import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
-import { PrismaProjectQueryRepository } from "../repositories/PrismaProjectQueryRepository.js";
-import type { PrismaClient } from "@infra/prisma";
 
 /**
  * Adapter that implements ROICalculatorPort by delegating to ROICalculator.
@@ -27,14 +25,8 @@ import type { PrismaClient } from "@infra/prisma";
 export class ROICalculatorAdapter implements ROICalculatorPort {
   private readonly calculator: ROICalculator;
 
-  constructor(
-    private readonly prisma: PrismaClient,
-    cache: CachePort,
-    projectRepository?: ProjectQueryRepositoryPort
-  ) {
-    // Fallback to Prisma-backed instance when not injected (e.g. DI container setup)
-    const repo = projectRepository ?? new PrismaProjectQueryRepository(this.prisma);
-    this.calculator = new ROICalculator(repo, cache);
+  constructor(cache: CachePort, projectRepository: ProjectQueryRepositoryPort) {
+    this.calculator = new ROICalculator(projectRepository, cache);
   }
 
   async calculateROI(options: {

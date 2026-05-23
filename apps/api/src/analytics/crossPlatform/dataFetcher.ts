@@ -1,12 +1,12 @@
 /**
  * @file dataFetcher.ts
- * @description Handles all database queries and data retrieval for cross-platform analytics
- *              using repository pattern for clean data access.
+ * @description Handles all data retrieval for cross-platform analytics through
+ *              read-model repository ports for clean, Prisma-free data access.
  * @layer infrastructure
  */
 
-import { prisma } from "@infra/prisma";
 import type { DomainAnalytics } from "@shared/types";
+import type { AnalyticsReadRepositoryPort } from "../../domain/repositories/AnalyticsReadRepository.js";
 import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
 import type {
   CrossPlatformAnalyticsOptions,
@@ -16,46 +16,67 @@ import type {
 } from "./types";
 
 /**
- * Fetches analytics data for the given options and date range
+ * Resolve the set of post IDs in scope for the given options: a single project
+ * when projectId is set, otherwise every post across the account's projects.
+ */
+async function resolveScopedPostIds(
+  options: CrossPlatformAnalyticsOptions,
+  projectRepository: ProjectQueryRepositoryPort
+): Promise<string[]> {
+  if (options.projectId) {
+    return projectRepository.getPostIds(options.projectId);
+  }
+  const projects = await projectRepository.getByAccountId(options.accountId);
+  const postIdsArrays = await Promise.all(
+    projects.map((project) => projectRepository.getPostIds(project.id))
+  );
+  return postIdsArrays.flat();
+}
+
+/**
+ * Resolve the set of project IDs in scope for the given options.
+ */
+async function resolveScopedProjectIds(
+  options: CrossPlatformAnalyticsOptions,
+  projectRepository: ProjectQueryRepositoryPort
+): Promise<string[]> {
+  if (options.projectId) {
+    return [options.projectId];
+  }
+  const projects = await projectRepository.getByAccountId(options.accountId);
+  return projects.map((project) => project.id);
+}
+
+/**
+ * Fetches analytics data for the given options and date range, ordered by
+ * capturedAt ascending and filtered to the requested providers (if any).
  */
 export async function getAnalyticsData(
   options: CrossPlatformAnalyticsOptions,
   startDate: Date,
   endDate: Date,
+  analyticsRepository: AnalyticsReadRepositoryPort,
   projectRepository: ProjectQueryRepositoryPort
 ): Promise<DomainAnalytics[]> {
-  const whereClause: Record<string, unknown> = {
-    capturedAt: {
-      gte: startDate,
-      lte: endDate,
-    },
-  };
+  const postIds = await resolveScopedPostIds(options, projectRepository);
 
-  if (options.projectId) {
-    const postIds = await projectRepository.getPostIds(options.projectId);
-    whereClause.postId = { in: postIds };
-  } else {
-    const projects = await projectRepository.getByAccountId(options.accountId);
-    const projectIds = projects.map((p) => p.id);
-    const postIdsArrays = await Promise.all(
-      projectIds.map((projectId) => projectRepository.getPostIds(projectId))
-    );
-    const postIds = postIdsArrays.flat();
-    whereClause.postId = { in: postIds };
-  }
-
-  if (options.providers && options.providers.length > 0) {
-    whereClause.provider = { in: options.providers };
-  }
-
-  return prisma.analytics.findMany({
-    where: whereClause,
+  const analytics = await analyticsRepository.getByPostIds(postIds, {
+    startDate,
+    endDate,
     orderBy: { capturedAt: "asc" },
   });
+
+  if (options.providers && options.providers.length > 0) {
+    const providerSet = new Set<string>(options.providers as unknown as string[]);
+    return analytics.filter((record) => providerSet.has(record.provider)) as DomainAnalytics[];
+  }
+
+  return analytics as DomainAnalytics[];
 }
 
 /**
- * Fetches posts data for the given options and date range
+ * Fetches posts data for the given options and date range. Each post carries
+ * its latest content revision and media types.
  */
 export async function getPostsData(
   options: CrossPlatformAnalyticsOptions,
@@ -63,62 +84,51 @@ export async function getPostsData(
   endDate: Date,
   projectRepository: ProjectQueryRepositoryPort
 ): Promise<PostDataItem[]> {
-  const whereClause: Record<string, unknown> = {
-    createdAt: {
-      gte: startDate,
-      lte: endDate,
-    },
-  };
+  const projectIds = await resolveScopedProjectIds(options, projectRepository);
 
-  if (options.projectId) {
-    whereClause.projectId = options.projectId;
-  } else {
-    const projects = await projectRepository.getByAccountId(options.accountId);
-    whereClause.projectId = { in: projects.map((p) => p.id) };
-  }
+  const postsByProject = await Promise.all(
+    projectIds.map((projectId) => projectRepository.getPostsWithContent(projectId))
+  );
+  const posts = postsByProject.flat();
 
-  const posts = await prisma.post.findMany({
-    where: whereClause,
-    include: {
-      contents: {
-        take: 1,
-        orderBy: { createdAt: "desc" },
-      },
-      media: true,
-    },
-  });
-
-  return posts.map((post) => ({
-    id: post.id,
-    createdAt: post.createdAt,
-    contents: post.contents?.map((c) => ({
-      ...(c.body && { content: c.body }),
-      ...(c.title && { title: c.title }),
-      ...(c.tags && c.tags.length > 0 && { tags: c.tags }),
-    })),
-    media: post.media?.map((m) => ({ type: m.type })),
-  }));
+  return posts
+    .filter((post) => post.createdAt >= startDate && post.createdAt <= endDate)
+    .map((post) => {
+      // Latest content revision first — mirrors the legacy `take: 1` ordered desc.
+      const latestContent = [...post.contents].sort(
+        (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+      )[0];
+      return {
+        id: post.id,
+        createdAt: post.createdAt,
+        contents: latestContent
+          ? [
+              {
+                ...(latestContent.body && { content: latestContent.body }),
+                ...(latestContent.title && { title: latestContent.title }),
+                ...(latestContent.tags &&
+                  latestContent.tags.length > 0 && { tags: latestContent.tags }),
+              },
+            ]
+          : [],
+        media: post.media.map((m) => ({ type: m.type })),
+      };
+    });
 }
 
 /**
- * Fetches channel data for the given options
+ * Fetches channel data for the given options.
  */
 export async function getChannelsData(
   options: CrossPlatformAnalyticsOptions,
   projectRepository: ProjectQueryRepositoryPort
 ): Promise<ChannelDataItem[]> {
-  const whereClause: Record<string, unknown> = {};
+  const projectIds = await resolveScopedProjectIds(options, projectRepository);
 
-  if (options.projectId) {
-    whereClause.projectId = options.projectId;
-  } else {
-    const projects = await projectRepository.getByAccountId(options.accountId);
-    whereClause.projectId = { in: projects.map((p) => p.id) };
-  }
-
-  const channels = await prisma.channel.findMany({
-    where: whereClause,
-  });
+  const channelsByProject = await Promise.all(
+    projectIds.map((projectId) => projectRepository.getChannelsByProject(projectId))
+  );
+  const channels = channelsByProject.flat();
 
   return channels.map((channel) => ({
     id: channel.id,
