@@ -6,17 +6,19 @@
  * @layer infrastructure
  */
 
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import type { RejectVariantPort } from "../../application/ai/RejectRepurposeVariantUseCase.js";
 
 export class PrismaRejectVariantAdapter implements RejectVariantPort {
+  constructor(private readonly prisma: PrismaClient) {}
+
   async loadVariant(variantId: string): Promise<{
     id: string;
     proposalId: string;
     status: string;
     proposal: { accountId: string };
   } | null> {
-    const row = await prisma.repurposeVariant.findUnique({
+    const row = await this.prisma.repurposeVariant.findUnique({
       where: { id: variantId },
       include: {
         proposal: {
@@ -36,14 +38,14 @@ export class PrismaRejectVariantAdapter implements RejectVariantPort {
   }
 
   async setVariantRejected(variantId: string): Promise<void> {
-    await prisma.repurposeVariant.update({
+    await this.prisma.repurposeVariant.update({
       where: { id: variantId },
       data: { status: "REJECTED" },
     });
   }
 
   async allVariantsRejected(proposalId: string): Promise<boolean> {
-    const nonRejectedCount = await prisma.repurposeVariant.count({
+    const nonRejectedCount = await this.prisma.repurposeVariant.count({
       where: {
         proposalId,
         status: { not: "REJECTED" },
@@ -53,7 +55,7 @@ export class PrismaRejectVariantAdapter implements RejectVariantPort {
   }
 
   async setProposalRejected(proposalId: string): Promise<void> {
-    await prisma.repurposeProposal.update({
+    await this.prisma.repurposeProposal.update({
       where: { id: proposalId },
       data: { status: "REJECTED" },
     });

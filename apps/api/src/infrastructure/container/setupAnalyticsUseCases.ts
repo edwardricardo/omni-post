@@ -61,12 +61,20 @@ export function setupAnalyticsUseCases(container: Container): void {
   );
   container.register<PerformanceComparatorAdapter>(
     TOKENS.PerformanceComparatorAdapter,
-    () => new PerformanceComparatorAdapter(container.resolve<CachePort>(TOKENS.CachePort)),
+    () =>
+      new PerformanceComparatorAdapter(
+        container.resolve<PrismaClient>(TOKENS.PrismaClient),
+        container.resolve<CachePort>(TOKENS.CachePort)
+      ),
     true
   );
   container.register<ROICalculatorAdapter>(
     TOKENS.ROICalculatorAdapter,
-    () => new ROICalculatorAdapter(container.resolve<CachePort>(TOKENS.CachePort)),
+    () =>
+      new ROICalculatorAdapter(
+        container.resolve<PrismaClient>(TOKENS.PrismaClient),
+        container.resolve<CachePort>(TOKENS.CachePort)
+      ),
     true
   );
 

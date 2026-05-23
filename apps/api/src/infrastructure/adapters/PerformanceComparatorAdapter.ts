@@ -13,7 +13,7 @@ import type { PerformanceComparisonOptions } from "../../analytics/performanceCo
 import type { TimeRange, ProviderType, MetricType } from "@shared/analytics";
 import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
 import { PrismaProjectQueryRepository } from "../repositories/PrismaProjectQueryRepository.js";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 
 /**
  * Adapter that implements PerformanceComparatorPort by delegating to PerformanceComparator.
@@ -25,9 +25,13 @@ import { prisma } from "@infra/prisma";
 export class PerformanceComparatorAdapter implements PerformanceComparatorPort {
   private readonly comparator: PerformanceComparator;
 
-  constructor(cache: CachePort, projectRepository?: ProjectQueryRepositoryPort) {
+  constructor(
+    private readonly prisma: PrismaClient,
+    cache: CachePort,
+    projectRepository?: ProjectQueryRepositoryPort
+  ) {
     // Fallback to Prisma-backed instance when not injected (e.g. DI container setup)
-    const repo = projectRepository ?? new PrismaProjectQueryRepository(prisma);
+    const repo = projectRepository ?? new PrismaProjectQueryRepository(this.prisma);
     this.comparator = new PerformanceComparator(repo, cache);
   }
 

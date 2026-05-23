@@ -7,6 +7,7 @@
 
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
+import type { PrismaClient } from "@infra/prisma";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import type { QueuePortRegistry } from "@ports/core";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
@@ -55,7 +56,7 @@ export function setupRepurposeUseCases(container: Container): void {
     TOKENS.ApproveRepurposeVariantUseCase,
     () =>
       new ApproveRepurposeVariantUseCase(
-        new PrismaApproveVariantAdapter(),
+        new PrismaApproveVariantAdapter(container.resolve<PrismaClient>(TOKENS.PrismaClient)),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
@@ -66,7 +67,7 @@ export function setupRepurposeUseCases(container: Container): void {
     TOKENS.RejectRepurposeVariantUseCase,
     () =>
       new RejectRepurposeVariantUseCase(
-        new PrismaRejectVariantAdapter(),
+        new PrismaRejectVariantAdapter(container.resolve<PrismaClient>(TOKENS.PrismaClient)),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
@@ -77,7 +78,7 @@ export function setupRepurposeUseCases(container: Container): void {
     TOKENS.DetectRepurposeCandidatesUseCase,
     () =>
       new DetectRepurposeCandidatesUseCase(
-        new PrismaRepurposeDetectionAdapter(),
+        new PrismaRepurposeDetectionAdapter(container.resolve<PrismaClient>(TOKENS.PrismaClient)),
         new BullMQRepurposeJobDispatcher(
           container
             .resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
@@ -120,7 +121,7 @@ export function setupRepurposeUseCases(container: Container): void {
         notify: async () => {},
       };
       return new GenerateRepurposeVariantsUseCase(
-        new PrismaRepurposeVariantAdapter(),
+        new PrismaRepurposeVariantAdapter(container.resolve<PrismaClient>(TOKENS.PrismaClient)),
         container.resolve<GeneratePlatformVariantsUseCase>(TOKENS.GeneratePlatformVariantsUseCase),
         noOpNotification,
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)

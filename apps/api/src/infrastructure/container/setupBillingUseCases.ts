@@ -55,12 +55,18 @@ export function setupBillingUseCases(container: Container): void {
 
   container.register<CreateAccountSubscriptionUseCase>(
     TOKENS.CreateAccountSubscriptionUseCase,
-    () => new CreateAccountSubscriptionUseCase(new PrismaCreateSubscriptionRepository())
+    () =>
+      new CreateAccountSubscriptionUseCase(
+        new PrismaCreateSubscriptionRepository(container.resolve<PrismaClient>(TOKENS.PrismaClient))
+      )
   );
 
   container.register<ChangeAccountSubscriptionUseCase>(
     TOKENS.ChangeAccountSubscriptionUseCase,
-    () => new ChangeAccountSubscriptionUseCase(new PrismaChangeSubscriptionRepository())
+    () =>
+      new ChangeAccountSubscriptionUseCase(
+        new PrismaChangeSubscriptionRepository(container.resolve<PrismaClient>(TOKENS.PrismaClient))
+      )
   );
 
   // UpdatePricingConfigUseCase requires PricingConfigRepository + NotificationJobDispatcher adapters.

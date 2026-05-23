@@ -913,7 +913,9 @@ async function start() {
     const repurposeAgent = app.container!.resolve<AgentOrchestrationPort>(
       TOKENS.AgentOrchestrationPort
     );
-    const repurposeVariantPort = new PrismaRepurposeVariantAdapter();
+    const repurposeVariantPort = new PrismaRepurposeVariantAdapter(
+      app.container!.resolve(TOKENS.PrismaClient)
+    );
     const repurposeConsumer = createBullMQConsumerAdapter({
       queueName: QUEUE_NAMES.GENERATE_REPURPOSE,
     });

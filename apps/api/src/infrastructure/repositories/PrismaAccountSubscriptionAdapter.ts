@@ -4,15 +4,17 @@
  * @layer infrastructure
  */
 
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import type {
   AccountSubscriptionPort,
   CreateAccountSubscriptionParams,
 } from "../../domain/repositories/AccountSubscriptionPort.js";
 
 export class PrismaAccountSubscriptionAdapter implements AccountSubscriptionPort {
+  constructor(private readonly prisma: PrismaClient) {}
+
   async createForNewAccount(params: CreateAccountSubscriptionParams): Promise<void> {
-    await prisma.accountSubscription.create({
+    await this.prisma.accountSubscription.create({
       data: {
         accountId: params.accountId,
         status: params.status as never,

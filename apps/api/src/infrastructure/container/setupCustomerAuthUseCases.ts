@@ -6,6 +6,7 @@
  */
 
 import type { CachePort } from "@ports/core";
+import type { PrismaClient } from "@infra/prisma";
 
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
@@ -53,7 +54,7 @@ export function setupCustomerAuthUseCases(container: Container): void {
         container.resolve<CustomerUserRepository>(TOKENS.CustomerUserRepository),
         container.resolve<CustomerRoleRepository>(TOKENS.CustomerRoleRepository),
         container.resolve<AccountRepositoryPort>(TOKENS.AccountRepository),
-        new PrismaAccountSubscriptionAdapter(),
+        new PrismaAccountSubscriptionAdapter(container.resolve<PrismaClient>(TOKENS.PrismaClient)),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
         container.resolve<EmailPort>(TOKENS.EmailPort),
         container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService)
