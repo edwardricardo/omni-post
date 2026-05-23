@@ -54,7 +54,9 @@ infra/
 packages/
   ports/      - Port interfaces (technology-free)
   shared/     - Shared types, events, CQRS, saga definitions
-  providers/  - Social platform adapters (x, instagram, facebook, youtube, tiktok)
+  providers/  - Social platform adapters. Source of truth = `enum Provider` in
+                infra/prisma/schema.prisma (11): x, instagram, facebook, youtube,
+                tiktok, snapchat, telegram, pinterest, linkedin, bluesky, threads
   adapters/   - Infrastructure adapters (cache-redis, db-prisma, queue-bullmq, storage-s3, etc.)
   ui/         - Shared React components
   api-common/ - Base route handler, CSV export

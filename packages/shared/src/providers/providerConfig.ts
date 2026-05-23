@@ -30,6 +30,39 @@ export interface ProviderCapabilities {
   carousel?: boolean;
 }
 
+/**
+ * Providers with a real INBOUND webhook channel (the platform pushes events TO
+ * us over HTTP). Single source of truth for gating the `/webhooks/:provider`
+ * inbound route + subscription registration. Derived from 2026 provider-API
+ * research; kept centralized (rather than a per-config literal) so the rationale
+ * for each inclusion/exclusion lives in one place.
+ *
+ * Excluded and why:
+ * - `snapchat`: Conversions API is OUTBOUND-only (we push events to Snap); no inbound content webhooks.
+ * - `pinterest`: no native webhooks — polling only.
+ * - `bluesky`: real-time is the firehose/Jetstream (WebSocket), not per-account HTTP webhooks.
+ * - `linkedin`: webhooks too narrow (org social actions / lead-gen only) — polling stays primary.
+ */
+export const INBOUND_WEBHOOK_PROVIDERS: ReadonlySet<ProviderId> = new Set<ProviderId>([
+  "instagram", // Meta: comments, mentions, DMs
+  "facebook", // Meta: feed, comments, reactions, mentions, messaging
+  "threads", // Meta: replies, mentions, publish/delete (2026)
+  "x", // Account Activity API (enterprise/paid tier; CRC challenge)
+  "youtube", // PubSubHubbub/WebSub: uploads + title/description (not comments)
+  "tiktok", // upload-status + select content events
+  "telegram", // first-class setWebhook (secret_token header)
+]);
+
+/**
+ * @function supportsInboundWebhooks
+ * @description True when a provider exposes an inbound HTTP webhook channel we
+ *   can receive on. Case-insensitive; accepts the lowercase id or the Prisma
+ *   enum value (e.g. "INSTAGRAM").
+ */
+export function supportsInboundWebhooks(provider: string): boolean {
+  return INBOUND_WEBHOOK_PROVIDERS.has(provider.toLowerCase() as ProviderId);
+}
+
 export interface ProviderLimits {
   maxChars: number;
   maxMediaPerPost: number;
