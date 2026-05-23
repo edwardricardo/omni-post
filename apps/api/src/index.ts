@@ -506,7 +506,10 @@ async function createApp(): Promise<FastifyInstance> {
   await typedApp.register(settingsRoutes);
   await typedApp.register(outboxAdminRoutes);
   await typedApp.register(analyticsRoutes);
-  await typedApp.register(aiRoutes);
+  // aiRoutes defines its paths relative ("/generate", "/predict-timing", …) and
+  // every client consumer calls them under "/ai/*" — register with the /ai prefix
+  // so the routes are actually reachable (without it the whole AI surface 404s).
+  await typedApp.register(aiRoutes, { prefix: "/ai" });
 
   // Register account, project, post, and channel routes
   const { accountRoutes } = await import("./accounts/accountRoutes.js");
