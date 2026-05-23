@@ -6,6 +6,7 @@
  */
 
 import { vi } from "vitest";
+import { prisma } from "@infra/prisma";
 import { WebhookManager } from "../../src/webhooks/webhookManager.js";
 
 export interface WebhookManagerTestState {
@@ -46,7 +47,7 @@ export async function setupWebhookManagerTestData(): Promise<void> {
     off: vi.fn(),
   };
 
-  state.webhookManager = new WebhookManager(mockRedis as never);
+  state.webhookManager = new WebhookManager(mockRedis as never, prisma as never);
 }
 
 export async function teardownWebhookManagerTestData(): Promise<void> {

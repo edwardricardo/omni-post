@@ -8,6 +8,7 @@
 
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
+import { prisma } from "@infra/prisma";
 import { InstagramWebhookProcessor } from "../../src/webhooks/processors/instagramWebhookProcessor.js";
 import type { MentionFetchJob } from "../../src/webhooks/mentionFetchEnqueue.js";
 
@@ -18,7 +19,7 @@ describe("InstagramWebhookProcessor - mention enqueue", () => {
 
   it("enqueues a fetch job when a mention is received with full context", async () => {
     const enqueued: MentionFetchJob[] = [];
-    const processor = new InstagramWebhookProcessor(undefined, async (job) => {
+    const processor = new InstagramWebhookProcessor(prisma as never, undefined, async (job) => {
       enqueued.push(job);
     });
 
@@ -40,7 +41,7 @@ describe("InstagramWebhookProcessor - mention enqueue", () => {
 
   it("falls back to commentId when no mediaId is present", async () => {
     const enqueued: MentionFetchJob[] = [];
-    const processor = new InstagramWebhookProcessor(undefined, async (job) => {
+    const processor = new InstagramWebhookProcessor(prisma as never, undefined, async (job) => {
       enqueued.push(job);
     });
 
@@ -54,7 +55,7 @@ describe("InstagramWebhookProcessor - mention enqueue", () => {
 
   it("does not enqueue when channel context is missing", async () => {
     const enqueued: MentionFetchJob[] = [];
-    const processor = new InstagramWebhookProcessor(undefined, async (job) => {
+    const processor = new InstagramWebhookProcessor(prisma as never, undefined, async (job) => {
       enqueued.push(job);
     });
 

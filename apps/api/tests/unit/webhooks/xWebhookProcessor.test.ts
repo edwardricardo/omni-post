@@ -44,6 +44,7 @@
 import { describe, it, beforeAll, expect } from "vitest";
 import { createHmac } from "crypto";
 import { XWebhookProcessor } from "../../../src/webhooks/processors/xWebhookProcessor.js";
+import { prisma } from "@infra/prisma";
 
 // ===========================
 // Test Helpers
@@ -66,7 +67,7 @@ describe("XWebhookProcessor - Signature Verification", () => {
   const testSecret = "test-x-consumer-secret";
 
   beforeAll(() => {
-    processor = new XWebhookProcessor();
+    processor = new XWebhookProcessor(prisma as never);
   });
 
   it("should verify valid webhook signature in base64 format", () => {
@@ -154,7 +155,7 @@ describe("XWebhookProcessor - Tweet Create Events", () => {
   let processor: XWebhookProcessor;
 
   beforeAll(() => {
-    processor = new XWebhookProcessor();
+    processor = new XWebhookProcessor(prisma as never);
   });
 
   it("should parse tweet create event", async () => {
@@ -291,7 +292,7 @@ describe("XWebhookProcessor - Tweet Delete Events", () => {
   let processor: XWebhookProcessor;
 
   beforeAll(() => {
-    processor = new XWebhookProcessor();
+    processor = new XWebhookProcessor(prisma as never);
   });
 
   it("should parse tweet delete event", async () => {
@@ -341,7 +342,7 @@ describe("XWebhookProcessor - Favorite Events", () => {
   let processor: XWebhookProcessor;
 
   beforeAll(() => {
-    processor = new XWebhookProcessor();
+    processor = new XWebhookProcessor(prisma as never);
   });
 
   it("should parse favorite event", async () => {
@@ -403,7 +404,7 @@ describe("XWebhookProcessor - Retweet Events", () => {
   let processor: XWebhookProcessor;
 
   beforeAll(() => {
-    processor = new XWebhookProcessor();
+    processor = new XWebhookProcessor(prisma as never);
   });
 
   it("should parse retweet event", async () => {
@@ -467,7 +468,7 @@ describe("XWebhookProcessor - Reply Events", () => {
   let processor: XWebhookProcessor;
 
   beforeAll(() => {
-    processor = new XWebhookProcessor();
+    processor = new XWebhookProcessor(prisma as never);
   });
 
   it("should parse reply event", async () => {
@@ -553,7 +554,7 @@ describe("XWebhookProcessor - Direct Message Events", () => {
   let processor: XWebhookProcessor;
 
   beforeAll(() => {
-    processor = new XWebhookProcessor();
+    processor = new XWebhookProcessor(prisma as never);
   });
 
   it("should parse direct message event", async () => {
@@ -617,7 +618,7 @@ describe("XWebhookProcessor - Follow Events", () => {
   let processor: XWebhookProcessor;
 
   beforeAll(() => {
-    processor = new XWebhookProcessor();
+    processor = new XWebhookProcessor(prisma as never);
   });
 
   it("should parse follow event", async () => {
@@ -703,7 +704,7 @@ describe("XWebhookProcessor - User Events", () => {
   let processor: XWebhookProcessor;
 
   beforeAll(() => {
-    processor = new XWebhookProcessor();
+    processor = new XWebhookProcessor(prisma as never);
   });
 
   it("should parse account disconnected event", async () => {
@@ -747,7 +748,7 @@ describe("XWebhookProcessor - Error Handling", () => {
   let processor: XWebhookProcessor;
 
   beforeAll(() => {
-    processor = new XWebhookProcessor();
+    processor = new XWebhookProcessor(prisma as never);
   });
 
   it("should throw error for unsupported event type", async () => {
@@ -759,7 +760,7 @@ describe("XWebhookProcessor - Error Handling", () => {
   });
 
   it("should handle verification errors gracefully", () => {
-    const processor = new XWebhookProcessor();
+    const processor = new XWebhookProcessor(prisma as never);
 
     // This should return false instead of throwing
     const isValid = processor.verify("invalid\x00data", "signature", "secret");

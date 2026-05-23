@@ -521,8 +521,13 @@ vi.mock("../../src/lib/logger.js", () => {
 // 2. Imports (after mocks are wired)
 // ---------------------------------------------------------------------------
 
-import { webhookDashboardService } from "../../src/webhooks/webhookDashboardService.js";
+import { WebhookDashboardService } from "../../src/webhooks/webhookDashboardService.js";
+import { prisma } from "@infra/prisma";
 import type { Provider } from "@infra/prisma";
+
+// The service now receives PrismaClient by constructor; inject the mocked
+// singleton (vi.mock above intercepts @infra/prisma) so behaviour is unchanged.
+const webhookDashboardService = new WebhookDashboardService(prisma);
 
 // ---------------------------------------------------------------------------
 // 3. Test data setup helpers

@@ -43,8 +43,12 @@ vi.mock("../../src/lib/logger.js", () => {
 import Fastify, { FastifyInstance } from "fastify";
 import { ZodTypeProvider, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 import { registerWebhookDashboardRoutes } from "../../src/webhooks/webhookDashboardRoutes.js";
-import { webhookDashboardService } from "../../src/webhooks/webhookDashboardService.js";
+import { WebhookDashboardService } from "../../src/webhooks/webhookDashboardService.js";
 import { AuthService } from "../../src/auth/authService.js";
+
+// All service methods are stubbed via vi.spyOn below, so the injected Prisma
+// client is never exercised — a placeholder is sufficient.
+const webhookDashboardService = new WebhookDashboardService({} as never);
 import { MfaService } from "../../src/auth/mfaService.js";
 import { PrismaAdminUserRepository } from "../../src/infrastructure/repositories/PrismaAdminUserRepository.js";
 import { prisma } from "@infra/prisma";

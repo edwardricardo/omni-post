@@ -45,6 +45,7 @@
 import { describe, it, beforeAll, expect } from "vitest";
 import { createHmac } from "crypto";
 import { TikTokWebhookProcessor } from "../../../src/webhooks/processors/tiktokWebhookProcessor.js";
+import { prisma } from "@infra/prisma";
 
 // ===========================
 // Test Helpers
@@ -63,7 +64,7 @@ describe("TikTokWebhookProcessor - Signature Verification", () => {
   const testSecret = "test-tiktok-client-secret";
 
   beforeAll(() => {
-    processor = new TikTokWebhookProcessor();
+    processor = new TikTokWebhookProcessor(prisma as never);
   });
 
   it("should verify valid webhook signature with sha256= prefix", () => {
@@ -143,7 +144,7 @@ describe("TikTokWebhookProcessor - Video Create Event Parsing", () => {
   let processor: TikTokWebhookProcessor;
 
   beforeAll(() => {
-    processor = new TikTokWebhookProcessor();
+    processor = new TikTokWebhookProcessor(prisma as never);
   });
 
   it("should parse video.create event", async () => {
@@ -273,7 +274,7 @@ describe("TikTokWebhookProcessor - Video Remove Event Parsing", () => {
   let processor: TikTokWebhookProcessor;
 
   beforeAll(() => {
-    processor = new TikTokWebhookProcessor();
+    processor = new TikTokWebhookProcessor(prisma as never);
   });
 
   it("should parse video.remove event", async () => {
@@ -347,7 +348,7 @@ describe("TikTokWebhookProcessor - Comment Event Parsing", () => {
   let processor: TikTokWebhookProcessor;
 
   beforeAll(() => {
-    processor = new TikTokWebhookProcessor();
+    processor = new TikTokWebhookProcessor(prisma as never);
   });
 
   it("should parse comment.create event", async () => {
@@ -454,7 +455,7 @@ describe("TikTokWebhookProcessor - Authorization Revoke Event Parsing", () => {
   let processor: TikTokWebhookProcessor;
 
   beforeAll(() => {
-    processor = new TikTokWebhookProcessor();
+    processor = new TikTokWebhookProcessor(prisma as never);
   });
 
   it("should parse user.authorization.revoke event", async () => {
@@ -525,7 +526,7 @@ describe("TikTokWebhookProcessor - Video Statistics Event Parsing", () => {
   let processor: TikTokWebhookProcessor;
 
   beforeAll(() => {
-    processor = new TikTokWebhookProcessor();
+    processor = new TikTokWebhookProcessor(prisma as never);
   });
 
   it("should parse video.statistics.update event", async () => {
@@ -629,7 +630,7 @@ describe("TikTokWebhookProcessor - Error Handling", () => {
   let processor: TikTokWebhookProcessor;
 
   beforeAll(() => {
-    processor = new TikTokWebhookProcessor();
+    processor = new TikTokWebhookProcessor(prisma as never);
   });
 
   it("should throw error for missing event in payload", async () => {
@@ -655,7 +656,7 @@ describe("TikTokWebhookProcessor - Error Handling", () => {
   });
 
   it("should handle verification errors gracefully", () => {
-    const processor = new TikTokWebhookProcessor();
+    const processor = new TikTokWebhookProcessor(prisma as never);
 
     // This should return false instead of throwing
     const isValid = processor.verify("invalid\x00data", "signature", "secret");
@@ -671,7 +672,7 @@ describe("TikTokWebhookProcessor - Event Type Field Handling", () => {
   let processor: TikTokWebhookProcessor;
 
   beforeAll(() => {
-    processor = new TikTokWebhookProcessor();
+    processor = new TikTokWebhookProcessor(prisma as never);
   });
 
   it("should handle event.type field", async () => {
@@ -717,7 +718,7 @@ describe("TikTokWebhookProcessor - Completion Rate Handling", () => {
   let processor: TikTokWebhookProcessor;
 
   beforeAll(() => {
-    processor = new TikTokWebhookProcessor();
+    processor = new TikTokWebhookProcessor(prisma as never);
   });
 
   it("should extract completion rate from statistics", async () => {

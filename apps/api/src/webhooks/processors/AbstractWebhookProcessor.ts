@@ -6,6 +6,7 @@
  */
 
 import { createHmac } from "crypto";
+import type { PrismaClient } from "@infra/prisma";
 import type { WebhookProcessor } from "../webhookTypes.js";
 import type { WebhookEventType, ProviderName } from "@shared/types";
 import type { RealtimeWebhookBroadcaster } from "../realtimeWebhookBroadcaster.js";
@@ -43,6 +44,7 @@ export interface NormalizedWebhookData {
  * - Or implement `parsePayload()`, `resolveRelatedEntities()`, `processEvent()` hooks
  */
 export abstract class AbstractWebhookProcessor implements WebhookProcessor {
+  protected readonly prisma: PrismaClient;
   protected broadcaster?: RealtimeWebhookBroadcaster;
 
   /** Provider identifier (e.g., "FACEBOOK", "INSTAGRAM", "X", "TIKTOK", "YOUTUBE") */
@@ -54,7 +56,8 @@ export abstract class AbstractWebhookProcessor implements WebhookProcessor {
   /** Signature encoding format */
   protected abstract signatureEncoding: "hex" | "base64";
 
-  constructor(broadcaster?: RealtimeWebhookBroadcaster) {
+  constructor(prisma: PrismaClient, broadcaster?: RealtimeWebhookBroadcaster) {
+    this.prisma = prisma;
     if (broadcaster) {
       this.broadcaster = broadcaster;
     }

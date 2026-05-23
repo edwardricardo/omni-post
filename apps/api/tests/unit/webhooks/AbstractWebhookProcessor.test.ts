@@ -14,6 +14,7 @@ import {
   type RelatedEntities,
   type NormalizedWebhookData,
 } from "../../../src/webhooks/processors/AbstractWebhookProcessor.js";
+import { prisma } from "@infra/prisma";
 import type { WebhookEventType } from "@infra/prisma";
 
 // Concrete implementation for testing
@@ -60,7 +61,7 @@ describe("AbstractWebhookProcessor", () => {
   const testSecret = "test-webhook-secret";
 
   beforeEach(() => {
-    processor = new TestWebhookProcessor();
+    processor = new TestWebhookProcessor(prisma as never);
   });
 
   describe("verify()", () => {
@@ -164,7 +165,7 @@ describe("AbstractWebhookProcessor", () => {
         protected override async processEvent() {
           processEventCalled = true;
         }
-      })();
+      })(prisma as never);
 
       const normalizedData: NormalizedWebhookData = { eventType: "unknown" };
       const entities: RelatedEntities = {}; // No accountId or projectId
@@ -207,7 +208,7 @@ describe("AbstractWebhookProcessor with base64 encoding", () => {
   }
 
   it("should verify base64-encoded signatures", () => {
-    const processor = new Base64WebhookProcessor();
+    const processor = new Base64WebhookProcessor(prisma as never);
     const payload = '{"test":"data"}';
     const secret = "test-secret";
     const expectedSignature = createHmac("sha256", secret).update(payload, "utf8").digest("base64");
@@ -225,7 +226,7 @@ describe("AbstractWebhookProcessor with broadcaster", () => {
       broadcastEngagementUpdate: vi.fn(),
     };
 
-    const processor = new TestWebhookProcessor(mockBroadcaster as any);
+    const processor = new TestWebhookProcessor(prisma as never, mockBroadcaster as any);
 
     expect(processor).toBeTruthy();
   });

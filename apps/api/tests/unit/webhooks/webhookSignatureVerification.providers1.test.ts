@@ -14,6 +14,7 @@ vi.mock("@infra/prisma", async (importOriginal) => {
   };
 });
 import { InstagramWebhookProcessor } from "../../../src/webhooks/processors/instagramWebhookProcessor.js";
+import { prisma } from "@infra/prisma";
 import { FacebookWebhookProcessor } from "../../../src/webhooks/processors/facebookWebhookProcessor.js";
 import { YouTubeWebhookProcessor } from "../../../src/webhooks/processors/youtubeWebhookProcessor.js";
 import { signPayload } from "./webhookSignatureVerification.test-helpers.js";
@@ -23,7 +24,7 @@ describe("Webhook signature verification — InstagramWebhookProcessor", () => {
   let processor: InstagramWebhookProcessor;
 
   beforeEach(() => {
-    processor = new InstagramWebhookProcessor();
+    processor = new InstagramWebhookProcessor(prisma as never);
   });
 
   it("scenario 1: valid payload with correct signature → accepted", () => {
@@ -76,7 +77,7 @@ describe("Webhook signature verification — FacebookWebhookProcessor", () => {
   let processor: FacebookWebhookProcessor;
 
   beforeEach(() => {
-    processor = new FacebookWebhookProcessor();
+    processor = new FacebookWebhookProcessor(prisma as never);
   });
 
   it("scenario 1: valid payload with correct signature → accepted", () => {
@@ -137,7 +138,7 @@ describe("Webhook signature verification — YouTubeWebhookProcessor (SHA-1)", (
   });
 
   beforeEach(() => {
-    processor = new YouTubeWebhookProcessor();
+    processor = new YouTubeWebhookProcessor(prisma as never);
   });
 
   function signYouTube(rawBody: string, s: string): string {

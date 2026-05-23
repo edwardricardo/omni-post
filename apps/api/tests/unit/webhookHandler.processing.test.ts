@@ -109,7 +109,7 @@ describe("WebhookHandler - Duplicate Event Detection", () => {
   it("should process event on first occurrence", async () => {
     const { subscription } = seedSubscription("INSTAGRAM");
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(extendedPrisma as never);
     const payload = JSON.stringify({
       entry: [
         {
@@ -158,7 +158,7 @@ describe("WebhookHandler - Duplicate Event Detection", () => {
       updatedAt: new Date(),
     } as Record<string, unknown>);
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(extendedPrisma as never);
     const payload = JSON.stringify({
       entry: [{ id: "duplicate-event-123" }],
     });
@@ -184,7 +184,7 @@ describe("WebhookHandler - Signature Verification", () => {
   it("should accept valid Instagram signature", async () => {
     const { subscription } = seedSubscription("INSTAGRAM");
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(extendedPrisma as never);
     const payload = JSON.stringify({
       entry: [
         {
@@ -215,7 +215,7 @@ describe("WebhookHandler - Signature Verification", () => {
   it("should reject invalid signature", async () => {
     seedSubscription("INSTAGRAM");
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(extendedPrisma as never);
     const payload = JSON.stringify({
       entry: [{ id: "invalid-signature-test" }],
     });
@@ -232,7 +232,7 @@ describe("WebhookHandler - Signature Verification", () => {
   it("should reject request with missing signature", async () => {
     seedSubscription("INSTAGRAM");
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(extendedPrisma as never);
     const payload = JSON.stringify({
       entry: [{ id: "missing-signature-test" }],
     });
@@ -254,7 +254,7 @@ describe("WebhookHandler - Provider Routing", () => {
   it("should route Instagram webhook to Instagram processor", async () => {
     const { subscription } = seedSubscription("INSTAGRAM");
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(extendedPrisma as never);
     const payload = JSON.stringify({
       entry: [
         {
@@ -285,7 +285,7 @@ describe("WebhookHandler - Provider Routing", () => {
   it("should route Facebook webhook to Instagram processor (shared)", async () => {
     const { subscription } = seedSubscription("FACEBOOK");
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(extendedPrisma as never);
     const payload = JSON.stringify({
       entry: [
         {
@@ -315,7 +315,7 @@ describe("WebhookHandler - Provider Routing", () => {
   it("should route X webhook to X processor", async () => {
     const { subscription } = seedSubscription("X");
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(extendedPrisma as never);
     const payload = JSON.stringify({
       tweet_create_events: [
         {

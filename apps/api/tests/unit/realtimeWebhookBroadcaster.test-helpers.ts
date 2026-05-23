@@ -5,6 +5,7 @@
  */
 import { EventEmitter } from "events";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
+import { prisma } from "@infra/prisma";
 import { RealtimeWebhookBroadcaster } from "../../src/webhooks/realtimeWebhookBroadcaster.js";
 
 export class MockWebSocket extends EventEmitter {
@@ -89,6 +90,7 @@ export function setupBroadcaster(): void {
   }
   state.mockRedis = new MockRedis();
   state.broadcaster = new RealtimeWebhookBroadcaster(
+    prisma as never,
     state.mockRedis as any,
     new NoopBackgroundTaskScheduler()
   );

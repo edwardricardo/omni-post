@@ -5,8 +5,8 @@
  * @layer infrastructure
  */
 import { BaseService } from "../services/BaseService.js";
-import { prisma, WebhookEventType } from "@infra/prisma";
-import type { Provider } from "@infra/prisma";
+import { WebhookEventType } from "@infra/prisma";
+import type { Provider, PrismaClient } from "@infra/prisma";
 import { AppError } from "../lib/errors/AppError.js";
 import { exportToCSV, type ColumnDefinition } from "@packages/api-common";
 
@@ -95,6 +95,7 @@ function getTimeRange(range: string): { start: Date; end: Date } {
  * Generate timeline data for webhook events
  */
 async function generateTimeline(
+  prisma: PrismaClient,
   accountId: string,
   timeRange: { start: Date; end: Date },
   provider?: Provider
@@ -169,7 +170,10 @@ async function generateTimeline(
  * Webhook Dashboard Service - handles all webhook monitoring and analytics logic
  */
 export class WebhookDashboardService extends BaseService {
-  constructor() {
+  /**
+   * @param prisma - Injected Prisma client (composition root owns the singleton).
+   */
+  constructor(private readonly prisma: PrismaClient) {
     super("WebhookDashboardService");
   }
 
@@ -207,21 +211,21 @@ export class WebhookDashboardService extends BaseService {
 
         // Get basic metrics
         const [totalEvents, processedEvents, failedEvents] = await Promise.all([
-          prisma.webhookEvent.count({ where }),
-          prisma.webhookEvent.count({ where: { ...where, status: "COMPLETED" } }),
-          prisma.webhookEvent.count({
+          this.prisma.webhookEvent.count({ where }),
+          this.prisma.webhookEvent.count({ where: { ...where, status: "COMPLETED" } }),
+          this.prisma.webhookEvent.count({
             where: { ...where, status: { in: ["FAILED", "DEAD_LETTER"] } },
           }),
         ]);
 
         // Get average processing time
-        const avgProcessingTime = await prisma.webhookEvent.aggregate({
+        const avgProcessingTime = await this.prisma.webhookEvent.aggregate({
           where: { ...where, processingTime: { not: null } },
           _avg: { processingTime: true },
         });
 
         // Get metrics by provider
-        const providerStats = await prisma.webhookEvent.groupBy({
+        const providerStats = await this.prisma.webhookEvent.groupBy({
           by: ["provider", "status"],
           where,
           _count: { id: true },
@@ -265,7 +269,7 @@ export class WebhookDashboardService extends BaseService {
         });
 
         // Get metrics by event type
-        const eventTypeStats = await prisma.webhookEvent.groupBy({
+        const eventTypeStats = await this.prisma.webhookEvent.groupBy({
           by: ["eventType"],
           where,
           _count: { id: true },
@@ -277,7 +281,7 @@ export class WebhookDashboardService extends BaseService {
         });
 
         // Generate timeline
-        const timeline = await generateTimeline(accountId, timeRange, query.provider);
+        const timeline = await generateTimeline(this.prisma, accountId, timeRange, query.provider);
 
         // Get current queue depth (assuming Redis-based queue)
         const queueDepth = 0; // Future: read BullMQ queue.getJobCounts()
@@ -339,7 +343,7 @@ export class WebhookDashboardService extends BaseService {
         const skip = (query.page - 1) * query.limit;
 
         const [events, totalCount] = await Promise.all([
-          prisma.webhookEvent.findMany({
+          this.prisma.webhookEvent.findMany({
             where,
             orderBy: { receivedAt: "desc" },
             skip,
@@ -363,7 +367,7 @@ export class WebhookDashboardService extends BaseService {
               channelId: true,
             },
           }),
-          prisma.webhookEvent.count({ where }),
+          this.prisma.webhookEvent.count({ where }),
         ]);
 
         return {
@@ -390,7 +394,7 @@ export class WebhookDashboardService extends BaseService {
     return this.execute(
       { operation: "getEventDetails", userId: accountId, metadata: { eventId } },
       async () => {
-        const event = await prisma.webhookEvent.findFirst({
+        const event = await this.prisma.webhookEvent.findFirst({
           where: {
             id: eventId,
             accountId,
@@ -428,7 +432,7 @@ export class WebhookDashboardService extends BaseService {
    */
   async getSubscriptions(accountId: string) {
     return this.execute({ operation: "getSubscriptions", userId: accountId }, async () => {
-      const subscriptions = await prisma.webhookSubscription.findMany({
+      const subscriptions = await this.prisma.webhookSubscription.findMany({
         where: { accountId },
         include: {
           project: {
@@ -442,14 +446,14 @@ export class WebhookDashboardService extends BaseService {
       const subscriptionsWithStats = await Promise.all(
         subscriptions.map(async (subscription) => {
           const [totalEvents, recentEvents, failedEvents] = await Promise.all([
-            prisma.webhookEvent.count({
+            this.prisma.webhookEvent.count({
               where: {
                 accountId,
                 provider: subscription.provider,
                 ...(subscription.projectId && { projectId: subscription.projectId }),
               },
             }),
-            prisma.webhookEvent.count({
+            this.prisma.webhookEvent.count({
               where: {
                 accountId,
                 provider: subscription.provider,
@@ -459,7 +463,7 @@ export class WebhookDashboardService extends BaseService {
                 },
               },
             }),
-            prisma.webhookEvent.count({
+            this.prisma.webhookEvent.count({
               where: {
                 accountId,
                 provider: subscription.provider,
@@ -517,7 +521,7 @@ export class WebhookDashboardService extends BaseService {
         const skip = (query.page - 1) * query.limit;
 
         // Get the original events first to filter by account
-        const originalEvents = await prisma.webhookEvent.findMany({
+        const originalEvents = await this.prisma.webhookEvent.findMany({
           where: { accountId },
           select: { id: true, eventId: true },
         });
@@ -530,13 +534,13 @@ export class WebhookDashboardService extends BaseService {
         };
 
         const [deadLetterEvents, totalCount] = await Promise.all([
-          prisma.webhookDeadLetter.findMany({
+          this.prisma.webhookDeadLetter.findMany({
             where: whereWithAccess,
             orderBy: { firstFailedAt: "desc" },
             skip,
             take: query.limit,
           }),
-          prisma.webhookDeadLetter.count({ where: whereWithAccess }),
+          this.prisma.webhookDeadLetter.count({ where: whereWithAccess }),
         ]);
 
         // Add original event data
@@ -579,7 +583,7 @@ export class WebhookDashboardService extends BaseService {
     return this.execute(
       { operation: "retryDeadLetterEvent", userId: accountId, metadata: { eventId } },
       async () => {
-        const deadLetterEvent = await prisma.webhookDeadLetter.findFirst({
+        const deadLetterEvent = await this.prisma.webhookDeadLetter.findFirst({
           where: { id: eventId },
         });
 
@@ -588,7 +592,7 @@ export class WebhookDashboardService extends BaseService {
         }
 
         // Check if the original event belongs to this account
-        const originalEvent = await prisma.webhookEvent.findFirst({
+        const originalEvent = await this.prisma.webhookEvent.findFirst({
           where: {
             id: deadLetterEvent.originalEventId,
             accountId,
@@ -609,7 +613,7 @@ export class WebhookDashboardService extends BaseService {
           updateData.resolvedBy = userId;
         }
 
-        await prisma.webhookDeadLetter.update({
+        await this.prisma.webhookDeadLetter.update({
           where: { id: eventId },
           data: updateData,
         });
@@ -638,7 +642,7 @@ export class WebhookDashboardService extends BaseService {
         let hasMore = true;
 
         while (hasMore) {
-          const batch = await prisma.webhookDeadLetter.findMany({
+          const batch = await this.prisma.webhookDeadLetter.findMany({
             where: { resolvedAt: null },
             take: BATCH_SIZE,
             select: { id: true },
@@ -660,7 +664,7 @@ export class WebhookDashboardService extends BaseService {
                 updateData.resolvedBy = userId;
               }
 
-              await prisma.webhookDeadLetter.update({
+              await this.prisma.webhookDeadLetter.update({
                 where: { id: event.id },
                 data: updateData,
               });
@@ -709,7 +713,7 @@ export class WebhookDashboardService extends BaseService {
           where.projectId = query.projectId;
         }
 
-        const events = await prisma.webhookEvent.findMany({
+        const events = await this.prisma.webhookEvent.findMany({
           where,
           orderBy: { receivedAt: "desc" },
           select: {
@@ -787,35 +791,35 @@ export class WebhookDashboardService extends BaseService {
           byEventType,
           outboxDlqTotal,
         ] = await Promise.all([
-          prisma.webhookDeadLetter.count({
+          this.prisma.webhookDeadLetter.count({
             where: { resolvedAt: null, archivedAt: null },
           }),
-          prisma.webhookDeadLetter.count({
+          this.prisma.webhookDeadLetter.count({
             where: { resolvedAt: { not: null } },
           }),
-          prisma.webhookDeadLetter.count({
+          this.prisma.webhookDeadLetter.count({
             where: { archivedAt: { not: null } },
           }),
-          prisma.webhookDeadLetter.findFirst({
+          this.prisma.webhookDeadLetter.findFirst({
             where: { resolvedAt: null, archivedAt: null },
             orderBy: { firstFailedAt: "asc" },
             select: { firstFailedAt: true },
           }),
-          prisma.webhookDeadLetter.groupBy({
+          this.prisma.webhookDeadLetter.groupBy({
             by: ["provider"],
             where: { resolvedAt: null, archivedAt: null },
             _count: { id: true },
           }),
-          prisma.webhookDeadLetter.groupBy({
+          this.prisma.webhookDeadLetter.groupBy({
             by: ["eventType"],
             where: { resolvedAt: null, archivedAt: null },
             _count: { id: true },
           }),
-          prisma.outboxDeadLetter.count({ where: { resolvedAt: null } }),
+          this.prisma.outboxDeadLetter.count({ where: { resolvedAt: null } }),
         ]);
 
         // Last 7 days trend
-        const recentCreated = await prisma.webhookDeadLetter.groupBy({
+        const recentCreated = await this.prisma.webhookDeadLetter.groupBy({
           by: ["createdAt"],
           where: { createdAt: { gte: sevenDaysAgo } },
           _count: { id: true },
@@ -855,5 +859,3 @@ export class WebhookDashboardService extends BaseService {
     );
   }
 }
-
-export const webhookDashboardService = new WebhookDashboardService();

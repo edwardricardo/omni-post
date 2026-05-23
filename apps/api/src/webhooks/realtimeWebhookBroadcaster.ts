@@ -6,8 +6,7 @@
  */
 import * as WebSocket from "ws";
 import Redis from "ioredis";
-import { prisma } from "@infra/prisma";
-import type { Provider, WebhookEventType } from "@infra/prisma";
+import type { Provider, WebhookEventType, PrismaClient } from "@infra/prisma";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { webhookLogger } from "../lib/logger.js";
 
@@ -63,6 +62,7 @@ export interface SSESubscription {
  * Broadcasts webhook events to connected clients via WebSocket
  */
 export class RealtimeWebhookBroadcaster {
+  private readonly prisma: PrismaClient;
   private redis: Redis;
   private scheduler: BackgroundTaskScheduler;
   private connections: Map<string, WebhookSubscription> = new Map();
@@ -72,7 +72,8 @@ export class RealtimeWebhookBroadcaster {
   private sseSubscriptions: Map<string, SSESubscription> = new Map();
   private sseByAccount: Map<string, Set<string>> = new Map(); // accountId -> sseSubscription ids
 
-  constructor(redis: Redis, scheduler: BackgroundTaskScheduler) {
+  constructor(prisma: PrismaClient, redis: Redis, scheduler: BackgroundTaskScheduler) {
+    this.prisma = prisma;
     this.redis = redis;
     this.scheduler = scheduler;
     this.startHeartbeat();
@@ -226,7 +227,7 @@ export class RealtimeWebhookBroadcaster {
     }
   ): Promise<void> {
     // Find post details
-    const post = await prisma.post.findUnique({
+    const post = await this.prisma.post.findUnique({
       where: { id: postId },
       select: {
         id: true,
@@ -270,7 +271,7 @@ export class RealtimeWebhookBroadcaster {
     provider: Provider,
     metadata?: Record<string, unknown>
   ): Promise<void> {
-    const post = await prisma.post.findUnique({
+    const post = await this.prisma.post.findUnique({
       where: { id: postId },
       select: {
         id: true,

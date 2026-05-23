@@ -14,6 +14,7 @@ vi.mock("@infra/prisma", async (importOriginal) => {
   };
 });
 import { TikTokWebhookProcessor } from "../../../src/webhooks/processors/tiktokWebhookProcessor.js";
+import { prisma } from "@infra/prisma";
 import { XWebhookProcessor } from "../../../src/webhooks/processors/xWebhookProcessor.js";
 import { signPayload } from "./webhookSignatureVerification.test-helpers.js";
 
@@ -31,7 +32,7 @@ describe("Webhook signature verification — TikTokWebhookProcessor", () => {
   });
 
   beforeEach(() => {
-    processor = new TikTokWebhookProcessor();
+    processor = new TikTokWebhookProcessor(prisma as never);
   });
 
   it("scenario 1: valid payload with correct sha256-hex signature → accepted", () => {
@@ -111,7 +112,7 @@ describe("Webhook signature verification — XWebhookProcessor", () => {
   });
 
   beforeEach(() => {
-    processor = new XWebhookProcessor();
+    processor = new XWebhookProcessor(prisma as never);
   });
 
   function signX_base64(rawBody: string, s: string): string {

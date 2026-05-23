@@ -9,6 +9,7 @@ import { describe, it, beforeAll, expect } from "vitest";
 import assert from "node:assert/strict";
 import { createHmac } from "crypto";
 import { SnapchatWebhookProcessor } from "../../../src/webhooks/processors/snapchatWebhookProcessor.js";
+import { prisma } from "@infra/prisma";
 
 // ===========================
 // Test Helpers
@@ -27,7 +28,7 @@ describe("SnapchatWebhookProcessor - Signature Verification", () => {
   const testSecret = "test-snapchat-internal-secret";
 
   beforeAll(() => {
-    processor = new SnapchatWebhookProcessor();
+    processor = new SnapchatWebhookProcessor(prisma as never);
   });
 
   it("should verify valid signature with sha256= prefix", () => {
@@ -77,7 +78,7 @@ describe("SnapchatWebhookProcessor - CREATIVE_APPROVED Event Parsing", () => {
   let processor: SnapchatWebhookProcessor;
 
   beforeAll(() => {
-    processor = new SnapchatWebhookProcessor();
+    processor = new SnapchatWebhookProcessor(prisma as never);
   });
 
   it("should parse CREATIVE_APPROVED event and map to POST_PUBLISHED", async () => {
@@ -141,7 +142,7 @@ describe("SnapchatWebhookProcessor - CREATIVE_REJECTED Event Parsing", () => {
   let processor: SnapchatWebhookProcessor;
 
   beforeAll(() => {
-    processor = new SnapchatWebhookProcessor();
+    processor = new SnapchatWebhookProcessor(prisma as never);
   });
 
   it("should parse CREATIVE_REJECTED event and map to API_ERROR", async () => {
@@ -205,7 +206,7 @@ describe("SnapchatWebhookProcessor - CREATIVE_PROCESSING Event Parsing", () => {
   let processor: SnapchatWebhookProcessor;
 
   beforeAll(() => {
-    processor = new SnapchatWebhookProcessor();
+    processor = new SnapchatWebhookProcessor(prisma as never);
   });
 
   it("should parse CREATIVE_PROCESSING event and map to VIDEO_PROCESSED", async () => {
@@ -251,7 +252,7 @@ describe("SnapchatWebhookProcessor - Error Handling", () => {
   let processor: SnapchatWebhookProcessor;
 
   beforeAll(() => {
-    processor = new SnapchatWebhookProcessor();
+    processor = new SnapchatWebhookProcessor(prisma as never);
   });
 
   it("should throw error for missing eventType", async () => {
@@ -308,7 +309,7 @@ describe("SnapchatWebhookProcessor - Process", () => {
   let processor: SnapchatWebhookProcessor;
 
   beforeAll(() => {
-    processor = new SnapchatWebhookProcessor();
+    processor = new SnapchatWebhookProcessor(prisma as never);
   });
 
   it("should process CREATIVE_APPROVED without throwing", async () => {
