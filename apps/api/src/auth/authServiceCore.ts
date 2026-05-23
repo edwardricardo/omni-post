@@ -10,13 +10,14 @@ import { randomBytes } from "crypto";
 import { hashRefreshToken } from "./refreshTokenHash.js";
 import { hashPassword, verifyPassword, needsRehash } from "./passwordHashing.js";
 import { ok, err, type Result } from "@shared/types";
-import { prisma } from "@infra/prisma";
 import { env } from "../config/env.js";
 import type { AdminRoleKind } from "../domain/repositories/ReadModelDtos.js";
 import type { AdminUserDto } from "../domain/repositories/ReadModelDtos.js";
 import { AuditableService } from "../services/AuditableService";
 import type { MfaService } from "./mfaService.js";
 import type { AdminUserRepositoryPort } from "../domain/repositories/AdminUserRepository.js";
+import type { RoleRepository } from "../domain/repositories/RoleRepository.js";
+import type { AdminSessionRepository } from "../domain/repositories/AdminSessionRepository.js";
 import type {
   TokenPayload,
   LoginCredentials,
@@ -53,7 +54,9 @@ export class AuthServiceCore extends AuditableService {
 
   constructor(
     readonly userRepo: AdminUserRepositoryPort,
-    readonly mfaSvc: MfaService
+    readonly mfaSvc: MfaService,
+    readonly roleRepo: RoleRepository,
+    readonly sessionRepo: AdminSessionRepository
   ) {
     super("AuthService");
     this.jwtSecret = env.JWT_ACCESS_SECRET;
@@ -87,17 +90,15 @@ export class AuthServiceCore extends AuditableService {
 
       const passwordHash = await this.hashPassword(password);
       // Resolve roleId from role name
-      const roleRecord = await prisma.role.findUnique({ where: { name: role } });
+      const roleRecord = await this.roleRepo.findByName(role);
       if (!roleRecord) return err("VALIDATION_ERROR");
 
-      const user = await prisma.adminUser.create({
-        data: {
-          email: email.toLowerCase(),
-          passwordHash,
-          name,
-          roleId: roleRecord.id,
-          emailVerified: true,
-        },
+      const user = await this.userRepo.create({
+        email: email.toLowerCase(),
+        passwordHash,
+        name,
+        roleId: roleRecord.id,
+        emailVerified: true,
       });
 
       await this.logResourceAction(user.id, {
@@ -114,9 +115,7 @@ export class AuthServiceCore extends AuditableService {
         },
       });
 
-      // Map Prisma result to AdminUserDto shape (role as string name)
-      const userDto = { ...user, role: roleRecord.name } as unknown as AdminUserDto;
-      return ok(this.mapUserToAuthenticatedUser(userDto));
+      return ok(this.mapUserToAuthenticatedUser(user));
     } catch (error: unknown) {
       authLogger.error({ err: error }, "Registration error");
       return err("DATABASE_ERROR");
@@ -160,7 +159,7 @@ export class AuthServiceCore extends AuditableService {
         });
       }
 
-      const userResult = await this.userRepo.findByEmail(credentials.email);
+      const userResult = await this.userRepo.findCredentialsByEmail(credentials.email);
       if (!userResult.ok) {
         await this.writeAuditLog({
           action: "USER_LOGIN",
@@ -188,10 +187,7 @@ export class AuthServiceCore extends AuditableService {
       if (isPasswordValid && needsRehash(user.passwordHash)) {
         try {
           const upgraded = await hashPassword(credentials.password);
-          await prisma.adminUser.update({
-            where: { id: user.id },
-            data: { passwordHash: upgraded },
-          });
+          await this.userRepo.update(user.id, { passwordHash: upgraded });
         } catch {
           // Swallow — login should not fail on rehash failure.
         }
@@ -298,10 +294,7 @@ export class AuthServiceCore extends AuditableService {
         });
       }
 
-      await prisma.adminUser.update({
-        where: { id: user.id },
-        data: { lastLoginAt: new Date() },
-      });
+      await this.userRepo.update(user.id, { lastLoginAt: new Date() });
 
       await this.logUserAction(user.id, {
         action: "USER_LOGIN",
@@ -360,14 +353,12 @@ export class AuthServiceCore extends AuditableService {
 
   async createSession(user: AdminUserDto, fingerprint: SessionFingerprint): Promise<AuthTokens> {
     const tempToken = randomBytes(32).toString("hex");
-    const session = await prisma.adminSession.create({
-      data: {
-        userId: user.id,
-        refreshTokenHash: hashRefreshToken(tempToken),
-        ipAddress: fingerprint.ipAddress || "",
-        userAgent: fingerprint.userAgent || "",
-        expiresAt: new Date(Date.now() + this.refreshTokenTtl * 1000),
-      },
+    const session = await this.sessionRepo.create({
+      userId: user.id,
+      refreshTokenHash: hashRefreshToken(tempToken),
+      ipAddress: fingerprint.ipAddress || "",
+      userAgent: fingerprint.userAgent || "",
+      expiresAt: new Date(Date.now() + this.refreshTokenTtl * 1000),
     });
 
     const tokens = await this.generateTokens(
@@ -379,10 +370,10 @@ export class AuthServiceCore extends AuditableService {
       1
     );
 
-    await prisma.adminSession.update({
-      where: { id: session.id },
-      data: { refreshTokenHash: hashRefreshToken(tokens.refreshToken) },
-    });
+    await this.sessionRepo.updateRefreshTokenHash(
+      session.id,
+      hashRefreshToken(tokens.refreshToken)
+    );
 
     if (this.hasRedis) {
       await storeSessionFingerprint(session.id, hashFingerprint(fingerprint), this.refreshTokenTtl);

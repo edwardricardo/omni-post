@@ -7,11 +7,11 @@
  * @layer application
  */
 
-import { prisma } from "@infra/prisma";
 import { ok, err, type Result } from "@shared/types";
 import type { CachePort } from "@ports/core";
 import { AuditableService } from "../services/AuditableService";
 import type { AdminUserRepositoryPort } from "../domain/repositories/AdminUserRepository.js";
+import type { RoleRepository } from "../domain/repositories/RoleRepository.js";
 import { authLogger } from "../lib/logger.js";
 
 // ---------------------------------------------------------------------------
@@ -108,6 +108,7 @@ export class RbacService extends AuditableService {
 
   constructor(
     private readonly userRepo: AdminUserRepositoryPort,
+    private readonly roleRepo: RoleRepository,
     cache?: CachePort
   ) {
     super("RbacService");
@@ -133,14 +134,10 @@ export class RbacService extends AuditableService {
 
     const cacheKey = `${RbacService.CACHE_KEY_PREFIX}${roleName}`;
     const factory = async (): Promise<Permission[]> => {
-      const role = await prisma.role.findUnique({
-        where: { name: roleName },
-        include: { permissions: true },
-      });
-      if (!role) return [];
-      return role.permissions
-        .map((rp) => rp.permission as Permission)
-        .filter((p) => Object.values(Permission).includes(p));
+      const permissionNames = await this.roleRepo.findPermissionNamesByName(roleName);
+      return permissionNames
+        .filter((p) => Object.values(Permission).includes(p as Permission))
+        .map((p) => p as Permission);
     };
 
     if (!this.cache) return factory();
@@ -219,10 +216,7 @@ export class RbacService extends AuditableService {
     roleName: string
   ): Promise<Result<RoleInfo, "ROLE_NOT_FOUND" | "DATABASE_ERROR">> {
     try {
-      const role = await prisma.role.findUnique({
-        where: { name: roleName },
-        include: { permissions: true, _count: { select: { users: true } } },
-      });
+      const role = await this.roleRepo.findInfoByName(roleName);
 
       if (!role) return err("ROLE_NOT_FOUND");
 
@@ -236,9 +230,9 @@ export class RbacService extends AuditableService {
           role.name === "SUPER_ADMIN"
             ? Object.values(Permission)
             : role.permissions
-                .map((rp) => rp.permission as Permission)
-                .filter((p) => Object.values(Permission).includes(p)),
-        userCount: role._count.users,
+                .filter((p) => Object.values(Permission).includes(p as Permission))
+                .map((p) => p as Permission),
+        userCount: role.userCount,
       });
     } catch (error: unknown) {
       authLogger.error({ err: error }, "Get role info error");
@@ -251,11 +245,7 @@ export class RbacService extends AuditableService {
    */
   async getAllRoles(): Promise<Result<RoleInfo[], "DATABASE_ERROR">> {
     try {
-      const roles = await prisma.role.findMany({
-        where: { isActive: true },
-        include: { permissions: true, _count: { select: { users: true } } },
-        orderBy: { level: "desc" },
-      });
+      const roles = await this.roleRepo.findAllActiveInfo();
 
       return ok(
         roles.map((r) => ({
@@ -268,9 +258,9 @@ export class RbacService extends AuditableService {
             r.name === "SUPER_ADMIN"
               ? Object.values(Permission)
               : r.permissions
-                  .map((rp) => rp.permission as Permission)
-                  .filter((p) => Object.values(Permission).includes(p)),
-          userCount: r._count.users,
+                  .filter((p) => Object.values(Permission).includes(p as Permission))
+                  .map((p) => p as Permission),
+          userCount: r.userCount,
         }))
       );
     } catch (error: unknown) {
@@ -303,7 +293,7 @@ export class RbacService extends AuditableService {
   > {
     try {
       // Validate role exists
-      const role = await prisma.role.findUnique({ where: { name: newRoleName } });
+      const role = await this.roleRepo.findByName(newRoleName);
       if (!role) return err("INVALID_ROLE");
 
       // Prevent self-modification
@@ -326,10 +316,7 @@ export class RbacService extends AuditableService {
       const oldRole = targetUser.role;
 
       // Update user role
-      await prisma.adminUser.update({
-        where: { id: targetUserId },
-        data: { roleId: role.id },
-      });
+      await this.userRepo.update(targetUserId, { roleId: role.id });
 
       // Log the role change
       await this.logResourceAction(adminUserId, {
@@ -373,24 +360,22 @@ export class RbacService extends AuditableService {
     >
   > {
     try {
-      const role = await prisma.role.findUnique({ where: { name: roleName } });
+      const role = await this.roleRepo.findByName(roleName);
       if (!role) return err("INVALID_ROLE");
 
-      const users = await prisma.adminUser.findMany({
-        where: { roleId: role.id },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: { select: { name: true } },
-          isActive: true,
-          lastLoginAt: true,
-          createdAt: true,
-        },
-        orderBy: { createdAt: "desc" },
-      });
+      const users = await this.userRepo.findByRoleId(role.id);
 
-      return ok(users.map((u) => ({ ...u, role: u.role.name })));
+      return ok(
+        users.map((u) => ({
+          id: u.id,
+          email: u.email,
+          name: u.name,
+          role: u.role,
+          isActive: u.isActive,
+          lastLoginAt: u.lastLoginAt,
+          createdAt: u.createdAt,
+        }))
+      );
     } catch (error: unknown) {
       authLogger.error({ err: error }, "Get users by role error");
       return err("DATABASE_ERROR");
@@ -435,8 +420,8 @@ export class RbacService extends AuditableService {
    */
   async canModifyRole(adminRole: string, targetRole: string): Promise<boolean> {
     const [adminRoleRecord, targetRoleRecord] = await Promise.all([
-      prisma.role.findUnique({ where: { name: adminRole } }),
-      prisma.role.findUnique({ where: { name: targetRole } }),
+      this.roleRepo.findByName(adminRole),
+      this.roleRepo.findByName(targetRole),
     ]);
 
     const adminLevel = adminRoleRecord?.level ?? 0;
@@ -445,7 +430,3 @@ export class RbacService extends AuditableService {
     return adminLevel >= targetLevel;
   }
 }
-
-// NOTE: No module-level singleton. RbacService is registered in the DI
-// container (TOKENS.RbacService) and receives AdminUserRepositoryPort via
-// constructor injection. See setup.ts for registration.

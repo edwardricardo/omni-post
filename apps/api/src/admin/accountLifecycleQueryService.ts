@@ -11,6 +11,8 @@ import { logger } from "../lib/logger.js";
 
 const adminLogger = logger.child({ module: "admin" });
 import type { AdminRoleKind } from "../domain/repositories/ReadModelDtos.js";
+import type { AdminUserDto } from "../domain/repositories/ReadModelDtos.js";
+import type { AdminSessionDto } from "../domain/repositories/AdminSessionRepository.js";
 import { AuditableService } from "../services/AuditableService.js";
 import type { AccountProfile, AccountFilters, AccountStats } from "./accountLifecycleTypes.js";
 
@@ -65,6 +67,20 @@ export async function mapAdminUserToProfile(
 export class AccountLifecycleQueryService extends AuditableService {
   constructor(private readonly prisma: PrismaClient) {
     super("AccountLifecycleQueryService");
+  }
+
+  /**
+   * Map an admin user (optionally with preloaded sessions) to the public
+   * AccountProfile shape, resolving the active session count when sessions
+   * are not provided.
+   *
+   * @param user - Admin user DTO, optionally carrying preloaded sessions
+   * @returns The mapped AccountProfile
+   */
+  async mapUserToProfile(
+    user: AdminUserDto & { sessions?: AdminSessionDto[] }
+  ): Promise<AccountProfile> {
+    return mapAdminUserToProfile(this.prisma, user);
   }
 
   /**

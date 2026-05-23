@@ -10,11 +10,28 @@ import { AuthService } from "../src/auth/authService.js";
 import { MfaService } from "../src/auth/mfaService.js";
 import { prisma } from "@infra/prisma";
 import { PrismaAdminUserRepository } from "../src/infrastructure/repositories/PrismaAdminUserRepository.js";
+import { PrismaAdminSessionRepository } from "../src/infrastructure/repositories/PrismaAdminSessionRepository.js";
+import { PrismaRoleRepository } from "../src/infrastructure/repositories/PrismaRoleRepository.js";
+import { PrismaAuditLogRepository } from "../src/infrastructure/repositories/PrismaAuditLogRepository.js";
+import { AccountLifecycleQueryService } from "../src/admin/accountLifecycleQueryService.js";
+import { AccountSessionService } from "../src/admin/AccountSessionService.js";
+import { PrismaUnitOfWork } from "../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
 
 const adminUserRepo = new PrismaAdminUserRepository(prisma);
+const sessionRepo = new PrismaAdminSessionRepository(prisma);
+const roleRepo = new PrismaRoleRepository(prisma);
+const auditLogRepo = new PrismaAuditLogRepository(prisma);
 const mfaService = new MfaService(adminUserRepo);
-const authService = new AuthService(prisma, adminUserRepo, mfaService);
-const accountLifecycleService = new AccountLifecycleService(adminUserRepo);
+const authService = new AuthService(prisma, adminUserRepo, mfaService, roleRepo, sessionRepo);
+const accountLifecycleService = new AccountLifecycleService(
+  adminUserRepo,
+  sessionRepo,
+  roleRepo,
+  auditLogRepo,
+  new AccountLifecycleQueryService(prisma),
+  new AccountSessionService(adminUserRepo, sessionRepo),
+  new PrismaUnitOfWork(prisma)
+);
 
 describe("Account Lifecycle Management", () => {
   let superAdminUserId: string;

@@ -10,6 +10,8 @@ import type { AdminSession, PrismaClient } from "@infra/prisma";
 import type { AdminRoleKind } from "../domain/repositories/ReadModelDtos.js";
 import type { MfaService } from "./mfaService.js";
 import type { AdminUserRepositoryPort } from "../domain/repositories/AdminUserRepository.js";
+import type { RoleRepository } from "../domain/repositories/RoleRepository.js";
+import type { AdminSessionRepository } from "../domain/repositories/AdminSessionRepository.js";
 import { AuthServiceCore } from "./authServiceCore.js";
 import { AuthServiceSession } from "./authServiceSession.js";
 import type {
@@ -42,8 +44,14 @@ export class AuthService {
   private core: AuthServiceCore;
   private session: AuthServiceSession;
 
-  constructor(prisma: PrismaClient, userRepo: AdminUserRepositoryPort, mfaSvc: MfaService) {
-    this.core = new AuthServiceCore(userRepo, mfaSvc);
+  constructor(
+    prisma: PrismaClient,
+    userRepo: AdminUserRepositoryPort,
+    mfaSvc: MfaService,
+    roleRepo: RoleRepository,
+    sessionRepo: AdminSessionRepository
+  ) {
+    this.core = new AuthServiceCore(userRepo, mfaSvc, roleRepo, sessionRepo);
     this.session = new AuthServiceSession(prisma, this.core);
   }
 
@@ -114,7 +122,3 @@ export class AuthService {
     return this.session.getUserSessions(userId);
   }
 }
-
-// NOTE: No module-level singleton. AuthService is registered in the DI
-// container (TOKENS.AuthService) and receives AdminUserRepositoryPort +
-// MfaService via constructor injection. See setup.ts for registration.

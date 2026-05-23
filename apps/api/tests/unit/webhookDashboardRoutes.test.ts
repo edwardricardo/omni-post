@@ -47,6 +47,8 @@ import { webhookDashboardService } from "../../src/webhooks/webhookDashboardServ
 import { AuthService } from "../../src/auth/authService.js";
 import { MfaService } from "../../src/auth/mfaService.js";
 import { PrismaAdminUserRepository } from "../../src/infrastructure/repositories/PrismaAdminUserRepository.js";
+import { PrismaRoleRepository } from "../../src/infrastructure/repositories/PrismaRoleRepository.js";
+import { PrismaAdminSessionRepository } from "../../src/infrastructure/repositories/PrismaAdminSessionRepository.js";
 import { prisma } from "@infra/prisma";
 import { createTestContainer } from "../../src/infrastructure/container/setup.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
@@ -64,8 +66,10 @@ const testToken = jwt.sign(
 
 // Create a local authService instance for mocking (no global singleton)
 const adminUserRepo = new PrismaAdminUserRepository(prisma);
+const roleRepo = new PrismaRoleRepository(prisma);
+const sessionRepo = new PrismaAdminSessionRepository(prisma);
 const mfaSvc = new MfaService(adminUserRepo);
-const authService = new AuthService(prisma, adminUserRepo, mfaSvc);
+const authService = new AuthService(prisma, adminUserRepo, mfaSvc, roleRepo, sessionRepo);
 
 // Mock user for authentication
 const mockUser = {
@@ -219,7 +223,7 @@ async function createTestApp(): Promise<FastifyInstance> {
   container.registerInstance(TOKENS.AuthService, authService);
   container.registerInstance(TOKENS.WebhookDashboardService, webhookDashboardService);
   container.registerInstance(TOKENS.RealtimeWebhookBroadcaster, mockBroadcaster);
-  container.registerInstance(TOKENS.RbacService, new RbacService(adminUserRepo));
+  container.registerInstance(TOKENS.RbacService, new RbacService(adminUserRepo, roleRepo));
   container.registerInstance(TOKENS.BackgroundTaskScheduler, new NoopBackgroundTaskScheduler());
   typedApp.decorate("container", container);
 

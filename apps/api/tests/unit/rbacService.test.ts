@@ -10,6 +10,7 @@ import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 import { createMockPrismaModule } from "./helpers/mockPrisma.js";
 import { makeAdminUser, resetFactoryCounter } from "./helpers/factories.js";
 import { InMemoryAdminUserRepository } from "./helpers/InMemoryAdminUserRepository.js";
+import { PrismaRoleRepository } from "../../src/infrastructure/repositories/PrismaRoleRepository.js";
 import { seedSystemRoles, getRoleId } from "./helpers/seedSystemRoles.js";
 
 // ---------------------------------------------------------------------------
@@ -52,7 +53,17 @@ const { RbacService, Permission } = await import("../../src/auth/rbacService.js"
 // Test data
 // ---------------------------------------------------------------------------
 
-const inMemoryRepo = new InMemoryAdminUserRepository();
+const inMemoryRepo = new InMemoryAdminUserRepository({
+  idOf: (name) => getRoleId(name),
+  nameOf: (id) => {
+    const reverse: Record<string, string> = {
+      "role-super-admin": "SUPER_ADMIN",
+      "role-admin": "ADMIN",
+      "role-support": "SUPPORT",
+    };
+    return reverse[id] ?? id;
+  },
+});
 
 const superAdminUser = makeAdminUser({
   id: "sa-001",
@@ -88,7 +99,8 @@ const supportUser = makeAdminUser({
 // Service under test
 // ---------------------------------------------------------------------------
 
-const rbacService = new RbacService(inMemoryRepo);
+const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
+const rbacService = new RbacService(inMemoryRepo, roleRepo);
 
 // ---------------------------------------------------------------------------
 // Helpers to keep both stores in sync
@@ -276,13 +288,11 @@ describe("RbacService Tests", () => {
 
       expect(updateRoleResult.ok).toBe(true);
 
-      // Verify the mock prisma store was updated
-      const updatedInStore = stores.adminUser.get(supportUser.id);
-      expect(updatedInStore).toBeTruthy();
-      expect(updatedInStore?.roleId).toBe("role-admin");
-
-      // Also update the in-memory repo to stay in sync for subsequent tests
-      inMemoryRepo.update(supportUser.id, { role: "ADMIN" as const });
+      // The role change is persisted through the admin user repository; the
+      // DTO exposes the new role by name after the roleId is applied.
+      const updatedUser = inMemoryRepo.get(supportUser.id);
+      expect(updatedUser).toBeTruthy();
+      expect(updatedUser?.role).toBe("ADMIN");
     });
 
     it("should reject ADMIN attempting to modify roles", async () => {

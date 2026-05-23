@@ -6,6 +6,11 @@
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import type { AdminUserRepositoryPort } from "../../domain/repositories/AdminUserRepository.js";
+import type { AdminSessionRepository } from "../../domain/repositories/AdminSessionRepository.js";
+import type { RoleRepository } from "../../domain/repositories/RoleRepository.js";
+import type { AuditLogRepository } from "../../domain/repositories/AuditLogRepository.js";
+import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import { AccountLifecycleQueryService } from "../../admin/accountLifecycleQueryService.js";
 import type { AnalyticsReadRepositoryPort } from "../../domain/repositories/AnalyticsReadRepository.js";
 import type { EventDispatcher as _EventDispatcher } from "../../domain/index.js";
 import { AuthService } from "../../auth/authService.js";
@@ -113,7 +118,9 @@ export function setupServices(
       new AuthService(
         container.resolve(TOKENS.PrismaClient),
         container.resolve<AdminUserRepositoryPort>(TOKENS.AdminUserRepository),
-        container.resolve<MfaService>(TOKENS.MfaService)
+        container.resolve<MfaService>(TOKENS.MfaService),
+        container.resolve<RoleRepository>(TOKENS.RoleRepository),
+        container.resolve<AdminSessionRepository>(TOKENS.AdminSessionRepository)
       ),
     true
   );
@@ -122,6 +129,7 @@ export function setupServices(
     () =>
       new RbacService(
         container.resolve<AdminUserRepositoryPort>(TOKENS.AdminUserRepository),
+        container.resolve<RoleRepository>(TOKENS.RoleRepository),
         container.resolve<CachePort>(TOKENS.CachePort)
       ),
     true
@@ -201,19 +209,31 @@ export function setupServices(
 
   container.registerInstance(TOKENS.DashboardService, dashboardService);
 
-  container.register<AccountLifecycleService>(
-    TOKENS.AccountLifecycleService,
-    () =>
-      new AccountLifecycleService(
-        container.resolve<AdminUserRepositoryPort>(TOKENS.AdminUserRepository)
-      ),
+  container.register<AccountLifecycleQueryService>(
+    TOKENS.AccountLifecycleQueryService,
+    () => new AccountLifecycleQueryService(container.resolve(TOKENS.PrismaClient)),
     true
   );
   container.register<AccountSessionService>(
     TOKENS.AccountSessionService,
     () =>
       new AccountSessionService(
-        container.resolve<AdminUserRepositoryPort>(TOKENS.AdminUserRepository)
+        container.resolve<AdminUserRepositoryPort>(TOKENS.AdminUserRepository),
+        container.resolve<AdminSessionRepository>(TOKENS.AdminSessionRepository)
+      ),
+    true
+  );
+  container.register<AccountLifecycleService>(
+    TOKENS.AccountLifecycleService,
+    () =>
+      new AccountLifecycleService(
+        container.resolve<AdminUserRepositoryPort>(TOKENS.AdminUserRepository),
+        container.resolve<AdminSessionRepository>(TOKENS.AdminSessionRepository),
+        container.resolve<RoleRepository>(TOKENS.RoleRepository),
+        container.resolve<AuditLogRepository>(TOKENS.AuditLogRepository),
+        container.resolve<AccountLifecycleQueryService>(TOKENS.AccountLifecycleQueryService),
+        container.resolve<AccountSessionService>(TOKENS.AccountSessionService),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );

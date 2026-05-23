@@ -38,9 +38,14 @@ const { RbacService, Permission } = await import("../../src/auth/rbacService.js"
 const { TOKENS } = await import("../../src/infrastructure/container/types.js");
 const { PrismaAdminUserRepository } =
   await import("../../src/infrastructure/repositories/PrismaAdminUserRepository.js");
+const { PrismaRoleRepository } =
+  await import("../../src/infrastructure/repositories/PrismaRoleRepository.js");
 
 // Create a local RbacService instance for use in request mocks
-const rbacService = new RbacService(new PrismaAdminUserRepository(mockPrisma.prisma as never));
+const rbacService = new RbacService(
+  new PrismaAdminUserRepository(mockPrisma.prisma as never),
+  new PrismaRoleRepository(mockPrisma.prisma as never)
+);
 
 // Minimal container mock that resolves RbacService
 const mockContainer = {

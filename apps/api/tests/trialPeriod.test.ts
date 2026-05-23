@@ -10,10 +10,14 @@ import { AuthService } from "../src/auth/authService.js";
 import { MfaService } from "../src/auth/mfaService.js";
 import { prisma } from "@infra/prisma";
 import { PrismaAdminUserRepository } from "../src/infrastructure/repositories/PrismaAdminUserRepository.js";
+import { PrismaRoleRepository } from "../src/infrastructure/repositories/PrismaRoleRepository.js";
+import { PrismaAdminSessionRepository } from "../src/infrastructure/repositories/PrismaAdminSessionRepository.js";
 
 const adminUserRepo = new PrismaAdminUserRepository(prisma);
+const roleRepo = new PrismaRoleRepository(prisma);
+const sessionRepo = new PrismaAdminSessionRepository(prisma);
 const mfaService = new MfaService(adminUserRepo);
-const authService = new AuthService(prisma, adminUserRepo, mfaService);
+const authService = new AuthService(prisma, adminUserRepo, mfaService, roleRepo, sessionRepo);
 
 describe("Trial Period Management", () => {
   let superAdminUserId: string;

@@ -42,8 +42,17 @@ vi.mock("../../src/lib/logger.js", () => {
 // ---------------------------------------------------------------------------
 
 const { AccountLifecycleService } = await import("../../src/admin/accountLifecycleService.js");
+const { AccountLifecycleQueryService } =
+  await import("../../src/admin/accountLifecycleQueryService.js");
+const { AccountSessionService } = await import("../../src/admin/AccountSessionService.js");
 const { PrismaAdminUserRepository } =
   await import("../../src/infrastructure/repositories/PrismaAdminUserRepository.js");
+const { PrismaAdminSessionRepository } =
+  await import("../../src/infrastructure/repositories/PrismaAdminSessionRepository.js");
+const { PrismaRoleRepository } =
+  await import("../../src/infrastructure/repositories/PrismaRoleRepository.js");
+const { PrismaAuditLogRepository } =
+  await import("../../src/infrastructure/repositories/PrismaAuditLogRepository.js");
 
 // ---------------------------------------------------------------------------
 // Test suite
@@ -59,8 +68,19 @@ describe("AccountLifecycleService", () => {
     stores.auditLog.clear();
 
     // Recreate service each run with fresh mock prisma
+    const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
+    const sessionRepo = new PrismaAdminSessionRepository(mockPrisma.prisma as never);
+    const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
+    const auditLogRepo = new PrismaAuditLogRepository(mockPrisma.prisma as never);
+    const queryService = new AccountLifecycleQueryService(mockPrisma.prisma as never);
+    const sessionService = new AccountSessionService(adminUserRepo, sessionRepo);
     accountLifecycleService = new AccountLifecycleService(
-      new PrismaAdminUserRepository(mockPrisma.prisma as never)
+      adminUserRepo,
+      sessionRepo,
+      roleRepo,
+      auditLogRepo,
+      queryService,
+      sessionService
     );
   });
 

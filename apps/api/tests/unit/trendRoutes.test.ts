@@ -45,14 +45,21 @@ import { TOKENS } from "../../src/infrastructure/container/types.js";
 import { AuthService } from "../../src/auth/authService.js";
 import { MfaService } from "../../src/auth/mfaService.js";
 import { PrismaAdminUserRepository } from "../../src/infrastructure/repositories/PrismaAdminUserRepository.js";
+import { PrismaRoleRepository } from "../../src/infrastructure/repositories/PrismaRoleRepository.js";
+import { PrismaAdminSessionRepository } from "../../src/infrastructure/repositories/PrismaAdminSessionRepository.js";
 
 async function createTestApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
   const container = setupContainer({ prisma });
   // Override AuthService with a locally-constructed instance (no global singleton)
   const adminUserRepo = new PrismaAdminUserRepository(prisma);
+  const roleRepo = new PrismaRoleRepository(prisma);
+  const sessionRepo = new PrismaAdminSessionRepository(prisma);
   const mfaSvc = new MfaService(adminUserRepo);
-  container.registerInstance(TOKENS.AuthService, new AuthService(prisma, adminUserRepo, mfaSvc));
+  container.registerInstance(
+    TOKENS.AuthService,
+    new AuthService(prisma, adminUserRepo, mfaSvc, roleRepo, sessionRepo)
+  );
   app.decorate("container", container);
   await app.register(fastifyCookie);
   await app.register(authRoutes);

@@ -55,6 +55,10 @@ const { AuthService, setRedisInstance } = await import("../../src/auth/authServi
 const { MfaService } = await import("../../src/auth/mfaService.js");
 const { PrismaAdminUserRepository } =
   await import("../../src/infrastructure/repositories/PrismaAdminUserRepository.js");
+const { PrismaRoleRepository } =
+  await import("../../src/infrastructure/repositories/PrismaRoleRepository.js");
+const { PrismaAdminSessionRepository } =
+  await import("../../src/infrastructure/repositories/PrismaAdminSessionRepository.js");
 const { Container } = await import("../../src/infrastructure/container/Container.js");
 const { TOKENS } = await import("../../src/infrastructure/container/types.js");
 
@@ -66,8 +70,16 @@ const { TOKENS } = await import("../../src/infrastructure/container/types.js");
 setRedisInstance(null as unknown as import("ioredis").default);
 
 const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
+const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
+const sessionRepo = new PrismaAdminSessionRepository(mockPrisma.prisma as never);
 const mfaService = new MfaService(adminUserRepo);
-const authService = new AuthService(mockPrisma.prisma, adminUserRepo, mfaService);
+const authService = new AuthService(
+  mockPrisma.prisma,
+  adminUserRepo,
+  mfaService,
+  roleRepo,
+  sessionRepo
+);
 
 // Create test Fastify instance
 async function createTestApp() {

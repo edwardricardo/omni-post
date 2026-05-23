@@ -7,6 +7,12 @@ import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import { PrismaAdminUserRepository } from "../repositories/PrismaAdminUserRepository.js";
 import type { AdminUserRepositoryPort } from "../../domain/repositories/AdminUserRepository.js";
+import { PrismaAdminSessionRepository } from "../repositories/PrismaAdminSessionRepository.js";
+import type { AdminSessionRepository } from "../../domain/repositories/AdminSessionRepository.js";
+import { PrismaRoleRepository } from "../repositories/PrismaRoleRepository.js";
+import type { RoleRepository } from "../../domain/repositories/RoleRepository.js";
+import { PrismaAuditLogRepository } from "../repositories/PrismaAuditLogRepository.js";
+import type { AuditLogRepository } from "../../domain/repositories/AuditLogRepository.js";
 import { PrismaPostRepository } from "../repositories/PrismaPostRepository.js";
 import { PrismaPostQueryRepository } from "../repositories/PrismaPostQueryRepository.js";
 import { PrismaAccountRepository } from "../repositories/PrismaAccountRepository.js";
@@ -159,6 +165,27 @@ export function setupRepositories(container: Container): void {
   container.register<AdminUserRepositoryPort>(
     TOKENS.AdminUserRepository,
     () => new PrismaAdminUserRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
+  // Register AdminSession Repository (admin-auth session persistence)
+  container.register<AdminSessionRepository>(
+    TOKENS.AdminSessionRepository,
+    () => new PrismaAdminSessionRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
+  // Register admin Role Repository (RBAC roles -- distinct from CustomerRoleRepository)
+  container.register<RoleRepository>(
+    TOKENS.RoleRepository,
+    () => new PrismaRoleRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
+  // Register AuditLog Repository (audit-trail persistence + anonymization)
+  container.register<AuditLogRepository>(
+    TOKENS.AuditLogRepository,
+    () => new PrismaAuditLogRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
 

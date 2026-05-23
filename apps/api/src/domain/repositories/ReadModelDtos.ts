@@ -202,28 +202,23 @@ export interface AnalyticsDto {
 }
 
 /**
- * Flat DTO for a persisted AdminUser row.
- * Mirrors `Prisma.AdminUser` without the Prisma import.
+ * Public DTO for a persisted AdminUser row — carries identity, role, status and
+ * non-secret auth metadata, but NO credential material. Returned by the
+ * general-purpose admin-user reads so secrets never ride the broadly-injected
+ * read model. Credential-bearing reads return `AdminUserCredentialsDto`.
  */
 export interface AdminUserDto {
   id: string;
   email: string;
-  passwordHash: string;
   name: string;
   role: AdminRoleKind;
   isActive: boolean;
   emailVerified: boolean;
   lastLoginAt: Date | null;
-  passwordResetToken: string | null;
-  passwordResetExpires: Date | null;
   mfaEnabled: boolean;
-  mfaSecret: string | null;
   passwordHashAlgo: string;
   passwordChangedAt: Date;
-  passwordHistory: string[];
   mustChangePassword: boolean;
-  mfaBackupCodes: string[];
-  mfaBackupUsedAt: JsonValue | null;
   failedLoginAttempts: number;
   lockedUntil: Date | null;
   lockReason: string | null;
@@ -234,4 +229,20 @@ export interface AdminUserDto {
   team: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/**
+ * `AdminUserDto` enriched with credential material (password hash, MFA secret,
+ * password-reset and backup-code state). Returned ONLY by the credential-bearing
+ * repository reads consumed by the authentication and MFA flows — the
+ * general-purpose reads return the credential-free `AdminUserDto`.
+ */
+export interface AdminUserCredentialsDto extends AdminUserDto {
+  passwordHash: string;
+  passwordResetToken: string | null;
+  passwordResetExpires: Date | null;
+  mfaSecret: string | null;
+  passwordHistory: string[];
+  mfaBackupCodes: string[];
+  mfaBackupUsedAt: JsonValue | null;
 }

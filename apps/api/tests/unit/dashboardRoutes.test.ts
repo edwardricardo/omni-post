@@ -68,6 +68,10 @@ const { AuthService, setRedisInstance } = await import("../../src/auth/authServi
 const { MfaService } = await import("../../src/auth/mfaService.js");
 const { PrismaAdminUserRepository } =
   await import("../../src/infrastructure/repositories/PrismaAdminUserRepository.js");
+const { PrismaRoleRepository } =
+  await import("../../src/infrastructure/repositories/PrismaRoleRepository.js");
+const { PrismaAdminSessionRepository } =
+  await import("../../src/infrastructure/repositories/PrismaAdminSessionRepository.js");
 
 // Ensure no Redis for unit tests
 setRedisInstance(null as never);
@@ -93,8 +97,10 @@ async function createTestApp() {
 
   // Wire up AuthService so authRoutes can register/login
   const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
+  const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
+  const sessionRepo = new PrismaAdminSessionRepository(mockPrisma.prisma as never);
   const mfaSvc = new MfaService(adminUserRepo);
-  const authSvc = new AuthService(mockPrisma.prisma, adminUserRepo, mfaSvc);
+  const authSvc = new AuthService(mockPrisma.prisma, adminUserRepo, mfaSvc, roleRepo, sessionRepo);
   container.registerInstance(TOKENS.AuthService, authSvc);
 
   app.decorate("container", container);
