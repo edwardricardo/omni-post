@@ -46,8 +46,7 @@ import { registerWebhookDashboardRoutes } from "../../src/webhooks/webhookDashbo
 import { WebhookDashboardService } from "../../src/webhooks/webhookDashboardService.js";
 import { AuthService } from "../../src/auth/authService.js";
 
-// All service methods are stubbed via vi.spyOn below, so the injected Prisma
-// client is never exercised — a placeholder is sufficient.
+// Methods are stubbed via vi.spyOn below; prisma is not used here.
 const webhookDashboardService = new WebhookDashboardService({} as never);
 import { MfaService } from "../../src/auth/mfaService.js";
 import { PrismaAdminUserRepository } from "../../src/infrastructure/repositories/PrismaAdminUserRepository.js";

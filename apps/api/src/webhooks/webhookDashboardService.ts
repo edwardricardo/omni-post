@@ -171,7 +171,7 @@ async function generateTimeline(
  */
 export class WebhookDashboardService extends BaseService {
   /**
-   * @param prisma - Injected Prisma client (composition root owns the singleton).
+   * @param prisma - Prisma client for webhook-event, subscription, and DLQ queries.
    */
   constructor(private readonly prisma: PrismaClient) {
     super("WebhookDashboardService");

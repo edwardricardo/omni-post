@@ -525,8 +525,7 @@ import { WebhookDashboardService } from "../../src/webhooks/webhookDashboardServ
 import { prisma } from "@infra/prisma";
 import type { Provider } from "@infra/prisma";
 
-// The service now receives PrismaClient by constructor; inject the mocked
-// singleton (vi.mock above intercepts @infra/prisma) so behaviour is unchanged.
+// `prisma` here is the mock from the vi.mock above.
 const webhookDashboardService = new WebhookDashboardService(prisma);
 
 // ---------------------------------------------------------------------------
