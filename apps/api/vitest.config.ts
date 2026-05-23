@@ -89,6 +89,12 @@ export default defineConfig({
     include: ["tests/unit/**/*.test.ts", "tests/eval/**/*.test.ts"],
     exclude: ["**/node_modules/**"],
     pool: "forks",
+    // Cap parallel workers. The default is one per CPU (8 here), and each fork
+    // loads the full module graph — running the whole suite that wide spikes
+    // memory and OOM-collapses the memory-constrained dev box. Two workers keeps
+    // peak memory bounded while retaining some parallelism. (vitest 4 dropped
+    // `poolOptions`; `maxWorkers` is the supported cap.)
+    maxWorkers: 2,
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],
