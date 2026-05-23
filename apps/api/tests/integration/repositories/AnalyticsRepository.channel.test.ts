@@ -3,7 +3,8 @@
  * @description Tests for AnalyticsRepository - getLatestForPosts
  * @layer infrastructure
  */
-import { describe, it, beforeAll, afterAll, expect } from "vitest";
+import { describe, it, before, after } from "node:test";
+import assert from "node:assert/strict";
 import { PrismaAnalyticsReadRepository } from "../../../src/infrastructure/repositories/PrismaAnalyticsReadRepository.js";
 import { prisma } from "@infra/prisma";
 import {
@@ -14,11 +15,11 @@ import {
 } from "./AnalyticsRepository.test-helpers.js";
 
 describe("AnalyticsRepository - getLatestForPosts", () => {
-  beforeAll(async () => {
+  before(async () => {
     await setupTestData();
   });
 
-  afterAll(async () => {
+  after(async () => {
     await teardownTestData();
   });
 
@@ -26,8 +27,8 @@ describe("AnalyticsRepository - getLatestForPosts", () => {
     const repo = new PrismaAnalyticsReadRepository(prisma);
     const latest = await repo.getLatestForPosts(testPostIds);
 
-    expect(Array.isArray(latest)).toBeTruthy();
-    expect(latest.length).toBe(5);
+    assert.ok(Array.isArray(latest));
+    assert.equal(latest.length, 5);
 
     const postIdCounts = new Map<string, number>();
     latest.forEach((record) => {
@@ -37,7 +38,7 @@ describe("AnalyticsRepository - getLatestForPosts", () => {
     });
 
     postIdCounts.forEach((count, _postId) => {
-      expect(count).toBe(1);
+      assert.equal(count, 1);
     });
   });
 
@@ -45,21 +46,21 @@ describe("AnalyticsRepository - getLatestForPosts", () => {
     const repo = new PrismaAnalyticsReadRepository(prisma);
     const latest = await repo.getLatestForPosts([testPostIds[0]!]);
 
-    expect(latest.length).toBe(1);
+    assert.equal(latest.length, 1);
 
     const allAnalytics = await prisma.analytics.findMany({
       where: { postId: testPostIds[0] },
       orderBy: { capturedAt: "desc" },
     });
 
-    expect(latest[0]!.id).toBe(allAnalytics[0]!.id);
+    assert.equal(latest[0]!.id, allAnalytics[0]!.id);
   });
 
   it("returns empty array for empty post IDs", async () => {
     const repo = new PrismaAnalyticsReadRepository(prisma);
     const latest = await repo.getLatestForPosts([]);
 
-    expect(latest.length).toBe(0);
+    assert.equal(latest.length, 0);
   });
 
   it("handles posts with no analytics", async () => {
@@ -76,7 +77,7 @@ describe("AnalyticsRepository - getLatestForPosts", () => {
     const repo = new PrismaAnalyticsReadRepository(prisma);
     const latest = await repo.getLatestForPosts([postWithoutAnalytics.id]);
 
-    expect(latest.length).toBe(0);
+    assert.equal(latest.length, 0);
 
     await prisma.postContent.deleteMany({ where: { postId: postWithoutAnalytics.id } });
     await prisma.post.delete({ where: { id: postWithoutAnalytics.id } });
@@ -84,11 +85,11 @@ describe("AnalyticsRepository - getLatestForPosts", () => {
 });
 
 describe("AnalyticsRepository - aggregateEngagement", () => {
-  beforeAll(async () => {
+  before(async () => {
     await setupTestData();
   });
 
-  afterAll(async () => {
+  after(async () => {
     await teardownTestData();
   });
 
@@ -98,12 +99,12 @@ describe("AnalyticsRepository - aggregateEngagement", () => {
 
     const metrics = repo.aggregateEngagement(analytics);
 
-    expect(typeof metrics.totalViews === "number").toBeTruthy();
-    expect(typeof metrics.totalLikes === "number").toBeTruthy();
-    expect(typeof metrics.totalComments === "number").toBeTruthy();
-    expect(typeof metrics.totalShares === "number").toBeTruthy();
-    expect(typeof metrics.totalEngagement === "number").toBeTruthy();
-    expect(typeof metrics.avgEngagementRate === "number").toBeTruthy();
+    assert.ok(typeof metrics.totalViews === "number");
+    assert.ok(typeof metrics.totalLikes === "number");
+    assert.ok(typeof metrics.totalComments === "number");
+    assert.ok(typeof metrics.totalShares === "number");
+    assert.ok(typeof metrics.totalEngagement === "number");
+    assert.ok(typeof metrics.avgEngagementRate === "number");
   });
 
   it("calculates total engagement as sum of likes, comments, and shares", async () => {
@@ -113,7 +114,7 @@ describe("AnalyticsRepository - aggregateEngagement", () => {
     const metrics = repo.aggregateEngagement(analytics);
 
     const expectedTotal = metrics.totalLikes + metrics.totalComments + metrics.totalShares;
-    expect(metrics.totalEngagement).toBe(expectedTotal);
+    assert.equal(metrics.totalEngagement, expectedTotal);
   });
 
   it("calculates engagement rate as percentage", async () => {
@@ -124,7 +125,7 @@ describe("AnalyticsRepository - aggregateEngagement", () => {
 
     if (metrics.totalViews > 0) {
       const expectedRate = (metrics.totalEngagement / metrics.totalViews) * 100;
-      expect(metrics.avgEngagementRate).toBe(expectedRate);
+      assert.equal(metrics.avgEngagementRate, expectedRate);
     }
   });
 
@@ -154,19 +155,19 @@ describe("AnalyticsRepository - aggregateEngagement", () => {
 
     const metrics = repo.aggregateEngagement(zeroAnalytics);
 
-    expect(metrics.avgEngagementRate).toBe(0);
+    assert.equal(metrics.avgEngagementRate, 0);
   });
 
   it("handles empty analytics array", async () => {
     const repo = new PrismaAnalyticsReadRepository(prisma);
     const metrics = repo.aggregateEngagement([]);
 
-    expect(metrics.totalViews).toBe(0);
-    expect(metrics.totalLikes).toBe(0);
-    expect(metrics.totalComments).toBe(0);
-    expect(metrics.totalShares).toBe(0);
-    expect(metrics.totalEngagement).toBe(0);
-    expect(metrics.avgEngagementRate).toBe(0);
+    assert.equal(metrics.totalViews, 0);
+    assert.equal(metrics.totalLikes, 0);
+    assert.equal(metrics.totalComments, 0);
+    assert.equal(metrics.totalShares, 0);
+    assert.equal(metrics.totalEngagement, 0);
+    assert.equal(metrics.avgEngagementRate, 0);
   });
 
   it("handles null/undefined values in analytics", async () => {
@@ -195,7 +196,7 @@ describe("AnalyticsRepository - aggregateEngagement", () => {
 
     const metrics = repo.aggregateEngagement(analyticsWithNulls);
 
-    expect(metrics.totalViews).toBe(0);
-    expect(metrics.totalLikes).toBe(0);
+    assert.equal(metrics.totalViews, 0);
+    assert.equal(metrics.totalLikes, 0);
   });
 });

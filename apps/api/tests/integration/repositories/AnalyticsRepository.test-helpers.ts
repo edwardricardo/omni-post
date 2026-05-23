@@ -20,7 +20,6 @@ export async function setupTestData() {
     data: {
       name: "Test Analytics Account",
       email: `test-analytics-${uniqueId}@example.com`,
-      subscription: "PRO",
     },
   });
   testAccountId = account.id;
@@ -38,7 +37,9 @@ export async function setupTestData() {
       projectId: testProjectId,
       provider: "X",
       handle: "@test_x",
-      credentials: { accessToken: "token_x" },
+      credentialsCiphertext: "test-ciphertext",
+      credentialsIv: "test-iv",
+      credentialsAuthTag: "test-auth-tag",
     },
   });
   testChannelIds.push(channelX.id);
@@ -48,7 +49,9 @@ export async function setupTestData() {
       projectId: testProjectId,
       provider: "INSTAGRAM",
       handle: "@test_instagram",
-      credentials: { accessToken: "token_ig" },
+      credentialsCiphertext: "test-ciphertext",
+      credentialsIv: "test-iv",
+      credentialsAuthTag: "test-auth-tag",
     },
   });
   testChannelIds.push(channelInstagram.id);

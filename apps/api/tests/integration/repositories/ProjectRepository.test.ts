@@ -19,7 +19,8 @@
  * @layer infrastructure
  */
 
-import { describe, it, beforeAll, afterAll, expect } from "vitest";
+import { describe, it, before, after } from "node:test";
+import assert from "node:assert/strict";
 import { PrismaProjectQueryRepository } from "../../../src/infrastructure/repositories/PrismaProjectQueryRepository.js";
 import { prisma } from "@infra/prisma";
 
@@ -39,7 +40,6 @@ async function setupTestData() {
     data: {
       name: "Test Repository Account",
       email: `test-repo-${uniqueId}@example.com`,
-      subscription: "BASIC",
     },
   });
   testAccountId = account.id;
@@ -59,10 +59,9 @@ async function setupTestData() {
       projectId: testProjectId,
       provider: "X",
       handle: "@test_handle",
-      credentials: {
-        accessToken: "test_token",
-        refreshToken: "test_refresh",
-      },
+      credentialsCiphertext: "test-ciphertext",
+      credentialsIv: "test-iv",
+      credentialsAuthTag: "test-auth-tag",
     },
   });
   testChannelId = channel.id;
@@ -135,7 +134,7 @@ async function teardownTestData() {
 describe("ProjectRepository - Basic Operations", () => {
   it("ProjectRepository instantiates successfully", () => {
     const repo = new PrismaProjectQueryRepository(prisma);
-    expect(repo !== null).toBeTruthy();
+    assert.ok(repo !== null);
   });
 });
 
@@ -144,11 +143,11 @@ describe("ProjectRepository - Basic Operations", () => {
 // ========================================
 
 describe("ProjectRepository - getPostIds", () => {
-  beforeAll(async () => {
+  before(async () => {
     await setupTestData();
   });
 
-  afterAll(async () => {
+  after(async () => {
     await teardownTestData();
   });
 
@@ -156,12 +155,12 @@ describe("ProjectRepository - getPostIds", () => {
     const repo = new PrismaProjectQueryRepository(prisma);
     const postIds = await repo.getPostIds(testProjectId);
 
-    expect(Array.isArray(postIds)).toBeTruthy();
-    expect(postIds.length).toBe(5);
+    assert.ok(Array.isArray(postIds));
+    assert.equal(postIds.length, 5);
 
     // Verify all test post IDs are included
     testPostIds.forEach((testId) => {
-      expect(postIds.includes(testId)).toBeTruthy();
+      assert.ok(postIds.includes(testId));
     });
   });
 
@@ -177,8 +176,8 @@ describe("ProjectRepository - getPostIds", () => {
     const repo = new PrismaProjectQueryRepository(prisma);
     const postIds = await repo.getPostIds(emptyProject.id);
 
-    expect(Array.isArray(postIds)).toBeTruthy();
-    expect(postIds.length).toBe(0);
+    assert.ok(Array.isArray(postIds));
+    assert.equal(postIds.length, 0);
 
     await prisma.project.delete({ where: { id: emptyProject.id } });
   });
@@ -187,8 +186,8 @@ describe("ProjectRepository - getPostIds", () => {
     const repo = new PrismaProjectQueryRepository(prisma);
     const postIds = await repo.getPostIds("non-existent-project-id");
 
-    expect(Array.isArray(postIds)).toBeTruthy();
-    expect(postIds.length).toBe(0);
+    assert.ok(Array.isArray(postIds));
+    assert.equal(postIds.length, 0);
   });
 });
 
@@ -197,11 +196,11 @@ describe("ProjectRepository - getPostIds", () => {
 // ========================================
 
 describe("ProjectRepository - getPostsWithContent", () => {
-  beforeAll(async () => {
+  before(async () => {
     await setupTestData();
   });
 
-  afterAll(async () => {
+  after(async () => {
     await teardownTestData();
   });
 
@@ -209,15 +208,15 @@ describe("ProjectRepository - getPostsWithContent", () => {
     const repo = new PrismaProjectQueryRepository(prisma);
     const posts = await repo.getPostsWithContent(testProjectId);
 
-    expect(Array.isArray(posts)).toBeTruthy();
-    expect(posts.length).toBe(5);
+    assert.ok(Array.isArray(posts));
+    assert.equal(posts.length, 5);
 
     // Verify each post has content and media
     posts.forEach((post) => {
-      expect(Array.isArray(post.contents)).toBeTruthy();
-      expect(post.contents.length > 0).toBeTruthy();
-      expect(Array.isArray(post.media)).toBeTruthy();
-      expect(post.media.length > 0).toBeTruthy();
+      assert.ok(Array.isArray(post.contents));
+      assert.ok(post.contents.length > 0);
+      assert.ok(Array.isArray(post.media));
+      assert.ok(post.media.length > 0);
     });
   });
 
@@ -225,7 +224,7 @@ describe("ProjectRepository - getPostsWithContent", () => {
     const repo = new PrismaProjectQueryRepository(prisma);
     const posts = await repo.getPostsWithContent(testProjectId, { take: 2 });
 
-    expect(posts.length).toBe(2);
+    assert.equal(posts.length, 2);
   });
 
   it("respects skip option for pagination", async () => {
@@ -233,8 +232,8 @@ describe("ProjectRepository - getPostsWithContent", () => {
     const allPosts = await repo.getPostsWithContent(testProjectId);
     const skippedPosts = await repo.getPostsWithContent(testProjectId, { skip: 2 });
 
-    expect(skippedPosts.length).toBe(3);
-    expect(skippedPosts[0]!.id).not.toBe(allPosts[0]!.id);
+    assert.equal(skippedPosts.length, 3);
+    assert.notEqual(skippedPosts[0]!.id, allPosts[0]!.id);
   });
 
   it("orders by createdAt desc by default", async () => {
@@ -245,7 +244,7 @@ describe("ProjectRepository - getPostsWithContent", () => {
     for (let i = 0; i < posts.length - 1; i++) {
       const currentTime = posts[i]!.createdAt.getTime();
       const nextTime = posts[i + 1]!.createdAt.getTime();
-      expect(currentTime >= nextTime).toBeTruthy();
+      assert.ok(currentTime >= nextTime);
     }
   });
 });
@@ -255,11 +254,11 @@ describe("ProjectRepository - getPostsWithContent", () => {
 // ========================================
 
 describe("ProjectRepository - getPostsWithAnalytics", () => {
-  beforeAll(async () => {
+  before(async () => {
     await setupTestData();
   });
 
-  afterAll(async () => {
+  after(async () => {
     await teardownTestData();
   });
 
@@ -267,14 +266,14 @@ describe("ProjectRepository - getPostsWithAnalytics", () => {
     const repo = new PrismaProjectQueryRepository(prisma);
     const posts = await repo.getPostsWithAnalytics(testProjectId);
 
-    expect(Array.isArray(posts)).toBeTruthy();
-    expect(posts.length).toBe(5);
+    assert.ok(Array.isArray(posts));
+    assert.equal(posts.length, 5);
 
     // Verify published posts have analytics
     const publishedPosts = posts.filter((p) => p.publishedAt !== null);
     publishedPosts.forEach((post) => {
-      expect(Array.isArray(post.analytics)).toBeTruthy();
-      expect(post.analytics.length > 0).toBeTruthy();
+      assert.ok(Array.isArray(post.analytics));
+      assert.ok(post.analytics.length > 0);
     });
   });
 
@@ -283,10 +282,10 @@ describe("ProjectRepository - getPostsWithAnalytics", () => {
     const posts = await repo.getPostsWithAnalytics(testProjectId);
 
     const draftPosts = posts.filter((p) => p.publishedAt === null);
-    expect(draftPosts.length).toBe(2);
+    assert.equal(draftPosts.length, 2);
 
     draftPosts.forEach((post) => {
-      expect(Array.isArray(post.analytics)).toBeTruthy();
+      assert.ok(Array.isArray(post.analytics));
       // Draft posts won't have analytics, so array should be empty
     });
   });
@@ -297,11 +296,11 @@ describe("ProjectRepository - getPostsWithAnalytics", () => {
 // ========================================
 
 describe("ProjectRepository - findById", () => {
-  beforeAll(async () => {
+  before(async () => {
     await setupTestData();
   });
 
-  afterAll(async () => {
+  after(async () => {
     await teardownTestData();
   });
 
@@ -309,16 +308,16 @@ describe("ProjectRepository - findById", () => {
     const repo = new PrismaProjectQueryRepository(prisma);
     const project = await repo.findById(testProjectId);
 
-    expect(project !== null).toBeTruthy();
-    expect(project!.id).toBe(testProjectId);
-    expect(project!.accountId).toBe(testAccountId);
+    assert.ok(project !== null);
+    assert.equal(project!.id, testProjectId);
+    assert.equal(project!.accountId, testAccountId);
   });
 
   it("returns null when project does not exist", async () => {
     const repo = new PrismaProjectQueryRepository(prisma);
     const project = await repo.findById("non-existent-project-id");
 
-    expect(project).toBe(null);
+    assert.equal(project, null);
   });
 });
 
@@ -327,11 +326,11 @@ describe("ProjectRepository - findById", () => {
 // ========================================
 
 describe("ProjectRepository - getByAccountId", () => {
-  beforeAll(async () => {
+  before(async () => {
     await setupTestData();
   });
 
-  afterAll(async () => {
+  after(async () => {
     await teardownTestData();
   });
 
@@ -347,9 +346,9 @@ describe("ProjectRepository - getByAccountId", () => {
     const repo = new PrismaProjectQueryRepository(prisma);
     const projects = await repo.getByAccountId(testAccountId);
 
-    expect(Array.isArray(projects)).toBeTruthy();
-    expect(projects.length).toBe(2);
-    expect(projects.every((p) => p.accountId === testAccountId)).toBeTruthy();
+    assert.ok(Array.isArray(projects));
+    assert.equal(projects.length, 2);
+    assert.ok(projects.every((p) => p.accountId === testAccountId));
 
     await prisma.project.delete({ where: { id: project2.id } });
   });
@@ -358,8 +357,8 @@ describe("ProjectRepository - getByAccountId", () => {
     const repo = new PrismaProjectQueryRepository(prisma);
     const projects = await repo.getByAccountId("non-existent-account-id");
 
-    expect(Array.isArray(projects)).toBeTruthy();
-    expect(projects.length).toBe(0);
+    assert.ok(Array.isArray(projects));
+    assert.equal(projects.length, 0);
   });
 
   it("orders projects by createdAt desc", async () => {
@@ -378,7 +377,7 @@ describe("ProjectRepository - getByAccountId", () => {
     for (let i = 0; i < projects.length - 1; i++) {
       const currentTime = projects[i]!.createdAt.getTime();
       const nextTime = projects[i + 1]!.createdAt.getTime();
-      expect(currentTime >= nextTime).toBeTruthy();
+      assert.ok(currentTime >= nextTime);
     }
 
     await prisma.project.delete({ where: { id: project2.id } });
@@ -390,11 +389,11 @@ describe("ProjectRepository - getByAccountId", () => {
 // ========================================
 
 describe("ProjectRepository - countPosts", () => {
-  beforeAll(async () => {
+  before(async () => {
     await setupTestData();
   });
 
-  afterAll(async () => {
+  after(async () => {
     await teardownTestData();
   });
 
@@ -402,7 +401,7 @@ describe("ProjectRepository - countPosts", () => {
     const repo = new PrismaProjectQueryRepository(prisma);
     const count = await repo.countPosts(testProjectId);
 
-    expect(count).toBe(5);
+    assert.equal(count, 5);
   });
 
   it("returns 0 for project with no posts", async () => {
@@ -416,7 +415,7 @@ describe("ProjectRepository - countPosts", () => {
     const repo = new PrismaProjectQueryRepository(prisma);
     const count = await repo.countPosts(emptyProject.id);
 
-    expect(count).toBe(0);
+    assert.equal(count, 0);
 
     await prisma.project.delete({ where: { id: emptyProject.id } });
   });
@@ -427,11 +426,11 @@ describe("ProjectRepository - countPosts", () => {
 // ========================================
 
 describe("ProjectRepository - getPublishedPosts", () => {
-  beforeAll(async () => {
+  before(async () => {
     await setupTestData();
   });
 
-  afterAll(async () => {
+  after(async () => {
     await teardownTestData();
   });
 
@@ -439,12 +438,12 @@ describe("ProjectRepository - getPublishedPosts", () => {
     const repo = new PrismaProjectQueryRepository(prisma);
     const posts = await repo.getPublishedPosts(testProjectId);
 
-    expect(Array.isArray(posts)).toBeTruthy();
-    expect(posts.length).toBe(3);
+    assert.ok(Array.isArray(posts));
+    assert.equal(posts.length, 3);
 
     posts.forEach((post) => {
-      expect(post.publishedAt !== null).toBeTruthy();
-      expect(post.status).toBe("PUBLISHED");
+      assert.ok(post.publishedAt !== null);
+      assert.equal(post.status, "PUBLISHED");
     });
   });
 
@@ -453,10 +452,10 @@ describe("ProjectRepository - getPublishedPosts", () => {
     const posts = await repo.getPublishedPosts(testProjectId);
 
     posts.forEach((post) => {
-      expect(Array.isArray(post.contents)).toBeTruthy();
-      expect(post.contents.length > 0).toBeTruthy();
-      expect(Array.isArray(post.media)).toBeTruthy();
-      expect(post.media.length > 0).toBeTruthy();
+      assert.ok(Array.isArray(post.contents));
+      assert.ok(post.contents.length > 0);
+      assert.ok(Array.isArray(post.media));
+      assert.ok(post.media.length > 0);
     });
   });
 
@@ -469,7 +468,7 @@ describe("ProjectRepository - getPublishedPosts", () => {
       const current = posts[i]!.publishedAt;
       const next = posts[i + 1]!.publishedAt;
       if (current && next) {
-        expect(current.getTime() >= next.getTime()).toBeTruthy();
+        assert.ok(current.getTime() >= next.getTime());
       }
     }
   });
@@ -478,6 +477,6 @@ describe("ProjectRepository - getPublishedPosts", () => {
     const repo = new PrismaProjectQueryRepository(prisma);
     const posts = await repo.getPublishedPosts(testProjectId, { take: 2 });
 
-    expect(posts.length).toBe(2);
+    assert.equal(posts.length, 2);
   });
 });

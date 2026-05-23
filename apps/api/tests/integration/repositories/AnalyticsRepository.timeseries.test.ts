@@ -3,7 +3,8 @@
  * @description Tests for AnalyticsRepository - getTimeSeriesData
  * @layer infrastructure
  */
-import { describe, it, beforeAll, afterAll, expect } from "vitest";
+import { describe, it, before, after } from "node:test";
+import assert from "node:assert/strict";
 import { PrismaAnalyticsReadRepository } from "../../../src/infrastructure/repositories/PrismaAnalyticsReadRepository.js";
 import { prisma } from "@infra/prisma";
 import {
@@ -14,11 +15,11 @@ import {
 } from "./AnalyticsRepository.test-helpers.js";
 
 describe("AnalyticsRepository - getTimeSeriesData", () => {
-  beforeAll(async () => {
+  before(async () => {
     await setupTestData();
   });
 
-  afterAll(async () => {
+  after(async () => {
     await teardownTestData();
   });
 
@@ -26,13 +27,13 @@ describe("AnalyticsRepository - getTimeSeriesData", () => {
     const repo = new PrismaAnalyticsReadRepository(prisma);
     const timeSeries = await repo.getTimeSeriesData(testPostIds, "day");
 
-    expect(Array.isArray(timeSeries)).toBeTruthy();
-    expect(timeSeries.length > 0).toBeTruthy();
+    assert.ok(Array.isArray(timeSeries));
+    assert.ok(timeSeries.length > 0);
 
     timeSeries.forEach((period) => {
-      expect(period.period).toBeTruthy();
-      expect(typeof period.totalViews === "number").toBeTruthy();
-      expect(typeof period.recordCount === "number").toBeTruthy();
+      assert.ok(period.period);
+      assert.ok(typeof period.totalViews === "number");
+      assert.ok(typeof period.recordCount === "number");
     });
   });
 
@@ -40,10 +41,10 @@ describe("AnalyticsRepository - getTimeSeriesData", () => {
     const repo = new PrismaAnalyticsReadRepository(prisma);
     const timeSeries = await repo.getTimeSeriesData(testPostIds, "hour");
 
-    expect(Array.isArray(timeSeries)).toBeTruthy();
+    assert.ok(Array.isArray(timeSeries));
 
     timeSeries.forEach((period) => {
-      expect(period.period.length >= 13).toBeTruthy();
+      assert.ok(period.period.length >= 13);
     });
   });
 
@@ -51,7 +52,7 @@ describe("AnalyticsRepository - getTimeSeriesData", () => {
     const repo = new PrismaAnalyticsReadRepository(prisma);
     const timeSeries = await repo.getTimeSeriesData(testPostIds, "week");
 
-    expect(Array.isArray(timeSeries)).toBeTruthy();
+    assert.ok(Array.isArray(timeSeries));
   });
 
   it("includes aggregated metrics per period", async () => {
@@ -59,12 +60,12 @@ describe("AnalyticsRepository - getTimeSeriesData", () => {
     const timeSeries = await repo.getTimeSeriesData(testPostIds, "day");
 
     timeSeries.forEach((period) => {
-      expect(typeof period.totalViews === "number").toBeTruthy();
-      expect(typeof period.totalLikes === "number").toBeTruthy();
-      expect(typeof period.totalComments === "number").toBeTruthy();
-      expect(typeof period.totalShares === "number").toBeTruthy();
-      expect(typeof period.totalEngagement === "number").toBeTruthy();
-      expect(typeof period.avgEngagementRate === "number").toBeTruthy();
+      assert.ok(typeof period.totalViews === "number");
+      assert.ok(typeof period.totalLikes === "number");
+      assert.ok(typeof period.totalComments === "number");
+      assert.ok(typeof period.totalShares === "number");
+      assert.ok(typeof period.totalEngagement === "number");
+      assert.ok(typeof period.avgEngagementRate === "number");
     });
   });
 
@@ -76,16 +77,16 @@ describe("AnalyticsRepository - getTimeSeriesData", () => {
       startDate: twoDaysAgo,
     });
 
-    expect(timeSeries.length > 0).toBeTruthy();
+    assert.ok(timeSeries.length > 0);
   });
 });
 
 describe("AnalyticsRepository - getPostsWithAnalytics", () => {
-  beforeAll(async () => {
+  before(async () => {
     await setupTestData();
   });
 
-  afterAll(async () => {
+  after(async () => {
     await teardownTestData();
   });
 
@@ -93,13 +94,13 @@ describe("AnalyticsRepository - getPostsWithAnalytics", () => {
     const repo = new PrismaAnalyticsReadRepository(prisma);
     const posts = await repo.getPostsWithAnalytics(testProjectId);
 
-    expect(Array.isArray(posts)).toBeTruthy();
-    expect(posts.length).toBe(5);
+    assert.ok(Array.isArray(posts));
+    assert.equal(posts.length, 5);
 
     posts.forEach((post) => {
-      expect(Array.isArray(post.analytics)).toBeTruthy();
-      expect(Array.isArray(post.contents)).toBeTruthy();
-      expect(Array.isArray(post.media)).toBeTruthy();
+      assert.ok(Array.isArray(post.analytics));
+      assert.ok(Array.isArray(post.contents));
+      assert.ok(Array.isArray(post.media));
     });
   });
 
@@ -113,7 +114,7 @@ describe("AnalyticsRepository - getPostsWithAnalytics", () => {
 
     posts.forEach((post) => {
       post.analytics.forEach((analytics) => {
-        expect(analytics.capturedAt >= twoDaysAgo).toBeTruthy();
+        assert.ok(analytics.capturedAt >= twoDaysAgo);
       });
     });
   });
@@ -126,7 +127,7 @@ describe("AnalyticsRepository - getPostsWithAnalytics", () => {
 
     posts.forEach((post) => {
       post.analytics.forEach((analytics) => {
-        expect(analytics.provider).toBe("X");
+        assert.equal(analytics.provider, "X");
       });
     });
   });
@@ -135,7 +136,7 @@ describe("AnalyticsRepository - getPostsWithAnalytics", () => {
     const repo = new PrismaAnalyticsReadRepository(prisma);
     const posts = await repo.getPostsWithAnalytics(testProjectId, { take: 2 });
 
-    expect(posts.length).toBe(2);
+    assert.equal(posts.length, 2);
   });
 
   it("orders posts by createdAt desc", async () => {
@@ -143,7 +144,7 @@ describe("AnalyticsRepository - getPostsWithAnalytics", () => {
     const posts = await repo.getPostsWithAnalytics(testProjectId);
 
     for (let i = 0; i < posts.length - 1; i++) {
-      expect(posts[i]!.createdAt >= posts[i + 1]!.createdAt).toBeTruthy();
+      assert.ok(posts[i]!.createdAt >= posts[i + 1]!.createdAt);
     }
   });
 
@@ -153,18 +154,18 @@ describe("AnalyticsRepository - getPostsWithAnalytics", () => {
 
     posts.forEach((post) => {
       for (let i = 0; i < post.analytics.length - 1; i++) {
-        expect(post.analytics[i]!.capturedAt >= post.analytics[i + 1]!.capturedAt).toBeTruthy();
+        assert.ok(post.analytics[i]!.capturedAt >= post.analytics[i + 1]!.capturedAt);
       }
     });
   });
 });
 
 describe("AnalyticsRepository - Edge Cases", () => {
-  beforeAll(async () => {
+  before(async () => {
     await setupTestData();
   });
 
-  afterAll(async () => {
+  after(async () => {
     await teardownTestData();
   });
 
@@ -179,9 +180,9 @@ describe("AnalyticsRepository - Edge Cases", () => {
       repo.getLatestForPosts(testPostIds),
     ]);
 
-    expect(results[0]!.length > 0).toBeTruthy();
-    expect(results[1]!.length > 0).toBeTruthy();
-    expect(results[2]!.length > 0).toBeTruthy();
+    assert.ok(results[0]!.length > 0);
+    assert.ok(results[1]!.length > 0);
+    assert.ok(results[2]!.length > 0);
   });
 
   it("handles large date ranges", async () => {
@@ -192,19 +193,19 @@ describe("AnalyticsRepository - Edge Cases", () => {
       startDate: oneYearAgo,
     });
 
-    expect(Array.isArray(analytics)).toBeTruthy();
+    assert.ok(Array.isArray(analytics));
   });
 
   it("handles empty result sets gracefully", async () => {
     const repo = new PrismaAnalyticsReadRepository(prisma);
 
     const analytics = await repo.getByPostIds(["non-existent-post"]);
-    expect(analytics.length).toBe(0);
+    assert.equal(analytics.length, 0);
 
     const latest = await repo.getLatestForPosts(["non-existent-post"]);
-    expect(latest.length).toBe(0);
+    assert.equal(latest.length, 0);
 
     const timeSeries = await repo.getTimeSeriesData(["non-existent-post"]);
-    expect(timeSeries.length).toBe(0);
+    assert.equal(timeSeries.length, 0);
   });
 });
