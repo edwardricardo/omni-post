@@ -16,8 +16,8 @@ import { XWebhookProcessor } from "./processors/xWebhookProcessor.js";
 import { YouTubeWebhookProcessor } from "./processors/youtubeWebhookProcessor.js";
 import { TikTokWebhookProcessor } from "./processors/tiktokWebhookProcessor.js";
 import { LinkedInWebhookProcessor } from "./processors/linkedinWebhookProcessor.js";
-import { SnapchatWebhookProcessor } from "./processors/snapchatWebhookProcessor.js";
 import { TelegramWebhookProcessor } from "./processors/telegramWebhookProcessor.js";
+import { ThreadsWebhookProcessor } from "./processors/threadsWebhookProcessor.js";
 import type { MentionFetchEnqueue } from "./mentionFetchEnqueue.js";
 import type {
   WebhookEventInput,
@@ -129,8 +129,11 @@ export class UniversalWebhookHandler {
     this.processors.set("YOUTUBE", new YouTubeWebhookProcessor(this.prisma, this.broadcaster));
     this.processors.set("TIKTOK", new TikTokWebhookProcessor(this.prisma, this.broadcaster));
     this.processors.set("LINKEDIN", new LinkedInWebhookProcessor(this.prisma, this.broadcaster));
-    this.processors.set("SNAPCHAT", new SnapchatWebhookProcessor(this.prisma, this.broadcaster));
     this.processors.set("TELEGRAM", new TelegramWebhookProcessor(this.prisma, this.broadcaster));
+    this.processors.set(
+      "THREADS",
+      new ThreadsWebhookProcessor(this.prisma, this.broadcaster, this.mentionEnqueue)
+    );
   }
 
   async handleWebhook(
