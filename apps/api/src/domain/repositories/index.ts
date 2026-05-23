@@ -94,6 +94,13 @@ export {
 // Thread read-model port (analytics consumers)
 export { type ThreadReadRepositoryPort } from "./ThreadReadRepository.js";
 
+// Conversion port (ROI engine write side + account-scoped reads)
+export {
+  type ConversionRepositoryPort,
+  type ConversionRecordInput,
+  type ConversionFindOptions,
+} from "./ConversionRepository.js";
+
 // Team-membership operations live on CustomerUserRepository (exported below).
 export {
   type CustomerRoleRepository,
@@ -240,6 +247,9 @@ export {
   type SubscriptionTierKind,
   type AdminRoleKind,
   type MediaKindValue,
+  type ConversionTypeKind,
+  type ConversionAttributionKind,
+  type ConversionDto,
   type AccountDto,
   type ProjectDto,
   type PostDto,

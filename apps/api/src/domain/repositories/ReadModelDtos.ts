@@ -26,9 +26,20 @@ export type JsonValue =
 
 /**
  * Social media provider identifiers.
- * Mirrors the Prisma `Provider` enum.
+ * Mirrors the Prisma `Provider` enum (all eleven members).
  */
-export type ProviderKind = "X" | "INSTAGRAM" | "FACEBOOK" | "YOUTUBE" | "TIKTOK";
+export type ProviderKind =
+  | "X"
+  | "INSTAGRAM"
+  | "FACEBOOK"
+  | "YOUTUBE"
+  | "TIKTOK"
+  | "SNAPCHAT"
+  | "TELEGRAM"
+  | "PINTEREST"
+  | "LINKEDIN"
+  | "BLUESKY"
+  | "THREADS";
 
 /**
  * Subscription tier levels.
@@ -47,6 +58,18 @@ export type AdminRoleKind = string;
  * Mirrors the Prisma `MediaKind` enum.
  */
 export type MediaKindValue = "image" | "video" | "gif";
+
+/**
+ * Conversion event kinds.
+ * Mirrors the Prisma `ConversionType` enum.
+ */
+export type ConversionTypeKind = "SALE" | "LEAD" | "SIGNUP" | "DOWNLOAD" | "SUBSCRIPTION";
+
+/**
+ * Conversion attribution models.
+ * Mirrors the Prisma `ConversionAttribution` enum.
+ */
+export type ConversionAttributionKind = "FIRST_CLICK" | "LAST_CLICK" | "LINEAR" | "TIME_DECAY";
 
 /**
  * SSO provider types.
@@ -246,6 +269,23 @@ export interface AnalyticsDto {
   comments: number | null;
   shares: number | null;
   capturedAt: Date;
+}
+
+/**
+ * Flat DTO for a persisted Conversion row.
+ * Mirrors `Prisma.Conversion` without the Prisma import. `value` is coerced from
+ * Prisma's `Decimal` to a `number` at the adapter boundary (money canon).
+ */
+export interface ConversionDto {
+  id: string;
+  accountId: string;
+  source: ProviderKind;
+  contentId: string;
+  conversionType: ConversionTypeKind;
+  value: number;
+  attribution: ConversionAttributionKind;
+  occurredAt: Date;
+  createdAt: Date;
 }
 
 /**

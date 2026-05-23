@@ -92,7 +92,8 @@ CONCURRENCY=1 run_batch "integration:repositories" \
   tests/integration/repositories/ProjectRepository.test.ts \
   tests/integration/repositories/AnalyticsRepository.basic.test.ts \
   tests/integration/repositories/AnalyticsRepository.channel.test.ts \
-  tests/integration/repositories/AnalyticsRepository.timeseries.test.ts
+  tests/integration/repositories/AnalyticsRepository.timeseries.test.ts \
+  tests/integration/repositories/ConversionRepository.test.ts
 
 CONCURRENCY=1 run_batch "integration:sync" \
   tests/integration/syncEngine/syncEngine.init.test.ts \

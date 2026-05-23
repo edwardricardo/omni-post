@@ -22,9 +22,11 @@ import { PrismaAnalyticsQueryRepository } from "../repositories/PrismaAnalyticsQ
 import { PrismaProjectQueryRepository } from "../repositories/PrismaProjectQueryRepository.js";
 import { PrismaAnalyticsReadRepository } from "../repositories/PrismaAnalyticsReadRepository.js";
 import { PrismaThreadReadRepository } from "../repositories/PrismaThreadReadRepository.js";
+import { PrismaConversionRepository } from "../repositories/PrismaConversionRepository.js";
 import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
 import type { AnalyticsReadRepositoryPort } from "../../domain/repositories/AnalyticsReadRepository.js";
 import type { ThreadReadRepositoryPort } from "../../domain/repositories/ThreadReadRepository.js";
+import type { ConversionRepositoryPort } from "../../domain/repositories/ConversionRepository.js";
 import { PrismaChannelRepository } from "../repositories/PrismaChannelRepository.js";
 import type { PostRepository, PostQueryRepository } from "../../domain/index.js";
 import type { AccountRepositoryPort } from "../../domain/repositories/AccountRepository.js";
@@ -165,6 +167,12 @@ export function setupRepositories(container: Container): void {
   container.register<ThreadReadRepositoryPort>(
     TOKENS.ThreadReadRepository,
     () => new PrismaThreadReadRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
+  container.register<ConversionRepositoryPort>(
+    TOKENS.ConversionRepository,
+    () => new PrismaConversionRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
 

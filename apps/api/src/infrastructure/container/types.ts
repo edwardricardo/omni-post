@@ -35,6 +35,7 @@ export const TOKENS = {
   ProjectQueryRepository: Symbol.for("ProjectQueryRepository"),
   AnalyticsReadRepository: Symbol.for("AnalyticsReadRepository"),
   ThreadReadRepository: Symbol.for("ThreadReadRepository"),
+  ConversionRepository: Symbol.for("ConversionRepository"),
 
   // Repositories (P2-3 — CQRS read side)
   PostQueryRepository: Symbol.for("PostQueryRepository"),

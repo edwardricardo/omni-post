@@ -12,6 +12,8 @@ import { ROICalculator } from "../../analytics/roiCalculator.js";
 import type { ROICalculationOptions } from "../../analytics/roi/types.js";
 import type { TimeRange, ProviderType } from "@shared/analytics";
 import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
+import type { AnalyticsReadRepositoryPort } from "../../domain/repositories/AnalyticsReadRepository.js";
+import type { ConversionRepositoryPort } from "../../domain/repositories/ConversionRepository.js";
 
 /**
  * Adapter that implements ROICalculatorPort by delegating to ROICalculator.
@@ -25,8 +27,18 @@ import type { ProjectQueryRepositoryPort } from "../../domain/repositories/Proje
 export class ROICalculatorAdapter implements ROICalculatorPort {
   private readonly calculator: ROICalculator;
 
-  constructor(cache: CachePort, projectRepository: ProjectQueryRepositoryPort) {
-    this.calculator = new ROICalculator(projectRepository, cache);
+  constructor(
+    cache: CachePort,
+    projectRepository: ProjectQueryRepositoryPort,
+    analyticsRepository: AnalyticsReadRepositoryPort,
+    conversionRepository: ConversionRepositoryPort
+  ) {
+    this.calculator = new ROICalculator(
+      projectRepository,
+      analyticsRepository,
+      conversionRepository,
+      cache
+    );
   }
 
   async calculateROI(options: {

@@ -12,6 +12,7 @@ import type { CampaignRepository } from "../../domain/repositories/CampaignRepos
 import type { CampaignQueryRepository } from "../../domain/repositories/CampaignQueryRepository.js";
 import type { AnalyticsReadRepositoryPort } from "../../domain/repositories/AnalyticsReadRepository.js";
 import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
+import type { ConversionRepositoryPort } from "../../domain/repositories/ConversionRepository.js";
 import type { TrackedLinkRepository } from "../../domain/repositories/TrackedLinkRepository.js";
 import {
   GetCrossPlatformAnalyticsUseCase,
@@ -80,7 +81,9 @@ export function setupAnalyticsUseCases(container: Container): void {
     () =>
       new ROICalculatorAdapter(
         container.resolve<CachePort>(TOKENS.CachePort),
-        container.resolve<ProjectQueryRepositoryPort>(TOKENS.ProjectQueryRepository)
+        container.resolve<ProjectQueryRepositoryPort>(TOKENS.ProjectQueryRepository),
+        container.resolve<AnalyticsReadRepositoryPort>(TOKENS.AnalyticsReadRepository),
+        container.resolve<ConversionRepositoryPort>(TOKENS.ConversionRepository)
       ),
     true
   );

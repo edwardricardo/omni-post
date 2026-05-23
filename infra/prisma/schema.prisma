@@ -90,6 +90,7 @@ model Account {
   onboarding               AccountOnboarding?
   samlSessions             SamlSession[]
   referralsReceived        Referral[]                @relation("ReferredAccount")
+  conversions              Conversion[]
 
   @@index([isOnTrial, trialEndDate], where: { deletedAt: null })
   @@index([nextBillingDate], where: { deletedAt: null })
@@ -882,6 +883,42 @@ model Analytics {
   // @@index([capturedAt]) - REMOVED: Covered by composite indexes above
   // @@index([postId, capturedAt]) - REMOVED: Covered by [postId, provider, capturedAt]
   @@index([channelId, provider, capturedAt])
+}
+
+model Conversion {
+  id             String                @id @default(uuid())
+  accountId      String
+  source         Provider
+  contentId      String
+  conversionType ConversionType
+  value          Decimal               @db.Decimal(19, 4)
+  attribution    ConversionAttribution
+  occurredAt     DateTime              @db.Timestamptz(6)
+  createdAt      DateTime              @default(now()) @db.Timestamptz(6)
+  account        Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  // Idempotency guard preserving the original `ON CONFLICT DO NOTHING` intent:
+  // the same content converting the same way for the same account at the same
+  // instant is one event. `record()` catches P2002 and no-ops on a re-report.
+  @@unique([accountId, source, contentId, conversionType, occurredAt], name: "conversion_idempotency")
+  @@index([accountId, occurredAt])
+  @@index([contentId])
+  @@index([source, occurredAt])
+}
+
+enum ConversionType {
+  SALE
+  LEAD
+  SIGNUP
+  DOWNLOAD
+  SUBSCRIPTION
+}
+
+enum ConversionAttribution {
+  FIRST_CLICK
+  LAST_CLICK
+  LINEAR
+  TIME_DECAY
 }
 
 model Thread {
