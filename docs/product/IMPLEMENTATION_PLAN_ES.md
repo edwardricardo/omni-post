@@ -1,6 +1,8 @@
 # Plan de Implementación — OmniPost (roadmap de gaps)
 
 > Derivado de [FEATURE_TRACE_MATRIX_ES.md](FEATURE_TRACE_MATRIX_ES.md) §8.4 (orden) y §9 (canon 2026). Solo cubre **gaps** (🟡/📐/💬/⛔); lo ✅ no entra. Orden macro: **Bloqueantes compartidos → Fase 0 → Fase 1 → Fase 2 → Fase 3**.
+>
+> **Workstreams técnicos relacionados** (en curso, rama `workstream/prisma-di-migration`): migración prisma→DI — [../development/PRISMA_DI_MIGRATION_ES.md](../development/PRISMA_DI_MIGRATION_ES.md); realtime SSE (analytics + notifications) — [../features/REALTIME_SSE_ES.md](../features/REALTIME_SSE_ES.md).
 
 ## Cómo se trackea
 
