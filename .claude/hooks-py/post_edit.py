@@ -10,6 +10,7 @@ fallos van a PostToolUseFailure (evento aparte). No chequeamos si el Edit
 funcionó — si este hook corre, el archivo se escribió.
 """
 
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -43,6 +44,18 @@ SKIP_SUBSTRINGS = (
 )
 
 SECRETLINT_TIMEOUT_SEC = 10
+
+# secretlint treats its file argument as a glob. Next.js route filenames contain
+# glob metacharacters — dynamic `[id]`, catch-all `[...path]`, route groups
+# `(group)` — which a glob parser reads as character classes / extglob, so the
+# literal file is never matched ("Not found target files") and the scan silently
+# never runs. Escaping these makes secretlint scan the actual file.
+_GLOB_MAGIC = re.compile(r"([\[\]()?*!{}@+])")
+
+
+def escape_glob(path: str) -> str:
+    """Backslash-escape glob metacharacters so a literal path matches itself."""
+    return _GLOB_MAGIC.sub(r"\\\1", path)
 
 
 def should_skip(file_path: str) -> bool:
@@ -82,7 +95,7 @@ def main() -> None:
                 ".secretlintignore",
                 "--format",
                 "compact",
-                file_path,
+                escape_glob(file_path),
             ],
             capture_output=True,
             text=True,
