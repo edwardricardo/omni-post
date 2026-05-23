@@ -7,6 +7,7 @@
 import { Worker, Job, Queue } from "bullmq";
 import Redis from "ioredis";
 import { UniversalWebhookHandler } from "./webhookHandler.js";
+import type { InboundChallenge } from "./webhookHandlerCore.js";
 import type { WebhookEventType, Provider, PrismaClient } from "@infra/prisma";
 import { webhookLogger } from "../lib/logger.js";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
@@ -210,6 +211,52 @@ export class WebhookJobProcessor {
     });
 
     return job.id as string;
+  }
+
+  /**
+   * @method receiveInboundWebhook
+   * @description Edge entry for an inbound webhook POST: verifies the signature
+   *   (raw body) and, if valid, enqueues the event for async processing. Returns
+   *   the HTTP status the route should ack with — 202 on accept.
+   * @param provider - The provider the webhook arrived for.
+   * @param signature - The raw signature header value.
+   * @param rawBody - The unparsed request body.
+   * @param headers - The request headers.
+   * @returns accepted + status (+ jobId on success, reason on rejection).
+   */
+  async receiveInboundWebhook(
+    provider: Provider,
+    signature: string,
+    rawBody: string,
+    headers: Record<string, string>
+  ): Promise<{ accepted: boolean; status: number; jobId?: string; reason?: string }> {
+    const verified = await this.webhookHandler.verifyInbound(provider, signature, rawBody, headers);
+    if (!verified.ok) {
+      return { accepted: false, status: verified.status, reason: verified.reason };
+    }
+    const jobId = await this.addWebhookJob({
+      eventId: verified.eventId,
+      provider,
+      eventType: verified.eventType,
+      payload: verified.payload,
+      headers,
+      signature,
+      retryCount: 0,
+      originalReceivedAt: new Date().toISOString(),
+    });
+    return { accepted: true, status: 202, jobId };
+  }
+
+  /**
+   * @method getInboundChallenge
+   * @description Delegates a provider GET verification handshake to the handler.
+   */
+  async getInboundChallenge(
+    provider: Provider,
+    query: Record<string, string>,
+    headers: Record<string, string>
+  ): Promise<InboundChallenge> {
+    return this.webhookHandler.handleChallenge(provider, query, headers);
   }
 
   /**

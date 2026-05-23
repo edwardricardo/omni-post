@@ -26,6 +26,7 @@ import { templateService } from "../../templates/templateService.js";
 import { templateAnalytics } from "../../templates/templateAnalytics.js";
 import { subscriptionService } from "../../billing/subscription/index.js";
 import { WebhookDashboardService } from "../../webhooks/webhookDashboardService.js";
+import { WebhookManager } from "../../webhooks/webhookManager.js";
 import { RealtimeWebhookBroadcaster } from "../../webhooks/realtimeWebhookBroadcaster.js";
 import { ProviderService } from "../../providers/providerService.js";
 import { providerRegistry } from "../../providers/providerRegistry.js";
@@ -220,6 +221,17 @@ export function setupServices(
   container.register<WebhookDashboardService>(
     TOKENS.WebhookDashboardService,
     () => new WebhookDashboardService(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  // Owns the WEBHOOK_PROCESSING queue + worker (started in index.ts). The
+  // BullMQ worker shares this connection, so it must use maxRetriesPerRequest: null.
+  container.register<WebhookManager>(
+    TOKENS.WebhookManager,
+    () =>
+      new WebhookManager(
+        createRedisConnection({ maxRetriesPerRequest: null }),
+        container.resolve(TOKENS.PrismaClient)
+      ),
     true
   );
 

@@ -9,6 +9,7 @@ import {
   type WebhookJobProcessor,
   type WebhookJobData,
 } from "./webhookJobProcessor.js";
+import type { InboundChallenge } from "./webhookHandlerCore.js";
 import type { Provider, WebhookEventType, PrismaClient } from "@infra/prisma";
 import Redis from "ioredis";
 import { webhookLogger } from "../lib/logger.js";
@@ -290,6 +291,41 @@ export class WebhookManager {
     const jobId = await this.jobProcessor.addWebhookJob(jobData);
 
     return jobId;
+  }
+
+  /**
+   * @method receiveInboundWebhook
+   * @description Verifies an inbound webhook at the edge and enqueues it for
+   *   async processing. The route acks with the returned status (202 on accept).
+   * @param provider - The provider the webhook arrived for.
+   * @param signature - The raw signature header value.
+   * @param rawBody - The unparsed request body (for HMAC verification).
+   * @param headers - The request headers.
+   * @returns accepted + HTTP status (+ jobId / reason).
+   */
+  async receiveInboundWebhook(
+    provider: Provider,
+    signature: string,
+    rawBody: string,
+    headers: Record<string, string>
+  ): Promise<{ accepted: boolean; status: number; jobId?: string; reason?: string }> {
+    return this.jobProcessor.receiveInboundWebhook(provider, signature, rawBody, headers);
+  }
+
+  /**
+   * @method getInboundChallenge
+   * @description Answers a provider GET verification handshake.
+   * @param provider - The provider issuing the handshake.
+   * @param query - The request query parameters.
+   * @param headers - The request headers.
+   * @returns The status + body to return.
+   */
+  async getInboundChallenge(
+    provider: Provider,
+    query: Record<string, string>,
+    headers: Record<string, string>
+  ): Promise<InboundChallenge> {
+    return this.jobProcessor.getInboundChallenge(provider, query, headers);
   }
 
   /**

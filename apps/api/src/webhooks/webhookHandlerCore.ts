@@ -5,8 +5,8 @@
  * @layer infrastructure
  */
 
-import type { WebhookEvent, Provider, PrismaClient } from "@infra/prisma";
-import { createHash } from "crypto";
+import type { WebhookEvent, Provider, PrismaClient, WebhookEventType } from "@infra/prisma";
+import { createHash, createHmac } from "crypto";
 import type { RealtimeWebhookBroadcaster } from "./realtimeWebhookBroadcaster.js";
 import { webhookLogger } from "../lib/logger.js";
 import { AppError } from "../lib/errors/AppError.js";
@@ -49,6 +49,17 @@ export interface VerifyWithGraceInput {
 export interface VerifyWithGraceResult {
   isValid: boolean;
   acceptedViaPrevious: boolean;
+}
+
+/** Outcome of edge verification for an inbound webhook POST. */
+export type InboundVerification =
+  | { ok: true; eventId: string; eventType: WebhookEventType; payload: Record<string, unknown> }
+  | { ok: false; status: 400 | 401 | 404; reason: string };
+
+/** Response for a provider GET verification handshake. */
+export interface InboundChallenge {
+  status: number;
+  body: string;
 }
 
 /**
@@ -231,6 +242,99 @@ export class UniversalWebhookHandler {
         ...(shouldRetry && { retryAfter: this.calculateRetryDelay(1) }),
       };
     }
+  }
+
+  /**
+   * @method verifyInbound
+   * @description Edge verification of an inbound webhook POST: parses the raw
+   *   body, resolves the active subscription, and verifies the signature (with
+   *   the rotation grace window). Returns the event id + type to enqueue, or a
+   *   failure carrying the HTTP status the route should return.
+   * @param provider - The provider the webhook arrived for.
+   * @param signature - The raw signature header value.
+   * @param rawBody - The unparsed request body (required for HMAC).
+   * @param headers - The request headers.
+   * @returns ok with eventId/eventType/payload, or a typed failure.
+   */
+  async verifyInbound(
+    provider: Provider,
+    signature: string,
+    rawBody: string,
+    headers: Record<string, string>
+  ): Promise<InboundVerification> {
+    let payload: Record<string, unknown>;
+    try {
+      payload = JSON.parse(rawBody) as Record<string, unknown>;
+    } catch {
+      return { ok: false, status: 400, reason: "Malformed JSON payload" };
+    }
+
+    const subscription = await this.getWebhookSubscription(provider, headers);
+    if (!subscription || !subscription.isActive) {
+      return { ok: false, status: 404, reason: `No active webhook subscription for ${provider}` };
+    }
+
+    const processor = this.processors.get(provider);
+    if (!processor) {
+      return { ok: false, status: 404, reason: `No processor for ${provider}` };
+    }
+
+    const verification = verifyWithGraceWindow({
+      processor,
+      payload: rawBody,
+      signature,
+      headers,
+      subscription,
+      now: new Date(),
+    });
+    if (!verification.isValid) {
+      return { ok: false, status: 401, reason: "Signature verification failed" };
+    }
+
+    const eventId = this.extractEventId(provider, payload, headers);
+    const { eventType } = await processor.parse(payload);
+    return { ok: true, eventId, eventType, payload };
+  }
+
+  /**
+   * @method handleChallenge
+   * @description Per-provider GET verification handshake. Meta (IG/FB/Threads) +
+   *   YouTube WebSub echo `hub.challenge` when `hub.verify_token` matches the
+   *   subscription; X answers the CRC with an HMAC of `crc_token`; others ack.
+   * @param provider - The provider issuing the handshake.
+   * @param query - The request query parameters.
+   * @param headers - The request headers.
+   * @returns The status + body the route should return.
+   */
+  async handleChallenge(
+    provider: Provider,
+    query: Record<string, string>,
+    headers: Record<string, string>
+  ): Promise<InboundChallenge> {
+    const hubMode = query["hub.mode"];
+    const hubChallenge = query["hub.challenge"];
+    const hubVerifyToken = query["hub.verify_token"];
+    if (hubMode === "subscribe" && hubChallenge !== undefined) {
+      const subscription = await this.getWebhookSubscription(provider, headers);
+      if (subscription?.verifyToken !== undefined && subscription.verifyToken === hubVerifyToken) {
+        return { status: 200, body: hubChallenge };
+      }
+      return { status: 403, body: "verify_token mismatch" };
+    }
+
+    const crcToken = query["crc_token"];
+    if (provider === "X" && crcToken !== undefined) {
+      const subscription = await this.getWebhookSubscription(provider, headers);
+      if (!subscription) {
+        return { status: 404, body: "No active subscription" };
+      }
+      const responseToken = `sha256=${createHmac("sha256", subscription.secretKey)
+        .update(crcToken)
+        .digest("base64")}`;
+      return { status: 200, body: JSON.stringify({ response_token: responseToken }) };
+    }
+
+    return { status: 200, body: "ok" };
   }
 
   // ---------------------------------------------------------------------------

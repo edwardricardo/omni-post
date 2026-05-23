@@ -128,6 +128,7 @@ export const TOKENS = {
   ChangeAccountSubscriptionUseCase: Symbol.for("ChangeAccountSubscriptionUseCase"),
   UpdatePricingConfigUseCase: Symbol.for("UpdatePricingConfigUseCase"),
   WebhookDashboardService: Symbol.for("WebhookDashboardService"),
+  WebhookManager: Symbol.for("WebhookManager"),
   RealtimeWebhookBroadcaster: Symbol.for("RealtimeWebhookBroadcaster"),
   ProviderService: Symbol.for("ProviderService"),
 

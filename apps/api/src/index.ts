@@ -87,6 +87,7 @@ import { subscriptionRoutes } from "./billing/subscriptionRoutes.js";
 import { clientBillingRoutes } from "./billing/clientBillingRoutes.js";
 import { adminBillingRoutes } from "./billing/adminBillingRoutes.js";
 import { billingWebhookRoutes } from "./billing/billingWebhookRoutes.js";
+import { webhookInboundRoutes } from "./webhooks/webhookInboundRoutes.js";
 import { complianceRoutes } from "./compliance/complianceRoutes.js";
 import { settingsRoutes } from "./settings/settingsRoutes.js";
 import { outboxAdminRoutes } from "./outbox/outboxAdminRoutes.js";
@@ -479,6 +480,9 @@ async function createApp(): Promise<FastifyInstance> {
 
   // Billing webhooks — no auth, raw body (must be before auth middleware)
   await typedApp.register(billingWebhookRoutes);
+
+  // Inbound provider webhooks — no auth, signature-verified, raw body
+  await typedApp.register(webhookInboundRoutes);
 
   // Register all route modules
   await typedApp.register(authRoutes);
@@ -993,6 +997,13 @@ async function start() {
     });
     logger.info("BULK_SCHEDULE worker started");
 
+    // WEBHOOK_PROCESSING worker — inbound provider webhooks. Resolving the
+    // WebhookManager constructs its job processor, which starts the worker.
+    const webhookManager = app.container!.resolve<
+      import("./webhooks/webhookManager.js").WebhookManager
+    >(TOKENS.WebhookManager);
+    logger.info("WEBHOOK_PROCESSING worker started");
+
     const port = env.PORT;
     const host = env.HOST;
 
@@ -1011,6 +1022,7 @@ async function start() {
       await triageInboxConsumer.close();
       await trendRadarConsumer.close();
       await bulkScheduleWorker.close();
+      await webhookManager.shutdown();
 
       // Shutdown saga integration (closes pub/sub subscriber and saga manager)
       const saga = (app as unknown as Record<string, unknown>).sagaIntegration as
