@@ -1,14 +1,13 @@
 /**
  * @file usePredictiveData.ts
  * @description TanStack Query hook fetching predictive analytics data
- *              (timing, ROI, audience, competitive) from the four
- *              backend endpoints. The endpoints are scaffolded to 501
- *              NOT_IMPLEMENTED on the backend until the underlying
- *              ML/scoring services land — this hook surfaces that as
- *              an explicit `error` so the consumer renders a clear
- *              "feature in development" banner instead of silently
- *              showing empty arrays. Mappers + API types live under
- *              `./usePredictiveData/`.
+ *              (timing, ROI, audience, competitive) from the four backend
+ *              endpoints. Timing, ROI, and competitive are wired to real use
+ *              cases; audience (`/ai/predict-audience`) is still 501 until an
+ *              audience model lands — this hook surfaces non-2xx / `ok:false` as
+ *              an explicit `error` so that tab renders a clear "feature in
+ *              development" banner instead of silently showing empty arrays.
+ *              Mappers + API types live under `./usePredictiveData/`.
  * @hook usePredictiveData
  * @layer infrastructure
  */
@@ -61,10 +60,10 @@ async function fetchEnvelope<T>(input: RequestInfo, init?: RequestInit): Promise
     );
   }
   const body = (await res.json()) as ApiEnvelope<T>;
-  if (!body.ok || body.value === undefined) {
+  if (!body.ok || body.data === undefined) {
     throw new Error(body.error ?? body.message ?? `${input.toString()} returned ok=false`);
   }
-  return body.value;
+  return body.data;
 }
 
 interface UsePredictiveDataOptions {

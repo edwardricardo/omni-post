@@ -21,6 +21,10 @@ import { ThreadAnalytics } from "./threadAnalytics.js";
 import type { RealtimeAnalyticsService } from "./realtimeAnalytics.js";
 import type { AnalyticsStreamBroadcaster } from "../services/AnalyticsStreamBroadcaster.js";
 import type { ProjectQueryRepositoryPort } from "../domain/repositories/ProjectQueryRepository.js";
+import type {
+  CalculateROIUseCase,
+  GetCrossPlatformAnalyticsUseCase,
+} from "../application/analytics/index.js";
 // Future: GeoAnalyticsService — deleted (100% fake geographic distribution)
 import { TOKENS } from "../infrastructure/container/types.js";
 
@@ -79,6 +83,28 @@ const MediaPerformanceQuerySchema = z.object({
   }),
 });
 
+// ROI + cross-platform: `accountId` is intentionally NOT in the schema — it is
+// taken authoritatively from the auth token, never the client query (tenancy).
+// Zod strips the client-supplied `accountId` param. `projectId` (optional) is
+// ownership-checked in the handler.
+const ROIQuerySchema = z.object({
+  query: z.object({
+    projectId: IdSchema.optional(),
+    timeRange: z.enum(["7d", "30d", "90d", "1y", "custom"]).default("30d"),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+    byChannel: z.coerce.boolean().optional(),
+  }),
+});
+
+const CrossPlatformQuerySchema = z.object({
+  query: z.object({
+    projectId: IdSchema.optional(),
+    timeRange: z.enum(["7d", "30d", "90d", "1y", "custom"]).default("30d"),
+    includeCompetitive: z.coerce.boolean().optional(),
+  }),
+});
+
 const DashboardQuerySchema = z.object({
   query: z.object({
     projectId: IdSchema,
@@ -107,9 +133,108 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
     private readonly projectRepository: ProjectQueryRepositoryPort,
     private readonly broadcaster: AnalyticsStreamBroadcaster,
     private readonly scheduler: BackgroundTaskScheduler,
-    private readonly realtimeService: RealtimeAnalyticsService
+    private readonly realtimeService: RealtimeAnalyticsService,
+    private readonly calculateROIUseCase: CalculateROIUseCase,
+    private readonly getCrossPlatformAnalyticsUseCase: GetCrossPlatformAnalyticsUseCase
   ) {
     super();
+  }
+
+  /** Map a UseCaseError code to an HTTP status. */
+  private mapErrorCode(code: string): number {
+    const mapping: Record<string, number> = {
+      VALIDATION_FAILED: 400,
+      NOT_FOUND: 404,
+      FORBIDDEN: 403,
+      CONFLICT: 409,
+      NOT_IMPLEMENTED: 501,
+      INTERNAL_ERROR: 500,
+    };
+    return mapping[code] ?? 500;
+  }
+
+  /**
+   * @method getROI
+   * @description GET /analytics/roi — ROI for the authenticated account over a
+   *   time range. accountId comes from the token (never the client query). If a
+   *   projectId is supplied it is ownership-checked.
+   */
+  async getROI(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+    const user = request.customerUser;
+    if (!user) {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
+
+    const validated = await this.validateRequest<z.infer<typeof ROIQuerySchema>>(ctx, {
+      query: ROIQuerySchema.shape.query,
+    });
+    if (!validated.ok) {
+      return this.sendError(ctx, 400, "Invalid query parameters");
+    }
+    const { projectId, timeRange, startDate, endDate, byChannel } = validated.value.query;
+
+    if (projectId) {
+      const hasAccess = await this.projectRepository.getProjectAccess(user.accountId, projectId);
+      if (!hasAccess) {
+        return this.sendError(ctx, 403, "Access denied to project");
+      }
+    }
+
+    const result = await this.calculateROIUseCase.execute({
+      accountId: user.accountId,
+      ...(projectId !== undefined && { projectId }),
+      timeRange,
+      ...(startDate !== undefined && { startDate }),
+      ...(endDate !== undefined && { endDate }),
+      ...(byChannel !== undefined && { byChannel }),
+    });
+
+    if (!result.ok) {
+      return this.sendError(ctx, this.mapErrorCode(result.error.code), result.error.message);
+    }
+    return this.sendSuccess(ctx, result.value);
+  }
+
+  /**
+   * @method getCrossPlatform
+   * @description GET /analytics/cross-platform — cross-platform (optionally
+   *   competitive) analytics for the authenticated account. Same tenancy rules
+   *   as getROI.
+   */
+  async getCrossPlatform(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+    const user = request.customerUser;
+    if (!user) {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
+
+    const validated = await this.validateRequest<z.infer<typeof CrossPlatformQuerySchema>>(ctx, {
+      query: CrossPlatformQuerySchema.shape.query,
+    });
+    if (!validated.ok) {
+      return this.sendError(ctx, 400, "Invalid query parameters");
+    }
+    const { projectId, timeRange, includeCompetitive } = validated.value.query;
+
+    if (projectId) {
+      const hasAccess = await this.projectRepository.getProjectAccess(user.accountId, projectId);
+      if (!hasAccess) {
+        return this.sendError(ctx, 403, "Access denied to project");
+      }
+    }
+
+    const result = await this.getCrossPlatformAnalyticsUseCase.execute({
+      accountId: user.accountId,
+      ...(projectId !== undefined && { projectId }),
+      timeRange,
+      ...(includeCompetitive !== undefined && { includeCompetitive }),
+    });
+
+    if (!result.ok) {
+      return this.sendError(ctx, this.mapErrorCode(result.error.code), result.error.message);
+    }
+    return this.sendSuccess(ctx, result.value);
   }
 
   /**
@@ -797,6 +922,13 @@ const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
   const realtimeService = fastify.container.resolve<RealtimeAnalyticsService>(
     TOKENS.RealtimeAnalyticsService
   );
+  const calculateROIUseCase = fastify.container.resolve<CalculateROIUseCase>(
+    TOKENS.CalculateROIUseCase
+  );
+  const getCrossPlatformAnalyticsUseCase =
+    fastify.container.resolve<GetCrossPlatformAnalyticsUseCase>(
+      TOKENS.GetCrossPlatformAnalyticsUseCase
+    );
 
   const handler = new AnalyticsRouteHandler(
     prisma,
@@ -804,7 +936,9 @@ const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
     projectQueryRepository,
     broadcaster,
     scheduler,
-    realtimeService
+    realtimeService,
+    calculateROIUseCase,
+    getCrossPlatformAnalyticsUseCase
   );
 
   // Real-time analytics metrics stream (Server-Sent Events)
@@ -904,45 +1038,26 @@ const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.exportAnalytics(request, reply)
   );
 
-  // ─── Predictive analytics scaffolding ──────────────────────────────────────
-  // ROI forecast + cross-platform competitive analysis. Wired so the route
-  // table reflects the planned contract; both respond with 501 until the
-  // underlying scoring services are implemented. Frontend `usePredictiveData`
-  // surfaces this as a "feature in development" state.
+  // ─── Premium analytics (ROI + cross-platform) ──────────────────────────────
+  // Account-scoped, tenant-safe (accountId from the token). Consumed by the
+  // client predictive-analytics dashboard (ROI + Competitive tabs).
 
   fastify.get(
     "/analytics/roi",
     {
       preHandler: [requireClientAuth],
-      schema: {
-        tags: ["Analytics"],
-        summary: "ROI forecast for an account / time range (scaffolded — pending impl)",
-      },
+      schema: { tags: ["Analytics"], summary: "ROI for the account over a time range" },
     },
-    async (_request, reply) =>
-      reply.status(501).send({
-        ok: false,
-        error: "NOT_IMPLEMENTED",
-        message: "ROI forecast endpoint is scaffolded but the backend implementation is pending.",
-      })
+    async (request, reply) => handler.getROI(request, reply)
   );
 
   fastify.get(
     "/analytics/cross-platform",
     {
       preHandler: [requireClientAuth],
-      schema: {
-        tags: ["Analytics"],
-        summary: "Cross-platform competitive analysis (scaffolded — pending impl)",
-      },
+      schema: { tags: ["Analytics"], summary: "Cross-platform (optionally competitive) analytics" },
     },
-    async (_request, reply) =>
-      reply.status(501).send({
-        ok: false,
-        error: "NOT_IMPLEMENTED",
-        message:
-          "Cross-platform analytics endpoint is scaffolded but the backend implementation is pending.",
-      })
+    async (request, reply) => handler.getCrossPlatform(request, reply)
   );
 };
 
