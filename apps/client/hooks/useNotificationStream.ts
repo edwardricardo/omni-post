@@ -4,9 +4,10 @@
  *              notification stream, handles automatic reconnection on error, and
  *              dispatches incoming events to the Zustand notification store.
  *
- *              NOTE: SSE cannot go through the Next.js proxy (it buffers the response).
- *              This hook connects directly to NEXT_PUBLIC_API_URL with withCredentials:true
- *              so the browser sends the customer-session cookie automatically.
+ *              Connects through the same-origin Next proxy (`/api/backend/...`),
+ *              which streams `text/event-stream` responses and injects the Bearer
+ *              token from the httpOnly `customer-session` cookie. A direct
+ *              cross-origin EventSource would not send the SameSite=lax cookie.
  * @layer infrastructure
  */
 
@@ -14,9 +15,8 @@
 
 import { useEffect } from "react";
 import { useNotificationStore } from "@/lib/stores/notificationStore";
-import { env } from "../lib/env";
 
-const SSE_URL = `${env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"}/notifications/stream`;
+const SSE_URL = "/api/backend/notifications/stream";
 const RECONNECT_DELAY_MS = 3_000;
 
 /**

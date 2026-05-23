@@ -36,6 +36,8 @@ import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import { closeDatabaseConnections, prisma, verifyDatabaseAuth } from "@infra/prisma";
 import type { QueuePortRegistry } from "@ports/core";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+import type { RealtimeAnalyticsService } from "./analytics/realtimeAnalytics.js";
+import type { AnalyticsStreamBroadcaster } from "./services/AnalyticsStreamBroadcaster.js";
 import client from "prom-client";
 import { createStorageAdapter } from "./infrastructure/storage/createStorageAdapter.js";
 import { RateLimit, RateLimitConfigs, EXPENSIVE_ENDPOINT_RULES } from "./security/rateLimit.js";
@@ -1019,6 +1021,18 @@ async function start() {
       if (saga) {
         await saga.shutdown();
       }
+
+      // Tear down the analytics realtime stream: stop the 30s poll and quit the
+      // broadcaster's Redis subscriber (the scheduler teardown below won't close
+      // the duplicated Redis connection).
+      const realtimeAnalytics = app.container!.resolve<RealtimeAnalyticsService>(
+        TOKENS.RealtimeAnalyticsService
+      );
+      realtimeAnalytics.shutdown();
+      const analyticsBroadcaster = app.container!.resolve<AnalyticsStreamBroadcaster>(
+        TOKENS.AnalyticsStreamBroadcaster
+      );
+      await analyticsBroadcaster.shutdown();
 
       // Tear down all BackgroundTaskScheduler-registered recurring tasks.
       const scheduler = app.container!.resolve<BackgroundTaskScheduler>(

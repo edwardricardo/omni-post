@@ -10,6 +10,7 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { useAnalytics } from "@/hooks/api/useAnalytics";
+import { useAnalyticsRealtime } from "@/hooks/useAnalyticsRealtime";
 import { useProject } from "@/providers/ProjectProvider";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -29,6 +30,8 @@ function AnalyticsPageContent() {
   const { projectId } = useProject();
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d">("30d");
   const { data, isLoading, error, refetch } = useAnalytics(projectId, timeRange);
+  // Live metric deltas merge into the same query cache; isLive drives the badge.
+  const { isLive } = useAnalyticsRealtime(projectId, timeRange);
 
   if (isLoading) {
     return (
@@ -78,7 +81,22 @@ function AnalyticsPageContent() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">{t("title")}</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-gray-900">{t("title")}</h1>
+              {isLive && (
+                <span
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-green-700"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+                  </span>
+                  {t("live")}
+                </span>
+              )}
+            </div>
             <p className="text-gray-600 mt-2">{t("subtitle")}</p>
           </div>
           <div className="flex items-center space-x-4">

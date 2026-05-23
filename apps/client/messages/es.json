@@ -83,6 +83,7 @@
   "analytics": {
     "title": "Analíticas",
     "subtitle": "Rendimiento del contenido en tus plataformas conectadas",
+    "live": "En vivo",
     "loading": "Cargando datos de analíticas...",
     "loadError": "No se pudieron cargar los datos de analíticas",
     "loadErrorRetry": "No se pudieron cargar los datos de analíticas. Inténtalo de nuevo.",

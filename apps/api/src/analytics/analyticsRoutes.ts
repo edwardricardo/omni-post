@@ -3,6 +3,7 @@
  * @description Fastify route definitions for analytics endpoints with real service integration.
  * @layer infrastructure
  */
+import { randomUUID } from "node:crypto";
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import {
@@ -15,7 +16,11 @@ import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import type { AuthenticatedUser } from "../auth/authService.js";
 import type { PrismaClient } from "@infra/prisma";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { ThreadAnalytics } from "./threadAnalytics.js";
+import type { RealtimeAnalyticsService } from "./realtimeAnalytics.js";
+import type { AnalyticsStreamBroadcaster } from "../services/AnalyticsStreamBroadcaster.js";
+import type { ProjectQueryRepositoryPort } from "../domain/repositories/ProjectQueryRepository.js";
 // Future: GeoAnalyticsService — deleted (100% fake geographic distribution)
 import { TOKENS } from "../infrastructure/container/types.js";
 
@@ -98,9 +103,111 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
 
   constructor(
     private readonly prisma: PrismaClient,
-    private readonly threadAnalytics: ThreadAnalytics
+    private readonly threadAnalytics: ThreadAnalytics,
+    private readonly projectRepository: ProjectQueryRepositoryPort,
+    private readonly broadcaster: AnalyticsStreamBroadcaster,
+    private readonly scheduler: BackgroundTaskScheduler,
+    private readonly realtimeService: RealtimeAnalyticsService
   ) {
     super();
+  }
+
+  /**
+   * @method streamRealtime
+   * @description GET /analytics/stream — SSE endpoint that pushes live metric
+   *   updates (every 30s, with per-cycle deltas) for the posts in scope. Scope is
+   *   fixed at connect time via `projectId` (and optional `postIds`); SSE is
+   *   unidirectional so there is no mid-connection re-subscribe. Tenant-safe: the
+   *   account must own the project, and `postIds` are intersected with the project's
+   *   posts so a connection can only ever watch authorized posts.
+   * @param request - Fastify request (customerUser set by requireClientAuth)
+   * @param reply - Fastify reply (raw stream is written directly for SSE)
+   */
+  async streamRealtime(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const user = request.customerUser;
+    if (!user) {
+      return reply.code(401).send({ ok: false, error: "Authentication required" });
+    }
+
+    const query = request.query as { projectId?: string; postIds?: string };
+    const projectId = typeof query.projectId === "string" ? query.projectId : undefined;
+
+    // Resolve the (tenant-safe) set of posts this connection will watch.
+    let postSet: string[];
+    if (projectId) {
+      const hasAccess = await this.projectRepository.getProjectAccess(user.accountId, projectId);
+      if (!hasAccess) {
+        return reply.code(403).send({ ok: false, error: "Access denied to project" });
+      }
+      const projectPostIds = await this.projectRepository.getPostIds(projectId);
+      if (typeof query.postIds === "string" && query.postIds.length > 0) {
+        const requested = new Set(
+          query.postIds
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        );
+        // Intersect with the project's posts — never trust client-supplied ids.
+        postSet = projectPostIds.filter((id) => requested.has(id));
+      } else {
+        postSet = projectPostIds;
+      }
+    } else {
+      const projects = await this.projectRepository.getByAccountId(user.accountId);
+      const postIdArrays = await Promise.all(
+        projects.map((p) => this.projectRepository.getPostIds(p.id))
+      );
+      postSet = postIdArrays.flat();
+    }
+
+    // SSE headers (mirror notifications stream).
+    reply.raw.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    });
+
+    reply.raw.write(`data: ${JSON.stringify({ type: "connected" })}\n\n`);
+
+    // Initial snapshot so the dashboard shows live values without waiting a cycle.
+    for (const postId of postSet) {
+      const metrics = await this.realtimeService.getCurrentMetrics(postId);
+      if (metrics) {
+        reply.raw.write(`data: ${JSON.stringify(metrics)}\n\n`);
+      }
+    }
+
+    // Subscribe to per-post broadcasts.
+    const subId = randomUUID();
+    this.broadcaster.subscribe(subId, postSet, (event) => {
+      try {
+        reply.raw.write(`data: ${JSON.stringify(event)}\n\n`);
+      } catch {
+        this.broadcaster.unsubscribe(subId);
+      }
+    });
+
+    // Per-connection heartbeat keeps the SSE connection alive through proxies.
+    const heartbeatTaskId = `analytics-stream-heartbeat-${subId}`;
+    this.scheduler.register(
+      heartbeatTaskId,
+      () => {
+        try {
+          reply.raw.write(": heartbeat\n\n");
+        } catch {
+          this.scheduler.unregister(heartbeatTaskId);
+          this.broadcaster.unsubscribe(subId);
+        }
+      },
+      30_000
+    );
+
+    // Cleanup on client disconnect.
+    request.raw.on("close", () => {
+      this.scheduler.unregister(heartbeatTaskId);
+      this.broadcaster.unsubscribe(subId);
+    });
   }
 
   async getThreadPerformance(request: FastifyRequest, reply: FastifyReply): Promise<void> {
@@ -677,8 +784,38 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
 const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
   const prisma = fastify.container.resolve<PrismaClient>(TOKENS.PrismaClient);
   const threadAnalytics = fastify.container.resolve<ThreadAnalytics>(TOKENS.ThreadAnalytics);
+  const projectQueryRepository = fastify.container.resolve<ProjectQueryRepositoryPort>(
+    TOKENS.ProjectQueryRepository
+  );
+  const broadcaster = fastify.container.resolve<AnalyticsStreamBroadcaster>(
+    TOKENS.AnalyticsStreamBroadcaster
+  );
+  const scheduler = fastify.container.resolve<BackgroundTaskScheduler>(
+    TOKENS.BackgroundTaskScheduler
+  );
+  // Resolving the service forces construction → starts the 30s metrics poll.
+  const realtimeService = fastify.container.resolve<RealtimeAnalyticsService>(
+    TOKENS.RealtimeAnalyticsService
+  );
 
-  const handler = new AnalyticsRouteHandler(prisma, threadAnalytics);
+  const handler = new AnalyticsRouteHandler(
+    prisma,
+    threadAnalytics,
+    projectQueryRepository,
+    broadcaster,
+    scheduler,
+    realtimeService
+  );
+
+  // Real-time analytics metrics stream (Server-Sent Events)
+  fastify.get(
+    "/analytics/stream",
+    {
+      preHandler: [requireClientAuth],
+      schema: { tags: ["Analytics"], summary: "Stream real-time analytics metrics via SSE" },
+    },
+    async (request, reply) => handler.streamRealtime(request, reply)
+  );
 
   // Get project-level analytics summary (no auth required for read)
   fastify.get(

@@ -42,6 +42,10 @@ import { env } from "../../../../lib/env";
 
 const API_URL = env.API_URL ?? "http://localhost:3000";
 
+// SSE streams (and any long-lived response) must never be statically optimized
+// or cached — force this route dynamic so streamed bodies pass straight through.
+export const dynamic = "force-dynamic";
+
 // Auth paths that require special cookie handling (CustomerUser endpoints)
 const AUTH_LOGIN_PATH = "auth/customer/login";
 const AUTH_REFRESH_PATH = "auth/customer/refresh";
@@ -98,6 +102,22 @@ async function proxy(req: NextRequest, segments: string[]): Promise<NextResponse
     });
   } catch {
     return NextResponse.json({ ok: false, error: "Backend unavailable" }, { status: 503 });
+  }
+
+  // Stream SSE responses straight through. Reading the body via .text() (below)
+  // never resolves for an open event stream, so the proxy would hang/buffer
+  // forever. Detect text/event-stream and pass the ReadableStream through.
+  const upstreamContentType = upstream.headers.get("Content-Type") ?? "";
+  if (upstreamContentType.includes("text/event-stream") && upstream.body) {
+    return new NextResponse(upstream.body, {
+      status: upstream.status,
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
+      },
+    });
   }
 
   const responseText = await upstream.text();

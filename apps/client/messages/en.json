@@ -83,6 +83,7 @@
   "analytics": {
     "title": "Analytics",
     "subtitle": "Content performance across your connected platforms",
+    "live": "Live",
     "loading": "Loading analytics data...",
     "loadError": "Failed to load analytics data",
     "loadErrorRetry": "Failed to load analytics data. Please try again.",

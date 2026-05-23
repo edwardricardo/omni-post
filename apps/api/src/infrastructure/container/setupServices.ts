@@ -68,6 +68,8 @@ import { PlatformCredentialService } from "../../security/PlatformCredentialServ
 import { SettingsService } from "../../settings/SettingsService.js";
 import { UpcasterChain } from "../integration-events/EventUpcaster.js";
 import { NotificationBroadcaster } from "../../services/NotificationBroadcaster.js";
+import { AnalyticsStreamBroadcaster } from "../../services/AnalyticsStreamBroadcaster.js";
+import { RealtimeAnalyticsService } from "../../analytics/realtimeAnalytics.js";
 import { GA4TrackingAdapter } from "../adapters/GA4TrackingAdapter.js";
 import type { EmailPort } from "../../domain/repositories/EmailPort.js";
 import { ResendEmailAdapter } from "../adapters/ResendEmailAdapter.js";
@@ -529,6 +531,35 @@ export function setupServices(
       broadcaster.initialize();
       return broadcaster;
     },
+    true
+  );
+
+  // Register AnalyticsStreamBroadcaster (SSE fan-out for real-time metrics)
+  container.register<AnalyticsStreamBroadcaster>(
+    TOKENS.AnalyticsStreamBroadcaster,
+    () => {
+      const redis = createRedisConnection();
+      redis.on("error", () => {});
+      const broadcaster = new AnalyticsStreamBroadcaster(
+        redis,
+        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
+      );
+      broadcaster.initialize();
+      return broadcaster;
+    },
+    true
+  );
+
+  // Register RealtimeAnalyticsService (constructing it starts the 30s metrics poll)
+  container.register<RealtimeAnalyticsService>(
+    TOKENS.RealtimeAnalyticsService,
+    () =>
+      new RealtimeAnalyticsService(
+        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
+        container.resolve<CachePort>(TOKENS.CachePort),
+        container.resolve<AnalyticsReadRepositoryPort>(TOKENS.AnalyticsReadRepository),
+        container.resolve<AnalyticsStreamBroadcaster>(TOKENS.AnalyticsStreamBroadcaster)
+      ),
     true
   );
 

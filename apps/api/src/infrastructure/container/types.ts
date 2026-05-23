@@ -150,6 +150,8 @@ export const TOKENS = {
   // Analytics Services (M-8c — DI route migration)
   ThreadAnalytics: Symbol.for("ThreadAnalytics"),
   // Future: GeoAnalyticsService — deleted (100% fake geographic distribution)
+  AnalyticsStreamBroadcaster: Symbol.for("AnalyticsStreamBroadcaster"),
+  RealtimeAnalyticsService: Symbol.for("RealtimeAnalyticsService"),
 
   // ML Use Cases (B0-2 — DI violation fix in ai/routes.ts)
   OptimizeContentUseCase: Symbol.for("OptimizeContentUseCase"),
