@@ -4,7 +4,8 @@
  * @layer infrastructure
  */
 
-import type { PrismaClient } from "@infra/prisma";
+import type { PrismaClient, Prisma } from "@infra/prisma";
+import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
 import type {
   AccountSubscriptionPort,
   CreateAccountSubscriptionParams,
@@ -13,8 +14,13 @@ import type {
 export class PrismaAccountSubscriptionAdapter implements AccountSubscriptionPort {
   constructor(private readonly prisma: PrismaClient) {}
 
+  /** Resolve the active UoW transaction client, or the base client. */
+  private getClient(): PrismaClient | Prisma.TransactionClient {
+    return PrismaUnitOfWork.getTransactionClient() ?? this.prisma;
+  }
+
   async createForNewAccount(params: CreateAccountSubscriptionParams): Promise<void> {
-    await this.prisma.accountSubscription.create({
+    await this.getClient().accountSubscription.create({
       data: {
         accountId: params.accountId,
         status: params.status as never,
@@ -23,6 +29,13 @@ export class PrismaAccountSubscriptionAdapter implements AccountSubscriptionPort
         trialEndsAt: params.trialEndsAt,
         billingCycle: params.billingCycle as never,
       },
+    });
+  }
+
+  async cancelByAccountId(accountId: string): Promise<void> {
+    await this.getClient().accountSubscription.updateMany({
+      where: { accountId },
+      data: { status: "CANCELED" },
     });
   }
 }

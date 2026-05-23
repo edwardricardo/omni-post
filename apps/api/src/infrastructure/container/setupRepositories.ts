@@ -79,6 +79,12 @@ import type { RecurringPostRepository } from "../../domain/repositories/Recurrin
 import { PrismaRecurringPostRepository } from "../repositories/PrismaRecurringPostRepository.js";
 import type { TaskRepository } from "../../domain/repositories/TaskRepository.js";
 import { PrismaTaskRepository } from "../repositories/PrismaTaskRepository.js";
+import type { AccountSubscriptionPort } from "../../domain/repositories/AccountSubscriptionPort.js";
+import { PrismaAccountSubscriptionAdapter } from "../repositories/PrismaAccountSubscriptionAdapter.js";
+import type { AccountSubscriptionQueryRepository } from "../../domain/repositories/AccountSubscriptionQueryRepository.js";
+import { PrismaAccountSubscriptionQueryRepository } from "../repositories/PrismaAccountSubscriptionQueryRepository.js";
+import type { SubscriptionStatsQueryRepository } from "../../domain/repositories/SubscriptionStatsQueryRepository.js";
+import { PrismaSubscriptionStatsQueryRepository } from "../repositories/PrismaSubscriptionStatsQueryRepository.js";
 
 /**
  * Register all repository adapters in the container
@@ -325,6 +331,23 @@ export function setupRepositories(container: Container): void {
   container.register<TaskRepository>(
     TOKENS.TaskRepository,
     () => new PrismaTaskRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
+  // Register AccountSubscription command + query repositories (billing)
+  container.register<AccountSubscriptionPort>(
+    TOKENS.AccountSubscriptionPort,
+    () => new PrismaAccountSubscriptionAdapter(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<AccountSubscriptionQueryRepository>(
+    TOKENS.AccountSubscriptionQueryRepository,
+    () => new PrismaAccountSubscriptionQueryRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<SubscriptionStatsQueryRepository>(
+    TOKENS.SubscriptionStatsQueryRepository,
+    () => new PrismaSubscriptionStatsQueryRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
 }

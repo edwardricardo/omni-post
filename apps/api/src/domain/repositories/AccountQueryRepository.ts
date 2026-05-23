@@ -29,6 +29,17 @@ export interface SubscriptionUpdateData {
 }
 
 /**
+ * Aggregate trial counts for the admin trial-statistics view.
+ */
+export interface TrialStatsCounts {
+  totalTrials: number;
+  activeTrials: number;
+  expiredTrials: number;
+  converted: number;
+  startedThisMonth: number;
+}
+
+/**
  * AccountQueryRepositoryPort — Read-model port for Account billing queries.
  *
  * Implementations:
@@ -97,6 +108,28 @@ export interface AccountQueryRepositoryPort {
    * @param daysThreshold - Number of days ahead to look (e.g., 1 = expiring tomorrow)
    */
   getExpiringTrials(daysThreshold: number): Promise<AccountDto[]>;
+
+  /**
+   * Return on-trial accounts whose trial end date falls within `[now, until]`,
+   * with their projects loaded, ordered by trial end date ascending.
+   *
+   * Returns the same hydrated shape as {@link findWithProjects} so trial-response
+   * building is identical regardless of how the account was fetched.
+   */
+  findExpiringTrials(now: Date, until: Date): Promise<AccountWithProjects[]>;
+
+  /**
+   * Return on-trial accounts with auto-renewal enabled whose trial has already
+   * expired (`trialEndDate <= now`), with their projects loaded.
+   *
+   * Returns the same hydrated shape as {@link findWithProjects}.
+   */
+  findAutoRenewableExpired(now: Date): Promise<AccountWithProjects[]>;
+
+  /**
+   * Return aggregate trial counts used by the admin trial-statistics view.
+   */
+  getTrialStatsCounts(): Promise<TrialStatsCounts>;
 
   /**
    * Toggle the SSO enabled flag and provider on an account.

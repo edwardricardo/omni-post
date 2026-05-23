@@ -84,6 +84,8 @@ export interface AccountProps extends EntityProps {
   trialEndDate?: Date;
   autoRenewal?: boolean;
   billingCycle?: BillingCycleValue;
+  nextBillingDate?: Date;
+  lastBillingDate?: Date;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   slug?: string;
@@ -133,6 +135,8 @@ export class Account extends Entity<AccountId> {
   private _trialEndDate: Date | undefined;
   private _autoRenewal: boolean;
   private _billingCycle: BillingCycleValue;
+  private _nextBillingDate: Date | undefined;
+  private _lastBillingDate: Date | undefined;
   private _stripeCustomerId: string | undefined;
   private _stripeSubscriptionId: string | undefined;
   private _projectCount: number;
@@ -155,6 +159,8 @@ export class Account extends Entity<AccountId> {
     this._trialEndDate = props.trialEndDate;
     this._autoRenewal = props.autoRenewal ?? false;
     this._billingCycle = props.billingCycle ?? BILLING_CYCLE.MONTHLY;
+    this._nextBillingDate = props.nextBillingDate;
+    this._lastBillingDate = props.lastBillingDate;
     this._stripeCustomerId = props.stripeCustomerId;
     this._stripeSubscriptionId = props.stripeSubscriptionId;
     this._projectCount = 0;
@@ -257,6 +263,14 @@ export class Account extends Entity<AccountId> {
 
   get billingCycle(): BillingCycleValue {
     return this._billingCycle;
+  }
+
+  get nextBillingDate(): Date | undefined {
+    return this._nextBillingDate ? new Date(this._nextBillingDate.getTime()) : undefined;
+  }
+
+  get lastBillingDate(): Date | undefined {
+    return this._lastBillingDate ? new Date(this._lastBillingDate.getTime()) : undefined;
   }
 
   get stripeCustomerId(): string | undefined {
@@ -417,6 +431,69 @@ export class Account extends Entity<AccountId> {
   }
 
   /**
+   * Begin a trial period of the given duration. The next billing date is only
+   * recorded when auto-renewal is enabled and a date is supplied; otherwise the
+   * existing next billing date is left untouched.
+   */
+  startTrial(params: {
+    trialDurationDays: number;
+    autoRenewal: boolean;
+    billingCycle: BillingCycleValue;
+    nextBillingDate?: Date;
+  }): void {
+    this._isOnTrial = true;
+    this._trialStartDate = new Date();
+    this._trialEndDate = new Date(Date.now() + params.trialDurationDays * 24 * 60 * 60 * 1000);
+    this._autoRenewal = params.autoRenewal;
+    this._billingCycle = params.billingCycle;
+    if (params.autoRenewal && params.nextBillingDate) {
+      this._nextBillingDate = params.nextBillingDate;
+    }
+    this.markUpdated();
+  }
+
+  /**
+   * End the current trial, disabling auto-renewal and clearing the scheduled
+   * next billing date.
+   */
+  endTrial(): void {
+    this._isOnTrial = false;
+    this._trialEndDate = new Date();
+    this._autoRenewal = false;
+    this._nextBillingDate = undefined;
+    this.markUpdated();
+  }
+
+  /**
+   * Convert an active trial into a paid subscription with auto-renewal enabled
+   * and the first billing dates recorded. Distinct from {@link convertToPaid},
+   * which records Stripe identifiers.
+   */
+  convertTrialToPaid(params: {
+    billingCycle: BillingCycleValue;
+    lastBillingDate: Date;
+    nextBillingDate: Date;
+  }): void {
+    this._isOnTrial = false;
+    this._billingCycle = params.billingCycle;
+    this._autoRenewal = true;
+    this._lastBillingDate = params.lastBillingDate;
+    this._nextBillingDate = params.nextBillingDate;
+    this.markUpdated();
+  }
+
+  /**
+   * Record an automatic renewal after a trial expires, advancing the billing
+   * dates and clearing the trial flag.
+   */
+  recordRenewal(params: { lastBillingDate: Date; nextBillingDate: Date }): void {
+    this._isOnTrial = false;
+    this._lastBillingDate = params.lastBillingDate;
+    this._nextBillingDate = params.nextBillingDate;
+    this.markUpdated();
+  }
+
+  /**
    * Increment project count (called when project is created)
    */
   incrementProjectCount(): Result<void, InvariantViolationError> {
@@ -499,6 +576,8 @@ export class Account extends Entity<AccountId> {
       isActive: this.isActive,
       autoRenewal: this._autoRenewal,
       billingCycle: this._billingCycle,
+      ...(this._nextBillingDate && { nextBillingDate: this._nextBillingDate.toISOString() }),
+      ...(this._lastBillingDate && { lastBillingDate: this._lastBillingDate.toISOString() }),
       ...(this._slug !== undefined && { slug: this._slug }),
       timezone: this._timezone,
       locale: this._locale,

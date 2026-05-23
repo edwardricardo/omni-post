@@ -86,7 +86,26 @@ export interface ProjectQueryRepositoryPort {
   getByAccountId(accountId: string): Promise<ProjectDto[]>;
 
   /**
+   * Count all projects belonging to an account.
+   */
+  countByAccountId(accountId: string): Promise<number>;
+
+  /**
+   * Return the number of media attachments grouped by media type across all of
+   * an account's projects. Used by subscription-limit storage estimation.
+   */
+  getMediaCountsByAccount(accountId: string): Promise<MediaTypeCount[]>;
+
+  /**
    * Return a single project by ID, or null if not found.
    */
   findById(projectId: string): Promise<ProjectDto | null>;
+}
+
+/**
+ * Number of media attachments of a given type within an account's projects.
+ */
+export interface MediaTypeCount {
+  type: string;
+  count: number;
 }

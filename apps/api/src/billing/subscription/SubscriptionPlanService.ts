@@ -1,17 +1,27 @@
 /**
  * @file SubscriptionPlanService.ts
  * @description Manages subscription plans from AccountSubscription + ProviderBundle models.
- *   Provides plan info and trial calculations from DB.
+ *   Provides plan info and trial calculations via the subscription read port.
  * @layer application
  */
 
-import type { Account as PrismaAccount, PrismaClient } from "@infra/prisma";
-import { prisma } from "@infra/prisma";
 import { AuditableService } from "../../services/AuditableService.js";
+import type { AccountSubscriptionQueryRepository } from "../../domain/repositories/AccountSubscriptionQueryRepository.js";
 import { type TrialInfo } from "./types.js";
 
+/**
+ * Account fields required to compute trial information. A structural subset of
+ * the persisted account row, kept Prisma-free so the application layer does not
+ * depend on generated types.
+ */
+export interface TrialAccountView {
+  isOnTrial: boolean;
+  trialStartDate: Date | null;
+  trialEndDate: Date | null;
+}
+
 export class SubscriptionPlanService extends AuditableService {
-  constructor(private readonly prisma: PrismaClient) {
+  constructor(private readonly subscriptionQueryRepo: AccountSubscriptionQueryRepository) {
     super("SubscriptionPlanService");
   }
 
@@ -22,10 +32,7 @@ export class SubscriptionPlanService extends AuditableService {
    * @returns The account plan details, or null if no subscription exists
    */
   async getAccountPlan(accountId: string) {
-    const sub = await this.prisma.accountSubscription.findUnique({
-      where: { accountId },
-      include: { bundle: true },
-    });
+    const sub = await this.subscriptionQueryRepo.getDetailByAccountId(accountId);
 
     if (!sub) return null;
 
@@ -37,8 +44,8 @@ export class SubscriptionPlanService extends AuditableService {
           ? ("custom" as const)
           : ("none" as const),
       bundleName: sub.bundle?.name ?? null,
-      providers: sub.providers.map(String),
-      pricePerMonth: Number(sub.pricePerMonth),
+      providers: sub.providers,
+      pricePerMonth: sub.pricePerMonth,
       maxProjects: sub.maxProjects,
       status: sub.status,
       billingCycle: sub.billingCycle,
@@ -49,14 +56,11 @@ export class SubscriptionPlanService extends AuditableService {
 
   /**
    * @method getAllPlansFromDB
-   * @description Fetches all active provider bundles from the database, ordered by sort position.
+   * @description Fetches all active provider bundles, ordered by sort position.
    * @returns List of active provider bundles
    */
   async getAllPlansFromDB() {
-    return this.prisma.providerBundle.findMany({
-      where: { isActive: true },
-      orderBy: { sortOrder: "asc" },
-    });
+    return this.subscriptionQueryRepo.listBundles();
   }
 
   /**
@@ -65,7 +69,7 @@ export class SubscriptionPlanService extends AuditableService {
    * @param account - The account to evaluate trial info for
    * @returns Trial information including active status, dates, days remaining, and expiration
    */
-  calculateTrialInfo(account: PrismaAccount): TrialInfo {
+  calculateTrialInfo(account: TrialAccountView): TrialInfo {
     const now = new Date();
     const trialEndDate = account.trialEndDate;
     const trialExpired = trialEndDate ? now > trialEndDate : false;
@@ -81,5 +85,3 @@ export class SubscriptionPlanService extends AuditableService {
     };
   }
 }
-
-export const subscriptionPlanService = new SubscriptionPlanService(prisma);

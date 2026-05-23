@@ -5,13 +5,21 @@
  * @layer application
  */
 import { ok, err, type Result } from "@shared/types";
-import { prisma } from "@infra/prisma";
 import type { AccountQueryRepositoryPort } from "../../domain/repositories/AccountQueryRepository.js";
+import type { AccountSubscriptionQueryRepository } from "../../domain/repositories/AccountSubscriptionQueryRepository.js";
+import type { AccountSubscriptionPort } from "../../domain/repositories/AccountSubscriptionPort.js";
+import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
 import { AuditableService } from "../../services/AuditableService.js";
-import { billingService } from "./BillingService.js";
+import type { BillingService } from "./BillingService.js";
 
 export class SubscriptionManagementService extends AuditableService {
-  constructor(private readonly accountQueryRepo: AccountQueryRepositoryPort) {
+  constructor(
+    private readonly accountQueryRepo: AccountQueryRepositoryPort,
+    private readonly subscriptionQueryRepo: AccountSubscriptionQueryRepository,
+    private readonly subscriptionPort: AccountSubscriptionPort,
+    private readonly projectQueryRepo: ProjectQueryRepositoryPort,
+    private readonly billingService: BillingService
+  ) {
     super("SubscriptionManagementService");
   }
 
@@ -26,10 +34,7 @@ export class SubscriptionManagementService extends AuditableService {
    * @returns The account subscription with bundle and account info, or null if not found
    */
   async getProviderSubscription(accountId: string) {
-    return prisma.accountSubscription.findUnique({
-      where: { accountId },
-      include: { bundle: true, account: { select: { id: true, name: true, email: true } } },
-    });
+    return this.subscriptionQueryRepo.getDetailByAccountId(accountId);
   }
 
   /**
@@ -45,37 +50,7 @@ export class SubscriptionManagementService extends AuditableService {
     page = 1,
     limit = 50
   ) {
-    const offset = (page - 1) * limit;
-    const where: Record<string, unknown> = {};
-
-    if (filters.status) {
-      where.status = filters.status;
-    }
-    if (filters.planType === "bundle") {
-      where.bundleId = { not: null };
-    } else if (filters.planType === "custom") {
-      where.bundleId = null;
-    }
-    if (filters.search) {
-      where.account = {
-        OR: [
-          { email: { contains: filters.search, mode: "insensitive" } },
-          { name: { contains: filters.search, mode: "insensitive" } },
-        ],
-      };
-    }
-
-    const [subscriptions, total] = await Promise.all([
-      prisma.accountSubscription.findMany({
-        where,
-        include: { bundle: true, account: { select: { id: true, name: true, email: true } } },
-        skip: offset,
-        take: limit,
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.accountSubscription.count({ where }),
-    ]);
-
+    const { subscriptions, total } = await this.subscriptionQueryRepo.list(filters, page, limit);
     return { subscriptions, total, page, limit };
   }
 
@@ -100,29 +75,26 @@ export class SubscriptionManagementService extends AuditableService {
   > {
     const startTime = Date.now();
     try {
-      const subscription = await prisma.accountSubscription.findUnique({
-        where: { accountId },
-        select: { maxProjects: true },
-      });
+      const maxProjects = await this.subscriptionQueryRepo.getMaxProjects(accountId);
 
-      if (!subscription) {
+      if (maxProjects === null) {
         return err("NOT_FOUND");
       }
 
       switch (operation) {
         case "CREATE_PROJECT": {
-          const currentProjects = await prisma.project.count({ where: { accountId } });
-          const remaining = Math.max(0, subscription.maxProjects - currentProjects);
+          const currentProjects = await this.projectQueryRepo.countByAccountId(accountId);
+          const remaining = Math.max(0, maxProjects - currentProjects);
           return ok({
             allowed: remaining >= amount,
-            limit: subscription.maxProjects,
+            limit: maxProjects,
             current: currentProjects,
             remaining,
           });
         }
         case "ADD_TEAM_MEMBER": {
-          const currentMembers = await prisma.project.count({ where: { accountId } });
-          const teamLimit = subscription.maxProjects * 5;
+          const currentMembers = await this.projectQueryRepo.countByAccountId(accountId);
+          const teamLimit = maxProjects * 5;
           const remaining = Math.max(0, teamLimit - currentMembers);
           return ok({
             allowed: remaining >= amount,
@@ -132,18 +104,14 @@ export class SubscriptionManagementService extends AuditableService {
           });
         }
         case "UPLOAD_MEDIA": {
-          const mediaCounts = await prisma.postMedia.groupBy({
-            by: ["type"],
-            where: { post: { project: { accountId } } },
-            _count: { id: true },
-          });
+          const mediaCounts = await this.projectQueryRepo.getMediaCountsByAccount(accountId);
           const AVG_SIZE_MB: Record<string, number> = { image: 2, gif: 2, video: 20 };
           let totalMB = 0;
           for (const group of mediaCounts) {
-            totalMB += group._count.id * (AVG_SIZE_MB[group.type] ?? 2);
+            totalMB += group.count * (AVG_SIZE_MB[group.type] ?? 2);
           }
           const storageUsedGB = Math.round((totalMB / 1024) * 100) / 100;
-          const storageLimit = subscription.maxProjects * 10;
+          const storageLimit = maxProjects * 10;
           const remaining = Math.max(0, storageLimit - storageUsedGB);
           return ok({
             allowed: remaining >= amount,
@@ -191,10 +159,7 @@ export class SubscriptionManagementService extends AuditableService {
       const account = accountResult.value;
 
       // Also update AccountSubscription status if it exists
-      await prisma.accountSubscription.updateMany({
-        where: { accountId },
-        data: { status: "CANCELED" },
-      });
+      await this.subscriptionPort.cancelByAccountId(accountId);
 
       if (suspendedByUserId) {
         await this.logAccountAction(suspendedByUserId, {
@@ -209,7 +174,7 @@ export class SubscriptionManagementService extends AuditableService {
         });
       }
 
-      await billingService.logBillingEvent({
+      await this.billingService.logBillingEvent({
         accountId,
         type: "SUSPENSION",
         currency: "USD",

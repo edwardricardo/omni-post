@@ -128,6 +128,14 @@ export const TOKENS = {
   TemplateService: Symbol.for("TemplateService"),
   TemplateAnalytics: Symbol.for("TemplateAnalytics"),
   SubscriptionService: Symbol.for("SubscriptionService"),
+  BillingService: Symbol.for("BillingService"),
+  SubscriptionPlanService: Symbol.for("SubscriptionPlanService"),
+  SubscriptionManagementService: Symbol.for("SubscriptionManagementService"),
+  TrialManagementService: Symbol.for("TrialManagementService"),
+  SubscriptionStatsService: Symbol.for("SubscriptionStatsService"),
+  AccountSubscriptionPort: Symbol.for("AccountSubscriptionPort"),
+  AccountSubscriptionQueryRepository: Symbol.for("AccountSubscriptionQueryRepository"),
+  SubscriptionStatsQueryRepository: Symbol.for("SubscriptionStatsQueryRepository"),
 
   // Billing Use Cases (provider-based model)
   CreateAccountSubscriptionUseCase: Symbol.for("CreateAccountSubscriptionUseCase"),

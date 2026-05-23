@@ -44,6 +44,7 @@ export class PrismaAuditLogRepository implements AuditLogRepository {
         ...(input.userId !== undefined && { userId: input.userId }),
         ...(input.ipAddress !== undefined && { ipAddress: input.ipAddress }),
         ...(input.userAgent !== undefined && { userAgent: input.userAgent }),
+        ...(input.error !== undefined && { error: input.error }),
       },
     });
   }

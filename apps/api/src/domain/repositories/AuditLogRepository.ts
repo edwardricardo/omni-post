@@ -19,6 +19,8 @@ export interface AuditLogCreateInput {
   userAgent?: string;
   details: Record<string, unknown>;
   success: boolean;
+  /** Failure detail recorded when `success` is false. */
+  error?: string;
 }
 
 /**

@@ -190,26 +190,15 @@ export class SubscriptionTrialHandler extends BaseRouteHandler {
     const ctx: RouteContext = { request, reply };
 
     try {
-      const result = await this.subscriptionService.processAutoRenewals();
+      const result = await this.subscriptionService.processAutoRenewals(
+        request.auth?.user?.id ?? null
+      );
 
       if (!result.ok) {
         return this.sendError(ctx, 500, "Failed to process auto-renewals");
       }
 
       const { processed, failed, details } = result.value;
-
-      // Create audit log for the manual trigger
-      const { prisma } = await import("@infra/prisma");
-      await prisma.auditLog.create({
-        data: {
-          action: "AUTO_RENEWAL_BATCH",
-          resource: "Billing",
-          userId: request.auth?.user?.id ?? null,
-          details: { processed, failed, details, triggeredManually: true },
-          success: failed === 0,
-          ...(failed > 0 && { error: `${failed} account(s) failed to renew` }),
-        },
-      });
 
       this.logInfo(ctx, "Processed auto-renewals", { processed, failed });
       return this.sendSuccess(ctx, {
@@ -230,59 +219,16 @@ export class SubscriptionTrialHandler extends BaseRouteHandler {
   async getTrialStats(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
-    const { prisma } = await import("@infra/prisma");
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-    const [totalTrials, activeTrials, expiredTrials, convertedTrials, trialsStartedThisMonth] =
-      await Promise.all([
-        prisma.account.count({
-          where: { isOnTrial: true },
-        }),
-        prisma.account.count({
-          where: {
-            isOnTrial: true,
-            trialEndDate: { gte: now },
-          },
-        }),
-        prisma.account.count({
-          where: {
-            isOnTrial: true,
-            trialEndDate: { lt: now },
-          },
-        }),
-        prisma.account.count({
-          where: {
-            isOnTrial: false,
-            trialEndDate: { not: null },
-          },
-        }),
-        prisma.account.count({
-          where: {
-            trialStartDate: { gte: thirtyDaysAgo },
-          },
-        }),
-      ]);
-
-    const conversionRate =
-      totalTrials > 0 ? Math.round((convertedTrials / (totalTrials + convertedTrials)) * 100) : 0;
+    const stats = await this.subscriptionService.getTrialStats();
 
     this.logInfo(ctx, "Retrieved trial statistics", {
-      totalTrials,
-      activeTrials,
-      conversionRate,
+      totalTrials: stats.totalTrials,
+      activeTrials: stats.activeTrials,
+      conversionRate: stats.conversionRate,
     });
 
     return this.sendSuccess(ctx, {
-      stats: {
-        totalTrials,
-        activeTrials,
-        expiredTrials,
-        convertedTrials,
-        trialsStartedThisMonth,
-        conversionRate,
-        expiringIn24Hours: 0,
-      },
+      stats,
       timestamp: new Date().toISOString(),
     });
   }

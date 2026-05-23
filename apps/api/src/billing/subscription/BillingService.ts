@@ -114,5 +114,3 @@ export class BillingService extends AuditableService {
     return billingCycle === "yearly" ? yearlyPrice : monthlyPrice;
   }
 }
-
-export const billingService = new BillingService();

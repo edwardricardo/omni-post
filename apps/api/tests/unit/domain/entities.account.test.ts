@@ -326,3 +326,80 @@ describe("Account Entity — toJSON includes tenant fields", () => {
     assert.strictEqual(typeof json.maxStorageBytes, "string");
   });
 });
+
+describe("Account Entity — trial lifecycle mutations", () => {
+  const nextBilling = new Date("2026-07-01T00:00:00Z");
+  const lastBilling = new Date("2026-06-01T00:00:00Z");
+
+  describe("startTrial", () => {
+    it("starts a trial and records the next billing date when auto-renewal is on", () => {
+      const account = makeReconstitutedAccount("PRO", { isOnTrial: false });
+      account.startTrial({
+        trialDurationDays: 14,
+        autoRenewal: true,
+        billingCycle: "monthly",
+        nextBillingDate: nextBilling,
+      });
+      assert.strictEqual(account.isOnTrial, true);
+      assert.strictEqual(account.autoRenewal, true);
+      assert.strictEqual(account.billingCycle, "monthly");
+      assert.strictEqual(account.nextBillingDate?.getTime(), nextBilling.getTime());
+      const expectedEnd = Date.now() + 14 * 24 * 60 * 60 * 1000;
+      assert.ok(Math.abs((account.trialEndDate?.getTime() ?? 0) - expectedEnd) < 5000);
+    });
+
+    it("does not record a next billing date when auto-renewal is off", () => {
+      const account = makeReconstitutedAccount("PRO", { isOnTrial: false });
+      account.startTrial({
+        trialDurationDays: 7,
+        autoRenewal: false,
+        billingCycle: "monthly",
+        nextBillingDate: nextBilling,
+      });
+      assert.strictEqual(account.isOnTrial, true);
+      assert.strictEqual(account.autoRenewal, false);
+      assert.strictEqual(account.nextBillingDate, undefined);
+    });
+  });
+
+  describe("endTrial", () => {
+    it("ends the trial, disables auto-renewal, and clears the next billing date", () => {
+      const account = makeReconstitutedAccount("PRO", {
+        isOnTrial: true,
+        autoRenewal: true,
+        nextBillingDate: nextBilling,
+      });
+      account.endTrial();
+      assert.strictEqual(account.isOnTrial, false);
+      assert.strictEqual(account.autoRenewal, false);
+      assert.strictEqual(account.nextBillingDate, undefined);
+      assert.ok(account.trialEndDate instanceof Date);
+    });
+  });
+
+  describe("convertTrialToPaid", () => {
+    it("converts to paid with auto-renewal and records both billing dates", () => {
+      const account = makeReconstitutedAccount("PRO", { isOnTrial: true });
+      account.convertTrialToPaid({
+        billingCycle: "yearly",
+        lastBillingDate: lastBilling,
+        nextBillingDate: nextBilling,
+      });
+      assert.strictEqual(account.isOnTrial, false);
+      assert.strictEqual(account.autoRenewal, true);
+      assert.strictEqual(account.billingCycle, "yearly");
+      assert.strictEqual(account.lastBillingDate?.getTime(), lastBilling.getTime());
+      assert.strictEqual(account.nextBillingDate?.getTime(), nextBilling.getTime());
+    });
+  });
+
+  describe("recordRenewal", () => {
+    it("clears the trial flag and advances the billing dates", () => {
+      const account = makeReconstitutedAccount("PRO", { isOnTrial: true });
+      account.recordRenewal({ lastBillingDate: lastBilling, nextBillingDate: nextBilling });
+      assert.strictEqual(account.isOnTrial, false);
+      assert.strictEqual(account.lastBillingDate?.getTime(), lastBilling.getTime());
+      assert.strictEqual(account.nextBillingDate?.getTime(), nextBilling.getTime());
+    });
+  });
+});

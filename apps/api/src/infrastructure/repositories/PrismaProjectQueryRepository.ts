@@ -12,6 +12,7 @@ import type {
   PostWithContent,
   PostWithAnalytics,
   PublishedPost,
+  MediaTypeCount,
 } from "../../domain/repositories/ProjectQueryRepository.js";
 import type { ProjectDto } from "../../domain/repositories/ReadModelDtos.js";
 
@@ -125,6 +126,27 @@ export class PrismaProjectQueryRepository implements ProjectQueryRepositoryPort 
     });
     // Prisma crisisModeHistory is JsonValue, compatible with domain JsonValue — safe cast.
     return rows as unknown as ProjectDto[];
+  }
+
+  /**
+   * Count all projects belonging to an account.
+   */
+  async countByAccountId(accountId: string): Promise<number> {
+    return this.prisma.project.count({
+      where: { accountId },
+    });
+  }
+
+  /**
+   * Return media-attachment counts grouped by type across an account's projects.
+   */
+  async getMediaCountsByAccount(accountId: string): Promise<MediaTypeCount[]> {
+    const groups = await this.prisma.postMedia.groupBy({
+      by: ["type"],
+      where: { post: { project: { accountId } } },
+      _count: { id: true },
+    });
+    return groups.map((group) => ({ type: group.type, count: group._count.id }));
   }
 
   /**

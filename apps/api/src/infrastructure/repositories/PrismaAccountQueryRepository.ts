@@ -12,6 +12,7 @@ import type {
   AccountQueryRepositoryPort,
   AccountWithProjects,
   SubscriptionUpdateData,
+  TrialStatsCounts,
 } from "../../domain/repositories/AccountQueryRepository.js";
 import type { AccountDto } from "../../domain/repositories/ReadModelDtos.js";
 
@@ -138,6 +139,57 @@ export class PrismaAccountQueryRepository implements AccountQueryRepositoryPort 
       orderBy: { trialEndDate: "asc" },
     });
     return rows as unknown as AccountDto[];
+  }
+
+  /**
+   * Return on-trial accounts whose trial end date is in [now, until], with
+   * projects loaded, ordered by trial end date ascending.
+   */
+  async findExpiringTrials(now: Date, until: Date): Promise<AccountWithProjects[]> {
+    const rows = await this.prisma.account.findMany({
+      where: {
+        isOnTrial: true,
+        trialEndDate: { gte: now, lte: until },
+      },
+      include: { projects: true },
+      orderBy: { trialEndDate: "asc" },
+    });
+    return rows as unknown as AccountWithProjects[];
+  }
+
+  /**
+   * Return on-trial, auto-renewing accounts whose trial has expired
+   * (trialEndDate <= now), with projects loaded.
+   */
+  async findAutoRenewableExpired(now: Date): Promise<AccountWithProjects[]> {
+    const rows = await this.prisma.account.findMany({
+      where: {
+        isOnTrial: true,
+        autoRenewal: true,
+        trialEndDate: { lte: now },
+      },
+      include: { projects: true },
+    });
+    return rows as unknown as AccountWithProjects[];
+  }
+
+  /**
+   * Return aggregate trial counts for the admin trial-statistics view.
+   */
+  async getTrialStatsCounts(): Promise<TrialStatsCounts> {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const [totalTrials, activeTrials, expiredTrials, converted, startedThisMonth] =
+      await Promise.all([
+        this.prisma.account.count({ where: { isOnTrial: true } }),
+        this.prisma.account.count({ where: { isOnTrial: true, trialEndDate: { gte: now } } }),
+        this.prisma.account.count({ where: { isOnTrial: true, trialEndDate: { lt: now } } }),
+        this.prisma.account.count({ where: { isOnTrial: false, trialEndDate: { not: null } } }),
+        this.prisma.account.count({ where: { trialStartDate: { gte: thirtyDaysAgo } } }),
+      ]);
+
+    return { totalTrials, activeTrials, expiredTrials, converted, startedThisMonth };
   }
 
   /**

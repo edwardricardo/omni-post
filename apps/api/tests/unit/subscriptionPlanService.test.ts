@@ -9,7 +9,7 @@
 
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import type { PrismaClient } from "@infra/prisma";
+import type { AccountSubscriptionQueryRepository } from "../../src/domain/repositories/AccountSubscriptionQueryRepository.js";
 import { SubscriptionPlanService } from "../../src/billing/subscription/SubscriptionPlanService.js";
 
 describe("SubscriptionPlanService", () => {
@@ -17,7 +17,7 @@ describe("SubscriptionPlanService", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new SubscriptionPlanService({} as unknown as PrismaClient);
+    service = new SubscriptionPlanService({} as unknown as AccountSubscriptionQueryRepository);
   });
 
   // =========================================================================

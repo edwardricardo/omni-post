@@ -5,19 +5,60 @@
  */
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { subscriptionService } from "../src/billing/subscriptionService.js";
 import { AuthService } from "../src/auth/authService.js";
 import { MfaService } from "../src/auth/mfaService.js";
 import { prisma } from "@infra/prisma";
 import { PrismaAdminUserRepository } from "../src/infrastructure/repositories/PrismaAdminUserRepository.js";
 import { PrismaRoleRepository } from "../src/infrastructure/repositories/PrismaRoleRepository.js";
 import { PrismaAdminSessionRepository } from "../src/infrastructure/repositories/PrismaAdminSessionRepository.js";
+import { BillingService } from "../src/billing/subscription/BillingService.js";
+import { SubscriptionPlanService } from "../src/billing/subscription/SubscriptionPlanService.js";
+import { SubscriptionStatsService } from "../src/billing/subscription/SubscriptionStatsService.js";
+import { SubscriptionManagementService } from "../src/billing/subscription/SubscriptionManagementService.js";
+import { TrialManagementService } from "../src/billing/subscription/TrialManagementService.js";
+import { SubscriptionService } from "../src/billing/subscription/SubscriptionService.js";
+import { PrismaAccountQueryRepository } from "../src/infrastructure/repositories/PrismaAccountQueryRepository.js";
+import { PrismaAccountRepository } from "../src/infrastructure/repositories/PrismaAccountRepository.js";
+import { PrismaAccountSubscriptionAdapter } from "../src/infrastructure/repositories/PrismaAccountSubscriptionAdapter.js";
+import { PrismaAccountSubscriptionQueryRepository } from "../src/infrastructure/repositories/PrismaAccountSubscriptionQueryRepository.js";
+import { PrismaSubscriptionStatsQueryRepository } from "../src/infrastructure/repositories/PrismaSubscriptionStatsQueryRepository.js";
+import { PrismaProjectQueryRepository } from "../src/infrastructure/repositories/PrismaProjectQueryRepository.js";
+import { PrismaAuditLogRepository } from "../src/infrastructure/repositories/PrismaAuditLogRepository.js";
 
 const adminUserRepo = new PrismaAdminUserRepository(prisma);
 const roleRepo = new PrismaRoleRepository(prisma);
 const sessionRepo = new PrismaAdminSessionRepository(prisma);
 const mfaService = new MfaService(adminUserRepo);
 const authService = new AuthService(prisma, adminUserRepo, mfaService, roleRepo, sessionRepo);
+
+// Build the subscription facade from real Prisma adapters (integration: real DB)
+const billingSvc = new BillingService();
+const subQueryRepo = new PrismaAccountSubscriptionQueryRepository(prisma);
+const acctQueryRepo = new PrismaAccountQueryRepository(prisma);
+const planSvc = new SubscriptionPlanService(subQueryRepo);
+const statsSvc = new SubscriptionStatsService(new PrismaSubscriptionStatsQueryRepository(prisma));
+const managementSvc = new SubscriptionManagementService(
+  acctQueryRepo,
+  subQueryRepo,
+  new PrismaAccountSubscriptionAdapter(prisma),
+  new PrismaProjectQueryRepository(prisma),
+  billingSvc
+);
+const trialSvc = new TrialManagementService(
+  new PrismaAccountRepository(prisma),
+  acctQueryRepo,
+  subQueryRepo,
+  planSvc,
+  billingSvc,
+  new PrismaAuditLogRepository(prisma)
+);
+const subscriptionService = new SubscriptionService(
+  planSvc,
+  managementSvc,
+  trialSvc,
+  statsSvc,
+  billingSvc
+);
 
 describe("Trial Period Management", () => {
   let superAdminUserId: string;
@@ -45,7 +86,6 @@ describe("Trial Period Management", () => {
         email: `trial-test-account-${Date.now()}@example.com`,
         name: "Trial Test Account",
         isOnTrial: false, // Start with trial disabled so we can test startTrial()
-        subscription: "BASIC",
         maxProjects: 1,
       },
     });
@@ -95,7 +135,6 @@ describe("Trial Period Management", () => {
           email: `trial-duplicate-test-${Date.now()}@example.com`,
           name: "Trial Duplicate Test User",
           isOnTrial: false,
-          subscription: "BASIC",
           maxProjects: 1,
         },
       });
@@ -152,24 +191,6 @@ describe("Trial Period Management", () => {
     });
   });
 
-  describe("Trial Information", () => {
-    it("should retrieve account subscription with trial details", async () => {
-      const result = await subscriptionService.getAccountSubscription(testAccountId);
-
-      assert.ok(result.ok, `Failed to get account subscription: ${result.ok ? "" : result.error}`);
-      if (!result.ok) return;
-
-      const subscription = result.value;
-      assert.strictEqual(subscription.trial.isOnTrial, true, "Should be on trial");
-      assert.strictEqual(
-        subscription.subscription,
-        "PRO",
-        "Should have PRO subscription during trial"
-      );
-      assert.ok(subscription.trial.trialEndDate, "Should have trial end date");
-    });
-  });
-
   describe("Trial Conversion", () => {
     it("should convert trial to paid subscription", async () => {
       const result = await subscriptionService.convertTrialToPaid(
@@ -205,14 +226,13 @@ describe("Trial Period Management", () => {
   });
 
   describe("Trial End", () => {
-    it("should end trial and downgrade to BASIC", async () => {
+    it("should end trial", async () => {
       // Create a new test account for ending trial
       const newAccount = await prisma.account.create({
         data: {
           email: `trial-end-test-${Date.now()}@example.com`,
           name: "Trial End Test User",
           isOnTrial: false,
-          subscription: "BASIC",
           maxProjects: 1,
         },
       });
@@ -246,7 +266,6 @@ describe("Trial Period Management", () => {
 
       const subscription = endResult.value;
       assert.strictEqual(subscription.trial.isOnTrial, false, "Should not be on trial");
-      assert.strictEqual(subscription.subscription, "BASIC", "Should be downgraded to BASIC");
       assert.strictEqual(
         subscription.trial.trialExpired,
         true,
@@ -276,7 +295,6 @@ describe("Trial Period Management", () => {
             email: `expiring-trial-${i}-${Date.now()}@example.com`,
             name: `Expiring Trial User ${i}`,
             isOnTrial: false,
-            subscription: "BASIC",
             maxProjects: 1,
           },
         });
@@ -318,7 +336,6 @@ describe("Trial Period Management", () => {
           isOnTrial: true,
           trialStartDate: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000), // 8 days ago
           trialEndDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago (expired)
-          subscription: "PRO",
           maxProjects: 5,
           autoRenewal: true,
           billingCycle: "monthly",

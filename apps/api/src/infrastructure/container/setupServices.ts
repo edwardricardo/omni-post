@@ -29,7 +29,12 @@ import { AccountSessionService } from "../../admin/AccountSessionService.js";
 import { adminAuthService } from "../../admin/auth/AdminAuthService.js";
 import { templateService } from "../../templates/templateService.js";
 import { templateAnalytics } from "../../templates/templateAnalytics.js";
-import { subscriptionService } from "../../billing/subscription/index.js";
+import { BillingService } from "../../billing/subscription/BillingService.js";
+import { SubscriptionPlanService } from "../../billing/subscription/SubscriptionPlanService.js";
+import { SubscriptionManagementService } from "../../billing/subscription/SubscriptionManagementService.js";
+import { TrialManagementService } from "../../billing/subscription/TrialManagementService.js";
+import { SubscriptionStatsService } from "../../billing/subscription/SubscriptionStatsService.js";
+import { SubscriptionService } from "../../billing/subscription/SubscriptionService.js";
 import { webhookDashboardService } from "../../webhooks/webhookDashboardService.js";
 import { RealtimeWebhookBroadcaster } from "../../webhooks/realtimeWebhookBroadcaster.js";
 import { ProviderService } from "../../providers/providerService.js";
@@ -241,7 +246,55 @@ export function setupServices(
   container.registerInstance(TOKENS.AdminAuthService, adminAuthService);
   container.registerInstance(TOKENS.TemplateService, templateService);
   container.registerInstance(TOKENS.TemplateAnalytics, templateAnalytics);
-  container.registerInstance(TOKENS.SubscriptionService, subscriptionService);
+  container.register<BillingService>(TOKENS.BillingService, () => new BillingService(), true);
+  container.register<SubscriptionPlanService>(
+    TOKENS.SubscriptionPlanService,
+    () => new SubscriptionPlanService(container.resolve(TOKENS.AccountSubscriptionQueryRepository)),
+    true
+  );
+  container.register<SubscriptionStatsService>(
+    TOKENS.SubscriptionStatsService,
+    () => new SubscriptionStatsService(container.resolve(TOKENS.SubscriptionStatsQueryRepository)),
+    true
+  );
+  container.register<SubscriptionManagementService>(
+    TOKENS.SubscriptionManagementService,
+    () =>
+      new SubscriptionManagementService(
+        container.resolve(TOKENS.AccountQueryRepository),
+        container.resolve(TOKENS.AccountSubscriptionQueryRepository),
+        container.resolve(TOKENS.AccountSubscriptionPort),
+        container.resolve(TOKENS.ProjectQueryRepository),
+        container.resolve(TOKENS.BillingService)
+      ),
+    true
+  );
+  container.register<TrialManagementService>(
+    TOKENS.TrialManagementService,
+    () =>
+      new TrialManagementService(
+        container.resolve(TOKENS.AccountRepository),
+        container.resolve(TOKENS.AccountQueryRepository),
+        container.resolve(TOKENS.AccountSubscriptionQueryRepository),
+        container.resolve(TOKENS.SubscriptionPlanService),
+        container.resolve(TOKENS.BillingService),
+        container.resolve(TOKENS.AuditLogRepository),
+        container.resolve(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+  container.register<SubscriptionService>(
+    TOKENS.SubscriptionService,
+    () =>
+      new SubscriptionService(
+        container.resolve(TOKENS.SubscriptionPlanService),
+        container.resolve(TOKENS.SubscriptionManagementService),
+        container.resolve(TOKENS.TrialManagementService),
+        container.resolve(TOKENS.SubscriptionStatsService),
+        container.resolve(TOKENS.BillingService)
+      ),
+    true
+  );
   container.registerInstance(TOKENS.WebhookDashboardService, webhookDashboardService);
 
   // Compliance
