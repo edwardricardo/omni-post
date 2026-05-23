@@ -73,7 +73,7 @@ describe("ServerTemplateEngine - Platform Validation", () => {
   let engine: ServerTemplateEngine;
 
   beforeAll(() => {
-    engine = new ServerTemplateEngine();
+    engine = new ServerTemplateEngine(prisma);
   });
 
   it("should validate content within Twitter character limit", () => {
@@ -169,7 +169,7 @@ describe("ServerTemplateEngine - Content Adaptation", () => {
   let engine: ServerTemplateEngine;
 
   beforeAll(() => {
-    engine = new ServerTemplateEngine();
+    engine = new ServerTemplateEngine(prisma);
   });
 
   it("should truncate content exceeding Twitter limit", async () => {
@@ -249,7 +249,7 @@ describe("ServerTemplateEngine - Content Sanitization", () => {
   let engine: ServerTemplateEngine;
 
   beforeAll(() => {
-    engine = new ServerTemplateEngine();
+    engine = new ServerTemplateEngine(prisma);
   });
 
   it("should sanitize HTML content", () => {
@@ -286,7 +286,7 @@ describe("ServerTemplateEngine - Platform Compilation", () => {
   let engine: ServerTemplateEngine;
 
   beforeAll(() => {
-    engine = new ServerTemplateEngine();
+    engine = new ServerTemplateEngine(prisma);
   });
 
   it("should compile template with variables", async () => {
@@ -367,7 +367,7 @@ describe("ServerTemplateEngine - Platform Limits", () => {
   let engine: ServerTemplateEngine;
 
   beforeAll(() => {
-    engine = new ServerTemplateEngine();
+    engine = new ServerTemplateEngine(prisma);
   });
 
   it("should return Twitter platform limits", () => {
@@ -424,7 +424,7 @@ describe("ServerTemplateEngine - Component Compilation", () => {
   let mockFindMany: ReturnType<typeof import("node:test").mock.fn>;
 
   beforeEach(() => {
-    engine = new ServerTemplateEngine();
+    engine = new ServerTemplateEngine(prisma);
     // Create fresh mocks per test via t.mock — auto-restored when the test ends
     mockFindUnique = vi.fn();
     mockFindMany = vi.fn();
@@ -499,7 +499,7 @@ describe("ServerTemplateEngine - A/B Testing", () => {
   let engine: ServerTemplateEngine;
 
   beforeAll(() => {
-    engine = new ServerTemplateEngine();
+    engine = new ServerTemplateEngine(prisma);
   });
 
   it("should compile with A/B test variant selection", async () => {
@@ -549,7 +549,7 @@ describe("ServerTemplateEngine - Adaptation Tracking", () => {
   let engine: ServerTemplateEngine;
 
   beforeAll(() => {
-    engine = new ServerTemplateEngine();
+    engine = new ServerTemplateEngine(prisma);
   });
 
   it("should detect URL shortening in adaptations", async () => {

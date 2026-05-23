@@ -152,7 +152,7 @@ function resolveUsers(
 // ---------------------------------------------------------------------------
 
 describe("AuditService - getLogs() - Query and Filtering", () => {
-  const auditService = new AuditService();
+  const auditService = new AuditService(mocks.prismaClient);
 
   const now = new Date();
   const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);

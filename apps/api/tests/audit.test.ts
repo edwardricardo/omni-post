@@ -13,7 +13,7 @@ import { PrismaAdminUserRepository } from "../src/infrastructure/repositories/Pr
 
 const adminUserRepo = new PrismaAdminUserRepository(prisma);
 const mfaService = new MfaService(adminUserRepo);
-const authService = new AuthService(adminUserRepo, mfaService);
+const authService = new AuthService(prisma, adminUserRepo, mfaService);
 
 describe("Audit System", () => {
   let testUserId: string;

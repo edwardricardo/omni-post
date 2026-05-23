@@ -111,6 +111,7 @@ export function setupServices(
     TOKENS.AuthService,
     () =>
       new AuthService(
+        container.resolve(TOKENS.PrismaClient),
         container.resolve<AdminUserRepositoryPort>(TOKENS.AdminUserRepository),
         container.resolve<MfaService>(TOKENS.MfaService)
       ),
@@ -128,7 +129,11 @@ export function setupServices(
 
   // Register singleton instances
   container.registerInstance(TOKENS.AuditService, auditService);
-  container.registerInstance(TOKENS.ActivityFeedService, new ActivityFeedService());
+  container.register<ActivityFeedService>(
+    TOKENS.ActivityFeedService,
+    () => new ActivityFeedService(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
   container.register<AiRequestService>(
     TOKENS.AiRequestService,
     () =>

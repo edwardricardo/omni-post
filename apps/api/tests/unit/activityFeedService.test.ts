@@ -207,7 +207,7 @@ async function createTestLog(
 // ---------------------------------------------------------------------------
 
 describe("ActivityFeedService", () => {
-  const feedService = new ActivityFeedService();
+  const feedService = new ActivityFeedService(mocks.prismaClient);
 
   beforeEach(() => {
     mocks.auditLogStore.length = 0;

@@ -71,7 +71,7 @@ setRedisInstance(null as unknown as import("ioredis").default);
 
 const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
 const mfaService = new MfaService(adminUserRepo);
-const authService = new AuthService(adminUserRepo, mfaService);
+const authService = new AuthService(mockPrisma.prisma, adminUserRepo, mfaService);
 
 async function createTestApp() {
   const app = Fastify({ logger: false });

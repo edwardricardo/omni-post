@@ -4,7 +4,7 @@
  *              for display in the dashboard activity feed.
  * @layer infrastructure
  */
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { type Result } from "@shared/types";
 import { BaseService } from "../services/BaseService.js";
 import { AuditActions } from "./auditService.js";
@@ -93,7 +93,7 @@ const DEFAULT_DISPLAY = { icon: "activity", title: "Action performed" };
  *              suitable for dashboard display. Uses cursor-based pagination.
  */
 export class ActivityFeedService extends BaseService {
-  constructor() {
+  constructor(private readonly prisma: PrismaClient) {
     super("ActivityFeedService");
   }
 
@@ -113,7 +113,7 @@ export class ActivityFeedService extends BaseService {
         const limit = Math.min(filters.limit ?? 25, 100);
         const where = this.buildWhereClause(filters);
 
-        const logs = await prisma.auditLog.findMany({
+        const logs = await this.prisma.auditLog.findMany({
           where,
           include: {
             user: {

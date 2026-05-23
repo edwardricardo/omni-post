@@ -6,7 +6,7 @@
  */
 
 import crypto from "crypto";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { ok, err, type Result } from "@shared/types";
 import type {
   DeviceFingerprint,
@@ -24,7 +24,10 @@ import { hashRefreshToken } from "../../auth/refreshTokenHash.js";
 export class SessionManager {
   private tokenService: TokenService;
 
-  constructor(tokenService: TokenService) {
+  constructor(
+    private readonly prisma: PrismaClient,
+    tokenService: TokenService
+  ) {
     this.tokenService = tokenService;
   }
 
@@ -71,8 +74,8 @@ export class SessionManager {
       sessionData.location = device.location;
     }
 
-    const session = await prisma.adminSession.create({
-      data: sessionData as Parameters<typeof prisma.adminSession.create>[0]["data"],
+    const session = await this.prisma.adminSession.create({
+      data: sessionData as Parameters<typeof this.prisma.adminSession.create>[0]["data"],
     });
 
     // Get user for access token
@@ -82,7 +85,7 @@ export class SessionManager {
     }
 
     // Read session timeout from SecuritySettings (DB-configurable)
-    const securitySettings = await prisma.securitySettings.findFirst({
+    const securitySettings = await this.prisma.securitySettings.findFirst({
       select: { sessionTimeoutMinutes: true },
     });
     const sessionTimeoutMinutes = securitySettings?.sessionTimeoutMinutes ?? 15;
@@ -108,7 +111,7 @@ export class SessionManager {
    * Cleanup inactive or expired sessions
    */
   async cleanupExpiredSessions(userId: string): Promise<void> {
-    await prisma.adminSession.updateMany({
+    await this.prisma.adminSession.updateMany({
       where: {
         userId,
         OR: [
@@ -135,7 +138,7 @@ export class SessionManager {
    * Enforce max concurrent sessions
    */
   async enforceMaxSessions(userId: string, maxSessions: number): Promise<void> {
-    const activeSessions = await prisma.adminSession.findMany({
+    const activeSessions = await this.prisma.adminSession.findMany({
       where: {
         userId,
         isActive: true,
@@ -147,7 +150,7 @@ export class SessionManager {
     if (activeSessions.length >= maxSessions) {
       // Revoke oldest sessions
       const sessionsToRevoke = activeSessions.slice(maxSessions - 1);
-      await prisma.adminSession.updateMany({
+      await this.prisma.adminSession.updateMany({
         where: {
           id: { in: sessionsToRevoke.map((s) => s.id) },
         },
@@ -164,7 +167,7 @@ export class SessionManager {
    * List active sessions for a user
    */
   async listSessions(userId: string): Promise<Result<SessionInfo[], AuthErrorCode>> {
-    const sessions = await prisma.adminSession.findMany({
+    const sessions = await this.prisma.adminSession.findMany({
       where: {
         userId,
         isActive: true,
@@ -216,7 +219,7 @@ export class SessionManager {
     }) => Promise<void>
   ): Promise<Result<boolean, AuthErrorCode>> {
     // Verify session belongs to user
-    const session = await prisma.adminSession.findFirst({
+    const session = await this.prisma.adminSession.findFirst({
       where: {
         id: sessionId,
         userId,
@@ -228,7 +231,7 @@ export class SessionManager {
     }
 
     // Revoke session
-    await prisma.adminSession.update({
+    await this.prisma.adminSession.update({
       where: { id: sessionId },
       data: {
         isActive: false,

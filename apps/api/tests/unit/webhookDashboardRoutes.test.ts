@@ -65,7 +65,7 @@ const testToken = jwt.sign(
 // Create a local authService instance for mocking (no global singleton)
 const adminUserRepo = new PrismaAdminUserRepository(prisma);
 const mfaSvc = new MfaService(adminUserRepo);
-const authService = new AuthService(adminUserRepo, mfaSvc);
+const authService = new AuthService(prisma, adminUserRepo, mfaSvc);
 
 // Mock user for authentication
 const mockUser = {

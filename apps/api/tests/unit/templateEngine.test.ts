@@ -10,6 +10,10 @@
  */
 
 import { describe, it, expect } from "vitest";
+import type { PrismaClient } from "@infra/prisma";
+
+const stubPrisma = {} as unknown as PrismaClient;
+
 describe("Template Engine Module - Re-exports", () => {
   it("should export ServerTemplateEngine class", async () => {
     const module = await import("../../src/lib/templates/templateEngine");
@@ -49,8 +53,8 @@ describe("Template Engine Module - Re-exports", () => {
 
   it("should create new ServerTemplateEngine instances", async () => {
     const module = await import("../../src/lib/templates/templateEngine");
-    const instance1 = new module.ServerTemplateEngine();
-    const instance2 = new module.ServerTemplateEngine();
+    const instance1 = new module.ServerTemplateEngine(stubPrisma);
+    const instance2 = new module.ServerTemplateEngine(stubPrisma);
 
     expect(instance1).toBeTruthy();
     expect(instance2).toBeTruthy();

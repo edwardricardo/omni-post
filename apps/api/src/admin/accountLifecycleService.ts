@@ -42,7 +42,7 @@ export class AccountLifecycleService extends AuditableService {
 
   constructor(private readonly userRepo: AdminUserRepositoryPort) {
     super("AccountLifecycleService");
-    this.queryService = new AccountLifecycleQueryService();
+    this.queryService = new AccountLifecycleQueryService(prisma);
     this.sessionService = new AccountSessionService(userRepo);
   }
 
@@ -563,7 +563,7 @@ export class AccountLifecycleService extends AuditableService {
   private async mapUserToProfile(
     user: AdminUserDto & { sessions?: AdminSession[] }
   ): Promise<AccountProfile> {
-    return mapAdminUserToProfile(user);
+    return mapAdminUserToProfile(prisma, user);
   }
 }
 

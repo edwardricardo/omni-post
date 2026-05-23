@@ -405,6 +405,7 @@ vi.mock("../../../src/lib/logger.js", () => {
 // ---------------------------------------------------------------------------
 
 import { AdminAuthService } from "../../../src/admin/auth/AdminAuthService.js";
+import type { PrismaClient } from "@infra/prisma";
 
 // ---------------------------------------------------------------------------
 // Test data constants
@@ -432,7 +433,7 @@ describe("AdminAuthService (Unit - Mocked Prisma)", () => {
     vi.clearAllMocks();
 
     // Create service instance
-    authService = new AdminAuthService();
+    authService = new AdminAuthService(mockModule.prisma as unknown as PrismaClient);
 
     // Seed a test admin user with a real argon2 hash
     const passwordHash = await argon2.hash(TEST_PASSWORD);

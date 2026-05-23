@@ -4,8 +4,7 @@
  *              result queries, and test-to-template association management.
  * @layer infrastructure
  */
-import { prisma } from "@infra/prisma";
-import { Prisma } from "@infra/prisma";
+import type { Prisma, PrismaClient } from "@infra/prisma";
 import { BaseService } from "../services/BaseService";
 import { Result } from "@shared/types";
 import type { ABTest, ABTestConfig } from "./templateTypes.js";
@@ -42,7 +41,7 @@ function mapToABTest(dbTest: Record<string, unknown>): ABTest {
 }
 
 export class TemplateABTestService extends BaseService {
-  constructor() {
+  constructor(private readonly prisma: PrismaClient) {
     super("TemplateABTestService");
   }
 
@@ -67,7 +66,7 @@ export class TemplateABTestService extends BaseService {
           where.status = status;
         }
 
-        const tests = await prisma.aBTest.findMany({
+        const tests = await this.prisma.aBTest.findMany({
           where,
           orderBy: { createdAt: "desc" },
           include: {
@@ -96,7 +95,7 @@ export class TemplateABTestService extends BaseService {
       },
       async () => {
         // Validate template exists
-        const template = await prisma.template.findFirst({
+        const template = await this.prisma.template.findFirst({
           where: {
             id: testData.templateId,
             projectId,
@@ -108,7 +107,7 @@ export class TemplateABTestService extends BaseService {
           throw AppError.notFound("Template");
         }
 
-        const test = await prisma.aBTest.create({
+        const test = await this.prisma.aBTest.create({
           data: {
             name: testData.name,
             ...(testData.description !== undefined && { description: testData.description }),
@@ -135,7 +134,7 @@ export class TemplateABTestService extends BaseService {
         metadata: { projectId, testId },
       },
       async () => {
-        const test = await prisma.aBTest.findFirst({
+        const test = await this.prisma.aBTest.findFirst({
           where: {
             id: testId,
             template: {
@@ -152,7 +151,7 @@ export class TemplateABTestService extends BaseService {
           return null;
         }
 
-        const updatedTest = await prisma.aBTest.update({
+        const updatedTest = await this.prisma.aBTest.update({
           where: { id: testId },
           data: {
             status: "RUNNING",
@@ -176,7 +175,7 @@ export class TemplateABTestService extends BaseService {
         metadata: { projectId, testId },
       },
       async () => {
-        const test = await prisma.aBTest.findFirst({
+        const test = await this.prisma.aBTest.findFirst({
           where: {
             id: testId,
             template: {
@@ -193,7 +192,7 @@ export class TemplateABTestService extends BaseService {
           return null;
         }
 
-        const updatedTest = await prisma.aBTest.update({
+        const updatedTest = await this.prisma.aBTest.update({
           where: { id: testId },
           data: {
             status: "STOPPED",

@@ -6,7 +6,7 @@
  */
 
 import type { Result } from "@shared/types";
-import type { AdminSession } from "@infra/prisma";
+import type { AdminSession, PrismaClient } from "@infra/prisma";
 import type { AdminRoleKind } from "../domain/repositories/ReadModelDtos.js";
 import type { MfaService } from "./mfaService.js";
 import type { AdminUserRepositoryPort } from "../domain/repositories/AdminUserRepository.js";
@@ -42,9 +42,9 @@ export class AuthService {
   private core: AuthServiceCore;
   private session: AuthServiceSession;
 
-  constructor(userRepo: AdminUserRepositoryPort, mfaSvc: MfaService) {
+  constructor(prisma: PrismaClient, userRepo: AdminUserRepositoryPort, mfaSvc: MfaService) {
     this.core = new AuthServiceCore(userRepo, mfaSvc);
-    this.session = new AuthServiceSession(this.core);
+    this.session = new AuthServiceSession(prisma, this.core);
   }
 
   async registerAdmin(

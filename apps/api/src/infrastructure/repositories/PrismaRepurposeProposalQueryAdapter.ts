@@ -7,7 +7,7 @@
  * @layer infrastructure
  */
 
-import { prisma, Prisma, $Enums } from "@infra/prisma";
+import type { PrismaClient, Prisma, $Enums } from "@infra/prisma";
 import type {
   RepurposeProposalQueryRepository,
   RepurposeProposalQueryOptions,
@@ -15,6 +15,8 @@ import type {
 } from "../../domain/repositories/RepurposeProposalQueryRepository.js";
 
 export class PrismaRepurposeProposalQueryAdapter implements RepurposeProposalQueryRepository {
+  constructor(private readonly prisma: PrismaClient) {}
+
   /**
    * @method findByAccountId
    * @description Lists proposals for an account, optionally filtered by
@@ -32,14 +34,14 @@ export class PrismaRepurposeProposalQueryAdapter implements RepurposeProposalQue
     };
 
     const [rows, total] = await Promise.all([
-      prisma.repurposeProposal.findMany({
+      this.prisma.repurposeProposal.findMany({
         where,
         orderBy: { detectedAt: "desc" },
         take: options.limit,
         skip: options.offset,
         include: { _count: { select: { variants: true } } },
       }),
-      prisma.repurposeProposal.count({ where }),
+      this.prisma.repurposeProposal.count({ where }),
     ]);
 
     return {

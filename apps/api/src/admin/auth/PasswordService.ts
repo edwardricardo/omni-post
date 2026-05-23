@@ -6,7 +6,7 @@
  */
 
 import crypto from "crypto";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { ok, err, type Result } from "@shared/types";
 import type { AuthErrorCode, PasswordValidation, SecurityEventType } from "./adminAuthTypes";
 import { validatePasswordStrength } from "./adminAuthSchemas";
@@ -18,6 +18,8 @@ import {
 } from "../../auth/passwordHashing.js";
 
 export class PasswordService {
+  constructor(private readonly prisma: PrismaClient) {}
+
   /**
    * Hash password using the canonical Argon2id parameters.
    */
@@ -64,7 +66,7 @@ export class PasswordService {
     }) => Promise<void>
   ): Promise<Result<boolean, AuthErrorCode>> {
     // Get user with password hash
-    const user = await prisma.adminUser.findUnique({
+    const user = await this.prisma.adminUser.findUnique({
       where: { id: userId },
       select: {
         passwordHash: true,
@@ -118,7 +120,7 @@ export class PasswordService {
     );
 
     // Update user record
-    await prisma.adminUser.update({
+    await this.prisma.adminUser.update({
       where: { id: userId },
       data: {
         passwordHash: hash,
@@ -138,7 +140,7 @@ export class PasswordService {
     });
 
     // Revoke all other sessions for security
-    await prisma.adminSession.updateMany({
+    await this.prisma.adminSession.updateMany({
       where: {
         userId,
         isActive: true,
@@ -168,7 +170,7 @@ export class PasswordService {
     }) => Promise<void>
   ): Promise<Result<string, AuthErrorCode>> {
     // Find user by email
-    const user = await prisma.adminUser.findUnique({
+    const user = await this.prisma.adminUser.findUnique({
       where: { email: email.toLowerCase() },
       select: { id: true, isActive: true },
     });
@@ -188,7 +190,7 @@ export class PasswordService {
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
     // Store reset token in database
-    await prisma.adminUser.update({
+    await this.prisma.adminUser.update({
       where: { id: user.id },
       data: {
         passwordResetToken: resetToken,
@@ -223,7 +225,7 @@ export class PasswordService {
     }) => Promise<void>
   ): Promise<Result<boolean, AuthErrorCode>> {
     // Find user with valid reset token
-    const user = await prisma.adminUser.findFirst({
+    const user = await this.prisma.adminUser.findFirst({
       where: {
         passwordResetToken: token,
         passwordResetExpires: { gt: new Date() },
@@ -259,7 +261,7 @@ export class PasswordService {
     const { hash, algorithm } = await this.hashPassword(newPassword);
 
     // Update password history
-    const currentHash = await prisma.adminUser.findUnique({
+    const currentHash = await this.prisma.adminUser.findUnique({
       where: { id: user.id },
       select: { passwordHash: true },
     });
@@ -269,7 +271,7 @@ export class PasswordService {
     );
 
     // Update user record
-    await prisma.adminUser.update({
+    await this.prisma.adminUser.update({
       where: { id: user.id },
       data: {
         passwordHash: hash,
@@ -294,7 +296,7 @@ export class PasswordService {
     });
 
     // Revoke all active sessions
-    await prisma.adminSession.updateMany({
+    await this.prisma.adminSession.updateMany({
       where: {
         userId: user.id,
         isActive: true,

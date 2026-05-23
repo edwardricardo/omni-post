@@ -9,7 +9,7 @@ import { hashPassword } from "../../auth/passwordHashing.js";
 import crypto from "crypto";
 import { authenticator } from "otplib";
 import QRCode from "qrcode";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { ok, err, type Result } from "@shared/types";
 import type {
   MfaSetupResponse,
@@ -20,11 +20,13 @@ import type {
 import { adminAuthConfig } from "./adminAuthConfig";
 
 export class MfaService {
+  constructor(private readonly prisma: PrismaClient) {}
+
   /**
    * Setup MFA for admin user (generates secret and QR code)
    */
   async setupMfa(userId: string): Promise<Result<MfaSetupResponse, AuthErrorCode>> {
-    const user = await prisma.adminUser.findUnique({
+    const user = await this.prisma.adminUser.findUnique({
       where: { id: userId },
       select: { email: true, mfaEnabled: true },
     });
@@ -49,7 +51,7 @@ export class MfaService {
     const hashedBackupCodes = await Promise.all(backupCodes.map((code) => hashPassword(code)));
 
     // Save to database (not enabled yet - user must verify)
-    await prisma.adminUser.update({
+    await this.prisma.adminUser.update({
       where: { id: userId },
       data: {
         mfaSecret: secret,
@@ -82,7 +84,7 @@ export class MfaService {
       timestamp: Date;
     }) => Promise<void>
   ): Promise<Result<boolean, AuthErrorCode>> {
-    const user = await prisma.adminUser.findUnique({
+    const user = await this.prisma.adminUser.findUnique({
       where: { id: userId },
       select: { mfaSecret: true, mfaEnabled: true },
     });
@@ -102,7 +104,7 @@ export class MfaService {
     }
 
     // Enable MFA
-    await prisma.adminUser.update({
+    await this.prisma.adminUser.update({
       where: { id: userId },
       data: { mfaEnabled: true },
     });
@@ -121,7 +123,7 @@ export class MfaService {
    * Verify MFA token during login
    */
   async verifyMfaToken(userId: string, token: string): Promise<boolean> {
-    const user = await prisma.adminUser.findUnique({
+    const user = await this.prisma.adminUser.findUnique({
       where: { id: userId },
       select: { mfaSecret: true, mfaEnabled: true },
     });
@@ -156,7 +158,7 @@ export class MfaService {
     }) => Promise<void>
   ): Promise<Result<boolean, AuthErrorCode>> {
     // Get user
-    const user = await prisma.adminUser.findUnique({
+    const user = await this.prisma.adminUser.findUnique({
       where: { id: userId },
       select: {
         passwordHash: true,
@@ -192,7 +194,7 @@ export class MfaService {
     }
 
     // Disable MFA
-    await prisma.adminUser.update({
+    await this.prisma.adminUser.update({
       where: { id: userId },
       data: {
         mfaEnabled: false,
@@ -217,7 +219,7 @@ export class MfaService {
    * Get MFA status for a user
    */
   async getMfaStatus(userId: string): Promise<Result<MfaStatusResponse, AuthErrorCode>> {
-    const user = await prisma.adminUser.findUnique({
+    const user = await this.prisma.adminUser.findUnique({
       where: { id: userId },
       select: {
         mfaEnabled: true,

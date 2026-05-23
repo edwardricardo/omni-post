@@ -5,13 +5,13 @@
  * @layer application
  */
 
-import type { Account as PrismaAccount } from "@infra/prisma";
+import type { Account as PrismaAccount, PrismaClient } from "@infra/prisma";
 import { prisma } from "@infra/prisma";
 import { AuditableService } from "../../services/AuditableService.js";
 import { type TrialInfo } from "./types.js";
 
 export class SubscriptionPlanService extends AuditableService {
-  constructor() {
+  constructor(private readonly prisma: PrismaClient) {
     super("SubscriptionPlanService");
   }
 
@@ -22,7 +22,7 @@ export class SubscriptionPlanService extends AuditableService {
    * @returns The account plan details, or null if no subscription exists
    */
   async getAccountPlan(accountId: string) {
-    const sub = await prisma.accountSubscription.findUnique({
+    const sub = await this.prisma.accountSubscription.findUnique({
       where: { accountId },
       include: { bundle: true },
     });
@@ -53,7 +53,7 @@ export class SubscriptionPlanService extends AuditableService {
    * @returns List of active provider bundles
    */
   async getAllPlansFromDB() {
-    return prisma.providerBundle.findMany({
+    return this.prisma.providerBundle.findMany({
       where: { isActive: true },
       orderBy: { sortOrder: "asc" },
     });
@@ -82,4 +82,4 @@ export class SubscriptionPlanService extends AuditableService {
   }
 }
 
-export const subscriptionPlanService = new SubscriptionPlanService();
+export const subscriptionPlanService = new SubscriptionPlanService(prisma);

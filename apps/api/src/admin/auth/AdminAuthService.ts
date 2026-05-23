@@ -7,7 +7,7 @@
  * while delegating specific concerns to specialized services.
  */
 
-import { prisma } from "@infra/prisma";
+import { prisma, type PrismaClient } from "@infra/prisma";
 import { ok, err, type Result } from "@shared/types";
 import type {
   AdminUserProfile,
@@ -37,12 +37,12 @@ export class AdminAuthService {
   private bruteForceProtection: BruteForceProtection;
   private mfaService: MfaService;
 
-  constructor() {
-    this.passwordService = new PasswordService();
+  constructor(private readonly prisma: PrismaClient) {
+    this.passwordService = new PasswordService(this.prisma);
     this.tokenService = new TokenService();
-    this.sessionManager = new SessionManager(this.tokenService);
-    this.bruteForceProtection = new BruteForceProtection();
-    this.mfaService = new MfaService();
+    this.sessionManager = new SessionManager(this.prisma, this.tokenService);
+    this.bruteForceProtection = new BruteForceProtection(this.prisma);
+    this.mfaService = new MfaService(this.prisma);
   }
 
   // ==========================================================================
@@ -59,7 +59,7 @@ export class AdminAuthService {
     const { email, password, mfaToken, rememberMe = false } = request;
 
     // Find user (include role relation for profile mapping)
-    const user = await prisma.adminUser.findUnique({
+    const user = await this.prisma.adminUser.findUnique({
       where: { email: email.toLowerCase() },
       include: { role: true },
     });
@@ -154,7 +154,7 @@ export class AdminAuthService {
     );
 
     // Update last login
-    await prisma.adminUser.update({
+    await this.prisma.adminUser.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
     });
@@ -209,7 +209,7 @@ export class AdminAuthService {
     const payload = tokenResult.value;
 
     // Find session
-    const session = await prisma.adminSession.findUnique({
+    const session = await this.prisma.adminSession.findUnique({
       where: { id: payload.sessionId },
       include: { user: true },
     });
@@ -236,7 +236,7 @@ export class AdminAuthService {
       return err("INTERNAL_ERROR");
     }
 
-    const securitySettings = await prisma.securitySettings.findFirst({
+    const securitySettings = await this.prisma.securitySettings.findFirst({
       select: { sessionTimeoutMinutes: true },
     });
     const sessionTimeoutMinutes = securitySettings?.sessionTimeoutMinutes ?? 15;
@@ -248,7 +248,7 @@ export class AdminAuthService {
     );
 
     // Update session last activity
-    await prisma.adminSession.update({
+    await this.prisma.adminSession.update({
       where: { id: session.id },
       data: { lastActivityAt: new Date() },
     });
@@ -274,7 +274,7 @@ export class AdminAuthService {
   ): Promise<Result<boolean, AuthErrorCode>> {
     if (allSessions) {
       // Revoke all sessions
-      await prisma.adminSession.updateMany({
+      await this.prisma.adminSession.updateMany({
         where: {
           userId,
           isActive: true,
@@ -287,7 +287,7 @@ export class AdminAuthService {
       });
     } else if (sessionId) {
       // Revoke specific session
-      await prisma.adminSession.update({
+      await this.prisma.adminSession.update({
         where: { id: sessionId },
         data: {
           isActive: false,
@@ -450,7 +450,7 @@ export class AdminAuthService {
    * Get admin user profile
    */
   private async getUserProfile(userId: string): Promise<Result<AdminUserProfile, AuthErrorCode>> {
-    const user = await prisma.adminUser.findUnique({
+    const user = await this.prisma.adminUser.findUnique({
       where: { id: userId },
       select: {
         id: true,
@@ -505,11 +505,11 @@ export class AdminAuthService {
       auditData.error = event.error;
     }
 
-    await prisma.auditLog.create({
-      data: auditData as Parameters<typeof prisma.auditLog.create>[0]["data"],
+    await this.prisma.auditLog.create({
+      data: auditData as Parameters<typeof this.prisma.auditLog.create>[0]["data"],
     });
   }
 }
 
 // Export singleton instance
-export const adminAuthService = new AdminAuthService();
+export const adminAuthService = new AdminAuthService(prisma);

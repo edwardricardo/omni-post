@@ -6,7 +6,7 @@
  */
 import crypto from "crypto";
 import Redis from "ioredis";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { logger } from "../lib/logger.js";
 
@@ -38,7 +38,12 @@ export class CredentialManager {
   private scheduler: BackgroundTaskScheduler | undefined;
   private readonly rotationTaskId = "credential-manager-auto-rotation";
 
-  constructor(redis: Redis, config: CredentialConfig, scheduler?: BackgroundTaskScheduler) {
+  constructor(
+    private readonly prisma: PrismaClient,
+    redis: Redis,
+    config: CredentialConfig,
+    scheduler?: BackgroundTaskScheduler
+  ) {
     this.redis = redis;
     this.config = config;
     this.scheduler = scheduler;
@@ -74,7 +79,7 @@ export class CredentialManager {
 
     try {
       // Check if account has reached max key limit
-      const existingKeysCount = await prisma.apiKey.count({
+      const existingKeysCount = await this.prisma.apiKey.count({
         where: {
           accountId,
           isActive: true,
@@ -86,7 +91,7 @@ export class CredentialManager {
       }
 
       // Store key metadata in database
-      const apiKeyRecord = await prisma.apiKey.create({
+      const apiKeyRecord = await this.prisma.apiKey.create({
         data: {
           accountId,
           name,
@@ -161,7 +166,7 @@ export class CredentialManager {
       }
 
       // Fallback to database lookup
-      const apiKeyRecord = await prisma.apiKey.findFirst({
+      const apiKeyRecord = await this.prisma.apiKey.findFirst({
         where: {
           keyHash,
           isActive: true,
@@ -207,7 +212,7 @@ export class CredentialManager {
   async rotateApiKey(keyId: string): Promise<{ newApiKey: string; newKeyId: string }> {
     try {
       // Get existing key data
-      const existingKey = await prisma.apiKey.findUnique({
+      const existingKey = await this.prisma.apiKey.findUnique({
         where: { id: keyId },
       });
 
@@ -251,7 +256,7 @@ export class CredentialManager {
   // Deactivate API key
   async deactivateApiKey(keyId: string): Promise<void> {
     try {
-      const apiKeyRecord = await prisma.apiKey.update({
+      const apiKeyRecord = await this.prisma.apiKey.update({
         where: { id: keyId },
         data: { isActive: false },
       });
@@ -273,7 +278,7 @@ export class CredentialManager {
   // List all API keys for an account
   async listApiKeys(accountId: string): Promise<Omit<ApiKey, "keyHash">[]> {
     try {
-      const apiKeys = await prisma.apiKey.findMany({
+      const apiKeys = await this.prisma.apiKey.findMany({
         where: { accountId },
         orderBy: { createdAt: "desc" },
         select: {
@@ -361,7 +366,7 @@ export class CredentialManager {
     // Update in background to avoid blocking validation
     setImmediate(async () => {
       try {
-        await prisma.apiKey.update({
+        await this.prisma.apiKey.update({
           where: { id: keyId },
           data: { lastUsedAt: new Date() },
         });
@@ -377,7 +382,7 @@ export class CredentialManager {
     details: Record<string, unknown>
   ): Promise<void> {
     try {
-      await prisma.auditLog.create({
+      await this.prisma.auditLog.create({
         data: {
           action: event,
           resource: "ApiKey",
@@ -417,7 +422,7 @@ export class CredentialManager {
         Date.now() - this.config.rotationIntervalDays * 24 * 60 * 60 * 1000
       );
 
-      const keysToRotate = await prisma.apiKey.findMany({
+      const keysToRotate = await this.prisma.apiKey.findMany({
         where: {
           isActive: true,
           createdAt: { lte: rotationThreshold },

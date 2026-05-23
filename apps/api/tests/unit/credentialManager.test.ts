@@ -187,6 +187,7 @@ const testSecretKey = crypto.randomBytes(32);
 describe("CredentialManager", () => {
   beforeAll(() => {
     credentialManager = new CredentialManager(
+      mockPrismaClient as unknown as import("@infra/prisma").PrismaClient,
       mockRedisInstance as unknown as import("ioredis").default,
       {
         secretKey: testSecretKey as unknown as string,
@@ -553,6 +554,7 @@ describe("CredentialManager", () => {
 
     it("should enforce max active keys limit", async () => {
       const limitedManager = new CredentialManager(
+        mockPrismaClient as unknown as import("@infra/prisma").PrismaClient,
         mockRedisInstance as unknown as import("ioredis").default,
         {
           secretKey: testSecretKey as unknown as string,

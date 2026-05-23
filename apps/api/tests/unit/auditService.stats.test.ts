@@ -141,7 +141,7 @@ function filterEntries(
 // ---------------------------------------------------------------------------
 
 describe("AuditService - getStats()", () => {
-  const auditService = new AuditService();
+  const auditService = new AuditService(mocks.prismaClient);
 
   const seedRecords: Array<Record<string, unknown>> = [
     {

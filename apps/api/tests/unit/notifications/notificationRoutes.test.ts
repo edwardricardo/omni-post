@@ -117,7 +117,7 @@ async function createTestApp() {
 
   const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
   const mfaSvc = new MfaService(adminUserRepo);
-  const authSvc = new AuthService(adminUserRepo, mfaSvc);
+  const authSvc = new AuthService(mockPrisma.prisma, adminUserRepo, mfaSvc);
   container.registerInstance(TOKENS.AuthService, authSvc);
 
   // Override NotificationBroadcaster with mock (no Redis needed)

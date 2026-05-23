@@ -126,7 +126,7 @@ async function createTestApp(): Promise<{ app: FastifyInstance; authService: Aut
   // authRoutes only needs AuthService from the container — register just that.
   const adminUserRepo = new PrismaAdminUserRepository(prisma);
   const mfaService = new MfaService(adminUserRepo);
-  const authService = new AuthService(adminUserRepo, mfaService);
+  const authService = new AuthService(prisma, adminUserRepo, mfaService);
 
   const container = new Container();
   container.registerInstance(TOKENS.AuthService, authService);

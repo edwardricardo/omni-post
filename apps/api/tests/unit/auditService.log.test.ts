@@ -87,7 +87,7 @@ const TEST_USER_1 = {
 // ---------------------------------------------------------------------------
 
 describe("AuditService - log() - Create Audit Logs", () => {
-  const auditService = new AuditService();
+  const auditService = new AuditService(mocks.prismaClient);
   const adminUserStore = new Map<string, Record<string, unknown>>();
 
   beforeEach(() => {

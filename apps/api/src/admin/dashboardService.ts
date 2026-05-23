@@ -6,14 +6,14 @@
  */
 
 import { BaseService } from "../services/BaseService.js";
-import { prisma } from "@infra/prisma";
+import { prisma, type PrismaClient } from "@infra/prisma";
 
 /**
  * Dashboard Service
  * Handles admin dashboard data aggregation and statistics
  */
 export class DashboardService extends BaseService {
-  constructor() {
+  constructor(private readonly prisma: PrismaClient) {
     super("DashboardService");
   }
 
@@ -28,22 +28,22 @@ export class DashboardService extends BaseService {
       // Get basic counts in parallel
       const [totalAccounts, activeAccounts, trialsActive, newAccountsToday, totalProjects] =
         await Promise.all([
-          prisma.account.count(),
-          prisma.account.count({ where: { isOnTrial: false } }),
-          prisma.account.count({
+          this.prisma.account.count(),
+          this.prisma.account.count({ where: { isOnTrial: false } }),
+          this.prisma.account.count({
             where: {
               isOnTrial: true,
               trialEndDate: { gte: now },
             },
           }),
-          prisma.account.count({
+          this.prisma.account.count({
             where: { createdAt: { gte: todayStart } },
           }),
-          prisma.project.count(),
+          this.prisma.project.count(),
         ]);
 
       // Get subscription distribution from AccountSubscription
-      const subscriptionStats = await prisma.accountSubscription.groupBy({
+      const subscriptionStats = await this.prisma.accountSubscription.groupBy({
         by: ["status"],
         _count: { id: true },
       });
@@ -64,7 +64,7 @@ export class DashboardService extends BaseService {
       const trialExpiryDate = new Date();
       trialExpiryDate.setDate(trialExpiryDate.getDate() + 3);
 
-      const trialsExpiring = await prisma.account.count({
+      const trialsExpiring = await this.prisma.account.count({
         where: {
           isOnTrial: true,
           trialEndDate: {
@@ -97,7 +97,7 @@ export class DashboardService extends BaseService {
    *   into the AccountSummary DTO consumed by the admin accounts UI and CSV export.
    */
   private mapAccountToSummary(
-    account: Awaited<ReturnType<typeof prisma.account.findMany>>[number] & {
+    account: Awaited<ReturnType<typeof this.prisma.account.findMany>>[number] & {
       projects: unknown[];
       accountSubscription: {
         bundle: { name: string } | null;
@@ -160,7 +160,7 @@ export class DashboardService extends BaseService {
    */
   async getAccountsSummary() {
     return this.execute({ operation: "getAccountsSummary" }, async () => {
-      const accounts = await prisma.account.findMany({
+      const accounts = await this.prisma.account.findMany({
         include: {
           projects: true,
           accountSubscription: { include: { bundle: true } },
@@ -189,7 +189,7 @@ export class DashboardService extends BaseService {
    */
   async getAccountsForExport(ids?: string[]) {
     return this.execute({ operation: "getAccountsForExport" }, async () => {
-      const accounts = await prisma.account.findMany({
+      const accounts = await this.prisma.account.findMany({
         where: ids && ids.length > 0 ? { id: { in: ids } } : {},
         include: {
           projects: true,
@@ -212,7 +212,7 @@ export class DashboardService extends BaseService {
       const now = new Date();
 
       // Get active subscriptions (not on trial) with plan data
-      const activeSubscriptions = await prisma.account.findMany({
+      const activeSubscriptions = await this.prisma.account.findMany({
         where: {
           isOnTrial: false,
         },
@@ -226,7 +226,7 @@ export class DashboardService extends BaseService {
       });
 
       // Get trial accounts with plan data
-      const trialAccounts = await prisma.account.findMany({
+      const trialAccounts = await this.prisma.account.findMany({
         where: {
           isOnTrial: true,
         },
@@ -306,7 +306,7 @@ export class DashboardService extends BaseService {
       });
 
       // Calculate revenue from active + grandfathered subscriptions
-      const revenueAccounts = await prisma.accountSubscription.findMany({
+      const revenueAccounts = await this.prisma.accountSubscription.findMany({
         where: { status: { in: ["ACTIVE", "GRANDFATHERED"] } },
         select: { pricePerMonth: true },
       });
@@ -349,9 +349,9 @@ export class DashboardService extends BaseService {
       const now = new Date();
 
       // Get basic metrics
-      const totalUsers = await prisma.account.count();
-      const activeUsers = await prisma.account.count({ where: { isOnTrial: false } });
-      const newUsersToday = await prisma.account.count({
+      const totalUsers = await this.prisma.account.count();
+      const activeUsers = await this.prisma.account.count({ where: { isOnTrial: false } });
+      const newUsersToday = await this.prisma.account.count({
         where: {
           createdAt: {
             gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
@@ -360,7 +360,7 @@ export class DashboardService extends BaseService {
       });
 
       // Get subscription distribution from AccountSubscription
-      const subscriptionStats = await prisma.accountSubscription.groupBy({
+      const subscriptionStats = await this.prisma.accountSubscription.groupBy({
         by: ["status"],
         _count: { id: true },
       });
@@ -391,4 +391,4 @@ export class DashboardService extends BaseService {
 }
 
 // Export singleton instance
-export const dashboardService = new DashboardService();
+export const dashboardService = new DashboardService(prisma);

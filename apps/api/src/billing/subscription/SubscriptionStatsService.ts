@@ -6,12 +6,12 @@
  * @layer application
  */
 import { ok, err, type Result } from "@shared/types";
-import { prisma } from "@infra/prisma";
+import { prisma, type PrismaClient } from "@infra/prisma";
 import { AuditableService } from "../../services/AuditableService.js";
 import type { SubscriptionStats } from "./types.js";
 
 export class SubscriptionStatsService extends AuditableService {
-  constructor() {
+  constructor(private readonly prisma: PrismaClient) {
     super("SubscriptionStatsService");
   }
 
@@ -27,14 +27,14 @@ export class SubscriptionStatsService extends AuditableService {
 
       // Count by AccountSubscription status
       const [statusCounts, totalAccounts, newThisMonth, bundleCount] = await Promise.all([
-        prisma.accountSubscription.groupBy({
+        this.prisma.accountSubscription.groupBy({
           by: ["status"],
           _count: { id: true },
           _sum: { pricePerMonth: true },
         }),
-        prisma.account.count(),
-        prisma.account.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
-        prisma.accountSubscription.count({ where: { bundleId: { not: null } } }),
+        this.prisma.account.count(),
+        this.prisma.account.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+        this.prisma.accountSubscription.count({ where: { bundleId: { not: null } } }),
       ]);
 
       // Build status distribution
@@ -121,14 +121,14 @@ export class SubscriptionStatsService extends AuditableService {
     const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    const activeAccountIds = await prisma.post.findMany({
+    const activeAccountIds = await this.prisma.post.findMany({
       where: { createdAt: { gte: fourteenDaysAgo } },
       select: { project: { select: { accountId: true } } },
       distinct: ["projectId"],
     });
     const lowRiskAccountIds = new Set(activeAccountIds.map((p) => p.project.accountId));
 
-    const moderateAccountIds = await prisma.post.findMany({
+    const moderateAccountIds = await this.prisma.post.findMany({
       where: { createdAt: { gte: thirtyDaysAgo, lt: fourteenDaysAgo } },
       select: { project: { select: { accountId: true } } },
       distinct: ["projectId"],
@@ -148,10 +148,10 @@ export class SubscriptionStatsService extends AuditableService {
     const sixtyDaysAgo = new Date(thirtyDaysAgo.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     const [previousPeriodCount, cancelledCount] = await Promise.all([
-      prisma.account.count({
+      this.prisma.account.count({
         where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } },
       }),
-      prisma.auditLog.count({
+      this.prisma.auditLog.count({
         where: { action: { contains: "CANCEL" }, createdAt: { gte: thirtyDaysAgo } },
       }),
     ]);
@@ -173,4 +173,4 @@ export class SubscriptionStatsService extends AuditableService {
   }
 }
 
-export const subscriptionStatsService = new SubscriptionStatsService();
+export const subscriptionStatsService = new SubscriptionStatsService(prisma);

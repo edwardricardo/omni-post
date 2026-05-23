@@ -6,7 +6,7 @@
  */
 
 import DOMPurify from "isomorphic-dompurify";
-import { prisma } from "@infra/prisma";
+import { prisma, type PrismaClient } from "@infra/prisma";
 import {
   BaseTemplateEngine,
   Template,
@@ -121,7 +121,7 @@ const PLATFORM_CONFIGS: Record<string, PlatformLimits> = {
 export class ServerTemplateEngine extends BaseTemplateEngine {
   private platformAdapters: Map<string, PlatformAdapter> = new Map();
 
-  constructor() {
+  constructor(private readonly prisma: PrismaClient) {
     super();
     this.initializePlatformAdapters();
   }
@@ -256,7 +256,7 @@ export class ServerTemplateEngine extends BaseTemplateEngine {
    * 🔒 Server-only: Compile template component
    */
   async compileComponent(componentId: string, context: TemplateContext): Promise<string> {
-    const component = await prisma.templateComponent.findUnique({
+    const component = await this.prisma.templateComponent.findUnique({
       where: { id: componentId },
     });
 
@@ -275,7 +275,7 @@ export class ServerTemplateEngine extends BaseTemplateEngine {
     template: Template,
     context: TemplateContext
   ): Promise<CompilationResult[]> {
-    const componentUsages = await prisma.templateComponentUsage.findMany({
+    const componentUsages = await this.prisma.templateComponentUsage.findMany({
       where: { templateId: template.id },
       include: { component: true },
     });
@@ -390,4 +390,4 @@ export class ServerTemplateEngine extends BaseTemplateEngine {
 }
 
 // Export singleton instance
-export const serverTemplateEngine = new ServerTemplateEngine();
+export const serverTemplateEngine = new ServerTemplateEngine(prisma);

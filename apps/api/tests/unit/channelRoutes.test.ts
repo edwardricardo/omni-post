@@ -123,7 +123,7 @@ async function createTestApp() {
   // Wire up AuthService so auth routes work for hard-delete SUPER_ADMIN test
   const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
   const mfaSvc = new MfaService(adminUserRepo);
-  const authSvc = new AuthService(adminUserRepo, mfaSvc);
+  const authSvc = new AuthService(mockPrisma.prisma, adminUserRepo, mfaSvc);
   container.registerInstance(TOKENS.AuthService, authSvc);
 
   localApp.decorate("container", container);

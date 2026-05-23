@@ -84,7 +84,7 @@ describe("AuthService", () => {
     // Create fresh service instances with mocked prisma
     const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
     mfaService = new MfaService(adminUserRepo);
-    authService = new AuthService(adminUserRepo, mfaService);
+    authService = new AuthService(mockPrisma.prisma, adminUserRepo, mfaService);
   });
 
   describe("Registration", () => {

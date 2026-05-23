@@ -65,7 +65,7 @@ setRedisInstance(null as unknown as import("ioredis").default);
 
 const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
 const mfaService = new MfaService(adminUserRepo);
-const authService = new AuthService(adminUserRepo, mfaService);
+const authService = new AuthService(mockPrisma.prisma, adminUserRepo, mfaService);
 const rbacService = new RbacService(adminUserRepo);
 
 async function createTestApp() {
@@ -75,6 +75,7 @@ async function createTestApp() {
   app.setSerializerCompiler(serializerCompiler);
 
   const container = new Container();
+  container.registerInstance(TOKENS.PrismaClient, mockPrisma.prisma);
   container.registerInstance(TOKENS.AuthService, authService);
   container.registerInstance(TOKENS.RbacService, rbacService);
   app.decorate("container", container);

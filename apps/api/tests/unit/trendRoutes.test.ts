@@ -52,7 +52,7 @@ async function createTestApp(): Promise<FastifyInstance> {
   // Override AuthService with a locally-constructed instance (no global singleton)
   const adminUserRepo = new PrismaAdminUserRepository(prisma);
   const mfaSvc = new MfaService(adminUserRepo);
-  container.registerInstance(TOKENS.AuthService, new AuthService(adminUserRepo, mfaSvc));
+  container.registerInstance(TOKENS.AuthService, new AuthService(prisma, adminUserRepo, mfaSvc));
   app.decorate("container", container);
   await app.register(fastifyCookie);
   await app.register(authRoutes);

@@ -4,7 +4,7 @@
  *              Redis-backed caching, and compliance-ready retention policies.
  * @layer infrastructure
  */
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import Redis from "ioredis";
 import type { FastifyRequest } from "fastify";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
@@ -42,7 +42,12 @@ export class AuditLogger {
   private scheduler: BackgroundTaskScheduler;
   private alertQueue: string = "security_alerts";
 
-  constructor(redis: Redis, scheduler: BackgroundTaskScheduler, config?: Partial<AuditConfig>) {
+  constructor(
+    private readonly prisma: PrismaClient,
+    redis: Redis,
+    scheduler: BackgroundTaskScheduler,
+    config?: Partial<AuditConfig>
+  ) {
     this.redis = redis;
     this.scheduler = scheduler;
     this.config = {
@@ -103,8 +108,8 @@ export class AuditLogger {
       if (sanitizedEvent.userAgent) createData.userAgent = sanitizedEvent.userAgent;
       if (sanitizedEvent.error) createData.error = sanitizedEvent.error;
 
-      const _auditRecord = await prisma.auditLog.create({
-        data: createData as Parameters<typeof prisma.auditLog.create>[0]["data"],
+      const _auditRecord = await this.prisma.auditLog.create({
+        data: createData as Parameters<typeof this.prisma.auditLog.create>[0]["data"],
       });
 
       // Cache recent events in Redis for real-time monitoring
@@ -291,7 +296,7 @@ export class AuditLogger {
         };
       }
 
-      const logs = await prisma.auditLog.findMany({
+      const logs = await this.prisma.auditLog.findMany({
         where,
         orderBy: { createdAt: "desc" },
         take: filters.limit || 100,
@@ -326,29 +331,29 @@ export class AuditLogger {
 
       const [totalEvents, failedEvents, securityEvents, actionStats, userStats] = await Promise.all(
         [
-          prisma.auditLog.count({
+          this.prisma.auditLog.count({
             where: { createdAt: { gte: startDate } },
           }),
-          prisma.auditLog.count({
+          this.prisma.auditLog.count({
             where: {
               createdAt: { gte: startDate },
               success: false,
             },
           }),
-          prisma.auditLog.count({
+          this.prisma.auditLog.count({
             where: {
               createdAt: { gte: startDate },
               action: { contains: "SECURITY" },
             },
           }),
-          prisma.auditLog.groupBy({
+          this.prisma.auditLog.groupBy({
             by: ["action"],
             where: { createdAt: { gte: startDate } },
             _count: { action: true },
             orderBy: { _count: { action: "desc" } },
             take: 10,
           }),
-          prisma.auditLog.groupBy({
+          this.prisma.auditLog.groupBy({
             by: ["userId"],
             where: {
               createdAt: { gte: startDate },
@@ -610,7 +615,7 @@ export class AuditLogger {
     try {
       const cutoffDate = new Date(Date.now() - this.config.retentionDays * 24 * 60 * 60 * 1000);
 
-      const deletedCount = await prisma.auditLog.deleteMany({
+      const deletedCount = await this.prisma.auditLog.deleteMany({
         where: {
           createdAt: { lt: cutoffDate },
         },
@@ -633,11 +638,12 @@ export class AuditLogger {
 
 // Factory function for creating audit logger
 export function createAuditLogger(
+  prisma: PrismaClient,
   redis: Redis,
   scheduler: BackgroundTaskScheduler,
   config?: Partial<AuditConfig>
 ): AuditLogger {
-  return new AuditLogger(redis, scheduler, config);
+  return new AuditLogger(prisma, redis, scheduler, config);
 }
 
 // Predefined audit configurations

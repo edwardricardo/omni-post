@@ -109,7 +109,12 @@ export function setupRepurposeUseCases(container: Container): void {
   // ListRepurposeProposalsQuery — read-side: account-scoped proposals page.
   container.register<ListRepurposeProposalsQuery>(
     TOKENS.ListRepurposeProposalsQuery,
-    () => new ListRepurposeProposalsQuery(new PrismaRepurposeProposalQueryAdapter()),
+    () =>
+      new ListRepurposeProposalsQuery(
+        new PrismaRepurposeProposalQueryAdapter(
+          container.resolve<PrismaClient>(TOKENS.PrismaClient)
+        )
+      ),
     true
   );
 
