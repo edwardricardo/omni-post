@@ -57,7 +57,7 @@ const { serializerCompiler, validatorCompiler } = await import("fastify-type-pro
 const { mfaRoutes } = await import("../../src/auth/mfaRoutes.js");
 const { AuthService, setRedisInstance } = await import("../../src/auth/authService.js");
 const { MfaService } = await import("../../src/auth/mfaService.js");
-const { auditService } = await import("../../src/audit/auditService.js");
+const { AuditService } = await import("../../src/audit/auditService.js");
 const { PrismaAdminUserRepository } =
   await import("../../src/infrastructure/repositories/PrismaAdminUserRepository.js");
 const { PrismaRoleRepository } =
@@ -74,6 +74,7 @@ const { RbacService } = await import("../../src/auth/rbacService.js");
 
 setRedisInstance(null as unknown as import("ioredis").default);
 
+const auditService = new AuditService(mockPrisma.prisma as never);
 const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
 const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
 const sessionRepo = new PrismaAdminSessionRepository(mockPrisma.prisma as never);

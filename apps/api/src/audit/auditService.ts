@@ -4,7 +4,7 @@
  *              compliance-ready trails for user actions, security events, and system changes.
  * @layer infrastructure
  */
-import { prisma, type PrismaClient } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { type Result, type AdminRole } from "@shared/types";
 import { BaseService } from "../services/BaseService";
 
@@ -392,9 +392,6 @@ export class AuditService extends BaseService {
     await this.log(params);
   }
 }
-
-// Singleton instance
-export const auditService = new AuditService(prisma);
 
 // Audit action constants
 export const AuditActions = {

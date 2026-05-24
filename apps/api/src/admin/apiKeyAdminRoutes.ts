@@ -16,14 +16,17 @@ import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "../auth/rbacService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { RotateApiKeyUseCase } from "../application/apiKeys/ApiKeyUseCases.js";
-import { auditService } from "../audit/auditService.js";
+import type { AuditService } from "../audit/auditService.js";
 
 const ParamsSchema = z.object({ id: z.string().min(1) });
 
 class ApiKeyAdminRouteHandler extends BaseRouteHandler {
   protected routeName = "apikey-admin";
 
-  constructor(private readonly useCase: RotateApiKeyUseCase) {
+  constructor(
+    private readonly useCase: RotateApiKeyUseCase,
+    private readonly auditService: AuditService
+  ) {
     super();
   }
 
@@ -42,7 +45,7 @@ class ApiKeyAdminRouteHandler extends BaseRouteHandler {
     if (!result.ok) {
       const code = (result.error as { code?: string }).code;
       const status = code === "VALIDATION_FAILED" ? 400 : code === "NOT_FOUND" ? 404 : 500;
-      await auditService.log({
+      await this.auditService.log({
         action: "APIKEY_ADMIN_ROTATED",
         resource: "ApiKey",
         resourceId: params.data.id,
@@ -55,7 +58,7 @@ class ApiKeyAdminRouteHandler extends BaseRouteHandler {
 
     const accountId = (result.value.key as { accountId?: string }).accountId ?? null;
 
-    await auditService.log({
+    await this.auditService.log({
       action: "APIKEY_ADMIN_ROTATED",
       resource: "ApiKey",
       resourceId: params.data.id,
@@ -76,7 +79,8 @@ class ApiKeyAdminRouteHandler extends BaseRouteHandler {
 
 const apiKeyAdminRoutes: FastifyPluginAsync = async (fastify) => {
   const useCase = fastify.container!.resolve<RotateApiKeyUseCase>(TOKENS.RotateApiKeyUseCase);
-  const handler = new ApiKeyAdminRouteHandler(useCase);
+  const auditService = fastify.container!.resolve<AuditService>(TOKENS.AuditService);
+  const handler = new ApiKeyAdminRouteHandler(useCase, auditService);
 
   fastify.post(
     "/admin/api-keys/:id/rotate",

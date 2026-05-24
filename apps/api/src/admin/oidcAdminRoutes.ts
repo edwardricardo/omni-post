@@ -14,7 +14,7 @@ import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "../auth/rbacService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { ReplaceOidcClientSecretUseCase } from "../application/auth/ReplaceOidcClientSecretUseCase.js";
-import { auditService } from "../audit/auditService.js";
+import type { AuditService } from "../audit/auditService.js";
 
 const ParamsSchema = z.object({ accountId: z.string().min(1) });
 const BodySchema = z.object({
@@ -24,7 +24,10 @@ const BodySchema = z.object({
 class OidcAdminRouteHandler extends BaseRouteHandler {
   protected routeName = "oidc-admin";
 
-  constructor(private readonly useCase: ReplaceOidcClientSecretUseCase) {
+  constructor(
+    private readonly useCase: ReplaceOidcClientSecretUseCase,
+    private readonly auditService: AuditService
+  ) {
     super();
   }
 
@@ -54,7 +57,7 @@ class OidcAdminRouteHandler extends BaseRouteHandler {
           : result.error.code === "NOT_FOUND"
             ? 404
             : 500;
-      await auditService.log({
+      await this.auditService.log({
         action: "OIDC_CLIENT_SECRET_REPLACED",
         resource: "OidcConfiguration",
         resourceId: params.data.accountId,
@@ -65,7 +68,7 @@ class OidcAdminRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, status, result.error.message);
     }
 
-    await auditService.log({
+    await this.auditService.log({
       action: "OIDC_CLIENT_SECRET_REPLACED",
       resource: "OidcConfiguration",
       resourceId: result.value.accountId,
@@ -85,7 +88,8 @@ const oidcAdminRoutes: FastifyPluginAsync = async (fastify) => {
   const useCase = fastify.container!.resolve<ReplaceOidcClientSecretUseCase>(
     TOKENS.ReplaceOidcClientSecretUseCase
   );
-  const handler = new OidcAdminRouteHandler(useCase);
+  const auditService = fastify.container!.resolve<AuditService>(TOKENS.AuditService);
+  const handler = new OidcAdminRouteHandler(useCase, auditService);
 
   fastify.post(
     "/admin/oidc/configurations/:accountId/replace-client-secret",

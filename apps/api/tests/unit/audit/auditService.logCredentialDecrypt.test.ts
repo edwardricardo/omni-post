@@ -20,8 +20,12 @@ vi.mock("@infra/prisma", async (importOriginal) => {
   };
 });
 
-const { auditService, AuditActions } = await import("../../../src/audit/auditService.js");
+const { AuditService, AuditActions } = await import("../../../src/audit/auditService.js");
 const { withRequestAuditContext } = await import("../../../src/security/decryptAuditContext.js");
+
+// AuditService is no longer a module singleton — construct it against the mocked
+// prisma (only auditLog.create is exercised by logCredentialDecrypt).
+const auditService = new AuditService({ auditLog: { create: auditLogCreate } } as never);
 
 describe("auditService.logCredentialDecrypt", () => {
   beforeEach(() => {

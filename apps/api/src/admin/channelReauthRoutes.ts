@@ -15,7 +15,7 @@ import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "../auth/rbacService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { UpdateChannelAuthStateUseCase } from "../application/channels/index.js";
-import { auditService } from "../audit/auditService.js";
+import type { AuditService } from "../audit/auditService.js";
 
 const ParamsSchema = z.object({ id: z.string().min(1) });
 const BodySchema = z.object({
@@ -27,7 +27,10 @@ const DEFAULT_REASON = "Admin force re-auth";
 class ChannelReauthRouteHandler extends BaseRouteHandler {
   protected routeName = "channel-reauth";
 
-  constructor(private readonly useCase: UpdateChannelAuthStateUseCase) {
+  constructor(
+    private readonly useCase: UpdateChannelAuthStateUseCase,
+    private readonly auditService: AuditService
+  ) {
     super();
   }
 
@@ -58,7 +61,7 @@ class ChannelReauthRouteHandler extends BaseRouteHandler {
           : result.error.code === "NOT_FOUND"
             ? 404
             : 500;
-      await auditService.log({
+      await this.auditService.log({
         action: "CHANNEL_FORCE_REAUTH",
         resource: "Channel",
         resourceId: params.data.id,
@@ -70,7 +73,7 @@ class ChannelReauthRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, status, result.error.message);
     }
 
-    await auditService.log({
+    await this.auditService.log({
       action: "CHANNEL_FORCE_REAUTH",
       resource: "Channel",
       resourceId: result.value.channelId,
@@ -91,7 +94,8 @@ const channelReauthRoutes: FastifyPluginAsync = async (fastify) => {
   const useCase = fastify.container!.resolve<UpdateChannelAuthStateUseCase>(
     TOKENS.UpdateChannelAuthStateUseCase
   );
-  const handler = new ChannelReauthRouteHandler(useCase);
+  const auditService = fastify.container!.resolve<AuditService>(TOKENS.AuditService);
+  const handler = new ChannelReauthRouteHandler(useCase, auditService);
 
   fastify.post(
     "/admin/channels/:id/force-reauth",

@@ -19,12 +19,6 @@ import type {
 } from "../../../src/application/providers/MassForceReauthByProviderUseCase.js";
 import { UseCaseError, USE_CASE_ERRORS } from "../../../src/application/UseCase.js";
 
-vi.mock("../../../src/audit/auditService.js", () => ({
-  auditService: { log: vi.fn().mockResolvedValue({ ok: true, value: {} }) },
-}));
-
-import { auditService } from "../../../src/audit/auditService.js";
-
 interface CapturedRoute {
   url: string;
   options: Record<string, unknown>;
@@ -35,13 +29,21 @@ interface FastifyTestHarness {
   routes: CapturedRoute[];
   container: { resolve: ReturnType<typeof vi.fn> };
   post: ReturnType<typeof vi.fn>;
+  auditLog: ReturnType<typeof vi.fn>;
 }
 
 function makeFastifyHarness(useCase: MassForceReauthByProviderUseCase): FastifyTestHarness {
   const routes: CapturedRoute[] = [];
+  // AuditService is resolved from the container (not a module singleton), so the
+  // harness registers a spy and resolves it for TOKENS.AuditService.
+  const auditLog = vi.fn().mockResolvedValue(undefined);
+  const auditService = { log: auditLog };
   return {
     routes,
-    container: { resolve: vi.fn().mockReturnValue(useCase) },
+    auditLog,
+    container: {
+      resolve: vi.fn((token: symbol) => (token === TOKENS.AuditService ? auditService : useCase)),
+    },
     post: vi.fn(
       (
         url: string,
@@ -151,7 +153,7 @@ describe("massReauthRoutes plugin", () => {
     assert.equal(body.data?.rotation.provider, "FACEBOOK");
     assert.equal(body.data?.rotation.channelsFlagged, 12);
 
-    const auditCall = (auditService.log as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+    const auditCall = harness.auditLog.mock.calls[0]?.[0];
     assert.equal(auditCall?.action, "PROVIDER_MASS_FORCE_REAUTH");
     assert.equal(auditCall?.success, true);
     assert.equal(auditCall?.userId, "admin-user-uuid");
@@ -177,7 +179,7 @@ describe("massReauthRoutes plugin", () => {
       reply.reply
     );
     assert.equal(reply.status, 400);
-    const auditCall = (auditService.log as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+    const auditCall = harness.auditLog.mock.calls[0]?.[0];
     assert.equal(auditCall?.success, false);
   });
 

@@ -21,12 +21,6 @@ import { UseCaseError, USE_CASE_ERRORS } from "../../../src/application/UseCase.
 
 const ACCOUNT_ID = "acct-uuid-123";
 
-vi.mock("../../../src/audit/auditService.js", () => ({
-  auditService: { log: vi.fn().mockResolvedValue({ ok: true, value: {} }) },
-}));
-
-import { auditService } from "../../../src/audit/auditService.js";
-
 interface CapturedRoute {
   url: string;
   options: Record<string, unknown>;
@@ -37,13 +31,19 @@ interface FastifyTestHarness {
   routes: CapturedRoute[];
   container: { resolve: ReturnType<typeof vi.fn> };
   post: ReturnType<typeof vi.fn>;
+  auditLog: ReturnType<typeof vi.fn>;
 }
 
 function makeFastifyHarness(useCase: ReplaceOidcClientSecretUseCase): FastifyTestHarness {
   const routes: CapturedRoute[] = [];
+  const auditLog = vi.fn().mockResolvedValue(undefined);
+  const auditService = { log: auditLog };
   return {
     routes,
-    container: { resolve: vi.fn().mockReturnValue(useCase) },
+    auditLog,
+    container: {
+      resolve: vi.fn((token: symbol) => (token === TOKENS.AuditService ? auditService : useCase)),
+    },
     post: vi.fn(
       (
         url: string,
@@ -151,7 +151,7 @@ describe("oidcAdminRoutes plugin", () => {
     assert.equal(body.ok, true);
     assert.equal(body.data?.rotation.accountId, ACCOUNT_ID);
 
-    const auditCall = (auditService.log as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+    const auditCall = harness.auditLog.mock.calls[0]?.[0];
     assert.equal(auditCall?.action, "OIDC_CLIENT_SECRET_REPLACED");
     assert.equal(auditCall?.success, true);
     assert.equal(auditCall?.userId, "admin-user-uuid");
@@ -179,7 +179,7 @@ describe("oidcAdminRoutes plugin", () => {
       reply.reply
     );
     assert.equal(reply.status, 400);
-    const auditCall = (auditService.log as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+    const auditCall = harness.auditLog.mock.calls[0]?.[0];
     assert.equal(auditCall?.success, false);
     assert.ok(auditCall?.error?.includes("invalid_client"));
   });

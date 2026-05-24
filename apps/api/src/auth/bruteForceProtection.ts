@@ -8,7 +8,8 @@
 import Redis from "ioredis";
 import { randomUUID } from "crypto";
 import type { ApiMetrics } from "../metrics/apiMetrics.js";
-import { auditService, AuditResources } from "../audit/auditService.js";
+import { AuditResources } from "../audit/auditService.js";
+import type { AuditService } from "../audit/auditService.js";
 import { authLogger } from "../lib/logger.js";
 
 export interface BruteForceConfig {
@@ -78,6 +79,7 @@ interface SuspiciousActivity {
 export class BruteForceProtection {
   private readonly redis: Redis;
   private readonly metrics: ApiMetrics;
+  private readonly auditService: AuditService;
   private readonly config: BruteForceConfig;
 
   // Redis key prefixes (may include a per-instance namespace for test isolation)
@@ -89,9 +91,15 @@ export class BruteForceProtection {
   private readonly ANOMALY_TRACKER_PREFIX: string;
   private readonly LOGIN_ATTEMPTS_PREFIX: string;
 
-  constructor(redis: Redis, metrics: ApiMetrics, config?: Partial<BruteForceConfig>) {
+  constructor(
+    redis: Redis,
+    metrics: ApiMetrics,
+    auditService: AuditService,
+    config?: Partial<BruteForceConfig>
+  ) {
     this.redis = redis;
     this.metrics = metrics;
+    this.auditService = auditService;
 
     this.config = {
       maxFailedAttemptsPerEmail: 5,
@@ -389,7 +397,7 @@ export class BruteForceProtection {
         ]);
 
         // Log admin unlock
-        await auditService.log({
+        await this.auditService.log({
           userId: adminUserId,
           action: "ACCOUNT_UNLOCKED",
           resource: AuditResources.USER,
@@ -425,7 +433,7 @@ export class BruteForceProtection {
         ]);
 
         // Log admin unblock
-        await auditService.log({
+        await this.auditService.log({
           userId: adminUserId,
           action: "IP_UNBLOCKED",
           resource: "IP_ADDRESS",
@@ -526,7 +534,7 @@ export class BruteForceProtection {
         );
 
         // Log lockout
-        await auditService.log({
+        await this.auditService.log({
           action: "ACCOUNT_LOCKED",
           resource: AuditResources.USER,
           details: {
@@ -566,7 +574,7 @@ export class BruteForceProtection {
         );
 
         // Log IP block
-        await auditService.log({
+        await this.auditService.log({
           action: "IP_BLOCKED",
           resource: "IP_ADDRESS",
           details: {
@@ -654,7 +662,7 @@ export class BruteForceProtection {
       );
 
       // Log suspicious activity
-      await auditService.log({
+      await this.auditService.log({
         action: "SUSPICIOUS_ACTIVITY_DETECTED",
         resource: "SECURITY",
         details: {

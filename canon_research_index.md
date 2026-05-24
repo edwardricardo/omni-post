@@ -18,6 +18,16 @@ Fuentes externas validadas por batch. Consultar ANTES de cualquier nuevo researc
 
 ---
 
+## Security / Authentication
+
+### Brute-force / credential-stuffing protection — OWASP + NIST
+
+- **URLs:** https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html · https://pages.nist.gov/800-63-4/sp800-63b.html (SP 800-63B-4)
+- **Resumen (canon):** NIST **SHALL** = rate-limiting de intentos fallidos por cuenta (prefiere throttling sobre lockout duro: umbral alto ~100 + delays progresivos + IP throttle + CAPTCHA). OWASP: el contador de fallos se asocia a la **CUENTA, no a la IP** (atacantes rotan IPs; IP solo throttle supletorio, ojo NAT/compartida); lockout con auto-expiry o duración **exponencial**, consciente de **DoS** (permitir forgot-password aun bloqueado); **CAPTCHA** tras unos pocos fallos (defense-in-depth, no preventivo); **MFA** = defensa #1 (99.9% per Microsoft).
+- **Consumido por:** B2 del maratón prisma→DI (2026-05-24) — auditoría de las 3 impls divergentes (admin Prisma / customer rate-limit-only / huérfano Redis). Diseño de homologación en `docs/security/BRUTE_FORCE_HOMOLOGATION_ES.md` (workstream BF-HOMOLOG, backlog SMELL-35).
+
+---
+
 ## A11y / E2E
 
 ### @axe-core/playwright — canonical helper pattern

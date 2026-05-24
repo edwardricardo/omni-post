@@ -5,7 +5,9 @@
  * @layer infrastructure
  */
 import { FastifyRequest, FastifyReply } from "fastify";
-import { auditService, AuditActions, AuditResources as _AuditResources } from "./auditService.js";
+import { AuditActions, AuditResources as _AuditResources } from "./auditService.js";
+import type { AuditService } from "./auditService.js";
+import { TOKENS } from "../infrastructure/container/types.js";
 import { createLogger } from "../lib/logger.js";
 
 const auditLogger = createLogger("audit");
@@ -62,9 +64,17 @@ export async function auditMiddleware(request: AuditableRequest, reply: FastifyR
       // Determine if request was successful
       const success = auditInfo.success ?? (reply.statusCode >= 200 && reply.statusCode < 400);
 
-      // Log the audit event asynchronously (non-blocking)
+      // Log the audit event asynchronously (non-blocking). Resolve the
+      // AuditService from the request's server container — the middleware is a
+      // free function, so it receives DI dependencies via `request.server`
+      // rather than constructor injection.
       setImmediate(async () => {
         try {
+          const auditService = request.server.container?.resolve<AuditService>(TOKENS.AuditService);
+          if (!auditService) {
+            auditLogger.error("AuditService unavailable on container; audit event dropped");
+            return;
+          }
           await auditService.log({
             ...(user?.id ? { userId: user.id } : {}),
             action,

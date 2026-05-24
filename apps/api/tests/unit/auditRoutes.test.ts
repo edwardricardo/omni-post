@@ -49,8 +49,12 @@ vi.mock("../../src/lib/logger.js", () => {
 const Fastify = (await import("fastify")).default;
 const { serializerCompiler, validatorCompiler } = await import("fastify-type-provider-zod");
 const { auditRoutes } = await import("../../src/audit/auditRoutes.js");
-const { auditService } = await import("../../src/audit/auditService.js");
+const { AuditService } = await import("../../src/audit/auditService.js");
 const { setRedisInstance } = await import("../../src/auth/authService.js");
+
+// AuditService is resolved from the container by the routes; this direct instance
+// (same mock prisma store) is used by the test to seed audit rows.
+const auditService = new AuditService(mockPrisma.prisma as never);
 const { setupContainer } = await import("../../src/infrastructure/container/setup.js");
 const { TOKENS } = await import("../../src/infrastructure/container/types.js");
 

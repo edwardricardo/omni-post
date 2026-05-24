@@ -18,12 +18,6 @@ import { UseCaseError, USE_CASE_ERRORS } from "../../../src/application/UseCase.
 
 const KEY_ID = "ak-uuid-789";
 
-vi.mock("../../../src/audit/auditService.js", () => ({
-  auditService: { log: vi.fn().mockResolvedValue({ ok: true, value: {} }) },
-}));
-
-import { auditService } from "../../../src/audit/auditService.js";
-
 interface CapturedRoute {
   url: string;
   options: Record<string, unknown>;
@@ -34,13 +28,19 @@ interface FastifyTestHarness {
   routes: CapturedRoute[];
   container: { resolve: ReturnType<typeof vi.fn> };
   post: ReturnType<typeof vi.fn>;
+  auditLog: ReturnType<typeof vi.fn>;
 }
 
 function makeFastifyHarness(useCase: RotateApiKeyUseCase): FastifyTestHarness {
   const routes: CapturedRoute[] = [];
+  const auditLog = vi.fn().mockResolvedValue(undefined);
+  const auditService = { log: auditLog };
   return {
     routes,
-    container: { resolve: vi.fn().mockReturnValue(useCase) },
+    auditLog,
+    container: {
+      resolve: vi.fn((token: symbol) => (token === TOKENS.AuditService ? auditService : useCase)),
+    },
     post: vi.fn(
       (
         url: string,
@@ -134,7 +134,7 @@ describe("apiKeyAdminRoutes plugin", () => {
     assert.equal(body.data?.rotation.rawKey, "ak_raw_NEW_KEY");
     assert.equal(body.data?.rotation.accountId, "acct-1");
 
-    const auditCall = (auditService.log as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+    const auditCall = harness.auditLog.mock.calls[0]?.[0];
     assert.equal(auditCall?.action, "APIKEY_ADMIN_ROTATED");
     assert.equal(auditCall?.success, true);
     assert.equal(auditCall?.userId, "admin-user-uuid");
@@ -153,7 +153,7 @@ describe("apiKeyAdminRoutes plugin", () => {
     const reply = makeReply();
     await harness.routes[0]!.handler(makeRequest({ id: KEY_ID }), reply.reply);
     assert.equal(reply.status, 404);
-    const auditCall = (auditService.log as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+    const auditCall = harness.auditLog.mock.calls[0]?.[0];
     assert.equal(auditCall?.success, false);
   });
 

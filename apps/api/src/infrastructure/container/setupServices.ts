@@ -17,7 +17,7 @@ import type { EventDispatcher as _EventDispatcher } from "../../domain/index.js"
 import { AuthService } from "../../auth/authService.js";
 import { MfaService } from "../../auth/mfaService.js";
 import { RbacService } from "../../auth/rbacService.js";
-import { auditService } from "../../audit/auditService.js";
+import { AuditService } from "../../audit/auditService.js";
 import { ActivityFeedService } from "../../audit/activityFeedService.js";
 import { AIService } from "../../ai/aiService.js";
 import type { AIServicePort } from "../../domain/repositories/AIServicePort.js";
@@ -63,7 +63,6 @@ import type { IntegrationEventPublisher } from "../integration-events/Integratio
 import { EventSchemaRegistry } from "../integration-events/EventSchemaRegistry.js";
 import { EncryptionService } from "../../security/EncryptionService.js";
 import { ChannelCredentialsCrypto } from "../../security/ChannelCredentialsCrypto.js";
-import type { AuditService } from "../../audit/auditService.js";
 import { PlatformCredentialService } from "../../security/PlatformCredentialService.js";
 import { SettingsService } from "../../settings/SettingsService.js";
 import { UpcasterChain } from "../integration-events/EventUpcaster.js";
@@ -150,7 +149,11 @@ export function setupServices(
   );
 
   // Register singleton instances
-  container.registerInstance(TOKENS.AuditService, auditService);
+  container.register<AuditService>(
+    TOKENS.AuditService,
+    () => new AuditService(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
   container.register<ActivityFeedService>(
     TOKENS.ActivityFeedService,
     () => new ActivityFeedService(container.resolve(TOKENS.PrismaClient)),
