@@ -6,6 +6,12 @@
     "incremental": true,
     "tsBuildInfoFile": ".tsbuildinfo"
   },
-  "include": ["src", "tests", "../../packages/*/src/**/*", "../../infra/*/src/**/*"],
+  "include": [
+    "src",
+    "tests",
+    "../../packages/*/src/**/*",
+    "../../packages/core/*/src/**/*",
+    "../../infra/*/src/**/*"
+  ],
   "exclude": ["node_modules", "dist", "build", ".turbo", ".next", "coverage"]
 }

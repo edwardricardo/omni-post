@@ -88,6 +88,54 @@ module.exports = {
       },
     },
     {
+      name: "core-no-apps",
+      severity: "warn",
+      comment:
+        "@core (shared application core) must not import from any app — it is delivery-agnostic and consumed by apps, never the reverse. (Core migration roadmap; warn during P0, hard-error at P8.)",
+      from: {
+        path: "packages/core/(domain|application)/",
+      },
+      to: {
+        path: "apps/",
+      },
+    },
+    {
+      name: "core-domain-no-application",
+      severity: "warn",
+      comment:
+        "@core/domain must not depend on @core/application (dependencies point inward). Warn during P0, hard-error at P8.",
+      from: {
+        path: "packages/core/domain/",
+      },
+      to: {
+        path: "packages/core/application/",
+      },
+    },
+    {
+      name: "core-domain-no-framework",
+      severity: "warn",
+      comment:
+        "@core/domain must not depend on frameworks/infra (Prisma/Fastify/Redis/BullMQ/adapters). Warn during P0, hard-error at P8.",
+      from: {
+        path: "packages/core/domain/",
+      },
+      to: {
+        path: "(prisma|fastify|ioredis|bullmq|next|@fastify|@prisma|@infra|@adapters)",
+      },
+    },
+    {
+      name: "core-application-no-infrastructure",
+      severity: "warn",
+      comment:
+        "@core/application may use @core/domain + @ports + @shared, but must not import infrastructure adapters or frameworks directly (use ports). Warn during P0, hard-error at P8.",
+      from: {
+        path: "packages/core/application/",
+      },
+      to: {
+        path: "(prisma|fastify|ioredis|bullmq|next|@fastify|@prisma|@infra|@adapters)",
+      },
+    },
+    {
       name: "no-deprecated-core",
       severity: "warn",
       comment: "Avoid Node.js core modules deprecated in current LTS.",
@@ -109,6 +157,9 @@ module.exports = {
         "(^|/)\\.stryker-tmp/",
         "(^|/)reports/",
         "(^|/)coverage/",
+        // Generated code (e.g. the Prisma client) is not subject to our
+        // architecture rules and legitimately contains internal cycles.
+        "(^|/)generated/",
       ],
     },
     tsConfig: {

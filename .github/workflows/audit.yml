@@ -52,8 +52,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node-pnpm-cache
-      - name: Cruise apps/api
-        run: pnpm exec depcruise apps/api/src --config .dependency-cruiser.cjs --output-type err
+      - name: Cruise apps/api + @core
+        run: pnpm exec depcruise apps/api/src packages/core --config .dependency-cruiser.cjs --output-type err
 
   # ──────────────────────────────────────────────────────────────────────
   # 2. Semgrep CE — TS/Node SAST (taint, security rules, OWASP)

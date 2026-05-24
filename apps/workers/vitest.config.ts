@@ -27,6 +27,8 @@ export default defineConfig({
       "@shared": path.join(root, "packages/shared/src"),
       "@ports/core": path.join(root, "packages/ports/src/index.ts"),
       "@ports": path.join(root, "packages/ports/src"),
+      "@core/domain": path.join(root, "packages/core/domain/src/index.ts"),
+      "@core/application": path.join(root, "packages/core/application/src/index.ts"),
       "@infra/prisma": path.join(root, "infra/prisma/src/vitest-entry.ts"),
       "@observability/logger": path.join(root, "packages/observability/logger/src/index.ts"),
       "@monitoring/circuit-breaker": path.join(
