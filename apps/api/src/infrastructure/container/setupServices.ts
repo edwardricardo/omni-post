@@ -39,7 +39,7 @@ import { SubscriptionManagementService } from "../../billing/subscription/Subscr
 import { TrialManagementService } from "../../billing/subscription/TrialManagementService.js";
 import { SubscriptionStatsService } from "../../billing/subscription/SubscriptionStatsService.js";
 import { SubscriptionService } from "../../billing/subscription/SubscriptionService.js";
-import { webhookDashboardService } from "../../webhooks/webhookDashboardService.js";
+import { WebhookDashboardService } from "../../webhooks/webhookDashboardService.js";
 import { RealtimeWebhookBroadcaster } from "../../webhooks/realtimeWebhookBroadcaster.js";
 import { ProviderService } from "../../providers/providerService.js";
 import { providerRegistry } from "../../providers/providerRegistry.js";
@@ -352,7 +352,14 @@ export function setupServices(
       ),
     true
   );
-  container.registerInstance(TOKENS.WebhookDashboardService, webhookDashboardService);
+  container.register<WebhookDashboardService>(
+    TOKENS.WebhookDashboardService,
+    () =>
+      new WebhookDashboardService(
+        container.resolve<import("@infra/prisma").PrismaClient>(TOKENS.PrismaClient)
+      ),
+    true
+  );
 
   // Compliance
   container.register<ComplianceService>(
@@ -388,6 +395,7 @@ export function setupServices(
       const redis = createRedisConnection();
       redis.on("error", () => {});
       return new RealtimeWebhookBroadcaster(
+        container.resolve<import("@infra/prisma").PrismaClient>(TOKENS.PrismaClient),
         redis,
         container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler)
       );

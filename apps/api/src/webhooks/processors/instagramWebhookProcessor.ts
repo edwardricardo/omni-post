@@ -4,9 +4,8 @@
  *              for media published/updated, comment events, and story mentions.
  * @layer infrastructure
  */
-import type { WebhookEventType } from "@infra/prisma";
+import type { PrismaClient, WebhookEventType } from "@infra/prisma";
 import type { ProviderName } from "@shared/types";
-import { prisma } from "@infra/prisma";
 import { webhookLogger } from "../../lib/logger.js";
 import { AppError } from "../../lib/errors/AppError.js";
 import { AbstractWebhookProcessor } from "./AbstractWebhookProcessor.js";
@@ -32,8 +31,12 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
 
   private readonly mentionEnqueue?: MentionFetchEnqueue;
 
-  constructor(broadcaster?: RealtimeWebhookBroadcaster, mentionEnqueue?: MentionFetchEnqueue) {
-    super(broadcaster);
+  constructor(
+    prisma: PrismaClient,
+    broadcaster?: RealtimeWebhookBroadcaster,
+    mentionEnqueue?: MentionFetchEnqueue
+  ) {
+    super(prisma, broadcaster);
     if (mentionEnqueue) {
       this.mentionEnqueue = mentionEnqueue;
     }
@@ -259,7 +262,7 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
   ) {
     // Find channel by Instagram page ID via the dedicated `providerAccountId`
     // column (no decryption needed for the lookup).
-    const channel = await prisma.channel.findFirst({
+    const channel = await this.prisma.channel.findFirst({
       where: {
         provider: "INSTAGRAM",
         providerAccountId: instagramPageId,
@@ -281,7 +284,7 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
 
     // Try to find related post if we have media ID
     if (normalizedData.mediaId) {
-      const publishLog = await prisma.publishLog.findFirst({
+      const publishLog = await this.prisma.publishLog.findFirst({
         where: {
           channelId: channel.id,
           provider: "INSTAGRAM",
@@ -316,7 +319,7 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
 
     if (postId && channelId) {
       // Update publish log with Instagram media ID
-      await prisma.publishLog.updateMany({
+      await this.prisma.publishLog.updateMany({
         where: {
           postId,
           channelId,
@@ -334,7 +337,7 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
       });
 
       // Update post status
-      await prisma.post.update({
+      await this.prisma.post.update({
         where: { id: postId },
         data: { status: "PUBLISHED" },
       });
@@ -351,7 +354,7 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
 
     // Store Instagram analytics if available
     if (entities.accountId && entities.projectId) {
-      await prisma.instagramAnalytics.create({
+      await this.prisma.instagramAnalytics.create({
         data: {
           accountId: entities.accountId as string,
           projectId: entities.projectId as string,
@@ -378,7 +381,7 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
     // Create analytics entry for comment engagement
     if (entities.accountId && entities.projectId && data.mediaId) {
       // Find existing analytics record and increment comments
-      const existing = await prisma.instagramAnalytics.findFirst({
+      const existing = await this.prisma.instagramAnalytics.findFirst({
         where: {
           accountId: entities.accountId as string,
           projectId: entities.projectId as string,
@@ -387,7 +390,7 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
       });
 
       if (existing) {
-        await prisma.instagramAnalytics.update({
+        await this.prisma.instagramAnalytics.update({
           where: { id: existing.id },
           data: {
             comments: { increment: 1 },
@@ -461,7 +464,7 @@ export class InstagramWebhookProcessor extends AbstractWebhookProcessor {
         }
       }
       // Update story analytics with final insights
-      await prisma.instagramAnalytics.updateMany({
+      await this.prisma.instagramAnalytics.updateMany({
         where: {
           accountId: entities.accountId as string,
           projectId: entities.projectId as string,

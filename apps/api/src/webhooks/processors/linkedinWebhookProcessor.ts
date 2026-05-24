@@ -17,7 +17,6 @@
 
 import type { WebhookEventType } from "@infra/prisma";
 import type { ProviderName } from "@shared/types";
-import { prisma } from "@infra/prisma";
 import { webhookLogger } from "../../lib/logger.js";
 import { AppError } from "../../lib/errors/AppError.js";
 import { AbstractWebhookProcessor } from "./AbstractWebhookProcessor.js";
@@ -209,7 +208,7 @@ export class LinkedInWebhookProcessor extends AbstractWebhookProcessor {
 
     try {
       // Find active channel (not soft-deleted) for LinkedIn
-      const channel = await prisma.channel.findFirst({
+      const channel = await this.prisma.channel.findFirst({
         where: {
           provider: "LINKEDIN",
           deletedAt: null,
@@ -219,7 +218,7 @@ export class LinkedInWebhookProcessor extends AbstractWebhookProcessor {
       if (!channel) return {};
 
       // Fetch the project separately to get accountId
-      const project = await prisma.project.findUnique({
+      const project = await this.prisma.project.findUnique({
         where: { id: channel.projectId },
       });
 
@@ -236,7 +235,7 @@ export class LinkedInWebhookProcessor extends AbstractWebhookProcessor {
 
       // Try to find the post by provider post ID
       if (notification.resourceUrn) {
-        const publishLog = await prisma.publishLog.findFirst({
+        const publishLog = await this.prisma.publishLog.findFirst({
           where: {
             channelId: channel.id,
             status: "OK",

@@ -9,6 +9,7 @@
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { InstagramWebhookProcessor } from "../../src/webhooks/processors/instagramWebhookProcessor.js";
+import { makeWebhookPrismaFake } from "./helpers/webhookPrismaFake.js";
 import type { MentionFetchJob } from "../../src/webhooks/mentionFetchEnqueue.js";
 
 describe("InstagramWebhookProcessor - mention enqueue", () => {
@@ -18,9 +19,13 @@ describe("InstagramWebhookProcessor - mention enqueue", () => {
 
   it("enqueues a fetch job when a mention is received with full context", async () => {
     const enqueued: MentionFetchJob[] = [];
-    const processor = new InstagramWebhookProcessor(undefined, async (job) => {
-      enqueued.push(job);
-    });
+    const processor = new InstagramWebhookProcessor(
+      makeWebhookPrismaFake().prisma,
+      undefined,
+      async (job) => {
+        enqueued.push(job);
+      }
+    );
 
     await processor.process(
       { eventType: "mention_received", mediaId: "media-123", username: "fan", userId: "u-1" },
@@ -40,9 +45,13 @@ describe("InstagramWebhookProcessor - mention enqueue", () => {
 
   it("falls back to commentId when no mediaId is present", async () => {
     const enqueued: MentionFetchJob[] = [];
-    const processor = new InstagramWebhookProcessor(undefined, async (job) => {
-      enqueued.push(job);
-    });
+    const processor = new InstagramWebhookProcessor(
+      makeWebhookPrismaFake().prisma,
+      undefined,
+      async (job) => {
+        enqueued.push(job);
+      }
+    );
 
     await processor.process(
       { eventType: "mention_received", commentId: "comment-9", username: "fan", userId: "u-1" },
@@ -54,9 +63,13 @@ describe("InstagramWebhookProcessor - mention enqueue", () => {
 
   it("does not enqueue when channel context is missing", async () => {
     const enqueued: MentionFetchJob[] = [];
-    const processor = new InstagramWebhookProcessor(undefined, async (job) => {
-      enqueued.push(job);
-    });
+    const processor = new InstagramWebhookProcessor(
+      makeWebhookPrismaFake().prisma,
+      undefined,
+      async (job) => {
+        enqueued.push(job);
+      }
+    );
 
     await processor.process(
       { eventType: "mention_received", mediaId: "media-123" },

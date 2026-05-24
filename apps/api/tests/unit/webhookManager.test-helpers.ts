@@ -6,6 +6,7 @@
  */
 
 import { vi } from "vitest";
+import type { PrismaClient } from "@infra/prisma";
 import { WebhookManager } from "../../src/webhooks/webhookManager.js";
 
 export interface WebhookManagerTestState {
@@ -24,7 +25,7 @@ export const state: WebhookManagerTestState = {
   webhookManager: null as unknown as WebhookManager,
 };
 
-export async function setupWebhookManagerTestData(): Promise<void> {
+export async function setupWebhookManagerTestData(prisma: PrismaClient): Promise<void> {
   const { randomUUID } = await import("crypto");
 
   state.testAccountId = randomUUID();
@@ -46,7 +47,7 @@ export async function setupWebhookManagerTestData(): Promise<void> {
     off: vi.fn(),
   };
 
-  state.webhookManager = new WebhookManager(mockRedis as never);
+  state.webhookManager = new WebhookManager(prisma, mockRedis as never);
 }
 
 export async function teardownWebhookManagerTestData(): Promise<void> {

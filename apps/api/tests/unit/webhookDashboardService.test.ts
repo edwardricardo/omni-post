@@ -3,9 +3,9 @@
  * @description Unit tests for WebhookDashboardService — dashboard metrics,
  *              event queries, DLQ management, subscriptions, and CSV exports.
  *
- *              Uses vi.hoisted() + vi.mock() to intercept @infra/prisma so the
- *              module-level singleton receives a fully mocked PrismaClient backed
- *              by in-memory stores. No real database connection is needed.
+ *              Builds an in-memory prisma fake and injects it into a fresh
+ *              WebhookDashboardService via the constructor (DI). No real database
+ *              connection is needed.
  * @layer infrastructure
  */
 
@@ -15,7 +15,7 @@ import { describe, it, beforeEach, expect, vi } from "vitest";
 // 1. Hoisted mock setup — runs before any imports
 // ---------------------------------------------------------------------------
 
-const { mockModule, stores } = vi.hoisted(() => {
+const { mockModule, stores } = (() => {
   const { randomUUID } = require("crypto") as typeof import("crypto");
 
   type StoreRecord = Record<string, unknown>;
@@ -494,13 +494,7 @@ const { mockModule, stores } = vi.hoisted(() => {
       project: projectStore,
     },
   };
-});
-
-// Mock @infra/prisma — merge with original to preserve re-exported enums/types
-vi.mock("@infra/prisma", async (importOriginal) => {
-  const original = await importOriginal<Record<string, unknown>>();
-  return { ...original, ...mockModule };
-});
+})();
 
 // Silence logger output in tests
 vi.mock("../../src/lib/logger.js", () => {
@@ -521,8 +515,13 @@ vi.mock("../../src/lib/logger.js", () => {
 // 2. Imports (after mocks are wired)
 // ---------------------------------------------------------------------------
 
-import { webhookDashboardService } from "../../src/webhooks/webhookDashboardService.js";
-import type { Provider } from "@infra/prisma";
+import { WebhookDashboardService } from "../../src/webhooks/webhookDashboardService.js";
+import type { Provider, PrismaClient } from "@infra/prisma";
+
+// Inject the in-memory prisma fake via the constructor (DI) — no module mock.
+const webhookDashboardService = new WebhookDashboardService(
+  mockModule.prisma as unknown as PrismaClient
+);
 
 // ---------------------------------------------------------------------------
 // 3. Test data setup helpers

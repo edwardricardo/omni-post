@@ -14,6 +14,7 @@
 
 import { describe, it, beforeAll, expect } from "vitest";
 import { FacebookWebhookProcessor } from "../../../src/webhooks/processors/facebookWebhookProcessor.js";
+import { makeWebhookPrismaFake } from "../helpers/webhookPrismaFake.js";
 import { generateHmacSignature } from "./facebookWebhookProcessor.test-helpers.js";
 
 // ===========================
@@ -25,7 +26,7 @@ describe("FacebookWebhookProcessor - Signature Verification", () => {
   const testSecret = "test-facebook-app-secret";
 
   beforeAll(() => {
-    processor = new FacebookWebhookProcessor();
+    processor = new FacebookWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should verify valid webhook signature with sha256= prefix", () => {
@@ -105,7 +106,7 @@ describe("FacebookWebhookProcessor - Feed Event Parsing", () => {
   let processor: FacebookWebhookProcessor;
 
   beforeAll(() => {
-    processor = new FacebookWebhookProcessor();
+    processor = new FacebookWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should parse feed published event for status post", async () => {

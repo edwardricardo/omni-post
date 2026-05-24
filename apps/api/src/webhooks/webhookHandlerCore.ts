@@ -5,8 +5,7 @@
  * @layer infrastructure
  */
 
-import { prisma } from "@infra/prisma";
-import type { WebhookEvent, Provider } from "@infra/prisma";
+import type { PrismaClient, WebhookEvent, Provider } from "@infra/prisma";
 import { createHash } from "crypto";
 import type { RealtimeWebhookBroadcaster } from "./realtimeWebhookBroadcaster.js";
 import { webhookLogger } from "../lib/logger.js";
@@ -90,7 +89,11 @@ export class UniversalWebhookHandler {
   private broadcaster: RealtimeWebhookBroadcaster | undefined;
   private mentionEnqueue: MentionFetchEnqueue | undefined;
 
-  constructor(broadcaster?: RealtimeWebhookBroadcaster, mentionEnqueue?: MentionFetchEnqueue) {
+  constructor(
+    private readonly prisma: PrismaClient,
+    broadcaster?: RealtimeWebhookBroadcaster,
+    mentionEnqueue?: MentionFetchEnqueue
+  ) {
     if (broadcaster !== undefined) {
       this.broadcaster = broadcaster;
     }
@@ -103,18 +106,18 @@ export class UniversalWebhookHandler {
   private registerProcessors(): void {
     this.processors.set(
       "INSTAGRAM",
-      new InstagramWebhookProcessor(this.broadcaster, this.mentionEnqueue)
+      new InstagramWebhookProcessor(this.prisma, this.broadcaster, this.mentionEnqueue)
     );
     this.processors.set(
       "FACEBOOK",
-      new FacebookWebhookProcessor(this.broadcaster, this.mentionEnqueue)
+      new FacebookWebhookProcessor(this.prisma, this.broadcaster, this.mentionEnqueue)
     );
-    this.processors.set("X", new XWebhookProcessor(this.broadcaster));
-    this.processors.set("YOUTUBE", new YouTubeWebhookProcessor(this.broadcaster));
-    this.processors.set("TIKTOK", new TikTokWebhookProcessor(this.broadcaster));
-    this.processors.set("LINKEDIN", new LinkedInWebhookProcessor(this.broadcaster));
-    this.processors.set("SNAPCHAT", new SnapchatWebhookProcessor(this.broadcaster));
-    this.processors.set("TELEGRAM", new TelegramWebhookProcessor(this.broadcaster));
+    this.processors.set("X", new XWebhookProcessor(this.prisma, this.broadcaster));
+    this.processors.set("YOUTUBE", new YouTubeWebhookProcessor(this.prisma, this.broadcaster));
+    this.processors.set("TIKTOK", new TikTokWebhookProcessor(this.prisma, this.broadcaster));
+    this.processors.set("LINKEDIN", new LinkedInWebhookProcessor(this.prisma, this.broadcaster));
+    this.processors.set("SNAPCHAT", new SnapchatWebhookProcessor(this.prisma, this.broadcaster));
+    this.processors.set("TELEGRAM", new TelegramWebhookProcessor(this.prisma, this.broadcaster));
   }
 
   async handleWebhook(
@@ -294,7 +297,7 @@ export class UniversalWebhookHandler {
     provider: Provider,
     eventId: string
   ): Promise<WebhookEvent | null> {
-    return prisma.webhookEvent.findUnique({
+    return this.prisma.webhookEvent.findUnique({
       where: {
         provider_eventId: {
           provider,
@@ -305,7 +308,7 @@ export class UniversalWebhookHandler {
   }
 
   private async getWebhookSubscription(provider: Provider, _headers: Record<string, string>) {
-    return prisma.webhookSubscription.findFirst({
+    return this.prisma.webhookSubscription.findFirst({
       where: {
         provider,
         isActive: true,
@@ -314,7 +317,7 @@ export class UniversalWebhookHandler {
   }
 
   private async storeWebhookEvent(eventInput: WebhookEventInput): Promise<WebhookEvent> {
-    return prisma.webhookEvent.create({
+    return this.prisma.webhookEvent.create({
       data: {
         provider: eventInput.provider,
         eventType: "POST_ENGAGEMENT_UPDATE",
@@ -338,7 +341,7 @@ export class UniversalWebhookHandler {
     normalizedData: Record<string, unknown>,
     processingTimeMs: number
   ): Promise<void> {
-    await prisma.webhookEvent.update({
+    await this.prisma.webhookEvent.update({
       where: { id: eventId },
       data: {
         status: "COMPLETED",
@@ -355,7 +358,7 @@ export class UniversalWebhookHandler {
     error: string,
     processingTimeMs: number
   ): Promise<void> {
-    const event = await prisma.webhookEvent.findUnique({
+    const event = await this.prisma.webhookEvent.findUnique({
       where: { id: eventId },
     });
 
@@ -364,7 +367,7 @@ export class UniversalWebhookHandler {
     const newRetryCount = event.retryCount + 1;
     const shouldRetry = newRetryCount <= this.maxRetries;
 
-    await prisma.webhookEvent.update({
+    await this.prisma.webhookEvent.update({
       where: { id: eventId },
       data: {
         status: shouldRetry ? "RETRYING" : "FAILED",
@@ -385,7 +388,7 @@ export class UniversalWebhookHandler {
     headers: Record<string, string>,
     error: string
   ): Promise<void> {
-    const event = await prisma.webhookEvent.findUnique({
+    const event = await this.prisma.webhookEvent.findUnique({
       where: {
         provider_eventId: { provider, eventId },
       },
@@ -393,7 +396,7 @@ export class UniversalWebhookHandler {
 
     if (!event) return;
 
-    await prisma.webhookDeadLetter.create({
+    await this.prisma.webhookDeadLetter.create({
       data: {
         originalEventId: event.id,
         provider,
@@ -408,14 +411,14 @@ export class UniversalWebhookHandler {
       },
     });
 
-    await prisma.webhookEvent.update({
+    await this.prisma.webhookEvent.update({
       where: { id: event.id },
       data: { status: "DEAD_LETTER" },
     });
   }
 
   private async updateSubscriptionStats(subscriptionId: string): Promise<void> {
-    await prisma.webhookSubscription.update({
+    await this.prisma.webhookSubscription.update({
       where: { id: subscriptionId },
       data: {
         eventsReceived: { increment: 1 },
@@ -461,7 +464,7 @@ export class UniversalWebhookHandler {
       };
     }
 
-    const stats = await prisma.webhookEvent.groupBy({
+    const stats = await this.prisma.webhookEvent.groupBy({
       by: ["provider", "status"],
       where,
       _count: {
@@ -507,7 +510,7 @@ export class UniversalWebhookHandler {
       };
     }
 
-    const failedEvents = await prisma.webhookEvent.findMany({
+    const failedEvents = await this.prisma.webhookEvent.findMany({
       where,
       include: {
         account: true,

@@ -7,7 +7,6 @@
 import { createHmac } from "crypto";
 import type { WebhookEventType } from "@infra/prisma";
 import type { ProviderName } from "@shared/types";
-import { prisma } from "@infra/prisma";
 import { webhookLogger } from "../../lib/logger.js";
 import { AppError } from "../../lib/errors/AppError.js";
 import { AbstractWebhookProcessor } from "./AbstractWebhookProcessor.js";
@@ -361,7 +360,7 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
     if (!userId) {
       return {};
     }
-    const channel = await prisma.channel.findFirst({
+    const channel = await this.prisma.channel.findFirst({
       where: {
         provider: "X",
         providerAccountId: userId as string,
@@ -383,7 +382,7 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
 
     // Try to find related post if we have tweet ID
     if (tweetId) {
-      const publishLog = await prisma.publishLog.findFirst({
+      const publishLog = await this.prisma.publishLog.findFirst({
         where: {
           channelId: channel.id,
           provider: "X",
@@ -420,7 +419,7 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
 
     if (postId && channelId) {
       // Update publish log with X tweet ID
-      await prisma.publishLog.updateMany({
+      await this.prisma.publishLog.updateMany({
         where: {
           postId,
           channelId,
@@ -439,7 +438,7 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
       });
 
       // Update post status
-      await prisma.post.update({
+      await this.prisma.post.update({
         where: { id: postId },
         data: { status: "PUBLISHED" },
       });
@@ -490,7 +489,7 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
         whereClause.channelId = entityChannelId;
       }
       // Update publish log to reflect deletion
-      await prisma.publishLog.updateMany({
+      await this.prisma.publishLog.updateMany({
         where: whereClause,
         data: {
           status: "ERR",
@@ -599,10 +598,10 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
       whereClause.postId = entityPostId;
     }
 
-    const existing = await prisma.analytics.findFirst({ where: whereClause });
+    const existing = await this.prisma.analytics.findFirst({ where: whereClause });
 
     if (existing) {
-      await prisma.analytics.update({
+      await this.prisma.analytics.update({
         where: { id: existing.id },
         data: {
           ...metrics,
@@ -610,7 +609,7 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
         },
       });
     } else {
-      await prisma.analytics.create({
+      await this.prisma.analytics.create({
         data: {
           channelId: entityChannelId,
           provider: "X",
@@ -642,10 +641,10 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
       whereClause.postId = entityPostId;
     }
 
-    const existing = await prisma.analytics.findFirst({ where: whereClause });
+    const existing = await this.prisma.analytics.findFirst({ where: whereClause });
 
     if (existing) {
-      await prisma.analytics.update({
+      await this.prisma.analytics.update({
         where: { id: existing.id },
         data: {
           [metric]: { increment },
@@ -654,7 +653,7 @@ export class XWebhookProcessor extends AbstractWebhookProcessor {
       });
     } else {
       // Create new analytics entry if it doesn't exist
-      await prisma.analytics.create({
+      await this.prisma.analytics.create({
         data: {
           channelId: entityChannelId,
           provider: "X",

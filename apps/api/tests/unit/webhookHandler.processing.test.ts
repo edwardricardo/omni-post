@@ -7,49 +7,12 @@
 
 import { describe, it, beforeEach, expect, vi } from "vitest";
 import { randomUUID } from "crypto";
-import { createMockPrismaModule, createStore, buildModelMock } from "./helpers/mockPrisma.js";
+import { makeWebhookPrismaFake } from "./helpers/webhookPrismaFake.js";
 import { createSignature, createTestSubscriptionData } from "./webhookHandler.test-helpers.js";
 
-// ---------------------------------------------------------------------------
-// Mock @infra/prisma with all models needed by webhook processors
-// ---------------------------------------------------------------------------
-const { mockPrisma, stores } = createMockPrismaModule();
-
-// Additional stores for models used by webhook processors
-const channelStore = createStore<Record<string, unknown>>();
-const postStore = createStore<Record<string, unknown>>();
-const publishLogStore = createStore<Record<string, unknown>>();
-const analyticsStore = createStore<Record<string, unknown>>();
-const instagramAnalyticsStore = createStore<Record<string, unknown>>();
-
-// Override webhookEvent.findUnique to handle compound key provider_eventId
-const webhookEventMock = mockPrisma.prisma.webhookEvent;
-const originalFindUnique = webhookEventMock.findUnique;
-webhookEventMock.findUnique = vi.fn(async (args: Record<string, unknown>) => {
-  const where = args.where as Record<string, unknown>;
-  // Expand compound key provider_eventId into separate fields
-  if (where && typeof where.provider_eventId === "object" && where.provider_eventId !== null) {
-    const compound = where.provider_eventId as Record<string, unknown>;
-    const expandedWhere = { ...where, ...compound };
-    delete expandedWhere.provider_eventId;
-    return originalFindUnique({ ...args, where: expandedWhere });
-  }
-  return originalFindUnique(args);
-});
-
-const extendedPrisma = {
-  ...mockPrisma.prisma,
-  channel: buildModelMock(channelStore),
-  post: buildModelMock(postStore),
-  publishLog: buildModelMock(publishLogStore),
-  analytics: buildModelMock(analyticsStore),
-  instagramAnalytics: buildModelMock(instagramAnalyticsStore),
-};
-
-vi.mock("@infra/prisma", async (importOriginal) => {
-  const orig = await importOriginal<Record<string, unknown>>();
-  return { ...orig, prisma: extendedPrisma };
-});
+// In-memory prisma fake injected into the handler via the constructor (DI) —
+// no module mock of @infra/prisma. The stores back seeding and assertions.
+const { prisma: mockDb, stores } = makeWebhookPrismaFake();
 
 // Mock the logger to avoid console noise
 vi.mock("../../src/lib/logger.js", () => ({
@@ -91,11 +54,6 @@ function clearAllStores() {
   for (const store of Object.values(stores) as { clear: () => void }[]) {
     store.clear();
   }
-  channelStore.clear();
-  postStore.clear();
-  publishLogStore.clear();
-  analyticsStore.clear();
-  instagramAnalyticsStore.clear();
 }
 
 // ---------------------------------------------------------------------------
@@ -109,7 +67,7 @@ describe("WebhookHandler - Duplicate Event Detection", () => {
   it("should process event on first occurrence", async () => {
     const { subscription } = seedSubscription("INSTAGRAM");
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const payload = JSON.stringify({
       entry: [
         {
@@ -158,7 +116,7 @@ describe("WebhookHandler - Duplicate Event Detection", () => {
       updatedAt: new Date(),
     } as Record<string, unknown>);
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const payload = JSON.stringify({
       entry: [{ id: "duplicate-event-123" }],
     });
@@ -184,7 +142,7 @@ describe("WebhookHandler - Signature Verification", () => {
   it("should accept valid Instagram signature", async () => {
     const { subscription } = seedSubscription("INSTAGRAM");
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const payload = JSON.stringify({
       entry: [
         {
@@ -215,7 +173,7 @@ describe("WebhookHandler - Signature Verification", () => {
   it("should reject invalid signature", async () => {
     seedSubscription("INSTAGRAM");
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const payload = JSON.stringify({
       entry: [{ id: "invalid-signature-test" }],
     });
@@ -232,7 +190,7 @@ describe("WebhookHandler - Signature Verification", () => {
   it("should reject request with missing signature", async () => {
     seedSubscription("INSTAGRAM");
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const payload = JSON.stringify({
       entry: [{ id: "missing-signature-test" }],
     });
@@ -254,7 +212,7 @@ describe("WebhookHandler - Provider Routing", () => {
   it("should route Instagram webhook to Instagram processor", async () => {
     const { subscription } = seedSubscription("INSTAGRAM");
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const payload = JSON.stringify({
       entry: [
         {
@@ -285,7 +243,7 @@ describe("WebhookHandler - Provider Routing", () => {
   it("should route Facebook webhook to Instagram processor (shared)", async () => {
     const { subscription } = seedSubscription("FACEBOOK");
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const payload = JSON.stringify({
       entry: [
         {
@@ -315,7 +273,7 @@ describe("WebhookHandler - Provider Routing", () => {
   it("should route X webhook to X processor", async () => {
     const { subscription } = seedSubscription("X");
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const payload = JSON.stringify({
       tweet_create_events: [
         {

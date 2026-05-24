@@ -6,9 +6,8 @@
  */
 import { Worker, Job, Queue } from "bullmq";
 import Redis from "ioredis";
-import { prisma } from "@infra/prisma";
 import { UniversalWebhookHandler } from "./webhookHandler.js";
-import type { WebhookEventType, Provider } from "@infra/prisma";
+import type { PrismaClient, WebhookEventType, Provider } from "@infra/prisma";
 import { webhookLogger } from "../lib/logger.js";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import type { MentionFetchEnqueue, MentionFetchJob } from "./mentionFetchEnqueue.js";
@@ -47,7 +46,10 @@ export class WebhookJobProcessor {
   private redis: Redis;
   private webhookHandler: UniversalWebhookHandler;
 
-  constructor(redisConnection: Redis) {
+  constructor(
+    private readonly prisma: PrismaClient,
+    redisConnection: Redis
+  ) {
     this.redis = redisConnection;
 
     // Mention-fetch producer: a mention webhook is a notification, so the
@@ -66,7 +68,7 @@ export class WebhookJobProcessor {
         jobId: `mention-fetch-${job.provider}-${job.providerMentionId}`,
       });
     };
-    this.webhookHandler = new UniversalWebhookHandler(undefined, mentionEnqueue);
+    this.webhookHandler = new UniversalWebhookHandler(this.prisma, undefined, mentionEnqueue);
 
     // Initialize queues
     this.webhookQueue = new Queue<WebhookJobData, WebhookJobResult>(
@@ -184,7 +186,7 @@ export class WebhookJobProcessor {
 
       if (result.success) {
         // Remove from dead letter database if recovered
-        await prisma.webhookDeadLetter.deleteMany({
+        await this.prisma.webhookDeadLetter.deleteMany({
           where: { originalEventId: job.data.eventId },
         });
       }
@@ -270,7 +272,7 @@ export class WebhookJobProcessor {
 
       if (result.success) {
         // Mark as recovered in database
-        await prisma.webhookDeadLetter.updateMany({
+        await this.prisma.webhookDeadLetter.updateMany({
           where: { originalEventId: job.data.eventId },
           data: {
             resolvedAt: new Date(),
@@ -309,7 +311,7 @@ export class WebhookJobProcessor {
     );
 
     // Update database record
-    await prisma.webhookDeadLetter.upsert({
+    await this.prisma.webhookDeadLetter.upsert({
       where: { originalEventId: jobData.eventId },
       create: {
         originalEventId: jobData.eventId,
@@ -358,7 +360,7 @@ export class WebhookJobProcessor {
         updateData.lastError = result.error;
       }
 
-      await prisma.webhookEvent.update({
+      await this.prisma.webhookEvent.update({
         where: { id: eventId },
         data: updateData,
       });
@@ -512,6 +514,6 @@ export class WebhookJobProcessor {
 /**
  * Initialize webhook job processor
  */
-export function createWebhookJobProcessor(redis: Redis): WebhookJobProcessor {
-  return new WebhookJobProcessor(redis);
+export function createWebhookJobProcessor(prisma: PrismaClient, redis: Redis): WebhookJobProcessor {
+  return new WebhookJobProcessor(prisma, redis);
 }

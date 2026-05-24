@@ -16,7 +16,6 @@
 
 import type { WebhookEventType } from "@infra/prisma";
 import type { ProviderName } from "@shared/types";
-import { prisma } from "@infra/prisma";
 import { webhookLogger } from "../../lib/logger.js";
 import { AppError } from "../../lib/errors/AppError.js";
 import { AbstractWebhookProcessor } from "./AbstractWebhookProcessor.js";
@@ -319,7 +318,7 @@ export class TelegramWebhookProcessor extends AbstractWebhookProcessor {
 
     try {
       // Find active channel (not soft-deleted) for Telegram
-      const channel = await prisma.channel.findFirst({
+      const channel = await this.prisma.channel.findFirst({
         where: {
           provider: "TELEGRAM",
           deletedAt: null,
@@ -329,7 +328,7 @@ export class TelegramWebhookProcessor extends AbstractWebhookProcessor {
       if (!channel) return {};
 
       // Fetch the project separately to get accountId
-      const project = await prisma.project.findUnique({
+      const project = await this.prisma.project.findUnique({
         where: { id: channel.projectId },
       });
 
@@ -347,7 +346,7 @@ export class TelegramWebhookProcessor extends AbstractWebhookProcessor {
       // Try to find the post by looking at recent publish logs
       const messageId = this.extractMessageId(update);
       if (messageId) {
-        const publishLog = await prisma.publishLog.findFirst({
+        const publishLog = await this.prisma.publishLog.findFirst({
           where: {
             channelId: channel.id,
             status: "OK",

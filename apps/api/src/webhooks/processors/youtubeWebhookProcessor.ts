@@ -6,7 +6,6 @@
  */
 import type { WebhookEventType } from "@infra/prisma";
 import type { ProviderName } from "@shared/types";
-import { prisma } from "@infra/prisma";
 import { parseStringPromise } from "xml2js";
 import { webhookLogger } from "../../lib/logger.js";
 import { AppError } from "../../lib/errors/AppError.js";
@@ -316,7 +315,7 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
     if (!youtubeChannelId) {
       return {};
     }
-    const channel = await prisma.channel.findFirst({
+    const channel = await this.prisma.channel.findFirst({
       where: {
         provider: "YOUTUBE",
         providerAccountId: youtubeChannelId,
@@ -334,7 +333,7 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
 
     // Try to find related post if we have video ID
     if (videoId) {
-      const publishLog = await prisma.publishLog.findFirst({
+      const publishLog = await this.prisma.publishLog.findFirst({
         where: {
           channelId: channel.id,
           provider: "YOUTUBE",
@@ -378,7 +377,7 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
 
     if (postId && channelId) {
       // Update publish log with YouTube video ID
-      await prisma.publishLog.updateMany({
+      await this.prisma.publishLog.updateMany({
         where: {
           postId,
           channelId,
@@ -397,7 +396,7 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
       });
 
       // Update post status
-      await prisma.post.update({
+      await this.prisma.post.update({
         where: { id: postId },
         data: { status: "PUBLISHED" },
       });
@@ -414,7 +413,7 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
 
     // Store YouTube analytics if available
     if (entities.accountId && entities.projectId && channelId) {
-      await prisma.analytics.create({
+      await this.prisma.analytics.create({
         data: {
           channelId,
           provider: "YOUTUBE",
@@ -441,7 +440,7 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
 
     if (postId && channelId) {
       // Update publish log with latest video metadata
-      await prisma.publishLog.updateMany({
+      await this.prisma.publishLog.updateMany({
         where: {
           postId,
           channelId,
@@ -486,7 +485,7 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
     // Create analytics entry for comment engagement
     if (entities.accountId && entities.projectId && data.videoId && entityChannelId) {
       // Find existing analytics record and increment comments
-      const existing = await prisma.analytics.findFirst({
+      const existing = await this.prisma.analytics.findFirst({
         where: {
           channelId: entityChannelId,
           provider: "YOUTUBE",
@@ -495,7 +494,7 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
       });
 
       if (existing) {
-        await prisma.analytics.update({
+        await this.prisma.analytics.update({
           where: { id: existing.id },
           data: {
             comments: { increment: 1 },
@@ -557,7 +556,7 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
 
     if (entities.accountId && entities.projectId && data.videoId && entityChannelId) {
       // Update or create analytics record
-      const existing = await prisma.analytics.findFirst({
+      const existing = await this.prisma.analytics.findFirst({
         where: {
           channelId: entityChannelId,
           provider: "YOUTUBE",
@@ -566,7 +565,7 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
       });
 
       if (existing) {
-        await prisma.analytics.update({
+        await this.prisma.analytics.update({
           where: { id: existing.id },
           data: {
             views,
@@ -587,7 +586,7 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
           );
         }
       } else {
-        await prisma.analytics.create({
+        await this.prisma.analytics.create({
           data: {
             channelId: entityChannelId,
             provider: "YOUTUBE",

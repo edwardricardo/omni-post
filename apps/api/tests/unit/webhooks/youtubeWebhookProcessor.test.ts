@@ -43,6 +43,7 @@
 import { describe, it, beforeAll, expect } from "vitest";
 import { createHmac } from "crypto";
 import { YouTubeWebhookProcessor } from "../../../src/webhooks/processors/youtubeWebhookProcessor.js";
+import { makeWebhookPrismaFake } from "../helpers/webhookPrismaFake.js";
 
 // ===========================
 // Test Helpers
@@ -61,7 +62,7 @@ describe("YouTubeWebhookProcessor - Signature Verification", () => {
   const testSecret = "test-youtube-subscription-secret";
 
   beforeAll(() => {
-    processor = new YouTubeWebhookProcessor();
+    processor = new YouTubeWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should verify valid webhook signature with sha1= prefix", () => {
@@ -141,7 +142,7 @@ describe("YouTubeWebhookProcessor - Video Feed Entry Parsing", () => {
   let processor: YouTubeWebhookProcessor;
 
   beforeAll(() => {
-    processor = new YouTubeWebhookProcessor();
+    processor = new YouTubeWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should parse video published event from feed entry", async () => {
@@ -277,7 +278,7 @@ describe("YouTubeWebhookProcessor - Comment Event Parsing", () => {
   let processor: YouTubeWebhookProcessor;
 
   beforeAll(() => {
-    processor = new YouTubeWebhookProcessor();
+    processor = new YouTubeWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should parse comment received event", async () => {
@@ -354,7 +355,7 @@ describe("YouTubeWebhookProcessor - Channel Update Event Parsing", () => {
   let processor: YouTubeWebhookProcessor;
 
   beforeAll(() => {
-    processor = new YouTubeWebhookProcessor();
+    processor = new YouTubeWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should parse channel updated event", async () => {
@@ -408,7 +409,7 @@ describe("YouTubeWebhookProcessor - Analytics Event Parsing", () => {
   let processor: YouTubeWebhookProcessor;
 
   beforeAll(() => {
-    processor = new YouTubeWebhookProcessor();
+    processor = new YouTubeWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should parse analytics update event", async () => {
@@ -487,7 +488,7 @@ describe("YouTubeWebhookProcessor - Error Handling", () => {
   let processor: YouTubeWebhookProcessor;
 
   beforeAll(() => {
-    processor = new YouTubeWebhookProcessor();
+    processor = new YouTubeWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should throw error for unsupported event type", async () => {
@@ -511,7 +512,7 @@ describe("YouTubeWebhookProcessor - Error Handling", () => {
   });
 
   it("should handle verification errors gracefully", () => {
-    const processor = new YouTubeWebhookProcessor();
+    const processor = new YouTubeWebhookProcessor(makeWebhookPrismaFake().prisma);
 
     // This should return false instead of throwing
     const isValid = processor.verify("invalid\x00data", "signature", "secret");
@@ -527,7 +528,7 @@ describe("YouTubeWebhookProcessor - XML Parsing", () => {
   let processor: YouTubeWebhookProcessor;
 
   beforeAll(() => {
-    processor = new YouTubeWebhookProcessor();
+    processor = new YouTubeWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should handle pre-parsed JSON payload", async () => {
@@ -606,7 +607,7 @@ describe("YouTubeWebhookProcessor - Timestamp Handling", () => {
   let processor: YouTubeWebhookProcessor;
 
   beforeAll(() => {
-    processor = new YouTubeWebhookProcessor();
+    processor = new YouTubeWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should preserve ISO timestamp format in video events", async () => {
