@@ -16,7 +16,6 @@ import { Permission } from "../../auth/rbacService.js";
 import { TOKENS } from "../../infrastructure/container/types.js";
 import type { EmailPort } from "../../domain/repositories/EmailPort.js";
 import { passwordResetEmail } from "../../application/notifications/emailTemplates.js";
-import { prisma } from "@infra/prisma";
 import {
   loginSchema,
   refreshTokenSchema,
@@ -256,10 +255,7 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
       // truth: passwordResetEmail template + EmailPort + adminUrl from
       // PlatformCredentialService). Ref: F.7 Auth audit, finding #5.
       const resetToken = result.value;
-      const userRow = await prisma.adminUser.findUnique({
-        where: { email: email.toLowerCase() },
-        select: { name: true, email: true },
-      });
+      const userRow = await this.adminAuthService.findAdminContactByEmail(email.toLowerCase());
 
       if (userRow) {
         const adminUrlResult = await this.credentialService.getCredential("PLATFORM", "adminUrl");
@@ -626,9 +622,6 @@ const adminAuthRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   // Profile update (own profile: timezone, locale, avatarUrl)
-  const profilePrisma = container.resolve<import("@infra/prisma").PrismaClient>(
-    TOKENS.PrismaClient
-  );
   fastify.put(
     "/admin/auth/profile",
     {
@@ -638,7 +631,7 @@ const adminAuthRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       const userId = request.auth!.user.id;
       const body = request.body as Record<string, unknown>;
-      const data: Record<string, string> = {};
+      const data: { timezone?: string; locale?: string; avatarUrl?: string } = {};
       if (typeof body.timezone === "string") data.timezone = body.timezone;
       if (typeof body.locale === "string") data.locale = body.locale;
       if (typeof body.avatarUrl === "string") data.avatarUrl = body.avatarUrl;
@@ -647,8 +640,8 @@ const adminAuthRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.code(400).send({ ok: false, error: "No valid fields to update" });
       }
 
-      await profilePrisma.adminUser.update({ where: { id: userId }, data });
-      return reply.send({ ok: true, data: { updated: Object.keys(data) } });
+      const result = await adminAuthSvc.updateProfile(userId, data);
+      return reply.send({ ok: true, data: result });
     }
   );
 

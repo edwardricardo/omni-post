@@ -371,6 +371,40 @@ export class AdminAuthService {
   }
 
   // ==========================================================================
+  // Profile
+  // ==========================================================================
+
+  /**
+   * Update the authenticated admin's own profile. Only the provided fields are
+   * written; returns the list of updated keys. Callers validate non-empty input.
+   */
+  public async updateProfile(
+    userId: string,
+    data: { timezone?: string; locale?: string; avatarUrl?: string }
+  ): Promise<{ updated: string[] }> {
+    const patch: Record<string, string> = {};
+    if (data.timezone !== undefined) patch.timezone = data.timezone;
+    if (data.locale !== undefined) patch.locale = data.locale;
+    if (data.avatarUrl !== undefined) patch.avatarUrl = data.avatarUrl;
+
+    await this.prisma.adminUser.update({ where: { id: userId }, data: patch });
+    return { updated: Object.keys(patch) };
+  }
+
+  /**
+   * Resolve an admin's display name + email for transactional emails (e.g. the
+   * password-reset notification). Returns null when no admin matches.
+   */
+  public async findAdminContactByEmail(
+    email: string
+  ): Promise<{ name: string; email: string } | null> {
+    return this.prisma.adminUser.findUnique({
+      where: { email },
+      select: { name: true, email: true },
+    });
+  }
+
+  // ==========================================================================
   // MFA Methods
   // ==========================================================================
 
