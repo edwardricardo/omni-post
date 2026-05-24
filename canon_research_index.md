@@ -142,6 +142,32 @@ Fuentes externas validadas por batch. Consultar ANTES de cualquier nuevo researc
 
 ---
 
+## Architecture / Hexagonal monorepo — distribución de código
+
+### Explicit Architecture (Graça) + domain-driven-hexagon (Sairyss) + Composition Root (Seemann) + Nx library-first
+
+- **URLs:**
+  - https://herbertograca.com/2017/11/16/explicit-architecture-01-ddd-hexagonal-onion-clean-cqrs-how-i-put-it-all-together/
+  - https://github.com/Sairyss/domain-driven-hexagon
+  - https://blog.ploeh.dk/2011/07/28/CompositionRoot/ · https://blog.ploeh.dk/2019/06/17/composition-root-location/
+  - https://dev.to/artnikbrothers/the-8020-library-first-monorepo-why-your-apps-should-be-almost-empty-1gom · https://nx.dev/blog/virtuous-cycle-of-workspace-structure
+- **Resumen (canon backend-flavored):** Application Core = Application layer (use-cases + **ports**) + Domain layer
+  (entities/VOs/eventos/servicios). _"Ports belong inside the business logic, adapters belong outside"_ (Graça);
+  dependencias hacia adentro; **un solo core para múltiples entry-points** (HTTP, queue, CLI). Capas concretas TS:
+  domain (entities/aggregates/VOs/domain-events/errors + repository ports), application (use-cases/handlers/DTOs),
+  interface (controllers + HTTP DTOs), infrastructure (repo impls/adapters/ORM) — Sairyss. **Un composition root por
+  ejecutable** en el entry-point; el DI container no se filtra al core — Seemann. **Apps = contenedores de
+  despliegue, no de código**; lógica en libs; boundaries **enforced** no por convención — Nx library-first
+  (backend: Graça/Sairyss/Seemann mandan; Nx informa el packaging).
+- **Verificación:** WebFetch real de las 4 (2026-05). Graça/Sairyss/Seemann = citas literales confirmadas; Nx 80/20 =
+  fuente frontend-flavored (aplica el packaging, no el taxonomy feature/ui/state).
+- **Consumido por:** decisión Opción A (core→`packages/@core`) + grafo objetivo en
+  `docs/architecture/TARGET_ARCHITECTURE_CANON_ES.md` (2026-05). Existe debate canónico legítimo: modular-monolith /
+  in-process consumers (la Opción B usada para resolver DUP-01/02) también es canon — ambos extremos del espectro
+  decoupling↔simplicidad.
+
+---
+
 ## Verification Audit Log
 
 ### Verification-by-fetch 2026-05-04 (retroactive)
