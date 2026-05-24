@@ -7,6 +7,7 @@
 
 import { describe, it, beforeEach, expect, vi } from "vitest";
 import { createMockPrismaModule } from "./helpers/mockPrisma.js";
+import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 
 // ---------------------------------------------------------------------------
 // Mock setup — must come BEFORE any SUT imports
@@ -73,7 +74,11 @@ describe("AccountLifecycleService", () => {
     const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
     const auditLogRepo = new PrismaAuditLogRepository(mockPrisma.prisma as never);
     const queryService = new AccountLifecycleQueryService(mockPrisma.prisma as never);
-    const sessionService = new AccountSessionService(adminUserRepo, sessionRepo);
+    const sessionService = new AccountSessionService(
+      adminUserRepo,
+      sessionRepo,
+      new InMemoryAuditLogRepository()
+    );
     accountLifecycleService = new AccountLifecycleService(
       adminUserRepo,
       sessionRepo,

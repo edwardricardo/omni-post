@@ -14,6 +14,7 @@ const adminLogger = logger.child({ module: "admin" });
 import { AuditableService } from "../services/AuditableService.js";
 import { hashPassword } from "../auth/passwordHashing.js";
 import type { AdminUserRepositoryPort } from "../domain/repositories/AdminUserRepository.js";
+import type { AuditLogRepository } from "../domain/repositories/AuditLogRepository.js";
 import type {
   AdminSessionRepository,
   AdminSessionDto,
@@ -23,9 +24,10 @@ import type { ResetPasswordRequest } from "./accountLifecycleTypes.js";
 export class AccountSessionService extends AuditableService {
   constructor(
     private readonly userRepo: AdminUserRepositoryPort,
-    private readonly sessionRepo: AdminSessionRepository
+    private readonly sessionRepo: AdminSessionRepository,
+    auditLog: AuditLogRepository
   ) {
-    super("AccountSessionService");
+    super("AccountSessionService", auditLog);
   }
 
   /**

@@ -10,6 +10,7 @@ import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 import { createMockPrismaModule } from "./helpers/mockPrisma.js";
 import { makeAdminUser, resetFactoryCounter } from "./helpers/factories.js";
 import { InMemoryAdminUserRepository } from "./helpers/InMemoryAdminUserRepository.js";
+import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 import { PrismaRoleRepository } from "../../src/infrastructure/repositories/PrismaRoleRepository.js";
 import { seedSystemRoles, getRoleId } from "./helpers/seedSystemRoles.js";
 
@@ -100,7 +101,7 @@ const supportUser = makeAdminUser({
 // ---------------------------------------------------------------------------
 
 const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
-const rbacService = new RbacService(inMemoryRepo, roleRepo);
+const rbacService = new RbacService(inMemoryRepo, roleRepo, new InMemoryAuditLogRepository());
 
 // ---------------------------------------------------------------------------
 // Helpers to keep both stores in sync

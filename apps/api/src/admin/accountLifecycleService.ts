@@ -46,12 +46,12 @@ export class AccountLifecycleService extends AuditableService {
     private readonly userRepo: AdminUserRepositoryPort,
     private readonly sessionRepo: AdminSessionRepository,
     private readonly roleRepo: RoleRepository,
-    private readonly auditLogRepo: AuditLogRepository,
+    auditLog: AuditLogRepository,
     private readonly queryService: AccountLifecycleQueryService,
     private readonly sessionService: AccountSessionService,
     private readonly unitOfWork?: UnitOfWork
   ) {
-    super("AccountLifecycleService");
+    super("AccountLifecycleService", auditLog);
   }
 
   // ---------------------------------------------------------------------------
@@ -444,7 +444,7 @@ export class AccountLifecycleService extends AuditableService {
           const work = async (): Promise<void> => {
             await this.sessionRepo.deleteAllForUser(accountId);
             // Audit logs are kept for compliance; only the user reference is removed.
-            await this.auditLogRepo.anonymizeUser(accountId);
+            await this.auditLog.anonymizeUser(accountId);
             await this.userRepo.delete(accountId);
           };
           if (this.unitOfWork) {

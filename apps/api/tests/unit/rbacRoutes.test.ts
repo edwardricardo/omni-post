@@ -7,6 +7,7 @@
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 import { createMockPrismaModule } from "./helpers/mockPrisma.js";
+import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 
 // ---------------------------------------------------------------------------
 // Mock setup
@@ -70,15 +71,16 @@ setRedisInstance(null as unknown as import("ioredis").default);
 const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
 const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
 const sessionRepo = new PrismaAdminSessionRepository(mockPrisma.prisma as never);
-const mfaService = new MfaService(adminUserRepo);
+const mfaService = new MfaService(adminUserRepo, new InMemoryAuditLogRepository());
 const authService = new AuthService(
   mockPrisma.prisma,
   adminUserRepo,
   mfaService,
   roleRepo,
-  sessionRepo
+  sessionRepo,
+  new InMemoryAuditLogRepository()
 );
-const rbacService = new RbacService(adminUserRepo, roleRepo);
+const rbacService = new RbacService(adminUserRepo, roleRepo, new InMemoryAuditLogRepository());
 
 async function createTestApp() {
   const app = Fastify({ logger: false });

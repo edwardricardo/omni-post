@@ -11,6 +11,7 @@ import { ok, err, type Result } from "@shared/types";
 import type { CachePort } from "@ports/core";
 import { AuditableService } from "../services/AuditableService";
 import type { AdminUserRepositoryPort } from "../domain/repositories/AdminUserRepository.js";
+import type { AuditLogRepository } from "../domain/repositories/AuditLogRepository.js";
 import type { RoleRepository } from "../domain/repositories/RoleRepository.js";
 import { authLogger } from "../lib/logger.js";
 
@@ -109,9 +110,10 @@ export class RbacService extends AuditableService {
   constructor(
     private readonly userRepo: AdminUserRepositoryPort,
     private readonly roleRepo: RoleRepository,
+    auditLog: AuditLogRepository,
     cache?: CachePort
   ) {
-    super("RbacService");
+    super("RbacService", auditLog);
     this.cache = cache;
   }
 

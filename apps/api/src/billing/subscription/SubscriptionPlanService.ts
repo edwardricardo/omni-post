@@ -5,7 +5,7 @@
  * @layer application
  */
 
-import { AuditableService } from "../../services/AuditableService.js";
+import { BaseService } from "../../services/BaseService.js";
 import type { AccountSubscriptionQueryRepository } from "../../domain/repositories/AccountSubscriptionQueryRepository.js";
 import { type TrialInfo } from "./types.js";
 
@@ -20,7 +20,7 @@ export interface TrialAccountView {
   trialEndDate: Date | null;
 }
 
-export class SubscriptionPlanService extends AuditableService {
+export class SubscriptionPlanService extends BaseService {
   constructor(private readonly subscriptionQueryRepo: AccountSubscriptionQueryRepository) {
     super("SubscriptionPlanService");
   }

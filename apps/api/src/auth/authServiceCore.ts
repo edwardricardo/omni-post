@@ -16,6 +16,7 @@ import type { AdminUserDto } from "../domain/repositories/ReadModelDtos.js";
 import { AuditableService } from "../services/AuditableService";
 import type { MfaService } from "./mfaService.js";
 import type { AdminUserRepositoryPort } from "../domain/repositories/AdminUserRepository.js";
+import type { AuditLogRepository } from "../domain/repositories/AuditLogRepository.js";
 import type { RoleRepository } from "../domain/repositories/RoleRepository.js";
 import type { AdminSessionRepository } from "../domain/repositories/AdminSessionRepository.js";
 import type {
@@ -56,9 +57,10 @@ export class AuthServiceCore extends AuditableService {
     readonly userRepo: AdminUserRepositoryPort,
     readonly mfaSvc: MfaService,
     readonly roleRepo: RoleRepository,
-    readonly sessionRepo: AdminSessionRepository
+    readonly sessionRepo: AdminSessionRepository,
+    auditLog: AuditLogRepository
   ) {
-    super("AuthService");
+    super("AuthService", auditLog);
     this.jwtSecret = env.JWT_ACCESS_SECRET;
     this.refreshSecret = env.JWT_REFRESH_SECRET;
 

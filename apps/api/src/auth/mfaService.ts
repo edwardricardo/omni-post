@@ -10,6 +10,7 @@ import * as crypto from "crypto";
 import { ok, err, isErr, type Result } from "@shared/types";
 import { AuditableService } from "../services/AuditableService";
 import type { AdminUserRepositoryPort } from "../domain/repositories/AdminUserRepository.js";
+import type { AuditLogRepository } from "../domain/repositories/AuditLogRepository.js";
 import { authLogger } from "../lib/logger.js";
 import { hashPassword, verifyPassword } from "./passwordHashing.js";
 
@@ -29,8 +30,11 @@ export class MfaService extends AuditableService {
   private readonly appName = "OmniPost Admin";
   private readonly issuer = "OmniPost";
 
-  constructor(private readonly userRepo: AdminUserRepositoryPort) {
-    super("MfaService");
+  constructor(
+    private readonly userRepo: AdminUserRepositoryPort,
+    auditLog: AuditLogRepository
+  ) {
+    super("MfaService", auditLog);
   }
 
   /**

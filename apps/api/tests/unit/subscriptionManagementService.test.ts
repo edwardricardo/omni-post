@@ -7,6 +7,7 @@
  * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 
 vi.mock("@infra/prisma", () => ({ prisma: { auditLog: { create: vi.fn() } }, Prisma: {} }));
 
@@ -38,7 +39,8 @@ function makeService(deps: ReturnType<typeof makeDeps>) {
     deps.subscriptionQueryRepo as never,
     deps.subscriptionPort as never,
     deps.projectQueryRepo as never,
-    deps.billingService as never
+    deps.billingService as never,
+    new InMemoryAuditLogRepository()
   );
 }
 

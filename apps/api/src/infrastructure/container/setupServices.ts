@@ -117,7 +117,11 @@ export function setupServices(
   // Register Auth Services -- factory-based with injected deps
   container.register<MfaService>(
     TOKENS.MfaService,
-    () => new MfaService(container.resolve<AdminUserRepositoryPort>(TOKENS.AdminUserRepository)),
+    () =>
+      new MfaService(
+        container.resolve<AdminUserRepositoryPort>(TOKENS.AdminUserRepository),
+        container.resolve<AuditLogRepository>(TOKENS.AuditLogRepository)
+      ),
     true
   );
   container.register<AuthService>(
@@ -128,7 +132,8 @@ export function setupServices(
         container.resolve<AdminUserRepositoryPort>(TOKENS.AdminUserRepository),
         container.resolve<MfaService>(TOKENS.MfaService),
         container.resolve<RoleRepository>(TOKENS.RoleRepository),
-        container.resolve<AdminSessionRepository>(TOKENS.AdminSessionRepository)
+        container.resolve<AdminSessionRepository>(TOKENS.AdminSessionRepository),
+        container.resolve<AuditLogRepository>(TOKENS.AuditLogRepository)
       ),
     true
   );
@@ -138,6 +143,7 @@ export function setupServices(
       new RbacService(
         container.resolve<AdminUserRepositoryPort>(TOKENS.AdminUserRepository),
         container.resolve<RoleRepository>(TOKENS.RoleRepository),
+        container.resolve<AuditLogRepository>(TOKENS.AuditLogRepository),
         container.resolve<CachePort>(TOKENS.CachePort)
       ),
     true
@@ -227,7 +233,8 @@ export function setupServices(
     () =>
       new AccountSessionService(
         container.resolve<AdminUserRepositoryPort>(TOKENS.AdminUserRepository),
-        container.resolve<AdminSessionRepository>(TOKENS.AdminSessionRepository)
+        container.resolve<AdminSessionRepository>(TOKENS.AdminSessionRepository),
+        container.resolve<AuditLogRepository>(TOKENS.AuditLogRepository)
       ),
     true
   );
@@ -249,7 +256,11 @@ export function setupServices(
   container.registerInstance(TOKENS.AdminAuthService, adminAuthService);
   container.registerInstance(TOKENS.TemplateService, templateService);
   container.registerInstance(TOKENS.TemplateAnalytics, templateAnalytics);
-  container.register<BillingService>(TOKENS.BillingService, () => new BillingService(), true);
+  container.register<BillingService>(
+    TOKENS.BillingService,
+    () => new BillingService(container.resolve<AuditLogRepository>(TOKENS.AuditLogRepository)),
+    true
+  );
   container.register<SubscriptionPlanService>(
     TOKENS.SubscriptionPlanService,
     () => new SubscriptionPlanService(container.resolve(TOKENS.AccountSubscriptionQueryRepository)),
@@ -268,7 +279,8 @@ export function setupServices(
         container.resolve(TOKENS.AccountSubscriptionQueryRepository),
         container.resolve(TOKENS.AccountSubscriptionPort),
         container.resolve(TOKENS.ProjectQueryRepository),
-        container.resolve(TOKENS.BillingService)
+        container.resolve(TOKENS.BillingService),
+        container.resolve(TOKENS.AuditLogRepository)
       ),
     true
   );

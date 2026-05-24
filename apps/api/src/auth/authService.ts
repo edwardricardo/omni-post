@@ -10,6 +10,7 @@ import type { AdminSession, PrismaClient } from "@infra/prisma";
 import type { AdminRoleKind } from "../domain/repositories/ReadModelDtos.js";
 import type { MfaService } from "./mfaService.js";
 import type { AdminUserRepositoryPort } from "../domain/repositories/AdminUserRepository.js";
+import type { AuditLogRepository } from "../domain/repositories/AuditLogRepository.js";
 import type { RoleRepository } from "../domain/repositories/RoleRepository.js";
 import type { AdminSessionRepository } from "../domain/repositories/AdminSessionRepository.js";
 import { AuthServiceCore } from "./authServiceCore.js";
@@ -49,9 +50,10 @@ export class AuthService {
     userRepo: AdminUserRepositoryPort,
     mfaSvc: MfaService,
     roleRepo: RoleRepository,
-    sessionRepo: AdminSessionRepository
+    sessionRepo: AdminSessionRepository,
+    auditLog: AuditLogRepository
   ) {
-    this.core = new AuthServiceCore(userRepo, mfaSvc, roleRepo, sessionRepo);
+    this.core = new AuthServiceCore(userRepo, mfaSvc, roleRepo, sessionRepo, auditLog);
     this.session = new AuthServiceSession(prisma, this.core);
   }
 

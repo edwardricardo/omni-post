@@ -145,6 +145,7 @@ vi.mock("../../src/lib/logger.js", () => {
 
 import { MfaService } from "../../src/auth/mfaService.js";
 import { InMemoryAdminUserRepository } from "./helpers/InMemoryAdminUserRepository.js";
+import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 import { makeAdminUser, resetFactoryCounter } from "./helpers/factories.js";
 import { authenticator } from "otplib";
 
@@ -168,7 +169,7 @@ const testEmail = `test-mfa-${timestamp}@example.com`;
 // ---------------------------------------------------------------------------
 
 describe("MfaService Tests", () => {
-  const mfaService = new MfaService(inMemoryRepo);
+  const mfaService = new MfaService(inMemoryRepo, new InMemoryAuditLogRepository());
 
   beforeAll(() => {
     resetFactoryCounter();

@@ -8,6 +8,7 @@
 
 import { describe, it, beforeEach, expect, vi } from "vitest";
 import { createMockPrismaModule } from "./helpers/mockPrisma.js";
+import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 
 // ---------------------------------------------------------------------------
 // Mock setup
@@ -89,13 +90,14 @@ describe("AuthService", () => {
     const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
     const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
     const sessionRepo = new PrismaAdminSessionRepository(mockPrisma.prisma as never);
-    mfaService = new MfaService(adminUserRepo);
+    mfaService = new MfaService(adminUserRepo, new InMemoryAuditLogRepository());
     authService = new AuthService(
       mockPrisma.prisma,
       adminUserRepo,
       mfaService,
       roleRepo,
-      sessionRepo
+      sessionRepo,
+      new InMemoryAuditLogRepository()
     );
   });
 

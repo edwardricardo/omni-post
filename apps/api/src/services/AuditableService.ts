@@ -6,7 +6,7 @@
  */
 
 import { BaseService, type ServiceContext } from "./BaseService";
-import { prisma } from "@infra/prisma";
+import type { AuditLogRepository } from "../domain/repositories/AuditLogRepository.js";
 import { logger } from "../lib/logger.js";
 
 // Audit action types (matching database schema - uses strings, not enums)
@@ -60,6 +60,19 @@ export interface ResourceActionOptions extends AccountActionOptions {
  */
 export abstract class AuditableService extends BaseService {
   /**
+   * @param serviceName - Human-readable service name for log context.
+   * @param auditLog - Audit-trail persistence port. Required: audit logging is
+   *   compliance-critical, so there is no silent no-op fallback. Tests inject an
+   *   in-memory implementation.
+   */
+  constructor(
+    serviceName: string,
+    protected readonly auditLog: AuditLogRepository
+  ) {
+    super(serviceName);
+  }
+
+  /**
    * Log a user action (authentication, profile changes, etc.)
    *
    * @example
@@ -108,6 +121,36 @@ export abstract class AuditableService extends BaseService {
       category: options.category,
       severity: options.severity || "MEDIUM",
       userId,
+      accountId: options.accountId,
+      ...(options.details !== undefined && { details: options.details }),
+      ...(options.ipAddress !== undefined && { ipAddress: options.ipAddress }),
+      ...(options.userAgent !== undefined && { userAgent: options.userAgent }),
+    };
+
+    await this.writeAuditLog(entry);
+  }
+
+  /**
+   * Log an account-level action performed by the system itself (auto-renewal,
+   * scheduled jobs) rather than a user. The audit row is written with a null
+   * `userId`: `AuditLog.userId` is nullable with an `onDelete: SetNull` FK to
+   * `AdminUser`, so a sentinel string like `"system"` would violate the foreign
+   * key and the write would be silently swallowed by `writeAuditLog`'s catch.
+   *
+   * @example
+   * await this.logSystemAction({
+   *   accountId: account.id,
+   *   action: 'AUTO_RENEWAL',
+   *   category: 'BILLING',
+   *   severity: 'MEDIUM',
+   *   details: { amount, billingCycle },
+   * });
+   */
+  protected async logSystemAction(options: AccountActionOptions): Promise<void> {
+    const entry: AuditLogEntry = {
+      action: options.action,
+      category: options.category,
+      severity: options.severity || "MEDIUM",
       accountId: options.accountId,
       ...(options.details !== undefined && { details: options.details }),
       ...(options.ipAddress !== undefined && { ipAddress: options.ipAddress }),
@@ -240,17 +283,15 @@ export abstract class AuditableService extends BaseService {
         ...(entry.metadata || {}),
       };
 
-      await prisma.auditLog.create({
-        data: {
-          action: entry.action,
-          ...(entry.resourceType && { resource: entry.resourceType }),
-          ...(entry.resourceId && { resourceId: entry.resourceId }),
-          ...(entry.userId && { userId: entry.userId }),
-          ...(entry.ipAddress && { ipAddress: entry.ipAddress }),
-          ...(entry.userAgent && { userAgent: entry.userAgent }),
-          details: enrichedDetails,
-          success: true, // Default to success for normal audit logs
-        },
+      await this.auditLog.create({
+        action: entry.action,
+        details: enrichedDetails,
+        success: true, // Default to success for normal audit logs
+        ...(entry.resourceType && { resource: entry.resourceType }),
+        ...(entry.resourceId && { resourceId: entry.resourceId }),
+        ...(entry.userId && { userId: entry.userId }),
+        ...(entry.ipAddress && { ipAddress: entry.ipAddress }),
+        ...(entry.userAgent && { userAgent: entry.userAgent }),
       });
     } catch (error) {
       // Log audit logging failure (don't throw to avoid breaking main operation)
@@ -370,22 +411,7 @@ export abstract class AuditableService extends BaseService {
       endDate?: Date;
     }
   ) {
-    return prisma.auditLog.findMany({
-      where: {
-        userId,
-        ...(options?.action && { action: options.action }),
-        ...(options?.startDate &&
-          options?.endDate && {
-            createdAt: {
-              gte: options.startDate,
-              lte: options.endDate,
-            },
-          }),
-      },
-      orderBy: { createdAt: "desc" },
-      take: options?.limit || 50,
-      skip: options?.offset || 0,
-    });
+    return this.auditLog.findByUser(userId, options);
   }
 
   /**
@@ -403,22 +429,6 @@ export abstract class AuditableService extends BaseService {
       endDate?: Date;
     }
   ) {
-    return prisma.auditLog.findMany({
-      where: {
-        resource,
-        resourceId,
-        ...(options?.action && { action: options.action }),
-        ...(options?.startDate &&
-          options?.endDate && {
-            createdAt: {
-              gte: options.startDate,
-              lte: options.endDate,
-            },
-          }),
-      },
-      orderBy: { createdAt: "desc" },
-      take: options?.limit || 50,
-      skip: options?.offset || 0,
-    });
+    return this.auditLog.findByResource(resource, resourceId, options);
   }
 }

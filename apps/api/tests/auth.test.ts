@@ -11,12 +11,20 @@ import { prisma } from "@infra/prisma";
 import { PrismaAdminUserRepository } from "../src/infrastructure/repositories/PrismaAdminUserRepository.js";
 import { PrismaRoleRepository } from "../src/infrastructure/repositories/PrismaRoleRepository.js";
 import { PrismaAdminSessionRepository } from "../src/infrastructure/repositories/PrismaAdminSessionRepository.js";
+import { PrismaAuditLogRepository } from "../src/infrastructure/repositories/PrismaAuditLogRepository.js";
 
 const adminUserRepo = new PrismaAdminUserRepository(prisma);
 const roleRepo = new PrismaRoleRepository(prisma);
 const sessionRepo = new PrismaAdminSessionRepository(prisma);
-const mfaService = new MfaService(adminUserRepo);
-const authService = new AuthService(prisma, adminUserRepo, mfaService, roleRepo, sessionRepo);
+const mfaService = new MfaService(adminUserRepo, new PrismaAuditLogRepository(prisma));
+const authService = new AuthService(
+  prisma,
+  adminUserRepo,
+  mfaService,
+  roleRepo,
+  sessionRepo,
+  new PrismaAuditLogRepository(prisma)
+);
 
 /**
  * Authentication Service Tests

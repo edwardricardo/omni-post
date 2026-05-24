@@ -6,11 +6,11 @@
  * @layer application
  */
 import { ok, err, type Result } from "@shared/types";
-import { AuditableService } from "../../services/AuditableService.js";
+import { BaseService } from "../../services/BaseService.js";
 import type { SubscriptionStatsQueryRepository } from "../../domain/repositories/SubscriptionStatsQueryRepository.js";
 import type { SubscriptionStats } from "./types.js";
 
-export class SubscriptionStatsService extends AuditableService {
+export class SubscriptionStatsService extends BaseService {
   constructor(private readonly statsQueryRepo: SubscriptionStatsQueryRepository) {
     super("SubscriptionStatsService");
   }

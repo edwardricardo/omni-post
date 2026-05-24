@@ -10,6 +10,7 @@ import type { AccountSubscriptionQueryRepository } from "../../domain/repositori
 import type { AccountSubscriptionPort } from "../../domain/repositories/AccountSubscriptionPort.js";
 import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
 import { AuditableService } from "../../services/AuditableService.js";
+import type { AuditLogRepository } from "../../domain/repositories/AuditLogRepository.js";
 import type { BillingService } from "./BillingService.js";
 
 export class SubscriptionManagementService extends AuditableService {
@@ -18,9 +19,10 @@ export class SubscriptionManagementService extends AuditableService {
     private readonly subscriptionQueryRepo: AccountSubscriptionQueryRepository,
     private readonly subscriptionPort: AccountSubscriptionPort,
     private readonly projectQueryRepo: ProjectQueryRepositoryPort,
-    private readonly billingService: BillingService
+    private readonly billingService: BillingService,
+    auditLog: AuditLogRepository
   ) {
-    super("SubscriptionManagementService");
+    super("SubscriptionManagementService", auditLog);
   }
 
   // ═══════════════════════════════════════════════════════════════

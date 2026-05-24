@@ -8,6 +8,7 @@
 import { randomBytes } from "node:crypto";
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 import { createMockPrismaModule, createStore, buildModelMock } from "../helpers/mockPrisma.js";
+import { InMemoryAuditLogRepository } from "../helpers/InMemoryAuditLogRepository.js";
 import {
   createCustomerRoleMocks,
   decorateCustomerUserMockWithRoleHydration,
@@ -117,8 +118,15 @@ async function createTestApp() {
   const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
   const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
   const sessionRepo = new PrismaAdminSessionRepository(mockPrisma.prisma as never);
-  const mfaSvc = new MfaService(adminUserRepo);
-  const authSvc = new AuthService(mockPrisma.prisma, adminUserRepo, mfaSvc, roleRepo, sessionRepo);
+  const mfaSvc = new MfaService(adminUserRepo, new InMemoryAuditLogRepository());
+  const authSvc = new AuthService(
+    mockPrisma.prisma,
+    adminUserRepo,
+    mfaSvc,
+    roleRepo,
+    sessionRepo,
+    new InMemoryAuditLogRepository()
+  );
   container.registerInstance(TOKENS.AuthService, authSvc);
 
   localApp.decorate("container", container);

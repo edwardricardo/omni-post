@@ -13,7 +13,7 @@ const adminLogger = logger.child({ module: "admin" });
 import type { AdminRoleKind } from "../domain/repositories/ReadModelDtos.js";
 import type { AdminUserDto } from "../domain/repositories/ReadModelDtos.js";
 import type { AdminSessionDto } from "../domain/repositories/AdminSessionRepository.js";
-import { AuditableService } from "../services/AuditableService.js";
+import { BaseService } from "../services/BaseService.js";
 import type { AccountProfile, AccountFilters, AccountStats } from "./accountLifecycleTypes.js";
 
 // ---------------------------------------------------------------------------
@@ -64,7 +64,7 @@ export async function mapAdminUserToProfile(
 
 // ---------------------------------------------------------------------------
 
-export class AccountLifecycleQueryService extends AuditableService {
+export class AccountLifecycleQueryService extends BaseService {
   constructor(private readonly prisma: PrismaClient) {
     super("AccountLifecycleQueryService");
   }

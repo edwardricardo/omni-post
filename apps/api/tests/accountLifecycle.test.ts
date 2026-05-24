@@ -21,15 +21,22 @@ const adminUserRepo = new PrismaAdminUserRepository(prisma);
 const sessionRepo = new PrismaAdminSessionRepository(prisma);
 const roleRepo = new PrismaRoleRepository(prisma);
 const auditLogRepo = new PrismaAuditLogRepository(prisma);
-const mfaService = new MfaService(adminUserRepo);
-const authService = new AuthService(prisma, adminUserRepo, mfaService, roleRepo, sessionRepo);
+const mfaService = new MfaService(adminUserRepo, new PrismaAuditLogRepository(prisma));
+const authService = new AuthService(
+  prisma,
+  adminUserRepo,
+  mfaService,
+  roleRepo,
+  sessionRepo,
+  new PrismaAuditLogRepository(prisma)
+);
 const accountLifecycleService = new AccountLifecycleService(
   adminUserRepo,
   sessionRepo,
   roleRepo,
   auditLogRepo,
   new AccountLifecycleQueryService(prisma),
-  new AccountSessionService(adminUserRepo, sessionRepo),
+  new AccountSessionService(adminUserRepo, sessionRepo, new PrismaAuditLogRepository(prisma)),
   new PrismaUnitOfWork(prisma)
 );
 

@@ -31,10 +31,10 @@ export class TrialManagementService extends AuditableService {
     private readonly subscriptionQueryRepo: AccountSubscriptionQueryRepository,
     private readonly subscriptionPlanService: SubscriptionPlanService,
     private readonly billingService: BillingService,
-    private readonly auditLogRepo: AuditLogRepository,
+    auditLog: AuditLogRepository,
     private readonly unitOfWork?: UnitOfWork
   ) {
-    super("TrialManagementService");
+    super("TrialManagementService", auditLog);
   }
 
   /**
@@ -493,7 +493,7 @@ export class TrialManagementService extends AuditableService {
             await this.persistAccount(accountAggregate.value);
 
             // Log account action for audit trail (system action, no userId)
-            await this.logAccountAction("system", {
+            await this.logSystemAction({
               accountId: account.id,
               action: "AUTO_RENEWAL",
               category: "BILLING",
@@ -541,7 +541,7 @@ export class TrialManagementService extends AuditableService {
       const processed = details.filter((d) => d.status === "success").length;
       const failed = details.filter((d) => d.status === "failed").length;
 
-      await this.auditLogRepo.create({
+      await this.auditLog.create({
         action: "AUTO_RENEWAL_BATCH",
         resource: "Billing",
         ...(triggeredByUserId != null && { userId: triggeredByUserId }),

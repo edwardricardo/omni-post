@@ -16,6 +16,7 @@
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 import { createMockPrismaModule } from "./helpers/mockPrisma.js";
+import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 
 // ---------------------------------------------------------------------------
 // Mock setup (must be before any dynamic imports)
@@ -73,7 +74,10 @@ async function createTestApp() {
   const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
   const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
   const container = new Container();
-  container.registerInstance(TOKENS.RbacService, new RbacService(adminUserRepo, roleRepo));
+  container.registerInstance(
+    TOKENS.RbacService,
+    new RbacService(adminUserRepo, roleRepo, new InMemoryAuditLogRepository())
+  );
   app.decorate("container", container);
   await app.register(queueRoutes);
   await app.ready();

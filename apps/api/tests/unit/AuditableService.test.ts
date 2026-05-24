@@ -1,512 +1,279 @@
 /**
  * @file AuditableService.test.ts
- * @description Unit tests for AuditableService — audit logging functionality
- *              with mocked Prisma (no database dependency).
+ * @description Unit tests for the AuditableService base class after the prisma→DI
+ *              migration. It must persist audit entries through the injected
+ *              AuditLogRepository port (never a Prisma singleton), fold
+ *              category/severity into details, record success/failure via
+ *              executeWithAudit, delegate reads to the port, isolate write
+ *              failures from the caller, and — via logSystemAction — write system
+ *              actions with NO userId so the nullable AuditLog.userId FK is
+ *              honoured (a sentinel "system" string would violate the FK and the
+ *              write would be silently dropped).
  * @layer infrastructure
  */
-
 import { describe, it, beforeEach, expect, vi } from "vitest";
-import { randomUUID } from "crypto";
 
-// ---------------------------------------------------------------------------
-// Mock setup — vi.hoisted runs before vi.mock factories
-// ---------------------------------------------------------------------------
-
-const mocks = vi.hoisted(() => {
-  const noop = () => {};
-
-  const auditLogStore: Array<Record<string, unknown>> = [];
-
-  const auditLogCreate = vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
-    // Simulate FK constraint failure for non-existent user IDs
-    // In real DB, userId references adminUser — if user doesn't exist, create fails
-    if (data.userId && !knownUserIds.has(data.userId as string)) {
-      throw new Error(`Foreign key constraint failed on the field: \`AuditLog_userId_fkey\``);
-    }
-
-    const now = new Date();
-    const record = {
-      id: randomUUID(),
-      createdAt: now,
-      updatedAt: now,
-      action: null,
-      resource: null,
-      resourceId: null,
-      userId: null,
-      ipAddress: null,
-      userAgent: null,
-      details: null,
-      success: true,
-      error: null,
-      ...data,
-    };
-    auditLogStore.push(record);
-    return record;
-  });
-
-  const auditLogFindFirst = vi.fn(
-    async (args: { where?: Record<string, unknown>; orderBy?: any }) => {
-      let results = [...auditLogStore];
-
-      if (args.where) {
-        results = results.filter((entry) => {
-          for (const [key, value] of Object.entries(args.where!)) {
-            if (entry[key] !== value) return false;
-          }
-          return true;
-        });
-      }
-
-      // Sort by createdAt desc
-      results.sort(
-        (a, b) =>
-          new Date(b.createdAt as string).getTime() - new Date(a.createdAt as string).getTime()
-      );
-
-      return results[0] ?? null;
-    }
-  );
-
-  const auditLogFindMany = vi.fn(async () => []);
-  const auditLogDeleteMany = vi.fn(async () => ({ count: 0 }));
-
-  const prismaClient: any = {
-    auditLog: {
-      create: auditLogCreate,
-      findFirst: auditLogFindFirst,
-      findMany: auditLogFindMany,
-      findUnique: vi.fn(async () => null),
-      deleteMany: auditLogDeleteMany,
-      count: vi.fn(async () => 0),
-    },
-    adminUser: {
-      create: vi.fn(async ({ data }: any) => {
-        const id = randomUUID();
-        knownUserIds.add(id);
-        return { id, ...data };
-      }),
-      delete: vi.fn(async () => null),
-    },
-    account: {
-      create: vi.fn(async ({ data }: any) => ({ id: randomUUID(), ...data })),
-      delete: vi.fn(async () => null),
-    },
-    $connect: vi.fn(async () => undefined),
-    $disconnect: vi.fn(async () => undefined),
-    $transaction: vi.fn(async (fn: any) => fn(prismaClient)),
-  };
-
-  const loggerObj = {
-    info: vi.fn(noop),
-    warn: vi.fn(noop),
-    error: vi.fn(noop),
-    debug: vi.fn(noop),
-    trace: vi.fn(noop),
-    fatal: vi.fn(noop),
-    child: vi.fn((): any => loggerObj),
-  };
-
-  // Track known user IDs that pass FK validation
-  const knownUserIds = new Set<string>();
-
-  return {
-    prismaClient,
-    loggerObj,
-    auditLogStore,
-    auditLogCreate,
-    auditLogFindFirst,
-    auditLogFindMany,
-    auditLogDeleteMany,
-    knownUserIds,
-  };
-});
-
-vi.mock("@infra/prisma", async (importOriginal) => {
-  const original = await importOriginal<Record<string, unknown>>();
-  return { ...original, prisma: mocks.prismaClient };
-});
-
-vi.mock("../../src/lib/logger.js", () => ({
-  logger: mocks.loggerObj,
-  authLogger: mocks.loggerObj,
-  createLogger: () => mocks.loggerObj,
-}));
-
-// ---------------------------------------------------------------------------
-// Import SUT after mocks are in place
-// ---------------------------------------------------------------------------
-
+import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 import {
   AuditableService,
-  type UserActionOptions,
   type AccountActionOptions,
   type ResourceActionOptions,
+  type UserActionOptions,
+  type AuditLogEntry,
 } from "../../src/services/AuditableService.js";
+import type { AuditLogRepository } from "../../src/domain/repositories/AuditLogRepository.js";
 
-// ---------------------------------------------------------------------------
-// Concrete test subclass
-// ---------------------------------------------------------------------------
-
+/**
+ * Concrete subclass that surfaces the protected audit helpers for testing.
+ */
 class TestAuditableService extends AuditableService {
-  constructor() {
-    super("TestAuditableService");
+  constructor(auditLog: AuditLogRepository) {
+    super("TestAuditableService", auditLog);
   }
-
-  public async testLogUserAction(userId: string, options: UserActionOptions) {
+  logUser(userId: string, options: UserActionOptions): Promise<void> {
     return this.logUserAction(userId, options);
   }
-
-  public async testLogAccountAction(userId: string, options: AccountActionOptions) {
+  logAccount(userId: string, options: AccountActionOptions): Promise<void> {
     return this.logAccountAction(userId, options);
   }
-
-  public async testLogResourceAction(userId: string, options: ResourceActionOptions) {
+  logResource(userId: string, options: ResourceActionOptions): Promise<void> {
     return this.logResourceAction(userId, options);
   }
-
-  public async testExecuteWithAudit<T>(
+  logSystem(options: AccountActionOptions): Promise<void> {
+    return this.logSystemAction(options);
+  }
+  writeRaw(entry: AuditLogEntry): Promise<void> {
+    return this.writeAuditLog(entry);
+  }
+  runWithAudit<T>(
     context: { operation: string; userId?: string; accountId?: string },
     auditOptions: {
       action: string;
-      category:
-        | "AUTHENTICATION"
-        | "ACCOUNT"
-        | "DATA"
-        | "DATA_ACCESS"
-        | "SECURITY"
-        | "COMPLIANCE"
-        | "SYSTEM";
+      category: AuditLogEntry["category"];
       resourceType?: string;
       resourceId?: string;
-      severity?: "LOW" | "INFO" | "MEDIUM" | "HIGH" | "CRITICAL";
+      severity?: AuditLogEntry["severity"];
     },
     operation: () => Promise<T>
-  ) {
+  ): Promise<T> {
     return this.executeWithAudit(context, auditOptions, operation);
+  }
+  readByUser(userId: string): Promise<unknown[]> {
+    return this.getUserAuditLogs(userId);
+  }
+  readByResource(resource: string, resourceId: string): Promise<unknown[]> {
+    return this.getResourceAuditLogs(resource, resourceId);
   }
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe("AuditableService", () => {
-  const testUserId = "auditable-user-001";
-  const testAccountId = "auditable-account-001";
-  const timestamp = Date.now();
+  let repo: InMemoryAuditLogRepository;
+  let service: TestAuditableService;
 
   beforeEach(() => {
-    mocks.auditLogStore.length = 0;
-    mocks.auditLogCreate.mockClear();
-    mocks.auditLogFindFirst.mockClear();
-    mocks.auditLogFindMany.mockClear();
-    mocks.auditLogDeleteMany.mockClear();
-    mocks.loggerObj.error.mockClear();
-
-    // Register known user IDs so FK constraint simulation passes
-    mocks.knownUserIds.clear();
-    mocks.knownUserIds.add(testUserId);
+    vi.clearAllMocks();
+    repo = new InMemoryAuditLogRepository();
+    service = new TestAuditableService(repo);
   });
 
-  it("logUserAction - creates audit log with correct data", async () => {
-    const service = new TestAuditableService();
+  describe("logUserAction", () => {
+    it("persists the entry through the port with category/severity folded into details", async () => {
+      await service.logUser("user-1", {
+        action: "USER_LOGIN",
+        category: "AUTHENTICATION",
+        severity: "INFO",
+        details: { method: "password" },
+        ipAddress: "192.168.1.1",
+        userAgent: "Mozilla/5.0",
+      });
 
-    await service.testLogUserAction(testUserId, {
-      action: "USER_LOGIN",
-      category: "AUTHENTICATION",
-      severity: "INFO",
-      details: { method: "password" },
-      ipAddress: "192.168.1.1",
-      userAgent: "Mozilla/5.0",
+      expect(repo.rows).toHaveLength(1);
+      const row = repo.rows[0]!;
+      expect(row.action).toBe("USER_LOGIN");
+      expect(row.userId).toBe("user-1");
+      expect(row.ipAddress).toBe("192.168.1.1");
+      expect(row.userAgent).toBe("Mozilla/5.0");
+      expect(row.success).toBe(true);
+      const details = row.details as Record<string, unknown>;
+      expect(details.category).toBe("AUTHENTICATION");
+      expect(details.severity).toBe("INFO");
+      expect(details.method).toBe("password");
     });
 
-    // Verify audit log was created with correct data
-    expect(mocks.auditLogCreate).toHaveBeenCalledTimes(1);
+    it("omits optional fields when undefined and includes them when provided", async () => {
+      await service.logUser("user-1", { action: "NO_OPTIONAL", category: "AUTHENTICATION" });
+      await service.logUser("user-1", {
+        action: "WITH_OPTIONAL",
+        category: "AUTHENTICATION",
+        ipAddress: "10.0.0.1",
+        userAgent: "TestAgent/1.0",
+      });
 
-    const userActionLog = mocks.auditLogStore.find(
-      (l) => l.userId === testUserId && l.action === "USER_LOGIN"
-    );
-
-    expect(userActionLog).toBeTruthy();
-    expect(userActionLog!.action).toBe("USER_LOGIN");
-    expect(userActionLog!.userId).toBe(testUserId);
-    expect(userActionLog!.ipAddress).toBe("192.168.1.1");
-    expect(userActionLog!.userAgent).toBe("Mozilla/5.0");
-    expect(userActionLog!.success).toBe(true);
-
-    // Verify details structure (category, severity, and custom fields stored in details)
-    expect(userActionLog!.details).toBeTruthy();
-    expect(typeof userActionLog!.details).toBe("object");
-
-    const details = userActionLog!.details as Record<string, unknown>;
-    expect(details.category).toBe("AUTHENTICATION");
-    expect(details.severity).toBe("INFO");
-    expect(details.method).toBe("password");
-  });
-
-  it("logAccountAction - creates account-level audit log", async () => {
-    const service = new TestAuditableService();
-
-    await service.testLogAccountAction(testUserId, {
-      accountId: testAccountId,
-      action: "SUBSCRIPTION_UPGRADE",
-      category: "ACCOUNT",
-      severity: "HIGH",
-      details: { from: "BASIC", to: "PRO" },
+      const without = repo.rows.find((r) => r.action === "NO_OPTIONAL")!;
+      expect(without.ipAddress).toBe(null);
+      expect(without.userAgent).toBe(null);
+      const withOpt = repo.rows.find((r) => r.action === "WITH_OPTIONAL")!;
+      expect(withOpt.ipAddress).toBe("10.0.0.1");
+      expect(withOpt.userAgent).toBe("TestAgent/1.0");
     });
 
-    expect(mocks.auditLogCreate).toHaveBeenCalledTimes(1);
+    it("preserves complex nested details verbatim", async () => {
+      await service.logUser("user-1", {
+        action: "COMPLEX",
+        category: "AUTHENTICATION",
+        details: { nested: { field: "value", array: [1, 2, 3] }, boolean: true, number: 42 },
+      });
 
-    const accountActionLog = mocks.auditLogStore.find(
-      (l) => l.userId === testUserId && l.action === "SUBSCRIPTION_UPGRADE"
-    );
-
-    expect(accountActionLog).toBeTruthy();
-    expect(accountActionLog!.action).toBe("SUBSCRIPTION_UPGRADE");
-    expect(accountActionLog!.userId).toBe(testUserId);
-    expect(accountActionLog!.success).toBe(true);
-
-    // Verify details structure (accountId is stored in details, not as direct field)
-    expect(accountActionLog!.details).toBeTruthy();
-    const details = accountActionLog!.details as Record<string, unknown>;
-    expect(details.category).toBe("ACCOUNT");
-    expect(details.severity).toBe("HIGH");
-    expect(details.from).toBe("BASIC");
-    expect(details.to).toBe("PRO");
-  });
-
-  it("logResourceAction - creates resource-level audit log", async () => {
-    const service = new TestAuditableService();
-    const resourceId = `resource-${timestamp}-create`;
-
-    await service.testLogResourceAction(testUserId, {
-      accountId: testAccountId,
-      action: "RESOURCE_CREATE",
-      category: "DATA",
-      resourceType: "Post",
-      resourceId,
-      severity: "LOW",
-      details: { title: "Test Post", status: "DRAFT" },
+      const details = repo.rows[0]!.details as Record<string, unknown>;
+      const nested = details.nested as Record<string, unknown>;
+      expect(nested.field).toBe("value");
+      expect(nested.array).toStrictEqual([1, 2, 3]);
+      expect(details.boolean).toBe(true);
+      expect(details.number).toBe(42);
     });
-
-    expect(mocks.auditLogCreate).toHaveBeenCalledTimes(1);
-
-    const resourceLog = mocks.auditLogStore.find(
-      (l) =>
-        l.userId === testUserId &&
-        l.action === "RESOURCE_CREATE" &&
-        l.resource === "Post" &&
-        l.resourceId === resourceId
-    );
-
-    expect(resourceLog).toBeTruthy();
-    expect(resourceLog!.action).toBe("RESOURCE_CREATE");
-    expect(resourceLog!.userId).toBe(testUserId);
-    expect(resourceLog!.resource).toBe("Post");
-    expect(resourceLog!.resourceId).toBe(resourceId);
-    expect(resourceLog!.success).toBe(true);
-
-    // Verify details
-    expect(resourceLog!.details).toBeTruthy();
-    const details = resourceLog!.details as Record<string, unknown>;
-    expect(details.category).toBe("DATA");
-    expect(details.severity).toBe("LOW");
-    expect(details.title).toBe("Test Post");
-    expect(details.status).toBe("DRAFT");
   });
 
-  it("executeWithAudit - logs successful operation", async () => {
-    const service = new TestAuditableService();
+  describe("logAccountAction", () => {
+    it("records the acting user for an account-level action", async () => {
+      await service.logAccount("admin-1", {
+        accountId: "acc-1",
+        action: "SUBSCRIPTION_UPGRADE",
+        category: "ACCOUNT",
+        severity: "HIGH",
+        details: { from: "BASIC", to: "PRO" },
+      });
 
-    const result = await service.testExecuteWithAudit(
-      {
-        operation: "testOperation",
-        userId: testUserId,
-        accountId: testAccountId,
-      },
-      {
-        action: "DATA_CREATE",
+      const row = repo.rows[0]!;
+      expect(row.userId).toBe("admin-1");
+      expect(row.action).toBe("SUBSCRIPTION_UPGRADE");
+      const details = row.details as Record<string, unknown>;
+      expect(details.category).toBe("ACCOUNT");
+      expect(details.from).toBe("BASIC");
+    });
+  });
+
+  describe("logResourceAction", () => {
+    it("maps resourceType to the resource column with resourceId", async () => {
+      await service.logResource("user-1", {
+        accountId: "acc-1",
+        action: "RESOURCE_CREATE",
         category: "DATA",
         resourceType: "Post",
-        resourceId: `post-${timestamp}-123`,
+        resourceId: "post-1",
         severity: "LOW",
-      },
-      async () => {
-        return { success: true, data: "test data" };
-      }
-    );
+        details: { title: "Test Post" },
+      });
 
-    // Verify operation result
-    expect(result).toStrictEqual({ success: true, data: "test data" });
-
-    // Verify success audit log was created
-    const successLog = mocks.auditLogStore.find(
-      (l) =>
-        l.userId === testUserId &&
-        l.action === "DATA_CREATE" &&
-        l.resource === "Post" &&
-        l.resourceId === `post-${timestamp}-123`
-    );
-
-    expect(successLog).toBeTruthy();
-    expect(successLog!.action).toBe("DATA_CREATE");
-    expect(successLog!.userId).toBe(testUserId);
-    expect(successLog!.resource).toBe("Post");
-    expect(successLog!.resourceId).toBe(`post-${timestamp}-123`);
-    expect(successLog!.success).toBe(true);
-
-    // Verify details contain operation metadata
-    expect(successLog!.details).toBeTruthy();
-    const details = successLog!.details as Record<string, unknown>;
-    expect(details.operation).toBe("testOperation");
-    expect(details.success).toBe(true);
-    expect(typeof details.durationMs === "number").toBeTruthy();
-    expect((details.durationMs as number) >= 0).toBeTruthy();
+      const row = repo.rows[0]!;
+      expect(row.resource).toBe("Post");
+      expect(row.resourceId).toBe("post-1");
+      expect((row.details as Record<string, unknown>).title).toBe("Test Post");
+    });
   });
 
-  it("executeWithAudit - logs failed operation with HIGH severity", async () => {
-    const service = new TestAuditableService();
+  describe("logSystemAction (FK fix)", () => {
+    it("writes a system action with a null userId instead of a sentinel string", async () => {
+      await service.logSystem({
+        accountId: "acc-1",
+        action: "AUTO_RENEWAL",
+        category: "BILLING",
+        severity: "MEDIUM",
+        details: { amount: 199 },
+      });
 
-    await expect(
-      service.testExecuteWithAudit(
-        {
-          operation: "failOperation",
-          userId: testUserId,
-          accountId: testAccountId,
-        },
-        {
-          action: "DATA_UPDATE",
-          category: "DATA",
-          resourceType: "Post",
-          resourceId: `post-${timestamp}-456`,
-        },
-        async () => {
-          throw new Error("Test error");
-        }
-      )
-    ).rejects.toThrow("Test error");
-
-    // Verify failure audit log was created
-    const failureLog = mocks.auditLogStore.find(
-      (l) =>
-        l.userId === testUserId &&
-        l.action === "DATA_UPDATE" &&
-        l.resource === "Post" &&
-        l.resourceId === `post-${timestamp}-456`
-    );
-
-    expect(failureLog).toBeTruthy();
-    expect(failureLog!.action).toBe("DATA_UPDATE");
-    expect(failureLog!.userId).toBe(testUserId);
-    expect(failureLog!.resource).toBe("Post");
-    expect(failureLog!.resourceId).toBe(`post-${timestamp}-456`);
-
-    // Note: success field in database might be true by default, but details.success should be false
-    expect(failureLog!.details).toBeTruthy();
-    const details = failureLog!.details as Record<string, unknown>;
-    expect(details.operation).toBe("failOperation");
-    expect(details.success).toBe(false);
-    expect(details.error).toBe("Test error");
-    expect(details.severity).toBe("HIGH");
-    expect(typeof details.durationMs === "number").toBeTruthy();
-    expect((details.durationMs as number) >= 0).toBeTruthy();
+      expect(repo.rows).toHaveLength(1);
+      const row = repo.rows[0]!;
+      // The whole point: no "system" string that would violate the AdminUser FK.
+      expect(row.userId).toBe(null);
+      expect(row.action).toBe("AUTO_RENEWAL");
+      const details = row.details as Record<string, unknown>;
+      expect(details.category).toBe("BILLING");
+      expect(details.amount).toBe(199);
+    });
   });
 
-  it("handles NULL vs undefined correctly in optional fields", async () => {
-    const service = new TestAuditableService();
+  describe("executeWithAudit", () => {
+    it("returns the operation result and logs a success entry with operation metadata", async () => {
+      const result = await service.runWithAudit(
+        { operation: "testOperation", userId: "user-1", accountId: "acc-1" },
+        { action: "DATA_CREATE", category: "DATA", resourceType: "Post", resourceId: "post-1" },
+        async () => ({ ok: true })
+      );
 
-    // Test with undefined optional fields (should not be included)
-    await service.testLogUserAction(testUserId, {
-      action: "USER_ACTION_NO_OPTIONAL",
-      category: "AUTHENTICATION",
-      // ipAddress and userAgent intentionally omitted
+      expect(result).toStrictEqual({ ok: true });
+      const row = repo.rows.find((r) => r.action === "DATA_CREATE")!;
+      expect(row).toBeTruthy();
+      expect(row.resource).toBe("Post");
+      expect(row.resourceId).toBe("post-1");
+      const details = row.details as Record<string, unknown>;
+      expect(details.operation).toBe("testOperation");
+      expect(details.success).toBe(true);
+      expect(typeof details.durationMs).toBe("number");
     });
 
-    const logWithoutOptional = mocks.auditLogStore.find(
-      (l) => l.userId === testUserId && l.action === "USER_ACTION_NO_OPTIONAL"
-    );
+    it("rethrows on failure and logs a HIGH-severity failure entry", async () => {
+      await expect(
+        service.runWithAudit(
+          { operation: "failOperation", userId: "user-1" },
+          { action: "DATA_UPDATE", category: "DATA", resourceType: "Post", resourceId: "post-2" },
+          async () => {
+            throw new Error("Test error");
+          }
+        )
+      ).rejects.toThrow("Test error");
 
-    expect(logWithoutOptional).toBeTruthy();
-    // Mock returns null for missing optional fields (matching Prisma behavior)
-    expect(logWithoutOptional!.ipAddress).toBe(null);
-    expect(logWithoutOptional!.userAgent).toBe(null);
-
-    // Test with provided optional fields
-    await service.testLogUserAction(testUserId, {
-      action: "USER_ACTION_WITH_OPTIONAL",
-      category: "AUTHENTICATION",
-      ipAddress: "10.0.0.1",
-      userAgent: "TestAgent/1.0",
+      const row = repo.rows.find((r) => r.action === "DATA_UPDATE")!;
+      expect(row).toBeTruthy();
+      const details = row.details as Record<string, unknown>;
+      expect(details.operation).toBe("failOperation");
+      expect(details.success).toBe(false);
+      expect(details.error).toBe("Test error");
+      expect(details.severity).toBe("HIGH");
     });
-
-    const logWithOptional = mocks.auditLogStore.find(
-      (l) => l.userId === testUserId && l.action === "USER_ACTION_WITH_OPTIONAL"
-    );
-
-    expect(logWithOptional).toBeTruthy();
-    expect(logWithOptional!.ipAddress).toBe("10.0.0.1");
-    expect(logWithOptional!.userAgent).toBe("TestAgent/1.0");
   });
 
-  it("stores complex details in JSON field", async () => {
-    const service = new TestAuditableService();
+  describe("read delegation", () => {
+    it("delegates getUserAuditLogs to the port's findByUser", async () => {
+      await service.logUser("user-1", { action: "A", category: "DATA" });
+      await service.logUser("user-2", { action: "B", category: "DATA" });
 
-    const complexDetails = {
-      nested: {
-        field: "value",
-        array: [1, 2, 3],
-      },
-      boolean: true,
-      number: 42,
-      nullValue: null,
-    };
-
-    await service.testLogUserAction(testUserId, {
-      action: "USER_ACTION_COMPLEX_DETAILS",
-      category: "AUTHENTICATION",
-      details: complexDetails,
+      const rows = (await service.readByUser("user-1")) as Array<{ userId: string | null }>;
+      expect(rows).toHaveLength(1);
+      expect(rows[0]!.userId).toBe("user-1");
     });
 
-    const logWithComplexDetails = mocks.auditLogStore.find(
-      (l) => l.userId === testUserId && l.action === "USER_ACTION_COMPLEX_DETAILS"
-    );
+    it("delegates getResourceAuditLogs to the port's findByResource", async () => {
+      await service.logResource("user-1", {
+        accountId: "acc-1",
+        action: "RESOURCE_UPDATE",
+        category: "DATA",
+        resourceType: "Channel",
+        resourceId: "ch-1",
+      });
 
-    expect(logWithComplexDetails).toBeTruthy();
-    expect(logWithComplexDetails!.details).toBeTruthy();
-
-    const retrievedDetails = logWithComplexDetails!.details as Record<string, unknown>;
-
-    // Verify nested structure is preserved (note: category and severity are added)
-    expect(retrievedDetails.nested).toBeTruthy();
-    const nested = retrievedDetails.nested as Record<string, unknown>;
-    expect(nested.field).toBe("value");
-    expect(nested.array).toStrictEqual([1, 2, 3]);
-    expect(retrievedDetails.boolean).toBe(true);
-    expect(retrievedDetails.number).toBe(42);
-    expect(retrievedDetails.nullValue).toBe(null);
+      const rows = (await service.readByResource("Channel", "ch-1")) as unknown[];
+      expect(rows).toHaveLength(1);
+    });
   });
 
-  it("handles audit logging failure gracefully without throwing", async () => {
-    const service = new TestAuditableService();
+  describe("failure isolation", () => {
+    it("does not throw when the audit write fails (audit must not break the caller)", async () => {
+      const create = vi.fn(async () => {
+        throw new Error("db down");
+      });
+      const failing: AuditLogRepository = {
+        create,
+        findByUser: async () => [],
+        findByResource: async () => [],
+        anonymizeUser: async () => 0,
+      };
+      const svc = new TestAuditableService(failing);
 
-    // The service should not throw even if the audit log creation fails
-    // "non-existent-user-id" is not in knownUserIds, so FK constraint simulation triggers
-    await service.testLogUserAction("non-existent-user-id", {
-      action: "TEST_GRACEFUL_FAILURE",
-      category: "SYSTEM",
+      await expect(
+        svc.logUser("user-1", { action: "USER_LOGIN", category: "AUTHENTICATION" })
+      ).resolves.toBeUndefined();
+      // The write was attempted (and swallowed), so the caller is shielded.
+      expect(create).toHaveBeenCalledTimes(1);
     });
-
-    // The operation completes successfully even though the audit log failed
-    // This demonstrates that audit failures don't break the main operation flow
-
-    // Since the audit log failed due to FK constraint, it won't be in the store
-    const log = mocks.auditLogStore.find((l) => l.action === "TEST_GRACEFUL_FAILURE");
-
-    // The audit log should NOT exist because the FK constraint failed
-    // But the important part is that the operation didn't throw
-    expect(log).toBe(undefined);
-
-    // Verify the error was logged
-    expect(mocks.loggerObj.error).toHaveBeenCalled();
   });
 });
