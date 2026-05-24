@@ -6,7 +6,7 @@
  */
 
 import DOMPurify from "isomorphic-dompurify";
-import { prisma, type PrismaClient } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import {
   BaseTemplateEngine,
   Template,
@@ -388,6 +388,3 @@ export class ServerTemplateEngine extends BaseTemplateEngine {
     return true;
   }
 }
-
-// Export singleton instance
-export const serverTemplateEngine = new ServerTemplateEngine(prisma);

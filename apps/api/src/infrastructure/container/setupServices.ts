@@ -28,7 +28,7 @@ import { dashboardService } from "../../admin/dashboardService.js";
 import { AccountLifecycleService } from "../../admin/accountLifecycleService.js";
 import { AccountSessionService } from "../../admin/AccountSessionService.js";
 import { adminAuthService } from "../../admin/auth/AdminAuthService.js";
-import { templateService } from "../../templates/templateService.js";
+import { TemplateService } from "../../templates/templateService.js";
 import { templateAnalytics } from "../../templates/templateAnalytics.js";
 import { BillingService } from "../../billing/subscription/BillingService.js";
 import { SubscriptionPlanService } from "../../billing/subscription/SubscriptionPlanService.js";
@@ -257,7 +257,11 @@ export function setupServices(
   );
 
   container.registerInstance(TOKENS.AdminAuthService, adminAuthService);
-  container.registerInstance(TOKENS.TemplateService, templateService);
+  container.register<TemplateService>(
+    TOKENS.TemplateService,
+    () => new TemplateService(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
   container.registerInstance(TOKENS.TemplateAnalytics, templateAnalytics);
   container.register<BillingService>(
     TOKENS.BillingService,
