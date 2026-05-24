@@ -32,10 +32,11 @@ import { createTelegramAdapter } from "@providers/telegram";
 import { createPinterestAdapter } from "@providers/pinterest";
 import { createLinkedInAdapter } from "@providers/linkedin";
 import { createBlueskyAdapter } from "@providers/bluesky";
-import { prisma, verifyDatabaseAuth } from "@infra/prisma";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import { decryptChannelCredentials } from "@shared/types";
 import type { ProviderAdapter } from "@ports/core";
+import type { PrismaClient } from "@infra/prisma";
+import { workerPrisma, verifyDatabaseAuth } from "./container/workerContainer.js";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info", name: "inbox-sync-worker" });
 
@@ -66,12 +67,16 @@ const providerAdapters: Record<string, ProviderAdapter> = {
   bluesky: createBlueskyAdapter({ logger }),
 };
 
-async function processJob(jobData: {
-  channelId: string;
-  accountId: string;
-  projectId: string;
-  since?: string;
-}): Promise<void> {
+async function processJob(
+  jobData: {
+    channelId: string;
+    accountId: string;
+    projectId: string;
+    since?: string;
+  },
+  prisma: PrismaClient,
+  authFailureRecorder: ChannelAuthFailureRecorder
+): Promise<void> {
   const { channelId, accountId, projectId, since: sinceStr } = jobData;
 
   const channel = await prisma.channel.findFirst({
@@ -188,9 +193,9 @@ async function processJob(jobData: {
   logger.info({ channelId, provider: providerName, synced, skipped }, "Inbox sync completed");
 }
 
-const authFailureRecorder = new ChannelAuthFailureRecorder({ prisma });
-
 export interface StartInboxSyncWorkerOptions {
+  /** Injected PrismaClient (from the workers composition root). */
+  prisma: PrismaClient;
   /**
    * When false, callers must register their own graceful-shutdown handler
    * (typical for composed bootstrap that drains multiple workers as a unit).
@@ -205,11 +210,13 @@ export interface StartInboxSyncWorkerOptions {
  * @returns ShutdownTarget so a composer (`bootstrap.ts`) can drain it.
  */
 export async function startInboxSyncWorker(
-  options?: StartInboxSyncWorkerOptions
+  options: StartInboxSyncWorkerOptions
 ): Promise<ShutdownTarget> {
   // Fail fast if DATABASE_URL credentials don't authenticate (typically a
   // stale Postgres volume after a password rotation without `down -v`).
   await verifyDatabaseAuth();
+
+  const authFailureRecorder = new ChannelAuthFailureRecorder({ prisma: options.prisma });
 
   const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
     maxRetriesPerRequest: null,
@@ -228,7 +235,9 @@ export async function startInboxSyncWorker(
     QUEUE_NAMES.INBOX_SYNC,
     async (job) => {
       await processJob(
-        job.data as { channelId: string; accountId: string; projectId: string; since?: string }
+        job.data as { channelId: string; accountId: string; projectId: string; since?: string },
+        options.prisma,
+        authFailureRecorder
       );
     },
     {
@@ -261,10 +270,10 @@ export async function startInboxSyncWorker(
   const target: ShutdownTarget = {
     workers: [worker],
     connections: [connection],
-    prisma,
+    prisma: options.prisma,
   };
 
-  if (options?.registerShutdown !== false) {
+  if (options.registerShutdown !== false) {
     registerGracefulShutdown({ name: "inbox-sync", target, logger });
   }
 
@@ -276,5 +285,5 @@ export async function startInboxSyncWorker(
 // rather than imported by `bootstrap.ts`, kick off the worker.
 const isMainModule = import.meta.url === `file://${process.argv[1]}`;
 if (isMainModule) {
-  void startInboxSyncWorker();
+  void startInboxSyncWorker({ prisma: workerPrisma });
 }

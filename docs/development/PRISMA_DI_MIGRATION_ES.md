@@ -11,9 +11,10 @@ sus dependencias por inyección de constructor; solo el composition root
 (`apps/api/src/infrastructure/container/**` + el bootstrap `apps/api/src/index.ts`) construye
 concretes. Ver §"Dependency Injection" de `CLAUDE.md`.
 
-**Enforcement:** fitness function **#21** (ratchet, baseline 65 → 0 por fase, luego hard-zero) y
+**Enforcement:** fitness function **#21** (no `import { prisma }` fuera de composition roots) y
 **#1** (no `import { prisma }` en rutas). Definidas en `CLAUDE.md` §"Automated Compliance Checks"
-y `.github/workflows/fitness.yml`.
+y `.github/workflows/fitness.yml`. Corrieron como **ratchets** (baseline 65/4 → 0) durante la
+remediación; **completada — ambas son hard-zero**.
 
 ## Hecho
 
@@ -41,7 +42,10 @@ y `.github/workflows/fitness.yml`.
   `media-performance` quedan **501 documentados** (gap real de datos). Independiente de realtime.
 - **Bloque C — AuditableService spine.** `AuditLogRepository` por ctor en ~11 subclases + ~50
   sitios de construcción (incl. fix del FK de audit "system" en auto-renovación de subscripciones).
-- **Cierre:** #21 → 0 y flip de #1/#21 de ratchet a hard-zero.
+- **Cierre:** ✅ **#21 = 0 y #1 = 0**; ratchet de #1/#21 volteado a hard-zero (B8 — workers a DI vía
+  composition root `apps/workers/src/container/`). Duplicaciones de lógica worker↔use-case capturadas
+  en `docs/reports/code-duplications.md` (DUP-01/02) + SMELL-39 (épica: compartir el application core
+  a `packages/`).
 
 ## Backlog de hallazgos
 

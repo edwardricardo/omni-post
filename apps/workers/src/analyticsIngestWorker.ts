@@ -24,11 +24,11 @@ import { createTelegramAdapter } from "@providers/telegram";
 import { createPinterestAdapter } from "@providers/pinterest";
 import { createLinkedInAdapter } from "@providers/linkedin";
 import { createBlueskyAdapter } from "@providers/bluesky";
-import { prisma, verifyDatabaseAuth } from "@infra/prisma";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import { decryptChannelCredentials } from "@shared/types";
 import type { ProviderAdapter } from "@ports/core";
-import type { Provider as PrismaProvider } from "@infra/prisma";
+import type { Provider as PrismaProvider, PrismaClient } from "@infra/prisma";
+import { workerPrisma, verifyDatabaseAuth } from "./container/workerContainer.js";
 import { registerGracefulShutdown, type ShutdownTarget } from "./lib/gracefulShutdown.js";
 import { handleProviderAuthError } from "./lib/handleProviderAuthError.js";
 import { ChannelAuthFailureRecorder } from "./services/ChannelAuthFailureRecorder.js";
@@ -63,11 +63,15 @@ const providerAdapters: Record<string, ProviderAdapter> = {
   bluesky: createBlueskyAdapter({ logger }),
 };
 
-async function processJob(jobData: {
-  channelId: string;
-  accountId: string;
-  since?: string;
-}): Promise<void> {
+async function processJob(
+  jobData: {
+    channelId: string;
+    accountId: string;
+    since?: string;
+  },
+  prisma: PrismaClient,
+  authFailureRecorder: ChannelAuthFailureRecorder
+): Promise<void> {
   const { channelId, since: sinceStr } = jobData;
 
   const channel = await prisma.channel.findFirst({
@@ -185,9 +189,9 @@ async function processJob(jobData: {
   );
 }
 
-const authFailureRecorder = new ChannelAuthFailureRecorder({ prisma });
-
 export interface StartAnalyticsIngestWorkerOptions {
+  /** Injected PrismaClient (from the workers composition root). */
+  prisma: PrismaClient;
   /**
    * When false, callers must register their own graceful-shutdown handler
    * (typical for composed bootstrap that drains multiple workers as a unit).
@@ -202,11 +206,13 @@ export interface StartAnalyticsIngestWorkerOptions {
  * @returns ShutdownTarget so a composer (`bootstrap.ts`) can drain it.
  */
 export async function startAnalyticsIngestWorker(
-  options?: StartAnalyticsIngestWorkerOptions
+  options: StartAnalyticsIngestWorkerOptions
 ): Promise<ShutdownTarget> {
   // Fail fast if DATABASE_URL credentials don't authenticate (typically a
   // stale Postgres volume after a password rotation without `down -v`).
   await verifyDatabaseAuth();
+
+  const authFailureRecorder = new ChannelAuthFailureRecorder({ prisma: options.prisma });
 
   const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
     maxRetriesPerRequest: null,
@@ -224,7 +230,11 @@ export async function startAnalyticsIngestWorker(
   const worker = new Worker(
     QUEUE_NAMES.ANALYTICS_AGGREGATION,
     async (job) => {
-      await processJob(job.data as { channelId: string; accountId: string; since?: string });
+      await processJob(
+        job.data as { channelId: string; accountId: string; since?: string },
+        options.prisma,
+        authFailureRecorder
+      );
     },
     {
       connection,
@@ -260,10 +270,10 @@ export async function startAnalyticsIngestWorker(
   const target: ShutdownTarget = {
     workers: [worker],
     connections: [connection],
-    prisma,
+    prisma: options.prisma,
   };
 
-  if (options?.registerShutdown !== false) {
+  if (options.registerShutdown !== false) {
     registerGracefulShutdown({ name: "analytics-ingest", target, logger });
   }
 
@@ -278,5 +288,5 @@ export async function startAnalyticsIngestWorker(
 // rather than imported by `bootstrap.ts`, kick off the worker.
 const isMainModule = import.meta.url === `file://${process.argv[1]}`;
 if (isMainModule) {
-  void startAnalyticsIngestWorker();
+  void startAnalyticsIngestWorker({ prisma: workerPrisma });
 }

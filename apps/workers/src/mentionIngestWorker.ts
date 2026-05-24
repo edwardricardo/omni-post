@@ -36,8 +36,8 @@ import { createTelegramAdapter } from "@providers/telegram";
 import { createPinterestAdapter } from "@providers/pinterest";
 import { createLinkedInAdapter } from "@providers/linkedin";
 import { createBlueskyAdapter } from "@providers/bluesky";
-import { prisma, verifyDatabaseAuth } from "@infra/prisma";
-import type { Provider } from "@infra/prisma";
+import type { Provider, PrismaClient } from "@infra/prisma";
+import { workerPrisma, verifyDatabaseAuth } from "./container/workerContainer.js";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import { decryptChannelCredentials } from "@shared/types";
 import type { ProviderAdapter, ProviderMention } from "@ports/core";
@@ -63,7 +63,12 @@ const decryptCredentialsForWorker = (envelope: {
 
 const repo = createPrismaRepoAdapter({ decryptChannelCredentials: decryptCredentialsForWorker });
 const credentialResolver = new CredentialResolver(repo);
-const authFailureRecorder = new ChannelAuthFailureRecorder({ prisma });
+
+/** Per-job injected dependencies (from the workers composition root). */
+interface MentionJobDeps {
+  prisma: PrismaClient;
+  authFailureRecorder: ChannelAuthFailureRecorder;
+}
 
 const providerAdapters: Record<string, ProviderAdapter> = {
   x: createXAdapter({ logger }),
@@ -110,9 +115,10 @@ type MentionJob = SearchJob | FetchJob;
  * Returns undefined when the channel is gone or the provider has no adapter.
  */
 async function resolveChannelAdapter(
-  channelId: string
+  channelId: string,
+  deps: MentionJobDeps
 ): Promise<{ providerEnum: Provider; providerName: string; adapter: ProviderAdapter } | undefined> {
-  const channel = await prisma.channel.findFirst({
+  const channel = await deps.prisma.channel.findFirst({
     where: { id: channelId, deletedAt: null },
     select: { id: true, provider: true },
   });
@@ -143,9 +149,10 @@ async function persistMention(
     source: "SEARCH" | "WEBHOOK";
     channelId?: string;
     trackedTermId?: string;
-  }
+  },
+  deps: MentionJobDeps
 ): Promise<"created" | "skipped"> {
-  const existing = await prisma.mention.findFirst({
+  const existing = await deps.prisma.mention.findFirst({
     where: { provider: context.providerEnum, externalId: mention.providerMentionId },
     select: { id: true },
   });
@@ -154,7 +161,7 @@ async function persistMention(
   }
 
   try {
-    await prisma.mention.create({
+    await deps.prisma.mention.create({
       data: {
         accountId: context.accountId,
         projectId: context.projectId,
@@ -195,13 +202,13 @@ export function matchTrackedTermId(body: string, terms: TrackedTermPayload[]): s
   return matched?.id;
 }
 
-async function processSearchJob(job: SearchJob): Promise<void> {
+async function processSearchJob(job: SearchJob, deps: MentionJobDeps): Promise<void> {
   const { channelId, accountId, projectId, terms } = job;
   if (terms.length === 0) {
     return;
   }
 
-  const resolved = await resolveChannelAdapter(channelId);
+  const resolved = await resolveChannelAdapter(channelId, deps);
   if (!resolved) {
     return;
   }
@@ -214,7 +221,7 @@ async function processSearchJob(job: SearchJob): Promise<void> {
   const credentialResult = await credentialResolver.resolve(channelId);
   if (!credentialResult.ok) {
     await handleProviderAuthError(
-      authFailureRecorder,
+      deps.authFailureRecorder,
       channelId,
       providerName,
       "Credential lookup failed during mention search"
@@ -242,7 +249,7 @@ async function processSearchJob(job: SearchJob): Promise<void> {
     if (!result.ok) {
       if (result.error === "AUTH") {
         await handleProviderAuthError(
-          authFailureRecorder,
+          deps.authFailureRecorder,
           channelId,
           providerName,
           "Provider rejected credentials during mention search"
@@ -253,13 +260,17 @@ async function processSearchJob(job: SearchJob): Promise<void> {
 
     for (const mention of result.value.mentions) {
       const trackedTermId = matchTrackedTermId(mention.body, terms);
-      const outcome = await persistMention(mention, {
-        accountId,
-        projectId,
-        providerEnum,
-        source: "SEARCH",
-        ...(trackedTermId !== undefined && { trackedTermId }),
-      });
+      const outcome = await persistMention(
+        mention,
+        {
+          accountId,
+          projectId,
+          providerEnum,
+          source: "SEARCH",
+          ...(trackedTermId !== undefined && { trackedTermId }),
+        },
+        deps
+      );
       if (outcome === "created") synced++;
       else skipped++;
     }
@@ -274,10 +285,10 @@ async function processSearchJob(job: SearchJob): Promise<void> {
   );
 }
 
-async function processFetchJob(job: FetchJob): Promise<void> {
+async function processFetchJob(job: FetchJob, deps: MentionJobDeps): Promise<void> {
   const { channelId, accountId, projectId, providerMentionId } = job;
 
-  const resolved = await resolveChannelAdapter(channelId);
+  const resolved = await resolveChannelAdapter(channelId, deps);
   if (!resolved) {
     return;
   }
@@ -290,7 +301,7 @@ async function processFetchJob(job: FetchJob): Promise<void> {
   const credentialResult = await credentialResolver.resolve(channelId);
   if (!credentialResult.ok) {
     await handleProviderAuthError(
-      authFailureRecorder,
+      deps.authFailureRecorder,
       channelId,
       providerName,
       "Credential lookup failed during mention fetch"
@@ -310,7 +321,7 @@ async function processFetchJob(job: FetchJob): Promise<void> {
     }
     if (result.error === "AUTH") {
       await handleProviderAuthError(
-        authFailureRecorder,
+        deps.authFailureRecorder,
         channelId,
         providerName,
         "Provider rejected credentials during mention fetch"
@@ -319,26 +330,32 @@ async function processFetchJob(job: FetchJob): Promise<void> {
     throw new Error(`Provider ${providerName} returned error: ${result.error}`);
   }
 
-  const outcome = await persistMention(result.value, {
-    accountId,
-    projectId,
-    providerEnum,
-    source: "WEBHOOK",
-    channelId,
-  });
+  const outcome = await persistMention(
+    result.value,
+    {
+      accountId,
+      projectId,
+      providerEnum,
+      source: "WEBHOOK",
+      channelId,
+    },
+    deps
+  );
 
   logger.info({ channelId, provider: providerName, outcome }, "Mention fetch completed");
 }
 
-async function processJob(jobData: MentionJob): Promise<void> {
+async function processJob(jobData: MentionJob, deps: MentionJobDeps): Promise<void> {
   if (jobData.kind === "search") {
-    await processSearchJob(jobData);
+    await processSearchJob(jobData, deps);
     return;
   }
-  await processFetchJob(jobData);
+  await processFetchJob(jobData, deps);
 }
 
 export interface StartMentionIngestWorkerOptions {
+  /** Injected PrismaClient (from the workers composition root). */
+  prisma: PrismaClient;
   /**
    * When false, callers must register their own graceful-shutdown handler
    * (typical for composed bootstrap that drains multiple workers as a unit).
@@ -353,9 +370,12 @@ export interface StartMentionIngestWorkerOptions {
  * @returns ShutdownTarget so a composer (`bootstrap.ts`) can drain it.
  */
 export async function startMentionIngestWorker(
-  options?: StartMentionIngestWorkerOptions
+  options: StartMentionIngestWorkerOptions
 ): Promise<ShutdownTarget> {
   await verifyDatabaseAuth();
+
+  const authFailureRecorder = new ChannelAuthFailureRecorder({ prisma: options.prisma });
+  const deps: MentionJobDeps = { prisma: options.prisma, authFailureRecorder };
 
   const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
     maxRetriesPerRequest: null,
@@ -370,7 +390,7 @@ export async function startMentionIngestWorker(
   const worker = new Worker(
     QUEUE_NAMES.MENTION_INGEST,
     async (job) => {
-      await processJob(job.data as MentionJob);
+      await processJob(job.data as MentionJob, deps);
     },
     {
       connection,
@@ -403,10 +423,10 @@ export async function startMentionIngestWorker(
   const target: ShutdownTarget = {
     workers: [worker],
     connections: [connection],
-    prisma,
+    prisma: options.prisma,
   };
 
-  if (options?.registerShutdown !== false) {
+  if (options.registerShutdown !== false) {
     registerGracefulShutdown({ name: "mention-ingest", target, logger });
   }
 
@@ -418,5 +438,5 @@ export async function startMentionIngestWorker(
 // rather than imported by `bootstrap.ts`, kick off the worker.
 const isMainModule = import.meta.url === `file://${process.argv[1]}`;
 if (isMainModule) {
-  void startMentionIngestWorker();
+  void startMentionIngestWorker({ prisma: workerPrisma });
 }

@@ -35,6 +35,7 @@ import dotenv from "dotenv";
 dotenv.config({ path: "../../.env" });
 
 import pino from "pino";
+import { workerPrisma } from "./container/workerContainer.js";
 import { startPublishWorker } from "./publishWorker.js";
 import { startInboxSyncWorker } from "./inboxSyncWorker.js";
 import { startAnalyticsIngestWorker } from "./analyticsIngestWorker.js";
@@ -48,9 +49,9 @@ async function main(): Promise<void> {
 
   const targets = await Promise.all([
     startPublishWorker({ registerShutdown: false }),
-    startInboxSyncWorker({ registerShutdown: false }),
-    startAnalyticsIngestWorker({ registerShutdown: false }),
-    startMentionIngestWorker({ registerShutdown: false }),
+    startInboxSyncWorker({ prisma: workerPrisma, registerShutdown: false }),
+    startAnalyticsIngestWorker({ prisma: workerPrisma, registerShutdown: false }),
+    startMentionIngestWorker({ prisma: workerPrisma, registerShutdown: false }),
   ]);
 
   // Merge the per-worker shutdown targets into one. Order matters during drain:

@@ -462,7 +462,7 @@ execute(command: CreatePostCommand): Promise<Post>  // hides failure
 ### Composition root is the ONLY place that wires concretes
 
 - **Only a composition root may import a singleton or construct an adapter.** The composition root is `apps/api/src/infrastructure/container/**` (and the bootstrap `apps/api/src/index.ts`, which passes the singleton into `setupContainer`). Every other unit — services, adapters, repositories, processors, route handlers, workers — **RECEIVES its dependencies by constructor injection** and never reaches for a global.
-- **Never `import { prisma } from "@infra/prisma"` outside the composition root.** Take `constructor(private readonly prisma: PrismaClient)` and have the root pass `container.resolve(TOKENS.PrismaClient)`. The same rule applies to any other singleton/global (Redis, queues, caches): inject the port, don't import the instance. Enforced by fitness **#21** (ratchet → hard-zero).
+- **Never `import { prisma } from "@infra/prisma"` outside the composition root.** Take `constructor(private readonly prisma: PrismaClient)` and have the root pass `container.resolve(TOKENS.PrismaClient)`. The same rule applies to any other singleton/global (Redis, queues, caches): inject the port, don't import the instance. Enforced by fitness **#21** (hard-zero).
 - **Routes resolve use cases only** — `fastify.container.resolve(TOKENS.X)` — never repositories, never `prisma`. Enforced by fitness **#1**.
 - **A class that already receives a port must USE that port** — never inject a repository and then also call `prisma.*` directly (the "paradox" anti-pattern). If the port lacks a method you need, add it to the port + its adapter; do not bypass it.
 
@@ -913,14 +913,13 @@ All comments in **English**.
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request`. Threshold: **hard-zero** for all checks — any new occurrence fails the workflow with an `::error` annotation — **except #1 and #21**, which run as **ratchets** during the active prisma→DI remediation (`refactor/prisma-di-migration`): they fail only if the count _rises_ above a documented baseline that ramps to 0 per phase, then flip back to hard-zero. Ratcheting a non-zero baseline (rather than locking in red or suppressing) is the canon mode when the baseline can't be eliminated in one commit (Ford & Parsons; imbue ratchets). Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request`. Threshold: **hard-zero** for all checks — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest.) Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 ```bash
-# 1. No Prisma singleton imports in routes.
-# RATCHET during prisma→DI remediation: baseline 4 → 0 by Phase 3, then hard-zero.
+# 1. No Prisma singleton imports in routes. Hard-zero.
 # Glob fixed to *[Rr]outes* — the old *routes* was case-sensitive and missed
 # every PascalCase *Routes.ts, so this guard silently passed on admin routes.
-grep -rn "import { prisma" apps/api/src/ --include="*[Rr]outes*" | wc -l   # baseline 4
+grep -rn "import { prisma" apps/api/src/ --include="*[Rr]outes*" | wc -l
 
 # 2. Domain layer is framework-free
 grep -rn "prisma\|fastify\|redis\|bullmq" apps/api/src/domain/ --include="*.ts" | wc -l
@@ -1077,12 +1076,12 @@ grep -rnE "\.(addRepeatable|getRepeatableJobs|removeRepeatableByKey|removeRepeat
 # RECEIVES PrismaClient (or a port) by constructor injection (see §Dependency
 # Injection). Scope: apps/api/src + apps/workers/src. Exceptions: the api
 # composition root (infrastructure/container/), the api bootstrap (index.ts),
-# the workers composition root (**/container/), and tests. RATCHET during the
-# prisma→DI remediation: baseline 65 → 0 per phase, then hard-zero. Supersedes
-# #1 (routes are a subset of "outside composition roots").
+# the workers composition root (**/container/), and tests. Hard-zero (the
+# prisma→DI remediation is complete). Supersedes #1 (routes are a subset of
+# "outside composition roots").
 grep -rlE "import \{[^}]*\bprisma\b[^}]*\} from \"@infra/prisma\"" \
   apps/api/src apps/workers/src --include="*.ts" | \
-  grep -vE "/infrastructure/container/|/index\.ts$|/container/|\.test\.|/tests/" | wc -l   # baseline 65
+  grep -vE "/infrastructure/container/|/index\.ts$|/container/|\.test\.|/tests/" | wc -l
 ```
 
 **Extending the suite.** Adding a new fitness check requires three coordinated edits, in order:
