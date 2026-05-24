@@ -6,9 +6,26 @@
 
 import { type Result } from "@shared/types";
 import { type Channel } from "../entities/Channel.js";
-import { type ChannelId, type ProjectId } from "../value-objects/EntityId.js";
-import { type Provider } from "../value-objects/Provider.js";
+import { type ChannelId, type ProjectId, type AccountId } from "../value-objects/EntityId.js";
+import { type Provider, type ProviderType } from "../value-objects/Provider.js";
 import { type EntityNotFoundError } from "../errors/index.js";
+
+/**
+ * Lightweight, credential-free projection of a channel for connection listings.
+ * Avoids the credential decryption that `toDomain()` performs — connection
+ * views never need the OAuth tokens, only the display + status metadata.
+ */
+export interface ChannelConnectionView {
+  id: string;
+  provider: ProviderType;
+  handle: string;
+  accountName: string | null;
+  profileImage: string | null;
+  connectedAt: Date | null;
+  lastUsedAt: Date | null;
+  expiredAt: Date | null;
+  needsReauth: boolean;
+}
 
 /**
  * Channel Repository Interface
@@ -30,6 +47,24 @@ export interface ChannelRepository {
    * Find all channels belonging to a project
    */
   findByProjectId(projectId: ProjectId): Promise<Channel[]>;
+
+  /**
+   * Account-scoped connection views for a project (no credential decryption).
+   * Returns ONLY channels whose project belongs to `accountId` — this is the
+   * tenancy filter that stops a caller from reading another account's channels
+   * by guessing a projectId. Used by the OAuth connections listing.
+   */
+  findConnectionViewsByProjectScopedToAccount(
+    projectId: ProjectId,
+    accountId: AccountId
+  ): Promise<ChannelConnectionView[]>;
+
+  /**
+   * Resolve the owning account ID of a channel for an ownership check, without
+   * decrypting credentials. Returns NotFound when the channel does not exist or
+   * is soft-deleted. Used by the OAuth disconnect flow to enforce tenancy.
+   */
+  findOwnerAccountIdByChannelId(channelId: ChannelId): Promise<Result<string, EntityNotFoundError>>;
 
   /**
    * Lightweight ownership lookup — returns ONLY channel IDs for a project.

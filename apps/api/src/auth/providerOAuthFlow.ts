@@ -13,7 +13,6 @@ import {
   type OAuthErrorContext,
 } from "../lib/route-handler/index.js";
 import type { ProviderId } from "../providers/providerAdapter.interface.js";
-import { prisma } from "@infra/prisma";
 import type { OAuthFlowStorePort } from "@ports/core";
 import { oauthProviders } from "./providerOAuthConfigs.js";
 import { AppError } from "../lib/errors/AppError.js";
@@ -21,7 +20,7 @@ import { buildAuthorizationUrl, consumeOAuthFlow } from "./oauth/oauthFlow.js";
 import { env } from "../config/env.js";
 import type { ChannelRepository } from "../domain/repositories/ChannelRepository.js";
 import { Channel } from "../domain/entities/Channel.js";
-import { ProjectId } from "../domain/value-objects/EntityId.js";
+import { ProjectId, ChannelId, AccountId } from "../domain/value-objects/EntityId.js";
 import { Provider as DomainProvider } from "../domain/value-objects/Provider.js";
 
 // ===========================
@@ -336,25 +335,17 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
       // (providerId, providerName, accountName, profileImage, status,
       // connectedAt, lastUsedAt). Account scoping happens via
       // Channel.project.accountId — only return channels whose project
-      // belongs to the authenticated account.
-      const channels = await prisma.channel.findMany({
-        where: {
-          projectId,
-          deletedAt: null,
-          project: { accountId },
-        },
-        select: {
-          id: true,
-          provider: true,
-          handle: true,
-          accountName: true,
-          profileImage: true,
-          connectedAt: true,
-          lastUsedAt: true,
-          expiredAt: true,
-          needsReauth: true,
-        },
-      });
+      // belongs to the authenticated account (enforced inside the repository).
+      const projectIdVo = ProjectId.fromString(projectId);
+      const accountIdVo = AccountId.fromString(accountId);
+      if (!projectIdVo.ok || !accountIdVo.ok) {
+        return this.sendError(ctx, 400, "Invalid parameters");
+      }
+
+      const channels = await this.channelRepository.findConnectionViewsByProjectScopedToAccount(
+        projectIdVo.value,
+        accountIdVo.value
+      );
 
       const connections = channels.map((c) => ({
         id: c.id,
@@ -401,28 +392,32 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
       // Soft-delete via the deletedAt column — credentials stay encrypted
       // at rest; the tenant just loses visibility / publishing access. The
       // audit trail (`expiredAt`, prior `connectedAt`) survives soft-delete.
-      const channel = await prisma.channel.findFirst({
-        where: { id: connectionId, deletedAt: null },
-        select: { id: true, project: { select: { accountId: true } } },
-      });
-
-      if (!channel) {
+      const channelIdVo = ChannelId.fromString(connectionId);
+      if (!channelIdVo.ok) {
         return this.sendError(ctx, 404, "Connection not found");
       }
 
-      if (channel.project.accountId !== accountId) {
+      const ownerResult = await this.channelRepository.findOwnerAccountIdByChannelId(
+        channelIdVo.value
+      );
+
+      if (!ownerResult.ok) {
+        return this.sendError(ctx, 404, "Connection not found");
+      }
+
+      if (ownerResult.value !== accountId) {
         this.logInfo(ctx, "Unauthorized disconnect attempt", {
           connectionId,
-          connectionAccountId: channel.project.accountId,
+          connectionAccountId: ownerResult.value,
           requestAccountId: accountId,
         });
         return this.sendError(ctx, 403, "Not authorized to disconnect this connection");
       }
 
-      await prisma.channel.update({
-        where: { id: connectionId },
-        data: { deletedAt: new Date() },
-      });
+      const deleteResult = await this.channelRepository.delete(channelIdVo.value);
+      if (!deleteResult.ok) {
+        return this.sendError(ctx, 404, "Connection not found");
+      }
 
       this.logInfo(ctx, "Provider disconnected", { connectionId, accountId });
 

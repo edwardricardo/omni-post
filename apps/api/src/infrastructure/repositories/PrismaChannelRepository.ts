@@ -12,12 +12,16 @@ import {
   Channel,
   ChannelId,
   ProjectId,
+  AccountId,
   Provider,
   EntityNotFoundError,
 } from "../../domain/index.js";
 import type { ChannelCredentials } from "../../domain/entities/Channel.js";
 import { CONNECTION_STATUS } from "../../domain/entities/Channel.js";
-import type { ChannelRepository } from "../../domain/repositories/ChannelRepository.js";
+import type {
+  ChannelRepository,
+  ChannelConnectionView,
+} from "../../domain/repositories/ChannelRepository.js";
 import type { ChannelCredentialsCrypto } from "../../security/ChannelCredentialsCrypto.js";
 
 interface ChannelRow {
@@ -148,6 +152,66 @@ export class PrismaChannelRepository implements ChannelRepository {
     });
 
     return rows.map((r) => this.toDomain(r));
+  }
+
+  /**
+   * Account-scoped connection views (no credential decryption). The
+   * `project: { accountId }` join is the tenancy filter.
+   */
+  async findConnectionViewsByProjectScopedToAccount(
+    projectId: ProjectId,
+    accountId: AccountId
+  ): Promise<ChannelConnectionView[]> {
+    const rows = await this.prisma.channel.findMany({
+      where: {
+        projectId: projectId.value,
+        deletedAt: null,
+        project: { accountId: accountId.value },
+      },
+      select: {
+        id: true,
+        provider: true,
+        handle: true,
+        accountName: true,
+        profileImage: true,
+        connectedAt: true,
+        lastUsedAt: true,
+        expiredAt: true,
+        needsReauth: true,
+      },
+    });
+
+    return rows.map((r) => ({
+      id: r.id,
+      provider: r.provider as ChannelConnectionView["provider"],
+      handle: r.handle,
+      accountName: r.accountName,
+      profileImage: r.profileImage,
+      connectedAt: r.connectedAt,
+      lastUsedAt: r.lastUsedAt,
+      expiredAt: r.expiredAt,
+      needsReauth: r.needsReauth,
+    }));
+  }
+
+  /**
+   * Resolve the owning account ID of a channel without decrypting credentials,
+   * via the `Channel.project.accountId` relation. NotFound when the channel is
+   * absent or soft-deleted.
+   */
+  async findOwnerAccountIdByChannelId(
+    channelId: ChannelId
+  ): Promise<Result<string, EntityNotFoundError>> {
+    const row = await this.prisma.channel.findFirst({
+      where: { id: channelId.value, deletedAt: null },
+      select: { project: { select: { accountId: true } } },
+    });
+
+    if (!row) {
+      return err(new EntityNotFoundError("Channel", channelId.value));
+    }
+
+    return ok(row.project.accountId);
   }
 
   /**
