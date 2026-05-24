@@ -21,7 +21,7 @@
  *              `process.exit(0)` cuts another worker's mid-drain.
  *
  *              Standalone usage of each worker (debugging, one-off runs)
- *              still works: `node dist/inboxSyncWorker.js` etc., because
+ *              still works: `node dist/mentionIngestWorker.js` etc., because
  *              each file ends with an `import.meta.url` main-module guard
  *              that calls `startXxxWorker()` with default options.
  *
@@ -37,8 +37,6 @@ dotenv.config({ path: "../../.env" });
 import pino from "pino";
 import { workerPrisma } from "./container/workerContainer.js";
 import { startPublishWorker } from "./publishWorker.js";
-import { startInboxSyncWorker } from "./inboxSyncWorker.js";
-import { startAnalyticsIngestWorker } from "./analyticsIngestWorker.js";
 import { startMentionIngestWorker } from "./mentionIngestWorker.js";
 import { registerGracefulShutdown, type ShutdownTarget } from "./lib/gracefulShutdown.js";
 
@@ -49,8 +47,6 @@ async function main(): Promise<void> {
 
   const targets = await Promise.all([
     startPublishWorker({ registerShutdown: false }),
-    startInboxSyncWorker({ prisma: workerPrisma, registerShutdown: false }),
-    startAnalyticsIngestWorker({ prisma: workerPrisma, registerShutdown: false }),
     startMentionIngestWorker({ prisma: workerPrisma, registerShutdown: false }),
   ]);
 
@@ -81,7 +77,7 @@ async function main(): Promise<void> {
   registerGracefulShutdown({ name: "workers-bootstrap", target: composed, logger });
 
   logger.info(
-    { workers: ["publish", "inbox-sync", "analytics-ingest", "mention-ingest"] },
+    { workers: ["publish", "mention-ingest"] },
     "All workers started; bootstrap idle (waiting on signals)"
   );
 }

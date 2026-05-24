@@ -4,9 +4,13 @@
 > caliente) para revisarlo y decidir en conjunto. Convención por entrada: **duplicado ↔ canónico** ·
 > **cuál es más completo/canónico** · **veredicto propuesto** (REMOVE+wire / MERGE / KEEP-both).
 
-## DUP-01 — analyticsIngest worker reimplementa un use-case escrito para él
+## DUP-01 — analyticsIngest worker reimplementa un use-case escrito para él · ✅ RESUELTA
 
-- **Duplicado:** `apps/workers/src/analyticsIngestWorker.ts` → `processJob()`
+- **Estado:** **RESUELTA** (Opción B). El `processJob` duplicado se borró (`apps/workers/src/analyticsIngestWorker.ts`
+  eliminado); el use-case canónico `IngestChannelAnalyticsUseCase` ahora se consume **in-process en apps/api** vía
+  `apps/api/src/analytics/analyticsIngestConsumer.ts` (patrón bulk-schedule, resuelto del `app.container`). El
+  flag-for-reauth en AUTH se preserva componiendo `UpdateChannelAuthStateUseCase`. Single source of truth = el use-case.
+- **Duplicado (eliminado):** `apps/workers/src/analyticsIngestWorker.ts` → `processJob()`
 - **Canónico:** `apps/api/src/application/analytics/IngestChannelAnalyticsUseCase.ts`
 - **Evidencia:** el JSDoc del use-case dice textual _"Called by the analytics ingestion worker (one job
   per channel)"_, pero el worker **nunca lo llama** — reimplementa el cuerpo inline contra `prisma`.
@@ -19,9 +23,14 @@
 - **Bloqueo:** el application core no está en `packages/` → no importable desde `apps/workers`. Requiere
   la épica de compartir el core (Opción B / SMELL-26 + SMELL-39).
 
-## DUP-02 — inboxSync worker reimplementa (degradado) los use-cases de inbox
+## DUP-02 — inboxSync worker reimplementa (degradado) los use-cases de inbox · ✅ RESUELTA
 
-- **Duplicado:** `apps/workers/src/inboxSyncWorker.ts` → `processJob()`
+- **Estado:** **RESUELTA** (Opción B). El `processJob` duplicado (que omitía el conversation-grouping) se borró
+  (`apps/workers/src/inboxSyncWorker.ts` eliminado); el use-case canónico `SyncProviderCommentsUseCase` (que sí agrupa
+  en conversaciones vía `IngestSocialMessageUseCase`) ahora se consume **in-process en apps/api** vía
+  `apps/api/src/inbox/inboxSyncConsumer.ts`. El flag-for-reauth en FORBIDDEN/AUTH se preserva vía
+  `UpdateChannelAuthStateUseCase`. La copia degradada desapareció.
+- **Duplicado (eliminado):** `apps/workers/src/inboxSyncWorker.ts` → `processJob()`
 - **Canónico:** `apps/api/src/application/inbox/SyncProviderCommentsUseCase.ts`
   (+ `apps/api/src/application/inbox/IngestSocialMessageUseCase.ts`)
 - **Evidencia:** worker = find channel → `adapter.getComments` → por comentario
@@ -39,8 +48,13 @@
 
 ## Notas
 
-- Detectado durante **B8** (maratón prisma→DI). B8 sólo inyectó `PrismaClient` en estos workers (DI); **no
-  tocó** la lógica duplicada.
-- La remoción de ambos duplicados = la épica de **compartir el application core a `packages/`** (Opción B),
-  trackeada en `roadmap-detected-smells-backlog.md` (SMELL-26 + SMELL-39). Revisar y decidir tras cerrar
-  el DI.
+- Detectado durante **B8** (maratón prisma→DI); **resuelto** justo después vía **Opción B** (consumidores
+  in-process en apps/api que corren los use-cases canónicos del `app.container` — patrón bulk-schedule, canon
+  CLAUDE.md §DI). Las dos copias de lógica desaparecieron; el use-case es el único hogar.
+- **Topología:** los consumidores analytics + inbox pasaron del deployable separado `apps/workers` a in-process
+  en `apps/api` (junto a repurpose/triage/trend/bulk-schedule). `mention` (sin use-case) y `autoRenewal`/`publish`
+  siguen en `apps/workers`.
+- **Pendiente (separado, no es duplicación):** la migración del **application core a `packages/@core`** (para que
+  cualquier deployable resuelva los use-cases y los consumidores puedan volver a un proceso aislado si se quiere) —
+  trackeada en `roadmap-detected-smells-backlog.md` (SMELL-26/39) y diseñada en
+  `docs/architecture/TARGET_ARCHITECTURE_CANON_ES.md`.

@@ -66,6 +66,11 @@ import type { DetectRepurposeCandidatesUseCase } from "./application/ai/DetectRe
 import { startBulkScheduleWorker } from "./bulk-scheduling/bulkScheduleWorker.js";
 import type { ProcessBulkScheduleRowUseCase } from "./application/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
 import type { FailBulkScheduleRowUseCase } from "./application/bulk-scheduling/FailBulkScheduleRowUseCase.js";
+import { startAnalyticsIngestConsumer } from "./analytics/analyticsIngestConsumer.js";
+import { startInboxSyncConsumer } from "./inbox/inboxSyncConsumer.js";
+import type { IngestChannelAnalyticsUseCase } from "./application/analytics/IngestChannelAnalyticsUseCase.js";
+import type { SyncProviderCommentsUseCase } from "./application/inbox/SyncProviderCommentsUseCase.js";
+import type { UpdateChannelAuthStateUseCase } from "./application/channels/UpdateChannelAuthStateUseCase.js";
 import type { DispatchDetectRepurposeUseCase } from "./application/ai/DispatchDetectRepurposeUseCase.js";
 import type { RedisCacheManager } from "@adapters/cache-redis";
 import fastifyCookie from "@fastify/cookie";
@@ -813,9 +818,10 @@ async function start() {
     );
 
     // Inbox sync coordinator — every 30 minutes.
-    // Enqueues one inbox-sync job per active channel into BullMQ; the
-    // workers' bootstrap consumes from QUEUE_NAMES.INBOX_SYNC and ingests
-    // comments / mentions into SocialMessage. (Audit finding FN-015.)
+    // Enqueues one inbox-sync job per active channel into BullMQ; the in-process
+    // inbox-sync consumer (apps/api, below) consumes QUEUE_NAMES.INBOX_SYNC and
+    // ingests comments into SocialMessage via SyncProviderCommentsUseCase.
+    // (Audit finding FN-015.)
     const { DispatchInboxSyncUseCase: _DispatchInboxSyncType } =
       await import("./application/inbox/DispatchInboxSyncUseCase.js");
     const dispatchInboxSync = app.container!.resolve<InstanceType<typeof _DispatchInboxSyncType>>(
@@ -864,8 +870,9 @@ async function start() {
 
     // Analytics ingestion coordinator — every 6 hours.
     // Enqueues one analytics-ingest job per active channel into BullMQ; the
-    // workers' bootstrap consumes from QUEUE_NAMES.ANALYTICS_AGGREGATION and
-    // upserts metrics into AnalyticsDailySummary. (Audit finding FN-016.)
+    // in-process analytics consumer (apps/api, below) consumes
+    // QUEUE_NAMES.ANALYTICS_AGGREGATION and upserts metrics into
+    // AnalyticsDailySummary via IngestChannelAnalyticsUseCase. (Audit finding FN-016.)
     const { DispatchAnalyticsIngestionUseCase: _DispatchAnalyticsType } =
       await import("./application/analytics/DispatchAnalyticsIngestionUseCase.js");
     const dispatchAnalyticsIngestion = app.container!.resolve<
@@ -998,6 +1005,31 @@ async function start() {
     });
     logger.info("BULK_SCHEDULE worker started");
 
+    // ANALYTICS_AGGREGATION + INBOX_SYNC consumers — hosted in-process here (like
+    // the bulk-schedule / repurpose consumers) so they run the canonical use cases
+    // from the app container. The former apps/workers analytics/inbox workers that
+    // reimplemented this logic inline against Prisma were removed (DUP-01/02). On an
+    // AUTH failure each flags the channel for reauth via UpdateChannelAuthStateUseCase.
+    const analyticsIngestConsumer = await startAnalyticsIngestConsumer({
+      ingest: app.container!.resolve<IngestChannelAnalyticsUseCase>(
+        TOKENS.IngestChannelAnalyticsUseCase
+      ),
+      markReauth: app.container!.resolve<UpdateChannelAuthStateUseCase>(
+        TOKENS.UpdateChannelAuthStateUseCase
+      ),
+      logger,
+    });
+    logger.info("ANALYTICS_AGGREGATION consumer started");
+
+    const inboxSyncConsumer = await startInboxSyncConsumer({
+      sync: app.container!.resolve<SyncProviderCommentsUseCase>(TOKENS.SyncProviderCommentsUseCase),
+      markReauth: app.container!.resolve<UpdateChannelAuthStateUseCase>(
+        TOKENS.UpdateChannelAuthStateUseCase
+      ),
+      logger,
+    });
+    logger.info("INBOX_SYNC consumer started");
+
     const port = env.PORT;
     const host = env.HOST;
 
@@ -1016,6 +1048,8 @@ async function start() {
       await triageInboxConsumer.close();
       await trendRadarConsumer.close();
       await bulkScheduleWorker.close();
+      await analyticsIngestConsumer.close();
+      await inboxSyncConsumer.close();
 
       // Shutdown saga integration (closes pub/sub subscriber and saga manager)
       const saga = (app as unknown as Record<string, unknown>).sagaIntegration as
