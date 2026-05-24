@@ -6,7 +6,7 @@
  */
 
 import { BaseService } from "../services/BaseService.js";
-import { prisma, type PrismaClient } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 
 /**
  * Dashboard Service
@@ -389,6 +389,3 @@ export class DashboardService extends BaseService {
     });
   }
 }
-
-// Export singleton instance
-export const dashboardService = new DashboardService(prisma);

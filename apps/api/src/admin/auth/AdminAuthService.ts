@@ -7,7 +7,7 @@
  * while delegating specific concerns to specialized services.
  */
 
-import { prisma, type PrismaClient } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { ok, err, type Result } from "@shared/types";
 import type {
   AdminUserProfile,
@@ -510,6 +510,3 @@ export class AdminAuthService {
     });
   }
 }
-
-// Export singleton instance
-export const adminAuthService = new AdminAuthService(prisma);

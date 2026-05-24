@@ -11,27 +11,20 @@ import assert from "node:assert/strict";
 import type { FastifyRequest, FastifyReply } from "fastify";
 import { ok, err } from "@shared/types";
 import type { AccessTokenPayload, AuthErrorCode } from "../../src/admin/auth/adminAuthTypes.js";
+import {
+  requireAdminAuth,
+  requireSuperAdmin,
+  requireAdmin,
+  rateLimit,
+} from "../../src/admin/auth/adminAuthMiddleware.js";
 
 // ---------------------------------------------------------------------------
-// Mock adminAuthService before importing SUT
+// AdminAuthService is resolved from request.server.container by the middleware,
+// so the mock request (below) exposes a container returning this spy.
 // ---------------------------------------------------------------------------
 
 const mockVerifyAccessToken =
   vi.fn<(token: string) => import("@shared/types").Result<AccessTokenPayload, AuthErrorCode>>();
-
-vi.mock("../../src/admin/auth/AdminAuthService.js", () => ({
-  adminAuthService: {
-    verifyAccessToken: mockVerifyAccessToken,
-  },
-  AdminAuthService: vi.fn(),
-}));
-
-// ---------------------------------------------------------------------------
-// Import SUT after mocks
-// ---------------------------------------------------------------------------
-
-const { requireAdminAuth, requireSuperAdmin, requireAdmin, rateLimit } =
-  await import("../../src/admin/auth/adminAuthMiddleware.js");
 
 // ---------------------------------------------------------------------------
 // Factories
@@ -87,6 +80,9 @@ function createMockRequest(overrides?: Partial<FastifyRequest>): FastifyRequest 
     headers: {},
     ip: "127.0.0.1",
     routeOptions: { url: "/test" },
+    server: {
+      container: { resolve: () => ({ verifyAccessToken: mockVerifyAccessToken }) },
+    },
     ...overrides,
   } as unknown as FastifyRequest;
 }

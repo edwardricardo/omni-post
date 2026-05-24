@@ -24,10 +24,10 @@ import type { AIServicePort } from "../../domain/repositories/AIServicePort.js";
 import type { HttpClientPort } from "../../domain/repositories/HttpClientPort.js";
 import { FetchHttpClient } from "../adapters/FetchHttpClient.js";
 import { AiRequestService } from "../../ai/AiRequestService.js";
-import { dashboardService } from "../../admin/dashboardService.js";
+import { DashboardService } from "../../admin/dashboardService.js";
 import { AccountLifecycleService } from "../../admin/accountLifecycleService.js";
 import { AccountSessionService } from "../../admin/AccountSessionService.js";
-import { adminAuthService } from "../../admin/auth/AdminAuthService.js";
+import { AdminAuthService } from "../../admin/auth/AdminAuthService.js";
 import { TemplateService } from "../../templates/templateService.js";
 import { templateAnalytics } from "../../templates/templateAnalytics.js";
 import { BillingService } from "../../billing/subscription/BillingService.js";
@@ -224,7 +224,11 @@ export function setupServices(
     true
   );
 
-  container.registerInstance(TOKENS.DashboardService, dashboardService);
+  container.register<DashboardService>(
+    TOKENS.DashboardService,
+    () => new DashboardService(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
 
   container.register<AccountLifecycleQueryService>(
     TOKENS.AccountLifecycleQueryService,
@@ -256,7 +260,11 @@ export function setupServices(
     true
   );
 
-  container.registerInstance(TOKENS.AdminAuthService, adminAuthService);
+  container.register<AdminAuthService>(
+    TOKENS.AdminAuthService,
+    () => new AdminAuthService(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
   container.register<TemplateService>(
     TOKENS.TemplateService,
     () => new TemplateService(container.resolve(TOKENS.PrismaClient)),

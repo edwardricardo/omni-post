@@ -10,7 +10,8 @@
  */
 
 import type { FastifyRequest, FastifyReply } from "fastify";
-import { adminAuthService } from "./AdminAuthService.js";
+import type { AdminAuthService } from "./AdminAuthService.js";
+import { TOKENS } from "../../infrastructure/container/types.js";
 import type { AuthContext, AuthErrorCode } from "./adminAuthTypes";
 // AdminRole is now a string type (DB-driven via Role table)
 
@@ -65,6 +66,19 @@ export async function requireAdminAuth(
         code: "INVALID_TOKEN",
         message: "Authentication required. Please provide a valid access token.",
       },
+    });
+  }
+
+  // Resolve AdminAuthService from the request's server container — this is a
+  // free middleware function, so it receives DI dependencies via request.server
+  // rather than constructor injection.
+  const adminAuthService = request.server.container?.resolve<AdminAuthService>(
+    TOKENS.AdminAuthService
+  );
+  if (!adminAuthService) {
+    return reply.status(401).send({
+      ok: false,
+      error: { code: "INVALID_TOKEN", message: "Authentication service unavailable." },
     });
   }
 
