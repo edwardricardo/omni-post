@@ -16,6 +16,9 @@ export const TOKENS = {
 
   // AdminUser Repository (R1-A — hexagonal port, replaces legacy UserRepository)
   AdminUserRepository: Symbol.for("AdminUserRepository"),
+  AdminUserAdminService: Symbol.for("AdminUserAdminService"),
+  CustomerAccountBillingService: Symbol.for("CustomerAccountBillingService"),
+  PricingAdminService: Symbol.for("PricingAdminService"),
 
   // AdminSession + admin Role + AuditLog repositories (admin-auth DI)
   AdminSessionRepository: Symbol.for("AdminSessionRepository"),

@@ -26,6 +26,7 @@ export interface AdminUserCreateInput {
  */
 export interface AdminUserUpdate {
   name?: string;
+  email?: string;
   passwordHash?: string;
   roleId?: string;
   isActive?: boolean;
@@ -35,6 +36,9 @@ export interface AdminUserUpdate {
   mfaSecret?: string | null;
   passwordResetToken?: string | null;
   passwordResetExpires?: Date | null;
+  department?: string | null;
+  team?: string | null;
+  avatarUrl?: string | null;
 }
 
 /**
@@ -110,6 +114,14 @@ export interface AdminUserRepositoryPort {
    * @returns Array of matching AdminUserDto records (order not guaranteed)
    */
   findManyByIds(ids: string[]): Promise<AdminUserDto[]>;
+
+  /**
+   * List every admin user (active and inactive), oldest first. For the admin
+   * user-management console.
+   *
+   * @returns All admin users as AdminUserDto records
+   */
+  findAll(): Promise<AdminUserDto[]>;
 
   /**
    * Persist a new admin user.

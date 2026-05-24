@@ -165,11 +165,16 @@ export class InMemoryAdminUserRepository implements AdminUserRepositoryPort {
       locale: null,
       department: null,
       team: null,
+      avatarUrl: null,
       createdAt: now,
       updatedAt: now,
     };
     this.users.set(user.id, user);
     return toPublic(user);
+  }
+
+  async findAll(): Promise<AdminUserDto[]> {
+    return [...this.users.values()].map(toPublic);
   }
 
   async update(id: string, data: AdminUserUpdate): Promise<AdminUserDto> {
@@ -184,9 +189,13 @@ export class InMemoryAdminUserRepository implements AdminUserRepositoryPort {
     const updated: AdminUserCredentialsDto = {
       ...existing,
       ...(data.name !== undefined && { name: data.name }),
+      ...(data.email !== undefined && { email: data.email }),
       ...(data.passwordHash !== undefined && { passwordHash: data.passwordHash }),
       ...(roleName !== undefined && { role: roleName }),
       ...(data.isActive !== undefined && { isActive: data.isActive }),
+      ...(data.department !== undefined && { department: data.department }),
+      ...(data.team !== undefined && { team: data.team }),
+      ...(data.avatarUrl !== undefined && { avatarUrl: data.avatarUrl }),
       ...(data.emailVerified !== undefined && { emailVerified: data.emailVerified }),
       ...(data.lastLoginAt !== undefined && { lastLoginAt: data.lastLoginAt }),
       ...(data.mfaEnabled !== undefined && { mfaEnabled: data.mfaEnabled }),

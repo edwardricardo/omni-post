@@ -314,6 +314,7 @@ export interface AdminUserDto {
   locale: string | null;
   department: string | null;
   team: string | null;
+  avatarUrl: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

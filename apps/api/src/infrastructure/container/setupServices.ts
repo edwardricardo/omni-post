@@ -28,6 +28,9 @@ import { DashboardService } from "../../admin/dashboardService.js";
 import { AccountLifecycleService } from "../../admin/accountLifecycleService.js";
 import { AccountSessionService } from "../../admin/AccountSessionService.js";
 import { AdminAuthService } from "../../admin/auth/AdminAuthService.js";
+import { AdminUserAdminService } from "../../admin/AdminUserAdminService.js";
+import { CustomerAccountBillingService } from "../../admin/CustomerAccountBillingService.js";
+import { PricingAdminService } from "../../admin/PricingAdminService.js";
 import { TemplateService } from "../../templates/templateService.js";
 import { templateAnalytics } from "../../templates/templateAnalytics.js";
 import { BillingService } from "../../billing/subscription/BillingService.js";
@@ -263,6 +266,30 @@ export function setupServices(
   container.register<AdminAuthService>(
     TOKENS.AdminAuthService,
     () => new AdminAuthService(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<AdminUserAdminService>(
+    TOKENS.AdminUserAdminService,
+    () =>
+      new AdminUserAdminService(
+        container.resolve<AdminUserRepositoryPort>(TOKENS.AdminUserRepository),
+        container.resolve<RoleRepository>(TOKENS.RoleRepository),
+        container.resolve<AdminSessionRepository>(TOKENS.AdminSessionRepository)
+      ),
+    true
+  );
+  container.register<CustomerAccountBillingService>(
+    TOKENS.CustomerAccountBillingService,
+    () =>
+      new CustomerAccountBillingService(
+        container.resolve(TOKENS.PrismaClient),
+        container.resolve<AuditLogRepository>(TOKENS.AuditLogRepository)
+      ),
+    true
+  );
+  container.register<PricingAdminService>(
+    TOKENS.PricingAdminService,
+    () => new PricingAdminService(container.resolve(TOKENS.PrismaClient)),
     true
   );
   container.register<TemplateService>(

@@ -211,6 +211,7 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
   async update(id: string, data: AdminUserUpdate): Promise<AdminUserDto> {
     const updateData: Prisma.AdminUserUncheckedUpdateInput = {
       ...(data.name !== undefined && { name: data.name }),
+      ...(data.email !== undefined && { email: data.email }),
       ...(data.passwordHash !== undefined && { passwordHash: data.passwordHash }),
       ...(data.roleId !== undefined && { roleId: data.roleId }),
       ...(data.isActive !== undefined && { isActive: data.isActive }),
@@ -224,6 +225,9 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
       ...(data.passwordResetExpires !== undefined && {
         passwordResetExpires: data.passwordResetExpires,
       }),
+      ...(data.department !== undefined && { department: data.department }),
+      ...(data.team !== undefined && { team: data.team }),
+      ...(data.avatarUrl !== undefined && { avatarUrl: data.avatarUrl }),
     };
     const user = await this.getClient().adminUser.update({
       where: { id },
@@ -231,6 +235,17 @@ export class PrismaAdminUserRepository implements AdminUserRepositoryPort {
       include: { role: true },
     });
     return toDto(user);
+  }
+
+  /**
+   * List every admin user (active and inactive), oldest first.
+   */
+  async findAll(): Promise<AdminUserDto[]> {
+    const users = await this.prisma.adminUser.findMany({
+      include: { role: true },
+      orderBy: { createdAt: "asc" },
+    });
+    return users.map(toDto);
   }
 
   /**
