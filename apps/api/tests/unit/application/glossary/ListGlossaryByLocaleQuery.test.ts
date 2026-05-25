@@ -9,7 +9,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { ok, err } from "@shared/types";
-import { ListGlossaryByLocaleQuery } from "../../../../src/application/glossary/ListGlossaryByLocaleQuery.js";
+import { ListGlossaryByLocaleQuery } from "@core/application/glossary/ListGlossaryByLocaleQuery.js";
 import type {
   GlossaryEntry,
   GlossaryRepository,

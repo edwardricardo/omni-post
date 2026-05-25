@@ -6,7 +6,7 @@
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
-import { buildEnhancedSystemPrompt } from "../../../src/application/ai/buildEnhancedSystemPrompt.js";
+import { buildEnhancedSystemPrompt } from "@core/application/ai/buildEnhancedSystemPrompt.js";
 
 describe("buildEnhancedSystemPrompt", () => {
   it("includes brand voice when available", () => {

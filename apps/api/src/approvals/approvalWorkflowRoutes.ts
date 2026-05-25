@@ -10,10 +10,10 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { CreateApprovalWorkflowUseCase } from "../application/approvals/CreateApprovalWorkflowUseCase.js";
-import type { UpdateApprovalWorkflowUseCase } from "../application/approvals/UpdateApprovalWorkflowUseCase.js";
-import type { DeleteApprovalWorkflowUseCase } from "../application/approvals/DeleteApprovalWorkflowUseCase.js";
-import type { ListApprovalWorkflowsQuery } from "../application/approvals/ListApprovalWorkflowsQuery.js";
+import type { CreateApprovalWorkflowUseCase } from "@core/application/approvals/CreateApprovalWorkflowUseCase.js";
+import type { UpdateApprovalWorkflowUseCase } from "@core/application/approvals/UpdateApprovalWorkflowUseCase.js";
+import type { DeleteApprovalWorkflowUseCase } from "@core/application/approvals/DeleteApprovalWorkflowUseCase.js";
+import type { ListApprovalWorkflowsQuery } from "@core/application/approvals/ListApprovalWorkflowsQuery.js";
 
 // --- Zod Schemas ---
 

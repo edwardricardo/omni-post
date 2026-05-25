@@ -14,18 +14,18 @@ import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
 // Use case / query types (type-only imports)
-import type { MarkMessageReadUseCase } from "../application/inbox/MarkMessageReadUseCase.js";
-import type { MarkMessageArchivedUseCase } from "../application/inbox/MarkMessageArchivedUseCase.js";
-import type { AssignMessageUseCase } from "../application/inbox/AssignMessageUseCase.js";
-import type { SendReplyUseCase } from "../application/inbox/SendReplyUseCase.js";
-import type { ResolveConversationUseCase } from "../application/inbox/ResolveConversationUseCase.js";
-import type { ReopenConversationUseCase } from "../application/inbox/ReopenConversationUseCase.js";
-import type { SyncProviderCommentsUseCase } from "../application/inbox/SyncProviderCommentsUseCase.js";
-import type { GetInboxQuery } from "../application/inbox/GetInboxQuery.js";
-import type { GetMentionsQuery } from "../application/inbox/GetMentionsQuery.js";
-import type { GetConversationQuery } from "../application/inbox/GetConversationQuery.js";
-import type { GetConversationMessagesQuery } from "../application/inbox/GetConversationMessagesQuery.js";
-import type { GetUnreadInboxCountQuery } from "../application/inbox/GetUnreadInboxCountQuery.js";
+import type { MarkMessageReadUseCase } from "@core/application/inbox/MarkMessageReadUseCase.js";
+import type { MarkMessageArchivedUseCase } from "@core/application/inbox/MarkMessageArchivedUseCase.js";
+import type { AssignMessageUseCase } from "@core/application/inbox/AssignMessageUseCase.js";
+import type { SendReplyUseCase } from "@core/application/inbox/SendReplyUseCase.js";
+import type { ResolveConversationUseCase } from "@core/application/inbox/ResolveConversationUseCase.js";
+import type { ReopenConversationUseCase } from "@core/application/inbox/ReopenConversationUseCase.js";
+import type { SyncProviderCommentsUseCase } from "@core/application/inbox/SyncProviderCommentsUseCase.js";
+import type { GetInboxQuery } from "@core/application/inbox/GetInboxQuery.js";
+import type { GetMentionsQuery } from "@core/application/inbox/GetMentionsQuery.js";
+import type { GetConversationQuery } from "@core/application/inbox/GetConversationQuery.js";
+import type { GetConversationMessagesQuery } from "@core/application/inbox/GetConversationMessagesQuery.js";
+import type { GetUnreadInboxCountQuery } from "@core/application/inbox/GetUnreadInboxCountQuery.js";
 
 // ============================================================================
 // Zod Validation Schemas

@@ -11,11 +11,11 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { CreateRecurringPostUseCase } from "../application/recurring/CreateRecurringPostUseCase.js";
-import type { UpdateRecurringPostUseCase } from "../application/recurring/UpdateRecurringPostUseCase.js";
-import type { DeactivateRecurringPostUseCase } from "../application/recurring/DeactivateRecurringPostUseCase.js";
-import type { ListRecurringPostsQuery } from "../application/recurring/ListRecurringPostsQuery.js";
-import type { GetRecurringPostQuery } from "../application/recurring/GetRecurringPostQuery.js";
+import type { CreateRecurringPostUseCase } from "@core/application/recurring/CreateRecurringPostUseCase.js";
+import type { UpdateRecurringPostUseCase } from "@core/application/recurring/UpdateRecurringPostUseCase.js";
+import type { DeactivateRecurringPostUseCase } from "@core/application/recurring/DeactivateRecurringPostUseCase.js";
+import type { ListRecurringPostsQuery } from "@core/application/recurring/ListRecurringPostsQuery.js";
+import type { GetRecurringPostQuery } from "@core/application/recurring/GetRecurringPostQuery.js";
 
 // --- Zod Schemas ---
 

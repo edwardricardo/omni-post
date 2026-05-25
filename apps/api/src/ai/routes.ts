@@ -9,8 +9,8 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import type { AIService } from "./aiService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { GetBrandVoiceQuery } from "../application/brand-voice/GetBrandVoiceQuery.js";
-import type { PredictOptimalTimingUseCase } from "../application/ml/index.js";
+import type { GetBrandVoiceQuery } from "@core/application/brand-voice/GetBrandVoiceQuery.js";
+import type { PredictOptimalTimingUseCase } from "@core/application/ml/index.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 
 // ============================================================================

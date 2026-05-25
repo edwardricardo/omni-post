@@ -7,7 +7,7 @@
 
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import { MassForceReauthByProviderUseCase } from "../../application/providers/MassForceReauthByProviderUseCase.js";
+import { MassForceReauthByProviderUseCase } from "@core/application/providers/MassForceReauthByProviderUseCase.js";
 import type { ChannelRepository } from "../../domain/repositories/ChannelRepository.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 

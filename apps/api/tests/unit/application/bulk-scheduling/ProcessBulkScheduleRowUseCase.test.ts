@@ -8,15 +8,15 @@
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { ok, err } from "@shared/types";
-import { UseCaseError, USE_CASE_ERRORS } from "../../../../src/application/UseCase.js";
-import { ProcessBulkScheduleRowUseCase } from "../../../../src/application/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
+import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
+import { ProcessBulkScheduleRowUseCase } from "@core/application/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
 import type {
   BulkScheduleBatchRepository,
   BulkScheduleItemState,
 } from "../../../../src/domain/repositories/BulkScheduleBatchRepository.js";
 import type { ChannelRepository } from "../../../../src/domain/repositories/ChannelRepository.js";
-import type { CreatePostUseCase } from "../../../../src/application/posts/CreatePostUseCase.js";
-import type { SchedulePostUseCase } from "../../../../src/application/posts/SchedulePostUseCase.js";
+import type { CreatePostUseCase } from "@core/application/posts/CreatePostUseCase.js";
+import type { SchedulePostUseCase } from "@core/application/posts/SchedulePostUseCase.js";
 import type { Channel } from "../../../../src/domain/entities/Channel.js";
 import type { UnitOfWork } from "../../../../src/domain/repositories/Repository.js";
 

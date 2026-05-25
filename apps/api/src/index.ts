@@ -54,24 +54,24 @@ import { processRepurposeGenerateJob } from "./ai/consumers/repurposeGenerateHan
 import { processRepurposeDetectJob } from "./ai/consumers/repurposeDetectHandler.js";
 import { processTriageInboxJob } from "./ai/consumers/triageInboxHandler.js";
 import { processTrendRadarJob } from "./ai/consumers/trendRadarHandler.js";
-import type { DetectTrendsUseCase } from "./application/trends/DetectTrendsUseCase.js";
-import type { DispatchDetectTrendsUseCase } from "./application/trends/DispatchDetectTrendsUseCase.js";
+import type { DetectTrendsUseCase } from "@core/application/trends/DetectTrendsUseCase.js";
+import type { DispatchDetectTrendsUseCase } from "@core/application/trends/DispatchDetectTrendsUseCase.js";
 import {
   TriageDispatchEventHandler,
   TRIAGE_HANDLED_EVENT_TYPES,
 } from "./inbox/handlers/TriageDispatchEventHandler.js";
-import type { TriageInboxMessageUseCase } from "./application/inbox/TriageInboxMessageUseCase.js";
+import type { TriageInboxMessageUseCase } from "@core/application/inbox/TriageInboxMessageUseCase.js";
 import { PrismaRepurposeVariantAdapter } from "./infrastructure/repositories/PrismaRepurposeVariantAdapter.js";
-import type { DetectRepurposeCandidatesUseCase } from "./application/ai/DetectRepurposeCandidatesUseCase.js";
+import type { DetectRepurposeCandidatesUseCase } from "@core/application/ai/DetectRepurposeCandidatesUseCase.js";
 import { startBulkScheduleWorker } from "./bulk-scheduling/bulkScheduleWorker.js";
-import type { ProcessBulkScheduleRowUseCase } from "./application/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
-import type { FailBulkScheduleRowUseCase } from "./application/bulk-scheduling/FailBulkScheduleRowUseCase.js";
+import type { ProcessBulkScheduleRowUseCase } from "@core/application/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
+import type { FailBulkScheduleRowUseCase } from "@core/application/bulk-scheduling/FailBulkScheduleRowUseCase.js";
 import { startAnalyticsIngestConsumer } from "./analytics/analyticsIngestConsumer.js";
 import { startInboxSyncConsumer } from "./inbox/inboxSyncConsumer.js";
-import type { IngestChannelAnalyticsUseCase } from "./application/analytics/IngestChannelAnalyticsUseCase.js";
-import type { SyncProviderCommentsUseCase } from "./application/inbox/SyncProviderCommentsUseCase.js";
-import type { UpdateChannelAuthStateUseCase } from "./application/channels/UpdateChannelAuthStateUseCase.js";
-import type { DispatchDetectRepurposeUseCase } from "./application/ai/DispatchDetectRepurposeUseCase.js";
+import type { IngestChannelAnalyticsUseCase } from "@core/application/analytics/IngestChannelAnalyticsUseCase.js";
+import type { SyncProviderCommentsUseCase } from "@core/application/inbox/SyncProviderCommentsUseCase.js";
+import type { UpdateChannelAuthStateUseCase } from "@core/application/channels/UpdateChannelAuthStateUseCase.js";
+import type { DispatchDetectRepurposeUseCase } from "@core/application/ai/DispatchDetectRepurposeUseCase.js";
 import type { RedisCacheManager } from "@adapters/cache-redis";
 import fastifyCookie from "@fastify/cookie";
 import { createTenantHealthMonitor } from "@monitoring/health-checks";
@@ -823,7 +823,7 @@ async function start() {
     // ingests comments into SocialMessage via SyncProviderCommentsUseCase.
     // (Audit finding FN-015.)
     const { DispatchInboxSyncUseCase: _DispatchInboxSyncType } =
-      await import("./application/inbox/DispatchInboxSyncUseCase.js");
+      await import("@core/application/inbox/DispatchInboxSyncUseCase.js");
     const dispatchInboxSync = app.container!.resolve<InstanceType<typeof _DispatchInboxSyncType>>(
       TOKENS.DispatchInboxSyncUseCase
     );
@@ -843,7 +843,7 @@ async function start() {
     // mentions missed by webhooks or transient search failures. Both enqueue
     // jobs into QUEUE_NAMES.MENTION_INGEST consumed by the workers' bootstrap.
     const { DispatchMentionSearchUseCase: _DispatchMentionSearchType } =
-      await import("./application/listening/DispatchMentionSearchUseCase.js");
+      await import("@core/application/listening/DispatchMentionSearchUseCase.js");
     const dispatchMentionSearch = app.container!.resolve<
       InstanceType<typeof _DispatchMentionSearchType>
     >(TOKENS.DispatchMentionSearchUseCase);
@@ -874,7 +874,7 @@ async function start() {
     // QUEUE_NAMES.ANALYTICS_AGGREGATION and upserts metrics into
     // AnalyticsDailySummary via IngestChannelAnalyticsUseCase. (Audit finding FN-016.)
     const { DispatchAnalyticsIngestionUseCase: _DispatchAnalyticsType } =
-      await import("./application/analytics/DispatchAnalyticsIngestionUseCase.js");
+      await import("@core/application/analytics/DispatchAnalyticsIngestionUseCase.js");
     const dispatchAnalyticsIngestion = app.container!.resolve<
       InstanceType<typeof _DispatchAnalyticsType>
     >(TOKENS.DispatchAnalyticsIngestionUseCase);

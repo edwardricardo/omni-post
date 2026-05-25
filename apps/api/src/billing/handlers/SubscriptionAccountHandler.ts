@@ -9,7 +9,7 @@ import { FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../../lib/route-handler/index.js";
 import type { SubscriptionService } from "../subscription/index.js";
-import type { ChangeAccountSubscriptionUseCase } from "../../application/billing/ChangeAccountSubscriptionUseCase.js";
+import type { ChangeAccountSubscriptionUseCase } from "@core/application/billing/ChangeAccountSubscriptionUseCase.js";
 import { removeUndefinedProperties } from "../../utils/typeUtils.js";
 import {
   ParamsWithAccountIdSchema,

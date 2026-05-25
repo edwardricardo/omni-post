@@ -30,7 +30,7 @@ vi.mock("../../../src/auth/customerAuthMiddleware.js", () => ({
 
 import Fastify, { type FastifyInstance } from "fastify";
 import { ok, err } from "@shared/types";
-import { UseCaseError, USE_CASE_ERRORS } from "../../../src/application/UseCase.js";
+import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { createTestContainer } from "../../../src/infrastructure/container/setup.js";
 import { TOKENS } from "../../../src/infrastructure/container/types.js";
 import { bulkScheduleRoutes } from "../../../src/bulk-scheduling/bulkScheduleRoutes.js";

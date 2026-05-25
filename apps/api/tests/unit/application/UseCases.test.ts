@@ -20,7 +20,7 @@ import {
   ListPostsUseCase,
   DeletePostUseCase,
   USE_CASE_ERRORS,
-} from "../../../src/application/index.js";
+} from "@core/application/index.js";
 import { PostAggregate, ProjectId, EntityNotFoundError } from "../../../src/domain/index.js";
 import type {
   PostRepository,

@@ -6,7 +6,7 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import type { ConvertReferralRepository } from "../../application/referral/ConvertReferralUseCase.js";
+import type { ConvertReferralRepository } from "@core/application/referral/ConvertReferralUseCase.js";
 
 export class PrismaConvertReferralRepository implements ConvertReferralRepository {
   constructor(private readonly prisma: PrismaClient) {}

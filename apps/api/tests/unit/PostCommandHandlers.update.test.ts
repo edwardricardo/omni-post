@@ -13,7 +13,7 @@ import {
 } from "./PostCommandHandlers.test-helpers.js";
 import { UpdatePostCommandHandler } from "../../src/cqrs/handlers/PostCommandHandlers.js";
 import { POST_COMMANDS } from "@shared/cqrs";
-import { USE_CASE_ERRORS } from "../../src/application/UseCase.js";
+import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 
 describe("UpdatePostCommandHandler", () => {
   let handler: UpdatePostCommandHandler;

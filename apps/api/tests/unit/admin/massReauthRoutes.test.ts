@@ -16,8 +16,8 @@ import { TOKENS } from "../../../src/infrastructure/container/types.js";
 import type {
   MassForceReauthByProviderUseCase,
   MassForceReauthOutput,
-} from "../../../src/application/providers/MassForceReauthByProviderUseCase.js";
-import { UseCaseError, USE_CASE_ERRORS } from "../../../src/application/UseCase.js";
+} from "@core/application/providers/MassForceReauthByProviderUseCase.js";
+import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 
 interface CapturedRoute {
   url: string;

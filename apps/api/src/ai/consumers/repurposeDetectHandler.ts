@@ -8,7 +8,7 @@
  *              queue retries the job.
  * @layer infrastructure
  */
-import type { DetectRepurposeCandidatesUseCase } from "../../application/ai/DetectRepurposeCandidatesUseCase.js";
+import type { DetectRepurposeCandidatesUseCase } from "@core/application/ai/DetectRepurposeCandidatesUseCase.js";
 import type { RepurposeJobLogger } from "./repurposeGenerateHandler.js";
 
 export interface RepurposeDetectDeps {

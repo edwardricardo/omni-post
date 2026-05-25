@@ -6,8 +6,8 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { EnableReportSharingUseCase } from "../../../src/application/custom-reports/EnableReportSharingUseCase.js";
-import { DisableReportSharingUseCase } from "../../../src/application/custom-reports/DisableReportSharingUseCase.js";
+import { EnableReportSharingUseCase } from "@core/application/custom-reports/EnableReportSharingUseCase.js";
+import { DisableReportSharingUseCase } from "@core/application/custom-reports/DisableReportSharingUseCase.js";
 import { ok, err } from "@shared/types";
 
 function makeMockRepo(dto = { id: "r-1", accountId: "acc-1", isShared: false }) {

@@ -6,9 +6,9 @@
 
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import { CreateAccountSubscriptionUseCase } from "../../application/billing/CreateAccountSubscriptionUseCase.js";
-import { ChangeAccountSubscriptionUseCase } from "../../application/billing/ChangeAccountSubscriptionUseCase.js";
-import { UpdatePricingConfigUseCase } from "../../application/billing/UpdatePricingConfigUseCase.js";
+import { CreateAccountSubscriptionUseCase } from "@core/application/billing/CreateAccountSubscriptionUseCase.js";
+import { ChangeAccountSubscriptionUseCase } from "@core/application/billing/ChangeAccountSubscriptionUseCase.js";
+import { UpdatePricingConfigUseCase } from "@core/application/billing/UpdatePricingConfigUseCase.js";
 import { PrismaCreateSubscriptionRepository } from "../repositories/PrismaCreateSubscriptionRepository.js";
 import { PrismaChangeSubscriptionRepository } from "../repositories/PrismaChangeSubscriptionRepository.js";
 import {

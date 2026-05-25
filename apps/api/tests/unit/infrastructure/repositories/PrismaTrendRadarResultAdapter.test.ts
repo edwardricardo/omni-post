@@ -15,7 +15,7 @@ import type { PrismaClient } from "@infra/prisma";
 import type {
   TrendRadarRow,
   TrendRadarUpsertInput,
-} from "../../../../src/application/trends/TrendRadarResultPort.js";
+} from "@core/application/trends/TrendRadarResultPort.js";
 
 function makePrisma(opts: { existing?: ReadonlyArray<{ id: string } | null> }): {
   prisma: PrismaClient;

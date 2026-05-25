@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { SyncProviderCommentsUseCase } from "../../../src/application/inbox/SyncProviderCommentsUseCase.js";
+import { SyncProviderCommentsUseCase } from "@core/application/inbox/SyncProviderCommentsUseCase.js";
 import { ok, err } from "@shared/types";
 
 function makeChannel(overrides: Record<string, unknown> = {}) {

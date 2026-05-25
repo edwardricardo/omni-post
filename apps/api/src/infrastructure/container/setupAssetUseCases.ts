@@ -22,7 +22,7 @@ import {
   ListAssetTagsQuery,
   CreateAssetFolderUseCase,
   ImportFromGoogleDriveUseCase,
-} from "../../application/assets/index.js";
+} from "@core/application/assets/index.js";
 
 /**
  * @function setupAssetUseCases

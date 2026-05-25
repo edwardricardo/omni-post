@@ -8,7 +8,7 @@
 import type { PrismaClient } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
 import { Project, ProjectId, AccountId, EntityNotFoundError } from "../../domain/index.js";
-import type { CrisisProjectRepository } from "../../application/crisis/types.js";
+import type { CrisisProjectRepository } from "@core/application/crisis/types.js";
 
 /**
  * PrismaCrisisProjectRepository - Implements CrisisProjectRepository using Prisma

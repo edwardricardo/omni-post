@@ -12,7 +12,7 @@ import { Container } from "../../../../src/infrastructure/container/Container.js
 import { TOKENS } from "../../../../src/infrastructure/container/types.js";
 import { setupGuardrailUseCases } from "../../../../src/infrastructure/container/setupGuardrailUseCases.js";
 import type { GuardrailPort } from "../../../../src/domain/repositories/GuardrailPort.js";
-import { GuardrailRegistry } from "../../../../src/application/guardrails/GuardrailRegistry.js";
+import { GuardrailRegistry } from "@core/application/guardrails/GuardrailRegistry.js";
 import { ContentPolicyGuardrail } from "../../../../src/infrastructure/guardrails/ContentPolicyGuardrail.js";
 import { PIIRedactionGuardrail } from "../../../../src/infrastructure/guardrails/PIIRedactionGuardrail.js";
 

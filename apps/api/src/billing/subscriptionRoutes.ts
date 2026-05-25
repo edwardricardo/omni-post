@@ -6,7 +6,7 @@
  */
 import { FastifyPluginAsync } from "fastify";
 import type { SubscriptionService } from "./subscription/index.js";
-import type { ChangeAccountSubscriptionUseCase } from "../application/billing/ChangeAccountSubscriptionUseCase.js";
+import type { ChangeAccountSubscriptionUseCase } from "@core/application/billing/ChangeAccountSubscriptionUseCase.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "../auth/rbacService.js";

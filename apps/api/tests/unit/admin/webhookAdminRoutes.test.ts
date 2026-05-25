@@ -15,8 +15,8 @@ import { TOKENS } from "../../../src/infrastructure/container/types.js";
 import type {
   RotateWebhookSecretKeyUseCase,
   RotateWebhookSecretKeyOutput,
-} from "../../../src/application/webhooks/RotateWebhookSecretKeyUseCase.js";
-import { UseCaseError, USE_CASE_ERRORS } from "../../../src/application/UseCase.js";
+} from "@core/application/webhooks/RotateWebhookSecretKeyUseCase.js";
+import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 
 const SUB_ID = "550e8400-e29b-41d4-a716-446655440099";
 

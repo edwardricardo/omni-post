@@ -4,7 +4,7 @@
  * @layer application
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { RegisterCustomerUseCase } from "../../../src/application/customer-auth/RegisterCustomerUseCase.js";
+import { RegisterCustomerUseCase } from "@core/application/customer-auth/RegisterCustomerUseCase.js";
 import { Argon2PasswordHasher } from "../../../src/infrastructure/adapters/Argon2PasswordHasher.js";
 import { CustomerTokenServiceAdapter } from "../../../src/infrastructure/adapters/CustomerTokenServiceAdapter.js";
 import type { CustomerUserRepository } from "../../../src/domain/repositories/CustomerUserRepository.js";

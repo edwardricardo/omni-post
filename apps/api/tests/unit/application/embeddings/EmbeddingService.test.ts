@@ -10,7 +10,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { ok, err } from "@shared/types";
-import { EmbeddingService } from "../../../../src/application/embeddings/EmbeddingService.js";
+import { EmbeddingService } from "@core/application/embeddings/EmbeddingService.js";
 import type { AIServicePort } from "../../../../src/domain/repositories/AIServicePort.js";
 
 function makeAI(result: { ok: true; value: number[][] } | { ok: false; error: "AI_ERROR" }) {

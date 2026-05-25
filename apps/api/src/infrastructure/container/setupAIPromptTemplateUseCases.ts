@@ -9,10 +9,10 @@ import { TOKENS } from "./types.js";
 import { PrismaAIPromptTemplateRepository } from "../repositories/PrismaAIPromptTemplateRepository.js";
 import type { AIPromptTemplateRepository } from "../../domain/repositories/AIPromptTemplateRepository.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
-import { ListAIPromptTemplatesQuery } from "../../application/aiPromptTemplates/ListAIPromptTemplatesQuery.js";
-import { CreateAIPromptTemplateUseCase } from "../../application/aiPromptTemplates/CreateAIPromptTemplateUseCase.js";
-import { UpdateAIPromptTemplateUseCase } from "../../application/aiPromptTemplates/UpdateAIPromptTemplateUseCase.js";
-import { DeleteAIPromptTemplateUseCase } from "../../application/aiPromptTemplates/DeleteAIPromptTemplateUseCase.js";
+import { ListAIPromptTemplatesQuery } from "@core/application/aiPromptTemplates/ListAIPromptTemplatesQuery.js";
+import { CreateAIPromptTemplateUseCase } from "@core/application/aiPromptTemplates/CreateAIPromptTemplateUseCase.js";
+import { UpdateAIPromptTemplateUseCase } from "@core/application/aiPromptTemplates/UpdateAIPromptTemplateUseCase.js";
+import { DeleteAIPromptTemplateUseCase } from "@core/application/aiPromptTemplates/DeleteAIPromptTemplateUseCase.js";
 
 /**
  * @method setupAIPromptTemplateUseCases

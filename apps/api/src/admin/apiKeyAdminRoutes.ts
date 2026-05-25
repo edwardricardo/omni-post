@@ -15,7 +15,7 @@ import { requireAdminAuth } from "./auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "../auth/rbacService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { RotateApiKeyUseCase } from "../application/apiKeys/ApiKeyUseCases.js";
+import type { RotateApiKeyUseCase } from "@core/application/apiKeys/ApiKeyUseCases.js";
 import type { AuditService } from "../audit/auditService.js";
 
 const ParamsSchema = z.object({ id: z.string().min(1) });

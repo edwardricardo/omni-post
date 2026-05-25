@@ -12,13 +12,13 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { CreateNotificationUseCase } from "../application/notifications/CreateNotificationUseCase.js";
-import type { GetNotificationsQuery } from "../application/notifications/GetNotificationsQuery.js";
+import type { CreateNotificationUseCase } from "@core/application/notifications/CreateNotificationUseCase.js";
+import type { GetNotificationsQuery } from "@core/application/notifications/GetNotificationsQuery.js";
 import type {
   MarkNotificationReadUseCase,
   MarkAllNotificationsReadUseCase,
-} from "../application/notifications/MarkNotificationReadUseCase.js";
-import type { GetUnreadCountQuery } from "../application/notifications/GetUnreadCountQuery.js";
+} from "@core/application/notifications/MarkNotificationReadUseCase.js";
+import type { GetUnreadCountQuery } from "@core/application/notifications/GetUnreadCountQuery.js";
 import type { NotificationBroadcaster } from "../services/NotificationBroadcaster.js";
 import type { NotificationPreferenceRepository } from "../domain/repositories/NotificationRepository.js";
 import { NOTIFICATION_TYPES } from "../domain/value-objects/NotificationType.js";

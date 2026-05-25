@@ -17,8 +17,8 @@ import { createBullMQConsumerAdapter, QUEUE_NAMES } from "@adapters/queue-bullmq
 import type {
   ProcessBulkScheduleRowUseCase,
   ProcessBulkScheduleRowInput,
-} from "../application/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
-import type { FailBulkScheduleRowUseCase } from "../application/bulk-scheduling/FailBulkScheduleRowUseCase.js";
+} from "@core/application/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
+import type { FailBulkScheduleRowUseCase } from "@core/application/bulk-scheduling/FailBulkScheduleRowUseCase.js";
 
 /** Minimal logger surface (a pino child satisfies this structurally). */
 export interface BulkScheduleJobLogger {

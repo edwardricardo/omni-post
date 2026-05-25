@@ -7,7 +7,7 @@
  *              reply suggestions. A failed triage throws so the queue retries.
  * @layer infrastructure
  */
-import type { TriageInboxMessageUseCase } from "../../application/inbox/TriageInboxMessageUseCase.js";
+import type { TriageInboxMessageUseCase } from "@core/application/inbox/TriageInboxMessageUseCase.js";
 import type { RepurposeJobLogger } from "./repurposeGenerateHandler.js";
 
 export interface TriageInboxDeps {

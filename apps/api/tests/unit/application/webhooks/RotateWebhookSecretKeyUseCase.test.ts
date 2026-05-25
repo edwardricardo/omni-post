@@ -9,8 +9,8 @@
 
 import { describe, it, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { RotateWebhookSecretKeyUseCase } from "../../../../src/application/webhooks/RotateWebhookSecretKeyUseCase.js";
-import type { WebhookSubscriptionRotationRepository } from "../../../../src/application/webhooks/WebhookSubscriptionRotationRepository.js";
+import { RotateWebhookSecretKeyUseCase } from "@core/application/webhooks/RotateWebhookSecretKeyUseCase.js";
+import type { WebhookSubscriptionRotationRepository } from "@core/application/webhooks/WebhookSubscriptionRotationRepository.js";
 
 const SUB_ID = "sub-uuid-123";
 const FIXED_NOW = new Date("2026-05-06T12:00:00.000Z");

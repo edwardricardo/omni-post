@@ -6,8 +6,8 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { ok, err } from "@shared/types";
-import { DeleteStyleGuideRuleUseCase } from "../../../../src/application/style-guide/DeleteStyleGuideRuleUseCase.js";
-import { USE_CASE_ERRORS } from "../../../../src/application/UseCase.js";
+import { DeleteStyleGuideRuleUseCase } from "@core/application/style-guide/DeleteStyleGuideRuleUseCase.js";
+import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { StyleGuideRuleRepository } from "../../../../src/domain/repositories/StyleGuideRuleRepository.js";
 
 function makeRepo() {

@@ -6,7 +6,7 @@
  */
 
 import type { QueuePort } from "@ports/core";
-import type { RepurposeJobDispatcher } from "../../application/ai/DetectRepurposeCandidatesUseCase.js";
+import type { RepurposeJobDispatcher } from "@core/application/ai/DetectRepurposeCandidatesUseCase.js";
 
 export class BullMQRepurposeJobDispatcher implements RepurposeJobDispatcher {
   constructor(

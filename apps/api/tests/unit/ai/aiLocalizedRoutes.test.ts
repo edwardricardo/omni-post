@@ -28,7 +28,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { ok, err } from "@shared/types";
 import { Container } from "../../../src/infrastructure/container/Container.js";
 import { TOKENS } from "../../../src/infrastructure/container/types.js";
-import { UseCaseError, USE_CASE_ERRORS } from "../../../src/application/UseCase.js";
+import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 
 interface UseCaseStubs {
   generate: ReturnType<typeof vi.fn>;

@@ -9,7 +9,7 @@ import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import { prisma } from "@infra/prisma";
 import { SecretRotationLogPrismaReadRepository } from "../security/SecretRotationLogPrismaReadRepository.js";
-import { GetSecretRotationStatusQuery } from "../../application/security/GetSecretRotationStatusQuery.js";
+import { GetSecretRotationStatusQuery } from "@core/application/security/GetSecretRotationStatusQuery.js";
 
 export function setupSecretsRotationUseCases(container: Container): void {
   const repo = new SecretRotationLogPrismaReadRepository(prisma);

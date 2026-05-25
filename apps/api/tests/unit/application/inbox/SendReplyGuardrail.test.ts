@@ -11,9 +11,9 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import { ok } from "@shared/types";
-import { SendReplyUseCase } from "../../../../src/application/inbox/SendReplyUseCase.js";
-import { USE_CASE_ERRORS } from "../../../../src/application/UseCase.js";
-import { GuardrailRegistry } from "../../../../src/application/guardrails/GuardrailRegistry.js";
+import { SendReplyUseCase } from "@core/application/inbox/SendReplyUseCase.js";
+import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
+import { GuardrailRegistry } from "@core/application/guardrails/GuardrailRegistry.js";
 import type {
   GuardrailPort,
   GuardrailDecision,

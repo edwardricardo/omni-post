@@ -23,7 +23,7 @@ import {
   type EnterCrisisModeInput,
   type ExitCrisisModeInput,
   type GetCrisisStatusInput,
-} from "../../../../src/application/crisis/index.js";
+} from "@core/application/crisis/index.js";
 
 // Mock factories using test context
 function createMockProjectRepository() {

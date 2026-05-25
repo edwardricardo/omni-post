@@ -15,21 +15,21 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok } from "@shared/types";
-import { DetectTrendsUseCase } from "../../src/application/trends/DetectTrendsUseCase.js";
-import { FetchTrendingTopicsUseCase } from "../../src/application/trends/FetchTrendingTopicsUseCase.js";
-import { ScoreTrendRelevanceUseCase } from "../../src/application/trends/ScoreTrendRelevanceUseCase.js";
+import { DetectTrendsUseCase } from "@core/application/trends/DetectTrendsUseCase.js";
+import { FetchTrendingTopicsUseCase } from "@core/application/trends/FetchTrendingTopicsUseCase.js";
+import { ScoreTrendRelevanceUseCase } from "@core/application/trends/ScoreTrendRelevanceUseCase.js";
 import type {
   TrendingTopic,
   TrendingDataPort,
-} from "../../src/application/trends/FetchTrendingTopicsUseCase.js";
-import type { ScoreTrendContextPort } from "../../src/application/trends/ScoreTrendRelevanceUseCase.js";
+} from "@core/application/trends/FetchTrendingTopicsUseCase.js";
+import type { ScoreTrendContextPort } from "@core/application/trends/ScoreTrendRelevanceUseCase.js";
 import type { AIServicePort } from "../../src/domain/repositories/AIServicePort.js";
 import { trendScoringSpec } from "../../src/ai/structuredSchemas.js";
 import type {
   TrendRadarResultPort,
   TrendRadarUpsertInput,
   TrendRadarUpsertOutput,
-} from "../../src/application/trends/TrendRadarResultPort.js";
+} from "@core/application/trends/TrendRadarResultPort.js";
 import { InMemoryCacheAdapter } from "../../../../packages/adapters/cache-redis/src/in-memory-cache-adapter.js";
 
 /**

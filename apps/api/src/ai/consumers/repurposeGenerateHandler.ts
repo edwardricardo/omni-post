@@ -11,7 +11,7 @@
  * @layer infrastructure
  */
 import type { AgentOrchestrationPort } from "@ports/core";
-import type { RepurposeVariantPort } from "../../application/ai/GenerateRepurposeVariantsUseCase.js";
+import type { RepurposeVariantPort } from "@core/application/ai/GenerateRepurposeVariantsUseCase.js";
 
 /** Minimal logger surface (a pino child satisfies this structurally). */
 export interface RepurposeJobLogger {

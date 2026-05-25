@@ -6,7 +6,7 @@
  * @layer infrastructure
  */
 import { describe, it, expect, vi } from "vitest";
-import { GuardrailRegistry } from "../../../../src/application/guardrails/GuardrailRegistry.js";
+import { GuardrailRegistry } from "@core/application/guardrails/GuardrailRegistry.js";
 import type {
   GuardrailPort,
   GuardrailDecision,

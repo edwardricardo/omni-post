@@ -11,9 +11,9 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { SetFirstCommentUseCase } from "../application/first-comment/SetFirstCommentUseCase.js";
-import type { RemoveFirstCommentUseCase } from "../application/first-comment/RemoveFirstCommentUseCase.js";
-import type { GetFirstCommentQuery } from "../application/first-comment/GetFirstCommentQuery.js";
+import type { SetFirstCommentUseCase } from "@core/application/first-comment/SetFirstCommentUseCase.js";
+import type { RemoveFirstCommentUseCase } from "@core/application/first-comment/RemoveFirstCommentUseCase.js";
+import type { GetFirstCommentQuery } from "@core/application/first-comment/GetFirstCommentQuery.js";
 
 // --- Zod Schemas ---
 

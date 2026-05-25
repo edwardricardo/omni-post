@@ -18,8 +18,8 @@ import {
   type GetAnalyticsInput,
   type ComparePerformanceInput,
   type CalculateROIInput,
-} from "../../../src/application/analytics/index.js";
-import { USE_CASE_ERRORS } from "../../../src/application/UseCase.js";
+} from "@core/application/analytics/index.js";
+import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 
 function createMocks() {
   const mockCrossPlatformEngine = {

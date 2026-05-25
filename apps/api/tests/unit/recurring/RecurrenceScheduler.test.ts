@@ -13,7 +13,7 @@ import {
   RecurrenceScheduler,
   RECURRENCE_SCHEDULER_TASK_ID,
 } from "../../../src/recurring/RecurrenceScheduler.js";
-import { UseCaseError, USE_CASE_ERRORS } from "../../../src/application/UseCase.js";
+import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 
 function makeMockScheduler() {
   return {

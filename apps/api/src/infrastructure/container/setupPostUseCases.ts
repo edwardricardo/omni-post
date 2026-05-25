@@ -31,11 +31,11 @@ import {
   ArchivePostsBatchUseCase,
   HardDeletePostsBatchUseCase,
   DuplicatePostsBatchUseCase,
-} from "../../application/posts/index.js";
-import { ImportSchedulingCsvUseCase } from "../../application/bulk-scheduling/ImportSchedulingCsvUseCase.js";
-import { ProcessBulkScheduleRowUseCase } from "../../application/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
-import { FailBulkScheduleRowUseCase } from "../../application/bulk-scheduling/FailBulkScheduleRowUseCase.js";
-import { GetBulkScheduleBatchQuery } from "../../application/bulk-scheduling/GetBulkScheduleBatchQuery.js";
+} from "@core/application/posts/index.js";
+import { ImportSchedulingCsvUseCase } from "@core/application/bulk-scheduling/ImportSchedulingCsvUseCase.js";
+import { ProcessBulkScheduleRowUseCase } from "@core/application/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
+import { FailBulkScheduleRowUseCase } from "@core/application/bulk-scheduling/FailBulkScheduleRowUseCase.js";
+import { GetBulkScheduleBatchQuery } from "@core/application/bulk-scheduling/GetBulkScheduleBatchQuery.js";
 
 /**
  * Register all post use cases in the container

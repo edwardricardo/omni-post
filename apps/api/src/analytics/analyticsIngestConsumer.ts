@@ -15,8 +15,8 @@ import { createBullMQConsumerAdapter, QUEUE_NAMES } from "@adapters/queue-bullmq
 import {
   type IngestChannelAnalyticsUseCase,
   INGEST_ERRORS,
-} from "../application/analytics/IngestChannelAnalyticsUseCase.js";
-import type { UpdateChannelAuthStateUseCase } from "../application/channels/UpdateChannelAuthStateUseCase.js";
+} from "@core/application/analytics/IngestChannelAnalyticsUseCase.js";
+import type { UpdateChannelAuthStateUseCase } from "@core/application/channels/UpdateChannelAuthStateUseCase.js";
 
 /** Minimal logger surface (a pino child satisfies this structurally). */
 export interface AnalyticsIngestConsumerLogger {

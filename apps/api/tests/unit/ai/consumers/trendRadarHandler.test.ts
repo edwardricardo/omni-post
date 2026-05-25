@@ -8,7 +8,7 @@
 import { describe, it, expect } from "vitest";
 import assert from "node:assert/strict";
 import { ok, err } from "@shared/types";
-import type { DetectTrendsUseCase } from "../../../../src/application/trends/DetectTrendsUseCase.js";
+import type { DetectTrendsUseCase } from "@core/application/trends/DetectTrendsUseCase.js";
 import { processTrendRadarJob } from "../../../../src/ai/consumers/trendRadarHandler.js";
 
 function silentLogger() {

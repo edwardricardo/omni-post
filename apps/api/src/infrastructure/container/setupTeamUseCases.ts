@@ -25,22 +25,22 @@ import {
   UpdateApprovalWorkflowUseCase,
   DeleteApprovalWorkflowUseCase,
   ListApprovalWorkflowsQuery,
-} from "../../application/approvals/index.js";
+} from "@core/application/approvals/index.js";
 import {
   InviteTeamMemberUseCase,
   GetTeamMembersQuery,
   UpdateTeamMemberRoleUseCase,
   RemoveTeamMemberUseCase,
   SearchTeamMembersQuery,
-} from "../../application/team/index.js";
-import { NotifyMentionedUsersService } from "../../application/mentions/index.js";
-import type { CreateNotificationUseCase } from "../../application/notifications/index.js";
+} from "@core/application/team/index.js";
+import { NotifyMentionedUsersService } from "@core/application/mentions/index.js";
+import type { CreateNotificationUseCase } from "@core/application/notifications/index.js";
 import {
   CreateCommentUseCase,
   EditCommentUseCase,
   DeleteCommentUseCase,
   GetPostCommentsQuery,
-} from "../../application/comments/index.js";
+} from "@core/application/comments/index.js";
 
 /**
  * Register approval workflow, team member, and comment use cases

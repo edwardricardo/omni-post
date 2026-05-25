@@ -7,7 +7,7 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import type { TopPerformersQueryPort } from "../../application/ai/GetTopPerformersContextUseCase.js";
+import type { TopPerformersQueryPort } from "@core/application/ai/GetTopPerformersContextUseCase.js";
 
 export class PrismaTopPerformersQuery implements TopPerformersQueryPort {
   constructor(private readonly prisma: PrismaClient) {}

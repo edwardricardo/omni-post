@@ -9,7 +9,7 @@ import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import { prisma } from "@infra/prisma";
 import { PrismaWebhookSubscriptionRotationRepository } from "../repositories/PrismaWebhookSubscriptionRotationRepository.js";
-import { RotateWebhookSecretKeyUseCase } from "../../application/webhooks/RotateWebhookSecretKeyUseCase.js";
+import { RotateWebhookSecretKeyUseCase } from "@core/application/webhooks/RotateWebhookSecretKeyUseCase.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 
 export function setupWebhookAdminUseCases(container: Container): void {

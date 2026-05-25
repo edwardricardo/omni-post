@@ -13,15 +13,15 @@ import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
 // Use case / query types (type-only imports)
-import type { CreateMediaAssetUseCase } from "../application/assets/CreateMediaAssetUseCase.js";
-import type { UpdateMediaAssetUseCase } from "../application/assets/UpdateMediaAssetUseCase.js";
-import type { DeleteMediaAssetUseCase } from "../application/assets/DeleteMediaAssetUseCase.js";
-import type { TagMediaAssetUseCase } from "../application/assets/TagMediaAssetUseCase.js";
-import type { GetMediaAssetsQuery } from "../application/assets/GetMediaAssetsQuery.js";
-import type { CreateAssetTagUseCase } from "../application/assets/CreateAssetTagUseCase.js";
-import type { ListAssetTagsQuery } from "../application/assets/ListAssetTagsQuery.js";
-import type { CreateAssetFolderUseCase } from "../application/assets/CreateAssetFolderUseCase.js";
-import type { ImportFromGoogleDriveUseCase } from "../application/assets/ImportFromGoogleDriveUseCase.js";
+import type { CreateMediaAssetUseCase } from "@core/application/assets/CreateMediaAssetUseCase.js";
+import type { UpdateMediaAssetUseCase } from "@core/application/assets/UpdateMediaAssetUseCase.js";
+import type { DeleteMediaAssetUseCase } from "@core/application/assets/DeleteMediaAssetUseCase.js";
+import type { TagMediaAssetUseCase } from "@core/application/assets/TagMediaAssetUseCase.js";
+import type { GetMediaAssetsQuery } from "@core/application/assets/GetMediaAssetsQuery.js";
+import type { CreateAssetTagUseCase } from "@core/application/assets/CreateAssetTagUseCase.js";
+import type { ListAssetTagsQuery } from "@core/application/assets/ListAssetTagsQuery.js";
+import type { CreateAssetFolderUseCase } from "@core/application/assets/CreateAssetFolderUseCase.js";
+import type { ImportFromGoogleDriveUseCase } from "@core/application/assets/ImportFromGoogleDriveUseCase.js";
 import type { AssetTagRepository } from "../domain/repositories/AssetTagRepository.js";
 import type { AssetFolderRepository } from "../domain/repositories/AssetFolderRepository.js";
 

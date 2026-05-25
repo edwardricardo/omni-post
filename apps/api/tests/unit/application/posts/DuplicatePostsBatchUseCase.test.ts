@@ -8,8 +8,8 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok, err } from "@shared/types";
-import { DuplicatePostsBatchUseCase } from "../../../../src/application/posts/DuplicatePostsBatchUseCase.js";
-import { USE_CASE_ERRORS } from "../../../../src/application/UseCase.js";
+import { DuplicatePostsBatchUseCase } from "@core/application/posts/DuplicatePostsBatchUseCase.js";
+import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { PostAggregate, PostId, ProjectId } from "../../../../src/domain/index.js";
 import { EntityNotFoundError } from "../../../../src/domain/errors/index.js";
 

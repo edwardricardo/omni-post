@@ -9,7 +9,7 @@
 import { describe, it, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { ok, err, type Result } from "@shared/types";
-import { UpdateChannelAuthStateUseCase } from "../../../../src/application/channels/UpdateChannelAuthStateUseCase.js";
+import { UpdateChannelAuthStateUseCase } from "@core/application/channels/UpdateChannelAuthStateUseCase.js";
 import { Channel } from "../../../../src/domain/entities/Channel.js";
 import { ChannelId, ProjectId } from "../../../../src/domain/value-objects/EntityId.js";
 import { Provider } from "../../../../src/domain/value-objects/Provider.js";

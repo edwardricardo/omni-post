@@ -12,7 +12,7 @@ import { requireAdminAuth } from "./auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "../auth/rbacService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { GetSecretRotationStatusQuery } from "../application/security/GetSecretRotationStatusQuery.js";
+import type { GetSecretRotationStatusQuery } from "@core/application/security/GetSecretRotationStatusQuery.js";
 
 class SecretsRotationRouteHandler extends BaseRouteHandler {
   protected routeName = "secrets-rotation";

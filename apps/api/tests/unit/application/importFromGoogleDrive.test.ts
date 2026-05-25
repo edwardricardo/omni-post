@@ -8,7 +8,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { ImportFromGoogleDriveUseCase } from "../../../src/application/assets/ImportFromGoogleDriveUseCase.js";
+import { ImportFromGoogleDriveUseCase } from "@core/application/assets/ImportFromGoogleDriveUseCase.js";
 import { MediaAsset } from "../../../src/domain/entities/MediaAsset.js";
 import { type MediaAssetRepository } from "../../../src/domain/repositories/MediaAssetRepository.js";
 

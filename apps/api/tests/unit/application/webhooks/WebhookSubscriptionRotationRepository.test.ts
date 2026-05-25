@@ -13,7 +13,7 @@ import type {
   WebhookSubscriptionRotationRepository,
   WebhookSubscriptionForRotation,
   RotateWebhookSecretArgs,
-} from "../../../../src/application/webhooks/WebhookSubscriptionRotationRepository.js";
+} from "@core/application/webhooks/WebhookSubscriptionRotationRepository.js";
 
 describe("WebhookSubscriptionRotationRepository (port contract)", () => {
   it("accepts a minimal in-memory implementation that satisfies the interface", async () => {

@@ -7,7 +7,7 @@
  */
 
 import { describe, it, vi, expect } from "vitest";
-import { PredictOptimalTimingUseCase } from "../../../src/application/ml/PredictOptimalTimingUseCase.js";
+import { PredictOptimalTimingUseCase } from "@core/application/ml/PredictOptimalTimingUseCase.js";
 import type { AIServicePort } from "../../../src/domain/repositories/AIServicePort.js";
 
 function createMockAI(): AIServicePort {

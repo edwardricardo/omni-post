@@ -6,8 +6,8 @@
 
 import { describe, it, expect, vi } from "vitest";
 import assert from "node:assert/strict";
-import { GetOrCreateReferralCodeUseCase } from "../../../src/application/referral/GetOrCreateReferralCodeUseCase.js";
-import { TrackReferralSignupUseCase } from "../../../src/application/referral/TrackReferralSignupUseCase.js";
+import { GetOrCreateReferralCodeUseCase } from "@core/application/referral/GetOrCreateReferralCodeUseCase.js";
+import { TrackReferralSignupUseCase } from "@core/application/referral/TrackReferralSignupUseCase.js";
 
 function makeMockCodeRepo(
   existing: { code: string; usageCount: number; conversions: number } | null = null

@@ -14,7 +14,7 @@ import { MultiSourceTrendingDataAdapter } from "../../../../src/infrastructure/r
 import type {
   TrendingDataPort,
   TrendingTopic,
-} from "../../../../src/application/trends/FetchTrendingTopicsUseCase.js";
+} from "@core/application/trends/FetchTrendingTopicsUseCase.js";
 
 function topic(overrides: Partial<TrendingTopic>): TrendingTopic {
   return {

@@ -17,8 +17,8 @@ import { TOKENS } from "../../../src/infrastructure/container/types.js";
 import {
   UpdateChannelAuthStateUseCase,
   type UpdateChannelAuthStateOutput,
-} from "../../../src/application/channels/index.js";
-import { UseCaseError, USE_CASE_ERRORS } from "../../../src/application/UseCase.js";
+} from "@core/application/channels/index.js";
+import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 
 const VALID_CHANNEL_ID = "550e8400-e29b-41d4-a716-446655440001";
 

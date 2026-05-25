@@ -9,7 +9,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { SendEmailNotificationService } from "../../../src/application/notifications/SendEmailNotificationService.js";
+import { SendEmailNotificationService } from "@core/application/notifications/SendEmailNotificationService.js";
 import { ok } from "@shared/types";
 
 function makeMockMailer() {

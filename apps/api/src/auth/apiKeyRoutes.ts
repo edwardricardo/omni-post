@@ -21,11 +21,11 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { requireClientAuth } from "./customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { CreateApiKeyUseCase } from "../application/apiKeys/ApiKeyUseCases.js";
-import type { ValidateApiKeyUseCase } from "../application/apiKeys/ApiKeyUseCases.js";
-import type { ListApiKeysUseCase } from "../application/apiKeys/ApiKeyUseCases.js";
-import type { RotateApiKeyUseCase } from "../application/apiKeys/ApiKeyUseCases.js";
-import type { DeactivateApiKeyUseCase } from "../application/apiKeys/ApiKeyUseCases.js";
+import type { CreateApiKeyUseCase } from "@core/application/apiKeys/ApiKeyUseCases.js";
+import type { ValidateApiKeyUseCase } from "@core/application/apiKeys/ApiKeyUseCases.js";
+import type { ListApiKeysUseCase } from "@core/application/apiKeys/ApiKeyUseCases.js";
+import type { RotateApiKeyUseCase } from "@core/application/apiKeys/ApiKeyUseCases.js";
+import type { DeactivateApiKeyUseCase } from "@core/application/apiKeys/ApiKeyUseCases.js";
 import type { DomainApiKey } from "../domain/repositories/ApiKeyRepository.js";
 import { withTimeout, TimeoutError, USE_CASE_TIMEOUT_MS } from "../lib/withTimeout.js";
 

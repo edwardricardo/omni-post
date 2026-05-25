@@ -15,12 +15,12 @@ import { OutboxClaimService } from "../outbox/OutboxClaimService.js";
 import { OutboxBackoff } from "../outbox/OutboxBackoff.js";
 import { OutboxInbox } from "../outbox/OutboxInbox.js";
 import { hostname } from "os";
-import type { CrisisProjectRepository } from "../../application/crisis/types.js";
+import type { CrisisProjectRepository } from "@core/application/crisis/types.js";
 import {
   EnterCrisisModeUseCase,
   ExitCrisisModeUseCase,
   GetCrisisStatusUseCase,
-} from "../../application/crisis/index.js";
+} from "@core/application/crisis/index.js";
 import type { ScheduledReportRepository } from "../../domain/repositories/ScheduledReportRepository.js";
 import type { EmailPort } from "../../domain/repositories/EmailPort.js";
 import type { AnalyticsReadRepositoryPort } from "../../domain/repositories/AnalyticsReadRepository.js";
@@ -30,7 +30,7 @@ import {
   DeleteScheduledReportUseCase,
   ListScheduledReportsQuery as ListScheduledReportsQueryUC,
   GenerateReportUseCase,
-} from "../../application/reports/index.js";
+} from "@core/application/reports/index.js";
 
 /**
  * Register outbox relay/cleaner, crisis mode, and scheduled report use cases

@@ -10,19 +10,19 @@
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { ok } from "@shared/types";
-import { DetectTrendsUseCase } from "../../../../src/application/trends/DetectTrendsUseCase.js";
+import { DetectTrendsUseCase } from "@core/application/trends/DetectTrendsUseCase.js";
 import type {
   FetchTrendingTopicsUseCase,
   TrendingTopic,
-} from "../../../../src/application/trends/FetchTrendingTopicsUseCase.js";
+} from "@core/application/trends/FetchTrendingTopicsUseCase.js";
 import type {
   ScoreTrendRelevanceUseCase,
   ScoredTrend,
-} from "../../../../src/application/trends/ScoreTrendRelevanceUseCase.js";
+} from "@core/application/trends/ScoreTrendRelevanceUseCase.js";
 import type {
   TrendRadarResultPort,
   TrendRadarUpsertInput,
-} from "../../../../src/application/trends/TrendRadarResultPort.js";
+} from "@core/application/trends/TrendRadarResultPort.js";
 
 function makeFetch(topics: TrendingTopic[]): FetchTrendingTopicsUseCase {
   return {

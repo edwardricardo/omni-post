@@ -20,7 +20,7 @@ import {
   ListExternalNotificationsQuery,
   DeleteExternalNotificationUseCase,
   TestExternalNotificationUseCase,
-} from "../../application/external-notifications/index.js";
+} from "@core/application/external-notifications/index.js";
 
 /**
  * @method setupExternalNotificationUseCases

@@ -9,7 +9,7 @@
  */
 import { describe, it, vi } from "vitest";
 import assert from "node:assert/strict";
-import { GetTrendRadarQuery } from "../../../../src/application/trends/GetTrendRadarQuery.js";
+import { GetTrendRadarQuery } from "@core/application/trends/GetTrendRadarQuery.js";
 import type {
   TrendRadarQueryRepository,
   ScoredTrendDTO,

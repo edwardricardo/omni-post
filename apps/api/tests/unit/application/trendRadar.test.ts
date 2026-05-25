@@ -14,11 +14,11 @@ import {
   FetchTrendingTopicsUseCase,
   type TrendingDataPort,
   type TrendingTopic,
-} from "../../../src/application/trends/FetchTrendingTopicsUseCase.js";
+} from "@core/application/trends/FetchTrendingTopicsUseCase.js";
 import {
   ScoreTrendRelevanceUseCase,
   type ScoreTrendContextPort,
-} from "../../../src/application/trends/ScoreTrendRelevanceUseCase.js";
+} from "@core/application/trends/ScoreTrendRelevanceUseCase.js";
 import type { AIServicePort } from "../../../src/domain/repositories/AIServicePort.js";
 import { trendScoringSpec } from "../../../src/ai/structuredSchemas.js";
 import { InMemoryCacheAdapter } from "../../../../../packages/adapters/cache-redis/src/in-memory-cache-adapter.js";

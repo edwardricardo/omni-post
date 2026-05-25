@@ -17,7 +17,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok } from "@shared/types";
-import { TriageInboxMessageUseCase } from "../../src/application/inbox/TriageInboxMessageUseCase.js";
+import { TriageInboxMessageUseCase } from "@core/application/inbox/TriageInboxMessageUseCase.js";
 import type { AIServicePort } from "../../src/domain/repositories/AIServicePort.js";
 import type { TriageClassification } from "@core/domain/ai/AiStructuredOutputs.js";
 import { triageSpec } from "../../src/ai/structuredSchemas.js";

@@ -13,7 +13,7 @@ import type { QueuePort } from "@ports/core";
 import {
   ImportSchedulingCsvUseCase,
   MAX_BULK_SCHEDULE_ROWS,
-} from "../../../../src/application/bulk-scheduling/ImportSchedulingCsvUseCase.js";
+} from "@core/application/bulk-scheduling/ImportSchedulingCsvUseCase.js";
 import type { ProjectQueryRepositoryPort } from "../../../../src/domain/repositories/ProjectQueryRepository.js";
 import type {
   BulkScheduleBatchRepository,

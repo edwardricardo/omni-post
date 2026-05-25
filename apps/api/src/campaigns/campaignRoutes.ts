@@ -14,14 +14,14 @@ import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
 // Use case / query types (type-only imports)
-import type { CreateCampaignUseCase } from "../application/campaigns/CreateCampaignUseCase.js";
-import type { UpdateCampaignUseCase } from "../application/campaigns/UpdateCampaignUseCase.js";
-import type { ArchiveCampaignUseCase } from "../application/campaigns/ArchiveCampaignUseCase.js";
-import type { TagPostWithCampaignUseCase } from "../application/campaigns/TagPostWithCampaignUseCase.js";
-import type { UntagPostFromCampaignUseCase } from "../application/campaigns/UntagPostFromCampaignUseCase.js";
-import type { GetCampaignAnalyticsUseCase } from "../application/campaigns/GetCampaignAnalyticsUseCase.js";
-import type { ListCampaignsQuery } from "../application/campaigns/ListCampaignsQuery.js";
-import type { GetCampaignQuery } from "../application/campaigns/GetCampaignQuery.js";
+import type { CreateCampaignUseCase } from "@core/application/campaigns/CreateCampaignUseCase.js";
+import type { UpdateCampaignUseCase } from "@core/application/campaigns/UpdateCampaignUseCase.js";
+import type { ArchiveCampaignUseCase } from "@core/application/campaigns/ArchiveCampaignUseCase.js";
+import type { TagPostWithCampaignUseCase } from "@core/application/campaigns/TagPostWithCampaignUseCase.js";
+import type { UntagPostFromCampaignUseCase } from "@core/application/campaigns/UntagPostFromCampaignUseCase.js";
+import type { GetCampaignAnalyticsUseCase } from "@core/application/campaigns/GetCampaignAnalyticsUseCase.js";
+import type { ListCampaignsQuery } from "@core/application/campaigns/ListCampaignsQuery.js";
+import type { GetCampaignQuery } from "@core/application/campaigns/GetCampaignQuery.js";
 
 // ============================================================================
 // Zod Validation Schemas

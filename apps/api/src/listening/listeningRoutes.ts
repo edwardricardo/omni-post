@@ -12,8 +12,8 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { GetShareOfVoiceQuery } from "../application/listening/GetShareOfVoiceQuery.js";
-import type { ListMentionsQuery } from "../application/listening/ListMentionsQuery.js";
+import type { GetShareOfVoiceQuery } from "@core/application/listening/GetShareOfVoiceQuery.js";
+import type { ListMentionsQuery } from "@core/application/listening/ListMentionsQuery.js";
 
 // ============================================================================
 // Zod Validation Schemas

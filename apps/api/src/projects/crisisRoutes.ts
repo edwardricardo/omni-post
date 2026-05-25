@@ -10,9 +10,9 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { IdSchema } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { EnterCrisisModeUseCase } from "../application/crisis/EnterCrisisModeUseCase.js";
-import type { ExitCrisisModeUseCase } from "../application/crisis/ExitCrisisModeUseCase.js";
-import type { GetCrisisStatusUseCase } from "../application/crisis/GetCrisisStatusUseCase.js";
+import type { EnterCrisisModeUseCase } from "@core/application/crisis/EnterCrisisModeUseCase.js";
+import type { ExitCrisisModeUseCase } from "@core/application/crisis/ExitCrisisModeUseCase.js";
+import type { GetCrisisStatusUseCase } from "@core/application/crisis/GetCrisisStatusUseCase.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 
 // Zod Schemas

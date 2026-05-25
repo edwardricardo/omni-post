@@ -10,11 +10,11 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { InviteTeamMemberUseCase } from "../application/team/InviteTeamMemberUseCase.js";
-import type { GetTeamMembersQuery } from "../application/team/GetTeamMembersQuery.js";
-import type { UpdateTeamMemberRoleUseCase } from "../application/team/UpdateTeamMemberRoleUseCase.js";
-import type { RemoveTeamMemberUseCase } from "../application/team/RemoveTeamMemberUseCase.js";
-import type { SearchTeamMembersQuery } from "../application/team/SearchTeamMembersQuery.js";
+import type { InviteTeamMemberUseCase } from "@core/application/team/InviteTeamMemberUseCase.js";
+import type { GetTeamMembersQuery } from "@core/application/team/GetTeamMembersQuery.js";
+import type { UpdateTeamMemberRoleUseCase } from "@core/application/team/UpdateTeamMemberRoleUseCase.js";
+import type { RemoveTeamMemberUseCase } from "@core/application/team/RemoveTeamMemberUseCase.js";
+import type { SearchTeamMembersQuery } from "@core/application/team/SearchTeamMembersQuery.js";
 
 // --- Zod Schemas ---
 

@@ -7,7 +7,7 @@
  */
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { FailBulkScheduleRowUseCase } from "../../../../src/application/bulk-scheduling/FailBulkScheduleRowUseCase.js";
+import { FailBulkScheduleRowUseCase } from "@core/application/bulk-scheduling/FailBulkScheduleRowUseCase.js";
 import type { BulkScheduleBatchRepository } from "../../../../src/domain/repositories/BulkScheduleBatchRepository.js";
 import type { UnitOfWork } from "../../../../src/domain/repositories/Repository.js";
 

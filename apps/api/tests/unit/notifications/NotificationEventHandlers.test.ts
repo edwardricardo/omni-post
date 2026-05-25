@@ -12,11 +12,11 @@ import { ok } from "@shared/types";
 import {
   NotificationEventHandlers,
   type NotificationEventContext,
-} from "../../../src/application/notifications/handlers/NotificationEventHandlers.js";
+} from "@core/application/notifications/handlers/NotificationEventHandlers.js";
 import type {
   CreateNotificationInput,
   CreateNotificationOutput,
-} from "../../../src/application/notifications/CreateNotificationUseCase.js";
+} from "@core/application/notifications/CreateNotificationUseCase.js";
 
 // ---------------------------------------------------------------------------
 // Mock CreateNotificationUseCase
@@ -40,7 +40,7 @@ function createMockUseCase() {
     // Cast to satisfy the constructor signature
     useCase: {
       execute,
-    } as unknown as import("../../../src/application/notifications/CreateNotificationUseCase.js").CreateNotificationUseCase,
+    } as unknown as import("@core/application/notifications/CreateNotificationUseCase.js").CreateNotificationUseCase,
     calls,
   };
 }

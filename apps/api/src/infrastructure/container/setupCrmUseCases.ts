@@ -13,12 +13,12 @@ import { PrismaCrmContactRepository } from "../repositories/PrismaCrmContactRepo
 import { PrismaCrmActivityRepository } from "../repositories/PrismaCrmActivityRepository.js";
 import { PrismaCrmSyncLogRepository } from "../repositories/PrismaCrmSyncLogRepository.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
-import { ConnectCrmUseCase } from "../../application/crm/ConnectCrmUseCase.js";
-import { DisconnectCrmUseCase } from "../../application/crm/DisconnectCrmUseCase.js";
-import { GetCrmConnectionsQuery } from "../../application/crm/GetCrmConnectionsQuery.js";
-import { SyncCrmContactsUseCase } from "../../application/crm/SyncCrmContactsUseCase.js";
-import { LogCrmActivityUseCase } from "../../application/crm/LogCrmActivityUseCase.js";
-import { GetCrmSyncLogsQuery } from "../../application/crm/GetCrmSyncLogsQuery.js";
+import { ConnectCrmUseCase } from "@core/application/crm/ConnectCrmUseCase.js";
+import { DisconnectCrmUseCase } from "@core/application/crm/DisconnectCrmUseCase.js";
+import { GetCrmConnectionsQuery } from "@core/application/crm/GetCrmConnectionsQuery.js";
+import { SyncCrmContactsUseCase } from "@core/application/crm/SyncCrmContactsUseCase.js";
+import { LogCrmActivityUseCase } from "@core/application/crm/LogCrmActivityUseCase.js";
+import { GetCrmSyncLogsQuery } from "@core/application/crm/GetCrmSyncLogsQuery.js";
 
 export function setupCrmUseCases(container: Container): void {
   const connRepo = new PrismaCrmConnectionRepository(prisma);

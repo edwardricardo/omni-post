@@ -14,13 +14,13 @@ import {
   PUBLISH_STATUS,
 } from "../../../src/domain/index.js";
 import { EntityNotFoundError } from "../../../src/domain/errors/index.js";
-import { CreatePostUseCase } from "../../../src/application/posts/CreatePostUseCase.js";
-import { UpdatePostUseCase } from "../../../src/application/posts/UpdatePostUseCase.js";
-import { SchedulePostUseCase } from "../../../src/application/posts/SchedulePostUseCase.js";
-import { DeletePostUseCase } from "../../../src/application/posts/DeletePostUseCase.js";
-import { GetPostUseCase } from "../../../src/application/posts/GetPostUseCase.js";
-import { ListPostsUseCase } from "../../../src/application/posts/ListPostsUseCase.js";
-import { USE_CASE_ERRORS } from "../../../src/application/UseCase.js";
+import { CreatePostUseCase } from "@core/application/posts/CreatePostUseCase.js";
+import { UpdatePostUseCase } from "@core/application/posts/UpdatePostUseCase.js";
+import { SchedulePostUseCase } from "@core/application/posts/SchedulePostUseCase.js";
+import { DeletePostUseCase } from "@core/application/posts/DeletePostUseCase.js";
+import { GetPostUseCase } from "@core/application/posts/GetPostUseCase.js";
+import { ListPostsUseCase } from "@core/application/posts/ListPostsUseCase.js";
+import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 
 // Mock business metrics — they call Prometheus which may not be initialized
 vi.mock("../../../src/metrics/businessMetrics.js", () => ({

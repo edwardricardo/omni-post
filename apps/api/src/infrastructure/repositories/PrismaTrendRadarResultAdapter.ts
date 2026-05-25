@@ -15,7 +15,7 @@ import type {
   TrendRadarResultPort,
   TrendRadarUpsertInput,
   TrendRadarUpsertOutput,
-} from "../../application/trends/TrendRadarResultPort.js";
+} from "@core/application/trends/TrendRadarResultPort.js";
 
 const RETENTION_DAYS = 30;
 const RETENTION_MS = RETENTION_DAYS * 24 * 60 * 60 * 1000;

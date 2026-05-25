@@ -18,11 +18,11 @@ import {
   GetCrossPlatformAnalyticsUseCase,
   ComparePerformanceUseCase,
   CalculateROIUseCase,
-} from "../../application/analytics/index.js";
+} from "@core/application/analytics/index.js";
 import { CrossPlatformAnalyticsAdapter } from "../adapters/CrossPlatformAnalyticsAdapter.js";
 import { PerformanceComparatorAdapter } from "../adapters/PerformanceComparatorAdapter.js";
 import { ROICalculatorAdapter } from "../adapters/ROICalculatorAdapter.js";
-import { OptimizeContentUseCase, PredictOptimalTimingUseCase } from "../../application/ml/index.js";
+import { OptimizeContentUseCase, PredictOptimalTimingUseCase } from "@core/application/ml/index.js";
 import {
   CreateCampaignUseCase,
   UpdateCampaignUseCase,
@@ -32,21 +32,21 @@ import {
   GetCampaignAnalyticsUseCase,
   ListCampaignsQuery,
   GetCampaignQuery,
-} from "../../application/campaigns/index.js";
-import { GetHistoricalAnalyticsQuery } from "../../application/analytics/GetHistoricalAnalyticsQuery.js";
-import { GenerateUTMLinksUseCase } from "../../application/utm/index.js";
+} from "@core/application/campaigns/index.js";
+import { GetHistoricalAnalyticsQuery } from "@core/application/analytics/GetHistoricalAnalyticsQuery.js";
+import { GenerateUTMLinksUseCase } from "@core/application/utm/index.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import type { AnalyticsWriteRepository } from "../../domain/repositories/AnalyticsWriteRepository.js";
 import type { ChannelQueryForIngestion } from "../../domain/repositories/ChannelQueryForIngestion.js";
-import { IngestChannelAnalyticsUseCase } from "../../application/analytics/IngestChannelAnalyticsUseCase.js";
-import { DispatchAnalyticsIngestionUseCase } from "../../application/analytics/DispatchAnalyticsIngestionUseCase.js";
+import { IngestChannelAnalyticsUseCase } from "@core/application/analytics/IngestChannelAnalyticsUseCase.js";
+import { DispatchAnalyticsIngestionUseCase } from "@core/application/analytics/DispatchAnalyticsIngestionUseCase.js";
 import { PrismaAnalyticsWriteRepository } from "../repositories/PrismaAnalyticsWriteRepository.js";
 import { PrismaChannelQueryForIngestion } from "../repositories/PrismaChannelQueryForIngestion.js";
 import { PrismaTopPerformersQuery } from "../repositories/PrismaTopPerformersQuery.js";
 import {
   GetTopPerformersContextUseCase,
   type TopPerformersQueryPort,
-} from "../../application/ai/GetTopPerformersContextUseCase.js";
+} from "@core/application/ai/GetTopPerformersContextUseCase.js";
 import type { PrismaClient } from "@infra/prisma";
 import type { QueuePortRegistry } from "@ports/core";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";

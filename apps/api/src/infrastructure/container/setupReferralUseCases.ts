@@ -17,14 +17,14 @@ import { PrismaGrantRewardRepository } from "../repositories/PrismaGrantRewardRe
 import { PrismaReferralRepository } from "../repositories/PrismaReferralRepository.js";
 import { PrismaReferralCodeRepository } from "../repositories/PrismaReferralCodeRepository.js";
 
-import type { ConvertReferralRepository } from "../../application/referral/ConvertReferralUseCase.js";
-import { ConvertReferralUseCase } from "../../application/referral/ConvertReferralUseCase.js";
-import type { GrantRewardRepository } from "../../application/referral/GrantReferralRewardUseCase.js";
-import { GrantReferralRewardUseCase } from "../../application/referral/GrantReferralRewardUseCase.js";
-import type { ReferralRepository } from "../../application/referral/TrackReferralSignupUseCase.js";
-import { TrackReferralSignupUseCase } from "../../application/referral/TrackReferralSignupUseCase.js";
-import type { ReferralCodeRepository } from "../../application/referral/GetOrCreateReferralCodeUseCase.js";
-import { GetOrCreateReferralCodeUseCase } from "../../application/referral/GetOrCreateReferralCodeUseCase.js";
+import type { ConvertReferralRepository } from "@core/application/referral/ConvertReferralUseCase.js";
+import { ConvertReferralUseCase } from "@core/application/referral/ConvertReferralUseCase.js";
+import type { GrantRewardRepository } from "@core/application/referral/GrantReferralRewardUseCase.js";
+import { GrantReferralRewardUseCase } from "@core/application/referral/GrantReferralRewardUseCase.js";
+import type { ReferralRepository } from "@core/application/referral/TrackReferralSignupUseCase.js";
+import { TrackReferralSignupUseCase } from "@core/application/referral/TrackReferralSignupUseCase.js";
+import type { ReferralCodeRepository } from "@core/application/referral/GetOrCreateReferralCodeUseCase.js";
+import { GetOrCreateReferralCodeUseCase } from "@core/application/referral/GetOrCreateReferralCodeUseCase.js";
 
 /**
  * @method setupReferralUseCases

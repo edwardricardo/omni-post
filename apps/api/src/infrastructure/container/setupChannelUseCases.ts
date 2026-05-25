@@ -9,7 +9,7 @@ import { TOKENS } from "./types.js";
 import {
   SetPrimaryChannelUseCase,
   UpdateChannelAuthStateUseCase,
-} from "../../application/channels/index.js";
+} from "@core/application/channels/index.js";
 import type { ChannelRepository } from "../../domain/repositories/ChannelRepository.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 

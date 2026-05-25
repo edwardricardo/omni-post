@@ -16,9 +16,9 @@ import {
   processBulkScheduleRowJob,
   handleBulkScheduleRowFailure,
 } from "../../../src/bulk-scheduling/bulkScheduleWorker.js";
-import { UseCaseError, USE_CASE_ERRORS } from "../../../src/application/UseCase.js";
-import type { ProcessBulkScheduleRowUseCase } from "../../../src/application/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
-import type { FailBulkScheduleRowUseCase } from "../../../src/application/bulk-scheduling/FailBulkScheduleRowUseCase.js";
+import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
+import type { ProcessBulkScheduleRowUseCase } from "@core/application/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
+import type { FailBulkScheduleRowUseCase } from "@core/application/bulk-scheduling/FailBulkScheduleRowUseCase.js";
 
 const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
