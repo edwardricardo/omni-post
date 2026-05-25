@@ -284,6 +284,7 @@ export const TOKENS = {
   ScheduledReportRepository: Symbol.for("ScheduledReportRepository"),
   EmailPort: Symbol.for("EmailPort"),
   PasswordHasher: Symbol.for("PasswordHasher"),
+  CustomerTokenService: Symbol.for("CustomerTokenService"),
   ReferralRewardMailer: Symbol.for("ReferralRewardMailer"),
   WelcomeMailer: Symbol.for("WelcomeMailer"),
   TeamInvitationMailer: Symbol.for("TeamInvitationMailer"),

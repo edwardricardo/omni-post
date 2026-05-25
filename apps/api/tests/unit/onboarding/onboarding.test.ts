@@ -5,10 +5,15 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { RegisterCustomerUseCase } from "../../../src/application/customer-auth/RegisterCustomerUseCase.js";
+import { Argon2PasswordHasher } from "../../../src/infrastructure/adapters/Argon2PasswordHasher.js";
+import { CustomerTokenServiceAdapter } from "../../../src/infrastructure/adapters/CustomerTokenServiceAdapter.js";
 import type { CustomerUserRepository } from "../../../src/domain/repositories/CustomerUserRepository.js";
 import type { AccountRepositoryPort } from "../../../src/domain/repositories/AccountRepository.js";
 import type { WelcomeMailer } from "@core/domain/repositories/WelcomeMailer.js";
-import type { PlatformCredentialService } from "../../../src/security/PlatformCredentialService.js";
+import type { PlatformCredentialReader } from "@core/domain/repositories/PlatformCredentialReader.js";
+
+const hasher = new Argon2PasswordHasher();
+const tokenService = new CustomerTokenServiceAdapter();
 
 function makeMockCustomerUserRepo(): CustomerUserRepository {
   return {
@@ -30,13 +35,13 @@ function makeMockWelcomeMailer(): WelcomeMailer {
   return { sendWelcome: vi.fn().mockResolvedValue({ ok: true, value: undefined }) };
 }
 
-function makeMockCredentialService(): PlatformCredentialService {
+function makeMockCredentialService(): PlatformCredentialReader {
   return {
-    getGroup: vi.fn().mockResolvedValue({
+    getPlatformCredentials: vi.fn().mockResolvedValue({
       ok: true,
       value: { baseUrl: "https://app.test.io", supportEmail: "help@test.io" },
     }),
-  } as unknown as PlatformCredentialService;
+  };
 }
 
 const validInput = {
@@ -50,7 +55,7 @@ const validInput = {
 
 describe("Welcome email on registration", () => {
   let welcomeMailer: WelcomeMailer;
-  let credService: PlatformCredentialService;
+  let credService: PlatformCredentialReader;
 
   function makeMockCustomerRoleRepo() {
     return {
@@ -79,6 +84,8 @@ describe("Welcome email on registration", () => {
       makeMockCustomerUserRepo(),
       makeMockCustomerRoleRepo(),
       makeMockAccountRepo(),
+      hasher,
+      tokenService,
       undefined,
       undefined,
       welcomeMailer,
@@ -105,6 +112,8 @@ describe("Welcome email on registration", () => {
       makeMockCustomerUserRepo(),
       makeMockCustomerRoleRepo(),
       makeMockAccountRepo(),
+      hasher,
+      tokenService,
       undefined,
       undefined,
       failingMailer,
@@ -124,6 +133,8 @@ describe("Welcome email on registration", () => {
       makeMockCustomerUserRepo(),
       makeMockCustomerRoleRepo(),
       makeMockAccountRepo(),
+      hasher,
+      tokenService,
       undefined,
       undefined,
       welcomeMailer,
@@ -133,7 +144,7 @@ describe("Welcome email on registration", () => {
     await useCase.execute(validInput);
     await new Promise((r) => setTimeout(r, 50));
 
-    expect(credService.getGroup).toHaveBeenCalledWith("PLATFORM");
+    expect(credService.getPlatformCredentials).toHaveBeenCalled();
     expect(welcomeMailer.sendWelcome).toHaveBeenCalledWith(
       "john@test.com",
       expect.objectContaining({ onboardingUrl: expect.stringContaining("https://app.test.io") })
@@ -144,7 +155,9 @@ describe("Welcome email on registration", () => {
     const useCase = new RegisterCustomerUseCase(
       makeMockCustomerUserRepo(),
       makeMockCustomerRoleRepo(),
-      makeMockAccountRepo()
+      makeMockAccountRepo(),
+      hasher,
+      tokenService
     );
 
     const result = await useCase.execute(validInput);

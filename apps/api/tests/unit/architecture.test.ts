@@ -112,9 +112,7 @@ function findFirstViolation(lines: string[], forbiddenPatterns: RegExp[]): strin
 // ---------------------------------------------------------------------------
 
 const APPLICATION_EXCEPTIONS: Set<string> = new Set([
-  // Billing migration: RegisterCustomerUseCase directly uses prisma for
-  // account creation during the provider-based billing transition.
-  "application/customer-auth/RegisterCustomerUseCase.ts",
+  // No current exceptions — every application file satisfies the layering rules.
 ]);
 
 // ---------------------------------------------------------------------------

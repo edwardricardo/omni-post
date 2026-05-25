@@ -8,6 +8,7 @@
  */
 import { ok, err, type Result } from "@shared/types";
 import type { PrismaClient, CredentialGroup, AccountCredentialGroup } from "@infra/prisma";
+import type { PlatformCredentialReader } from "@core/domain/repositories/PlatformCredentialReader.js";
 import type { EncryptionService } from "./EncryptionService.js";
 
 type CredentialError = "NOT_FOUND" | "ENCRYPTION_ERROR" | "DATABASE_ERROR";
@@ -16,8 +17,10 @@ type CredentialError = "NOT_FOUND" | "ENCRYPTION_ERROR" | "DATABASE_ERROR";
  * @class PlatformCredentialService
  * @description Encrypted credential storage for platform-wide and per-account secrets.
  *   Receives EncryptionService and PrismaClient via constructor injection.
+ *   Implements the narrow `PlatformCredentialReader` port so application use
+ *   cases can read the platform group without depending on the full service.
  */
-export class PlatformCredentialService {
+export class PlatformCredentialService implements PlatformCredentialReader {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly encryption: EncryptionService
@@ -155,6 +158,16 @@ export class PlatformCredentialService {
     } catch {
       return err("ENCRYPTION_ERROR");
     }
+  }
+
+  /**
+   * @method getPlatformCredentials
+   * @description Reads the decrypted key/value pairs of the platform-wide
+   *   credential group. Implements the `PlatformCredentialReader` port.
+   * @returns Result with the decrypted platform credentials or an error code
+   */
+  getPlatformCredentials(): Promise<Result<Record<string, string>, CredentialError>> {
+    return this.getGroup("PLATFORM");
   }
 
   /**

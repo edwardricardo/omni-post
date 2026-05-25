@@ -10,13 +10,16 @@ import type { PrismaClient } from "@infra/prisma";
 
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
+import { env } from "../../config/env.js";
 import type { CustomerUserRepository } from "../../domain/repositories/CustomerUserRepository.js";
 import type { CustomerRoleRepository } from "../../domain/repositories/CustomerRoleRepository.js";
 import type { AccountRepositoryPort } from "../../domain/repositories/AccountRepository.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import type { EmailPort } from "../../domain/repositories/EmailPort.js";
 import type { WelcomeMailer } from "@core/domain/repositories/WelcomeMailer.js";
-import type { PlatformCredentialService } from "../../security/PlatformCredentialService.js";
+import type { PasswordHasher } from "@core/domain/repositories/PasswordHasher.js";
+import type { CustomerTokenService } from "@core/domain/repositories/CustomerTokenService.js";
+import type { PlatformCredentialReader } from "@core/domain/repositories/PlatformCredentialReader.js";
 import { PrismaAccountSubscriptionAdapter } from "../repositories/PrismaAccountSubscriptionAdapter.js";
 import { PrismaCustomerUserRepository } from "../repositories/PrismaCustomerUserRepository.js";
 import { PrismaCustomerRoleRepository } from "../repositories/PrismaCustomerRoleRepository.js";
@@ -55,10 +58,12 @@ export function setupCustomerAuthUseCases(container: Container): void {
         container.resolve<CustomerUserRepository>(TOKENS.CustomerUserRepository),
         container.resolve<CustomerRoleRepository>(TOKENS.CustomerRoleRepository),
         container.resolve<AccountRepositoryPort>(TOKENS.AccountRepository),
+        container.resolve<PasswordHasher>(TOKENS.PasswordHasher),
+        container.resolve<CustomerTokenService>(TOKENS.CustomerTokenService),
         new PrismaAccountSubscriptionAdapter(container.resolve<PrismaClient>(TOKENS.PrismaClient)),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
         container.resolve<WelcomeMailer>(TOKENS.WelcomeMailer),
-        container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService)
+        container.resolve<PlatformCredentialReader>(TOKENS.PlatformCredentialService)
       ),
     true
   );
@@ -69,7 +74,9 @@ export function setupCustomerAuthUseCases(container: Container): void {
     () =>
       new LoginCustomerUseCase(
         container.resolve<CustomerUserRepository>(TOKENS.CustomerUserRepository),
-        container.resolve<AccountRepositoryPort>(TOKENS.AccountRepository)
+        container.resolve<AccountRepositoryPort>(TOKENS.AccountRepository),
+        container.resolve<PasswordHasher>(TOKENS.PasswordHasher),
+        container.resolve<CustomerTokenService>(TOKENS.CustomerTokenService)
       ),
     true
   );
@@ -80,7 +87,8 @@ export function setupCustomerAuthUseCases(container: Container): void {
     () =>
       new RefreshCustomerTokenUseCase(
         container.resolve<CustomerUserRepository>(TOKENS.CustomerUserRepository),
-        container.resolve<CachePort>(TOKENS.CachePort)
+        container.resolve<CachePort>(TOKENS.CachePort),
+        container.resolve<CustomerTokenService>(TOKENS.CustomerTokenService)
       ),
     true
   );
@@ -89,7 +97,11 @@ export function setupCustomerAuthUseCases(container: Container): void {
   // sessionId via CachePort so subsequent refresh attempts are rejected.
   container.register<LogoutCustomerUseCase>(
     TOKENS.LogoutCustomerUseCase,
-    () => new LogoutCustomerUseCase(container.resolve<CachePort>(TOKENS.CachePort)),
+    () =>
+      new LogoutCustomerUseCase(
+        container.resolve<CachePort>(TOKENS.CachePort),
+        container.resolve<CustomerTokenService>(TOKENS.CustomerTokenService)
+      ),
     true
   );
 
@@ -99,6 +111,7 @@ export function setupCustomerAuthUseCases(container: Container): void {
     () =>
       new RequestPasswordResetUseCase(
         container.resolve<CustomerUserRepository>(TOKENS.CustomerUserRepository),
+        env.CLIENT_URL ?? "http://localhost:3200",
         container.resolve<EmailPort>(TOKENS.EmailPort),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
@@ -111,6 +124,7 @@ export function setupCustomerAuthUseCases(container: Container): void {
     () =>
       new ResetPasswordUseCase(
         container.resolve<CustomerUserRepository>(TOKENS.CustomerUserRepository),
+        container.resolve<PasswordHasher>(TOKENS.PasswordHasher),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true

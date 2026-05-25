@@ -46,6 +46,8 @@ export * from "./repositories/BusinessMetricsPort.js";
 export * from "./repositories/GuardrailMetricsPort.js";
 export * from "./repositories/ImageGenerationPort.js";
 export * from "./repositories/PasswordHasher.js";
+export * from "./repositories/CustomerTokenService.js";
+export * from "./repositories/PlatformCredentialReader.js";
 export * from "./repositories/ReferralRewardMailer.js";
 export * from "./repositories/WelcomeMailer.js";
 export * from "./repositories/TeamInvitationMailer.js";

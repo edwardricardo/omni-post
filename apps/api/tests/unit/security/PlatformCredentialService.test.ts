@@ -162,6 +162,33 @@ describe("PlatformCredentialService", () => {
     });
   });
 
+  describe("getPlatformCredentials (PlatformCredentialReader port)", () => {
+    it("reads the PLATFORM group as a decrypted key-value map", async () => {
+      (mockPrisma.platformCredential.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([
+        { key: "baseUrl", encryptedValue: "e1", iv: "i1", authTag: "t1" },
+        { key: "supportEmail", encryptedValue: "e2", iv: "i2", authTag: "t2" },
+      ]);
+
+      const result = await service.getPlatformCredentials();
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value).toHaveProperty("baseUrl");
+        expect(result.value).toHaveProperty("supportEmail");
+      }
+      // Scoped to the PLATFORM group only.
+      expect(mockPrisma.platformCredential.findMany).toHaveBeenCalledWith({
+        where: { group: "PLATFORM", isActive: true },
+      });
+    });
+
+    it("returns empty object when the PLATFORM group has no credentials", async () => {
+      const result = await service.getPlatformCredentials();
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.value).toEqual({});
+    });
+  });
+
   describe("deleteCredential", () => {
     it("deletes from DB and writes audit log", async () => {
       const result = await service.deleteCredential("STRIPE", "secretKey", "admin-1");

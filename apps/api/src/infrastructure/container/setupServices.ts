@@ -79,6 +79,8 @@ import type { BusinessMetricsPort } from "@core/domain/repositories/BusinessMetr
 import { PrometheusBusinessMetricsAdapter } from "../adapters/PrometheusBusinessMetricsAdapter.js";
 import type { PasswordHasher } from "@core/domain/repositories/PasswordHasher.js";
 import { Argon2PasswordHasher } from "../adapters/Argon2PasswordHasher.js";
+import type { CustomerTokenService } from "@core/domain/repositories/CustomerTokenService.js";
+import { CustomerTokenServiceAdapter } from "../adapters/CustomerTokenServiceAdapter.js";
 import type { ReferralRewardMailer } from "@core/domain/repositories/ReferralRewardMailer.js";
 import type { WelcomeMailer } from "@core/domain/repositories/WelcomeMailer.js";
 import type { TeamInvitationMailer } from "@core/domain/repositories/TeamInvitationMailer.js";
@@ -653,6 +655,13 @@ export function setupServices(
 
   // Register PasswordHasher (Argon2id; backs passwords + API keys + backup codes)
   container.register<PasswordHasher>(TOKENS.PasswordHasher, () => new Argon2PasswordHasher(), true);
+
+  // Register CustomerTokenService (HS256 JWT; backs customer auth token lifecycle)
+  container.register<CustomerTokenService>(
+    TOKENS.CustomerTokenService,
+    () => new CustomerTokenServiceAdapter(),
+    true
+  );
 
   // Register the transactional-email role ports (one adapter backs all four).
   const transactionalEmailAdapter = () =>
