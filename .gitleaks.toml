@@ -120,6 +120,17 @@ placeholder convention. No real tokens.
 paths = ['''\.claude/agents/dx-documentation-manager\.md''']
 regexes = ['''Bearer YOUR_API_KEY''']
 
+[[allowlists]]
+description = """
+The application migration roadmap prose names the use-case class
+`GenerateIntegrationApiKey` (file `apps/api/src/application/integrations/
+GenerateIntegrationApiKeyUseCase.ts`). The default generic-api-key rule
+flags the `...IntegrationApiKey` substring by shape/entropy. It is a class
+identifier in documentation, not a credential.
+"""
+paths = ['''docs/architecture/APPLICATION_MIGRATION_ROADMAP_ES\.md''']
+regexes = ['''GenerateIntegrationApiKey''']
+
 # ─── Historic placeholder/fixture commits (audited 2026-05-20) ──────────
 #
 # These six commits contain placeholder / fixture / docs-example strings
