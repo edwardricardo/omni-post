@@ -105,3 +105,22 @@ export * from "./repositories/CrmConnectionRepository.js";
 export * from "./repositories/CrmContactRepository.js";
 export * from "./repositories/CrmActivityRepository.js";
 export * from "./repositories/CrmSyncLogRepository.js";
+
+// Approvals, campaigns, assets, custom reports (value objects, entities, aggregate, ports)
+export * from "./value-objects/ApprovalRequestId.js";
+export * from "./value-objects/ApprovalStatus.js";
+export * from "./value-objects/ReviewDecision.js";
+export * from "./value-objects/CampaignStatus.js";
+export * from "./entities/ApprovalWorkflow.js";
+export * from "./entities/Campaign.js";
+export * from "./entities/CustomReport.js";
+export * from "./entities/MediaAsset.js";
+export * from "./aggregates/ApprovalRequestAggregate.js";
+export * from "./repositories/ApprovalRequestRepository.js";
+export * from "./repositories/ApprovalWorkflowRepository.js";
+export * from "./repositories/CampaignRepository.js";
+export * from "./repositories/CampaignQueryRepository.js";
+export * from "./repositories/MediaAssetRepository.js";
+export * from "./repositories/AssetTagRepository.js";
+export * from "./repositories/AssetFolderRepository.js";
+export * from "./repositories/CustomReportRepository.js";
