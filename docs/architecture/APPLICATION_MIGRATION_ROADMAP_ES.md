@@ -50,7 +50,7 @@ closure y fija la lista exacta.
 | **A6.4**  | Email templates → infra + mailer role-ports                                 | templates `.tsx` reubicados a `infrastructure/email/templates/`; 4 mailer role-ports (Referral/Welcome/TeamInvitation/Notification) + 1 `TransactionalEmailAdapter`. Movidos: GrantReferralReward, SendEmailNotificationService (2). RegisterCustomer/InviteTeamMember: email→port (mueven en A6.6, restan credential/token/logger).                                                                                                                                                                                                                         | Media       | DONE (d3fb5c1) |
 | **A6.5**  | `PasswordHasher` port                                                       | `PasswordHasher` (@core: hash/verify/needsRehash) + `Argon2PasswordHasher` adapter (envuelve el helper canónico); apiKeys/ApiKeyUseCases (Create/Validate/Rotate) + integrations/GenerateIntegrationApiKey (2 movidos). Prereq de A6.6.                                                                                                                                                                                                                                                                                                                      | Media       | DONE (ebae07b) |
 | **A6.6**  | `CustomerTokenService` (RFC 8725 pin) + `PlatformCredentialReader` + logger | customer-auth COMPLETO (6) + team/InviteTeamMember (7 movidos). `CustomerTokenService` (@core) + `CustomerTokenServiceAdapter` envuelve `customerJwt` con `algorithms:["HS256"]` fijado en ambos `verify` (RFC 8725 §3.1); `PlatformCredentialReader` port estrecho implementado por `PlatformCredentialService` (sin token DI nuevo); `PasswordHasher` (A6.5) inyectado en Login/Register/ResetPassword; `clientUrl` como primitive en RequestPasswordReset; logger eliminado (estándar @core). Excepción STALE de Register removida del architecture test. | Alta        | DONE (4251fbd) |
-| **A6.7**  | CSV serialization + cerrar gap depcruise                                    | reports/GenerateReport (1) + agregar `@packages/api-common` al rule `core-application-no-infrastructure` (cierra SMELL-40).                                                                                                                                                                                                                                                                                                                                                                                                                                  | Baja        | PENDING        |
+| **A6.7**  | CSV serialization + cerrar gap depcruise                                    | `exportToCSV` (RFC 4180, puro) reubicado de `@packages/api-common` (infra) a `@shared` (barrel `@shared/types`) — función pura ≠ port, se reubica al shared-kernel cross-cutting (api+workers+admin); api-common re-exporta (8 consumidores intactos). reports/GenerateReport (1) movido a `@core/application`. `@packages/api-common` agregado al rule `core-application-no-infrastructure` (cierra SMELL-40, probe-verificado). Test (525 líneas) → `apps/api/tests/unit`.                                                                                 | Baja        | DONE (2fa142e) |
 | **A7**    | Burn-down shims                                                             | Migrar import-sites de application restantes → `@core/application`; borrar shims; (se une al P8 del dominio + flip dependency-cruiser a error).                                                                                                                                                                                                                                                                                                                                                                                                              | Media       | PENDING        |
 
 ## 4. Los 21 bloqueados (fase A6)
@@ -78,12 +78,13 @@ Bloqueos adicionales detectados durante A2/A3/A5 (no encajan en "importan infra"
   `@react-email/components`) son **infraestructura/presentación** mal ubicados en `application/`; A6 los reubica a
   infraestructura, expone el render detrás de `EmailPort`, y recién entonces mueve `GrantReferralReward`,
   `SendEmailNotificationService`, `RegisterCustomer`, `InviteTeamMember` (los 4 consumidores del render).
-- **`reports/GenerateReportUseCase` (serialización CSV):** importa `@packages/api-common` (`exportToCSV`,
-  `ColumnDefinition`), clasificado `@layer infrastructure`. El use-case genera el CSV del reporte directamente —
-  serialización de salida = concern de adapter/presentación. El rule `core-application-no-infrastructure` de
-  dependency-cruiser **no atrapa** `@packages/api-common` (su `to.path` solo lista
-  `prisma|fastify|ioredis|bullmq|next|@infra|@adapters`), así que el move solo lo bloquea el canon. A6 abstrae el CSV
-  detrás de un port (o devuelve datos y mueve la serialización al delivery) y cierra el gap del regex.
+- **`reports/GenerateReportUseCase` (serialización CSV):** importaba `@packages/api-common` (`exportToCSV`,
+  `ColumnDefinition`), clasificado `@layer infrastructure`. **Resuelto en A6.7 sin port**: `exportToCSV` es una
+  **función pura** (RFC 4180, sin I/O) — una función pura NO es un límite de I/O y no necesita port (functional-core;
+  ver canon index "Pure functions ≠ ports"). Se **reubicó** al shared-kernel (`@shared`, barrel `@shared/types`) porque
+  es cross-cutting (api + workers + admin frontend); api-common re-exporta (8 consumidores intactos). El use-case quedó
+  libre de infra y se movió a `@core/application`. El rule `core-application-no-infrastructure` se endureció con
+  `@packages/api-common` (cierra SMELL-40, probe-verificado).
 - **`recurring/CreatePostFromRecurrenceUseCase` (encadenado a posts):** importa `../posts/SchedulePostUseCase`, que
   está bloqueado (importa `metrics/businessMetrics`). Se mueve junto a `SchedulePost` cuando A6 lo desbloquee.
 - **`inbox/SendReplyUseCase` (encadenado a guardrails):** importa `../guardrails/GuardrailRegistry`, que está bloqueado.
@@ -112,7 +113,7 @@ en A6.3a (8) + A6.3b (1)).
 | A6.4     | email templates `.tsx` → infra + 4 mailer role-ports — DONE (d3fb5c1)                        | 2 (+2 tpl)   | prereq de A6.6                          |
 | A6.5     | `PasswordHasher` port (Argon2id ya canónico) — DONE (ebae07b)                                | 2            | prereq de A6.6                          |
 | A6.6     | `CustomerTokenService` (RFC 8725 pin) + `PlatformCredentialReader` + logger — DONE (4251fbd) | 7            | A6.4 + A6.5                             |
-| A6.7     | CSV serialization + cerrar gap depcruise (SMELL-40)                                          | 1            | independiente                           |
+| A6.7     | CSV serialization (reubicar a @shared) + cerrar gap depcruise (SMELL-40) — DONE (2fa142e)    | 1            | independiente                           |
 
 **Orden:** A6.1 → A6.2 → A6.3 → A6.4 → A6.5 → A6.6 → A6.7 (fácil→difícil; el cluster de auth de mayor riesgo va al
 final con sus prereqs A6.4/A6.5 listos). **Canon research de A6.6 (DONE):** jwt-algorithm (RFC 8725 BCP) — verificado
