@@ -17,26 +17,10 @@
  */
 
 import client from "prom-client";
+import type { GuardrailMetrics } from "@core/domain/repositories/GuardrailMetricsPort.js";
 
 const COUNTER_NAME = "omnipost_guardrail_evaluations_total";
 const HISTOGRAM_NAME = "omnipost_guardrail_duration_seconds";
-
-export type GuardrailMetricDecision = "allow" | "block";
-
-/**
- * Wrapper exposing the two Prometheus metrics used by `GuardrailRegistry`.
- * Construct via `createGuardrailMetrics(register)` so test/dev runs can
- * pass an isolated registry; the production composition root uses
- * `client.register`.
- */
-export interface GuardrailMetrics {
-  recordEvaluation(params: {
-    guardrail: string;
-    action: string;
-    decision: GuardrailMetricDecision;
-    durationSeconds: number;
-  }): void;
-}
 
 /**
  * @method createGuardrailMetrics

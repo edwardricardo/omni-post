@@ -75,6 +75,8 @@ import { RealtimeAnalyticsService } from "../../analytics/realtimeAnalytics.js";
 import { GA4TrackingAdapter } from "../adapters/GA4TrackingAdapter.js";
 import type { EmailPort } from "../../domain/repositories/EmailPort.js";
 import { ResendEmailAdapter } from "../adapters/ResendEmailAdapter.js";
+import type { BusinessMetricsPort } from "@core/domain/repositories/BusinessMetricsPort.js";
+import { PrometheusBusinessMetricsAdapter } from "../adapters/PrometheusBusinessMetricsAdapter.js";
 import {
   BullMQQueuePortRegistry,
   BullMQDeadLetterQueueAdapter,
@@ -634,6 +636,13 @@ export function setupServices(
 
   // Register EmailPort
   container.register<EmailPort>(TOKENS.EmailPort, () => new ResendEmailAdapter(), true);
+
+  // Register BusinessMetricsPort
+  container.register<BusinessMetricsPort>(
+    TOKENS.BusinessMetricsPort,
+    () => new PrometheusBusinessMetricsAdapter(),
+    true
+  );
 
   // Register SagaManager
   container.register<SagaManagerImpl>(

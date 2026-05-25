@@ -57,6 +57,14 @@ function createMockEventDispatcher(): EventDispatcher & { dispatched: unknown[][
   };
 }
 
+function createMockBusinessMetrics() {
+  return {
+    incrementPostCreated() {},
+    incrementPostPublished() {},
+    incrementPostDeleted() {},
+  };
+}
+
 describe("D3.3: CreatePostUseCase with UnitOfWork", () => {
   const validInput = {
     projectId: randomUUID(),
@@ -69,7 +77,7 @@ describe("D3.3: CreatePostUseCase with UnitOfWork", () => {
     const repo = createMockPostRepo();
     const dispatcher = createMockEventDispatcher();
 
-    const useCase = new CreatePostUseCase(repo, dispatcher, uow);
+    const useCase = new CreatePostUseCase(repo, dispatcher, createMockBusinessMetrics(), uow);
     const result = await useCase.execute(validInput);
 
     expect(result.ok).toBeTruthy();
@@ -80,7 +88,7 @@ describe("D3.3: CreatePostUseCase with UnitOfWork", () => {
     const repo = createMockPostRepo();
     const dispatcher = createMockEventDispatcher();
 
-    const useCase = new CreatePostUseCase(repo, dispatcher);
+    const useCase = new CreatePostUseCase(repo, dispatcher, createMockBusinessMetrics());
     const result = await useCase.execute(validInput);
 
     expect(result.ok).toBeTruthy();
@@ -93,7 +101,7 @@ describe("D3.3: CreatePostUseCase with UnitOfWork", () => {
     });
     const dispatcher = createMockEventDispatcher();
 
-    const useCase = new CreatePostUseCase(repo, dispatcher, uow);
+    const useCase = new CreatePostUseCase(repo, dispatcher, createMockBusinessMetrics(), uow);
     const result = await useCase.execute(validInput);
 
     expect(result.ok).toBeFalsy();

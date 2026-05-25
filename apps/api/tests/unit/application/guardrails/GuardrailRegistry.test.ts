@@ -11,7 +11,7 @@ import type {
   GuardrailPort,
   GuardrailDecision,
 } from "../../../../src/domain/repositories/GuardrailPort.js";
-import type { GuardrailMetrics } from "../../../../src/metrics/guardrailMetrics.js";
+import type { GuardrailMetrics } from "@core/domain/repositories/GuardrailMetricsPort.js";
 
 function makePort(
   name: string,

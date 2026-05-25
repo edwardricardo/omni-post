@@ -69,6 +69,14 @@ function createMockEventDispatcher() {
   };
 }
 
+function createMockBusinessMetrics() {
+  return {
+    incrementPostCreated: vi.fn(),
+    incrementPostPublished: vi.fn(),
+    incrementPostDeleted: vi.fn(),
+  };
+}
+
 function createMockChannelRepository() {
   const channels = new Map<string, { id: string; name: string }>();
   return {
@@ -138,7 +146,7 @@ describe("CreatePostUseCase", () => {
   beforeEach(() => {
     repo = createMockPostRepository();
     dispatcher = createMockEventDispatcher();
-    useCase = new CreatePostUseCase(repo as any, dispatcher as any);
+    useCase = new CreatePostUseCase(repo as any, dispatcher as any, createMockBusinessMetrics());
   });
 
   describe("success", () => {
@@ -329,7 +337,12 @@ describe("SchedulePostUseCase", () => {
     repo = createMockPostRepository();
     dispatcher = createMockEventDispatcher();
     channelRepo = createMockChannelRepository();
-    useCase = new SchedulePostUseCase(repo as any, dispatcher as any, channelRepo as any);
+    useCase = new SchedulePostUseCase(
+      repo as any,
+      dispatcher as any,
+      channelRepo as any,
+      createMockBusinessMetrics()
+    );
 
     const createResult = PostAggregate.create({
       projectId: ProjectId.fromStringUnsafe(TEST_PROJECT_ID),
@@ -439,7 +452,7 @@ describe("DeletePostUseCase", () => {
 
   beforeEach(() => {
     repo = createMockPostRepository();
-    useCase = new DeletePostUseCase(repo as any);
+    useCase = new DeletePostUseCase(repo as any, createMockBusinessMetrics());
 
     const createResult = PostAggregate.create({
       projectId: ProjectId.fromStringUnsafe(TEST_PROJECT_ID),

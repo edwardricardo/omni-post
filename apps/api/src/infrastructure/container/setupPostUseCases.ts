@@ -13,6 +13,7 @@ import type {
   ChannelRepository,
 } from "../../domain/index.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { BusinessMetricsPort } from "@core/domain/repositories/BusinessMetricsPort.js";
 import type { QueuePortRegistry } from "@ports/core";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
@@ -47,6 +48,7 @@ export function setupPostUseCases(container: Container): void {
       new CreatePostUseCase(
         container.resolve<PostRepository>(TOKENS.PostRepository),
         container.resolve<EventDispatcher>(TOKENS.EventDispatcher),
+        container.resolve<BusinessMetricsPort>(TOKENS.BusinessMetricsPort),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
@@ -76,6 +78,7 @@ export function setupPostUseCases(container: Container): void {
     () =>
       new DeletePostUseCase(
         container.resolve<PostRepository>(TOKENS.PostRepository),
+        container.resolve<BusinessMetricsPort>(TOKENS.BusinessMetricsPort),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
@@ -117,6 +120,7 @@ export function setupPostUseCases(container: Container): void {
         container.resolve<PostRepository>(TOKENS.PostRepository),
         container.resolve<EventDispatcher>(TOKENS.EventDispatcher),
         container.resolve<ChannelRepository>(TOKENS.ChannelRepository),
+        container.resolve<BusinessMetricsPort>(TOKENS.BusinessMetricsPort),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true

@@ -283,6 +283,7 @@ export const TOKENS = {
   // Scheduled Reports
   ScheduledReportRepository: Symbol.for("ScheduledReportRepository"),
   EmailPort: Symbol.for("EmailPort"),
+  BusinessMetricsPort: Symbol.for("BusinessMetricsPort"),
   CreateScheduledReportUseCase: Symbol.for("CreateScheduledReportUseCase"),
   UpdateScheduledReportUseCase: Symbol.for("UpdateScheduledReportUseCase"),
   DeleteScheduledReportUseCase: Symbol.for("DeleteScheduledReportUseCase"),
