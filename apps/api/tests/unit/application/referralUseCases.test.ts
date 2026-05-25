@@ -29,7 +29,7 @@ function makeMockReferralRepo(codeExists = true) {
 describe("GetOrCreateReferralCodeUseCase", () => {
   it("creates unique code for new account", async () => {
     const repo = makeMockCodeRepo(null);
-    const useCase = new GetOrCreateReferralCodeUseCase(repo);
+    const useCase = new GetOrCreateReferralCodeUseCase(repo, "https://app.test");
 
     const result = await useCase.execute({ accountId: "acc-1", accountName: "Acme Corp" });
 
@@ -41,7 +41,7 @@ describe("GetOrCreateReferralCodeUseCase", () => {
 
   it("returns same code on subsequent calls (idempotent)", async () => {
     const repo = makeMockCodeRepo({ code: "ACME2026-A1B2C3", usageCount: 5, conversions: 2 });
-    const useCase = new GetOrCreateReferralCodeUseCase(repo);
+    const useCase = new GetOrCreateReferralCodeUseCase(repo, "https://app.test");
 
     const result = await useCase.execute({ accountId: "acc-1" });
 
@@ -54,7 +54,7 @@ describe("GetOrCreateReferralCodeUseCase", () => {
 
   it("code follows expected format", async () => {
     const repo = makeMockCodeRepo(null);
-    const useCase = new GetOrCreateReferralCodeUseCase(repo);
+    const useCase = new GetOrCreateReferralCodeUseCase(repo, "https://app.test");
 
     const result = await useCase.execute({ accountId: "acc-1", accountName: "Test Company" });
 

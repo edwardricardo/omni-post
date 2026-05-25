@@ -48,7 +48,9 @@ describe("UpsertStyleGuideRuleUseCase", () => {
     } as unknown as AIServicePort;
     const useCase = new UpsertStyleGuideRuleUseCase(
       repo as unknown as StyleGuideRuleRepository,
-      new EmbeddingService(ai)
+      new EmbeddingService(ai),
+      "text-embedding-3-small",
+      1536
     );
 
     const result = await useCase.execute({
@@ -74,7 +76,9 @@ describe("UpsertStyleGuideRuleUseCase", () => {
     } as unknown as AIServicePort;
     const useCase = new UpsertStyleGuideRuleUseCase(
       repo as unknown as StyleGuideRuleRepository,
-      new EmbeddingService(failingAI)
+      new EmbeddingService(failingAI),
+      "text-embedding-3-small",
+      1536
     );
 
     const result = await useCase.execute({
@@ -94,7 +98,9 @@ describe("UpsertStyleGuideRuleUseCase", () => {
     const ai = { generateEmbeddings: vi.fn() } as unknown as AIServicePort;
     const useCase = new UpsertStyleGuideRuleUseCase(
       repo as unknown as StyleGuideRuleRepository,
-      new EmbeddingService(ai)
+      new EmbeddingService(ai),
+      "text-embedding-3-small",
+      1536
     );
 
     const result = await useCase.execute({

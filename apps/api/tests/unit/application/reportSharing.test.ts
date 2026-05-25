@@ -29,7 +29,7 @@ describe("EnableReportSharingUseCase", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     repo = makeMockRepo();
-    useCase = new EnableReportSharingUseCase(repo as never);
+    useCase = new EnableReportSharingUseCase(repo as never, "https://app.test");
   });
 
   it("generates unique share token", async () => {

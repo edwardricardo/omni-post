@@ -11,6 +11,7 @@
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import { prisma } from "@infra/prisma";
+import { env } from "../../config/env.js";
 
 import type { GlossaryRepository } from "../../domain/repositories/GlossaryRepository.js";
 import type { StyleGuideRuleRepository } from "../../domain/repositories/StyleGuideRuleRepository.js";
@@ -64,7 +65,9 @@ export function setupLocalizedGenerationUseCases(container: Container): void {
     () =>
       new UpsertGlossaryTermUseCase(
         container.resolve<GlossaryRepository>(TOKENS.GlossaryRepository),
-        container.resolve<EmbeddingService>(TOKENS.EmbeddingService)
+        container.resolve<EmbeddingService>(TOKENS.EmbeddingService),
+        env.OPENAI_EMBEDDINGS_MODEL,
+        env.EMBEDDINGS_DIMENSIONS
       ),
     true
   );
@@ -92,7 +95,9 @@ export function setupLocalizedGenerationUseCases(container: Container): void {
     () =>
       new UpsertStyleGuideRuleUseCase(
         container.resolve<StyleGuideRuleRepository>(TOKENS.StyleGuideRuleRepository),
-        container.resolve<EmbeddingService>(TOKENS.EmbeddingService)
+        container.resolve<EmbeddingService>(TOKENS.EmbeddingService),
+        env.OPENAI_EMBEDDINGS_MODEL,
+        env.EMBEDDINGS_DIMENSIONS
       ),
     true
   );

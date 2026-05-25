@@ -8,6 +8,7 @@
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import { prisma } from "@infra/prisma";
+import { env } from "../../config/env.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import type { EmailPort } from "../../domain/repositories/EmailPort.js";
 
@@ -89,6 +90,7 @@ export function setupReferralUseCases(container: Container): void {
     () =>
       new GetOrCreateReferralCodeUseCase(
         container.resolve<ReferralCodeRepository>(TOKENS.ReferralCodeRepository),
+        env.CLIENT_URL ?? "http://localhost:3002",
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true

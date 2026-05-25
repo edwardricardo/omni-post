@@ -52,7 +52,9 @@ describe("UpsertGlossaryTermUseCase", () => {
     } as unknown as AIServicePort;
     const useCase = new UpsertGlossaryTermUseCase(
       repo as unknown as GlossaryRepository,
-      new EmbeddingService(ai)
+      new EmbeddingService(ai),
+      "text-embedding-3-small",
+      1536
     );
 
     const result = await useCase.execute({
@@ -78,7 +80,9 @@ describe("UpsertGlossaryTermUseCase", () => {
     } as unknown as AIServicePort;
     const useCase = new UpsertGlossaryTermUseCase(
       repo as unknown as GlossaryRepository,
-      new EmbeddingService(failingAI)
+      new EmbeddingService(failingAI),
+      "text-embedding-3-small",
+      1536
     );
 
     const result = await useCase.execute({
@@ -99,7 +103,9 @@ describe("UpsertGlossaryTermUseCase", () => {
     const ai = { generateEmbeddings: vi.fn() } as unknown as AIServicePort;
     const useCase = new UpsertGlossaryTermUseCase(
       repo as unknown as GlossaryRepository,
-      new EmbeddingService(ai)
+      new EmbeddingService(ai),
+      "text-embedding-3-small",
+      1536
     );
 
     const result = await useCase.execute({
