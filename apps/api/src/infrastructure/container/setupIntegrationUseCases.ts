@@ -7,6 +7,7 @@
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import type { IntegrationApiKeyRepository } from "../../domain/repositories/IntegrationApiKeyRepository.js";
+import type { PasswordHasher } from "@core/domain/repositories/PasswordHasher.js";
 import type { IntegrationSubscriptionRepository } from "../../domain/repositories/IntegrationSubscriptionRepository.js";
 import { PrismaIntegrationApiKeyRepository } from "../repositories/PrismaIntegrationApiKeyRepository.js";
 import { PrismaIntegrationSubscriptionRepository } from "../repositories/PrismaIntegrationSubscriptionRepository.js";
@@ -41,7 +42,8 @@ export function setupIntegrationUseCases(container: Container): void {
     TOKENS.GenerateIntegrationApiKeyUseCase,
     () =>
       new GenerateIntegrationApiKeyUseCase(
-        container.resolve<IntegrationApiKeyRepository>(TOKENS.IntegrationApiKeyRepository)
+        container.resolve<IntegrationApiKeyRepository>(TOKENS.IntegrationApiKeyRepository),
+        container.resolve<PasswordHasher>(TOKENS.PasswordHasher)
       ),
     true
   );
