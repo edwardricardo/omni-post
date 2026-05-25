@@ -63,3 +63,21 @@ export * from "./repositories/StyleGuideRuleRepository.js";
 export * from "./repositories/TrackedTermQuery.js";
 export * from "./repositories/TrendRadarQueryRepository.js";
 export * from "./repositories/RepurposeProposalQueryRepository.js";
+
+// Standalone features (P4): links, notifications, comments, first-comment,
+// external-notifications, aiPromptTemplates, referral/conversions
+export * from "./value-objects/ShortCode.js";
+export * from "./value-objects/CommentId.js";
+export * from "./value-objects/NotificationId.js";
+export * from "./entities/TrackedLink.js";
+export * from "./entities/LinkClick.js";
+export * from "./entities/Notification.js";
+export * from "./aggregates/PostCommentAggregate.js";
+export * from "./repositories/TrackedLinkRepository.js";
+export * from "./repositories/NotificationRepository.js";
+export * from "./repositories/PostCommentRepository.js";
+export * from "./repositories/FirstCommentRepository.js";
+export * from "./repositories/ExternalNotifierPort.js";
+export * from "./repositories/ExternalNotificationConfigRepository.js";
+export * from "./repositories/AIPromptTemplateRepository.js";
+export * from "./repositories/ConversionRepository.js";
