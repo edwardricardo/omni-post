@@ -581,12 +581,12 @@ Quedan 18 archivos clasificados DEAD por el auditor; cada uno requiere 3-pregunt
 
 - **Surface(s):** workers · api
 - **Categoría:** superseded
-- **Status:** `PENDING`
+- **Status:** `RESOLVED`
 - **Auditor recommendation:** `DELETE-NOW` (con confirmación SoT)
-- **Edward decision:** —
-- **Decision date:** —
-- **Action taken:** —
-- **Notes:** NEEDS_EDWARD — Dual-write risk: dos procesos pueden cobrar la misma suscripción si race. Preferencia auditor: api con saga, no worker legacy.
+- **Edward decision:** SoT = api (`TrialManagementService`); scheduling automático vía `BackgroundTaskScheduler`; borrar el worker duplicado.
+- **Decision date:** 2026-05-25
+- **Action taken:** Registrada tarea recurrente `"auto-renewal"` (diaria) en `apps/api/src/index.ts` que resuelve `SubscriptionService.processAutoRenewals()` (canon `BackgroundTaskScheduler`). Borrados `apps/workers/src/autoRenewalWorker.ts` + `autoRenewalScheduler.ts` + su test; limpiados `package.json` (dev script), `bootstrap.ts` (comentario), `knip.json` (entry). Paridad de audit: `previousTrialEndDate` agregado al system-action de `TrialManagementService`. Elimina el riesgo de doble-cobro y **restaura el auto-renewal automático** (antes el worker estaba sin componer y la API solo se disparaba por ruta HTTP).
+- **Notes:** Comparación una-a-una: la API era la impl más rica (aggregate `recordRenewal`, monto anual ×12, `logBillingEvent`, audit de batch); el worker solo aportaba el scheduling, ahora cubierto canónicamente en la API.
 - **Blocked by:** —
 
 ### FN-023 — PredictiveAnalytics ML — UI ↔ 501

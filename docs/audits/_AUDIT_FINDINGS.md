@@ -93,6 +93,7 @@ status: PENDING_REVIEW
 - **Acción candidata:** Decidir SoT (preferencia: api con saga, no worker legacy). Borrar `autoRenewalWorker.ts`. Confirmar que `TrialManagementService.processAutoRenewals` está siendo invocado por cron-task vía `BackgroundTaskScheduler` o BullMQ schedule.
 - **NEEDS_EDWARD:** yes (confirmar SoT)
 - **Bloqueado por:** —
+- **RESOLVED (2026-05-25):** SoT = api. Tarea recurrente `"auto-renewal"` (diaria) registrada vía `BackgroundTaskScheduler` en `apps/api/src/index.ts` → `SubscriptionService.processAutoRenewals()`. Worker duplicado borrado (worker + scheduler + test; limpiados package.json/bootstrap/knip). Elimina el doble-cobro y restaura el auto-renewal automático (antes ninguno corría: worker sin componer, API solo por ruta HTTP). Ver `AUDIT_REVIEW_TRACKING.md` FN-004.
 
 ### audit-FN-005 — DLQ adapter duplicado
 
