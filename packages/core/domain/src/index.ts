@@ -124,3 +124,8 @@ export * from "./repositories/MediaAssetRepository.js";
 export * from "./repositories/AssetTagRepository.js";
 export * from "./repositories/AssetFolderRepository.js";
 export * from "./repositories/CustomReportRepository.js";
+
+// AI: service contract types, content profile, and service port
+export * from "./ai/AiServiceContract.js";
+export * from "./ai/PlatformContentProfile.js";
+export * from "./repositories/AIServicePort.js";

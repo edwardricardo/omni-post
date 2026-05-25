@@ -7,21 +7,16 @@
  * @layer infrastructure
  */
 
-export interface AIMessage {
-  role: "system" | "user" | "assistant";
-  content: string;
-}
+// The AI service port's technology-free contract types are owned by the domain
+// core. Re-exported here so this module's existing consumers and the
+// `AIProvider` interface below keep resolving them from the same path.
+import {
+  AIMessage,
+  GenerationOptions,
+  StructuredOutputSpec,
+} from "@core/domain/ai/AiServiceContract.js";
 
-export interface GenerationOptions {
-  model?: string;
-  maxTokens?: number;
-  temperature?: number;
-  topP?: number;
-  frequencyPenalty?: number;
-  presencePenalty?: number;
-  stream?: boolean;
-  timeout?: number;
-}
+export type { AIMessage, GenerationOptions, StructuredOutputSpec };
 
 export interface ContentAnalysis {
   sentiment: {
@@ -119,28 +114,6 @@ export interface ImageGenerationOptions {
 export interface ImageGenerationResult {
   imageUrl: string;
   revisedPrompt: string;
-}
-
-/**
- * Provider-agnostic, technology-free spec for a schema-validated structured
- * generation. Infrastructure builds this from a zod schema; the domain port
- * (`AIServicePort`) only sees this shape — never zod — so the domain stays
- * dependency-free. `parse` is the single validation gate: providers route
- * raw model output through it, replacing the fragile `JSON.parse(text)` path.
- */
-export interface StructuredOutputSpec<T> {
-  /** Schema name surfaced to the provider's native structured-output API. */
-  name: string;
-  /** Optional human description sent to the model to improve adherence. */
-  description?: string;
-  /** JSON Schema (draft 2020-12) the provider enforces natively when able. */
-  jsonSchema: Record<string, unknown>;
-  /**
-   * Validates + narrows raw provider output. MUST throw on invalid input
-   * (the infra adapter catches and maps to `Result` — never throws across
-   * the port boundary).
-   */
-  parse: (raw: unknown) => T;
 }
 
 export interface AIProvider {
