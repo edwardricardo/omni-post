@@ -134,3 +134,18 @@ export * from "./repositories/AIServicePort.js";
 export * from "./events/PostEvents.js";
 export * from "./aggregates/PostAggregate.js";
 export * from "./repositories/PostRepository.js";
+
+// Inbox: social message/conversation value objects, entities, aggregate, ports
+export * from "./value-objects/SocialConversationId.js";
+export * from "./value-objects/SocialMessageId.js";
+export * from "./value-objects/SocialMessageStatus.js";
+export * from "./value-objects/SocialMessageType.js";
+export * from "./entities/ConversationNote.js";
+export * from "./entities/SocialConversation.js";
+export * from "./aggregates/SocialMessageAggregate.js";
+export * from "./repositories/ConversationNoteRepository.js";
+export * from "./repositories/SocialConversationRepository.js";
+export * from "./repositories/SocialMessageQueryRepository.js";
+export * from "./repositories/SocialMessageRepository.js";
+export * from "./repositories/SocialOutboundReplyRepository.js";
+export * from "./repositories/MentionQueryRepository.js";
