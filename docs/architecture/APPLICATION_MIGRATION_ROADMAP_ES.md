@@ -35,16 +35,16 @@
 Status: `PENDING` · `IN-PROGRESS` · `DONE (<commit>)`. Conteos aproximados; cada plan de fase regenera el grep de
 closure y fija la lista exacta.
 
-| Fase   | Nombre                    | Scope                                                                                                                                                                                                     | Complejidad | Status         |
-| ------ | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | -------------- |
-| **A0** | Scaffold roadmap          | Este doc. Sin mover use-cases.                                                                                                                                                                            | Baja        | DONE           |
-| **A1** | Contextos hoja clean      | 35 archivos: glossary(−1), brand-voice, brand-kit, style-guide(−1), listening, usage, utm, first-comment, ml, embeddings, providers, channels, comments, crisis. Rewrite `../../domain/`→`@core/domain/`. | Baja        | DONE (f1891a0) |
-| **A2** | Features standalone clean | links, notifications(−1), external-notifications, trends(−1), referral(−1), aiPromptTemplates, mentions (≈35)                                                                                             | Baja-media  | PENDING        |
-| **A3** | Módulos de feature clean  | analytics, reports, recurring, tasks, team(−1), integrations(−1), crm (≈45)                                                                                                                               | Media       | PENDING        |
-| **A4** | Features grandes clean    | campaigns, assets, custom-reports(−1), approvals, ai(−1) (≈45)                                                                                                                                            | Media-alta  | PENDING        |
-| **A5** | Centrales clean           | posts(−3), inbox(−1), auth, customer-auth(−5), bulk-scheduling, webhooks, apiKeys(−1), billing, security(−1) (clean restantes)                                                                            | Alta        | PENDING        |
-| **A6** | Bloqueados (refactor)     | Los 21 que importan infra: introducir/usar ports (Metrics/PasswordHasher/TokenService/Credential/logger/config/ai) + DI rewiring, luego mover. Mayor riesgo.                                              | Alta        | PENDING        |
-| **A7** | Burn-down shims           | Migrar import-sites de application restantes → `@core/application`; borrar shims; (se une al P8 del dominio + flip dependency-cruiser a error).                                                           | Media       | PENDING        |
+| Fase   | Nombre                    | Scope                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Complejidad | Status         |
+| ------ | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | -------------- |
+| **A0** | Scaffold roadmap          | Este doc. Sin mover use-cases.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Baja        | DONE           |
+| **A1** | Contextos hoja clean      | 35 archivos: glossary(−1), brand-voice, brand-kit, style-guide(−1), listening, usage, utm, first-comment, ml, embeddings, providers, channels, comments, crisis. Rewrite `../../domain/`→`@core/domain/`.                                                                                                                                                                                                                                                                                                                        | Baja        | DONE (f1891a0) |
+| **A2** | Features standalone clean | links(6), notifications(5), external-notifications(4), referral(2), aiPromptTemplates(5), mentions(1) = 23. `trends` entero → A6; `referral/GrantReferralReward` + `notifications/SendEmailNotificationService` + `referral/GetOrCreateReferralCode` → A6.                                                                                                                                                                                                                                                                       | Baja-media  | DONE (edf0fca) |
+| **A3** | Módulos de feature clean  | analytics, reports, recurring, tasks, team(−1), integrations(−1), crm (≈45)                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Media       | PENDING        |
+| **A4** | Features grandes clean    | campaigns, assets, custom-reports(−1), approvals, ai(−1) (≈45)                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Media-alta  | PENDING        |
+| **A5** | Centrales clean           | posts(−3), inbox(−1), auth, customer-auth(−5), bulk-scheduling, webhooks, apiKeys(−1), billing, security(−1) (clean restantes)                                                                                                                                                                                                                                                                                                                                                                                                   | Alta        | PENDING        |
+| **A6** | Bloqueados (refactor)     | Los 21 que importan infra: introducir/usar ports (Metrics/PasswordHasher/TokenService/Credential/logger/config/ai) + DI rewiring, luego mover. Además: `trends` (contexto completo, encadenado a `ScoreTrendRelevance`), `referral/GrantReferralReward` (consume el template `.tsx`), `notifications/SendEmailNotificationService`, `referral/GetOrCreateReferralCode`; reubicar los 2 templates `.tsx` de email (`referralRewardEmail`, `emailTemplates`) a infraestructura tras un render detrás de `EmailPort`. Mayor riesgo. | Alta        | PENDING        |
+| **A7** | Burn-down shims           | Migrar import-sites de application restantes → `@core/application`; borrar shims; (se une al P8 del dominio + flip dependency-cruiser a error).                                                                                                                                                                                                                                                                                                                                                                                  | Media       | PENDING        |
 
 ## 4. Los 21 bloqueados (fase A6)
 
@@ -60,6 +60,17 @@ Concerns a abstraer (port + DI): `config/env` → config inyectada; `auth/{passw
 `PasswordHasher`/`TokenService` ports; `metrics/*` → `MetricsPort` (o quitar del use-case); `lib/logger` → logger
 inyectado; `security/PlatformCredentialService` → port; `ai/{structuredSchemas,aiService}` → `AIServicePort`
 (ya en `@core`) + reubicar schemas.
+
+Bloqueos adicionales detectados durante A2 (no encajan en "importan infra" pero comparten la fase A6):
+
+- **`trends` (contexto completo):** `ScoreTrendRelevanceUseCase` importa `config/env` + `ai`, y arrastra
+  `DetectTrendsUseCase` ← `TrendRadarResultPort`. Mover parcial dejaría un tangle de shims intra-contexto, así que el
+  contexto entero se mueve cuando A6 desbloquee `ScoreTrendRelevance`.
+- **Cadena de template de email:** `referral/GrantReferralRewardUseCase` consume el template de presentación
+  `notifications/referralRewardEmail.tsx`. Los 2 templates `.tsx` (`referralRewardEmail`, `emailTemplates`,
+  `@react-email/components`) son **infraestructura/presentación** mal ubicados en `application/`; A6 los reubica a
+  infraestructura, expone el render detrás de `EmailPort`, y recién entonces mueve `GrantReferralReward`,
+  `SendEmailNotificationService`, `RegisterCustomer`, `InviteTeamMember` (los 4 consumidores del render).
 
 ## 5. Template de plan por fase (OBLIGATORIO — anti-sorpresa)
 
@@ -79,8 +90,12 @@ Edward al cierre de la fase**.
 ## 7. Gotchas (heredados + propios de application)
 
 - `@core/application` puede importar `@core/domain` + `@ports` + `@shared`; **NO** infra de apps/api (de ahí los 21).
-- Mover use-case verbatim (`cp`) preserva imports relativos (`../../domain/...` → resuelve a los shims @core; o
-  `../UseCase.js` → `@core/application`). Confirmar con tsc tras cada batch.
+- Mover use-case = `cp` + **rewrite obligatorio** de los imports a dominio: `(\.\./)+domain/` → `@core/domain/`.
+  Razón: `@core/application` y `@core/domain` son paquetes distintos, así que la ruta relativa `../../domain/...`
+  ya no resuelve tras el `cp` (apuntaría a `packages/core/application/domain`, que no existe). Lo que **sí** se
+  preserva sin tocar: `../UseCase.js` (resuelve a `@core/application/src/UseCase.ts`), los imports intra-contexto
+  (`./`), los cross-contexto dentro de la misma fase (`../<otro-ctx>/`) y los aliases `@shared`/`@ports`. Confirmar
+  con tsc tras cada batch.
 - Barrels per-context (`application/<ctx>/index.ts`) usan re-export nombrado → resuelven vía shim, no se editan.
 - A6 introduce ports + DI rewiring (Container.ts, setup\*.ts) → riesgo alto, plan propio detallado.
 - `node:crypto`/`zod` en use-cases: aceptables en `@core/application`.
