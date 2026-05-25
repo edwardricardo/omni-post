@@ -1,41 +1,9 @@
 /**
  * @file GeneratedImageRepository.ts
- * @description Domain port interface for GeneratedImage persistence.
- *              Defines the contract that infrastructure adapters must fulfill.
+ * @description Re-export shim — the generated-image repository port moved to
+ *              `@core/domain`. Kept here so existing import sites keep resolving
+ *              during the @core migration (strangler-fig); removed at P8.
  * @layer domain
  */
 
-import { type Result } from "@shared/types";
-
-/**
- * Data transfer object for generated image persistence
- */
-export interface GeneratedImageData {
-  id: string;
-  projectId: string;
-  prompt: string;
-  revisedPrompt: string;
-  imageUrl: string;
-  size: string;
-  quality: string;
-  style: string;
-  createdAt: Date;
-}
-
-/**
- * GeneratedImageRepository - Port interface for GeneratedImage persistence
- *
- * This is a PORT in hexagonal architecture - it defines the contract
- * that adapters (implementations) must fulfill.
- */
-export interface GeneratedImageRepository {
-  /**
-   * Save a generated image record
-   */
-  save(image: GeneratedImageData): Promise<Result<GeneratedImageData, Error>>;
-
-  /**
-   * Find generated images by project ID, ordered by most recent first
-   */
-  findByProjectId(projectId: string, limit?: number): Promise<Result<GeneratedImageData[], Error>>;
-}
+export * from "@core/domain/repositories/GeneratedImageRepository.js";

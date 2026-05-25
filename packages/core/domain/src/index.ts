@@ -44,3 +44,22 @@ export * from "./repositories/OutboxWriter.js";
 export * from "./repositories/AuditLogRepository.js";
 export * from "./repositories/EmailPort.js";
 export * from "./repositories/HttpClientPort.js";
+
+// Leaf contexts (P3): value objects, entities, domain services, security rules, ports
+export * from "./value-objects/UTMParameters.js";
+export * from "./entities/BrandKit.js";
+export * from "./services/MentionParser.js";
+export * from "./security/secretCatalog.js";
+export * from "./security/rotationStatusRules.js";
+export * from "./repositories/SemanticRetrievalPort.js";
+export * from "./repositories/GuardrailPort.js";
+export * from "./repositories/UsageMetricRepository.js";
+export * from "./repositories/ApiKeyRepository.js";
+export * from "./repositories/GeneratedImageRepository.js";
+export * from "./repositories/GlossaryRepository.js";
+export * from "./repositories/BrandKitRepository.js";
+export * from "./repositories/BrandVoiceRepository.js";
+export * from "./repositories/StyleGuideRuleRepository.js";
+export * from "./repositories/TrackedTermQuery.js";
+export * from "./repositories/TrendRadarQueryRepository.js";
+export * from "./repositories/RepurposeProposalQueryRepository.js";
