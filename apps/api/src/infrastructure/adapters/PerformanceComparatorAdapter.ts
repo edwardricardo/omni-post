@@ -11,8 +11,8 @@ import type { PerformanceSnapshot } from "@core/application/analytics/types.js";
 import { PerformanceComparator } from "../../analytics/performanceComparison/index.js";
 import type { PerformanceComparisonOptions } from "../../analytics/performanceComparison/types.js";
 import type { TimeRange, ProviderType, MetricType } from "@shared/analytics";
-import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
-import type { AnalyticsReadRepositoryPort } from "../../domain/repositories/AnalyticsReadRepository.js";
+import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
+import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
 
 /**
  * Adapter that implements PerformanceComparatorPort by delegating to PerformanceComparator.

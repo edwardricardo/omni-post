@@ -19,7 +19,7 @@ import { randomUUID } from "crypto";
 import type { CreatePostOutput } from "@core/application/posts/CreatePostUseCase.js";
 import type { PostDTO } from "@core/application/posts/GetPostUseCase.js";
 import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
-import { EntityNotFoundError } from "../../src/domain/index.js";
+import { EntityNotFoundError } from "@core/domain/index.js";
 import type { PostCommandHandlersConfig } from "../../src/cqrs/handlers/PostCommandHandlers.js";
 
 // ---------------------------------------------------------------------------

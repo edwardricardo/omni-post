@@ -8,7 +8,7 @@
 
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { OptimizeContentUseCase } from "@core/application/ml/OptimizeContentUseCase.js";
-import type { AIServicePort } from "../../../src/domain/repositories/AIServicePort.js";
+import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
 
 function createMockAI(overrides: Partial<AIServicePort> = {}): AIServicePort {
   return {

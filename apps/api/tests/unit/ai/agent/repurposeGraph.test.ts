@@ -9,7 +9,7 @@
  */
 import { describe, it, beforeEach, expect } from "vitest";
 import { MemorySaver, Command, isGraphInterrupt } from "@langchain/langgraph";
-import type { AIServicePort } from "../../../../src/domain/repositories/AIServicePort.js";
+import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
 import type { StructuredOutputSpec } from "../../../../src/ai/types.js";
 import { buildRepurposeGraph } from "../../../../src/ai/agent/repurposeGraph.js";
 import { TrajectoryRecorder } from "../../../../src/ai/agent/types.js";

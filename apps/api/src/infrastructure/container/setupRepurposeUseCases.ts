@@ -8,7 +8,7 @@
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import type { PrismaClient } from "@infra/prisma";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { QueuePortRegistry } from "@ports/core";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { ApproveRepurposeVariantUseCase } from "@core/application/ai/ApproveRepurposeVariantUseCase.js";
@@ -16,7 +16,7 @@ import { RejectRepurposeVariantUseCase } from "@core/application/ai/RejectRepurp
 import { DetectRepurposeCandidatesUseCase } from "@core/application/ai/DetectRepurposeCandidatesUseCase.js";
 import { DispatchDetectRepurposeUseCase } from "@core/application/ai/DispatchDetectRepurposeUseCase.js";
 import { ListRepurposeProposalsQuery } from "@core/application/ai/ListRepurposeProposalsQuery.js";
-import type { ChannelQueryForIngestion } from "../../domain/repositories/ChannelQueryForIngestion.js";
+import type { ChannelQueryForIngestion } from "@core/domain/repositories/ChannelQueryForIngestion.js";
 import {
   GenerateRepurposeVariantsUseCase,
   type NotificationPort,

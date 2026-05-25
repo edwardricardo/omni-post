@@ -12,7 +12,7 @@ import {
   SECRET_CATEGORY_VALUES,
   SECRETS_CATALOG,
   type SecretCategory,
-} from "../../../../src/domain/security/secretCatalog.js";
+} from "@core/domain/security/secretCatalog.js";
 
 describe("SECRETS_CATALOG", () => {
   it("contains 29 entries (every secret listed in SECRETS.md §3-§5)", () => {

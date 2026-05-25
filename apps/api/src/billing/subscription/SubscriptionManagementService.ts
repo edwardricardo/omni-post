@@ -5,12 +5,12 @@
  * @layer application
  */
 import { ok, err, type Result } from "@shared/types";
-import type { AccountQueryRepositoryPort } from "../../domain/repositories/AccountQueryRepository.js";
-import type { AccountSubscriptionQueryRepository } from "../../domain/repositories/AccountSubscriptionQueryRepository.js";
-import type { AccountSubscriptionPort } from "../../domain/repositories/AccountSubscriptionPort.js";
-import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
+import type { AccountQueryRepositoryPort } from "@core/domain/repositories/AccountQueryRepository.js";
+import type { AccountSubscriptionQueryRepository } from "@core/domain/repositories/AccountSubscriptionQueryRepository.js";
+import type { AccountSubscriptionPort } from "@core/domain/repositories/AccountSubscriptionPort.js";
+import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
 import { AuditableService } from "../../services/AuditableService.js";
-import type { AuditLogRepository } from "../../domain/repositories/AuditLogRepository.js";
+import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 import type { BillingService } from "./BillingService.js";
 
 export class SubscriptionManagementService extends AuditableService {

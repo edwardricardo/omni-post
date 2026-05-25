@@ -8,9 +8,9 @@
  */
 import { describe, it, expect } from "vitest";
 import assert from "node:assert/strict";
-import { metricRegistry } from "../../../src/domain/analytics/MetricRegistry.js";
-import { AVAILABLE_METRICS } from "../../../src/domain/analytics/ReportSchema.js";
-import type { AnalyticsSummaryRow } from "../../../src/domain/repositories/AnalyticsAggregationQueryPort.js";
+import { metricRegistry } from "@core/domain/analytics/MetricRegistry.js";
+import { AVAILABLE_METRICS } from "@core/domain/analytics/ReportSchema.js";
+import type { AnalyticsSummaryRow } from "@core/domain/repositories/AnalyticsAggregationQueryPort.js";
 
 const row = (over: Partial<AnalyticsSummaryRow> = {}): AnalyticsSummaryRow => ({
   date: new Date("2026-03-01"),

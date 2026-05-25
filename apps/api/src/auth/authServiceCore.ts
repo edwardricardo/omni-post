@@ -11,14 +11,14 @@ import { hashRefreshToken } from "./refreshTokenHash.js";
 import { hashPassword, verifyPassword, needsRehash } from "./passwordHashing.js";
 import { ok, err, type Result } from "@shared/types";
 import { env } from "../config/env.js";
-import type { AdminRoleKind } from "../domain/repositories/ReadModelDtos.js";
-import type { AdminUserDto } from "../domain/repositories/ReadModelDtos.js";
+import type { AdminRoleKind } from "@core/domain/repositories/ReadModelDtos.js";
+import type { AdminUserDto } from "@core/domain/repositories/ReadModelDtos.js";
 import { AuditableService } from "../services/AuditableService";
 import type { MfaService } from "./mfaService.js";
-import type { AdminUserRepositoryPort } from "../domain/repositories/AdminUserRepository.js";
-import type { AuditLogRepository } from "../domain/repositories/AuditLogRepository.js";
-import type { RoleRepository } from "../domain/repositories/RoleRepository.js";
-import type { AdminSessionRepository } from "../domain/repositories/AdminSessionRepository.js";
+import type { AdminUserRepositoryPort } from "@core/domain/repositories/AdminUserRepository.js";
+import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
+import type { RoleRepository } from "@core/domain/repositories/RoleRepository.js";
+import type { AdminSessionRepository } from "@core/domain/repositories/AdminSessionRepository.js";
 import type {
   TokenPayload,
   LoginCredentials,

@@ -13,8 +13,8 @@ import {
   getChannelsData,
 } from "../../src/analytics/crossPlatform/dataFetcher.js";
 import type { CrossPlatformAnalyticsOptions } from "../../src/analytics/crossPlatform/types.js";
-import type { AnalyticsReadRepositoryPort } from "../../src/domain/repositories/AnalyticsReadRepository.js";
-import type { ProjectQueryRepositoryPort } from "../../src/domain/repositories/ProjectQueryRepository.js";
+import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
+import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
 
 const start = new Date("2026-05-01T00:00:00Z");
 const end = new Date("2026-06-01T00:00:00Z");

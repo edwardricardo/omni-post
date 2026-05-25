@@ -12,7 +12,7 @@
 
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { PrismaAccountRepository } from "../../../src/infrastructure/repositories/PrismaAccountRepository.js";
-import { AccountId } from "../../../src/domain/index.js";
+import { AccountId } from "@core/domain/index.js";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 

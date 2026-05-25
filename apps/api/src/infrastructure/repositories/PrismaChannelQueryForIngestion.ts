@@ -6,7 +6,7 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import type { ChannelQueryForIngestion } from "../../domain/repositories/ChannelQueryForIngestion.js";
+import type { ChannelQueryForIngestion } from "@core/domain/repositories/ChannelQueryForIngestion.js";
 
 export class PrismaChannelQueryForIngestion implements ChannelQueryForIngestion {
   constructor(private readonly prisma: PrismaClient) {}

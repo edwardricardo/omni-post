@@ -11,7 +11,7 @@ import type {
   AuditLogCreateInput,
   AuditLogQueryOptions,
   AuditLogRecordDto,
-} from "../../domain/repositories/AuditLogRepository.js";
+} from "@core/domain/repositories/AuditLogRepository.js";
 
 /**
  * Prisma implementation of AuditLogRepository.

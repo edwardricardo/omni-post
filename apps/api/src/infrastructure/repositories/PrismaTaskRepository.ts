@@ -7,13 +7,13 @@
 
 import type { PrismaClient } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
-import type { TaskRepository, TaskFilters } from "../../domain/repositories/TaskRepository.js";
+import type { TaskRepository, TaskFilters } from "@core/domain/repositories/TaskRepository.js";
 import {
   Task,
   type TaskProps,
   type TaskStatusValue,
   type TaskPriorityValue,
-} from "../../domain/entities/Task.js";
+} from "@core/domain/entities/Task.js";
 
 /**
  * Priority ordering for descending sort (higher priority first).

@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GatewayBillingService } from "../../../src/billing/GatewayBillingService.js";
 import type { PrismaClient } from "@infra/prisma";
-import type { EmailPort } from "../../../src/domain/repositories/EmailPort.js";
+import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
 import type { GatewayAdapterRegistryPort } from "../../../src/infrastructure/billing/GatewayAdapterRegistry.js";
 import type { GatewaySwitchJobService } from "../../../src/billing/GatewaySwitchJobService.js";
 

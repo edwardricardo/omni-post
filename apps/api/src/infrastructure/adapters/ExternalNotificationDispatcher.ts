@@ -7,12 +7,12 @@
  */
 
 import { type Result, ok, err } from "@shared/types";
-import { type DomainError, InvariantViolationError } from "../../domain/errors/index.js";
-import { type ExternalNotificationConfigRepository } from "../../domain/repositories/ExternalNotificationConfigRepository.js";
+import { type DomainError, InvariantViolationError } from "@core/domain/errors/index.js";
+import { type ExternalNotificationConfigRepository } from "@core/domain/repositories/ExternalNotificationConfigRepository.js";
 import {
   type ExternalNotifierPort,
   type NotificationPayload,
-} from "../../domain/repositories/ExternalNotifierPort.js";
+} from "@core/domain/repositories/ExternalNotifierPort.js";
 
 /**
  * @class ExternalNotificationDispatcher

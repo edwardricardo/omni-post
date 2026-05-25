@@ -12,13 +12,13 @@ import { type Result, ok, err } from "@shared/types";
 import type {
   ScheduledReportRepository,
   ScheduledReportDto,
-} from "../../domain/repositories/ScheduledReportRepository.js";
+} from "@core/domain/repositories/ScheduledReportRepository.js";
 import {
   ScheduledReport,
   type ScheduledReportProps,
-} from "../../domain/entities/ScheduledReport.js";
-import { ScheduledReportId, ProjectId } from "../../domain/value-objects/EntityId.js";
-import { EntityNotFoundError } from "../../domain/errors/index.js";
+} from "@core/domain/entities/ScheduledReport.js";
+import { ScheduledReportId, ProjectId } from "@core/domain/value-objects/EntityId.js";
+import { EntityNotFoundError } from "@core/domain/errors/index.js";
 
 /**
  * Shape of a raw ScheduledReport row returned by Prisma.

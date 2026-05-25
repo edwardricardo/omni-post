@@ -6,7 +6,7 @@
  */
 
 import { BaseService, type ServiceContext } from "./BaseService";
-import type { AuditLogRepository } from "../domain/repositories/AuditLogRepository.js";
+import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 import { logger } from "../lib/logger.js";
 
 // Audit action types (matching database schema - uses strings, not enums)

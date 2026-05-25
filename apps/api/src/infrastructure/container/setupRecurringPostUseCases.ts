@@ -6,9 +6,9 @@
  */
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import type { RecurringPostRepository } from "../../domain/repositories/RecurringPostRepository.js";
-import type { PostRepository, EventDispatcher } from "../../domain/index.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { RecurringPostRepository } from "@core/domain/repositories/RecurringPostRepository.js";
+import type { PostRepository, EventDispatcher } from "@core/domain/index.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { Logger } from "pino";
 import { CreateRecurringPostUseCase } from "@core/application/recurring/CreateRecurringPostUseCase.js";

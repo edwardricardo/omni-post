@@ -19,10 +19,10 @@ import { describe, it, expect, vi } from "vitest";
 import { ok } from "@shared/types";
 import { GenerateLocalizedContentUseCase } from "@core/application/ai/GenerateLocalizedContentUseCase.js";
 import { EmbeddingService } from "@core/application/embeddings/EmbeddingService.js";
-import type { AIServicePort } from "../../src/domain/repositories/AIServicePort.js";
+import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
 import { localizedContentSpec } from "../../src/ai/structuredSchemas.js";
-import type { SemanticRetrievalPort } from "../../src/domain/repositories/SemanticRetrievalPort.js";
-import type { BrandVoiceRepository } from "../../src/domain/repositories/BrandVoiceRepository.js";
+import type { SemanticRetrievalPort } from "@core/domain/repositories/SemanticRetrievalPort.js";
+import type { BrandVoiceRepository } from "@core/domain/repositories/BrandVoiceRepository.js";
 
 const MAX_LOCALIZED_AI_CALLS_PER_RUN = 2; // 1 embedding + 1 structured
 

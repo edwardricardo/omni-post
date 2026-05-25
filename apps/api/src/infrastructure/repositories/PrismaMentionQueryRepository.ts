@@ -19,7 +19,7 @@ import {
   type ProviderShareDTO,
   type CursorPagination,
   type CursorPaginatedResult,
-} from "../../domain/repositories/MentionQueryRepository.js";
+} from "@core/domain/repositories/MentionQueryRepository.js";
 
 /** Where fragment selecting brand-attributed mentions (own-brand or BRAND term). */
 const brandOr = [

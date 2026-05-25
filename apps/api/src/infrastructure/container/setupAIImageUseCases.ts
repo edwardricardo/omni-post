@@ -5,7 +5,7 @@
  */
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import type { GeneratedImageRepository } from "../../domain/repositories/GeneratedImageRepository.js";
+import type { GeneratedImageRepository } from "@core/domain/repositories/GeneratedImageRepository.js";
 import type { ImageGenerationPort } from "@core/domain/repositories/ImageGenerationPort.js";
 import type { AIService } from "../../ai/aiService.js";
 import { PrismaGeneratedImageRepository } from "../repositories/PrismaGeneratedImageRepository.js";

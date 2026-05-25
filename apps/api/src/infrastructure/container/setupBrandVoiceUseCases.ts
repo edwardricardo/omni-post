@@ -9,7 +9,7 @@ import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import { prisma } from "@infra/prisma";
 import { PrismaBrandVoiceRepository } from "../repositories/PrismaBrandVoiceRepository.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import { GetBrandVoiceQuery } from "@core/application/brand-voice/GetBrandVoiceQuery.js";
 import { UpsertBrandVoiceUseCase } from "@core/application/brand-voice/UpsertBrandVoiceUseCase.js";
 import { DeleteBrandVoiceUseCase } from "@core/application/brand-voice/DeleteBrandVoiceUseCase.js";

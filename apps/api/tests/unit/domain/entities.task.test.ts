@@ -13,7 +13,7 @@ import {
   TASK_PRIORITY,
   type CreateTaskInput,
   type TaskProps,
-} from "../../../src/domain/entities/Task.js";
+} from "@core/domain/entities/Task.js";
 
 function makeInput(overrides: Partial<CreateTaskInput> = {}): CreateTaskInput {
   return {

@@ -13,8 +13,8 @@ import type {
   ConversionRepositoryPort,
   ConversionRecordInput,
   ConversionFindOptions,
-} from "../../../../src/domain/repositories/ConversionRepository.js";
-import type { ConversionDto } from "../../../../src/domain/repositories/ReadModelDtos.js";
+} from "@core/domain/repositories/ConversionRepository.js";
+import type { ConversionDto } from "@core/domain/repositories/ReadModelDtos.js";
 
 /**
  * In-memory reference implementation of the conversion port. Captures the

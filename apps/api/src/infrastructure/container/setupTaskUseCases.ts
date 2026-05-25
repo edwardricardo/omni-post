@@ -5,8 +5,8 @@
  */
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { TaskRepository } from "@core/domain/repositories/TaskRepository.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { NotifyMentionedUsersService } from "@core/application/mentions/index.js";
 import {
   CreateTaskUseCase,

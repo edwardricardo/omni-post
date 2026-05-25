@@ -9,7 +9,7 @@ import type { PrismaClient, Provider as PrismaProvider } from "@infra/prisma";
 import type {
   AnalyticsAggregationQueryPort,
   AnalyticsSummaryRow,
-} from "../../domain/repositories/AnalyticsAggregationQueryPort.js";
+} from "@core/domain/repositories/AnalyticsAggregationQueryPort.js";
 
 export class PrismaAnalyticsAggregationQuery implements AnalyticsAggregationQueryPort {
   constructor(private readonly prisma: PrismaClient) {}

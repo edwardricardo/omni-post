@@ -7,12 +7,12 @@
 
 import type { Result } from "@shared/types";
 import type { AdminSession, PrismaClient } from "@infra/prisma";
-import type { AdminRoleKind } from "../domain/repositories/ReadModelDtos.js";
+import type { AdminRoleKind } from "@core/domain/repositories/ReadModelDtos.js";
 import type { MfaService } from "./mfaService.js";
-import type { AdminUserRepositoryPort } from "../domain/repositories/AdminUserRepository.js";
-import type { AuditLogRepository } from "../domain/repositories/AuditLogRepository.js";
-import type { RoleRepository } from "../domain/repositories/RoleRepository.js";
-import type { AdminSessionRepository } from "../domain/repositories/AdminSessionRepository.js";
+import type { AdminUserRepositoryPort } from "@core/domain/repositories/AdminUserRepository.js";
+import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
+import type { RoleRepository } from "@core/domain/repositories/RoleRepository.js";
+import type { AdminSessionRepository } from "@core/domain/repositories/AdminSessionRepository.js";
 import { AuthServiceCore } from "./authServiceCore.js";
 import { AuthServiceSession } from "./authServiceSession.js";
 import type {

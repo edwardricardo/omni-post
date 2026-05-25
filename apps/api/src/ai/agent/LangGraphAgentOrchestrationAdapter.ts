@@ -25,7 +25,7 @@ import type {
   AgentOrchestrationError,
   AgentTrajectory,
 } from "@ports/core";
-import type { AIServicePort } from "../../domain/repositories/AIServicePort.js";
+import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
 import { logger } from "../../lib/logger.js";
 import { buildRepurposeGraph } from "./repurposeGraph.js";
 import { TrajectoryRecorder } from "./types.js";

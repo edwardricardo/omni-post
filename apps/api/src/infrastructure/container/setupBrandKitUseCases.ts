@@ -9,7 +9,7 @@ import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import { prisma } from "@infra/prisma";
 import { PrismaBrandKitRepository } from "../repositories/PrismaBrandKitRepository.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import { GetBrandKitQuery } from "@core/application/brand-kit/GetBrandKitQuery.js";
 import { UpsertBrandKitUseCase } from "@core/application/brand-kit/UpsertBrandKitUseCase.js";
 import { DeleteBrandKitUseCase } from "@core/application/brand-kit/DeleteBrandKitUseCase.js";

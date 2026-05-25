@@ -13,7 +13,7 @@ import assert from "node:assert/strict";
 import type {
   BulkScheduleQueryRepository,
   BulkScheduleBatchDTO,
-} from "../../../../src/domain/repositories/BulkScheduleQueryRepository.js";
+} from "@core/domain/repositories/BulkScheduleQueryRepository.js";
 
 class InMemoryQueryRepo implements BulkScheduleQueryRepository {
   constructor(private readonly batches: BulkScheduleBatchDTO[]) {}

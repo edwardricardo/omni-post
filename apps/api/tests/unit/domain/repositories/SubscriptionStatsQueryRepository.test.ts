@@ -12,7 +12,7 @@ import type {
   SubscriptionStatsQueryRepository,
   SubscriptionStatusGroupDto,
   ChurnActivityWindowsDto,
-} from "../../../../src/domain/repositories/SubscriptionStatsQueryRepository.js";
+} from "@core/domain/repositories/SubscriptionStatsQueryRepository.js";
 
 class InMemoryRepo implements SubscriptionStatsQueryRepository {
   groups: SubscriptionStatusGroupDto[] = [

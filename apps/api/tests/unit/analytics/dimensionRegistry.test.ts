@@ -11,9 +11,9 @@ import assert from "node:assert/strict";
 import {
   DEFAULT_DIMENSION_KEY,
   dimensionRegistry,
-} from "../../../src/domain/analytics/DimensionRegistry.js";
-import { AVAILABLE_DIMENSIONS } from "../../../src/domain/analytics/ReportSchema.js";
-import type { AnalyticsSummaryRow } from "../../../src/domain/repositories/AnalyticsAggregationQueryPort.js";
+} from "@core/domain/analytics/DimensionRegistry.js";
+import { AVAILABLE_DIMENSIONS } from "@core/domain/analytics/ReportSchema.js";
+import type { AnalyticsSummaryRow } from "@core/domain/repositories/AnalyticsAggregationQueryPort.js";
 
 const sample: AnalyticsSummaryRow = {
   date: new Date("2026-03-04T12:00:00Z"),

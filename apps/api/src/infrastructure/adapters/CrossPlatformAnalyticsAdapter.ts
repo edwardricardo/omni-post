@@ -10,8 +10,8 @@ import type { CrossPlatformAnalyticsPort } from "@core/application/analytics/Get
 import { CrossPlatformAnalyticsEngine } from "../../analytics/crossPlatform/index.js";
 import type { CrossPlatformAnalyticsOptions } from "../../analytics/crossPlatform/types.js";
 import type { TimeRange, ProviderType } from "@shared/analytics";
-import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
-import type { AnalyticsReadRepositoryPort } from "../../domain/repositories/AnalyticsReadRepository.js";
+import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
+import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
 
 /**
  * Adapter that implements CrossPlatformAnalyticsPort by delegating to CrossPlatformAnalyticsEngine.

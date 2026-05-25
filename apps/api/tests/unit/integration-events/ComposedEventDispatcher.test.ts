@@ -16,7 +16,7 @@ import type {
   EventDispatcher,
   DomainEvent,
   DomainEventHandler,
-} from "../../../src/domain/events/DomainEvent.js";
+} from "@core/domain/events/DomainEvent.js";
 import type { IntegrationEventPublisher } from "../../../src/infrastructure/integration-events/IntegrationEventPort.js";
 import type { IntegrationEvent } from "../../../src/infrastructure/integration-events/IntegrationEvent.js";
 

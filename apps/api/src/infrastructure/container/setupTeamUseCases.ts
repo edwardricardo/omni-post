@@ -8,13 +8,13 @@ import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import type { TeamInvitationMailer } from "@core/domain/repositories/TeamInvitationMailer.js";
 import type { PlatformCredentialReader } from "@core/domain/repositories/PlatformCredentialReader.js";
-import type { PostRepository } from "../../domain/index.js";
-import type { ApprovalRequestRepository } from "../../domain/repositories/ApprovalRequestRepository.js";
-import type { ApprovalWorkflowRepository } from "../../domain/repositories/ApprovalWorkflowRepository.js";
-import type { CustomerUserRepository } from "../../domain/repositories/CustomerUserRepository.js";
-import type { CustomerRoleRepository } from "../../domain/repositories/CustomerRoleRepository.js";
-import type { PostCommentRepository } from "../../domain/repositories/PostCommentRepository.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { PostRepository } from "@core/domain/index.js";
+import type { ApprovalRequestRepository } from "@core/domain/repositories/ApprovalRequestRepository.js";
+import type { ApprovalWorkflowRepository } from "@core/domain/repositories/ApprovalWorkflowRepository.js";
+import type { CustomerUserRepository } from "@core/domain/repositories/CustomerUserRepository.js";
+import type { CustomerRoleRepository } from "@core/domain/repositories/CustomerRoleRepository.js";
+import type { PostCommentRepository } from "@core/domain/repositories/PostCommentRepository.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import {
   SubmitForReviewUseCase,
   ApprovePostUseCase,

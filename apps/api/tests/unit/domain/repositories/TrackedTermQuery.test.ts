@@ -12,7 +12,7 @@ import type {
   TrackedTermQuery,
   TrackedTermForSearch,
   TrackedTermKind,
-} from "../../../../src/domain/repositories/TrackedTermQuery.js";
+} from "@core/domain/repositories/TrackedTermQuery.js";
 
 describe("TrackedTermQuery contract", () => {
   it("exposes the fields the dispatch loop reads on a tracked term", () => {

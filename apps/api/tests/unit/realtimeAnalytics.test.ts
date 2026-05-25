@@ -12,7 +12,7 @@ import { describe, it, expect } from "vitest";
 import { RealtimeAnalyticsService } from "../../src/analytics/realtimeAnalytics.js";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { InMemoryCacheAdapter } from "@adapters/cache-redis";
-import type { AnalyticsReadRepositoryPort } from "../../src/domain/repositories/AnalyticsReadRepository.js";
+import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
 import type {
   AnalyticsStreamBroadcaster,
   AnalyticsStreamEventPayload,

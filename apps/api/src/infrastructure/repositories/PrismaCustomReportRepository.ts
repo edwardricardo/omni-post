@@ -13,9 +13,9 @@ import type {
   CustomReportRepository,
   CustomReportDto,
   ReportScheduleDto,
-} from "../../domain/repositories/CustomReportRepository.js";
-import { EntityNotFoundError } from "../../domain/errors/index.js";
-import type { CustomReport } from "../../domain/entities/CustomReport.js";
+} from "@core/domain/repositories/CustomReportRepository.js";
+import { EntityNotFoundError } from "@core/domain/errors/index.js";
+import type { CustomReport } from "@core/domain/entities/CustomReport.js";
 
 /**
  * Shape of a raw CustomReport row returned by Prisma.

@@ -13,12 +13,12 @@ import { logger } from "../lib/logger.js";
 const adminLogger = logger.child({ module: "admin" });
 import { AuditableService } from "../services/AuditableService.js";
 import { hashPassword } from "../auth/passwordHashing.js";
-import type { AdminUserRepositoryPort } from "../domain/repositories/AdminUserRepository.js";
-import type { AuditLogRepository } from "../domain/repositories/AuditLogRepository.js";
+import type { AdminUserRepositoryPort } from "@core/domain/repositories/AdminUserRepository.js";
+import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 import type {
   AdminSessionRepository,
   AdminSessionDto,
-} from "../domain/repositories/AdminSessionRepository.js";
+} from "@core/domain/repositories/AdminSessionRepository.js";
 import type { ResetPasswordRequest } from "./accountLifecycleTypes.js";
 
 export class AccountSessionService extends AuditableService {

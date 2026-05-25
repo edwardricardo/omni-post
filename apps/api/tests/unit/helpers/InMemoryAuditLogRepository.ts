@@ -13,7 +13,7 @@ import type {
   AuditLogCreateInput,
   AuditLogQueryOptions,
   AuditLogRecordDto,
-} from "../../../src/domain/repositories/AuditLogRepository.js";
+} from "@core/domain/repositories/AuditLogRepository.js";
 
 export class InMemoryAuditLogRepository implements AuditLogRepository {
   readonly rows: AuditLogRecordDto[] = [];

@@ -13,8 +13,8 @@ import type {
   PostWithAnalytics,
   PublishedPost,
   MediaTypeCount,
-} from "../../domain/repositories/ProjectQueryRepository.js";
-import type { ProjectDto, ChannelDto } from "../../domain/repositories/ReadModelDtos.js";
+} from "@core/domain/repositories/ProjectQueryRepository.js";
+import type { ProjectDto, ChannelDto } from "@core/domain/repositories/ReadModelDtos.js";
 
 /**
  * PrismaProjectQueryRepository

@@ -7,10 +7,7 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import { GuardrailRegistry } from "@core/application/guardrails/GuardrailRegistry.js";
-import type {
-  GuardrailPort,
-  GuardrailDecision,
-} from "../../../../src/domain/repositories/GuardrailPort.js";
+import type { GuardrailPort, GuardrailDecision } from "@core/domain/repositories/GuardrailPort.js";
 import type { GuardrailMetrics } from "@core/domain/repositories/GuardrailMetricsPort.js";
 
 function makePort(

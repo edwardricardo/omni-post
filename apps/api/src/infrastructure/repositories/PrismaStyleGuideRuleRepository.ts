@@ -16,7 +16,7 @@ import type {
   StyleGuideRuleRepository,
   StyleGuideRuleRepositoryError,
   StyleGuideRuleUpsertInput,
-} from "../../domain/repositories/StyleGuideRuleRepository.js";
+} from "@core/domain/repositories/StyleGuideRuleRepository.js";
 
 interface StyleGuideRuleRow {
   id: string;

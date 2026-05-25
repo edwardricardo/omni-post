@@ -21,8 +21,8 @@ import { describe, it, beforeAll, expect } from "vitest";
 import { ThreadAnalytics } from "../../src/analytics/threadAnalytics.js";
 import { InMemoryCacheAdapter } from "@adapters/cache-redis";
 import type { ApiMetrics } from "../../src/metrics/apiMetrics.js";
-import type { AnalyticsReadRepositoryPort } from "../../src/domain/repositories/AnalyticsReadRepository.js";
-import type { ThreadReadRepositoryPort } from "../../src/domain/repositories/ThreadReadRepository.js";
+import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
+import type { ThreadReadRepositoryPort } from "@core/domain/repositories/ThreadReadRepository.js";
 
 let threadAnalytics: ThreadAnalytics;
 

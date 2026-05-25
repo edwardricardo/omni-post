@@ -14,8 +14,8 @@ import type {
   ConversionRepositoryPort,
   ConversionRecordInput,
   ConversionFindOptions,
-} from "../../domain/repositories/ConversionRepository.js";
-import type { ConversionDto } from "../../domain/repositories/ReadModelDtos.js";
+} from "@core/domain/repositories/ConversionRepository.js";
+import type { ConversionDto } from "@core/domain/repositories/ReadModelDtos.js";
 
 /**
  * Prisma implementation of ConversionRepositoryPort.

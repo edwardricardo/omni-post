@@ -12,13 +12,13 @@ import { createRedisConnection } from "../lib/redis.js";
 import { createLogger } from "../lib/logger.js";
 
 const analyticsLogger = createLogger("analytics");
-import type { ProjectQueryRepositoryPort } from "../domain/repositories/ProjectQueryRepository.js";
-import type { AnalyticsReadRepositoryPort } from "../domain/repositories/AnalyticsReadRepository.js";
-import type { ConversionRepositoryPort } from "../domain/repositories/ConversionRepository.js";
+import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
+import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
+import type { ConversionRepositoryPort } from "@core/domain/repositories/ConversionRepository.js";
 import type {
   ConversionTypeKind,
   ConversionAttributionKind,
-} from "../domain/repositories/ReadModelDtos.js";
+} from "@core/domain/repositories/ReadModelDtos.js";
 import { CostCalculator } from "./roi/CostCalculator.js";
 import { RevenueCalculator } from "./roi/RevenueCalculator.js";
 import { ROIMetrics } from "./roi/ROIMetrics.js";

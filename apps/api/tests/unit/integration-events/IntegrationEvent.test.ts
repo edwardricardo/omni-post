@@ -12,7 +12,7 @@
 
 import { describe, it, expect } from "vitest";
 import { toIntegrationEvent } from "../../../src/infrastructure/integration-events/IntegrationEvent.js";
-import type { DomainEvent } from "../../../src/domain/events/DomainEvent.js";
+import type { DomainEvent } from "@core/domain/events/DomainEvent.js";
 
 /** Helper: create a mock domain event with toPayload() */
 function createMockDomainEvent(

@@ -20,7 +20,7 @@ import {
   ScheduledTime,
   MediaAttachment,
   type MediaType,
-} from "../../../domain/index.js";
+} from "@core/domain/index.js";
 
 /**
  * Prisma Post with relations

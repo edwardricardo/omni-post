@@ -14,7 +14,7 @@ import type {
   TrendRadarQueryOptions,
   TrendRadarListResult,
   ScoredTrendDTO,
-} from "../../domain/repositories/TrendRadarQueryRepository.js";
+} from "@core/domain/repositories/TrendRadarQueryRepository.js";
 
 export class PrismaTrendRadarQueryAdapter implements TrendRadarQueryRepository {
   constructor(private readonly prisma: PrismaClient) {}

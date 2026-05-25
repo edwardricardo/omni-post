@@ -13,11 +13,11 @@ import type {
   AdminUserRepositoryPort,
   AdminUserCreateInput,
   AdminUserUpdate,
-} from "../../domain/repositories/AdminUserRepository.js";
+} from "@core/domain/repositories/AdminUserRepository.js";
 import type {
   AdminUserDto,
   AdminUserCredentialsDto,
-} from "../../domain/repositories/ReadModelDtos.js";
+} from "@core/domain/repositories/ReadModelDtos.js";
 
 // ---------------------------------------------------------------------------
 // Types

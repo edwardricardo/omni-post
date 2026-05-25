@@ -15,13 +15,13 @@ import {
   AccountId,
   Provider,
   EntityNotFoundError,
-} from "../../domain/index.js";
-import type { ChannelCredentials } from "../../domain/entities/Channel.js";
-import { CONNECTION_STATUS } from "../../domain/entities/Channel.js";
+} from "@core/domain/index.js";
+import type { ChannelCredentials } from "@core/domain/entities/Channel.js";
+import { CONNECTION_STATUS } from "@core/domain/entities/Channel.js";
 import type {
   ChannelRepository,
   ChannelConnectionView,
-} from "../../domain/repositories/ChannelRepository.js";
+} from "@core/domain/repositories/ChannelRepository.js";
 import type { ChannelCredentialsCrypto } from "../../security/ChannelCredentialsCrypto.js";
 
 interface ChannelRow {

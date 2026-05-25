@@ -8,7 +8,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { PrismaClient } from "@infra/prisma";
 import { Prisma } from "@infra/prisma";
-import type { UnitOfWork } from "../../domain/index.js";
+import type { UnitOfWork } from "@core/domain/index.js";
 
 type TxClient = Prisma.TransactionClient;
 

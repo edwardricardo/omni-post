@@ -13,7 +13,7 @@ import assert from "node:assert/strict";
 import { prisma } from "@infra/prisma";
 import { PrismaPostRepository } from "../../../src/infrastructure/repositories/PrismaPostRepository.js";
 import { PostAggregateMapper } from "../../../src/infrastructure/repositories/mappers/PostAggregateMapper.js";
-import { PostAggregate, PostId, ProjectId, PUBLISH_STATUS } from "../../../src/domain/index.js";
+import { PostAggregate, PostId, ProjectId, PUBLISH_STATUS } from "@core/domain/index.js";
 
 describe("PrismaPostRepository", () => {
   let repository: PrismaPostRepository;

@@ -10,8 +10,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok, err } from "@shared/types";
 import { DuplicatePostsBatchUseCase } from "@core/application/posts/DuplicatePostsBatchUseCase.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
-import { PostAggregate, PostId, ProjectId } from "../../../../src/domain/index.js";
-import { EntityNotFoundError } from "../../../../src/domain/errors/index.js";
+import { PostAggregate, PostId, ProjectId } from "@core/domain/index.js";
+import { EntityNotFoundError } from "@core/domain/errors/index.js";
 
 // Mock business metrics — they call Prometheus which may not be initialized
 vi.mock("../../../../src/metrics/businessMetrics.js", () => ({

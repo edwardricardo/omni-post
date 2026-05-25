@@ -12,7 +12,7 @@ import type {
   GuardrailPort,
   GuardrailInput,
   GuardrailDecision,
-} from "../../domain/repositories/GuardrailPort.js";
+} from "@core/domain/repositories/GuardrailPort.js";
 
 // Simplified RFC 5322 — sufficient to catch the common shapes without
 // dragging in the full grammar.

@@ -11,8 +11,8 @@ import { createLogger } from "../../lib/logger.js";
 const analyticsLogger = createLogger("analytics");
 
 import type { CrossPlatformMetrics, TimeRange } from "@shared/analytics";
-import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
-import type { AnalyticsReadRepositoryPort } from "../../domain/repositories/AnalyticsReadRepository.js";
+import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
+import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
 
 import type { CrossPlatformAnalyticsOptions } from "./types";
 import { getAnalyticsData, getPostsData, getChannelsData, getCompetitorData } from "./dataFetcher";

@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-import type { AdminRoleKind } from "../domain/repositories/ReadModelDtos.js";
+import type { AdminRoleKind } from "@core/domain/repositories/ReadModelDtos.js";
 
 export interface TokenPayload {
   userId: string;

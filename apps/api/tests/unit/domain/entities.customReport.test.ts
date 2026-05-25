@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { CustomReport } from "../../../src/domain/entities/CustomReport.js";
+import { CustomReport } from "@core/domain/entities/CustomReport.js";
 
 describe("CustomReport Entity", () => {
   const validInput = {

@@ -11,7 +11,7 @@
 
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { PrismaTrackedLinkRepository } from "../../../src/infrastructure/repositories/PrismaTrackedLinkRepository.js";
-import { TrackedLink, TrackedLinkId, ProjectId, LinkClick } from "../../../src/domain/index.js";
+import { TrackedLink, TrackedLinkId, ProjectId, LinkClick } from "@core/domain/index.js";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 

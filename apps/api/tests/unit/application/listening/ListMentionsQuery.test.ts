@@ -10,7 +10,7 @@ import { ListMentionsQuery } from "@core/application/listening/ListMentionsQuery
 import type {
   CursorPaginatedResult,
   MentionDTO,
-} from "../../../../src/domain/repositories/MentionQueryRepository.js";
+} from "@core/domain/repositories/MentionQueryRepository.js";
 
 function emptyPage(): CursorPaginatedResult<MentionDTO> {
   return { items: [], nextCursor: null, hasMore: false };

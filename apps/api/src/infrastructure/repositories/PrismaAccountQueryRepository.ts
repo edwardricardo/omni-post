@@ -13,8 +13,8 @@ import type {
   AccountWithProjects,
   SubscriptionUpdateData,
   TrialStatsCounts,
-} from "../../domain/repositories/AccountQueryRepository.js";
-import type { AccountDto } from "../../domain/repositories/ReadModelDtos.js";
+} from "@core/domain/repositories/AccountQueryRepository.js";
+import type { AccountDto } from "@core/domain/repositories/ReadModelDtos.js";
 
 /**
  * PrismaAccountQueryRepository — implements AccountQueryRepositoryPort.

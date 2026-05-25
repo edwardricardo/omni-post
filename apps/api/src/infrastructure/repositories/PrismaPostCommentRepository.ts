@@ -12,10 +12,10 @@ import type {
   PostCommentRepository,
   PostCommentFindOptions,
   PostCommentPaginatedResult,
-} from "../../domain/repositories/PostCommentRepository.js";
-import { PostCommentAggregate } from "../../domain/aggregates/PostCommentAggregate.js";
-import { CommentId } from "../../domain/value-objects/CommentId.js";
-import { EntityNotFoundError } from "../../domain/errors/index.js";
+} from "@core/domain/repositories/PostCommentRepository.js";
+import { PostCommentAggregate } from "@core/domain/aggregates/PostCommentAggregate.js";
+import { CommentId } from "@core/domain/value-objects/CommentId.js";
+import { EntityNotFoundError } from "@core/domain/errors/index.js";
 
 /**
  * Raw Prisma row shape for type-safe mapping

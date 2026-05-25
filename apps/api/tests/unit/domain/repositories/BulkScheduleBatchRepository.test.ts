@@ -15,7 +15,7 @@ import type {
   BulkScheduleItemState,
   BulkScheduleItemStatus,
   NewBulkScheduleBatch,
-} from "../../../../src/domain/repositories/BulkScheduleBatchRepository.js";
+} from "@core/domain/repositories/BulkScheduleBatchRepository.js";
 
 interface ItemRow {
   batchId: string;

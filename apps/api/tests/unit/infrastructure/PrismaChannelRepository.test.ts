@@ -14,7 +14,7 @@ import { randomBytes } from "node:crypto";
 import { PrismaChannelRepository } from "../../../src/infrastructure/repositories/PrismaChannelRepository.js";
 import { ChannelCredentialsCrypto } from "../../../src/security/ChannelCredentialsCrypto.js";
 import { EncryptionService } from "../../../src/security/EncryptionService.js";
-import { ChannelId, ProjectId, AccountId } from "../../../src/domain/index.js";
+import { ChannelId, ProjectId, AccountId } from "@core/domain/index.js";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 

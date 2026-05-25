@@ -15,10 +15,10 @@ import { hashPassword } from "../auth/passwordHashing.js";
 import type {
   AdminUserRepositoryPort,
   AdminUserUpdate,
-} from "../domain/repositories/AdminUserRepository.js";
-import type { RoleRepository } from "../domain/repositories/RoleRepository.js";
-import type { AdminSessionRepository } from "../domain/repositories/AdminSessionRepository.js";
-import type { AdminUserDto } from "../domain/repositories/ReadModelDtos.js";
+} from "@core/domain/repositories/AdminUserRepository.js";
+import type { RoleRepository } from "@core/domain/repositories/RoleRepository.js";
+import type { AdminSessionRepository } from "@core/domain/repositories/AdminSessionRepository.js";
+import type { AdminUserDto } from "@core/domain/repositories/ReadModelDtos.js";
 
 /** Input for creating an admin user. */
 export interface CreateAdminUserInput {

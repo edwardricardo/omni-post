@@ -18,7 +18,7 @@ import type {
   HttpClientPort,
   HttpRequestOptions,
   HttpPostOptions,
-} from "../../../src/domain/repositories/HttpClientPort.js";
+} from "@core/domain/repositories/HttpClientPort.js";
 import { FetchHttpClient } from "../../../src/infrastructure/adapters/FetchHttpClient.js";
 
 describe("HttpClientPort contract", () => {

@@ -11,7 +11,7 @@ import { describe, it, expect, vi } from "vitest";
 import { ok, err } from "@shared/types";
 import { DeleteGlossaryTermUseCase } from "@core/application/glossary/DeleteGlossaryTermUseCase.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
-import type { GlossaryRepository } from "../../../../src/domain/repositories/GlossaryRepository.js";
+import type { GlossaryRepository } from "@core/domain/repositories/GlossaryRepository.js";
 
 function makeRepo() {
   return {

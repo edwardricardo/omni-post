@@ -8,7 +8,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { CreateScheduledReportUseCase } from "@core/application/reports/CreateScheduledReportUseCase.js";
 import { GenerateReportUseCase } from "@core/application/reports/GenerateReportUseCase.js";
-import { ProjectId, ScheduledReportId } from "../../../src/domain/value-objects/EntityId.js";
+import { ProjectId, ScheduledReportId } from "@core/domain/value-objects/EntityId.js";
 
 // ============================================================================
 // CreateScheduledReportUseCase

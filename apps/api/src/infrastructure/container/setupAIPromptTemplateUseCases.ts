@@ -7,8 +7,8 @@
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import { PrismaAIPromptTemplateRepository } from "../repositories/PrismaAIPromptTemplateRepository.js";
-import type { AIPromptTemplateRepository } from "../../domain/repositories/AIPromptTemplateRepository.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { AIPromptTemplateRepository } from "@core/domain/repositories/AIPromptTemplateRepository.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import { ListAIPromptTemplatesQuery } from "@core/application/aiPromptTemplates/ListAIPromptTemplatesQuery.js";
 import { CreateAIPromptTemplateUseCase } from "@core/application/aiPromptTemplates/CreateAIPromptTemplateUseCase.js";
 import { UpdateAIPromptTemplateUseCase } from "@core/application/aiPromptTemplates/UpdateAIPromptTemplateUseCase.js";

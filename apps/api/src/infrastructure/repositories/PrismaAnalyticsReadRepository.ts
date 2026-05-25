@@ -17,8 +17,8 @@ import type {
   DailySummaryDto,
   MonthlySummaryDto,
   HistoricalTrendDto,
-} from "../../domain/repositories/AnalyticsReadRepository.js";
-import type { AnalyticsDto } from "../../domain/repositories/ReadModelDtos.js";
+} from "@core/domain/repositories/AnalyticsReadRepository.js";
+import type { AnalyticsDto } from "@core/domain/repositories/ReadModelDtos.js";
 
 /**
  * PrismaAnalyticsReadRepository

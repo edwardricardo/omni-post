@@ -6,14 +6,8 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ok, err } from "@shared/types";
-import {
-  PostAggregate,
-  ProjectId,
-  PostId,
-  ChannelId,
-  PUBLISH_STATUS,
-} from "../../../src/domain/index.js";
-import { EntityNotFoundError } from "../../../src/domain/errors/index.js";
+import { PostAggregate, ProjectId, PostId, ChannelId, PUBLISH_STATUS } from "@core/domain/index.js";
+import { EntityNotFoundError } from "@core/domain/errors/index.js";
 import { CreatePostUseCase } from "@core/application/posts/CreatePostUseCase.js";
 import { UpdatePostUseCase } from "@core/application/posts/UpdatePostUseCase.js";
 import { SchedulePostUseCase } from "@core/application/posts/SchedulePostUseCase.js";

@@ -17,20 +17,20 @@ import { ok, err, type Result } from "@shared/types";
 import { logger } from "../lib/logger.js";
 
 const adminLogger = logger.child({ module: "admin" });
-import type { AdminUserDto } from "../domain/repositories/ReadModelDtos.js";
+import type { AdminUserDto } from "@core/domain/repositories/ReadModelDtos.js";
 import { AuditableService } from "../services/AuditableService.js";
 import { hashPassword } from "../auth/passwordHashing.js";
 import type {
   AdminUserRepositoryPort,
   AdminUserUpdate,
-} from "../domain/repositories/AdminUserRepository.js";
+} from "@core/domain/repositories/AdminUserRepository.js";
 import type {
   AdminSessionRepository,
   AdminSessionDto,
-} from "../domain/repositories/AdminSessionRepository.js";
-import type { RoleRepository } from "../domain/repositories/RoleRepository.js";
-import type { AuditLogRepository } from "../domain/repositories/AuditLogRepository.js";
-import type { UnitOfWork } from "../domain/repositories/Repository.js";
+} from "@core/domain/repositories/AdminSessionRepository.js";
+import type { RoleRepository } from "@core/domain/repositories/RoleRepository.js";
+import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type {
   AccountProfile,
   CreateAccountRequest,

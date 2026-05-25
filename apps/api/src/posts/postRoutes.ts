@@ -19,7 +19,7 @@ import type { ArchivePostsBatchUseCase } from "@core/application/posts/ArchivePo
 import type { HardDeletePostsBatchUseCase } from "@core/application/posts/HardDeletePostsBatchUseCase.js";
 import type { DuplicatePostsBatchUseCase } from "@core/application/posts/DuplicatePostsBatchUseCase.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
-import type { PublishStatusValue } from "../domain/value-objects/PublishStatus.js";
+import type { PublishStatusValue } from "@core/domain/value-objects/PublishStatus.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 
 // ---------------------------------------------------------------------------

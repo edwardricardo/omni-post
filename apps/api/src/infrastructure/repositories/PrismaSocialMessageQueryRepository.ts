@@ -15,7 +15,7 @@ import {
   type InboxFilter,
   type CursorPagination,
   type CursorPaginatedResult,
-} from "../../domain/repositories/SocialMessageQueryRepository.js";
+} from "@core/domain/repositories/SocialMessageQueryRepository.js";
 
 /**
  * @class PrismaSocialMessageQueryRepository

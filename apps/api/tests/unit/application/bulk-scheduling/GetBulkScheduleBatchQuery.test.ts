@@ -10,7 +10,7 @@ import { GetBulkScheduleBatchQuery } from "@core/application/bulk-scheduling/Get
 import type {
   BulkScheduleQueryRepository,
   BulkScheduleBatchDTO,
-} from "../../../../src/domain/repositories/BulkScheduleQueryRepository.js";
+} from "@core/domain/repositories/BulkScheduleQueryRepository.js";
 
 const makeBatch = (overrides?: Partial<BulkScheduleBatchDTO>): BulkScheduleBatchDTO => ({
   id: "batch-1",

@@ -7,7 +7,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { DispatchMentionSearchUseCase } from "@core/application/listening/DispatchMentionSearchUseCase.js";
-import type { TrackedTermForSearch } from "../../../../src/domain/repositories/TrackedTermQuery.js";
+import type { TrackedTermForSearch } from "@core/domain/repositories/TrackedTermQuery.js";
 import { ok, err } from "@shared/types";
 
 function makeMockTermQuery(

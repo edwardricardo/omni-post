@@ -9,9 +9,9 @@
  */
 
 import { type Result, ok, err } from "@shared/types";
-import { type DomainError, InvariantViolationError } from "../../domain/errors/index.js";
-import { type NotificationPayload } from "../../domain/repositories/ExternalNotifierPort.js";
-import type { HttpClientPort } from "../../domain/repositories/HttpClientPort.js";
+import { type DomainError, InvariantViolationError } from "@core/domain/errors/index.js";
+import { type NotificationPayload } from "@core/domain/repositories/ExternalNotifierPort.js";
+import type { HttpClientPort } from "@core/domain/repositories/HttpClientPort.js";
 
 /**
  * @class SlackNotifierAdapter

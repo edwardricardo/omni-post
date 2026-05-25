@@ -16,10 +16,10 @@ import { LogoutCustomerUseCase } from "@core/application/customer-auth/LogoutCus
 import { Argon2PasswordHasher } from "../../src/infrastructure/adapters/Argon2PasswordHasher.js";
 import { CustomerTokenServiceAdapter } from "../../src/infrastructure/adapters/CustomerTokenServiceAdapter.js";
 import { InMemoryCacheAdapter } from "@adapters/cache-redis";
-import { CustomerUser } from "../../src/domain/entities/CustomerUser.js";
-import { Account } from "../../src/domain/entities/Account.js";
-import { EntityNotFoundError } from "../../src/domain/errors/index.js";
-import { AccountId } from "../../src/domain/value-objects/EntityId.js";
+import { CustomerUser } from "@core/domain/entities/CustomerUser.js";
+import { Account } from "@core/domain/entities/Account.js";
+import { EntityNotFoundError } from "@core/domain/errors/index.js";
+import { AccountId } from "@core/domain/value-objects/EntityId.js";
 
 // ---- Real adapters (stateless; sign/hash with the production implementations
 // so token + password round-trips behave exactly as in production) ----

@@ -9,7 +9,7 @@ import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import { prisma } from "@infra/prisma";
 import { PrismaCustomReportRepository } from "../repositories/PrismaCustomReportRepository.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import { CreateCustomReportUseCase } from "@core/application/custom-reports/CreateCustomReportUseCase.js";
 import { UpdateCustomReportUseCase } from "@core/application/custom-reports/UpdateCustomReportUseCase.js";
 import { DeleteCustomReportUseCase } from "@core/application/custom-reports/DeleteCustomReportUseCase.js";

@@ -7,7 +7,7 @@
 import type { PrismaClient } from "@infra/prisma";
 import { Container, getContainer } from "./Container.js";
 import { TOKENS } from "./types.js";
-import { InMemoryEventDispatcher, type EventDispatcher } from "../../domain/index.js";
+import { InMemoryEventDispatcher, type EventDispatcher } from "@core/domain/index.js";
 import { ComposedEventDispatcher } from "../integration-events/ComposedEventDispatcher.js";
 import type { IntegrationEventPublisher } from "../integration-events/IntegrationEventPort.js";
 import { setupRepositories } from "./setupRepositories.js";

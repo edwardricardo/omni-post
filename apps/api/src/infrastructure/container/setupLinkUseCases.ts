@@ -6,9 +6,9 @@
  */
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import type { TrackedLinkRepository } from "../../domain/repositories/TrackedLinkRepository.js";
-import type { GA4TrackingPort } from "../../domain/repositories/GA4TrackingPort.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { TrackedLinkRepository } from "@core/domain/repositories/TrackedLinkRepository.js";
+import type { GA4TrackingPort } from "@core/domain/repositories/GA4TrackingPort.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import {
   CreateTrackedLinkUseCase,
   GetTrackedLinkUseCase,

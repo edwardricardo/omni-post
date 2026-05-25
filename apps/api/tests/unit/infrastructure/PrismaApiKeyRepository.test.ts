@@ -12,7 +12,7 @@
 
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { PrismaApiKeyRepository } from "../../../src/infrastructure/repositories/PrismaApiKeyRepository.js";
-import { ApiKeyNotFoundError } from "../../../src/domain/repositories/ApiKeyRepository.js";
+import { ApiKeyNotFoundError } from "@core/domain/repositories/ApiKeyRepository.js";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 

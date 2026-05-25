@@ -102,7 +102,7 @@ import { setupContainer } from "./infrastructure/container/setup.js";
 import { TOKENS } from "./infrastructure/container/types.js";
 import type { OutboxRelay } from "./infrastructure/outbox/OutboxRelay.js";
 import type { OutboxCleaner } from "./infrastructure/outbox/OutboxCleaner.js";
-import type { EventDispatcher } from "./domain/events/DomainEvent.js";
+import type { EventDispatcher } from "@core/domain/events/DomainEvent.js";
 import {
   IntegrationEventDeliveryHandler,
   HANDLED_EVENT_TYPES as INTEGRATION_HANDLED_EVENT_TYPES,

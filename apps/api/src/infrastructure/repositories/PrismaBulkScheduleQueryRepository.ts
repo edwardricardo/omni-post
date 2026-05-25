@@ -14,11 +14,11 @@ import type {
   BulkScheduleQueryRepository,
   BulkScheduleBatchDTO,
   BulkScheduleItemDTO,
-} from "../../domain/repositories/BulkScheduleQueryRepository.js";
+} from "@core/domain/repositories/BulkScheduleQueryRepository.js";
 import type {
   BulkScheduleBatchStatus,
   BulkScheduleItemStatus,
-} from "../../domain/repositories/BulkScheduleBatchRepository.js";
+} from "@core/domain/repositories/BulkScheduleBatchRepository.js";
 
 export class PrismaBulkScheduleQueryRepository implements BulkScheduleQueryRepository {
   constructor(private readonly prisma: PrismaClient) {}

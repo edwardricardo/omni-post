@@ -9,7 +9,7 @@
  * @layer infrastructure
  */
 
-import type { DomainEvent, DomainEventHandler } from "../../domain/events/DomainEvent.js";
+import type { DomainEvent, DomainEventHandler } from "@core/domain/events/DomainEvent.js";
 import type { QueuePort } from "@ports/core";
 import { createLogger } from "../../lib/logger.js";
 

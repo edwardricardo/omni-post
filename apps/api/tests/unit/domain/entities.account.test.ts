@@ -11,8 +11,8 @@ import {
   Account,
   SUBSCRIPTION_TIER,
   type CreateAccountInput,
-} from "../../../src/domain/entities/Account.js";
-import { AccountId } from "../../../src/domain/value-objects/EntityId.js";
+} from "@core/domain/entities/Account.js";
+import { AccountId } from "@core/domain/value-objects/EntityId.js";
 
 // ---------------------------------------------------------------------------
 // Helpers

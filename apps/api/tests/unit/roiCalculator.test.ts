@@ -11,9 +11,9 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { ROICalculator } from "../../src/analytics/roiCalculator.js";
-import type { ProjectQueryRepositoryPort } from "../../src/domain/repositories/ProjectQueryRepository.js";
-import type { AnalyticsReadRepositoryPort } from "../../src/domain/repositories/AnalyticsReadRepository.js";
-import type { ConversionRepositoryPort } from "../../src/domain/repositories/ConversionRepository.js";
+import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
+import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
+import type { ConversionRepositoryPort } from "@core/domain/repositories/ConversionRepository.js";
 import type { CachePort } from "@ports/core";
 import type { ConversionTracking } from "../../src/analytics/roi/types.js";
 

@@ -23,7 +23,7 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { PrismaAdminUserRepository } from "../../../src/infrastructure/repositories/PrismaAdminUserRepository.js";
-import type { AdminUserDto } from "../../../src/domain/repositories/ReadModelDtos.js";
+import type { AdminUserDto } from "@core/domain/repositories/ReadModelDtos.js";
 import { prisma } from "@infra/prisma";
 
 // ========================================

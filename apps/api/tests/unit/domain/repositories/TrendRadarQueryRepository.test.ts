@@ -14,7 +14,7 @@ import type {
   TrendRadarQueryOptions,
   TrendRadarListResult,
   ScoredTrendDTO,
-} from "../../../../src/domain/repositories/TrendRadarQueryRepository.js";
+} from "@core/domain/repositories/TrendRadarQueryRepository.js";
 
 const REQUIRED_DTO_FIELDS = [
   "topic",

@@ -10,7 +10,7 @@ import type {
   RoleRepository,
   RoleDto,
   RoleWithPermissionsDto,
-} from "../../domain/repositories/RoleRepository.js";
+} from "@core/domain/repositories/RoleRepository.js";
 
 /** Role row with its permissions and assigned-user count eagerly loaded. */
 type RoleWithDetails = Role & {

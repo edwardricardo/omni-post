@@ -21,13 +21,9 @@ import {
   DeletePostUseCase,
   USE_CASE_ERRORS,
 } from "@core/application/index.js";
-import { PostAggregate, ProjectId, EntityNotFoundError } from "../../../src/domain/index.js";
-import type {
-  PostRepository,
-  PostQueryRepository,
-  PostReadModel,
-} from "../../../src/domain/index.js";
-import type { EventDispatcher } from "../../../src/domain/events/DomainEvent.js";
+import { PostAggregate, ProjectId, EntityNotFoundError } from "@core/domain/index.js";
+import type { PostRepository, PostQueryRepository, PostReadModel } from "@core/domain/index.js";
+import type { EventDispatcher } from "@core/domain/events/DomainEvent.js";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

@@ -9,7 +9,7 @@
 
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import type { AccountSubscriptionQueryRepository } from "../../src/domain/repositories/AccountSubscriptionQueryRepository.js";
+import type { AccountSubscriptionQueryRepository } from "@core/domain/repositories/AccountSubscriptionQueryRepository.js";
 import { SubscriptionPlanService } from "../../src/billing/subscription/SubscriptionPlanService.js";
 
 describe("SubscriptionPlanService", () => {

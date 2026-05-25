@@ -8,7 +8,7 @@
  * @layer infrastructure
  */
 
-import type { AIServicePort } from "../../domain/repositories/AIServicePort.js";
+import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
 import type { AIMessage } from "../../ai/types.js";
 import { trendDiscoverySpec } from "../../ai/structuredSchemas.js";
 import type {

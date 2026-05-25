@@ -9,7 +9,7 @@
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import type { AgentOrchestrationPort } from "@ports/core";
-import type { AIServicePort } from "../../domain/repositories/AIServicePort.js";
+import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
 import { LangGraphAgentOrchestrationAdapter } from "../../ai/agent/LangGraphAgentOrchestrationAdapter.js";
 
 /**

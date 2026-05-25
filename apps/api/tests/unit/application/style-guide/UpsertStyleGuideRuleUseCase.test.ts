@@ -11,8 +11,8 @@ import { EmbeddingService } from "@core/application/embeddings/EmbeddingService.
 import type {
   StyleGuideRule,
   StyleGuideRuleRepository,
-} from "../../../../src/domain/repositories/StyleGuideRuleRepository.js";
-import type { AIServicePort } from "../../../../src/domain/repositories/AIServicePort.js";
+} from "@core/domain/repositories/StyleGuideRuleRepository.js";
+import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
 
 function makeRule(overrides: Partial<StyleGuideRule> = {}): StyleGuideRule {
   return {

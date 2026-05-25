@@ -6,7 +6,7 @@
  */
 
 import { BaseService } from "../../services/BaseService.js";
-import type { AccountSubscriptionQueryRepository } from "../../domain/repositories/AccountSubscriptionQueryRepository.js";
+import type { AccountSubscriptionQueryRepository } from "@core/domain/repositories/AccountSubscriptionQueryRepository.js";
 import { type TrialInfo } from "./types.js";
 
 /**

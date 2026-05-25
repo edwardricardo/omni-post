@@ -25,7 +25,7 @@ import {
   DATE_RANGE_PRESETS,
   CHART_TYPES,
   REPORT_FORMATS,
-} from "../domain/analytics/ReportSchema.js";
+} from "@core/domain/analytics/ReportSchema.js";
 import type { CreateCustomReportUseCase } from "@core/application/custom-reports/CreateCustomReportUseCase.js";
 import type { UpdateCustomReportUseCase } from "@core/application/custom-reports/UpdateCustomReportUseCase.js";
 import type { DeleteCustomReportUseCase } from "@core/application/custom-reports/DeleteCustomReportUseCase.js";

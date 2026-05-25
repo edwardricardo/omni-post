@@ -21,7 +21,7 @@ import {
   type UserActionOptions,
   type AuditLogEntry,
 } from "../../src/services/AuditableService.js";
-import type { AuditLogRepository } from "../../src/domain/repositories/AuditLogRepository.js";
+import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 
 /**
  * Concrete subclass that surfaces the protected audit helpers for testing.

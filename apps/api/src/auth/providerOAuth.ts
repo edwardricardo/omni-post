@@ -6,7 +6,7 @@
  */
 import { FastifyInstance } from "fastify";
 import type { CachePort } from "@ports/core";
-import type { ChannelRepository } from "../domain/repositories/ChannelRepository.js";
+import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
 import { ProviderOAuthHandler } from "./providerOAuthFlow.js";
 import { OAuthFlowStore } from "./oauth/OAuthFlowStore.js";
 import { requireClientAuth } from "./customerAuthMiddleware.js";

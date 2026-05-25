@@ -20,7 +20,7 @@ import type { BackgroundTaskScheduler } from "@observability/background-schedule
 import { ThreadAnalytics } from "./threadAnalytics.js";
 import type { RealtimeAnalyticsService } from "./realtimeAnalytics.js";
 import type { AnalyticsStreamBroadcaster } from "../services/AnalyticsStreamBroadcaster.js";
-import type { ProjectQueryRepositoryPort } from "../domain/repositories/ProjectQueryRepository.js";
+import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
 import type {
   CalculateROIUseCase,
   GetCrossPlatformAnalyticsUseCase,

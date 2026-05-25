@@ -11,7 +11,7 @@ import { describe, it, vi } from "vitest";
 import assert from "node:assert/strict";
 import { ok, err } from "@shared/types";
 import { PerplexityTrendingAdapter } from "../../../../src/infrastructure/repositories/PerplexityTrendingAdapter.js";
-import type { AIServicePort } from "../../../../src/domain/repositories/AIServicePort.js";
+import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
 
 function makeAI(
   topics: Array<{

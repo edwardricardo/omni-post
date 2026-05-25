@@ -11,14 +11,14 @@ import type {
   PostQueryRepository,
   EventDispatcher,
   ChannelRepository,
-} from "../../domain/index.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+} from "@core/domain/index.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { BusinessMetricsPort } from "@core/domain/repositories/BusinessMetricsPort.js";
 import type { QueuePortRegistry } from "@ports/core";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
-import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
-import type { BulkScheduleBatchRepository } from "../../domain/repositories/BulkScheduleBatchRepository.js";
-import type { BulkScheduleQueryRepository } from "../../domain/repositories/BulkScheduleQueryRepository.js";
+import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
+import type { BulkScheduleBatchRepository } from "@core/domain/repositories/BulkScheduleBatchRepository.js";
+import type { BulkScheduleQueryRepository } from "@core/domain/repositories/BulkScheduleQueryRepository.js";
 import {
   CreatePostUseCase,
   GetPostUseCase,

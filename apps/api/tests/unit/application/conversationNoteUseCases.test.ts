@@ -8,7 +8,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { AddConversationNoteUseCase } from "@core/application/inbox/AddConversationNoteUseCase.js";
 import { DeleteConversationNoteUseCase } from "@core/application/inbox/DeleteConversationNoteUseCase.js";
 import { ListConversationNotesQuery } from "@core/application/inbox/ListConversationNotesQuery.js";
-import { ConversationNote } from "../../../src/domain/entities/ConversationNote.js";
+import { ConversationNote } from "@core/domain/entities/ConversationNote.js";
 
 // ============================================================================
 // Mock factories

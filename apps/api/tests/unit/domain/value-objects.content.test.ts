@@ -7,8 +7,8 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { Content, CONTENT_LOCALES } from "../../../src/domain/value-objects/Content.js";
-import { MediaId } from "../../../src/domain/value-objects/EntityId.js";
+import { Content, CONTENT_LOCALES } from "@core/domain/value-objects/Content.js";
+import { MediaId } from "@core/domain/value-objects/EntityId.js";
 
 describe("Content value object", () => {
   beforeEach(() => {

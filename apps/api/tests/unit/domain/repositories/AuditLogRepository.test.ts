@@ -9,7 +9,7 @@
 import { describe, it, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { InMemoryAuditLogRepository } from "../../helpers/InMemoryAuditLogRepository.js";
-import type { AuditLogCreateInput } from "../../../../src/domain/repositories/AuditLogRepository.js";
+import type { AuditLogCreateInput } from "@core/domain/repositories/AuditLogRepository.js";
 
 const entry = (overrides?: Partial<AuditLogCreateInput>): AuditLogCreateInput => ({
   action: "USER_LOGIN",

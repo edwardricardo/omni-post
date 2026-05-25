@@ -11,8 +11,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok, err } from "@shared/types";
 import { CreatePostFromRecurrenceUseCase } from "@core/application/recurring/CreatePostFromRecurrenceUseCase.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
-import { PostAggregate, PostId, ProjectId } from "../../../../src/domain/index.js";
-import { EntityNotFoundError } from "../../../../src/domain/errors/index.js";
+import { PostAggregate, PostId, ProjectId } from "@core/domain/index.js";
+import { EntityNotFoundError } from "@core/domain/errors/index.js";
 
 vi.mock("../../../../src/metrics/businessMetrics.js", () => ({
   incrementPostCreated: vi.fn(),

@@ -16,7 +16,7 @@ import {
   LinkClick,
   ShortCode,
   ProjectId,
-} from "../../../src/domain/index.js";
+} from "@core/domain/index.js";
 
 describe("Link Tracking Domain", () => {
   describe("TrackedLinkId Value Object", () => {

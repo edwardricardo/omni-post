@@ -12,7 +12,7 @@ import type {
   RepurposeProposalQueryRepository,
   RepurposeProposalQueryOptions,
   RepurposeProposalListResult,
-} from "../../domain/repositories/RepurposeProposalQueryRepository.js";
+} from "@core/domain/repositories/RepurposeProposalQueryRepository.js";
 
 export class PrismaRepurposeProposalQueryAdapter implements RepurposeProposalQueryRepository {
   constructor(private readonly prisma: PrismaClient) {}

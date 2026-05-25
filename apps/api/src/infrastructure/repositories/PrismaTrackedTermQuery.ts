@@ -9,7 +9,7 @@ import type { PrismaClient } from "@infra/prisma";
 import type {
   TrackedTermQuery,
   TrackedTermForSearch,
-} from "../../domain/repositories/TrackedTermQuery.js";
+} from "@core/domain/repositories/TrackedTermQuery.js";
 
 export class PrismaTrackedTermQuery implements TrackedTermQuery {
   constructor(private readonly prisma: PrismaClient) {}

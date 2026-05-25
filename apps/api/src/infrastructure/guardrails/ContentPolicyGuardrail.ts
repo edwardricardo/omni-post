@@ -11,7 +11,7 @@ import type {
   GuardrailInput,
   GuardrailDecision,
   GuardrailAction,
-} from "../../domain/repositories/GuardrailPort.js";
+} from "@core/domain/repositories/GuardrailPort.js";
 
 /**
  * Per-action maximum length. `send-reply` honours the smallest canonical

@@ -11,7 +11,7 @@ import type {
   SubscriptionStatsQueryRepository,
   SubscriptionStatusGroupDto,
   ChurnActivityWindowsDto,
-} from "../../domain/repositories/SubscriptionStatsQueryRepository.js";
+} from "@core/domain/repositories/SubscriptionStatsQueryRepository.js";
 
 export class PrismaSubscriptionStatsQueryRepository implements SubscriptionStatsQueryRepository {
   constructor(private readonly prisma: PrismaClient) {}

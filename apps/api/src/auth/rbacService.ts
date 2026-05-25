@@ -10,9 +10,9 @@
 import { ok, err, type Result } from "@shared/types";
 import type { CachePort } from "@ports/core";
 import { AuditableService } from "../services/AuditableService";
-import type { AdminUserRepositoryPort } from "../domain/repositories/AdminUserRepository.js";
-import type { AuditLogRepository } from "../domain/repositories/AuditLogRepository.js";
-import type { RoleRepository } from "../domain/repositories/RoleRepository.js";
+import type { AdminUserRepositoryPort } from "@core/domain/repositories/AdminUserRepository.js";
+import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
+import type { RoleRepository } from "@core/domain/repositories/RoleRepository.js";
 import { authLogger } from "../lib/logger.js";
 
 // ---------------------------------------------------------------------------

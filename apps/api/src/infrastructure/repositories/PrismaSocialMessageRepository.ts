@@ -10,18 +10,18 @@ import type { PrismaClient } from "@infra/prisma";
 import { type $Enums } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
 
-import { type SocialMessageRepository } from "../../domain/repositories/SocialMessageRepository.js";
+import { type SocialMessageRepository } from "@core/domain/repositories/SocialMessageRepository.js";
 import {
   SocialMessageAggregate,
   type SocialMessageState,
-} from "../../domain/aggregates/SocialMessageAggregate.js";
-import { SocialMessageId } from "../../domain/value-objects/SocialMessageId.js";
-import { SocialConversationId } from "../../domain/value-objects/SocialConversationId.js";
-import { AccountId, ProjectId, ChannelId } from "../../domain/value-objects/index.js";
-import { SocialMessageType } from "../../domain/value-objects/SocialMessageType.js";
-import { SocialMessageStatus } from "../../domain/value-objects/SocialMessageStatus.js";
-import { type ProviderType } from "../../domain/value-objects/Provider.js";
-import { EntityNotFoundError } from "../../domain/errors/index.js";
+} from "@core/domain/aggregates/SocialMessageAggregate.js";
+import { SocialMessageId } from "@core/domain/value-objects/SocialMessageId.js";
+import { SocialConversationId } from "@core/domain/value-objects/SocialConversationId.js";
+import { AccountId, ProjectId, ChannelId } from "@core/domain/value-objects/index.js";
+import { SocialMessageType } from "@core/domain/value-objects/SocialMessageType.js";
+import { SocialMessageStatus } from "@core/domain/value-objects/SocialMessageStatus.js";
+import { type ProviderType } from "@core/domain/value-objects/Provider.js";
+import { EntityNotFoundError } from "@core/domain/errors/index.js";
 
 /**
  * Shape of a raw SocialMessage row returned by Prisma queries.

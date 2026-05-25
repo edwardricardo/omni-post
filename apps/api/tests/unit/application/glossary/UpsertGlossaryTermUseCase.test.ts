@@ -15,8 +15,8 @@ import { EmbeddingService } from "@core/application/embeddings/EmbeddingService.
 import type {
   GlossaryEntry,
   GlossaryRepository,
-} from "../../../../src/domain/repositories/GlossaryRepository.js";
-import type { AIServicePort } from "../../../../src/domain/repositories/AIServicePort.js";
+} from "@core/domain/repositories/GlossaryRepository.js";
+import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
 
 function makeEntry(overrides: Partial<GlossaryEntry> = {}): GlossaryEntry {
   return {

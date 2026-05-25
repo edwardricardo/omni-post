@@ -14,7 +14,7 @@ import {
   type CampaignDto,
   type CampaignWithStats,
   type ListCampaignsOptions,
-} from "../../domain/repositories/CampaignQueryRepository.js";
+} from "@core/domain/repositories/CampaignQueryRepository.js";
 
 /**
  * Shape of a raw Campaign row returned by Prisma queries.

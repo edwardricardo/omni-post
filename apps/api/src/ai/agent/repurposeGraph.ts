@@ -13,7 +13,7 @@
 
 import { StateGraph, Annotation, START, END, interrupt } from "@langchain/langgraph";
 import { z } from "zod";
-import type { AIServicePort } from "../../domain/repositories/AIServicePort.js";
+import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
 import type { StructuredOutputSpec } from "../types.js";
 import { TrajectoryRecorder, type RepurposeHumanDecision } from "./types.js";
 

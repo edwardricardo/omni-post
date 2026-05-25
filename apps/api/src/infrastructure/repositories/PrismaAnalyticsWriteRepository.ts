@@ -11,7 +11,7 @@ import { ok, err, type Result } from "@shared/types";
 import type {
   AnalyticsWriteRepository,
   AnalyticsDailySummaryInput,
-} from "../../domain/repositories/AnalyticsWriteRepository.js";
+} from "@core/domain/repositories/AnalyticsWriteRepository.js";
 
 export class PrismaAnalyticsWriteRepository implements AnalyticsWriteRepository {
   constructor(private readonly prisma: PrismaClient) {}

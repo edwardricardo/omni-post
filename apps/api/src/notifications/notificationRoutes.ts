@@ -20,8 +20,8 @@ import type {
 } from "@core/application/notifications/MarkNotificationReadUseCase.js";
 import type { GetUnreadCountQuery } from "@core/application/notifications/GetUnreadCountQuery.js";
 import type { NotificationBroadcaster } from "../services/NotificationBroadcaster.js";
-import type { NotificationPreferenceRepository } from "../domain/repositories/NotificationRepository.js";
-import { NOTIFICATION_TYPES } from "../domain/value-objects/NotificationType.js";
+import type { NotificationPreferenceRepository } from "@core/domain/repositories/NotificationRepository.js";
+import { NOTIFICATION_TYPES } from "@core/domain/value-objects/NotificationType.js";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 
 // --- Zod Schemas ---
@@ -214,7 +214,7 @@ class NotificationRouteHandler extends BaseRouteHandler {
     const body = validation.value.body;
     const result = await this.createUseCase.execute({
       recipientId: body.recipientId,
-      type: body.type as import("../domain/value-objects/NotificationType.js").NotificationTypeValue,
+      type: body.type as import("@core/domain/value-objects/NotificationType.js").NotificationTypeValue,
       title: body.title,
       body: body.body,
       ...(body.resourceType !== undefined && { resourceType: body.resourceType }),

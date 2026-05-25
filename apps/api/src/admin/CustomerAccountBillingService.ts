@@ -11,13 +11,13 @@
 
 import type { PrismaClient } from "@infra/prisma";
 import { ok, err, type Result } from "@shared/types";
-import type { AuditLogRepository } from "../domain/repositories/AuditLogRepository.js";
+import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 import {
   PricingCalculator,
   type ProviderTier,
   type AccountTier,
   type BundleDef,
-} from "../domain/billing/PricingCalculator.js";
+} from "@core/domain/billing/PricingCalculator.js";
 
 /** Account status fields editable by an admin. */
 export interface UpdateAccountStatusInput {

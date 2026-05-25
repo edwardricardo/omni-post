@@ -18,7 +18,7 @@ import {
   AccountId,
   ProjectId,
   Provider,
-} from "../../../src/domain/index.js";
+} from "@core/domain/index.js";
 
 describe("Domain Entities", () => {
   describe("Channel Entity", () => {

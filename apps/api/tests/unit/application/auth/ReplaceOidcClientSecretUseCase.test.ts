@@ -17,7 +17,7 @@ import {
 import type {
   OidcConfigurationRepository,
   OidcConfigurationData,
-} from "../../../../src/domain/repositories/OidcConfigurationRepository.js";
+} from "@core/domain/repositories/OidcConfigurationRepository.js";
 
 const ACCOUNT_ID = "acct-uuid-123";
 const NEW_SECRET = "new-shiny-client-secret";

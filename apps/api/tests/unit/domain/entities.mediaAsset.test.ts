@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { MediaAsset, MediaAssetId } from "../../../src/domain/entities/MediaAsset.js";
+import { MediaAsset, MediaAssetId } from "@core/domain/entities/MediaAsset.js";
 
 function validInput(overrides?: Record<string, unknown>) {
   return {

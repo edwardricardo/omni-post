@@ -14,7 +14,7 @@ import type { BackgroundTaskScheduler } from "@observability/background-schedule
 import { createLogger } from "../lib/logger.js";
 
 const analyticsLogger = createLogger("analytics");
-import type { AnalyticsReadRepositoryPort } from "../domain/repositories/AnalyticsReadRepository.js";
+import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
 import type { AnalyticsStreamBroadcaster } from "../services/AnalyticsStreamBroadcaster.js";
 import { BaseService } from "../services/BaseService";
 

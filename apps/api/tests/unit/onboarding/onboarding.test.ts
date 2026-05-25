@@ -7,8 +7,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { RegisterCustomerUseCase } from "@core/application/customer-auth/RegisterCustomerUseCase.js";
 import { Argon2PasswordHasher } from "../../../src/infrastructure/adapters/Argon2PasswordHasher.js";
 import { CustomerTokenServiceAdapter } from "../../../src/infrastructure/adapters/CustomerTokenServiceAdapter.js";
-import type { CustomerUserRepository } from "../../../src/domain/repositories/CustomerUserRepository.js";
-import type { AccountRepositoryPort } from "../../../src/domain/repositories/AccountRepository.js";
+import type { CustomerUserRepository } from "@core/domain/repositories/CustomerUserRepository.js";
+import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
 import type { WelcomeMailer } from "@core/domain/repositories/WelcomeMailer.js";
 import type { PlatformCredentialReader } from "@core/domain/repositories/PlatformCredentialReader.js";
 

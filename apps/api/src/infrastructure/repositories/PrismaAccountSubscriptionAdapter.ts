@@ -9,7 +9,7 @@ import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
 import type {
   AccountSubscriptionPort,
   CreateAccountSubscriptionParams,
-} from "../../domain/repositories/AccountSubscriptionPort.js";
+} from "@core/domain/repositories/AccountSubscriptionPort.js";
 
 export class PrismaAccountSubscriptionAdapter implements AccountSubscriptionPort {
   constructor(private readonly prisma: PrismaClient) {}

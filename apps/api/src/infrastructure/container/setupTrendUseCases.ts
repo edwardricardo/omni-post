@@ -13,10 +13,10 @@ import { TOKENS } from "./types.js";
 import { prisma } from "@infra/prisma";
 import type { CachePort, QueuePortRegistry } from "@ports/core";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
-import type { AIServicePort } from "../../domain/repositories/AIServicePort.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
+import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
 import { trendScoringSpec } from "../../ai/structuredSchemas.js";
-import type { ChannelQueryForIngestion } from "../../domain/repositories/ChannelQueryForIngestion.js";
+import type { ChannelQueryForIngestion } from "@core/domain/repositories/ChannelQueryForIngestion.js";
 
 import { PrismaScoreTrendContextAdapter } from "../repositories/PrismaScoreTrendContextAdapter.js";
 import { PerplexityTrendingAdapter } from "../repositories/PerplexityTrendingAdapter.js";
@@ -26,7 +26,7 @@ import { MultiSourceTrendingDataAdapter } from "../repositories/MultiSourceTrend
 import { PrismaTrendRadarResultAdapter } from "../repositories/PrismaTrendRadarResultAdapter.js";
 import type { TrendRadarResultPort } from "@core/application/trends/TrendRadarResultPort.js";
 import { PrismaTrendRadarQueryAdapter } from "../repositories/PrismaTrendRadarQueryAdapter.js";
-import type { TrendRadarQueryRepository } from "../../domain/repositories/TrendRadarQueryRepository.js";
+import type { TrendRadarQueryRepository } from "@core/domain/repositories/TrendRadarQueryRepository.js";
 import { GetTrendRadarQuery } from "@core/application/trends/GetTrendRadarQuery.js";
 
 import {

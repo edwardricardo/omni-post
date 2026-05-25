@@ -10,9 +10,9 @@ import type { PrismaClient } from "@infra/prisma";
 import { logger } from "../lib/logger.js";
 
 const adminLogger = logger.child({ module: "admin" });
-import type { AdminRoleKind } from "../domain/repositories/ReadModelDtos.js";
-import type { AdminUserDto } from "../domain/repositories/ReadModelDtos.js";
-import type { AdminSessionDto } from "../domain/repositories/AdminSessionRepository.js";
+import type { AdminRoleKind } from "@core/domain/repositories/ReadModelDtos.js";
+import type { AdminUserDto } from "@core/domain/repositories/ReadModelDtos.js";
+import type { AdminSessionDto } from "@core/domain/repositories/AdminSessionRepository.js";
 import { BaseService } from "../services/BaseService.js";
 import type { AccountProfile, AccountFilters, AccountStats } from "./accountLifecycleTypes.js";
 

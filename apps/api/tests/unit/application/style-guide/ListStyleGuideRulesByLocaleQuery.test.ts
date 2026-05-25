@@ -10,7 +10,7 @@ import { ListStyleGuideRulesByLocaleQuery } from "@core/application/style-guide/
 import type {
   StyleGuideRule,
   StyleGuideRuleRepository,
-} from "../../../../src/domain/repositories/StyleGuideRuleRepository.js";
+} from "@core/domain/repositories/StyleGuideRuleRepository.js";
 
 function makeRule(overrides: Partial<StyleGuideRule> = {}): StyleGuideRule {
   return {

@@ -9,7 +9,7 @@
 import { ok, err, type Result } from "@shared/types";
 import type { PrismaClient } from "@infra/prisma";
 import crypto from "crypto";
-import type { EmailPort } from "../domain/repositories/EmailPort.js";
+import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
 import { logger } from "../lib/logger.js";
 
 // ─── Types ──────────────────────────────────────────────────────────────────

@@ -5,12 +5,12 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { NotificationId } from "../../../src/domain/value-objects/NotificationId.js";
+import { NotificationId } from "@core/domain/value-objects/NotificationId.js";
 import {
   NotificationType,
   NOTIFICATION_TYPES,
-} from "../../../src/domain/value-objects/NotificationType.js";
-import { NotificationEntity } from "../../../src/domain/entities/Notification.js";
+} from "@core/domain/value-objects/NotificationType.js";
+import { NotificationEntity } from "@core/domain/entities/Notification.js";
 
 // --- Factories ---
 

@@ -6,11 +6,11 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import type { ThreadReadRepositoryPort } from "../../domain/repositories/ThreadReadRepository.js";
+import type { ThreadReadRepositoryPort } from "@core/domain/repositories/ThreadReadRepository.js";
 import type {
   ThreadWithRelations,
   ThreadWithTweets,
-} from "../../domain/repositories/ReadModelDtos.js";
+} from "@core/domain/repositories/ReadModelDtos.js";
 
 /**
  * Eager-include shape for thread reads that need the parent post + project.

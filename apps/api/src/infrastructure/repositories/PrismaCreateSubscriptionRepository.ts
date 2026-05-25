@@ -6,7 +6,7 @@
 
 import type { PrismaClient } from "@infra/prisma";
 import type { CreateSubscriptionRepository } from "@core/application/billing/CreateAccountSubscriptionUseCase.js";
-import type { ProviderTier, AccountTier } from "../../domain/billing/PricingCalculator.js";
+import type { ProviderTier, AccountTier } from "@core/domain/billing/PricingCalculator.js";
 
 export class PrismaCreateSubscriptionRepository implements CreateSubscriptionRepository {
   constructor(private readonly prisma: PrismaClient) {}

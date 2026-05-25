@@ -10,8 +10,8 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ok, err } from "@shared/types";
-import { Channel, ChannelId, ProjectId, Provider } from "../../../src/domain/index.js";
-import { EntityNotFoundError } from "../../../src/domain/errors/index.js";
+import { Channel, ChannelId, ProjectId, Provider } from "@core/domain/index.js";
+import { EntityNotFoundError } from "@core/domain/errors/index.js";
 import { SetPrimaryChannelUseCase } from "@core/application/channels/SetPrimaryChannelUseCase.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 

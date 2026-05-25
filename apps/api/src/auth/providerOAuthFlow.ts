@@ -18,10 +18,10 @@ import { oauthProviders } from "./providerOAuthConfigs.js";
 import { AppError } from "../lib/errors/AppError.js";
 import { buildAuthorizationUrl, consumeOAuthFlow } from "./oauth/oauthFlow.js";
 import { env } from "../config/env.js";
-import type { ChannelRepository } from "../domain/repositories/ChannelRepository.js";
-import { Channel } from "../domain/entities/Channel.js";
-import { ProjectId, ChannelId, AccountId } from "../domain/value-objects/EntityId.js";
-import { Provider as DomainProvider } from "../domain/value-objects/Provider.js";
+import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
+import { Channel } from "@core/domain/entities/Channel.js";
+import { ProjectId, ChannelId, AccountId } from "@core/domain/value-objects/EntityId.js";
+import { Provider as DomainProvider } from "@core/domain/value-objects/Provider.js";
 
 // ===========================
 // Validation Schemas

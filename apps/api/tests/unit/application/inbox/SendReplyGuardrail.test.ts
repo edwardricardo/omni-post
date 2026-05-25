@@ -14,10 +14,7 @@ import { ok } from "@shared/types";
 import { SendReplyUseCase } from "@core/application/inbox/SendReplyUseCase.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { GuardrailRegistry } from "@core/application/guardrails/GuardrailRegistry.js";
-import type {
-  GuardrailPort,
-  GuardrailDecision,
-} from "../../../../src/domain/repositories/GuardrailPort.js";
+import type { GuardrailPort, GuardrailDecision } from "@core/domain/repositories/GuardrailPort.js";
 
 // Aggregate stub mirrors the surface the use case touches. `isReplied`
 // is set so the transition steps short-circuit — we only need the

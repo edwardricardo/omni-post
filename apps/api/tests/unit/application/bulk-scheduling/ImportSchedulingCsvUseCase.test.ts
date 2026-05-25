@@ -14,13 +14,13 @@ import {
   ImportSchedulingCsvUseCase,
   MAX_BULK_SCHEDULE_ROWS,
 } from "@core/application/bulk-scheduling/ImportSchedulingCsvUseCase.js";
-import type { ProjectQueryRepositoryPort } from "../../../../src/domain/repositories/ProjectQueryRepository.js";
+import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
 import type {
   BulkScheduleBatchRepository,
   NewBulkScheduleBatch,
-} from "../../../../src/domain/repositories/BulkScheduleBatchRepository.js";
-import type { ProjectDto } from "../../../../src/domain/repositories/ReadModelDtos.js";
-import type { UnitOfWork } from "../../../../src/domain/repositories/Repository.js";
+} from "@core/domain/repositories/BulkScheduleBatchRepository.js";
+import type { ProjectDto } from "@core/domain/repositories/ReadModelDtos.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 
 const future = (ms: number): string => new Date(Date.now() + ms).toISOString();
 const TWO_DAYS = 2 * 24 * 60 * 60 * 1000;

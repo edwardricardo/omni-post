@@ -10,8 +10,8 @@ import { describe, it, beforeAll, afterEach, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
-import { Channel, ProjectId } from "../../../src/domain/index.js";
-import type { ChannelRepository } from "../../../src/domain/repositories/ChannelRepository.js";
+import { Channel, ProjectId } from "@core/domain/index.js";
+import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
 import {
   OAuthTokenRefresher,
   type RefreshableProviderConfig,

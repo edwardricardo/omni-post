@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import {
   OidcConfiguration,
   type CreateOidcConfigurationInput,
-} from "../../../src/domain/entities/OidcConfiguration.js";
+} from "@core/domain/entities/OidcConfiguration.js";
 
 function makeValidInput(
   overrides: Partial<CreateOidcConfigurationInput> = {}

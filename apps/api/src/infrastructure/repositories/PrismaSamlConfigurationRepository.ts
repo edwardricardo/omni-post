@@ -7,11 +7,11 @@
 
 import type { PrismaClient } from "@infra/prisma";
 import { ok, err, type Result } from "@shared/types";
-import type { SamlConfiguration } from "../../domain/entities/SamlConfiguration.js";
+import type { SamlConfiguration } from "@core/domain/entities/SamlConfiguration.js";
 import type {
   SamlConfigurationRepository,
   SamlConfigurationData,
-} from "../../domain/repositories/SamlConfigurationRepository.js";
+} from "@core/domain/repositories/SamlConfigurationRepository.js";
 
 export class PrismaSamlConfigurationRepository implements SamlConfigurationRepository {
   constructor(private readonly prisma: PrismaClient) {}

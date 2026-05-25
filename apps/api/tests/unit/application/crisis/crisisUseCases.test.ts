@@ -10,12 +10,7 @@
 
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { ok, err } from "@shared/types";
-import {
-  Project,
-  AccountId,
-  ProjectId,
-  EntityNotFoundError,
-} from "../../../../src/domain/index.js";
+import { Project, AccountId, ProjectId, EntityNotFoundError } from "@core/domain/index.js";
 import {
   EnterCrisisModeUseCase,
   ExitCrisisModeUseCase,

@@ -4,7 +4,7 @@
  * @layer application
  */
 
-import type { PostQueryRepository } from "../../domain/index.js";
+import type { PostQueryRepository } from "@core/domain/index.js";
 import type { Query, QueryHandler } from "@shared/cqrs";
 
 // Re-export handler classes from sub-modules

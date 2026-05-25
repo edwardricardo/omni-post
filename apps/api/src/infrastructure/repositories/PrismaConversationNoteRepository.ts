@@ -8,8 +8,8 @@
 
 import type { PrismaClient } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
-import type { ConversationNoteRepository } from "../../domain/repositories/ConversationNoteRepository.js";
-import { ConversationNote } from "../../domain/entities/ConversationNote.js";
+import type { ConversationNoteRepository } from "@core/domain/repositories/ConversationNoteRepository.js";
+import { ConversationNote } from "@core/domain/entities/ConversationNote.js";
 
 /**
  * Raw Prisma row shape for type-safe mapping.

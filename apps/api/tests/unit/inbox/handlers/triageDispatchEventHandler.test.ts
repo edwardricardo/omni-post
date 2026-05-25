@@ -11,7 +11,7 @@ import { describe, it, expect, vi } from "vitest";
 import assert from "node:assert/strict";
 import { ok, err, type Result } from "@shared/types";
 import type { QueuePort } from "@ports/core";
-import type { DomainEvent } from "../../../../src/domain/events/DomainEvent.js";
+import type { DomainEvent } from "@core/domain/events/DomainEvent.js";
 import { TriageDispatchEventHandler } from "../../../../src/inbox/handlers/TriageDispatchEventHandler.js";
 
 function makeQueue(enqueueResult: Result<string, "CONNECTION_ERROR" | "VALIDATION_ERROR">): {

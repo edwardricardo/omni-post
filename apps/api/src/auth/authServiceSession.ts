@@ -9,7 +9,7 @@ import jwt from "jsonwebtoken";
 import { createHash } from "crypto";
 import { ok, err, type Result } from "@shared/types";
 import type { AdminSession, PrismaClient } from "@infra/prisma";
-import type { AdminUserDto } from "../domain/repositories/ReadModelDtos.js";
+import type { AdminUserDto } from "@core/domain/repositories/ReadModelDtos.js";
 import type {
   TokenPayload,
   AuthTokens,

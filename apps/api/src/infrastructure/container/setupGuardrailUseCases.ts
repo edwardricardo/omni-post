@@ -14,7 +14,7 @@ import client from "prom-client";
 
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import type { GuardrailPort } from "../../domain/repositories/GuardrailPort.js";
+import type { GuardrailPort } from "@core/domain/repositories/GuardrailPort.js";
 import { ContentPolicyGuardrail } from "../guardrails/ContentPolicyGuardrail.js";
 import { PIIRedactionGuardrail } from "../guardrails/PIIRedactionGuardrail.js";
 import { GuardrailRegistry } from "@core/application/guardrails/GuardrailRegistry.js";

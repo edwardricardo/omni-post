@@ -23,7 +23,7 @@ import type {
   TrendingDataPort,
 } from "@core/application/trends/FetchTrendingTopicsUseCase.js";
 import type { ScoreTrendContextPort } from "@core/application/trends/ScoreTrendRelevanceUseCase.js";
-import type { AIServicePort } from "../../src/domain/repositories/AIServicePort.js";
+import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
 import { trendScoringSpec } from "../../src/ai/structuredSchemas.js";
 import type {
   TrendRadarResultPort,

@@ -12,7 +12,7 @@ import { describe, it, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { prisma } from "@infra/prisma";
 import { PrismaConversionRepository } from "../../../src/infrastructure/repositories/PrismaConversionRepository.js";
-import type { ConversionRecordInput } from "../../../src/domain/repositories/ConversionRepository.js";
+import type { ConversionRecordInput } from "@core/domain/repositories/ConversionRepository.js";
 
 let accountId: string;
 let otherAccountId: string;

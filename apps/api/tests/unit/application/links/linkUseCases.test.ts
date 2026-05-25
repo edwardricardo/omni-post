@@ -11,12 +11,7 @@
 
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { ok, err } from "@shared/types";
-import {
-  TrackedLink,
-  ProjectId,
-  TrackedLinkId,
-  EntityNotFoundError,
-} from "../../../../src/domain/index.js";
+import { TrackedLink, ProjectId, TrackedLinkId, EntityNotFoundError } from "@core/domain/index.js";
 import {
   CreateTrackedLinkUseCase,
   GetTrackedLinkUseCase,

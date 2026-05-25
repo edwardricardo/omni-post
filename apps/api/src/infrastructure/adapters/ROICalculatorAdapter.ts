@@ -11,9 +11,9 @@ import type { ChannelROI } from "@core/application/analytics/types.js";
 import { ROICalculator } from "../../analytics/roiCalculator.js";
 import type { ROICalculationOptions } from "../../analytics/roi/types.js";
 import type { TimeRange, ProviderType } from "@shared/analytics";
-import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
-import type { AnalyticsReadRepositoryPort } from "../../domain/repositories/AnalyticsReadRepository.js";
-import type { ConversionRepositoryPort } from "../../domain/repositories/ConversionRepository.js";
+import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
+import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
+import type { ConversionRepositoryPort } from "@core/domain/repositories/ConversionRepository.js";
 
 /**
  * Adapter that implements ROICalculatorPort by delegating to ROICalculator.

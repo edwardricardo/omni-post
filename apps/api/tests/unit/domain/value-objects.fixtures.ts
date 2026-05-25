@@ -19,4 +19,4 @@ export {
   ScheduledTime,
   Provider,
   PROVIDERS,
-} from "../../../src/domain/index.js";
+} from "@core/domain/index.js";

@@ -24,7 +24,7 @@ import type { CompleteTaskUseCase } from "@core/application/tasks/CompleteTaskUs
 import type { CancelTaskUseCase } from "@core/application/tasks/CancelTaskUseCase.js";
 import type { ListTasksQuery } from "@core/application/tasks/ListTasksQuery.js";
 import type { GetTaskQuery } from "@core/application/tasks/GetTaskQuery.js";
-import type { TaskRepository } from "../domain/repositories/TaskRepository.js";
+import type { TaskRepository } from "@core/domain/repositories/TaskRepository.js";
 
 // ============================================================================
 // Schemas

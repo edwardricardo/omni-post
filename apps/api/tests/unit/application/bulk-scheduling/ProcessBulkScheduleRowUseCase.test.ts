@@ -13,12 +13,12 @@ import { ProcessBulkScheduleRowUseCase } from "@core/application/bulk-scheduling
 import type {
   BulkScheduleBatchRepository,
   BulkScheduleItemState,
-} from "../../../../src/domain/repositories/BulkScheduleBatchRepository.js";
-import type { ChannelRepository } from "../../../../src/domain/repositories/ChannelRepository.js";
+} from "@core/domain/repositories/BulkScheduleBatchRepository.js";
+import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
 import type { CreatePostUseCase } from "@core/application/posts/CreatePostUseCase.js";
 import type { SchedulePostUseCase } from "@core/application/posts/SchedulePostUseCase.js";
-import type { Channel } from "../../../../src/domain/entities/Channel.js";
-import type { UnitOfWork } from "../../../../src/domain/repositories/Repository.js";
+import type { Channel } from "@core/domain/entities/Channel.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 
 const PROJECT_ID = "550e8400-e29b-41d4-a716-446655440000";
 const passthroughUow: UnitOfWork = { executeInTransaction: async (fn) => fn() };

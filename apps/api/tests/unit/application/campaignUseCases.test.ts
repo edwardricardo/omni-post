@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { CreateCampaignUseCase } from "@core/application/campaigns/CreateCampaignUseCase.js";
-import { ProjectId } from "../../../src/domain/value-objects/EntityId.js";
+import { ProjectId } from "@core/domain/value-objects/EntityId.js";
 
 function makeRepo() {
   return {

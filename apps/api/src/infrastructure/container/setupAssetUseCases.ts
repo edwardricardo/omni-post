@@ -11,7 +11,7 @@ import { prisma } from "@infra/prisma";
 import { PrismaMediaAssetRepository } from "../repositories/PrismaMediaAssetRepository.js";
 import { PrismaAssetTagRepository } from "../repositories/PrismaAssetTagRepository.js";
 import { PrismaAssetFolderRepository } from "../repositories/PrismaAssetFolderRepository.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import {
   CreateMediaAssetUseCase,
   UpdateMediaAssetUseCase,

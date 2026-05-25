@@ -14,8 +14,8 @@ import { GetSamlConfigurationQuery } from "@core/application/auth/GetSamlConfigu
 import type {
   SamlConfigurationRepository,
   SamlConfigurationData,
-} from "../../../src/domain/repositories/SamlConfigurationRepository.js";
-import type { AccountQueryRepositoryPort } from "../../../src/domain/repositories/AccountQueryRepository.js";
+} from "@core/domain/repositories/SamlConfigurationRepository.js";
+import type { AccountQueryRepositoryPort } from "@core/domain/repositories/AccountQueryRepository.js";
 import { ok } from "@shared/types";
 
 // ── Mock Factories ──────────────────────────────────────────────────────────

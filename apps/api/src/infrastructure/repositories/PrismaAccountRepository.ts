@@ -7,8 +7,8 @@
 
 import type { PrismaClient } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
-import { Account, AccountId, EntityNotFoundError } from "../../domain/index.js";
-import type { AccountRepositoryPort } from "../../domain/repositories/AccountRepository.js";
+import { Account, AccountId, EntityNotFoundError } from "@core/domain/index.js";
+import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
 
 /**
  * Maps a Prisma Account row to the Account domain entity

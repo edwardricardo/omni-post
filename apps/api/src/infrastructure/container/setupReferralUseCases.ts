@@ -9,7 +9,7 @@ import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import { prisma } from "@infra/prisma";
 import { env } from "../../config/env.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { ReferralRewardMailer } from "@core/domain/repositories/ReferralRewardMailer.js";
 
 import { PrismaConvertReferralRepository } from "../repositories/PrismaConvertReferralRepository.js";

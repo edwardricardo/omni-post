@@ -15,7 +15,7 @@ import type {
   GlossaryEntryUpsertInput,
   GlossaryRepository,
   GlossaryRepositoryError,
-} from "../../../../src/domain/repositories/GlossaryRepository.js";
+} from "@core/domain/repositories/GlossaryRepository.js";
 
 class InMemoryGlossaryRepository implements GlossaryRepository {
   private readonly store = new Map<string, GlossaryEntry>();

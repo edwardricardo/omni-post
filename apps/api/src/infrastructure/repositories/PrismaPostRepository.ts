@@ -23,8 +23,8 @@ import {
   PUBLISH_STATUS,
   EntityNotFoundError,
   VersionConflictError,
-} from "../../domain/index.js";
-import type { OutboxWriter } from "../../domain/repositories/OutboxWriter.js";
+} from "@core/domain/index.js";
+import type { OutboxWriter } from "@core/domain/repositories/OutboxWriter.js";
 import {
   PostAggregateMapper,
   type PrismaPostWithRelations,

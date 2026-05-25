@@ -26,7 +26,7 @@ import type { ConfigureOidcUseCase } from "@core/application/auth/ConfigureOidcU
 import type { EnableOidcSsoUseCase } from "@core/application/auth/EnableOidcSsoUseCase.js";
 import type { DisableOidcSsoUseCase } from "@core/application/auth/DisableOidcSsoUseCase.js";
 import type { GetOidcConfigurationQuery } from "@core/application/auth/GetOidcConfigurationQuery.js";
-import type { OidcConfigurationRepository } from "../domain/repositories/OidcConfigurationRepository.js";
+import type { OidcConfigurationRepository } from "@core/domain/repositories/OidcConfigurationRepository.js";
 import type { AuthService } from "./authService.js";
 import { env } from "../config/env.js";
 

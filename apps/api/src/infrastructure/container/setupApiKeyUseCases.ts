@@ -6,7 +6,7 @@
  */
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import type { ApiKeyRepository } from "../../domain/repositories/ApiKeyRepository.js";
+import type { ApiKeyRepository } from "@core/domain/repositories/ApiKeyRepository.js";
 import type { PasswordHasher } from "@core/domain/repositories/PasswordHasher.js";
 import {
   CreateApiKeyUseCase,

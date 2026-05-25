@@ -6,7 +6,7 @@
  */
 
 import { AuditableService } from "../../services/AuditableService.js";
-import type { AuditLogRepository } from "../../domain/repositories/AuditLogRepository.js";
+import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 import type { BillingEvent } from "./types.js";
 import { createLogger } from "../../lib/logger.js";
 

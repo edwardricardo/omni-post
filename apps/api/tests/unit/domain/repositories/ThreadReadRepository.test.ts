@@ -8,11 +8,11 @@
  */
 import { describe, it, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import type { ThreadReadRepositoryPort } from "../../../../src/domain/repositories/ThreadReadRepository.js";
+import type { ThreadReadRepositoryPort } from "@core/domain/repositories/ThreadReadRepository.js";
 import type {
   ThreadWithRelations,
   ThreadWithTweets,
-} from "../../../../src/domain/repositories/ReadModelDtos.js";
+} from "@core/domain/repositories/ReadModelDtos.js";
 
 function makeThread(overrides: Partial<ThreadWithRelations> = {}): ThreadWithRelations {
   const createdAt = overrides.createdAt ?? new Date("2026-05-01T00:00:00Z");

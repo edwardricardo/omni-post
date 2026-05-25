@@ -14,11 +14,11 @@ import { RunCustomReportQuery } from "@core/application/custom-reports/RunCustom
 import { ScheduleCustomReportUseCase } from "@core/application/custom-reports/ScheduleCustomReportUseCase.js";
 import { DeleteCustomReportUseCase } from "@core/application/custom-reports/DeleteCustomReportUseCase.js";
 import { UpdateCustomReportUseCase } from "@core/application/custom-reports/UpdateCustomReportUseCase.js";
-import { EntityNotFoundError } from "../../../src/domain/errors/index.js";
+import { EntityNotFoundError } from "@core/domain/errors/index.js";
 import type {
   CustomReportRepository,
   CustomReportDto,
-} from "../../../src/domain/repositories/CustomReportRepository.js";
+} from "@core/domain/repositories/CustomReportRepository.js";
 
 // ============================================================================
 // Mock Factory

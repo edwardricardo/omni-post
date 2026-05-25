@@ -24,7 +24,7 @@ import {
   InMemoryEventDispatcher,
   type DomainEvent,
   type DomainEventHandler,
-} from "../../../src/domain/index.js";
+} from "@core/domain/index.js";
 
 describe("Domain Aggregates & Events", () => {
   describe("PostAggregate", () => {

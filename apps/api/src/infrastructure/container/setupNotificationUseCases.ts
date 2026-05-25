@@ -9,8 +9,8 @@ import { TOKENS } from "./types.js";
 import type {
   NotificationRepository,
   NotificationPreferenceRepository,
-} from "../../domain/repositories/NotificationRepository.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+} from "@core/domain/repositories/NotificationRepository.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import {
   CreateNotificationUseCase,
   GetNotificationsQuery,

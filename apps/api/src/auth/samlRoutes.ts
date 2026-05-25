@@ -26,7 +26,7 @@ import type { ConfigureSamlUseCase } from "@core/application/auth/ConfigureSamlU
 import type { EnableSsoUseCase } from "@core/application/auth/EnableSsoUseCase.js";
 import type { DisableSsoUseCase } from "@core/application/auth/DisableSsoUseCase.js";
 import type { GetSamlConfigurationQuery } from "@core/application/auth/GetSamlConfigurationQuery.js";
-import type { SamlConfigurationRepository } from "../domain/repositories/SamlConfigurationRepository.js";
+import type { SamlConfigurationRepository } from "@core/domain/repositories/SamlConfigurationRepository.js";
 import type { AuthService } from "./authService.js";
 import { env } from "../config/env.js";
 

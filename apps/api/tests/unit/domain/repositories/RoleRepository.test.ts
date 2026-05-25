@@ -13,7 +13,7 @@ import type {
   RoleRepository,
   RoleDto,
   RoleWithPermissionsDto,
-} from "../../../../src/domain/repositories/RoleRepository.js";
+} from "@core/domain/repositories/RoleRepository.js";
 
 interface RoleSeed extends RoleDto {
   permissions: string[];

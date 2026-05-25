@@ -8,11 +8,11 @@
 
 import type { PrismaClient } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
-import type { IntegrationApiKeyRepository } from "../../domain/repositories/IntegrationApiKeyRepository.js";
+import type { IntegrationApiKeyRepository } from "@core/domain/repositories/IntegrationApiKeyRepository.js";
 import {
   IntegrationApiKey,
   type IntegrationPlatformValue,
-} from "../../domain/entities/IntegrationApiKey.js";
+} from "@core/domain/entities/IntegrationApiKey.js";
 
 /**
  * Raw Prisma row shape for type-safe mapping

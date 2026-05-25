@@ -15,7 +15,7 @@ import type {
   StyleGuideRuleRepository,
   StyleGuideRuleRepositoryError,
   StyleGuideRuleUpsertInput,
-} from "../../../../src/domain/repositories/StyleGuideRuleRepository.js";
+} from "@core/domain/repositories/StyleGuideRuleRepository.js";
 
 class InMemoryStyleGuideRuleRepository implements StyleGuideRuleRepository {
   private readonly store = new Map<string, StyleGuideRule>();

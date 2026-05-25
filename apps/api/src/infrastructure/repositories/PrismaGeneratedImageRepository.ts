@@ -10,7 +10,7 @@ import { type Result, ok, err } from "@shared/types";
 import type {
   GeneratedImageRepository,
   GeneratedImageData,
-} from "../../domain/repositories/GeneratedImageRepository.js";
+} from "@core/domain/repositories/GeneratedImageRepository.js";
 
 /**
  * PrismaGeneratedImageRepository - Implements GeneratedImageRepository using Prisma

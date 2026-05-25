@@ -17,7 +17,7 @@ import {
 } from "../billing/GatewayAdapterRegistry.js";
 import { GatewayBillingService } from "../../billing/GatewayBillingService.js";
 import { GatewaySwitchJobService } from "../../billing/GatewaySwitchJobService.js";
-import type { EmailPort } from "../../domain/repositories/EmailPort.js";
+import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
 import type { PrismaClient } from "@infra/prisma";
 import { createRedisConnection } from "../../lib/redis.js";
 

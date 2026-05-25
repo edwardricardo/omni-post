@@ -15,7 +15,7 @@ import type {
   AccountSubscriptionListResult,
   SubscriptionBundleSummaryDto,
   SubscriptionTrialStatusDto,
-} from "../../../../src/domain/repositories/AccountSubscriptionQueryRepository.js";
+} from "@core/domain/repositories/AccountSubscriptionQueryRepository.js";
 
 class InMemoryRepo implements AccountSubscriptionQueryRepository {
   constructor(private readonly subs: AccountSubscriptionDetailDto[]) {}

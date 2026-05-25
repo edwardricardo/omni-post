@@ -6,9 +6,9 @@
  */
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import type { IntegrationApiKeyRepository } from "../../domain/repositories/IntegrationApiKeyRepository.js";
+import type { IntegrationApiKeyRepository } from "@core/domain/repositories/IntegrationApiKeyRepository.js";
 import type { PasswordHasher } from "@core/domain/repositories/PasswordHasher.js";
-import type { IntegrationSubscriptionRepository } from "../../domain/repositories/IntegrationSubscriptionRepository.js";
+import type { IntegrationSubscriptionRepository } from "@core/domain/repositories/IntegrationSubscriptionRepository.js";
 import { PrismaIntegrationApiKeyRepository } from "../repositories/PrismaIntegrationApiKeyRepository.js";
 import { PrismaIntegrationSubscriptionRepository } from "../repositories/PrismaIntegrationSubscriptionRepository.js";
 import { GenerateIntegrationApiKeyUseCase } from "@core/application/integrations/GenerateIntegrationApiKeyUseCase.js";
@@ -96,7 +96,7 @@ export function setupIntegrationUseCases(container: Container): void {
         container.resolve<IntegrationSubscriptionRepository>(
           TOKENS.IntegrationSubscriptionRepository
         ),
-        container.resolve<import("../../domain/repositories/HttpClientPort.js").HttpClientPort>(
+        container.resolve<import("@core/domain/repositories/HttpClientPort.js").HttpClientPort>(
           TOKENS.HttpClientPort
         )
       ),

@@ -9,7 +9,7 @@ import type { PrismaClient } from "@infra/prisma";
 import type {
   BrandVoiceRepository,
   BrandVoiceData,
-} from "../../domain/repositories/BrandVoiceRepository.js";
+} from "@core/domain/repositories/BrandVoiceRepository.js";
 
 export class PrismaBrandVoiceRepository implements BrandVoiceRepository {
   constructor(private readonly prisma: PrismaClient) {}

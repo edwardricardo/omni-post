@@ -11,7 +11,7 @@ import type { DomainAnalytics, ProviderName } from "@shared/types";
 import type {
   AnalyticsQueryRepository,
   DateRange,
-} from "../../domain/repositories/AnalyticsQueryRepository.js";
+} from "@core/domain/repositories/AnalyticsQueryRepository.js";
 
 /**
  * Maps a Prisma Analytics row to the DomainAnalytics DTO

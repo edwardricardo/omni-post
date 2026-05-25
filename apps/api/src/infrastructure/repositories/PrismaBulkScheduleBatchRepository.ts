@@ -17,7 +17,7 @@ import type {
   BulkScheduleItemState,
   BulkScheduleItemStatus,
   NewBulkScheduleBatch,
-} from "../../domain/repositories/BulkScheduleBatchRepository.js";
+} from "@core/domain/repositories/BulkScheduleBatchRepository.js";
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 

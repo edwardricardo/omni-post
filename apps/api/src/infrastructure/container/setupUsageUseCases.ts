@@ -7,8 +7,8 @@
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import { PrismaUsageMetricRepository } from "../repositories/PrismaUsageMetricRepository.js";
-import type { UsageMetricRepository } from "../../domain/repositories/UsageMetricRepository.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { UsageMetricRepository } from "@core/domain/repositories/UsageMetricRepository.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import { IncrementUsageUseCase } from "@core/application/usage/IncrementUsageUseCase.js";
 import { GetUsageUseCase } from "@core/application/usage/GetUsageUseCase.js";
 

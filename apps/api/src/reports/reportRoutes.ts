@@ -268,10 +268,10 @@ class ReportRouteHandler extends BaseRouteHandler {
     // Use the list query to find the specific report by resolving through
     // the repository. We import ScheduledReportRepository type inline.
     const reportRepo = request.server.container.resolve<
-      import("../domain/repositories/ScheduledReportRepository.js").ScheduledReportRepository
+      import("@core/domain/repositories/ScheduledReportRepository.js").ScheduledReportRepository
     >(TOKENS.ScheduledReportRepository);
 
-    const { ScheduledReportId } = await import("../domain/value-objects/EntityId.js");
+    const { ScheduledReportId } = await import("@core/domain/value-objects/EntityId.js");
     const idResult = ScheduledReportId.fromString(paramsValidation.value.id);
     if (!idResult.ok) {
       return this.sendError(ctx, 400, "Invalid report ID");

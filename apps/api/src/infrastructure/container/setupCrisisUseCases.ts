@@ -6,8 +6,8 @@
  */
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import type { EventDispatcher } from "../../domain/index.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { EventDispatcher } from "@core/domain/index.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { OutboxRelay } from "../outbox/OutboxRelay.js";
 import { OutboxCleaner } from "../outbox/OutboxCleaner.js";
@@ -21,9 +21,9 @@ import {
   ExitCrisisModeUseCase,
   GetCrisisStatusUseCase,
 } from "@core/application/crisis/index.js";
-import type { ScheduledReportRepository } from "../../domain/repositories/ScheduledReportRepository.js";
-import type { EmailPort } from "../../domain/repositories/EmailPort.js";
-import type { AnalyticsReadRepositoryPort } from "../../domain/repositories/AnalyticsReadRepository.js";
+import type { ScheduledReportRepository } from "@core/domain/repositories/ScheduledReportRepository.js";
+import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
+import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
 import {
   CreateScheduledReportUseCase,
   UpdateScheduledReportUseCase,

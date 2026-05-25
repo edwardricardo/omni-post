@@ -9,8 +9,8 @@ import { createLogger } from "../lib/logger.js";
 
 const analyticsLogger = createLogger("analytics");
 import type { ApiMetrics } from "../metrics/apiMetrics.js";
-import type { AnalyticsReadRepositoryPort } from "../domain/repositories/AnalyticsReadRepository.js";
-import type { ThreadReadRepositoryPort } from "../domain/repositories/ThreadReadRepository.js";
+import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
+import type { ThreadReadRepositoryPort } from "@core/domain/repositories/ThreadReadRepository.js";
 import { AnalyticsAggregator } from "./analyticsUtils";
 
 interface ThreadMetrics {

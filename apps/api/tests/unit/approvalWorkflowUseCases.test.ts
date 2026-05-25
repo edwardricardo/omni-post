@@ -12,9 +12,9 @@ import { CreateApprovalWorkflowUseCase } from "@core/application/approvals/Creat
 import { UpdateApprovalWorkflowUseCase } from "@core/application/approvals/UpdateApprovalWorkflowUseCase.js";
 import { DeleteApprovalWorkflowUseCase } from "@core/application/approvals/DeleteApprovalWorkflowUseCase.js";
 import { ListApprovalWorkflowsQuery } from "@core/application/approvals/ListApprovalWorkflowsQuery.js";
-import { ApprovalWorkflow } from "../../src/domain/entities/ApprovalWorkflow.js";
-import { EntityNotFoundError } from "../../src/domain/errors/index.js";
-import type { ApprovalWorkflowRepository } from "../../src/domain/repositories/ApprovalWorkflowRepository.js";
+import { ApprovalWorkflow } from "@core/domain/entities/ApprovalWorkflow.js";
+import { EntityNotFoundError } from "@core/domain/errors/index.js";
+import type { ApprovalWorkflowRepository } from "@core/domain/repositories/ApprovalWorkflowRepository.js";
 
 // ---------------------------------------------------------------------------
 // Mock factories

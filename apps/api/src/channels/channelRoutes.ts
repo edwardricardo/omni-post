@@ -16,10 +16,10 @@ import {
   Provider,
   EntityNotFoundError,
   CONNECTION_STATUS,
-} from "../domain/index.js";
-import type { ChannelCredentials } from "../domain/entities/Channel.js";
-import type { ChannelRepository } from "../domain/repositories/ChannelRepository.js";
-import type { ProjectRepositoryPort } from "../domain/repositories/ProjectRepository.js";
+} from "@core/domain/index.js";
+import type { ChannelCredentials } from "@core/domain/entities/Channel.js";
+import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
+import type { ProjectRepositoryPort } from "@core/domain/repositories/ProjectRepository.js";
 import type { ChannelCredentialsCrypto } from "../security/ChannelCredentialsCrypto.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";

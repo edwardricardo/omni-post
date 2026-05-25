@@ -13,7 +13,7 @@ import { GetTrendRadarQuery } from "@core/application/trends/GetTrendRadarQuery.
 import type {
   TrendRadarQueryRepository,
   ScoredTrendDTO,
-} from "../../../../src/domain/repositories/TrendRadarQueryRepository.js";
+} from "@core/domain/repositories/TrendRadarQueryRepository.js";
 
 function dto(overrides: Partial<ScoredTrendDTO> = {}): ScoredTrendDTO {
   return {

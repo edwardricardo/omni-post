@@ -12,7 +12,7 @@ import { PrismaCrmConnectionRepository } from "../repositories/PrismaCrmConnecti
 import { PrismaCrmContactRepository } from "../repositories/PrismaCrmContactRepository.js";
 import { PrismaCrmActivityRepository } from "../repositories/PrismaCrmActivityRepository.js";
 import { PrismaCrmSyncLogRepository } from "../repositories/PrismaCrmSyncLogRepository.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import { ConnectCrmUseCase } from "@core/application/crm/ConnectCrmUseCase.js";
 import { DisconnectCrmUseCase } from "@core/application/crm/DisconnectCrmUseCase.js";
 import { GetCrmConnectionsQuery } from "@core/application/crm/GetCrmConnectionsQuery.js";

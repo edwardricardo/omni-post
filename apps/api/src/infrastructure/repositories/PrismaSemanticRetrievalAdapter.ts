@@ -16,7 +16,7 @@ import type {
   SemanticRetrievalPort,
   SemanticRetrievalQuery,
   StyleGuideHit,
-} from "../../domain/repositories/SemanticRetrievalPort.js";
+} from "@core/domain/repositories/SemanticRetrievalPort.js";
 
 interface GlossaryHitRow {
   id: string;

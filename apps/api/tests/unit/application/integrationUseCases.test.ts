@@ -15,11 +15,11 @@ import { ListIntegrationApiKeysQuery } from "@core/application/integrations/List
 import { SubscribeIntegrationTriggerUseCase } from "@core/application/integrations/SubscribeIntegrationTriggerUseCase.js";
 import { UnsubscribeIntegrationTriggerUseCase } from "@core/application/integrations/UnsubscribeIntegrationTriggerUseCase.js";
 import { TriggerIntegrationEventService } from "@core/application/integrations/TriggerIntegrationEventService.js";
-import { IntegrationApiKey } from "../../../src/domain/entities/IntegrationApiKey.js";
-import { IntegrationSubscription } from "../../../src/domain/entities/IntegrationSubscription.js";
-import type { IntegrationApiKeyRepository } from "../../../src/domain/repositories/IntegrationApiKeyRepository.js";
-import type { IntegrationSubscriptionRepository } from "../../../src/domain/repositories/IntegrationSubscriptionRepository.js";
-import type { IntegrationPlatformValue } from "../../../src/domain/entities/IntegrationApiKey.js";
+import { IntegrationApiKey } from "@core/domain/entities/IntegrationApiKey.js";
+import { IntegrationSubscription } from "@core/domain/entities/IntegrationSubscription.js";
+import type { IntegrationApiKeyRepository } from "@core/domain/repositories/IntegrationApiKeyRepository.js";
+import type { IntegrationSubscriptionRepository } from "@core/domain/repositories/IntegrationSubscriptionRepository.js";
+import type { IntegrationPlatformValue } from "@core/domain/entities/IntegrationApiKey.js";
 
 // ============================================================================
 // Mock Factories

@@ -14,7 +14,7 @@ import type {
   HttpClientPort,
   HttpResponse,
   HttpError,
-} from "../../../src/domain/repositories/HttpClientPort.js";
+} from "@core/domain/repositories/HttpClientPort.js";
 
 function createMockHttpClient(
   override?: () => Promise<Result<HttpResponse, HttpError>>
@@ -28,7 +28,7 @@ function createMockRepository(subs: Array<{ id: string; targetUrl: string }>) {
   return {
     findActiveByEvent: vi.fn(async () => subs),
     findActiveByEventAndPlatform: vi.fn(async () => subs),
-  } as unknown as import("../../../src/domain/repositories/IntegrationSubscriptionRepository.js").IntegrationSubscriptionRepository;
+  } as unknown as import("@core/domain/repositories/IntegrationSubscriptionRepository.js").IntegrationSubscriptionRepository;
 }
 
 describe("TriggerIntegrationEventService", () => {

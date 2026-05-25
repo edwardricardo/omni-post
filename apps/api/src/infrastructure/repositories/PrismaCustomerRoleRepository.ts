@@ -11,8 +11,8 @@ import { type Result, ok, err } from "@shared/types";
 import type {
   CustomerRoleRepository,
   CustomerRoleSnapshot,
-} from "../../domain/repositories/CustomerRoleRepository.js";
-import { EntityNotFoundError, type DomainError } from "../../domain/errors/index.js";
+} from "@core/domain/repositories/CustomerRoleRepository.js";
+import { EntityNotFoundError, type DomainError } from "@core/domain/errors/index.js";
 
 const ROLE_INCLUDE = { permissions: true } as const;
 

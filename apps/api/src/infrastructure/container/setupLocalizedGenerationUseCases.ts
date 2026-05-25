@@ -14,11 +14,11 @@ import { prisma } from "@infra/prisma";
 import { env } from "../../config/env.js";
 import { localizedContentSpec } from "../../ai/structuredSchemas.js";
 
-import type { GlossaryRepository } from "../../domain/repositories/GlossaryRepository.js";
-import type { StyleGuideRuleRepository } from "../../domain/repositories/StyleGuideRuleRepository.js";
-import type { SemanticRetrievalPort } from "../../domain/repositories/SemanticRetrievalPort.js";
-import type { AIServicePort } from "../../domain/repositories/AIServicePort.js";
-import type { BrandVoiceRepository } from "../../domain/repositories/BrandVoiceRepository.js";
+import type { GlossaryRepository } from "@core/domain/repositories/GlossaryRepository.js";
+import type { StyleGuideRuleRepository } from "@core/domain/repositories/StyleGuideRuleRepository.js";
+import type { SemanticRetrievalPort } from "@core/domain/repositories/SemanticRetrievalPort.js";
+import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
+import type { BrandVoiceRepository } from "@core/domain/repositories/BrandVoiceRepository.js";
 
 import { PrismaGlossaryRepository } from "../repositories/PrismaGlossaryRepository.js";
 import { PrismaStyleGuideRuleRepository } from "../repositories/PrismaStyleGuideRuleRepository.js";

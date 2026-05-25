@@ -16,16 +16,16 @@ import { GetMediaAssetsQuery } from "@core/application/assets/GetMediaAssetsQuer
 import { CreateAssetTagUseCase } from "@core/application/assets/CreateAssetTagUseCase.js";
 import { ListAssetTagsQuery } from "@core/application/assets/ListAssetTagsQuery.js";
 import { CreateAssetFolderUseCase } from "@core/application/assets/CreateAssetFolderUseCase.js";
-import { MediaAsset } from "../../../src/domain/entities/MediaAsset.js";
-import { type MediaAssetRepository } from "../../../src/domain/repositories/MediaAssetRepository.js";
+import { MediaAsset } from "@core/domain/entities/MediaAsset.js";
+import { type MediaAssetRepository } from "@core/domain/repositories/MediaAssetRepository.js";
 import {
   type AssetTagRepository,
   type AssetTagDTO,
-} from "../../../src/domain/repositories/AssetTagRepository.js";
+} from "@core/domain/repositories/AssetTagRepository.js";
 import {
   type AssetFolderRepository,
   type AssetFolderDTO,
-} from "../../../src/domain/repositories/AssetFolderRepository.js";
+} from "@core/domain/repositories/AssetFolderRepository.js";
 
 // ---------------------------------------------------------------------------
 // Mock factories

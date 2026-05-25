@@ -13,7 +13,7 @@ import type {
   AdminSessionDto,
   AdminSessionCreateInput,
   AdminSessionFindOptions,
-} from "../../domain/repositories/AdminSessionRepository.js";
+} from "@core/domain/repositories/AdminSessionRepository.js";
 
 /**
  * Prisma implementation of AdminSessionRepository.

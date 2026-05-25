@@ -26,7 +26,7 @@ import type { ValidateApiKeyUseCase } from "@core/application/apiKeys/ApiKeyUseC
 import type { ListApiKeysUseCase } from "@core/application/apiKeys/ApiKeyUseCases.js";
 import type { RotateApiKeyUseCase } from "@core/application/apiKeys/ApiKeyUseCases.js";
 import type { DeactivateApiKeyUseCase } from "@core/application/apiKeys/ApiKeyUseCases.js";
-import type { DomainApiKey } from "../domain/repositories/ApiKeyRepository.js";
+import type { DomainApiKey } from "@core/domain/repositories/ApiKeyRepository.js";
 import { withTimeout, TimeoutError, USE_CASE_TIMEOUT_MS } from "../lib/withTimeout.js";
 
 // ─── Schemas ────────────────────────────────────────────────────────────────

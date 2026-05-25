@@ -15,7 +15,7 @@ import type {
   AccountSubscriptionListResult,
   SubscriptionBundleSummaryDto,
   SubscriptionTrialStatusDto,
-} from "../../domain/repositories/AccountSubscriptionQueryRepository.js";
+} from "@core/domain/repositories/AccountSubscriptionQueryRepository.js";
 
 type BundleRow = {
   id: string;

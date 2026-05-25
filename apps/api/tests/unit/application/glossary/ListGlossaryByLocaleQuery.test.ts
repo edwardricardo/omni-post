@@ -13,7 +13,7 @@ import { ListGlossaryByLocaleQuery } from "@core/application/glossary/ListGlossa
 import type {
   GlossaryEntry,
   GlossaryRepository,
-} from "../../../../src/domain/repositories/GlossaryRepository.js";
+} from "@core/domain/repositories/GlossaryRepository.js";
 
 function makeEntry(overrides: Partial<GlossaryEntry> = {}): GlossaryEntry {
   return {

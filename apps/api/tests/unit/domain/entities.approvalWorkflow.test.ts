@@ -6,10 +6,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import {
-  ApprovalWorkflow,
-  type WorkflowLevel,
-} from "../../../src/domain/entities/ApprovalWorkflow.js";
+import { ApprovalWorkflow, type WorkflowLevel } from "@core/domain/entities/ApprovalWorkflow.js";
 
 // ---------------------------------------------------------------------------
 // Helpers

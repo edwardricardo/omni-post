@@ -17,7 +17,7 @@ import type {
   GlossaryEntryUpsertInput,
   GlossaryRepository,
   GlossaryRepositoryError,
-} from "../../domain/repositories/GlossaryRepository.js";
+} from "@core/domain/repositories/GlossaryRepository.js";
 
 interface GlossaryRow {
   id: string;

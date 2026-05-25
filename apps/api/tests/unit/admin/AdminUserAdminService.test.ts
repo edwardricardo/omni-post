@@ -14,10 +14,10 @@ import type {
   AdminUserRepositoryPort,
   AdminUserCreateInput,
   AdminUserUpdate,
-} from "../../../src/domain/repositories/AdminUserRepository.js";
-import type { RoleRepository, RoleDto } from "../../../src/domain/repositories/RoleRepository.js";
-import type { AdminSessionRepository } from "../../../src/domain/repositories/AdminSessionRepository.js";
-import type { AdminUserDto } from "../../../src/domain/repositories/ReadModelDtos.js";
+} from "@core/domain/repositories/AdminUserRepository.js";
+import type { RoleRepository, RoleDto } from "@core/domain/repositories/RoleRepository.js";
+import type { AdminSessionRepository } from "@core/domain/repositories/AdminSessionRepository.js";
+import type { AdminUserDto } from "@core/domain/repositories/ReadModelDtos.js";
 
 function makeDto(overrides: Partial<AdminUserDto> = {}): AdminUserDto {
   return {

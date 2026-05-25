@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { CustomerUser } from "../../../src/domain/entities/CustomerUser.js";
+import { CustomerUser } from "@core/domain/entities/CustomerUser.js";
 
 const VALID_UUID = "11111111-1111-4111-8111-111111111111";
 

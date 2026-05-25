@@ -10,7 +10,7 @@ import { Worker, type Job } from "bullmq";
 import type { Redis } from "ioredis";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import type { PrismaClient } from "@infra/prisma";
-import type { EmailPort } from "../domain/repositories/EmailPort.js";
+import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
 import { logger } from "../lib/logger.js";
 
 interface SwitchJobData {

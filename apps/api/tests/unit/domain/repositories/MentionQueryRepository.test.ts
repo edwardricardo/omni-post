@@ -14,7 +14,7 @@ import type {
   MentionFilter,
   ShareOfVoiceDTO,
   CursorPaginatedResult,
-} from "../../../../src/domain/repositories/MentionQueryRepository.js";
+} from "@core/domain/repositories/MentionQueryRepository.js";
 
 const SOV: ShareOfVoiceDTO = {
   projectId: "proj-1",

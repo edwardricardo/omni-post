@@ -10,7 +10,7 @@ import type {
   UsageMetricRepository,
   UsageMetricData,
   AccountUsageContext,
-} from "../../domain/repositories/UsageMetricRepository.js";
+} from "@core/domain/repositories/UsageMetricRepository.js";
 
 const BYTES_PER_GB = 1024 * 1024 * 1024;
 

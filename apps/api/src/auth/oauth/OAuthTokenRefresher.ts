@@ -10,8 +10,8 @@
  * @layer infrastructure
  */
 import { type Result, ok, err } from "@shared/types";
-import type { ChannelRepository } from "../../domain/repositories/ChannelRepository.js";
-import type { ChannelId } from "../../domain/value-objects/EntityId.js";
+import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
+import type { ChannelId } from "@core/domain/value-objects/EntityId.js";
 
 /** Minimal provider config the refresh exchange needs. */
 export interface RefreshableProviderConfig {

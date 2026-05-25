@@ -12,7 +12,7 @@
 
 import { describe, it, beforeEach, beforeAll, afterAll, vi, expect } from "vitest";
 import { PrismaPostRepository } from "../../../src/infrastructure/repositories/PrismaPostRepository.js";
-import { PostId, ProjectId, PUBLISH_STATUS } from "../../../src/domain/index.js";
+import { PostId, ProjectId, PUBLISH_STATUS } from "@core/domain/index.js";
 
 // ── console suppression ───────────────────────────────────────────────────────
 
@@ -326,7 +326,7 @@ describe("PrismaPostRepository", () => {
       // exists() returns false → create path
       prisma.post.count.mockImplementation(async () => 0);
 
-      const postResult = await import("../../../src/domain/index.js").then((m) =>
+      const postResult = await import("@core/domain/index.js").then((m) =>
         m.PostAggregate.create({
           projectId: ProjectId.fromStringUnsafe(PROJECT_ID),
           body: "New post content",
@@ -350,7 +350,7 @@ describe("PrismaPostRepository", () => {
         throw new Error("DB write failed");
       });
 
-      const postResult = await import("../../../src/domain/index.js").then((m) =>
+      const postResult = await import("@core/domain/index.js").then((m) =>
         m.PostAggregate.create({
           projectId: ProjectId.fromStringUnsafe(PROJECT_ID),
           body: "Content",

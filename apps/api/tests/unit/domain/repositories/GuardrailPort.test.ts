@@ -13,7 +13,7 @@ import type {
   GuardrailInput,
   GuardrailAction,
   GuardrailSeverity,
-} from "../../../../src/domain/repositories/GuardrailPort.js";
+} from "@core/domain/repositories/GuardrailPort.js";
 
 function makePort(decision: GuardrailDecision, name = "test-port"): GuardrailPort {
   return {

@@ -15,7 +15,7 @@ import {
   type SocialOutboundReplyDTO,
   type CreateOutboundReplyInput,
   type OutboundReplyStatusValue,
-} from "../../domain/repositories/SocialOutboundReplyRepository.js";
+} from "@core/domain/repositories/SocialOutboundReplyRepository.js";
 
 /**
  * Shape of a raw SocialOutboundReply row returned by Prisma queries.

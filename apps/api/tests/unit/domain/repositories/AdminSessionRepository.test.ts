@@ -14,7 +14,7 @@ import type {
   AdminSessionDto,
   AdminSessionCreateInput,
   AdminSessionFindOptions,
-} from "../../../../src/domain/repositories/AdminSessionRepository.js";
+} from "@core/domain/repositories/AdminSessionRepository.js";
 
 class InMemoryAdminSessionRepository implements AdminSessionRepository {
   readonly rows: AdminSessionDto[] = [];

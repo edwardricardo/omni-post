@@ -22,8 +22,8 @@ import type { CreateAssetTagUseCase } from "@core/application/assets/CreateAsset
 import type { ListAssetTagsQuery } from "@core/application/assets/ListAssetTagsQuery.js";
 import type { CreateAssetFolderUseCase } from "@core/application/assets/CreateAssetFolderUseCase.js";
 import type { ImportFromGoogleDriveUseCase } from "@core/application/assets/ImportFromGoogleDriveUseCase.js";
-import type { AssetTagRepository } from "../domain/repositories/AssetTagRepository.js";
-import type { AssetFolderRepository } from "../domain/repositories/AssetFolderRepository.js";
+import type { AssetTagRepository } from "@core/domain/repositories/AssetTagRepository.js";
+import type { AssetFolderRepository } from "@core/domain/repositories/AssetFolderRepository.js";
 
 // ============================================================================
 // Zod Validation Schemas
@@ -249,7 +249,7 @@ class AssetRouteHandler extends BaseRouteHandler {
     // However, using findMany for single-item lookup is wasteful. Instead,
     // resolve the repo inline (same pattern as reportRoutes getReport).
     const mediaAssetRepo = request.server.container.resolve<
-      import("../domain/repositories/MediaAssetRepository.js").MediaAssetRepository
+      import("@core/domain/repositories/MediaAssetRepository.js").MediaAssetRepository
     >(TOKENS.MediaAssetRepository);
 
     const asset = await mediaAssetRepo.findById(paramsValidation.value.id, accountId);

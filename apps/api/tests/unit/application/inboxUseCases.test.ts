@@ -9,9 +9,9 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { IngestSocialMessageUseCase } from "@core/application/inbox/IngestSocialMessageUseCase.js";
 import { MarkMessageReadUseCase } from "@core/application/inbox/MarkMessageReadUseCase.js";
-import { AccountId, ProjectId, ChannelId } from "../../../src/domain/value-objects/EntityId.js";
-import { SocialMessageAggregate } from "../../../src/domain/aggregates/SocialMessageAggregate.js";
-import { SocialMessageType } from "../../../src/domain/value-objects/SocialMessageType.js";
+import { AccountId, ProjectId, ChannelId } from "@core/domain/value-objects/EntityId.js";
+import { SocialMessageAggregate } from "@core/domain/aggregates/SocialMessageAggregate.js";
+import { SocialMessageType } from "@core/domain/value-objects/SocialMessageType.js";
 
 // ============================================================================
 // Mock factories

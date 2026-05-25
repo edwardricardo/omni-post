@@ -10,7 +10,7 @@
  * @layer infrastructure
  */
 import { describe, it, beforeEach, expect } from "vitest";
-import type { AIServicePort } from "../../../../src/domain/repositories/AIServicePort.js";
+import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
 import type { StructuredOutputSpec } from "../../../../src/ai/types.js";
 import { LangGraphAgentOrchestrationAdapter } from "../../../../src/ai/agent/LangGraphAgentOrchestrationAdapter.js";
 
