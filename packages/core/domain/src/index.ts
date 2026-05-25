@@ -81,3 +81,13 @@ export * from "./repositories/ExternalNotifierPort.js";
 export * from "./repositories/ExternalNotificationConfigRepository.js";
 export * from "./repositories/AIPromptTemplateRepository.js";
 export * from "./repositories/ConversionRepository.js";
+
+// Feature module: analytics (P5-A)
+export * from "./repositories/AnalyticsReadRepository.js";
+export * from "./repositories/AnalyticsQueryRepository.js";
+export * from "./repositories/AnalyticsWriteRepository.js";
+export * from "./repositories/AnalyticsAggregationQueryPort.js";
+export * from "./repositories/ThreadReadRepository.js";
+export * from "./analytics/DimensionRegistry.js";
+export * from "./analytics/MetricRegistry.js";
+export * from "./analytics/ReportSchema.js";

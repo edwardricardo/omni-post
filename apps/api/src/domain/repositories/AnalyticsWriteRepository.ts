@@ -1,24 +1,9 @@
 /**
  * @file AnalyticsWriteRepository.ts
- * @description Port interface for persisting analytics data from provider ingestion.
- *              Supports upsert of daily summaries and raw analytics records.
+ * @description Re-export shim — the analytics write repository port moved to
+ *              `@core/domain`. Kept here so existing import sites keep resolving
+ *              during the @core migration (strangler-fig); removed at P8.
  * @layer domain
  */
 
-import type { Result } from "@shared/types";
-
-export interface AnalyticsDailySummaryInput {
-  postId: string | null;
-  channelId: string;
-  provider: string;
-  date: Date;
-  views: number;
-  likes: number;
-  comments: number;
-  shares: number;
-}
-
-export interface AnalyticsWriteRepository {
-  upsertDailySummary(input: AnalyticsDailySummaryInput): Promise<Result<void, Error>>;
-  upsertDailySummaries(inputs: AnalyticsDailySummaryInput[]): Promise<Result<void, Error>>;
-}
+export * from "@core/domain/repositories/AnalyticsWriteRepository.js";
