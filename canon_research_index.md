@@ -168,6 +168,25 @@ Fuentes externas validadas por batch. Consultar ANTES de cualquier nuevo researc
 
 ---
 
+### Config injection into use-cases — Composition Root + Primitive Dependencies (Seemann/van Deursen)
+
+- **URLs:**
+  - https://blog.ploeh.dk/2011/07/28/CompositionRoot/
+  - "Dependency Injection Principles, Practices, and Patterns" (Seemann & van Deursen) — patrón _Primitive Dependencies_
+  - https://khorikov.org/posts/2019-07-31-commands-primitives/ (primitivos cruzan boundaries)
+- **Resumen:** una application use-case que necesita un valor de configuración (URL base, model name, connection
+  string) **NO** debe inyectar un objeto de configuración amplio (`IConfiguration`/`AppConfig` god-object) — eso es un
+  smell de **Service Locator** que oculta las dependencias reales del consumidor. El **Composition Root** (único lugar
+  que lee la config tipada/validada) resuelve e **inyecta los valores específicos como primitivos** por constructor
+  (_Primitive Dependencies_). El dominio queda puro (Khorikov): sin DI ni config; valores cruzan como primitivos/DTOs.
+- **Verificación:** WebSearch 2026-05 (DEV/Clean-Arch sources + ploeh + khorikov.org); confirmado el patrón Primitive
+  Dependencies y el anti-patrón del config-object amplio.
+- **Consumido por:** A6.1 (2026-05-25) — quitar `config/env` de 5 use-cases inyectando `clientUrl` /
+  `embeddingModel`+`embeddingDimensions` desde `setup*.ts`; NO se creó un `AppConfigPort`. Aplica a las demás
+  sub-fases de A6 que necesiten inyectar config (no ports de servicio).
+
+---
+
 ## Verification Audit Log
 
 ### Verification-by-fetch 2026-05-04 (retroactive)
