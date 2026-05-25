@@ -1,8 +1,9 @@
 /**
- * @file csvExport.ts
+ * @file csv.ts
  * @description RFC 4180 compliant CSV export utility providing type-safe generation, nested
- *              field access, custom formatters, and CSV-injection prevention.
- * @layer infrastructure
+ *              field access, custom formatters, and CSV-injection prevention. Pure, dependency-free
+ *              and browser-safe — shared across the API, workers and frontend.
+ * @layer domain
  */
 /**
  * RFC 4180 Compliant CSV Export Utility

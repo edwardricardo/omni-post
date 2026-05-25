@@ -127,12 +127,12 @@ module.exports = {
       name: "core-application-no-infrastructure",
       severity: "warn",
       comment:
-        "@core/application may use @core/domain + @ports + @shared, but must not import infrastructure adapters or frameworks directly (use ports). Warn during P0, hard-error at P8.",
+        "@core/application may use @core/domain + @ports + @shared, but must not import infrastructure adapters or frameworks directly (use ports). @packages/api-common is @layer infrastructure (shared HTTP helpers) — its pure utilities are relocated to @shared so the core consumes them there. Warn during P0, hard-error at P8.",
       from: {
         path: "packages/core/application/",
       },
       to: {
-        path: "(prisma|fastify|ioredis|bullmq|next|@fastify|@prisma|@infra|@adapters)",
+        path: "(prisma|fastify|ioredis|bullmq|next|@fastify|@prisma|@infra|@adapters|@packages/api-common)",
       },
     },
     {

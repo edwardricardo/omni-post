@@ -28,6 +28,8 @@ export {
 export { verifyWebhookSignature, constantTimeCompare } from "./webhookSignature";
 export type { WebhookVerificationOptions } from "./webhookSignature";
 
-// CSV Export utility
-export { exportToCSV, generateCSVFilename } from "./utils/csvExport";
-export type { ColumnDefinition, CSVExportOptions } from "./utils/csvExport";
+// CSV Export utility — pure RFC 4180 serializer; canonical home is the shared
+// kernel (cross-cutting: API + workers + frontend). Re-exported here for the
+// HTTP/admin consumers that already import from api-common.
+export { exportToCSV, generateCSVFilename } from "@shared/types";
+export type { ColumnDefinition, CSVExportOptions } from "@shared/types";

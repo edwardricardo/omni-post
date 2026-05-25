@@ -15,7 +15,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { exportToCSV, generateCSVFilename, type ColumnDefinition } from "../src/utils/csvExport";
+import { exportToCSV, generateCSVFilename, type ColumnDefinition } from "@shared/types";
 
 describe("CSV Export - Basic Functionality", { concurrency: 1 }, () => {
   interface TestData {
