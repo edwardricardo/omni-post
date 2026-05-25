@@ -12,7 +12,8 @@ import type {
   PublishInstrumentation,
   DatabaseInstrumentation,
   BusinessKPITracker,
-} from "../publishHandlerTypes.js";
+  ContentMetrics,
+} from "./instrumentationTypes.js";
 
 const telemetryLogger = pino({ name: "worker-telemetry" });
 
@@ -53,16 +54,8 @@ const mockBusinessKPITracker: BusinessKPITracker = {
   },
 };
 
-// ---- Type re-exports (must remain compatible with publishHandlerTypes.ts) ----
-
-export type ContentMetrics = {
-  postId: string;
-  provider: string;
-  contentType: string;
-  publishTime: Date;
-  success: boolean;
-  error?: string;
-};
+// ---- Placeholder metric aliases (not yet modelled) ----
+// ContentMetrics + the instrumentation interfaces live in ./instrumentationTypes.ts.
 
 export type UserMetrics = any;
 export type ProviderMetrics = any;

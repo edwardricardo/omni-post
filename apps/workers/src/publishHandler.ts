@@ -13,15 +13,23 @@ import type {
   Thread,
 } from "@shared/types";
 import type { PublishReceipt } from "@ports/core";
-import type { ContentMetrics } from "./telemetry/initialization.js";
-
-// Re-export all types for backwards compatibility
-export type {
-  PublishRepo,
-  PublishProvider,
+import type {
+  ContentMetrics,
   PublishInstrumentation,
   DatabaseInstrumentation,
   BusinessKPITracker,
+} from "./telemetry/instrumentationTypes.js";
+
+// Re-export all types for backwards compatibility
+export type {
+  ContentMetrics,
+  PublishInstrumentation,
+  DatabaseInstrumentation,
+  BusinessKPITracker,
+} from "./telemetry/instrumentationTypes.js";
+export type {
+  PublishRepo,
+  PublishProvider,
   SagaNotifier,
   PublishHandlerDeps,
   PublishJobInput,
@@ -30,9 +38,6 @@ export type {
 import type {
   PublishRepo,
   PublishProvider,
-  PublishInstrumentation,
-  DatabaseInstrumentation,
-  BusinessKPITracker,
   SagaNotifier,
   PublishHandlerDeps,
   PublishJobInput,
