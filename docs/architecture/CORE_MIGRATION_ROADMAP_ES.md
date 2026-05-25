@@ -37,7 +37,32 @@ dependen de P1+P2 vía shims) → orden por complejidad, no por dependencia.
 | **P6** | Features grandes            | approvals/campaigns/assets/custom-reports (17 archivos) + contexto `ai` (extracción de los 3 tipos-contrato a `@core/domain/ai/AiServiceContract`, AIServicePort, PlatformContentProfile). Incluyó backfill exhaustivo P1–P5 + limpieza de comentarios de fase + fitness #8 extendido.                                                                                                                                                                                                                                                            | Media-alta  | P1, P2     | DONE (b238263·f5a422b)                         |
 | **P7** | Centrales & sensibles       | 30 archivos: posts (PostAggregate/PostEvents/PostRepository) + inbox (Social\* VOs/entities/aggregate/ports) + auth (Oidc/Saml + Admin ports) + billing (PricingCalculator + subscription ports) + bulk-scheduling + GA4. channels ya migró en P2. **Completa el dominio: apps/api/src/domain = 100% shims.**                                                                                                                                                                                                                                     | Alta        | P1, P2     | DONE (93c36ce·0cbd3ef·0252697·28e9067)         |
 | **P8** | Burn-down shims + gate hard | Migrar import-sites restantes → `@core`; **borrar todos los shims**; flip `dependency-cruiser` a **error** (CI gate). **P8a application DONE (fe710c4)** (20 barrels @core + 238 import-sites + `apps/api/src/application` borrado, 242 shims); **P8b domain DONE (6ef962c)** (barrel VO @core + 333 import-sites incl. 2 `import()` dinámicos + `apps/api/src/domain` borrado, 143 shims) — **andamiaje strangler 100% removido de apps/api**; **P8c flip depcruise core-\* a error DONE (21398d8)** (4 reglas `warn`→`error`, CI-scope exit 0). | Media       | P3–P7      | DONE (P8a fe710c4 · P8b 6ef962c · P8c 21398d8) |
-| **P9** | Cablear deployables         | apps/workers resuelve use-cases de `@core`; decidir topología; mover driven adapters Prisma del dominio a `packages/adapters/*`.                                                                                                                                                                                                                                                                                                                                                                                                                  | Media       | P8         | PENDING                                        |
+| **P9** | Cablear deployables         | apps/workers resuelve use-cases de `@core`; mover driven adapters Prisma a `packages/adapters/*` **donde haga falta**. Enfoque **A-rigurosa** (incremental por-worker bajo convención, ver §2bis): **P9.0** convención de adapters canónicos (este commit); **P9a** mentionIngest→@core; **P9b** autoRenewal (nuevo `AutoRenewExpiredTrialUseCase`); **P9c** romper no-circular (SMELL-42). `publish` se queda worker-only (ejecuta lo que @core agenda; no hay `PublishPostUseCase`).                                                            | Media       | P8         | IN-PROGRESS (P9.0 convención)                  |
+
+## 2bis. P9 — Convención de adapters Prisma canónicos (A-rigurosa)
+
+> **Decisión (Edward):** cablear workers a `@core` de forma **incremental por-worker**, moviendo **solo** los adapters
+> que cada uno necesita — **no** los ~90 de golpe (churn enorme, no requerido por el milestone; los workers ya son
+> DI-clean y usan el facade `@adapters/db-prisma`). Para que "mover solo lo necesario" **no** disperse adapters ni
+> genere duplicación, se fijan estas 4 reglas **antes** de mover nada. Destino ya endosado por
+> `TARGET_ARCHITECTURE_CANON_ES.md` ("Prisma repo impls → `packages/adapters/*`, consumibles por cualquier deployable,
+> donde haga falta").
+
+1. **Home canónico (discoverability):** `@adapters/db-prisma` es EL hogar de los Prisma adapters compartidos por >1
+   deployable. Todo consumidor nuevo **busca ahí primero**.
+2. **Move-not-copy (cero duplicación):** un adapter apps/api-only **migra** (nunca se copia) a `@adapters/db-prisma`
+   cuando un 2º consumidor lo necesita; apps/api pasa a importarlo desde ahí. **Un port = un adapter = una ubicación.**
+3. **Una impl por port:** el adapter canónico es el **full-domain** (implementa el port de `@core/domain`). No
+   sobreviven impls paralelas simplificadas.
+4. **Retiro del facade:** el facade `@ports/core` de `@adapters/db-prisma` (`createAccount/Project/Post/Channel/
+PublishLog/Analytics/ThreadRepository`, usado hoy por publish + mention workers) es **transitorio**. Solapa los
+   repos full-domain de apps/api para esas tablas (duplicación latente). A medida que los workers adoptan use-cases de
+   `@core` (respaldados por los repos full migrados bajo la regla 2), las factories del facade **se retiran**. **Cero
+   net-new facade repos.**
+
+**Estado interino determinístico:** "disperso" = "todavía-no-compartido", **no** "ambiguo". Los ~80 adapters
+apps/api-only se quedan en `apps/api/src/infrastructure/repositories/` **hasta** que un 2º consumidor los pida →
+momento en que MIGRAN bajo la regla 2. No se mueve nada especulativamente.
 
 ## 3. Apéndice — mapa de ownership de domain (bound de scope, a nivel archivo)
 

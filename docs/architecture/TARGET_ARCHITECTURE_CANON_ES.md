@@ -138,7 +138,9 @@ apps/
    flip del gate de boundaries a **hard error**.
 6. **Cablear deployables a `@core` (bajo, el objetivo original).** `apps/workers` ya puede resolver use-cases de
    `@core`; decidir topología (mantener consumidores in-process en apps/api, o devolverlos a un worker aislado que
-   resuelve de `@core`). Mover los driven adapters Prisma del dominio a `packages/adapters/*` donde haga falta.
+   resuelve de `@core`). Mover los driven adapters Prisma del dominio a `packages/adapters/*` donde haga falta —
+   incremental por-worker bajo las **4 reglas de adapters canónicos** (home canónico `@adapters/db-prisma`,
+   move-not-copy, una-impl-por-port, retiro del facade): ver `CORE_MIGRATION_ROADMAP_ES.md` §2bis.
 
 Cada fase: gates (tsc 0, eslint 0/0, fitness, tests), commit propio, checkpoint de rollback.
 
