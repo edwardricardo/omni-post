@@ -27,8 +27,12 @@ export default defineConfig({
       "@shared": path.join(root, "packages/shared/src"),
       "@ports/core": path.join(root, "packages/ports/src/index.ts"),
       "@ports": path.join(root, "packages/ports/src"),
-      "@core/domain": path.join(root, "packages/core/domain/src/index.ts"),
-      "@core/application": path.join(root, "packages/core/application/src/index.ts"),
+      // Point @core aliases at the package src DIR (not index.ts) so subpath
+      // imports resolve (bare → dir → index.ts; subpath → src/x). Mirrors the
+      // `@shared` → packages/shared/src pattern. Required for kernel shims that
+      // re-export from `@core/domain/<subpath>.js`.
+      "@core/domain": path.join(root, "packages/core/domain/src"),
+      "@core/application": path.join(root, "packages/core/application/src"),
       "@infra/prisma": path.join(root, "infra/prisma/src/vitest-entry.ts"),
       "@observability/logger": path.join(root, "packages/observability/logger/src/index.ts"),
       "@monitoring/circuit-breaker": path.join(

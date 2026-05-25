@@ -1,18 +1,9 @@
 /**
  * @file index.ts
- * @description Barrel export for errors — re-exports all domain error classes and types.
+ * @description Re-export shim — the domain error barrel moved to `@core/domain`.
+ *              Kept here so existing import sites keep resolving during the @core
+ *              migration (strangler-fig); removed in the burn-down phase (P8).
  * @layer domain
  */
 
-export {
-  DomainError,
-  InvalidValueError,
-  InvalidIdError,
-  EmptyValueError,
-  ValueTooLongError,
-  InvalidStateTransitionError,
-  EntityNotFoundError,
-  InvariantViolationError,
-  VersionConflictError,
-  type DomainErrorType,
-} from "./DomainError.js";
+export * from "@core/domain/errors/index.js";

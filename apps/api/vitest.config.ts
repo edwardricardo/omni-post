@@ -33,8 +33,13 @@ export default defineConfig({
       "@shared": path.join(root, "packages/shared/src"),
       "@ports/core": path.join(root, "packages/ports/src/index.ts"),
       "@ports": path.join(root, "packages/ports/src"),
-      "@core/domain": path.join(root, "packages/core/domain/src/index.ts"),
-      "@core/application": path.join(root, "packages/core/application/src/index.ts"),
+      // Point @core aliases at the package src DIR (not index.ts) so subpath
+      // imports resolve: @rollup/plugin-alias prefix-matches `@core/domain`
+      // (bare → dir → index.ts) AND `@core/domain/x` (→ src/x). Mirrors the
+      // `@shared` → packages/shared/src pattern. Required for the kernel shims
+      // that re-export from `@core/domain/<subpath>.js`.
+      "@core/domain": path.join(root, "packages/core/domain/src"),
+      "@core/application": path.join(root, "packages/core/application/src"),
       "@adapters/db-prisma": path.join(root, "packages/adapters/db-prisma/src/index.ts"),
       "@adapters/cache-redis": path.join(root, "packages/adapters/cache-redis/src/index.ts"),
       "@adapters/queue-bullmq": path.join(root, "packages/adapters/queue-bullmq/src/index.ts"),
