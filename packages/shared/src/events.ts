@@ -1,7 +1,11 @@
 /**
  * @file events.ts
- * @description Core Domain Events system implementing Event Sourcing patterns.
- *              Foundation for CQRS, Saga patterns, and distributed processing.
+ * @description Event-store / integration event system (`EventStoreEvent`) implementing
+ *              Event Sourcing patterns. Foundation for CQRS, Saga, Redis pub/sub, and
+ *              distributed processing. Distinct from the DDD domain event in
+ *              `@core/domain` (aggregate-emitted, outbox-dispatched) — this is the
+ *              cross-boundary, persisted/replayable event with causation/correlation.
+ * @layer domain
  *
  * Key Features:
  * - Type-safe event definitions
@@ -15,7 +19,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 // Base event interface with metadata
-export interface DomainEvent<T = unknown> {
+export interface EventStoreEvent<T = unknown> {
   id: string;
   type: string;
   version: number;
@@ -40,7 +44,7 @@ export interface EventMetadata {
 
 // Event envelope for serialization
 export interface EventEnvelope {
-  event: DomainEvent;
+  event: EventStoreEvent;
   occurredAt: Date;
   sequence: number;
   streamId: string;
@@ -48,14 +52,14 @@ export interface EventEnvelope {
 }
 
 // Event handler interface
-export interface EventHandler<T extends DomainEvent = DomainEvent> {
+export interface EventHandler<T extends EventStoreEvent = EventStoreEvent> {
   handle(event: T): Promise<void>;
   eventType: string;
 }
 
 // Event store interface
 export interface EventStore {
-  append(streamId: string, events: DomainEvent[], expectedVersion?: number): Promise<void>;
+  append(streamId: string, events: EventStoreEvent[], expectedVersion?: number): Promise<void>;
   getEvents(streamId: string, fromVersion?: number): Promise<EventEnvelope[]>;
   getAllEvents(fromPosition?: number): Promise<EventEnvelope[]>;
   getEventsByType(eventType: string, fromTimestamp?: Date): Promise<EventEnvelope[]>;
@@ -63,8 +67,8 @@ export interface EventStore {
 
 // Event publisher interface
 export interface EventPublisher {
-  publish(event: DomainEvent): Promise<void>;
-  publishBatch(events: DomainEvent[]): Promise<void>;
+  publish(event: EventStoreEvent): Promise<void>;
+  publishBatch(events: EventStoreEvent[]): Promise<void>;
   subscribe(eventType: string, handler: EventHandler): void;
   unsubscribe(eventType: string, handler: EventHandler): void;
 }
@@ -208,22 +212,26 @@ export const SystemHealthEventSchema = z.object({
 });
 
 // Event type definitions
-export type PostCreatedEvent = DomainEvent<z.infer<typeof PostCreatedEventSchema>>;
-export type PostUpdatedEvent = DomainEvent<z.infer<typeof PostUpdatedEventSchema>>;
-export type PostScheduledEvent = DomainEvent<z.infer<typeof PostScheduledEventSchema>>;
-export type PostPublishedEvent = DomainEvent<z.infer<typeof PostPublishedEventSchema>>;
-export type PostPublishFailedEvent = DomainEvent<z.infer<typeof PostPublishFailedEventSchema>>;
-export type PostDeletedEvent = DomainEvent<z.infer<typeof PostDeletedEventSchema>>;
+export type PostCreatedEvent = EventStoreEvent<z.infer<typeof PostCreatedEventSchema>>;
+export type PostUpdatedEvent = EventStoreEvent<z.infer<typeof PostUpdatedEventSchema>>;
+export type PostScheduledEvent = EventStoreEvent<z.infer<typeof PostScheduledEventSchema>>;
+export type PostPublishedEvent = EventStoreEvent<z.infer<typeof PostPublishedEventSchema>>;
+export type PostPublishFailedEvent = EventStoreEvent<z.infer<typeof PostPublishFailedEventSchema>>;
+export type PostDeletedEvent = EventStoreEvent<z.infer<typeof PostDeletedEventSchema>>;
 
-export type ChannelConnectedEvent = DomainEvent<z.infer<typeof ChannelConnectedEventSchema>>;
-export type ChannelDisconnectedEvent = DomainEvent<z.infer<typeof ChannelDisconnectedEventSchema>>;
-export type ChannelRateLimitReachedEvent = DomainEvent<
+export type ChannelConnectedEvent = EventStoreEvent<z.infer<typeof ChannelConnectedEventSchema>>;
+export type ChannelDisconnectedEvent = EventStoreEvent<
+  z.infer<typeof ChannelDisconnectedEventSchema>
+>;
+export type ChannelRateLimitReachedEvent = EventStoreEvent<
   z.infer<typeof ChannelRateLimitReachedEventSchema>
 >;
 
-export type AnalyticsCollectedEvent = DomainEvent<z.infer<typeof AnalyticsCollectedEventSchema>>;
-export type UserActionEvent = DomainEvent<z.infer<typeof UserActionEventSchema>>;
-export type SystemHealthEvent = DomainEvent<z.infer<typeof SystemHealthEventSchema>>;
+export type AnalyticsCollectedEvent = EventStoreEvent<
+  z.infer<typeof AnalyticsCollectedEventSchema>
+>;
+export type UserActionEvent = EventStoreEvent<z.infer<typeof UserActionEventSchema>>;
+export type SystemHealthEvent = EventStoreEvent<z.infer<typeof SystemHealthEventSchema>>;
 
 // Event constants
 export const EVENT_TYPES = {
@@ -251,7 +259,7 @@ export const EVENT_TYPES = {
 } as const;
 
 // Helper functions
-export function createDomainEvent<T>(
+export function createEventStoreEvent<T>(
   type: string,
   aggregateId: string,
   aggregateType: string,
@@ -262,7 +270,7 @@ export function createDomainEvent<T>(
     causationId?: string;
     correlationId?: string;
   }
-): DomainEvent<T> {
+): EventStoreEvent<T> {
   return {
     id: `${type}-${randomUUID()}`,
     type,
@@ -277,21 +285,21 @@ export function createDomainEvent<T>(
   };
 }
 
-export function isEventType<T extends DomainEvent>(
-  event: DomainEvent,
+export function isEventType<T extends EventStoreEvent>(
+  event: EventStoreEvent,
   eventType: string
 ): event is T {
   return event.type === eventType;
 }
 
-export function serializeEvent(event: DomainEvent): string {
+export function serializeEvent(event: EventStoreEvent): string {
   return JSON.stringify({
     ...event,
     timestamp: event.timestamp.toISOString(),
   });
 }
 
-export function deserializeEvent(json: string): DomainEvent {
+export function deserializeEvent(json: string): EventStoreEvent {
   const parsed = JSON.parse(json);
   return {
     ...parsed,
@@ -315,7 +323,7 @@ export const eventSchemas = {
   [EVENT_TYPES.SYSTEM_HEALTH]: SystemHealthEventSchema,
 };
 
-export function validateEvent(event: DomainEvent): boolean {
+export function validateEvent(event: EventStoreEvent): boolean {
   const schema = eventSchemas[event.type as keyof typeof eventSchemas];
   if (!schema) {
     return false;
@@ -338,8 +346,8 @@ export function createPostEvent<T>(
   projectId: string,
   data: T,
   metadata: EventMetadata
-): DomainEvent<T> {
-  return createDomainEvent(type, postId, "Post", data, metadata);
+): EventStoreEvent<T> {
+  return createEventStoreEvent(type, postId, "Post", data, metadata);
 }
 
 export function createUserActionEvent(
@@ -350,7 +358,7 @@ export function createUserActionEvent(
   metadata: EventMetadata,
   details?: Record<string, unknown>
 ): UserActionEvent {
-  return createDomainEvent(
+  return createEventStoreEvent(
     EVENT_TYPES.USER_ACTION,
     userId,
     "User",

@@ -10,7 +10,7 @@
  * @layer infrastructure
  */
 
-import { DomainEvent } from "@shared/events";
+import { EventStoreEvent } from "@shared/events";
 import { Command } from "@shared/cqrs";
 import { ok } from "@shared/types";
 import type { QueuePort, QueueJob, QueueHealth } from "@ports/core";
@@ -44,10 +44,10 @@ export interface MockFastifyInstance {
 
 export interface MockEventService {
   initialize: () => Promise<void>;
-  publishEvent: (event: DomainEvent) => Promise<void>;
-  appendEventInTx: (tx: unknown, event: DomainEvent) => Promise<void>;
-  broadcastEvent: (event: DomainEvent) => Promise<void>;
-  publishedEvents: DomainEvent[];
+  publishEvent: (event: EventStoreEvent) => Promise<void>;
+  appendEventInTx: (tx: unknown, event: EventStoreEvent) => Promise<void>;
+  broadcastEvent: (event: EventStoreEvent) => Promise<void>;
+  publishedEvents: EventStoreEvent[];
 }
 
 export interface MockCQRSBus {
@@ -140,13 +140,13 @@ export function createMockFastify(): MockFastifyInstance {
 }
 
 export function createMockEventService(): MockEventService {
-  const publishedEvents: DomainEvent[] = [];
+  const publishedEvents: EventStoreEvent[] = [];
   return {
     initialize: async () => {},
-    publishEvent: async (event: DomainEvent) => {
+    publishEvent: async (event: EventStoreEvent) => {
       publishedEvents.push(event);
     },
-    appendEventInTx: async (_tx: unknown, event: DomainEvent) => {
+    appendEventInTx: async (_tx: unknown, event: EventStoreEvent) => {
       publishedEvents.push(event);
     },
     broadcastEvent: async () => {

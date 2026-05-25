@@ -7,7 +7,7 @@
 
 import type { SagaDefinition, SagaInstance } from "@shared/saga";
 import { SAGA_EVENTS } from "@shared/saga";
-import { createDomainEvent, type DomainEvent } from "@shared/events";
+import { createEventStoreEvent, type EventStoreEvent } from "@shared/events";
 import type { SagaManagerLifecycle } from "./SagaManagerLifecycle.js";
 import type { SagaManagerConfig } from "./sagaManagerTypes.js";
 import { logger } from "../lib/logger.js";
@@ -157,7 +157,7 @@ export class SagaExecutionEngine {
           ? SAGA_EVENTS.SAGA_STEP_COMPLETED
           : SAGA_EVENTS.SAGA_STEP_FAILED;
 
-        const stepEvent = createDomainEvent(
+        const stepEvent = createEventStoreEvent(
           stepEventType,
           sagaId,
           "Saga",
@@ -301,7 +301,7 @@ export class SagaExecutionEngine {
     instance.status = "COMPENSATED";
     instance.completedAt = new Date();
 
-    const compensationCompletedEvent = createDomainEvent(
+    const compensationCompletedEvent = createEventStoreEvent(
       SAGA_EVENTS.SAGA_COMPENSATION_COMPLETED,
       sagaId,
       "Saga",
@@ -340,7 +340,7 @@ export class SagaExecutionEngine {
     instance.status = "COMPLETED";
     instance.completedAt = completedAt;
 
-    const sagaCompletedEvent = createDomainEvent(
+    const sagaCompletedEvent = createEventStoreEvent(
       SAGA_EVENTS.SAGA_COMPLETED,
       instance.id,
       "Saga",
@@ -407,7 +407,7 @@ export class SagaExecutionEngine {
     instance.completedAt = completedAt;
     instance.error = error;
 
-    const sagaFailedEvent = createDomainEvent(
+    const sagaFailedEvent = createEventStoreEvent(
       SAGA_EVENTS.SAGA_FAILED,
       instance.id,
       "Saga",
@@ -485,7 +485,7 @@ export class SagaExecutionEngine {
    *
    * @param instance - The saga instance to persist
    */
-  async persistSagaInstance(instance: SagaInstance, events: DomainEvent[] = []): Promise<void> {
+  async persistSagaInstance(instance: SagaInstance, events: EventStoreEvent[] = []): Promise<void> {
     const key = `saga:${instance.id}`;
     const serialized = JSON.stringify({
       ...instance,

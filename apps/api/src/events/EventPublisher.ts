@@ -8,7 +8,7 @@
 import Redis from "ioredis";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import {
-  DomainEvent,
+  EventStoreEvent,
   EventHandler,
   EventPublisher as IEventPublisher,
   serializeEvent,
@@ -37,7 +37,7 @@ interface EventMetrics {
 }
 
 interface RetryJob {
-  event: DomainEvent;
+  event: EventStoreEvent;
   handler: EventHandler;
   attempt: number;
   maxAttempts: number;
@@ -87,7 +87,7 @@ export class RedisEventPublisher implements IEventPublisher {
   /**
    * Publish a single event
    */
-  async publish(event: DomainEvent): Promise<void> {
+  async publish(event: EventStoreEvent): Promise<void> {
     const startTime = Date.now();
 
     try {
@@ -137,7 +137,7 @@ export class RedisEventPublisher implements IEventPublisher {
   /**
    * Publish multiple events in a batch
    */
-  async publishBatch(events: DomainEvent[]): Promise<void> {
+  async publishBatch(events: EventStoreEvent[]): Promise<void> {
     if (events.length === 0) {
       return;
     }
@@ -303,7 +303,7 @@ export class RedisEventPublisher implements IEventPublisher {
    */
   async getDeadLetterItems(limit: number = 100): Promise<
     Array<{
-      event: DomainEvent;
+      event: EventStoreEvent;
       error: string;
       timestamp: Date;
       attempts: number;
@@ -456,7 +456,7 @@ export class RedisEventPublisher implements IEventPublisher {
   /**
    * Execute event handler with retry logic
    */
-  private async executeHandler(handler: EventHandler, event: DomainEvent): Promise<void> {
+  private async executeHandler(handler: EventHandler, event: EventStoreEvent): Promise<void> {
     const _startTime = Date.now();
 
     try {
@@ -540,7 +540,7 @@ export class RedisEventPublisher implements IEventPublisher {
    * Send event to dead letter queue
    */
   private async sendToDeadLetterQueue(
-    event: DomainEvent,
+    event: EventStoreEvent,
     error: Error,
     attempts: number
   ): Promise<void> {

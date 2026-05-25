@@ -7,8 +7,8 @@
 
 import type { SagaManager, SagaDefinition, SagaInstance, SagaContext } from "@shared/saga";
 import { createSagaId, createSagaContext, SAGA_EVENTS } from "@shared/saga";
-import type { DomainEvent } from "@shared/events";
-import { createDomainEvent } from "@shared/events";
+import type { EventStoreEvent } from "@shared/events";
+import { createEventStoreEvent } from "@shared/events";
 import { logger } from "../lib/logger.js";
 import { AppError } from "../lib/errors/AppError.js";
 import type {
@@ -104,7 +104,7 @@ export class SagaManagerLifecycle implements SagaManager {
       retryCount: 0,
     };
 
-    const sagaStartedEvent = createDomainEvent(
+    const sagaStartedEvent = createEventStoreEvent(
       SAGA_EVENTS.SAGA_STARTED,
       sagaId,
       "Saga",
@@ -167,7 +167,7 @@ export class SagaManagerLifecycle implements SagaManager {
 
     instance.status = "COMPENSATING";
 
-    const compensationStartedEvent = createDomainEvent(
+    const compensationStartedEvent = createEventStoreEvent(
       SAGA_EVENTS.SAGA_COMPENSATION_STARTED,
       sagaId,
       "Saga",
@@ -207,7 +207,7 @@ export class SagaManagerLifecycle implements SagaManager {
   // Event Handling
   // ---------------------------------------------------------------------------
 
-  async handleEvent(event: DomainEvent): Promise<void> {
+  async handleEvent(event: EventStoreEvent): Promise<void> {
     if (event.type === "publish.job.completed" || event.type === "publish.job.failed") {
       const sagaId = event.metadata?.sagaId as string;
       if (sagaId) {

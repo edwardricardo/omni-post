@@ -5,7 +5,7 @@
  */
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import { SAGA_EVENTS } from "@shared/saga";
-import { DomainEvent } from "@shared/events";
+import { EventStoreEvent } from "@shared/events";
 import {
   MockPrismaClient,
   MockRedis,
@@ -284,7 +284,7 @@ describe("SagaManager - Event Handling", () => {
   });
 
   it("should handle domain events related to saga without throwing", async () => {
-    const testEvent: DomainEvent = {
+    const testEvent: EventStoreEvent = {
       id: "event-123",
       type: "publish.job.completed",
       version: 1,
@@ -301,7 +301,7 @@ describe("SagaManager - Event Handling", () => {
   it("should ignore events without saga metadata without throwing", async () => {
     const publishedBefore = mockEventService.publishedEvents.length;
 
-    const testEvent: DomainEvent = {
+    const testEvent: EventStoreEvent = {
       id: "event-456",
       type: "publish.job.completed",
       version: 1,

@@ -6,7 +6,7 @@
  */
 
 import type { SagaManager, SagaDefinition, SagaInstance, SagaContext } from "@shared/saga";
-import type { DomainEvent } from "@shared/events";
+import type { EventStoreEvent } from "@shared/events";
 import {
   SagaManagerLifecycle,
   type SagaManagerConfig,
@@ -52,7 +52,7 @@ export class SagaManagerImpl implements SagaManager {
     return this.lifecycle.getSaga(sagaId);
   }
 
-  async handleEvent(event: DomainEvent): Promise<void> {
+  async handleEvent(event: EventStoreEvent): Promise<void> {
     return this.lifecycle.handleEvent(event);
   }
 

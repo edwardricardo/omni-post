@@ -8,7 +8,7 @@
  */
 
 import { describe, it, beforeEach, expect } from "vitest";
-import { DomainEvent, createDomainEvent, EVENT_TYPES } from "@shared/events";
+import { EventStoreEvent, createEventStoreEvent, EVENT_TYPES } from "@shared/events";
 
 interface MockStoredEventRow {
   id: string;
@@ -335,7 +335,7 @@ describe("EventStore - Event Appending", () => {
   });
 
   it("should append single event to stream", async () => {
-    const event: DomainEvent = createDomainEvent(
+    const event: EventStoreEvent = createEventStoreEvent(
       EVENT_TYPES.POST_CREATED,
       "post-123",
       "Post",
@@ -350,15 +350,15 @@ describe("EventStore - Event Appending", () => {
   });
 
   it("should append multiple events to stream", async () => {
-    const events: DomainEvent[] = [
-      createDomainEvent(
+    const events: EventStoreEvent[] = [
+      createEventStoreEvent(
         EVENT_TYPES.POST_CREATED,
         "post-123",
         "Post",
         { postId: "post-123", projectId: "project-456", status: "DRAFT", channelIds: [] },
         { source: "TestSuite" }
       ),
-      createDomainEvent(
+      createEventStoreEvent(
         EVENT_TYPES.POST_UPDATED,
         "post-123",
         "Post",
@@ -383,7 +383,7 @@ describe("EventStore - Event Appending", () => {
   it("should enforce optimistic concurrency control", async () => {
     mockPrisma.setCurrentVersion(5);
 
-    const event: DomainEvent = createDomainEvent(
+    const event: EventStoreEvent = createEventStoreEvent(
       EVENT_TYPES.POST_UPDATED,
       "post-123",
       "Post",
@@ -395,7 +395,7 @@ describe("EventStore - Event Appending", () => {
   });
 
   it("should publish events to Redis after storing", async () => {
-    const event: DomainEvent = createDomainEvent(
+    const event: EventStoreEvent = createEventStoreEvent(
       EVENT_TYPES.POST_CREATED,
       "post-123",
       "Post",
@@ -410,8 +410,8 @@ describe("EventStore - Event Appending", () => {
   });
 
   it("should handle max batch size limit", async () => {
-    const events: DomainEvent[] = Array.from({ length: 1001 }, (_, i) =>
-      createDomainEvent(
+    const events: EventStoreEvent[] = Array.from({ length: 1001 }, (_, i) =>
+      createEventStoreEvent(
         EVENT_TYPES.POST_CREATED,
         `post-${i}`,
         "Post",
@@ -426,7 +426,7 @@ describe("EventStore - Event Appending", () => {
   it("should handle transaction failures", async () => {
     mockPrisma.setFailTransaction(true);
 
-    const event: DomainEvent = createDomainEvent(
+    const event: EventStoreEvent = createEventStoreEvent(
       EVENT_TYPES.POST_CREATED,
       "post-123",
       "Post",
@@ -690,15 +690,15 @@ describe("EventStore - Event Sourcing Patterns", () => {
   });
 
   it("should maintain event ordering by version", async () => {
-    const events: DomainEvent[] = [
-      createDomainEvent(
+    const events: EventStoreEvent[] = [
+      createEventStoreEvent(
         EVENT_TYPES.POST_CREATED,
         "post-123",
         "Post",
         { postId: "post-123", projectId: "project-456", status: "DRAFT", channelIds: [] },
         { source: "TestSuite" }
       ),
-      createDomainEvent(
+      createEventStoreEvent(
         EVENT_TYPES.POST_UPDATED,
         "post-123",
         "Post",
@@ -715,8 +715,8 @@ describe("EventStore - Event Sourcing Patterns", () => {
 
   it("should support correlation ID tracking", async () => {
     const correlationId = "correlation-123";
-    const event: DomainEvent = {
-      ...createDomainEvent(
+    const event: EventStoreEvent = {
+      ...createEventStoreEvent(
         EVENT_TYPES.POST_CREATED,
         "post-123",
         "Post",
@@ -735,8 +735,8 @@ describe("EventStore - Event Sourcing Patterns", () => {
 
   it("should support causation ID tracking", async () => {
     const causationId = "causation-456";
-    const event: DomainEvent = {
-      ...createDomainEvent(
+    const event: EventStoreEvent = {
+      ...createEventStoreEvent(
         EVENT_TYPES.POST_CREATED,
         "post-123",
         "Post",
