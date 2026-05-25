@@ -503,6 +503,7 @@ export class TrialManagementService extends AuditableService {
                 amount,
                 billingCycle: account.billingCycle,
                 nextBillingDate: nextBilling.toISOString(),
+                previousTrialEndDate: account.trialEndDate?.toISOString(),
               },
             });
 

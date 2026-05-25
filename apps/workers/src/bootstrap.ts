@@ -24,10 +24,6 @@
  *              still works: `node dist/mentionIngestWorker.js` etc., because
  *              each file ends with an `import.meta.url` main-module guard
  *              that calls `startXxxWorker()` with default options.
- *
- *              NOT bootstrapped here: `autoRenewalWorker.ts` — its disposition
- *              (consolidate into api or keep as worker) is tracked under
- *              audit finding FN-004 and decided separately.
  * @layer infrastructure
  */
 

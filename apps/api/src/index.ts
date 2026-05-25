@@ -817,6 +817,25 @@ async function start() {
       24 * 60 * 60 * 1000
     );
 
+    // Auto-renewal of expired trials — daily. Canonical SoT: the api
+    // SubscriptionService (the duplicate apps/workers autoRenewalWorker was
+    // removed — FN-004 dual-write/double-charge risk).
+    const { SubscriptionService: _SubscriptionServiceType } =
+      await import("./billing/subscription/SubscriptionService.js");
+    const subscriptionSvc = app.container!.resolve<InstanceType<typeof _SubscriptionServiceType>>(
+      TOKENS.SubscriptionService
+    );
+    scheduler.register(
+      "auto-renewal",
+      async () => {
+        const result = await subscriptionSvc.processAutoRenewals();
+        if (!result.ok) {
+          logger.warn({ err: result.error }, "Auto-renewal processing failed");
+        }
+      },
+      24 * 60 * 60 * 1000
+    );
+
     // Inbox sync coordinator — every 30 minutes.
     // Enqueues one inbox-sync job per active channel into BullMQ; the in-process
     // inbox-sync consumer (apps/api, below) consumes QUEUE_NAMES.INBOX_SYNC and
