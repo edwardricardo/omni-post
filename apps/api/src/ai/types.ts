@@ -15,8 +15,13 @@ import {
   GenerationOptions,
   StructuredOutputSpec,
 } from "@core/domain/ai/AiServiceContract.js";
+import {
+  ImageGenerationOptions,
+  ImageGenerationResult,
+} from "@core/domain/repositories/ImageGenerationPort.js";
 
 export type { AIMessage, GenerationOptions, StructuredOutputSpec };
+export type { ImageGenerationOptions, ImageGenerationResult };
 
 export interface ContentAnalysis {
   sentiment: {
@@ -101,19 +106,6 @@ export interface PerformancePrediction {
     opportunities: string[];
     threats: string[];
   };
-}
-
-export interface ImageGenerationOptions {
-  prompt: string;
-  size?: "1024x1024" | "1024x1792" | "1792x1024";
-  quality?: "standard" | "hd";
-  style?: "natural" | "vivid";
-  n?: number;
-}
-
-export interface ImageGenerationResult {
-  imageUrl: string;
-  revisedPrompt: string;
 }
 
 export interface AIProvider {

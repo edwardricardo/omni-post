@@ -301,6 +301,7 @@ export const TOKENS = {
 
   // AI Image Generation (Step 8)
   GeneratedImageRepository: Symbol.for("GeneratedImageRepository"),
+  ImageGenerationPort: Symbol.for("ImageGenerationPort"),
   GenerateImageUseCase: Symbol.for("GenerateImageUseCase"),
   ListGeneratedImagesQuery_AIImage: Symbol.for("ListGeneratedImagesQuery_AIImage"),
 

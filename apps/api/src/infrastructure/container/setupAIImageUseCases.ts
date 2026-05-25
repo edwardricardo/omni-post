@@ -6,8 +6,10 @@
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import type { GeneratedImageRepository } from "../../domain/repositories/GeneratedImageRepository.js";
+import type { ImageGenerationPort } from "@core/domain/repositories/ImageGenerationPort.js";
 import type { AIService } from "../../ai/aiService.js";
 import { PrismaGeneratedImageRepository } from "../repositories/PrismaGeneratedImageRepository.js";
+import { AiServiceImageGenerationAdapter } from "../adapters/AiServiceImageGenerationAdapter.js";
 import { GenerateImageUseCase } from "../../application/ai-image/GenerateImageUseCase.js";
 import { ListGeneratedImagesQuery } from "../../application/ai-image/ListGeneratedImagesQuery.js";
 
@@ -25,10 +27,21 @@ export function setupAIImageUseCases(container: Container): void {
 
   const repo = () => container.resolve<GeneratedImageRepository>(TOKENS.GeneratedImageRepository);
 
-  // Generate image use case (needs repo + AI service)
+  // Image generation port — adapts AIService to the technology-free contract.
+  container.register<ImageGenerationPort>(
+    TOKENS.ImageGenerationPort,
+    () => new AiServiceImageGenerationAdapter(container.resolve<AIService>(TOKENS.AIService)),
+    true
+  );
+
+  // Generate image use case (needs repo + image-generation port)
   container.register(
     TOKENS.GenerateImageUseCase,
-    () => new GenerateImageUseCase(repo(), container.resolve<AIService>(TOKENS.AIService)),
+    () =>
+      new GenerateImageUseCase(
+        repo(),
+        container.resolve<ImageGenerationPort>(TOKENS.ImageGenerationPort)
+      ),
     true
   );
 
