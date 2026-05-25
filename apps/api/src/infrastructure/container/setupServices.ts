@@ -635,7 +635,7 @@ export function setupServices(
   // Register EmailPort
   container.register<EmailPort>(TOKENS.EmailPort, () => new ResendEmailAdapter(), true);
 
-  // Register SagaManager (P3-A)
+  // Register SagaManager
   container.register<SagaManagerImpl>(
     TOKENS.SagaManager,
     () => {

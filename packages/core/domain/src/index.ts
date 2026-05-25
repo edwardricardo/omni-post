@@ -1,14 +1,12 @@
 /**
  * @file index.ts
- * @description Barrel for the shared domain core (`@core/domain`): kernel base —
- *   entity errors, strongly-typed identifiers, base domain event infrastructure,
- *   entity/aggregate roots, and base repository ports + UnitOfWork. Populated
- *   incrementally by the @core migration roadmap
- *   (docs/architecture/CORE_MIGRATION_ROADMAP_ES.md).
+ * @description Barrel for the shared domain core (`@core/domain`): the domain model
+ *   (entities, aggregates, value objects, domain events, domain services) and the
+ *   repository/infra ports shared across deployables.
  * @layer domain
  */
 
-// Kernel base (P1)
+// Domain primitives: errors, identifiers, base domain-event infra, entity/aggregate roots, repository base + UnitOfWork
 export * from "./errors/index.js";
 export * from "./value-objects/EntityId.js";
 export * from "./events/DomainEvent.js";
@@ -16,7 +14,7 @@ export * from "./entities/Entity.js";
 export * from "./aggregates/AggregateRoot.js";
 export * from "./repositories/Repository.js";
 
-// Shared cross-cutting domain model (P2)
+// Cross-cutting value objects, events, entities, and read-model DTOs
 export * from "./value-objects/Provider.js";
 export * from "./value-objects/Content.js";
 export * from "./value-objects/PublishStatus.js";
@@ -30,7 +28,7 @@ export * from "./entities/CustomerUser.js";
 export * from "./entities/Project.js";
 export * from "./repositories/ReadModelDtos.js";
 
-// Shared cross-cutting ports (P2): repos of the P2 entities + infra ports
+// Cross-cutting repository ports (account/project/channel/customer-user) + infra ports (outbox/audit/email/http)
 export * from "./repositories/AccountRepository.js";
 export * from "./repositories/AccountQueryRepository.js";
 export * from "./repositories/ProjectRepository.js";
@@ -45,7 +43,7 @@ export * from "./repositories/AuditLogRepository.js";
 export * from "./repositories/EmailPort.js";
 export * from "./repositories/HttpClientPort.js";
 
-// Leaf contexts (P3): value objects, entities, domain services, security rules, ports
+// Leaf-context value objects, entities, services, security rules, and ports
 export * from "./value-objects/UTMParameters.js";
 export * from "./entities/BrandKit.js";
 export * from "./services/MentionParser.js";
@@ -64,8 +62,7 @@ export * from "./repositories/TrackedTermQuery.js";
 export * from "./repositories/TrendRadarQueryRepository.js";
 export * from "./repositories/RepurposeProposalQueryRepository.js";
 
-// Standalone features (P4): links, notifications, comments, first-comment,
-// external-notifications, aiPromptTemplates, referral/conversions
+// Links, notifications, comments, first-comment, external-notifications, prompt-templates, conversions
 export * from "./value-objects/ShortCode.js";
 export * from "./value-objects/CommentId.js";
 export * from "./value-objects/NotificationId.js";
@@ -82,7 +79,7 @@ export * from "./repositories/ExternalNotificationConfigRepository.js";
 export * from "./repositories/AIPromptTemplateRepository.js";
 export * from "./repositories/ConversionRepository.js";
 
-// Feature module: analytics (P5-A)
+// Analytics: read/query/write/aggregation/thread ports + dimension/metric registries + report schema
 export * from "./repositories/AnalyticsReadRepository.js";
 export * from "./repositories/AnalyticsQueryRepository.js";
 export * from "./repositories/AnalyticsWriteRepository.js";
@@ -92,7 +89,7 @@ export * from "./analytics/DimensionRegistry.js";
 export * from "./analytics/MetricRegistry.js";
 export * from "./analytics/ReportSchema.js";
 
-// Feature modules: reports, recurring, tasks, integrations, crm (P5-B)
+// Reports, recurring posts, tasks, integrations, CRM entities + ports
 export * from "./entities/ScheduledReport.js";
 export * from "./entities/RecurringPost.js";
 export * from "./entities/Task.js";

@@ -24,7 +24,7 @@ export interface ContainerSetupOptions {
   prisma: PrismaClient;
   /** Optional custom event dispatcher */
   eventDispatcher?: EventDispatcher;
-  /** Optional integration event publisher for cross-process events (P2-2) */
+  /** Optional integration event publisher for cross-process events */
   integrationEventPublisher?: IntegrationEventPublisher;
 }
 

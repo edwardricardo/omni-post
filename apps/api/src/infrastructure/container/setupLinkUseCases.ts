@@ -21,7 +21,7 @@ import {
  * Register all tracked link use cases in the container
  */
 export function setupLinkUseCases(container: Container): void {
-  // Register Tracked Link Use Cases (P1-DI-7)
+  // Register Tracked Link Use Cases
   container.register<CreateTrackedLinkUseCase>(
     TOKENS.CreateTrackedLinkUseCase,
     () =>

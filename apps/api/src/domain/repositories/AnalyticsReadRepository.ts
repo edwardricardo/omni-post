@@ -1,8 +1,6 @@
 /**
  * @file AnalyticsReadRepository.ts
- * @description Re-export shim — the analytics read-model repository port moved to
- *              `@core/domain`. Kept here so existing import sites keep resolving
- *              during the @core migration (strangler-fig); removed at P8.
+ * @description Re-export of the canonical definition, which lives in `@core/domain/repositories/AnalyticsReadRepository.js`.
  * @layer domain
  */
 

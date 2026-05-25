@@ -1,8 +1,6 @@
 /**
  * @file EntityId.ts
- * @description Re-export shim — strongly-typed entity identifiers moved to
- *              `@core/domain`. Kept here so existing import sites keep resolving
- *              during the @core migration (strangler-fig); removed at P8.
+ * @description Re-export of the canonical definition, which lives in `@core/domain/value-objects/EntityId.js`.
  * @layer domain
  */
 

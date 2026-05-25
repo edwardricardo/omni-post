@@ -1,8 +1,6 @@
 /**
  * @file Provider.ts
- * @description Re-export shim — the Provider value object moved to `@core/domain`.
- *              Kept here so existing import sites keep resolving during the @core
- *              migration (strangler-fig); removed in the burn-down phase (P8).
+ * @description Re-export of the canonical definition, which lives in `@core/domain/value-objects/Provider.js`.
  * @layer domain
  */
 

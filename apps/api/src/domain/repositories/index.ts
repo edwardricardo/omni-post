@@ -55,7 +55,7 @@ export {
   type CreateApiKeyData,
 } from "./ApiKeyRepository.js";
 
-// Outbox writer port (P2-1: Transactional Outbox)
+// Outbox writer port (Transactional Outbox)
 export { type OutboxWriter } from "./OutboxWriter.js";
 
 // AdminUser repository port (R1-A: hexagonal migration)

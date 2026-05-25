@@ -1,8 +1,6 @@
 /**
  * @file DomainEvent.ts
- * @description Re-export shim — the base domain event infrastructure moved to
- *              `@core/domain`. Kept here so existing import sites keep resolving
- *              during the @core migration (strangler-fig); removed at P8.
+ * @description Re-export of the canonical definition, which lives in `@core/domain/events/DomainEvent.js`.
  * @layer domain
  */
 

@@ -950,9 +950,13 @@ grep -rn "dedupeKey.*randomUUID\|dedupeKey.*Math.random" \
 
 # 8. No sprint/phase references in source comments (repo-wide, excluding test sandboxes
 # and Prisma's generated client mirror). Catches: "Sprint N", "Sprint X", "Phase N",
-# "Part of Sprint X", and the legacy "T0A_" / "T0-A" task-batch prefixes used during
-# remediation. All belong in git history, not source comments where they rot.
-grep -rnE "Part of Sprint|Phase.*Sprint|Sprint [0-9A-Z]|Phase [0-9]|T0A_|T0-A" \
+# "Part of Sprint X", the legacy "T0A_" / "T0-A" task-batch prefixes, and the
+# parenthesised phase/task shorthand "(P8)" / "(P2-1)" / "(P3-A)" / "(P1-DI-7)" used
+# during the @core + prisma→DI migrations. Prisma-safe: `\(P[0-9]\)` matches only a
+# single digit and `\(P[0-9]+-` requires a dash, so Prisma error codes like "(P2002)"
+# (P + 4 digits, no dash) are NOT flagged. All belong in git history, not source
+# comments where they rot.
+grep -rnE "Part of Sprint|Phase.*Sprint|Sprint [0-9A-Z]|Phase [0-9]|T0A_|T0-A|\(P[0-9]\)|\(P[0-9]+-[A-Za-z0-9]" \
   apps/ packages/ infra/ --include="*.ts" --include="*.tsx" --include="*.prisma" | \
   grep -vE "node_modules|dist|\.next|\.stryker-tmp|\.stryker|reports/mutation|infra/prisma/generated/" | wc -l
 

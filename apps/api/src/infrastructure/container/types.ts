@@ -40,7 +40,7 @@ export const TOKENS = {
   ThreadReadRepository: Symbol.for("ThreadReadRepository"),
   ConversionRepository: Symbol.for("ConversionRepository"),
 
-  // Repositories (P2-3 — CQRS read side)
+  // Repositories (CQRS read side)
   PostQueryRepository: Symbol.for("PostQueryRepository"),
 
   // Repositories (API keys)
@@ -74,7 +74,7 @@ export const TOKENS = {
   // Use Cases (channels)
   SetPrimaryChannelUseCase: Symbol.for("SetPrimaryChannelUseCase"),
 
-  // Outbox (P2-1 — Transactional Outbox)
+  // Outbox (Transactional Outbox)
   OutboxWriter: Symbol.for("OutboxWriter"),
   OutboxRelay: Symbol.for("OutboxRelay"),
   OutboxCleaner: Symbol.for("OutboxCleaner"),
@@ -87,13 +87,13 @@ export const TOKENS = {
   // recurring in-process work (cleanup jobs, health checks, metrics pushes).
   BackgroundTaskScheduler: Symbol.for("BackgroundTaskScheduler"),
 
-  // Unit of Work (P2-4)
+  // Unit of Work
   UnitOfWork: Symbol.for("UnitOfWork"),
 
-  // Integration Events (P2-2)
+  // Integration Events
   IntegrationEventPublisher: Symbol.for("IntegrationEventPublisher"),
 
-  // Event Versioning (P2-5)
+  // Event Versioning
   EventSchemaRegistry: Symbol.for("EventSchemaRegistry"),
   UpcasterChain: Symbol.for("UpcasterChain"),
 
@@ -112,7 +112,7 @@ export const TOKENS = {
   ContentVersionManager: Symbol.for("ContentVersionManager"),
   PlatformContentAdapter: Symbol.for("PlatformContentAdapter"),
 
-  // Services (P1-4 — DI route migration)
+  // Services (DI route migration)
   AuthService: Symbol.for("AuthService"),
   MfaService: Symbol.for("MfaService"),
   RbacService: Symbol.for("RbacService"),
@@ -165,23 +165,23 @@ export const TOKENS = {
   // Provider Registry (H5 — DI route migration)
   ProviderRegistry: Symbol.for("ProviderRegistry"),
 
-  // Saga Orchestration (P3-A — publish flow integration)
+  // Saga Orchestration (publish flow integration)
   SagaManager: Symbol.for("SagaManager"),
 
-  // Repositories (P1-DI-7 — link tracking)
+  // Repositories (link tracking)
   TrackedLinkRepository: Symbol.for("TrackedLinkRepository"),
 
-  // Repositories (P1-DI-8 — crisis mode)
+  // Repositories (crisis mode)
   CrisisProjectRepository: Symbol.for("CrisisProjectRepository"),
 
-  // Use Cases (P1-DI-7 — link tracking)
+  // Use Cases (link tracking)
   CreateTrackedLinkUseCase: Symbol.for("CreateTrackedLinkUseCase"),
   GetTrackedLinkUseCase: Symbol.for("GetTrackedLinkUseCase"),
   GetLinkStatsUseCase: Symbol.for("GetLinkStatsUseCase"),
   DeleteTrackedLinkUseCase: Symbol.for("DeleteTrackedLinkUseCase"),
   RedirectAndTrackClickUseCase: Symbol.for("RedirectAndTrackClickUseCase"),
 
-  // Use Cases (P1-DI-8 — crisis mode)
+  // Use Cases (crisis mode)
   EnterCrisisModeUseCase: Symbol.for("EnterCrisisModeUseCase"),
   ExitCrisisModeUseCase: Symbol.for("ExitCrisisModeUseCase"),
   GetCrisisStatusUseCase: Symbol.for("GetCrisisStatusUseCase"),

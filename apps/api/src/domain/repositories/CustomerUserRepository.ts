@@ -1,8 +1,6 @@
 /**
  * @file CustomerUserRepository.ts
- * @description Re-export shim — the CustomerUser repository port moved to
- *              `@core/domain`. Kept here so existing import sites keep resolving
- *              during the @core migration (strangler-fig); removed at P8.
+ * @description Re-export of the canonical definition, which lives in `@core/domain/repositories/CustomerUserRepository.js`.
  * @layer domain
  */
 

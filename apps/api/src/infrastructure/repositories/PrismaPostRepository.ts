@@ -486,7 +486,7 @@ export class PrismaPostRepository implements PostRepository {
       });
     }
 
-    // Persist domain events atomically (P2-1: Transactional Outbox)
+    // Persist domain events atomically (Transactional Outbox)
     if (this.outboxWriter) {
       await this.outboxWriter.writeEvents(tx, aggregate.domainEvents);
     }
@@ -610,7 +610,7 @@ export class PrismaPostRepository implements PostRepository {
       });
     }
 
-    // Persist domain events atomically (P2-1: Transactional Outbox)
+    // Persist domain events atomically (Transactional Outbox)
     if (this.outboxWriter) {
       await this.outboxWriter.writeEvents(tx, aggregate.domainEvents);
     }

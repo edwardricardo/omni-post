@@ -94,7 +94,7 @@ import { PrismaSubscriptionStatsQueryRepository } from "../repositories/PrismaSu
  * Register all repository adapters in the container
  */
 export function setupRepositories(container: Container): void {
-  // Register Outbox Writer (P2-1)
+  // Register Outbox Writer
   container.register<OutboxWriter>(TOKENS.OutboxWriter, () => new PrismaOutboxWriter(), true);
 
   // Register PostRepository (receives OutboxWriter for atomic event persistence)
@@ -108,7 +108,7 @@ export function setupRepositories(container: Container): void {
     true
   );
 
-  // Register Post Query Repository (P2-3 -- CQRS read side)
+  // Register Post Query Repository (CQRS read side)
   container.register<PostQueryRepository>(
     TOKENS.PostQueryRepository,
     () => new PrismaPostQueryRepository(container.resolve(TOKENS.PrismaClient)),
@@ -211,21 +211,21 @@ export function setupRepositories(container: Container): void {
     true
   );
 
-  // Register Unit of Work (P2-4)
+  // Register Unit of Work
   container.register<UnitOfWork>(
     TOKENS.UnitOfWork,
     () => new PrismaUnitOfWork(container.resolve(TOKENS.PrismaClient)),
     true
   );
 
-  // Register TrackedLink Repository (P1-DI-7)
+  // Register TrackedLink Repository
   container.register<TrackedLinkRepository>(
     TOKENS.TrackedLinkRepository,
     () => new PrismaTrackedLinkRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
 
-  // Register Crisis Project Repository (P1-DI-8)
+  // Register Crisis Project Repository
   container.register<CrisisProjectRepository>(
     TOKENS.CrisisProjectRepository,
     () => new PrismaCrisisProjectRepository(container.resolve(TOKENS.PrismaClient)),

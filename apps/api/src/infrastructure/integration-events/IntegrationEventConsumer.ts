@@ -42,14 +42,14 @@ export interface IntegrationEventConsumerOptions {
   concurrency?: number;
 
   /**
-   * Optional schema registry for payload validation (P2-5).
+   * Optional schema registry for payload validation.
    * When provided, event payloads are validated against their registered schema
    * before being dispatched to handlers. Invalid payloads are logged and skipped.
    */
   schemaRegistry?: EventSchemaRegistry;
 
   /**
-   * Optional upcaster chain for schema migration (P2-5).
+   * Optional upcaster chain for schema migration.
    * When provided and an event's schemaVersion is below the current version,
    * the payload is upcasted before validation and dispatch.
    */

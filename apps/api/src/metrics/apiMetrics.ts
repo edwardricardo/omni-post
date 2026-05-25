@@ -74,13 +74,13 @@ interface ApiMetricsCollector {
   // Request correlation tracking
   correlationTracker: client.Gauge<string>;
 
-  // Provider API metrics (P2-6)
+  // Provider API metrics
   providerApiCalls: client.Counter<string>;
   providerApiDuration: client.Histogram<string>;
   providerApiErrors: client.Counter<string>;
   providerHealthStatus: client.Gauge<string>;
 
-  // Cache metrics (P2-6)
+  // Cache metrics
   cacheOperations: client.Counter<string>;
   cacheDuration: client.Histogram<string>;
   cacheSize: client.Gauge<string>;
@@ -413,7 +413,7 @@ export class ApiMetrics {
         registers: [registry],
       }),
 
-      // Provider API metrics (P2-6)
+      // Provider API metrics
       providerApiCalls: new client.Counter({
         name: "provider_api_calls_total",
         help: "Total API calls to social media providers",
@@ -443,7 +443,7 @@ export class ApiMetrics {
         registers: [registry],
       }),
 
-      // Cache metrics (P2-6)
+      // Cache metrics
       cacheOperations: new client.Counter({
         name: "cache_operations_total",
         help: "Total cache operations",
@@ -609,7 +609,7 @@ export class ApiMetrics {
     return this.registry;
   }
 
-  // Provider API metrics helpers (P2-6)
+  // Provider API metrics helpers
   recordProviderApiCall(
     provider: string,
     operation: string
@@ -630,7 +630,7 @@ export class ApiMetrics {
     this.metrics.providerHealthStatus.set({ provider }, isHealthy ? 1 : 0);
   }
 
-  // Cache metrics helpers (P2-6)
+  // Cache metrics helpers
   recordCacheOperation(
     operation: "get" | "set" | "delete" | "clear",
     cacheType: "memory" | "redis" | "distributed"

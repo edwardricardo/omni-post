@@ -57,7 +57,7 @@ export function setupCrisisUseCases(container: Container): void {
     true
   );
 
-  // Register Outbox Relay + Cleaner (P2-1)
+  // Register Outbox Relay + Cleaner
   container.register<OutboxRelay>(
     TOKENS.OutboxRelay,
     () =>
@@ -82,7 +82,7 @@ export function setupCrisisUseCases(container: Container): void {
     true
   );
 
-  // Register Crisis Mode Use Cases (P1-DI-8)
+  // Register Crisis Mode Use Cases
   container.register<EnterCrisisModeUseCase>(
     TOKENS.EnterCrisisModeUseCase,
     () =>
