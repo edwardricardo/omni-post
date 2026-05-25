@@ -149,3 +149,12 @@ export * from "./repositories/SocialMessageQueryRepository.js";
 export * from "./repositories/SocialMessageRepository.js";
 export * from "./repositories/SocialOutboundReplyRepository.js";
 export * from "./repositories/MentionQueryRepository.js";
+
+// Auth / customer-auth: identifiers, SSO config entities, repository ports
+export * from "./value-objects/CustomerUserId.js";
+export * from "./entities/OidcConfiguration.js";
+export * from "./entities/SamlConfiguration.js";
+export * from "./repositories/OidcConfigurationRepository.js";
+export * from "./repositories/SamlConfigurationRepository.js";
+export * from "./repositories/AdminUserRepository.js";
+export * from "./repositories/AdminSessionRepository.js";
