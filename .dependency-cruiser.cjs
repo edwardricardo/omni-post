@@ -136,6 +136,30 @@ module.exports = {
       },
     },
     {
+      name: "shared-no-core",
+      severity: "error",
+      comment:
+        "@shared is the primitives kernel (Result, base types, event-store/CQRS/saga contracts) — it must NEVER import from @core. Enforces the inward dependency direction (core → shared, never the reverse) so the @core → @shared → @core cycle is impossible by construction. Hard-zero: there are no violations today.",
+      from: {
+        path: "packages/shared/",
+      },
+      to: {
+        path: "packages/core/",
+      },
+    },
+    {
+      name: "shared-no-apps",
+      severity: "error",
+      comment:
+        "@shared (primitives kernel) must NEVER import from any app — it is consumed by apps and @core, never the reverse. Hard-zero.",
+      from: {
+        path: "packages/shared/",
+      },
+      to: {
+        path: "apps/",
+      },
+    },
+    {
       name: "no-deprecated-core",
       severity: "warn",
       comment: "Avoid Node.js core modules deprecated in current LTS.",
