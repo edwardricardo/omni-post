@@ -179,41 +179,41 @@ describe("GrantReferralRewardUseCase", () => {
   });
 
   describe("email notification", () => {
-    function makeMockEmailPort() {
+    function makeMockMailer() {
       return {
-        send: vi.fn().mockResolvedValue(ok(undefined)),
+        sendReferralReward: vi.fn().mockResolvedValue(ok(undefined)),
       };
     }
 
-    it("sends referral reward email when emailPort is provided and reward is newly granted", async () => {
+    it("sends referral reward email when a mailer is provided and reward is newly granted", async () => {
       const grantRepo = makeMockGrantRepo();
-      const emailPort = makeMockEmailPort();
-      const useCase = new GrantReferralRewardUseCase(grantRepo, emailPort);
+      const mailer = makeMockMailer();
+      const useCase = new GrantReferralRewardUseCase(grantRepo, mailer);
 
       await useCase.execute({ referralId: "ref-1" });
       // Email send is fire-and-forget — yield once to let the microtask resolve.
       await new Promise<void>((resolve) => setImmediate(resolve));
 
-      expect(emailPort.send).toHaveBeenCalledOnce();
-      const call = emailPort.send.mock.calls[0]?.[0];
-      assert.deepStrictEqual(call?.to, ["referrer@example.com"]);
-      assert.match(call?.subject ?? "", /Globex Corp\./);
-      assert.match(call?.subject ?? "", /30 free days/);
-      assert.ok(call?.html?.includes("Acme Inc."));
+      expect(mailer.sendReferralReward).toHaveBeenCalledOnce();
+      const [to, data] = mailer.sendReferralReward.mock.calls[0] ?? [];
+      assert.strictEqual(to, "referrer@example.com");
+      assert.strictEqual(data?.referredCompanyName, "Globex Corp.");
+      assert.strictEqual(data?.rewardDays, 30);
+      assert.strictEqual(data?.accountName, "Acme Inc.");
     });
 
     it("does not send email when reward was already granted previously", async () => {
       const grantRepo = makeMockGrantRepo({ rewardGranted: true });
-      const emailPort = makeMockEmailPort();
-      const useCase = new GrantReferralRewardUseCase(grantRepo, emailPort);
+      const mailer = makeMockMailer();
+      const useCase = new GrantReferralRewardUseCase(grantRepo, mailer);
 
       await useCase.execute({ referralId: "ref-1" });
       await new Promise<void>((resolve) => setImmediate(resolve));
 
-      expect(emailPort.send).not.toHaveBeenCalled();
+      expect(mailer.sendReferralReward).not.toHaveBeenCalled();
     });
 
-    it("does not crash when emailPort is omitted", async () => {
+    it("does not crash when the mailer is omitted", async () => {
       const grantRepo = makeMockGrantRepo();
       const useCase = new GrantReferralRewardUseCase(grantRepo);
 
@@ -226,14 +226,14 @@ describe("GrantReferralRewardUseCase", () => {
     it("does not crash when email context lookup returns null", async () => {
       const grantRepo = makeMockGrantRepo();
       grantRepo.findReferralRewardEmailContext.mockResolvedValue(null);
-      const emailPort = makeMockEmailPort();
-      const useCase = new GrantReferralRewardUseCase(grantRepo, emailPort);
+      const mailer = makeMockMailer();
+      const useCase = new GrantReferralRewardUseCase(grantRepo, mailer);
 
       const result = await useCase.execute({ referralId: "ref-1" });
       await new Promise<void>((resolve) => setImmediate(resolve));
 
       assert.ok(result.ok);
-      expect(emailPort.send).not.toHaveBeenCalled();
+      expect(mailer.sendReferralReward).not.toHaveBeenCalled();
     });
   });
 });

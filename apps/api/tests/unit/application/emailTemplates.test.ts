@@ -11,7 +11,7 @@ import {
   approvalDecisionEmail,
   taskAssignedEmail,
   mentionEmail,
-} from "../../../src/application/notifications/emailTemplates.js";
+} from "../../../src/infrastructure/email/templates/emailTemplates.js";
 
 describe("approvalRequestedEmail", () => {
   it("includes post title in subject", async () => {

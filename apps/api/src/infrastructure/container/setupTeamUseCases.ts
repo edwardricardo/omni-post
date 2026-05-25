@@ -6,7 +6,7 @@
  */
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import type { EmailPort } from "../../domain/repositories/EmailPort.js";
+import type { TeamInvitationMailer } from "@core/domain/repositories/TeamInvitationMailer.js";
 import type { PlatformCredentialService } from "../../security/PlatformCredentialService.js";
 import type { PostRepository } from "../../domain/index.js";
 import type { ApprovalRequestRepository } from "../../domain/repositories/ApprovalRequestRepository.js";
@@ -138,7 +138,7 @@ export function setupTeamUseCases(container: Container): void {
         container.resolve<CustomerUserRepository>(TOKENS.CustomerUserRepository),
         container.resolve<CustomerRoleRepository>(TOKENS.CustomerRoleRepository),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
-        container.resolve<EmailPort>(TOKENS.EmailPort),
+        container.resolve<TeamInvitationMailer>(TOKENS.TeamInvitationMailer),
         container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService)
       ),
     true

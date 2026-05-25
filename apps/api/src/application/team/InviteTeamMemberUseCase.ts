@@ -14,9 +14,8 @@ import type { CustomerUserRepository } from "../../domain/repositories/CustomerU
 import type { CustomerRoleRepository } from "../../domain/repositories/CustomerRoleRepository.js";
 import { CustomerUser } from "../../domain/entities/CustomerUser.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
-import type { EmailPort } from "../../domain/repositories/EmailPort.js";
+import type { TeamInvitationMailer } from "@core/domain/repositories/TeamInvitationMailer.js";
 import type { PlatformCredentialService } from "../../security/PlatformCredentialService.js";
-import { teamInvitationEmail } from "../notifications/emailTemplates.js";
 import { createLogger } from "../../lib/logger.js";
 
 const inviteLogger = createLogger("team-invite");
@@ -49,7 +48,7 @@ export class InviteTeamMemberUseCase implements UseCase<
     private readonly customerUserRepo: CustomerUserRepository,
     private readonly customerRoleRepo: CustomerRoleRepository,
     private readonly unitOfWork?: UnitOfWork,
-    private readonly emailPort?: EmailPort,
+    private readonly mailer?: TeamInvitationMailer,
     private readonly credentialService?: PlatformCredentialService
   ) {}
 
@@ -136,7 +135,7 @@ export class InviteTeamMemberUseCase implements UseCase<
         result = await doWork();
       }
 
-      if (result.ok && this.emailPort) {
+      if (result.ok && this.mailer) {
         this.sendInvitationEmail(input, inviteToken, roleName).catch((e) =>
           inviteLogger.warn({ err: e }, "Failed to send invitation email")
         );
@@ -159,7 +158,7 @@ export class InviteTeamMemberUseCase implements UseCase<
     inviteToken: string,
     roleName: string
   ): Promise<void> {
-    if (!this.emailPort) return;
+    if (!this.mailer) return;
 
     let baseUrl = "https://app.omnipost.io";
     if (this.credentialService) {
@@ -169,18 +168,11 @@ export class InviteTeamMemberUseCase implements UseCase<
       }
     }
 
-    const content = await teamInvitationEmail({
+    await this.mailer.sendTeamInvitation(input.email, {
       inviterName: input.invitedBy ?? "An admin",
       accountName: input.accountId,
       role: roleName,
       acceptUrl: `${baseUrl}/accept-invitation?token=${inviteToken}`,
-    });
-
-    await this.emailPort.send({
-      to: [input.email],
-      subject: content.subject,
-      body: `You've been invited to join a team on OmniPost. Visit ${baseUrl}/accept-invitation?token=${inviteToken}`,
-      html: content.html,
     });
   }
 }

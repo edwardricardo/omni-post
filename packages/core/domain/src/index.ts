@@ -45,6 +45,10 @@ export * from "./repositories/HttpClientPort.js";
 export * from "./repositories/BusinessMetricsPort.js";
 export * from "./repositories/GuardrailMetricsPort.js";
 export * from "./repositories/ImageGenerationPort.js";
+export * from "./repositories/ReferralRewardMailer.js";
+export * from "./repositories/WelcomeMailer.js";
+export * from "./repositories/TeamInvitationMailer.js";
+export * from "./repositories/NotificationMailer.js";
 
 // Leaf-context value objects, entities, services, security rules, and ports
 export * from "./value-objects/UTMParameters.js";

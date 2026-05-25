@@ -3,7 +3,7 @@
  * @description React Email templates for notification emails.
  *              Uses @react-email/components for type-safe, previewable templates.
  *              Rendered server-side to HTML via @react-email/render.
- * @layer application
+ * @layer infrastructure
  */
 
 import {

@@ -15,9 +15,8 @@ import { CustomerUser } from "../../domain/entities/CustomerUser.js";
 import { randomBytes } from "crypto";
 import { hashPassword } from "../../auth/passwordHashing.js";
 import type { AccountSubscriptionPort } from "../../domain/repositories/AccountSubscriptionPort.js";
-import type { EmailPort } from "../../domain/repositories/EmailPort.js";
+import type { WelcomeMailer } from "@core/domain/repositories/WelcomeMailer.js";
 import type { PlatformCredentialService } from "../../security/PlatformCredentialService.js";
-import { welcomeEmail } from "../notifications/emailTemplates.js";
 import { signCustomerAccessToken, signCustomerRefreshToken } from "../../auth/customerJwt.js";
 import { createLogger } from "../../lib/logger.js";
 
@@ -57,7 +56,7 @@ export class RegisterCustomerUseCase {
     private readonly accountRepo: AccountRepositoryPort,
     private readonly accountSubscriptionPort?: AccountSubscriptionPort,
     private readonly unitOfWork?: UnitOfWork,
-    private readonly emailPort?: EmailPort,
+    private readonly welcomeMailer?: WelcomeMailer,
     private readonly credentialService?: PlatformCredentialService
   ) {}
 
@@ -188,7 +187,7 @@ export class RegisterCustomerUseCase {
       }
 
       // Send welcome email after successful registration (never blocks)
-      if (result.ok && this.emailPort) {
+      if (result.ok && this.welcomeMailer) {
         this.sendWelcomeEmail(account.name, input.email).catch((e) =>
           registrationLogger.warn({ err: e }, "Failed to send welcome email")
         );
@@ -205,7 +204,7 @@ export class RegisterCustomerUseCase {
    * @description Sends welcome email to newly registered customer. Never throws.
    */
   private async sendWelcomeEmail(accountName: string, email: string): Promise<void> {
-    if (!this.emailPort) return;
+    if (!this.welcomeMailer) return;
 
     let baseUrl = "https://app.omnipost.io";
     let supportEmail = "support@omnipost.io";
@@ -218,17 +217,10 @@ export class RegisterCustomerUseCase {
       }
     }
 
-    const content = await welcomeEmail({
+    await this.welcomeMailer.sendWelcome(email, {
       accountName,
       onboardingUrl: `${baseUrl}/dashboard`,
       supportEmail,
-    });
-
-    await this.emailPort.send({
-      to: [email],
-      subject: content.subject,
-      body: `Welcome to OmniPost! Get started at ${baseUrl}/dashboard`,
-      html: content.html,
     });
   }
 }

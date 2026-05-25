@@ -1,6 +1,9 @@
 /**
  * @file sendEmailNotification.test.ts
- * @description Unit tests for SendEmailNotificationService.
+ * @description Unit tests for SendEmailNotificationService — the gate logic
+ *              (type allow-list + recipient preferences) and delegation to the
+ *              NotificationMailer. Template rendering/subject/html is covered by
+ *              the TransactionalEmailAdapter test.
  * @layer infrastructure
  */
 
@@ -9,9 +12,9 @@ import assert from "node:assert/strict";
 import { SendEmailNotificationService } from "../../../src/application/notifications/SendEmailNotificationService.js";
 import { ok } from "@shared/types";
 
-function makeMockEmailPort() {
+function makeMockMailer() {
   return {
-    send: vi.fn().mockResolvedValue(ok(undefined)),
+    sendNotification: vi.fn().mockResolvedValue(ok(undefined)),
   };
 }
 
@@ -42,86 +45,60 @@ function makeContext(
 }
 
 describe("SendEmailNotificationService", () => {
-  let emailPort: ReturnType<typeof makeMockEmailPort>;
+  let mailer: ReturnType<typeof makeMockMailer>;
   let prefRepo: ReturnType<typeof makeMockPreferenceRepo>;
   let service: SendEmailNotificationService;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    emailPort = makeMockEmailPort();
+    mailer = makeMockMailer();
     prefRepo = makeMockPreferenceRepo();
-    service = new SendEmailNotificationService(emailPort, prefRepo as never);
+    service = new SendEmailNotificationService(mailer, prefRepo as never);
   });
 
-  it("sends email for APPROVAL_REQUESTED type", async () => {
-    await service.send(
-      makeContext({
-        metadata: {
-          authorName: "John",
-          postTitle: "Spring Launch",
-          postPreview: "Check out our new...",
-          platforms: "Instagram,X",
-        },
-      })
-    );
+  it("delegates to the mailer for an enabled APPROVAL_REQUESTED type", async () => {
+    const ctx = makeContext();
+    await service.send(ctx);
 
-    expect(emailPort.send).toHaveBeenCalledOnce();
-    const call = emailPort.send.mock.calls[0]?.[0] as {
-      to: string[];
-      subject: string;
-      html: string;
-    };
-    assert.ok(call);
-    assert.deepStrictEqual(call.to, ["user@test.com"]);
-    assert.ok(call.subject.includes("Spring Launch"));
-    assert.ok(call.html.includes("John"));
+    expect(mailer.sendNotification).toHaveBeenCalledOnce();
+    const call = mailer.sendNotification.mock.calls[0]?.[0];
+    assert.strictEqual(call?.type, "APPROVAL_REQUESTED");
+    assert.strictEqual(call?.recipientEmail, "user@test.com");
   });
 
-  it("does not send email when user has disabled the type", async () => {
+  it("does not send when the recipient has disabled the type", async () => {
     prefRepo = makeMockPreferenceRepo([{ type: "APPROVAL_REQUESTED", enabled: false }]);
-    service = new SendEmailNotificationService(emailPort, prefRepo as never);
+    service = new SendEmailNotificationService(mailer, prefRepo as never);
 
     await service.send(makeContext());
 
-    expect(emailPort.send).not.toHaveBeenCalled();
+    expect(mailer.sendNotification).not.toHaveBeenCalled();
   });
 
-  it("does not send email for types not in EMAIL_ENABLED_TYPES", async () => {
+  it("does not send for types not in the email allow-list", async () => {
     await service.send(makeContext({ type: "COMMENT_ADDED" as never }));
 
-    expect(emailPort.send).not.toHaveBeenCalled();
+    expect(mailer.sendNotification).not.toHaveBeenCalled();
   });
 
-  it("does not throw when email send fails", async () => {
-    emailPort.send.mockRejectedValue(new Error("Network error"));
+  it("does not throw when the mailer fails", async () => {
+    mailer.sendNotification.mockRejectedValue(new Error("Network error"));
 
     await service.send(makeContext());
-    // No error thrown — service swallows it
+    // No error thrown — service swallows it.
   });
 
-  it("sends email for POST_APPROVED type", async () => {
-    await service.send(
-      makeContext({
-        type: "POST_APPROVED" as never,
-        metadata: { reviewerName: "Jane", postTitle: "Q2 Campaign", postId: "post-123" },
-      })
-    );
+  it("delegates POST_APPROVED to the mailer", async () => {
+    await service.send(makeContext({ type: "POST_APPROVED" as never }));
 
-    expect(emailPort.send).toHaveBeenCalledOnce();
-    const call = emailPort.send.mock.calls[0]?.[0] as { subject: string };
-    assert.ok(call.subject.includes("approved"));
+    expect(mailer.sendNotification).toHaveBeenCalledOnce();
+    assert.strictEqual(mailer.sendNotification.mock.calls[0]?.[0]?.type, "POST_APPROVED");
   });
 
-  it("sends email for MENTION type", async () => {
-    await service.send(
-      makeContext({
-        type: "MENTION" as never,
-        metadata: { mentionerName: "Alice", context: "task" },
-      })
-    );
+  it("delegates MENTION to the mailer", async () => {
+    await service.send(makeContext({ type: "MENTION" as never }));
 
-    expect(emailPort.send).toHaveBeenCalledOnce();
-    const call = emailPort.send.mock.calls[0]?.[0] as { subject: string };
-    assert.ok(call.subject.includes("Alice"));
+    expect(mailer.sendNotification).toHaveBeenCalledOnce();
+    assert.strictEqual(mailer.sendNotification.mock.calls[0]?.[0]?.type, "MENTION");
   });
 });

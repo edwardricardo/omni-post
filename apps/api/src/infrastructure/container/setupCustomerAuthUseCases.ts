@@ -15,6 +15,7 @@ import type { CustomerRoleRepository } from "../../domain/repositories/CustomerR
 import type { AccountRepositoryPort } from "../../domain/repositories/AccountRepository.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import type { EmailPort } from "../../domain/repositories/EmailPort.js";
+import type { WelcomeMailer } from "@core/domain/repositories/WelcomeMailer.js";
 import type { PlatformCredentialService } from "../../security/PlatformCredentialService.js";
 import { PrismaAccountSubscriptionAdapter } from "../repositories/PrismaAccountSubscriptionAdapter.js";
 import { PrismaCustomerUserRepository } from "../repositories/PrismaCustomerUserRepository.js";
@@ -56,7 +57,7 @@ export function setupCustomerAuthUseCases(container: Container): void {
         container.resolve<AccountRepositoryPort>(TOKENS.AccountRepository),
         new PrismaAccountSubscriptionAdapter(container.resolve<PrismaClient>(TOKENS.PrismaClient)),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
-        container.resolve<EmailPort>(TOKENS.EmailPort),
+        container.resolve<WelcomeMailer>(TOKENS.WelcomeMailer),
         container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService)
       ),
     true

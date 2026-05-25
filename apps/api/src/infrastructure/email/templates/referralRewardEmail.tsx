@@ -1,7 +1,7 @@
 /**
  * @file referralRewardEmail.tsx
  * @description React Email template for referral reward notification.
- * @layer application
+ * @layer infrastructure
  */
 
 import {

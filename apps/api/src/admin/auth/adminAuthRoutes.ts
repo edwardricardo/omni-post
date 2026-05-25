@@ -15,7 +15,7 @@ import { requirePermission } from "../../auth/rbacMiddleware.js";
 import { Permission } from "../../auth/rbacService.js";
 import { TOKENS } from "../../infrastructure/container/types.js";
 import type { EmailPort } from "../../domain/repositories/EmailPort.js";
-import { passwordResetEmail } from "../../application/notifications/emailTemplates.js";
+import { passwordResetEmail } from "../../infrastructure/email/templates/emailTemplates.js";
 import {
   loginSchema,
   refreshTokenSchema,

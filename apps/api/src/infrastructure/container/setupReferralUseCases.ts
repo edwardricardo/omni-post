@@ -10,7 +10,7 @@ import { TOKENS } from "./types.js";
 import { prisma } from "@infra/prisma";
 import { env } from "../../config/env.js";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
-import type { EmailPort } from "../../domain/repositories/EmailPort.js";
+import type { ReferralRewardMailer } from "@core/domain/repositories/ReferralRewardMailer.js";
 
 import { PrismaConvertReferralRepository } from "../repositories/PrismaConvertReferralRepository.js";
 import { PrismaGrantRewardRepository } from "../repositories/PrismaGrantRewardRepository.js";
@@ -55,7 +55,7 @@ export function setupReferralUseCases(container: Container): void {
     () =>
       new GrantReferralRewardUseCase(
         container.resolve<GrantRewardRepository>(TOKENS.GrantRewardRepository),
-        container.tryResolve<EmailPort>(TOKENS.EmailPort),
+        container.tryResolve<ReferralRewardMailer>(TOKENS.ReferralRewardMailer),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true

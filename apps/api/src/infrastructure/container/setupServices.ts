@@ -77,6 +77,11 @@ import type { EmailPort } from "../../domain/repositories/EmailPort.js";
 import { ResendEmailAdapter } from "../adapters/ResendEmailAdapter.js";
 import type { BusinessMetricsPort } from "@core/domain/repositories/BusinessMetricsPort.js";
 import { PrometheusBusinessMetricsAdapter } from "../adapters/PrometheusBusinessMetricsAdapter.js";
+import type { ReferralRewardMailer } from "@core/domain/repositories/ReferralRewardMailer.js";
+import type { WelcomeMailer } from "@core/domain/repositories/WelcomeMailer.js";
+import type { TeamInvitationMailer } from "@core/domain/repositories/TeamInvitationMailer.js";
+import type { NotificationMailer } from "@core/domain/repositories/NotificationMailer.js";
+import { TransactionalEmailAdapter } from "../adapters/TransactionalEmailAdapter.js";
 import {
   BullMQQueuePortRegistry,
   BullMQDeadLetterQueueAdapter,
@@ -641,6 +646,29 @@ export function setupServices(
   container.register<BusinessMetricsPort>(
     TOKENS.BusinessMetricsPort,
     () => new PrometheusBusinessMetricsAdapter(),
+    true
+  );
+
+  // Register the transactional-email role ports (one adapter backs all four).
+  const transactionalEmailAdapter = () =>
+    new TransactionalEmailAdapter(
+      container.resolve<EmailPort>(TOKENS.EmailPort),
+      env.CLIENT_URL ?? "http://localhost:3002"
+    );
+  container.register<ReferralRewardMailer>(
+    TOKENS.ReferralRewardMailer,
+    transactionalEmailAdapter,
+    true
+  );
+  container.register<WelcomeMailer>(TOKENS.WelcomeMailer, transactionalEmailAdapter, true);
+  container.register<TeamInvitationMailer>(
+    TOKENS.TeamInvitationMailer,
+    transactionalEmailAdapter,
+    true
+  );
+  container.register<NotificationMailer>(
+    TOKENS.NotificationMailer,
+    transactionalEmailAdapter,
     true
   );
 

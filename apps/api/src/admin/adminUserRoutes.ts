@@ -16,7 +16,7 @@ import type { AdminUserAdminService } from "./AdminUserAdminService.js";
 import type { EmailPort } from "../domain/repositories/EmailPort.js";
 import type { PlatformCredentialService } from "../security/PlatformCredentialService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import { passwordResetEmail } from "../application/notifications/emailTemplates.js";
+import { passwordResetEmail } from "../infrastructure/email/templates/emailTemplates.js";
 import { createLogger } from "../lib/logger.js";
 import type { AdminUserDto } from "../domain/repositories/ReadModelDtos.js";
 
