@@ -1,24 +1,7 @@
 /**
  * @file WebhookSubscriptionRotationRepository.ts
- * @description Port for the webhook secret rotation feature. Inline interface
- *              (single consumer); promote to packages/ports/core/ if a second
- *              consumer appears.
+ * @description Re-export of the canonical definition, which lives in `@core/application/webhooks/WebhookSubscriptionRotationRepository.js`.
  * @layer application
  */
 
-export interface WebhookSubscriptionForRotation {
-  id: string;
-  secretKey: string;
-}
-
-export interface RotateWebhookSecretArgs {
-  id: string;
-  newSecretKey: string;
-  previousSecretKey: string;
-  previousSecretKeyExpiresAt: Date;
-}
-
-export interface WebhookSubscriptionRotationRepository {
-  findById(id: string): Promise<WebhookSubscriptionForRotation | null>;
-  rotateSecret(args: RotateWebhookSecretArgs): Promise<boolean>;
-}
+export * from "@core/application/webhooks/WebhookSubscriptionRotationRepository.js";

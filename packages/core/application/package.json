@@ -21,7 +21,8 @@
   "dependencies": {
     "@core/domain": "workspace:*",
     "@ports/core": "workspace:*",
-    "@shared/types": "workspace:*"
+    "@shared/types": "workspace:*",
+    "csv-parse": "6.2.1"
   },
   "devDependencies": {
     "@types/node": "24.5.2",

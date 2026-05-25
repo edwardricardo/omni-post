@@ -1365,6 +1365,9 @@ importers:
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
+      csv-parse:
+        specifier: 6.2.1
+        version: 6.2.1
     devDependencies:
       '@types/node':
         specifier: 24.5.2
