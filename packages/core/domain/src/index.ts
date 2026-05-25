@@ -91,3 +91,20 @@ export * from "./repositories/ThreadReadRepository.js";
 export * from "./analytics/DimensionRegistry.js";
 export * from "./analytics/MetricRegistry.js";
 export * from "./analytics/ReportSchema.js";
+
+// Feature modules: reports, recurring, tasks, integrations, crm (P5-B)
+export * from "./entities/ScheduledReport.js";
+export * from "./entities/RecurringPost.js";
+export * from "./entities/Task.js";
+export * from "./entities/IntegrationApiKey.js";
+export * from "./entities/IntegrationSubscription.js";
+export * from "./entities/CrmConnection.js";
+export * from "./repositories/ScheduledReportRepository.js";
+export * from "./repositories/RecurringPostRepository.js";
+export * from "./repositories/TaskRepository.js";
+export * from "./repositories/IntegrationApiKeyRepository.js";
+export * from "./repositories/IntegrationSubscriptionRepository.js";
+export * from "./repositories/CrmConnectionRepository.js";
+export * from "./repositories/CrmContactRepository.js";
+export * from "./repositories/CrmActivityRepository.js";
+export * from "./repositories/CrmSyncLogRepository.js";

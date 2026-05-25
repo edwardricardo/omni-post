@@ -1,37 +1,9 @@
 /**
  * @file CrmContactRepository.ts
- * @description Domain port for CRM contact persistence. Technology-free interface.
+ * @description Re-export shim — the CrmContact repository port moved to
+ *              `@core/domain`. Kept here so existing import sites keep resolving
+ *              during the @core migration (strangler-fig); removed at P8.
  * @layer domain
  */
 
-export interface CrmContactData {
-  id: string;
-  accountId: string;
-  platform: string;
-  externalId: string;
-  email: string;
-  firstName: string | null;
-  lastName: string | null;
-  company: string | null;
-  title: string | null;
-  phone: string | null;
-  syncedAt: Date;
-  updatedAt: Date;
-}
-
-export interface UpsertCrmContactInput {
-  accountId: string;
-  platform: string;
-  externalId: string;
-  email: string;
-  firstName?: string | null;
-  lastName?: string | null;
-  company?: string | null;
-  title?: string | null;
-  phone?: string | null;
-}
-
-export interface CrmContactRepository {
-  upsertMany(contacts: UpsertCrmContactInput[]): Promise<number>;
-  findByAccountId(accountId: string): Promise<CrmContactData[]>;
-}
+export * from "@core/domain/repositories/CrmContactRepository.js";
