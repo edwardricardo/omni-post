@@ -35,16 +35,16 @@
 Status: `PENDING` · `IN-PROGRESS` · `DONE (<commit>)`. Conteos aproximados; cada plan de fase regenera el grep de
 closure y fija la lista exacta.
 
-| Fase   | Nombre                    | Scope                                                                                                                                                        | Complejidad | Status  |
-| ------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- | ------- |
-| **A0** | Scaffold roadmap          | Este doc. Sin mover use-cases.                                                                                                                               | Baja        | DONE    |
-| **A1** | Contextos hoja clean      | glossary, brand-voice, brand-kit, style-guide(−1), listening, usage, utm, first-comment, ml, embeddings, providers, channels, comments, crisis (≈45)         | Baja        | PENDING |
-| **A2** | Features standalone clean | links, notifications(−1), external-notifications, trends(−1), referral(−1), aiPromptTemplates, mentions (≈35)                                                | Baja-media  | PENDING |
-| **A3** | Módulos de feature clean  | analytics, reports, recurring, tasks, team(−1), integrations(−1), crm (≈45)                                                                                  | Media       | PENDING |
-| **A4** | Features grandes clean    | campaigns, assets, custom-reports(−1), approvals, ai(−1) (≈45)                                                                                               | Media-alta  | PENDING |
-| **A5** | Centrales clean           | posts(−3), inbox(−1), auth, customer-auth(−5), bulk-scheduling, webhooks, apiKeys(−1), billing, security(−1) (clean restantes)                               | Alta        | PENDING |
-| **A6** | Bloqueados (refactor)     | Los 21 que importan infra: introducir/usar ports (Metrics/PasswordHasher/TokenService/Credential/logger/config/ai) + DI rewiring, luego mover. Mayor riesgo. | Alta        | PENDING |
-| **A7** | Burn-down shims           | Migrar import-sites de application restantes → `@core/application`; borrar shims; (se une al P8 del dominio + flip dependency-cruiser a error).              | Media       | PENDING |
+| Fase   | Nombre                    | Scope                                                                                                                                                                                                     | Complejidad | Status         |
+| ------ | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | -------------- |
+| **A0** | Scaffold roadmap          | Este doc. Sin mover use-cases.                                                                                                                                                                            | Baja        | DONE           |
+| **A1** | Contextos hoja clean      | 35 archivos: glossary(−1), brand-voice, brand-kit, style-guide(−1), listening, usage, utm, first-comment, ml, embeddings, providers, channels, comments, crisis. Rewrite `../../domain/`→`@core/domain/`. | Baja        | DONE (f1891a0) |
+| **A2** | Features standalone clean | links, notifications(−1), external-notifications, trends(−1), referral(−1), aiPromptTemplates, mentions (≈35)                                                                                             | Baja-media  | PENDING        |
+| **A3** | Módulos de feature clean  | analytics, reports, recurring, tasks, team(−1), integrations(−1), crm (≈45)                                                                                                                               | Media       | PENDING        |
+| **A4** | Features grandes clean    | campaigns, assets, custom-reports(−1), approvals, ai(−1) (≈45)                                                                                                                                            | Media-alta  | PENDING        |
+| **A5** | Centrales clean           | posts(−3), inbox(−1), auth, customer-auth(−5), bulk-scheduling, webhooks, apiKeys(−1), billing, security(−1) (clean restantes)                                                                            | Alta        | PENDING        |
+| **A6** | Bloqueados (refactor)     | Los 21 que importan infra: introducir/usar ports (Metrics/PasswordHasher/TokenService/Credential/logger/config/ai) + DI rewiring, luego mover. Mayor riesgo.                                              | Alta        | PENDING        |
+| **A7** | Burn-down shims           | Migrar import-sites de application restantes → `@core/application`; borrar shims; (se une al P8 del dominio + flip dependency-cruiser a error).                                                           | Media       | PENDING        |
 
 ## 4. Los 21 bloqueados (fase A6)
 
