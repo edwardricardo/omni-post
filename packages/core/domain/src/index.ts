@@ -29,3 +29,18 @@ export * from "./entities/Channel.js";
 export * from "./entities/CustomerUser.js";
 export * from "./entities/Project.js";
 export * from "./repositories/ReadModelDtos.js";
+
+// Shared cross-cutting ports (P2): repos of the P2 entities + infra ports
+export * from "./repositories/AccountRepository.js";
+export * from "./repositories/AccountQueryRepository.js";
+export * from "./repositories/ProjectRepository.js";
+export * from "./repositories/ProjectQueryRepository.js";
+export * from "./repositories/ChannelRepository.js";
+export * from "./repositories/ChannelQueryForIngestion.js";
+export * from "./repositories/CustomerUserRepository.js";
+export * from "./repositories/CustomerRoleRepository.js";
+export * from "./repositories/RoleRepository.js";
+export * from "./repositories/OutboxWriter.js";
+export * from "./repositories/AuditLogRepository.js";
+export * from "./repositories/EmailPort.js";
+export * from "./repositories/HttpClientPort.js";

@@ -1,38 +1,9 @@
 /**
  * @file EmailPort.ts
- * @description Domain port for sending emails with optional attachments.
- *   Infrastructure adapters implement this interface to integrate with
- *   email providers such as Resend, SendGrid, or SES.
+ * @description Re-export shim — the email port moved to `@core/domain`.
+ *              Kept here so existing import sites keep resolving during the @core
+ *              migration (strangler-fig); removed in the burn-down phase (P8).
  * @layer domain
  */
 
-import { type Result } from "@shared/types";
-
-/**
- * Attachment to include in an outgoing email.
- */
-export interface EmailAttachment {
-  filename: string;
-  content: string | Buffer;
-  contentType: string;
-}
-
-/**
- * Options for sending an email message.
- */
-export interface SendEmailOptions {
-  to: string[];
-  subject: string;
-  body: string;
-  html?: string;
-  attachments?: EmailAttachment[];
-}
-
-/**
- * @interface EmailPort
- * @description Port for email delivery. Implementations must handle
- *   transient failures gracefully and return Result rather than throwing.
- */
-export interface EmailPort {
-  send(options: SendEmailOptions): Promise<Result<void, Error>>;
-}
+export * from "@core/domain/repositories/EmailPort.js";
