@@ -24,6 +24,7 @@ import type {
 } from "../../src/application/trends/FetchTrendingTopicsUseCase.js";
 import type { ScoreTrendContextPort } from "../../src/application/trends/ScoreTrendRelevanceUseCase.js";
 import type { AIServicePort } from "../../src/domain/repositories/AIServicePort.js";
+import { trendScoringSpec } from "../../src/ai/structuredSchemas.js";
 import type {
   TrendRadarResultPort,
   TrendRadarUpsertInput,
@@ -151,7 +152,7 @@ describe("trajectory eval — trends slice", () => {
     });
 
     const fetchUseCase = new FetchTrendingTopicsUseCase(fetchPort, cache);
-    const scoreUseCase = new ScoreTrendRelevanceUseCase(ai, contextPort);
+    const scoreUseCase = new ScoreTrendRelevanceUseCase(ai, trendScoringSpec, contextPort);
     const detect = new DetectTrendsUseCase(fetchUseCase, scoreUseCase, result.port);
 
     const out = await detect.execute({ accountId: "acc-1" });
@@ -173,7 +174,7 @@ describe("trajectory eval — trends slice", () => {
     const result = makeResultPort();
 
     const fetchUseCase = new FetchTrendingTopicsUseCase(fetchPort, cache);
-    const scoreUseCase = new ScoreTrendRelevanceUseCase(ai, contextPort);
+    const scoreUseCase = new ScoreTrendRelevanceUseCase(ai, trendScoringSpec, contextPort);
     const detect = new DetectTrendsUseCase(fetchUseCase, scoreUseCase, result.port);
 
     await detect.execute({ accountId: "acc-1" });
@@ -200,7 +201,7 @@ describe("trajectory eval — trends slice", () => {
     const result = makeResultPort();
 
     const fetchUseCase = new FetchTrendingTopicsUseCase(fetchPort, cache);
-    const scoreUseCase = new ScoreTrendRelevanceUseCase(ai, contextPort);
+    const scoreUseCase = new ScoreTrendRelevanceUseCase(ai, trendScoringSpec, contextPort);
     const detect = new DetectTrendsUseCase(fetchUseCase, scoreUseCase, result.port);
 
     const out = await detect.execute({ accountId: "acc-1" });
@@ -223,7 +224,7 @@ describe("trajectory eval — trends slice", () => {
     const result = makeResultPort();
 
     const fetchUseCase = new FetchTrendingTopicsUseCase(fetchPort, cache);
-    const scoreUseCase = new ScoreTrendRelevanceUseCase(ai, contextPort);
+    const scoreUseCase = new ScoreTrendRelevanceUseCase(ai, trendScoringSpec, contextPort);
     const detect = new DetectTrendsUseCase(fetchUseCase, scoreUseCase, result.port);
 
     const out = await detect.execute({ accountId: "acc-empty" });
@@ -245,7 +246,7 @@ describe("trajectory eval — trends slice", () => {
     const result = makeResultPort();
 
     const fetchUseCase = new FetchTrendingTopicsUseCase(fetchPort, cache);
-    const scoreUseCase = new ScoreTrendRelevanceUseCase(ai, contextPort);
+    const scoreUseCase = new ScoreTrendRelevanceUseCase(ai, trendScoringSpec, contextPort);
     const detect = new DetectTrendsUseCase(fetchUseCase, scoreUseCase, result.port);
 
     await detect.execute({ accountId: "acc-1" });

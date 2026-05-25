@@ -12,6 +12,7 @@ import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import { prisma } from "@infra/prisma";
 import { env } from "../../config/env.js";
+import { localizedContentSpec } from "../../ai/structuredSchemas.js";
 
 import type { GlossaryRepository } from "../../domain/repositories/GlossaryRepository.js";
 import type { StyleGuideRuleRepository } from "../../domain/repositories/StyleGuideRuleRepository.js";
@@ -127,7 +128,9 @@ export function setupLocalizedGenerationUseCases(container: Container): void {
         container.resolve<AIServicePort>(TOKENS.AIServicePort),
         container.resolve<EmbeddingService>(TOKENS.EmbeddingService),
         container.resolve<SemanticRetrievalPort>(TOKENS.SemanticRetrievalPort),
-        container.resolve<BrandVoiceRepository>(TOKENS.BrandVoiceRepository)
+        container.resolve<BrandVoiceRepository>(TOKENS.BrandVoiceRepository),
+        localizedContentSpec,
+        env.EMBEDDINGS_DIMENSIONS
       ),
     true
   );

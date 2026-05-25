@@ -58,6 +58,7 @@ import {
   type TriageCrmPort,
 } from "../../application/inbox/TriageInboxMessageUseCase.js";
 import type { AIServicePort } from "../../domain/repositories/AIServicePort.js";
+import { triageSpec } from "../../ai/structuredSchemas.js";
 import type { BrandVoiceRepository } from "../../domain/repositories/BrandVoiceRepository.js";
 import { TriageDispatchEventHandler } from "../../inbox/handlers/TriageDispatchEventHandler.js";
 import type { GuardrailRegistry } from "../../application/guardrails/GuardrailRegistry.js";
@@ -313,6 +314,7 @@ export function setupInboxUseCases(container: Container): void {
       return new TriageInboxMessageUseCase(
         container.resolve<TriageMessagePort>(TOKENS.TriageMessagePort),
         container.resolve<AIServicePort>(TOKENS.AIServicePort),
+        triageSpec,
         container.resolve<TriageCrmPort>(TOKENS.TriageCrmPort),
         brandVoiceResolver,
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork),

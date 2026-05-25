@@ -20,6 +20,7 @@ import { ok } from "@shared/types";
 import { GenerateLocalizedContentUseCase } from "../../src/application/ai/GenerateLocalizedContentUseCase.js";
 import { EmbeddingService } from "../../src/application/embeddings/EmbeddingService.js";
 import type { AIServicePort } from "../../src/domain/repositories/AIServicePort.js";
+import { localizedContentSpec } from "../../src/ai/structuredSchemas.js";
 import type { SemanticRetrievalPort } from "../../src/domain/repositories/SemanticRetrievalPort.js";
 import type { BrandVoiceRepository } from "../../src/domain/repositories/BrandVoiceRepository.js";
 
@@ -87,7 +88,9 @@ describe("trajectory eval — localized generation", () => {
       ai,
       new EmbeddingService(ai),
       makeRetrieval(),
-      makeBrandVoice()
+      makeBrandVoice(),
+      localizedContentSpec,
+      1536
     );
 
     await useCase.execute({ accountId: "acc-1", locale: "es", brief: "Anuncio de lanzamiento" });
@@ -107,7 +110,9 @@ describe("trajectory eval — localized generation", () => {
       ai,
       new EmbeddingService(ai),
       makeRetrieval(),
-      makeBrandVoice()
+      makeBrandVoice(),
+      localizedContentSpec,
+      1536
     );
 
     await useCase.execute({ accountId: "acc-1", locale: "en", brief: "Launch announcement" });
@@ -127,7 +132,9 @@ describe("trajectory eval — localized generation", () => {
       ai,
       new EmbeddingService(ai),
       makeRetrieval(),
-      makeBrandVoice()
+      makeBrandVoice(),
+      localizedContentSpec,
+      1536
     );
 
     await useCase.execute({ accountId: "acc-1", locale: "es", brief: "Brief" });
@@ -149,7 +156,9 @@ describe("trajectory eval — localized generation", () => {
       ai,
       new EmbeddingService(ai),
       makeRetrieval(),
-      makeBrandVoice()
+      makeBrandVoice(),
+      localizedContentSpec,
+      1536
     );
 
     await useCase.execute({ accountId: "acc-1", locale: "es", brief: "Brief" });
@@ -170,7 +179,9 @@ describe("trajectory eval — localized generation", () => {
       ai,
       new EmbeddingService(ai),
       makeRetrieval(),
-      makeBrandVoice()
+      makeBrandVoice(),
+      localizedContentSpec,
+      1536
     );
 
     const result = await useCase.execute({

@@ -20,6 +20,7 @@ import {
   type ScoreTrendContextPort,
 } from "../../../src/application/trends/ScoreTrendRelevanceUseCase.js";
 import type { AIServicePort } from "../../../src/domain/repositories/AIServicePort.js";
+import { trendScoringSpec } from "../../../src/ai/structuredSchemas.js";
 import { InMemoryCacheAdapter } from "../../../../../packages/adapters/cache-redis/src/in-memory-cache-adapter.js";
 
 const fixedDate = new Date("2026-05-20T00:00:00.000Z");
@@ -152,7 +153,7 @@ describe("ScoreTrendRelevanceUseCase", () => {
       { index: 1, score: 8, postIdea: "Lean into AI", bestPlatform: "INSTAGRAM", urgency: "NOW" },
       { index: 2, score: 9, postIdea: "Fashion AI", bestPlatform: "TIKTOK", urgency: "TODAY" },
     ]);
-    const useCase = new ScoreTrendRelevanceUseCase(ai, contextPort);
+    const useCase = new ScoreTrendRelevanceUseCase(ai, trendScoringSpec, contextPort);
 
     const result = await useCase.execute({
       accountId: "acc-1",
@@ -174,7 +175,7 @@ describe("ScoreTrendRelevanceUseCase", () => {
       { index: 1, score: 4 },
       { index: 2, score: 7 },
     ]);
-    const useCase = new ScoreTrendRelevanceUseCase(ai, contextPort);
+    const useCase = new ScoreTrendRelevanceUseCase(ai, trendScoringSpec, contextPort);
 
     const result = await useCase.execute({
       accountId: "acc-1",
@@ -188,7 +189,7 @@ describe("ScoreTrendRelevanceUseCase", () => {
 
   it("returns an empty list on AI failure (graceful default)", async () => {
     const ai = makeAI(null);
-    const useCase = new ScoreTrendRelevanceUseCase(ai, contextPort);
+    const useCase = new ScoreTrendRelevanceUseCase(ai, trendScoringSpec, contextPort);
 
     const result = await useCase.execute({
       accountId: "acc-1",
@@ -201,7 +202,7 @@ describe("ScoreTrendRelevanceUseCase", () => {
 
   it("returns an empty list when there are no topics to score", async () => {
     const ai = makeAI([]);
-    const useCase = new ScoreTrendRelevanceUseCase(ai, contextPort);
+    const useCase = new ScoreTrendRelevanceUseCase(ai, trendScoringSpec, contextPort);
 
     const result = await useCase.execute({ accountId: "acc-1", topics: [] });
 

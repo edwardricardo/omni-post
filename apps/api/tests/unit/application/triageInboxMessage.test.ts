@@ -14,7 +14,8 @@ import assert from "node:assert/strict";
 import { ok, err } from "@shared/types";
 import { TriageInboxMessageUseCase } from "../../../src/application/inbox/TriageInboxMessageUseCase.js";
 import type { AIServicePort } from "../../../src/domain/repositories/AIServicePort.js";
-import type { TriageClassification } from "../../../src/ai/structuredSchemas.js";
+import type { TriageClassification } from "@core/domain/ai/AiStructuredOutputs.js";
+import { triageSpec } from "../../../src/ai/structuredSchemas.js";
 
 const URGENT_CLASSIFICATION: TriageClassification = {
   priority: "URGENT",
@@ -74,7 +75,7 @@ describe("TriageInboxMessageUseCase", () => {
     port = makeMockPort();
     ai = makeMockAI();
     crm = makeMockCrm();
-    useCase = new TriageInboxMessageUseCase(port, ai, crm);
+    useCase = new TriageInboxMessageUseCase(port, ai, triageSpec, crm);
   });
 
   it("classifies complaint message as URGENT", async () => {
@@ -98,7 +99,7 @@ describe("TriageInboxMessageUseCase", () => {
 
   it("attaches CRM contact when sender matches", async () => {
     crm = makeMockCrm({ id: "crm-contact-1", name: "John Doe", company: "Acme Corp" });
-    useCase = new TriageInboxMessageUseCase(port, ai, crm);
+    useCase = new TriageInboxMessageUseCase(port, ai, triageSpec, crm);
 
     const result = await useCase.execute({ messageId: "msg-1", accountId: "acc-1" });
 
@@ -107,7 +108,7 @@ describe("TriageInboxMessageUseCase", () => {
   });
 
   it("skips CRM lookup when no CRM port provided", async () => {
-    useCase = new TriageInboxMessageUseCase(port, ai, undefined);
+    useCase = new TriageInboxMessageUseCase(port, ai, triageSpec, undefined);
 
     const result = await useCase.execute({ messageId: "msg-1", accountId: "acc-1" });
 
@@ -117,7 +118,7 @@ describe("TriageInboxMessageUseCase", () => {
 
   it("handles AI failure gracefully (returns NORMAL defaults, no crash)", async () => {
     ai = makeMockAI({ ok: false, error: "AI_ERROR" });
-    useCase = new TriageInboxMessageUseCase(port, ai, crm);
+    useCase = new TriageInboxMessageUseCase(port, ai, triageSpec, crm);
 
     const result = await useCase.execute({ messageId: "msg-1", accountId: "acc-1" });
 
@@ -223,7 +224,7 @@ describe("TriageInboxMessageUseCase / eval set (consistency)", () => {
         conversationId: null,
       });
       const ai = makeMockAI({ ok: true, value: classification });
-      const useCase = new TriageInboxMessageUseCase(port, ai);
+      const useCase = new TriageInboxMessageUseCase(port, ai, triageSpec);
 
       const result = await useCase.execute({ messageId: "msg-eval", accountId: "acc-eval" });
 
@@ -244,7 +245,7 @@ describe("TriageInboxMessageUseCase / eval set (consistency)", () => {
         conversationId: null,
       });
       const ai = makeMockAI({ ok: true, value: classification });
-      const useCase = new TriageInboxMessageUseCase(port, ai);
+      const useCase = new TriageInboxMessageUseCase(port, ai, triageSpec);
 
       const result = await useCase.execute({ messageId: "msg-eval", accountId: "acc-eval" });
 
@@ -261,8 +262,8 @@ describe("TriageInboxMessageUseCase / eval set (consistency)", () => {
     const ai1 = makeMockAI({ ok: true, value: URGENT_CLASSIFICATION });
     const ai2 = makeMockAI({ ok: true, value: URGENT_CLASSIFICATION });
 
-    const useCase1 = new TriageInboxMessageUseCase(port1, ai1);
-    const useCase2 = new TriageInboxMessageUseCase(port2, ai2);
+    const useCase1 = new TriageInboxMessageUseCase(port1, ai1, triageSpec);
+    const useCase2 = new TriageInboxMessageUseCase(port2, ai2, triageSpec);
 
     const r1 = await useCase1.execute({ messageId: "msg-1", accountId: "acc-1" });
     const r2 = await useCase2.execute({ messageId: "msg-1", accountId: "acc-1" });

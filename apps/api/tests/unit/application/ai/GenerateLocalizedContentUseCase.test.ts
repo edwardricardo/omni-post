@@ -15,6 +15,7 @@ import { ok, err } from "@shared/types";
 import { GenerateLocalizedContentUseCase } from "../../../../src/application/ai/GenerateLocalizedContentUseCase.js";
 import { EmbeddingService } from "../../../../src/application/embeddings/EmbeddingService.js";
 import type { AIServicePort } from "../../../../src/domain/repositories/AIServicePort.js";
+import { localizedContentSpec } from "../../../../src/ai/structuredSchemas.js";
 import type { SemanticRetrievalPort } from "../../../../src/domain/repositories/SemanticRetrievalPort.js";
 import type { BrandVoiceRepository } from "../../../../src/domain/repositories/BrandVoiceRepository.js";
 
@@ -96,7 +97,9 @@ describe("GenerateLocalizedContentUseCase", () => {
       ai,
       new EmbeddingService(ai),
       retrieval,
-      makeBrandVoice("Friendly voice")
+      makeBrandVoice("Friendly voice"),
+      localizedContentSpec,
+      1536
     );
 
     const result = await useCase.execute({
@@ -120,7 +123,9 @@ describe("GenerateLocalizedContentUseCase", () => {
       ai,
       new EmbeddingService(ai),
       retrieval,
-      makeBrandVoice(null)
+      makeBrandVoice(null),
+      localizedContentSpec,
+      1536
     );
 
     await useCase.execute({ accountId: "acc-1", locale: "es", brief: "Lanzamiento de producto" });
@@ -142,7 +147,9 @@ describe("GenerateLocalizedContentUseCase", () => {
       ai,
       new EmbeddingService(ai),
       retrieval,
-      makeBrandVoice(null)
+      makeBrandVoice(null),
+      localizedContentSpec,
+      1536
     );
 
     await useCase.execute({ accountId: "acc-1", locale: "es", brief: "Brief" });
@@ -162,7 +169,9 @@ describe("GenerateLocalizedContentUseCase", () => {
       ai,
       new EmbeddingService(ai),
       makeRetrieval({}),
-      makeBrandVoice("We are concise and confident")
+      makeBrandVoice("We are concise and confident"),
+      localizedContentSpec,
+      1536
     );
 
     await useCase.execute({ accountId: "acc-1", locale: "en", brief: "Quarterly review post" });
@@ -191,7 +200,9 @@ describe("GenerateLocalizedContentUseCase", () => {
       ai,
       new EmbeddingService(ai),
       retrieval,
-      makeBrandVoice("Friendly voice")
+      makeBrandVoice("Friendly voice"),
+      localizedContentSpec,
+      1536
     );
 
     const result = await useCase.execute({ accountId: "acc-1", locale: "es", brief: "Brief" });
@@ -224,7 +235,9 @@ describe("GenerateLocalizedContentUseCase", () => {
       ai,
       new EmbeddingService(ai),
       makeRetrieval({}),
-      makeBrandVoice(null)
+      makeBrandVoice(null),
+      localizedContentSpec,
+      1536
     );
 
     const result = await useCase.execute({ accountId: "acc-1", locale: "es", brief: "Brief" });

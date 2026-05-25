@@ -16,6 +16,11 @@ import type {
   PerformancePrediction,
   StructuredOutputSpec,
 } from "./types.js";
+import type {
+  TriageClassification,
+  TrendScoresClassification,
+  LocalizedContentClassification,
+} from "@core/domain/ai/AiStructuredOutputs.js";
 
 const suggestions = z.array(z.string());
 
@@ -110,12 +115,6 @@ const triageSchema = z.object({
   sentimentScore: z.number().min(-1).max(1),
   suggestedReplies: z.array(z.string()).length(3),
 });
-
-/**
- * Structured classification of an inbound social-inbox message: priority bucket,
- * sentiment score in `[-1, 1]`, and exactly three reply suggestions.
- */
-export type TriageClassification = z.infer<typeof triageSchema>;
 
 /**
  * @function analysisSpec
@@ -217,12 +216,6 @@ const trendScoresSchema = z.object({
   scores: z.array(trendScoreSchema).max(20),
 });
 
-/**
- * Structured trend-scoring payload: per topic, a 1-10 relevance score, a
- * post-idea suggestion, the best target platform, and an urgency bucket.
- */
-export type TrendScoresClassification = z.infer<typeof trendScoresSchema>;
-
 /** Spec for AI-powered trend relevance scoring against brand voice + insights. */
 export const trendScoringSpec: StructuredOutputSpec<TrendScoresClassification> = {
   name: "trend_scoring",
@@ -240,13 +233,6 @@ const localizedContentSchema = z.object({
   content: z.string().min(1),
   rationale: z.string().nullable(),
 });
-
-/**
- * Structured payload for locale-native content generation. The model is
- * instructed to write directly in the target locale and to include a brief
- * rationale (optional) that justifies the chosen angle.
- */
-export type LocalizedContentClassification = z.infer<typeof localizedContentSchema>;
 
 /** Spec for locale-native content generation grounded by glossary + style-guide. */
 export const localizedContentSpec: StructuredOutputSpec<LocalizedContentClassification> = {

@@ -15,6 +15,7 @@ import type { CachePort, QueuePortRegistry } from "@ports/core";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import type { UnitOfWork } from "../../domain/repositories/Repository.js";
 import type { AIServicePort } from "../../domain/repositories/AIServicePort.js";
+import { trendScoringSpec } from "../../ai/structuredSchemas.js";
 import type { ChannelQueryForIngestion } from "../../domain/repositories/ChannelQueryForIngestion.js";
 
 import { PrismaScoreTrendContextAdapter } from "../repositories/PrismaScoreTrendContextAdapter.js";
@@ -82,6 +83,7 @@ export function setupTrendUseCases(container: Container): void {
     () =>
       new ScoreTrendRelevanceUseCase(
         container.resolve<AIServicePort>(TOKENS.AIServicePort),
+        trendScoringSpec,
         container.resolve<ScoreTrendContextPort>(TOKENS.ScoreTrendContextPort)
       ),
     true

@@ -19,7 +19,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok } from "@shared/types";
 import { TriageInboxMessageUseCase } from "../../src/application/inbox/TriageInboxMessageUseCase.js";
 import type { AIServicePort } from "../../src/domain/repositories/AIServicePort.js";
-import type { TriageClassification } from "../../src/ai/structuredSchemas.js";
+import type { TriageClassification } from "@core/domain/ai/AiStructuredOutputs.js";
+import { triageSpec } from "../../src/ai/structuredSchemas.js";
 
 /**
  * Per-message ceiling on AI invocations. The current pipeline calls
@@ -74,7 +75,7 @@ describe("trajectory eval — triage slice", () => {
     vi.clearAllMocks();
     port = makePort();
     ai = makeAI();
-    useCase = new TriageInboxMessageUseCase(port, ai);
+    useCase = new TriageInboxMessageUseCase(port, ai, triageSpec);
   });
 
   it("walks the canonical load → structured-call → update sequence in order", async () => {
