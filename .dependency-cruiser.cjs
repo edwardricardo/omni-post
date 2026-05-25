@@ -89,9 +89,9 @@ module.exports = {
     },
     {
       name: "core-no-apps",
-      severity: "warn",
+      severity: "error",
       comment:
-        "@core (shared application core) must not import from any app — it is delivery-agnostic and consumed by apps, never the reverse. (Core migration roadmap; warn during P0, hard-error at P8.)",
+        "@core (shared application core) must not import from any app — it is delivery-agnostic and consumed by apps, never the reverse. Hard CI gate (core migration P8c).",
       from: {
         path: "packages/core/(domain|application)/",
       },
@@ -101,9 +101,9 @@ module.exports = {
     },
     {
       name: "core-domain-no-application",
-      severity: "warn",
+      severity: "error",
       comment:
-        "@core/domain must not depend on @core/application (dependencies point inward). Warn during P0, hard-error at P8.",
+        "@core/domain must not depend on @core/application (dependencies point inward). Hard CI gate (core migration P8c).",
       from: {
         path: "packages/core/domain/",
       },
@@ -113,9 +113,9 @@ module.exports = {
     },
     {
       name: "core-domain-no-framework",
-      severity: "warn",
+      severity: "error",
       comment:
-        "@core/domain must not depend on frameworks/infra (Prisma/Fastify/Redis/BullMQ/adapters). Warn during P0, hard-error at P8.",
+        "@core/domain must not depend on frameworks/infra (Prisma/Fastify/Redis/BullMQ/adapters). Hard CI gate (core migration P8c).",
       from: {
         path: "packages/core/domain/",
       },
@@ -125,9 +125,9 @@ module.exports = {
     },
     {
       name: "core-application-no-infrastructure",
-      severity: "warn",
+      severity: "error",
       comment:
-        "@core/application may use @core/domain + @ports + @shared, but must not import infrastructure adapters or frameworks directly (use ports). @packages/api-common is @layer infrastructure (shared HTTP helpers) — its pure utilities are relocated to @shared so the core consumes them there. Warn during P0, hard-error at P8.",
+        "@core/application may use @core/domain + @ports + @shared, but must not import infrastructure adapters or frameworks directly (use ports). @packages/api-common is @layer infrastructure (shared HTTP helpers) — its pure utilities are relocated to @shared so the core consumes them there. Hard CI gate (core migration P8c).",
       from: {
         path: "packages/core/application/",
       },
