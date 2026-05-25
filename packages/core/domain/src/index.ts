@@ -129,3 +129,8 @@ export * from "./repositories/CustomReportRepository.js";
 export * from "./ai/AiServiceContract.js";
 export * from "./ai/PlatformContentProfile.js";
 export * from "./repositories/AIServicePort.js";
+
+// Posts: events, aggregate, repository
+export * from "./events/PostEvents.js";
+export * from "./aggregates/PostAggregate.js";
+export * from "./repositories/PostRepository.js";
