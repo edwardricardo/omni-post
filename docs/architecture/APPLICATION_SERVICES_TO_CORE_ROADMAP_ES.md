@@ -28,6 +28,37 @@
   las reglas `core-*` de `dependency-cruiser` solo cubren `packages/core`. → estos 25 archivos **no los vigila nada**.
   Cerrar este workstream debe terminar con un guard que impida reintroducir `@layer application` en `apps/api/src`.
 
+### Audit transitivo 2026-05-26 (post-S0)
+
+El bucketing inicial (arriba) usó imports **directos**; este audit re-verificó transitividad (3 agentes Explore en
+paralelo) y descubrió **5 hechos** que **invalidan** el S1 original (clean strangler de 6 archivos):
+
+- **Inversión de capas pre-existente.** Las clases base `apps/api/src/services/{BaseService,AuditableService}.ts`
+  son `@layer infrastructure` y cargan `logger` (`../lib/logger.js`). Los servicios `@layer application` del
+  cluster billing/subscription + `rbacService` **heredan** de ellas → mover un file `@layer application` con
+  `extends AuditableService` (infra+logger) a `@core` rompería el boundary `core-application-no-infrastructure`.
+  **Blast radius global:** 18 archivos `extends BaseService` + 8 `extends AuditableService` en `apps/api/src`.
+- **Pero el cluster casi no usa los métodos base.** `SubscriptionPlanService` y `SubscriptionStatsService` usan
+  **CERO** métodos heredados (herencia muerta); `SubscriptionManagementService` y `BillingService` usan solo
+  `this.logAccountAction` ×1 cada uno; `TrialManagementService` ×3. → Desacoplar a inyección de
+  `AuditLogRepository` (port `@core/domain` ya existente) es **local y contenido**, pero es **refactor**, no un
+  strangler verbatim. Y `SubscriptionService` (facade) depende por tipo de `TrialManagementService` (no estaba en
+  S1) → el cluster es **indivisible**.
+- **`AIProviderFactory` está mal clasificado.** Etiquetado `@layer application`, pero fabrica providers
+  (`apps/api/src/ai/providers/{openai,anthropic,gemini,perplexity}.ts`) que son `@layer infrastructure` e
+  instancian SDKs npm (`new OpenAI(...)`, `new Anthropic(...)`, …). Es un factory de **adapters de infra** → NO va
+  a `@core`; el fix es **re-etiquetar `@layer infrastructure`**.
+- **`rbacService` tiene ripple adicional.** Además de `extends AuditableService` + `authLogger`, exporta el
+  `Permission` enum importado por **26 archivos** (rutas admin/auth/billing/compliance/…). Move directo sería un
+  ripple masivo; mitigable con re-export de `Permission` desde un facade en `apps/api`.
+- **Inconsistencia de etiquetado en el cluster billing/subscription.** 5 archivos están `@layer application`
+  (`SubscriptionService`, `SubscriptionPlanService`, `SubscriptionManagementService`, `SubscriptionStatsService`,
+  `BillingService`) **vs** `TrialManagementService` etiquetado `@layer infrastructure`, pese a herencia idéntica
+  de `AuditableService`. Una de las dos etiquetas está mal; alinear cuando se planifique S1'.
+
+→ **S1 original (clean+ligero a `@core`) anulado.** Re-bucketing en §2; introducción de Bucket D + nuevas fases
+(S-Spine, S-Relabel) en §3; re-pick del primer slice ejecutable **diferido** a un plan posterior.
+
 ## 1. Principios (heredados del dominio + application)
 
 - **Strangler fig:** mover a `@core` + shim re-export en la ruta vieja → consumidores compilan → repoint import-sites →
@@ -45,30 +76,43 @@
 > Bucketing **preliminar** por imports directos + `@description`. Cada plan de fase **regenera el grep de closure** y
 > fija la lista exacta (incl. coupling transitivo), igual que el roadmap de application.
 
-### Bucket A — Servicios de negocio → **mover a `@core/application`** (16)
+### Bucket A — Servicios de negocio → **mover a `@core/application`** (15)
 
-| Archivo (`apps/api/src/…`)                              | Qué hace                                                | Coupling directo              | Sub-clase    |
-| ------------------------------------------------------- | ------------------------------------------------------- | ----------------------------- | ------------ |
-| `billing/subscription/SubscriptionService.ts`           | Facade unificado de suscripción (inyecta colaboradores) | —                             | clean        |
-| `billing/subscription/SubscriptionPlanService.ts`       | Planes desde AccountSubscription + ProviderBundle       | —                             | clean        |
-| `billing/subscription/SubscriptionManagementService.ts` | Lifecycle: get/list/suspend/validate limits             | —                             | clean        |
-| `billing/subscription/SubscriptionStatsService.ts`      | MRR, distribución, churn, growth                        | —                             | clean        |
-| `ai/AIProviderFactory.ts`                               | Factory de providers AI desde credenciales              | —                             | clean\*      |
-| `billing/subscription/BillingService.ts`                | Eventos de billing, detección de cambio, cálculos       | `lib/logger`                  | ligero       |
-| `auth/rbacService.ts`                                   | RBAC: permission checks vía Role/RolePermission         | `lib/logger`                  | ligero       |
-| `billing/GatewayBillingService.ts`                      | Lifecycle de switch de gateway (Stripe↔Paddle)          | `PrismaClient` + `lib/logger` | **blocked**  |
-| `security/PlatformCredentialService.ts`                 | CRUD de credenciales de plataforma cifradas             | `PrismaClient`                | **blocked**  |
-| `compliance/ComplianceService.ts`                       | GDPR/LGPD/CCPA/PIPEDA, DSAR, breach reports             | `PrismaClient` + `lib/logger` | **blocked**  |
-| `compliance/DataRetentionService.ts`                    | Cleanup de retención automatizado                       | `PrismaClient` + `lib/logger` | **blocked**  |
-| `webhooks/DlqArchivalService.ts`                        | Archivado de DLQ events resueltos                       | `PrismaClient` + `lib/logger` | **blocked**  |
-| `ai/AiRequestService.ts`                                | Routing pool/BYOK + rate limiting de requests AI        | `PrismaClient` + `lib/logger` | **blocked**  |
-| `auth/roleManagementService.ts`                         | CRUD de roles RBAC configurables                        | `PrismaClient` + `lib/logger` | **blocked**  |
-| `settings/SettingsService.ts`                           | Lógica de settings: valida grupos, enmascara secrets    | `PrismaClient`                | **blocked**  |
-| `settings/credentialKeys.ts`                            | Define keys esperadas por `CredentialGroup`             | `CredentialGroup` (tipo gen.) | const/config |
+> Taxonomía **post audit transitivo** (reemplaza la taxonomía clean/ligero/blocked del bucketing por imports
+> directos). `AIProviderFactory` salió a Bucket D (factory de adapters de SDK).
 
-\* `AIProviderFactory` se marca clean por imports directos; verificar en su fase si arrastra SDKs de provider (→ port).
-`credentialKeys` depende del tipo generado `CredentialGroup` → relocar requiere ese tipo en `@core`/`@shared` o
-desacoplarlo (enum propio del dominio).
+| Archivo (`apps/api/src/…`)                              | Qué hace                                                | Coupling transitivo                                         | Sub-clase                        |
+| ------------------------------------------------------- | ------------------------------------------------------- | ----------------------------------------------------------- | -------------------------------- |
+| `billing/subscription/SubscriptionService.ts`           | Facade unificado de suscripción (inyecta colaboradores) | depende del cluster (5 + `TrialManagementService`)          | **cluster-indivisible**          |
+| `billing/subscription/SubscriptionPlanService.ts`       | Planes desde AccountSubscription + ProviderBundle       | `extends BaseService` (usa 0 métodos — herencia muerta)     | **inheritance-blocked**          |
+| `billing/subscription/SubscriptionManagementService.ts` | Lifecycle: get/list/suspend/validate limits             | `extends AuditableService` (usa `logAccountAction` ×1)      | **inheritance-blocked**          |
+| `billing/subscription/SubscriptionStatsService.ts`      | MRR, distribución, churn, growth                        | `extends BaseService` (usa 0 métodos — herencia muerta)     | **inheritance-blocked**          |
+| `billing/subscription/BillingService.ts`                | Eventos de billing, detección de cambio, cálculos       | `extends AuditableService` + `lib/logger` directo           | **inheritance-blocked**          |
+| `auth/rbacService.ts`                                   | RBAC: permission checks vía Role/RolePermission         | `extends AuditableService` + `authLogger`; `Permission` ×26 | **inheritance-blocked + ripple** |
+| `billing/GatewayBillingService.ts`                      | Lifecycle de switch de gateway (Stripe↔Paddle)          | `PrismaClient` + `lib/logger`                               | **port-blocked**                 |
+| `security/PlatformCredentialService.ts`                 | CRUD de credenciales de plataforma cifradas             | `PrismaClient`                                              | **port-blocked**                 |
+| `compliance/ComplianceService.ts`                       | GDPR/LGPD/CCPA/PIPEDA, DSAR, breach reports             | `PrismaClient` + `lib/logger`                               | **port-blocked**                 |
+| `compliance/DataRetentionService.ts`                    | Cleanup de retención automatizado                       | `PrismaClient` + `lib/logger`                               | **port-blocked**                 |
+| `webhooks/DlqArchivalService.ts`                        | Archivado de DLQ events resueltos                       | `PrismaClient` + `lib/logger`                               | **port-blocked**                 |
+| `ai/AiRequestService.ts`                                | Routing pool/BYOK + rate limiting de requests AI        | `PrismaClient` + `lib/logger`                               | **port-blocked**                 |
+| `auth/roleManagementService.ts`                         | CRUD de roles RBAC configurables                        | `PrismaClient` + `lib/logger`                               | **port-blocked**                 |
+| `settings/SettingsService.ts`                           | Lógica de settings: valida grupos, enmascara secrets    | `PrismaClient`                                              | **port-blocked**                 |
+| `settings/credentialKeys.ts`                            | Define keys esperadas por `CredentialGroup`             | `CredentialGroup` (tipo Prisma generado)                    | **const/config**                 |
+
+**Notas:**
+
+- **`inheritance-blocked`** (6) requiere desacoplar de `BaseService`/`AuditableService` (composition refactor:
+  inyectar `AuditLogRepository`; quitar `extends`) o esperar a S-Spine. NO es un strangler verbatim.
+- **`port-blocked`** (8) requiere convertir el acceso Prisma a un repository port + adapter antes de mover. Algunos
+  archivos pueden ser **también** `inheritance-blocked` (p. ej. `GatewayBillingService` si extiende
+  `AuditableService` — re-verificar transitividad en su fase).
+- **`cluster-indivisible`** (1): `SubscriptionService` depende por tipo de las 4 hermanas + `BillingService` +
+  `TrialManagementService` (no listado en este bucket; ver §0 sobre inconsistencia de etiquetado).
+- **`const/config`** (1): `credentialKeys` depende del tipo Prisma generado `CredentialGroup` → relocar exige
+  resolverlo en `@core`/`@shared` o desacoplarlo (enum propio del dominio) primero.
+- **`TrialManagementService.ts`** está etiquetado `@layer infrastructure` (verificado) — **fuera del conteo de
+  25** pero parte del closure operativo del cluster billing/subscription. Decidir su etiqueta canónica al
+  planificar S1'.
 
 ### Bucket B — Mecanismos/glue de delivery → **re-etiquetar `@layer infrastructure`** (NO mover) (5)
 
@@ -87,6 +131,15 @@ desacoplarlo (enum propio del dominio).
 de apps/api (coupling: `ioredis`/`lib/logger`). Disposición a decidir por fase: **re-etiquetar `@layer infrastructure`**
 (adaptadores del bus) o extraer la poca lógica que tengan. Recomendación preliminar: infra (son adaptadores bus→use-case).
 
+### Bucket D — Mal clasificados → **re-etiquetar `@layer infrastructure`** (NO mover) (1)
+
+| Archivo                   | Por qué es infra                                                                                                  |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `ai/AIProviderFactory.ts` | Factory de adapters de SDK (`new OpenAI()`, `new Anthropic()`, …); sus 4 providers ya son `@layer infrastructure` |
+
+Los 4 providers (`ai/providers/{openai,anthropic,gemini,perplexity}.ts`) ya están `@layer infrastructure` — solo
+`AIProviderFactory` cambia. La fase S-Relabel verifica consistencia y re-etiqueta.
+
 ### Nota fuera de apps/api
 
 `apps/workers/src/services/CredentialResolver.ts` está `@layer application` pero la regla "workers = infrastructure" lo
@@ -94,18 +147,25 @@ hace **mislabel**. Es framework-free (solo `@shared`) y worker-only, sin overlap
 `@layer infrastructure`, o promover a `@core` si la resolución de credenciales se quiere compartir. Item menor; se trata
 en S2.
 
+**Recuento (post audit transitivo):** Bucket A 15 + Bucket B 5 + Bucket C 4 + Bucket D 1 = **25 archivos**
+`@layer application` (conteo confirmado, sin cambio neto). `TrialManagementService.ts` (`@layer infrastructure`,
+parte del cluster operativo) queda fuera del conteo pero entangled — ver §0.
+
 ## 3. Fases (trackeable)
 
 Status: `PENDING` · `IN-PROGRESS` · `DONE (<commit>)`. Conteos aproximados; cada plan de fase regenera el closure.
 
-| Fase   | Nombre                                 | Scope                                                                                                                               | Complejidad | Status  |
-| ------ | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------- |
-| **S0** | Scaffold roadmap                       | Este doc. Sin mover nada.                                                                                                           | Baja        | DONE    |
-| **S1** | Clean + ligeros → `@core` (strangler)  | Bucket A clean/ligero (6): Subscription×4, AIProviderFactory\*, BillingService, rbacService. Mover + shim + tests.                  | Baja-media  | PENDING |
-| **S2** | Re-etiquetar mecanismos + handlers     | Bucket B (5) + Bucket C (4) + workers `CredentialResolver` → `@layer infrastructure` (decisión documentada c/u).                    | Baja        | PENDING |
-| **S3** | Ports para los blocked (billing/cred)  | `GatewayBillingService`, `PlatformCredentialService`, `SettingsService`, `credentialKeys` → repository ports + mover.               | Media-alta  | PENDING |
-| **S4** | Ports para los blocked (compliance/ai) | `ComplianceService`, `DataRetentionService`, `DlqArchivalService`, `AiRequestService`, `roleManagementService` → ports + mover.     | Media-alta  | PENDING |
-| **S5** | Burn-down shims + guard de boundary    | Repoint import-sites restantes; borrar shims; añadir **fitness function** que bloquee `@layer application` nuevo en `apps/api/src`. | Media       | PENDING |
+| Fase          | Nombre                                          | Scope                                                                                                                                                                                                                                                                                                                            | Complejidad | Status             |
+| ------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------ |
+| **S0**        | Scaffold roadmap                                | Este doc. Sin mover nada.                                                                                                                                                                                                                                                                                                        | Baja        | DONE (`f8f2be2`)   |
+| **S0.1**      | Corrección post-audit transitivo                | Re-bucketing por hallazgos transitivos (§0 ampliado, Bucket A taxonomía nueva, **Bucket D nuevo**, anulación de S1 original). **Sin código**, una sola edición de doc.                                                                                                                                                           | Baja        | DONE (este commit) |
+| **S1'**       | (pendiente re-pick)                             | Primer slice ejecutable **a decidir** en plan posterior. Opciones evaluadas en S0.1: (a) cluster billing/subscription completo con `inheritance→injection` refactor + move (medium); (b) **spine-first** (S-Spine) primero; (c) otro slice más pequeño. Cada opción exige su propio plan formal + canon antes de `ExitPlanMode`. | (depende)   | PENDING            |
+| **S-Spine**   | `BaseService`/`AuditableService`                | Decisión + ejecución: mover a `@core` sin logger (canon A6.6 — logger eliminado) o convertir a ports + composición. Prerequisito para mover el cluster billing/`rbacService`. **Blast radius:** 18 `extends BaseService` + 8 `extends AuditableService`.                                                                         | Alta        | PENDING            |
+| **S-Relabel** | Bucket D — re-etiquetar `@layer infrastructure` | `AIProviderFactory` + verificar que los 4 providers siguen consistentes en `@layer infrastructure`. Solo cambios de JSDoc; NO mueve archivos. Puede ejecutarse junto con S2.                                                                                                                                                     | Baja        | PENDING            |
+| **S2**        | Re-etiquetar mecanismos + handlers              | Bucket B (5) + Bucket C (4) + workers `CredentialResolver` → `@layer infrastructure` (decisión documentada c/u).                                                                                                                                                                                                                 | Baja        | PENDING            |
+| **S3**        | Ports para los `port-blocked` (billing/cred)    | `GatewayBillingService`, `PlatformCredentialService`, `SettingsService`, `credentialKeys` → repository ports + mover. Algunos pueden ser **también** `inheritance-blocked` (re-verificar transitividad en su fase y depender de S-Spine si aplica).                                                                              | Media-alta  | PENDING            |
+| **S4**        | Ports para los `port-blocked` (compliance/ai)   | `ComplianceService`, `DataRetentionService`, `DlqArchivalService`, `AiRequestService`, `roleManagementService` → ports + mover. Misma anotación de dependencia con S-Spine donde aplique.                                                                                                                                        | Media-alta  | PENDING            |
+| **S5**        | Burn-down shims + guard de boundary             | Repoint import-sites restantes; borrar shims; añadir **fitness function** que bloquee `@layer application` nuevo en `apps/api/src`.                                                                                                                                                                                              | Media       | PENDING            |
 
 ## 4. Template de plan por fase (OBLIGATORIO — anti-sorpresa)
 
@@ -130,3 +190,7 @@ commit código + commit docs (marca fase DONE) · aprobación de Edward.
 - **El guard final (S5) es no-negociable** — sin una fitness function que bloquee `@layer application` nuevo en
   `apps/api/src`, la frontera vuelve a erosionarse. Cerrar el workstream = cerrar el gap, no solo mover los 25.
 - **Heap LXC:** `tsc` 5120, vitest 3072/maxWorkers 2, commit `NODE_OPTIONS=--max-old-space-size=8192`.
+- **Bucketing por imports directos engaña.** Lección aprendida en S0.1: la taxonomía clean/ligero/blocked debe
+  validarse con audit **transitivo** (herencia de clases base, dependencias entre archivos del cluster, ripple de
+  enums exportados, consistencia de `@layer` entre hermanos), no solo el grep de imports directos. Cada plan de
+  fase **debe** correr esa validación antes de `ExitPlanMode`.
