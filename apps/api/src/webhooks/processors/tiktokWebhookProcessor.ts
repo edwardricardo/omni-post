@@ -6,7 +6,6 @@
  */
 import type { WebhookEventType } from "@infra/prisma";
 import type { ProviderName } from "@shared/types";
-import { prisma } from "@infra/prisma";
 import { webhookLogger } from "../../lib/logger.js";
 import { AppError } from "../../lib/errors/AppError.js";
 import { AbstractWebhookProcessor } from "./AbstractWebhookProcessor.js";
@@ -281,7 +280,7 @@ export class TikTokWebhookProcessor extends AbstractWebhookProcessor {
     if (!userId) {
       return {};
     }
-    const channel = await prisma.channel.findFirst({
+    const channel = await this.prisma.channel.findFirst({
       where: {
         provider: "TIKTOK",
         providerAccountId: userId as string,
@@ -303,7 +302,7 @@ export class TikTokWebhookProcessor extends AbstractWebhookProcessor {
 
     // Try to find related post if we have video ID
     if (videoId) {
-      const publishLog = await prisma.publishLog.findFirst({
+      const publishLog = await this.prisma.publishLog.findFirst({
         where: {
           channelId: channel.id,
           provider: "TIKTOK",
@@ -338,7 +337,7 @@ export class TikTokWebhookProcessor extends AbstractWebhookProcessor {
 
     if (postId && channelId) {
       // Update publish log with TikTok video ID
-      await prisma.publishLog.updateMany({
+      await this.prisma.publishLog.updateMany({
         where: {
           postId,
           channelId,
@@ -358,7 +357,7 @@ export class TikTokWebhookProcessor extends AbstractWebhookProcessor {
       });
 
       // Update post status
-      await prisma.post.update({
+      await this.prisma.post.update({
         where: { id: postId },
         data: { status: "PUBLISHED" },
       });
@@ -376,7 +375,7 @@ export class TikTokWebhookProcessor extends AbstractWebhookProcessor {
 
     // Store TikTok analytics if available
     if (entities.accountId && entities.projectId && channelId) {
-      await prisma.analytics.create({
+      await this.prisma.analytics.create({
         data: {
           channelId,
           provider: "TIKTOK",
@@ -403,7 +402,7 @@ export class TikTokWebhookProcessor extends AbstractWebhookProcessor {
 
     if (postId && channelId) {
       // Update publish log to reflect deletion
-      await prisma.publishLog.updateMany({
+      await this.prisma.publishLog.updateMany({
         where: {
           postId,
           channelId,
@@ -425,7 +424,7 @@ export class TikTokWebhookProcessor extends AbstractWebhookProcessor {
       });
 
       // Update post status
-      await prisma.post.update({
+      await this.prisma.post.update({
         where: { id: postId },
         data: { status: "FAILED" },
       });
@@ -453,7 +452,7 @@ export class TikTokWebhookProcessor extends AbstractWebhookProcessor {
       const entityChannelId = entities.channelId as string;
       const entityPostId = entities.postId as string | undefined;
       // Find existing analytics record and increment comments
-      const existing = await prisma.analytics.findFirst({
+      const existing = await this.prisma.analytics.findFirst({
         where: {
           channelId: entityChannelId,
           provider: "TIKTOK",
@@ -463,7 +462,7 @@ export class TikTokWebhookProcessor extends AbstractWebhookProcessor {
 
       if (existing) {
         const currentComments = existing.comments || 0;
-        await prisma.analytics.update({
+        await this.prisma.analytics.update({
           where: { id: existing.id },
           data: {
             comments: { increment: 1 },
@@ -513,7 +512,7 @@ export class TikTokWebhookProcessor extends AbstractWebhookProcessor {
       // encrypted credentials envelope. Revocation metadata (when, why)
       // belongs on the dedicated `authFailedAt` / `authFailureReason`
       // columns the schema already provides for this lifecycle.
-      await prisma.channel.update({
+      await this.prisma.channel.update({
         where: { id: channelId },
         data: {
           needsReauth: true,
@@ -540,7 +539,7 @@ export class TikTokWebhookProcessor extends AbstractWebhookProcessor {
 
     if (entities.accountId && entities.projectId && entityChannelId && data.videoId) {
       // Update analytics with latest statistics
-      const existing = await prisma.analytics.findFirst({
+      const existing = await this.prisma.analytics.findFirst({
         where: {
           channelId: entityChannelId,
           provider: "TIKTOK",
@@ -556,7 +555,7 @@ export class TikTokWebhookProcessor extends AbstractWebhookProcessor {
           shares: existing.shares || 0,
         };
 
-        await prisma.analytics.update({
+        await this.prisma.analytics.update({
           where: { id: existing.id },
           data: {
             views,
@@ -583,7 +582,7 @@ export class TikTokWebhookProcessor extends AbstractWebhookProcessor {
         }
       } else {
         // Create new analytics record if it doesn't exist
-        await prisma.analytics.create({
+        await this.prisma.analytics.create({
           data: {
             channelId: entityChannelId,
             provider: "TIKTOK",

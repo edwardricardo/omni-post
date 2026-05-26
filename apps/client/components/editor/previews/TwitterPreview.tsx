@@ -7,6 +7,7 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import { cn } from "@packages/ui";
 import { Avatar, AvatarFallback, AvatarImage, Button } from "@packages/ui";
 import { Bookmark, Heart, MessageCircle, Repeat2, Share } from "lucide-react";
@@ -15,6 +16,7 @@ import { MediaGrid } from "./MediaGrid";
 import type { ThreadedPreviewProps } from "./types";
 
 export function TwitterPreview({ media, userInfo, threadSegments }: ThreadedPreviewProps) {
+  const t = useTranslations("editor");
   return (
     <div className="bg-white border rounded-lg max-w-lg mx-auto">
       {threadSegments.map((segment, idx) => (
@@ -29,7 +31,7 @@ export function TwitterPreview({ media, userInfo, threadSegments }: ThreadedPrev
                 <span className="font-bold text-gray-900">{userInfo.name}</span>
                 <span className="text-gray-500">@{userInfo.username}</span>
                 <span className="text-gray-500">·</span>
-                <span className="text-gray-500">now</span>
+                <span className="text-gray-500">{t("preview.now")}</span>
                 {threadSegments.length > 1 && (
                   <span className="text-blue-500 text-sm">
                     {segment.index}/{threadSegments.length}

@@ -6,14 +6,14 @@
  * @layer infrastructure
  */
 import type { CachePort } from "@ports/core";
-import type { ROICalculatorPort } from "../../application/analytics/CalculateROIUseCase.js";
-import type { ChannelROI } from "../../application/analytics/types.js";
+import type { ROICalculatorPort } from "@core/application/analytics/CalculateROIUseCase.js";
+import type { ChannelROI } from "@core/application/analytics/types.js";
 import { ROICalculator } from "../../analytics/roiCalculator.js";
 import type { ROICalculationOptions } from "../../analytics/roi/types.js";
 import type { TimeRange, ProviderType } from "@shared/analytics";
-import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
-import { PrismaProjectQueryRepository } from "../repositories/PrismaProjectQueryRepository.js";
-import { prisma } from "@infra/prisma";
+import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
+import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
+import type { ConversionRepositoryPort } from "@core/domain/repositories/ConversionRepository.js";
 
 /**
  * Adapter that implements ROICalculatorPort by delegating to ROICalculator.
@@ -27,10 +27,18 @@ import { prisma } from "@infra/prisma";
 export class ROICalculatorAdapter implements ROICalculatorPort {
   private readonly calculator: ROICalculator;
 
-  constructor(cache: CachePort, projectRepository?: ProjectQueryRepositoryPort) {
-    // Fallback to Prisma-backed instance when not injected (e.g. DI container setup)
-    const repo = projectRepository ?? new PrismaProjectQueryRepository(prisma);
-    this.calculator = new ROICalculator(repo, cache);
+  constructor(
+    cache: CachePort,
+    projectRepository: ProjectQueryRepositoryPort,
+    analyticsRepository: AnalyticsReadRepositoryPort,
+    conversionRepository: ConversionRepositoryPort
+  ) {
+    this.calculator = new ROICalculator(
+      projectRepository,
+      analyticsRepository,
+      conversionRepository,
+      cache
+    );
   }
 
   async calculateROI(options: {

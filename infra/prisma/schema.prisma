@@ -1,11 +1,12 @@
 generator client {
   provider        = "prisma-client"
   output          = "./generated/prisma/client"
-  previewFeatures = ["fullTextSearchPostgres", "relationJoins", "partialIndexes"]
+  previewFeatures = ["fullTextSearchPostgres", "relationJoins", "partialIndexes", "postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  extensions = [vector]
 }
 
 model Account {
@@ -45,6 +46,9 @@ model Account {
   deletedAt                DateTime?                 @db.Timestamptz(6)
   socialMessages           SocialMessage[]
   socialConversations      SocialConversation[]
+  mentions                 Mention[]
+  bulkScheduleBatches      BulkScheduleBatch[]
+  trackedTerms             TrackedTerm[]
   aiPromptTemplates        AIPromptTemplate[]
   usageMetrics             UsageMetric[]
   brandVoice               BrandVoice?
@@ -70,6 +74,8 @@ model Account {
   referralCode             ReferralCode?
   repurposeProposals       RepurposeProposal[]
   trendRadarResults        TrendRadarResult[]
+  glossaryEntries          Glossary[]
+  styleGuideRules          StyleGuideRule[]
   gatewayProvider          GatewayProvider           @default(STRIPE)
   gatewayCustomerId        String?
   pendingGatewayProvider   GatewayProvider?
@@ -84,6 +90,7 @@ model Account {
   onboarding               AccountOnboarding?
   samlSessions             SamlSession[]
   referralsReceived        Referral[]                @relation("ReferredAccount")
+  conversions              Conversion[]
 
   @@index([isOnTrial, trialEndDate], where: { deletedAt: null })
   @@index([nextBillingDate], where: { deletedAt: null })
@@ -618,6 +625,9 @@ model Project {
   members                     ProjectMember[]
   socialMessages              SocialMessage[]
   socialConversations         SocialConversation[]
+  mentions                    Mention[]
+  bulkScheduleBatches         BulkScheduleBatch[]
+  trackedTerms                TrackedTerm[]
   campaigns                   Campaign[]
   scheduledReports            ScheduledReport[]
   externalNotificationConfigs ExternalNotificationConfig[]
@@ -766,6 +776,7 @@ model Channel {
   analytics                 Analytics[]
   socialMessages            SocialMessage[]
   socialConversations       SocialConversation[]
+  mentions                  Mention[]
   analyticsDailySummaries   AnalyticsDailySummary[]
   analyticsMonthlySummaries AnalyticsMonthlySummary[]
   deletedAt                 DateTime?                 @db.Timestamptz(6)
@@ -872,6 +883,42 @@ model Analytics {
   // @@index([capturedAt]) - REMOVED: Covered by composite indexes above
   // @@index([postId, capturedAt]) - REMOVED: Covered by [postId, provider, capturedAt]
   @@index([channelId, provider, capturedAt])
+}
+
+model Conversion {
+  id             String                @id @default(uuid())
+  accountId      String
+  source         Provider
+  contentId      String
+  conversionType ConversionType
+  value          Decimal               @db.Decimal(19, 4)
+  attribution    ConversionAttribution
+  occurredAt     DateTime              @db.Timestamptz(6)
+  createdAt      DateTime              @default(now()) @db.Timestamptz(6)
+  account        Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  // Idempotency guard preserving the original `ON CONFLICT DO NOTHING` intent:
+  // the same content converting the same way for the same account at the same
+  // instant is one event. `record()` catches P2002 and no-ops on a re-report.
+  @@unique([accountId, source, contentId, conversionType, occurredAt], name: "conversion_idempotency")
+  @@index([accountId, occurredAt])
+  @@index([contentId])
+  @@index([source, occurredAt])
+}
+
+enum ConversionType {
+  SALE
+  LEAD
+  SIGNUP
+  DOWNLOAD
+  SUBSCRIPTION
+}
+
+enum ConversionAttribution {
+  FIRST_CLICK
+  LAST_CLICK
+  LINEAR
+  TIME_DECAY
 }
 
 model Thread {
@@ -1543,11 +1590,11 @@ model WebhookSubscription {
   provider                   Provider
   webhookUrl                 String // Our webhook endpoint URL
   secretKey                  String // Secret for signature verification
-  // Grace-window pair populated during admin-triggered rotation (PR-43-B).
-  // While `previousSecretKeyExpiresAt > now()`, the HMAC verifier accepts
-  // signatures produced with `previousSecretKey` so in-flight webhooks
-  // delivered with the old shared secret are not rejected. Both columns
-  // null = no rotation in progress.
+  // Grace-window pair populated during admin-triggered rotation.
+  // While `previousSecretKeyExpiresAt > now()`, the HMAC verifier
+  // accepts signatures produced with `previousSecretKey` so in-flight
+  // webhooks delivered with the old shared secret are not rejected.
+  // Both columns null = no rotation in progress.
   previousSecretKey          String?
   previousSecretKeyExpiresAt DateTime? @db.Timestamptz(6)
   isActive                   Boolean   @default(true)
@@ -1985,7 +2032,7 @@ model TemplateAnalytics {
   // Performance metrics
   avgEngagement    Float?
   conversionRate   Float?
-  /// Money: Decimal(19,4) — canon T4-U para precisión financiera.
+  /// Money: Decimal(19,4) for financial precision.
   revenueGenerated Decimal? @db.Decimal(19, 4)
 
   // Time-based metrics
@@ -2117,6 +2164,130 @@ enum OutboundReplyStatus {
   SENDING
   SENT
   FAILED
+}
+
+// Social Listening (brand mentions)
+
+enum MentionSource {
+  WEBHOOK
+  SEARCH
+}
+
+enum TrackedTermKind {
+  BRAND
+  MARKET
+}
+
+enum MentionSentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+}
+
+/// Brand-listening keyword tracked per project. `kind` drives Share of Voice:
+/// BRAND terms feed the numerator (mentions_marca), MARKET terms the denominator
+/// (mentions_mercado).
+model TrackedTerm {
+  id        String          @id @default(uuid())
+  accountId String
+  projectId String
+  term      String
+  kind      TrackedTermKind
+  isActive  Boolean         @default(true)
+  createdAt DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime        @updatedAt @db.Timestamptz(6)
+
+  account  Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  mentions Mention[]
+
+  @@unique([projectId, term])
+  @@index([projectId, isActive])
+}
+
+/// Normalized brand-mention corpus. Append-only ingestion read model written by
+/// the mention-ingest worker (search polling + webhook fetch). Deduplicated by
+/// (provider, externalId). Sentiment fields are nullable — populated later by a
+/// decoupled enrichment step, never blocking ingestion.
+model Mention {
+  id                String            @id @default(uuid())
+  accountId         String
+  projectId         String
+  provider          Provider
+  externalId        String
+  trackedTermId     String?
+  channelId         String?
+  source            MentionSource
+  authorName        String
+  authorHandle      String?
+  authorAvatarUrl   String?
+  authorProviderId  String
+  url               String?
+  body              String
+  lang              String?
+  mediaUrls         String[]          @default([])
+  sentimentScore    Decimal?          @db.Decimal(3, 2)
+  sentimentLabel    MentionSentiment?
+  providerCreatedAt DateTime          @db.Timestamptz(6)
+  ingestedAt        DateTime          @default(now()) @db.Timestamptz(6)
+  createdAt         DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime          @updatedAt @db.Timestamptz(6)
+
+  account     Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  channel     Channel?     @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  trackedTerm TrackedTerm? @relation(fields: [trackedTermId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, externalId])
+  @@index([accountId, projectId, providerCreatedAt])
+  @@index([projectId, trackedTermId])
+  @@index([provider, providerCreatedAt])
+}
+
+enum BulkScheduleBatchStatus {
+  PROCESSING
+  COMPLETED
+}
+
+enum BulkScheduleItemStatus {
+  PENDING
+  SCHEDULED
+  FAILED
+}
+
+// Manifest of a bulk CSV scheduling import. One batch per upload; one item per
+// CSV data row. Items advance independently (one BullMQ job per row); the batch
+// is COMPLETED once no item remains PENDING.
+model BulkScheduleBatch {
+  id        String                  @id @default(uuid())
+  accountId String
+  projectId String
+  totalRows Int
+  status    BulkScheduleBatchStatus @default(PROCESSING)
+  createdAt DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime                @updatedAt @db.Timestamptz(6)
+
+  account Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  items   BulkScheduleItem[]
+
+  @@index([accountId, projectId])
+}
+
+model BulkScheduleItem {
+  id           String                 @id @default(uuid())
+  batchId      String
+  rowNumber    Int
+  provider     String
+  status       BulkScheduleItemStatus @default(PENDING)
+  postId       String?
+  errorMessage String?
+  createdAt    DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime               @updatedAt @db.Timestamptz(6)
+
+  batch BulkScheduleBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId])
 }
 
 model SocialMessage {
@@ -3314,6 +3485,11 @@ model TrendRadarResult {
   accountId      String
   topic          String
   platform       Provider
+  /// Provenance: which data source surfaced this trend (web search, own
+  /// analytics, inbox mentions). Required so callers can distinguish signal.
+  source         TrendSource  @default(PERPLEXITY_WEB)
+  /// Optional citation URL when the source supplies one (Perplexity web).
+  sourceUrl      String?      @db.Text
   relevanceScore Int
   postIdea       String?      @db.Text
   bestPlatform   Provider?
@@ -3325,12 +3501,19 @@ model TrendRadarResult {
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([accountId, expiresAt])
+  @@index([accountId, topic, fetchedAt])
 }
 
 enum TrendUrgency {
   NOW
   TODAY
   THIS_WEEK
+}
+
+enum TrendSource {
+  PERPLEXITY_WEB
+  ACCOUNT_ANALYTICS
+  INBOX_MENTIONS
 }
 
 // ─── Platform Configuration ──────────────────────────────────────────────────
@@ -3457,4 +3640,43 @@ model EventSnapshot {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@map("event_snapshots")
+}
+
+/// Glossary term per (account, locale). Powers RAG over the customer's
+/// terminology for locale-native AI content generation.
+model Glossary {
+  id             String                      @id @default(uuid())
+  accountId      String
+  locale         String
+  term           String
+  definition     String                      @db.Text
+  usage          String?                     @db.Text
+  embedding      Unsupported("vector(768)")?
+  embeddingModel String                      @default("text-embedding-3-small")
+  createdAt      DateTime                    @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime                    @updatedAt @db.Timestamptz(6)
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, locale, term])
+  @@index([accountId, locale])
+}
+
+/// Style-guide rule per (account, locale). Powers RAG over the customer's
+/// writing rules for locale-native AI content generation.
+model StyleGuideRule {
+  id             String                      @id @default(uuid())
+  accountId      String
+  locale         String
+  rule           String                      @db.Text
+  example        String?                     @db.Text
+  category       String?
+  embedding      Unsupported("vector(768)")?
+  embeddingModel String                      @default("text-embedding-3-small")
+  createdAt      DateTime                    @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime                    @updatedAt @db.Timestamptz(6)
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, locale])
 }

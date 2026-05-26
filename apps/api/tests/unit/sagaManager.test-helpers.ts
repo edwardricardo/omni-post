@@ -5,7 +5,7 @@
  */
 import { SagaManagerImpl } from "../../src/saga/SagaManager";
 import { SagaDefinition, SagaStep, SagaContext, SagaStepResult } from "@shared/saga";
-import { DomainEvent } from "@shared/events";
+import { EventStoreEvent } from "@shared/events";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 
 export interface MockPrismaClient {
@@ -28,10 +28,10 @@ export interface MockRedis {
 
 export interface MockEventService {
   initialize: () => Promise<void>;
-  publishEvent: (event: DomainEvent) => Promise<void>;
-  appendEventInTx: (tx: unknown, event: DomainEvent) => Promise<void>;
-  broadcastEvent: (event: DomainEvent) => Promise<void>;
-  publishedEvents: DomainEvent[];
+  publishEvent: (event: EventStoreEvent) => Promise<void>;
+  appendEventInTx: (tx: unknown, event: EventStoreEvent) => Promise<void>;
+  broadcastEvent: (event: EventStoreEvent) => Promise<void>;
+  publishedEvents: EventStoreEvent[];
 }
 
 export function createMockPrisma(): MockPrismaClient {
@@ -81,14 +81,14 @@ export function createMockRedis(): MockRedis {
 }
 
 export function createMockEventService(): MockEventService {
-  const publishedEvents: DomainEvent[] = [];
+  const publishedEvents: EventStoreEvent[] = [];
 
   return {
     initialize: async () => {},
-    publishEvent: async (event: DomainEvent) => {
+    publishEvent: async (event: EventStoreEvent) => {
       publishedEvents.push(event);
     },
-    appendEventInTx: async (_tx: unknown, event: DomainEvent) => {
+    appendEventInTx: async (_tx: unknown, event: EventStoreEvent) => {
       publishedEvents.push(event);
     },
     broadcastEvent: async () => {

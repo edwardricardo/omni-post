@@ -9,17 +9,18 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import type { CreateWebhookParams } from "@/hooks/api/useExternalNotifications";
 
 const SUPPORTED_EVENTS = [
-  { value: "post_published", label: "Post published" },
-  { value: "post_failed", label: "Post failed" },
-  { value: "approval_pending", label: "Approval pending" },
-  { value: "approval_approved", label: "Approval approved" },
-  { value: "approval_rejected", label: "Approval rejected" },
-  { value: "crisis_mode_entered", label: "Crisis mode entered" },
-  { value: "crisis_mode_exited", label: "Crisis mode exited" },
-];
+  "post_published",
+  "post_failed",
+  "approval_pending",
+  "approval_approved",
+  "approval_rejected",
+  "crisis_mode_entered",
+  "crisis_mode_exited",
+] as const;
 
 interface AddWebhookFormProps {
   onSubmit: (params: Omit<CreateWebhookParams, "projectId">) => void;
@@ -28,6 +29,7 @@ interface AddWebhookFormProps {
 }
 
 export function AddWebhookForm({ onSubmit, onClose, isPending }: AddWebhookFormProps) {
+  const t = useTranslations("settings.components");
   const [channel, setChannel] = useState<"slack" | "teams">("slack");
   const [label, setLabel] = useState("");
   const [webhookUrl, setWebhookUrl] = useState("");
@@ -44,13 +46,13 @@ export function AddWebhookForm({ onSubmit, onClose, isPending }: AddWebhookFormP
     try {
       const parsed = new URL(url);
       if (parsed.protocol !== "https:") {
-        setUrlError("Webhook URL must use HTTPS");
+        setUrlError(t("webhook.errorHttps"));
         return false;
       }
       setUrlError(null);
       return true;
     } catch {
-      setUrlError("Enter a valid URL");
+      setUrlError(t("webhook.errorInvalidUrl"));
       return false;
     }
   };
@@ -77,19 +79,21 @@ export function AddWebhookForm({ onSubmit, onClose, isPending }: AddWebhookFormP
     >
       <button
         type="button"
-        aria-label="Close add webhook dialog"
+        aria-label={t("webhook.closeAddDialog")}
         className="absolute inset-0 cursor-default"
         onClick={onClose}
       />
       <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
         <h3 id="add-webhook-title" className="text-base font-semibold text-gray-900">
-          Add Webhook
+          {t("webhook.addTitle")}
         </h3>
 
         <div className="mt-4 space-y-4">
           {/* Channel */}
           <fieldset className="border-0 p-0 m-0 min-w-0">
-            <legend className="block text-xs font-medium text-gray-700 mb-1.5 p-0">Channel</legend>
+            <legend className="block text-xs font-medium text-gray-700 mb-1.5 p-0">
+              {t("webhook.channel")}
+            </legend>
             <div className="flex gap-3">
               {(["slack", "teams"] as const).map((c) => (
                 <label key={c} className="flex items-center gap-2 cursor-pointer">
@@ -112,14 +116,14 @@ export function AddWebhookForm({ onSubmit, onClose, isPending }: AddWebhookFormP
           {/* Label */}
           <div>
             <label htmlFor="webhook-label" className="block text-xs font-medium text-gray-700 mb-1">
-              Label
+              {t("webhook.label")}
             </label>
             <input
               id="webhook-label"
               type="text"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              placeholder="e.g. #social-media-alerts"
+              placeholder={t("webhook.labelPlaceholder")}
               className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
@@ -127,7 +131,7 @@ export function AddWebhookForm({ onSubmit, onClose, isPending }: AddWebhookFormP
           {/* Webhook URL */}
           <div>
             <label htmlFor="webhook-url" className="block text-xs font-medium text-gray-700 mb-1">
-              Webhook URL (HTTPS required)
+              {t("webhook.urlLabel")}
             </label>
             <input
               id="webhook-url"
@@ -158,23 +162,23 @@ export function AddWebhookForm({ onSubmit, onClose, isPending }: AddWebhookFormP
           {/* Events */}
           <fieldset className="border-0 p-0 m-0 min-w-0">
             <legend className="block text-xs font-medium text-gray-700 mb-2 p-0">
-              Events (select at least 1)
+              {t("webhook.eventsLegend")}
             </legend>
             <div className="space-y-2">
               {SUPPORTED_EVENTS.map((e) => (
-                <label key={e.value} className="flex items-center gap-2 cursor-pointer">
+                <label key={e} className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={events.includes(e.value)}
-                    onChange={() => toggleEvent(e.value)}
+                    checked={events.includes(e)}
+                    onChange={() => toggleEvent(e)}
                     className="rounded text-indigo-600 focus:ring-indigo-500"
                   />
-                  <span className="text-sm text-gray-700">{e.label}</span>
+                  <span className="text-sm text-gray-700">{t(`webhook.events.${e}`)}</span>
                 </label>
               ))}
             </div>
             {events.length === 0 && (
-              <p className="mt-1 text-xs text-amber-600">Select at least one event</p>
+              <p className="mt-1 text-xs text-amber-600">{t("webhook.selectAtLeastOne")}</p>
             )}
           </fieldset>
         </div>
@@ -184,14 +188,14 @@ export function AddWebhookForm({ onSubmit, onClose, isPending }: AddWebhookFormP
             onClick={onClose}
             className="rounded-md px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
           >
-            Cancel
+            {t("webhook.cancel")}
           </button>
           <button
             onClick={handleSubmit}
             disabled={!canSubmit || isPending}
             className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
           >
-            {isPending ? "Adding…" : "Add Webhook"}
+            {isPending ? t("webhook.adding") : t("webhook.addButton")}
           </button>
         </div>
       </div>

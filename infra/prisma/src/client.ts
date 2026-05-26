@@ -47,6 +47,9 @@ export type {
   TemplateCommit,
   TemplateCollaboration,
   TemplateAnalytics,
+  ProviderPricingTier,
+  AccountPricingTier,
+  ProviderBundle,
 } from "../generated/prisma/client/client.js";
 
 // Re-export all enums (used as values: Provider.X, etc.)

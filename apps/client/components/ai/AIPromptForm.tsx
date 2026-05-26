@@ -8,6 +8,7 @@
 
 import React, { useId } from "react";
 import { Sparkles, RefreshCw } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { ContentTemplate, GenerationSettings } from "../../types/ai-content";
 
 interface AIPromptFormProps {
@@ -37,6 +38,7 @@ export function AIPromptForm({
   onSettingsChange,
   onGenerate,
 }: AIPromptFormProps) {
+  const t = useTranslations("ai.components");
   const handleInputChange = (name: string, value: string) => {
     onFormDataChange({ ...formData, [name]: value });
   };
@@ -52,7 +54,7 @@ export function AIPromptForm({
 
   return (
     <div className="border rounded-lg p-6 bg-gray-50">
-      <h5 className="font-semibold text-gray-900 mb-4">Configure Template Variables</h5>
+      <h5 className="font-semibold text-gray-900 mb-4">{t("promptForm.configureVariables")}</h5>
 
       {/* Template Variables */}
       <div className="space-y-4 mb-6">
@@ -101,12 +103,12 @@ export function AIPromptForm({
 
       {/* Generation Settings */}
       <div className="pt-6 border-t">
-        <h6 className="font-medium text-gray-900 mb-3">Generation Settings</h6>
+        <h6 className="font-medium text-gray-900 mb-3">{t("promptForm.generationSettings")}</h6>
         <div className="grid grid-cols-2 gap-4">
           {/* Creativity Slider */}
           <div>
             <label htmlFor="creativity-slider" className="block text-sm text-gray-700 mb-2">
-              Creativity Level
+              {t("promptForm.creativityLevel")}
             </label>
             <input
               id="creativity-slider"
@@ -132,7 +134,7 @@ export function AIPromptForm({
                 onChange={(e) => handleSettingChange("includeHashtags", e.target.checked)}
                 className="rounded text-purple-600 focus:ring-purple-500"
               />
-              <span className="ml-2 text-sm text-gray-700">Include hashtags</span>
+              <span className="ml-2 text-sm text-gray-700">{t("promptForm.includeHashtags")}</span>
             </label>
             <label className="flex items-center cursor-pointer">
               <input
@@ -141,7 +143,9 @@ export function AIPromptForm({
                 onChange={(e) => handleSettingChange("generateVariations", e.target.checked)}
                 className="rounded text-purple-600 focus:ring-purple-500"
               />
-              <span className="ml-2 text-sm text-gray-700">Generate variations</span>
+              <span className="ml-2 text-sm text-gray-700">
+                {t("promptForm.generateVariations")}
+              </span>
             </label>
           </div>
         </div>
@@ -160,7 +164,7 @@ export function AIPromptForm({
           ) : (
             <Sparkles className="w-4 h-4" aria-hidden="true" />
           )}
-          <span>{isGenerating ? "Generating..." : "Generate Content"}</span>
+          <span>{isGenerating ? t("promptForm.generating") : t("promptForm.generateContent")}</span>
         </button>
       </div>
     </div>

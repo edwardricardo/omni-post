@@ -2,23 +2,23 @@
  * @file adminUserRoutes.ts
  * @description Admin CRUD endpoints for managing AdminUser records.
  *              Protected by admin authentication with role-based access control.
+ *              Persistence goes through AdminUserAdminService (ports), never Prisma.
  * @layer infrastructure
  */
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import { randomBytes } from "node:crypto";
-import { hashPassword as argonHashPassword } from "../auth/passwordHashing.js";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { requireAdminAuth } from "./auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "../auth/rbacService.js";
-import { prisma } from "@infra/prisma";
 import type { AdminAuthService } from "./auth/AdminAuthService.js";
-import type { EmailPort } from "../domain/repositories/EmailPort.js";
+import type { AdminUserAdminService } from "./AdminUserAdminService.js";
+import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
 import type { PlatformCredentialService } from "../security/PlatformCredentialService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import { passwordResetEmail } from "../application/notifications/emailTemplates.js";
+import { passwordResetEmail } from "../infrastructure/email/templates/emailTemplates.js";
 import { createLogger } from "../lib/logger.js";
+import type { AdminUserDto } from "@core/domain/repositories/ReadModelDtos.js";
 
 const adminUserLogger = createLogger("admin-users");
 
@@ -44,28 +44,19 @@ const UpdateAdminUserSchema = z.object({
   avatarUrl: z.string().url().max(2048).nullable().optional(),
 });
 
-// --- Helper ---
-
-/**
- * @description Generates a cryptographically secure random password of 16 characters.
- */
-function generateRandomPassword(): string {
-  return randomBytes(12).toString("base64url").slice(0, 16);
-}
-
-/**
- * @description Hashes a password using the canonical argon2id parameters.
- *   Delegates to `apps/api/src/auth/passwordHashing.ts` so all password
- *   hashing across the api uses identical Argon2id settings.
- */
-async function hashPassword(password: string): Promise<string> {
-  return argonHashPassword(password);
-}
-
 // --- Handler ---
 
 class AdminUserHandler extends BaseRouteHandler {
   protected routeName = "admin-users";
+
+  constructor(
+    private readonly adminUserService: AdminUserAdminService,
+    private readonly adminAuthService: AdminAuthService,
+    private readonly emailPort: EmailPort,
+    private readonly credentialService: PlatformCredentialService
+  ) {
+    super();
+  }
 
   /**
    * @method listUsers
@@ -77,25 +68,17 @@ class AdminUserHandler extends BaseRouteHandler {
     const ctx: RouteContext = { request, reply };
 
     try {
-      const rawUsers = await prisma.adminUser.findMany({
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: { select: { name: true } },
-          isActive: true,
-          mfaEnabled: true,
-          lastLoginAt: true,
-          createdAt: true,
-        },
-        orderBy: { createdAt: "asc" },
-      });
-
-      const users = rawUsers.map((u) => ({
-        ...u,
-        role: u.role.name,
+      const all = await this.adminUserService.list();
+      const users = all.map((u) => ({
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        role: u.role,
+        isActive: u.isActive,
+        mfaEnabled: u.mfaEnabled,
+        lastLoginAt: u.lastLoginAt,
+        createdAt: u.createdAt,
       }));
-
       return this.sendSuccess(ctx, { users });
     } catch (error: unknown) {
       this.logError(ctx, "Failed to list admin users", {
@@ -119,41 +102,26 @@ class AdminUserHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request body");
     }
 
-    const { email, name, role } = bodyResult.data;
-    const temporaryPassword = bodyResult.data.password ?? generateRandomPassword();
+    const { email, name, role, password } = bodyResult.data;
 
     try {
-      // Check uniqueness
-      const existing = await prisma.adminUser.findUnique({ where: { email } });
-      if (existing) {
+      const result = await this.adminUserService.create({
+        email,
+        name,
+        role,
+        ...(password !== undefined && { password }),
+      });
+      if (!result.ok) {
         return this.sendError(ctx, 409, "An admin user with this email already exists");
       }
 
-      const passwordHash = await hashPassword(temporaryPassword);
-
-      // Resolve role name to roleId
-      const roleRecord = await prisma.role.findUnique({ where: { name: role || "ADMIN" } });
-      const roleId = roleRecord?.id ?? "role-admin";
-
-      const user = await prisma.adminUser.create({
-        data: {
-          email,
-          name,
-          roleId,
-          passwordHash,
-          mustChangePassword: true,
-        },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: { select: { name: true } },
-        },
-      });
-
+      const { user, temporaryPassword } = result.value;
       return this.sendSuccess(
         ctx,
-        { user: { ...user, role: user.role.name }, temporaryPassword },
+        {
+          user: { id: user.id, email: user.email, name: user.name, role: user.role },
+          temporaryPassword,
+        },
         201
       );
     } catch (error: unknown) {
@@ -178,47 +146,32 @@ class AdminUserHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid parameters");
     }
 
-    const { id } = paramsResult.data;
-
     try {
-      const user = await prisma.adminUser.findUnique({
-        where: { id },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          isActive: true,
-          mfaEnabled: true,
-          lastLoginAt: true,
-          department: true,
-          team: true,
-          timezone: true,
-          locale: true,
-          mustChangePassword: true,
-          failedLoginAttempts: true,
-          lockedUntil: true,
-          createdAt: true,
-          updatedAt: true,
-          _count: {
-            select: { sessions: true },
-          },
-        },
-      });
-
-      if (!user) {
+      const result = await this.adminUserService.getDetail(paramsResult.data.id);
+      if (!result.ok) {
         return this.sendError(ctx, 404, "Admin user not found");
       }
 
-      const { _count, role, ...userData } = user;
+      const { user, sessionsCount } = result.value;
       return this.sendSuccess(ctx, {
         user: {
-          ...userData,
-          role:
-            typeof role === "object" && role !== null && "name" in role
-              ? (role as { name: string }).name
-              : role,
-          sessionsCount: _count.sessions,
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          isActive: user.isActive,
+          mfaEnabled: user.mfaEnabled,
+          lastLoginAt: user.lastLoginAt,
+          department: user.department,
+          team: user.team,
+          timezone: user.timezone,
+          locale: user.locale,
+          mustChangePassword: user.mustChangePassword,
+          failedLoginAttempts: user.failedLoginAttempts,
+          lockedUntil: user.lockedUntil,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+          sessionsCount,
         },
       });
     } catch (error: unknown) {
@@ -253,7 +206,7 @@ class AdminUserHandler extends BaseRouteHandler {
     const currentUserId = request.auth?.user.id;
     const currentUserRole = request.auth?.user.role;
 
-    // Role change requires SUPER_ADMIN
+    // Role change requires SUPER_ADMIN and cannot target self.
     if (updates.role !== undefined) {
       if (currentUserRole !== "SUPER_ADMIN") {
         return this.sendError(ctx, 403, "Only SUPER_ADMIN can change user roles");
@@ -264,53 +217,43 @@ class AdminUserHandler extends BaseRouteHandler {
     }
 
     try {
-      // Check email uniqueness if changing email
-      if (updates.email !== undefined) {
-        const existing = await prisma.adminUser.findFirst({
-          where: { email: updates.email, id: { not: id } },
-        });
-        if (existing) {
-          return this.sendError(ctx, 409, "An admin user with this email already exists");
+      const result = await this.adminUserService.update(id, {
+        ...(updates.name !== undefined && { name: updates.name }),
+        ...(updates.email !== undefined && { email: updates.email }),
+        ...(updates.role !== undefined && { role: updates.role }),
+        ...(updates.department !== undefined && { department: updates.department }),
+        ...(updates.team !== undefined && { team: updates.team }),
+        ...(updates.avatarUrl !== undefined && { avatarUrl: updates.avatarUrl }),
+      });
+      if (!result.ok) {
+        switch (result.error) {
+          case "EMAIL_EXISTS":
+            return this.sendError(ctx, 409, "An admin user with this email already exists");
+          case "INVALID_ROLE":
+            return this.sendError(ctx, 400, `Invalid role: ${updates.role}`);
+          case "NOT_FOUND":
+            return this.sendError(ctx, 404, "Admin user not found");
         }
       }
 
-      const data: Record<string, unknown> = {};
-      if (updates.name !== undefined) data.name = updates.name;
-      if (updates.email !== undefined) data.email = updates.email;
-      if (updates.role !== undefined) {
-        const roleRecord = await prisma.role.findUnique({ where: { name: updates.role } });
-        if (!roleRecord) {
-          return this.sendError(ctx, 400, `Invalid role: ${updates.role}`);
-        }
-        data.roleId = roleRecord.id;
-      }
-      if (updates.department !== undefined) data.department = updates.department;
-      if (updates.team !== undefined) data.team = updates.team;
-      if (updates.avatarUrl !== undefined) data.avatarUrl = updates.avatarUrl;
-
-      const raw = await prisma.adminUser.update({
-        where: { id },
-        data,
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: { select: { name: true } },
-          isActive: true,
-          department: true,
-          team: true,
-          avatarUrl: true,
-          updatedAt: true,
+      const user = result.value;
+      return this.sendSuccess(ctx, {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          isActive: user.isActive,
+          department: user.department,
+          team: user.team,
+          avatarUrl: user.avatarUrl,
+          updatedAt: user.updatedAt,
         },
       });
-
-      return this.sendSuccess(ctx, { user: { ...raw, role: raw.role.name } });
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes("Record to update not found")) {
-        return this.sendError(ctx, 404, "Admin user not found");
-      }
-      this.logError(ctx, "Failed to update admin user", { error: msg });
+      this.logError(ctx, "Failed to update admin user", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       return this.sendError(ctx, 500, "Internal server error");
     }
   }
@@ -331,54 +274,33 @@ class AdminUserHandler extends BaseRouteHandler {
     }
 
     const { id } = paramsResult.data;
-    const currentUserId = request.auth?.user.id;
-
-    if (id === currentUserId) {
+    if (id === request.auth?.user.id) {
       return this.sendError(ctx, 400, "Cannot deactivate yourself");
     }
 
     try {
-      const target = await prisma.adminUser.findUnique({
-        where: { id },
-        select: { id: true, role: { select: { name: true } }, isActive: true },
-      });
-
-      if (!target) {
-        return this.sendError(ctx, 404, "Admin user not found");
-      }
-
-      if (!target.isActive) {
-        return this.sendError(ctx, 400, "User is already inactive");
-      }
-
-      // Safety: cannot deactivate the last active SUPER_ADMIN
-      if (target.role.name === "SUPER_ADMIN") {
-        const superAdminRole = await prisma.role.findUnique({
-          where: { name: "SUPER_ADMIN" },
-        });
-        const activeSuperAdminCount = superAdminRole
-          ? await prisma.adminUser.count({
-              where: { roleId: superAdminRole.id, isActive: true },
-            })
-          : 0;
-        if (activeSuperAdminCount <= 1) {
-          return this.sendError(ctx, 400, "Cannot deactivate the last active SUPER_ADMIN");
+      const result = await this.adminUserService.deactivate(id);
+      if (!result.ok) {
+        switch (result.error) {
+          case "NOT_FOUND":
+            return this.sendError(ctx, 404, "Admin user not found");
+          case "ALREADY_INACTIVE":
+            return this.sendError(ctx, 400, "User is already inactive");
+          case "LAST_SUPER_ADMIN":
+            return this.sendError(ctx, 400, "Cannot deactivate the last active SUPER_ADMIN");
         }
       }
 
-      const raw = await prisma.adminUser.update({
-        where: { id },
-        data: { isActive: false },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: { select: { name: true } },
-          isActive: true,
+      const user = result.value;
+      return this.sendSuccess(ctx, {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          isActive: user.isActive,
         },
       });
-
-      return this.sendSuccess(ctx, { user: { ...raw, role: raw.role.name } });
     } catch (error: unknown) {
       this.logError(ctx, "Failed to deactivate admin user", {
         error: error instanceof Error ? error.message : String(error),
@@ -401,35 +323,27 @@ class AdminUserHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid parameters");
     }
 
-    const { id } = paramsResult.data;
-
     try {
-      const target = await prisma.adminUser.findUnique({
-        where: { id },
-        select: { id: true, isActive: true },
-      });
-
-      if (!target) {
-        return this.sendError(ctx, 404, "Admin user not found");
+      const result = await this.adminUserService.activate(paramsResult.data.id);
+      if (!result.ok) {
+        switch (result.error) {
+          case "NOT_FOUND":
+            return this.sendError(ctx, 404, "Admin user not found");
+          case "ALREADY_ACTIVE":
+            return this.sendError(ctx, 400, "User is already active");
+        }
       }
 
-      if (target.isActive) {
-        return this.sendError(ctx, 400, "User is already active");
-      }
-
-      const raw = await prisma.adminUser.update({
-        where: { id },
-        data: { isActive: true },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: { select: { name: true } },
-          isActive: true,
+      const user = result.value;
+      return this.sendSuccess(ctx, {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          isActive: user.isActive,
         },
       });
-
-      return this.sendSuccess(ctx, { user: { ...raw, role: raw.role.name } });
     } catch (error: unknown) {
       this.logError(ctx, "Failed to activate admin user", {
         error: error instanceof Error ? error.message : String(error),
@@ -444,17 +358,8 @@ class AdminUserHandler extends BaseRouteHandler {
    *   a reset token and sending an email with a link.
    * @param request - Fastify request with id param
    * @param reply - Fastify reply
-   * @param adminAuthService - Admin authentication service for token generation
-   * @param emailPort - Email delivery port
-   * @param credentialService - Platform credential service for reading config
    */
-  async resetUserPassword(
-    request: FastifyRequest,
-    reply: FastifyReply,
-    adminAuthService: AdminAuthService,
-    emailPort: EmailPort,
-    credentialService: PlatformCredentialService
-  ): Promise<void> {
+  async resetUserPassword(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
 
     const paramsResult = IdParamsSchema.safeParse(request.params);
@@ -473,26 +378,23 @@ class AdminUserHandler extends BaseRouteHandler {
     }
 
     try {
-      const target = await prisma.adminUser.findUnique({
-        where: { id },
-        select: { id: true, email: true, name: true, isActive: true },
-      });
-
-      if (!target) {
+      const targetResult = await this.adminUserService.findById(id);
+      if (!targetResult.ok) {
         return this.sendError(ctx, 404, "Admin user not found");
       }
 
+      const target: AdminUserDto = targetResult.value;
       if (!target.isActive) {
         return this.sendError(ctx, 400, "Cannot reset password for an inactive user");
       }
 
-      const result = await adminAuthService.initiatePasswordReset(target.email);
+      const result = await this.adminAuthService.initiatePasswordReset(target.email);
       if (!result.ok) {
         return this.sendError(ctx, 500, "Failed to initiate password reset");
       }
 
       const resetToken = result.value;
-      const adminUrlResult = await credentialService.getCredential("PLATFORM", "adminUrl");
+      const adminUrlResult = await this.credentialService.getCredential("PLATFORM", "adminUrl");
       const adminUrl = (adminUrlResult.ok && adminUrlResult.value) || "http://localhost:3100";
       const resetUrl = `${adminUrl}/reset-password?token=${resetToken}`;
 
@@ -501,7 +403,7 @@ class AdminUserHandler extends BaseRouteHandler {
         resetUrl,
       });
 
-      const emailResult = await emailPort.send({
+      const emailResult = await this.emailPort.send({
         to: [target.email],
         subject: emailContent.subject,
         body: `Password reset requested. Visit: ${resetUrl}`,
@@ -529,7 +431,13 @@ class AdminUserHandler extends BaseRouteHandler {
 // --- Plugin ---
 
 const adminUserRoutes: FastifyPluginAsync = async (fastify) => {
-  const handler = new AdminUserHandler();
+  const container = fastify.container!;
+  const handler = new AdminUserHandler(
+    container.resolve<AdminUserAdminService>(TOKENS.AdminUserAdminService),
+    container.resolve<AdminAuthService>(TOKENS.AdminAuthService),
+    container.resolve<EmailPort>(TOKENS.EmailPort),
+    container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService)
+  );
 
   fastify.get(
     "/admin/users",
@@ -585,21 +493,13 @@ const adminUserRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.activateUser(request, reply)
   );
 
-  // Password reset (admin resets another admin's password via email)
-  const adminAuthService = fastify.container!.resolve<AdminAuthService>(TOKENS.AdminAuthService);
-  const emailPort = fastify.container!.resolve<EmailPort>(TOKENS.EmailPort);
-  const credentialService = fastify.container!.resolve<PlatformCredentialService>(
-    TOKENS.PlatformCredentialService
-  );
-
   fastify.post(
     "/admin/users/:id/password-reset",
     {
       preHandler: [requireAdminAuth, requirePermission(Permission.USER_MANAGE)],
       schema: { tags: ["Admin Users"], summary: "Reset admin user password via email" },
     },
-    async (request, reply) =>
-      handler.resetUserPassword(request, reply, adminAuthService, emailPort, credentialService)
+    async (request, reply) => handler.resetUserPassword(request, reply)
   );
 };
 

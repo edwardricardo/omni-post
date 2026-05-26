@@ -10,6 +10,7 @@
 import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";
 import { createHmac } from "node:crypto";
 import { LinkedInWebhookProcessor } from "../../../src/webhooks/processors/linkedinWebhookProcessor.js";
+import { makeWebhookPrismaFake } from "../helpers/webhookPrismaFake.js";
 
 // ============================================================================
 // Test helpers
@@ -62,7 +63,7 @@ describe("LinkedInWebhookProcessor - Signature Verification", () => {
   });
 
   beforeEach(() => {
-    processor = new LinkedInWebhookProcessor();
+    processor = new LinkedInWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("accepts valid payload with correct hmacsha256 signature", () => {
@@ -149,7 +150,7 @@ describe("LinkedInWebhookProcessor - Event Parsing", () => {
   });
 
   beforeEach(() => {
-    processor = new LinkedInWebhookProcessor();
+    processor = new LinkedInWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("maps LIKE event to LIKE_RECEIVED", async () => {

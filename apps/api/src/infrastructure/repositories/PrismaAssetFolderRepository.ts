@@ -12,7 +12,7 @@ import { type Result, ok, err } from "@shared/types";
 import {
   type AssetFolderRepository,
   type AssetFolderDTO,
-} from "../../domain/repositories/AssetFolderRepository.js";
+} from "@core/domain/repositories/AssetFolderRepository.js";
 
 /**
  * Raw Prisma row shape for an AssetFolder record.

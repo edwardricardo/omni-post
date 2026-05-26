@@ -7,6 +7,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { X, Info, AlertTriangle, Wrench, AlertOctagon } from "lucide-react";
 import { useLogger, extractErrorInfo } from "@observability/browser-logger";
 import { request, PROXY_BASE } from "@/lib/api/clients/request";
@@ -47,6 +48,7 @@ function addDismissed(id: string): void {
  * @description Renders active system announcements. Dismissible per-announcement via localStorage.
  */
 export function AnnouncementBanner() {
+  const t = useTranslations("announcements");
   const logger = useLogger("client.announcement-banner");
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
@@ -89,7 +91,7 @@ export function AnnouncementBanner() {
                 setDismissed((prev) => new Set([...prev, a.id]));
               }}
               className="text-muted-foreground hover:text-foreground shrink-0"
-              aria-label="Dismiss"
+              aria-label={t("dismiss")}
             >
               <X aria-hidden="true" className="h-4 w-4" />
             </button>

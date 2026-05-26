@@ -6,7 +6,7 @@
  *              broadest reasonable key family on success.
  *
  *              Errors propagate to the global `MutationCache.onError`
- *              handler wired in `createAppQueryClient` (T3-A) for logging.
+ *              handler wired in `createAppQueryClient` for logging.
  *              Consumers can pass per-call `onSuccess`/`onError` via
  *              `mutate(..., { onSuccess, onError })` for UI feedback.
  * @layer infrastructure

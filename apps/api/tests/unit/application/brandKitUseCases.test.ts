@@ -6,10 +6,10 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { UpsertBrandKitUseCase } from "../../../src/application/brand-kit/UpsertBrandKitUseCase.js";
-import { GetBrandKitQuery } from "../../../src/application/brand-kit/GetBrandKitQuery.js";
-import { DeleteBrandKitUseCase } from "../../../src/application/brand-kit/DeleteBrandKitUseCase.js";
-import type { BrandKitData } from "../../../src/domain/repositories/BrandKitRepository.js";
+import { UpsertBrandKitUseCase } from "@core/application/brand-kit/UpsertBrandKitUseCase.js";
+import { GetBrandKitQuery } from "@core/application/brand-kit/GetBrandKitQuery.js";
+import { DeleteBrandKitUseCase } from "@core/application/brand-kit/DeleteBrandKitUseCase.js";
+import type { BrandKitData } from "@core/domain/repositories/BrandKitRepository.js";
 
 function makeRepo() {
   return {

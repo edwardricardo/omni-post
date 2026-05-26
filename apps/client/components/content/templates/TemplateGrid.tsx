@@ -4,9 +4,12 @@
  * @file TemplateGrid.tsx
  * @description Grid container that renders a collection of TemplateCard components or a
  * list-style fallback, displaying all filtered content templates with an empty state.
+ * @component TemplateGrid
+ * @layer infrastructure
  */
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import { FileText } from "lucide-react";
 import { TemplateCard } from "./TemplateCard";
 import type { ContentTemplate, ViewMode } from "./types";
@@ -33,11 +36,12 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
   onTemplateDuplicate,
   onTemplateDelete,
 }) => {
+  const t = useTranslations("content");
   if (templates.length === 0) {
     return (
       <div className="col-span-full text-center py-8 text-gray-500">
         <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-        <p>No templates found matching your criteria</p>
+        <p>{t("grid.empty")}</p>
       </div>
     );
   }

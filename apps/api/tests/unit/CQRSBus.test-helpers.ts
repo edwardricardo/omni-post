@@ -3,7 +3,7 @@
  * @description Test helpers for cqrsbus test helpers
  * @layer infrastructure
  */
-import type { DomainEvent } from "@shared/events";
+import type { EventStoreEvent } from "@shared/events";
 import type {
   Command,
   CommandHandler,
@@ -54,10 +54,10 @@ export class MockRedis {
 }
 
 export class MockEventService {
-  public events: DomainEvent[] = [];
+  public events: EventStoreEvent[] = [];
   private healthy = true;
 
-  async publishEvents(events: DomainEvent[]): Promise<void> {
+  async publishEvents(events: EventStoreEvent[]): Promise<void> {
     this.events.push(...events);
   }
 

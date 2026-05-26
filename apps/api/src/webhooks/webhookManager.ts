@@ -4,13 +4,12 @@
  *              subscription CRUD, secret rotation, and incoming webhook dispatch.
  * @layer infrastructure
  */
-import { prisma } from "@infra/prisma";
 import {
   createWebhookJobProcessor,
   type WebhookJobProcessor,
   type WebhookJobData,
 } from "./webhookJobProcessor.js";
-import type { Provider, WebhookEventType } from "@infra/prisma";
+import type { PrismaClient, Provider, WebhookEventType } from "@infra/prisma";
 import Redis from "ioredis";
 import { webhookLogger } from "../lib/logger.js";
 import { AppError } from "../lib/errors/AppError.js";
@@ -95,9 +94,12 @@ export class WebhookManager {
   private jobProcessor: WebhookJobProcessor;
   private redis: Redis;
 
-  constructor(redis: Redis) {
+  constructor(
+    private readonly prisma: PrismaClient,
+    redis: Redis
+  ) {
     this.redis = redis;
-    this.jobProcessor = createWebhookJobProcessor(redis);
+    this.jobProcessor = createWebhookJobProcessor(prisma, redis);
   }
 
   /**
@@ -123,7 +125,7 @@ export class WebhookManager {
     // Generate verification token for platforms that need it (Facebook)
     const verifyToken = validated.verifyToken || this.generateVerifyToken();
 
-    const subscription = await prisma.webhookSubscription.create({
+    const subscription = await this.prisma.webhookSubscription.create({
       data: {
         accountId,
         ...(validated.projectId !== undefined && { projectId: validated.projectId }),
@@ -161,7 +163,7 @@ export class WebhookManager {
       where.provider = provider;
     }
 
-    const subscriptions = await prisma.webhookSubscription.findMany({
+    const subscriptions = await this.prisma.webhookSubscription.findMany({
       where,
       include: {
         project: {
@@ -206,7 +208,7 @@ export class WebhookManager {
       }
     }
 
-    const subscription = await prisma.webhookSubscription.updateMany({
+    const subscription = await this.prisma.webhookSubscription.updateMany({
       where: {
         id: subscriptionId,
         accountId,
@@ -229,7 +231,7 @@ export class WebhookManager {
    * @returns Success confirmation object
    */
   async deleteSubscription(subscriptionId: string, accountId: string) {
-    const subscription = await prisma.webhookSubscription.findFirst({
+    const subscription = await this.prisma.webhookSubscription.findFirst({
       where: {
         id: subscriptionId,
         accountId,
@@ -242,7 +244,7 @@ export class WebhookManager {
 
     // Future: call provider SDK to unregister webhook URL from the platform
 
-    await prisma.webhookSubscription.delete({
+    await this.prisma.webhookSubscription.delete({
       where: { id: subscriptionId },
     });
 
@@ -310,10 +312,10 @@ export class WebhookManager {
 
     // Get database stats
     const [totalEvents, processedEvents, failedEvents, deadLetterEvents] = await Promise.all([
-      prisma.webhookEvent.count({ where }),
-      prisma.webhookEvent.count({ where: { ...where, processed: true } }),
-      prisma.webhookEvent.count({ where: { ...where, status: "FAILED" } }),
-      prisma.webhookDeadLetter.count({
+      this.prisma.webhookEvent.count({ where }),
+      this.prisma.webhookEvent.count({ where: { ...where, processed: true } }),
+      this.prisma.webhookEvent.count({ where: { ...where, status: "FAILED" } }),
+      this.prisma.webhookDeadLetter.count({
         where: {
           resolvedAt: null,
           // Add account filter here if needed
@@ -325,7 +327,7 @@ export class WebhookManager {
     const queueStats = await this.jobProcessor.getQueueStats();
 
     // Get processing times
-    const avgProcessingTime = await prisma.webhookEvent.aggregate({
+    const avgProcessingTime = await this.prisma.webhookEvent.aggregate({
       where: { ...where, processingTime: { not: null } },
       _avg: { processingTime: true },
     });
@@ -356,7 +358,7 @@ export class WebhookManager {
       };
     }
 
-    const stats = await prisma.webhookEvent.groupBy({
+    const stats = await this.prisma.webhookEvent.groupBy({
       by: ["provider", "status"],
       where,
       _count: { id: true },
@@ -400,7 +402,7 @@ export class WebhookManager {
    * Get recent webhook errors
    */
   private async getRecentErrors(accountId: string, limit: number = 10) {
-    return prisma.webhookEvent.findMany({
+    return this.prisma.webhookEvent.findMany({
       where: {
         accountId,
         status: "FAILED",
@@ -430,7 +432,7 @@ export class WebhookManager {
     const maxAge = maxAgeDays ? new Date(Date.now() - maxAgeDays * 24 * 60 * 60 * 1000) : undefined;
 
     // Get failed events from database
-    const failedEvents = await prisma.webhookEvent.findMany({
+    const failedEvents = await this.prisma.webhookEvent.findMany({
       where: {
         accountId,
         status: { in: ["FAILED", "DEAD_LETTER"] },
@@ -459,7 +461,7 @@ export class WebhookManager {
         await this.jobProcessor.addWebhookJob(retryJobData);
 
         // Update status to retrying
-        await prisma.webhookEvent.update({
+        await this.prisma.webhookEvent.update({
           where: { id: event.id },
           data: { status: "RETRYING" },
         });
@@ -486,7 +488,7 @@ export class WebhookManager {
     const maxAge = new Date(Date.now() - maxAgeDays * 24 * 60 * 60 * 1000);
 
     // Clean up old webhook events from database
-    const deletedEvents = await prisma.webhookEvent.deleteMany({
+    const deletedEvents = await this.prisma.webhookEvent.deleteMany({
       where: {
         receivedAt: { lt: maxAge },
         status: { in: ["COMPLETED", "FAILED"] },

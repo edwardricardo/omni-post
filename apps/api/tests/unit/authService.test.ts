@@ -8,6 +8,7 @@
 
 import { describe, it, beforeEach, expect, vi } from "vitest";
 import { createMockPrismaModule } from "./helpers/mockPrisma.js";
+import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 
 // ---------------------------------------------------------------------------
 // Mock setup
@@ -46,6 +47,10 @@ const { AuthService, setRedisInstance } = await import("../../src/auth/authServi
 const { MfaService } = await import("../../src/auth/mfaService.js");
 const { PrismaAdminUserRepository } =
   await import("../../src/infrastructure/repositories/PrismaAdminUserRepository.js");
+const { PrismaRoleRepository } =
+  await import("../../src/infrastructure/repositories/PrismaRoleRepository.js");
+const { PrismaAdminSessionRepository } =
+  await import("../../src/infrastructure/repositories/PrismaAdminSessionRepository.js");
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -83,8 +88,17 @@ describe("AuthService", () => {
 
     // Create fresh service instances with mocked prisma
     const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
-    mfaService = new MfaService(adminUserRepo);
-    authService = new AuthService(adminUserRepo, mfaService);
+    const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
+    const sessionRepo = new PrismaAdminSessionRepository(mockPrisma.prisma as never);
+    mfaService = new MfaService(adminUserRepo, new InMemoryAuditLogRepository());
+    authService = new AuthService(
+      mockPrisma.prisma,
+      adminUserRepo,
+      mfaService,
+      roleRepo,
+      sessionRepo,
+      new InMemoryAuditLogRepository()
+    );
   });
 
   describe("Registration", () => {

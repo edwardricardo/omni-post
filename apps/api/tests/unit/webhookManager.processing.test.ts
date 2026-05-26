@@ -2,18 +2,19 @@
  * @file webhookManager.processing.test.ts
  * @description Unit tests for WebhookManager processing, stats, retry, cleanup,
  *              and security operations.
- *              Uses vi.hoisted() + vi.mock() to intercept @infra/prisma with
- *              in-memory stores. No real database connection is needed.
+ *              Builds an in-memory prisma fake and injects it into WebhookManager
+ *              via the constructor (DI). No real database connection is needed.
  * @layer infrastructure
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import type { PrismaClient } from "@infra/prisma";
 
 // ---------------------------------------------------------------------------
 // 1. Hoisted mock setup — runs before any imports
 // ---------------------------------------------------------------------------
 
-const { mockModule, stores } = vi.hoisted(() => {
+const { mockModule, stores } = (() => {
   const { randomUUID } = require("crypto") as typeof import("crypto");
 
   type Rec = Record<string, unknown>;
@@ -394,16 +395,11 @@ const { mockModule, stores } = vi.hoisted(() => {
   };
 
   return { mockModule: { prisma }, stores: storesObj };
-});
+})();
 
 // ---------------------------------------------------------------------------
 // 2. Module mocks
 // ---------------------------------------------------------------------------
-
-vi.mock("@infra/prisma", async (importOriginal) => {
-  const original = await importOriginal<Record<string, unknown>>();
-  return { ...original, ...mockModule };
-});
 
 vi.mock("../../src/lib/logger.js", () => ({
   webhookLogger: {
@@ -501,7 +497,7 @@ import {
 
 describe("WebhookManager - Processing & Security", () => {
   beforeAll(async () => {
-    await setupWebhookManagerTestData();
+    await setupWebhookManagerTestData(mockModule.prisma as unknown as PrismaClient);
     stores.projects.set(state.testProjectId, {
       id: state.testProjectId,
       accountId: state.testAccountId,

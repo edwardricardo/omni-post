@@ -13,11 +13,11 @@ import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
 // Use case / query types (type-only imports)
-import type { CreateScheduledReportUseCase } from "../application/reports/CreateScheduledReportUseCase.js";
-import type { UpdateScheduledReportUseCase } from "../application/reports/UpdateScheduledReportUseCase.js";
-import type { DeleteScheduledReportUseCase } from "../application/reports/DeleteScheduledReportUseCase.js";
-import type { ListScheduledReportsQuery } from "../application/reports/ListScheduledReportsQuery.js";
-import type { GenerateReportUseCase } from "../application/reports/GenerateReportUseCase.js";
+import type { CreateScheduledReportUseCase } from "@core/application/reports/CreateScheduledReportUseCase.js";
+import type { UpdateScheduledReportUseCase } from "@core/application/reports/UpdateScheduledReportUseCase.js";
+import type { DeleteScheduledReportUseCase } from "@core/application/reports/DeleteScheduledReportUseCase.js";
+import type { ListScheduledReportsQuery } from "@core/application/reports/ListScheduledReportsQuery.js";
+import type { GenerateReportUseCase } from "@core/application/reports/GenerateReportUseCase.js";
 
 // ============================================================================
 // Zod Validation Schemas
@@ -268,10 +268,10 @@ class ReportRouteHandler extends BaseRouteHandler {
     // Use the list query to find the specific report by resolving through
     // the repository. We import ScheduledReportRepository type inline.
     const reportRepo = request.server.container.resolve<
-      import("../domain/repositories/ScheduledReportRepository.js").ScheduledReportRepository
+      import("@core/domain/repositories/ScheduledReportRepository.js").ScheduledReportRepository
     >(TOKENS.ScheduledReportRepository);
 
-    const { ScheduledReportId } = await import("../domain/value-objects/EntityId.js");
+    const { ScheduledReportId } = await import("@core/domain/value-objects/EntityId.js");
     const idResult = ScheduledReportId.fromString(paramsValidation.value.id);
     if (!idResult.ok) {
       return this.sendError(ctx, 400, "Invalid report ID");

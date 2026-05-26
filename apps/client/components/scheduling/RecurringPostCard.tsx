@@ -7,6 +7,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import cronstrue from "cronstrue";
 import type { RecurringPost } from "@/hooks/api/useRecurringPosts";
 
@@ -16,11 +17,11 @@ interface RecurringPostCardProps {
   isDeactivating: boolean;
 }
 
-const CONTENT_VARIATION_LABELS: Record<RecurringPost["contentVariation"], string> = {
-  EXACT: "Contenido exacto",
-  ROTATED: "Rotación de biblioteca",
-  AI_GENERATED: "IA genera cada vez",
-};
+const CONTENT_VARIATION_KEYS = {
+  EXACT: "contentVariation.EXACT",
+  ROTATED: "contentVariation.ROTATED",
+  AI_GENERATED: "contentVariation.AI_GENERATED",
+} as const satisfies Record<RecurringPost["contentVariation"], string>;
 
 function humanCron(expression: string): string {
   try {
@@ -40,6 +41,7 @@ function formatNextOccurrence(isoDate?: string): string {
 }
 
 export function RecurringPostCard({ post, onDeactivate, isDeactivating }: RecurringPostCardProps) {
+  const t = useTranslations("scheduling.components");
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   function handleDeactivateClick() {
@@ -66,25 +68,26 @@ export function RecurringPostCard({ post, onDeactivate, isDeactivating }: Recurr
               post.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-600"
             }`}
           >
-            {post.isActive ? "Activo" : "Inactivo"}
+            {post.isActive ? t("active") : t("inactive")}
           </span>
         </div>
 
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
           <span title={post.cronExpression}>{humanCron(post.cronExpression)}</span>
           <span>·</span>
-          <span>
-            {post.channels.length} canal{post.channels.length !== 1 ? "es" : ""}
-          </span>
+          <span>{t("channelCount", { count: post.channels.length })}</span>
           <span>·</span>
-          <span>{CONTENT_VARIATION_LABELS[post.contentVariation]}</span>
+          <span>{t(CONTENT_VARIATION_KEYS[post.contentVariation])}</span>
         </div>
 
         <div className="mt-1 text-xs text-gray-400">
-          Próxima: {formatNextOccurrence(post.nextScheduledAt)}
+          {t("nextOccurrence", { date: formatNextOccurrence(post.nextScheduledAt) })}
           {post.maxOccurrences !== undefined && (
             <span className="ml-3">
-              {post.occurrenceCount}/{post.maxOccurrences} ocurrencias
+              {t("occurrences", {
+                current: post.occurrenceCount,
+                max: post.maxOccurrences,
+              })}
             </span>
           )}
         </div>
@@ -94,19 +97,19 @@ export function RecurringPostCard({ post, onDeactivate, isDeactivating }: Recurr
       <div className="flex shrink-0 items-center gap-2">
         {confirmDelete ? (
           <>
-            <span className="text-sm text-red-600">¿Confirmar desactivación?</span>
+            <span className="text-sm text-red-600">{t("confirmDeactivate")}</span>
             <button
               onClick={handleDeactivateClick}
               disabled={isDeactivating}
               className="rounded bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
             >
-              {isDeactivating ? "..." : "Sí, desactivar"}
+              {isDeactivating ? "..." : t("confirmDeactivateYes")}
             </button>
             <button
               onClick={handleCancel}
               className="rounded border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
-              Cancelar
+              {t("cancel")}
             </button>
           </>
         ) : (
@@ -115,7 +118,7 @@ export function RecurringPostCard({ post, onDeactivate, isDeactivating }: Recurr
               onClick={handleDeactivateClick}
               className="rounded border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
-              Desactivar
+              {t("deactivate")}
             </button>
           )
         )}

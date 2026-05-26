@@ -8,9 +8,9 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok, err } from "@shared/types";
-import { ArchivePostsBatchUseCase } from "../../../../src/application/posts/ArchivePostsBatchUseCase.js";
-import { USE_CASE_ERRORS } from "../../../../src/application/UseCase.js";
-import { PostId } from "../../../../src/domain/index.js";
+import { ArchivePostsBatchUseCase } from "@core/application/posts/ArchivePostsBatchUseCase.js";
+import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
+import { PostId } from "@core/domain/index.js";
 
 function makeMockRepository() {
   return {

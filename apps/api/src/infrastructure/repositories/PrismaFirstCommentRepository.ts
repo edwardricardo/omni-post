@@ -10,8 +10,8 @@ import { type Result, ok, err } from "@shared/types";
 import type {
   FirstCommentRepository,
   FirstCommentData,
-} from "../../domain/repositories/FirstCommentRepository.js";
-import { EntityNotFoundError, type DomainError } from "../../domain/errors/index.js";
+} from "@core/domain/repositories/FirstCommentRepository.js";
+import { EntityNotFoundError, type DomainError } from "@core/domain/errors/index.js";
 
 /**
  * Raw Prisma row shape for type-safe mapping

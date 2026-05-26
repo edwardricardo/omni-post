@@ -7,6 +7,7 @@
  */
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import type { ContentTemplate } from "../../types/ai-content";
 
 interface AITemplateSelectorProps {
@@ -25,11 +26,14 @@ export function AITemplateSelector({
   selectedTemplateId,
   onTemplateSelect,
 }: AITemplateSelectorProps) {
+  const t = useTranslations("ai.components");
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h4 className="text-lg font-semibold text-gray-900">Choose a Template</h4>
-        <div className="text-sm text-gray-600">{templates.length} templates available</div>
+        <h4 className="text-lg font-semibold text-gray-900">{t("templateSelector.title")}</h4>
+        <div className="text-sm text-gray-600">
+          {t("templateSelector.available", { count: templates.length })}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -51,7 +55,7 @@ export function AITemplateSelector({
             role="button"
             tabIndex={0}
             aria-pressed={selectedTemplateId === template.id}
-            aria-label={`Select ${template.name} template`}
+            aria-label={t("templateSelector.selectAria", { name: template.name })}
           >
             <div className="flex items-start justify-between mb-3">
               <div>
@@ -76,7 +80,9 @@ export function AITemplateSelector({
               </div>
 
               <div className="flex items-center text-sm">
-                <span className="text-gray-600">{template.variables.length} variables</span>
+                <span className="text-gray-600">
+                  {t("templateSelector.variables", { count: template.variables.length })}
+                </span>
               </div>
             </div>
           </div>

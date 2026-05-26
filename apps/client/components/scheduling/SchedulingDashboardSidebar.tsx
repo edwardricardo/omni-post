@@ -8,6 +8,7 @@
  */
 
 import React, { useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { useLogger, extractErrorInfo } from "@observability/browser-logger";
 import type { DashboardScheduledPost, DashboardFilters } from "./schedulingDashboardTypes";
 import {
@@ -47,6 +48,7 @@ export function SchedulingDashboardSidebar({
   onPostClick,
   projectId,
 }: SchedulingDashboardSidebarProps) {
+  const t = useTranslations("scheduling.components");
   const logger = useLogger("client.scheduling-sidebar");
   const { campaigns: campaignsQuery, team: teamQuery } = useSchedulingDashboardSidebar(projectId);
 
@@ -110,13 +112,13 @@ export function SchedulingDashboardSidebar({
       {/* Filters */}
       <div className="p-4 border-b">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-medium text-gray-900">Filters</h3>
+          <h3 className="font-medium text-gray-900">{t("filtersTitle")}</h3>
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
               className="text-xs text-blue-600 hover:text-blue-800 font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 rounded"
             >
-              Clear filters
+              {t("clearFilters")}
             </button>
           )}
         </div>
@@ -124,7 +126,9 @@ export function SchedulingDashboardSidebar({
         <div className="space-y-4">
           {/* Platform Filter */}
           <fieldset className="border-0 p-0 m-0 min-w-0">
-            <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">Platforms</legend>
+            <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">
+              {t("filterPlatformsLegend")}
+            </legend>
             <div className="space-y-1">
               {["instagram", "facebook", "x"].map((platform) => (
                 <label key={platform} className="flex items-center">
@@ -150,7 +154,7 @@ export function SchedulingDashboardSidebar({
           {/* Content Type Filter */}
           <fieldset className="border-0 p-0 m-0 min-w-0">
             <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">
-              Content Type
+              {t("filterContentTypeLegend")}
             </legend>
             <div className="space-y-1">
               {(["FEED", "STORIES", "REELS", "CAROUSEL"] as const).map((type) => (
@@ -169,7 +173,7 @@ export function SchedulingDashboardSidebar({
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                   <span className="ml-2 text-sm text-gray-700">
-                    {getContentTypeIcon(type)} {type}
+                    {getContentTypeIcon(type)} {t(`contentType.${type}`)}
                   </span>
                 </label>
               ))}
@@ -178,26 +182,30 @@ export function SchedulingDashboardSidebar({
 
           {/* Status Filter */}
           <fieldset className="border-0 p-0 m-0 min-w-0">
-            <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">Status</legend>
+            <legend className="block text-sm font-medium text-gray-700 mb-2 p-0">
+              {t("filterStatusLegend")}
+            </legend>
             <div className="space-y-1">
-              {["scheduled", "publishing", "published", "failed", "cancelled"].map((status) => (
-                <label key={status} className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={filters.status.includes(status)}
-                    onChange={(e) => {
-                      setFilters((prev) => ({
-                        ...prev,
-                        status: e.target.checked
-                          ? [...prev.status, status]
-                          : prev.status.filter((s) => s !== status),
-                      }));
-                    }}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700 capitalize">{status}</span>
-                </label>
-              ))}
+              {(["scheduled", "publishing", "published", "failed", "cancelled"] as const).map(
+                (status) => (
+                  <label key={status} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={filters.status.includes(status)}
+                      onChange={(e) => {
+                        setFilters((prev) => ({
+                          ...prev,
+                          status: e.target.checked
+                            ? [...prev.status, status]
+                            : prev.status.filter((s) => s !== status),
+                        }));
+                      }}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">{t(`status.${status}`)}</span>
+                  </label>
+                )
+              )}
             </div>
           </fieldset>
 
@@ -207,7 +215,7 @@ export function SchedulingDashboardSidebar({
               htmlFor="filter-campaign"
               className="block text-sm font-medium text-gray-700 mb-2"
             >
-              Campaign
+              {t("filterCampaign")}
             </label>
             <select
               id="filter-campaign"
@@ -215,7 +223,7 @@ export function SchedulingDashboardSidebar({
               onChange={(e) => setFilters((prev) => ({ ...prev, campaignId: e.target.value }))}
               className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">All campaigns</option>
+              <option value="">{t("filterAllCampaigns")}</option>
               {campaigns.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -230,7 +238,7 @@ export function SchedulingDashboardSidebar({
               htmlFor="filter-assignee"
               className="block text-sm font-medium text-gray-700 mb-2"
             >
-              Assignee
+              {t("filterAssignee")}
             </label>
             <select
               id="filter-assignee"
@@ -238,7 +246,7 @@ export function SchedulingDashboardSidebar({
               onChange={(e) => setFilters((prev) => ({ ...prev, assigneeId: e.target.value }))}
               className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">All assignees</option>
+              <option value="">{t("filterAllAssignees")}</option>
               {teamMembers.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
@@ -253,14 +261,14 @@ export function SchedulingDashboardSidebar({
       <div className="flex-1 overflow-y-auto p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-medium text-gray-900">
-            {selectedDate ? selectedDate.toLocaleDateString() : "Today's Posts"}
+            {selectedDate ? selectedDate.toLocaleDateString() : t("todaysPosts")}
           </h3>
           {selectedDate && (
             <button
               onClick={() => setSelectedDate(null)}
               className="text-sm text-gray-500 hover:text-gray-700"
             >
-              Clear
+              {t("clear")}
             </button>
           )}
         </div>
@@ -271,7 +279,7 @@ export function SchedulingDashboardSidebar({
               key={post.id}
               role="button"
               tabIndex={0}
-              aria-label={`Open post ${post.title ?? ""}`.trim()}
+              aria-label={t("openPost", { title: post.title ?? "" }).trim()}
               className="border rounded-lg p-3 cursor-pointer hover:border-gray-300 transition-colors"
               onClick={() => onPostClick(post)}
               onKeyDown={(e) => {
@@ -291,7 +299,7 @@ export function SchedulingDashboardSidebar({
                     <span
                       className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(post.status)}`}
                     >
-                      {post.status}
+                      {t(`status.${post.status}`)}
                     </span>
                     <div
                       className={`w-2 h-2 rounded-full ${getPriorityColor(post.priority)}`}
@@ -320,7 +328,7 @@ export function SchedulingDashboardSidebar({
             <div className="text-center py-8 text-gray-500">
               <div className="text-2xl mb-2">{"\u{1F4C5}"}</div>
               <div className="text-sm">
-                {selectedDate ? "No posts scheduled for this date" : "No posts scheduled for today"}
+                {selectedDate ? t("noPostsForDate") : t("noPostsForToday")}
               </div>
             </div>
           )}

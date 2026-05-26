@@ -2,16 +2,16 @@
  * @file SubscriptionStatsService.ts
  * @description Subscription analytics using AccountSubscription model.
  *   Calculates MRR, plan distribution, churn risk, and growth metrics
- *   from the provider-based billing model.
+ *   from the provider-based billing model via the stats read port.
  * @layer application
  */
 import { ok, err, type Result } from "@shared/types";
-import { prisma } from "@infra/prisma";
-import { AuditableService } from "../../services/AuditableService.js";
+import { BaseService } from "../../services/BaseService.js";
+import type { SubscriptionStatsQueryRepository } from "@core/domain/repositories/SubscriptionStatsQueryRepository.js";
 import type { SubscriptionStats } from "./types.js";
 
-export class SubscriptionStatsService extends AuditableService {
-  constructor() {
+export class SubscriptionStatsService extends BaseService {
+  constructor(private readonly statsQueryRepo: SubscriptionStatsQueryRepository) {
     super("SubscriptionStatsService");
   }
 
@@ -25,16 +25,11 @@ export class SubscriptionStatsService extends AuditableService {
     try {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-      // Count by AccountSubscription status
-      const [statusCounts, totalAccounts, newThisMonth, bundleCount] = await Promise.all([
-        prisma.accountSubscription.groupBy({
-          by: ["status"],
-          _count: { id: true },
-          _sum: { pricePerMonth: true },
-        }),
-        prisma.account.count(),
-        prisma.account.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
-        prisma.accountSubscription.count({ where: { bundleId: { not: null } } }),
+      const [statusGroups, totalAccounts, newThisMonth, bundleCount] = await Promise.all([
+        this.statsQueryRepo.groupByStatus(),
+        this.statsQueryRepo.countAccounts(),
+        this.statsQueryRepo.countAccountsCreatedSince(thirtyDaysAgo),
+        this.statsQueryRepo.countBundleSubscriptions(),
       ]);
 
       // Build status distribution
@@ -42,10 +37,10 @@ export class SubscriptionStatsService extends AuditableService {
       let totalMRR = 0;
       let totalSubscriptions = 0;
 
-      for (const row of statusCounts) {
-        const mrr = Number(row._sum.pricePerMonth ?? 0);
-        statusMap[row.status] = { count: row._count.id, mrr };
-        totalSubscriptions += row._count.id;
+      for (const row of statusGroups) {
+        const mrr = row.pricePerMonthSum;
+        statusMap[row.status] = { count: row.count, mrr };
+        totalSubscriptions += row.count;
         if (row.status === "ACTIVE" || row.status === "GRANDFATHERED") {
           totalMRR += mrr;
         }
@@ -121,20 +116,14 @@ export class SubscriptionStatsService extends AuditableService {
     const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    const activeAccountIds = await prisma.post.findMany({
-      where: { createdAt: { gte: fourteenDaysAgo } },
-      select: { project: { select: { accountId: true } } },
-      distinct: ["projectId"],
-    });
-    const lowRiskAccountIds = new Set(activeAccountIds.map((p) => p.project.accountId));
+    const windows = await this.statsQueryRepo.getChurnActivityWindows(
+      fourteenDaysAgo,
+      thirtyDaysAgo
+    );
 
-    const moderateAccountIds = await prisma.post.findMany({
-      where: { createdAt: { gte: thirtyDaysAgo, lt: fourteenDaysAgo } },
-      select: { project: { select: { accountId: true } } },
-      distinct: ["projectId"],
-    });
+    const lowRiskAccountIds = new Set(windows.activeAccountIds);
     const mediumRiskAccountIds = new Set(
-      moderateAccountIds.map((p) => p.project.accountId).filter((id) => !lowRiskAccountIds.has(id))
+      windows.moderateAccountIds.filter((id) => !lowRiskAccountIds.has(id))
     );
 
     const lowRisk = lowRiskAccountIds.size;
@@ -148,12 +137,8 @@ export class SubscriptionStatsService extends AuditableService {
     const sixtyDaysAgo = new Date(thirtyDaysAgo.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     const [previousPeriodCount, cancelledCount] = await Promise.all([
-      prisma.account.count({
-        where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } },
-      }),
-      prisma.auditLog.count({
-        where: { action: { contains: "CANCEL" }, createdAt: { gte: thirtyDaysAgo } },
-      }),
+      this.statsQueryRepo.countAccountsCreatedBetween(sixtyDaysAgo, thirtyDaysAgo),
+      this.statsQueryRepo.countCancellationsSince(thirtyDaysAgo),
     ]);
 
     const monthlyGrowthRate =
@@ -172,5 +157,3 @@ export class SubscriptionStatsService extends AuditableService {
     };
   }
 }
-
-export const subscriptionStatsService = new SubscriptionStatsService();

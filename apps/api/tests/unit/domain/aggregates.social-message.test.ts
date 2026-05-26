@@ -14,10 +14,10 @@ import {
   SocialMessageReplied,
   SocialMessageAssigned,
   SocialMessageArchived,
-} from "../../../src/domain/aggregates/SocialMessageAggregate.js";
-import { AccountId, ProjectId, ChannelId } from "../../../src/domain/value-objects/EntityId.js";
-import { SocialConversationId } from "../../../src/domain/value-objects/index.js";
-import { SocialMessageType } from "../../../src/domain/value-objects/SocialMessageType.js";
+} from "@core/domain/aggregates/SocialMessageAggregate.js";
+import { AccountId, ProjectId, ChannelId } from "@core/domain/value-objects/EntityId.js";
+import { SocialConversationId } from "@core/domain/value-objects/index.js";
+import { SocialMessageType } from "@core/domain/value-objects/SocialMessageType.js";
 
 function makeInput(overrides: Record<string, unknown> = {}) {
   return {

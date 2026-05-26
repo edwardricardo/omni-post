@@ -11,13 +11,14 @@ import {
   StubHexProcessor,
   Base64StubProcessor,
 } from "./webhookSignatureVerification.test-helpers.js";
+import { makeWebhookPrismaFake } from "../helpers/webhookPrismaFake.js";
 
 describe("Webhook signature verification — AbstractWebhookProcessor.verify()", () => {
   const secret = "super-secret-webhook-key-12345";
   let processor: StubHexProcessor;
 
   beforeEach(() => {
-    processor = new StubHexProcessor();
+    processor = new StubHexProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("accepts a correctly signed payload", () => {
@@ -90,7 +91,7 @@ describe("Webhook signature verification — base64 encoding (X provider pattern
   let processor: Base64StubProcessor;
 
   beforeEach(() => {
-    processor = new Base64StubProcessor();
+    processor = new Base64StubProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("accepts a valid base64-encoded signature", () => {
@@ -120,7 +121,7 @@ describe("Timing attack prevention — constantTimeCompare", () => {
   let processor: StubHexProcessor;
 
   beforeEach(() => {
-    processor = new StubHexProcessor();
+    processor = new StubHexProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("returns false for strings of different lengths without leaking length info early", () => {

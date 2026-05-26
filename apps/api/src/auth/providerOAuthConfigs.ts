@@ -22,7 +22,6 @@
  */
 import type { ProviderId } from "../providers/providerAdapter.interface.js";
 import { AppError } from "../lib/errors/AppError.js";
-import { getRedisInstance } from "./redisSessionHelpers.js";
 import { env } from "../config/env.js";
 
 export interface OAuthConfig {
@@ -39,7 +38,8 @@ export interface OAuthProvider {
   config: OAuthConfig;
   validateCode(
     code: string,
-    state: string
+    state: string,
+    codeVerifier?: string
   ): Promise<{
     accessToken: string;
     refreshToken?: string;
@@ -119,19 +119,13 @@ export const oauthProviders: Record<ProviderId, OAuthProvider> = {
      * @param code - The authorization code from the OAuth callback
      * @param state - The state parameter used to look up the stored PKCE verifier
      */
-    async validateCode(code: string, state: string) {
+    async validateCode(code: string, _state: string, codeVerifier?: string) {
       const config = this.config;
 
-      // Retrieve the PKCE code_verifier stored during authorization URL generation
-      const redis = getRedisInstance();
-      let codeVerifier = "challenge"; // Fallback for environments without Redis
-      if (redis) {
-        const storedVerifier = await redis.get(`pkce:${state}`);
-        if (storedVerifier) {
-          codeVerifier = storedVerifier;
-          // Delete after retrieval - one-time use to prevent replay attacks
-          await redis.del(`pkce:${state}`);
-        }
+      // The PKCE verifier is resolved + single-use-consumed by the OAuth
+      // flow store (cross-pod) and passed in here for the token exchange.
+      if (!codeVerifier) {
+        throw AppError.badRequest("Missing PKCE code_verifier for X token exchange");
       }
 
       const tokenResponse = await fetch(config.tokenUrl, {

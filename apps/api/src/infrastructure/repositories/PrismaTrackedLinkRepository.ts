@@ -17,8 +17,8 @@ import {
   TrackedLinkId,
   ProjectId,
   EntityNotFoundError,
-} from "../../domain/index.js";
-import { ShortCode } from "../../domain/value-objects/ShortCode.js";
+} from "@core/domain/index.js";
+import { ShortCode } from "@core/domain/value-objects/ShortCode.js";
 
 /**
  * PrismaTrackedLinkRepository - Implements TrackedLinkRepository using Prisma

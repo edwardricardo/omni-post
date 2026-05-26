@@ -22,11 +22,11 @@ import { SAML } from "@node-saml/node-saml";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
-import type { ConfigureSamlUseCase } from "../application/auth/ConfigureSamlUseCase.js";
-import type { EnableSsoUseCase } from "../application/auth/EnableSsoUseCase.js";
-import type { DisableSsoUseCase } from "../application/auth/DisableSsoUseCase.js";
-import type { GetSamlConfigurationQuery } from "../application/auth/GetSamlConfigurationQuery.js";
-import type { SamlConfigurationRepository } from "../domain/repositories/SamlConfigurationRepository.js";
+import type { ConfigureSamlUseCase } from "@core/application/auth/ConfigureSamlUseCase.js";
+import type { EnableSsoUseCase } from "@core/application/auth/EnableSsoUseCase.js";
+import type { DisableSsoUseCase } from "@core/application/auth/DisableSsoUseCase.js";
+import type { GetSamlConfigurationQuery } from "@core/application/auth/GetSamlConfigurationQuery.js";
+import type { SamlConfigurationRepository } from "@core/domain/repositories/SamlConfigurationRepository.js";
 import type { AuthService } from "./authService.js";
 import { env } from "../config/env.js";
 

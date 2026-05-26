@@ -107,6 +107,7 @@ export function createMockApiClient() {
       data: { deleted: true },
     })),
     searchReplies: vi.fn(async () => ({ data: [], meta: { result_count: 0 } })),
+    searchMentions: vi.fn(async () => ({ data: [], meta: { result_count: 0 } })),
     getCircuitBreakerStatus: vi.fn(() => ({})),
     clearCache: vi.fn(() => undefined),
     forceCircuitBreakerOpen: vi.fn(() => true),
@@ -146,6 +147,9 @@ export function createFailingApiClient(errorMessage = "API error", statusCode?: 
       throw makeError();
     }),
     searchReplies: vi.fn(async () => {
+      throw makeError();
+    }),
+    searchMentions: vi.fn(async () => {
       throw makeError();
     }),
     getCircuitBreakerStatus: vi.fn(() => ({})),

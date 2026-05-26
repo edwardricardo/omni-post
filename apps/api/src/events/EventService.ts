@@ -8,9 +8,9 @@
 import { PrismaClient, Prisma } from "@infra/prisma";
 import Redis from "ioredis";
 import {
-  DomainEvent,
+  EventStoreEvent,
   EventHandler,
-  createDomainEvent,
+  createEventStoreEvent,
   EVENT_TYPES,
   PostCreatedEvent as _PostCreatedEvent,
   PostUpdatedEvent as _PostUpdatedEvent,
@@ -81,7 +81,7 @@ export class EventService extends BaseService {
 
         // Emit system health event
         await this.publishEvent(
-          createDomainEvent(
+          createEventStoreEvent(
             EVENT_TYPES.SYSTEM_HEALTH,
             "event-service",
             "EventService",
@@ -109,7 +109,7 @@ export class EventService extends BaseService {
    * pub/sub broadcast does NOT happen here — call `broadcastEvent` after
    * the outer transaction commits (best-effort fan-out).
    */
-  async appendEventInTx(tx: Prisma.TransactionClient, event: DomainEvent): Promise<void> {
+  async appendEventInTx(tx: Prisma.TransactionClient, event: EventStoreEvent): Promise<void> {
     if (!this.isInitialized) {
       throw new Error("Event Service not initialized");
     }
@@ -122,7 +122,7 @@ export class EventService extends BaseService {
    * transaction commits to preserve the durable-first / broadcast-after
    * semantic.
    */
-  async broadcastEvent(event: DomainEvent): Promise<Result<void, string>> {
+  async broadcastEvent(event: EventStoreEvent): Promise<Result<void, string>> {
     return this.executeWithErrorHandling(
       {
         operation: "broadcastEvent",
@@ -144,7 +144,7 @@ export class EventService extends BaseService {
   /**
    * Publish an event (stores and publishes)
    */
-  async publishEvent(event: DomainEvent): Promise<Result<void, string>> {
+  async publishEvent(event: EventStoreEvent): Promise<Result<void, string>> {
     return this.executeWithErrorHandling(
       {
         operation: "publishEvent",
@@ -171,7 +171,7 @@ export class EventService extends BaseService {
   /**
    * Publish multiple events in a batch
    */
-  async publishEvents(events: DomainEvent[]): Promise<Result<void, string>> {
+  async publishEvents(events: EventStoreEvent[]): Promise<Result<void, string>> {
     return this.executeWithErrorHandling(
       {
         operation: "publishEvents",
@@ -187,7 +187,7 @@ export class EventService extends BaseService {
         }
 
         // Group events by stream
-        const eventsByStream = new Map<string, DomainEvent[]>();
+        const eventsByStream = new Map<string, EventStoreEvent[]>();
 
         for (const event of events) {
           const streamId = `${event.aggregateType}:${event.aggregateId}`;
@@ -211,7 +211,7 @@ export class EventService extends BaseService {
   /**
    * Register an event handler
    */
-  registerHandler<T extends DomainEvent>(eventType: string, handler: EventHandler<T>): void {
+  registerHandler<T extends EventStoreEvent>(eventType: string, handler: EventHandler<T>): void {
     if (!this.handlers.has(eventType)) {
       this.handlers.set(eventType, new Set());
     }
@@ -223,7 +223,7 @@ export class EventService extends BaseService {
   /**
    * Unregister an event handler
    */
-  unregisterHandler<T extends DomainEvent>(eventType: string, handler: EventHandler<T>): void {
+  unregisterHandler<T extends EventStoreEvent>(eventType: string, handler: EventHandler<T>): void {
     const handlers = this.handlers.get(eventType);
     if (handlers) {
       handlers.delete(handler);
@@ -242,7 +242,7 @@ export class EventService extends BaseService {
     aggregateType: string,
     aggregateId: string,
     fromVersion?: number
-  ): Promise<Result<DomainEvent[], string>> {
+  ): Promise<Result<EventStoreEvent[], string>> {
     return this.executeWithErrorHandling(
       {
         operation: "getAggregateEvents",
@@ -308,7 +308,7 @@ export class EventService extends BaseService {
   async getEventsByType(
     eventType: string,
     fromTimestamp?: Date
-  ): Promise<Result<DomainEvent[], string>> {
+  ): Promise<Result<EventStoreEvent[], string>> {
     return this.executeWithErrorHandling(
       {
         operation: "getEventsByType",
@@ -459,8 +459,8 @@ export function createPostEvent(
   projectId: string,
   data: Record<string, unknown>,
   metadata: { userId?: string; source: string }
-): DomainEvent {
-  return createDomainEvent(
+): EventStoreEvent {
+  return createEventStoreEvent(
     eventType,
     postId,
     "Post",
@@ -482,8 +482,8 @@ export function createChannelEvent(
   projectId: string,
   data: Record<string, unknown>,
   metadata: { userId?: string; source: string }
-): DomainEvent {
-  return createDomainEvent(
+): EventStoreEvent {
+  return createEventStoreEvent(
     eventType,
     channelId,
     "Channel",
@@ -506,8 +506,8 @@ export function createUserActionEvent(
   resourceId: string,
   details?: Record<string, unknown>,
   sessionId?: string
-): DomainEvent {
-  return createDomainEvent(
+): EventStoreEvent {
+  return createEventStoreEvent(
     EVENT_TYPES.USER_ACTION,
     userId,
     "User",
@@ -536,8 +536,8 @@ export function createAnalyticsEvent(
   channelId: string,
   provider: string,
   metrics: Record<string, unknown>
-): DomainEvent {
-  return createDomainEvent(
+): EventStoreEvent {
+  return createEventStoreEvent(
     EVENT_TYPES.ANALYTICS_COLLECTED,
     postId,
     "Post",

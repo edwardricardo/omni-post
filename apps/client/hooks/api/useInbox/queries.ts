@@ -1,27 +1,33 @@
 /**
  * @file queries.ts
- * @description Read-only TanStack hooks for the Social Inbox — conversation
- *              list (infinite), single conversation, message list (infinite),
- *              and mentions feed.
+ * @description Read-only TanStack hooks for the Social Inbox — paginated
+ *              message feed (infinite), single conversation entity, in-thread
+ *              message list (infinite), and mentions feed. Return shapes
+ *              mirror the server DTOs directly.
  * @layer infrastructure
  */
 
 "use client";
 
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { fetchConversation, fetchConversations, fetchMentions, fetchMessages } from "./api";
+import {
+  fetchConversation,
+  fetchConversationMessages,
+  fetchInboxMessages,
+  fetchMentions,
+} from "./api";
 import type { InboxFilters } from "./types";
 
 /**
- * @hook useInboxConversations
- * @description Fetches paginated inbox conversations with infinite scrolling and optional filters.
- * @param filters - Filter options: projectId, provider, status, messageType, assigneeId
- * @returns TanStack infinite query result with conversation pages
+ * @hook useInboxMessages
+ * @description Paginated inbox feed of social messages with optional filters
+ *   (projectId, provider, channelId, messageType, status, assigneeId).
+ *   Returns flat messages — not aggregated by conversation.
  */
-export function useInboxConversations(filters: InboxFilters) {
+export function useInboxMessages(filters: InboxFilters) {
   return useInfiniteQuery({
-    queryKey: ["inbox", "conversations", filters],
-    queryFn: ({ pageParam }) => fetchConversations(filters, pageParam as string | null),
+    queryKey: ["inbox", "messages", filters],
+    queryFn: ({ pageParam }) => fetchInboxMessages(filters, pageParam as string | null),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     staleTime: 30_000,
@@ -30,9 +36,7 @@ export function useInboxConversations(filters: InboxFilters) {
 
 /**
  * @hook useMentions
- * @description Fetches paginated social mentions with infinite scrolling.
- * @param projectId - Optional project to filter mentions for
- * @returns TanStack infinite query result with mention conversation pages
+ * @description Paginated feed scoped to messages where messageType === MENTION.
  */
 export function useMentions(projectId?: string) {
   return useInfiniteQuery({
@@ -46,9 +50,7 @@ export function useMentions(projectId?: string) {
 
 /**
  * @hook useConversation
- * @description Fetches a single inbox conversation by ID.
- * @param id - The conversation ID, or null to disable
- * @returns TanStack Query result with conversation data
+ * @description Fetches a single conversation entity by id (header / metadata).
  */
 export function useConversation(id: string | null) {
   return useQuery({
@@ -61,14 +63,13 @@ export function useConversation(id: string | null) {
 
 /**
  * @hook useConversationMessages
- * @description Fetches paginated messages for a conversation with infinite scrolling.
- * @param conversationId - The conversation to fetch messages for, or null to disable
- * @returns TanStack infinite query result with message pages
+ * @description Paginated messages inside a single conversation thread.
  */
 export function useConversationMessages(conversationId: string | null) {
   return useInfiniteQuery({
-    queryKey: ["inbox", "messages", conversationId],
-    queryFn: ({ pageParam }) => fetchMessages(conversationId!, pageParam as string | null),
+    queryKey: ["inbox", "conversation-messages", conversationId],
+    queryFn: ({ pageParam }) =>
+      fetchConversationMessages(conversationId!, pageParam as string | null),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: !!conversationId,

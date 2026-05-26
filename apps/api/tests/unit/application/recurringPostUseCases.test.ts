@@ -6,8 +6,8 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { CreateRecurringPostUseCase } from "../../../src/application/recurring/CreateRecurringPostUseCase.js";
-import { ProjectId } from "../../../src/domain/value-objects/EntityId.js";
+import { CreateRecurringPostUseCase } from "@core/application/recurring/CreateRecurringPostUseCase.js";
+import { ProjectId } from "@core/domain/value-objects/EntityId.js";
 
 function makeRepo() {
   return {

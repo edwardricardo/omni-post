@@ -8,9 +8,9 @@ import { authenticator } from "otplib";
 import * as QRCode from "qrcode";
 import * as crypto from "crypto";
 import { ok, err, isErr, type Result } from "@shared/types";
-import { prisma } from "@infra/prisma";
 import { AuditableService } from "../services/AuditableService";
-import type { AdminUserRepositoryPort } from "../domain/repositories/AdminUserRepository.js";
+import type { AdminUserRepositoryPort } from "@core/domain/repositories/AdminUserRepository.js";
+import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 import { authLogger } from "../lib/logger.js";
 import { hashPassword, verifyPassword } from "./passwordHashing.js";
 
@@ -30,8 +30,11 @@ export class MfaService extends AuditableService {
   private readonly appName = "OmniPost Admin";
   private readonly issuer = "OmniPost";
 
-  constructor(private readonly userRepo: AdminUserRepositoryPort) {
-    super("MfaService");
+  constructor(
+    private readonly userRepo: AdminUserRepositoryPort,
+    auditLog: AuditLogRepository
+  ) {
+    super("MfaService", auditLog);
   }
 
   /**
@@ -76,14 +79,11 @@ export class MfaService extends AuditableService {
       const qrCodeUrl = await QRCode.toDataURL(otpauthUrl);
 
       // Store the secret (but don't enable MFA yet)
-      await prisma.adminUser.update({
-        where: { id: userId },
-        data: {
-          mfaSecret: secretBase32,
-          // Store backup codes as JSON array
-          // Note: In production, consider storing these in a separate table
-          passwordResetToken: JSON.stringify(hashedBackupCodes), // Temporary storage
-        },
+      await this.userRepo.update(userId, {
+        mfaSecret: secretBase32,
+        // Backup codes are stored as a JSON array in passwordResetToken until
+        // MFA is confirmed; a dedicated table would be preferable in the future.
+        passwordResetToken: JSON.stringify(hashedBackupCodes),
       });
 
       // Log MFA setup initiated
@@ -124,7 +124,7 @@ export class MfaService extends AuditableService {
     >
   > {
     try {
-      const userResult = await this.userRepo.findById(userId);
+      const userResult = await this.userRepo.findCredentialsById(userId);
 
       if (!userResult.ok) {
         return err("USER_NOT_FOUND");
@@ -174,12 +174,9 @@ export class MfaService extends AuditableService {
           );
 
           // Enable MFA and store backup codes properly
-          await prisma.adminUser.update({
-            where: { id: userId },
-            data: {
-              mfaEnabled: true,
-              passwordResetToken: JSON.stringify(newHashedCodes),
-            },
+          await this.userRepo.update(userId, {
+            mfaEnabled: true,
+            passwordResetToken: JSON.stringify(newHashedCodes),
           });
         } catch {
           // Fallback: generate new backup codes
@@ -188,12 +185,9 @@ export class MfaService extends AuditableService {
             backupCodes.map((code) => this.hashBackupCode(code))
           );
 
-          await prisma.adminUser.update({
-            where: { id: userId },
-            data: {
-              mfaEnabled: true,
-              passwordResetToken: JSON.stringify(hashedCodes),
-            },
+          await this.userRepo.update(userId, {
+            mfaEnabled: true,
+            passwordResetToken: JSON.stringify(hashedCodes),
           });
         }
       }
@@ -227,7 +221,7 @@ export class MfaService extends AuditableService {
     >
   > {
     try {
-      const userResult = await this.userRepo.findById(userId);
+      const userResult = await this.userRepo.findCredentialsById(userId);
 
       if (!userResult.ok) {
         return err("USER_NOT_FOUND");
@@ -262,11 +256,8 @@ export class MfaService extends AuditableService {
             if (isValidBackupCode) {
               // Remove used backup code
               hashedBackupCodes.splice(i, 1);
-              await prisma.adminUser.update({
-                where: { id: userId },
-                data: {
-                  passwordResetToken: JSON.stringify(hashedBackupCodes),
-                },
+              await this.userRepo.update(userId, {
+                passwordResetToken: JSON.stringify(hashedBackupCodes),
               });
 
               // Log backup code usage
@@ -330,13 +321,10 @@ export class MfaService extends AuditableService {
       const user = userResult.value;
 
       // Disable MFA, clear secret and backup codes
-      await prisma.adminUser.update({
-        where: { id: userId },
-        data: {
-          mfaEnabled: false,
-          mfaSecret: null,
-          passwordResetToken: null,
-        },
+      await this.userRepo.update(userId, {
+        mfaEnabled: false,
+        mfaSecret: null,
+        passwordResetToken: null,
       });
 
       // Log security event for audit trail
@@ -373,13 +361,10 @@ export class MfaService extends AuditableService {
       }
 
       // Disable MFA
-      await prisma.adminUser.update({
-        where: { id: userId },
-        data: {
-          mfaEnabled: false,
-          mfaSecret: null,
-          passwordResetToken: null, // Clear backup codes
-        },
+      await this.userRepo.update(userId, {
+        mfaEnabled: false,
+        mfaSecret: null,
+        passwordResetToken: null,
       });
 
       // Log MFA disabled (fetch user for accountId)
@@ -425,11 +410,8 @@ export class MfaService extends AuditableService {
       );
 
       // Update backup codes
-      await prisma.adminUser.update({
-        where: { id: userId },
-        data: {
-          passwordResetToken: JSON.stringify(hashedBackupCodes),
-        },
+      await this.userRepo.update(userId, {
+        passwordResetToken: JSON.stringify(hashedBackupCodes),
       });
 
       // Log backup codes regenerated (fetch user for accountId)
@@ -462,7 +444,7 @@ export class MfaService extends AuditableService {
     >
   > {
     try {
-      const userResult = await this.userRepo.findById(userId);
+      const userResult = await this.userRepo.findCredentialsById(userId);
 
       if (!userResult.ok) {
         return err("USER_NOT_FOUND");
@@ -514,7 +496,3 @@ export class MfaService extends AuditableService {
     return verifyPassword(hashedCode, code);
   }
 }
-
-// NOTE: No module-level singleton. MfaService is registered in the DI
-// container (TOKENS.MfaService) and receives AdminUserRepositoryPort via
-// constructor injection. See setup.ts for registration.

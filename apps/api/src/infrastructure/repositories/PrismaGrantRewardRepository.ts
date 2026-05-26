@@ -10,7 +10,7 @@ import type { PrismaClient } from "@infra/prisma";
 import type {
   GrantRewardRepository,
   ReferralRewardEmailContext,
-} from "../../application/referral/GrantReferralRewardUseCase.js";
+} from "@core/application/referral/GrantReferralRewardUseCase.js";
 
 export class PrismaGrantRewardRepository implements GrantRewardRepository {
   constructor(private readonly prisma: PrismaClient) {}

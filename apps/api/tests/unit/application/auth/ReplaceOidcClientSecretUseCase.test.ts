@@ -13,11 +13,11 @@ import { ok, err } from "@shared/types";
 import {
   ReplaceOidcClientSecretUseCase,
   type OidcHandshakeProbe,
-} from "../../../../src/application/auth/ReplaceOidcClientSecretUseCase.js";
+} from "@core/application/auth/ReplaceOidcClientSecretUseCase.js";
 import type {
   OidcConfigurationRepository,
   OidcConfigurationData,
-} from "../../../../src/domain/repositories/OidcConfigurationRepository.js";
+} from "@core/domain/repositories/OidcConfigurationRepository.js";
 
 const ACCOUNT_ID = "acct-uuid-123";
 const NEW_SECRET = "new-shiny-client-secret";

@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { ConfigureExternalNotificationUseCase } from "../../../src/application/external-notifications/ConfigureExternalNotificationUseCase.js";
+import { ConfigureExternalNotificationUseCase } from "@core/application/external-notifications/ConfigureExternalNotificationUseCase.js";
 
 function makeRepo() {
   return {

@@ -2,8 +2,10 @@
  * @file VersionCard.tsx
  * @component VersionCard
  * @description Card component representing a single template version with metadata, author info, and restore/delete actions.
+ * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@packages/ui";
 import { Button } from "@packages/ui";
 import { Badge } from "@packages/ui";
@@ -48,6 +50,7 @@ export function VersionCard({
   onRestore,
   onDelete,
 }: VersionCardProps) {
+  const t = useTranslations("templates.components.versionControl");
   return (
     <Card className={`transition-colors ${version.isActive ? "ring-2 ring-blue-500" : ""}`}>
       <CardContent className="p-4">
@@ -64,7 +67,7 @@ export function VersionCard({
                 <Badge variant={version.isActive ? "default" : "outline"}>v{version.version}</Badge>
                 {version.isActive && (
                   <Badge variant="secondary" className="text-xs">
-                    Active
+                    {t("activeBadge")}
                   </Badge>
                 )}
                 {version.branchName && version.branchName !== "main" && (
@@ -111,34 +114,34 @@ export function VersionCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuLabel>{t("actions")}</DropdownMenuLabel>
               <DropdownMenuItem>
                 <Eye className="h-3 w-3 mr-1" />
-                View Content
+                {t("viewContent")}
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <Copy className="h-3 w-3 mr-1" />
-                Copy Content
+                {t("copyContent")}
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <Download className="h-3 w-3 mr-1" />
-                Export
+                {t("export")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               {allowVersioning && !version.isActive && (
                 <>
                   <DropdownMenuItem onClick={() => onRestore(version)}>
                     <RotateCcw className="h-3 w-3 mr-1" />
-                    Restore
+                    {t("restore")}
                   </DropdownMenuItem>
                   <DropdownMenuItem>
                     <Tag className="h-3 w-3 mr-1" />
-                    Create Tag
+                    {t("createTag")}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => onDelete(version)} className="text-red-600">
                     <Trash2 className="h-3 w-3 mr-1" />
-                    Delete
+                    {t("delete")}
                   </DropdownMenuItem>
                 </>
               )}

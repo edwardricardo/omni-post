@@ -33,6 +33,13 @@ export default defineConfig({
       "@shared": path.join(root, "packages/shared/src"),
       "@ports/core": path.join(root, "packages/ports/src/index.ts"),
       "@ports": path.join(root, "packages/ports/src"),
+      // Point @core aliases at the package src DIR (not index.ts) so subpath
+      // imports resolve: @rollup/plugin-alias prefix-matches `@core/domain`
+      // (bare → dir → index.ts) AND `@core/domain/x` (→ src/x). Mirrors the
+      // `@shared` → packages/shared/src pattern. Required for the kernel shims
+      // that re-export from `@core/domain/<subpath>.js`.
+      "@core/domain": path.join(root, "packages/core/domain/src"),
+      "@core/application": path.join(root, "packages/core/application/src"),
       "@adapters/db-prisma": path.join(root, "packages/adapters/db-prisma/src/index.ts"),
       "@adapters/cache-redis": path.join(root, "packages/adapters/cache-redis/src/index.ts"),
       "@adapters/queue-bullmq": path.join(root, "packages/adapters/queue-bullmq/src/index.ts"),
@@ -86,9 +93,15 @@ export default defineConfig({
       // are imported transitively. No real connection is ever established.
       DATABASE_URL: "postgresql://test:test@localhost:5432/testdb",
     },
-    include: ["tests/unit/**/*.test.ts"],
+    include: ["tests/unit/**/*.test.ts", "tests/eval/**/*.test.ts"],
     exclude: ["**/node_modules/**"],
     pool: "forks",
+    // Cap parallel workers. The default is one per CPU (8 here), and each fork
+    // loads the full module graph — running the whole suite that wide spikes
+    // memory and OOM-collapses the memory-constrained dev box. Two workers keeps
+    // peak memory bounded while retaining some parallelism. (vitest 4 dropped
+    // `poolOptions`; `maxWorkers` is the supported cap.)
+    maxWorkers: 2,
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],

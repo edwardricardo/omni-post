@@ -12,14 +12,22 @@ import {
   ContentOptimization,
   PerformancePrediction,
   AIProviderConfig,
+  StructuredOutputSpec,
 } from "../types.js";
 import { AppError } from "../../lib/errors/AppError.js";
 import { logger } from "../../lib/logger.js";
+import {
+  analysisSpec,
+  optimizationSpec,
+  predictionSpec,
+  variationsSpec,
+} from "../structuredSchemas.js";
 
 const aiLogger = logger.child({ module: "ai", provider: "perplexity" });
 
 export class PerplexityProvider implements AIProvider {
   name = "perplexity" as const;
+  readonly supportsEmbeddings = false;
   private config: AIProviderConfig;
   private baseUrl: string;
 
@@ -92,6 +100,62 @@ export class PerplexityProvider implements AIProvider {
     }
   }
 
+  /**
+   * @method generateStructured
+   * @description Schema-validated generation via Perplexity `response_format`
+   *   JSON-schema mode. `spec.parse` is the authoritative validation gate, so
+   *   even if the model drifts the caller still gets a validated `T` or a
+   *   thrown error (mapped to Result at the port boundary) — never raw text.
+   * @param messages - Conversation messages.
+   * @param spec - Technology-free structured-output spec (name/schema/parse).
+   * @param options - Generation options (model, tokens, temperature).
+   * @returns The validated structured value `T`.
+   */
+  async generateStructured<T>(
+    messages: AIMessage[],
+    spec: StructuredOutputSpec<T>,
+    options: GenerationOptions = {}
+  ): Promise<T> {
+    try {
+      const response = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.config.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: options.model || this.config.model || "llama-3.1-sonar-small-128k-online",
+          messages: messages.map((msg) => ({ role: msg.role, content: msg.content })),
+          max_tokens: options.maxTokens || 1000,
+          temperature: options.temperature ?? 0.7,
+          response_format: {
+            type: "json_schema",
+            json_schema: { name: spec.name, schema: spec.jsonSchema },
+          },
+          stream: false,
+        }),
+        signal: AbortSignal.timeout(120_000),
+      });
+
+      if (!response.ok) {
+        throw AppError.externalService(
+          "Perplexity",
+          `Perplexity API error: ${response.status} ${response.statusText}`
+        );
+      }
+
+      const data = await response.json();
+      const content: string = data.choices?.[0]?.message?.content ?? "";
+      return spec.parse(JSON.parse(content));
+    } catch (error: unknown) {
+      aiLogger.error({ err: error }, "Perplexity structured generation failed");
+      throw AppError.externalService(
+        "Perplexity",
+        `Perplexity structured generation failed: ${error}`
+      );
+    }
+  }
+
   async analyzeContent(
     content: string,
     analysisType: "sentiment" | "tone" | "readability" | "engagement"
@@ -114,21 +178,16 @@ export class PerplexityProvider implements AIProvider {
 "${content}"`,
     };
 
-    try {
-      const response = await this.generateText([
+    return this.generateStructured(
+      [
         {
           role: "system",
-          content:
-            "You are an expert content analyst with access to current research. Always respond with valid JSON only.",
+          content: "You are an expert content analyst with access to current research.",
         },
         { role: "user", content: prompts[analysisType] },
-      ]);
-
-      return JSON.parse(response);
-    } catch (_error: unknown) {
-      aiLogger.error({ err: _error }, "Perplexity analysis failed");
-      throw AppError.externalService("Perplexity", `Perplexity analysis failed: ${_error}`);
-    }
+      ],
+      analysisSpec(analysisType)
+    );
   }
 
   async optimizeContent(
@@ -142,21 +201,17 @@ Return a JSON response with optimizedText, changes, hashtags, mentions, mediasug
 
 Content: "${content}"`;
 
-    try {
-      const response = await this.generateText([
+    return this.generateStructured(
+      [
         {
           role: "system",
           content:
-            "You are an expert social media optimizer with access to current platform data and research. Always respond with valid JSON only.",
+            "You are an expert social media optimizer with access to current platform data and research.",
         },
         { role: "user", content: prompt },
-      ]);
-
-      return JSON.parse(response);
-    } catch (_error: unknown) {
-      aiLogger.error({ err: _error }, "Perplexity optimization failed");
-      throw AppError.externalService("Perplexity", `Perplexity optimization failed: ${_error}`);
-    }
+      ],
+      optimizationSpec
+    );
   }
 
   async predictPerformance(
@@ -172,21 +227,17 @@ Return a JSON response with platform, metrics (expectedEngagement, expectedReach
 
 Content: "${content}"`;
 
-    try {
-      const response = await this.generateText([
+    return this.generateStructured(
+      [
         {
           role: "system",
           content:
-            "You are an expert social media performance analyst with access to current platform data and trends. Always respond with valid JSON only.",
+            "You are an expert social media performance analyst with access to current platform data and trends.",
         },
         { role: "user", content: prompt },
-      ]);
-
-      return JSON.parse(response);
-    } catch (_error: unknown) {
-      aiLogger.error({ err: _error }, "Perplexity prediction failed");
-      throw AppError.externalService("Perplexity", `Perplexity prediction failed: ${_error}`);
-    }
+      ],
+      predictionSpec
+    );
   }
 
   async generateVariations(
@@ -200,23 +251,15 @@ Return as a JSON array of exactly ${count} strings.
 
 Original content: "${content}"`;
 
-    try {
-      const response = await this.generateText([
+    return this.generateStructured(
+      [
         {
           role: "system",
-          content:
-            "You are an expert content creator with access to current research and trends. Always respond with a valid JSON array of strings only.",
+          content: "You are an expert content creator with access to current research and trends.",
         },
         { role: "user", content: prompt },
-      ]);
-
-      return JSON.parse(response);
-    } catch (_error: unknown) {
-      aiLogger.error({ err: _error }, "Perplexity variation generation failed");
-      throw AppError.externalService(
-        "Perplexity",
-        `Perplexity variation generation failed: ${_error}`
-      );
-    }
+      ],
+      variationsSpec()
+    );
   }
 }

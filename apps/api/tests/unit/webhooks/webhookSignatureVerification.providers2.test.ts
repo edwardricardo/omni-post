@@ -3,19 +3,13 @@
  * @description Tests for Webhook signature verification — TikTokWebhookProcessor
  * @layer infrastructure
  */
-import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
+import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";
 import { createHmac } from "node:crypto";
 
-vi.mock("@infra/prisma", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@infra/prisma")>();
-  return {
-    ...actual,
-    prisma: {},
-  };
-});
 import { TikTokWebhookProcessor } from "../../../src/webhooks/processors/tiktokWebhookProcessor.js";
 import { XWebhookProcessor } from "../../../src/webhooks/processors/xWebhookProcessor.js";
 import { signPayload } from "./webhookSignatureVerification.test-helpers.js";
+import { makeWebhookPrismaFake } from "../helpers/webhookPrismaFake.js";
 
 describe("Webhook signature verification — TikTokWebhookProcessor", () => {
   const secret = "tiktok-test-secret-tok";
@@ -31,7 +25,7 @@ describe("Webhook signature verification — TikTokWebhookProcessor", () => {
   });
 
   beforeEach(() => {
-    processor = new TikTokWebhookProcessor();
+    processor = new TikTokWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("scenario 1: valid payload with correct sha256-hex signature → accepted", () => {
@@ -111,7 +105,7 @@ describe("Webhook signature verification — XWebhookProcessor", () => {
   });
 
   beforeEach(() => {
-    processor = new XWebhookProcessor();
+    processor = new XWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   function signX_base64(rawBody: string, s: string): string {

@@ -10,8 +10,8 @@ import assert from "node:assert/strict";
 import {
   GetSecretRotationStatusQuery,
   type SecretRotationLogReadRepository,
-} from "../../../../src/application/security/GetSecretRotationStatusQuery.js";
-import { SECRETS_CATALOG } from "../../../../src/domain/security/secretCatalog.js";
+} from "@core/application/security/GetSecretRotationStatusQuery.js";
+import { SECRETS_CATALOG } from "@core/domain/security/secretCatalog.js";
 
 const FIXED_NOW = new Date("2026-05-06T00:00:00.000Z");
 const MS_PER_DAY = 24 * 60 * 60 * 1000;

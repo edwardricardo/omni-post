@@ -10,6 +10,7 @@
 
 import { useState, useCallback } from "react";
 import { Sparkles, Download, Copy, CheckCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useGenerateImage, useGeneratedImages } from "@/hooks/api/useAIImages";
 import type { ImageSize, ImageQuality, ImageStyle } from "@/hooks/api/useAIImages";
 import { useProject } from "@/providers/ProjectProvider";
@@ -18,21 +19,21 @@ import { useProject } from "@/providers/ProjectProvider";
 // Constants
 // ---------------------------------------------------------------------------
 
-const SIZES: { label: string; value: ImageSize }[] = [
-  { label: "Square (1024×1024)", value: "1024x1024" },
-  { label: "Portrait (1024×1792)", value: "1024x1792" },
-  { label: "Landscape (1792×1024)", value: "1792x1024" },
-];
+const SIZES = [
+  { labelKey: "imageGenerator.sizeSquare", dimensions: "1024×1024", value: "1024x1024" },
+  { labelKey: "imageGenerator.sizePortrait", dimensions: "1024×1792", value: "1024x1792" },
+  { labelKey: "imageGenerator.sizeLandscape", dimensions: "1792×1024", value: "1792x1024" },
+] as const satisfies ReadonlyArray<{ labelKey: string; dimensions: string; value: ImageSize }>;
 
-const QUALITIES: { label: string; value: ImageQuality }[] = [
-  { label: "Standard", value: "standard" },
-  { label: "HD", value: "hd" },
-];
+const QUALITIES = [
+  { labelKey: "imageGenerator.qualityStandard", value: "standard" },
+  { labelKey: "imageGenerator.qualityHd", value: "hd" },
+] as const satisfies ReadonlyArray<{ labelKey: string; value: ImageQuality }>;
 
-const STYLES: { label: string; value: ImageStyle }[] = [
-  { label: "Natural", value: "natural" },
-  { label: "Vivid", value: "vivid" },
-];
+const STYLES = [
+  { labelKey: "imageGenerator.styleNatural", value: "natural" },
+  { labelKey: "imageGenerator.styleVivid", value: "vivid" },
+] as const satisfies ReadonlyArray<{ labelKey: string; value: ImageStyle }>;
 
 // ---------------------------------------------------------------------------
 // Component
@@ -45,6 +46,7 @@ const STYLES: { label: string; value: ImageStyle }[] = [
  */
 
 export function AIImageGenerator() {
+  const t = useTranslations("ai.components");
   const { projectId } = useProject();
 
   const [prompt, setPrompt] = useState("");
@@ -73,19 +75,21 @@ export function AIImageGenerator() {
     <div className="space-y-8">
       {/* Form */}
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="text-base font-semibold text-gray-900 mb-4">Generate Image</h2>
+        <h2 className="text-base font-semibold text-gray-900 mb-4">
+          {t("imageGenerator.generateTitle")}
+        </h2>
 
         <div className="space-y-4">
           {/* Prompt */}
           <div>
             <label htmlFor="ai-prompt" className="block text-sm font-medium text-gray-700 mb-1">
-              Prompt
+              {t("imageGenerator.promptLabel")}
             </label>
             <textarea
               id="ai-prompt"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Describe the image you want to generate (min. 10 characters)…"
+              placeholder={t("imageGenerator.promptPlaceholder")}
               rows={3}
               className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
@@ -96,7 +100,7 @@ export function AIImageGenerator() {
             {/* Size */}
             <div className="flex-1 min-w-[180px]">
               <label htmlFor="ai-size" className="block text-xs font-medium text-gray-600 mb-1">
-                Size
+                {t("imageGenerator.sizeLabel")}
               </label>
               <select
                 id="ai-size"
@@ -106,7 +110,7 @@ export function AIImageGenerator() {
               >
                 {SIZES.map((s) => (
                   <option key={s.value} value={s.value}>
-                    {s.label}
+                    {t(s.labelKey, { dimensions: s.dimensions })}
                   </option>
                 ))}
               </select>
@@ -115,7 +119,7 @@ export function AIImageGenerator() {
             {/* Quality */}
             <div className="flex-1 min-w-[140px]">
               <label htmlFor="ai-quality" className="block text-xs font-medium text-gray-600 mb-1">
-                Quality
+                {t("imageGenerator.qualityLabel")}
               </label>
               <select
                 id="ai-quality"
@@ -125,7 +129,7 @@ export function AIImageGenerator() {
               >
                 {QUALITIES.map((q) => (
                   <option key={q.value} value={q.value}>
-                    {q.label}
+                    {t(q.labelKey)}
                   </option>
                 ))}
               </select>
@@ -134,7 +138,7 @@ export function AIImageGenerator() {
             {/* Style */}
             <div className="flex-1 min-w-[140px]">
               <label htmlFor="ai-style" className="block text-xs font-medium text-gray-600 mb-1">
-                Style
+                {t("imageGenerator.styleLabel")}
               </label>
               <select
                 id="ai-style"
@@ -144,7 +148,7 @@ export function AIImageGenerator() {
               >
                 {STYLES.map((st) => (
                   <option key={st.value} value={st.value}>
-                    {st.label}
+                    {t(st.labelKey)}
                   </option>
                 ))}
               </select>
@@ -160,12 +164,12 @@ export function AIImageGenerator() {
             {generateMutation.isPending ? (
               <>
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                Generating image…
+                {t("imageGenerator.generatingImage")}
               </>
             ) : (
               <>
                 <Sparkles className="h-4 w-4" aria-hidden="true" />
-                Generate
+                {t("imageGenerator.generate")}
               </>
             )}
           </button>
@@ -181,7 +185,7 @@ export function AIImageGenerator() {
         {latestImage && (
           <div className="mt-6 space-y-3">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-              Generated Image
+              {t("imageGenerator.generatedImage")}
             </p>
             <img
               src={latestImage.url}
@@ -198,7 +202,9 @@ export function AIImageGenerator() {
                 ) : (
                   <Copy className="h-3.5 w-3.5" />
                 )}
-                {copied === latestImage.url ? "Copied!" : "Copy URL"}
+                {copied === latestImage.url
+                  ? t("imageGenerator.copied")
+                  : t("imageGenerator.copyUrl")}
               </button>
               <a
                 href={latestImage.url}
@@ -206,7 +212,7 @@ export function AIImageGenerator() {
                 className="flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
               >
                 <Download className="h-3.5 w-3.5" />
-                Download
+                {t("imageGenerator.download")}
               </a>
             </div>
           </div>
@@ -215,7 +221,9 @@ export function AIImageGenerator() {
 
       {/* Gallery */}
       <div>
-        <h2 className="text-base font-semibold text-gray-900 mb-4">Generated Images</h2>
+        <h2 className="text-base font-semibold text-gray-900 mb-4">
+          {t("imageGenerator.galleryTitle")}
+        </h2>
 
         {galleryLoading && (
           <div className="grid grid-cols-3 gap-3">
@@ -227,8 +235,8 @@ export function AIImageGenerator() {
 
         {!galleryLoading && gallery.length === 0 && (
           <div className="rounded-xl border border-dashed border-gray-300 py-12 text-center">
-            <p className="text-sm text-gray-500">No images generated yet.</p>
-            <p className="text-xs text-gray-400 mt-1">Try the form above!</p>
+            <p className="text-sm text-gray-500">{t("imageGenerator.emptyGallery")}</p>
+            <p className="text-xs text-gray-400 mt-1">{t("imageGenerator.emptyGalleryHint")}</p>
           </div>
         )}
 
@@ -248,7 +256,7 @@ export function AIImageGenerator() {
                   <button
                     onClick={() => void handleCopy(img.url)}
                     className="rounded-md bg-white/90 p-1.5 text-gray-800 hover:bg-white"
-                    aria-label="Copy URL"
+                    aria-label={t("imageGenerator.copyUrl")}
                   >
                     {copied === img.url ? (
                       <CheckCircle className="h-4 w-4 text-green-500" />
@@ -260,7 +268,7 @@ export function AIImageGenerator() {
                     href={img.url}
                     download
                     className="rounded-md bg-white/90 p-1.5 text-gray-800 hover:bg-white"
-                    aria-label="Download"
+                    aria-label={t("imageGenerator.download")}
                   >
                     <Download className="h-4 w-4" />
                   </a>

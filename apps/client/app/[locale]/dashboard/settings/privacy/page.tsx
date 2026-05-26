@@ -1,0 +1,271 @@
+/**
+ * @file page.tsx
+ * @component PrivacyPage
+ * @description Privacy rights page at /dashboard/settings/privacy.
+ *              Allows users to submit Data Subject Access Requests (DSAR)
+ *              for data export, access, or deletion under GDPR, LGPD, CCPA,
+ *              and PIPEDA regulations.
+ * @layer infrastructure
+ */
+
+"use client";
+
+import { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
+import { useAuth } from "@/lib/auth/authContext";
+import { useSubmitDsarRequest } from "@/hooks/api/usePrivacy";
+import type { DsarSubmitResult } from "@/hooks/api/usePrivacy";
+import { Button } from "@packages/ui";
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const REQUEST_TYPES = ["ACCESS", "EXPORT", "DELETION"] as const;
+
+type RequestType = (typeof REQUEST_TYPES)[number];
+
+const JURISDICTIONS = [
+  { value: "GDPR", days: 30 },
+  { value: "LGPD", days: 15 },
+  { value: "CCPA", days: 45 },
+  { value: "PIPEDA", days: 30 },
+  { value: "OTHER", days: 30 },
+] as const;
+
+type Jurisdiction = (typeof JURISDICTIONS)[number]["value"];
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function getDeadlineDays(jurisdiction: Jurisdiction): number {
+  const match = JURISDICTIONS.find((j) => j.value === jurisdiction);
+  return match?.days ?? 30;
+}
+
+// ---------------------------------------------------------------------------
+// Confirmation card shown after successful submission
+// ---------------------------------------------------------------------------
+
+function ConfirmationCard({
+  result,
+  email,
+  jurisdiction,
+  onReset,
+}: {
+  result: DsarSubmitResult;
+  email: string;
+  jurisdiction: Jurisdiction;
+  onReset: () => void;
+}) {
+  const t = useTranslations("settings");
+  const days = getDeadlineDays(jurisdiction);
+
+  return (
+    <div className="rounded-lg border-2 border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-950/30 p-6">
+      <h2 className="text-lg font-semibold text-foreground">{t("privacy.requestReceived")}</h2>
+      <div className="mt-4 space-y-2 text-sm text-foreground">
+        <p>
+          {t.rich("privacy.referenceId", {
+            id: result.id,
+            label: (chunks) => <span className="font-medium">{chunks}</span>,
+          })}
+        </p>
+        <p>
+          {t.rich("privacy.respondWithin", {
+            email,
+            days,
+            strong: (chunks) => <span className="font-medium">{chunks}</span>,
+          })}
+        </p>
+      </div>
+      <div className="mt-4 rounded-md bg-muted p-3 text-xs text-muted-foreground">
+        {t("privacy.keepReferenceId")}
+      </div>
+      <Button variant="outline" size="sm" className="mt-4" onClick={onReset}>
+        {t("privacy.submitAnother")}
+      </Button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main page component
+// ---------------------------------------------------------------------------
+
+export default function PrivacyPage() {
+  const t = useTranslations("settings");
+  const { user } = useAuth();
+  const submitDsar = useSubmitDsarRequest();
+
+  // Form state
+  const [requestType, setRequestType] = useState<RequestType>("ACCESS");
+  const [email, setEmail] = useState(user?.email ?? "");
+  const [name, setName] = useState(user?.name ?? "");
+  const [jurisdiction, setJurisdiction] = useState<Jurisdiction>("GDPR");
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // Success state
+  const [submittedResult, setSubmittedResult] = useState<DsarSubmitResult | null>(null);
+  const [submittedEmail, setSubmittedEmail] = useState("");
+  const [submittedJurisdiction, setSubmittedJurisdiction] = useState<Jurisdiction>("GDPR");
+
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      setFormError(null);
+
+      const trimmedEmail = email.trim();
+      if (!trimmedEmail) {
+        setFormError(t("privacy.errorEmailRequired"));
+        return;
+      }
+
+      submitDsar.mutate(
+        {
+          email: trimmedEmail,
+          type: requestType,
+          jurisdiction,
+          ...(name.trim() && { name: name.trim() }),
+        },
+        {
+          onSuccess: (result) => {
+            setSubmittedResult(result);
+            setSubmittedEmail(trimmedEmail);
+            setSubmittedJurisdiction(jurisdiction);
+          },
+          onError: (error) => {
+            setFormError(error instanceof Error ? error.message : t("privacy.errorRequestFailed"));
+          },
+        }
+      );
+    },
+    [email, name, requestType, jurisdiction, submitDsar, t]
+  );
+
+  const handleReset = useCallback(() => {
+    setSubmittedResult(null);
+    setSubmittedEmail("");
+    setRequestType("ACCESS");
+    setFormError(null);
+  }, []);
+
+  // After successful submission, show the confirmation card
+  if (submittedResult) {
+    return (
+      <div className="max-w-2xl">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-foreground">{t("privacy.title")}</h1>
+        </div>
+        <ConfirmationCard
+          result={submittedResult}
+          email={submittedEmail}
+          jurisdiction={submittedJurisdiction}
+          onReset={handleReset}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-2xl">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-foreground">{t("privacy.title")}</h1>
+        <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{t("privacy.intro")}</p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Request type */}
+        <fieldset className="border-0 p-0 m-0 min-w-0 space-y-3">
+          <legend className="text-sm font-medium text-foreground">
+            {t("privacy.requestTypeLegend")}
+          </legend>
+          {REQUEST_TYPES.map((rt) => (
+            <label key={rt} className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="radio"
+                name="requestType"
+                value={rt}
+                checked={requestType === rt}
+                onChange={() => setRequestType(rt)}
+                className="mt-0.5"
+              />
+              <span className="text-sm text-foreground">{t(`privacy.requestType.${rt}`)}</span>
+            </label>
+          ))}
+        </fieldset>
+
+        {/* Email */}
+        <div className="space-y-1.5">
+          <label htmlFor="dsar-email" className="text-sm font-medium text-foreground">
+            {t("privacy.emailLabel")}
+          </label>
+          <input
+            id="dsar-email"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder={t("privacy.emailPlaceholder")}
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </div>
+
+        {/* Name (optional) */}
+        <div className="space-y-1.5">
+          <label htmlFor="dsar-name" className="text-sm font-medium text-foreground">
+            {t("privacy.nameLabel")}{" "}
+            <span className="text-muted-foreground">{t("privacy.optional")}</span>
+          </label>
+          <input
+            id="dsar-name"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t("privacy.namePlaceholder")}
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </div>
+
+        {/* Jurisdiction */}
+        <div className="space-y-1.5">
+          <label htmlFor="dsar-jurisdiction" className="text-sm font-medium text-foreground">
+            {t("privacy.regionLabel")}
+          </label>
+          <select
+            id="dsar-jurisdiction"
+            value={jurisdiction}
+            onChange={(e) => setJurisdiction(e.target.value as Jurisdiction)}
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            {JURISDICTIONS.map((j) => (
+              <option key={j.value} value={j.value}>
+                {t(`privacy.jurisdiction.${j.value}`, { days: j.days })}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Error message */}
+        {formError && (
+          <div className="rounded-md border border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-950/30 p-3 text-sm text-red-800 dark:text-red-200">
+            {formError}
+          </div>
+        )}
+
+        {/* Deletion warning */}
+        {requestType === "DELETION" && (
+          <div className="rounded-md bg-muted p-3 text-xs text-muted-foreground">
+            {t("privacy.deletionWarning")}
+          </div>
+        )}
+
+        {/* Submit */}
+        <Button type="submit" disabled={submitDsar.isPending}>
+          {submitDsar.isPending ? t("privacy.submitting") : t("privacy.submit")}
+        </Button>
+      </form>
+    </div>
+  );
+}

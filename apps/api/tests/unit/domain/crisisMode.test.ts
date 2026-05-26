@@ -10,8 +10,8 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { AccountId } from "../../../src/domain/index.js";
-import { Project } from "../../../src/domain/entities/Project.js";
+import { AccountId } from "@core/domain/index.js";
+import { Project } from "@core/domain/entities/Project.js";
 
 describe("Crisis Mode Domain", () => {
   const accountId = AccountId.generate();

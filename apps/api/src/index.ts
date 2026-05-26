@@ -36,6 +36,8 @@ import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import { closeDatabaseConnections, prisma, verifyDatabaseAuth } from "@infra/prisma";
 import type { QueuePortRegistry } from "@ports/core";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+import type { RealtimeAnalyticsService } from "./analytics/realtimeAnalytics.js";
+import type { AnalyticsStreamBroadcaster } from "./services/AnalyticsStreamBroadcaster.js";
 import client from "prom-client";
 import { createStorageAdapter } from "./infrastructure/storage/createStorageAdapter.js";
 import { RateLimit, RateLimitConfigs, EXPENSIVE_ENDPOINT_RULES } from "./security/rateLimit.js";
@@ -46,8 +48,30 @@ import { ApiMetrics } from "./metrics/apiMetrics.js";
 import { createMetricsMiddleware } from "./middleware/metricsMiddleware.js";
 import { createCircuitBreakerMonitor } from "@monitoring/circuit-breaker";
 import { createDeadLetterQueue } from "@adapters/dead-letter-queue";
-import { QUEUE_NAMES } from "@adapters/queue-bullmq";
-import type { CachePort } from "@ports/core";
+import { QUEUE_NAMES, createBullMQConsumerAdapter } from "@adapters/queue-bullmq";
+import type { CachePort, AgentOrchestrationPort } from "@ports/core";
+import { processRepurposeGenerateJob } from "./ai/consumers/repurposeGenerateHandler.js";
+import { processRepurposeDetectJob } from "./ai/consumers/repurposeDetectHandler.js";
+import { processTriageInboxJob } from "./ai/consumers/triageInboxHandler.js";
+import { processTrendRadarJob } from "./ai/consumers/trendRadarHandler.js";
+import type { DetectTrendsUseCase } from "@core/application/trends/DetectTrendsUseCase.js";
+import type { DispatchDetectTrendsUseCase } from "@core/application/trends/DispatchDetectTrendsUseCase.js";
+import {
+  TriageDispatchEventHandler,
+  TRIAGE_HANDLED_EVENT_TYPES,
+} from "./inbox/handlers/TriageDispatchEventHandler.js";
+import type { TriageInboxMessageUseCase } from "@core/application/inbox/TriageInboxMessageUseCase.js";
+import { PrismaRepurposeVariantAdapter } from "./infrastructure/repositories/PrismaRepurposeVariantAdapter.js";
+import type { DetectRepurposeCandidatesUseCase } from "@core/application/ai/DetectRepurposeCandidatesUseCase.js";
+import { startBulkScheduleWorker } from "./bulk-scheduling/bulkScheduleWorker.js";
+import type { ProcessBulkScheduleRowUseCase } from "@core/application/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
+import type { FailBulkScheduleRowUseCase } from "@core/application/bulk-scheduling/FailBulkScheduleRowUseCase.js";
+import { startAnalyticsIngestConsumer } from "./analytics/analyticsIngestConsumer.js";
+import { startInboxSyncConsumer } from "./inbox/inboxSyncConsumer.js";
+import type { IngestChannelAnalyticsUseCase } from "@core/application/analytics/IngestChannelAnalyticsUseCase.js";
+import type { SyncProviderCommentsUseCase } from "@core/application/inbox/SyncProviderCommentsUseCase.js";
+import type { UpdateChannelAuthStateUseCase } from "@core/application/channels/UpdateChannelAuthStateUseCase.js";
+import type { DispatchDetectRepurposeUseCase } from "@core/application/ai/DispatchDetectRepurposeUseCase.js";
 import type { RedisCacheManager } from "@adapters/cache-redis";
 import fastifyCookie from "@fastify/cookie";
 import { createTenantHealthMonitor } from "@monitoring/health-checks";
@@ -78,7 +102,7 @@ import { setupContainer } from "./infrastructure/container/setup.js";
 import { TOKENS } from "./infrastructure/container/types.js";
 import type { OutboxRelay } from "./infrastructure/outbox/OutboxRelay.js";
 import type { OutboxCleaner } from "./infrastructure/outbox/OutboxCleaner.js";
-import type { EventDispatcher } from "./domain/events/DomainEvent.js";
+import type { EventDispatcher } from "@core/domain/events/DomainEvent.js";
 import {
   IntegrationEventDeliveryHandler,
   HANDLED_EVENT_TYPES as INTEGRATION_HANDLED_EVENT_TYPES,
@@ -93,6 +117,8 @@ import { onboardingRoutes } from "./onboarding/onboardingRoutes.js";
 import { announcementRoutes } from "./announcements/announcementRoutes.js";
 import { commentRoutes } from "./comments/commentRoutes.js";
 import { inboxRoutes } from "./inbox/inboxRoutes.js";
+import { listeningRoutes } from "./listening/listeningRoutes.js";
+import { bulkScheduleRoutes } from "./bulk-scheduling/bulkScheduleRoutes.js";
 import { conversationNoteRoutes } from "./inbox/conversationNoteRoutes.js";
 import { campaignRoutes } from "./campaigns/campaignRoutes.js";
 import { utmRoutes } from "./utm/utmRoutes.js";
@@ -190,7 +216,7 @@ async function createApp(): Promise<FastifyInstance> {
 
   // Expose raw JSON spec
   typedApp.get("/docs/json", async (_request, reply) => {
-    return reply.send(typedApp.swagger());
+    return reply.send(typedApp.swagger?.() ?? {});
   });
 
   // Initialize Redis for advanced rate limiting
@@ -231,8 +257,12 @@ async function createApp(): Promise<FastifyInstance> {
     excludeRoutes: ["/health", "/metrics"],
   });
 
-  // Initialize cookie support
-  await typedApp.register(fastifyCookie, {
+  // Initialize cookie support. The plugin uses CommonJS-style export
+  // (`export = fastifyCookie`) and the default import surfaces as the
+  // `FastifyCookie` namespace, which does not satisfy
+  // `FastifyPluginCallback` directly under strict type checks.
+  type CookiePlugin = Parameters<typeof typedApp.register>[0];
+  await typedApp.register(fastifyCookie as unknown as CookiePlugin, {
     secret: env.COOKIE_SECRET,
   });
 
@@ -481,7 +511,10 @@ async function createApp(): Promise<FastifyInstance> {
   await typedApp.register(settingsRoutes);
   await typedApp.register(outboxAdminRoutes);
   await typedApp.register(analyticsRoutes);
-  await typedApp.register(aiRoutes);
+  // aiRoutes defines its paths relative ("/generate", "/predict-timing", …) and
+  // every client consumer calls them under "/ai/*" — register with the /ai prefix
+  // so the routes are actually reachable (without it the whole AI surface 404s).
+  await typedApp.register(aiRoutes, { prefix: "/ai" });
 
   // Register account, project, post, and channel routes
   const { accountRoutes } = await import("./accounts/accountRoutes.js");
@@ -504,6 +537,8 @@ async function createApp(): Promise<FastifyInstance> {
   await typedApp.register(approvalWorkflowRoutes);
   await typedApp.register(commentRoutes);
   await typedApp.register(inboxRoutes);
+  await typedApp.register(listeningRoutes);
+  await typedApp.register(bulkScheduleRoutes);
   await typedApp.register(conversationNoteRoutes);
   await typedApp.register(campaignRoutes);
   await typedApp.register(utmRoutes);
@@ -541,6 +576,8 @@ async function createApp(): Promise<FastifyInstance> {
   const { apiKeyAdminRoutes } = await import("./admin/apiKeyAdminRoutes.js");
   const { massReauthRoutes } = await import("./admin/massReauthRoutes.js");
   const { trendRoutes } = await import("./trends/trendRoutes.js");
+  const { trendRadarRoutes } = await import("./trends/trendRadarRoutes.js");
+  const { aiLocalizedRoutes } = await import("./ai/aiLocalizedRoutes.js");
   const { registerWebhookDashboardRoutes } = await import("./webhooks/webhookDashboardRoutes.js");
   await typedApp.register(templateRoutes);
   await typedApp.register(contentRoutes);
@@ -552,6 +589,8 @@ async function createApp(): Promise<FastifyInstance> {
   await typedApp.register(apiKeyAdminRoutes);
   await typedApp.register(massReauthRoutes);
   await typedApp.register(trendRoutes);
+  await typedApp.register(trendRadarRoutes);
+  await typedApp.register(aiLocalizedRoutes);
   await registerWebhookDashboardRoutes(typedApp);
 
   // Register cache monitoring routes
@@ -561,7 +600,7 @@ async function createApp(): Promise<FastifyInstance> {
   // Register OAuth routes
   await registerOAuthRoutes(
     typedApp,
-    typedApp.container!.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
+    typedApp.container!.resolve<CachePort>(TOKENS.CachePort),
     typedApp.container!.resolve(TOKENS.ChannelRepository)
   );
 
@@ -713,6 +752,16 @@ async function start() {
       eventDispatcher.register(eventType, integrationDeliveryHandler);
     }
 
+    // Bridge: SocialMessageReceived domain event → TRIAGE_INBOX BullMQ job.
+    // The handler reads {messageId, accountId} from the outbox-reconstructed
+    // payload and enqueues triage classification. Idempotent via dedupeKey.
+    const triageDispatchHandler = app.container!.resolve<TriageDispatchEventHandler>(
+      TOKENS.TriageDispatchEventHandler
+    );
+    for (const eventType of TRIAGE_HANDLED_EVENT_TYPES) {
+      eventDispatcher.register(eventType, triageDispatchHandler);
+    }
+
     outboxRelay.start();
     outboxCleaner.start();
 
@@ -768,12 +817,32 @@ async function start() {
       24 * 60 * 60 * 1000
     );
 
+    // Auto-renewal of expired trials — daily. Canonical SoT: the api
+    // SubscriptionService (the duplicate apps/workers autoRenewalWorker was
+    // removed — FN-004 dual-write/double-charge risk).
+    const { SubscriptionService: _SubscriptionServiceType } =
+      await import("./billing/subscription/SubscriptionService.js");
+    const subscriptionSvc = app.container!.resolve<InstanceType<typeof _SubscriptionServiceType>>(
+      TOKENS.SubscriptionService
+    );
+    scheduler.register(
+      "auto-renewal",
+      async () => {
+        const result = await subscriptionSvc.processAutoRenewals();
+        if (!result.ok) {
+          logger.warn({ err: result.error }, "Auto-renewal processing failed");
+        }
+      },
+      24 * 60 * 60 * 1000
+    );
+
     // Inbox sync coordinator — every 30 minutes.
-    // Enqueues one inbox-sync job per active channel into BullMQ; the
-    // workers' bootstrap consumes from QUEUE_NAMES.INBOX_SYNC and ingests
-    // comments / mentions into SocialMessage. (Audit finding FN-015.)
+    // Enqueues one inbox-sync job per active channel into BullMQ; the in-process
+    // inbox-sync consumer (apps/api, below) consumes QUEUE_NAMES.INBOX_SYNC and
+    // ingests comments into SocialMessage via SyncProviderCommentsUseCase.
+    // (Audit finding FN-015.)
     const { DispatchInboxSyncUseCase: _DispatchInboxSyncType } =
-      await import("./application/inbox/DispatchInboxSyncUseCase.js");
+      await import("@core/application/inbox/DispatchInboxSyncUseCase.js");
     const dispatchInboxSync = app.container!.resolve<InstanceType<typeof _DispatchInboxSyncType>>(
       TOKENS.DispatchInboxSyncUseCase
     );
@@ -788,12 +857,43 @@ async function start() {
       30 * 60 * 1000
     );
 
+    // Mention search coordinator — frequent recent-window pass every 30 minutes,
+    // plus a wide-window reconciliation every 12 hours as a safety net for
+    // mentions missed by webhooks or transient search failures. Both enqueue
+    // jobs into QUEUE_NAMES.MENTION_INGEST consumed by the workers' bootstrap.
+    const { DispatchMentionSearchUseCase: _DispatchMentionSearchType } =
+      await import("@core/application/listening/DispatchMentionSearchUseCase.js");
+    const dispatchMentionSearch = app.container!.resolve<
+      InstanceType<typeof _DispatchMentionSearchType>
+    >(TOKENS.DispatchMentionSearchUseCase);
+    scheduler.register(
+      "mention-search-dispatch",
+      async () => {
+        const result = await dispatchMentionSearch.execute({});
+        if (!result.ok) {
+          logger.warn({ err: result.error }, "Mention search dispatch failed");
+        }
+      },
+      30 * 60 * 1000
+    );
+    scheduler.register(
+      "mention-reconcile-dispatch",
+      async () => {
+        const result = await dispatchMentionSearch.execute({ lookbackMs: 48 * 60 * 60 * 1000 });
+        if (!result.ok) {
+          logger.warn({ err: result.error }, "Mention reconcile dispatch failed");
+        }
+      },
+      12 * 60 * 60 * 1000
+    );
+
     // Analytics ingestion coordinator — every 6 hours.
     // Enqueues one analytics-ingest job per active channel into BullMQ; the
-    // workers' bootstrap consumes from QUEUE_NAMES.ANALYTICS_AGGREGATION and
-    // upserts metrics into AnalyticsDailySummary. (Audit finding FN-016.)
+    // in-process analytics consumer (apps/api, below) consumes
+    // QUEUE_NAMES.ANALYTICS_AGGREGATION and upserts metrics into
+    // AnalyticsDailySummary via IngestChannelAnalyticsUseCase. (Audit finding FN-016.)
     const { DispatchAnalyticsIngestionUseCase: _DispatchAnalyticsType } =
-      await import("./application/analytics/DispatchAnalyticsIngestionUseCase.js");
+      await import("@core/application/analytics/DispatchAnalyticsIngestionUseCase.js");
     const dispatchAnalyticsIngestion = app.container!.resolve<
       InstanceType<typeof _DispatchAnalyticsType>
     >(TOKENS.DispatchAnalyticsIngestionUseCase);
@@ -808,6 +908,147 @@ async function start() {
       6 * 60 * 60 * 1000
     );
 
+    // Repurpose detection coordinator — daily. Enqueues one
+    // DETECT_REPURPOSE job per account with active channels.
+    const dispatchDetectRepurpose = app.container!.resolve<DispatchDetectRepurposeUseCase>(
+      TOKENS.DispatchDetectRepurposeUseCase
+    );
+    scheduler.register(
+      "detect-repurpose-dispatch",
+      async () => {
+        const result = await dispatchDetectRepurpose.execute({});
+        if (!result.ok) {
+          logger.warn({ err: result.error }, "Detect repurpose dispatch failed");
+        }
+      },
+      24 * 60 * 60 * 1000
+    );
+
+    const dispatchDetectTrends = app.container!.resolve<DispatchDetectTrendsUseCase>(
+      TOKENS.DispatchDetectTrendsUseCase
+    );
+    scheduler.register(
+      "trend-radar-dispatch",
+      async () => {
+        const result = await dispatchDetectTrends.execute({});
+        if (!result.ok) {
+          logger.warn({ err: result.error }, "Trend radar dispatch failed");
+        }
+      },
+      24 * 60 * 60 * 1000
+    );
+
+    // GENERATE_REPURPOSE consumer — runs the plan→act→reflect agent graph
+    // per target platform and persists each draft as a pending repurpose
+    // variant. Hosted here because the agent stack lives in this process.
+    const repurposeAgent = app.container!.resolve<AgentOrchestrationPort>(
+      TOKENS.AgentOrchestrationPort
+    );
+    const repurposeVariantPort = new PrismaRepurposeVariantAdapter(
+      app.container!.resolve(TOKENS.PrismaClient)
+    );
+    const repurposeConsumer = createBullMQConsumerAdapter({
+      queueName: QUEUE_NAMES.GENERATE_REPURPOSE,
+    });
+    await repurposeConsumer.subscribe(async (job) => {
+      await processRepurposeGenerateJob(
+        { agent: repurposeAgent, variants: repurposeVariantPort, logger },
+        job.payload as { proposalId: string }
+      );
+    });
+    logger.info("GENERATE_REPURPOSE consumer started");
+
+    // DETECT_REPURPOSE consumer — scans an account's high performers and
+    // proposes repurpose candidates; each proposal enqueues a GENERATE job.
+    const detectRepurposeUseCase = app.container!.resolve<DetectRepurposeCandidatesUseCase>(
+      TOKENS.DetectRepurposeCandidatesUseCase
+    );
+    const detectRepurposeConsumer = createBullMQConsumerAdapter({
+      queueName: QUEUE_NAMES.DETECT_REPURPOSE,
+    });
+    await detectRepurposeConsumer.subscribe(async (job) => {
+      await processRepurposeDetectJob(
+        { detect: detectRepurposeUseCase, logger },
+        job.payload as { accountId: string }
+      );
+    });
+    logger.info("DETECT_REPURPOSE consumer started");
+
+    // TRIAGE_INBOX consumer — classifies an inbound social message via
+    // schema-validated structured output (priority + sentiment + 3 replies)
+    // and persists the result on the SocialMessage row.
+    const triageInboxUseCase = app.container!.resolve<TriageInboxMessageUseCase>(
+      TOKENS.TriageInboxMessageUseCase
+    );
+    const triageInboxConsumer = createBullMQConsumerAdapter({
+      queueName: QUEUE_NAMES.TRIAGE_INBOX,
+    });
+    await triageInboxConsumer.subscribe(async (job) => {
+      await processTriageInboxJob(
+        { triage: triageInboxUseCase, logger },
+        job.payload as { messageId: string; accountId: string }
+      );
+    });
+    logger.info("TRIAGE_INBOX consumer started");
+
+    // TREND_RADAR consumer — runs the multi-source trend-detection pipeline
+    // (Perplexity web + own analytics + inbox mentions) and persists scored
+    // results to TrendRadarResult.
+    const detectTrendsUseCase = app.container!.resolve<DetectTrendsUseCase>(
+      TOKENS.DetectTrendsUseCase
+    );
+    const trendRadarConsumer = createBullMQConsumerAdapter({
+      queueName: QUEUE_NAMES.TREND_RADAR,
+    });
+    await trendRadarConsumer.subscribe(async (job) => {
+      await processTrendRadarJob(
+        { detect: detectTrendsUseCase, logger },
+        job.payload as { accountId: string }
+      );
+    });
+    logger.info("TREND_RADAR consumer started");
+
+    // BULK_SCHEDULE worker — one job per validated CSV row: create + schedule a
+    // post (idempotent). Hosted here so it resolves use cases from the app
+    // container (no direct Prisma). Rows that exhaust their retries are moved to
+    // the DLQ and marked FAILED in the manifest so the batch can complete.
+    const bulkScheduleWorker = await startBulkScheduleWorker({
+      process: app.container!.resolve<ProcessBulkScheduleRowUseCase>(
+        TOKENS.ProcessBulkScheduleRowUseCase
+      ),
+      fail: app.container!.resolve<FailBulkScheduleRowUseCase>(TOKENS.FailBulkScheduleRowUseCase),
+      deadLetter: app
+        .container!.resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
+        .forQueue(QUEUE_NAMES.BULK_SCHEDULE_DEAD_LETTER),
+      logger,
+    });
+    logger.info("BULK_SCHEDULE worker started");
+
+    // ANALYTICS_AGGREGATION + INBOX_SYNC consumers — hosted in-process here (like
+    // the bulk-schedule / repurpose consumers) so they run the canonical use cases
+    // from the app container. The former apps/workers analytics/inbox workers that
+    // reimplemented this logic inline against Prisma were removed (DUP-01/02). On an
+    // AUTH failure each flags the channel for reauth via UpdateChannelAuthStateUseCase.
+    const analyticsIngestConsumer = await startAnalyticsIngestConsumer({
+      ingest: app.container!.resolve<IngestChannelAnalyticsUseCase>(
+        TOKENS.IngestChannelAnalyticsUseCase
+      ),
+      markReauth: app.container!.resolve<UpdateChannelAuthStateUseCase>(
+        TOKENS.UpdateChannelAuthStateUseCase
+      ),
+      logger,
+    });
+    logger.info("ANALYTICS_AGGREGATION consumer started");
+
+    const inboxSyncConsumer = await startInboxSyncConsumer({
+      sync: app.container!.resolve<SyncProviderCommentsUseCase>(TOKENS.SyncProviderCommentsUseCase),
+      markReauth: app.container!.resolve<UpdateChannelAuthStateUseCase>(
+        TOKENS.UpdateChannelAuthStateUseCase
+      ),
+      logger,
+    });
+    logger.info("INBOX_SYNC consumer started");
+
     const port = env.PORT;
     const host = env.HOST;
 
@@ -821,6 +1062,13 @@ async function start() {
       logger.info({ signal }, "Shutting down gracefully...");
       outboxRelay.stop();
       outboxCleaner.stop();
+      await repurposeConsumer.close();
+      await detectRepurposeConsumer.close();
+      await triageInboxConsumer.close();
+      await trendRadarConsumer.close();
+      await bulkScheduleWorker.close();
+      await analyticsIngestConsumer.close();
+      await inboxSyncConsumer.close();
 
       // Shutdown saga integration (closes pub/sub subscriber and saga manager)
       const saga = (app as unknown as Record<string, unknown>).sagaIntegration as
@@ -829,6 +1077,18 @@ async function start() {
       if (saga) {
         await saga.shutdown();
       }
+
+      // Tear down the analytics realtime stream: stop the 30s poll and quit the
+      // broadcaster's Redis subscriber (the scheduler teardown below won't close
+      // the duplicated Redis connection).
+      const realtimeAnalytics = app.container!.resolve<RealtimeAnalyticsService>(
+        TOKENS.RealtimeAnalyticsService
+      );
+      realtimeAnalytics.shutdown();
+      const analyticsBroadcaster = app.container!.resolve<AnalyticsStreamBroadcaster>(
+        TOKENS.AnalyticsStreamBroadcaster
+      );
+      await analyticsBroadcaster.shutdown();
 
       // Tear down all BackgroundTaskScheduler-registered recurring tasks.
       const scheduler = app.container!.resolve<BackgroundTaskScheduler>(

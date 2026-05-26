@@ -43,6 +43,7 @@
 import { describe, it, beforeAll, expect } from "vitest";
 import { createHmac } from "crypto";
 import { InstagramWebhookProcessor } from "../../../src/webhooks/processors/instagramWebhookProcessor.js";
+import { makeWebhookPrismaFake } from "../helpers/webhookPrismaFake.js";
 
 // ===========================
 // Test Helpers
@@ -61,7 +62,7 @@ describe("InstagramWebhookProcessor - Signature Verification", () => {
   const testSecret = "test-instagram-secret-key";
 
   beforeAll(() => {
-    processor = new InstagramWebhookProcessor();
+    processor = new InstagramWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should verify valid webhook signature with sha256= prefix", () => {
@@ -141,7 +142,7 @@ describe("InstagramWebhookProcessor - Media Event Parsing", () => {
   let processor: InstagramWebhookProcessor;
 
   beforeAll(() => {
-    processor = new InstagramWebhookProcessor();
+    processor = new InstagramWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should parse media published event for IMAGE", async () => {
@@ -293,7 +294,7 @@ describe("InstagramWebhookProcessor - Comment Event Parsing", () => {
   let processor: InstagramWebhookProcessor;
 
   beforeAll(() => {
-    processor = new InstagramWebhookProcessor();
+    processor = new InstagramWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should parse comment received event", async () => {
@@ -395,7 +396,7 @@ describe("InstagramWebhookProcessor - Mention Event Parsing", () => {
   let processor: InstagramWebhookProcessor;
 
   beforeAll(() => {
-    processor = new InstagramWebhookProcessor();
+    processor = new InstagramWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should parse mention received event", async () => {
@@ -469,7 +470,7 @@ describe("InstagramWebhookProcessor - Story Event Parsing", () => {
   let processor: InstagramWebhookProcessor;
 
   beforeAll(() => {
-    processor = new InstagramWebhookProcessor();
+    processor = new InstagramWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should parse story expired event with insights", async () => {
@@ -568,7 +569,7 @@ describe("InstagramWebhookProcessor - Messaging Event Parsing", () => {
   let processor: InstagramWebhookProcessor;
 
   beforeAll(() => {
-    processor = new InstagramWebhookProcessor();
+    processor = new InstagramWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should parse direct message event", async () => {
@@ -636,7 +637,7 @@ describe("InstagramWebhookProcessor - Unknown Event Handling", () => {
   let processor: InstagramWebhookProcessor;
 
   beforeAll(() => {
-    processor = new InstagramWebhookProcessor();
+    processor = new InstagramWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should default to POST_UPDATED for unknown field types", async () => {
@@ -677,7 +678,7 @@ describe("InstagramWebhookProcessor - Error Handling", () => {
   let processor: InstagramWebhookProcessor;
 
   beforeAll(() => {
-    processor = new InstagramWebhookProcessor();
+    processor = new InstagramWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should throw error for unsupported event structure", async () => {
@@ -696,7 +697,7 @@ describe("InstagramWebhookProcessor - Error Handling", () => {
   });
 
   it("should handle verification errors gracefully", () => {
-    const processor = new InstagramWebhookProcessor();
+    const processor = new InstagramWebhookProcessor(makeWebhookPrismaFake().prisma);
 
     // This should return false instead of throwing
     const isValid = processor.verify("invalid\x00data", "signature", "secret");
@@ -712,7 +713,7 @@ describe("InstagramWebhookProcessor - Timestamp Handling", () => {
   let processor: InstagramWebhookProcessor;
 
   beforeAll(() => {
-    processor = new InstagramWebhookProcessor();
+    processor = new InstagramWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should preserve ISO timestamp format", async () => {

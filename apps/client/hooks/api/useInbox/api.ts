@@ -3,45 +3,44 @@
  * @description Internal fetch helpers for the Social Inbox endpoints. Each
  *              function maps directly to a backend route under
  *              `/api/backend/inbox` and unwraps the `{ ok, data }` envelope.
- *              Consumed exclusively by `queries.ts` and `mutations.ts`; not
- *              re-exported by the barrel.
+ *              Returned shapes mirror the server DTOs 1:1.
  * @layer infrastructure
  */
 
-import type {
-  Conversation,
-  ConversationListItem,
-  InboxFilters,
-  Message,
-  PagedResult,
-} from "./types";
+import type { InboxConversation, InboxFilters, InboxMessage, InboxMessagesPage } from "./types";
 
-export async function fetchConversations(
-  filters: InboxFilters,
-  cursor: string | null
-): Promise<PagedResult<ConversationListItem>> {
+function buildInboxQueryString(filters: InboxFilters, cursor: string | null, limit = 20): string {
   const params = new URLSearchParams();
   if (filters.projectId) params.set("projectId", filters.projectId);
   if (filters.provider) params.set("provider", filters.provider);
-  if (filters.status) params.set("status", filters.status);
+  if (filters.channelId) params.set("channelId", filters.channelId);
   if (filters.messageType) params.set("messageType", filters.messageType);
+  if (filters.status) params.set("status", filters.status);
   if (filters.assigneeId) params.set("assigneeId", filters.assigneeId);
   if (cursor) params.set("cursor", cursor);
-  params.set("limit", "20");
+  params.set("limit", String(limit));
+  return params.toString();
+}
 
-  const res = await fetch(`/api/backend/inbox?${params.toString()}`, {
+const EMPTY_PAGE: InboxMessagesPage = { items: [], nextCursor: null, hasMore: false };
+
+export async function fetchInboxMessages(
+  filters: InboxFilters,
+  cursor: string | null
+): Promise<InboxMessagesPage> {
+  const res = await fetch(`/api/backend/inbox?${buildInboxQueryString(filters, cursor)}`, {
     credentials: "include",
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch inbox");
-  const envelope = (await res.json()) as { ok: boolean; data?: PagedResult<ConversationListItem> };
-  return envelope.ok && envelope.data ? envelope.data : { items: [], nextCursor: null };
+  const envelope = (await res.json()) as { ok: boolean; data?: InboxMessagesPage };
+  return envelope.ok && envelope.data ? envelope.data : EMPTY_PAGE;
 }
 
 export async function fetchMentions(
   cursor: string | null,
   projectId?: string
-): Promise<PagedResult<ConversationListItem>> {
+): Promise<InboxMessagesPage> {
   const params = new URLSearchParams({ limit: "20" });
   if (cursor) params.set("cursor", cursor);
   if (projectId) params.set("projectId", projectId);
@@ -51,25 +50,25 @@ export async function fetchMentions(
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch mentions");
-  const envelope = (await res.json()) as { ok: boolean; data?: PagedResult<ConversationListItem> };
-  return envelope.ok && envelope.data ? envelope.data : { items: [], nextCursor: null };
+  const envelope = (await res.json()) as { ok: boolean; data?: InboxMessagesPage };
+  return envelope.ok && envelope.data ? envelope.data : EMPTY_PAGE;
 }
 
-export async function fetchConversation(id: string): Promise<Conversation> {
+export async function fetchConversation(id: string): Promise<InboxConversation> {
   const res = await fetch(`/api/backend/inbox/conversations/${id}`, {
     credentials: "include",
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch conversation");
-  const envelope = (await res.json()) as { ok: boolean; data?: Conversation };
+  const envelope = (await res.json()) as { ok: boolean; data?: InboxConversation };
   if (!envelope.ok || !envelope.data) throw new Error("Conversation not found");
   return envelope.data;
 }
 
-export async function fetchMessages(
+export async function fetchConversationMessages(
   conversationId: string,
   cursor: string | null
-): Promise<PagedResult<Message>> {
+): Promise<InboxMessagesPage> {
   const params = new URLSearchParams({ limit: "20" });
   if (cursor) params.set("cursor", cursor);
 
@@ -78,11 +77,11 @@ export async function fetchMessages(
     { credentials: "include", cache: "no-store" }
   );
   if (!res.ok) throw new Error("Failed to fetch messages");
-  const envelope = (await res.json()) as { ok: boolean; data?: PagedResult<Message> };
-  return envelope.ok && envelope.data ? envelope.data : { items: [], nextCursor: null };
+  const envelope = (await res.json()) as { ok: boolean; data?: InboxMessagesPage };
+  return envelope.ok && envelope.data ? envelope.data : EMPTY_PAGE;
 }
 
-export async function sendReply(messageId: string, body: string): Promise<Message> {
+export async function sendReply(messageId: string, body: string): Promise<InboxMessage> {
   const res = await fetch(`/api/backend/inbox/messages/${messageId}/reply`, {
     method: "POST",
     credentials: "include",
@@ -90,7 +89,7 @@ export async function sendReply(messageId: string, body: string): Promise<Messag
     body: JSON.stringify({ body }),
   });
   if (!res.ok) throw new Error("Failed to send reply");
-  const envelope = (await res.json()) as { ok: boolean; data?: Message };
+  const envelope = (await res.json()) as { ok: boolean; data?: InboxMessage };
   if (!envelope.ok || !envelope.data) throw new Error("Reply failed");
   return envelope.data;
 }

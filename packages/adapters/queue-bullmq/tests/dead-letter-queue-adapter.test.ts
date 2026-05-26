@@ -1,11 +1,9 @@
 /**
  * @file dead-letter-queue-adapter.test.ts
  * @description Tests for `BullMQDeadLetterQueueAdapter`.
- *   - `archive()`: serialises canonical entry shape and enqueues to the DLQ
- *     queue via the supplied `QueuePortRegistry`.
- *   - `list()` / `retry()`: return `NOT_IMPLEMENTED` for now — these
- *     methods are tracked in the backlog and will be implemented when a
- *     consumer drives their final shape.
+ *   - `archive()`: serialises the canonical entry shape and enqueues to
+ *     the DLQ queue via the supplied `QueuePortRegistry`.
+ *   - `list()` / `retry()`: return `NOT_IMPLEMENTED`.
  * @layer infrastructure
  */
 
@@ -23,8 +21,10 @@ function createMockRegistry(): {
   const enqueue = vi.fn(async () => ok("dlq-job-123"));
   const port: QueuePort = {
     enqueue,
+    enqueueBulk: vi.fn(async () => ok([] as string[])),
     health: vi.fn(),
     remove: vi.fn(),
+    getJobStates: vi.fn(async () => ok({ completed: 0, failed: 0, pending: 0 })),
   };
   const forQueueCalls: string[] = [];
   const registry: QueuePortRegistry = {

@@ -127,14 +127,14 @@ export interface CrossPlatformApiValue {
 }
 
 /**
- * Common envelope returned by every backend route. The 501 stubs return
- * `ok: false` with an `error` code; consumers throw on either non-2xx
- * status or `ok === false` so TanStack Query surfaces an explicit error
- * state instead of silently treating it as "no data".
+ * Common envelope returned by every backend route. `BaseRouteHandler.sendSuccess`
+ * emits `{ ok: true, data }`; `sendError` emits `{ ok: false, error }`. Consumers
+ * throw on either non-2xx status or `ok === false` so TanStack Query surfaces an
+ * explicit error state instead of silently treating it as "no data".
  */
 export interface ApiEnvelope<T> {
   ok: boolean;
-  value?: T;
+  data?: T;
   error?: string;
   message?: string;
 }

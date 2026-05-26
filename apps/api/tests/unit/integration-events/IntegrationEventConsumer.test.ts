@@ -357,7 +357,7 @@ import {
 } from "../../../src/infrastructure/integration-events/EventUpcaster.js";
 import { z } from "zod";
 
-describe("IntegrationEventConsumer — schema validation (P2-5)", () => {
+describe("IntegrationEventConsumer — schema validation", () => {
   it("passes event through to handler when payload is valid", async () => {
     const registry = new EventSchemaRegistry();
     let received: IntegrationEvent | undefined;
@@ -474,7 +474,7 @@ describe("IntegrationEventConsumer — schema validation (P2-5)", () => {
   });
 });
 
-describe("IntegrationEventConsumer — upcasting (P2-5)", () => {
+describe("IntegrationEventConsumer — upcasting", () => {
   it("upcasts event from v1 to v2 before passing to handler", async () => {
     const registry = new EventSchemaRegistry();
     const chain = new UpcasterChain();

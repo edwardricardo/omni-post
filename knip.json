@@ -23,7 +23,7 @@
       "ignore": ["tests/**", "src/**/*.test.ts", "reports/**", "scripts/**"]
     },
     "apps/workers": {
-      "entry": ["src/bootstrap.ts", "src/publishWorker.ts", "src/autoRenewalWorker.ts"],
+      "entry": ["src/bootstrap.ts", "src/publishWorker.ts"],
       "project": ["src/**/*.ts"],
       "ignore": ["tests/**"]
     },

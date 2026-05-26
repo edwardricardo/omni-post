@@ -2,7 +2,8 @@
  * @file pricingRoutes.ts
  * @description Admin CRUD endpoints for managing pricing tiers, account tiers,
  *              and provider bundles. Protected by admin authentication.
- * @layer infrastructure (routes)
+ *              Persistence goes through PricingAdminService (DI), never Prisma.
+ * @layer infrastructure
  */
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
@@ -10,7 +11,8 @@ import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.
 import { requireAdminAuth } from "./auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "../auth/rbacService.js";
-import { prisma } from "@infra/prisma";
+import { TOKENS } from "../infrastructure/container/types.js";
+import type { PricingAdminService } from "./PricingAdminService.js";
 
 // --- Zod Schemas ---
 
@@ -72,21 +74,15 @@ const CreateBundleSchema = z.object({
 class PricingHandler extends BaseRouteHandler {
   protected routeName = "pricing";
 
+  constructor(private readonly pricing: PricingAdminService) {
+    super();
+  }
+
   async getTiers(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-
     try {
-      const providerTiers = await prisma.providerPricingTier.findMany({
-        orderBy: { minProviders: "asc" },
-      });
-      const accountTiers = await prisma.accountPricingTier.findMany({
-        orderBy: { minAccounts: "asc" },
-      });
-      const bundles = await prisma.providerBundle.findMany({
-        orderBy: { sortOrder: "asc" },
-      });
-
-      return this.sendSuccess(ctx, { providerTiers, accountTiers, bundles });
+      const tiers = await this.pricing.getTiers();
+      return this.sendSuccess(ctx, tiers);
     } catch (error: unknown) {
       this.logError(ctx, "Failed to fetch pricing tiers", {
         error: error instanceof Error ? error.message : String(error),
@@ -97,115 +93,77 @@ class PricingHandler extends BaseRouteHandler {
 
   async updateProviderTier(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-
     const paramsResult = IdParamsSchema.safeParse(request.params);
-    if (!paramsResult.success) {
-      return this.sendError(ctx, 400, "Invalid parameters");
-    }
-
+    if (!paramsResult.success) return this.sendError(ctx, 400, "Invalid parameters");
     const bodyResult = UpdateProviderTierSchema.safeParse(request.body);
-    if (!bodyResult.success) {
-      return this.sendError(ctx, 400, "Invalid request body");
-    }
-
-    const { id } = paramsResult.data;
+    if (!bodyResult.success) return this.sendError(ctx, 400, "Invalid request body");
 
     const b = bodyResult.data;
     try {
-      const updated = await prisma.providerPricingTier.update({
-        where: { id },
-        data: {
-          ...(b.minProviders !== undefined && { minProviders: b.minProviders }),
-          ...(b.maxProviders !== undefined && { maxProviders: b.maxProviders }),
-          ...(b.pricePerProviderMonth !== undefined && {
-            pricePerProviderMonth: b.pricePerProviderMonth,
-          }),
-        },
+      const result = await this.pricing.updateProviderTier(paramsResult.data.id, {
+        ...(b.minProviders !== undefined && { minProviders: b.minProviders }),
+        ...(b.maxProviders !== undefined && { maxProviders: b.maxProviders }),
+        ...(b.pricePerProviderMonth !== undefined && {
+          pricePerProviderMonth: b.pricePerProviderMonth,
+        }),
       });
-      return this.sendSuccess(ctx, { tier: updated });
+      if (!result.ok) return this.sendError(ctx, 404, "Provider pricing tier not found");
+      return this.sendSuccess(ctx, { tier: result.value });
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes("Record to update not found")) {
-        return this.sendError(ctx, 404, "Provider pricing tier not found");
-      }
-      this.logError(ctx, "Failed to update provider tier", { error: msg });
+      this.logError(ctx, "Failed to update provider tier", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       return this.sendError(ctx, 500, "Internal server error");
     }
   }
 
   async updateAccountTier(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-
     const paramsResult = IdParamsSchema.safeParse(request.params);
-    if (!paramsResult.success) {
-      return this.sendError(ctx, 400, "Invalid parameters");
-    }
-
+    if (!paramsResult.success) return this.sendError(ctx, 400, "Invalid parameters");
     const bodyResult = UpdateAccountTierSchema.safeParse(request.body);
-    if (!bodyResult.success) {
-      return this.sendError(ctx, 400, "Invalid request body");
-    }
+    if (!bodyResult.success) return this.sendError(ctx, 400, "Invalid request body");
 
-    const { id } = paramsResult.data;
     const ab = bodyResult.data;
-
     try {
-      const updated = await prisma.accountPricingTier.update({
-        where: { id },
-        data: {
-          ...(ab.minAccounts !== undefined && { minAccounts: ab.minAccounts }),
-          ...(ab.maxAccounts !== undefined && { maxAccounts: ab.maxAccounts }),
-          ...(ab.multiplier !== undefined && { multiplier: ab.multiplier }),
-        },
+      const result = await this.pricing.updateAccountTier(paramsResult.data.id, {
+        ...(ab.minAccounts !== undefined && { minAccounts: ab.minAccounts }),
+        ...(ab.maxAccounts !== undefined && { maxAccounts: ab.maxAccounts }),
+        ...(ab.multiplier !== undefined && { multiplier: ab.multiplier }),
       });
-      return this.sendSuccess(ctx, { tier: updated });
+      if (!result.ok) return this.sendError(ctx, 404, "Account pricing tier not found");
+      return this.sendSuccess(ctx, { tier: result.value });
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes("Record to update not found")) {
-        return this.sendError(ctx, 404, "Account pricing tier not found");
-      }
-      this.logError(ctx, "Failed to update account tier", { error: msg });
+      this.logError(ctx, "Failed to update account tier", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       return this.sendError(ctx, 500, "Internal server error");
     }
   }
 
   async updateBundle(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-
     const paramsResult = IdParamsSchema.safeParse(request.params);
-    if (!paramsResult.success) {
-      return this.sendError(ctx, 400, "Invalid parameters");
-    }
-
+    if (!paramsResult.success) return this.sendError(ctx, 400, "Invalid parameters");
     const bodyResult = UpdateBundleSchema.safeParse(request.body);
-    if (!bodyResult.success) {
-      return this.sendError(ctx, 400, "Invalid request body");
-    }
+    if (!bodyResult.success) return this.sendError(ctx, 400, "Invalid request body");
 
-    const { id } = paramsResult.data;
     const bb = bodyResult.data;
-
     try {
-      const updated = await prisma.providerBundle.update({
-        where: { id },
-        data: {
-          ...(bb.name !== undefined && { name: bb.name }),
-          ...(bb.description !== undefined && { description: bb.description }),
-          ...(bb.pricePerAccountMonth !== undefined && {
-            pricePerAccountMonth: bb.pricePerAccountMonth,
-          }),
-          ...(bb.providers !== undefined && {
-            providers: { set: bb.providers as import("@infra/prisma").Provider[] },
-          }),
-        },
+      const result = await this.pricing.updateBundle(paramsResult.data.id, {
+        ...(bb.name !== undefined && { name: bb.name }),
+        ...(bb.description !== undefined && { description: bb.description }),
+        ...(bb.pricePerAccountMonth !== undefined && {
+          pricePerAccountMonth: bb.pricePerAccountMonth,
+        }),
+        ...(bb.providers !== undefined && { providers: bb.providers }),
       });
-      return this.sendSuccess(ctx, { bundle: updated });
+      if (!result.ok) return this.sendError(ctx, 404, "Provider bundle not found");
+      return this.sendSuccess(ctx, { bundle: result.value });
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes("Record to update not found")) {
-        return this.sendError(ctx, 404, "Provider bundle not found");
-      }
-      this.logError(ctx, "Failed to update bundle", { error: msg });
+      this.logError(ctx, "Failed to update bundle", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       return this.sendError(ctx, 500, "Internal server error");
     }
   }
@@ -218,34 +176,13 @@ class PricingHandler extends BaseRouteHandler {
    */
   async createBundle(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-
     const bodyResult = CreateBundleSchema.safeParse(request.body);
-    if (!bodyResult.success) {
-      return this.sendError(ctx, 400, "Invalid request body");
-    }
-
-    const { slug, name, description, providers, pricePerAccountMonth, isActive, sortOrder } =
-      bodyResult.data;
+    if (!bodyResult.success) return this.sendError(ctx, 400, "Invalid request body");
 
     try {
-      const existing = await prisma.providerBundle.findUnique({ where: { slug } });
-      if (existing) {
-        return this.sendError(ctx, 409, "Bundle slug already exists");
-      }
-
-      const created = await prisma.providerBundle.create({
-        data: {
-          name,
-          slug,
-          description,
-          providers: { set: providers as import("@infra/prisma").Provider[] },
-          pricePerAccountMonth,
-          isActive,
-          sortOrder,
-        },
-      });
-
-      return this.sendSuccess(ctx, { bundle: created });
+      const result = await this.pricing.createBundle(bodyResult.data);
+      if (!result.ok) return this.sendError(ctx, 409, "Bundle slug already exists");
+      return this.sendSuccess(ctx, { bundle: result.value });
     } catch (error: unknown) {
       this.logError(ctx, "Failed to create bundle", {
         error: error instanceof Error ? error.message : String(error),
@@ -262,28 +199,21 @@ class PricingHandler extends BaseRouteHandler {
    */
   async deleteBundle(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-
     const paramsResult = IdParamsSchema.safeParse(request.params);
-    if (!paramsResult.success) {
-      return this.sendError(ctx, 400, "Invalid parameters");
-    }
-
-    const { id } = paramsResult.data;
+    if (!paramsResult.success) return this.sendError(ctx, 400, "Invalid parameters");
 
     try {
-      const count = await prisma.accountSubscription.count({ where: { bundleId: id } });
-      if (count > 0) {
-        return this.sendError(ctx, 400, "Cannot delete bundle with active subscriptions");
+      const result = await this.pricing.deleteBundle(paramsResult.data.id);
+      if (!result.ok) {
+        return result.error === "HAS_SUBSCRIPTIONS"
+          ? this.sendError(ctx, 400, "Cannot delete bundle with active subscriptions")
+          : this.sendError(ctx, 404, "Provider bundle not found");
       }
-
-      await prisma.providerBundle.delete({ where: { id } });
       return this.sendSuccess(ctx, { message: "Bundle deleted" });
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes("Record to delete does not exist")) {
-        return this.sendError(ctx, 404, "Provider bundle not found");
-      }
-      this.logError(ctx, "Failed to delete bundle", { error: msg });
+      this.logError(ctx, "Failed to delete bundle", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       return this.sendError(ctx, 500, "Internal server error");
     }
   }
@@ -296,29 +226,24 @@ class PricingHandler extends BaseRouteHandler {
    */
   async createProviderTier(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-
     const bodyResult = CreateProviderTierSchema.safeParse(request.body);
-    if (!bodyResult.success) {
-      return this.sendError(ctx, 400, "Invalid request body");
-    }
+    if (!bodyResult.success) return this.sendError(ctx, 400, "Invalid request body");
 
-    const { minProviders, maxProviders, pricePerProviderMonth } = bodyResult.data;
-
+    const d = bodyResult.data;
     try {
-      const created = await prisma.providerPricingTier.create({
-        data: {
-          minProviders,
-          ...(maxProviders !== undefined && { maxProviders }),
-          pricePerProviderMonth,
-        },
+      const result = await this.pricing.createProviderTier({
+        minProviders: d.minProviders,
+        ...(d.maxProviders !== undefined && { maxProviders: d.maxProviders }),
+        pricePerProviderMonth: d.pricePerProviderMonth,
       });
-      return this.sendSuccess(ctx, { tier: created }, 201);
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes("Unique constraint")) {
+      if (!result.ok) {
         return this.sendError(ctx, 409, "A provider tier with this minProviders already exists");
       }
-      this.logError(ctx, "Failed to create provider tier", { error: msg });
+      return this.sendSuccess(ctx, { tier: result.value }, 201);
+    } catch (error: unknown) {
+      this.logError(ctx, "Failed to create provider tier", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       return this.sendError(ctx, 500, "Internal server error");
     }
   }
@@ -331,29 +256,24 @@ class PricingHandler extends BaseRouteHandler {
    */
   async createAccountTier(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-
     const bodyResult = CreateAccountTierSchema.safeParse(request.body);
-    if (!bodyResult.success) {
-      return this.sendError(ctx, 400, "Invalid request body");
-    }
+    if (!bodyResult.success) return this.sendError(ctx, 400, "Invalid request body");
 
-    const { minAccounts, maxAccounts, multiplier } = bodyResult.data;
-
+    const d = bodyResult.data;
     try {
-      const created = await prisma.accountPricingTier.create({
-        data: {
-          minAccounts,
-          ...(maxAccounts !== undefined && { maxAccounts }),
-          multiplier,
-        },
+      const result = await this.pricing.createAccountTier({
+        minAccounts: d.minAccounts,
+        ...(d.maxAccounts !== undefined && { maxAccounts: d.maxAccounts }),
+        multiplier: d.multiplier,
       });
-      return this.sendSuccess(ctx, { tier: created }, 201);
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes("Unique constraint")) {
+      if (!result.ok) {
         return this.sendError(ctx, 409, "An account tier with this minAccounts already exists");
       }
-      this.logError(ctx, "Failed to create account tier", { error: msg });
+      return this.sendSuccess(ctx, { tier: result.value }, 201);
+    } catch (error: unknown) {
+      this.logError(ctx, "Failed to create account tier", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       return this.sendError(ctx, 500, "Internal server error");
     }
   }
@@ -366,32 +286,22 @@ class PricingHandler extends BaseRouteHandler {
    */
   async toggleProviderTierStatus(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-
     const paramsResult = IdParamsSchema.safeParse(request.params);
-    if (!paramsResult.success) {
-      return this.sendError(ctx, 400, "Invalid parameters");
-    }
-
+    if (!paramsResult.success) return this.sendError(ctx, 400, "Invalid parameters");
     const bodyResult = ToggleStatusSchema.safeParse(request.body);
-    if (!bodyResult.success) {
-      return this.sendError(ctx, 400, "Invalid request body");
-    }
-
-    const { id } = paramsResult.data;
-    const { isActive } = bodyResult.data;
+    if (!bodyResult.success) return this.sendError(ctx, 400, "Invalid request body");
 
     try {
-      const updated = await prisma.providerPricingTier.update({
-        where: { id },
-        data: { isActive },
-      });
-      return this.sendSuccess(ctx, { tier: updated });
+      const result = await this.pricing.toggleProviderTierStatus(
+        paramsResult.data.id,
+        bodyResult.data.isActive
+      );
+      if (!result.ok) return this.sendError(ctx, 404, "Provider pricing tier not found");
+      return this.sendSuccess(ctx, { tier: result.value });
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes("Record to update not found")) {
-        return this.sendError(ctx, 404, "Provider pricing tier not found");
-      }
-      this.logError(ctx, "Failed to toggle provider tier status", { error: msg });
+      this.logError(ctx, "Failed to toggle provider tier status", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       return this.sendError(ctx, 500, "Internal server error");
     }
   }
@@ -404,32 +314,22 @@ class PricingHandler extends BaseRouteHandler {
    */
   async toggleAccountTierStatus(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
-
     const paramsResult = IdParamsSchema.safeParse(request.params);
-    if (!paramsResult.success) {
-      return this.sendError(ctx, 400, "Invalid parameters");
-    }
-
+    if (!paramsResult.success) return this.sendError(ctx, 400, "Invalid parameters");
     const bodyResult = ToggleStatusSchema.safeParse(request.body);
-    if (!bodyResult.success) {
-      return this.sendError(ctx, 400, "Invalid request body");
-    }
-
-    const { id } = paramsResult.data;
-    const { isActive } = bodyResult.data;
+    if (!bodyResult.success) return this.sendError(ctx, 400, "Invalid request body");
 
     try {
-      const updated = await prisma.accountPricingTier.update({
-        where: { id },
-        data: { isActive },
-      });
-      return this.sendSuccess(ctx, { tier: updated });
+      const result = await this.pricing.toggleAccountTierStatus(
+        paramsResult.data.id,
+        bodyResult.data.isActive
+      );
+      if (!result.ok) return this.sendError(ctx, 404, "Account pricing tier not found");
+      return this.sendSuccess(ctx, { tier: result.value });
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes("Record to update not found")) {
-        return this.sendError(ctx, 404, "Account pricing tier not found");
-      }
-      this.logError(ctx, "Failed to toggle account tier status", { error: msg });
+      this.logError(ctx, "Failed to toggle account tier status", {
+        error: error instanceof Error ? error.message : String(error),
+      });
       return this.sendError(ctx, 500, "Internal server error");
     }
   }
@@ -438,7 +338,9 @@ class PricingHandler extends BaseRouteHandler {
 // --- Plugin ---
 
 const pricingRoutes: FastifyPluginAsync = async (fastify) => {
-  const handler = new PricingHandler();
+  const handler = new PricingHandler(
+    fastify.container!.resolve<PricingAdminService>(TOKENS.PricingAdminService)
+  );
 
   fastify.get(
     "/admin/pricing/tiers",

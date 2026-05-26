@@ -10,7 +10,7 @@ import type {
   CrmContactRepository,
   CrmContactData,
   UpsertCrmContactInput,
-} from "../../domain/repositories/CrmContactRepository.js";
+} from "@core/domain/repositories/CrmContactRepository.js";
 
 export class PrismaCrmContactRepository implements CrmContactRepository {
   constructor(private readonly prisma: PrismaClient) {}

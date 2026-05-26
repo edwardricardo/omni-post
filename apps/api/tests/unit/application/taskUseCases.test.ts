@@ -7,12 +7,12 @@
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import assert from "node:assert/strict";
 import { ok, err } from "@shared/types";
-import { Task, TASK_STATUS, TASK_PRIORITY } from "../../../src/domain/entities/Task.js";
-import { CreateTaskUseCase } from "../../../src/application/tasks/CreateTaskUseCase.js";
-import { CompleteTaskUseCase } from "../../../src/application/tasks/CompleteTaskUseCase.js";
-import { CancelTaskUseCase } from "../../../src/application/tasks/CancelTaskUseCase.js";
-import { ListTasksQuery } from "../../../src/application/tasks/ListTasksQuery.js";
-import type { TaskRepository } from "../../../src/domain/repositories/TaskRepository.js";
+import { Task, TASK_STATUS, TASK_PRIORITY } from "@core/domain/entities/Task.js";
+import { CreateTaskUseCase } from "@core/application/tasks/CreateTaskUseCase.js";
+import { CompleteTaskUseCase } from "@core/application/tasks/CompleteTaskUseCase.js";
+import { CancelTaskUseCase } from "@core/application/tasks/CancelTaskUseCase.js";
+import { ListTasksQuery } from "@core/application/tasks/ListTasksQuery.js";
+import type { TaskRepository } from "@core/domain/repositories/TaskRepository.js";
 
 // ============================================================================
 // Mock Factories

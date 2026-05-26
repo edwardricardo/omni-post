@@ -23,8 +23,8 @@ import {
   PUBLISH_STATUS,
   EntityNotFoundError,
   VersionConflictError,
-} from "../../domain/index.js";
-import type { OutboxWriter } from "../../domain/repositories/OutboxWriter.js";
+} from "@core/domain/index.js";
+import type { OutboxWriter } from "@core/domain/repositories/OutboxWriter.js";
 import {
   PostAggregateMapper,
   type PrismaPostWithRelations,
@@ -486,7 +486,7 @@ export class PrismaPostRepository implements PostRepository {
       });
     }
 
-    // Persist domain events atomically (P2-1: Transactional Outbox)
+    // Persist domain events atomically (Transactional Outbox)
     if (this.outboxWriter) {
       await this.outboxWriter.writeEvents(tx, aggregate.domainEvents);
     }
@@ -610,7 +610,7 @@ export class PrismaPostRepository implements PostRepository {
       });
     }
 
-    // Persist domain events atomically (P2-1: Transactional Outbox)
+    // Persist domain events atomically (Transactional Outbox)
     if (this.outboxWriter) {
       await this.outboxWriter.writeEvents(tx, aggregate.domainEvents);
     }

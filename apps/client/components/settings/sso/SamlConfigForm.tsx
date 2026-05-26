@@ -8,6 +8,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Button, Input, Label } from "@packages/ui";
 import { Copy, Check } from "lucide-react";
 import { useSamlConfig, useConfigureSaml, useEnableSaml } from "@/hooks/api/useSso";
@@ -17,6 +18,7 @@ interface SamlConfigFormProps {
 }
 
 export function SamlConfigForm({ accountId }: SamlConfigFormProps) {
+  const t = useTranslations("settings.components");
   const { data: config } = useSamlConfig();
   const configureMutation = useConfigureSaml();
   const enableMutation = useEnableSaml();
@@ -78,13 +80,11 @@ export function SamlConfigForm({ accountId }: SamlConfigFormProps) {
     <div className="space-y-6">
       {/* SP Metadata (read-only) */}
       <div className="rounded-lg border p-4 bg-muted/30">
-        <h3 className="text-sm font-medium mb-3">Service Provider Information</h3>
-        <p className="text-xs text-muted-foreground mb-3">
-          Copy these values to your Identity Provider configuration.
-        </p>
+        <h3 className="text-sm font-medium mb-3">{t("saml.spInfo")}</h3>
+        <p className="text-xs text-muted-foreground mb-3">{t("saml.spInfoHint")}</p>
         <div className="space-y-3">
           <div>
-            <Label className="text-xs">SP Entity ID</Label>
+            <Label className="text-xs">{t("saml.spEntityId")}</Label>
             <div className="flex items-center gap-2 mt-1">
               <code className="flex-1 text-sm bg-background rounded px-2 py-1 border font-mono truncate">
                 {spEntityId}
@@ -103,7 +103,7 @@ export function SamlConfigForm({ accountId }: SamlConfigFormProps) {
             </div>
           </div>
           <div>
-            <Label className="text-xs">ACS URL (Callback)</Label>
+            <Label className="text-xs">{t("saml.acsUrl")}</Label>
             <div className="flex items-center gap-2 mt-1">
               <code className="flex-1 text-sm bg-background rounded px-2 py-1 border font-mono truncate">
                 {acsUrl}
@@ -122,10 +122,10 @@ export function SamlConfigForm({ accountId }: SamlConfigFormProps) {
 
       {/* IdP Configuration */}
       <div className="space-y-4">
-        <h3 className="text-sm font-medium">Identity Provider Configuration</h3>
+        <h3 className="text-sm font-medium">{t("saml.idpConfig")}</h3>
 
         <div>
-          <Label htmlFor="saml-entity-id">IdP Entity ID *</Label>
+          <Label htmlFor="saml-entity-id">{t("saml.idpEntityId")}</Label>
           <Input
             id="saml-entity-id"
             value={idpEntityId}
@@ -135,7 +135,7 @@ export function SamlConfigForm({ accountId }: SamlConfigFormProps) {
         </div>
 
         <div>
-          <Label htmlFor="saml-sso-url">IdP SSO URL *</Label>
+          <Label htmlFor="saml-sso-url">{t("saml.idpSsoUrl")}</Label>
           {(() => {
             const ssoUrlInvalid = !!idpSsoUrl && !idpSsoUrl.startsWith("https://");
             return (
@@ -151,7 +151,7 @@ export function SamlConfigForm({ accountId }: SamlConfigFormProps) {
                 />
                 {ssoUrlInvalid && (
                   <p id="saml-sso-url-error" role="alert" className="text-xs text-red-600 mt-1">
-                    Must use HTTPS
+                    {t("saml.mustUseHttps")}
                   </p>
                 )}
               </>
@@ -160,7 +160,7 @@ export function SamlConfigForm({ accountId }: SamlConfigFormProps) {
         </div>
 
         <div>
-          <Label htmlFor="saml-cert">IdP Certificate (PEM) *</Label>
+          <Label htmlFor="saml-cert">{t("saml.idpCertificate")}</Label>
           <textarea
             id="saml-cert"
             value={idpCertificate}
@@ -174,10 +174,10 @@ export function SamlConfigForm({ accountId }: SamlConfigFormProps) {
 
       {/* Attribute Mapping */}
       <div className="space-y-3">
-        <h3 className="text-sm font-medium">Attribute Mapping</h3>
+        <h3 className="text-sm font-medium">{t("saml.attributeMapping")}</h3>
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <Label htmlFor="saml-email-attr">Email *</Label>
+            <Label htmlFor="saml-email-attr">{t("saml.email")}</Label>
             <Input
               id="saml-email-attr"
               value={emailAttr}
@@ -186,7 +186,7 @@ export function SamlConfigForm({ accountId }: SamlConfigFormProps) {
             />
           </div>
           <div>
-            <Label htmlFor="saml-fn-attr">First Name</Label>
+            <Label htmlFor="saml-fn-attr">{t("saml.firstName")}</Label>
             <Input
               id="saml-fn-attr"
               value={firstNameAttr}
@@ -195,7 +195,7 @@ export function SamlConfigForm({ accountId }: SamlConfigFormProps) {
             />
           </div>
           <div>
-            <Label htmlFor="saml-ln-attr">Last Name</Label>
+            <Label htmlFor="saml-ln-attr">{t("saml.lastName")}</Label>
             <Input
               id="saml-ln-attr"
               value={lastNameAttr}
@@ -209,11 +209,15 @@ export function SamlConfigForm({ accountId }: SamlConfigFormProps) {
       {/* Actions */}
       <div className="flex gap-2 pt-2">
         <Button onClick={handleSave} disabled={!canSave || configureMutation.isPending}>
-          {configureMutation.isPending ? "Saving..." : saved ? "Saved!" : "Save Configuration"}
+          {configureMutation.isPending
+            ? t("saml.saving")
+            : saved
+              ? t("saml.saved")
+              : t("saml.saveConfiguration")}
         </Button>
         {config && !config.isActive && (
           <Button variant="outline" onClick={handleEnable} disabled={enableMutation.isPending}>
-            {enableMutation.isPending ? "Enabling..." : "Enable SAML SSO"}
+            {enableMutation.isPending ? t("saml.enabling") : t("saml.enableSso")}
           </Button>
         )}
       </div>

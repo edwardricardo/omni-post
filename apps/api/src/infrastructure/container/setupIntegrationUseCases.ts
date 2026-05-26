@@ -6,16 +6,17 @@
  */
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import type { IntegrationApiKeyRepository } from "../../domain/repositories/IntegrationApiKeyRepository.js";
-import type { IntegrationSubscriptionRepository } from "../../domain/repositories/IntegrationSubscriptionRepository.js";
+import type { IntegrationApiKeyRepository } from "@core/domain/repositories/IntegrationApiKeyRepository.js";
+import type { PasswordHasher } from "@core/domain/repositories/PasswordHasher.js";
+import type { IntegrationSubscriptionRepository } from "@core/domain/repositories/IntegrationSubscriptionRepository.js";
 import { PrismaIntegrationApiKeyRepository } from "../repositories/PrismaIntegrationApiKeyRepository.js";
 import { PrismaIntegrationSubscriptionRepository } from "../repositories/PrismaIntegrationSubscriptionRepository.js";
-import { GenerateIntegrationApiKeyUseCase } from "../../application/integrations/GenerateIntegrationApiKeyUseCase.js";
-import { RevokeIntegrationApiKeyUseCase } from "../../application/integrations/RevokeIntegrationApiKeyUseCase.js";
-import { ListIntegrationApiKeysQuery } from "../../application/integrations/ListIntegrationApiKeysQuery.js";
-import { SubscribeIntegrationTriggerUseCase } from "../../application/integrations/SubscribeIntegrationTriggerUseCase.js";
-import { UnsubscribeIntegrationTriggerUseCase } from "../../application/integrations/UnsubscribeIntegrationTriggerUseCase.js";
-import { TriggerIntegrationEventService } from "../../application/integrations/TriggerIntegrationEventService.js";
+import { GenerateIntegrationApiKeyUseCase } from "@core/application/integrations/GenerateIntegrationApiKeyUseCase.js";
+import { RevokeIntegrationApiKeyUseCase } from "@core/application/integrations/RevokeIntegrationApiKeyUseCase.js";
+import { ListIntegrationApiKeysQuery } from "@core/application/integrations/ListIntegrationApiKeysQuery.js";
+import { SubscribeIntegrationTriggerUseCase } from "@core/application/integrations/SubscribeIntegrationTriggerUseCase.js";
+import { UnsubscribeIntegrationTriggerUseCase } from "@core/application/integrations/UnsubscribeIntegrationTriggerUseCase.js";
+import { TriggerIntegrationEventService } from "@core/application/integrations/TriggerIntegrationEventService.js";
 import { IntegrationEventDeliveryHandler } from "../../integrations/IntegrationEventDeliveryHandler.js";
 
 /**
@@ -41,7 +42,8 @@ export function setupIntegrationUseCases(container: Container): void {
     TOKENS.GenerateIntegrationApiKeyUseCase,
     () =>
       new GenerateIntegrationApiKeyUseCase(
-        container.resolve<IntegrationApiKeyRepository>(TOKENS.IntegrationApiKeyRepository)
+        container.resolve<IntegrationApiKeyRepository>(TOKENS.IntegrationApiKeyRepository),
+        container.resolve<PasswordHasher>(TOKENS.PasswordHasher)
       ),
     true
   );
@@ -94,7 +96,7 @@ export function setupIntegrationUseCases(container: Container): void {
         container.resolve<IntegrationSubscriptionRepository>(
           TOKENS.IntegrationSubscriptionRepository
         ),
-        container.resolve<import("../../domain/repositories/HttpClientPort.js").HttpClientPort>(
+        container.resolve<import("@core/domain/repositories/HttpClientPort.js").HttpClientPort>(
           TOKENS.HttpClientPort
         )
       ),

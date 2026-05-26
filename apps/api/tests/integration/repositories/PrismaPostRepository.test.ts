@@ -8,11 +8,12 @@
  * @layer infrastructure
  */
 
-import { describe, it, beforeAll, afterAll, expect } from "vitest";
+import { describe, it, before, after } from "node:test";
+import assert from "node:assert/strict";
 import { prisma } from "@infra/prisma";
 import { PrismaPostRepository } from "../../../src/infrastructure/repositories/PrismaPostRepository.js";
 import { PostAggregateMapper } from "../../../src/infrastructure/repositories/mappers/PostAggregateMapper.js";
-import { PostAggregate, PostId, ProjectId, PUBLISH_STATUS } from "../../../src/domain/index.js";
+import { PostAggregate, PostId, ProjectId, PUBLISH_STATUS } from "@core/domain/index.js";
 
 describe("PrismaPostRepository", () => {
   let repository: PrismaPostRepository;
@@ -20,7 +21,7 @@ describe("PrismaPostRepository", () => {
   let testAccountId: string;
   const createdPostIds: string[] = [];
 
-  beforeAll(async () => {
+  before(async () => {
     repository = new PrismaPostRepository(prisma);
 
     // Create test account and project
@@ -46,7 +47,7 @@ describe("PrismaPostRepository", () => {
     });
   });
 
-  afterAll(async () => {
+  after(async () => {
     // Cleanup: Delete all posts for the test project (cascading related records first)
     // This covers posts tracked in createdPostIds AND any created by bulk operations
     try {
@@ -89,7 +90,7 @@ describe("PrismaPostRepository", () => {
         tags: ["test", "unit"],
       });
 
-      expect(result.ok).toBeTruthy();
+      assert.ok(result.ok);
       if (!result.ok) return;
 
       const aggregate = result.value;
@@ -97,18 +98,18 @@ describe("PrismaPostRepository", () => {
 
       // Save the aggregate
       const saveResult = await repository.save(aggregate);
-      expect(saveResult.ok).toBeTruthy();
+      assert.ok(saveResult.ok);
 
       // Retrieve it
       const findResult = await repository.findById(aggregate.id);
-      expect(findResult.ok).toBeTruthy();
+      assert.ok(findResult.ok);
 
       if (findResult.ok) {
-        expect(findResult.value.id.value).toBe(aggregate.id.value);
-        expect(findResult.value.content.body).toBe("Test post body");
-        expect(findResult.value.content.title).toBe("Test Title");
-        expect([...findResult.value.content.tags]).toEqual(["test", "unit"]);
-        expect(findResult.value.isDraft).toBeTruthy();
+        assert.equal(findResult.value.id.value, aggregate.id.value);
+        assert.equal(findResult.value.content.body, "Test post body");
+        assert.equal(findResult.value.content.title, "Test Title");
+        assert.deepEqual([...findResult.value.content.tags], ["test", "unit"]);
+        assert.ok(findResult.value.isDraft);
       }
     });
 
@@ -119,7 +120,7 @@ describe("PrismaPostRepository", () => {
         body: "Original body",
       });
 
-      expect(result.ok).toBeTruthy();
+      assert.ok(result.ok);
       if (!result.ok) return;
 
       const aggregate = result.value;
@@ -133,14 +134,14 @@ describe("PrismaPostRepository", () => {
 
       // Save again
       const updateResult = await repository.save(aggregate);
-      expect(updateResult.ok).toBeTruthy();
+      assert.ok(updateResult.ok);
 
       // Retrieve and verify
       const findResult = await repository.findById(aggregate.id);
-      expect(findResult.ok).toBeTruthy();
+      assert.ok(findResult.ok);
 
       if (findResult.ok) {
-        expect(findResult.value.content.body).toBe("Updated body");
+        assert.equal(findResult.value.content.body, "Updated body");
       }
     });
 
@@ -148,9 +149,9 @@ describe("PrismaPostRepository", () => {
       const nonExistentId = PostId.generate();
       const result = await repository.findById(nonExistentId);
 
-      expect(result.ok).toBeFalsy();
+      assert.ok(!result.ok);
       if (!result.ok) {
-        expect(result.error.name).toBe("EntityNotFoundError");
+        assert.equal(result.error.name, "EntityNotFoundError");
       }
     });
   });
@@ -163,7 +164,7 @@ describe("PrismaPostRepository", () => {
         body: "Test exists",
       });
 
-      expect(result.ok).toBeTruthy();
+      assert.ok(result.ok);
       if (!result.ok) return;
 
       const aggregate = result.value;
@@ -172,13 +173,13 @@ describe("PrismaPostRepository", () => {
       await repository.save(aggregate);
 
       const exists = await repository.exists(aggregate.id);
-      expect(exists).toBeTruthy();
+      assert.ok(exists);
     });
 
     it("should return false for non-existent post", async () => {
       const nonExistentId = PostId.generate();
       const exists = await repository.exists(nonExistentId);
-      expect(exists).toBeFalsy();
+      assert.ok(!exists);
     });
   });
 
@@ -190,30 +191,30 @@ describe("PrismaPostRepository", () => {
         body: "Test delete",
       });
 
-      expect(result.ok).toBeTruthy();
+      assert.ok(result.ok);
       if (!result.ok) return;
 
       const aggregate = result.value;
       await repository.save(aggregate);
 
       // Verify exists
-      expect(await repository.exists(aggregate.id)).toBeTruthy();
+      assert.ok(await repository.exists(aggregate.id));
 
       // Delete
       const deleteResult = await repository.delete(aggregate.id);
-      expect(deleteResult.ok).toBeTruthy();
+      assert.ok(deleteResult.ok);
 
       // Verify no longer exists
-      expect(await repository.exists(aggregate.id)).toBeFalsy();
+      assert.ok(!(await repository.exists(aggregate.id)));
     });
 
     it("should return error when deleting non-existent post", async () => {
       const nonExistentId = PostId.generate();
       const result = await repository.delete(nonExistentId);
 
-      expect(result.ok).toBeFalsy();
+      assert.ok(!result.ok);
       if (!result.ok) {
-        expect(result.error.name).toBe("EntityNotFoundError");
+        assert.equal(result.error.name, "EntityNotFoundError");
       }
     });
   });
@@ -237,10 +238,10 @@ describe("PrismaPostRepository", () => {
       // Find with pagination
       const result = await repository.findByProjectId(projectId, { page: 1, limit: 3 });
 
-      expect(result.items.length <= 3).toBeTruthy();
-      expect(result.total >= 5).toBeTruthy();
-      expect(result.page).toBe(1);
-      expect(result.limit).toBe(3);
+      assert.ok(result.items.length <= 3);
+      assert.ok(result.total >= 5);
+      assert.equal(result.page, 1);
+      assert.equal(result.limit, 3);
     });
   });
 
@@ -252,15 +253,15 @@ describe("PrismaPostRepository", () => {
         body: "Draft post",
       });
 
-      expect(result.ok).toBeTruthy();
+      assert.ok(result.ok);
       if (!result.ok) return;
 
       createdPostIds.push(result.value.id.value);
       await repository.save(result.value);
 
       const findResult = await repository.findByStatus(PUBLISH_STATUS.DRAFT);
-      expect(findResult.items.length >= 1).toBeTruthy();
-      expect(findResult.items.every((p) => p.isDraft)).toBeTruthy();
+      assert.ok(findResult.items.length >= 1);
+      assert.ok(findResult.items.every((p) => p.isDraft));
     });
 
     it("should find posts by multiple statuses", async () => {
@@ -269,7 +270,7 @@ describe("PrismaPostRepository", () => {
         PUBLISH_STATUS.SCHEDULED,
       ]);
 
-      expect(result.items.every((p) => p.isDraft || p.isScheduled)).toBeTruthy();
+      assert.ok(result.items.every((p) => p.isDraft || p.isScheduled));
     });
   });
 
@@ -278,7 +279,7 @@ describe("PrismaPostRepository", () => {
       // This test requires posts with scheduledAt in the past
       // In real scenarios, this would find posts ready to publish
       const result = await repository.findReadyForPublishing(10);
-      expect(Array.isArray(result)).toBeTruthy();
+      assert.ok(Array.isArray(result));
     });
   });
 
@@ -291,8 +292,8 @@ describe("PrismaPostRepository", () => {
         status: PUBLISH_STATUS.DRAFT,
       });
 
-      expect(result.items.every((p) => p.projectId.value === testProjectId)).toBeTruthy();
-      expect(result.items.every((p) => p.isDraft)).toBeTruthy();
+      assert.ok(result.items.every((p) => p.projectId.value === testProjectId));
+      assert.ok(result.items.every((p) => p.isDraft));
     });
 
     it("should filter posts with media", async () => {
@@ -303,7 +304,7 @@ describe("PrismaPostRepository", () => {
         hasMedia: false,
       });
 
-      expect(result.items.every((p) => p.media.length === 0)).toBeTruthy();
+      assert.ok(result.items.every((p) => p.media.length === 0));
     });
   });
 
@@ -311,8 +312,8 @@ describe("PrismaPostRepository", () => {
     it("should count posts for a project", async () => {
       const projectId = ProjectId.fromStringUnsafe(testProjectId);
       const count = await repository.countByProjectId(projectId);
-      expect(typeof count === "number").toBeTruthy();
-      expect(count >= 0).toBeTruthy();
+      assert.ok(typeof count === "number");
+      assert.ok(count >= 0);
     });
   });
 
@@ -320,8 +321,8 @@ describe("PrismaPostRepository", () => {
     it("should count posts by status", async () => {
       const projectId = ProjectId.fromStringUnsafe(testProjectId);
       const count = await repository.countByStatus(projectId, PUBLISH_STATUS.DRAFT);
-      expect(typeof count === "number").toBeTruthy();
-      expect(count >= 0).toBeTruthy();
+      assert.ok(typeof count === "number");
+      assert.ok(count >= 0);
     });
   });
 
@@ -330,13 +331,13 @@ describe("PrismaPostRepository", () => {
       const projectId = ProjectId.fromStringUnsafe(testProjectId);
       const stats = await repository.getProjectStats(projectId);
 
-      expect(typeof stats.total === "number").toBeTruthy();
-      expect(typeof stats.drafts === "number").toBeTruthy();
-      expect(typeof stats.scheduled === "number").toBeTruthy();
-      expect(typeof stats.published === "number").toBeTruthy();
-      expect(typeof stats.failed === "number").toBeTruthy();
+      assert.ok(typeof stats.total === "number");
+      assert.ok(typeof stats.drafts === "number");
+      assert.ok(typeof stats.scheduled === "number");
+      assert.ok(typeof stats.published === "number");
+      assert.ok(typeof stats.failed === "number");
 
-      expect(stats.total >= stats.drafts).toBeTruthy();
+      assert.ok(stats.total >= stats.drafts);
     });
   });
 
@@ -362,7 +363,7 @@ describe("PrismaPostRepository", () => {
       // but the repository method bypasses aggregate rules
       // In real usage, this would be used carefully
       const result = await repository.bulkUpdateStatus(postIds, PUBLISH_STATUS.CANCELLED);
-      expect(result.ok).toBeTruthy();
+      assert.ok(result.ok);
     });
   });
 });
@@ -398,11 +399,11 @@ describe("PostAggregateMapper", () => {
 
       const aggregate = PostAggregateMapper.toDomain(prismaPost);
 
-      expect(aggregate.id.value).toBe("test-id-123");
-      expect(aggregate.projectId.value).toBe("project-123");
-      expect(aggregate.content.body).toBe("Test body");
-      expect(aggregate.content.title).toBe("Test Title");
-      expect(aggregate.isDraft).toBeTruthy();
+      assert.equal(aggregate.id.value, "test-id-123");
+      assert.equal(aggregate.projectId.value, "project-123");
+      assert.equal(aggregate.content.body, "Test body");
+      assert.equal(aggregate.content.title, "Test Title");
+      assert.ok(aggregate.isDraft);
     });
 
     it("should map scheduled post with past date", () => {
@@ -436,10 +437,10 @@ describe("PostAggregateMapper", () => {
 
       const aggregate = PostAggregateMapper.toDomain(prismaPost);
 
-      expect(aggregate.id.value).toBe("test-id-456");
-      expect(aggregate.isScheduled).toBeTruthy();
-      expect(aggregate.scheduledAt).toBeTruthy();
-      expect(aggregate.scheduledAt.hasPassed()).toBeTruthy();
+      assert.equal(aggregate.id.value, "test-id-456");
+      assert.ok(aggregate.isScheduled);
+      assert.ok(aggregate.scheduledAt);
+      assert.ok(aggregate.scheduledAt.hasPassed());
     });
 
     it("should map post with media", () => {
@@ -484,9 +485,9 @@ describe("PostAggregateMapper", () => {
 
       const aggregate = PostAggregateMapper.toDomain(prismaPost);
 
-      expect(aggregate.media.length).toBe(1);
-      expect(aggregate.media[0]?.type).toBe("image");
-      expect(aggregate.media[0]?.url).toBe("https://example.com/image.jpg");
+      assert.equal(aggregate.media.length, 1);
+      assert.equal(aggregate.media[0]?.type, "image");
+      assert.equal(aggregate.media[0]?.url, "https://example.com/image.jpg");
     });
   });
 
@@ -500,17 +501,17 @@ describe("PostAggregateMapper", () => {
         tags: ["tag1"],
       });
 
-      expect(result.ok).toBeTruthy();
+      assert.ok(result.ok);
       if (!result.ok) return;
 
       const data = PostAggregateMapper.toPrismaCreate(result.value);
 
-      expect(data.post.id).toBe(result.value.id.value);
-      expect(data.post.projectId).toBe(projectId.value);
-      expect(data.post.status).toBe("DRAFT");
-      expect(data.content.body).toBe("Test content");
-      expect(data.content.title).toBe("Test Title");
-      expect(data.content.tags).toEqual(["tag1"]);
+      assert.equal(data.post.id, result.value.id.value);
+      assert.equal(data.post.projectId, projectId.value);
+      assert.equal(data.post.status, "DRAFT");
+      assert.equal(data.content.body, "Test content");
+      assert.equal(data.content.title, "Test Title");
+      assert.deepEqual(data.content.tags, ["tag1"]);
     });
   });
 
@@ -524,17 +525,17 @@ describe("PostAggregateMapper", () => {
         tags: ["read", "model"],
       });
 
-      expect(result.ok).toBeTruthy();
+      assert.ok(result.ok);
       if (!result.ok) return;
 
       const readModel = PostAggregateMapper.toReadModel(result.value);
 
-      expect(readModel.id).toBe(result.value.id.value);
-      expect(readModel.projectId).toBe(projectId.value);
-      expect(readModel.body).toBe("Read model test");
-      expect(readModel.title).toBe("Read Title");
-      expect(readModel.status).toBe("DRAFT");
-      expect(readModel.mediaCount).toBe(0);
+      assert.equal(readModel.id, result.value.id.value);
+      assert.equal(readModel.projectId, projectId.value);
+      assert.equal(readModel.body, "Read model test");
+      assert.equal(readModel.title, "Read Title");
+      assert.equal(readModel.status, "DRAFT");
+      assert.equal(readModel.mediaCount, 0);
     });
   });
 });

@@ -9,6 +9,7 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import type { AIPromptTemplateDto } from "@/hooks/api/useAIPromptTemplates";
 
 interface TemplateCardProps {
@@ -18,6 +19,7 @@ interface TemplateCardProps {
 }
 
 export function TemplateCard({ template, accountId, onDelete }: TemplateCardProps) {
+  const t = useTranslations("ai.components");
   const isOwned = !template.isSystem && template.accountId === accountId;
 
   return (
@@ -28,7 +30,7 @@ export function TemplateCard({ template, accountId, onDelete }: TemplateCardProp
             <h4 className="font-semibold text-gray-900 text-sm">{template.name}</h4>
             {template.isSystem && (
               <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                System
+                {t("templateCard.system")}
               </span>
             )}
           </div>
@@ -38,9 +40,9 @@ export function TemplateCard({ template, accountId, onDelete }: TemplateCardProp
           <button
             onClick={() => onDelete(template.id)}
             className="text-red-500 hover:text-red-700 text-xs shrink-0 focus:outline-none focus:ring-2 focus:ring-red-400 rounded"
-            aria-label={`Delete ${template.name}`}
+            aria-label={t("templateCard.deleteAria", { name: template.name })}
           >
-            Delete
+            {t("templateCard.delete")}
           </button>
         )}
       </div>

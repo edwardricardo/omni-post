@@ -7,7 +7,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, type Messages } from "next-intl";
 import { Clock, Play, Settings2 } from "lucide-react";
 import { toast } from "@packages/ui";
 import { useCurrentUser } from "@/providers/AuthProvider";
@@ -17,6 +17,16 @@ import { ActionButton } from "@/components/ui/ActionButton";
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmDialog } from "@packages/ui";
 
+/** Union of leaf (string-valued) message keys under the `maintenance.jobs` catalog. */
+type JobsMessageKey = {
+  [K in keyof Messages["maintenance"]["jobs"]]: Messages["maintenance"]["jobs"][K] extends string
+    ? K
+    : never;
+}[keyof Messages["maintenance"]["jobs"]];
+
+/** Union of cron-preset label keys under `maintenance.jobs.cronPresets`. */
+type CronPresetKey = keyof Messages["maintenance"]["jobs"]["cronPresets"];
+
 interface LastRunInfo {
   timestamp: string;
   success: boolean;
@@ -25,38 +35,44 @@ interface LastRunInfo {
 
 interface ScheduledJob {
   key: string;
-  nameKey: string;
+  nameKey: JobsMessageKey;
   pattern: string;
-  descKey: string;
+  descKey: JobsMessageKey;
   auditAction: string;
   lastRun: LastRunInfo | null;
 }
 
-const JOB_DEFINITIONS = [
+const JOB_DEFINITIONS: {
+  key: string;
+  nameKey: JobsMessageKey;
+  pattern: string;
+  descKey: JobsMessageKey;
+  auditAction: string;
+}[] = [
   {
     key: "auto-renewal",
-    nameKey: "autoRenewalName" as const,
+    nameKey: "autoRenewalName",
     pattern: "0 2 * * *",
-    descKey: "autoRenewalDesc" as const,
+    descKey: "autoRenewalDesc",
     auditAction: "AUTO_RENEWAL_BATCH",
   },
   {
     key: "analytics-ingest",
-    nameKey: "analyticsName" as const,
+    nameKey: "analyticsName",
     pattern: "0 */6 * * *",
-    descKey: "analyticsDesc" as const,
+    descKey: "analyticsDesc",
     auditAction: "ANALYTICS_INGEST",
   },
   {
     key: "inbox-sync",
-    nameKey: "inboxSyncName" as const,
+    nameKey: "inboxSyncName",
     pattern: "*/30 * * * *",
-    descKey: "inboxSyncDesc" as const,
+    descKey: "inboxSyncDesc",
     auditAction: "INBOX_SYNC",
   },
 ];
 
-const CRON_PRESETS = [
+const CRON_PRESETS: { translationKey: CronPresetKey; value: string }[] = [
   { translationKey: "everyHour", value: "0 * * * *" },
   { translationKey: "every6Hours", value: "0 */6 * * *" },
   { translationKey: "dailyMidnight", value: "0 0 * * *" },
@@ -198,6 +214,9 @@ export function ScheduledJobsPanel() {
     [newPattern, tj, describeCron]
   );
 
+  const confirmJob = confirmRun ? jobs.find((j) => j.key === confirmRun) : undefined;
+  const confirmRunName = confirmJob ? tj(confirmJob.nameKey) : "";
+
   return (
     <>
       <div className="space-y-3">
@@ -336,7 +355,7 @@ export function ScheduledJobsPanel() {
         }}
         title={tj("confirmRun")}
         description={tj("confirmRunDesc", {
-          name: confirmRun ? tj(jobs.find((j) => j.key === confirmRun)?.nameKey ?? "job") : "job",
+          name: confirmRunName,
         })}
         confirmLabel={tj("runNow")}
         onConfirm={async () => {

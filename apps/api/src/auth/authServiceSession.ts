@@ -8,9 +8,8 @@
 import jwt from "jsonwebtoken";
 import { createHash } from "crypto";
 import { ok, err, type Result } from "@shared/types";
-import { prisma } from "@infra/prisma";
-import type { AdminSession } from "@infra/prisma";
-import type { AdminUserDto } from "../domain/repositories/ReadModelDtos.js";
+import type { AdminSession, PrismaClient } from "@infra/prisma";
+import type { AdminUserDto } from "@core/domain/repositories/ReadModelDtos.js";
 import type {
   TokenPayload,
   AuthTokens,
@@ -34,7 +33,10 @@ import { authLogger } from "../lib/logger.js";
  * Session management operations: refresh, verify, logout, revoke
  */
 export class AuthServiceSession {
-  constructor(private core: AuthServiceCore) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private core: AuthServiceCore
+  ) {}
 
   /**
    * Refresh access token using refresh token
@@ -77,7 +79,7 @@ export class AuthServiceSession {
       }
       const decoded = jwt.verify(refreshToken, this.core.refreshSecret, jwtOptions) as TokenPayload;
 
-      const session = await prisma.adminSession.findUnique({
+      const session = await this.prisma.adminSession.findUnique({
         where: { refreshTokenHash: hashRefreshToken(refreshToken) },
         include: { user: true },
       });
@@ -127,7 +129,7 @@ export class AuthServiceSession {
         (decoded.tokenVersion || 0) + 1
       );
 
-      await prisma.adminSession.update({
+      await this.prisma.adminSession.update({
         where: { id: session.id },
         data: {
           refreshTokenHash: hashRefreshToken(newTokens.refreshToken),
@@ -188,7 +190,7 @@ export class AuthServiceSession {
       }
       const decoded = jwt.verify(token, this.core.jwtSecret, jwtOptions) as TokenPayload;
 
-      const session = await prisma.adminSession.findUnique({
+      const session = await this.prisma.adminSession.findUnique({
         where: { id: decoded.sessionId },
         include: { user: { include: { role: true } } },
       });
@@ -224,7 +226,7 @@ export class AuthServiceSession {
     refreshToken: string
   ): Promise<Result<void, "SESSION_NOT_FOUND" | "DATABASE_ERROR">> {
     try {
-      const session = await prisma.adminSession.findUnique({
+      const session = await this.prisma.adminSession.findUnique({
         where: { refreshTokenHash: hashRefreshToken(refreshToken) },
       });
 
@@ -237,7 +239,7 @@ export class AuthServiceSession {
         }
       }
 
-      await prisma.adminSession.update({
+      await this.prisma.adminSession.update({
         where: { id: session.id },
         data: {
           isActive: false,
@@ -270,7 +272,7 @@ export class AuthServiceSession {
    */
   async revokeAllSessions(userId: string): Promise<Result<number, "DATABASE_ERROR">> {
     try {
-      const result = await prisma.adminSession.updateMany({
+      const result = await this.prisma.adminSession.updateMany({
         where: { userId, isActive: true },
         data: { isActive: false, revokedAt: new Date() },
       });
@@ -300,7 +302,7 @@ export class AuthServiceSession {
    */
   async getUserSessions(userId: string): Promise<Result<AdminSession[], "DATABASE_ERROR">> {
     try {
-      const sessions = await prisma.adminSession.findMany({
+      const sessions = await this.prisma.adminSession.findMany({
         where: {
           userId,
           isActive: true,

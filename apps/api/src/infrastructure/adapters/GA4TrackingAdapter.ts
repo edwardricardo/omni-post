@@ -8,7 +8,7 @@
  */
 
 import { type Result, ok } from "@shared/types";
-import type { GA4Event, GA4TrackingPort } from "../../domain/repositories/GA4TrackingPort.js";
+import type { GA4Event, GA4TrackingPort } from "@core/domain/repositories/GA4TrackingPort.js";
 import { env } from "../../config/env.js";
 
 /**

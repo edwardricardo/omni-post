@@ -1,10 +1,12 @@
 /**
  * @file index.ts
  * @description Barrel exports for the ports package — ProviderAdapter, QueuePort, RepoPort,
- *              StoragePort, CrmAdapter, and PaymentAdapter interfaces.
+ *              StoragePort, CrmAdapter, PaymentAdapter, and AgentOrchestrationPort interfaces.
  * @layer domain
  */
 export * from "./CachePort";
+export * from "./AgentOrchestrationPort";
+export * from "./OAuthFlowStorePort";
 export * from "./ProviderAdapter";
 export * from "./QueuePort";
 export * from "./QueuePortRegistry";

@@ -7,13 +7,14 @@
 import type { PrismaClient } from "@infra/prisma";
 import { Container, getContainer } from "./Container.js";
 import { TOKENS } from "./types.js";
-import { InMemoryEventDispatcher, type EventDispatcher } from "../../domain/index.js";
+import { InMemoryEventDispatcher, type EventDispatcher } from "@core/domain/index.js";
 import { ComposedEventDispatcher } from "../integration-events/ComposedEventDispatcher.js";
 import type { IntegrationEventPublisher } from "../integration-events/IntegrationEventPort.js";
 import { setupRepositories } from "./setupRepositories.js";
 import { setupUseCases } from "./setupUseCases.js";
 import { setupBillingUseCases } from "./setupBillingUseCases.js";
 import { setupServices } from "./setupServices.js";
+import { setupAgentOrchestration } from "./setupAgentOrchestration.js";
 
 /**
  * Container setup options
@@ -23,7 +24,7 @@ export interface ContainerSetupOptions {
   prisma: PrismaClient;
   /** Optional custom event dispatcher */
   eventDispatcher?: EventDispatcher;
-  /** Optional integration event publisher for cross-process events (P2-2) */
+  /** Optional integration event publisher for cross-process events */
   integrationEventPublisher?: IntegrationEventPublisher;
 }
 
@@ -69,6 +70,7 @@ export function setupContainer(options: ContainerSetupOptions): Container {
 
   // Register all services
   setupServices(container, options.integrationEventPublisher);
+  setupAgentOrchestration(container);
 
   return container;
 }

@@ -6,12 +6,14 @@
  */
 
 import { ok, err, type Result } from "@shared/types";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { logger } from "../lib/logger.js";
 
 const adminLogger = logger.child({ module: "admin" });
-import type { AdminRoleKind } from "../domain/repositories/ReadModelDtos.js";
-import { AuditableService } from "../services/AuditableService.js";
+import type { AdminRoleKind } from "@core/domain/repositories/ReadModelDtos.js";
+import type { AdminUserDto } from "@core/domain/repositories/ReadModelDtos.js";
+import type { AdminSessionDto } from "@core/domain/repositories/AdminSessionRepository.js";
+import { BaseService } from "../services/BaseService.js";
 import type { AccountProfile, AccountFilters, AccountStats } from "./accountLifecycleTypes.js";
 
 // ---------------------------------------------------------------------------
@@ -20,19 +22,22 @@ import type { AccountProfile, AccountFilters, AccountStats } from "./accountLife
 // in sync without duplicating the logic.
 // ---------------------------------------------------------------------------
 
-export async function mapAdminUserToProfile(user: {
-  id: string;
-  email: string;
-  name: string;
-  role: AdminRoleKind;
-  isActive: boolean;
-  emailVerified: boolean;
-  lastLoginAt: Date | null;
-  mfaEnabled: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  sessions?: Array<{ createdAt: Date }>;
-}): Promise<AccountProfile> {
+export async function mapAdminUserToProfile(
+  prisma: PrismaClient,
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    role: AdminRoleKind;
+    isActive: boolean;
+    emailVerified: boolean;
+    lastLoginAt: Date | null;
+    mfaEnabled: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    sessions?: Array<{ createdAt: Date }>;
+  }
+): Promise<AccountProfile> {
   const sessionCount = user.sessions
     ? user.sessions.length
     : await prisma.adminSession.count({
@@ -59,9 +64,23 @@ export async function mapAdminUserToProfile(user: {
 
 // ---------------------------------------------------------------------------
 
-export class AccountLifecycleQueryService extends AuditableService {
-  constructor() {
+export class AccountLifecycleQueryService extends BaseService {
+  constructor(private readonly prisma: PrismaClient) {
     super("AccountLifecycleQueryService");
+  }
+
+  /**
+   * Map an admin user (optionally with preloaded sessions) to the public
+   * AccountProfile shape, resolving the active session count when sessions
+   * are not provided.
+   *
+   * @param user - Admin user DTO, optionally carrying preloaded sessions
+   * @returns The mapped AccountProfile
+   */
+  async mapUserToProfile(
+    user: AdminUserDto & { sessions?: AdminSessionDto[] }
+  ): Promise<AccountProfile> {
+    return mapAdminUserToProfile(this.prisma, user);
   }
 
   /**
@@ -127,10 +146,10 @@ export class AccountLifecycleQueryService extends AuditableService {
       }
 
       // Get total count
-      const total = await prisma.adminUser.count({ where });
+      const total = await this.prisma.adminUser.count({ where });
 
       // Get users
-      const users = await prisma.adminUser.findMany({
+      const users = await this.prisma.adminUser.findMany({
         where,
         orderBy: { createdAt: "desc" },
         skip: offset,
@@ -146,7 +165,7 @@ export class AccountLifecycleQueryService extends AuditableService {
       });
 
       const accounts = await Promise.all(
-        users.map((user) => mapAdminUserToProfile({ ...user, role: user.role.name }))
+        users.map((user) => mapAdminUserToProfile(this.prisma, { ...user, role: user.role.name }))
       );
 
       return ok({
@@ -178,20 +197,20 @@ export class AccountLifecycleQueryService extends AuditableService {
         recentRegistrations,
         roleStats,
       ] = await Promise.all([
-        prisma.adminUser.count(),
-        prisma.adminUser.count({ where: { isActive: true } }),
-        prisma.adminUser.count({ where: { emailVerified: true } }),
-        prisma.adminUser.count({ where: { mfaEnabled: true } }),
-        prisma.adminUser.count({ where: { lastLoginAt: { gte: sevenDaysAgo } } }),
-        prisma.adminUser.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
-        prisma.adminUser.groupBy({
+        this.prisma.adminUser.count(),
+        this.prisma.adminUser.count({ where: { isActive: true } }),
+        this.prisma.adminUser.count({ where: { emailVerified: true } }),
+        this.prisma.adminUser.count({ where: { mfaEnabled: true } }),
+        this.prisma.adminUser.count({ where: { lastLoginAt: { gte: sevenDaysAgo } } }),
+        this.prisma.adminUser.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+        this.prisma.adminUser.groupBy({
           by: ["roleId"],
           _count: { id: true },
         }),
       ]);
 
       // Resolve role names from IDs
-      const roles = await prisma.role.findMany({ where: { isActive: true } });
+      const roles = await this.prisma.role.findMany({ where: { isActive: true } });
       const roleNameById = new Map(roles.map((r) => [r.id, r.name]));
 
       const accountsByRole: Record<string, number> = {};

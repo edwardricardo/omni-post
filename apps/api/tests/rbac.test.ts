@@ -10,11 +10,23 @@ import { MfaService } from "../src/auth/mfaService.js";
 import { RbacService, Permission } from "../src/auth/rbacService.js";
 import { prisma } from "@infra/prisma";
 import { PrismaAdminUserRepository } from "../src/infrastructure/repositories/PrismaAdminUserRepository.js";
+import { PrismaRoleRepository } from "../src/infrastructure/repositories/PrismaRoleRepository.js";
+import { PrismaAdminSessionRepository } from "../src/infrastructure/repositories/PrismaAdminSessionRepository.js";
+import { PrismaAuditLogRepository } from "../src/infrastructure/repositories/PrismaAuditLogRepository.js";
 
 const adminUserRepo = new PrismaAdminUserRepository(prisma);
-const mfaService = new MfaService(adminUserRepo);
-const authService = new AuthService(adminUserRepo, mfaService);
-const rbacService = new RbacService(adminUserRepo);
+const roleRepo = new PrismaRoleRepository(prisma);
+const sessionRepo = new PrismaAdminSessionRepository(prisma);
+const mfaService = new MfaService(adminUserRepo, new PrismaAuditLogRepository(prisma));
+const authService = new AuthService(
+  prisma,
+  adminUserRepo,
+  mfaService,
+  roleRepo,
+  sessionRepo,
+  new PrismaAuditLogRepository(prisma)
+);
+const rbacService = new RbacService(adminUserRepo, roleRepo, new PrismaAuditLogRepository(prisma));
 
 /**
  * RBAC (Role-Based Access Control) System Tests

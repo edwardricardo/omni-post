@@ -6,14 +6,15 @@
  */
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import type { ApiKeyRepository } from "../../domain/repositories/ApiKeyRepository.js";
+import type { ApiKeyRepository } from "@core/domain/repositories/ApiKeyRepository.js";
+import type { PasswordHasher } from "@core/domain/repositories/PasswordHasher.js";
 import {
   CreateApiKeyUseCase,
   ValidateApiKeyUseCase,
   ListApiKeysUseCase,
   RotateApiKeyUseCase,
   DeactivateApiKeyUseCase,
-} from "../../application/apiKeys/index.js";
+} from "@core/application/apiKeys/index.js";
 
 /**
  * Register all API key use cases in the container
@@ -22,12 +23,20 @@ export function setupApiKeyUseCases(container: Container): void {
   // Register API Key Use Cases
   container.register<CreateApiKeyUseCase>(
     TOKENS.CreateApiKeyUseCase,
-    () => new CreateApiKeyUseCase(container.resolve<ApiKeyRepository>(TOKENS.ApiKeyRepository)),
+    () =>
+      new CreateApiKeyUseCase(
+        container.resolve<ApiKeyRepository>(TOKENS.ApiKeyRepository),
+        container.resolve<PasswordHasher>(TOKENS.PasswordHasher)
+      ),
     true
   );
   container.register<ValidateApiKeyUseCase>(
     TOKENS.ValidateApiKeyUseCase,
-    () => new ValidateApiKeyUseCase(container.resolve<ApiKeyRepository>(TOKENS.ApiKeyRepository)),
+    () =>
+      new ValidateApiKeyUseCase(
+        container.resolve<ApiKeyRepository>(TOKENS.ApiKeyRepository),
+        container.resolve<PasswordHasher>(TOKENS.PasswordHasher)
+      ),
     true
   );
   container.register<ListApiKeysUseCase>(
@@ -37,7 +46,11 @@ export function setupApiKeyUseCases(container: Container): void {
   );
   container.register<RotateApiKeyUseCase>(
     TOKENS.RotateApiKeyUseCase,
-    () => new RotateApiKeyUseCase(container.resolve<ApiKeyRepository>(TOKENS.ApiKeyRepository)),
+    () =>
+      new RotateApiKeyUseCase(
+        container.resolve<ApiKeyRepository>(TOKENS.ApiKeyRepository),
+        container.resolve<PasswordHasher>(TOKENS.PasswordHasher)
+      ),
     true
   );
   container.register<DeactivateApiKeyUseCase>(

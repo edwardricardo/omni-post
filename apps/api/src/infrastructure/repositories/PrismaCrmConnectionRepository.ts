@@ -9,7 +9,7 @@ import type { PrismaClient } from "@infra/prisma";
 import type {
   CrmConnectionRepository,
   CrmConnectionData,
-} from "../../domain/repositories/CrmConnectionRepository.js";
+} from "@core/domain/repositories/CrmConnectionRepository.js";
 
 export class PrismaCrmConnectionRepository implements CrmConnectionRepository {
   constructor(private readonly prisma: PrismaClient) {}

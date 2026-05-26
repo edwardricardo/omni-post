@@ -15,7 +15,7 @@
 
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { DomainEvent } from "./events";
+import { EventStoreEvent } from "./events";
 import { Command } from "./cqrs";
 
 // ============================================================================
@@ -56,15 +56,15 @@ export interface SagaContext {
   userId?: string;
   metadata: Record<string, unknown>;
   stepData: Record<string, unknown>;
-  events: DomainEvent[];
+  events: EventStoreEvent[];
 }
 
 // ============================================================================
-// Step classification (Azure canon §4-8)
+// Step classification
 // ============================================================================
 
 /**
- * Step classes per Azure Architecture Center "Saga design pattern":
+ * Step classes:
  *
  * - "compensable" — pre-pivot step. MUST implement compensate(). Idempotent.
  *   On saga failure pre-pivot, compensable steps are walked in reverse order
@@ -81,7 +81,7 @@ export interface SagaContext {
 export type StepClass = "compensable" | "pivot" | "retryable";
 
 // ============================================================================
-// Countermeasures (Azure canon §15-20)
+// Countermeasures
 // ============================================================================
 
 /**
@@ -278,7 +278,7 @@ export interface SagaManager {
   continueSaga(sagaId: string): Promise<SagaInstance>;
   compensateSaga(sagaId: string): Promise<SagaInstance>;
   getSaga(sagaId: string): Promise<SagaInstance | null>;
-  handleEvent(event: DomainEvent): Promise<void>;
+  handleEvent(event: EventStoreEvent): Promise<void>;
 }
 
 // ============================================================================

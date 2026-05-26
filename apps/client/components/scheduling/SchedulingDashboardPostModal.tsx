@@ -9,6 +9,7 @@
  */
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import type { DashboardScheduledPost } from "./schedulingDashboardTypes";
 import {
   getStatusColor,
@@ -34,6 +35,7 @@ export function SchedulingDashboardPostModal({
   onClose,
   onCancel,
 }: SchedulingDashboardPostModalProps) {
+  const t = useTranslations("scheduling.components");
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
@@ -62,11 +64,13 @@ export function SchedulingDashboardPostModal({
               <span
                 className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(post.status)}`}
               >
-                {post.status}
+                {t(`status.${post.status}`)}
               </span>
               <div className="flex items-center space-x-2">
                 <div className={`w-3 h-3 rounded-full ${getPriorityColor(post.priority)}`}></div>
-                <span className="text-sm text-gray-600 capitalize">{post.priority} priority</span>
+                <span className="text-sm text-gray-600 capitalize">
+                  {t("modalPriority", { priority: post.priority })}
+                </span>
               </div>
               <span className="text-sm text-gray-600">
                 {getContentTypeIcon(post.contentType)} {post.contentType}
@@ -75,7 +79,9 @@ export function SchedulingDashboardPostModal({
 
             {/* Scheduled Time */}
             <div>
-              <span className="block text-sm font-medium text-gray-700 mb-1">Scheduled Time</span>
+              <span className="block text-sm font-medium text-gray-700 mb-1">
+                {t("modalScheduledTime")}
+              </span>
               <div className="text-lg text-gray-900">
                 {post.scheduledAt.toLocaleString()} ({formatRelativeTime(post.scheduledAt)})
               </div>
@@ -83,7 +89,9 @@ export function SchedulingDashboardPostModal({
 
             {/* Content */}
             <div>
-              <span className="block text-sm font-medium text-gray-700 mb-1">Content</span>
+              <span className="block text-sm font-medium text-gray-700 mb-1">
+                {t("modalContent")}
+              </span>
               <div className="border rounded-lg p-3 bg-gray-50">{post.content.text}</div>
             </div>
 
@@ -91,7 +99,7 @@ export function SchedulingDashboardPostModal({
             {post.content.media && post.content.media.length > 0 && (
               <div>
                 <span className="block text-sm font-medium text-gray-700 mb-1">
-                  Media ({post.content.media.length})
+                  {t("modalMedia", { count: post.content.media.length })}
                 </span>
                 <div className="grid grid-cols-2 gap-2">
                   {post.content.media.map((media) => (
@@ -121,7 +129,7 @@ export function SchedulingDashboardPostModal({
             {/* Error Message */}
             {post.error && (
               <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                <div className="text-sm font-medium text-red-800 mb-1">Error:</div>
+                <div className="text-sm font-medium text-red-800 mb-1">{t("modalErrorLabel")}</div>
                 <div className="text-sm text-red-700">{post.error}</div>
               </div>
             )}
@@ -129,7 +137,9 @@ export function SchedulingDashboardPostModal({
             {/* Tags */}
             {post.tags && post.tags.length > 0 && (
               <div>
-                <span className="block text-sm font-medium text-gray-700 mb-1">Tags</span>
+                <span className="block text-sm font-medium text-gray-700 mb-1">
+                  {t("modalTags")}
+                </span>
                 <div className="flex flex-wrap gap-1">
                   {post.tags.map((tag) => (
                     <span
@@ -147,10 +157,10 @@ export function SchedulingDashboardPostModal({
             {post.estimatedReach && (
               <div>
                 <span className="block text-sm font-medium text-gray-700 mb-1">
-                  Estimated Reach
+                  {t("modalEstimatedReach")}
                 </span>
                 <div className="text-lg text-gray-900">
-                  {post.estimatedReach.toLocaleString()} people
+                  {t("modalReachPeople", { value: post.estimatedReach.toLocaleString() })}
                 </div>
               </div>
             )}
@@ -169,7 +179,7 @@ export function SchedulingDashboardPostModal({
                   }}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >
-                  Edit
+                  {t("modalEdit")}
                 </button>
                 <button
                   onClick={() => {
@@ -178,7 +188,7 @@ export function SchedulingDashboardPostModal({
                   }}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >
-                  Reschedule
+                  {t("modalReschedule")}
                 </button>
               </>
             )}
@@ -190,7 +200,7 @@ export function SchedulingDashboardPostModal({
                 }}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
-                Retry
+                {t("modalRetry")}
               </button>
             )}
           </div>
@@ -204,14 +214,14 @@ export function SchedulingDashboardPostModal({
                 }}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
               >
-                Cancel
+                {t("cancel")}
               </button>
             )}
             <button
               onClick={onClose}
               className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
             >
-              Close
+              {t("modalClose")}
             </button>
           </div>
         </div>

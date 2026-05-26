@@ -5,14 +5,19 @@
  * @layer infrastructure
  */
 import { ok, err, type Result } from "@shared/types";
-import { prisma } from "@infra/prisma";
 import { createLogger } from "../../lib/logger.js";
 
 const log = createLogger("billing");
-import type { AccountQueryRepositoryPort } from "../../domain/repositories/AccountQueryRepository.js";
+import type { AccountQueryRepositoryPort } from "@core/domain/repositories/AccountQueryRepository.js";
+import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
+import type { AccountSubscriptionQueryRepository } from "@core/domain/repositories/AccountSubscriptionQueryRepository.js";
+import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
+import type { Account } from "@core/domain/entities/Account.js";
+import { AccountId } from "@core/domain/value-objects/EntityId.js";
 import { AuditableService } from "../../services/AuditableService";
-import { subscriptionPlanService } from "./SubscriptionPlanService";
-import { billingService } from "./BillingService";
+import type { SubscriptionPlanService } from "./SubscriptionPlanService";
+import type { BillingService } from "./BillingService";
 import { type AccountTrialResponse, type StartTrialRequest } from "./types";
 
 /**
@@ -20,8 +25,41 @@ import { type AccountTrialResponse, type StartTrialRequest } from "./types";
  * start trial, end trial, convert trial to paid, expiring trials
  */
 export class TrialManagementService extends AuditableService {
-  constructor(private readonly accountQueryRepo: AccountQueryRepositoryPort) {
-    super("TrialManagementService");
+  constructor(
+    private readonly accountRepository: AccountRepositoryPort,
+    private readonly accountQueryRepo: AccountQueryRepositoryPort,
+    private readonly subscriptionQueryRepo: AccountSubscriptionQueryRepository,
+    private readonly subscriptionPlanService: SubscriptionPlanService,
+    private readonly billingService: BillingService,
+    auditLog: AuditLogRepository,
+    private readonly unitOfWork?: UnitOfWork
+  ) {
+    super("TrialManagementService", auditLog);
+  }
+
+  /**
+   * Load the Account aggregate by its string id.
+   */
+  private async loadAccount(accountId: string): Promise<Result<Account, "NOT_FOUND">> {
+    const result = await this.accountRepository.findById(AccountId.fromStringUnsafe(accountId));
+    if (!result.ok) return err("NOT_FOUND");
+    return ok(result.value);
+  }
+
+  /**
+   * Persist the Account aggregate, joining the active Unit of Work transaction
+   * when one is configured.
+   */
+  private async persistAccount(account: Account): Promise<void> {
+    const doSave = async (): Promise<void> => {
+      const saved = await this.accountRepository.save(account);
+      if (!saved.ok) throw saved.error;
+    };
+    if (this.unitOfWork) {
+      await this.unitOfWork.executeInTransaction(doSave);
+    } else {
+      await doSave();
+    }
   }
 
   /**
@@ -37,12 +75,9 @@ export class TrialManagementService extends AuditableService {
     if (!accountResult.ok) return err("NOT_FOUND");
 
     const account = accountResult.value;
-    const subscription = await prisma.accountSubscription.findUnique({
-      where: { accountId },
-      include: { bundle: true },
-    });
+    const subscription = await this.subscriptionQueryRepo.getDetailByAccountId(accountId);
 
-    const trial = subscriptionPlanService.calculateTrialInfo(account);
+    const trial = this.subscriptionPlanService.calculateTrialInfo(account);
     const currentProjects = account.projects.length;
 
     return ok({
@@ -61,8 +96,8 @@ export class TrialManagementService extends AuditableService {
                 ? ("custom" as const)
                 : ("none" as const),
             bundleName: subscription.bundle?.name ?? null,
-            providers: subscription.providers.map(String),
-            pricePerMonth: Number(subscription.pricePerMonth),
+            providers: subscription.providers,
+            pricePerMonth: subscription.pricePerMonth,
             maxProjects: subscription.maxProjects,
             status: subscription.status,
             billingCycle: subscription.billingCycle,
@@ -103,20 +138,7 @@ export class TrialManagementService extends AuditableService {
     daysRemaining: number;
     status: string;
   } | null> {
-    const sub = await prisma.accountSubscription.findUnique({
-      where: { accountId },
-    });
-
-    if (!sub) return null;
-
-    return {
-      isTrialing: sub.status === "TRIALING",
-      trialEndsAt: sub.trialEndsAt,
-      daysRemaining: sub.trialEndsAt
-        ? Math.max(0, Math.ceil((sub.trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-        : 0,
-      status: sub.status,
-    };
+    return this.subscriptionQueryRepo.getTrialStatusByAccountId(accountId);
   }
 
   /**
@@ -150,7 +172,7 @@ export class TrialManagementService extends AuditableService {
       const account = accountResult.value;
 
       // Calculate trial info
-      const trialInfo = subscriptionPlanService.calculateTrialInfo(account);
+      const trialInfo = this.subscriptionPlanService.calculateTrialInfo(account);
 
       // Check if account is already on trial or trial has expired
       if (trialInfo.isOnTrial) {
@@ -159,23 +181,20 @@ export class TrialManagementService extends AuditableService {
 
       const now = new Date();
       const trialEndDate = new Date(now.getTime() + trialDurationDays * 24 * 60 * 60 * 1000);
-      const nextBillingDate = billingService.calculateNextBillingDate(billingCycle, trialEndDate);
+      const nextBillingDate = this.billingService.calculateNextBillingDate(
+        billingCycle,
+        trialEndDate
+      );
 
-      await prisma.account.update({
-        where: { id: accountId },
-        data: {
-          isOnTrial: true,
-          trialStartDate: now,
-          trialEndDate,
-          autoRenewal,
-          billingCycle,
-          ...(autoRenewal && { nextBillingDate }),
-          updatedAt: now,
-        },
-        include: {
-          projects: true,
-        },
+      const accountAggregate = await this.loadAccount(accountId);
+      if (!accountAggregate.ok) return err("NOT_FOUND");
+      accountAggregate.value.startTrial({
+        trialDurationDays,
+        autoRenewal,
+        billingCycle,
+        nextBillingDate,
       });
+      await this.persistAccount(accountAggregate.value);
 
       // Log account action for audit trail
       if (startedByUserId) {
@@ -196,7 +215,7 @@ export class TrialManagementService extends AuditableService {
       }
 
       // Log billing event
-      await billingService.logBillingEvent({
+      await this.billingService.logBillingEvent({
         accountId,
         type: "TRIAL_START",
         toTier: tier,
@@ -255,19 +274,10 @@ export class TrialManagementService extends AuditableService {
         return err("NOT_ON_TRIAL");
       }
 
-      await prisma.account.update({
-        where: { id: accountId },
-        data: {
-          isOnTrial: false,
-          trialEndDate: new Date(),
-          autoRenewal: false,
-          nextBillingDate: null,
-          updatedAt: new Date(),
-        },
-        include: {
-          projects: true,
-        },
-      });
+      const accountAggregate = await this.loadAccount(accountId);
+      if (!accountAggregate.ok) return err("NOT_FOUND");
+      accountAggregate.value.endTrial();
+      await this.persistAccount(accountAggregate.value);
 
       // Log account action for audit trail
       if (endedByUserId) {
@@ -284,7 +294,7 @@ export class TrialManagementService extends AuditableService {
       }
 
       // Log billing event
-      await billingService.logBillingEvent({
+      await this.billingService.logBillingEvent({
         accountId,
         type: "TRIAL_END",
         currency: "USD",
@@ -325,21 +335,7 @@ export class TrialManagementService extends AuditableService {
       const targetDate = new Date();
       targetDate.setDate(targetDate.getDate() + daysBeforeExpiration);
 
-      const accounts = await prisma.account.findMany({
-        where: {
-          isOnTrial: true,
-          trialEndDate: {
-            gte: new Date(),
-            lte: targetDate,
-          },
-        },
-        include: {
-          projects: true,
-        },
-        orderBy: {
-          trialEndDate: "asc",
-        },
-      });
+      const accounts = await this.accountQueryRepo.findExpiringTrials(new Date(), targetDate);
 
       const accountInfos: AccountTrialResponse[] = [];
       for (const account of accounts) {
@@ -387,26 +383,20 @@ export class TrialManagementService extends AuditableService {
       }
 
       // Look up plan from AccountSubscription model
-      const accountPlan = await subscriptionPlanService.getAccountPlan(accountId);
+      const accountPlan = await this.subscriptionPlanService.getAccountPlan(accountId);
       const pricePerMonth = accountPlan ? accountPlan.pricePerMonth : 0;
       const amount = pricePerMonth * (billingCycle === "yearly" ? 12 : 1);
       const now = new Date();
-      const nextBilling = billingService.calculateNextBillingDate(billingCycle, now);
+      const nextBilling = this.billingService.calculateNextBillingDate(billingCycle, now);
 
-      await prisma.account.update({
-        where: { id: accountId },
-        data: {
-          isOnTrial: false,
-          billingCycle,
-          autoRenewal: true,
-          lastBillingDate: now,
-          nextBillingDate: nextBilling,
-          updatedAt: now,
-        },
-        include: {
-          projects: true,
-        },
+      const accountAggregate = await this.loadAccount(accountId);
+      if (!accountAggregate.ok) return err("NOT_FOUND");
+      accountAggregate.value.convertTrialToPaid({
+        billingCycle,
+        lastBillingDate: now,
+        nextBillingDate: nextBilling,
       });
+      await this.persistAccount(accountAggregate.value);
 
       // Log account action for audit trail
       if (convertedByUserId) {
@@ -425,7 +415,7 @@ export class TrialManagementService extends AuditableService {
       }
 
       // Log billing event
-      await billingService.logBillingEvent({
+      await this.billingService.logBillingEvent({
         accountId,
         type: "UPGRADE",
         amount,
@@ -464,7 +454,7 @@ export class TrialManagementService extends AuditableService {
   /**
    * Process auto-renewals for accounts with expired trials
    */
-  async processAutoRenewals(): Promise<
+  async processAutoRenewals(triggeredByUserId?: string | null): Promise<
     Result<
       {
         processed: number;
@@ -479,42 +469,31 @@ export class TrialManagementService extends AuditableService {
       const now = new Date();
 
       // Find accounts with expired trials and auto-renewal enabled
-      const expiredTrialAccounts = await prisma.account.findMany({
-        where: {
-          isOnTrial: true,
-          autoRenewal: true,
-          trialEndDate: {
-            lte: now,
-          },
-        },
-        include: {
-          projects: true,
-        },
-      });
+      const expiredTrialAccounts = await this.accountQueryRepo.findAutoRenewableExpired(now);
 
       const results = await Promise.allSettled(
         expiredTrialAccounts.map(async (account) => {
           try {
             // Look up plan from AccountSubscription model
-            const accountPlan = await subscriptionPlanService.getAccountPlan(account.id);
+            const accountPlan = await this.subscriptionPlanService.getAccountPlan(account.id);
             const pricePerMonth = accountPlan ? accountPlan.pricePerMonth : 0;
             const cycle = account.billingCycle as "monthly" | "yearly";
             const amount = pricePerMonth * (cycle === "yearly" ? 12 : 1);
 
-            const nextBilling = billingService.calculateNextBillingDate(cycle, now);
+            const nextBilling = this.billingService.calculateNextBillingDate(cycle, now);
 
-            await prisma.account.update({
-              where: { id: account.id },
-              data: {
-                isOnTrial: false,
-                lastBillingDate: now,
-                nextBillingDate: nextBilling,
-                updatedAt: now,
-              },
+            const accountAggregate = await this.loadAccount(account.id);
+            if (!accountAggregate.ok) {
+              throw new Error(`Account not found: ${account.id}`);
+            }
+            accountAggregate.value.recordRenewal({
+              lastBillingDate: now,
+              nextBillingDate: nextBilling,
             });
+            await this.persistAccount(accountAggregate.value);
 
             // Log account action for audit trail (system action, no userId)
-            await this.logAccountAction("system", {
+            await this.logSystemAction({
               accountId: account.id,
               action: "AUTO_RENEWAL",
               category: "BILLING",
@@ -524,11 +503,12 @@ export class TrialManagementService extends AuditableService {
                 amount,
                 billingCycle: account.billingCycle,
                 nextBillingDate: nextBilling.toISOString(),
+                previousTrialEndDate: account.trialEndDate?.toISOString(),
               },
             });
 
             // Log billing event
-            await billingService.logBillingEvent({
+            await this.billingService.logBillingEvent({
               accountId: account.id,
               type: "AUTO_RENEWAL",
               amount,
@@ -562,6 +542,15 @@ export class TrialManagementService extends AuditableService {
       const processed = details.filter((d) => d.status === "success").length;
       const failed = details.filter((d) => d.status === "failed").length;
 
+      await this.auditLog.create({
+        action: "AUTO_RENEWAL_BATCH",
+        resource: "Billing",
+        ...(triggeredByUserId != null && { userId: triggeredByUserId }),
+        details: { processed, failed, details, triggeredManually: true },
+        success: failed === 0,
+        ...(failed > 0 && { error: `${failed} account(s) failed to renew` }),
+      });
+
       return ok({
         processed,
         failed,
@@ -579,5 +568,34 @@ export class TrialManagementService extends AuditableService {
       );
       return err("DATABASE_ERROR");
     }
+  }
+
+  /**
+   * Aggregate trial statistics for the admin dashboard: counts of total, active,
+   * expired, converted, and started-this-month trials, plus the conversion rate.
+   */
+  async getTrialStats(): Promise<{
+    totalTrials: number;
+    activeTrials: number;
+    expiredTrials: number;
+    convertedTrials: number;
+    trialsStartedThisMonth: number;
+    conversionRate: number;
+    expiringIn24Hours: number;
+  }> {
+    const counts = await this.accountQueryRepo.getTrialStatsCounts();
+    const conversionRate =
+      counts.totalTrials > 0
+        ? Math.round((counts.converted / (counts.totalTrials + counts.converted)) * 100)
+        : 0;
+    return {
+      totalTrials: counts.totalTrials,
+      activeTrials: counts.activeTrials,
+      expiredTrials: counts.expiredTrials,
+      convertedTrials: counts.converted,
+      trialsStartedThisMonth: counts.startedThisMonth,
+      conversionRate,
+      expiringIn24Hours: 0,
+    };
   }
 }

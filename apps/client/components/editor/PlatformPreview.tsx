@@ -13,6 +13,7 @@
  */
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@packages/ui";
 import { Button } from "@packages/ui";
 import { providerRegistry } from "@/lib/providers/registry";
@@ -45,8 +46,6 @@ interface PlatformPreviewProps {
   };
 }
 
-const DEFAULT_USER_INFO = { name: "Your Name", username: "yourusername" } as const;
-
 /**
  * @component PlatformPreview
  * @description Live preview rendering post content as it would appear on each selected
@@ -59,8 +58,13 @@ export function PlatformPreview({
   content,
   mediaFiles,
   selectedProviders,
-  userInfo = DEFAULT_USER_INFO,
+  userInfo,
 }: PlatformPreviewProps) {
+  const t = useTranslations("editor");
+  const resolvedUserInfo = userInfo ?? {
+    name: t("preview.defaultName"),
+    username: t("preview.defaultUsername"),
+  };
   const [activeProvider, setActiveProvider] = useState<string>(selectedProviders[0] || "x");
 
   const activeProviderData = providerRegistry.getProvider(activeProvider);
@@ -87,7 +91,7 @@ export function PlatformPreview({
     [mediaFiles, objectUrls]
   );
 
-  const previewProps: PreviewProps = { content, media, userInfo };
+  const previewProps: PreviewProps = { content, media, userInfo: resolvedUserInfo };
   const threadedPreviewProps: ThreadedPreviewProps = { ...previewProps, threadSegments };
 
   const renderPreview = () => {
@@ -128,7 +132,7 @@ export function PlatformPreview({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          <span>Platform Preview</span>
+          <span>{t("preview.title")}</span>
           {availableProviders.length > 1 && (
             <div className="flex gap-1">
               {availableProviders.map((provider) => (
@@ -157,14 +161,12 @@ export function PlatformPreview({
 
             {threadSegments.length > 1 && (
               <div className="text-sm text-muted-foreground text-center">
-                This content will be posted as a thread with {threadSegments.length} parts
+                {t("preview.threadNotice", { count: threadSegments.length })}
               </div>
             )}
           </div>
         ) : (
-          <div className="text-center text-muted-foreground py-8">
-            Start typing or add media to see a preview
-          </div>
+          <div className="text-center text-muted-foreground py-8">{t("preview.empty")}</div>
         )}
       </CardContent>
     </Card>

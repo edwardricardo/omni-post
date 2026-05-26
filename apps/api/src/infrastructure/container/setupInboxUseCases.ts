@@ -13,9 +13,9 @@ import type {
   SocialMessageQueryRepository,
   SocialConversationRepository,
   SocialOutboundReplyRepository,
-} from "../../domain/index.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
-import type { CreateNotificationUseCase } from "../../application/notifications/index.js";
+} from "@core/domain/index.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
+import type { CreateNotificationUseCase } from "@core/application/notifications/index.js";
 import {
   IngestSocialMessageUseCase,
   MarkMessageReadUseCase,
@@ -33,13 +33,20 @@ import {
   AddConversationNoteUseCase,
   DeleteConversationNoteUseCase,
   ListConversationNotesQuery,
-} from "../../application/inbox/index.js";
-import type { ConversationNoteRepository } from "../../domain/repositories/ConversationNoteRepository.js";
-import type { NotifyMentionedUsersService } from "../../application/mentions/index.js";
-import { InboxEventHandlers } from "../../application/inbox/handlers/InboxEventHandlers.js";
+} from "@core/application/inbox/index.js";
+import type { ConversationNoteRepository } from "@core/domain/repositories/ConversationNoteRepository.js";
+import type { NotifyMentionedUsersService } from "@core/application/mentions/index.js";
+import { InboxEventHandlers } from "@core/application/inbox/handlers/InboxEventHandlers.js";
 import type { ProviderRegistryService } from "../../providers/providerRegistry.js";
-import { DispatchInboxSyncUseCase } from "../../application/inbox/DispatchInboxSyncUseCase.js";
-import type { ChannelQueryForIngestion } from "../../domain/repositories/ChannelQueryForIngestion.js";
+import { DispatchInboxSyncUseCase } from "@core/application/inbox/DispatchInboxSyncUseCase.js";
+import { DispatchMentionSearchUseCase } from "@core/application/listening/DispatchMentionSearchUseCase.js";
+import { GetShareOfVoiceQuery } from "@core/application/listening/GetShareOfVoiceQuery.js";
+import { ListMentionsQuery } from "@core/application/listening/ListMentionsQuery.js";
+import type { ChannelQueryForIngestion } from "@core/domain/repositories/ChannelQueryForIngestion.js";
+import type { TrackedTermQuery } from "@core/domain/repositories/TrackedTermQuery.js";
+import type { MentionQueryRepository } from "@core/domain/repositories/MentionQueryRepository.js";
+import { PrismaTrackedTermQuery } from "../repositories/PrismaTrackedTermQuery.js";
+import { providerRegistry } from "../../providers/providerRegistry.js";
 import type { QueuePortRegistry } from "@ports/core";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { prisma } from "@infra/prisma";
@@ -48,11 +55,13 @@ import { PrismaTriageCrmAdapter } from "../repositories/PrismaTriageCrmAdapter.j
 import {
   TriageInboxMessageUseCase,
   type TriageMessagePort,
-  type TriageAIPort,
   type TriageCrmPort,
-} from "../../application/inbox/TriageInboxMessageUseCase.js";
-import type { AIService } from "../../ai/aiService.js";
-import type { BrandVoiceRepository } from "../../domain/repositories/BrandVoiceRepository.js";
+} from "@core/application/inbox/TriageInboxMessageUseCase.js";
+import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
+import { triageSpec } from "../../ai/structuredSchemas.js";
+import type { BrandVoiceRepository } from "@core/domain/repositories/BrandVoiceRepository.js";
+import { TriageDispatchEventHandler } from "../../inbox/handlers/TriageDispatchEventHandler.js";
+import type { GuardrailRegistry } from "@core/application/guardrails/GuardrailRegistry.js";
 
 /**
  * Register social inbox commands, queries, and event handlers
@@ -110,7 +119,8 @@ export function setupInboxUseCases(container: Container): void {
         container.resolve<EventDispatcher>(TOKENS.EventDispatcher),
         container.resolve<ChannelRepository>(TOKENS.ChannelRepository),
         { resolve: (provider) => registry.getAdapter(provider) },
-        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
+        container.resolve<GuardrailRegistry>(TOKENS.GuardrailRegistry)
       );
     },
     true
@@ -232,6 +242,43 @@ export function setupInboxUseCases(container: Container): void {
     true
   );
 
+  // Social Listening — tracked-term read model + mention-search coordinator
+  container.register<TrackedTermQuery>(
+    TOKENS.TrackedTermQuery,
+    () => new PrismaTrackedTermQuery(prisma),
+    true
+  );
+  container.register<DispatchMentionSearchUseCase>(
+    TOKENS.DispatchMentionSearchUseCase,
+    () =>
+      new DispatchMentionSearchUseCase(
+        container.resolve<TrackedTermQuery>(TOKENS.TrackedTermQuery),
+        container.resolve<ChannelQueryForIngestion>(TOKENS.ChannelQueryForIngestion),
+        container
+          .resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
+          .forQueue(QUEUE_NAMES.MENTION_INGEST),
+        providerRegistry.getMentionSearchProviders(),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+  container.register<GetShareOfVoiceQuery>(
+    TOKENS.GetShareOfVoiceQuery,
+    () =>
+      new GetShareOfVoiceQuery(
+        container.resolve<MentionQueryRepository>(TOKENS.MentionQueryRepository)
+      ),
+    true
+  );
+  container.register<ListMentionsQuery>(
+    TOKENS.ListMentionsQuery,
+    () =>
+      new ListMentionsQuery(
+        container.resolve<MentionQueryRepository>(TOKENS.MentionQueryRepository)
+      ),
+    true
+  );
+
   // Social Inbox Event Handlers
   container.register<InboxEventHandlers>(
     TOKENS.InboxEventHandlers,
@@ -251,27 +298,6 @@ export function setupInboxUseCases(container: Container): void {
     TOKENS.TriageCrmPort,
     new PrismaTriageCrmAdapter(prisma)
   );
-  container.register<TriageAIPort>(
-    TOKENS.TriageAIPort,
-    () => {
-      const aiService = container.resolve<AIService>(TOKENS.AIService);
-      return {
-        async generateContent(
-          messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
-          _options?: Record<string, unknown>
-        ): Promise<{ success: boolean; value?: string }> {
-          try {
-            const result = await aiService.generateContent(messages);
-            const value = typeof result.content === "string" ? result.content : undefined;
-            return { success: true, ...(value !== undefined && { value }) };
-          } catch {
-            return { success: false };
-          }
-        },
-      };
-    },
-    true
-  );
   container.register<TriageInboxMessageUseCase>(
     TOKENS.TriageInboxMessageUseCase,
     () => {
@@ -287,11 +313,27 @@ export function setupInboxUseCases(container: Container): void {
 
       return new TriageInboxMessageUseCase(
         container.resolve<TriageMessagePort>(TOKENS.TriageMessagePort),
-        container.resolve<TriageAIPort>(TOKENS.TriageAIPort),
+        container.resolve<AIServicePort>(TOKENS.AIServicePort),
+        triageSpec,
         container.resolve<TriageCrmPort>(TOKENS.TriageCrmPort),
         brandVoiceResolver,
-        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
+        container.resolve<GuardrailRegistry>(TOKENS.GuardrailRegistry)
       );
+    },
+    true
+  );
+
+  // Triage dispatch event handler — subscribes to SocialMessageReceived and
+  // enqueues TRIAGE_INBOX. Mirrors IntegrationEventDeliveryHandler; wired to
+  // the EventDispatcher at boot in index.ts.
+  container.register<TriageDispatchEventHandler>(
+    TOKENS.TriageDispatchEventHandler,
+    () => {
+      const queue = container
+        .resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
+        .forQueue(QUEUE_NAMES.TRIAGE_INBOX);
+      return new TriageDispatchEventHandler(queue);
     },
     true
   );

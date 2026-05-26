@@ -1,9 +1,9 @@
 /**
  * @file verifyWithGraceWindow.test.ts
- * @description Golden-case tests for the grace-window-aware HMAC verifier.
- *              Pure function — no Prisma, no logger. Covers the 4 branches
- *              flagged in the PR-43-B plan as "could blow the time estimate"
- *              if a regression sneaks in.
+ * @description Golden-case tests for the grace-window-aware HMAC
+ *              verifier. Pure function — no Prisma, no logger. Covers
+ *              the four observable branches: in-window, expired,
+ *              out-of-window, and invalid-signature.
  * @layer infrastructure
  */
 

@@ -16,6 +16,14 @@ export const TOKENS = {
 
   // AdminUser Repository (R1-A — hexagonal port, replaces legacy UserRepository)
   AdminUserRepository: Symbol.for("AdminUserRepository"),
+  AdminUserAdminService: Symbol.for("AdminUserAdminService"),
+  CustomerAccountBillingService: Symbol.for("CustomerAccountBillingService"),
+  PricingAdminService: Symbol.for("PricingAdminService"),
+
+  // AdminSession + admin Role + AuditLog repositories (admin-auth DI)
+  AdminSessionRepository: Symbol.for("AdminSessionRepository"),
+  RoleRepository: Symbol.for("RoleRepository"),
+  AuditLogRepository: Symbol.for("AuditLogRepository"),
 
   // Repositories
   AccountRepository: Symbol.for("AccountRepository"),
@@ -29,8 +37,10 @@ export const TOKENS = {
   // Read-model repositories (R1-C — analytics consumers)
   ProjectQueryRepository: Symbol.for("ProjectQueryRepository"),
   AnalyticsReadRepository: Symbol.for("AnalyticsReadRepository"),
+  ThreadReadRepository: Symbol.for("ThreadReadRepository"),
+  ConversionRepository: Symbol.for("ConversionRepository"),
 
-  // Repositories (P2-3 — CQRS read side)
+  // Repositories (CQRS read side)
   PostQueryRepository: Symbol.for("PostQueryRepository"),
 
   // Repositories (API keys)
@@ -64,7 +74,7 @@ export const TOKENS = {
   // Use Cases (channels)
   SetPrimaryChannelUseCase: Symbol.for("SetPrimaryChannelUseCase"),
 
-  // Outbox (P2-1 — Transactional Outbox)
+  // Outbox (Transactional Outbox)
   OutboxWriter: Symbol.for("OutboxWriter"),
   OutboxRelay: Symbol.for("OutboxRelay"),
   OutboxCleaner: Symbol.for("OutboxCleaner"),
@@ -77,13 +87,13 @@ export const TOKENS = {
   // recurring in-process work (cleanup jobs, health checks, metrics pushes).
   BackgroundTaskScheduler: Symbol.for("BackgroundTaskScheduler"),
 
-  // Unit of Work (P2-4)
+  // Unit of Work
   UnitOfWork: Symbol.for("UnitOfWork"),
 
-  // Integration Events (P2-2)
+  // Integration Events
   IntegrationEventPublisher: Symbol.for("IntegrationEventPublisher"),
 
-  // Event Versioning (P2-5)
+  // Event Versioning
   EventSchemaRegistry: Symbol.for("EventSchemaRegistry"),
   UpcasterChain: Symbol.for("UpcasterChain"),
 
@@ -102,7 +112,7 @@ export const TOKENS = {
   ContentVersionManager: Symbol.for("ContentVersionManager"),
   PlatformContentAdapter: Symbol.for("PlatformContentAdapter"),
 
-  // Services (P1-4 — DI route migration)
+  // Services (DI route migration)
   AuthService: Symbol.for("AuthService"),
   MfaService: Symbol.for("MfaService"),
   RbacService: Symbol.for("RbacService"),
@@ -110,17 +120,27 @@ export const TOKENS = {
   ActivityFeedService: Symbol.for("ActivityFeedService"),
   AIService: Symbol.for("AIService"),
   AIServicePort: Symbol.for("AIServicePort"),
+  AgentOrchestrationPort: Symbol.for("AgentOrchestrationPort"),
   HttpClientPort: Symbol.for("HttpClientPort"),
   CachePort: Symbol.for("CachePort"),
   RedisCacheManager: Symbol.for("RedisCacheManager"),
   AiRequestService: Symbol.for("AiRequestService"),
   DashboardService: Symbol.for("DashboardService"),
   AccountLifecycleService: Symbol.for("AccountLifecycleService"),
+  AccountLifecycleQueryService: Symbol.for("AccountLifecycleQueryService"),
   AccountSessionService: Symbol.for("AccountSessionService"),
   AdminAuthService: Symbol.for("AdminAuthService"),
   TemplateService: Symbol.for("TemplateService"),
   TemplateAnalytics: Symbol.for("TemplateAnalytics"),
   SubscriptionService: Symbol.for("SubscriptionService"),
+  BillingService: Symbol.for("BillingService"),
+  SubscriptionPlanService: Symbol.for("SubscriptionPlanService"),
+  SubscriptionManagementService: Symbol.for("SubscriptionManagementService"),
+  TrialManagementService: Symbol.for("TrialManagementService"),
+  SubscriptionStatsService: Symbol.for("SubscriptionStatsService"),
+  AccountSubscriptionPort: Symbol.for("AccountSubscriptionPort"),
+  AccountSubscriptionQueryRepository: Symbol.for("AccountSubscriptionQueryRepository"),
+  SubscriptionStatsQueryRepository: Symbol.for("SubscriptionStatsQueryRepository"),
 
   // Billing Use Cases (provider-based model)
   CreateAccountSubscriptionUseCase: Symbol.for("CreateAccountSubscriptionUseCase"),
@@ -133,6 +153,8 @@ export const TOKENS = {
   // Analytics Services (M-8c — DI route migration)
   ThreadAnalytics: Symbol.for("ThreadAnalytics"),
   // Future: GeoAnalyticsService — deleted (100% fake geographic distribution)
+  AnalyticsStreamBroadcaster: Symbol.for("AnalyticsStreamBroadcaster"),
+  RealtimeAnalyticsService: Symbol.for("RealtimeAnalyticsService"),
 
   // ML Use Cases (B0-2 — DI violation fix in ai/routes.ts)
   OptimizeContentUseCase: Symbol.for("OptimizeContentUseCase"),
@@ -143,23 +165,23 @@ export const TOKENS = {
   // Provider Registry (H5 — DI route migration)
   ProviderRegistry: Symbol.for("ProviderRegistry"),
 
-  // Saga Orchestration (P3-A — publish flow integration)
+  // Saga Orchestration (publish flow integration)
   SagaManager: Symbol.for("SagaManager"),
 
-  // Repositories (P1-DI-7 — link tracking)
+  // Repositories (link tracking)
   TrackedLinkRepository: Symbol.for("TrackedLinkRepository"),
 
-  // Repositories (P1-DI-8 — crisis mode)
+  // Repositories (crisis mode)
   CrisisProjectRepository: Symbol.for("CrisisProjectRepository"),
 
-  // Use Cases (P1-DI-7 — link tracking)
+  // Use Cases (link tracking)
   CreateTrackedLinkUseCase: Symbol.for("CreateTrackedLinkUseCase"),
   GetTrackedLinkUseCase: Symbol.for("GetTrackedLinkUseCase"),
   GetLinkStatsUseCase: Symbol.for("GetLinkStatsUseCase"),
   DeleteTrackedLinkUseCase: Symbol.for("DeleteTrackedLinkUseCase"),
   RedirectAndTrackClickUseCase: Symbol.for("RedirectAndTrackClickUseCase"),
 
-  // Use Cases (P1-DI-8 — crisis mode)
+  // Use Cases (crisis mode)
   EnterCrisisModeUseCase: Symbol.for("EnterCrisisModeUseCase"),
   ExitCrisisModeUseCase: Symbol.for("ExitCrisisModeUseCase"),
   GetCrisisStatusUseCase: Symbol.for("GetCrisisStatusUseCase"),
@@ -261,6 +283,13 @@ export const TOKENS = {
   // Scheduled Reports
   ScheduledReportRepository: Symbol.for("ScheduledReportRepository"),
   EmailPort: Symbol.for("EmailPort"),
+  PasswordHasher: Symbol.for("PasswordHasher"),
+  CustomerTokenService: Symbol.for("CustomerTokenService"),
+  ReferralRewardMailer: Symbol.for("ReferralRewardMailer"),
+  WelcomeMailer: Symbol.for("WelcomeMailer"),
+  TeamInvitationMailer: Symbol.for("TeamInvitationMailer"),
+  NotificationMailer: Symbol.for("NotificationMailer"),
+  BusinessMetricsPort: Symbol.for("BusinessMetricsPort"),
   CreateScheduledReportUseCase: Symbol.for("CreateScheduledReportUseCase"),
   UpdateScheduledReportUseCase: Symbol.for("UpdateScheduledReportUseCase"),
   DeleteScheduledReportUseCase: Symbol.for("DeleteScheduledReportUseCase"),
@@ -278,6 +307,7 @@ export const TOKENS = {
 
   // AI Image Generation (Step 8)
   GeneratedImageRepository: Symbol.for("GeneratedImageRepository"),
+  ImageGenerationPort: Symbol.for("ImageGenerationPort"),
   GenerateImageUseCase: Symbol.for("GenerateImageUseCase"),
   ListGeneratedImagesQuery_AIImage: Symbol.for("ListGeneratedImagesQuery_AIImage"),
 
@@ -417,7 +447,7 @@ export const TOKENS = {
   // legacy token resolves to the PUBLISH queue for backwards compat and
   // will be removed once all callers migrate.
   QueuePortRegistry: Symbol.for("QueuePortRegistry"),
-  // Producer-side DLQ port (archive only; list/retry deferred to backlog).
+  // Producer-side DLQ port (archive only).
   DeadLetterQueuePort: Symbol.for("DeadLetterQueuePort"),
 
   // Analytics Aggregation
@@ -431,6 +461,21 @@ export const TOKENS = {
 
   // Inbox Sync
   DispatchInboxSyncUseCase: Symbol.for("DispatchInboxSyncUseCase"),
+
+  // Social Listening (mentions)
+  TrackedTermQuery: Symbol.for("TrackedTermQuery"),
+  DispatchMentionSearchUseCase: Symbol.for("DispatchMentionSearchUseCase"),
+  MentionQueryRepository: Symbol.for("MentionQueryRepository"),
+  GetShareOfVoiceQuery: Symbol.for("GetShareOfVoiceQuery"),
+  ListMentionsQuery: Symbol.for("ListMentionsQuery"),
+
+  // Bulk CSV Scheduling
+  BulkScheduleBatchRepository: Symbol.for("BulkScheduleBatchRepository"),
+  BulkScheduleQueryRepository: Symbol.for("BulkScheduleQueryRepository"),
+  ImportSchedulingCsvUseCase: Symbol.for("ImportSchedulingCsvUseCase"),
+  ProcessBulkScheduleRowUseCase: Symbol.for("ProcessBulkScheduleRowUseCase"),
+  FailBulkScheduleRowUseCase: Symbol.for("FailBulkScheduleRowUseCase"),
+  GetBulkScheduleBatchQuery: Symbol.for("GetBulkScheduleBatchQuery"),
 
   // Payment Billing
   PaymentAdapter: Symbol.for("PaymentAdapter"),
@@ -469,20 +514,46 @@ export const TOKENS = {
 
   // Inbox Triage
   TriageMessagePort: Symbol.for("TriageMessagePort"),
-  TriageAIPort: Symbol.for("TriageAIPort"),
   TriageCrmPort: Symbol.for("TriageCrmPort"),
   TriageInboxMessageUseCase: Symbol.for("TriageInboxMessageUseCase"),
+  TriageDispatchEventHandler: Symbol.for("TriageDispatchEventHandler"),
 
   // Trend Scoring
-  ScoreTrendAIPort: Symbol.for("ScoreTrendAIPort"),
   ScoreTrendContextPort: Symbol.for("ScoreTrendContextPort"),
   ScoreTrendRelevanceUseCase: Symbol.for("ScoreTrendRelevanceUseCase"),
+  TrendingDataPort: Symbol.for("TrendingDataPort"),
+  TrendRadarResultPort: Symbol.for("TrendRadarResultPort"),
+  TrendRadarQueryRepository: Symbol.for("TrendRadarQueryRepository"),
+  FetchTrendingTopicsUseCase: Symbol.for("FetchTrendingTopicsUseCase"),
+  DetectTrendsUseCase: Symbol.for("DetectTrendsUseCase"),
+  DispatchDetectTrendsUseCase: Symbol.for("DispatchDetectTrendsUseCase"),
+  GetTrendRadarQuery: Symbol.for("GetTrendRadarQuery"),
+
+  // Localized generation (RAG) — per-locale glossary + style-guide
+  GlossaryRepository: Symbol.for("GlossaryRepository"),
+  StyleGuideRuleRepository: Symbol.for("StyleGuideRuleRepository"),
+  SemanticRetrievalPort: Symbol.for("SemanticRetrievalPort"),
+  EmbeddingService: Symbol.for("EmbeddingService"),
+  UpsertGlossaryTermUseCase: Symbol.for("UpsertGlossaryTermUseCase"),
+  DeleteGlossaryTermUseCase: Symbol.for("DeleteGlossaryTermUseCase"),
+  ListGlossaryByLocaleQuery: Symbol.for("ListGlossaryByLocaleQuery"),
+  UpsertStyleGuideRuleUseCase: Symbol.for("UpsertStyleGuideRuleUseCase"),
+  DeleteStyleGuideRuleUseCase: Symbol.for("DeleteStyleGuideRuleUseCase"),
+  ListStyleGuideRulesByLocaleQuery: Symbol.for("ListStyleGuideRulesByLocaleQuery"),
+  GenerateLocalizedContentUseCase: Symbol.for("GenerateLocalizedContentUseCase"),
+
+  // Guardrails
+  GuardrailPort_ContentPolicy: Symbol.for("GuardrailPort_ContentPolicy"),
+  GuardrailPort_PIIRedaction: Symbol.for("GuardrailPort_PIIRedaction"),
+  GuardrailRegistry: Symbol.for("GuardrailRegistry"),
 
   // AI Repurpose Use Cases
   ApproveRepurposeVariantUseCase: Symbol.for("ApproveRepurposeVariantUseCase"),
   RejectRepurposeVariantUseCase: Symbol.for("RejectRepurposeVariantUseCase"),
   DetectRepurposeCandidatesUseCase: Symbol.for("DetectRepurposeCandidatesUseCase"),
+  DispatchDetectRepurposeUseCase: Symbol.for("DispatchDetectRepurposeUseCase"),
   GenerateRepurposeVariantsUseCase: Symbol.for("GenerateRepurposeVariantsUseCase"),
+  ListRepurposeProposalsQuery: Symbol.for("ListRepurposeProposalsQuery"),
 
   // Platform Encryption
   EncryptionService: Symbol.for("EncryptionService"),

@@ -8,6 +8,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { useTasks, useCompleteTask, useCancelTask } from "@/hooks/api/useTasks";
 import type { TaskDto } from "@/hooks/api/useTasks";
 import { TaskCard } from "./TaskCard";
@@ -19,21 +20,22 @@ interface TaskListProps {
 }
 
 const STATUS_TABS = [
-  { label: "All", value: undefined },
-  { label: "Open", value: "OPEN" },
-  { label: "In Progress", value: "IN_PROGRESS" },
-  { label: "Completed", value: "COMPLETED" },
+  { labelKey: "tabs.all", value: undefined },
+  { labelKey: "tabs.open", value: "OPEN" },
+  { labelKey: "tabs.inProgress", value: "IN_PROGRESS" },
+  { labelKey: "tabs.completed", value: "COMPLETED" },
 ] as const;
 
 const PRIORITY_OPTIONS = [
-  { label: "All Priorities", value: undefined },
-  { label: "Urgent", value: "URGENT" },
-  { label: "High", value: "HIGH" },
-  { label: "Medium", value: "MEDIUM" },
-  { label: "Low", value: "LOW" },
+  { labelKey: "priorityFilter.all", value: undefined },
+  { labelKey: "priorityFilter.urgent", value: "URGENT" },
+  { labelKey: "priorityFilter.high", value: "HIGH" },
+  { labelKey: "priorityFilter.medium", value: "MEDIUM" },
+  { labelKey: "priorityFilter.low", value: "LOW" },
 ] as const;
 
 export function TaskList({ accountId, userId, onTaskClick }: TaskListProps) {
+  const t = useTranslations("tasks.components");
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [priorityFilter, setPriorityFilter] = useState<string | undefined>(undefined);
 
@@ -72,7 +74,7 @@ export function TaskList({ accountId, userId, onTaskClick }: TaskListProps) {
         <div className="flex rounded-lg border overflow-hidden">
           {STATUS_TABS.map((tab) => (
             <button
-              key={tab.label}
+              key={tab.labelKey}
               type="button"
               onClick={() => setStatusFilter(tab.value)}
               className={`px-3 py-1.5 text-sm font-medium transition-colors ${
@@ -81,7 +83,7 @@ export function TaskList({ accountId, userId, onTaskClick }: TaskListProps) {
                   : "bg-background text-muted-foreground hover:bg-accent"
               }`}
             >
-              {tab.label}
+              {t(tab.labelKey)}
             </button>
           ))}
         </div>
@@ -92,8 +94,8 @@ export function TaskList({ accountId, userId, onTaskClick }: TaskListProps) {
           className="rounded-md border px-3 py-1.5 text-sm bg-background"
         >
           {PRIORITY_OPTIONS.map((opt) => (
-            <option key={opt.label} value={opt.value ?? ""}>
-              {opt.label}
+            <option key={opt.labelKey} value={opt.value ?? ""}>
+              {t(opt.labelKey)}
             </option>
           ))}
         </select>
@@ -101,11 +103,11 @@ export function TaskList({ accountId, userId, onTaskClick }: TaskListProps) {
 
       {/* List */}
       {isLoading ? (
-        <div className="text-center py-8 text-muted-foreground">Loading tasks...</div>
+        <div className="text-center py-8 text-muted-foreground">{t("loading")}</div>
       ) : tasks.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
-          <p className="text-lg font-medium">No tasks yet</p>
-          <p className="text-sm mt-1">Create your first task to get started.</p>
+          <p className="text-lg font-medium">{t("emptyTitle")}</p>
+          <p className="text-sm mt-1">{t("emptyDescription")}</p>
         </div>
       ) : (
         <div className="space-y-2">

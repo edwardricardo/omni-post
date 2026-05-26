@@ -5,12 +5,12 @@
  */
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import type { FirstCommentRepository } from "../../domain/repositories/FirstCommentRepository.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
-import { SetFirstCommentUseCase } from "../../application/first-comment/SetFirstCommentUseCase.js";
-import { RemoveFirstCommentUseCase } from "../../application/first-comment/RemoveFirstCommentUseCase.js";
-import { GetFirstCommentQuery } from "../../application/first-comment/GetFirstCommentQuery.js";
-import { PublishFirstCommentUseCase } from "../../application/first-comment/PublishFirstCommentUseCase.js";
+import type { FirstCommentRepository } from "@core/domain/repositories/FirstCommentRepository.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
+import { SetFirstCommentUseCase } from "@core/application/first-comment/SetFirstCommentUseCase.js";
+import { RemoveFirstCommentUseCase } from "@core/application/first-comment/RemoveFirstCommentUseCase.js";
+import { GetFirstCommentQuery } from "@core/application/first-comment/GetFirstCommentQuery.js";
+import { PublishFirstCommentUseCase } from "@core/application/first-comment/PublishFirstCommentUseCase.js";
 
 /**
  * @method setupFirstCommentUseCases

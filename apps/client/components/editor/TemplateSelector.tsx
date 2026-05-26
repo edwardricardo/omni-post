@@ -4,9 +4,12 @@
  * @file TemplateSelector.tsx
  * @description Dialog for browsing, previewing, and selecting post templates with
  * category filtering, variable customization, and platform-aware content insertion.
+ * @component TemplateSelector
+ * @layer infrastructure
  */
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Card,
   CardContent,
@@ -53,6 +56,7 @@ interface VariableModalProps {
 }
 
 function VariableModal({ template, isOpen, onClose, onApply }: VariableModalProps) {
+  const t = useTranslations("editor");
   const [variables, setVariables] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState(false);
 
@@ -84,21 +88,19 @@ function VariableModal({ template, isOpen, onClose, onApply }: VariableModalProp
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Use Template: {template.name}</DialogTitle>
-            <DialogDescription>
-              This template is ready to use as-is, or you can customize it after applying.
-            </DialogDescription>
+            <DialogTitle>{t("templateSelector.useTitle", { name: template.name })}</DialogTitle>
+            <DialogDescription>{t("templateSelector.readyDescription")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="p-4 bg-muted rounded-lg">
-              <h4 className="font-medium mb-2">Preview:</h4>
+              <h4 className="font-medium mb-2">{t("templateSelector.previewLabel")}</h4>
               <p className="text-sm whitespace-pre-wrap">{template.content}</p>
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={onClose}>
-                Cancel
+                {t("templateSelector.cancel")}
               </Button>
-              <Button onClick={handleApplyDirect}>Apply Template</Button>
+              <Button onClick={handleApplyDirect}>{t("templateSelector.apply")}</Button>
             </div>
           </div>
         </DialogContent>
@@ -110,16 +112,14 @@ function VariableModal({ template, isOpen, onClose, onApply }: VariableModalProp
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Customize Template: {template.name}</DialogTitle>
-          <DialogDescription>
-            Fill in the variables below to customize your template.
-          </DialogDescription>
+          <DialogTitle>{t("templateSelector.customizeTitle", { name: template.name })}</DialogTitle>
+          <DialogDescription>{t("templateSelector.customizeDescription")}</DialogDescription>
         </DialogHeader>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Variables Form */}
           <div className="space-y-4">
-            <h4 className="font-medium">Template Variables</h4>
+            <h4 className="font-medium">{t("templateSelector.variablesHeading")}</h4>
             {template.variables.map((variable) => (
               <div key={variable} className="space-y-2">
                 <Label htmlFor={variable}>
@@ -130,7 +130,9 @@ function VariableModal({ template, isOpen, onClose, onApply }: VariableModalProp
                 </Label>
                 <Input
                   id={variable}
-                  placeholder={`Enter ${variable.toLowerCase()}`}
+                  placeholder={t("templateSelector.variablePlaceholder", {
+                    name: variable.toLowerCase(),
+                  })}
                   value={variables[variable] || ""}
                   onChange={(e) => handleVariableChange(variable, e.target.value)}
                 />
@@ -141,10 +143,10 @@ function VariableModal({ template, isOpen, onClose, onApply }: VariableModalProp
           {/* Preview */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h4 className="font-medium">Preview</h4>
+              <h4 className="font-medium">{t("templateSelector.previewHeading")}</h4>
               <Button variant="outline" size="sm" onClick={() => setPreview(!preview)}>
                 <Eye className="h-4 w-4 mr-2" />
-                {preview ? "Hide" : "Show"} Preview
+                {preview ? t("templateSelector.hidePreview") : t("templateSelector.showPreview")}
               </Button>
             </div>
             {preview && (
@@ -157,9 +159,9 @@ function VariableModal({ template, isOpen, onClose, onApply }: VariableModalProp
 
         <div className="flex justify-end gap-2 pt-4 border-t">
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t("templateSelector.cancel")}
           </Button>
-          <Button onClick={handleApply}>Apply Template</Button>
+          <Button onClick={handleApply}>{t("templateSelector.apply")}</Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -178,6 +180,7 @@ export function TemplateSelector({
   isOpen,
   onClose,
 }: TemplateSelectorProps) {
+  const t = useTranslations("editor");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedTemplate, setSelectedTemplate] = useState<PostTemplate | null>(null);
@@ -215,11 +218,9 @@ export function TemplateSelector({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
-              Choose a Template
+              {t("templateSelector.chooseTitle")}
             </DialogTitle>
-            <DialogDescription>
-              Select a pre-made template to get started quickly, then customize it to your needs.
-            </DialogDescription>
+            <DialogDescription>{t("templateSelector.chooseDescription")}</DialogDescription>
           </DialogHeader>
 
           {/* Filters */}
@@ -228,7 +229,7 @@ export function TemplateSelector({
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search templates..."
+                  placeholder={t("templateSelector.searchPlaceholder")}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -236,10 +237,10 @@ export function TemplateSelector({
               </div>
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                 <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="All Categories" />
+                  <SelectValue placeholder={t("templateSelector.allCategories")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="all">{t("templateSelector.allCategories")}</SelectItem>
                   {templateCategories.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       {category.name}
@@ -251,7 +252,9 @@ export function TemplateSelector({
 
             {selectedPlatforms.length > 0 && (
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Filtered for:</span>
+                <span className="text-sm text-muted-foreground">
+                  {t("templateSelector.filteredFor")}
+                </span>
                 {selectedPlatforms.map((platform) => (
                   <Badge key={platform} variant="secondary" className="text-xs">
                     {platform.charAt(0).toUpperCase() + platform.slice(1)}
@@ -266,9 +269,9 @@ export function TemplateSelector({
             {filteredTemplates.length === 0 ? (
               <div className="text-center py-12">
                 <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">No templates found</h3>
+                <h3 className="text-lg font-medium mb-2">{t("templateSelector.emptyTitle")}</h3>
                 <p className="text-muted-foreground mb-4">
-                  Try adjusting your search or category filter.
+                  {t("templateSelector.emptyDescription")}
                 </p>
               </div>
             ) : (
@@ -321,7 +324,7 @@ export function TemplateSelector({
                         </div>
                         <Button onClick={() => handleTemplateSelect(template)} size="sm">
                           <Plus className="h-3 w-3 mr-1" />
-                          Use Template
+                          {t("templateSelector.useButton")}
                         </Button>
                       </div>
                     </CardContent>

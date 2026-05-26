@@ -8,13 +8,17 @@
  */
 import type Redis from "ioredis";
 import type { CachePort } from "@ports/core";
-import { prisma } from "@infra/prisma";
-import { Prisma } from "@infra/prisma";
 import { createRedisConnection } from "../lib/redis.js";
 import { createLogger } from "../lib/logger.js";
 
 const analyticsLogger = createLogger("analytics");
-import type { ProjectQueryRepositoryPort } from "../domain/repositories/ProjectQueryRepository.js";
+import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
+import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
+import type { ConversionRepositoryPort } from "@core/domain/repositories/ConversionRepository.js";
+import type {
+  ConversionTypeKind,
+  ConversionAttributionKind,
+} from "@core/domain/repositories/ReadModelDtos.js";
 import { CostCalculator } from "./roi/CostCalculator.js";
 import { RevenueCalculator } from "./roi/RevenueCalculator.js";
 import { ROIMetrics } from "./roi/ROIMetrics.js";
@@ -58,6 +62,8 @@ export class ROICalculator {
 
   constructor(
     private readonly projectRepository: ProjectQueryRepositoryPort,
+    private readonly analyticsRepository: AnalyticsReadRepositoryPort,
+    private readonly conversionRepository: ConversionRepositoryPort,
     private readonly cache: CachePort
   ) {
     this.redis = createRedisConnection();
@@ -182,15 +188,17 @@ export class ROICalculator {
    */
   async trackConversion(conversion: ConversionTracking): Promise<void> {
     try {
-      await prisma.$executeRaw`
-        INSERT INTO conversions (
-          source, content_id, conversion_type, value, timestamp, attribution
-        ) VALUES (
-          ${conversion.source}, ${conversion.contentId}, ${conversion.conversionType},
-          ${conversion.value}, ${conversion.timestamp}, ${conversion.attribution}
-        )
-        ON CONFLICT DO NOTHING
-      `;
+      await this.conversionRepository.record({
+        accountId: conversion.accountId,
+        source: conversion.source,
+        contentId: conversion.contentId,
+        // Domain literals are lowercase ("sale", "first_click"); the port speaks
+        // the DB-aligned UPPERCASE kinds ("SALE", "FIRST_CLICK").
+        conversionType: conversion.conversionType.toUpperCase() as ConversionTypeKind,
+        value: conversion.value,
+        attribution: conversion.attribution.toUpperCase() as ConversionAttributionKind,
+        occurredAt: conversion.timestamp,
+      });
       await this.updateRealTimeROI(conversion);
     } catch (error) {
       analyticsLogger.error({ err: error }, "Error tracking conversion");
@@ -358,34 +366,39 @@ export class ROICalculator {
     }
   }
 
+  /** Resolve the post IDs in scope for an ROI query (a single project, or every project of the account). */
+  private async resolvePostIds(options: ROICalculationOptions): Promise<string[]> {
+    if (options.projectId) {
+      return this.projectRepository.getPostIds(options.projectId);
+    }
+    const projects = await this.projectRepository.getByAccountId(options.accountId);
+    const postIdsArrays = await Promise.all(
+      projects.map((p) => this.projectRepository.getPostIds(p.id))
+    );
+    return postIdsArrays.flat();
+  }
+
   private async getAnalyticsData(
     options: ROICalculationOptions,
     startDate: Date,
     endDate: Date
   ): Promise<AnalyticsDataPoint[]> {
-    const whereClause: Record<string, unknown> = {
-      capturedAt: { gte: startDate, lte: endDate },
-    };
+    const postIds = await this.resolvePostIds(options);
+    if (postIds.length === 0) return [];
 
-    if (options.projectId) {
-      const postIds = await this.projectRepository.getPostIds(options.projectId);
-      whereClause["postId"] = { in: postIds };
-    } else {
-      const projects = await this.projectRepository.getByAccountId(options.accountId);
-      const postIdsArrays = await Promise.all(
-        projects.map((p) => this.projectRepository.getPostIds(p.id))
-      );
-      whereClause["postId"] = { in: postIdsArrays.flat() };
-    }
-
-    if (options.providers && options.providers.length > 0) {
-      whereClause["provider"] = { in: options.providers };
-    }
-
-    return prisma.analytics.findMany({
-      where: whereClause as Prisma.AnalyticsWhereInput,
+    const records = await this.analyticsRepository.getByPostIds(postIds, {
+      startDate,
+      endDate,
       orderBy: { capturedAt: "asc" },
-    }) as Promise<AnalyticsDataPoint[]>;
+    });
+
+    const providerFilter =
+      options.providers && options.providers.length > 0 ? new Set(options.providers) : null;
+    const filtered = providerFilter
+      ? records.filter((r) => providerFilter.has(r.provider))
+      : records;
+
+    return filtered as AnalyticsDataPoint[];
   }
 
   private async getPostsData(
@@ -393,29 +406,42 @@ export class ROICalculator {
     startDate: Date,
     endDate: Date
   ): Promise<PostDataPoint[]> {
-    const whereClause: Record<string, unknown> = {
-      createdAt: { gte: startDate, lte: endDate },
-    };
+    const projectIds = options.projectId
+      ? [options.projectId]
+      : (await this.projectRepository.getByAccountId(options.accountId)).map((p) => p.id);
 
-    if (options.projectId) {
-      whereClause["projectId"] = options.projectId;
-    } else {
-      const projects = await this.projectRepository.getByAccountId(options.accountId);
-      whereClause["projectId"] = { in: projects.map((p) => p.id) };
-    }
+    const postsByProject = await Promise.all(
+      projectIds.map((id) => this.projectRepository.getPostsWithContent(id))
+    );
 
-    return prisma.post.findMany({
-      where: whereClause as Prisma.PostWhereInput,
-      include: { contents: true, media: true },
-    }) as Promise<PostDataPoint[]>;
+    return postsByProject
+      .flat()
+      .filter((p) => p.createdAt >= startDate && p.createdAt <= endDate)
+      .map((p) => ({ id: p.id }));
   }
 
   private async getConversionsData(
-    _options: ROICalculationOptions,
-    _startDate: Date,
-    _endDate: Date
+    options: ROICalculationOptions,
+    startDate: Date,
+    endDate: Date
   ): Promise<ConversionDataPoint[]> {
-    // Future: query conversions table once the schema includes it
-    return [];
+    const conversions = await this.conversionRepository.findByAccount(options.accountId, {
+      start: startDate,
+      end: endDate,
+    });
+
+    const providerFilter =
+      options.providers && options.providers.length > 0 ? new Set(options.providers) : null;
+
+    return conversions
+      .filter((c) => (providerFilter ? providerFilter.has(c.source) : true))
+      .map((c) => ({
+        source: c.source,
+        content_id: c.contentId,
+        // RevenueCalculator / ROIMetrics match lowercase domain literals.
+        conversion_type: c.conversionType.toLowerCase(),
+        value: c.value,
+        timestamp: c.occurredAt,
+      }));
   }
 }

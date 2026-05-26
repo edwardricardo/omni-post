@@ -8,6 +8,7 @@
 "use client";
 
 import { useMemo, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { DashboardScheduledPost } from "./schedulingDashboardTypes";
@@ -64,6 +65,7 @@ export function WeekCalendar({
   onWeekNavigate,
   onToday,
 }: WeekCalendarProps) {
+  const t = useTranslations("scheduling.components");
   const weekDays = useMemo(() => getWeekDays(currentDate), [currentDate]);
   const today = new Date();
 
@@ -87,7 +89,7 @@ export function WeekCalendar({
             <ChevronRight className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="sm" onClick={onToday}>
-            Today
+            {t("today")}
           </Button>
         </div>
         <h3 className="text-sm font-medium">{formatWeekLabel(weekDays)}</h3>

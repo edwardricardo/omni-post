@@ -74,6 +74,7 @@ const TIKTOK_METADATA: ProviderMetadata = {
 
 const TIKTOK_CAPABILITIES = {
   publish: true,
+  mentions: false,
   schedule: false,
   analytics: true,
   comments: false,

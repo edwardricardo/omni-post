@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from "vitest";
 import assert from "node:assert/strict";
-import { IntegrationApiKey } from "../../../src/domain/entities/IntegrationApiKey.js";
+import { IntegrationApiKey } from "@core/domain/entities/IntegrationApiKey.js";
 
 describe("IntegrationApiKey", () => {
   const validInput = {

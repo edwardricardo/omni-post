@@ -8,17 +8,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { ok, err } from "@shared/types";
-import { GenerateIntegrationApiKeyUseCase } from "../../../src/application/integrations/GenerateIntegrationApiKeyUseCase.js";
-import { RevokeIntegrationApiKeyUseCase } from "../../../src/application/integrations/RevokeIntegrationApiKeyUseCase.js";
-import { ListIntegrationApiKeysQuery } from "../../../src/application/integrations/ListIntegrationApiKeysQuery.js";
-import { SubscribeIntegrationTriggerUseCase } from "../../../src/application/integrations/SubscribeIntegrationTriggerUseCase.js";
-import { UnsubscribeIntegrationTriggerUseCase } from "../../../src/application/integrations/UnsubscribeIntegrationTriggerUseCase.js";
-import { TriggerIntegrationEventService } from "../../../src/application/integrations/TriggerIntegrationEventService.js";
-import { IntegrationApiKey } from "../../../src/domain/entities/IntegrationApiKey.js";
-import { IntegrationSubscription } from "../../../src/domain/entities/IntegrationSubscription.js";
-import type { IntegrationApiKeyRepository } from "../../../src/domain/repositories/IntegrationApiKeyRepository.js";
-import type { IntegrationSubscriptionRepository } from "../../../src/domain/repositories/IntegrationSubscriptionRepository.js";
-import type { IntegrationPlatformValue } from "../../../src/domain/entities/IntegrationApiKey.js";
+import { GenerateIntegrationApiKeyUseCase } from "@core/application/integrations/GenerateIntegrationApiKeyUseCase.js";
+import { Argon2PasswordHasher } from "../../../src/infrastructure/adapters/Argon2PasswordHasher.js";
+import { RevokeIntegrationApiKeyUseCase } from "@core/application/integrations/RevokeIntegrationApiKeyUseCase.js";
+import { ListIntegrationApiKeysQuery } from "@core/application/integrations/ListIntegrationApiKeysQuery.js";
+import { SubscribeIntegrationTriggerUseCase } from "@core/application/integrations/SubscribeIntegrationTriggerUseCase.js";
+import { UnsubscribeIntegrationTriggerUseCase } from "@core/application/integrations/UnsubscribeIntegrationTriggerUseCase.js";
+import { TriggerIntegrationEventService } from "@core/application/integrations/TriggerIntegrationEventService.js";
+import { IntegrationApiKey } from "@core/domain/entities/IntegrationApiKey.js";
+import { IntegrationSubscription } from "@core/domain/entities/IntegrationSubscription.js";
+import type { IntegrationApiKeyRepository } from "@core/domain/repositories/IntegrationApiKeyRepository.js";
+import type { IntegrationSubscriptionRepository } from "@core/domain/repositories/IntegrationSubscriptionRepository.js";
+import type { IntegrationPlatformValue } from "@core/domain/entities/IntegrationApiKey.js";
 
 // ============================================================================
 // Mock Factories
@@ -102,7 +103,7 @@ describe("GenerateIntegrationApiKeyUseCase", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     repo = makeApiKeyRepo();
-    useCase = new GenerateIntegrationApiKeyUseCase(repo);
+    useCase = new GenerateIntegrationApiKeyUseCase(repo, new Argon2PasswordHasher());
   });
 
   it("generates a key with zap_ prefix for ZAPIER platform and returns plainKey once", async () => {
@@ -141,7 +142,7 @@ describe("GenerateIntegrationApiKeyUseCase", () => {
     repo = makeApiKeyRepo({
       countActiveByAccountId: vi.fn().mockResolvedValue(5),
     });
-    useCase = new GenerateIntegrationApiKeyUseCase(repo);
+    useCase = new GenerateIntegrationApiKeyUseCase(repo, new Argon2PasswordHasher());
 
     const result = await useCase.execute({ accountId: "acc-001" });
 
@@ -161,7 +162,7 @@ describe("GenerateIntegrationApiKeyUseCase", () => {
     repo = makeApiKeyRepo({
       save: vi.fn().mockResolvedValue(err(new Error("DB down"))),
     });
-    useCase = new GenerateIntegrationApiKeyUseCase(repo);
+    useCase = new GenerateIntegrationApiKeyUseCase(repo, new Argon2PasswordHasher());
 
     const result = await useCase.execute({ accountId: "acc-001" });
 

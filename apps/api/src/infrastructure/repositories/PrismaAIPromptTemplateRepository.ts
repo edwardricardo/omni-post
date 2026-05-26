@@ -10,7 +10,7 @@ import type {
   AIPromptTemplateData,
   CreateAIPromptTemplateData,
   UpdateAIPromptTemplateData,
-} from "../../domain/repositories/AIPromptTemplateRepository.js";
+} from "@core/domain/repositories/AIPromptTemplateRepository.js";
 
 /**
  * @class PrismaAIPromptTemplateRepository

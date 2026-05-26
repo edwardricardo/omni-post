@@ -8,11 +8,13 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useCrmConnections } from "@/hooks/api/useCrm";
 import { CrmConnectionCard } from "./CrmConnectionCard";
 import { CrmSyncLog } from "./CrmSyncLog";
 
 export function CrmSettings() {
+  const t = useTranslations("settings.components");
   const { data: connections = [] } = useCrmConnections();
   const [showLogs, setShowLogs] = useState<string | null>(null);
 
@@ -29,18 +31,18 @@ export function CrmSettings() {
       </div>
 
       <div className="rounded-lg border bg-muted/30 p-4">
-        <h3 className="text-sm font-medium mb-2">What gets synced</h3>
+        <h3 className="text-sm font-medium mb-2">{t("crmSettings.whatGetsSynced")}</h3>
         <ul className="text-sm text-muted-foreground space-y-1">
-          <li>Contacts synced from CRM to OmniPost</li>
-          <li>Post published &rarr; logged as activity in CRM</li>
-          <li>Campaign completed &rarr; logged in CRM</li>
-          <li>Approval approved &rarr; logged in CRM</li>
+          <li>{t("crmSettings.syncContacts")}</li>
+          <li>{t("crmSettings.syncPostPublished")}</li>
+          <li>{t("crmSettings.syncCampaignCompleted")}</li>
+          <li>{t("crmSettings.syncApprovalApproved")}</li>
         </ul>
       </div>
 
       {hasAnyConnection && (
         <div>
-          <h3 className="text-sm font-medium mb-3">Sync History</h3>
+          <h3 className="text-sm font-medium mb-3">{t("crmSettings.syncHistory")}</h3>
           <div className="flex gap-2 mb-3">
             {hubspot?.isActive && (
               <button

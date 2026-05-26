@@ -18,15 +18,15 @@ import {
   PublishPostCommandSchema,
 } from "@shared/cqrs";
 import { createPostEvent, createUserActionEvent, EVENT_TYPES } from "@shared/events";
-import type { CreatePostUseCase } from "../../application/posts/CreatePostUseCase.js";
-import type { UpdatePostUseCase } from "../../application/posts/UpdatePostUseCase.js";
-import type { DeletePostUseCase } from "../../application/posts/DeletePostUseCase.js";
+import type { CreatePostUseCase } from "@core/application/posts/CreatePostUseCase.js";
+import type { UpdatePostUseCase } from "@core/application/posts/UpdatePostUseCase.js";
+import type { DeletePostUseCase } from "@core/application/posts/DeletePostUseCase.js";
 import {
   PostId,
   ChannelId,
   type PostRepository,
   type ChannelRepository,
-} from "../../domain/index.js";
+} from "@core/domain/index.js";
 import { invalidateQueryCache } from "../CQRSBus";
 import type Redis from "ioredis";
 import { createLogger } from "../../lib/logger.js";
@@ -110,7 +110,7 @@ export class CreatePostCommandHandler implements CommandHandler<
         ...(data.title && { title: data.title }),
         ...(data.tags && { tags: data.tags }),
         ...(data.locale && {
-          locale: data.locale as import("../../domain/value-objects/Content.js").ContentLocale,
+          locale: data.locale as import("@core/domain/value-objects/Content.js").ContentLocale,
         }),
       });
 

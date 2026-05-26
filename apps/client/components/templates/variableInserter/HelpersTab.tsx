@@ -8,6 +8,7 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import { Copy, Plus } from "lucide-react";
 import {
   Badge,
@@ -41,6 +42,7 @@ export function HelpersTab({
   onCopyHelper,
   onInsertHelper,
 }: HelpersTabProps) {
+  const t = useTranslations("templates.components.variableInserter");
   return (
     <div className="space-y-4">
       <Select value={selectedCategory} onValueChange={onCategoryChange}>
@@ -50,7 +52,7 @@ export function HelpersTab({
         <SelectContent>
           {categories.map((category) => (
             <SelectItem key={category} value={category} className="text-xs">
-              {category === "all" ? "All Categories" : category}
+              {category === "all" ? t("allCategories") : category}
             </SelectItem>
           ))}
         </SelectContent>
@@ -77,7 +79,7 @@ export function HelpersTab({
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Copy syntax</p>
+                      <p>{t("copySyntax")}</p>
                     </TooltipContent>
                   </Tooltip>
                   <Tooltip>
@@ -92,7 +94,7 @@ export function HelpersTab({
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Insert helper</p>
+                      <p>{t("insertHelper")}</p>
                     </TooltipContent>
                   </Tooltip>
                 </div>

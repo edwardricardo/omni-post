@@ -6,6 +6,7 @@
  */
 
 import { createHmac } from "crypto";
+import type { PrismaClient } from "@infra/prisma";
 import type { WebhookProcessor } from "../webhookTypes.js";
 import type { WebhookEventType, ProviderName } from "@shared/types";
 import type { RealtimeWebhookBroadcaster } from "../realtimeWebhookBroadcaster.js";
@@ -54,7 +55,10 @@ export abstract class AbstractWebhookProcessor implements WebhookProcessor {
   /** Signature encoding format */
   protected abstract signatureEncoding: "hex" | "base64";
 
-  constructor(broadcaster?: RealtimeWebhookBroadcaster) {
+  constructor(
+    protected readonly prisma: PrismaClient,
+    broadcaster?: RealtimeWebhookBroadcaster
+  ) {
     if (broadcaster) {
       this.broadcaster = broadcaster;
     }

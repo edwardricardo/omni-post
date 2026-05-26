@@ -9,7 +9,7 @@ import {
   ProjectId,
   type PostQueryRepository,
   type PostReadModel as DomainPostReadModel,
-} from "../../domain/index.js";
+} from "@core/domain/index.js";
 import { createLogger } from "../../lib/logger.js";
 import {
   type Query,
@@ -24,7 +24,7 @@ import {
   GetPostQuerySchema,
   ListPostsQuerySchema,
 } from "@shared/cqrs";
-import type { PostSortField, SortParams } from "../../domain/index.js";
+import type { PostSortField, SortParams } from "@core/domain/index.js";
 
 const log = createLogger("cqrs");
 

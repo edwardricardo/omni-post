@@ -405,6 +405,7 @@ vi.mock("../../../src/lib/logger.js", () => {
 // ---------------------------------------------------------------------------
 
 import { AdminAuthService } from "../../../src/admin/auth/AdminAuthService.js";
+import type { PrismaClient } from "@infra/prisma";
 
 // ---------------------------------------------------------------------------
 // Test data constants
@@ -432,7 +433,7 @@ describe("AdminAuthService (Unit - Mocked Prisma)", () => {
     vi.clearAllMocks();
 
     // Create service instance
-    authService = new AdminAuthService();
+    authService = new AdminAuthService(mockModule.prisma as unknown as PrismaClient);
 
     // Seed a test admin user with a real argon2 hash
     const passwordHash = await argon2.hash(TEST_PASSWORD);
@@ -467,6 +468,26 @@ describe("AdminAuthService (Unit - Mocked Prisma)", () => {
       lastLoginAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
+    });
+  });
+
+  describe("Profile", () => {
+    it("updateProfile writes only the provided fields and returns the updated keys", async () => {
+      const result = await authService.updateProfile(testUserId, { timezone: "UTC", locale: "en" });
+      expect([...result.updated].sort()).toEqual(["locale", "timezone"]);
+      const row = stores.adminUsers.find((u) => u.id === testUserId);
+      expect(row?.timezone).toBe("UTC");
+      expect(row?.locale).toBe("en");
+    });
+
+    it("findAdminContactByEmail returns name+email for an existing admin", async () => {
+      const contact = await authService.findAdminContactByEmail(TEST_EMAIL);
+      expect(contact).toEqual({ name: "Test Admin", email: TEST_EMAIL });
+    });
+
+    it("findAdminContactByEmail returns null when no admin matches", async () => {
+      const contact = await authService.findAdminContactByEmail("nobody@example.com");
+      expect(contact).toBeNull();
     });
   });
 

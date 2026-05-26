@@ -8,7 +8,7 @@ const envFile = process.env.NODE_ENV === "test" ? ".env.test" : ".env";
 dotenv.config({ path: path.join(import.meta.dirname, "../..", envFile) });
 
 import { PrismaClient } from "./generated/prisma/client/client.js";
-import { Provider } from "./generated/prisma/client/client.js";
+import { Provider, TrackedTermKind } from "./generated/prisma/client/client.js";
 import argon2 from "argon2";
 import { randomBytes, createCipheriv } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -110,6 +110,19 @@ async function main() {
       provider: Provider.X,
       handle: "@GolDeAyerDev",
       ...encryptChannelCredentials({ token: "REEMPLAZAR" }, "dev-x"),
+    },
+  });
+
+  // Brand-listening term for the demo project — gives the mention-search
+  // coordinator something to listen for so the listening pipeline is demoable.
+  await prisma.trackedTerm.upsert({
+    where: { projectId_term: { projectId: project.id, term: "Gol de Ayer" } },
+    update: {},
+    create: {
+      accountId: account.id,
+      projectId: project.id,
+      term: "Gol de Ayer",
+      kind: TrackedTermKind.BRAND,
     },
   });
 

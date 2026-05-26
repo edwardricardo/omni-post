@@ -15,6 +15,7 @@ import type {
   PublishInput,
   PublishReceipt,
   ProviderComment,
+  ProviderMention,
   ProviderReplyResult,
 } from "@ports/core";
 import type {
@@ -25,7 +26,7 @@ import type {
   RenderError,
   PublishError,
 } from "@shared/types";
-import { ok, err } from "@shared/types";
+import { ok, err, AppError } from "@shared/types";
 import {
   validateCredentialStructure,
   mapErrorToPublishError,
@@ -72,6 +73,7 @@ const FACEBOOK_METADATA: ProviderMetadata = {
 
 const FACEBOOK_CAPABILITIES = {
   publish: true,
+  mentions: true,
   schedule: true,
   analytics: true,
   comments: true,
@@ -541,6 +543,56 @@ export class FacebookAdapter implements ProviderAdapter {
       });
     } catch (error: unknown) {
       this.logError("getComments", error);
+      return err("NETWORK");
+    }
+  }
+
+  /**
+   * @method fetchMentionById
+   * @description Fetches a single object the page was tagged in (post or comment)
+   *   by its provider id and normalizes it to ProviderMention. Drives the
+   *   webhook-first listening path (fetch-before-process).
+   * @param params - Resolved credentials and the provider mention id.
+   * @returns Result with the normalized mention, or AUTH / NETWORK / NOT_FOUND.
+   */
+  async fetchMentionById(params: {
+    channelCredentials: unknown;
+    providerMentionId: string;
+  }): Promise<Result<ProviderMention, "AUTH" | "NETWORK" | "NOT_FOUND">> {
+    const validation = validateCredentialStructure<FacebookCredentials>(
+      params.channelCredentials,
+      REQUIRED_FIELDS,
+      this.logger,
+      this.id
+    );
+    if (!validation.ok) {
+      return err("AUTH");
+    }
+
+    try {
+      const apiClient = this.apiClientFactory(validation.value);
+      const obj = await apiClient.getMentionById(params.providerMentionId);
+
+      const mention: ProviderMention = {
+        providerMentionId: obj.id,
+        authorName: obj.from?.name ?? "unknown",
+        authorProviderId: obj.from?.id ?? "unknown",
+        body: obj.message ?? obj.story ?? "",
+        createdAt: obj.created_time ? new Date(obj.created_time) : new Date(),
+        ...(obj.permalink_url ? { url: obj.permalink_url } : {}),
+      };
+
+      return ok(mention);
+    } catch (error: unknown) {
+      this.logError("fetchMentionById", error);
+      if (error instanceof AppError) {
+        if (error.statusCode === 401 || error.statusCode === 403) {
+          return err("AUTH");
+        }
+        if (error.statusCode === 400 || error.statusCode === 404) {
+          return err("NOT_FOUND");
+        }
+      }
       return err("NETWORK");
     }
   }

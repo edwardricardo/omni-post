@@ -58,17 +58,20 @@ describe("SettingsService", () => {
     it("returns masked values for secret keys", async () => {
       (mockCreds.getGroup as ReturnType<typeof vi.fn>).mockResolvedValue({
         ok: true,
-        value: { secretKey: "sk_live_abc123def456ghi789", webhookSecret: "whsec_longvalue1234" },
+        value: {
+          secretKey: "fake-test-credential-fixture-end",
+          webhookSecret: "fake-webhook-fixture-end",
+        },
       });
 
       const result = await service.getGroupSettings("STRIPE");
       expect(result.ok).toBe(true);
       if (result.ok) {
         expect(result.value["secretKey"]).toBe(
-          "sk_l\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022i789"
+          "fake\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022-end"
         );
         expect(result.value["webhookSecret"]).toBe(
-          "whse\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u20221234"
+          "fake\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022-end"
         );
       }
     });
@@ -111,7 +114,7 @@ describe("SettingsService", () => {
     it("returns all expected keys for the group even if some are null", async () => {
       (mockCreds.getGroup as ReturnType<typeof vi.fn>).mockResolvedValue({
         ok: true,
-        value: { secretKey: "sk_live_abc123def456ghi789" },
+        value: { secretKey: "fake-test-credential-fixture-end" },
       });
 
       const result = await service.getGroupSettings("STRIPE");

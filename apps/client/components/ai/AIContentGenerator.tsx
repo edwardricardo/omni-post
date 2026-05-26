@@ -12,6 +12,7 @@
 
 import React from "react";
 import { Wand2, Sparkles, Target, Eye } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { GeneratedContent } from "../../types/ai-content";
 import type { BrandVoice, ContentGoal } from "../../types/ai-content";
 import { useAIContentGenerator } from "../../hooks/useAIContentGenerator";
@@ -32,10 +33,10 @@ interface AIContentGeneratorProps {
 }
 
 const TAB_CONFIG = [
-  { id: "templates" as const, label: "Templates", icon: Target },
-  { id: "generate" as const, label: "Generate", icon: Wand2 },
-  { id: "results" as const, label: "Results", icon: Eye },
-];
+  { id: "templates", labelKey: "generator.tabTemplates", icon: Target },
+  { id: "generate", labelKey: "generator.tabGenerate", icon: Wand2 },
+  { id: "results", labelKey: "generator.tabResults", icon: Eye },
+] as const;
 
 /**
  * @component AIContentGenerator
@@ -56,6 +57,7 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
   onSaveContent,
   showAdvancedOptions: _showAdvancedOptions = false,
 }) => {
+  const t = useTranslations("ai.components");
   const {
     templates,
     selectedTemplateId,
@@ -88,22 +90,20 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
               <Wand2 className="w-5 h-5 text-white" aria-hidden="true" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">AI Content Generator</h3>
-              <p className="text-sm text-gray-600">
-                Create platform-optimized content with AI assistance
-              </p>
+              <h3 className="text-lg font-semibold text-gray-900">{t("generator.title")}</h3>
+              <p className="text-sm text-gray-600">{t("generator.subtitle")}</p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
             <Sparkles className="w-4 h-4 text-purple-600" aria-hidden="true" />
-            <span className="text-sm text-gray-600">AI-powered</span>
+            <span className="text-sm text-gray-600">{t("generator.aiPowered")}</span>
           </div>
         </div>
       </div>
 
       {/* Tab Navigation */}
       <div className="border-b border-gray-200">
-        <nav className="flex space-x-8 px-6" aria-label="Content generation steps">
+        <nav className="flex space-x-8 px-6" aria-label={t("generator.stepsAriaLabel")}>
           {TAB_CONFIG.map((tab) => (
             <button
               key={tab.id}
@@ -116,7 +116,7 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
               aria-current={activeTab === tab.id ? "step" : undefined}
             >
               <tab.icon className="w-4 h-4" aria-hidden="true" />
-              <span>{tab.label}</span>
+              <span>{t(tab.labelKey)}</span>
             </button>
           ))}
         </nav>
@@ -160,8 +160,8 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
         {activeTab === "results" && generatedContent.length === 0 && (
           <div className="text-center py-8 text-gray-500">
             <Wand2 className="w-12 h-12 mx-auto mb-4 opacity-50" aria-hidden="true" />
-            <p>No content generated yet</p>
-            <p className="text-sm">Select a template and generate content to see results here</p>
+            <p>{t("generator.emptyTitle")}</p>
+            <p className="text-sm">{t("generator.emptyHint")}</p>
           </div>
         )}
       </div>

@@ -2,15 +2,12 @@
  * @file schedulingQueries.ts
  * @description Scheduling-domain TanStack Query factory. Per canon
  *              `tanstack-query-v5-migration-patterns-from-raw-fetch`,
- *              co-locates `queryKey` + `queryFn` in a single domain-grouped
- *              factory. Hierarchy keys (`all()`, `campaigns()`, `team()`)
- *              are plain arrays for partial-key invalidation; leaf entries
- *              wrap `queryOptions(...)` for type-safe consumption by
- *              `useQuery`, `prefetchQuery`, and `setQueryData`.
- *
- *              POC of the new pattern for PR-51 — first sub-batch (PR-51.A
- *              scheduling sidebar). Sub-batches B-N replicate this shape
- *              per domain.
+ *              co-locates `queryKey` + `queryFn` in a single domain-
+ *              grouped factory. Hierarchy keys (`all()`, `campaigns()`,
+ *              `team()`) are plain arrays for partial-key invalidation;
+ *              leaf entries wrap `queryOptions(...)` for type-safe
+ *              consumption by `useQuery`, `prefetchQuery`, and
+ *              `setQueryData`.
  * @layer infrastructure
  */
 

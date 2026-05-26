@@ -6,13 +6,13 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { CustomReport } from "../../../src/domain/entities/CustomReport.js";
+import { CustomReport } from "@core/domain/entities/CustomReport.js";
 
 describe("CustomReport Entity", () => {
   const validInput = {
     accountId: "acc-001",
     name: "Weekly Performance",
-    metrics: ["impressions", "reach", "engagement_rate"],
+    metrics: ["impressions", "likes", "engagement_rate"],
     dimensions: ["date", "platform"],
     createdById: "user-001",
   };
@@ -23,7 +23,7 @@ describe("CustomReport Entity", () => {
       assert.ok(result.ok, "Should succeed with valid input");
       const report = result.value;
       expect(report.name).toBe("Weekly Performance");
-      expect(report.metrics).toEqual(["impressions", "reach", "engagement_rate"]);
+      expect(report.metrics).toEqual(["impressions", "likes", "engagement_rate"]);
       expect(report.dimensions).toEqual(["date", "platform"]);
       expect(report.dateRange).toBe("LAST_30_DAYS");
       expect(report.chartType).toBe("LINE");
@@ -295,7 +295,7 @@ describe("CustomReport Entity", () => {
       expect(json.accountId).toBe("acc-001");
       expect(json.name).toBe("Weekly Performance");
       expect(json.description).toBe("Test description");
-      expect(json.metrics).toEqual(["impressions", "reach", "engagement_rate"]);
+      expect(json.metrics).toEqual(["impressions", "likes", "engagement_rate"]);
       expect(json.dimensions).toEqual(["date", "platform"]);
       expect(json.dateRange).toBe("LAST_30_DAYS");
       expect(json.chartType).toBe("LINE");

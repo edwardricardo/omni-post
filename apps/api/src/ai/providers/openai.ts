@@ -16,14 +16,22 @@ import {
   AIProviderConfig,
   ImageGenerationOptions,
   ImageGenerationResult,
+  StructuredOutputSpec,
 } from "../types.js";
 import { AppError } from "../../lib/errors/AppError.js";
 import { logger } from "../../lib/logger.js";
+import {
+  analysisSpec,
+  optimizationSpec,
+  predictionSpec,
+  variationsSpec,
+} from "../structuredSchemas.js";
 
 const aiLogger = logger.child({ module: "ai", provider: "openai" });
 
 export class OpenAIProvider implements AIProvider {
   name = "openai" as const;
+  readonly supportsEmbeddings = true;
   private client: OpenAI;
   private config: AIProviderConfig;
 
@@ -69,6 +77,48 @@ export class OpenAIProvider implements AIProvider {
     }
   }
 
+  /**
+   * @method generateStructured
+   * @description Schema-validated generation via OpenAI native Structured
+   *   Outputs (`response_format: json_schema`, `strict: true`). The model is
+   *   constrained to the schema server-side; output is still routed through
+   *   `spec.parse` so callers get a validated `T`, never unparsed text.
+   * @param messages - Conversation messages.
+   * @param spec - Technology-free structured-output spec (name/schema/parse).
+   * @param options - Generation options (model, tokens, temperature).
+   * @returns The validated structured value `T`.
+   */
+  async generateStructured<T>(
+    messages: AIMessage[],
+    spec: StructuredOutputSpec<T>,
+    options: GenerationOptions = {}
+  ): Promise<T> {
+    try {
+      const response = await this.client.chat.completions.create({
+        model: options.model || this.config.model || "gpt-4",
+        messages: messages.map((msg) => ({ role: msg.role, content: msg.content })),
+        max_tokens: options.maxTokens || 1000,
+        temperature: options.temperature ?? 0.7,
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: spec.name,
+            ...(spec.description !== undefined && { description: spec.description }),
+            schema: spec.jsonSchema,
+            strict: true,
+          },
+        },
+        stream: false,
+      });
+
+      const content = response.choices[0]?.message?.content ?? "";
+      return spec.parse(JSON.parse(content));
+    } catch (error: unknown) {
+      aiLogger.error({ err: error }, "OpenAI structured generation failed");
+      throw AppError.externalService("OpenAI", `OpenAI structured generation failed: ${error}`);
+    }
+  }
+
   async analyzeContent(
     content: string,
     analysisType: "sentiment" | "tone" | "readability" | "engagement"
@@ -80,20 +130,13 @@ export class OpenAIProvider implements AIProvider {
       engagement: `Analyze the engagement potential of this content and return a JSON response with score (0-100) and specific factors that impact engagement:\n\n"${content}"`,
     };
 
-    try {
-      const response = await this.generateText([
-        {
-          role: "system",
-          content: "You are an expert content analyzer. Always respond with valid JSON only.",
-        },
+    return this.generateStructured(
+      [
+        { role: "system", content: "You are an expert content analyzer." },
         { role: "user", content: prompts[analysisType] },
-      ]);
-
-      return JSON.parse(response);
-    } catch (error: unknown) {
-      aiLogger.error({ err: error }, "OpenAI analysis failed");
-      throw AppError.externalService("OpenAI", `OpenAI analysis failed: ${error}`);
-    }
+      ],
+      analysisSpec(analysisType)
+    );
   }
 
   async optimizeContent(
@@ -114,21 +157,13 @@ Return a JSON response with:
 Content to optimize:
 "${content}"`;
 
-    try {
-      const response = await this.generateText([
-        {
-          role: "system",
-          content:
-            "You are an expert social media content optimizer. Always respond with valid JSON only.",
-        },
+    return this.generateStructured(
+      [
+        { role: "system", content: "You are an expert social media content optimizer." },
         { role: "user", content: prompt },
-      ]);
-
-      return JSON.parse(response);
-    } catch (error: unknown) {
-      aiLogger.error({ err: error }, "OpenAI optimization failed");
-      throw AppError.externalService("OpenAI", `OpenAI optimization failed: ${error}`);
-    }
+      ],
+      optimizationSpec
+    );
   }
 
   async predictPerformance(
@@ -148,21 +183,13 @@ Return a JSON response with:
 Content:
 "${content}"`;
 
-    try {
-      const response = await this.generateText([
-        {
-          role: "system",
-          content:
-            "You are an expert social media performance analyst. Always respond with valid JSON only.",
-        },
+    return this.generateStructured(
+      [
+        { role: "system", content: "You are an expert social media performance analyst." },
         { role: "user", content: prompt },
-      ]);
-
-      return JSON.parse(response);
-    } catch (error: unknown) {
-      aiLogger.error({ err: error }, "OpenAI prediction failed");
-      throw AppError.externalService("OpenAI", `OpenAI prediction failed: ${error}`);
-    }
+      ],
+      predictionSpec
+    );
   }
 
   /**
@@ -250,20 +277,36 @@ Content:
 
 Return as a JSON array of strings.`;
 
-    try {
-      const response = await this.generateText([
-        {
-          role: "system",
-          content:
-            "You are an expert content variation generator. Always respond with a valid JSON array of strings only.",
-        },
+    return this.generateStructured(
+      [
+        { role: "system", content: "You are an expert content variation generator." },
         { role: "user", content: prompt },
-      ]);
+      ],
+      variationsSpec()
+    );
+  }
 
-      return JSON.parse(response);
-    } catch (error: unknown) {
-      aiLogger.error({ err: error }, "OpenAI variation generation failed");
-      throw AppError.externalService("OpenAI", `OpenAI variation generation failed: ${error}`);
-    }
+  /**
+   * @method generateEmbeddings
+   * @description Generates dense vector embeddings for the input texts.
+   *   Uses the OpenAI embeddings API with optional dimension truncation
+   *   (Matryoshka-style) so vectors align with the project's uniform
+   *   dimension across providers.
+   * @param texts - One or more strings to embed.
+   * @param options - Override the model or output dimensions.
+   * @returns Array of embedding vectors, one per input text.
+   */
+  async generateEmbeddings(
+    texts: string[],
+    options: { model?: string; dimensions?: number } = {}
+  ): Promise<number[][]> {
+    const model = options.model ?? "text-embedding-3-small";
+    const dimensions = options.dimensions ?? 768;
+    const response = await this.client.embeddings.create({
+      model,
+      input: texts,
+      dimensions,
+    });
+    return response.data.map((item) => item.embedding);
   }
 }

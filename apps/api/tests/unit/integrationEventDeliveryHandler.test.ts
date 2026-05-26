@@ -12,8 +12,8 @@ import {
   INTEGRATION_EVENT_NAMES,
   HANDLED_EVENT_TYPES,
 } from "../../src/integrations/IntegrationEventDeliveryHandler";
-import type { TriggerIntegrationEventService } from "../../src/application/integrations/TriggerIntegrationEventService";
-import type { DomainEvent } from "../../src/domain/events/DomainEvent";
+import type { TriggerIntegrationEventService } from "@core/application/integrations/TriggerIntegrationEventService";
+import type { DomainEvent } from "@core/domain/events/DomainEvent";
 
 function makeOutboxEvent(overrides: Partial<DomainEvent> = {}): DomainEvent {
   return {

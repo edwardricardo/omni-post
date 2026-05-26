@@ -7,7 +7,7 @@
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
-import { OidcConfiguration } from "../../../../src/domain/entities/OidcConfiguration.js";
+import { OidcConfiguration } from "@core/domain/entities/OidcConfiguration.js";
 
 function makeEntity(): OidcConfiguration {
   return OidcConfiguration.reconstitute({

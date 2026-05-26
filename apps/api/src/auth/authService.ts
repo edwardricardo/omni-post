@@ -6,10 +6,13 @@
  */
 
 import type { Result } from "@shared/types";
-import type { AdminSession } from "@infra/prisma";
-import type { AdminRoleKind } from "../domain/repositories/ReadModelDtos.js";
+import type { AdminSession, PrismaClient } from "@infra/prisma";
+import type { AdminRoleKind } from "@core/domain/repositories/ReadModelDtos.js";
 import type { MfaService } from "./mfaService.js";
-import type { AdminUserRepositoryPort } from "../domain/repositories/AdminUserRepository.js";
+import type { AdminUserRepositoryPort } from "@core/domain/repositories/AdminUserRepository.js";
+import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
+import type { RoleRepository } from "@core/domain/repositories/RoleRepository.js";
+import type { AdminSessionRepository } from "@core/domain/repositories/AdminSessionRepository.js";
 import { AuthServiceCore } from "./authServiceCore.js";
 import { AuthServiceSession } from "./authServiceSession.js";
 import type {
@@ -42,9 +45,16 @@ export class AuthService {
   private core: AuthServiceCore;
   private session: AuthServiceSession;
 
-  constructor(userRepo: AdminUserRepositoryPort, mfaSvc: MfaService) {
-    this.core = new AuthServiceCore(userRepo, mfaSvc);
-    this.session = new AuthServiceSession(this.core);
+  constructor(
+    prisma: PrismaClient,
+    userRepo: AdminUserRepositoryPort,
+    mfaSvc: MfaService,
+    roleRepo: RoleRepository,
+    sessionRepo: AdminSessionRepository,
+    auditLog: AuditLogRepository
+  ) {
+    this.core = new AuthServiceCore(userRepo, mfaSvc, roleRepo, sessionRepo, auditLog);
+    this.session = new AuthServiceSession(prisma, this.core);
   }
 
   async registerAdmin(
@@ -114,7 +124,3 @@ export class AuthService {
     return this.session.getUserSessions(userId);
   }
 }
-
-// NOTE: No module-level singleton. AuthService is registered in the DI
-// container (TOKENS.AuthService) and receives AdminUserRepositoryPort +
-// MfaService via constructor injection. See setup.ts for registration.

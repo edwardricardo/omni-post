@@ -14,8 +14,8 @@ import type {
   SortParams,
   PostSortField,
   GlobalPostFilter,
-} from "../../src/domain/index.js";
-import { type PostId, type ProjectId, EntityNotFoundError } from "../../src/domain/index.js";
+} from "@core/domain/index.js";
+import { type PostId, type ProjectId, EntityNotFoundError } from "@core/domain/index.js";
 import { type Result, ok, err } from "@shared/types";
 
 // Valid UUID v4s for testing (PostId/ProjectId validate UUID v4 format)

@@ -5,11 +5,11 @@
  */
 
 import { describe, it, beforeEach, expect } from "vitest";
-import { CommentId } from "../../../src/domain/value-objects/CommentId.js";
+import { CommentId } from "@core/domain/value-objects/CommentId.js";
 import {
   PostCommentAggregate,
   type CreateCommentProps,
-} from "../../../src/domain/aggregates/PostCommentAggregate.js";
+} from "@core/domain/aggregates/PostCommentAggregate.js";
 
 // ---------------------------------------------------------------------------
 // Helpers

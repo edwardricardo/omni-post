@@ -5,7 +5,6 @@
  * @layer infrastructure
  */
 import type { CachePort } from "@ports/core";
-import { prisma as _prisma } from "@infra/prisma";
 import { createLogger } from "../lib/logger.js";
 
 const analyticsLogger = createLogger("analytics");

@@ -1,7 +1,10 @@
 /**
  * @file MessageBubble.tsx
- * @description Single message row in the conversation thread.
- *              INBOUND: left-aligned gray bubble. OUTBOUND: right-aligned blue bubble.
+ * @description Single message row in the conversation thread. All inbox feed
+ *              messages are inbound from the platform; the server does not
+ *              currently emit outbound replies in the message stream, so the
+ *              bubble renders inbound style only. Surfaces AI triage suggestions
+ *              (suggested replies) below the body for inbound messages.
  * @layer infrastructure
  */
 
@@ -9,83 +12,57 @@
 
 import { memo } from "react";
 import { formatDistanceToNow } from "date-fns";
-import type { Message } from "@/hooks/api/useInbox";
+import { useTranslations } from "next-intl";
+import type { InboxMessage } from "@/hooks/api/useInbox";
 
 interface MessageBubbleProps {
-  message: Message;
-  /** Called when the user clicks a suggested reply chip */
+  message: InboxMessage;
+  /** Fires with the chosen text when the user clicks a suggested reply chip. */
   onSelectReply?: (text: string) => void;
 }
 
 /**
  * @component MessageBubble
- * @description Single message row in the conversation thread. Inbound messages render
- *              as left-aligned gray bubbles with sender avatar; outbound as right-aligned
- *              blue bubbles. Displays AI-suggested reply chips for inbound messages.
- * @param props.message - The message data to render
- * @param props.onSelectReply - Callback when a suggested reply chip is clicked
+ * @description Single message row in the conversation thread. Shows the sender
+ *              avatar (initials), author name, body, relative timestamp, and
+ *              the three AI-suggested replies as clickable chips.
+ * @param props.message - The flat inbox-message DTO.
+ * @param props.onSelectReply - Callback when a suggested reply chip is clicked.
  */
 function MessageBubbleComponent({ message, onSelectReply }: MessageBubbleProps) {
-  const isOutbound = message.direction === "OUTBOUND";
-  const timeAgo = formatDistanceToNow(new Date(message.createdAt), { addSuffix: true });
+  const t = useTranslations("inbox.components");
+  const timeAgo = formatDistanceToNow(new Date(message.providerCreatedAt), { addSuffix: true });
 
-  // Initials avatar
-  const initials = message.senderName
+  const initials = message.authorName
     .split(" ")
     .slice(0, 2)
     .map((w) => w[0]?.toUpperCase() ?? "")
     .join("");
 
   return (
-    <div
-      className={[
-        "flex items-end gap-2 px-4 py-1.5",
-        isOutbound ? "flex-row-reverse" : "flex-row",
-      ].join(" ")}
-    >
-      {/* Avatar */}
-      {!isOutbound && (
-        <div
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-300 text-[10px] font-semibold text-gray-700"
-          aria-label={message.senderName}
-        >
-          {initials}
-        </div>
-      )}
+    <div className="flex items-end gap-2 px-4 py-1.5">
+      <div
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-300 text-[10px] font-semibold text-gray-700"
+        aria-label={message.authorName}
+      >
+        {initials}
+      </div>
 
-      {/* Bubble */}
-      <div className={["max-w-[70%]", isOutbound ? "items-end" : "items-start"].join(" ")}>
-        {!isOutbound && (
-          <p className="mb-0.5 text-[11px] font-medium text-gray-500">{message.senderName}</p>
-        )}
-        <div
-          className={[
-            "rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
-            isOutbound
-              ? "rounded-br-sm bg-indigo-600 text-white"
-              : "rounded-bl-sm bg-gray-100 text-gray-900",
-          ].join(" ")}
-        >
+      <div className="max-w-[70%] items-start">
+        <p className="mb-0.5 text-[11px] font-medium text-gray-500">{message.authorName}</p>
+        <div className="rounded-2xl rounded-bl-sm bg-gray-100 px-4 py-2.5 text-sm leading-relaxed text-gray-900">
           {message.body}
         </div>
-        <p
-          className={[
-            "mt-0.5 text-[10px] text-gray-400",
-            isOutbound ? "text-right" : "text-left",
-          ].join(" ")}
-        >
-          {timeAgo}
-        </p>
+        <p className="mt-0.5 text-left text-[10px] text-gray-400">{timeAgo}</p>
 
-        {/* AI Suggested replies */}
-        {!isOutbound && message.suggestedReplies && message.suggestedReplies.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-2">
+        {message.suggestedReplies.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
             {message.suggestedReplies.map((reply, i) => (
               <button
                 key={i}
                 onClick={() => onSelectReply?.(reply)}
-                className="text-xs px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors"
-                aria-label={`Use suggested reply: ${reply}`}
+                className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs text-blue-700 transition-colors hover:bg-blue-100"
+                aria-label={t("useSuggestedReply", { reply })}
               >
                 {reply}
               </button>

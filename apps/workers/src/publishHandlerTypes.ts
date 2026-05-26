@@ -22,7 +22,11 @@ import type {
 } from "@shared/types";
 import type { PublishReceipt } from "@ports/core";
 import type { WorkerMetrics } from "./metrics/workerMetrics.js";
-import type { ContentMetrics } from "./telemetry/initialization.js";
+import type {
+  PublishInstrumentation,
+  DatabaseInstrumentation,
+  BusinessKPITracker,
+} from "./telemetry/instrumentationTypes.js";
 
 /**
  * Repository interface for the publish handler.
@@ -99,41 +103,6 @@ export interface PublishProvider {
  */
 export interface CredentialsLookup {
   resolve(channelId: string): Promise<Result<unknown, "AUTH">>;
-}
-
-/**
- * Instrumentation interface for OpenTelemetry spans.
- */
-export interface PublishInstrumentation {
-  instrumentPublishing(
-    name: string,
-    provider: string,
-    channelId: string,
-    type: string,
-    fn: (span: { setAttributes: (attrs: Record<string, string>) => void }) => Promise<unknown>,
-    metadata?: Record<string, string>
-  ): Promise<unknown>;
-
-  instrumentProviderAPI(
-    provider: string,
-    operation: string,
-    method: string,
-    fn: (span: { setAttributes: (attrs: Record<string, string>) => void }) => Promise<unknown>
-  ): Promise<unknown>;
-}
-
-/**
- * Database instrumentation interface.
- */
-export interface DatabaseInstrumentation {
-  instrumentQuery(operation: string, table: string, fn: () => Promise<unknown>): Promise<unknown>;
-}
-
-/**
- * Business KPI tracker interface.
- */
-export interface BusinessKPITracker {
-  trackContentPublication(metrics: ContentMetrics): void;
 }
 
 /**

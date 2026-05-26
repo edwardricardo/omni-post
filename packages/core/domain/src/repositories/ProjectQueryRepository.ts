@@ -1,0 +1,124 @@
+/**
+ * @file ProjectQueryRepository.ts
+ * @description Repository port for flat DTO-based project reads — provides post, content, and analytics queries for ROI calculation and cross-platform analytics.
+ * @layer domain
+ */
+
+import type {
+  PostDto,
+  PostContentDto,
+  PostMediaDto,
+  ProjectDto,
+  AnalyticsDto,
+  ChannelDto,
+} from "./ReadModelDtos.js";
+
+/**
+ * Pagination / ordering options used by several read methods.
+ */
+export interface ProjectQueryOptions {
+  take?: number;
+  skip?: number;
+  /** Prisma-compatible orderBy expression */
+  orderBy?: Record<string, "asc" | "desc">;
+}
+
+/**
+ * Post with its localised content and media attachments.
+ */
+export type PostWithContent = PostDto & {
+  contents: PostContentDto[];
+  media: PostMediaDto[];
+};
+
+/**
+ * Post with its analytics records (nested, ordered by capturedAt desc).
+ */
+export type PostWithAnalytics = PostDto & {
+  analytics: AnalyticsDto[];
+};
+
+/**
+ * Published post — same shape as PostWithContent but filtered to posts
+ * that have a non-null publishedAt.
+ */
+export type PublishedPost = PostWithContent;
+
+/**
+ * ProjectQueryRepositoryPort — read-only flat-DTO access to project data.
+ *
+ * This port must NOT use domain entities (Project domain object, value
+ * objects, etc.) — it returns plain DTOs so that analytics services
+ * can use them directly without value-object overhead.
+ */
+export interface ProjectQueryRepositoryPort {
+  /**
+   * Return all post IDs belonging to a project.
+   * Replaces the repeated post-ID-only query pattern across analytics services.
+   */
+  getPostIds(projectId: string): Promise<string[]>;
+
+  /**
+   * Return posts with their localised content and media for a project.
+   */
+  getPostsWithContent(projectId: string, options?: ProjectQueryOptions): Promise<PostWithContent[]>;
+
+  /**
+   * Return posts with their analytics records for a project.
+   */
+  getPostsWithAnalytics(
+    projectId: string,
+    options?: ProjectQueryOptions
+  ): Promise<PostWithAnalytics[]>;
+
+  /**
+   * Return published posts (publishedAt IS NOT NULL) for a project.
+   */
+  getPublishedPosts(projectId: string, options?: ProjectQueryOptions): Promise<PublishedPost[]>;
+
+  /**
+   * Count all posts in a project.
+   */
+  countPosts(projectId: string): Promise<number>;
+
+  /**
+   * Return all projects belonging to an account, ordered by createdAt desc.
+   */
+  getByAccountId(accountId: string): Promise<ProjectDto[]>;
+
+  /**
+   * Count all projects belonging to an account.
+   */
+  countByAccountId(accountId: string): Promise<number>;
+
+  /**
+   * Return the number of media attachments grouped by media type across all of
+   * an account's projects. Used by subscription-limit storage estimation.
+   */
+  getMediaCountsByAccount(accountId: string): Promise<MediaTypeCount[]>;
+
+  /**
+   * Return a single project by ID, or null if not found.
+   */
+  findById(projectId: string): Promise<ProjectDto | null>;
+
+  /**
+   * Return whether the given account owns the given project. Used by realtime
+   * analytics to authorize a WebSocket subscription against a project.
+   */
+  getProjectAccess(accountId: string, projectId: string): Promise<boolean>;
+
+  /**
+   * Return all channels belonging to a project as flat DTOs. Used by
+   * cross-platform analytics to enumerate a project's connected channels.
+   */
+  getChannelsByProject(projectId: string): Promise<ChannelDto[]>;
+}
+
+/**
+ * Number of media attachments of a given type within an account's projects.
+ */
+export interface MediaTypeCount {
+  type: string;
+  count: number;
+}

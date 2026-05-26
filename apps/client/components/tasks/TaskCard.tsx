@@ -8,6 +8,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import { Check, X, Clock } from "lucide-react";
 import { PriorityBadge, StatusBadge } from "./TaskBadge";
@@ -37,6 +38,7 @@ function isDueToday(dueDate: string | null): boolean {
 }
 
 export function TaskCard({ task, onComplete, onCancel, onClick }: TaskCardProps) {
+  const t = useTranslations("tasks.components");
   const handleComplete = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -94,9 +96,9 @@ export function TaskCard({ task, onComplete, onCancel, onClick }: TaskCardProps)
             >
               <Clock className="h-3 w-3" />
               {overdue
-                ? "Overdue"
+                ? t("overdue")
                 : dueToday
-                  ? "Due today"
+                  ? t("dueToday")
                   : new Date(task.dueDate).toLocaleDateString()}
             </span>
           )}
@@ -108,8 +110,8 @@ export function TaskCard({ task, onComplete, onCancel, onClick }: TaskCardProps)
               variant="ghost"
               size="sm"
               onClick={handleComplete}
-              title="Complete"
-              aria-label="Complete task"
+              title={t("complete")}
+              aria-label={t("completeTask")}
             >
               <Check aria-hidden="true" className="h-4 w-4 text-green-600" />
             </Button>
@@ -117,8 +119,8 @@ export function TaskCard({ task, onComplete, onCancel, onClick }: TaskCardProps)
               variant="ghost"
               size="sm"
               onClick={handleCancel}
-              title="Cancel"
-              aria-label="Cancel task"
+              title={t("cancel")}
+              aria-label={t("cancelTask")}
             >
               <X aria-hidden="true" className="h-4 w-4 text-red-500" />
             </Button>

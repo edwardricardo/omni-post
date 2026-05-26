@@ -14,15 +14,23 @@
  */
 
 import { ok, err, type Result } from "@shared/types";
-import { prisma } from "@infra/prisma";
 import { logger } from "../lib/logger.js";
 
 const adminLogger = logger.child({ module: "admin" });
-import type { AdminSession } from "@infra/prisma";
-import type { AdminUserDto } from "../domain/repositories/ReadModelDtos.js";
+import type { AdminUserDto } from "@core/domain/repositories/ReadModelDtos.js";
 import { AuditableService } from "../services/AuditableService.js";
 import { hashPassword } from "../auth/passwordHashing.js";
-import type { AdminUserRepositoryPort } from "../domain/repositories/AdminUserRepository.js";
+import type {
+  AdminUserRepositoryPort,
+  AdminUserUpdate,
+} from "@core/domain/repositories/AdminUserRepository.js";
+import type {
+  AdminSessionRepository,
+  AdminSessionDto,
+} from "@core/domain/repositories/AdminSessionRepository.js";
+import type { RoleRepository } from "@core/domain/repositories/RoleRepository.js";
+import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type {
   AccountProfile,
   CreateAccountRequest,
@@ -30,20 +38,20 @@ import type {
   AccountFilters,
   ResetPasswordRequest,
 } from "./accountLifecycleTypes.js";
-import {
-  AccountLifecycleQueryService,
-  mapAdminUserToProfile,
-} from "./accountLifecycleQueryService.js";
+import { AccountLifecycleQueryService } from "./accountLifecycleQueryService.js";
 import { AccountSessionService } from "./AccountSessionService.js";
 
 export class AccountLifecycleService extends AuditableService {
-  private readonly queryService: AccountLifecycleQueryService;
-  private readonly sessionService: AccountSessionService;
-
-  constructor(private readonly userRepo: AdminUserRepositoryPort) {
-    super("AccountLifecycleService");
-    this.queryService = new AccountLifecycleQueryService();
-    this.sessionService = new AccountSessionService(userRepo);
+  constructor(
+    private readonly userRepo: AdminUserRepositoryPort,
+    private readonly sessionRepo: AdminSessionRepository,
+    private readonly roleRepo: RoleRepository,
+    auditLog: AuditLogRepository,
+    private readonly queryService: AccountLifecycleQueryService,
+    private readonly sessionService: AccountSessionService,
+    private readonly unitOfWork?: UnitOfWork
+  ) {
+    super("AccountLifecycleService", auditLog);
   }
 
   // ---------------------------------------------------------------------------
@@ -93,28 +101,13 @@ export class AccountLifecycleService extends AuditableService {
         async () => {
           // Resolve role by name (default to ADMIN)
           const roleName = data.role || "ADMIN";
-          const roleRecord = await prisma.role.findUnique({ where: { name: roleName } });
-          if (!roleRecord) {
-            return await prisma.adminUser.create({
-              data: {
-                email: data.email.toLowerCase(),
-                passwordHash,
-                name: data.name,
-                roleId: "role-admin", // fallback to default role ID
-                emailVerified: true,
-              },
-              include: { role: true },
-            });
-          }
-          return await prisma.adminUser.create({
-            data: {
-              email: data.email.toLowerCase(),
-              passwordHash,
-              name: data.name,
-              roleId: roleRecord.id,
-              emailVerified: true,
-            },
-            include: { role: true },
+          const roleRecord = await this.roleRepo.findByName(roleName);
+          return this.userRepo.create({
+            email: data.email.toLowerCase(),
+            passwordHash,
+            name: data.name,
+            roleId: roleRecord ? roleRecord.id : "role-admin",
+            emailVerified: true,
           });
         }
       );
@@ -129,7 +122,7 @@ export class AccountLifecycleService extends AuditableService {
           details: {
             email: user.email,
             name: user.name,
-            role: user.role.name,
+            role: user.role,
             createdBy: createdByUserId,
           },
         });
@@ -140,9 +133,7 @@ export class AccountLifecycleService extends AuditableService {
         adminLogger.info({ email: user.email }, "Welcome email would be sent");
       }
 
-      // Map Prisma result (with role relation) to AdminUserDto shape
-      const userDto = { ...user, role: user.role.name } as unknown as AdminUserDto;
-      return ok(await this.mapUserToProfile(userDto));
+      return ok(await this.mapUserToProfile(user));
     } catch (error: unknown) {
       adminLogger.error({ err: error }, "Account creation error");
       return err("DATABASE_ERROR");
@@ -165,10 +156,9 @@ export class AccountLifecycleService extends AuditableService {
       }
 
       // Fetch sessions separately since repository doesn't include relations
-      const sessions = await prisma.adminSession.findMany({
-        where: { userId: accountId, isActive: true },
-        orderBy: { createdAt: "desc" },
-        take: 1,
+      const sessions = await this.sessionRepo.findByUserId(accountId, {
+        activeOnly: true,
+        limit: 1,
       });
 
       const user = { ...userResult.value, sessions };
@@ -241,23 +231,20 @@ export class AccountLifecycleService extends AuditableService {
         async () => {
           // Extract role name and convert to roleId for the update
           const { role: roleName, ...restData } = data;
-          const updateData: Record<string, unknown> = {
-            ...restData,
-            updatedAt: new Date(),
+          const updateData: AdminUserUpdate = {
+            ...(restData.name !== undefined && { name: restData.name }),
+            ...(restData.isActive !== undefined && { isActive: restData.isActive }),
+            ...(restData.emailVerified !== undefined && {
+              emailVerified: restData.emailVerified,
+            }),
           };
           if (roleName) {
-            const roleRecord = await prisma.role.findUnique({
-              where: { name: roleName },
-            });
+            const roleRecord = await this.roleRepo.findByName(roleName);
             if (roleRecord) {
               updateData.roleId = roleRecord.id;
             }
           }
-          return await prisma.adminUser.update({
-            where: { id: accountId },
-            data: updateData,
-            include: { role: true },
-          });
+          return this.userRepo.update(accountId, updateData);
         }
       );
 
@@ -276,14 +263,7 @@ export class AccountLifecycleService extends AuditableService {
         });
       }
 
-      // Map role relation to string for AdminUserDto compatibility
-      const userWithRole = updatedUser as unknown as Record<string, unknown>;
-      const roleName =
-        typeof userWithRole.role === "object" && userWithRole.role !== null
-          ? (userWithRole.role as { name: string }).name
-          : String(userWithRole.role ?? "ADMIN");
-      const userDto = { ...updatedUser, role: roleName } as unknown as AdminUserDto;
-      return ok(await this.mapUserToProfile(userDto));
+      return ok(await this.mapUserToProfile(updatedUser));
     } catch (error: unknown) {
       adminLogger.error({ err: error }, "Update account error");
       return err("DATABASE_ERROR");
@@ -328,20 +308,15 @@ export class AccountLifecycleService extends AuditableService {
           severity: "CRITICAL",
         },
         async () => {
-          await prisma.$transaction(async (tx) => {
-            await tx.adminUser.update({
-              where: { id: accountId },
-              data: { isActive: false },
-            });
-
-            await tx.adminSession.updateMany({
-              where: { userId: accountId, isActive: true },
-              data: {
-                isActive: false,
-                revokedAt: new Date(),
-              },
-            });
-          });
+          const work = async (): Promise<void> => {
+            await this.userRepo.update(accountId, { isActive: false });
+            await this.sessionRepo.revokeAllForUser(accountId);
+          };
+          if (this.unitOfWork) {
+            await this.unitOfWork.executeInTransaction(work);
+          } else {
+            await work();
+          }
         }
       );
 
@@ -403,10 +378,7 @@ export class AccountLifecycleService extends AuditableService {
           severity: "HIGH",
         },
         async () => {
-          await prisma.adminUser.update({
-            where: { id: accountId },
-            data: { isActive: true },
-          });
+          await this.userRepo.update(accountId, { isActive: true });
         }
       );
 
@@ -469,24 +441,17 @@ export class AccountLifecycleService extends AuditableService {
           severity: "CRITICAL",
         },
         async () => {
-          await prisma.$transaction(async (tx) => {
-            // Delete sessions
-            await tx.adminSession.deleteMany({
-              where: { userId: accountId },
-            });
-
-            // Note: Audit logs are kept for compliance
-            // but we update them to remove the user reference
-            await tx.auditLog.updateMany({
-              where: { userId: accountId },
-              data: { userId: null },
-            });
-
-            // Delete the user
-            await tx.adminUser.delete({
-              where: { id: accountId },
-            });
-          });
+          const work = async (): Promise<void> => {
+            await this.sessionRepo.deleteAllForUser(accountId);
+            // Audit logs are kept for compliance; only the user reference is removed.
+            await this.auditLog.anonymizeUser(accountId);
+            await this.userRepo.delete(accountId);
+          };
+          if (this.unitOfWork) {
+            await this.unitOfWork.executeInTransaction(work);
+          } else {
+            await work();
+          }
         }
       );
 
@@ -561,15 +526,11 @@ export class AccountLifecycleService extends AuditableService {
   // ---------------------------------------------------------------------------
 
   private async mapUserToProfile(
-    user: AdminUserDto & { sessions?: AdminSession[] }
+    user: AdminUserDto & { sessions?: AdminSessionDto[] }
   ): Promise<AccountProfile> {
-    return mapAdminUserToProfile(user);
+    return this.queryService.mapUserToProfile(user);
   }
 }
-
-// NOTE: No module-level singleton. AccountLifecycleService is registered in
-// the DI container (TOKENS.AccountLifecycleService) and receives
-// AdminUserRepositoryPort via constructor injection. See setup.ts.
 
 // ---------------------------------------------------------------------------
 // Re-export types so existing importers of this module keep working

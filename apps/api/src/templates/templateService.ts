@@ -4,9 +4,9 @@
  *              with delegated version management and A/B testing via sub-services.
  * @layer infrastructure
  */
-import { prisma } from "@infra/prisma";
-import { Prisma } from "@infra/prisma";
+import { type Prisma, type PrismaClient } from "@infra/prisma";
 import { BaseService } from "../services/BaseService";
+import { ServerTemplateEngine } from "../lib/templates/ServerTemplateEngine.js";
 import { AppError } from "../lib/errors/AppError.js";
 import { Result } from "@shared/types";
 import type {
@@ -23,11 +23,13 @@ import { TemplateABTestService } from "./TemplateABTestService.js";
 export class TemplateService extends BaseService {
   private readonly versionService: TemplateVersionService;
   private readonly abTestService: TemplateABTestService;
+  private readonly templateEngine: ServerTemplateEngine;
 
-  constructor() {
+  constructor(private readonly prisma: PrismaClient) {
     super("TemplateService");
-    this.versionService = new TemplateVersionService();
-    this.abTestService = new TemplateABTestService();
+    this.versionService = new TemplateVersionService(this.prisma);
+    this.abTestService = new TemplateABTestService(this.prisma);
+    this.templateEngine = new ServerTemplateEngine(this.prisma);
   }
 
   // ---------------------------------------------------------------------------
@@ -74,7 +76,7 @@ export class TemplateService extends BaseService {
           ];
         }
 
-        const templates = await prisma.template.findMany({
+        const templates = await this.prisma.template.findMany({
           where,
           orderBy: { updatedAt: "desc" },
           take: pagination.limit,
@@ -105,7 +107,7 @@ export class TemplateService extends BaseService {
         metadata: { projectId, templateId },
       },
       async () => {
-        const template = await prisma.template.findFirst({
+        const template = await this.prisma.template.findFirst({
           where: {
             id: templateId,
             projectId,
@@ -133,7 +135,7 @@ export class TemplateService extends BaseService {
         metadata: { projectId, templateName: templateData.name },
       },
       async () => {
-        const project = await prisma.project.findUnique({
+        const project = await this.prisma.project.findUnique({
           where: { id: projectId },
         });
 
@@ -141,7 +143,7 @@ export class TemplateService extends BaseService {
           throw AppError.notFound("Project");
         }
 
-        const template = await prisma.template.create({
+        const template = await this.prisma.template.create({
           data: {
             projectId,
             accountId: project.accountId,
@@ -206,7 +208,7 @@ export class TemplateService extends BaseService {
         metadata: { projectId, templateId },
       },
       async () => {
-        const existingTemplate = await prisma.template.findFirst({
+        const existingTemplate = await this.prisma.template.findFirst({
           where: {
             id: templateId,
             projectId,
@@ -218,7 +220,7 @@ export class TemplateService extends BaseService {
           return null;
         }
 
-        const template = await prisma.template.update({
+        const template = await this.prisma.template.update({
           where: { id: templateId },
           data: {
             ...(updateData.name !== undefined && { name: updateData.name }),
@@ -253,7 +255,7 @@ export class TemplateService extends BaseService {
         metadata: { projectId, templateId },
       },
       async () => {
-        const template = await prisma.template.findFirst({
+        const template = await this.prisma.template.findFirst({
           where: {
             id: templateId,
             projectId,
@@ -265,7 +267,7 @@ export class TemplateService extends BaseService {
           return false;
         }
 
-        await prisma.template.update({
+        await this.prisma.template.update({
           where: { id: templateId },
           data: {
             deletedAt: new Date(),
@@ -345,14 +347,12 @@ export class TemplateService extends BaseService {
 
         const template = templateResult.value;
 
-        const { templateEngine } = await import("../lib/templates/templateEngine");
-
         const compilationTemplate = {
           ...template,
           platforms: platforms || template.platforms,
         };
 
-        const project = await prisma.project.findUnique({
+        const project = await this.prisma.project.findUnique({
           where: { id: projectId },
           select: { id: true, name: true },
         });
@@ -377,13 +377,13 @@ export class TemplateService extends BaseService {
         };
 
         if (abTestConfig?.enabled) {
-          return await templateEngine.compileWithABTest(
+          return await this.templateEngine.compileWithABTest(
             compilationTemplate,
             enhancedContext,
             abTestConfig
           );
         } else {
-          return await templateEngine.compileTemplate(compilationTemplate, enhancedContext);
+          return await this.templateEngine.compileTemplate(compilationTemplate, enhancedContext);
         }
       }
     );
@@ -412,9 +412,7 @@ export class TemplateService extends BaseService {
 
         const template = templateResult.value;
 
-        const { templateEngine } = await import("../lib/templates/templateEngine");
-
-        const project = await prisma.project.findUnique({
+        const project = await this.prisma.project.findUnique({
           where: { id: projectId },
           select: { id: true, name: true },
         });
@@ -432,7 +430,7 @@ export class TemplateService extends BaseService {
           },
         };
 
-        return await templateEngine.compileTemplateWithComponents(template, enhancedContext);
+        return await this.templateEngine.compileTemplateWithComponents(template, enhancedContext);
       }
     );
   }
@@ -459,9 +457,7 @@ export class TemplateService extends BaseService {
 
         const template = templateResult.value;
 
-        const { templateEngine } = await import("../lib/templates/templateEngine");
-
-        return templateEngine.validateTemplate(template);
+        return this.templateEngine.validateTemplate(template);
       }
     );
   }
@@ -473,8 +469,7 @@ export class TemplateService extends BaseService {
         metadata: { platform },
       },
       async () => {
-        const { templateEngine } = await import("../lib/templates/templateEngine");
-        return templateEngine.getPlatformLimits(platform);
+        return this.templateEngine.getPlatformLimits(platform);
       }
     );
   }
@@ -485,8 +480,7 @@ export class TemplateService extends BaseService {
         operation: "getSupportedPlatforms",
       },
       async () => {
-        const { templateEngine } = await import("../lib/templates/templateEngine");
-        return templateEngine.getSupportedPlatforms();
+        return this.templateEngine.getSupportedPlatforms();
       }
     );
   }
@@ -549,5 +543,3 @@ export class TemplateService extends BaseService {
     return this.abTestService.stopABTest(projectId, testId);
   }
 }
-
-export const templateService = new TemplateService();

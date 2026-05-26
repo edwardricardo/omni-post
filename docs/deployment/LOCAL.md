@@ -167,7 +167,7 @@ JWT_REFRESH_SECRET=local-dev-refresh-secret-change-me
 ADMIN_JWT_ACCESS_SECRET=local-dev-admin-access-change-me
 ADMIN_JWT_REFRESH_SECRET=local-dev-admin-refresh-change-me
 CUSTOMER_JWT_SECRET=local-dev-customer-jwt-change-me
-OAUTH_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+OAUTH_ENCRYPTION_KEY=<run `openssl rand -hex 32` to generate>
 
 # ---- Storage (MinIO as local S3) ----
 STORAGE_PROVIDER=s3

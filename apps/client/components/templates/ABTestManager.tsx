@@ -16,6 +16,7 @@
 "use client";
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@packages/ui";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@packages/ui";
 import {
@@ -47,6 +48,7 @@ export function ABTestManager({
   tests = [],
   allowManagement = true,
 }: ABTestManagerProps) {
+  const t = useTranslations("templates.components.abTest");
   const {
     activeTab,
     setActiveTab,
@@ -86,8 +88,8 @@ export function ABTestManager({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">A/B Test Manager</h2>
-          <p className="text-muted-foreground">Create and manage content A/B tests</p>
+          <h2 className="text-2xl font-bold">{t("manager.title")}</h2>
+          <p className="text-muted-foreground">{t("manager.subtitle")}</p>
         </div>
         {allowManagement && (
           <ABTestCreateDialog
@@ -116,8 +118,8 @@ export function ABTestManager({
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)}>
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="results">Results</TabsTrigger>
+          <TabsTrigger value="overview">{t("manager.tabOverview")}</TabsTrigger>
+          <TabsTrigger value="results">{t("manager.tabResults")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -141,8 +143,8 @@ export function ABTestManager({
               <CardContent className="p-8 text-center">
                 <div className="text-muted-foreground">
                   <Target className="h-8 w-8 mx-auto mb-2" />
-                  <p>No A/B tests found.</p>
-                  <p className="text-sm">Create your first test to get started.</p>
+                  <p>{t("manager.emptyTitle")}</p>
+                  <p className="text-sm">{t("manager.emptyDescription")}</p>
                 </div>
               </CardContent>
             </Card>
@@ -158,15 +160,14 @@ export function ABTestManager({
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete A/B Test</AlertDialogTitle>
+            <AlertDialogTitle>{t("manager.deleteTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete &quot;{testToDelete?.name}&quot;? This action cannot
-              be undone and all test data will be lost.
+              {t("manager.deleteDescription", { name: testToDelete?.name ?? "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+            <AlertDialogCancel>{t("manager.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>{t("manager.delete")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { UpsertBrandVoiceUseCase } from "../../../src/application/brand-voice/UpsertBrandVoiceUseCase.js";
+import { UpsertBrandVoiceUseCase } from "@core/application/brand-voice/UpsertBrandVoiceUseCase.js";
 
 function makeRepo() {
   return {

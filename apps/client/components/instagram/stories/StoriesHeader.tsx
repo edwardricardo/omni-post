@@ -3,9 +3,11 @@
  * @component StoriesHeader
  * @description Header component for the Instagram Stories editor, displaying the project
  * name, story count, and action buttons for saving drafts and publishing the story set.
+ * @layer infrastructure
  */
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import { StoriesProject } from "./types";
 
 interface StoriesHeaderProps {
@@ -25,16 +27,17 @@ export function StoriesHeader({
   onSchedule,
   onPublish,
 }: StoriesHeaderProps) {
+  const t = useTranslations("instagram.components");
   return (
     <div className="bg-white border-b px-6 py-4 flex items-center justify-between">
       <div className="flex items-center space-x-4">
-        <h1 className="text-2xl font-bold text-gray-900">Instagram Stories Editor</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t("storiesHeader.title")}</h1>
         <input
           type="text"
           value={project.name}
           onChange={(e) => onProjectNameChange(e.target.value)}
           className="px-3 py-2 border rounded-lg text-lg font-medium bg-transparent"
-          placeholder="Project name"
+          placeholder={t("storiesHeader.projectNamePlaceholder")}
         />
         <span
           className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -47,7 +50,7 @@ export function StoriesHeader({
                   : "bg-green-100 text-green-800"
           }`}
         >
-          {project.status}
+          {t(`storiesHeader.status.${project.status}`)}
         </span>
       </div>
 
@@ -57,7 +60,7 @@ export function StoriesHeader({
           disabled={isDisabled}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
         >
-          Save Draft
+          {t("storiesHeader.saveDraft")}
         </button>
 
         <button
@@ -65,7 +68,7 @@ export function StoriesHeader({
           disabled={isDisabled}
           className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50"
         >
-          Schedule
+          {t("storiesHeader.schedule")}
         </button>
 
         <button
@@ -73,7 +76,7 @@ export function StoriesHeader({
           disabled={isDisabled}
           className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
         >
-          Publish Now
+          {t("storiesHeader.publishNow")}
         </button>
       </div>
     </div>

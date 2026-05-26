@@ -9,6 +9,7 @@
  */
 
 import { useState, useRef, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import {
   parseSchedulingCsv,
   generateCsvTemplate,
@@ -24,6 +25,7 @@ interface CSVBulkUploadProps {
 type UploadState = "idle" | "parsed" | "submitting" | "success" | "error";
 
 export function CSVBulkUpload({ projectId, timezone = "UTC" }: CSVBulkUploadProps) {
+  const t = useTranslations("scheduling.components");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [rows, setRows] = useState<ValidatedCsvRow[]>([]);
   const [uploadState, setUploadState] = useState<UploadState>("idle");
@@ -49,24 +51,27 @@ export function CSVBulkUpload({ projectId, timezone = "UTC" }: CSVBulkUploadProp
     URL.revokeObjectURL(url);
   }, []);
 
-  const processFile = useCallback((file: File) => {
-    if (!file.name.endsWith(".csv")) {
-      setSubmitError("Please upload a .csv file");
-      return;
-    }
+  const processFile = useCallback(
+    (file: File) => {
+      if (!file.name.endsWith(".csv")) {
+        setSubmitError(t("csvErrorNotCsv"));
+        return;
+      }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result;
-      if (typeof text !== "string") return;
-      const parsed = parseSchedulingCsv(text);
-      setRows(parsed);
-      setUploadState(parsed.length > 0 ? "parsed" : "idle");
-      setSubmitResult(null);
-      setSubmitError(null);
-    };
-    reader.readAsText(file);
-  }, []);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target?.result;
+        if (typeof text !== "string") return;
+        const parsed = parseSchedulingCsv(text);
+        setRows(parsed);
+        setUploadState(parsed.length > 0 ? "parsed" : "idle");
+        setSubmitResult(null);
+        setSubmitError(null);
+      };
+      reader.readAsText(file);
+    },
+    [t]
+  );
 
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -126,7 +131,7 @@ export function CSVBulkUpload({ projectId, timezone = "UTC" }: CSVBulkUploadProp
       setSubmitResult({ scheduled: validRows.length, total: rows.length });
     } catch (err: unknown) {
       setUploadState("error");
-      setSubmitError(err instanceof Error ? err.message : "Failed to schedule posts");
+      setSubmitError(err instanceof Error ? err.message : t("csvScheduleError"));
     }
   };
 
@@ -145,16 +150,14 @@ export function CSVBulkUpload({ projectId, timezone = "UTC" }: CSVBulkUploadProp
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h4 className="text-base font-medium text-gray-900">CSV Bulk Upload</h4>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Upload a CSV file to schedule multiple posts at once.
-          </p>
+          <h4 className="text-base font-medium text-gray-900">{t("csvTitle")}</h4>
+          <p className="text-sm text-gray-500 mt-0.5">{t("csvSubtitle")}</p>
         </div>
         <button
           onClick={handleDownloadTemplate}
           className="text-sm text-blue-600 hover:text-blue-800 font-medium underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
         >
-          Download Template
+          {t("csvDownloadTemplate")}
         </button>
       </div>
 
@@ -167,7 +170,7 @@ export function CSVBulkUpload({ projectId, timezone = "UTC" }: CSVBulkUploadProp
           onClick={() => fileInputRef.current?.click()}
           role="button"
           tabIndex={0}
-          aria-label="Upload CSV file"
+          aria-label={t("csvUploadAria")}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click();
           }}
@@ -181,9 +184,11 @@ export function CSVBulkUpload({ projectId, timezone = "UTC" }: CSVBulkUploadProp
             &#8679;
           </div>
           <p className="text-sm text-gray-600">
-            <span className="font-medium text-blue-600">Click to upload</span> or drag and drop
+            {t.rich("csvDropzonePrompt", {
+              click: (chunks) => <span className="font-medium text-blue-600">{chunks}</span>,
+            })}
           </p>
-          <p className="text-xs text-gray-400 mt-1">CSV files only</p>
+          <p className="text-xs text-gray-400 mt-1">{t("csvFilesOnly")}</p>
           <input
             ref={fileInputRef}
             type="file"
@@ -201,14 +206,17 @@ export function CSVBulkUpload({ projectId, timezone = "UTC" }: CSVBulkUploadProp
           {/* Summary */}
           <div className="flex items-center gap-3 text-sm">
             <span className="text-gray-700">
-              <strong>{rows.length}</strong> rows parsed:
+              {t.rich("csvRowsParsed", {
+                count: rows.length,
+                strong: (chunks) => <strong>{chunks}</strong>,
+              })}
             </span>
             <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-green-100 text-green-800">
-              {validRows.length} valid
+              {t("csvValidCount", { count: validRows.length })}
             </span>
             {invalidRows.length > 0 && (
               <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-red-100 text-red-800">
-                {invalidRows.length} invalid
+                {t("csvInvalidCount", { count: invalidRows.length })}
               </span>
             )}
           </div>
@@ -218,30 +226,30 @@ export function CSVBulkUpload({ projectId, timezone = "UTC" }: CSVBulkUploadProp
             <table
               className="min-w-full divide-y divide-gray-200 text-xs"
               role="table"
-              aria-label="CSV preview"
+              aria-label={t("csvPreviewAria")}
             >
               <thead className="bg-gray-50 sticky top-0">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">
-                    Row
+                    {t("csvColRow")}
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                    {t("csvColStatus")}
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">
-                    Date
+                    {t("csvColDate")}
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">
-                    Time
+                    {t("csvColTime")}
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">
-                    Platform
+                    {t("csvColPlatform")}
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">
-                    Copy
+                    {t("csvColCopy")}
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">
-                    Error
+                    {t("csvColError")}
                   </th>
                 </tr>
               </thead>
@@ -251,9 +259,9 @@ export function CSVBulkUpload({ projectId, timezone = "UTC" }: CSVBulkUploadProp
                     <td className="px-3 py-2 text-gray-500">{row.rowIndex}</td>
                     <td className="px-3 py-2">
                       {row.isValid ? (
-                        <span className="text-green-600 font-medium">&#10003; Valid</span>
+                        <span className="text-green-600 font-medium">&#10003; {t("csvValid")}</span>
                       ) : (
-                        <span className="text-red-600 font-medium">&#10007; Invalid</span>
+                        <span className="text-red-600 font-medium">&#10007; {t("csvInvalid")}</span>
                       )}
                     </td>
                     <td className="px-3 py-2 text-gray-900">{row.raw.date}</td>
@@ -275,14 +283,14 @@ export function CSVBulkUpload({ projectId, timezone = "UTC" }: CSVBulkUploadProp
               className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {bulkCreate.isPending
-                ? "Scheduling..."
-                : `Schedule ${validRows.length} Valid Row${validRows.length !== 1 ? "s" : ""}`}
+                ? t("csvScheduling")
+                : t("csvScheduleValidRows", { count: validRows.length })}
             </button>
             <button
               onClick={handleReset}
               className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400"
             >
-              Clear
+              {t("csvClear")}
             </button>
           </div>
         </div>
@@ -295,13 +303,17 @@ export function CSVBulkUpload({ projectId, timezone = "UTC" }: CSVBulkUploadProp
           role="status"
         >
           <p className="text-sm text-green-800 font-medium">
-            &#10003; {submitResult.scheduled} of {submitResult.total} rows scheduled successfully
+            &#10003;{" "}
+            {t("csvSuccess", {
+              scheduled: submitResult.scheduled,
+              total: submitResult.total,
+            })}
           </p>
           <button
             onClick={handleReset}
             className="text-sm text-green-700 underline hover:text-green-900 focus:outline-none focus:ring-2 focus:ring-green-500 rounded"
           >
-            Upload another file
+            {t("csvUploadAnother")}
           </button>
         </div>
       )}

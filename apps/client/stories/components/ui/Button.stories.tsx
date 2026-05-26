@@ -5,11 +5,12 @@
  * @layer infrastructure
  */
 import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { ComponentProps } from "react";
 import { action } from "storybook/actions";
 import { Button } from "@packages/ui";
 import { Download, Heart, Mail, Plus, Settings, Trash2, Upload } from "lucide-react";
 
-const meta: Meta<typeof Button> = {
+const meta = {
   title: "Components/UI/Button",
   component: Button,
   parameters: {
@@ -57,7 +58,7 @@ A flexible button component built with Radix UI Slot and class-variance-authorit
     onClick: action("clicked"),
   },
   tags: ["autodocs"],
-};
+} satisfies Meta<typeof Button>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -135,7 +136,7 @@ export const Disabled: Story = {
 };
 
 export const Loading: Story = {
-  render: (args) => (
+  render: (args: ComponentProps<typeof Button>) => (
     <Button {...args} disabled>
       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
       Loading...
@@ -145,7 +146,7 @@ export const Loading: Story = {
 
 // Icon Stories
 export const WithIconLeft: Story = {
-  render: (args) => (
+  render: (args: ComponentProps<typeof Button>) => (
     <Button {...args}>
       <Plus className="mr-2 h-4 w-4" />
       Add New Post
@@ -154,7 +155,7 @@ export const WithIconLeft: Story = {
 };
 
 export const WithIconRight: Story = {
-  render: (args) => (
+  render: (args: ComponentProps<typeof Button>) => (
     <Button {...args}>
       Download Report
       <Download className="ml-2 h-4 w-4" />

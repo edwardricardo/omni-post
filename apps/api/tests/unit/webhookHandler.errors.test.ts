@@ -5,18 +5,12 @@
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";
-import { createMockPrismaModule } from "./helpers/mockPrisma.js";
+import { makeWebhookPrismaFake } from "./helpers/webhookPrismaFake.js";
 import { createSignature, createTestSubscriptionData } from "./webhookHandler.test-helpers.js";
 
-// ---------------------------------------------------------------------------
-// Mock @infra/prisma before any imports that use it
-// ---------------------------------------------------------------------------
-const { mockPrisma, stores } = createMockPrismaModule();
-
-vi.mock("@infra/prisma", async (importOriginal) => {
-  const orig = await importOriginal<Record<string, unknown>>();
-  return { ...orig, prisma: mockPrisma.prisma };
-});
+// In-memory prisma fake injected into the handler via the constructor (DI) —
+// no module mock of @infra/prisma. The stores back seeding and assertions.
+const { prisma: mockDb, stores } = makeWebhookPrismaFake();
 
 // Mock the logger to avoid console noise
 vi.mock("../../src/lib/logger.js", () => ({
@@ -69,7 +63,7 @@ describe("WebhookHandler - Error Handling", () => {
   });
 
   it("should handle missing webhook subscription", async () => {
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const payload = JSON.stringify({
       entry: [{ id: "no-subscription-test" }],
     });
@@ -86,7 +80,7 @@ describe("WebhookHandler - Error Handling", () => {
   it("should handle malformed JSON payload", async () => {
     seedSubscription("INSTAGRAM");
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const malformedPayload = "{ invalid json";
 
     const signature = "sha256=test-signature";
@@ -104,7 +98,7 @@ describe("WebhookHandler - Error Handling", () => {
     // Deactivate the subscription in the store
     stores.webhookSubscription.update(subscription.id, { isActive: false });
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const payload = JSON.stringify({
       entry: [{ id: "inactive-subscription-test" }],
     });
@@ -134,7 +128,7 @@ describe("WebhookHandler - Retry Logic", () => {
   it("should mark retryable errors for retry", async () => {
     seedSubscription("INSTAGRAM");
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const payload = JSON.stringify({
       entry: [{ id: "retryable-error-test" }],
     });
@@ -150,7 +144,7 @@ describe("WebhookHandler - Retry Logic", () => {
   it("should not retry signature verification failures", async () => {
     seedSubscription("INSTAGRAM");
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const payload = JSON.stringify({
       entry: [{ id: "non-retryable-test" }],
     });
@@ -165,7 +159,7 @@ describe("WebhookHandler - Retry Logic", () => {
   });
 
   it("should calculate exponential backoff for retries", async () => {
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
 
     const calculateRetryDelay = (
       handler as Record<string, unknown> & {
@@ -194,7 +188,7 @@ describe("WebhookHandler - Dead Letter Queue", () => {
   it("should move non-retryable events to dead letter queue", async () => {
     seedSubscription("INSTAGRAM");
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const payload = JSON.stringify({
       entry: [{ id: "dead-letter-test" }],
     });

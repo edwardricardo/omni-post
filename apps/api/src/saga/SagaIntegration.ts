@@ -49,10 +49,10 @@ import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "../auth/rbacService.js";
 import { SecureSchemas } from "../security/inputValidation.js";
-import { ProjectId, AccountId, PostId } from "../domain/value-objects/EntityId.js";
-import type { ProjectRepositoryPort } from "../domain/repositories/ProjectRepository.js";
-import type { ChannelRepository } from "../domain/repositories/ChannelRepository.js";
-import type { PostRepository } from "../domain/repositories/PostRepository.js";
+import { ProjectId, AccountId, PostId } from "@core/domain/value-objects/EntityId.js";
+import type { ProjectRepositoryPort } from "@core/domain/repositories/ProjectRepository.js";
+import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
+import type { PostRepository } from "@core/domain/repositories/PostRepository.js";
 import type { SemanticLockPort } from "@ports/core";
 
 /** Channel used by workers to notify saga completions/failures */
@@ -710,7 +710,9 @@ export class SagaIntegration {
     );
 
     // Forward the event to the saga manager
-    await this.sagaManager.handleEvent(parsed as unknown as import("@shared/types").DomainEvent);
+    await this.sagaManager.handleEvent(
+      parsed as unknown as import("@shared/types").EventStoreEvent
+    );
   }
 
   /**

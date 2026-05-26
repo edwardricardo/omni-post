@@ -9,6 +9,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
+import { useTranslations } from "next-intl";
 import type { ApprovalRequest } from "@/hooks/api/useApprovals";
 
 // ---------------------------------------------------------------------------
@@ -44,6 +45,7 @@ interface ApprovalCardProps {
  * @param props.onReview - Callback invoked when the user clicks the Review button
  */
 export function ApprovalCard({ approval, onReview }: ApprovalCardProps) {
+  const t = useTranslations("approvals.components");
   const preview =
     approval.postContent.length > 100
       ? `${approval.postContent.slice(0, 100)}…`
@@ -69,7 +71,7 @@ export function ApprovalCard({ approval, onReview }: ApprovalCardProps) {
 
       {/* Content preview */}
       <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">
-        {preview || "(no content)"}
+        {preview || t("noContent")}
       </p>
 
       {/* Footer */}
@@ -82,7 +84,7 @@ export function ApprovalCard({ approval, onReview }: ApprovalCardProps) {
           onClick={() => onReview(approval)}
           className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
         >
-          Review
+          {t("review")}
         </button>
       </div>
     </div>

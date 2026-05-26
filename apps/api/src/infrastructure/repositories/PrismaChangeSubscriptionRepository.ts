@@ -4,13 +4,15 @@
  * @layer infrastructure
  */
 
-import { prisma } from "@infra/prisma";
-import type { ChangeSubscriptionRepository } from "../../application/billing/ChangeAccountSubscriptionUseCase.js";
-import type { ProviderTier, AccountTier } from "../../domain/billing/PricingCalculator.js";
+import type { PrismaClient } from "@infra/prisma";
+import type { ChangeSubscriptionRepository } from "@core/application/billing/ChangeAccountSubscriptionUseCase.js";
+import type { ProviderTier, AccountTier } from "@core/domain/billing/PricingCalculator.js";
 
 export class PrismaChangeSubscriptionRepository implements ChangeSubscriptionRepository {
+  constructor(private readonly prisma: PrismaClient) {}
+
   async findSubscriptionByAccountId(accountId: string) {
-    const sub = await prisma.accountSubscription.findUnique({
+    const sub = await this.prisma.accountSubscription.findUnique({
       where: { accountId },
       include: { bundle: true },
     });
@@ -40,7 +42,7 @@ export class PrismaChangeSubscriptionRepository implements ChangeSubscriptionRep
     pricePerAccountMonth: number;
     isActive: boolean;
   } | null> {
-    const b = await prisma.providerBundle.findUnique({ where: { id: bundleId } });
+    const b = await this.prisma.providerBundle.findUnique({ where: { id: bundleId } });
     if (!b) return null;
     return {
       id: b.id,
@@ -51,7 +53,7 @@ export class PrismaChangeSubscriptionRepository implements ChangeSubscriptionRep
   }
 
   async findProviderPricingTiers(): Promise<ProviderTier[]> {
-    const rows = await prisma.providerPricingTier.findMany({
+    const rows = await this.prisma.providerPricingTier.findMany({
       where: { isActive: true },
       orderBy: { minProviders: "asc" },
     });
@@ -64,7 +66,7 @@ export class PrismaChangeSubscriptionRepository implements ChangeSubscriptionRep
   }
 
   async findAccountPricingTiers(): Promise<AccountTier[]> {
-    const rows = await prisma.accountPricingTier.findMany({
+    const rows = await this.prisma.accountPricingTier.findMany({
       where: { isActive: true },
       orderBy: { minAccounts: "asc" },
     });
@@ -83,7 +85,7 @@ export class PrismaChangeSubscriptionRepository implements ChangeSubscriptionRep
     reason: string;
     effectiveAt: Date;
   }): Promise<void> {
-    await prisma.subscriptionPriceHistory.create({
+    await this.prisma.subscriptionPriceHistory.create({
       data: {
         subscriptionId: params.subscriptionId,
         previousPrice: params.previousPrice,
@@ -104,7 +106,7 @@ export class PrismaChangeSubscriptionRepository implements ChangeSubscriptionRep
       cancelAtPeriodEnd?: boolean;
     }
   ): Promise<void> {
-    await prisma.accountSubscription.update({
+    await this.prisma.accountSubscription.update({
       where: { id: subscriptionId },
       data: {
         ...(params.bundleId !== undefined && { bundleId: params.bundleId }),

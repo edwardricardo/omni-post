@@ -1,0 +1,139 @@
+/**
+ * @file page.tsx
+ * @component UsagePage
+ * @description Usage dashboard showing account usage vs plan limits.
+ * @layer infrastructure
+ */
+
+"use client";
+
+import { useTranslations } from "next-intl";
+import { useAuth } from "@/lib/auth/authContext";
+import { useAccountUsage } from "@/hooks/api/useUsage";
+
+function UsageMeter({
+  label,
+  current,
+  limit,
+  unit,
+}: {
+  label: string;
+  current: number;
+  /** `null` means unlimited (enterprise tier or no subscription bundle). */
+  limit: number | null;
+  unit?: string;
+}) {
+  const t = useTranslations("settings");
+
+  // Unlimited tier — show count only, no progress bar.
+  if (limit === null) {
+    return (
+      <div className="rounded-lg border bg-card p-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium">{label}</span>
+          <span className="text-sm text-muted-foreground">
+            {t("usage.unlimitedValue", { current: current.toLocaleString(), unit: unit ?? "" })}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  const percentage = limit > 0 ? Math.min((current / limit) * 100, 100) : 0;
+  const barColor =
+    percentage >= 95 ? "bg-red-500" : percentage >= 80 ? "bg-orange-500" : "bg-primary";
+
+  return (
+    <div className="rounded-lg border bg-card p-4">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-medium">{label}</span>
+        <span className="text-sm text-muted-foreground">
+          {t("usage.limitValue", {
+            current: current.toLocaleString(),
+            limit: limit.toLocaleString(),
+            unit: unit ?? "",
+          })}
+        </span>
+      </div>
+      <div className="h-2 rounded-full bg-muted overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${barColor}`}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+      {percentage >= 80 && (
+        <p className="text-xs text-orange-600 mt-1">
+          {percentage >= 95 ? t("usage.limitAlmostReached") : t("usage.approachingLimit")}
+        </p>
+      )}
+    </div>
+  );
+}
+
+export default function UsagePage() {
+  const t = useTranslations("settings");
+  const { user } = useAuth();
+  const accountId = ((user as Record<string, unknown> | null)?.accountId as string) ?? "";
+  const { data: usage, isLoading } = useAccountUsage(accountId);
+
+  if (isLoading) {
+    return <div className="text-center py-8 text-muted-foreground">{t("usage.loading")}</div>;
+  }
+
+  if (!usage) {
+    return <div className="text-center py-8 text-muted-foreground">{t("usage.loadError")}</div>;
+  }
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-foreground">{t("usage.title")}</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          {t.rich("usage.currentPlan", {
+            plan: usage.plan,
+            strong: (chunks) => <strong>{chunks}</strong>,
+          })}
+          {usage.isOnTrial && usage.trialEndDate && (
+            <span className="ml-2 text-orange-600">
+              {t("usage.trialEnds", {
+                date: new Date(usage.trialEndDate).toLocaleDateString(),
+              })}
+            </span>
+          )}
+        </p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <UsageMeter
+          label={t("usage.postsThisMonth")}
+          current={usage.postsPublished}
+          limit={usage.postsLimit}
+        />
+        <UsageMeter
+          label={t("usage.socialChannels")}
+          current={usage.channelsCount}
+          limit={usage.channelsLimit}
+        />
+        <UsageMeter
+          label={t("usage.teamMembers")}
+          current={usage.teamMemberCount}
+          limit={usage.teamMembersLimit}
+        />
+        <UsageMeter
+          label={t("usage.storage")}
+          current={Math.round(usage.storageGb * 10) / 10}
+          limit={usage.storageLimitGb}
+          unit="GB"
+        />
+      </div>
+
+      {usage.nextBillingDate && (
+        <p className="text-sm text-muted-foreground mt-6">
+          {t("usage.nextBillingDate", {
+            date: new Date(usage.nextBillingDate).toLocaleDateString(),
+          })}
+        </p>
+      )}
+    </div>
+  );
+}

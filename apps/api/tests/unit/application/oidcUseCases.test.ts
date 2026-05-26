@@ -7,15 +7,15 @@
 
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import assert from "node:assert/strict";
-import { ConfigureOidcUseCase } from "../../../src/application/auth/ConfigureOidcUseCase.js";
-import { EnableOidcSsoUseCase } from "../../../src/application/auth/EnableOidcSsoUseCase.js";
-import { DisableOidcSsoUseCase } from "../../../src/application/auth/DisableOidcSsoUseCase.js";
-import { GetOidcConfigurationQuery } from "../../../src/application/auth/GetOidcConfigurationQuery.js";
+import { ConfigureOidcUseCase } from "@core/application/auth/ConfigureOidcUseCase.js";
+import { EnableOidcSsoUseCase } from "@core/application/auth/EnableOidcSsoUseCase.js";
+import { DisableOidcSsoUseCase } from "@core/application/auth/DisableOidcSsoUseCase.js";
+import { GetOidcConfigurationQuery } from "@core/application/auth/GetOidcConfigurationQuery.js";
 import type {
   OidcConfigurationRepository,
   OidcConfigurationData,
-} from "../../../src/domain/repositories/OidcConfigurationRepository.js";
-import type { AccountQueryRepositoryPort } from "../../../src/domain/repositories/AccountQueryRepository.js";
+} from "@core/domain/repositories/OidcConfigurationRepository.js";
+import type { AccountQueryRepositoryPort } from "@core/domain/repositories/AccountQueryRepository.js";
 import { ok } from "@shared/types";
 
 // ── Mock Factories ──────────────────────────────────────────────────────────

@@ -8,6 +8,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import { X, Check, Ban } from "lucide-react";
 import { PriorityBadge, StatusBadge } from "./TaskBadge";
@@ -21,6 +22,7 @@ interface TaskDetailPanelProps {
 }
 
 export function TaskDetailPanel({ task, onClose, onComplete, onCancel }: TaskDetailPanelProps) {
+  const t = useTranslations("tasks.components");
   const handleComplete = useCallback(() => {
     if (task) onComplete(task.id);
   }, [task, onComplete]);
@@ -37,14 +39,14 @@ export function TaskDetailPanel({ task, onClose, onComplete, onCancel }: TaskDet
     <div className="fixed inset-0 z-50 flex justify-end">
       <button
         type="button"
-        aria-label="Close task details"
+        aria-label={t("closeDetails")}
         className="fixed inset-0 bg-black/25 cursor-default"
         onClick={onClose}
       />
       <div className="relative z-50 w-full max-w-md bg-card border-l shadow-lg overflow-y-auto">
         <div className="sticky top-0 bg-card border-b px-6 py-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Task Details</h2>
-          <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close task details">
+          <h2 className="text-lg font-semibold">{t("detailsTitle")}</h2>
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label={t("closeDetails")}>
             <X aria-hidden="true" className="h-4 w-4" />
           </Button>
         </div>
@@ -60,7 +62,9 @@ export function TaskDetailPanel({ task, onClose, onComplete, onCancel }: TaskDet
 
           {task.description && (
             <div>
-              <h4 className="text-sm font-medium text-muted-foreground mb-1">Description</h4>
+              <h4 className="text-sm font-medium text-muted-foreground mb-1">
+                {t("descriptionLabel")}
+              </h4>
               <p className="text-sm whitespace-pre-wrap">{task.description}</p>
             </div>
           )}
@@ -68,17 +72,17 @@ export function TaskDetailPanel({ task, onClose, onComplete, onCancel }: TaskDet
           <div className="grid grid-cols-2 gap-4 text-sm">
             {task.dueDate && (
               <div>
-                <span className="text-muted-foreground">Due Date</span>
+                <span className="text-muted-foreground">{t("dueDateLabel")}</span>
                 <p className="font-medium">{new Date(task.dueDate).toLocaleDateString()}</p>
               </div>
             )}
             <div>
-              <span className="text-muted-foreground">Created</span>
+              <span className="text-muted-foreground">{t("createdLabel")}</span>
               <p className="font-medium">{new Date(task.createdAt).toLocaleDateString()}</p>
             </div>
             {task.completedAt && (
               <div>
-                <span className="text-muted-foreground">Completed</span>
+                <span className="text-muted-foreground">{t("completedLabel")}</span>
                 <p className="font-medium">{new Date(task.completedAt).toLocaleDateString()}</p>
               </div>
             )}
@@ -88,11 +92,11 @@ export function TaskDetailPanel({ task, onClose, onComplete, onCancel }: TaskDet
             <div className="flex gap-2 pt-4 border-t">
               <Button onClick={handleComplete} className="flex-1">
                 <Check className="h-4 w-4 mr-2" />
-                Complete
+                {t("complete")}
               </Button>
               <Button variant="outline" onClick={handleCancel} className="flex-1">
                 <Ban className="h-4 w-4 mr-2" />
-                Cancel
+                {t("cancel")}
               </Button>
             </div>
           )}

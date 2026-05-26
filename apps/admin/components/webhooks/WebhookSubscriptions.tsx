@@ -106,7 +106,7 @@ export function WebhookSubscriptions() {
   const [mutationError, setMutationError] = useState<string | null>(null);
 
   // ---------------------------------------------------------------------------
-  // Data — TanStack Query (T3-N migration from manual fetch + setState)
+  // Data — TanStack Query
   // ---------------------------------------------------------------------------
 
   const subscriptionsQuery = useWebhookSubscriptions();

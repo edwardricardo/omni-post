@@ -9,7 +9,7 @@ import type {
   DomainEvent,
   DomainEventHandler,
   EventDispatcher,
-} from "../../domain/events/DomainEvent.js";
+} from "@core/domain/events/DomainEvent.js";
 import type { IntegrationEventPublisher } from "./IntegrationEventPort.js";
 import { toIntegrationEvent } from "./IntegrationEvent.js";
 import { createLogger } from "../../lib/logger.js";

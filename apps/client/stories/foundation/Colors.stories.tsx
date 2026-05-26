@@ -5,6 +5,7 @@
  * @layer infrastructure
  */
 import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { ComponentType } from "react";
 
 /**
  * # Color System
@@ -185,7 +186,7 @@ const ColorPalette = () => {
   );
 };
 
-const meta: Meta<typeof ColorPalette> = {
+const meta = {
   title: "Foundation/Colors",
   component: ColorPalette,
   parameters: {
@@ -196,7 +197,7 @@ const meta: Meta<typeof ColorPalette> = {
     },
   },
   tags: ["autodocs"],
-};
+} satisfies Meta<typeof ColorPalette>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -213,7 +214,7 @@ export const LightTheme: Story = {
     backgrounds: { default: "light" },
   },
   decorators: [
-    (Story) => (
+    (Story: ComponentType) => (
       <div className="light">
         <Story />
       </div>
@@ -228,7 +229,7 @@ export const DarkTheme: Story = {
     backgrounds: { default: "dark" },
   },
   decorators: [
-    (Story) => (
+    (Story: ComponentType) => (
       <div className="dark">
         <Story />
       </div>

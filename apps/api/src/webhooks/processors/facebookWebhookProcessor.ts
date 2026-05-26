@@ -4,12 +4,13 @@
  *              comment changes, reaction tracking, and messaging events.
  * @layer infrastructure
  */
-import type { WebhookEventType } from "@infra/prisma";
+import type { PrismaClient, WebhookEventType } from "@infra/prisma";
 import type { ProviderName } from "@shared/types";
-import { prisma } from "@infra/prisma";
 import { webhookLogger } from "../../lib/logger.js";
 import { AppError } from "../../lib/errors/AppError.js";
 import { AbstractWebhookProcessor } from "./AbstractWebhookProcessor.js";
+import type { RealtimeWebhookBroadcaster } from "../realtimeWebhookBroadcaster.js";
+import type { MentionFetchEnqueue } from "../mentionFetchEnqueue.js";
 
 /**
  * Facebook Webhook Processor
@@ -27,6 +28,19 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   protected override providerId: ProviderName = "FACEBOOK";
   protected override signaturePrefix = "sha256=";
   protected override signatureEncoding: "hex" | "base64" = "hex";
+
+  private readonly mentionEnqueue?: MentionFetchEnqueue;
+
+  constructor(
+    prisma: PrismaClient,
+    broadcaster?: RealtimeWebhookBroadcaster,
+    mentionEnqueue?: MentionFetchEnqueue
+  ) {
+    super(prisma, broadcaster);
+    if (mentionEnqueue) {
+      this.mentionEnqueue = mentionEnqueue;
+    }
+  }
 
   /**
    * Parse Facebook webhook payload and normalize data
@@ -321,7 +335,7 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
     // Find channel by Facebook page ID. The page ID is persisted on the
     // dedicated `providerAccountId` column so we can resolve the channel
     // without decrypting the credentials envelope.
-    const channel = await prisma.channel.findFirst({
+    const channel = await this.prisma.channel.findFirst({
       where: {
         provider: "FACEBOOK",
         providerAccountId: facebookPageId,
@@ -343,7 +357,7 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
 
     // Try to find related post if we have Facebook post ID
     if (normalizedData.postId) {
-      const publishLog = await prisma.publishLog.findFirst({
+      const publishLog = await this.prisma.publishLog.findFirst({
         where: {
           channelId: channel.id,
           provider: "FACEBOOK",
@@ -378,7 +392,7 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
 
     if (postId && channelId) {
       // Update publish log with Facebook post ID
-      await prisma.publishLog.updateMany({
+      await this.prisma.publishLog.updateMany({
         where: {
           postId,
           channelId,
@@ -397,7 +411,7 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
       });
 
       // Update post status
-      await prisma.post.update({
+      await this.prisma.post.update({
         where: { id: postId },
         data: { status: "PUBLISHED" },
       });
@@ -414,7 +428,7 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
 
     // Store Facebook analytics if available
     if (channelId && postId) {
-      await prisma.analytics.create({
+      await this.prisma.analytics.create({
         data: {
           channelId,
           provider: "FACEBOOK",
@@ -441,7 +455,7 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
     // Create analytics entry for comment engagement
     if (entityChannelId && entityPostId) {
       // Find existing analytics record and increment comments
-      const existing = await prisma.analytics.findFirst({
+      const existing = await this.prisma.analytics.findFirst({
         where: {
           channelId: entityChannelId,
           provider: "FACEBOOK",
@@ -451,7 +465,7 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
 
       if (existing) {
         const newCommentsCount = (existing.comments || 0) + 1;
-        await prisma.analytics.update({
+        await this.prisma.analytics.update({
           where: { id: existing.id },
           data: {
             comments: newCommentsCount,
@@ -486,7 +500,7 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
 
     if (entityChannelId && entityPostId) {
       // Find existing analytics record and increment likes (reactions count as likes)
-      const existing = await prisma.analytics.findFirst({
+      const existing = await this.prisma.analytics.findFirst({
         where: {
           channelId: entityChannelId,
           provider: "FACEBOOK",
@@ -499,7 +513,7 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
         const increment = data.verb === "add" ? 1 : -1;
         const newLikesCount = (existing.likes || 0) + increment;
 
-        await prisma.analytics.update({
+        await this.prisma.analytics.update({
           where: { id: existing.id },
           data: {
             likes: newLikesCount,
@@ -523,14 +537,35 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   }
 
   /**
-   * Handle mention received event
+   * Handle mention received event. The webhook is a notification only — enqueue
+   * a fetch-before-process job so the mention-ingest worker resolves credentials,
+   * fetches the full object, and persists it to the listening corpus.
    */
   private async handleMentionReceived(
     data: Record<string, unknown>,
-    _entities: Record<string, unknown>
+    entities: Record<string, unknown>
   ): Promise<void> {
-    // Future: mention tracking, notifications, and brand monitoring analytics
-    webhookLogger.info({ provider: "FACEBOOK", mention: data }, "Facebook mention received");
+    const channelId = entities.channelId as string | undefined;
+    const accountId = entities.accountId as string | undefined;
+    const projectId = entities.projectId as string | undefined;
+    const providerMentionId = data.postId as string | undefined;
+
+    if (this.mentionEnqueue && channelId && accountId && projectId && providerMentionId) {
+      await this.mentionEnqueue({
+        kind: "fetch",
+        channelId,
+        accountId,
+        projectId,
+        provider: "facebook",
+        providerMentionId,
+      });
+      return;
+    }
+
+    webhookLogger.info(
+      { provider: "FACEBOOK", mention: data },
+      "Facebook mention received but not enqueued (missing context or no queue)"
+    );
   }
 
   /**
@@ -562,7 +597,7 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   ): Promise<void> {
     if (entities.channelId && entities.postId) {
       // Create analytics entry for live video
-      await prisma.analytics.create({
+      await this.prisma.analytics.create({
         data: {
           channelId: entities.channelId as string,
           provider: "FACEBOOK",

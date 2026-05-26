@@ -13,8 +13,8 @@ import {
   type ExternalNotificationConfigRepository,
   type ExternalNotificationConfigData,
   type NotificationChannel,
-} from "../../domain/repositories/ExternalNotificationConfigRepository.js";
-import { type DomainError, EntityNotFoundError } from "../../domain/errors/index.js";
+} from "@core/domain/repositories/ExternalNotificationConfigRepository.js";
+import { type DomainError, EntityNotFoundError } from "@core/domain/errors/index.js";
 import type { EncryptionService } from "../../security/EncryptionService.js";
 
 /**

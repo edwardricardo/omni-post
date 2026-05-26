@@ -6,21 +6,15 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ok, err } from "@shared/types";
-import {
-  PostAggregate,
-  ProjectId,
-  PostId,
-  ChannelId,
-  PUBLISH_STATUS,
-} from "../../../src/domain/index.js";
-import { EntityNotFoundError } from "../../../src/domain/errors/index.js";
-import { CreatePostUseCase } from "../../../src/application/posts/CreatePostUseCase.js";
-import { UpdatePostUseCase } from "../../../src/application/posts/UpdatePostUseCase.js";
-import { SchedulePostUseCase } from "../../../src/application/posts/SchedulePostUseCase.js";
-import { DeletePostUseCase } from "../../../src/application/posts/DeletePostUseCase.js";
-import { GetPostUseCase } from "../../../src/application/posts/GetPostUseCase.js";
-import { ListPostsUseCase } from "../../../src/application/posts/ListPostsUseCase.js";
-import { USE_CASE_ERRORS } from "../../../src/application/UseCase.js";
+import { PostAggregate, ProjectId, PostId, ChannelId, PUBLISH_STATUS } from "@core/domain/index.js";
+import { EntityNotFoundError } from "@core/domain/errors/index.js";
+import { CreatePostUseCase } from "@core/application/posts/CreatePostUseCase.js";
+import { UpdatePostUseCase } from "@core/application/posts/UpdatePostUseCase.js";
+import { SchedulePostUseCase } from "@core/application/posts/SchedulePostUseCase.js";
+import { DeletePostUseCase } from "@core/application/posts/DeletePostUseCase.js";
+import { GetPostUseCase } from "@core/application/posts/GetPostUseCase.js";
+import { ListPostsUseCase } from "@core/application/posts/ListPostsUseCase.js";
+import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 
 // Mock business metrics — they call Prometheus which may not be initialized
 vi.mock("../../../src/metrics/businessMetrics.js", () => ({
@@ -66,6 +60,14 @@ function createMockEventDispatcher() {
     dispatch: vi.fn(async () => {}),
     dispatchAll: vi.fn(async () => {}),
     register: vi.fn(),
+  };
+}
+
+function createMockBusinessMetrics() {
+  return {
+    incrementPostCreated: vi.fn(),
+    incrementPostPublished: vi.fn(),
+    incrementPostDeleted: vi.fn(),
   };
 }
 
@@ -138,7 +140,7 @@ describe("CreatePostUseCase", () => {
   beforeEach(() => {
     repo = createMockPostRepository();
     dispatcher = createMockEventDispatcher();
-    useCase = new CreatePostUseCase(repo as any, dispatcher as any);
+    useCase = new CreatePostUseCase(repo as any, dispatcher as any, createMockBusinessMetrics());
   });
 
   describe("success", () => {
@@ -329,7 +331,12 @@ describe("SchedulePostUseCase", () => {
     repo = createMockPostRepository();
     dispatcher = createMockEventDispatcher();
     channelRepo = createMockChannelRepository();
-    useCase = new SchedulePostUseCase(repo as any, dispatcher as any, channelRepo as any);
+    useCase = new SchedulePostUseCase(
+      repo as any,
+      dispatcher as any,
+      channelRepo as any,
+      createMockBusinessMetrics()
+    );
 
     const createResult = PostAggregate.create({
       projectId: ProjectId.fromStringUnsafe(TEST_PROJECT_ID),
@@ -439,7 +446,7 @@ describe("DeletePostUseCase", () => {
 
   beforeEach(() => {
     repo = createMockPostRepository();
-    useCase = new DeletePostUseCase(repo as any);
+    useCase = new DeletePostUseCase(repo as any, createMockBusinessMetrics());
 
     const createResult = PostAggregate.create({
       projectId: ProjectId.fromStringUnsafe(TEST_PROJECT_ID),

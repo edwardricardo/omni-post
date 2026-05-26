@@ -8,8 +8,8 @@
 
 import { describe, it, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { MassForceReauthByProviderUseCase } from "../../../../src/application/providers/MassForceReauthByProviderUseCase.js";
-import type { ChannelRepository } from "../../../../src/domain/repositories/ChannelRepository.js";
+import { MassForceReauthByProviderUseCase } from "@core/application/providers/MassForceReauthByProviderUseCase.js";
+import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
 
 function makeChannelRepo(overrides: Partial<ChannelRepository> = {}): ChannelRepository {
   return {

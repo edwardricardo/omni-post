@@ -451,11 +451,26 @@ execute(command: CreatePostCommand): Promise<Post>  // hides failure
 
 ## Dependency Injection
 
+**This is the canon for ALL dependency injection in the codebase. Any new code, and any code being modified, MUST follow it. The F1-API-3 bulk-schedule worker + the `refactor/prisma-di-migration` workstream are the reference implementations.**
+
 - **130+ tokens** — every new dependency gets a `TOKENS.MY_DEPENDENCY` symbol
 - Registration in `Container.ts` composition root only
 - Lifecycle: repositories → singleton, use cases → singleton, UoW → **transient**
 - No `new ConcreteClass()` inside domain or application constructors
 - Allowed `new` in domain: Value Objects from primitives, Domain Events — nothing else
+
+### Composition root is the ONLY place that wires concretes
+
+- **Only a composition root may import a singleton or construct an adapter.** The composition root is `apps/api/src/infrastructure/container/**` (and the bootstrap `apps/api/src/index.ts`, which passes the singleton into `setupContainer`). Every other unit — services, adapters, repositories, processors, route handlers, workers — **RECEIVES its dependencies by constructor injection** and never reaches for a global.
+- **Never `import { prisma } from "@infra/prisma"` outside the composition root.** Take `constructor(private readonly prisma: PrismaClient)` and have the root pass `container.resolve(TOKENS.PrismaClient)`. The same rule applies to any other singleton/global (Redis, queues, caches): inject the port, don't import the instance. Enforced by fitness **#21** (hard-zero).
+- **Routes resolve use cases only** — `fastify.container.resolve(TOKENS.X)` — never repositories, never `prisma`. Enforced by fitness **#1**.
+- **A class that already receives a port must USE that port** — never inject a repository and then also call `prisma.*` directly (the "paradox" anti-pattern). If the port lacks a method you need, add it to the port + its adapter; do not bypass it.
+
+### Composition root per executable; the application core is shared, never duplicated
+
+- Use cases (the application layer) are **delivery-mechanism-agnostic** and are **shared** across entry-points (HTTP API, queue workers, CLI) — **never duplicated** (Explicit Architecture; see canon index). The domain + application + ports live in shared `packages/` (`@core/*`) so every deployable consumes the same core.
+- **Each deployable has its OWN composition root** at its entry point (`apps/api` and `apps/workers` each wire the shared core) — Mark Seemann, "composition root per executable" (see canon index). A worker that needs business logic resolves the **same** use case from its container; it does not re-implement it and does not touch Prisma directly.
+- Background consumers may run **in-process** in `apps/api` (resolving use cases from `app.container`, e.g. the repurpose/triage/trend/bulk-schedule consumers) **or** as a separate `apps/workers` executable with its own composition root — both are canon as long as the application core is shared, not duplicated. The choice is operational (independent scaling/isolation vs simplicity).
 
 ---
 
@@ -898,11 +913,13 @@ All comments in **English**.
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request`. Threshold: **hard-zero** for all 18 — any new occurrence fails the workflow with an `::error` annotation. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request`. Threshold: **hard-zero** for all checks — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest.) Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 ```bash
-# 1. No Prisma singleton imports in routes
-grep -rn "import { prisma" apps/api/src/ --include="*routes*" | wc -l
+# 1. No Prisma singleton imports in routes. Hard-zero.
+# Glob fixed to *[Rr]outes* — the old *routes* was case-sensitive and missed
+# every PascalCase *Routes.ts, so this guard silently passed on admin routes.
+grep -rn "import { prisma" apps/api/src/ --include="*[Rr]outes*" | wc -l
 
 # 2. Domain layer is framework-free
 grep -rn "prisma\|fastify\|redis\|bullmq" apps/api/src/domain/ --include="*.ts" | wc -l
@@ -933,9 +950,13 @@ grep -rn "dedupeKey.*randomUUID\|dedupeKey.*Math.random" \
 
 # 8. No sprint/phase references in source comments (repo-wide, excluding test sandboxes
 # and Prisma's generated client mirror). Catches: "Sprint N", "Sprint X", "Phase N",
-# "Part of Sprint X", and the legacy "T0A_" / "T0-A" task-batch prefixes used during
-# remediation. All belong in git history, not source comments where they rot.
-grep -rnE "Part of Sprint|Phase.*Sprint|Sprint [0-9A-Z]|Phase [0-9]|T0A_|T0-A" \
+# "Part of Sprint X", the legacy "T0A_" / "T0-A" task-batch prefixes, and the
+# parenthesised phase/task shorthand "(P8)" / "(P2-1)" / "(P3-A)" / "(P1-DI-7)" used
+# during the @core + prisma→DI migrations. Prisma-safe: `\(P[0-9]\)` matches only a
+# single digit and `\(P[0-9]+-` requires a dash, so Prisma error codes like "(P2002)"
+# (P + 4 digits, no dash) are NOT flagged. All belong in git history, not source
+# comments where they rot.
+grep -rnE "Part of Sprint|Phase.*Sprint|Sprint [0-9A-Z]|Phase [0-9]|T0A_|T0-A|\(P[0-9]\)|\(P[0-9]+-[A-Za-z0-9]" \
   apps/ packages/ infra/ --include="*.ts" --include="*.tsx" --include="*.prisma" | \
   grep -vE "node_modules|dist|\.next|\.stryker-tmp|\.stryker|reports/mutation|infra/prisma/generated/" | wc -l
 
@@ -1041,6 +1062,30 @@ grep -rnE "process\.env\." packages/providers/*/src/*Adapter.ts 2>/dev/null | \
 # `needsRehash` from the helper.
 grep -rnE "argon2\.(hash|verify)\(" apps/api/src --include="*.ts" | \
   grep -v "passwordHashing\.ts\|/tests/\|\.test\." | wc -l
+
+# 20. No legacy BullMQ repeatable API. Reason: `addRepeatable` /
+# `getRepeatableJobs` / `removeRepeatableByKey` / `removeRepeatable` are
+# deprecated since BullMQ 5.16.0 and removed in v6; the canonical recurring
+# primitive is `Queue.upsertJobScheduler` (idempotent by scheduler id, no
+# manual de-dup). The four method names are BullMQ-exclusive, so this is a
+# precise hard-zero with no false positives (unlike a bare `repeat:` which
+# collides with domain fields like `cronExpression` and provider API params
+# such as Facebook insights `repeat: number`). Excludes tests + sandboxes.
+grep -rnE "\.(addRepeatable|getRepeatableJobs|removeRepeatableByKey|removeRepeatable)\(" \
+  apps/*/src packages/*/src --include="*.ts" | \
+  grep -vE "node_modules|/dist/|\.test\.|/tests/|\.stryker" | wc -l
+
+# 21. No Prisma singleton imports outside composition roots. THE DI guard:
+# only a composition root may import the `prisma` singleton; every other unit
+# RECEIVES PrismaClient (or a port) by constructor injection (see §Dependency
+# Injection). Scope: apps/api/src + apps/workers/src. Exceptions: the api
+# composition root (infrastructure/container/), the api bootstrap (index.ts),
+# the workers composition root (**/container/), and tests. Hard-zero (the
+# prisma→DI remediation is complete). Supersedes #1 (routes are a subset of
+# "outside composition roots").
+grep -rlE "import \{[^}]*\bprisma\b[^}]*\} from \"@infra/prisma\"" \
+  apps/api/src apps/workers/src --include="*.ts" | \
+  grep -vE "/infrastructure/container/|/index\.ts$|/container/|\.test\.|/tests/" | wc -l
 ```
 
 **Extending the suite.** Adding a new fitness check requires three coordinated edits, in order:

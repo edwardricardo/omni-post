@@ -13,6 +13,12 @@ export default defineConfig({
     setupFiles: ["./lib/api/__tests__/setup.ts"],
     globals: true,
     exclude: ["**/node_modules/**", "**/dist/**", "**/tests/e2e/**"],
+    // Cap parallel workers (default is one per CPU). jsdom workers are heavy;
+    // running the whole suite that wide OOM-collapses the memory-constrained dev
+    // box. Two workers bounds peak memory while keeping some parallelism.
+    // (vitest 4 dropped `poolOptions`; `maxWorkers` is the supported cap.)
+    pool: "forks",
+    maxWorkers: 2,
   },
   resolve: {
     alias: {

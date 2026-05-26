@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-import type { DomainEvent } from "../../domain/events/DomainEvent.js";
+import type { DomainEvent } from "@core/domain/events/DomainEvent.js";
 
 /**
  * Integration Event — serializable DTO for cross-process delivery via BullMQ.

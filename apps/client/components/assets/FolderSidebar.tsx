@@ -7,6 +7,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { Button, Input } from "@packages/ui";
 import { Folder, FolderPlus } from "lucide-react";
 import { useAssetFolders, useCreateFolder } from "@/hooks/api/useAssets";
@@ -24,6 +25,7 @@ interface FolderSidebarProps {
  * @param props.onSelectFolder - Callback when a folder is selected
  */
 export function FolderSidebar({ selectedFolderId, onSelectFolder }: FolderSidebarProps) {
+  const t = useTranslations("assets.components");
   const { data: folders = [] } = useAssetFolders();
   const createFolderMutation = useCreateFolder();
   const [showCreate, setShowCreate] = useState(false);
@@ -56,7 +58,7 @@ export function FolderSidebar({ selectedFolderId, onSelectFolder }: FolderSideba
         }`}
       >
         <Folder className="h-4 w-4" />
-        All Assets
+        {t("allAssets")}
       </button>
 
       {folders.map((folder) => (
@@ -81,7 +83,7 @@ export function FolderSidebar({ selectedFolderId, onSelectFolder }: FolderSideba
             ref={newFolderInputRef}
             value={newFolderName}
             onChange={(e) => setNewFolderName(e.target.value)}
-            placeholder="Folder name"
+            placeholder={t("folderNamePlaceholder")}
             onKeyDown={(e) => {
               if (e.key === "Enter") handleCreate();
               if (e.key === "Escape") setShowCreate(false);
@@ -89,10 +91,10 @@ export function FolderSidebar({ selectedFolderId, onSelectFolder }: FolderSideba
           />
           <div className="flex gap-1">
             <Button size="sm" onClick={handleCreate} disabled={!newFolderName.trim()}>
-              Create
+              {t("create")}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setShowCreate(false)}>
-              Cancel
+              {t("cancel")}
             </Button>
           </div>
         </div>
@@ -103,7 +105,7 @@ export function FolderSidebar({ selectedFolderId, onSelectFolder }: FolderSideba
           className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-accent rounded-md"
         >
           <FolderPlus className="h-4 w-4" />
-          New Folder
+          {t("newFolder")}
         </button>
       )}
     </div>

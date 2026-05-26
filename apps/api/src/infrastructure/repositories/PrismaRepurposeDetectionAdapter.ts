@@ -5,10 +5,13 @@
  * @layer infrastructure
  */
 
-import { prisma } from "@infra/prisma";
-import type { RepurposeDetectionPort } from "../../application/ai/DetectRepurposeCandidatesUseCase.js";
+import type { PrismaClient } from "@infra/prisma";
+import type { RepurposeDetectionPort } from "@core/application/ai/DetectRepurposeCandidatesUseCase.js";
 
 export class PrismaRepurposeDetectionAdapter implements RepurposeDetectionPort {
+  /** @param prisma - Injected Prisma client (composition root owns the singleton). */
+  constructor(private readonly prisma: PrismaClient) {}
+
   /**
    * @method getAccountAvgEngagement
    * @description Computes the average engagement rate for all posts owned by an account.
@@ -20,7 +23,7 @@ export class PrismaRepurposeDetectionAdapter implements RepurposeDetectionPort {
     const accountPostIds = await this.getAccountPostIds(accountId);
     if (accountPostIds.length === 0) return 0;
 
-    const summaries = await prisma.analyticsDailySummary.findMany({
+    const summaries = await this.prisma.analyticsDailySummary.findMany({
       where: {
         date: { gte: sinceDate },
         postId: { in: accountPostIds },
@@ -63,7 +66,7 @@ export class PrismaRepurposeDetectionAdapter implements RepurposeDetectionPort {
     const accountPostIds = await this.getAccountPostIds(params.accountId);
     if (accountPostIds.length === 0) return [];
 
-    const summaries = await prisma.analyticsDailySummary.findMany({
+    const summaries = await this.prisma.analyticsDailySummary.findMany({
       where: {
         date: { gte: sinceDate },
         postId: { in: accountPostIds },
@@ -112,7 +115,7 @@ export class PrismaRepurposeDetectionAdapter implements RepurposeDetectionPort {
 
     if (highPerformerIds.length === 0) return [];
 
-    const posts = await prisma.post.findMany({
+    const posts = await this.prisma.post.findMany({
       where: { id: { in: highPerformerIds } },
       select: {
         id: true,
@@ -148,7 +151,7 @@ export class PrismaRepurposeDetectionAdapter implements RepurposeDetectionPort {
    * @description Checks if a repurpose proposal already exists for a given post.
    */
   async proposalExistsForPost(postId: string): Promise<boolean> {
-    const count = await prisma.repurposeProposal.count({
+    const count = await this.prisma.repurposeProposal.count({
       where: { sourcePostId: postId },
     });
     return count > 0;
@@ -165,7 +168,7 @@ export class PrismaRepurposeDetectionAdapter implements RepurposeDetectionPort {
     engagementRate: number;
     engagementMultiplier: number;
   }): Promise<string> {
-    const proposal = await prisma.repurposeProposal.create({
+    const proposal = await this.prisma.repurposeProposal.create({
       data: {
         accountId: params.accountId,
         sourcePostId: params.sourcePostId,
@@ -179,7 +182,7 @@ export class PrismaRepurposeDetectionAdapter implements RepurposeDetectionPort {
   }
 
   private async getAccountPostIds(accountId: string): Promise<string[]> {
-    const posts = await prisma.post.findMany({
+    const posts = await this.prisma.post.findMany({
       where: {
         project: { accountId },
         deletedAt: null,

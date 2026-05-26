@@ -6,14 +6,13 @@
  * @layer infrastructure
  */
 import type { CachePort } from "@ports/core";
-import type { PerformanceComparatorPort } from "../../application/analytics/ComparePerformanceUseCase.js";
-import type { PerformanceSnapshot } from "../../application/analytics/types.js";
+import type { PerformanceComparatorPort } from "@core/application/analytics/ComparePerformanceUseCase.js";
+import type { PerformanceSnapshot } from "@core/application/analytics/types.js";
 import { PerformanceComparator } from "../../analytics/performanceComparison/index.js";
 import type { PerformanceComparisonOptions } from "../../analytics/performanceComparison/types.js";
 import type { TimeRange, ProviderType, MetricType } from "@shared/analytics";
-import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
-import { PrismaProjectQueryRepository } from "../repositories/PrismaProjectQueryRepository.js";
-import { prisma } from "@infra/prisma";
+import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
+import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
 
 /**
  * Adapter that implements PerformanceComparatorPort by delegating to PerformanceComparator.
@@ -25,10 +24,12 @@ import { prisma } from "@infra/prisma";
 export class PerformanceComparatorAdapter implements PerformanceComparatorPort {
   private readonly comparator: PerformanceComparator;
 
-  constructor(cache: CachePort, projectRepository?: ProjectQueryRepositoryPort) {
-    // Fallback to Prisma-backed instance when not injected (e.g. DI container setup)
-    const repo = projectRepository ?? new PrismaProjectQueryRepository(prisma);
-    this.comparator = new PerformanceComparator(repo, cache);
+  constructor(
+    cache: CachePort,
+    projectRepository: ProjectQueryRepositoryPort,
+    analyticsRepository: AnalyticsReadRepositoryPort
+  ) {
+    this.comparator = new PerformanceComparator(projectRepository, cache, analyticsRepository);
   }
 
   async generatePerformanceComparison(options: {

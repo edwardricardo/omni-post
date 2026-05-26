@@ -7,7 +7,7 @@
  */
 
 import { type Result, ok, err } from "@shared/types";
-import type { EmailPort, SendEmailOptions } from "../../domain/repositories/EmailPort.js";
+import type { EmailPort, SendEmailOptions } from "@core/domain/repositories/EmailPort.js";
 import { createLogger } from "../../lib/logger.js";
 import { env } from "../../config/env.js";
 

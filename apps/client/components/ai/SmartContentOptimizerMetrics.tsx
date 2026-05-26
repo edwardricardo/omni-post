@@ -7,6 +7,7 @@
  */
 
 import React from "react";
+import { useTranslations } from "next-intl";
 
 interface SmartContentOptimizerMetricsProps {
   platforms: string[];
@@ -18,13 +19,14 @@ interface SmartContentOptimizerMetricsProps {
  * engagement predictions when the advanced analysis feature is enabled.
  */
 export function SmartContentOptimizerMetrics({ platforms }: SmartContentOptimizerMetricsProps) {
+  const t = useTranslations("ai.components");
   return (
     <div className="space-y-6">
-      <h4 className="text-lg font-semibold text-gray-900">Advanced Metrics & Insights</h4>
+      <h4 className="text-lg font-semibold text-gray-900">{t("metrics.title")}</h4>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-linear-to-br from-purple-50 to-blue-50 rounded-lg p-6">
-          <h5 className="font-semibold text-gray-900 mb-4">Platform Optimization</h5>
+          <h5 className="font-semibold text-gray-900 mb-4">{t("metrics.platformOptimization")}</h5>
           <div className="space-y-3">
             {platforms.map((platform) => {
               // Placeholder score; backend API provides real optimization scores per platform
@@ -48,23 +50,23 @@ export function SmartContentOptimizerMetrics({ platforms }: SmartContentOptimize
         </div>
 
         <div className="bg-linear-to-br from-green-50 to-teal-50 rounded-lg p-6">
-          <h5 className="font-semibold text-gray-900 mb-4">Engagement Predictions</h5>
+          <h5 className="font-semibold text-gray-900 mb-4">{t("metrics.engagementPredictions")}</h5>
           <div className="space-y-3 text-sm">
             {/* Placeholder values; real predictions come from the AI backend */}
             <div className="flex justify-between">
-              <span className="text-gray-600">Expected Likes:</span>
+              <span className="text-gray-600">{t("metrics.expectedLikes")}</span>
               <span className="font-medium">-</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Expected Comments:</span>
+              <span className="text-gray-600">{t("metrics.expectedComments")}</span>
               <span className="font-medium">-</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Expected Shares:</span>
+              <span className="text-gray-600">{t("metrics.expectedShares")}</span>
               <span className="font-medium">-</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Estimated Reach:</span>
+              <span className="text-gray-600">{t("metrics.estimatedReach")}</span>
               <span className="font-medium">-</span>
             </div>
           </div>

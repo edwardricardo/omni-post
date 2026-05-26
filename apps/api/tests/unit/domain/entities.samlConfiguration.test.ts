@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import {
   SamlConfiguration,
   type CreateSamlConfigurationInput,
-} from "../../../src/domain/entities/SamlConfiguration.js";
+} from "@core/domain/entities/SamlConfiguration.js";
 
 function makeValidInput(
   overrides: Partial<CreateSamlConfigurationInput> = {}

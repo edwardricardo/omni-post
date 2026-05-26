@@ -8,6 +8,7 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import { formatTime, formatFileSize } from "../utils";
 import type { MediaFile } from "./types";
 
@@ -28,6 +29,7 @@ export function UploadedFileCard({
   onRemove,
   onRequestSplit,
 }: UploadedFileCardProps) {
+  const t = useTranslations("instagram.components");
   return (
     <div className="relative group border rounded-lg overflow-hidden bg-white shadow-xs">
       <div className="aspect-square bg-gray-100 relative">
@@ -62,16 +64,22 @@ export function UploadedFileCard({
               <div className="text-center text-white">
                 <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
                 <div className="text-xs">
-                  {file.status === "uploading" ? "Uploading" : "Processing"}
+                  {file.status === "uploading"
+                    ? t("uploadedFile.uploading")
+                    : t("uploadedFile.processing")}
                 </div>
-                {file.progress && <div className="text-xs mt-1">{file.progress}%</div>}
+                {file.progress && (
+                  <div className="text-xs mt-1">
+                    {t("uploadedFile.progress", { percent: file.progress })}
+                  </div>
+                )}
               </div>
             ) : file.status === "error" ? (
               <div className="text-center text-white">
                 <svg className="w-8 h-8 mx-auto mb-2" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                 </svg>
-                <div className="text-xs">Error</div>
+                <div className="text-xs">{t("uploadedFile.error")}</div>
               </div>
             ) : null}
           </div>
@@ -121,7 +129,7 @@ export function UploadedFileCard({
               }}
               className="absolute bottom-2 right-2 px-2 py-1 bg-blue-600 text-white text-xs rounded-sm hover:bg-blue-700 opacity-0 group-hover:opacity-100 transition-opacity"
             >
-              Split
+              {t("uploadedFile.split")}
             </button>
           )}
       </div>

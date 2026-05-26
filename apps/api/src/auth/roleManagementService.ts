@@ -5,7 +5,7 @@
  * @layer application
  */
 
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { ok, err, type Result } from "@shared/types";
 import { Permission } from "./rbacService.js";
 import type { RbacService } from "./rbacService.js";
@@ -64,7 +64,10 @@ function validatePermissions(permissions: string[]): Result<Permission[], "INVAL
 // ---------------------------------------------------------------------------
 
 export class RoleManagementService {
-  constructor(private readonly rbacService: RbacService) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly rbacService: RbacService
+  ) {}
 
   /**
    * Create a new custom role.
@@ -94,11 +97,11 @@ export class RoleManagementService {
       if (!permsCheck.ok) return err("INVALID_PERMISSIONS");
 
       // Check for duplicate name
-      const existing = await prisma.role.findUnique({ where: { name: input.name } });
+      const existing = await this.prisma.role.findUnique({ where: { name: input.name } });
       if (existing) return err("DUPLICATE_NAME");
 
       // Create role with permissions in a transaction
-      const role = await prisma.role.create({
+      const role = await this.prisma.role.create({
         data: {
           name: input.name,
           description: input.description,
@@ -146,7 +149,7 @@ export class RoleManagementService {
     >
   > {
     try {
-      const existing = await prisma.role.findUnique({
+      const existing = await this.prisma.role.findUnique({
         where: { id: roleId },
         include: { permissions: true, _count: { select: { users: true } } },
       });
@@ -165,7 +168,7 @@ export class RoleManagementService {
       if (input.description !== undefined) data.description = input.description;
       if (input.level !== undefined) data.level = input.level;
 
-      const role = await prisma.role.update({
+      const role = await this.prisma.role.update({
         where: { id: roleId },
         data,
         include: { permissions: true, _count: { select: { users: true } } },
@@ -205,7 +208,7 @@ export class RoleManagementService {
     >
   > {
     try {
-      const existing = await prisma.role.findUnique({ where: { id: roleId } });
+      const existing = await this.prisma.role.findUnique({ where: { id: roleId } });
       if (!existing) return err("ROLE_NOT_FOUND");
       if (existing.name === "SUPER_ADMIN") return err("CANNOT_MODIFY_SUPER_ADMIN");
 
@@ -214,15 +217,15 @@ export class RoleManagementService {
       if (!permsCheck.ok) return err("INVALID_PERMISSIONS");
 
       // Delete old and insert new in a batch
-      await prisma.rolePermission.deleteMany({ where: { roleId } });
-      await prisma.rolePermission.createMany({
+      await this.prisma.rolePermission.deleteMany({ where: { roleId } });
+      await this.prisma.rolePermission.createMany({
         data: permsCheck.value.map((p) => ({ roleId, permission: p })),
       });
 
       await this.rbacService.invalidateCache(existing.name);
 
       // Reload
-      const role = await prisma.role.findUnique({
+      const role = await this.prisma.role.findUnique({
         where: { id: roleId },
         include: { permissions: true, _count: { select: { users: true } } },
       });
@@ -254,7 +257,7 @@ export class RoleManagementService {
     roleId: string
   ): Promise<Result<void, "ROLE_NOT_FOUND" | "SYSTEM_ROLE" | "ROLE_IN_USE" | "DATABASE_ERROR">> {
     try {
-      const existing = await prisma.role.findUnique({
+      const existing = await this.prisma.role.findUnique({
         where: { id: roleId },
         include: { _count: { select: { users: true } } },
       });
@@ -263,7 +266,7 @@ export class RoleManagementService {
       if (existing.isSystem) return err("SYSTEM_ROLE");
       if (existing._count.users > 0) return err("ROLE_IN_USE");
 
-      await prisma.role.delete({ where: { id: roleId } });
+      await this.prisma.role.delete({ where: { id: roleId } });
       await this.rbacService.invalidateCache(existing.name);
 
       return ok(undefined);

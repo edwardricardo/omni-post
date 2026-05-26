@@ -12,6 +12,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SetPrimaryChannelButton } from "../../components/channels/SetPrimaryChannelButton";
+import { IntlTestProvider } from "../intl-test-utils";
 
 const toastSpy = vi.fn();
 // Fully mock @packages/ui to avoid pulling the whole barrel (which imports
@@ -52,7 +53,11 @@ function makeClient() {
 }
 
 function Wrapper({ children, client }: { children: React.ReactNode; client: QueryClient }) {
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={client}>
+      <IntlTestProvider>{children}</IntlTestProvider>
+    </QueryClientProvider>
+  );
 }
 
 beforeEach(() => {
@@ -72,7 +77,7 @@ describe("SetPrimaryChannelButton", () => {
     const button = screen.getByRole("button");
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute("aria-pressed", "true");
-    expect(button).toHaveTextContent("Primary");
+    expect(button).toHaveTextContent("Principal");
   });
 
   it("issues PATCH /channels/:id/set-primary on click and toasts on success", async () => {
@@ -96,7 +101,7 @@ describe("SetPrimaryChannelButton", () => {
       )
     );
     await waitFor(() => expect(toastSpy).toHaveBeenCalled());
-    expect(toastSpy.mock.calls[0]?.[0]).toMatchObject({ title: "Primary channel updated" });
+    expect(toastSpy.mock.calls[0]?.[0]).toMatchObject({ title: "Canal principal actualizado" });
   });
 
   it("toasts a destructive variant when the request fails", async () => {
@@ -114,6 +119,6 @@ describe("SetPrimaryChannelButton", () => {
     await waitFor(() => expect(toastSpy).toHaveBeenCalled());
     const toastArgs = toastSpy.mock.calls[0]?.[0] as { variant: string; title: string };
     expect(toastArgs.variant).toBe("destructive");
-    expect(toastArgs.title).toBe("Failed to set primary");
+    expect(toastArgs.title).toBe("No se pudo establecer como principal");
   });
 });

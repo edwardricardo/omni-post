@@ -9,9 +9,9 @@
 
 import type { PrismaClient } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
-import type { CustomerUserRepository } from "../../domain/repositories/CustomerUserRepository.js";
-import { CustomerUser, type CustomerUserProps } from "../../domain/entities/CustomerUser.js";
-import { EntityNotFoundError, type DomainError } from "../../domain/errors/index.js";
+import type { CustomerUserRepository } from "@core/domain/repositories/CustomerUserRepository.js";
+import { CustomerUser, type CustomerUserProps } from "@core/domain/entities/CustomerUser.js";
+import { EntityNotFoundError, type DomainError } from "@core/domain/errors/index.js";
 
 /**
  * Prisma row shape including the joined CustomerRole + permissions. This is

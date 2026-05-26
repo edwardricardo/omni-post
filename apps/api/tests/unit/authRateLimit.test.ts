@@ -39,6 +39,9 @@ import { TOKENS } from "../../src/infrastructure/container/types.js";
 import { AuthService } from "../../src/auth/authService.js";
 import { MfaService } from "../../src/auth/mfaService.js";
 import { PrismaAdminUserRepository } from "../../src/infrastructure/repositories/PrismaAdminUserRepository.js";
+import { PrismaRoleRepository } from "../../src/infrastructure/repositories/PrismaRoleRepository.js";
+import { PrismaAdminSessionRepository } from "../../src/infrastructure/repositories/PrismaAdminSessionRepository.js";
+import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Console suppression — prevents authService constructor log from corrupting TAP
@@ -125,8 +128,17 @@ async function createTestApp(): Promise<{ app: FastifyInstance; authService: Aut
   // Build a fresh container per test app so rate-limit tests are fully isolated.
   // authRoutes only needs AuthService from the container — register just that.
   const adminUserRepo = new PrismaAdminUserRepository(prisma);
-  const mfaService = new MfaService(adminUserRepo);
-  const authService = new AuthService(adminUserRepo, mfaService);
+  const roleRepo = new PrismaRoleRepository(prisma);
+  const sessionRepo = new PrismaAdminSessionRepository(prisma);
+  const mfaService = new MfaService(adminUserRepo, new InMemoryAuditLogRepository());
+  const authService = new AuthService(
+    prisma,
+    adminUserRepo,
+    mfaService,
+    roleRepo,
+    sessionRepo,
+    new InMemoryAuditLogRepository()
+  );
 
   const container = new Container();
   container.registerInstance(TOKENS.AuthService, authService);

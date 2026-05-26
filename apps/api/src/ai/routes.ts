@@ -9,7 +9,8 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import type { AIService } from "./aiService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { GetBrandVoiceQuery } from "../application/brand-voice/GetBrandVoiceQuery.js";
+import type { GetBrandVoiceQuery } from "@core/application/brand-voice/GetBrandVoiceQuery.js";
+import type { PredictOptimalTimingUseCase } from "@core/application/ml/index.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 
 // ============================================================================
@@ -38,6 +39,17 @@ const GenerateContentBodySchema = z.object({
 });
 
 const AnalysisTypeSchema = z.enum(["sentiment", "tone", "readability", "engagement"]);
+
+// predict-timing body. `accountId` is accepted but IGNORED — taken from the auth
+// token (tenancy). provider + timezone are required; contentType defaults to text.
+const PredictTimingBodySchema = z.object({
+  accountId: z.string().optional(),
+  provider: z.enum(["X", "FACEBOOK", "INSTAGRAM", "TIKTOK", "YOUTUBE", "LINKEDIN"]),
+  contentType: z.enum(["text", "image", "video", "carousel", "story", "reel"]).default("text"),
+  timezone: z.string().min(1),
+  includeActivityPatterns: z.boolean().optional(),
+  targetAudience: z.string().optional(),
+});
 
 const AnalyzeContentBodySchema = z.object({
   content: z.string().min(1),
@@ -92,9 +104,60 @@ class AiRouteHandler extends BaseRouteHandler {
 
   constructor(
     private readonly aiService: AIService,
+    private readonly predictTimingUseCase: PredictOptimalTimingUseCase,
     private readonly getBrandVoiceQuery?: GetBrandVoiceQuery
   ) {
     super();
+  }
+
+  /** Map a UseCaseError code to an HTTP status. */
+  private mapErrorCode(code: string): number {
+    const mapping: Record<string, number> = {
+      VALIDATION_FAILED: 400,
+      NOT_FOUND: 404,
+      FORBIDDEN: 403,
+      CONFLICT: 409,
+      NOT_IMPLEMENTED: 501,
+      INTERNAL_ERROR: 500,
+    };
+    return mapping[code] ?? 500;
+  }
+
+  /**
+   * Predict optimal posting times for a provider.
+   * POST /predict-timing
+   *
+   * Account-scoped: accountId comes from the auth token (the body's accountId,
+   * if any, is ignored). One provider per request (the client calls once per
+   * platform).
+   */
+  async predictTiming(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+    const user = request.customerUser;
+    if (!user) {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
+
+    const validation = await this.validateBody(ctx, PredictTimingBodySchema);
+    if (!validation.ok) {
+      return this.sendError(ctx, 400, "provider and timezone are required");
+    }
+    const { provider, contentType, timezone, includeActivityPatterns, targetAudience } =
+      validation.value;
+
+    const result = await this.predictTimingUseCase.execute({
+      accountId: user.accountId,
+      provider,
+      contentType,
+      timezone,
+      ...(includeActivityPatterns !== undefined && { includeActivityPatterns }),
+      ...(targetAudience !== undefined && { targetAudience }),
+    });
+
+    if (!result.ok) {
+      return this.sendError(ctx, this.mapErrorCode(result.error.code), result.error.message);
+    }
+    return this.sendSuccess(ctx, result.value);
   }
 
   /**
@@ -362,7 +425,10 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
   const getBrandVoiceQuery = fastify.container!.resolve<GetBrandVoiceQuery>(
     TOKENS.GetBrandVoiceQuery
   );
-  const handler = new AiRouteHandler(aiService, getBrandVoiceQuery);
+  const predictTimingUseCase = fastify.container!.resolve<PredictOptimalTimingUseCase>(
+    TOKENS.PredictOptimalTimingUseCase
+  );
+  const handler = new AiRouteHandler(aiService, predictTimingUseCase, getBrandVoiceQuery);
 
   // Health check removed - use main /health endpoint instead
 
@@ -433,16 +499,10 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
       preHandler: [requireClientAuth],
       schema: {
         tags: ["AI"],
-        summary: "Predict optimal posting times for a provider (scaffolded — pending impl)",
+        summary: "Predict optimal posting times for a provider (account-scoped)",
       },
     },
-    async (_request, reply) =>
-      reply.status(501).send({
-        ok: false,
-        error: "NOT_IMPLEMENTED",
-        message:
-          "Predictive timing analysis endpoint is scaffolded but the backend implementation is pending.",
-      })
+    async (request, reply) => handler.predictTiming(request, reply)
   );
 
   fastify.post(

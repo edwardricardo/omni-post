@@ -10,6 +10,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useId } from "react";
+import { useTranslations } from "next-intl";
 import { useBrandVoice, useUpsertBrandVoice, useDeleteBrandVoice } from "@/hooks/api/useBrandVoice";
 
 const TONE_OPTIONS = [
@@ -21,7 +22,18 @@ const TONE_OPTIONS = [
   "Inspirational",
   "Educational",
   "Conversational",
-];
+] as const;
+
+const TONE_KEYS = {
+  Professional: "professional",
+  Casual: "casual",
+  Witty: "witty",
+  Authoritative: "authoritative",
+  Friendly: "friendly",
+  Inspirational: "inspirational",
+  Educational: "educational",
+  Conversational: "conversational",
+} as const satisfies Record<(typeof TONE_OPTIONS)[number], string>;
 
 const MAX_SYSTEM_PROMPT = 2000;
 const MAX_EXAMPLES = 3;
@@ -31,6 +43,7 @@ interface BrandVoiceFormProps {
 }
 
 export function BrandVoiceForm({ accountId }: BrandVoiceFormProps) {
+  const t = useTranslations("settings.components");
   const { data: existing, isLoading } = useBrandVoice(accountId);
   const upsertMutation = useUpsertBrandVoice();
   const deleteMutation = useDeleteBrandVoice();
@@ -129,17 +142,14 @@ export function BrandVoiceForm({ accountId }: BrandVoiceFormProps) {
   return (
     <div className="bg-white border rounded-lg p-6 space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900">Brand Voice Profile</h3>
-        <p className="text-sm text-gray-500 mt-1">
-          This prompt is prepended to every AI content generation request for your account, ensuring
-          consistent tone and style across all generated content.
-        </p>
+        <h3 className="text-lg font-semibold text-gray-900">{t("brandVoice.title")}</h3>
+        <p className="text-sm text-gray-500 mt-1">{t("brandVoice.description")}</p>
       </div>
 
       {/* Name */}
       <div>
         <label htmlFor={nameId} className="block text-sm font-medium text-gray-700 mb-1">
-          Profile Name{" "}
+          {t("brandVoice.profileName")}{" "}
           <span aria-hidden="true" className="text-red-500">
             *
           </span>
@@ -149,7 +159,7 @@ export function BrandVoiceForm({ accountId }: BrandVoiceFormProps) {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Main Brand Voice"
+          placeholder={t("brandVoice.profileNamePlaceholder")}
           maxLength={100}
           required
           aria-required="true"
@@ -160,20 +170,17 @@ export function BrandVoiceForm({ accountId }: BrandVoiceFormProps) {
       {/* System Prompt */}
       <div>
         <label htmlFor={systemPromptId} className="block text-sm font-medium text-gray-700 mb-1">
-          System Prompt{" "}
+          {t("brandVoice.systemPrompt")}{" "}
           <span aria-hidden="true" className="text-red-500">
             *
           </span>
         </label>
-        <p className="text-xs text-gray-500 mb-2">
-          Describe your brand tone, style, and key messaging guidelines. This is injected into every
-          AI generation call.
-        </p>
+        <p className="text-xs text-gray-500 mb-2">{t("brandVoice.systemPromptHint")}</p>
         <textarea
           id={systemPromptId}
           value={systemPrompt}
           onChange={(e) => setSystemPrompt(e.target.value)}
-          placeholder={`Example: "You are a social media writer for a B2B SaaS company. Write in a professional yet approachable tone. Avoid jargon. Focus on value and outcomes. Use active voice. Keep sentences concise."`}
+          placeholder={t("brandVoice.systemPromptPlaceholder")}
           rows={6}
           maxLength={MAX_SYSTEM_PROMPT}
           required
@@ -192,7 +199,7 @@ export function BrandVoiceForm({ accountId }: BrandVoiceFormProps) {
       {/* Tone Chips */}
       <div>
         <span id={toneHeadingId} className="block text-sm font-medium text-gray-700 mb-2">
-          Tone
+          {t("brandVoice.tone")}
         </span>
         <div role="group" aria-labelledby={toneHeadingId} className="flex flex-wrap gap-2">
           {TONE_OPTIONS.map((tone) => (
@@ -207,7 +214,7 @@ export function BrandVoiceForm({ accountId }: BrandVoiceFormProps) {
                   : "bg-white text-gray-700 border-gray-300 hover:border-blue-400"
               }`}
             >
-              {tone}
+              {t(`brandVoice.tones.${TONE_KEYS[tone]}`)}
             </button>
           ))}
         </div>
@@ -216,11 +223,10 @@ export function BrandVoiceForm({ accountId }: BrandVoiceFormProps) {
       {/* Example Posts */}
       <div>
         <span className="block text-sm font-medium text-gray-700 mb-1">
-          Example Posts <span className="text-gray-400 font-normal">(optional, up to 3)</span>
+          {t("brandVoice.examplePosts")}{" "}
+          <span className="text-gray-400 font-normal">{t("brandVoice.examplePostsOptional")}</span>
         </span>
-        <p className="text-xs text-gray-500 mb-2">
-          Paste examples of posts that represent your ideal brand voice. Used as reference by AI.
-        </p>
+        <p className="text-xs text-gray-500 mb-2">{t("brandVoice.examplePostsHint")}</p>
         <div className="space-y-3">
           {examples.map((example, index) => {
             const exampleId = `${examplesIdPrefix}-${index}`;
@@ -228,10 +234,10 @@ export function BrandVoiceForm({ accountId }: BrandVoiceFormProps) {
               <textarea
                 key={index}
                 id={exampleId}
-                aria-label={`Example post ${index + 1}`}
+                aria-label={t("brandVoice.examplePostAria", { number: index + 1 })}
                 value={example}
                 onChange={(e) => handleExampleChange(index, e.target.value)}
-                placeholder={`Example post ${index + 1}...`}
+                placeholder={t("brandVoice.examplePostPlaceholder", { number: index + 1 })}
                 rows={3}
                 className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               />
@@ -255,10 +261,10 @@ export function BrandVoiceForm({ accountId }: BrandVoiceFormProps) {
               }`}
             >
               {deleteMutation.isPending
-                ? "Deleting..."
+                ? t("brandVoice.deleting")
                 : deleteConfirm
-                  ? "Confirm Delete"
-                  : "Delete Profile"}
+                  ? t("brandVoice.confirmDelete")
+                  : t("brandVoice.deleteProfile")}
             </button>
           )}
           {deleteConfirm && !deleteMutation.isPending && (
@@ -267,17 +273,19 @@ export function BrandVoiceForm({ accountId }: BrandVoiceFormProps) {
               onClick={() => setDeleteConfirm(false)}
               className="ml-2 text-sm text-gray-500 hover:text-gray-700"
             >
-              Cancel
+              {t("brandVoice.cancel")}
             </button>
           )}
         </div>
 
         <div className="flex items-center gap-3">
           {saveStatus === "saved" && (
-            <span className="text-sm text-green-600 font-medium">Saved successfully</span>
+            <span className="text-sm text-green-600 font-medium">
+              {t("brandVoice.savedSuccess")}
+            </span>
           )}
           {saveStatus === "error" && (
-            <span className="text-sm text-red-600 font-medium">Failed to save</span>
+            <span className="text-sm text-red-600 font-medium">{t("brandVoice.saveFailed")}</span>
           )}
           <button
             type="button"
@@ -285,7 +293,11 @@ export function BrandVoiceForm({ accountId }: BrandVoiceFormProps) {
             disabled={isDisabled}
             className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {isSaving ? "Saving..." : existing ? "Update Profile" : "Save Profile"}
+            {isSaving
+              ? t("brandVoice.saving")
+              : existing
+                ? t("brandVoice.updateProfile")
+                : t("brandVoice.saveProfile")}
           </button>
         </div>
       </div>

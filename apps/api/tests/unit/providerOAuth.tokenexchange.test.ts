@@ -56,7 +56,7 @@ describe("ProviderOAuth - Token Exchange (X/Twitter)", () => {
       };
     }) as typeof global.fetch;
 
-    const result = await provider.validateCode("auth-code", "state");
+    const result = await provider.validateCode("auth-code", "state", "test-verifier");
 
     expect(result.accessToken).toBe("x-access-token");
     expect(result.refreshToken).toBe("x-refresh-token");
@@ -74,7 +74,7 @@ describe("ProviderOAuth - Token Exchange (X/Twitter)", () => {
       text: async () => "Invalid authorization code",
     })) as typeof global.fetch;
 
-    await expect(provider.validateCode("invalid-code", "state")).rejects.toThrow(
+    await expect(provider.validateCode("invalid-code", "state", "test-verifier")).rejects.toThrow(
       /token_exchange_failure/
     );
   });
@@ -98,7 +98,9 @@ describe("ProviderOAuth - Token Exchange (X/Twitter)", () => {
       };
     }) as typeof global.fetch;
 
-    await expect(provider.validateCode("code", "state")).rejects.toThrow(/user_info_fetch_failure/);
+    await expect(provider.validateCode("code", "state", "test-verifier")).rejects.toThrow(
+      /user_info_fetch_failure/
+    );
   });
 });
 

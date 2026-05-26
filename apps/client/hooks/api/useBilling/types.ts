@@ -39,9 +39,16 @@ export interface BillingPlan {
   sortOrder: number;
 }
 
+/**
+ * Invoice lifecycle status. Mirrors the backend `InvoiceStatus` Prisma enum
+ * (infra/prisma/schema.prisma) so the client narrows the discriminant to the
+ * exact set the API can emit, enabling type-safe `invoiceHistory.status.*` keys.
+ */
+export type InvoiceStatus = "DRAFT" | "OPEN" | "PAID" | "VOID" | "UNCOLLECTIBLE" | "PAYMENT_FAILED";
+
 export interface InvoiceDto {
   id: string;
-  status: string;
+  status: InvoiceStatus;
   amountDue: number;
   amountPaid: number;
   currency: string;

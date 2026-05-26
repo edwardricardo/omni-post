@@ -7,15 +7,15 @@
 
 import type { PrismaClient } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
-import type { ApprovalRequestRepository } from "../../domain/repositories/ApprovalRequestRepository.js";
+import type { ApprovalRequestRepository } from "@core/domain/repositories/ApprovalRequestRepository.js";
 import {
   ApprovalRequestAggregate,
   type Review,
-} from "../../domain/aggregates/ApprovalRequestAggregate.js";
-import { ApprovalRequestId } from "../../domain/value-objects/ApprovalRequestId.js";
-import { ApprovalStatus } from "../../domain/value-objects/ApprovalStatus.js";
-import { ReviewDecision } from "../../domain/value-objects/ReviewDecision.js";
-import { EntityNotFoundError, type DomainError } from "../../domain/errors/index.js";
+} from "@core/domain/aggregates/ApprovalRequestAggregate.js";
+import { ApprovalRequestId } from "@core/domain/value-objects/ApprovalRequestId.js";
+import { ApprovalStatus } from "@core/domain/value-objects/ApprovalStatus.js";
+import { ReviewDecision } from "@core/domain/value-objects/ReviewDecision.js";
+import { EntityNotFoundError, type DomainError } from "@core/domain/errors/index.js";
 
 /**
  * Raw Prisma row shape for type-safe mapping (ApprovalRequest with reviews)

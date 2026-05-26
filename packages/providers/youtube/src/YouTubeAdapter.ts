@@ -73,6 +73,7 @@ const YOUTUBE_METADATA: ProviderMetadata = {
 
 const YOUTUBE_CAPABILITIES = {
   publish: true,
+  mentions: false,
   schedule: true,
   analytics: true,
   comments: true,

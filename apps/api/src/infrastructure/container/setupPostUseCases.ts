@@ -11,8 +11,14 @@ import type {
   PostQueryRepository,
   EventDispatcher,
   ChannelRepository,
-} from "../../domain/index.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+} from "@core/domain/index.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
+import type { BusinessMetricsPort } from "@core/domain/repositories/BusinessMetricsPort.js";
+import type { QueuePortRegistry } from "@ports/core";
+import { QUEUE_NAMES } from "@adapters/queue-bullmq";
+import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
+import type { BulkScheduleBatchRepository } from "@core/domain/repositories/BulkScheduleBatchRepository.js";
+import type { BulkScheduleQueryRepository } from "@core/domain/repositories/BulkScheduleQueryRepository.js";
 import {
   CreatePostUseCase,
   GetPostUseCase,
@@ -25,7 +31,11 @@ import {
   ArchivePostsBatchUseCase,
   HardDeletePostsBatchUseCase,
   DuplicatePostsBatchUseCase,
-} from "../../application/posts/index.js";
+} from "@core/application/posts/index.js";
+import { ImportSchedulingCsvUseCase } from "@core/application/bulk-scheduling/ImportSchedulingCsvUseCase.js";
+import { ProcessBulkScheduleRowUseCase } from "@core/application/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
+import { FailBulkScheduleRowUseCase } from "@core/application/bulk-scheduling/FailBulkScheduleRowUseCase.js";
+import { GetBulkScheduleBatchQuery } from "@core/application/bulk-scheduling/GetBulkScheduleBatchQuery.js";
 
 /**
  * Register all post use cases in the container
@@ -38,6 +48,7 @@ export function setupPostUseCases(container: Container): void {
       new CreatePostUseCase(
         container.resolve<PostRepository>(TOKENS.PostRepository),
         container.resolve<EventDispatcher>(TOKENS.EventDispatcher),
+        container.resolve<BusinessMetricsPort>(TOKENS.BusinessMetricsPort),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
@@ -67,6 +78,7 @@ export function setupPostUseCases(container: Container): void {
     () =>
       new DeletePostUseCase(
         container.resolve<PostRepository>(TOKENS.PostRepository),
+        container.resolve<BusinessMetricsPort>(TOKENS.BusinessMetricsPort),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
@@ -108,6 +120,7 @@ export function setupPostUseCases(container: Container): void {
         container.resolve<PostRepository>(TOKENS.PostRepository),
         container.resolve<EventDispatcher>(TOKENS.EventDispatcher),
         container.resolve<ChannelRepository>(TOKENS.ChannelRepository),
+        container.resolve<BusinessMetricsPort>(TOKENS.BusinessMetricsPort),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
@@ -124,6 +137,50 @@ export function setupPostUseCases(container: Container): void {
     TOKENS.ListPostsGlobalQuery,
     () =>
       new ListPostsGlobalQuery(container.resolve<PostQueryRepository>(TOKENS.PostQueryRepository)),
+    true
+  );
+
+  // Register Bulk CSV Scheduling Use Cases
+  container.register<ImportSchedulingCsvUseCase>(
+    TOKENS.ImportSchedulingCsvUseCase,
+    () =>
+      new ImportSchedulingCsvUseCase(
+        container.resolve<ProjectQueryRepositoryPort>(TOKENS.ProjectQueryRepository),
+        container.resolve<BulkScheduleBatchRepository>(TOKENS.BulkScheduleBatchRepository),
+        container
+          .resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
+          .forQueue(QUEUE_NAMES.BULK_SCHEDULE),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+  container.register<ProcessBulkScheduleRowUseCase>(
+    TOKENS.ProcessBulkScheduleRowUseCase,
+    () =>
+      new ProcessBulkScheduleRowUseCase(
+        container.resolve<BulkScheduleBatchRepository>(TOKENS.BulkScheduleBatchRepository),
+        container.resolve<ChannelRepository>(TOKENS.ChannelRepository),
+        container.resolve<CreatePostUseCase>(TOKENS.CreatePostUseCase),
+        container.resolve<SchedulePostUseCase>(TOKENS.SchedulePostUseCase),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+  container.register<FailBulkScheduleRowUseCase>(
+    TOKENS.FailBulkScheduleRowUseCase,
+    () =>
+      new FailBulkScheduleRowUseCase(
+        container.resolve<BulkScheduleBatchRepository>(TOKENS.BulkScheduleBatchRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+  container.register<GetBulkScheduleBatchQuery>(
+    TOKENS.GetBulkScheduleBatchQuery,
+    () =>
+      new GetBulkScheduleBatchQuery(
+        container.resolve<BulkScheduleQueryRepository>(TOKENS.BulkScheduleQueryRepository)
+      ),
     true
   );
 }

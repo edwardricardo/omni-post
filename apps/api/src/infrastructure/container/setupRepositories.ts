@@ -6,7 +6,13 @@
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import { PrismaAdminUserRepository } from "../repositories/PrismaAdminUserRepository.js";
-import type { AdminUserRepositoryPort } from "../../domain/repositories/AdminUserRepository.js";
+import type { AdminUserRepositoryPort } from "@core/domain/repositories/AdminUserRepository.js";
+import { PrismaAdminSessionRepository } from "../repositories/PrismaAdminSessionRepository.js";
+import type { AdminSessionRepository } from "@core/domain/repositories/AdminSessionRepository.js";
+import { PrismaRoleRepository } from "../repositories/PrismaRoleRepository.js";
+import type { RoleRepository } from "@core/domain/repositories/RoleRepository.js";
+import { PrismaAuditLogRepository } from "../repositories/PrismaAuditLogRepository.js";
+import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 import { PrismaPostRepository } from "../repositories/PrismaPostRepository.js";
 import { PrismaPostQueryRepository } from "../repositories/PrismaPostQueryRepository.js";
 import { PrismaAccountRepository } from "../repositories/PrismaAccountRepository.js";
@@ -15,64 +21,80 @@ import { PrismaProjectRepository } from "../repositories/PrismaProjectRepository
 import { PrismaAnalyticsQueryRepository } from "../repositories/PrismaAnalyticsQueryRepository.js";
 import { PrismaProjectQueryRepository } from "../repositories/PrismaProjectQueryRepository.js";
 import { PrismaAnalyticsReadRepository } from "../repositories/PrismaAnalyticsReadRepository.js";
-import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
-import type { AnalyticsReadRepositoryPort } from "../../domain/repositories/AnalyticsReadRepository.js";
+import { PrismaThreadReadRepository } from "../repositories/PrismaThreadReadRepository.js";
+import { PrismaConversionRepository } from "../repositories/PrismaConversionRepository.js";
+import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
+import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
+import type { ThreadReadRepositoryPort } from "@core/domain/repositories/ThreadReadRepository.js";
+import type { ConversionRepositoryPort } from "@core/domain/repositories/ConversionRepository.js";
 import { PrismaChannelRepository } from "../repositories/PrismaChannelRepository.js";
-import type { PostRepository, PostQueryRepository } from "../../domain/index.js";
-import type { AccountRepositoryPort } from "../../domain/repositories/AccountRepository.js";
-import type { AccountQueryRepositoryPort } from "../../domain/repositories/AccountQueryRepository.js";
-import type { ProjectRepositoryPort } from "../../domain/repositories/ProjectRepository.js";
-import type { AnalyticsQueryRepository } from "../../domain/repositories/AnalyticsQueryRepository.js";
-import type { ChannelRepository } from "../../domain/repositories/ChannelRepository.js";
+import type { PostRepository, PostQueryRepository } from "@core/domain/index.js";
+import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
+import type { AccountQueryRepositoryPort } from "@core/domain/repositories/AccountQueryRepository.js";
+import type { ProjectRepositoryPort } from "@core/domain/repositories/ProjectRepository.js";
+import type { AnalyticsQueryRepository } from "@core/domain/repositories/AnalyticsQueryRepository.js";
+import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
 import { PrismaApiKeyRepository } from "../repositories/PrismaApiKeyRepository.js";
-import type { ApiKeyRepository } from "../../domain/repositories/ApiKeyRepository.js";
+import type { ApiKeyRepository } from "@core/domain/repositories/ApiKeyRepository.js";
 import { PrismaOutboxWriter } from "../outbox/PrismaOutboxWriter.js";
-import type { OutboxWriter } from "../../domain/repositories/OutboxWriter.js";
+import type { OutboxWriter } from "@core/domain/repositories/OutboxWriter.js";
 import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
-import type { UnitOfWork } from "../../domain/index.js";
-import type { TrackedLinkRepository } from "../../domain/repositories/TrackedLinkRepository.js";
+import type { UnitOfWork } from "@core/domain/index.js";
+import type { TrackedLinkRepository } from "@core/domain/repositories/TrackedLinkRepository.js";
 import { PrismaTrackedLinkRepository } from "../repositories/PrismaTrackedLinkRepository.js";
-import type { CrisisProjectRepository } from "../../application/crisis/types.js";
+import type { CrisisProjectRepository } from "@core/application/crisis/types.js";
 import { PrismaCrisisProjectRepository } from "../repositories/PrismaCrisisProjectRepository.js";
-import type { ApprovalRequestRepository } from "../../domain/repositories/ApprovalRequestRepository.js";
+import type { ApprovalRequestRepository } from "@core/domain/repositories/ApprovalRequestRepository.js";
 import { PrismaApprovalRequestRepository } from "../repositories/PrismaApprovalRequestRepository.js";
-import type { ApprovalWorkflowRepository } from "../../domain/repositories/ApprovalWorkflowRepository.js";
+import type { ApprovalWorkflowRepository } from "@core/domain/repositories/ApprovalWorkflowRepository.js";
 import { PrismaApprovalWorkflowRepository } from "../repositories/PrismaApprovalWorkflowRepository.js";
 import type {
   NotificationRepository,
   NotificationPreferenceRepository,
-} from "../../domain/repositories/NotificationRepository.js";
+} from "@core/domain/repositories/NotificationRepository.js";
 import { PrismaNotificationRepository } from "../repositories/PrismaNotificationRepository.js";
-import type { PostCommentRepository } from "../../domain/repositories/PostCommentRepository.js";
+import type { PostCommentRepository } from "@core/domain/repositories/PostCommentRepository.js";
 import { PrismaPostCommentRepository } from "../repositories/PrismaPostCommentRepository.js";
-import type { SocialMessageRepository } from "../../domain/repositories/SocialMessageRepository.js";
-import type { SocialMessageQueryRepository } from "../../domain/repositories/SocialMessageQueryRepository.js";
-import type { SocialConversationRepository } from "../../domain/repositories/SocialConversationRepository.js";
-import type { SocialOutboundReplyRepository } from "../../domain/repositories/SocialOutboundReplyRepository.js";
+import type { SocialMessageRepository } from "@core/domain/repositories/SocialMessageRepository.js";
+import type { SocialMessageQueryRepository } from "@core/domain/repositories/SocialMessageQueryRepository.js";
+import type { SocialConversationRepository } from "@core/domain/repositories/SocialConversationRepository.js";
+import type { SocialOutboundReplyRepository } from "@core/domain/repositories/SocialOutboundReplyRepository.js";
 import { PrismaSocialMessageRepository } from "../repositories/PrismaSocialMessageRepository.js";
 import { PrismaSocialMessageQueryRepository } from "../repositories/PrismaSocialMessageQueryRepository.js";
+import type { MentionQueryRepository } from "@core/domain/repositories/MentionQueryRepository.js";
+import { PrismaMentionQueryRepository } from "../repositories/PrismaMentionQueryRepository.js";
+import type { BulkScheduleBatchRepository } from "@core/domain/repositories/BulkScheduleBatchRepository.js";
+import { PrismaBulkScheduleBatchRepository } from "../repositories/PrismaBulkScheduleBatchRepository.js";
+import type { BulkScheduleQueryRepository } from "@core/domain/repositories/BulkScheduleQueryRepository.js";
+import { PrismaBulkScheduleQueryRepository } from "../repositories/PrismaBulkScheduleQueryRepository.js";
 import { PrismaSocialConversationRepository } from "../repositories/PrismaSocialConversationRepository.js";
 import { PrismaSocialOutboundReplyRepository } from "../repositories/PrismaSocialOutboundReplyRepository.js";
-import type { ConversationNoteRepository } from "../../domain/repositories/ConversationNoteRepository.js";
+import type { ConversationNoteRepository } from "@core/domain/repositories/ConversationNoteRepository.js";
 import { PrismaConversationNoteRepository } from "../repositories/PrismaConversationNoteRepository.js";
-import type { CampaignRepository } from "../../domain/repositories/CampaignRepository.js";
-import type { CampaignQueryRepository } from "../../domain/repositories/CampaignQueryRepository.js";
+import type { CampaignRepository } from "@core/domain/repositories/CampaignRepository.js";
+import type { CampaignQueryRepository } from "@core/domain/repositories/CampaignQueryRepository.js";
 import { PrismaCampaignRepository } from "../repositories/PrismaCampaignRepository.js";
 import { PrismaCampaignQueryRepository } from "../repositories/PrismaCampaignQueryRepository.js";
-import type { ScheduledReportRepository } from "../../domain/repositories/ScheduledReportRepository.js";
+import type { ScheduledReportRepository } from "@core/domain/repositories/ScheduledReportRepository.js";
 import { PrismaScheduledReportRepository } from "../repositories/PrismaScheduledReportRepository.js";
-import type { FirstCommentRepository } from "../../domain/repositories/FirstCommentRepository.js";
+import type { FirstCommentRepository } from "@core/domain/repositories/FirstCommentRepository.js";
 import { PrismaFirstCommentRepository } from "../repositories/PrismaFirstCommentRepository.js";
-import type { RecurringPostRepository } from "../../domain/repositories/RecurringPostRepository.js";
+import type { RecurringPostRepository } from "@core/domain/repositories/RecurringPostRepository.js";
 import { PrismaRecurringPostRepository } from "../repositories/PrismaRecurringPostRepository.js";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository.js";
+import type { TaskRepository } from "@core/domain/repositories/TaskRepository.js";
 import { PrismaTaskRepository } from "../repositories/PrismaTaskRepository.js";
+import type { AccountSubscriptionPort } from "@core/domain/repositories/AccountSubscriptionPort.js";
+import { PrismaAccountSubscriptionAdapter } from "../repositories/PrismaAccountSubscriptionAdapter.js";
+import type { AccountSubscriptionQueryRepository } from "@core/domain/repositories/AccountSubscriptionQueryRepository.js";
+import { PrismaAccountSubscriptionQueryRepository } from "../repositories/PrismaAccountSubscriptionQueryRepository.js";
+import type { SubscriptionStatsQueryRepository } from "@core/domain/repositories/SubscriptionStatsQueryRepository.js";
+import { PrismaSubscriptionStatsQueryRepository } from "../repositories/PrismaSubscriptionStatsQueryRepository.js";
 
 /**
  * Register all repository adapters in the container
  */
 export function setupRepositories(container: Container): void {
-  // Register Outbox Writer (P2-1)
+  // Register Outbox Writer
   container.register<OutboxWriter>(TOKENS.OutboxWriter, () => new PrismaOutboxWriter(), true);
 
   // Register PostRepository (receives OutboxWriter for atomic event persistence)
@@ -86,7 +108,7 @@ export function setupRepositories(container: Container): void {
     true
   );
 
-  // Register Post Query Repository (P2-3 -- CQRS read side)
+  // Register Post Query Repository (CQRS read side)
   container.register<PostQueryRepository>(
     TOKENS.PostQueryRepository,
     () => new PrismaPostQueryRepository(container.resolve(TOKENS.PrismaClient)),
@@ -142,6 +164,18 @@ export function setupRepositories(container: Container): void {
     true
   );
 
+  container.register<ThreadReadRepositoryPort>(
+    TOKENS.ThreadReadRepository,
+    () => new PrismaThreadReadRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
+  container.register<ConversionRepositoryPort>(
+    TOKENS.ConversionRepository,
+    () => new PrismaConversionRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
   // Register API Key Repository
   container.register<ApiKeyRepository>(
     TOKENS.ApiKeyRepository,
@@ -156,21 +190,42 @@ export function setupRepositories(container: Container): void {
     true
   );
 
-  // Register Unit of Work (P2-4)
+  // Register AdminSession Repository (admin-auth session persistence)
+  container.register<AdminSessionRepository>(
+    TOKENS.AdminSessionRepository,
+    () => new PrismaAdminSessionRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
+  // Register admin Role Repository (RBAC roles -- distinct from CustomerRoleRepository)
+  container.register<RoleRepository>(
+    TOKENS.RoleRepository,
+    () => new PrismaRoleRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
+  // Register AuditLog Repository (audit-trail persistence + anonymization)
+  container.register<AuditLogRepository>(
+    TOKENS.AuditLogRepository,
+    () => new PrismaAuditLogRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
+  // Register Unit of Work
   container.register<UnitOfWork>(
     TOKENS.UnitOfWork,
     () => new PrismaUnitOfWork(container.resolve(TOKENS.PrismaClient)),
     true
   );
 
-  // Register TrackedLink Repository (P1-DI-7)
+  // Register TrackedLink Repository
   container.register<TrackedLinkRepository>(
     TOKENS.TrackedLinkRepository,
     () => new PrismaTrackedLinkRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
 
-  // Register Crisis Project Repository (P1-DI-8)
+  // Register Crisis Project Repository
   container.register<CrisisProjectRepository>(
     TOKENS.CrisisProjectRepository,
     () => new PrismaCrisisProjectRepository(container.resolve(TOKENS.PrismaClient)),
@@ -220,6 +275,21 @@ export function setupRepositories(container: Container): void {
   container.register<SocialMessageQueryRepository>(
     TOKENS.SocialMessageQueryRepository,
     () => new PrismaSocialMessageQueryRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<MentionQueryRepository>(
+    TOKENS.MentionQueryRepository,
+    () => new PrismaMentionQueryRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<BulkScheduleBatchRepository>(
+    TOKENS.BulkScheduleBatchRepository,
+    () => new PrismaBulkScheduleBatchRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<BulkScheduleQueryRepository>(
+    TOKENS.BulkScheduleQueryRepository,
+    () => new PrismaBulkScheduleQueryRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
   container.register<SocialConversationRepository>(
@@ -277,6 +347,23 @@ export function setupRepositories(container: Container): void {
   container.register<TaskRepository>(
     TOKENS.TaskRepository,
     () => new PrismaTaskRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+
+  // Register AccountSubscription command + query repositories (billing)
+  container.register<AccountSubscriptionPort>(
+    TOKENS.AccountSubscriptionPort,
+    () => new PrismaAccountSubscriptionAdapter(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<AccountSubscriptionQueryRepository>(
+    TOKENS.AccountSubscriptionQueryRepository,
+    () => new PrismaAccountSubscriptionQueryRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<SubscriptionStatsQueryRepository>(
+    TOKENS.SubscriptionStatsQueryRepository,
+    () => new PrismaSubscriptionStatsQueryRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
 }

@@ -14,13 +14,13 @@ import {
   ChannelId,
   PostId,
   EntityNotFoundError,
-} from "../../domain/index.js";
-import type { ContentLocale } from "../../domain/value-objects/Content.js";
+} from "@core/domain/index.js";
+import type { ContentLocale } from "@core/domain/value-objects/Content.js";
 import type {
   ProjectRepositoryPort,
   PublishLogView,
-} from "../../domain/repositories/ProjectRepository.js";
-import type { CrisisModeEntry } from "../../domain/entities/Project.js";
+} from "@core/domain/repositories/ProjectRepository.js";
+import type { CrisisModeEntry } from "@core/domain/entities/Project.js";
 
 /**
  * Minimal Prisma project row shape used by the mapper

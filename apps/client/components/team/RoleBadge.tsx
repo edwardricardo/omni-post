@@ -7,6 +7,8 @@
 
 "use client";
 
+import { useTranslations } from "next-intl";
+
 const ROLE_STYLES = {
   OWNER: "bg-purple-100 text-purple-700",
   MANAGER: "bg-blue-100 text-blue-700",
@@ -15,11 +17,12 @@ const ROLE_STYLES = {
 } as const;
 
 export function RoleBadge({ role }: { role: "OWNER" | "MANAGER" | "MEMBER" | "VIEWER" }) {
+  const t = useTranslations("team");
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${ROLE_STYLES[role]}`}
     >
-      {role}
+      {t(`roles.${role}`)}
     </span>
   );
 }

@@ -7,9 +7,11 @@
  * sub-components from the stories/ subdirectory: header, timeline, preview,
  * editor controls, and loading overlay. Manages top-level state and delegates
  * presentation to child components.
+ * @layer infrastructure
  */
 
 import React, { useRef, useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { ConfirmDialog } from "@packages/ui";
 import type { VideoSplitOptions } from "@providers/instagram/src/mediaProcessor";
 import type { StoriesProject, StoriesEditorProps, StoryContent } from "./stories/types";
@@ -30,14 +32,16 @@ export function StoriesEditor({
   onPublish,
   onError,
 }: StoriesEditorProps) {
+  const t = useTranslations("instagram.components");
+
   // State management
-  const [project, setProject] = useState<StoriesProject>({
+  const [project, setProject] = useState<StoriesProject>(() => ({
     id: `stories-${Date.now()}`,
-    name: "New Stories Project",
+    name: t("storiesEditor.defaultProjectName"),
     stories: [],
     status: "draft",
     targetAccounts: [],
-  });
+  }));
 
   const [selectedStoryIndex, setSelectedStoryIndex] = useState<number | null>(null);
   const [videoSplitOptions, setVideoSplitOptions] = useState<VideoSplitOptions>({
@@ -110,17 +114,17 @@ export function StoriesEditor({
   // Save and schedule handlers
   const handleSave = useCallback(() => {
     if (project.stories.length === 0) {
-      onError?.("Please add at least one story before saving.");
+      onError?.(t("storiesEditor.errorEmptySave"));
       return;
     }
 
     setProject((prev) => ({ ...prev, status: "ready" }));
     onSave?.(project);
-  }, [project, onSave, onError]);
+  }, [project, onSave, onError, t]);
 
   const handleSchedule = useCallback(() => {
     if (project.stories.length === 0) {
-      onError?.("Please add at least one story before scheduling.");
+      onError?.(t("storiesEditor.errorEmptySchedule"));
       return;
     }
 
@@ -133,17 +137,17 @@ export function StoriesEditor({
 
     setProject(updatedProject);
     onSchedule?.(updatedProject, scheduledAt);
-  }, [project, onSchedule, onError]);
+  }, [project, onSchedule, onError, t]);
 
   const handlePublish = useCallback(() => {
     if (project.stories.length === 0) {
-      onError?.("Please add at least one story before publishing.");
+      onError?.(t("storiesEditor.errorEmptyPublish"));
       return;
     }
 
     setProject((prev) => ({ ...prev, status: "published" }));
     onPublish?.(project);
-  }, [project, onPublish, onError]);
+  }, [project, onPublish, onError, t]);
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
@@ -204,8 +208,8 @@ export function StoriesEditor({
             <div className="flex-1 flex items-center justify-center text-gray-500">
               <div className="text-center">
                 <div className="text-6xl mb-4">📱</div>
-                <div className="text-xl font-medium mb-2">No story selected</div>
-                <div className="text-sm">Select a story from the sidebar to start editing</div>
+                <div className="text-xl font-medium mb-2">{t("storiesEditor.noStorySelected")}</div>
+                <div className="text-sm">{t("storiesEditor.noStorySelectedHint")}</div>
               </div>
             </div>
           )}
@@ -219,12 +223,12 @@ export function StoriesEditor({
         onOpenChange={(open) => {
           if (!open) resolveSplit(false);
         }}
-        title="Split video into stories?"
-        description={`This video is ${splitConfirmDuration.toFixed(
-          1
-        )} seconds long. Instagram Stories are limited to 15 seconds each. Split it automatically?`}
-        confirmLabel="Split"
-        cancelLabel="Keep first 15s"
+        title={t("storiesEditor.splitConfirmTitle")}
+        description={t("storiesEditor.splitConfirmDescription", {
+          duration: splitConfirmDuration.toFixed(1),
+        })}
+        confirmLabel={t("storiesEditor.splitConfirmConfirm")}
+        cancelLabel={t("storiesEditor.splitConfirmCancel")}
         onConfirm={() => resolveSplit(true)}
       />
     </div>

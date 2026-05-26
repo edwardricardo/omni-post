@@ -8,18 +8,19 @@
 "use client";
 
 import { useState, useCallback, useId } from "react";
+import { useTranslations } from "next-intl";
 
 type RecurrenceType = "daily" | "weekly" | "monthly" | "custom";
 
 const DAYS = [
-  { value: 0, label: "Dom" },
-  { value: 1, label: "Lun" },
-  { value: 2, label: "Mar" },
-  { value: 3, label: "Mié" },
-  { value: 4, label: "Jue" },
-  { value: 5, label: "Vie" },
-  { value: 6, label: "Sáb" },
-];
+  { value: 0, labelKey: "daysShort.sun" },
+  { value: 1, labelKey: "daysShort.mon" },
+  { value: 2, labelKey: "daysShort.tue" },
+  { value: 3, labelKey: "daysShort.wed" },
+  { value: 4, labelKey: "daysShort.thu" },
+  { value: 5, labelKey: "daysShort.fri" },
+  { value: 6, labelKey: "daysShort.sat" },
+] as const;
 
 function buildCron(
   type: RecurrenceType,
@@ -52,6 +53,7 @@ interface RecurrenceSelectorProps {
 }
 
 export function RecurrenceSelector({ value, onChange }: RecurrenceSelectorProps) {
+  const t = useTranslations("scheduling.components");
   const [type, setType] = useState<RecurrenceType>("daily");
   const [hour, setHour] = useState(9);
   const [minute, setMinute] = useState(0);
@@ -103,24 +105,18 @@ export function RecurrenceSelector({ value, onChange }: RecurrenceSelectorProps)
     <div className="space-y-4">
       {/* Type selector */}
       <div className="flex flex-wrap gap-2">
-        {(["daily", "weekly", "monthly", "custom"] as RecurrenceType[]).map((t) => (
+        {(["daily", "weekly", "monthly", "custom"] as RecurrenceType[]).map((rt) => (
           <button
-            key={t}
+            key={rt}
             type="button"
-            onClick={() => handleTypeChange(t)}
+            onClick={() => handleTypeChange(rt)}
             className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-              type === t
+              type === rt
                 ? "bg-blue-600 text-white"
                 : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
             }`}
           >
-            {t === "daily"
-              ? "Diario"
-              : t === "weekly"
-                ? "Semanal"
-                : t === "monthly"
-                  ? "Mensual"
-                  : "Personalizado"}
+            {t(`recurrenceType.${rt}`)}
           </button>
         ))}
       </div>
@@ -128,9 +124,9 @@ export function RecurrenceSelector({ value, onChange }: RecurrenceSelectorProps)
       {/* Time picker (shared by daily/weekly/monthly) */}
       {type !== "custom" && (
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">Hora:</span>
+          <span className="text-sm text-gray-600">{t("timeLabel")}</span>
           <select
-            aria-label="Hora"
+            aria-label={t("hourAria")}
             value={hour}
             onChange={(e) => handleHourChange(Number(e.target.value))}
             className="rounded border border-gray-300 px-2 py-1 text-sm"
@@ -143,7 +139,7 @@ export function RecurrenceSelector({ value, onChange }: RecurrenceSelectorProps)
           </select>
           <span className="text-gray-500">:</span>
           <select
-            aria-label="Minuto"
+            aria-label={t("minuteAria")}
             value={minute}
             onChange={(e) => handleMinuteChange(Number(e.target.value))}
             className="rounded border border-gray-300 px-2 py-1 text-sm"
@@ -171,7 +167,7 @@ export function RecurrenceSelector({ value, onChange }: RecurrenceSelectorProps)
                   : "border border-gray-300 text-gray-600 hover:bg-gray-50"
               }`}
             >
-              {d.label}
+              {t(d.labelKey)}
             </button>
           ))}
         </div>
@@ -181,7 +177,7 @@ export function RecurrenceSelector({ value, onChange }: RecurrenceSelectorProps)
       {type === "monthly" && (
         <div className="flex items-center gap-2">
           <label htmlFor={monthDayId} className="text-sm text-gray-600">
-            Día del mes:
+            {t("dayOfMonthLabel")}
           </label>
           <select
             id={monthDayId}
@@ -203,13 +199,13 @@ export function RecurrenceSelector({ value, onChange }: RecurrenceSelectorProps)
         <div className="space-y-1">
           <input
             type="text"
-            aria-label="Cron expression"
+            aria-label={t("cronExpressionAria")}
             value={custom}
             onChange={(e) => handleCustomChange(e.target.value)}
             placeholder="0 9 * * 1"
             className="w-full rounded border border-gray-300 px-3 py-2 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
-          <p className="text-xs text-gray-500">Formato: minuto hora día-mes mes día-semana</p>
+          <p className="text-xs text-gray-500">{t("cronFormatHint")}</p>
         </div>
       )}
     </div>

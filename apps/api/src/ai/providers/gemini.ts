@@ -13,14 +13,22 @@ import {
   ContentOptimization,
   PerformancePrediction,
   AIProviderConfig,
+  StructuredOutputSpec,
 } from "../types.js";
 import { AppError } from "../../lib/errors/AppError.js";
 import { logger } from "../../lib/logger.js";
+import {
+  analysisSpec,
+  optimizationSpec,
+  predictionSpec,
+  variationsSpec,
+} from "../structuredSchemas.js";
 
 const aiLogger = logger.child({ module: "ai", provider: "gemini" });
 
 export class GeminiProvider implements AIProvider {
   name = "gemini" as const;
+  readonly supportsEmbeddings = true;
   private client: GoogleGenAI;
   private config: AIProviderConfig;
 
@@ -75,6 +83,42 @@ export class GeminiProvider implements AIProvider {
     } catch (error: unknown) {
       aiLogger.error({ err: error }, "Gemini generation failed");
       throw AppError.externalService("Gemini", `Gemini generation failed: ${error}`);
+    }
+  }
+
+  /**
+   * @method generateStructured
+   * @description Schema-validated generation via Gemini native structured
+   *   output (`responseMimeType: "application/json"` + `responseSchema`).
+   *   Output is routed through `spec.parse` so callers get a validated `T`,
+   *   never raw text.
+   * @param messages - Conversation messages.
+   * @param spec - Technology-free structured-output spec (name/schema/parse).
+   * @param options - Generation options (model, tokens, temperature).
+   * @returns The validated structured value `T`.
+   */
+  async generateStructured<T>(
+    messages: AIMessage[],
+    spec: StructuredOutputSpec<T>,
+    options: GenerationOptions = {}
+  ): Promise<T> {
+    try {
+      const prompt = this.convertMessagesToPrompt(messages);
+      const result = await this.client.models.generateContent({
+        model: options.model || this.config.model || "gemini-1.5-flash",
+        contents: prompt,
+        config: {
+          maxOutputTokens: options.maxTokens || 1000,
+          temperature: options.temperature ?? 0.7,
+          responseMimeType: "application/json",
+          responseSchema: spec.jsonSchema,
+        },
+      });
+
+      return spec.parse(JSON.parse(result.text || ""));
+    } catch (error: unknown) {
+      aiLogger.error({ err: error }, "Gemini structured generation failed");
+      throw AppError.externalService("Gemini", `Gemini structured generation failed: ${error}`);
     }
   }
 
@@ -143,20 +187,10 @@ Return only a JSON response with:
 Content to analyze: "${content}"`,
     };
 
-    try {
-      const response = await this.generateText([{ role: "user", content: prompts[analysisType] }]);
-
-      // Clean the response to extract JSON
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
-
-      return JSON.parse(response);
-    } catch (error: unknown) {
-      aiLogger.error({ err: error }, "Gemini analysis failed");
-      throw AppError.externalService("Gemini", `Gemini analysis failed: ${error}`);
-    }
+    return this.generateStructured(
+      [{ role: "user", content: prompts[analysisType] }],
+      analysisSpec(analysisType)
+    );
   }
 
   async optimizeContent(
@@ -192,20 +226,7 @@ Return only a JSON response with:
 
 Original content to optimize: "${content}"`;
 
-    try {
-      const response = await this.generateText([{ role: "user", content: prompt }]);
-
-      // Clean the response to extract JSON
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
-
-      return JSON.parse(response);
-    } catch (error: unknown) {
-      aiLogger.error({ err: error }, "Gemini optimization failed");
-      throw AppError.externalService("Gemini", `Gemini optimization failed: ${error}`);
-    }
+    return this.generateStructured([{ role: "user", content: prompt }], optimizationSpec);
   }
 
   async predictPerformance(
@@ -242,20 +263,7 @@ Return only a JSON response with:
 
 Content to analyze: "${content}"`;
 
-    try {
-      const response = await this.generateText([{ role: "user", content: prompt }]);
-
-      // Clean the response to extract JSON
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
-
-      return JSON.parse(response);
-    } catch (error: unknown) {
-      aiLogger.error({ err: error }, "Gemini prediction failed");
-      throw AppError.externalService("Gemini", `Gemini prediction failed: ${error}`);
-    }
+    return this.generateStructured([{ role: "user", content: prompt }], predictionSpec);
   }
 
   async generateVariations(
@@ -303,19 +311,30 @@ Return only a JSON array of exactly ${count} strings. No additional formatting, 
 
 Original content: "${content}"`;
 
-    try {
-      const response = await this.generateText([{ role: "user", content: prompt }]);
+    return this.generateStructured([{ role: "user", content: prompt }], variationsSpec());
+  }
 
-      // Clean the response to extract JSON array
-      const jsonMatch = response.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
-
-      return JSON.parse(response);
-    } catch (error: unknown) {
-      aiLogger.error({ err: error }, "Gemini variation generation failed");
-      throw AppError.externalService("Gemini", `Gemini variation generation failed: ${error}`);
-    }
+  /**
+   * @method generateEmbeddings
+   * @description Generates dense vector embeddings via the Gemini embedding
+   *   API. Uses `outputDimensionality` so the output aligns with the
+   *   project's uniform embedding dimension across providers.
+   * @param texts - One or more strings to embed.
+   * @param options - Override the model or output dimensions.
+   * @returns Array of embedding vectors, one per input text.
+   */
+  async generateEmbeddings(
+    texts: string[],
+    options: { model?: string; dimensions?: number } = {}
+  ): Promise<number[][]> {
+    const model = options.model ?? "gemini-embedding-001";
+    const outputDimensionality = options.dimensions ?? 768;
+    const result = await this.client.models.embedContent({
+      model,
+      contents: texts,
+      config: { outputDimensionality },
+    });
+    const embeddings = result.embeddings ?? [];
+    return embeddings.map((entry) => entry.values ?? []);
   }
 }

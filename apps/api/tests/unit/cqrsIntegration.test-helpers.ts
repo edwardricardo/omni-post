@@ -4,7 +4,7 @@
  * @layer infrastructure
  */
 import { randomUUID } from "node:crypto";
-import type { DomainEvent } from "@shared/events";
+import type { EventStoreEvent } from "@shared/events";
 
 // ---------------------------------------------------------------------------
 // Stable test UUIDs
@@ -310,9 +310,9 @@ export class MockRedis {
 // ---------------------------------------------------------------------------
 
 export class MockEventService {
-  public events: DomainEvent[] = [];
+  public events: EventStoreEvent[] = [];
 
-  async publishEvents(events: DomainEvent[]): Promise<void> {
+  async publishEvents(events: EventStoreEvent[]): Promise<void> {
     this.events.push(...events);
   }
 

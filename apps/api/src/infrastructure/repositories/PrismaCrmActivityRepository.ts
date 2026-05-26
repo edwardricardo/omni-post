@@ -10,7 +10,7 @@ import type {
   CrmActivityRepository,
   CrmActivityData,
   CreateCrmActivityInput,
-} from "../../domain/repositories/CrmActivityRepository.js";
+} from "@core/domain/repositories/CrmActivityRepository.js";
 
 export class PrismaCrmActivityRepository implements CrmActivityRepository {
   constructor(private readonly prisma: PrismaClient) {}

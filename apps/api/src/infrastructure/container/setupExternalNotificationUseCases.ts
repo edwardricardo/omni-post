@@ -7,20 +7,20 @@
 
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import type { ExternalNotificationConfigRepository } from "../../domain/repositories/ExternalNotificationConfigRepository.js";
-import type { ExternalNotifierPort } from "../../domain/repositories/ExternalNotifierPort.js";
-import type { HttpClientPort } from "../../domain/repositories/HttpClientPort.js";
+import type { ExternalNotificationConfigRepository } from "@core/domain/repositories/ExternalNotificationConfigRepository.js";
+import type { ExternalNotifierPort } from "@core/domain/repositories/ExternalNotifierPort.js";
+import type { HttpClientPort } from "@core/domain/repositories/HttpClientPort.js";
 import { PrismaExternalNotificationConfigRepository } from "../repositories/PrismaExternalNotificationConfigRepository.js";
 import { SlackNotifierAdapter } from "../adapters/SlackNotifierAdapter.js";
 import { TeamsNotifierAdapter } from "../adapters/TeamsNotifierAdapter.js";
 import { ExternalNotificationDispatcher } from "../adapters/ExternalNotificationDispatcher.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import {
   ConfigureExternalNotificationUseCase,
   ListExternalNotificationsQuery,
   DeleteExternalNotificationUseCase,
   TestExternalNotificationUseCase,
-} from "../../application/external-notifications/index.js";
+} from "@core/application/external-notifications/index.js";
 
 /**
  * @method setupExternalNotificationUseCases

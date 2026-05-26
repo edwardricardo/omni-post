@@ -5,10 +5,10 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ConnectCrmUseCase } from "../../../src/application/crm/ConnectCrmUseCase.js";
-import { DisconnectCrmUseCase } from "../../../src/application/crm/DisconnectCrmUseCase.js";
-import { LogCrmActivityUseCase } from "../../../src/application/crm/LogCrmActivityUseCase.js";
-import { GetCrmConnectionsQuery } from "../../../src/application/crm/GetCrmConnectionsQuery.js";
+import { ConnectCrmUseCase } from "@core/application/crm/ConnectCrmUseCase.js";
+import { DisconnectCrmUseCase } from "@core/application/crm/DisconnectCrmUseCase.js";
+import { LogCrmActivityUseCase } from "@core/application/crm/LogCrmActivityUseCase.js";
+import { GetCrmConnectionsQuery } from "@core/application/crm/GetCrmConnectionsQuery.js";
 
 // Mock repositories
 function createMockCrmConnectionRepo() {

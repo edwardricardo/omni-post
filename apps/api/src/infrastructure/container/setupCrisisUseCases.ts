@@ -6,8 +6,8 @@
  */
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import type { EventDispatcher } from "../../domain/index.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { EventDispatcher } from "@core/domain/index.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { OutboxRelay } from "../outbox/OutboxRelay.js";
 import { OutboxCleaner } from "../outbox/OutboxCleaner.js";
@@ -15,22 +15,22 @@ import { OutboxClaimService } from "../outbox/OutboxClaimService.js";
 import { OutboxBackoff } from "../outbox/OutboxBackoff.js";
 import { OutboxInbox } from "../outbox/OutboxInbox.js";
 import { hostname } from "os";
-import type { CrisisProjectRepository } from "../../application/crisis/types.js";
+import type { CrisisProjectRepository } from "@core/application/crisis/types.js";
 import {
   EnterCrisisModeUseCase,
   ExitCrisisModeUseCase,
   GetCrisisStatusUseCase,
-} from "../../application/crisis/index.js";
-import type { ScheduledReportRepository } from "../../domain/repositories/ScheduledReportRepository.js";
-import type { EmailPort } from "../../domain/repositories/EmailPort.js";
-import type { AnalyticsReadRepositoryPort } from "../../domain/repositories/AnalyticsReadRepository.js";
+} from "@core/application/crisis/index.js";
+import type { ScheduledReportRepository } from "@core/domain/repositories/ScheduledReportRepository.js";
+import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
+import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
 import {
   CreateScheduledReportUseCase,
   UpdateScheduledReportUseCase,
   DeleteScheduledReportUseCase,
   ListScheduledReportsQuery as ListScheduledReportsQueryUC,
   GenerateReportUseCase,
-} from "../../application/reports/index.js";
+} from "@core/application/reports/index.js";
 
 /**
  * Register outbox relay/cleaner, crisis mode, and scheduled report use cases
@@ -57,7 +57,7 @@ export function setupCrisisUseCases(container: Container): void {
     true
   );
 
-  // Register Outbox Relay + Cleaner (P2-1)
+  // Register Outbox Relay + Cleaner
   container.register<OutboxRelay>(
     TOKENS.OutboxRelay,
     () =>
@@ -82,7 +82,7 @@ export function setupCrisisUseCases(container: Container): void {
     true
   );
 
-  // Register Crisis Mode Use Cases (P1-DI-8)
+  // Register Crisis Mode Use Cases
   container.register<EnterCrisisModeUseCase>(
     TOKENS.EnterCrisisModeUseCase,
     () =>

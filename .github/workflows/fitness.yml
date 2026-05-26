@@ -1,12 +1,12 @@
 name: Architectural Fitness Functions
 
-# Wires the 13 fitness greps documented in CLAUDE.md §Automated Compliance
-# Checks to CI as a hard-zero gate. Any new occurrence of any pattern fails
-# the workflow and is annotated on the PR diff.
+# Wires the 21 fitness greps documented in CLAUDE.md §Automated Compliance
+# Checks to CI. Any new occurrence of any pattern fails the workflow and is
+# annotated on the PR diff.
 #
-# Strategy: hard-zero (every check must return count = 0). The codebase
-# reached zero across all 13 checks during the T1→T4 remediation; this
-# workflow lock-ins that state and prevents silent regression.
+# Strategy: hard-zero for every check (each returns count = 0). #1 and #21 ran
+# as ratchets during the prisma->DI remediation; that workstream is complete, so
+# both are now hard-zero like the rest.
 #
 # Canon: Ford & Parsons "Building Evolutionary Architectures" (2nd ed) —
 # hard-zero is the correct mode for invariants in a clean codebase; ratchets
@@ -43,11 +43,15 @@ jobs:
         if: always()
         run: |
           set -uo pipefail
-          MATCHES=$(grep -rn "import { prisma" apps/api/src/ --include="*routes*" 2>/dev/null || true)
+          # Glob fixed: *[Rr]outes* also matches PascalCase *Routes.ts. The old
+          # *routes* was case-sensitive and missed every *Routes.ts, so this
+          # guard silently passed while admin routes imported the singleton.
+          # Hard-zero (the prisma->DI remediation is complete).
+          MATCHES=$(grep -rn "import { prisma" apps/api/src/ --include="*[Rr]outes*" 2>/dev/null || true)
           COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
           COUNT=${COUNT:-0}
           if [ "$COUNT" -gt 0 ]; then
-            echo "::error title=Fitness #1 violation::$COUNT Prisma singleton imports found in route files (expected 0). Resolve repositories from DI: fastify.container.resolve(TOKENS.XRepository)."
+            echo "::error title=Fitness #1 violation::$COUNT Prisma singleton imports in route files. Resolve use cases from DI: fastify.container.resolve(TOKENS.X). Do NOT add any."
             printf "%s\n" "$MATCHES" | head -20
             exit 1
           fi
@@ -138,10 +142,13 @@ jobs:
         run: |
           set -uo pipefail
           # Catches: "Sprint 1", "Sprint A", "Sprint 8", "Part of Sprint X",
-          # "Phase 1", "Phase 2", and the legacy "T0A_" / "T0-A" task-batch
-          # prefixes used during remediation. All belong in git history /
+          # "Phase 1", "Phase 2", the legacy "T0A_" / "T0-A" task-batch prefixes,
+          # and the parenthesised phase/task shorthand "(P8)" / "(P2-1)" / "(P3-A)"
+          # / "(P1-DI-7)". Prisma-safe: `\(P[0-9]\)` matches a single digit and
+          # `\(P[0-9]+-` requires a dash, so Prisma error codes like "(P2002)"
+          # (P + 4 digits, no dash) are NOT flagged. All belong in git history /
           # PR descriptions, not in source comments where they rot.
-          MATCHES=$(grep -rnE "Part of Sprint|Phase.*Sprint|Sprint [0-9A-Z]|Phase [0-9]|T0A_|T0-A" \
+          MATCHES=$(grep -rnE "Part of Sprint|Phase.*Sprint|Sprint [0-9A-Z]|Phase [0-9]|T0A_|T0-A|\(P[0-9]\)|\(P[0-9]+-[A-Za-z0-9]" \
             apps/ packages/ infra/ --include="*.ts" --include="*.tsx" --include="*.prisma" 2>/dev/null | \
             grep -vE "node_modules|dist|\.next|\.stryker-tmp|\.stryker|reports/mutation|infra/prisma/generated/" || true)
           COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
@@ -356,12 +363,54 @@ jobs:
             exit 1
           fi
 
+      - name: "#20 No legacy BullMQ repeatable API"
+        if: always()
+        run: |
+          set -uo pipefail
+          # addRepeatable / getRepeatableJobs / removeRepeatableByKey /
+          # removeRepeatable are deprecated since BullMQ 5.16.0 (removed in
+          # v6). The canonical recurring primitive is upsertJobScheduler
+          # (idempotent by scheduler id). The four method names are
+          # BullMQ-exclusive so this is a precise hard-zero with no false
+          # positives (unlike a bare `repeat:` which collides with domain
+          # fields and provider API params). Excludes tests + sandboxes.
+          MATCHES=$(grep -rnE "\.(addRepeatable|getRepeatableJobs|removeRepeatableByKey|removeRepeatable)\(" apps/*/src packages/*/src --include="*.ts" 2>/dev/null | \
+            grep -vE "node_modules|/dist/|\.test\.|/tests/|\.stryker" || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #20 violation::$COUNT legacy BullMQ repeatable API call(s) (expected 0). Use Queue.upsertJobScheduler / getJobSchedulers / removeJobScheduler — deprecated since BullMQ 5.16.0."
+            printf "%s\n" "$MATCHES" | head -20
+            exit 1
+          fi
+
+      - name: "#21 No Prisma singleton imports outside composition roots"
+        if: always()
+        run: |
+          set -uo pipefail
+          # DI canon: only a composition root may import the `prisma` singleton;
+          # every other unit RECEIVES PrismaClient (or a port) by constructor
+          # injection. Scope: apps/api/src + apps/workers/src. Exceptions: the
+          # api composition root (infrastructure/container), the api bootstrap
+          # (index.ts), the workers composition root (**/container/), and tests.
+          # Hard-zero (the prisma->DI remediation is complete). This guard
+          # supersedes #1 (routes are a subset).
+          MATCHES=$(grep -rlE "import \{[^}]*\bprisma\b[^}]*\} from \"@infra/prisma\"" apps/api/src apps/workers/src --include="*.ts" 2>/dev/null | \
+            grep -vE "/infrastructure/container/|/index\.ts$|/container/|\.test\.|/tests/" || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #21 violation::$COUNT prisma singleton importer(s) outside composition roots. Inject PrismaClient via constructor and resolve from the container. Do NOT add any."
+            printf "%s\n" "$MATCHES" | head -40
+            exit 1
+          fi
+
       - name: Fitness summary
         if: always()
         run: |
           echo "## Fitness Functions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "18 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
+          echo "21 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
           echo "Hard-zero threshold: any new occurrence fails this workflow with an \`::error\` annotation." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "See individual step results above for any violations." >> $GITHUB_STEP_SUMMARY

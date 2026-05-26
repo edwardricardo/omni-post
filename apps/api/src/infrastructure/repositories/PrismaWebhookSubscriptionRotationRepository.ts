@@ -12,7 +12,7 @@ import type {
   RotateWebhookSecretArgs,
   WebhookSubscriptionForRotation,
   WebhookSubscriptionRotationRepository,
-} from "../../application/webhooks/WebhookSubscriptionRotationRepository.js";
+} from "@core/application/webhooks/WebhookSubscriptionRotationRepository.js";
 
 export class PrismaWebhookSubscriptionRotationRepository implements WebhookSubscriptionRotationRepository {
   constructor(private readonly prisma: PrismaClient) {}

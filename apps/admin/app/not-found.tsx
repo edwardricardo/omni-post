@@ -1,33 +1,30 @@
 /**
  * @file not-found.tsx
- * @description Next.js 404 not-found page displaying a centered error panel with a link back
- * to the dashboard home when users navigate to a non-existent route.
+ * @description Global 404 for requests not matched by the next-intl proxy (no
+ *              locale context). Renders its own HTML shell because the
+ *              passthrough root layout provides none. Localized 404s inside a
+ *              locale are handled by `app/[locale]/not-found.tsx`.
+ * @layer infrastructure
  */
-"use client";
-
 import Link from "next/link";
-import { useTranslations } from "next-intl";
 
-export default function NotFound() {
-  const t = useTranslations("notFound");
-
+export default function GlobalNotFound() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--bg-base)]">
-      <div className="text-center max-w-md p-8">
-        <div className="mb-4">
-          <div className="mx-auto w-16 h-16 bg-[var(--accent-subtle)] rounded-full flex items-center justify-center">
-            <span className="text-[var(--accent)] text-2xl font-bold">404</span>
+    <html lang="en">
+      <body>
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="text-center max-w-md p-8">
+            <h2 className="text-2xl font-bold mb-4">Not Found</h2>
+            <p className="text-gray-600 mb-4">Could not find the requested resource</p>
+            <Link
+              href="/"
+              className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              Return Home
+            </Link>
           </div>
         </div>
-        <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-4">{t("title")}</h2>
-        <p className="text-[var(--text-secondary)] mb-4">{t("description")}</p>
-        <Link
-          href="/"
-          className="inline-flex items-center justify-center rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-fg)] hover:bg-[var(--accent-hover)] transition-colors"
-        >
-          {t("goHome")}
-        </Link>
-      </div>
-    </div>
+      </body>
+    </html>
   );
 }

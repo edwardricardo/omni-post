@@ -14,9 +14,16 @@ import type {
   ContentOptimization,
   PerformancePrediction,
   AIProviderConfig,
+  StructuredOutputSpec,
 } from "../types.js";
 import { AppError } from "../../lib/errors/AppError.js";
 import { logger } from "../../lib/logger.js";
+import {
+  analysisSpec,
+  optimizationSpec,
+  predictionSpec,
+  variationsSpec,
+} from "../structuredSchemas.js";
 
 const aiLogger = logger.child({ module: "ai", provider: "anthropic" });
 
@@ -26,6 +33,7 @@ const aiLogger = logger.child({ module: "ai", provider: "anthropic" });
  */
 export class AnthropicProvider implements AIProvider {
   name = "anthropic" as const;
+  readonly supportsEmbeddings = false;
   private client: Anthropic;
   private config: AIProviderConfig;
 
@@ -86,6 +94,61 @@ export class AnthropicProvider implements AIProvider {
   }
 
   /**
+   * @method generateStructured
+   * @description Schema-validated generation via Claude forced tool-use: the
+   *   schema is registered as a single tool and `tool_choice` forces it, so
+   *   Claude returns structured `input` matching the schema. Output is routed
+   *   through `spec.parse` so callers get a validated `T`, never raw text.
+   * @param messages - Conversation messages.
+   * @param spec - Technology-free structured-output spec (name/schema/parse).
+   * @param options - Generation options (model, tokens, temperature).
+   * @returns The validated structured value `T`.
+   */
+  async generateStructured<T>(
+    messages: AIMessage[],
+    spec: StructuredOutputSpec<T>,
+    options: GenerationOptions = {}
+  ): Promise<T> {
+    try {
+      const systemMessage = messages.find((m) => m.role === "system");
+      const userMessages = messages
+        .filter((m) => m.role !== "system")
+        .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+
+      const response = await this.client.messages.create({
+        model: options.model || this.config.model || "claude-sonnet-4-6",
+        max_tokens: options.maxTokens || 1000,
+        ...(systemMessage && { system: systemMessage.content }),
+        messages: userMessages,
+        temperature: options.temperature ?? 0.7,
+        tools: [
+          {
+            name: spec.name,
+            ...(spec.description !== undefined && { description: spec.description }),
+            input_schema: spec.jsonSchema as Anthropic.Tool.InputSchema,
+          },
+        ],
+        tool_choice: { type: "tool", name: spec.name },
+      });
+
+      const toolUse = response.content.find((b) => b.type === "tool_use");
+      if (!toolUse || toolUse.type !== "tool_use") {
+        throw AppError.externalService(
+          "Anthropic",
+          "Anthropic returned no tool_use block for structured output"
+        );
+      }
+      return spec.parse(toolUse.input);
+    } catch (error: unknown) {
+      aiLogger.error({ err: error }, "Anthropic structured generation failed");
+      throw AppError.externalService(
+        "Anthropic",
+        `Anthropic structured generation failed: ${error}`
+      );
+    }
+  }
+
+  /**
    * @method analyzeContent
    * @description Analyzes content using Claude for sentiment, tone, readability, or engagement.
    */
@@ -100,19 +163,13 @@ export class AnthropicProvider implements AIProvider {
       engagement: `Analyze the engagement potential of this content and return a JSON response with score (0-100) and specific factors that impact engagement:\n\n"${content}"`,
     };
 
-    try {
-      const response = await this.generateText([
-        {
-          role: "system",
-          content: "You are an expert content analyzer. Always respond with valid JSON only.",
-        },
+    return this.generateStructured(
+      [
+        { role: "system", content: "You are an expert content analyzer." },
         { role: "user", content: prompts[analysisType] },
-      ]);
-      return JSON.parse(response);
-    } catch (error: unknown) {
-      aiLogger.error({ err: error }, "Anthropic analysis failed");
-      throw AppError.externalService("Anthropic", `Anthropic analysis failed: ${error}`);
-    }
+      ],
+      analysisSpec(analysisType)
+    );
   }
 
   /**
@@ -137,20 +194,13 @@ Return a JSON response with:
 Content to optimize:
 "${content}"`;
 
-    try {
-      const response = await this.generateText([
-        {
-          role: "system",
-          content:
-            "You are an expert social media content optimizer. Always respond with valid JSON only.",
-        },
+    return this.generateStructured(
+      [
+        { role: "system", content: "You are an expert social media content optimizer." },
         { role: "user", content: prompt },
-      ]);
-      return JSON.parse(response);
-    } catch (error: unknown) {
-      aiLogger.error({ err: error }, "Anthropic optimization failed");
-      throw AppError.externalService("Anthropic", `Anthropic optimization failed: ${error}`);
-    }
+      ],
+      optimizationSpec
+    );
   }
 
   /**
@@ -174,20 +224,13 @@ Return a JSON response with:
 Content:
 "${content}"`;
 
-    try {
-      const response = await this.generateText([
-        {
-          role: "system",
-          content:
-            "You are an expert social media performance analyst. Always respond with valid JSON only.",
-        },
+    return this.generateStructured(
+      [
+        { role: "system", content: "You are an expert social media performance analyst." },
         { role: "user", content: prompt },
-      ]);
-      return JSON.parse(response);
-    } catch (error: unknown) {
-      aiLogger.error({ err: error }, "Anthropic prediction failed");
-      throw AppError.externalService("Anthropic", `Anthropic prediction failed: ${error}`);
-    }
+      ],
+      predictionSpec
+    );
   }
 
   /**
@@ -205,22 +248,12 @@ Content:
 
 Return as a JSON array of strings.`;
 
-    try {
-      const response = await this.generateText([
-        {
-          role: "system",
-          content:
-            "You are an expert content variation generator. Always respond with a valid JSON array of strings only.",
-        },
+    return this.generateStructured(
+      [
+        { role: "system", content: "You are an expert content variation generator." },
         { role: "user", content: prompt },
-      ]);
-      return JSON.parse(response);
-    } catch (error: unknown) {
-      aiLogger.error({ err: error }, "Anthropic variation generation failed");
-      throw AppError.externalService(
-        "Anthropic",
-        `Anthropic variation generation failed: ${error}`
-      );
-    }
+      ],
+      variationsSpec()
+    );
   }
 }

@@ -5,11 +5,13 @@
  * @layer infrastructure
  */
 
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import type { DeviceFingerprint, SecurityEventType } from "./adminAuthTypes";
 import { adminAuthConfig } from "./adminAuthConfig";
 
 export class BruteForceProtection {
+  constructor(private readonly prisma: PrismaClient) {}
+
   /**
    * Record login attempt for security analytics
    */
@@ -21,7 +23,7 @@ export class BruteForceProtection {
     failureReason?: string
   ): Promise<void> {
     // Calculate threat score based on recent failed attempts
-    const recentAttempts = await prisma.adminLoginAttempt.count({
+    const recentAttempts = await this.prisma.adminLoginAttempt.count({
       where: {
         email,
         success: false,
@@ -55,8 +57,8 @@ export class BruteForceProtection {
       attemptData.location = device.location;
     }
 
-    await prisma.adminLoginAttempt.create({
-      data: attemptData as Parameters<typeof prisma.adminLoginAttempt.create>[0]["data"],
+    await this.prisma.adminLoginAttempt.create({
+      data: attemptData as Parameters<typeof this.prisma.adminLoginAttempt.create>[0]["data"],
     });
   }
 
@@ -73,7 +75,7 @@ export class BruteForceProtection {
       timestamp: Date;
     }) => Promise<void>
   ): Promise<boolean> {
-    const user = await prisma.adminUser.findUnique({
+    const user = await this.prisma.adminUser.findUnique({
       where: { id: userId },
       select: { failedLoginAttempts: true, lockedUntil: true },
     });
@@ -86,7 +88,7 @@ export class BruteForceProtection {
     }
 
     // Increment failed attempts
-    const updatedUser = await prisma.adminUser.update({
+    const updatedUser = await this.prisma.adminUser.update({
       where: { id: userId },
       data: {
         failedLoginAttempts: user.failedLoginAttempts + 1,
@@ -98,7 +100,7 @@ export class BruteForceProtection {
       const lockUntil = new Date(
         Date.now() + adminAuthConfig.security.lockoutDurationMinutes * 60 * 1000
       );
-      await prisma.adminUser.update({
+      await this.prisma.adminUser.update({
         where: { id: userId },
         data: {
           lockedUntil: lockUntil,
@@ -124,7 +126,7 @@ export class BruteForceProtection {
    * Reset failed login attempts on successful login
    */
   async resetFailedAttempts(userId: string): Promise<void> {
-    await prisma.adminUser.update({
+    await this.prisma.adminUser.update({
       where: { id: userId },
       data: {
         failedLoginAttempts: 0,

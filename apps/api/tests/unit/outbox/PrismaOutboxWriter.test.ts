@@ -11,7 +11,7 @@
 
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { PrismaOutboxWriter } from "../../../src/infrastructure/outbox/PrismaOutboxWriter.js";
-import type { DomainEvent } from "../../../src/domain/events/DomainEvent.js";
+import type { DomainEvent } from "@core/domain/events/DomainEvent.js";
 
 describe("PrismaOutboxWriter", () => {
   let writer: PrismaOutboxWriter;

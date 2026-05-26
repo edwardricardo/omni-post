@@ -4,7 +4,7 @@
  *              restoring previous versions, and branch support with commit messages.
  * @layer infrastructure
  */
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { BaseService } from "../services/BaseService";
 import { Result } from "@shared/types";
 import type { Template, TemplateVersion } from "./templateTypes.js";
@@ -82,7 +82,7 @@ export function mapToTemplate(dbTemplate: Record<string, unknown>): Template {
 }
 
 export class TemplateVersionService extends BaseService {
-  constructor() {
+  constructor(private readonly prisma: PrismaClient) {
     super("TemplateVersionService");
   }
 
@@ -96,7 +96,7 @@ export class TemplateVersionService extends BaseService {
         metadata: { projectId, templateId },
       },
       async () => {
-        const versions = await prisma.templateVersion.findMany({
+        const versions = await this.prisma.templateVersion.findMany({
           where: {
             template: {
               id: templateId,
@@ -125,7 +125,7 @@ export class TemplateVersionService extends BaseService {
       async () => {
         // Deactivate current active version
         if (versionData.isActive) {
-          await prisma.templateVersion.updateMany({
+          await this.prisma.templateVersion.updateMany({
             where: {
               templateId,
               isActive: true,
@@ -134,7 +134,7 @@ export class TemplateVersionService extends BaseService {
           });
         }
 
-        const version = await prisma.templateVersion.create({
+        const version = await this.prisma.templateVersion.create({
           data: {
             templateId,
             version: versionData.version,
@@ -172,7 +172,7 @@ export class TemplateVersionService extends BaseService {
         metadata: { projectId, templateId, versionId },
       },
       async () => {
-        const version = await prisma.templateVersion.findFirst({
+        const version = await this.prisma.templateVersion.findFirst({
           where: {
             id: versionId,
             template: {
@@ -188,7 +188,7 @@ export class TemplateVersionService extends BaseService {
         }
 
         // Update template with version content
-        const template = await prisma.template.update({
+        const template = await this.prisma.template.update({
           where: { id: templateId },
           data: {
             content: version.content,

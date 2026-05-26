@@ -6,7 +6,7 @@
  * @layer infrastructure
  */
 
-import type { PrismaClient } from "@infra/prisma";
+import type { PrismaClient, Prisma } from "@infra/prisma";
 import { type $Enums } from "@infra/prisma";
 
 import {
@@ -15,7 +15,7 @@ import {
   type InboxFilter,
   type CursorPagination,
   type CursorPaginatedResult,
-} from "../../domain/repositories/SocialMessageQueryRepository.js";
+} from "@core/domain/repositories/SocialMessageQueryRepository.js";
 
 /**
  * @class PrismaSocialMessageQueryRepository
@@ -263,6 +263,11 @@ export class PrismaSocialMessageQueryRepository implements SocialMessageQueryRep
       status: row.status,
       assigneeId: row.assigneeId,
       isArchived: row.isArchived,
+      priority: row.priority,
+      sentimentScore: row.sentimentScore !== null ? Number(row.sentimentScore) : null,
+      suggestedReplies: [...row.suggestedReplies],
+      aiProcessedAt: row.aiProcessedAt,
+      crmContactId: row.crmContactId,
       providerCreatedAt: row.providerCreatedAt,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -295,6 +300,11 @@ interface PrismaSocialMessageRow {
   status: string;
   assigneeId: string | null;
   isArchived: boolean;
+  priority: string;
+  sentimentScore: Prisma.Decimal | null;
+  suggestedReplies: string[];
+  aiProcessedAt: Date | null;
+  crmContactId: string | null;
   providerCreatedAt: Date;
   createdAt: Date;
   updatedAt: Date;

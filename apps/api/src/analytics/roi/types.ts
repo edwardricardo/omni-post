@@ -61,6 +61,7 @@ export interface RevenueModel {
 }
 
 export interface ConversionTracking {
+  accountId: string;
   source: ProviderType;
   contentId: string;
   conversionType: "sale" | "lead" | "signup" | "download" | "subscription";

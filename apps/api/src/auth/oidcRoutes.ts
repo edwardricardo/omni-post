@@ -22,11 +22,11 @@ import { randomBytes } from "crypto";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
-import type { ConfigureOidcUseCase } from "../application/auth/ConfigureOidcUseCase.js";
-import type { EnableOidcSsoUseCase } from "../application/auth/EnableOidcSsoUseCase.js";
-import type { DisableOidcSsoUseCase } from "../application/auth/DisableOidcSsoUseCase.js";
-import type { GetOidcConfigurationQuery } from "../application/auth/GetOidcConfigurationQuery.js";
-import type { OidcConfigurationRepository } from "../domain/repositories/OidcConfigurationRepository.js";
+import type { ConfigureOidcUseCase } from "@core/application/auth/ConfigureOidcUseCase.js";
+import type { EnableOidcSsoUseCase } from "@core/application/auth/EnableOidcSsoUseCase.js";
+import type { DisableOidcSsoUseCase } from "@core/application/auth/DisableOidcSsoUseCase.js";
+import type { GetOidcConfigurationQuery } from "@core/application/auth/GetOidcConfigurationQuery.js";
+import type { OidcConfigurationRepository } from "@core/domain/repositories/OidcConfigurationRepository.js";
 import type { AuthService } from "./authService.js";
 import { env } from "../config/env.js";
 

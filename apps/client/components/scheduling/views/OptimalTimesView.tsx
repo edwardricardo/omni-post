@@ -8,6 +8,7 @@
  */
 
 import React, { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import type { OptimalTime } from "../../../types/multi-platform-scheduling";
 
 interface OptimalTimesViewProps {
@@ -15,30 +16,40 @@ interface OptimalTimesViewProps {
   onScheduleAtTime: (dayOfWeek: number, hour: number) => void;
 }
 
+const DAY_KEYS = [
+  "daysShort.sun",
+  "daysShort.mon",
+  "daysShort.tue",
+  "daysShort.wed",
+  "daysShort.thu",
+  "daysShort.fri",
+  "daysShort.sat",
+] as const;
+
 export function OptimalTimesView({ optimalTimes, onScheduleAtTime }: OptimalTimesViewProps) {
+  const t = useTranslations("scheduling.components");
   // Sort by avgEngagement descending; show top slots grouped by day
   const topTimes = useMemo(() => {
     return optimalTimes.slice().sort((a, b) => b.avgEngagement - a.avgEngagement);
   }, [optimalTimes]);
 
-  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const dayName = (index: number): string => {
+    const key = DAY_KEYS[index];
+    return key ? t(key) : "";
+  };
 
   return (
     <div className="space-y-6">
       {/* Best times cards */}
       <div className="bg-white rounded-lg border p-6">
-        <h3 className="text-lg font-medium mb-4">Best Times to Post</h3>
-        <p className="text-gray-600 text-sm mb-6">
-          Based on your audience engagement data from the past 30 days
-        </p>
+        <h3 className="text-lg font-medium mb-4">{t("bestTimesTitle")}</h3>
+        <p className="text-gray-600 text-sm mb-6">{t("bestTimesSubtitle")}</p>
 
         {topTimes.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <div className="text-2xl mb-2">⏰</div>
-            <div className="text-sm">No engagement data available yet</div>
-            <p className="text-xs mt-2">
-              Optimal posting times will appear after collecting engagement metrics
-            </p>
+            <div className="text-sm">{t("noEngagementData")}</div>
+            <p className="text-xs mt-2">{t("noEngagementDataHint")}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -49,20 +60,24 @@ export function OptimalTimesView({ optimalTimes, onScheduleAtTime }: OptimalTime
               >
                 <div>
                   <div className="font-medium text-gray-900">
-                    {dayNames[time.dayOfWeek]} at {time.hour}:00
+                    {t("dayAtHour", { day: dayName(time.dayOfWeek), hour: time.hour })}
                   </div>
                   <div className="text-xs text-gray-500 mt-0.5">
-                    {Math.round(time.avgEngagement)}% avg. engagement
-                    {time.sampleSize > 0 && ` · ${time.sampleSize} samples`}
-                    {time.confidence > 0 && ` · ${Math.round(time.confidence * 100)}% confidence`}
+                    {t("avgEngagement", { value: Math.round(time.avgEngagement) })}
+                    {time.sampleSize > 0 && ` · ${t("samplesSuffix", { count: time.sampleSize })}`}
+                    {time.confidence > 0 &&
+                      ` · ${t("confidenceSuffix", { value: Math.round(time.confidence * 100) })}`}
                   </div>
                 </div>
                 <button
                   onClick={() => onScheduleAtTime(time.dayOfWeek, time.hour)}
                   className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500"
-                  aria-label={`Schedule post for ${dayNames[time.dayOfWeek]} at ${time.hour}:00`}
+                  aria-label={t("scheduleForDayHour", {
+                    day: dayName(time.dayOfWeek),
+                    hour: time.hour,
+                  })}
                 >
-                  Schedule
+                  {t("scheduleButton")}
                 </button>
               </div>
             ))}
@@ -72,14 +87,14 @@ export function OptimalTimesView({ optimalTimes, onScheduleAtTime }: OptimalTime
 
       {/* Engagement heatmap */}
       <div className="bg-white rounded-lg border p-6">
-        <h3 className="text-lg font-medium mb-4">Weekly Engagement Heatmap</h3>
+        <h3 className="text-lg font-medium mb-4">{t("heatmapTitle")}</h3>
         <div className="overflow-x-auto">
           <div className="grid grid-cols-8 gap-1 text-xs min-w-max">
             {/* Header row */}
             <div className="p-2"></div>
-            {dayNames.map((day) => (
-              <div key={day} className="p-2 text-center font-medium">
-                {day}
+            {DAY_KEYS.map((dayKey) => (
+              <div key={dayKey} className="p-2 text-center font-medium">
+                {t(dayKey)}
               </div>
             ))}
 
@@ -111,8 +126,12 @@ export function OptimalTimesView({ optimalTimes, onScheduleAtTime }: OptimalTime
                                 ? "bg-red-500"
                                 : "bg-gray-200 text-gray-600"
                       }`}
-                      title={`${Math.round(avgEngagement)}% engagement`}
-                      aria-label={`${dayNames[day]} at ${hour}:00 - ${Math.round(avgEngagement)}% engagement`}
+                      title={t("heatmapCellTitle", { value: Math.round(avgEngagement) })}
+                      aria-label={t("heatmapCellAria", {
+                        day: dayName(day),
+                        hour,
+                        value: Math.round(avgEngagement),
+                      })}
                     >
                       {avgEngagement > 0 ? Math.round(avgEngagement) : ""}
                     </div>

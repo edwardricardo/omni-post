@@ -139,6 +139,20 @@ class ProviderRegistryService {
   }
 
   /**
+   * @method getMentionSearchProviders
+   * @description Provider ids whose adapter implements market-wide brand-mention
+   *   search (`searchMentions`). Provider-agnostic: derived from the registered
+   *   adapters, so a new `searchMentions` implementation is included
+   *   automatically with no wiring change.
+   * @returns Lowercase provider ids that support mention search.
+   */
+  getMentionSearchProviders(): string[] {
+    return this.getProvidersWithAdapters()
+      .map((p) => p.id)
+      .filter((id) => typeof this.adapters.get(id)?.searchMentions === "function");
+  }
+
+  /**
    * Check if a provider has an adapter registered.
    */
   hasAdapter(id: string): boolean {

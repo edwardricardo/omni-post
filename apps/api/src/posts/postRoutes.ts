@@ -10,16 +10,16 @@ import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.
 import { IdSchema } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { SecureSchemas } from "../security/inputValidation.js";
-import type { GetPostWithThreadQuery } from "../application/posts/GetPostWithThreadQuery.js";
-import type { UpdatePostUseCase } from "../application/posts/UpdatePostUseCase.js";
-import type { ListPostsUseCase } from "../application/posts/ListPostsUseCase.js";
-import type { ListPostsGlobalQuery } from "../application/posts/ListPostsGlobalQuery.js";
-import type { DeletePostUseCase } from "../application/posts/DeletePostUseCase.js";
-import type { ArchivePostsBatchUseCase } from "../application/posts/ArchivePostsBatchUseCase.js";
-import type { HardDeletePostsBatchUseCase } from "../application/posts/HardDeletePostsBatchUseCase.js";
-import type { DuplicatePostsBatchUseCase } from "../application/posts/DuplicatePostsBatchUseCase.js";
-import { USE_CASE_ERRORS } from "../application/UseCase.js";
-import type { PublishStatusValue } from "../domain/value-objects/PublishStatus.js";
+import type { GetPostWithThreadQuery } from "@core/application/posts/GetPostWithThreadQuery.js";
+import type { UpdatePostUseCase } from "@core/application/posts/UpdatePostUseCase.js";
+import type { ListPostsUseCase } from "@core/application/posts/ListPostsUseCase.js";
+import type { ListPostsGlobalQuery } from "@core/application/posts/ListPostsGlobalQuery.js";
+import type { DeletePostUseCase } from "@core/application/posts/DeletePostUseCase.js";
+import type { ArchivePostsBatchUseCase } from "@core/application/posts/ArchivePostsBatchUseCase.js";
+import type { HardDeletePostsBatchUseCase } from "@core/application/posts/HardDeletePostsBatchUseCase.js";
+import type { DuplicatePostsBatchUseCase } from "@core/application/posts/DuplicatePostsBatchUseCase.js";
+import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
+import type { PublishStatusValue } from "@core/domain/value-objects/PublishStatus.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 
 // ---------------------------------------------------------------------------

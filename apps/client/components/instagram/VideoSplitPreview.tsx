@@ -10,6 +10,7 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import { type VideoSegment, type VideoSplitOptions } from "@providers/instagram/src/mediaProcessor";
 import { SegmentsGrid } from "./videoSplit/SegmentsGrid";
 import { SplitSettingsPanel } from "./videoSplit/SplitSettingsPanel";
@@ -34,6 +35,7 @@ export function VideoSplitPreview({
   onClose,
   onApply,
 }: VideoSplitPreviewProps) {
+  const t = useTranslations("instagram.components");
   const {
     videoRef,
     canvasRef,
@@ -60,10 +62,8 @@ export function VideoSplitPreview({
       <div className="bg-white rounded-2xl max-w-6xl max-h-[90vh] overflow-hidden flex flex-col w-full">
         <div className="p-6 border-b flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Video Split Preview</h2>
-            <p className="text-gray-600 mt-1">
-              Configure how your video will be split into Instagram Stories
-            </p>
+            <h2 className="text-2xl font-bold text-gray-900">{t("videoSplit.title")}</h2>
+            <p className="text-gray-600 mt-1">{t("videoSplit.subtitle")}</p>
           </div>
           <button
             onClick={onClose}
@@ -127,7 +127,10 @@ export function VideoSplitPreview({
                   {segments[currentPreviewIndex] && (
                     <div className="absolute top-4 left-4 right-4 text-center">
                       <div className="bg-black/50 text-white text-sm px-3 py-1 rounded-full">
-                        Segment {currentPreviewIndex + 1} of {segments.length}
+                        {t("videoSplit.segmentOf", {
+                          current: currentPreviewIndex + 1,
+                          total: segments.length,
+                        })}
                       </div>
                     </div>
                   )}
@@ -149,8 +152,10 @@ export function VideoSplitPreview({
           <div className="text-sm text-gray-600">
             {segments.length > 0 && (
               <>
-                {segments.length} segments will be created • Total duration:{" "}
-                {totalSegmentDuration.toFixed(1)}s
+                {t("videoSplit.summary", {
+                  count: segments.length,
+                  duration: totalSegmentDuration.toFixed(1),
+                })}
               </>
             )}
           </div>
@@ -160,14 +165,14 @@ export function VideoSplitPreview({
               onClick={onClose}
               className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
             >
-              Cancel
+              {t("videoSplit.cancel")}
             </button>
             <button
               onClick={() => onApply(segments)}
               disabled={segments.length === 0 || isProcessing}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
-              Apply Split ({segments.length} segments)
+              {t("videoSplit.applySplit", { count: segments.length })}
             </button>
           </div>
         </div>

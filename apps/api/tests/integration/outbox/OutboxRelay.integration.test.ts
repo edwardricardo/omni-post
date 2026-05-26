@@ -24,7 +24,7 @@ import { OutboxBackoff } from "../../../src/infrastructure/outbox/OutboxBackoff.
 import { OutboxInbox } from "../../../src/infrastructure/outbox/OutboxInbox.js";
 import { OutboxRelay } from "../../../src/infrastructure/outbox/OutboxRelay.js";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
-import type { DomainEvent } from "../../../src/domain/events/DomainEvent.js";
+import type { DomainEvent } from "@core/domain/events/DomainEvent.js";
 
 const EVENT_COUNT = 100;
 const TEST_TAG = "T4C_INTEGRATION";

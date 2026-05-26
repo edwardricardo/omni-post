@@ -5,12 +5,10 @@
  * @layer infrastructure
  */
 
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { Logger } from "pino";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { env } from "../config/env.js";
-
-type PrismaClient = typeof prisma;
 
 export interface QueryPerformanceMetrics {
   queryType: string;

@@ -9,8 +9,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   NotifyMentionedUsersService,
   MENTION_CONTEXT,
-} from "../../../src/application/mentions/NotifyMentionedUsersService.js";
-import type { CreateNotificationUseCase } from "../../../src/application/notifications/CreateNotificationUseCase.js";
+} from "@core/application/mentions/NotifyMentionedUsersService.js";
+import type { CreateNotificationUseCase } from "@core/application/notifications/CreateNotificationUseCase.js";
 import { ok } from "@shared/types";
 
 /**

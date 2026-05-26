@@ -6,11 +6,11 @@
  */
 import { Worker, Job, Queue } from "bullmq";
 import Redis from "ioredis";
-import { prisma } from "@infra/prisma";
 import { UniversalWebhookHandler } from "./webhookHandler.js";
-import type { WebhookEventType, Provider } from "@infra/prisma";
+import type { PrismaClient, WebhookEventType, Provider } from "@infra/prisma";
 import { webhookLogger } from "../lib/logger.js";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
+import type { MentionFetchEnqueue, MentionFetchJob } from "./mentionFetchEnqueue.js";
 
 export interface WebhookJobData {
   eventId: string;
@@ -40,14 +40,35 @@ export interface WebhookJobResult {
 export class WebhookJobProcessor {
   private webhookQueue: Queue<WebhookJobData, WebhookJobResult>;
   private deadLetterQueue: Queue<WebhookJobData, WebhookJobResult>;
+  private mentionIngestQueue: Queue<MentionFetchJob>;
   private worker!: Worker<WebhookJobData, WebhookJobResult>;
   private deadLetterWorker!: Worker<WebhookJobData, WebhookJobResult>;
   private redis: Redis;
   private webhookHandler: UniversalWebhookHandler;
 
-  constructor(redisConnection: Redis) {
+  constructor(
+    private readonly prisma: PrismaClient,
+    redisConnection: Redis
+  ) {
     this.redis = redisConnection;
-    this.webhookHandler = new UniversalWebhookHandler();
+
+    // Mention-fetch producer: a mention webhook is a notification, so the
+    // handler enqueues a fetch-before-process job for the mention-ingest worker.
+    this.mentionIngestQueue = new Queue<MentionFetchJob>(QUEUE_NAMES.MENTION_INGEST, {
+      connection: this.redis,
+      defaultJobOptions: {
+        removeOnComplete: 200,
+        removeOnFail: 100,
+        attempts: 3,
+        backoff: { type: "exponential", delay: 5000 },
+      },
+    });
+    const mentionEnqueue: MentionFetchEnqueue = async (job) => {
+      await this.mentionIngestQueue.add("mention-fetch", job, {
+        jobId: `mention-fetch-${job.provider}-${job.providerMentionId}`,
+      });
+    };
+    this.webhookHandler = new UniversalWebhookHandler(this.prisma, undefined, mentionEnqueue);
 
     // Initialize queues
     this.webhookQueue = new Queue<WebhookJobData, WebhookJobResult>(
@@ -165,7 +186,7 @@ export class WebhookJobProcessor {
 
       if (result.success) {
         // Remove from dead letter database if recovered
-        await prisma.webhookDeadLetter.deleteMany({
+        await this.prisma.webhookDeadLetter.deleteMany({
           where: { originalEventId: job.data.eventId },
         });
       }
@@ -251,7 +272,7 @@ export class WebhookJobProcessor {
 
       if (result.success) {
         // Mark as recovered in database
-        await prisma.webhookDeadLetter.updateMany({
+        await this.prisma.webhookDeadLetter.updateMany({
           where: { originalEventId: job.data.eventId },
           data: {
             resolvedAt: new Date(),
@@ -290,7 +311,7 @@ export class WebhookJobProcessor {
     );
 
     // Update database record
-    await prisma.webhookDeadLetter.upsert({
+    await this.prisma.webhookDeadLetter.upsert({
       where: { originalEventId: jobData.eventId },
       create: {
         originalEventId: jobData.eventId,
@@ -339,7 +360,7 @@ export class WebhookJobProcessor {
         updateData.lastError = result.error;
       }
 
-      await prisma.webhookEvent.update({
+      await this.prisma.webhookEvent.update({
         where: { id: eventId },
         data: updateData,
       });
@@ -480,7 +501,11 @@ export class WebhookJobProcessor {
 
     await Promise.all([this.worker.close(), this.deadLetterWorker.close()]);
 
-    await Promise.all([this.webhookQueue.close(), this.deadLetterQueue.close()]);
+    await Promise.all([
+      this.webhookQueue.close(),
+      this.deadLetterQueue.close(),
+      this.mentionIngestQueue.close(),
+    ]);
 
     webhookLogger.info("Webhook job processor shutdown complete");
   }
@@ -489,6 +514,6 @@ export class WebhookJobProcessor {
 /**
  * Initialize webhook job processor
  */
-export function createWebhookJobProcessor(redis: Redis): WebhookJobProcessor {
-  return new WebhookJobProcessor(redis);
+export function createWebhookJobProcessor(prisma: PrismaClient, redis: Redis): WebhookJobProcessor {
+  return new WebhookJobProcessor(prisma, redis);
 }

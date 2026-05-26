@@ -6,7 +6,7 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import type { ReferralCodeRepository } from "../../application/referral/GetOrCreateReferralCodeUseCase.js";
+import type { ReferralCodeRepository } from "@core/application/referral/GetOrCreateReferralCodeUseCase.js";
 
 export class PrismaReferralCodeRepository implements ReferralCodeRepository {
   constructor(private readonly prisma: PrismaClient) {}

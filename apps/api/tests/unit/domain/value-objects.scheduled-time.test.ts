@@ -6,7 +6,7 @@
 
 import { describe, it, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { ScheduledTime } from "../../../src/domain/value-objects/ScheduledTime.js";
+import { ScheduledTime } from "@core/domain/value-objects/ScheduledTime.js";
 
 const TEN_MIN = 10 * 60 * 1000;
 const ONE_HOUR = 60 * 60 * 1000;

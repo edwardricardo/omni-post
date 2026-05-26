@@ -123,13 +123,13 @@ describe("BlueskyClient", () => {
     });
 
     it("passes correct identifier and password to session.login", async () => {
-      const client = makeClient("alice.bsky.social", "pass-1234-5678-9012");
+      const client = makeClient("alice.bsky.social", "fixture-login-pw");
       setupLoginSuccess();
 
       await client.login();
       expect(mockLogin).toHaveBeenCalledWith({
         identifier: "alice.bsky.social",
-        password: "pass-1234-5678-9012",
+        password: "fixture-login-pw",
       });
     });
 

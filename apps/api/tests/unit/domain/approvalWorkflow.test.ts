@@ -7,27 +7,24 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { PublishStatus, PUBLISH_STATUS } from "../../../src/domain/value-objects/PublishStatus.js";
-import {
-  ApprovalStatus,
-  APPROVAL_STATUSES,
-} from "../../../src/domain/value-objects/ApprovalStatus.js";
-import { ReviewDecision } from "../../../src/domain/value-objects/ReviewDecision.js";
+import { PublishStatus, PUBLISH_STATUS } from "@core/domain/value-objects/PublishStatus.js";
+import { ApprovalStatus, APPROVAL_STATUSES } from "@core/domain/value-objects/ApprovalStatus.js";
+import { ReviewDecision } from "@core/domain/value-objects/ReviewDecision.js";
 import {
   ApprovalRequestAggregate,
   ApprovalRequestCreated,
   ApprovalRequestResolved,
   ApprovalRequestCancelled,
   ApprovalLevelAdvanced,
-} from "../../../src/domain/aggregates/ApprovalRequestAggregate.js";
-import { ApprovalRequestId } from "../../../src/domain/value-objects/ApprovalRequestId.js";
-import { PostAggregate } from "../../../src/domain/aggregates/PostAggregate.js";
-import { ProjectId } from "../../../src/domain/value-objects/EntityId.js";
+} from "@core/domain/aggregates/ApprovalRequestAggregate.js";
+import { ApprovalRequestId } from "@core/domain/value-objects/ApprovalRequestId.js";
+import { PostAggregate } from "@core/domain/aggregates/PostAggregate.js";
+import { ProjectId } from "@core/domain/value-objects/EntityId.js";
 import {
   PostSubmittedForReview,
   PostApproved,
   PostRejected,
-} from "../../../src/domain/events/PostEvents.js";
+} from "@core/domain/events/PostEvents.js";
 
 // ---------------------------------------------------------------------------
 // Helpers

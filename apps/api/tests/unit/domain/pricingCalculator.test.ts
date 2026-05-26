@@ -7,15 +7,15 @@
 
 import { describe, it, expect } from "vitest";
 import assert from "node:assert/strict";
-import { PricingCalculator } from "../../../src/domain/billing/PricingCalculator.js";
+import { PricingCalculator } from "@core/domain/billing/PricingCalculator.js";
 import type {
   ProviderTier,
   AccountTier,
   BundleDef,
   PriceQuote,
   BundleMatch,
-} from "../../../src/domain/billing/PricingCalculator.js";
-import { InvariantViolationError } from "../../../src/domain/errors/DomainError.js";
+} from "@core/domain/billing/PricingCalculator.js";
+import { InvariantViolationError } from "@core/domain/errors/DomainError.js";
 import type { Result } from "@shared/types";
 
 function unwrapQuote(result: Result<PriceQuote, InvariantViolationError>): PriceQuote {

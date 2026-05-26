@@ -6,8 +6,8 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { GeneratePlatformVariantsUseCase } from "../../../src/application/ai/GeneratePlatformVariantsUseCase.js";
-import { PLATFORM_CONTENT_PROFILES } from "../../../src/domain/ai/PlatformContentProfile.js";
+import { GeneratePlatformVariantsUseCase } from "@core/application/ai/GeneratePlatformVariantsUseCase.js";
+import { PLATFORM_CONTENT_PROFILES } from "@core/domain/ai/PlatformContentProfile.js";
 import { ok } from "@shared/types";
 
 function makeMockAIPort(content = "Generated content for this platform #awesome") {

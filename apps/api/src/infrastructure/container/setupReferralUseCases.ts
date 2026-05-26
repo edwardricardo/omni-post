@@ -8,22 +8,23 @@
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import { prisma } from "@infra/prisma";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
-import type { EmailPort } from "../../domain/repositories/EmailPort.js";
+import { env } from "../../config/env.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
+import type { ReferralRewardMailer } from "@core/domain/repositories/ReferralRewardMailer.js";
 
 import { PrismaConvertReferralRepository } from "../repositories/PrismaConvertReferralRepository.js";
 import { PrismaGrantRewardRepository } from "../repositories/PrismaGrantRewardRepository.js";
 import { PrismaReferralRepository } from "../repositories/PrismaReferralRepository.js";
 import { PrismaReferralCodeRepository } from "../repositories/PrismaReferralCodeRepository.js";
 
-import type { ConvertReferralRepository } from "../../application/referral/ConvertReferralUseCase.js";
-import { ConvertReferralUseCase } from "../../application/referral/ConvertReferralUseCase.js";
-import type { GrantRewardRepository } from "../../application/referral/GrantReferralRewardUseCase.js";
-import { GrantReferralRewardUseCase } from "../../application/referral/GrantReferralRewardUseCase.js";
-import type { ReferralRepository } from "../../application/referral/TrackReferralSignupUseCase.js";
-import { TrackReferralSignupUseCase } from "../../application/referral/TrackReferralSignupUseCase.js";
-import type { ReferralCodeRepository } from "../../application/referral/GetOrCreateReferralCodeUseCase.js";
-import { GetOrCreateReferralCodeUseCase } from "../../application/referral/GetOrCreateReferralCodeUseCase.js";
+import type { ConvertReferralRepository } from "@core/application/referral/ConvertReferralUseCase.js";
+import { ConvertReferralUseCase } from "@core/application/referral/ConvertReferralUseCase.js";
+import type { GrantRewardRepository } from "@core/application/referral/GrantReferralRewardUseCase.js";
+import { GrantReferralRewardUseCase } from "@core/application/referral/GrantReferralRewardUseCase.js";
+import type { ReferralRepository } from "@core/application/referral/TrackReferralSignupUseCase.js";
+import { TrackReferralSignupUseCase } from "@core/application/referral/TrackReferralSignupUseCase.js";
+import type { ReferralCodeRepository } from "@core/application/referral/GetOrCreateReferralCodeUseCase.js";
+import { GetOrCreateReferralCodeUseCase } from "@core/application/referral/GetOrCreateReferralCodeUseCase.js";
 
 /**
  * @method setupReferralUseCases
@@ -54,7 +55,7 @@ export function setupReferralUseCases(container: Container): void {
     () =>
       new GrantReferralRewardUseCase(
         container.resolve<GrantRewardRepository>(TOKENS.GrantRewardRepository),
-        container.tryResolve<EmailPort>(TOKENS.EmailPort),
+        container.tryResolve<ReferralRewardMailer>(TOKENS.ReferralRewardMailer),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
@@ -89,6 +90,7 @@ export function setupReferralUseCases(container: Container): void {
     () =>
       new GetOrCreateReferralCodeUseCase(
         container.resolve<ReferralCodeRepository>(TOKENS.ReferralCodeRepository),
+        env.CLIENT_URL ?? "http://localhost:3002",
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true

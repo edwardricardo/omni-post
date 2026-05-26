@@ -6,12 +6,14 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import { Avatar, AvatarFallback, AvatarImage } from "@packages/ui";
 import type { PreviewProps } from "./types";
 
 const TELEGRAM_CAPTION_LIMIT = 4096;
 
 export function TelegramPreview({ content, media, userInfo }: PreviewProps) {
+  const t = useTranslations("editor");
   const body =
     content.length > TELEGRAM_CAPTION_LIMIT
       ? content.slice(0, TELEGRAM_CAPTION_LIMIT) + "..."
@@ -32,7 +34,7 @@ export function TelegramPreview({ content, media, userInfo }: PreviewProps) {
           <img src={media[0].url} alt="" className="w-full rounded-lg mb-2 object-cover max-h-48" />
         )}
         <p className="text-sm text-gray-900 whitespace-pre-wrap">{body}</p>
-        <p className="text-right text-xs text-gray-400 mt-1">now ✓✓</p>
+        <p className="text-right text-xs text-gray-400 mt-1">{t("preview.now")} ✓✓</p>
       </div>
     </div>
   );

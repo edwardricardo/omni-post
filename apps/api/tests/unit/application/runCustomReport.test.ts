@@ -7,7 +7,7 @@
 
 import { describe, it, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { RunCustomReportQuery } from "../../../src/application/custom-reports/RunCustomReportQuery.js";
+import { RunCustomReportQuery } from "@core/application/custom-reports/RunCustomReportQuery.js";
 import { ok, err } from "@shared/types";
 
 function makeReportDto(overrides: Record<string, unknown> = {}) {
@@ -17,7 +17,7 @@ function makeReportDto(overrides: Record<string, unknown> = {}) {
     projectId: null,
     name: "Test Report",
     description: null,
-    metrics: ["views", "likes"],
+    metrics: ["impressions", "likes"],
     dimensions: ["date"],
     dateRange: "LAST_7_DAYS",
     dateRangeStart: null,
@@ -107,7 +107,7 @@ describe("RunCustomReportQuery", () => {
     assert.strictEqual(result.value.labels.length, 3);
     assert.strictEqual(result.value.datasets.length, 2);
 
-    const viewsDataset = result.value.datasets.find((d) => d.label === "views");
+    const viewsDataset = result.value.datasets.find((d) => d.label === "impressions");
     assert.ok(viewsDataset);
     assert.deepStrictEqual(viewsDataset.data, [100, 200, 150]);
   });
@@ -159,7 +159,7 @@ describe("RunCustomReportQuery", () => {
     assert.ok(result.value.labels.includes("INSTAGRAM"));
     assert.ok(result.value.labels.includes("X"));
 
-    const viewsDataset = result.value.datasets.find((d) => d.label === "views");
+    const viewsDataset = result.value.datasets.find((d) => d.label === "impressions");
     assert.ok(viewsDataset);
     const igIndex = result.value.labels.indexOf("INSTAGRAM");
     assert.strictEqual(viewsDataset.data[igIndex], 300);

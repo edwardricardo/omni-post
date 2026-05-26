@@ -13,8 +13,8 @@ import {
   PredictOptimalTimingUseCase,
   type OptimizeContentInput,
   type PredictTimingInput,
-} from "../../../src/application/ml/index.js";
-import { USE_CASE_ERRORS } from "../../../src/application/UseCase.js";
+} from "@core/application/ml/index.js";
+import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 
 /**
  * Mock AIService that simulates AI unavailability (for heuristic fallback tests)

@@ -2,24 +2,26 @@
  * @file TabNavigation.tsx
  * @description Horizontal tab bar for the PredictiveAnalytics dashboard, allowing
  * users to switch between Performance, ROI Forecast, Audience, and Competitive views.
+ * @layer infrastructure
  */
 
 import React from "react";
 import { BarChart3, DollarSign, Users, Target, LucideIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { AnalysisTab } from "./types";
 
 interface TabConfig {
   id: AnalysisTab;
-  label: string;
+  labelKey: string;
   icon: LucideIcon;
 }
 
-const tabs: TabConfig[] = [
-  { id: "performance", label: "Performance", icon: BarChart3 },
-  { id: "roi", label: "ROI Forecast", icon: DollarSign },
-  { id: "audience", label: "Audience", icon: Users },
-  { id: "competitive", label: "Competitive", icon: Target },
-];
+const tabs = [
+  { id: "performance", labelKey: "tabNav.performance", icon: BarChart3 },
+  { id: "roi", labelKey: "tabNav.roi", icon: DollarSign },
+  { id: "audience", labelKey: "tabNav.audience", icon: Users },
+  { id: "competitive", labelKey: "tabNav.competitive", icon: Target },
+] as const satisfies ReadonlyArray<TabConfig>;
 
 interface TabNavigationProps {
   activeTab: AnalysisTab;
@@ -32,6 +34,7 @@ interface TabNavigationProps {
  * between Performance, ROI Forecast, Audience, and Competitive views.
  */
 export const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onTabChange }) => {
+  const t = useTranslations("ai.components");
   return (
     <div className="border-b border-gray-200">
       <nav className="flex space-x-8 px-6">
@@ -48,7 +51,7 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onTabCh
               }`}
             >
               <Icon className="w-4 h-4" />
-              <span>{tab.label}</span>
+              <span>{t(tab.labelKey)}</span>
             </button>
           );
         })}

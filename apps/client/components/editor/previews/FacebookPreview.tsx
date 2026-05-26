@@ -6,6 +6,7 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import { Avatar, AvatarFallback, AvatarImage, Button } from "@packages/ui";
 import { MessageCircle, MoreHorizontal, Share } from "lucide-react";
 import type { PreviewProps } from "./types";
@@ -13,6 +14,7 @@ import type { PreviewProps } from "./types";
 const FACEBOOK_PREVIEW_LIMIT = 400;
 
 export function FacebookPreview({ content, media, userInfo }: PreviewProps) {
+  const t = useTranslations("editor");
   const preview =
     content.length > FACEBOOK_PREVIEW_LIMIT ? content.slice(0, FACEBOOK_PREVIEW_LIMIT) : content;
   const hasMore = content.length > FACEBOOK_PREVIEW_LIMIT;
@@ -25,7 +27,7 @@ export function FacebookPreview({ content, media, userInfo }: PreviewProps) {
         </Avatar>
         <div>
           <p className="font-semibold text-sm text-gray-900">{userInfo.name}</p>
-          <p className="text-xs text-gray-500">Just now · 🌐</p>
+          <p className="text-xs text-gray-500">{t("preview.justNow")} · 🌐</p>
         </div>
         <Button variant="ghost" size="sm" className="ml-auto">
           <MoreHorizontal className="w-4 h-4" />
@@ -34,7 +36,7 @@ export function FacebookPreview({ content, media, userInfo }: PreviewProps) {
       <div className="px-3 pb-2">
         <p className="text-sm text-gray-900 whitespace-pre-wrap">
           {preview}
-          {hasMore && <span className="text-blue-600 cursor-pointer"> See more</span>}
+          {hasMore && <span className="text-blue-600 cursor-pointer"> {t("preview.seeMore")}</span>}
         </p>
       </div>
       {media[0] && (
@@ -45,15 +47,15 @@ export function FacebookPreview({ content, media, userInfo }: PreviewProps) {
       <div className="px-3 py-2 border-t flex items-center justify-around text-gray-500 text-sm">
         <Button variant="ghost" size="sm" className="flex items-center gap-1">
           <span>👍</span>
-          <span>Like</span>
+          <span>{t("preview.like")}</span>
         </Button>
         <Button variant="ghost" size="sm" className="flex items-center gap-1">
           <MessageCircle className="w-4 h-4" />
-          <span>Comment</span>
+          <span>{t("preview.comment")}</span>
         </Button>
         <Button variant="ghost" size="sm" className="flex items-center gap-1">
           <Share className="w-4 h-4" />
-          <span>Share</span>
+          <span>{t("preview.share")}</span>
         </Button>
       </div>
     </div>

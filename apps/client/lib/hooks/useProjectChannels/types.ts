@@ -44,7 +44,7 @@ export interface ProjectChannel {
   isPrimary: boolean;
   /** Derived: `status === CONNECTED && !needsReauth`. */
   isConnected: boolean;
-  /** Admin-triggered "force reconnect" flag (PR-43-A). */
+  /** Admin-triggered "force reconnect" flag. */
   needsReauth: boolean;
   status: ChannelStatus;
   /** Timestamp of the most recent successful OAuth grant (ISO 8601). */

@@ -25,7 +25,7 @@
 
 import type { PrismaClient } from "@infra/prisma";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
-import type { EventDispatcher, DomainEvent } from "../../domain/events/DomainEvent.js";
+import type { EventDispatcher, DomainEvent } from "@core/domain/events/DomainEvent.js";
 import type { OutboxClaimService, ClaimedOutboxEvent } from "./OutboxClaimService.js";
 import type { OutboxBackoff } from "./OutboxBackoff.js";
 import type { OutboxInbox } from "./OutboxInbox.js";

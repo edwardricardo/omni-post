@@ -5,9 +5,11 @@
  * @component TipTapEditor
  * @description Rich text editor built on TipTap with a formatting toolbar, character
  * count, link/color popovers, and Handlebars variable highlighting for templates.
+ * @layer infrastructure
  */
 
 import React, { useCallback, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { useEditor, EditorContent } from "@tiptap/react";
 // TipTap extensions and core functionality
 import StarterKit from "@tiptap/starter-kit";
@@ -54,10 +56,12 @@ interface TipTapEditorProps {
 const TipTapEditor: React.FC<TipTapEditorProps> = ({
   content,
   onChange,
-  placeholder = "Start writing your template...",
+  placeholder,
   onVariableInsert,
   className = "",
 }) => {
+  const t = useTranslations("templates.components.tiptap");
+  const resolvedPlaceholder = placeholder ?? t("placeholder");
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -66,7 +70,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
         },
       }),
       Placeholder.configure({
-        placeholder,
+        placeholder: resolvedPlaceholder,
       }),
       CharacterCount,
       Typography,
@@ -202,7 +206,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
         </PopoverTrigger>
         <PopoverContent className="w-80 p-4">
           <div className="space-y-2">
-            <Label htmlFor="url">URL</Label>
+            <Label htmlFor="url">{t("urlLabel")}</Label>
             <Input
               id="url"
               value={url}
@@ -218,7 +222,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
                   setUrl("");
                 }}
               >
-                Remove
+                {t("removeLink")}
               </Button>
               <Button
                 size="sm"
@@ -229,7 +233,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
                   setUrl("");
                 }}
               >
-                Apply
+                {t("applyLink")}
               </Button>
             </div>
           </div>
@@ -245,7 +249,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
         <ToolbarButton
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().undo()}
-          tooltip="Undo"
+          tooltip={t("tooltips.undo")}
         >
           <Undo className="h-4 w-4" />
         </ToolbarButton>
@@ -253,7 +257,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
         <ToolbarButton
           onClick={() => editor.chain().focus().redo().run()}
           disabled={!editor.can().redo()}
-          tooltip="Redo"
+          tooltip={t("tooltips.redo")}
         >
           <Redo className="h-4 w-4" />
         </ToolbarButton>
@@ -263,7 +267,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBold().run()}
           isActive={editor.isActive("bold")}
-          tooltip="Bold"
+          tooltip={t("tooltips.bold")}
         >
           <Bold className="h-4 w-4" />
         </ToolbarButton>
@@ -271,7 +275,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleItalic().run()}
           isActive={editor.isActive("italic")}
-          tooltip="Italic"
+          tooltip={t("tooltips.italic")}
         >
           <Italic className="h-4 w-4" />
         </ToolbarButton>
@@ -279,7 +283,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleStrike().run()}
           isActive={editor.isActive("strike")}
-          tooltip="Strikethrough"
+          tooltip={t("tooltips.strikethrough")}
         >
           <Strikethrough className="h-4 w-4" />
         </ToolbarButton>
@@ -287,7 +291,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleCode().run()}
           isActive={editor.isActive("code")}
-          tooltip="Inline Code"
+          tooltip={t("tooltips.inlineCode")}
         >
           <Code className="h-4 w-4" />
         </ToolbarButton>
@@ -297,7 +301,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
           isActive={editor.isActive("heading", { level: 1 })}
-          tooltip="Heading 1"
+          tooltip={t("tooltips.heading1")}
         >
           <Type className="h-4 w-4" />
         </ToolbarButton>
@@ -305,7 +309,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
           isActive={editor.isActive("heading", { level: 2 })}
-          tooltip="Heading 2"
+          tooltip={t("tooltips.heading2")}
         >
           <Type className="h-3 w-3" />
         </ToolbarButton>
@@ -315,7 +319,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBulletList().run()}
           isActive={editor.isActive("bulletList")}
-          tooltip="Bullet List"
+          tooltip={t("tooltips.bulletList")}
         >
           <List className="h-4 w-4" />
         </ToolbarButton>
@@ -323,7 +327,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
           isActive={editor.isActive("orderedList")}
-          tooltip="Numbered List"
+          tooltip={t("tooltips.numberedList")}
         >
           <ListOrdered className="h-4 w-4" />
         </ToolbarButton>
@@ -331,7 +335,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
           isActive={editor.isActive("blockquote")}
-          tooltip="Quote"
+          tooltip={t("tooltips.quote")}
         >
           <Quote className="h-4 w-4" />
         </ToolbarButton>
@@ -341,7 +345,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleHighlight().run()}
           isActive={editor.isActive("highlight")}
-          tooltip="Highlight"
+          tooltip={t("tooltips.highlight")}
         >
           <Highlighter className="h-4 w-4" />
         </ToolbarButton>
@@ -354,7 +358,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
 
         <ToolbarButton
           onClick={() => editor.chain().focus().setHorizontalRule().run()}
-          tooltip="Horizontal Rule"
+          tooltip={t("tooltips.horizontalRule")}
         >
           <Minus className="h-4 w-4" />
         </ToolbarButton>
@@ -369,7 +373,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
           </PopoverTrigger>
           <PopoverContent className="w-48 p-2">
             <div className="space-y-1">
-              <div className="text-xs font-medium text-gray-600 mb-2">Quick Variables</div>
+              <div className="text-xs font-medium text-gray-600 mb-2">{t("quickVariables")}</div>
               {["username", "date", "productName", "companyName", "eventName"].map((variable) => (
                 <Button
                   key={variable}
@@ -394,8 +398,8 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
       {/* Footer */}
       {editor.storage.characterCount && (
         <div className="border-t bg-gray-50 px-3 py-2 text-xs text-gray-500 flex justify-between">
-          <div>Characters: {editor.storage.characterCount.characters()}</div>
-          <div>Words: {editor.storage.characterCount.words()}</div>
+          <div>{t("characters", { count: editor.storage.characterCount.characters() })}</div>
+          <div>{t("words", { count: editor.storage.characterCount.words() })}</div>
         </div>
       )}
     </div>

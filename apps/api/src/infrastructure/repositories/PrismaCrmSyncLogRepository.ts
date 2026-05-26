@@ -10,7 +10,7 @@ import type {
   CrmSyncLogData,
   CreateCrmSyncLogInput,
   UpdateCrmSyncLogInput,
-} from "../../domain/repositories/CrmSyncLogRepository.js";
+} from "@core/domain/repositories/CrmSyncLogRepository.js";
 
 export class PrismaCrmSyncLogRepository implements CrmSyncLogRepository {
   constructor(private readonly prisma: PrismaClient) {}

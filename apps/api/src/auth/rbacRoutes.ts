@@ -531,7 +531,10 @@ class RbacRouteHandler extends BaseRouteHandler {
 
 const rbacRoutes: FastifyPluginAsync = async (fastify) => {
   const rbacService = fastify.container!.resolve<RbacService>(TOKENS.RbacService);
-  const roleManagement = new RoleManagementService(rbacService);
+  const roleManagement = new RoleManagementService(
+    fastify.container!.resolve(TOKENS.PrismaClient),
+    rbacService
+  );
   const handler = new RbacRouteHandler(rbacService, roleManagement);
 
   // Permission queries

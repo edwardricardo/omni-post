@@ -8,6 +8,7 @@
  */
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@packages/ui";
 import { Button } from "@packages/ui";
 import { Input } from "@packages/ui";
@@ -29,6 +30,7 @@ export function TemplateLibrarySearch({
   onViewModeChange,
   onResetFilters,
 }: TemplateLibrarySearchProps) {
+  const t = useTranslations("templates.components.library");
   return (
     <Card>
       <CardContent className="p-4">
@@ -37,7 +39,7 @@ export function TemplateLibrarySearch({
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search templates by name, description, or category..."
+              placeholder={t("search.placeholder")}
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
               className="pl-10"
@@ -51,12 +53,12 @@ export function TemplateLibrarySearch({
               onValueChange={(value) => onFiltersChange((prev) => ({ ...prev, category: value }))}
             >
               <SelectTrigger className="w-40">
-                <SelectValue placeholder="Category" />
+                <SelectValue placeholder={t("search.category")} />
               </SelectTrigger>
               <SelectContent>
                 {categories.map((category) => (
                   <SelectItem key={category} value={category}>
-                    {category === "all" ? "All Categories" : category}
+                    {category === "all" ? t("search.allCategories") : category}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -67,12 +69,12 @@ export function TemplateLibrarySearch({
               onValueChange={(value) => onFiltersChange((prev) => ({ ...prev, platform: value }))}
             >
               <SelectTrigger className="w-40">
-                <SelectValue placeholder="Platform" />
+                <SelectValue placeholder={t("search.platform")} />
               </SelectTrigger>
               <SelectContent>
                 {platforms.map((platform) => (
                   <SelectItem key={platform} value={platform}>
-                    {platform === "all" ? "All Platforms" : platform.toUpperCase()}
+                    {platform === "all" ? t("search.allPlatforms") : platform.toUpperCase()}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -80,14 +82,16 @@ export function TemplateLibrarySearch({
 
             <Select value={sortBy} onValueChange={(value) => onSortByChange(value as SortBy)}>
               <SelectTrigger className="w-40">
-                <SelectValue placeholder="Sort by" />
+                <SelectValue placeholder={t("search.sortBy")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="updated">Recently Updated</SelectItem>
-                <SelectItem value="created">Recently Created</SelectItem>
-                <SelectItem value="name">Name</SelectItem>
-                <SelectItem value="category">Category</SelectItem>
-                {showAnalytics && <SelectItem value="popularity">Popularity</SelectItem>}
+                <SelectItem value="updated">{t("search.sortUpdated")}</SelectItem>
+                <SelectItem value="created">{t("search.sortCreated")}</SelectItem>
+                <SelectItem value="name">{t("search.sortName")}</SelectItem>
+                <SelectItem value="category">{t("search.sortCategory")}</SelectItem>
+                {showAnalytics && (
+                  <SelectItem value="popularity">{t("search.sortPopularity")}</SelectItem>
+                )}
               </SelectContent>
             </Select>
 
@@ -109,7 +113,7 @@ export function TemplateLibrarySearch({
             </div>
 
             <Button variant="outline" size="sm" onClick={onResetFilters}>
-              Clear Filters
+              {t("search.clearFilters")}
             </Button>
           </div>
         </div>

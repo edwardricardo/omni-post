@@ -9,7 +9,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { randomBytes } from "node:crypto";
 import { PrismaExternalNotificationConfigRepository } from "../../../src/infrastructure/repositories/PrismaExternalNotificationConfigRepository.js";
 import { EncryptionService } from "../../../src/security/EncryptionService.js";
-import type { ExternalNotificationConfigData } from "../../../src/domain/repositories/ExternalNotificationConfigRepository.js";
+import type { ExternalNotificationConfigData } from "@core/domain/repositories/ExternalNotificationConfigRepository.js";
 
 const VALID_KEY = randomBytes(32).toString("base64");
 // Generic webhook URL with an embedded bearer token, structurally similar to

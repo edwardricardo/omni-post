@@ -13,8 +13,8 @@ import {
   type MediaAssetRepository,
   type MediaAssetFilters,
   type MediaAssetPaginatedResult,
-} from "../../domain/repositories/MediaAssetRepository.js";
-import { MediaAsset, MediaAssetId } from "../../domain/entities/MediaAsset.js";
+} from "@core/domain/repositories/MediaAssetRepository.js";
+import { MediaAsset, MediaAssetId } from "@core/domain/entities/MediaAsset.js";
 
 /**
  * Raw Prisma row shape for a MediaAsset including its tags join.

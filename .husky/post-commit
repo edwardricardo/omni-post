@@ -32,12 +32,15 @@ CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null || true)
 TARGETS="apps/workers:apps/workers apps/api:apps/api apps/admin:apps/admin apps/client:apps/client packages:packages"
 
 # Detect which targets had changes AND have an initialized graphify-out/.
+# Gate on `.graphify_root` — the init marker graphify writes (it holds the
+# target's root path). The older `.graphify_python` name is not produced by
+# current graphify, so guarding on it silently skipped every target.
 TO_UPDATE=""
 for entry in $TARGETS; do
   prefix="${entry%%:*}"
   workdir="${entry##*:}"
   if echo "$CHANGED" | grep -q "^${prefix}/"; then
-    if [ -f "${workdir}/graphify-out/.graphify_python" ]; then
+    if [ -f "${workdir}/graphify-out/.graphify_root" ]; then
       TO_UPDATE="$TO_UPDATE $workdir"
     fi
   fi

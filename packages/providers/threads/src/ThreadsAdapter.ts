@@ -75,6 +75,7 @@ const THREADS_METADATA: ProviderMetadata = {
 
 const THREADS_CAPABILITIES = {
   publish: true,
+  mentions: false,
   schedule: false,
   analytics: true,
   comments: true,

@@ -14,6 +14,7 @@
  */
 
 import { useCallback, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { ConfirmDialog } from "@packages/ui";
 import { useAIPromptTemplates, useDeleteAIPromptTemplate } from "@/hooks/api/useAIPromptTemplates";
 import { CreateTemplateForm, TemplateCard } from "./promptTemplateManager";
@@ -27,6 +28,7 @@ interface PromptTemplateManagerProps {
  * @description Displays and manages AI prompt templates for an account.
  */
 export function PromptTemplateManager({ accountId }: PromptTemplateManagerProps) {
+  const t = useTranslations("ai.components");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -77,7 +79,7 @@ export function PromptTemplateManager({ accountId }: PromptTemplateManagerProps)
         className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700"
         role="alert"
       >
-        Failed to load templates. Please try again.
+        {t("templateManager.loadError")}
       </div>
     );
   }
@@ -86,10 +88,13 @@ export function PromptTemplateManager({ accountId }: PromptTemplateManagerProps)
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">AI Prompt Templates</h3>
+          <h3 className="text-lg font-semibold text-gray-900">{t("templateManager.title")}</h3>
           <p className="text-sm text-gray-500 mt-0.5">
-            {templates.length} templates — {systemTemplates.length} system,{" "}
-            {accountTemplates.length} custom
+            {t("templateManager.summary", {
+              total: templates.length,
+              system: systemTemplates.length,
+              custom: accountTemplates.length,
+            })}
           </p>
         </div>
         {!showCreateForm && (
@@ -97,7 +102,7 @@ export function PromptTemplateManager({ accountId }: PromptTemplateManagerProps)
             onClick={() => setShowCreateForm(true)}
             className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            + New Template
+            {t("templateManager.newTemplate")}
           </button>
         )}
       </div>
@@ -122,7 +127,7 @@ export function PromptTemplateManager({ accountId }: PromptTemplateManagerProps)
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              {cat}
+              {cat === "All" ? t("templateManager.categoryAll") : cat}
             </button>
           ))}
         </div>
@@ -131,7 +136,7 @@ export function PromptTemplateManager({ accountId }: PromptTemplateManagerProps)
       {systemTemplates.length > 0 && (
         <section>
           <h4 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">
-            System Templates
+            {t("templateManager.systemTemplates")}
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {systemTemplates.map((tpl) => (
@@ -148,12 +153,12 @@ export function PromptTemplateManager({ accountId }: PromptTemplateManagerProps)
 
       <section>
         <h4 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">
-          Your Templates
+          {t("templateManager.yourTemplates")}
         </h4>
         {accountTemplates.length === 0 ? (
           <div className="text-center py-10 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg">
-            <p className="text-sm">No custom templates yet.</p>
-            <p className="text-xs mt-1">Click &ldquo;+ New Template&rdquo; to create one.</p>
+            <p className="text-sm">{t("templateManager.noCustom")}</p>
+            <p className="text-xs mt-1">{t("templateManager.noCustomHint")}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -174,9 +179,9 @@ export function PromptTemplateManager({ accountId }: PromptTemplateManagerProps)
         onOpenChange={(open) => {
           if (!open) setDeleteTarget(null);
         }}
-        title="Delete template?"
-        description="Delete this template? This cannot be undone."
-        confirmLabel="Delete"
+        title={t("templateManager.deleteTitle")}
+        description={t("templateManager.deleteDescription")}
+        confirmLabel={t("templateManager.deleteConfirm")}
         variant="danger"
         onConfirm={handleConfirmDelete}
         loading={deleteMutation.isPending}

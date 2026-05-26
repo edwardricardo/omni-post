@@ -13,6 +13,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { createMockPrismaModule } from "./helpers/mockPrisma.js";
+import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 import type { FastifyRequest, FastifyReply } from "fastify";
 import type { AuthenticatedUser } from "../../src/auth/authService.js";
 
@@ -38,9 +39,15 @@ const { RbacService, Permission } = await import("../../src/auth/rbacService.js"
 const { TOKENS } = await import("../../src/infrastructure/container/types.js");
 const { PrismaAdminUserRepository } =
   await import("../../src/infrastructure/repositories/PrismaAdminUserRepository.js");
+const { PrismaRoleRepository } =
+  await import("../../src/infrastructure/repositories/PrismaRoleRepository.js");
 
 // Create a local RbacService instance for use in request mocks
-const rbacService = new RbacService(new PrismaAdminUserRepository(mockPrisma.prisma as never));
+const rbacService = new RbacService(
+  new PrismaAdminUserRepository(mockPrisma.prisma as never),
+  new PrismaRoleRepository(mockPrisma.prisma as never),
+  new InMemoryAuditLogRepository()
+);
 
 // Minimal container mock that resolves RbacService
 const mockContainer = {

@@ -7,7 +7,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { AlertTriangle, X, CreditCard, Mail, Globe, Cpu } from "lucide-react";
 

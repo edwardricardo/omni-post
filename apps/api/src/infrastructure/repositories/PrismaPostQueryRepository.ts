@@ -19,10 +19,10 @@ import type {
   PaginationParams,
   PaginatedResult,
   SortParams,
-} from "../../domain/index.js";
-import { PostId, ProjectId } from "../../domain/index.js";
-import { EntityNotFoundError } from "../../domain/index.js";
-import type { PublishStatusValue } from "../../domain/value-objects/PublishStatus.js";
+} from "@core/domain/index.js";
+import { PostId, ProjectId } from "@core/domain/index.js";
+import { EntityNotFoundError } from "@core/domain/index.js";
+import type { PublishStatusValue } from "@core/domain/value-objects/PublishStatus.js";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;

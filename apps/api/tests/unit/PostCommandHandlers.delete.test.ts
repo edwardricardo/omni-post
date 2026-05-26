@@ -14,7 +14,7 @@ import {
 } from "./PostCommandHandlers.test-helpers.js";
 import { DeletePostCommandHandler } from "../../src/cqrs/handlers/PostCommandHandlers.js";
 import { POST_COMMANDS } from "@shared/cqrs";
-import { USE_CASE_ERRORS } from "../../src/application/UseCase.js";
+import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 
 describe("DeletePostCommandHandler", () => {
   let handler: DeletePostCommandHandler;

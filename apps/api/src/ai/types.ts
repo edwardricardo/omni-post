@@ -7,21 +7,21 @@
  * @layer infrastructure
  */
 
-export interface AIMessage {
-  role: "system" | "user" | "assistant";
-  content: string;
-}
+// The AI service port's technology-free contract types are owned by the domain
+// core. Re-exported here so this module's existing consumers and the
+// `AIProvider` interface below keep resolving them from the same path.
+import {
+  AIMessage,
+  GenerationOptions,
+  StructuredOutputSpec,
+} from "@core/domain/ai/AiServiceContract.js";
+import {
+  ImageGenerationOptions,
+  ImageGenerationResult,
+} from "@core/domain/repositories/ImageGenerationPort.js";
 
-export interface GenerationOptions {
-  model?: string;
-  maxTokens?: number;
-  temperature?: number;
-  topP?: number;
-  frequencyPenalty?: number;
-  presencePenalty?: number;
-  stream?: boolean;
-  timeout?: number;
-}
+export type { AIMessage, GenerationOptions, StructuredOutputSpec };
+export type { ImageGenerationOptions, ImageGenerationResult };
 
 export interface ContentAnalysis {
   sentiment: {
@@ -108,23 +108,21 @@ export interface PerformancePrediction {
   };
 }
 
-export interface ImageGenerationOptions {
-  prompt: string;
-  size?: "1024x1024" | "1024x1792" | "1792x1024";
-  quality?: "standard" | "hd";
-  style?: "natural" | "vivid";
-  n?: number;
-}
-
-export interface ImageGenerationResult {
-  imageUrl: string;
-  revisedPrompt: string;
-}
-
 export interface AIProvider {
   name: "openai" | "anthropic" | "perplexity" | "gemini";
   isAvailable(): Promise<boolean>;
   generateText(messages: AIMessage[], options?: GenerationOptions): Promise<string>;
+  /**
+   * Schema-validated structured generation using the provider's NATIVE
+   * structured-output capability (OpenAI json_schema, Anthropic tool-use,
+   * Gemini responseSchema, Perplexity JSON mode). Output is always passed
+   * through `spec.parse` so callers get a validated `T`, never unparsed text.
+   */
+  generateStructured<T>(
+    messages: AIMessage[],
+    spec: StructuredOutputSpec<T>,
+    options?: GenerationOptions
+  ): Promise<T>;
   analyzeContent(
     content: string,
     analysisType: "sentiment" | "tone" | "readability" | "engagement"
@@ -145,6 +143,23 @@ export interface AIProvider {
     count: number
   ): Promise<string[]>;
   generateImage?(options: ImageGenerationOptions): Promise<AIResponse<ImageGenerationResult>>;
+
+  /**
+   * Whether this provider exposes a native embeddings API.
+   * Providers without native embeddings (Anthropic, Perplexity) declare
+   * `false` and omit `generateEmbeddings`; the orchestrator falls back to
+   * the next configured provider that supports them.
+   */
+  readonly supportsEmbeddings: boolean;
+  /**
+   * Optional embeddings generation. Implementations target a uniform
+   * dimension (default 768) so vectors are comparable across providers
+   * without re-embedding.
+   */
+  generateEmbeddings?(
+    texts: string[],
+    options?: { model?: string; dimensions?: number }
+  ): Promise<number[][]>;
 }
 
 export interface AITaskConfig {

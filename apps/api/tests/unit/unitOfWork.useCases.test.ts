@@ -15,10 +15,10 @@
  */
 import { describe, it, expect } from "vitest";
 import { randomUUID } from "node:crypto";
-import { CreatePostUseCase } from "../../src/application/posts/CreatePostUseCase.js";
-import { UpdatePostUseCase } from "../../src/application/posts/UpdatePostUseCase.js";
-import type { UnitOfWork } from "../../src/domain/repositories/Repository.js";
-import type { PostRepository, EventDispatcher } from "../../src/domain/index.js";
+import { CreatePostUseCase } from "@core/application/posts/CreatePostUseCase.js";
+import { UpdatePostUseCase } from "@core/application/posts/UpdatePostUseCase.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
+import type { PostRepository, EventDispatcher } from "@core/domain/index.js";
 import { ok, err } from "@shared/types";
 
 /** Minimal mock that tracks UoW calls */
@@ -57,6 +57,14 @@ function createMockEventDispatcher(): EventDispatcher & { dispatched: unknown[][
   };
 }
 
+function createMockBusinessMetrics() {
+  return {
+    incrementPostCreated() {},
+    incrementPostPublished() {},
+    incrementPostDeleted() {},
+  };
+}
+
 describe("D3.3: CreatePostUseCase with UnitOfWork", () => {
   const validInput = {
     projectId: randomUUID(),
@@ -69,7 +77,7 @@ describe("D3.3: CreatePostUseCase with UnitOfWork", () => {
     const repo = createMockPostRepo();
     const dispatcher = createMockEventDispatcher();
 
-    const useCase = new CreatePostUseCase(repo, dispatcher, uow);
+    const useCase = new CreatePostUseCase(repo, dispatcher, createMockBusinessMetrics(), uow);
     const result = await useCase.execute(validInput);
 
     expect(result.ok).toBeTruthy();
@@ -80,7 +88,7 @@ describe("D3.3: CreatePostUseCase with UnitOfWork", () => {
     const repo = createMockPostRepo();
     const dispatcher = createMockEventDispatcher();
 
-    const useCase = new CreatePostUseCase(repo, dispatcher);
+    const useCase = new CreatePostUseCase(repo, dispatcher, createMockBusinessMetrics());
     const result = await useCase.execute(validInput);
 
     expect(result.ok).toBeTruthy();
@@ -93,7 +101,7 @@ describe("D3.3: CreatePostUseCase with UnitOfWork", () => {
     });
     const dispatcher = createMockEventDispatcher();
 
-    const useCase = new CreatePostUseCase(repo, dispatcher, uow);
+    const useCase = new CreatePostUseCase(repo, dispatcher, createMockBusinessMetrics(), uow);
     const result = await useCase.execute(validInput);
 
     expect(result.ok).toBeFalsy();

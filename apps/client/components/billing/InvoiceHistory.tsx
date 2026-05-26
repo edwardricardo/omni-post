@@ -7,6 +7,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { ExternalLink, FileText, CreditCard } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@packages/ui";
 
@@ -48,6 +49,7 @@ function formatAmount(amount: number, currency: string): string {
  * @description Paginated invoice history table with status badges and action links.
  */
 export function InvoiceHistory() {
+  const t = useTranslations("billing");
   const [page, setPage] = useState(1);
   const { data, isLoading } = useMyInvoices(page, 10);
   const portalMutation = useBillingPortal();
@@ -59,28 +61,32 @@ export function InvoiceHistory() {
   if (isLoading) {
     return (
       <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-6">
-        <h3 className="text-base font-semibold text-zinc-100 mb-4">Invoice History</h3>
-        <div className="flex justify-center py-8 text-sm text-zinc-500">Loading invoices...</div>
+        <h3 className="text-base font-semibold text-zinc-100 mb-4">{t("invoiceHistory.title")}</h3>
+        <div className="flex justify-center py-8 text-sm text-zinc-500">
+          {t("invoiceHistory.loading")}
+        </div>
       </div>
     );
   }
 
   return (
     <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-6">
-      <h3 className="text-base font-semibold text-zinc-100 mb-4">Invoice History</h3>
+      <h3 className="text-base font-semibold text-zinc-100 mb-4">{t("invoiceHistory.title")}</h3>
 
       {invoices.length === 0 ? (
-        <p className="text-sm text-zinc-500 py-4 text-center">No invoices yet</p>
+        <p className="text-sm text-zinc-500 py-4 text-center">{t("invoiceHistory.empty")}</p>
       ) : (
         <>
           <Table>
             <TableHeader>
               <TableRow className="border-zinc-800">
-                <TableHead className="text-zinc-400">Date</TableHead>
-                <TableHead className="text-zinc-400">Period</TableHead>
-                <TableHead className="text-zinc-400">Amount</TableHead>
-                <TableHead className="text-zinc-400">Status</TableHead>
-                <TableHead className="text-zinc-400 text-right">Actions</TableHead>
+                <TableHead className="text-zinc-400">{t("invoiceHistory.columnDate")}</TableHead>
+                <TableHead className="text-zinc-400">{t("invoiceHistory.columnPeriod")}</TableHead>
+                <TableHead className="text-zinc-400">{t("invoiceHistory.columnAmount")}</TableHead>
+                <TableHead className="text-zinc-400">{t("invoiceHistory.columnStatus")}</TableHead>
+                <TableHead className="text-zinc-400 text-right">
+                  {t("invoiceHistory.columnActions")}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -99,7 +105,7 @@ export function InvoiceHistory() {
                     <span
                       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[inv.status] ?? "bg-zinc-700 text-zinc-300"}`}
                     >
-                      {inv.status === "PAYMENT_FAILED" ? "Failed" : inv.status}
+                      {t(`invoiceHistory.status.${inv.status}`)}
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
@@ -110,10 +116,10 @@ export function InvoiceHistory() {
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
-                          title="View invoice"
+                          title={t("invoiceHistory.viewTitle")}
                         >
                           <ExternalLink className="h-3 w-3" />
-                          View
+                          {t("invoiceHistory.view")}
                         </a>
                       )}
                       {inv.pdfUrl && (
@@ -122,10 +128,10 @@ export function InvoiceHistory() {
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
-                          title="Download PDF"
+                          title={t("invoiceHistory.downloadPdfTitle")}
                         >
                           <FileText className="h-3 w-3" />
-                          PDF
+                          {t("invoiceHistory.pdf")}
                         </a>
                       )}
                       {inv.status === "PAYMENT_FAILED" && (
@@ -136,7 +142,7 @@ export function InvoiceHistory() {
                           className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-amber-400 hover:text-amber-300 hover:bg-zinc-800"
                         >
                           <CreditCard className="h-3 w-3" />
-                          Update Payment
+                          {t("invoiceHistory.updatePayment")}
                         </button>
                       )}
                     </div>
@@ -149,7 +155,11 @@ export function InvoiceHistory() {
           {totalPages > 1 && (
             <div className="flex items-center justify-between mt-3 text-xs text-zinc-500">
               <span>
-                Showing {(page - 1) * 10 + 1}–{Math.min(page * 10, total)} of {total}
+                {t("invoiceHistory.showing", {
+                  from: (page - 1) * 10 + 1,
+                  to: Math.min(page * 10, total),
+                  total,
+                })}
               </span>
               <div className="flex gap-1">
                 <button
@@ -158,7 +168,7 @@ export function InvoiceHistory() {
                   disabled={page <= 1}
                   className="rounded border border-zinc-700 px-2 py-1 hover:bg-zinc-800 disabled:opacity-40"
                 >
-                  Previous
+                  {t("invoiceHistory.previous")}
                 </button>
                 <button
                   type="button"
@@ -166,7 +176,7 @@ export function InvoiceHistory() {
                   disabled={page >= totalPages}
                   className="rounded border border-zinc-700 px-2 py-1 hover:bg-zinc-800 disabled:opacity-40"
                 >
-                  Next
+                  {t("invoiceHistory.next")}
                 </button>
               </div>
             </div>

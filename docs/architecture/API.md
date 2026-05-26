@@ -90,7 +90,7 @@ Content-Type: application/json
 ```json
 {
   "ok": true,
-  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "token": "<jwt-access-token>",
   "refreshToken": "uuid-refresh-token",
   "user": {
     "id": "uuid",
@@ -117,7 +117,7 @@ Content-Type: application/json
 ```json
 {
   "ok": true,
-  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "token": "<jwt-access-token>",
   "refreshToken": "new-uuid-refresh-token"
 }
 ```

@@ -6,22 +6,22 @@
  */
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import type { TrackedLinkRepository } from "../../domain/repositories/TrackedLinkRepository.js";
-import type { GA4TrackingPort } from "../../domain/repositories/GA4TrackingPort.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { TrackedLinkRepository } from "@core/domain/repositories/TrackedLinkRepository.js";
+import type { GA4TrackingPort } from "@core/domain/repositories/GA4TrackingPort.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import {
   CreateTrackedLinkUseCase,
   GetTrackedLinkUseCase,
   RedirectAndTrackClickUseCase,
   GetLinkStatsUseCase,
   DeleteTrackedLinkUseCase,
-} from "../../application/links/index.js";
+} from "@core/application/links/index.js";
 
 /**
  * Register all tracked link use cases in the container
  */
 export function setupLinkUseCases(container: Container): void {
-  // Register Tracked Link Use Cases (P1-DI-7)
+  // Register Tracked Link Use Cases
   container.register<CreateTrackedLinkUseCase>(
     TOKENS.CreateTrackedLinkUseCase,
     () =>

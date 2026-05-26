@@ -1,10 +1,8 @@
 /**
- * Tests for Fase 1 compliance fixes:
- *   V4: dedupeKey must be deterministic (no randomUUID)
- *   V5: executeSaga must reject sagas in terminal state
- *
  * @file sagaExecution.terminal-guard.test.ts
- * @description Tests for V5: Terminal State Guard
+ * @description Two compliance invariants for the saga manager:
+ *   - dedupeKey must be deterministic (no `randomUUID`).
+ *   - `executeSaga` must reject sagas already in a terminal state.
  * @layer infrastructure
  */
 import { describe, it, beforeEach, afterEach, expect } from "vitest";

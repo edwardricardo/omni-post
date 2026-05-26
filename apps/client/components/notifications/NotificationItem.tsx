@@ -9,7 +9,8 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useRouter } from "@/i18n/navigation";
 import type { NotificationItem as NotificationItemType } from "@/lib/stores/notificationStore";
 
 // ---------------------------------------------------------------------------
@@ -62,6 +63,7 @@ interface NotificationItemProps {
  */
 export function NotificationItem({ notification, onRead }: NotificationItemProps) {
   const router = useRouter();
+  const t = useTranslations("notifications");
   const colour = TYPE_COLOURS[notification.type] ?? "bg-gray-400";
   const truncatedBody =
     notification.body.length > 60 ? `${notification.body.slice(0, 60)}…` : notification.body;
@@ -100,7 +102,10 @@ export function NotificationItem({ notification, onRead }: NotificationItemProps
 
       {/* Unread dot */}
       {!notification.read && (
-        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-blue-500" aria-label="Unread" />
+        <span
+          className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-blue-500"
+          aria-label={t("unread")}
+        />
       )}
     </button>
   );

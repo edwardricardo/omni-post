@@ -73,7 +73,7 @@ Content-Type: application/json
 {
   "ok": true,
   "value": {
-    "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+    "accessToken": "<jwt-access-token>",
     "user": {
       "id": "uuid",
       "email": "user@example.com",

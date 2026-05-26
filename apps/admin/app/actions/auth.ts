@@ -9,6 +9,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { getLocale } from "next-intl/server";
 import { cookies } from "next/headers";
 
 import { ConsoleLoggerAdapter } from "@observability/browser-logger";
@@ -89,7 +90,7 @@ export async function loginAction(
   }
 
   // Redirect OUTSIDE try/catch — redirect() throws internally (NEXT_REDIRECT)
-  redirect("/");
+  redirect(`/${await getLocale()}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -126,5 +127,5 @@ export async function logoutAction(): Promise<void> {
   }
 
   // Redirect OUTSIDE try/catch — redirect() throws internally (NEXT_REDIRECT)
-  redirect("/login");
+  redirect(`/${await getLocale()}/login`);
 }

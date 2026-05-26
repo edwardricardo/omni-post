@@ -1,73 +1,134 @@
 /**
  * @file repurposeRoutes.ts
- * @description REST routes for the AI Repurpose pipeline. Audit A.4 Cluster 2:
- *              the underlying use cases (DetectRepurposeCandidates,
- *              GenerateRepurposeVariants, ApproveRepurposeVariant,
- *              RejectRepurposeVariant) + Prisma adapters + BullMQ dispatcher
- *              are fully built and registered in DI, but the pipeline is NOT
- *              wired end-to-end:
+ * @description Client-facing REST routes for the AI repurpose pipeline.
  *
- *              - No scheduler invokes DetectRepurposeCandidatesUseCase
- *              - No worker consumes GENERATE_REPURPOSE jobs
- *              - No AI provider configured (OPENAI_API_KEY empty)
+ *   GET  /repurpose/proposals -> ListRepurposeProposalsQuery (paginated,
+ *        account-scoped to the caller's JWT, optional status filter)
+ *   POST /repurpose/detect    -> DetectRepurposeCandidatesUseCase for the
+ *        caller's account (scans high performers, creates proposals,
+ *        enqueues GENERATE_REPURPOSE — idempotent at proposal level)
  *
- *              Until the full wire-up lands (tracked as PR-Repurpose-AI-Pipeline
- *              in `docs/audits/POST_REMEDIATION_BACKLOG.md`), the endpoints
- *              consumed by `/dashboard/ai/repurpose` respond with 501
- *              NOT_IMPLEMENTED so the frontend surfaces a clear
- *              "feature in development" banner instead of silently rendering
- *              an empty list.
- *
- *              Same pattern as T3-I.7 predictive-analytics scaffolding.
+ *   Both endpoints are scoped to `request.customerUser.accountId`; the
+ *   account is never taken from the request body (tenant isolation).
+ *   The daily batch detection runs via DispatchDetectRepurposeUseCase;
+ *   POST /repurpose/detect is the on-demand override for one account.
  * @layer infrastructure
  */
 
-import type { FastifyPluginAsync } from "fastify";
+import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
+import { z } from "zod";
+import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
+import { TOKENS } from "../infrastructure/container/types.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
+import type { ListRepurposeProposalsQuery } from "@core/application/ai/ListRepurposeProposalsQuery.js";
+import type { DetectRepurposeCandidatesUseCase } from "@core/application/ai/DetectRepurposeCandidatesUseCase.js";
 
-const NOT_IMPLEMENTED_BODY = {
-  ok: false,
-  error: "NOT_IMPLEMENTED",
-  message:
-    "The AI Repurpose pipeline is scaffolded (use cases + adapters + UI) but " +
-    "not yet wired end-to-end. Tracked as PR-Repurpose-AI-Pipeline in the " +
-    "post-remediation backlog. Requires: DETECT scheduler, GENERATE worker, " +
-    "and an AI provider (OpenAI / Perplexity / Gemini) credential.",
-} as const;
+// ============================================================================
+// Schemas
+// ============================================================================
 
-export const repurposeRoutes: FastifyPluginAsync = async (fastify) => {
+const ListQuerySchema = z.object({
+  status: z.enum(["PENDING", "APPROVED", "REJECTED", "PUBLISHED"]).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+// ============================================================================
+// Handler
+// ============================================================================
+
+class RepurposeRouteHandler extends BaseRouteHandler {
+  protected routeName = "repurpose";
+
+  constructor(
+    private readonly listQuery: ListRepurposeProposalsQuery,
+    private readonly detectUseCase: DetectRepurposeCandidatesUseCase
+  ) {
+    super();
+  }
+
   /**
-   * GET /repurpose/proposals — list AI-detected repurpose proposals for the
-   * caller's account. Real implementation will query the
-   * `RepurposeProposal` table (rows produced by DetectRepurposeCandidatesUseCase
-   * once the scheduler is wired). Currently 501.
+   * Resolves the caller's account from the customer JWT attached by
+   * `requireClientAuth`. Returns undefined when absent (defence in depth —
+   * the preHandler already rejects unauthenticated requests).
    */
-  fastify.get(
+  private getAccountId(request: FastifyRequest): string | undefined {
+    return request.customerUser?.accountId;
+  }
+
+  async list(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+    const accountId = this.getAccountId(request);
+    if (!accountId) {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
+
+    const validation = await this.validateQuery(ctx, ListQuerySchema);
+    if (!validation.ok) {
+      return this.sendError(ctx, 400, "Invalid query parameters");
+    }
+    const { status, limit, offset } = validation.value;
+
+    const result = await this.listQuery.execute({
+      accountId,
+      ...(status !== undefined && { status }),
+      limit,
+      offset,
+    });
+    if (!result.ok) {
+      return this.sendError(ctx, 500, result.error.message);
+    }
+
+    this.sendSuccess(ctx, result.value);
+  }
+
+  async triggerDetect(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+    const accountId = this.getAccountId(request);
+    if (!accountId) {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
+
+    const result = await this.detectUseCase.execute({ accountId });
+    if (!result.ok) {
+      return this.sendError(ctx, 500, result.error.message);
+    }
+
+    this.sendSuccess(ctx, result.value);
+  }
+}
+
+// ============================================================================
+// Plugin
+// ============================================================================
+
+export const repurposeRoutes: FastifyPluginAsync = async (app) => {
+  const handler = new RepurposeRouteHandler(
+    app.container.resolve<ListRepurposeProposalsQuery>(TOKENS.ListRepurposeProposalsQuery),
+    app.container.resolve<DetectRepurposeCandidatesUseCase>(TOKENS.DetectRepurposeCandidatesUseCase)
+  );
+
+  app.get(
     "/repurpose/proposals",
     {
       preHandler: [requireClientAuth],
       schema: {
         tags: ["AI", "Repurpose"],
-        summary: "List repurpose proposals (scaffolded — pending pipeline wire-up)",
+        summary: "List the account's AI-detected repurpose proposals",
       },
     },
-    async (_request, reply) => reply.status(501).send(NOT_IMPLEMENTED_BODY)
+    (req: FastifyRequest, reply: FastifyReply) => handler.list(req, reply)
   );
 
-  /**
-   * POST /admin/ai/detect-repurpose — admin-only manual trigger for the
-   * DetectRepurposeCandidatesUseCase. Stub now; will fire the use case
-   * (and dispatch GENERATE jobs) when the pipeline is wired. Currently 501.
-   */
-  fastify.post(
-    "/admin/ai/detect-repurpose",
+  app.post(
+    "/repurpose/detect",
     {
       preHandler: [requireClientAuth],
       schema: {
-        tags: ["AI", "Repurpose", "Admin"],
-        summary: "Manually trigger repurpose detection (scaffolded — pending pipeline)",
+        tags: ["AI", "Repurpose"],
+        summary: "Run repurpose detection on demand for the caller's account",
       },
     },
-    async (_request, reply) => reply.status(501).send(NOT_IMPLEMENTED_BODY)
+    (req: FastifyRequest, reply: FastifyReply) => handler.triggerDetect(req, reply)
   );
 };

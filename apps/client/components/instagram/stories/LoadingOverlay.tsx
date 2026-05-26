@@ -3,9 +3,11 @@
  * @component LoadingOverlay
  * @description Full-screen loading overlay displayed during media upload or video processing
  * operations in the Instagram Stories editor, with progress and status messages.
+ * @layer infrastructure
  */
 
 import React from "react";
+import { useTranslations } from "next-intl";
 
 interface LoadingOverlayProps {
   isUploading: boolean;
@@ -13,6 +15,7 @@ interface LoadingOverlayProps {
 }
 
 export function LoadingOverlay({ isUploading, isProcessing }: LoadingOverlayProps) {
+  const t = useTranslations("instagram.components");
   if (!isUploading && !isProcessing) return null;
 
   return (
@@ -21,12 +24,12 @@ export function LoadingOverlay({ isUploading, isProcessing }: LoadingOverlayProp
         <div className="text-center">
           <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
           <div className="font-medium text-gray-900 mb-2">
-            {isUploading ? "Uploading files..." : "Processing video..."}
+            {isUploading ? t("loadingOverlay.uploadingTitle") : t("loadingOverlay.processingTitle")}
           </div>
           <div className="text-sm text-gray-600">
             {isUploading
-              ? "Please wait while we upload your media files"
-              : "Splitting video into Stories-compatible segments"}
+              ? t("loadingOverlay.uploadingDescription")
+              : t("loadingOverlay.processingDescription")}
           </div>
         </div>
       </div>

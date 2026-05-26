@@ -126,7 +126,7 @@ function filterRecords(
 // ---------------------------------------------------------------------------
 
 describe("AuditService - getUserLogs(), getResourceLogs(), cleanup()", () => {
-  const auditService = new AuditService();
+  const auditService = new AuditService(mocks.prismaClient);
 
   const now = new Date();
   const oldDate = new Date(now.getTime() - 100 * 24 * 60 * 60 * 1000);

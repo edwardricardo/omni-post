@@ -10,7 +10,7 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
 import { verifyPassword } from "./passwordHashing.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { IntegrationApiKeyRepository } from "../domain/repositories/IntegrationApiKeyRepository.js";
+import type { IntegrationApiKeyRepository } from "@core/domain/repositories/IntegrationApiKeyRepository.js";
 
 const KEY_PREFIX_VISIBLE_LENGTH = 12;
 

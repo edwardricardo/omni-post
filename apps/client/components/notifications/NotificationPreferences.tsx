@@ -8,6 +8,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import {
   useNotificationPreferences,
   useSaveNotificationPreferences,
@@ -20,33 +21,22 @@ import {
 
 type NotificationPreference = NotificationPreferenceDto;
 
-// Human-readable labels for each notification type
-const TYPE_LABELS: Record<string, { label: string; description: string }> = {
-  APPROVAL_REQUESTED: {
-    label: "Approval requested",
-    description: "When a post is submitted for your review",
-  },
-  POST_APPROVED: {
-    label: "Post approved",
-    description: "When your submitted post is approved",
-  },
-  POST_REJECTED: {
-    label: "Post rejected",
-    description: "When your submitted post is rejected with feedback",
-  },
-  COMMENT_ADDED: {
-    label: "Comment added",
-    description: "When someone comments on your post",
-  },
-  COMMENT_REPLY: {
-    label: "Comment reply",
-    description: "When someone replies to your comment",
-  },
-  MENTION: {
-    label: "Mention",
-    description: "When someone @mentions you in a post or comment",
-  },
-};
+// Translation key suffixes for each notification type. The labels and
+// descriptions live under `notifications.types.<KEY>.{label,description}`.
+const TYPE_KEYS = [
+  "APPROVAL_REQUESTED",
+  "POST_APPROVED",
+  "POST_REJECTED",
+  "COMMENT_ADDED",
+  "COMMENT_REPLY",
+  "MENTION",
+] as const;
+
+type TypeKey = (typeof TYPE_KEYS)[number];
+
+function isKnownType(type: string): type is TypeKey {
+  return (TYPE_KEYS as readonly string[]).includes(type);
+}
 
 // ---------------------------------------------------------------------------
 // Toggle component (avoids external dependency for a simple boolean toggle)
@@ -93,6 +83,7 @@ function Toggle({
  *              mount and persists changes via PUT endpoint with save confirmation toast.
  */
 export function NotificationPreferences() {
+  const t = useTranslations("notifications");
   const [edits, setEdits] = useState<NotificationPreference[] | null>(null);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
@@ -126,8 +117,8 @@ export function NotificationPreferences() {
 
   const handleSave = () =>
     saveMutation.mutate(localPrefs, {
-      onSuccess: () => showToast("success", "Preferences saved"),
-      onError: () => showToast("error", "Failed to save preferences"),
+      onSuccess: () => showToast("success", t("prefsSaved")),
+      onError: () => showToast("error", t("prefsSaveError")),
     });
 
   // ---------------------------------------------------------------------------
@@ -156,7 +147,7 @@ export function NotificationPreferences() {
   if (isError) {
     return (
       <p role="alert" className="text-sm text-red-600">
-        Failed to load notification preferences. Please refresh.
+        {t("prefsLoadError")}
       </p>
     );
   }
@@ -182,9 +173,9 @@ export function NotificationPreferences() {
       {/* Preferences list */}
       <div className="space-y-3">
         {localPrefs.map((pref) => {
-          const meta = TYPE_LABELS[pref.type];
-          const label = meta?.label ?? pref.type;
-          const description = meta?.description ?? "";
+          const knownType = isKnownType(pref.type) ? pref.type : null;
+          const label = knownType ? t(`types.${knownType}.label`) : pref.type;
+          const description = knownType ? t(`types.${knownType}.description`) : "";
           const toggleId = `notif-toggle-${pref.type}`;
 
           return (
@@ -211,9 +202,7 @@ export function NotificationPreferences() {
         })}
       </div>
 
-      {localPrefs.length === 0 && (
-        <p className="text-sm text-gray-500">No notification preferences available.</p>
-      )}
+      {localPrefs.length === 0 && <p className="text-sm text-gray-500">{t("prefsEmpty")}</p>}
 
       {/* Save button */}
       <div className="flex justify-end">
@@ -222,7 +211,7 @@ export function NotificationPreferences() {
           disabled={saveMutation.isPending}
           className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         >
-          {saveMutation.isPending ? "Saving…" : "Save preferences"}
+          {saveMutation.isPending ? t("savingButton") : t("saveButton")}
         </button>
       </div>
     </div>

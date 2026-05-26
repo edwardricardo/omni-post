@@ -3,9 +3,11 @@
  * @component StoryPreview
  * @description Phone-frame preview component for a single Instagram Story slide, rendering
  * the media and overlay text/stickers in the 9:16 vertical aspect ratio format.
+ * @layer infrastructure
  */
 
 import React, { useRef } from "react";
+import { useTranslations } from "next-intl";
 import { StoryContent } from "./types";
 
 interface StoryPreviewProps {
@@ -15,6 +17,7 @@ interface StoryPreviewProps {
 }
 
 export function StoryPreview({ story, storyIndex, totalStories }: StoryPreviewProps) {
+  const t = useTranslations("instagram.components");
   const videoRef = useRef<HTMLVideoElement>(null);
 
   return (
@@ -25,8 +28,8 @@ export function StoryPreview({ story, storyIndex, totalStories }: StoryPreviewPr
           <div className="absolute top-0 left-0 right-0 p-4 bg-linear-to-b from-black/50 to-transparent z-10">
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-white rounded-full"></div>
-              <div className="text-white text-sm font-medium">Your Account</div>
-              <div className="text-white/80 text-xs">now</div>
+              <div className="text-white text-sm font-medium">{t("storyPreview.account")}</div>
+              <div className="text-white/80 text-xs">{t("storyPreview.now")}</div>
             </div>
 
             {/* Progress bar */}

@@ -1,14 +1,16 @@
 /**
  * @file ConversationThread.tsx
- * @description Conversation thread panel. Shows message list (with infinite scroll
- *              upwards for older messages), marks messages read on open, and mounts
- *              the ReplyComposer at the bottom.
+ * @description Conversation thread panel. Loads the conversation entity + its
+ *              messages, marks unread messages read on open, auto-scrolls to
+ *              the latest message, and anchors the reply composer at the
+ *              bottom.
  * @layer infrastructure
  */
 
 "use client";
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { useConversation, useConversationMessages, useMarkMessageRead } from "@/hooks/api/useInbox";
 import { MessageBubble } from "./MessageBubble";
 import { ConversationHeader } from "./ConversationHeader";
@@ -21,13 +23,15 @@ interface ConversationThreadProps {
 
 /**
  * @component ConversationThread
- * @description Full conversation thread panel. Loads and displays the message list,
- *              auto-scrolls to the latest message, marks inbound messages as read on
- *              open, and mounts the ReplyComposer at the bottom.
- * @param props.conversationId - ID of the conversation to display
- * @param props.userId - ID of the current user for read receipts and header actions
+ * @description Full conversation thread panel. Renders the header, the message
+ *              list (with auto-scroll on update + mark-as-read on open), and
+ *              the reply composer. Suggested replies clicked in a message
+ *              bubble pre-fill the composer.
+ * @param props.conversationId - The conversation id loaded.
+ * @param props.userId - Current user id used for header actions.
  */
 export function ConversationThread({ conversationId, userId }: ConversationThreadProps) {
+  const t = useTranslations("inbox.components");
   const { data: conversation, isLoading: convLoading } = useConversation(conversationId);
   const { data: messagesData, isLoading: msgLoading } = useConversationMessages(conversationId);
   const markRead = useMarkMessageRead();
@@ -48,27 +52,20 @@ export function ConversationThread({ conversationId, userId }: ConversationThrea
     [messagesData]
   );
 
-  // Scroll to bottom on initial load and on new message
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [allMessages.length]);
 
-  // Mark unread messages as read on thread open. Only react to conversation
-  // switches — re-running on every `allMessages` change would re-fire mutations
-  // after each poll/refetch; markRead is a stable TanStack mutation.
+  // Mark unread messages as read on conversation open. Re-running on every
+  // `allMessages` change would re-fire mutations on each refetch, so the
+  // dependency is intentionally the conversation id only.
   useEffect(() => {
     if (!allMessages.length) return;
-    allMessages
-      .filter((m) => !m.read && m.direction === "INBOUND")
-      .forEach((m) => markRead.mutate(m.id));
+    allMessages.filter((m) => m.status === "UNREAD").forEach((m) => markRead.mutate(m.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
 
   const lastMessageId = allMessages.at(-1)?.id ?? null;
-
-  // ---------------------------------------------------------------------------
-  // Loading / empty states
-  // ---------------------------------------------------------------------------
 
   if (convLoading || msgLoading) {
     return (
@@ -78,7 +75,7 @@ export function ConversationThread({ conversationId, userId }: ConversationThrea
         </div>
         <div className="flex-1 space-y-4 px-4 py-6">
           {[1, 2, 3].map((i) => (
-            <div key={i} className={`flex gap-2 ${i % 2 === 0 ? "flex-row-reverse" : ""}`}>
+            <div key={i} className="flex gap-2">
               <div className="h-7 w-7 rounded-full bg-gray-200 shrink-0" />
               <div className="h-12 w-64 rounded-2xl bg-gray-100" />
             </div>
@@ -92,15 +89,11 @@ export function ConversationThread({ conversationId, userId }: ConversationThrea
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      {/* Header */}
       <ConversationHeader conversation={conversation} userId={userId} />
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto py-4">
         {allMessages.length === 0 && (
-          <p className="py-12 text-center text-sm text-gray-400">
-            No messages in this conversation
-          </p>
+          <p className="py-12 text-center text-sm text-gray-400">{t("emptyConversation")}</p>
         )}
 
         {allMessages.map((message) => (
@@ -110,7 +103,6 @@ export function ConversationThread({ conversationId, userId }: ConversationThrea
         <div ref={bottomRef} aria-hidden="true" />
       </div>
 
-      {/* Reply composer */}
       <ReplyComposer
         conversationId={conversationId}
         lastMessageId={lastMessageId}

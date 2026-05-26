@@ -1,12 +1,13 @@
 /**
  * @file generateImageUseCase.test.ts
- * @description Tests for GenerateImageUseCase — validation, AI delegation, persistence.
+ * @description Tests for GenerateImageUseCase — validation, image-port delegation, persistence.
  * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { GenerateImageUseCase } from "../../../src/application/ai-image/GenerateImageUseCase.js";
+import { ok, err } from "@shared/types";
+import { GenerateImageUseCase } from "@core/application/ai-image/GenerateImageUseCase.js";
 
 function makeRepo() {
   return {
@@ -15,17 +16,14 @@ function makeRepo() {
   };
 }
 
-function makeAIService() {
+function makeImageGenerator() {
   return {
-    generateImage: vi.fn(async () => ({
-      ok: true as const,
-      value: {
+    generateImage: vi.fn(async () =>
+      ok({
         imageUrl: "https://cdn.example.com/generated/img-1.png",
         revisedPrompt: "A stunning sunset over calm ocean waters",
-      },
-    })),
-    generateContent: vi.fn(),
-    optimizeContent: vi.fn(),
+      })
+    ),
   };
 }
 
@@ -39,14 +37,14 @@ function makeInput(overrides: Record<string, unknown> = {}) {
 
 describe("GenerateImageUseCase", () => {
   let repo: ReturnType<typeof makeRepo>;
-  let aiService: ReturnType<typeof makeAIService>;
+  let imageGenerator: ReturnType<typeof makeImageGenerator>;
   let uc: GenerateImageUseCase;
 
   beforeEach(() => {
     vi.clearAllMocks();
     repo = makeRepo();
-    aiService = makeAIService();
-    uc = new GenerateImageUseCase(repo as any, aiService as any);
+    imageGenerator = makeImageGenerator();
+    uc = new GenerateImageUseCase(repo as any, imageGenerator as any);
   });
 
   it("generates and persists image on success", async () => {
@@ -60,7 +58,7 @@ describe("GenerateImageUseCase", () => {
 
   it("trims the prompt", async () => {
     await uc.execute(makeInput({ prompt: "  sunset  " }));
-    expect(aiService.generateImage).toHaveBeenCalledWith(
+    expect(imageGenerator.generateImage).toHaveBeenCalledWith(
       expect.objectContaining({ prompt: "sunset" })
     );
   });
@@ -83,16 +81,16 @@ describe("GenerateImageUseCase", () => {
     assert.equal(r.value.style, "vivid");
   });
 
-  it("passes custom size to AI service", async () => {
+  it("passes custom size to the image generator", async () => {
     await uc.execute(makeInput({ size: "1792x1024" }));
-    expect(aiService.generateImage).toHaveBeenCalledWith(
+    expect(imageGenerator.generateImage).toHaveBeenCalledWith(
       expect.objectContaining({ size: "1792x1024" })
     );
   });
 
-  it("passes custom quality to AI service", async () => {
+  it("passes custom quality to the image generator", async () => {
     await uc.execute(makeInput({ quality: "hd" }));
-    expect(aiService.generateImage).toHaveBeenCalledWith(
+    expect(imageGenerator.generateImage).toHaveBeenCalledWith(
       expect.objectContaining({ quality: "hd" })
     );
   });
@@ -107,34 +105,11 @@ describe("GenerateImageUseCase", () => {
     assert.ok(!r.ok);
   });
 
-  it("returns error when AI service fails", async () => {
-    aiService.generateImage.mockResolvedValueOnce({
-      ok: false,
-      error: { message: "Rate limit exceeded" },
-    });
+  it("surfaces the image-generation error message", async () => {
+    imageGenerator.generateImage.mockResolvedValueOnce(err("Rate limit exceeded"));
     const r = await uc.execute(makeInput());
     assert.ok(!r.ok);
     expect(r.error.message).toContain("Rate limit");
-  });
-
-  it("returns generic error when AI error has no message", async () => {
-    aiService.generateImage.mockResolvedValueOnce({
-      ok: false,
-      error: "unknown",
-    });
-    const r = await uc.execute(makeInput());
-    assert.ok(!r.ok);
-    expect(r.error.message).toContain("Image generation failed");
-  });
-
-  it("returns error when AI service returns null value", async () => {
-    aiService.generateImage.mockResolvedValueOnce({
-      ok: true,
-      value: null,
-    });
-    const r = await uc.execute(makeInput());
-    assert.ok(!r.ok);
-    expect(r.error.message).toContain("no image data");
   });
 
   it("returns error when repository save fails", async () => {
@@ -144,7 +119,7 @@ describe("GenerateImageUseCase", () => {
     expect(r.error.message).toContain("persist");
   });
 
-  it("includes revisedPrompt from AI in saved data", async () => {
+  it("includes revisedPrompt from the generator in saved data", async () => {
     await uc.execute(makeInput());
     const savedData = repo.save.mock.calls[0]?.[0];
     assert.equal(savedData?.revisedPrompt, "A stunning sunset over calm ocean waters");

@@ -11,8 +11,8 @@ import type {
   ApiKeyRepository,
   DomainApiKey,
   CreateApiKeyData,
-} from "../../domain/repositories/ApiKeyRepository.js";
-import { ApiKeyNotFoundError } from "../../domain/repositories/ApiKeyRepository.js";
+} from "@core/domain/repositories/ApiKeyRepository.js";
+import { ApiKeyNotFoundError } from "@core/domain/repositories/ApiKeyRepository.js";
 
 // ─── Mapper ─────────────────────────────────────────────────────────────────
 

@@ -15,6 +15,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@core/domain": "workspace:*",
     "@infra/prisma": "workspace:*",
     "@observability/background-scheduler": "workspace:*",
     "@observability/logger": "workspace:*",

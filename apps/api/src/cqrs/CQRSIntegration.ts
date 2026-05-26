@@ -6,10 +6,10 @@
 
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
-import type { PostRepository, PostQueryRepository, ChannelRepository } from "../domain/index.js";
-import type { CreatePostUseCase } from "../application/posts/CreatePostUseCase.js";
-import type { UpdatePostUseCase } from "../application/posts/UpdatePostUseCase.js";
-import type { DeletePostUseCase } from "../application/posts/DeletePostUseCase.js";
+import type { PostRepository, PostQueryRepository, ChannelRepository } from "@core/domain/index.js";
+import type { CreatePostUseCase } from "@core/application/posts/CreatePostUseCase.js";
+import type { UpdatePostUseCase } from "@core/application/posts/UpdatePostUseCase.js";
+import type { DeletePostUseCase } from "@core/application/posts/DeletePostUseCase.js";
 import {
   createCommand,
   createQuery,

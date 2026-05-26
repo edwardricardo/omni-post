@@ -2,10 +2,12 @@
  * @file LoadingState.tsx
  * @description Animated skeleton screen displayed while predictive analytics data
  * is being fetched from the backend AI and analytics endpoints.
+ * @layer infrastructure
  */
 
 import React from "react";
 import { Brain } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 /**
  * @component LoadingState
@@ -13,11 +15,12 @@ import { Brain } from "lucide-react";
  * is being fetched from the backend.
  */
 export const LoadingState: React.FC = () => {
+  const t = useTranslations("ai.components");
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
       <div className="flex items-center justify-center space-x-3 py-8">
         <Brain className="w-6 h-6 text-purple-600 animate-pulse" />
-        <div className="text-lg font-medium text-gray-900">Analyzing performance patterns...</div>
+        <div className="text-lg font-medium text-gray-900">{t("loadingState.analyzing")}</div>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
         {[1, 2, 3, 4].map((i) => (

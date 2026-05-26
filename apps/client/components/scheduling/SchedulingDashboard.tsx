@@ -10,6 +10,7 @@
  */
 
 import React, { useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import type { SchedulingDashboardProps } from "./schedulingDashboardTypes";
 import { useSchedulingDashboard } from "./useSchedulingDashboard";
 import { SchedulingDashboardSidebar } from "./SchedulingDashboardSidebar";
@@ -26,6 +27,7 @@ export function SchedulingDashboard({
   onPostCancelled,
   onError,
 }: SchedulingDashboardProps) {
+  const t = useTranslations("scheduling.components");
   const {
     currentDate,
     selectedDate,
@@ -80,26 +82,24 @@ export function SchedulingDashboard({
       <div className="bg-white border-b px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Content Calendar</h1>
-            <p className="text-gray-600 mt-1">
-              Schedule and manage your Instagram content across all platforms
-            </p>
+            <h1 className="text-2xl font-bold text-gray-900">{t("dashboardTitle")}</h1>
+            <p className="text-gray-600 mt-1">{t("dashboardSubtitle")}</p>
           </div>
 
           <div className="flex items-center space-x-4">
             {/* View Toggle */}
             <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
-              {["month", "week", "day", "list"].map((viewOption) => (
+              {(["month", "week", "day", "list"] as const).map((viewOption) => (
                 <button
                   key={viewOption}
-                  onClick={() => setView(viewOption as "month" | "week" | "day" | "list")}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors capitalize ${
+                  onClick={() => setView(viewOption)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                     view === viewOption
                       ? "bg-white text-gray-900 shadow-xs"
                       : "text-gray-600 hover:text-gray-900"
                   }`}
                 >
-                  {viewOption}
+                  {t(`dashboardView.${viewOption}`)}
                 </button>
               ))}
             </div>
@@ -117,7 +117,7 @@ export function SchedulingDashboard({
                   d="M12 4v16m8-8H4"
                 />
               </svg>
-              <span>Schedule Post</span>
+              <span>{t("schedulePost")}</span>
             </button>
           </div>
         </div>
@@ -128,31 +128,31 @@ export function SchedulingDashboard({
             <div className="text-lg font-semibold text-blue-900">
               {scheduledPosts.filter((p) => p.status === "scheduled").length}
             </div>
-            <div className="text-sm text-blue-700">Scheduled</div>
+            <div className="text-sm text-blue-700">{t("statScheduled")}</div>
           </div>
           <div className="bg-yellow-50 rounded-lg p-3">
             <div className="text-lg font-semibold text-yellow-900">
               {scheduledPosts.filter((p) => p.status === "publishing").length}
             </div>
-            <div className="text-sm text-yellow-700">Publishing</div>
+            <div className="text-sm text-yellow-700">{t("statPublishing")}</div>
           </div>
           <div className="bg-green-50 rounded-lg p-3">
             <div className="text-lg font-semibold text-green-900">
               {scheduledPosts.filter((p) => p.status === "published").length}
             </div>
-            <div className="text-sm text-green-700">Published</div>
+            <div className="text-sm text-green-700">{t("statPublished")}</div>
           </div>
           <div className="bg-red-50 rounded-lg p-3">
             <div className="text-lg font-semibold text-red-900">
               {scheduledPosts.filter((p) => p.status === "failed").length}
             </div>
-            <div className="text-sm text-red-700">Failed</div>
+            <div className="text-sm text-red-700">{t("statFailed")}</div>
           </div>
           <div className="bg-purple-50 rounded-lg p-3">
             <div className="text-lg font-semibold text-purple-900">
               {scheduledPosts.reduce((sum, p) => sum + (p.estimatedReach || 0), 0).toLocaleString()}
             </div>
-            <div className="text-sm text-purple-700">Est. Reach</div>
+            <div className="text-sm text-purple-700">{t("statReach")}</div>
           </div>
         </div>
       </div>
@@ -207,7 +207,7 @@ export function SchedulingDashboard({
           {view === "list" && (
             <div className="flex-1 flex items-center justify-center text-gray-500">
               <div className="text-center">
-                <div className="text-lg font-medium">List view coming soon</div>
+                <div className="text-lg font-medium">{t("listViewComingSoon")}</div>
               </div>
             </div>
           )}
@@ -229,7 +229,7 @@ export function SchedulingDashboard({
           <div className="bg-white rounded-lg p-6">
             <div className="flex items-center space-x-3">
               <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-              <span className="text-gray-900">Loading scheduled posts...</span>
+              <span className="text-gray-900">{t("loadingPosts")}</span>
             </div>
           </div>
         </div>

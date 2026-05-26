@@ -10,6 +10,7 @@
  */
 
 import { useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Button, toast } from "@packages/ui";
 import { Star } from "lucide-react";
 import { useSetPrimaryChannel } from "@/lib/hooks/useProjectChannels";
@@ -27,22 +28,23 @@ export interface SetPrimaryChannelButtonProps {
  *   disabled state so the affordance is clear.
  */
 export function SetPrimaryChannelButton({ channelId, isPrimary }: SetPrimaryChannelButtonProps) {
+  const t = useTranslations("channels.components");
   const setPrimary = useSetPrimaryChannel();
 
   const onClick = useCallback(() => {
     setPrimary.mutate(channelId, {
       onSuccess: () => {
-        toast({ title: "Primary channel updated" });
+        toast({ title: t("toastUpdated") });
       },
       onError: (err) => {
         toast({
-          title: "Failed to set primary",
-          description: err instanceof Error ? err.message : "Please try again.",
+          title: t("toastFailed"),
+          description: err instanceof Error ? err.message : t("toastTryAgain"),
           variant: "destructive",
         });
       },
     });
-  }, [channelId, setPrimary]);
+  }, [channelId, setPrimary, t]);
 
   return (
     <Button
@@ -53,7 +55,7 @@ export function SetPrimaryChannelButton({ channelId, isPrimary }: SetPrimaryChan
       aria-pressed={isPrimary}
     >
       <Star className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
-      {isPrimary ? "Primary" : setPrimary.isPending ? "Saving…" : "Set as primary"}
+      {isPrimary ? t("primary") : setPrimary.isPending ? t("saving") : t("setAsPrimary")}
     </Button>
   );
 }

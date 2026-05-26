@@ -13,15 +13,15 @@ import { type Result, ok, err } from "@shared/types";
 import {
   type SocialConversationRepository,
   type SocialConversationDTO,
-} from "../../domain/repositories/SocialConversationRepository.js";
+} from "@core/domain/repositories/SocialConversationRepository.js";
 import {
   SocialConversation,
   type SocialConversationState,
-} from "../../domain/entities/SocialConversation.js";
-import { SocialConversationId } from "../../domain/value-objects/SocialConversationId.js";
-import { AccountId, ProjectId, ChannelId } from "../../domain/value-objects/index.js";
-import { type ProviderType } from "../../domain/value-objects/Provider.js";
-import { EntityNotFoundError } from "../../domain/errors/index.js";
+} from "@core/domain/entities/SocialConversation.js";
+import { SocialConversationId } from "@core/domain/value-objects/SocialConversationId.js";
+import { AccountId, ProjectId, ChannelId } from "@core/domain/value-objects/index.js";
+import { type ProviderType } from "@core/domain/value-objects/Provider.js";
+import { EntityNotFoundError } from "@core/domain/errors/index.js";
 
 /**
  * Shape of a raw SocialConversation row returned by Prisma queries.

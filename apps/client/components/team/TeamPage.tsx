@@ -8,6 +8,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { useTeamMembers, useUpdateTeamMemberRole, useRemoveTeamMember } from "@/hooks/api/useTeam";
 import { TeamMemberRow } from "./TeamMemberRow";
 
@@ -18,6 +19,7 @@ interface TeamPageProps {
 }
 
 export function TeamPage({ accountId, currentUserId, currentUserRole }: TeamPageProps) {
+  const t = useTranslations("team");
   const { data: members = [], isLoading } = useTeamMembers(accountId);
   const updateRoleMutation = useUpdateTeamMemberRole();
   const removeMutation = useRemoveTeamMember();
@@ -39,14 +41,14 @@ export function TeamPage({ accountId, currentUserId, currentUserRole }: TeamPage
   const activeMembers = members.filter((m) => m.isActive);
 
   if (isLoading) {
-    return <div className="text-center py-8 text-muted-foreground">Loading team...</div>;
+    return <div className="text-center py-8 text-muted-foreground">{t("loading")}</div>;
   }
 
   if (activeMembers.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
-        <p className="text-lg font-medium">No team members yet</p>
-        <p className="text-sm mt-1">Invite someone to get started.</p>
+        <p className="text-lg font-medium">{t("emptyTitle")}</p>
+        <p className="text-sm mt-1">{t("emptyDescription")}</p>
       </div>
     );
   }

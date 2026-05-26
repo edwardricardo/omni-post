@@ -21,13 +21,9 @@
  *              `process.exit(0)` cuts another worker's mid-drain.
  *
  *              Standalone usage of each worker (debugging, one-off runs)
- *              still works: `node dist/inboxSyncWorker.js` etc., because
+ *              still works: `node dist/mentionIngestWorker.js` etc., because
  *              each file ends with an `import.meta.url` main-module guard
  *              that calls `startXxxWorker()` with default options.
- *
- *              NOT bootstrapped here: `autoRenewalWorker.ts` — its disposition
- *              (consolidate into api or keep as worker) is tracked under
- *              audit finding FN-004 and decided separately.
  * @layer infrastructure
  */
 
@@ -35,9 +31,9 @@ import dotenv from "dotenv";
 dotenv.config({ path: "../../.env" });
 
 import pino from "pino";
+import { workerPrisma } from "./container/workerContainer.js";
 import { startPublishWorker } from "./publishWorker.js";
-import { startInboxSyncWorker } from "./inboxSyncWorker.js";
-import { startAnalyticsIngestWorker } from "./analyticsIngestWorker.js";
+import { startMentionIngestWorker } from "./mentionIngestWorker.js";
 import { registerGracefulShutdown, type ShutdownTarget } from "./lib/gracefulShutdown.js";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info", name: "workers-bootstrap" });
@@ -47,8 +43,7 @@ async function main(): Promise<void> {
 
   const targets = await Promise.all([
     startPublishWorker({ registerShutdown: false }),
-    startInboxSyncWorker({ registerShutdown: false }),
-    startAnalyticsIngestWorker({ registerShutdown: false }),
+    startMentionIngestWorker({ prisma: workerPrisma, registerShutdown: false }),
   ]);
 
   // Merge the per-worker shutdown targets into one. Order matters during drain:
@@ -78,7 +73,7 @@ async function main(): Promise<void> {
   registerGracefulShutdown({ name: "workers-bootstrap", target: composed, logger });
 
   logger.info(
-    { workers: ["publish", "inbox-sync", "analytics-ingest"] },
+    { workers: ["publish", "mention-ingest"] },
     "All workers started; bootstrap idle (waiting on signals)"
   );
 }

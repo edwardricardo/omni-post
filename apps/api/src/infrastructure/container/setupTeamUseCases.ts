@@ -6,15 +6,15 @@
  */
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import type { EmailPort } from "../../domain/repositories/EmailPort.js";
-import type { PlatformCredentialService } from "../../security/PlatformCredentialService.js";
-import type { PostRepository } from "../../domain/index.js";
-import type { ApprovalRequestRepository } from "../../domain/repositories/ApprovalRequestRepository.js";
-import type { ApprovalWorkflowRepository } from "../../domain/repositories/ApprovalWorkflowRepository.js";
-import type { CustomerUserRepository } from "../../domain/repositories/CustomerUserRepository.js";
-import type { CustomerRoleRepository } from "../../domain/repositories/CustomerRoleRepository.js";
-import type { PostCommentRepository } from "../../domain/repositories/PostCommentRepository.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { TeamInvitationMailer } from "@core/domain/repositories/TeamInvitationMailer.js";
+import type { PlatformCredentialReader } from "@core/domain/repositories/PlatformCredentialReader.js";
+import type { PostRepository } from "@core/domain/index.js";
+import type { ApprovalRequestRepository } from "@core/domain/repositories/ApprovalRequestRepository.js";
+import type { ApprovalWorkflowRepository } from "@core/domain/repositories/ApprovalWorkflowRepository.js";
+import type { CustomerUserRepository } from "@core/domain/repositories/CustomerUserRepository.js";
+import type { CustomerRoleRepository } from "@core/domain/repositories/CustomerRoleRepository.js";
+import type { PostCommentRepository } from "@core/domain/repositories/PostCommentRepository.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import {
   SubmitForReviewUseCase,
   ApprovePostUseCase,
@@ -25,22 +25,22 @@ import {
   UpdateApprovalWorkflowUseCase,
   DeleteApprovalWorkflowUseCase,
   ListApprovalWorkflowsQuery,
-} from "../../application/approvals/index.js";
+} from "@core/application/approvals/index.js";
 import {
   InviteTeamMemberUseCase,
   GetTeamMembersQuery,
   UpdateTeamMemberRoleUseCase,
   RemoveTeamMemberUseCase,
   SearchTeamMembersQuery,
-} from "../../application/team/index.js";
-import { NotifyMentionedUsersService } from "../../application/mentions/index.js";
-import type { CreateNotificationUseCase } from "../../application/notifications/index.js";
+} from "@core/application/team/index.js";
+import { NotifyMentionedUsersService } from "@core/application/mentions/index.js";
+import type { CreateNotificationUseCase } from "@core/application/notifications/index.js";
 import {
   CreateCommentUseCase,
   EditCommentUseCase,
   DeleteCommentUseCase,
   GetPostCommentsQuery,
-} from "../../application/comments/index.js";
+} from "@core/application/comments/index.js";
 
 /**
  * Register approval workflow, team member, and comment use cases
@@ -138,8 +138,8 @@ export function setupTeamUseCases(container: Container): void {
         container.resolve<CustomerUserRepository>(TOKENS.CustomerUserRepository),
         container.resolve<CustomerRoleRepository>(TOKENS.CustomerRoleRepository),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
-        container.resolve<EmailPort>(TOKENS.EmailPort),
-        container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService)
+        container.resolve<TeamInvitationMailer>(TOKENS.TeamInvitationMailer),
+        container.resolve<PlatformCredentialReader>(TOKENS.PlatformCredentialService)
       ),
     true
   );

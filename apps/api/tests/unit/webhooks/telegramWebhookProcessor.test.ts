@@ -9,6 +9,7 @@
 import { describe, it, beforeAll, expect } from "vitest";
 import assert from "node:assert/strict";
 import { TelegramWebhookProcessor } from "../../../src/webhooks/processors/telegramWebhookProcessor.js";
+import { makeWebhookPrismaFake } from "../helpers/webhookPrismaFake.js";
 
 // ===========================
 // Signature Verification Tests (6 tests)
@@ -19,7 +20,7 @@ describe("TelegramWebhookProcessor - Signature Verification", () => {
   const testSecret = "test-telegram-bot-secret-token";
 
   beforeAll(() => {
-    processor = new TelegramWebhookProcessor();
+    processor = new TelegramWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should verify valid secret token from X-Telegram-Bot-Api-Secret-Token header", () => {
@@ -77,7 +78,7 @@ describe("TelegramWebhookProcessor - Message Event Parsing", () => {
   let processor: TelegramWebhookProcessor;
 
   beforeAll(() => {
-    processor = new TelegramWebhookProcessor();
+    processor = new TelegramWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should parse message event and map to POST_PUBLISHED", async () => {
@@ -147,7 +148,7 @@ describe("TelegramWebhookProcessor - Edited Message Event Parsing", () => {
   let processor: TelegramWebhookProcessor;
 
   beforeAll(() => {
-    processor = new TelegramWebhookProcessor();
+    processor = new TelegramWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should parse edited_message event and map to POST_UPDATED", async () => {
@@ -197,7 +198,7 @@ describe("TelegramWebhookProcessor - Channel Post Event Parsing", () => {
   let processor: TelegramWebhookProcessor;
 
   beforeAll(() => {
-    processor = new TelegramWebhookProcessor();
+    processor = new TelegramWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should parse channel_post event and map to POST_PUBLISHED", async () => {
@@ -247,7 +248,7 @@ describe("TelegramWebhookProcessor - Callback Query Event Parsing", () => {
   let processor: TelegramWebhookProcessor;
 
   beforeAll(() => {
-    processor = new TelegramWebhookProcessor();
+    processor = new TelegramWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should parse callback_query event and map to POST_ENGAGEMENT_UPDATE", async () => {
@@ -319,7 +320,7 @@ describe("TelegramWebhookProcessor - Error Handling", () => {
   let processor: TelegramWebhookProcessor;
 
   beforeAll(() => {
-    processor = new TelegramWebhookProcessor();
+    processor = new TelegramWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should throw error for missing update_id", async () => {
@@ -360,7 +361,7 @@ describe("TelegramWebhookProcessor - Process", () => {
   let processor: TelegramWebhookProcessor;
 
   beforeAll(() => {
-    processor = new TelegramWebhookProcessor();
+    processor = new TelegramWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should process known event types without throwing", async () => {

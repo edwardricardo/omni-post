@@ -9,11 +9,11 @@
 
 import type { PrismaClient } from "@infra/prisma";
 import { ok, err, type Result } from "@shared/types";
-import type { OidcConfiguration } from "../../domain/entities/OidcConfiguration.js";
+import type { OidcConfiguration } from "@core/domain/entities/OidcConfiguration.js";
 import type {
   OidcConfigurationRepository,
   OidcConfigurationData,
-} from "../../domain/repositories/OidcConfigurationRepository.js";
+} from "@core/domain/repositories/OidcConfigurationRepository.js";
 import type { EncryptionService } from "../../security/EncryptionService.js";
 
 export class PrismaOidcConfigurationRepository implements OidcConfigurationRepository {

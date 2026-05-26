@@ -1,16 +1,17 @@
 /**
  * @file TeamsNotifierAdapter.ts
- * @description Infrastructure adapter for sending Microsoft Teams webhook
- *   notifications using Adaptive Card format. Delegates HTTP transport to
- *   HttpClientPort (canon T4-X — Result-based outbound HTTP, AbortSignal.timeout,
- *   error union TIMEOUT/NETWORK/BAD_RESPONSE).
+ * @description Infrastructure adapter for sending Microsoft Teams
+ *   webhook notifications using the Adaptive Card format. Delegates
+ *   HTTP transport to `HttpClientPort` — Result-based outbound HTTP
+ *   with `AbortSignal.timeout` and the error union TIMEOUT / NETWORK /
+ *   BAD_RESPONSE.
  * @layer infrastructure
  */
 
 import { type Result, ok, err } from "@shared/types";
-import { type DomainError, InvariantViolationError } from "../../domain/errors/index.js";
-import { type NotificationPayload } from "../../domain/repositories/ExternalNotifierPort.js";
-import type { HttpClientPort } from "../../domain/repositories/HttpClientPort.js";
+import { type DomainError, InvariantViolationError } from "@core/domain/errors/index.js";
+import { type NotificationPayload } from "@core/domain/repositories/ExternalNotifierPort.js";
+import type { HttpClientPort } from "@core/domain/repositories/HttpClientPort.js";
 
 /**
  * @class TeamsNotifierAdapter

@@ -59,6 +59,7 @@ export function signCustomerAccessToken(payload: Omit<CustomerJwtPayload, "type"
  */
 export function verifyCustomerToken(token: string): CustomerJwtPayload {
   const decoded = jwt.verify(token, CUSTOMER_JWT_SECRET, {
+    algorithms: ["HS256"],
     issuer: "omnipost-customer",
     audience: "omnipost-customer-api",
   }) as CustomerJwtPayload;
@@ -85,11 +86,34 @@ export function signCustomerRefreshToken(userId: string, sessionId: string): str
  * @description Verifies and decodes a customer refresh token.
  */
 export function verifyCustomerRefreshToken(token: string): CustomerRefreshPayload {
-  const decoded = jwt.verify(token, CUSTOMER_JWT_SECRET) as CustomerRefreshPayload;
+  const decoded = jwt.verify(token, CUSTOMER_JWT_SECRET, {
+    algorithms: ["HS256"],
+  }) as CustomerRefreshPayload;
 
   if (decoded.type !== "customer-refresh") {
     throw new Error("Not a customer refresh token");
   }
 
   return decoded;
+}
+
+/**
+ * @function decodeCustomerRefreshToken
+ * @description Decodes a customer refresh token WITHOUT verifying its signature
+ *   or expiry. Used to revoke a session even for expired/malformed tokens.
+ *   Returns null when the token cannot be parsed into a refresh payload.
+ */
+export function decodeCustomerRefreshToken(token: string): CustomerRefreshPayload | null {
+  const decoded = jwt.decode(token);
+  if (
+    decoded === null ||
+    typeof decoded === "string" ||
+    decoded.type !== "customer-refresh" ||
+    typeof decoded.sessionId !== "string" ||
+    decoded.sessionId.length === 0 ||
+    typeof decoded.sub !== "string"
+  ) {
+    return null;
+  }
+  return { sub: decoded.sub, sessionId: decoded.sessionId, type: "customer-refresh" };
 }

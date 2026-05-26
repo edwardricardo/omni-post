@@ -11,7 +11,7 @@ import { GatewayBillingService } from "../../../src/billing/GatewayBillingServic
 import type { PrismaClient } from "@infra/prisma";
 import type { GatewayAdapterRegistryPort } from "../../../src/infrastructure/billing/GatewayAdapterRegistry.js";
 import type { GatewaySwitchJobService } from "../../../src/billing/GatewaySwitchJobService.js";
-import type { EmailPort } from "../../../src/domain/repositories/EmailPort.js";
+import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
 
 // ── Mock Factories ──────────────────────────────────────────────────────────
 

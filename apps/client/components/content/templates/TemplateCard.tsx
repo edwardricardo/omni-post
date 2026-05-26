@@ -4,9 +4,12 @@
  * @file TemplateCard.tsx
  * @description Card component representing a single content template, displaying its name,
  * description, category, usage stats, and action buttons for edit, copy, preview, and delete.
+ * @component TemplateCard
+ * @layer infrastructure
  */
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import { FileText, Play, Edit, Copy, Trash2, Star, Clock, Users, Wand2 } from "lucide-react";
 import type { ContentTemplate } from "./types";
 
@@ -30,6 +33,7 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
   onDuplicate,
   onDelete,
 }) => {
+  const t = useTranslations("content");
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       month: "short",
@@ -54,7 +58,7 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
             <div className="flex items-center space-x-4 text-xs text-gray-500">
               <span className="flex items-center">
                 <Users className="w-3 h-3 mr-1" />
-                {template.metadata.usage.count} uses
+                {t("card.uses", { count: template.metadata.usage.count })}
               </span>
               <span className="flex items-center">
                 <Clock className="w-3 h-3 mr-1" />
@@ -63,7 +67,9 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
               {template.metadata.performance && (
                 <span className="flex items-center">
                   <Star className="w-3 h-3 mr-1" />
-                  {template.metadata.performance.avgEngagement} avg engagement
+                  {t("card.avgEngagement", {
+                    value: template.metadata.performance.avgEngagement,
+                  })}
                 </span>
               )}
             </div>
@@ -74,28 +80,28 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
           <button
             onClick={() => onUse(template)}
             className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-sm"
-            title="Use Template"
+            title={t("card.useTitle")}
           >
             <Play className="w-4 h-4" />
           </button>
           <button
             onClick={() => onEdit(template.id)}
             className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-sm"
-            title="Edit Template"
+            title={t("card.editTitle")}
           >
             <Edit className="w-4 h-4" />
           </button>
           <button
             onClick={() => onDuplicate(template)}
             className="p-2 text-green-600 hover:text-green-800 hover:bg-green-100 rounded-sm"
-            title="Duplicate Template"
+            title={t("card.duplicateTitle")}
           >
             <Copy className="w-4 h-4" />
           </button>
           <button
             onClick={() => onDelete(template.id)}
             className="p-2 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-sm"
-            title="Delete Template"
+            title={t("card.deleteTitle")}
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -123,23 +129,22 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
         </div>
 
         <div className="bg-gray-50 p-3 rounded-sm text-sm">
-          <p className="text-gray-700 mb-2">Preview:</p>
+          <p className="text-gray-700 mb-2">{t("card.previewLabel")}</p>
           <div className="text-gray-600 italic">{template.content.text.substring(0, 120)}...</div>
         </div>
 
         {template.content.variables.length > 0 && (
           <div className="text-xs text-gray-500">
-            Variables: {template.content.variables.map((v) => v.name).join(", ")}
+            {t("card.variables", {
+              names: template.content.variables.map((v) => v.name).join(", "),
+            })}
           </div>
         )}
 
         {template.automationRules && template.automationRules.length > 0 && (
           <div className="flex items-center space-x-1 text-xs text-purple-600">
             <Wand2 className="w-3 h-3" />
-            <span>
-              {template.automationRules.length} automation rule
-              {template.automationRules.length !== 1 ? "s" : ""}
-            </span>
+            <span>{t("card.automationRules", { count: template.automationRules.length })}</span>
           </div>
         )}
       </div>

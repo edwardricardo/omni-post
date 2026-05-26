@@ -12,8 +12,9 @@ import type {
   PostWithContent,
   PostWithAnalytics,
   PublishedPost,
-} from "../../domain/repositories/ProjectQueryRepository.js";
-import type { ProjectDto } from "../../domain/repositories/ReadModelDtos.js";
+  MediaTypeCount,
+} from "@core/domain/repositories/ProjectQueryRepository.js";
+import type { ProjectDto, ChannelDto } from "@core/domain/repositories/ReadModelDtos.js";
 
 /**
  * PrismaProjectQueryRepository
@@ -128,6 +129,27 @@ export class PrismaProjectQueryRepository implements ProjectQueryRepositoryPort 
   }
 
   /**
+   * Count all projects belonging to an account.
+   */
+  async countByAccountId(accountId: string): Promise<number> {
+    return this.prisma.project.count({
+      where: { accountId },
+    });
+  }
+
+  /**
+   * Return media-attachment counts grouped by type across an account's projects.
+   */
+  async getMediaCountsByAccount(accountId: string): Promise<MediaTypeCount[]> {
+    const groups = await this.prisma.postMedia.groupBy({
+      by: ["type"],
+      where: { post: { project: { accountId } } },
+      _count: { id: true },
+    });
+    return groups.map((group) => ({ type: group.type, count: group._count.id }));
+  }
+
+  /**
    * Return a single project by ID, or null if not found.
    */
   async findById(projectId: string): Promise<ProjectDto | null> {
@@ -135,5 +157,26 @@ export class PrismaProjectQueryRepository implements ProjectQueryRepositoryPort 
       where: { id: projectId },
     });
     return row ? (row as unknown as ProjectDto) : null;
+  }
+
+  /**
+   * Return whether the given account owns the given project.
+   */
+  async getProjectAccess(accountId: string, projectId: string): Promise<boolean> {
+    const count = await this.prisma.project.count({
+      where: { id: projectId, accountId },
+    });
+    return count > 0;
+  }
+
+  /**
+   * Return all channels belonging to a project as flat DTOs.
+   */
+  async getChannelsByProject(projectId: string): Promise<ChannelDto[]> {
+    const rows = await this.prisma.channel.findMany({
+      where: { projectId },
+    });
+    // Prisma enum values are identical string literals at runtime — safe cast.
+    return rows as unknown as ChannelDto[];
   }
 }

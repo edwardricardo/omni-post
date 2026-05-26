@@ -8,7 +8,7 @@ import { describe, it, expect } from "vitest";
 import {
   CrmConnection,
   type CreateCrmConnectionInput,
-} from "../../../src/domain/entities/CrmConnection.js";
+} from "@core/domain/entities/CrmConnection.js";
 
 const validInput: CreateCrmConnectionInput = {
   accountId: "acc-001",

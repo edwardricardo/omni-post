@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import {
   calculateStatus,
   DUE_SOON_WINDOW_DAYS,
-} from "../../../../src/domain/security/rotationStatusRules.js";
+} from "@core/domain/security/rotationStatusRules.js";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 

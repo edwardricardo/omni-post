@@ -62,7 +62,7 @@ describe("TemplateService - Get Templates", () => {
   const mocks: any[] = [];
 
   beforeEach(() => {
-    service = new TemplateService();
+    service = new TemplateService(prisma);
     for (const m of mocks) {
       restoreMock(m);
     }
@@ -190,7 +190,7 @@ describe("TemplateService - Get Template", () => {
   const mocks: any[] = [];
 
   beforeEach(() => {
-    service = new TemplateService();
+    service = new TemplateService(prisma);
     for (const m of mocks) {
       restoreMock(m);
     }
@@ -274,7 +274,7 @@ describe("TemplateService - Create Template", () => {
   const mocks: any[] = [];
 
   beforeEach(() => {
-    service = new TemplateService();
+    service = new TemplateService(prisma);
     for (const m of mocks) {
       restoreMock(m);
     }
@@ -442,7 +442,7 @@ describe("TemplateService - Update Template", () => {
   const mocks: any[] = [];
 
   beforeEach(() => {
-    service = new TemplateService();
+    service = new TemplateService(prisma);
     for (const m of mocks) {
       restoreMock(m);
     }
@@ -543,7 +543,7 @@ describe("TemplateService - Delete Template", () => {
   const mocks: any[] = [];
 
   beforeEach(() => {
-    service = new TemplateService();
+    service = new TemplateService(prisma);
     for (const m of mocks) {
       restoreMock(m);
     }

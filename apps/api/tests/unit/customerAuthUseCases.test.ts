@@ -7,17 +7,25 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { ok, err } from "@shared/types";
 import argon2 from "argon2";
-import { RegisterCustomerUseCase } from "../../src/application/customer-auth/RegisterCustomerUseCase.js";
-import { LoginCustomerUseCase } from "../../src/application/customer-auth/LoginCustomerUseCase.js";
-import { RefreshCustomerTokenUseCase } from "../../src/application/customer-auth/RefreshCustomerTokenUseCase.js";
-import { ResetPasswordUseCase } from "../../src/application/customer-auth/ResetPasswordUseCase.js";
-import { RequestPasswordResetUseCase } from "../../src/application/customer-auth/RequestPasswordResetUseCase.js";
-import { LogoutCustomerUseCase } from "../../src/application/customer-auth/LogoutCustomerUseCase.js";
+import { RegisterCustomerUseCase } from "@core/application/customer-auth/RegisterCustomerUseCase.js";
+import { LoginCustomerUseCase } from "@core/application/customer-auth/LoginCustomerUseCase.js";
+import { RefreshCustomerTokenUseCase } from "@core/application/customer-auth/RefreshCustomerTokenUseCase.js";
+import { ResetPasswordUseCase } from "@core/application/customer-auth/ResetPasswordUseCase.js";
+import { RequestPasswordResetUseCase } from "@core/application/customer-auth/RequestPasswordResetUseCase.js";
+import { LogoutCustomerUseCase } from "@core/application/customer-auth/LogoutCustomerUseCase.js";
+import { Argon2PasswordHasher } from "../../src/infrastructure/adapters/Argon2PasswordHasher.js";
+import { CustomerTokenServiceAdapter } from "../../src/infrastructure/adapters/CustomerTokenServiceAdapter.js";
 import { InMemoryCacheAdapter } from "@adapters/cache-redis";
-import { CustomerUser } from "../../src/domain/entities/CustomerUser.js";
-import { Account } from "../../src/domain/entities/Account.js";
-import { EntityNotFoundError } from "../../src/domain/errors/index.js";
-import { AccountId } from "../../src/domain/value-objects/EntityId.js";
+import { CustomerUser } from "@core/domain/entities/CustomerUser.js";
+import { Account } from "@core/domain/entities/Account.js";
+import { EntityNotFoundError } from "@core/domain/errors/index.js";
+import { AccountId } from "@core/domain/value-objects/EntityId.js";
+
+// ---- Real adapters (stateless; sign/hash with the production implementations
+// so token + password round-trips behave exactly as in production) ----
+
+const hasher = new Argon2PasswordHasher();
+const tokenService = new CustomerTokenServiceAdapter();
 
 // ---- Mock factories ----
 
@@ -112,6 +120,8 @@ describe("RegisterCustomerUseCase", () => {
       customerUserRepo,
       customerRoleRepo,
       accountRepo,
+      hasher,
+      tokenService,
       undefined,
       unitOfWork
     );
@@ -192,7 +202,7 @@ describe("LoginCustomerUseCase", () => {
     vi.clearAllMocks();
     customerUserRepo = makeCustomerUserRepo();
     accountRepo = makeAccountRepo();
-    useCase = new LoginCustomerUseCase(customerUserRepo, accountRepo);
+    useCase = new LoginCustomerUseCase(customerUserRepo, accountRepo, hasher, tokenService);
 
     // Pre-hash a password for testing
     hashedPassword = await argon2.hash("correctpassword");
@@ -283,7 +293,7 @@ describe("RefreshCustomerTokenUseCase", () => {
     vi.clearAllMocks();
     customerUserRepo = makeCustomerUserRepo();
     cache = new InMemoryCacheAdapter();
-    useCase = new RefreshCustomerTokenUseCase(customerUserRepo, cache);
+    useCase = new RefreshCustomerTokenUseCase(customerUserRepo, cache, tokenService);
   });
 
   it("returns INVALID_TOKEN for garbage input", async () => {
@@ -325,7 +335,7 @@ describe("RefreshCustomerTokenUseCase", () => {
     const { signCustomerRefreshToken } = await import("../../src/auth/customerJwt.js");
     const token = signCustomerRefreshToken("user-123", "session-revoked");
     // Revoke the session before the refresh attempt
-    const logoutUseCase = new LogoutCustomerUseCase(cache);
+    const logoutUseCase = new LogoutCustomerUseCase(cache, tokenService);
     await logoutUseCase.execute({ refreshToken: token });
 
     const result = await useCase.execute({ refreshToken: token });
@@ -341,7 +351,7 @@ describe("LogoutCustomerUseCase", () => {
 
   beforeEach(() => {
     cache = new InMemoryCacheAdapter();
-    useCase = new LogoutCustomerUseCase(cache);
+    useCase = new LogoutCustomerUseCase(cache, tokenService);
   });
 
   it("returns ok and is a no-op when refreshToken is null", async () => {
@@ -377,7 +387,7 @@ describe("RequestPasswordResetUseCase", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     customerUserRepo = makeCustomerUserRepo();
-    useCase = new RequestPasswordResetUseCase(customerUserRepo);
+    useCase = new RequestPasswordResetUseCase(customerUserRepo, "http://localhost:3200");
   });
 
   it("returns ok even when email does not exist (no enumeration)", async () => {
@@ -407,7 +417,7 @@ describe("ResetPasswordUseCase", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     customerUserRepo = makeCustomerUserRepo();
-    useCase = new ResetPasswordUseCase(customerUserRepo);
+    useCase = new ResetPasswordUseCase(customerUserRepo, hasher);
   });
 
   it("returns INVALID_TOKEN when token not found", async () => {

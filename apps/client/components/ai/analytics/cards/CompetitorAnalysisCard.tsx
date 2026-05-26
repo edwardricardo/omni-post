@@ -2,10 +2,12 @@
  * @file CompetitorAnalysisCard.tsx
  * @description Card component displaying a competitor account's engagement rate,
  * follower growth, content strategy metrics, and performance comparison indicators.
+ * @layer infrastructure
  */
 
 import React from "react";
 import { TrendingUp, Eye, CheckCircle, AlertTriangle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { CompetitorAnalysis } from "../types";
 
 interface CompetitorAnalysisCardProps {
@@ -29,23 +31,24 @@ const getPerformanceIcon = (value: string) => {
  * content strategy metrics, and performance comparison indicators.
  */
 export const CompetitorAnalysisCard: React.FC<CompetitorAnalysisCardProps> = ({ competitor }) => {
+  const t = useTranslations("ai.components");
   return (
     <div className="border rounded-lg p-6">
       <div className="flex items-center justify-between mb-6">
         <h4 className="text-lg font-semibold text-gray-900">{competitor.competitor}</h4>
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-600">Engagement:</span>
+            <span className="text-sm text-gray-600">{t("competitorCard.engagement")}</span>
             {getPerformanceIcon(competitor.benchmarkComparison.engagement)}
             <span className="text-sm font-medium">{competitor.benchmarkComparison.engagement}</span>
           </div>
           <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-600">Reach:</span>
+            <span className="text-sm text-gray-600">{t("competitorCard.reach")}</span>
             {getPerformanceIcon(competitor.benchmarkComparison.reach)}
             <span className="text-sm font-medium">{competitor.benchmarkComparison.reach}</span>
           </div>
           <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-600">Growth:</span>
+            <span className="text-sm text-gray-600">{t("competitorCard.growth")}</span>
             {getPerformanceIcon(competitor.benchmarkComparison.growth)}
             <span className="text-sm font-medium">{competitor.benchmarkComparison.growth}</span>
           </div>
@@ -54,18 +57,24 @@ export const CompetitorAnalysisCard: React.FC<CompetitorAnalysisCardProps> = ({ 
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div>
-          <h5 className="font-semibold text-gray-900 mb-3">Performance Metrics</h5>
+          <h5 className="font-semibold text-gray-900 mb-3">
+            {t("competitorCard.performanceMetrics")}
+          </h5>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-600">Avg Engagement:</span>
+              <span className="text-gray-600">{t("competitorCard.avgEngagement")}</span>
               <span className="font-medium">{competitor.performance.avgEngagement}%</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Post Frequency:</span>
-              <span className="font-medium">{competitor.performance.postFrequency}/week</span>
+              <span className="text-gray-600">{t("competitorCard.postFrequency")}</span>
+              <span className="font-medium">
+                {t("competitorCard.perWeek", { count: competitor.performance.postFrequency })}
+              </span>
             </div>
             <div>
-              <span className="text-gray-600 block mb-1">Top Content Types:</span>
+              <span className="text-gray-600 block mb-1">
+                {t("competitorCard.topContentTypes")}
+              </span>
               <div className="space-y-1">
                 {competitor.performance.topContentTypes.map((type) => (
                   <div key={type} className="text-gray-700">
@@ -80,7 +89,7 @@ export const CompetitorAnalysisCard: React.FC<CompetitorAnalysisCardProps> = ({ 
         <div>
           <h5 className="font-semibold text-gray-900 mb-3 flex items-center space-x-2">
             <CheckCircle className="w-4 h-4 text-green-600" />
-            <span>Opportunities</span>
+            <span>{t("competitorCard.opportunities")}</span>
           </h5>
           <div className="space-y-2 text-sm">
             {competitor.opportunities.map((opportunity, idx) => (
@@ -95,7 +104,7 @@ export const CompetitorAnalysisCard: React.FC<CompetitorAnalysisCardProps> = ({ 
         <div>
           <h5 className="font-semibold text-gray-900 mb-3 flex items-center space-x-2">
             <AlertTriangle aria-hidden="true" className="w-4 h-4 text-red-600" />
-            <span>Threats</span>
+            <span>{t("competitorCard.threats")}</span>
           </h5>
           <div className="space-y-2 text-sm">
             {competitor.threats.map((threat, idx) => (

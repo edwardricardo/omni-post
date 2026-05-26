@@ -9,7 +9,7 @@ import {
   ProjectId,
   type PostQueryRepository,
   type PostReadModel as DomainPostReadModel,
-} from "../../domain/index.js";
+} from "@core/domain/index.js";
 import { createLogger } from "../../lib/logger.js";
 import {
   type Query,

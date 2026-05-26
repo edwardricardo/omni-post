@@ -6,8 +6,8 @@
 [extend]
 useDefault = true
 
-[allowlist]
-description = "Project-specific allowlists"
+[[allowlists]]
+description = "Project-wide ignore list (binary assets + generated output + lock files + reports + gitignored env files)"
 
 paths = [
   '''(.*?)(jpg|jpeg|png|gif|webp|ico|svg|woff2?|ttf|eot|mp4|webm|pdf)$''',
@@ -20,6 +20,15 @@ paths = [
   '''pnpm-lock\.yaml''',
   # Prisma generated client (no secrets, large file)
   '''infra/prisma/generated/''',
+  # Local-dev env files: gitignored, never reach a commit, but `gitleaks
+  # --no-git` reads them from disk. The canon path is `apps/api/src/config/env.ts`
+  # (Zod-validated typed env constant) — these files hold dev-only values.
+  '''^\.env$''',
+  '''^\.env\.test$''',
+  # Hook + session logs: gitignored, written by Claude Code hooks at runtime.
+  # `gitleaks --no-git` would otherwise flag rule-pattern matches that show
+  # up in the log text (e.g. an example payload echoed back). Never commit.
+  '''\.claude/.*\.log$''',
 ]
 
 regexes = [
@@ -40,4 +49,152 @@ stopwords = [
   "PLACEHOLDER",
   "DUMMY",
   "FAKE",
+]
+
+# ─── Path-scoped allowlists (audited 2026-05-20) ─────────────────────────
+#
+# Every entry below carves out a known-safe finding from the default
+# ruleset. Each entry justifies itself in `description` so a future reader
+# can audit the carve-out. Anything not listed here is a real leak — the
+# canon expects it to be sanitised at source, not silenced.
+
+[[allowlists]]
+description = """
+GA4TrackingAdapter reads `env.GA4_API_SECRET` from the typed Zod env
+constant (`apps/api/src/config/env.ts`). The variable name `apiSecret`
+triggers the generic-api-key rule by pattern, but the value is
+constructor-injected from the validated env constant per CWE-798 canon —
+no literal secret lives in this file.
+"""
+paths = ['''apps/api/src/infrastructure/adapters/GA4TrackingAdapter\.ts''']
+regexes = ['''const apiSecret = env\.GA4_API_SECRET;''']
+
+[[allowlists]]
+description = """
+LinkedIn adapter declares two stateless metadata constants (rate-limit
+hints and provider metadata). The default ruleset matches them as
+`linkedin-client-id` / `linkedin-client-secret` by the symbol name
+pattern, but neither line stores credentials — `LINKEDIN_LIMITS` is a
+`ProviderLimits` object and `LINKEDIN_METADATA` is a `ProviderMetadata`
+object. Real credentials are injected per-call by the application's
+CredentialResolver.
+"""
+paths = ['''packages/providers/linkedin/src/LinkedInAdapter\.ts''']
+regexes = [
+  '''const LINKEDIN_LIMITS: ProviderLimits =''',
+  '''const LINKEDIN_METADATA: ProviderMetadata =''',
+]
+
+[[allowlists]]
+description = """
+`<aes-256-key>` / `<aes-256-key-for-encryption>` are explicit
+angle-bracket placeholders in security docs. The default generic-api-key
+rule matches the `KEY=<...>` shape regardless of whether the value is
+obviously a placeholder. Sanitising further would lose the canonical
+"fill in your own AES-256 key" instruction.
+"""
+paths = [
+  '''docs/architecture/SECURITY\.md''',
+  '''docs/security/OVERVIEW\.md''',
+]
+regexes = ['''<aes-256-key''']
+
+[[allowlists]]
+description = """
+The TESTING.md command line `pnpm --filter @apps/api
+test:phase4c-integration` matches the default generic-api-key rule by the
+colon + entropy in the package-script name. The matched substring is a
+pnpm script identifier (defined in `apps/api/package.json`), not a
+credential.
+"""
+paths = ['''docs/architecture/TESTING\.md''']
+regexes = ['''test:phase4c-integration''']
+
+[[allowlists]]
+description = """
+The dx-documentation-manager agent prompt embeds illustrative curl
+snippets — one literal and one inside a template literal that the agent
+uses to generate code samples — both with `YOUR_API_KEY` as the universal
+placeholder convention. No real tokens.
+"""
+paths = ['''\.claude/agents/dx-documentation-manager\.md''']
+regexes = ['''Bearer YOUR_API_KEY''']
+
+[[allowlists]]
+description = """
+The application migration roadmap prose names the use-case class
+`GenerateIntegrationApiKey` (file `apps/api/src/application/integrations/
+GenerateIntegrationApiKeyUseCase.ts`). The default generic-api-key rule
+flags the `...IntegrationApiKey` substring by shape/entropy. It is a class
+identifier in documentation, not a credential.
+"""
+paths = ['''docs/architecture/APPLICATION_MIGRATION_ROADMAP_ES\.md''']
+regexes = ['''GenerateIntegrationApiKey''']
+
+# ─── Historic placeholder/fixture commits (audited 2026-05-20) ──────────
+#
+# These six commits contain placeholder / fixture / docs-example strings
+# that the default rule set flags by shape. Each was manually audited:
+# none holds a real credential. The matches were either sanitised at HEAD
+# in this same workstream (so new commits don't reproduce them) or
+# allowlisted above by path+regex. The historical occurrences cannot be
+# removed without rewriting history (487 commit hashes change, force-push
+# to `workstream/impl-roadmap`, breaks any outstanding clone/PR).
+# Per Edward's call (2026-05-20), the conservative path is to exclude the
+# audited commits by hash from `gitleaks detect`. Future commits remain
+# scanned in full.
+
+[[allowlists]]
+description = """
+b87dc06 (2026-04-13, "feat: Sprint SETTINGS-A + CRYPTO + runtime fixes"):
+introduced settings test fixtures with realistic Stripe-shape strings
+(`sk_live_abc123def456ghi789`, `whsec_longvalue1234`,
+`sk-proj-abc123def456`, `valid-api-key-12345`). Sanitised at HEAD this
+sprint (replaced by `fake-test-credential-fixture-end` /
+`FAKE-byok-test-fixture`).
+"""
+commits = ['''b87dc0639d0406e34d7c4681b11ce6957cdec4df''']
+
+[[allowlists]]
+description = """
+073e0fb (2026-04-07, "docs: admin overhaul session reports, audits, and
+frontend standards"): a single admin-fix-report example JSON token.
+Placeholder, not a real secret.
+"""
+commits = ['''073e0fb4d88bbeb0b010b9f636581fbf9758ad43''']
+
+[[allowlists]]
+description = """
+6fb361a (2026-03-31, "feat: multi-cloud infrastructure — storage adapters
++ deployment guides"): added 6 cloud deployment guides (AWS/AZURE/GCP/
+DIGITALOCEAN/LOCAL/ENVIRONMENT_VARIABLES) with `sk_live_xxxxxxxxxxxx` /
+`whsec_xxxxxxxxxxxx` / hex-string ENCRYPTION_KEY placeholders. Sanitised
+at HEAD this sprint (replaced by `<YOUR_STRIPE_LIVE_KEY>` /
+`<openssl rand -hex 32>` patterns).
+"""
+commits = ['''6fb361a2734682a3dc1f97352cd922ae605c10c7''']
+
+[[allowlists]]
+description = """
+85b6b7e (2026-03-26, "test: add 1,266 tests across mutation kill sessions
+A-F + use case coverage"): Bluesky client test fixture
+`password: "pass-1234-5678-9012"`. Sanitised at HEAD this sprint
+(replaced by `fixture-login-pw`).
+"""
+commits = ['''85b6b7e9fc7b635f44547c87e076f5479de2ee4c''']
+
+[[allowlists]]
+description = """
+5603d6b + d68a475 (2026-03-08, "Genesis" — repo initial commits):
+introduced the original placeholders in `docs/api/README.md` and
+`docs/architecture/API.md` (`"eyJhbGciOiJIUzI1NiIs..."` example JWT) plus
+`apps/api/tests/unit/connectionManager.retrieval-config.test.ts:148` test
+fixture, plus initial Kubernetes deployment manifests
+(`k8s/observability/{alertmanager,jaeger}-deployment.yaml`) with example
+config values. All sanitised at HEAD where possible; the k8s manifests
+ship example values per upstream conventions.
+"""
+commits = [
+  '''5603d6be8e89b182bfd2204387a3a87ad8c0206c''',
+  '''d68a4757ac6249bea6d64e4100b0532fd61d2867''',
 ]

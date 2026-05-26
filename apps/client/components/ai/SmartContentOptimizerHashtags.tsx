@@ -12,6 +12,7 @@
  */
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import type { HashtagAnalysis } from "./smartContentOptimizerUtils";
 
 interface SmartContentOptimizerHashtagsProps {
@@ -26,19 +27,16 @@ interface SmartContentOptimizerHashtagsProps {
 export function SmartContentOptimizerHashtags({
   hashtagAnalysis,
 }: SmartContentOptimizerHashtagsProps) {
+  const t = useTranslations("ai.components");
   if (hashtagAnalysis.length === 0) {
-    return (
-      <div className="text-center py-10 text-sm text-gray-500">
-        No hashtag suggestions available yet. Run optimization on some content to see results here.
-      </div>
-    );
+    return <div className="text-center py-10 text-sm text-gray-500">{t("hashtags.empty")}</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h4 className="text-lg font-semibold text-gray-900">Suggested Hashtags</h4>
-        <div className="text-sm text-gray-600">Returned by content optimization</div>
+        <h4 className="text-lg font-semibold text-gray-900">{t("hashtags.title")}</h4>
+        <div className="text-sm text-gray-600">{t("hashtags.returnedBy")}</div>
       </div>
 
       <div className="grid gap-3">
@@ -61,7 +59,7 @@ export function SmartContentOptimizerHashtags({
                 type="button"
                 className="ml-2 px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
               >
-                Add to Content
+                {t("hashtags.addToContent")}
               </button>
             </div>
           </div>

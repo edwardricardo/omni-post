@@ -8,6 +8,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { Button, Input, Label } from "@packages/ui";
 import { useInviteTeamMember } from "@/hooks/api/useTeam";
 
@@ -21,6 +22,7 @@ interface InviteMemberModalProps {
 const INVITE_ROLES = ["MEMBER", "MANAGER", "VIEWER"] as const;
 
 export function InviteMemberModal({ accountId, invitedBy, open, onClose }: InviteMemberModalProps) {
+  const t = useTranslations("team");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [role, setRole] = useState<(typeof INVITE_ROLES)[number]>("MEMBER");
@@ -66,38 +68,38 @@ export function InviteMemberModal({ accountId, invitedBy, open, onClose }: Invit
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <button
         type="button"
-        aria-label="Close modal"
+        aria-label={t("invite.closeModal")}
         className="fixed inset-0 bg-black/25 cursor-default"
         onClick={onClose}
       />
       <div className="relative z-50 w-full max-w-md rounded-lg bg-card border shadow-lg p-6">
-        <h2 className="text-lg font-semibold mb-4">Invite Team Member</h2>
+        <h2 className="text-lg font-semibold mb-4">{t("invite.title")}</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="invite-name">Name *</Label>
+            <Label htmlFor="invite-name">{t("invite.nameLabel")}</Label>
             <Input
               ref={nameInputRef}
               id="invite-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="John Doe"
+              placeholder={t("invite.namePlaceholder")}
             />
           </div>
 
           <div>
-            <Label htmlFor="invite-email">Email *</Label>
+            <Label htmlFor="invite-email">{t("invite.emailLabel")}</Label>
             <Input
               id="invite-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="john@company.com"
+              placeholder={t("invite.emailPlaceholder")}
             />
           </div>
 
           <div>
-            <Label htmlFor="invite-role">Role</Label>
+            <Label htmlFor="invite-role">{t("invite.roleLabel")}</Label>
             <select
               id="invite-role"
               value={role}
@@ -106,13 +108,11 @@ export function InviteMemberModal({ accountId, invitedBy, open, onClose }: Invit
             >
               {INVITE_ROLES.map((r) => (
                 <option key={r} value={r}>
-                  {r}
+                  {t(`roles.${r}`)}
                 </option>
               ))}
             </select>
-            <p className="text-xs text-muted-foreground mt-1">
-              Managers can invite members. Viewers have read-only access.
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">{t("invite.roleHint")}</p>
           </div>
 
           {inviteMutation.isError && (
@@ -123,10 +123,10 @@ export function InviteMemberModal({ accountId, invitedBy, open, onClose }: Invit
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" onClick={onClose}>
-              Cancel
+              {t("cancel")}
             </Button>
             <Button type="submit" disabled={!canSubmit}>
-              {inviteMutation.isPending ? "Inviting..." : "Send Invitation"}
+              {inviteMutation.isPending ? t("invite.submitting") : t("invite.submit")}
             </Button>
           </div>
         </form>

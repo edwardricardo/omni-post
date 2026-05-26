@@ -9,6 +9,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { formatDistanceToNow } from "date-fns";
 import { useComments, useAddComment } from "@/hooks/api/useComments";
 import type { Comment } from "@/hooks/api/useComments";
@@ -24,6 +25,7 @@ interface CommentRowProps {
 }
 
 function CommentRow({ comment, onReply, isReply = false }: CommentRowProps) {
+  const t = useTranslations("comments");
   const initials = comment.authorName
     .split(" ")
     .slice(0, 2)
@@ -48,7 +50,7 @@ function CommentRow({ comment, onReply, isReply = false }: CommentRowProps) {
             onClick={() => onReply(comment.id)}
             className="mt-1 text-[11px] text-indigo-600 hover:text-indigo-700"
           >
-            Reply
+            {t("reply")}
           </button>
         )}
         {/* Replies (1 level) */}
@@ -81,6 +83,7 @@ interface CommentThreadProps {
  * @param props.authorId - ID of the current user authoring new comments
  */
 export function CommentThread({ postId, authorId }: CommentThreadProps) {
+  const t = useTranslations("comments");
   const { data: comments = [], isLoading } = useComments(postId);
   const addCommentMutation = useAddComment(postId);
   const [newBody, setNewBody] = useState("");
@@ -102,7 +105,7 @@ export function CommentThread({ postId, authorId }: CommentThreadProps) {
   return (
     <div className="mt-6 border-t border-gray-100 pt-4">
       <h3 className="mb-3 text-sm font-semibold text-gray-700">
-        Comments {comments.length > 0 && `(${comments.length})`}
+        {comments.length > 0 ? t("titleWithCount", { count: comments.length }) : t("title")}
       </h3>
 
       {isLoading && (
@@ -125,7 +128,7 @@ export function CommentThread({ postId, authorId }: CommentThreadProps) {
             <CommentRow key={c.id} comment={c} onReply={setReplyTo} />
           ))}
           {comments.length === 0 && (
-            <p className="text-xs text-gray-400 text-center py-2">No comments yet</p>
+            <p className="text-xs text-gray-400 text-center py-2">{t("empty")}</p>
           )}
         </div>
       )}
@@ -134,9 +137,9 @@ export function CommentThread({ postId, authorId }: CommentThreadProps) {
       <div className="mt-4">
         {replyTo && (
           <div className="mb-2 flex items-center gap-2 text-xs text-gray-500">
-            <span>Replying to comment</span>
+            <span>{t("replyingTo")}</span>
             <button onClick={() => setReplyTo(null)} className="text-red-500 hover:text-red-600">
-              Cancel
+              {t("cancel")}
             </button>
           </div>
         )}
@@ -144,7 +147,7 @@ export function CommentThread({ postId, authorId }: CommentThreadProps) {
           <textarea
             value={newBody}
             onChange={(e) => setNewBody(e.target.value)}
-            placeholder={replyTo ? "Write a reply…" : "Add a comment…"}
+            placeholder={replyTo ? t("replyPlaceholder") : t("addPlaceholder")}
             rows={2}
             className="flex-1 resize-none rounded-md border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />
@@ -153,7 +156,7 @@ export function CommentThread({ postId, authorId }: CommentThreadProps) {
             disabled={!newBody.trim() || addCommentMutation.isPending}
             className="self-end rounded-md bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
           >
-            {addCommentMutation.isPending ? "…" : "Add"}
+            {addCommentMutation.isPending ? "…" : t("add")}
           </button>
         </div>
       </div>

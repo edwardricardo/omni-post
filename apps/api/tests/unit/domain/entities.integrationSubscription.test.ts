@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from "vitest";
 import assert from "node:assert/strict";
-import { IntegrationSubscription } from "../../../src/domain/entities/IntegrationSubscription.js";
+import { IntegrationSubscription } from "@core/domain/entities/IntegrationSubscription.js";
 
 describe("IntegrationSubscription", () => {
   const validInput = {

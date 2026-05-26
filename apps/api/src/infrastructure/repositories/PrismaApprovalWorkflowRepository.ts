@@ -7,9 +7,9 @@
 
 import type { PrismaClient } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
-import type { ApprovalWorkflowRepository } from "../../domain/repositories/ApprovalWorkflowRepository.js";
-import { ApprovalWorkflow, type WorkflowLevel } from "../../domain/entities/ApprovalWorkflow.js";
-import { EntityNotFoundError, type DomainError } from "../../domain/errors/index.js";
+import type { ApprovalWorkflowRepository } from "@core/domain/repositories/ApprovalWorkflowRepository.js";
+import { ApprovalWorkflow, type WorkflowLevel } from "@core/domain/entities/ApprovalWorkflow.js";
+import { EntityNotFoundError, type DomainError } from "@core/domain/errors/index.js";
 
 /**
  * Raw Prisma row shape for type-safe mapping

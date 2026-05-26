@@ -16,8 +16,8 @@
 
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { Logger } from "pino";
-import type { ProcessRecurrenceUseCase } from "../application/recurring/ProcessRecurrenceUseCase.js";
-import type { CreatePostFromRecurrenceUseCase } from "../application/recurring/CreatePostFromRecurrenceUseCase.js";
+import type { ProcessRecurrenceUseCase } from "@core/application/recurring/ProcessRecurrenceUseCase.js";
+import type { CreatePostFromRecurrenceUseCase } from "@core/application/recurring/CreatePostFromRecurrenceUseCase.js";
 
 /** Tick interval. 60 s matches typical CMS competitor cadence (Buffer/Hootsuite). */
 const TICK_INTERVAL_MS = 60_000;

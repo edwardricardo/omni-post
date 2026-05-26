@@ -6,6 +6,7 @@
  */
 
 import { AuditableService } from "../../services/AuditableService.js";
+import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 import type { BillingEvent } from "./types.js";
 import { createLogger } from "../../lib/logger.js";
 
@@ -14,8 +15,8 @@ const log = createLogger("billing");
 export type ChangeType = "UPGRADE" | "DOWNGRADE" | "LATERAL";
 
 export class BillingService extends AuditableService {
-  constructor() {
-    super("BillingService");
+  constructor(auditLog: AuditLogRepository) {
+    super("BillingService", auditLog);
   }
 
   /**
@@ -114,5 +115,3 @@ export class BillingService extends AuditableService {
     return billingCycle === "yearly" ? yearlyPrice : monthlyPrice;
   }
 }
-
-export const billingService = new BillingService();

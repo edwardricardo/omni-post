@@ -134,9 +134,9 @@ describe("authApi.login", () => {
       json: vi.fn().mockRejectedValue(new Error("parse error")),
     });
 
-    // After T3-B authApi throws ApiError with the per-endpoint fallback message
-    // ("Login failed"). Body parsing failure is now caught silently in
-    // readErrorBody and the endpoint-specific fallback is used.
+    // `authApi` throws `ApiError` with the per-endpoint fallback
+    // message ("Login failed"). Body-parsing failure is caught silently
+    // in `readErrorBody` and the endpoint-specific fallback is used.
     await expect(authApi.login({ email: "a@b.com", password: "bad" })).rejects.toThrow(
       "Login failed"
     );

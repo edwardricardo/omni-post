@@ -8,6 +8,7 @@
  */
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import type { SchedulingRule } from "../../../types/multi-platform-scheduling";
 
 interface RulesViewProps {
@@ -18,22 +19,21 @@ interface RulesViewProps {
 }
 
 export function RulesView({ rules, onAddRule, onEditRule, onToggleRule }: RulesViewProps) {
+  const t = useTranslations("scheduling.components");
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-lg border p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-medium">Scheduling Rules</h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Automate your posting schedule with custom rules
-            </p>
+            <h3 className="text-lg font-medium">{t("rulesTitle")}</h3>
+            <p className="text-sm text-gray-600 mt-1">{t("rulesSubtitle")}</p>
           </div>
           <button
             onClick={onAddRule}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500"
-            aria-label="Add new scheduling rule"
+            aria-label={t("rulesAddAria")}
           >
-            + Add Rule
+            {t("rulesAddButton")}
           </button>
         </div>
 
@@ -42,15 +42,13 @@ export function RulesView({ rules, onAddRule, onEditRule, onToggleRule }: RulesV
             <div className="text-4xl mb-4" aria-hidden="true">
               ⚙️
             </div>
-            <h4 className="text-lg font-semibold text-gray-900 mb-2">No Scheduling Rules</h4>
-            <p className="text-sm mb-4">
-              Create rules to automate when and how often content is posted
-            </p>
+            <h4 className="text-lg font-semibold text-gray-900 mb-2">{t("rulesEmptyTitle")}</h4>
+            <p className="text-sm mb-4">{t("rulesEmptyDescription")}</p>
             <button
               onClick={onAddRule}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
-              Create Your First Rule
+              {t("rulesCreateFirst")}
             </button>
           </div>
         ) : (
@@ -74,7 +72,7 @@ export function RulesView({ rules, onAddRule, onEditRule, onToggleRule }: RulesV
                         checked={rule.isActive}
                         onChange={(e) => onToggleRule(rule.id, e.target.checked)}
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        aria-label={`Toggle ${rule.name} rule`}
+                        aria-label={t("rulesToggleAria", { name: rule.name })}
                       />
                       <span
                         className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
@@ -83,22 +81,22 @@ export function RulesView({ rules, onAddRule, onEditRule, onToggleRule }: RulesV
                             : "bg-gray-100 text-gray-800"
                         }`}
                       >
-                        {rule.isActive ? "Active" : "Inactive"}
+                        {rule.isActive ? t("ruleActive") : t("ruleInactive")}
                       </span>
                     </label>
                     <button
                       onClick={() => onEditRule(rule.id)}
                       className="text-blue-600 hover:text-blue-800 text-sm font-medium focus:outline-hidden focus:underline"
-                      aria-label={`Edit ${rule.name} rule`}
+                      aria-label={t("rulesEditAria", { name: rule.name })}
                     >
-                      Edit
+                      {t("rulesEdit")}
                     </button>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div>
-                    <span className="text-gray-600 font-medium">Platforms:</span>
+                    <span className="text-gray-600 font-medium">{t("rulesPlatforms")}</span>
                     <div className="mt-1">
                       <div className="flex flex-wrap gap-1">
                         {rule.platforms.map((platform) => (
@@ -113,7 +111,7 @@ export function RulesView({ rules, onAddRule, onEditRule, onToggleRule }: RulesV
                     </div>
                   </div>
                   <div>
-                    <span className="text-gray-600 font-medium">Content Types:</span>
+                    <span className="text-gray-600 font-medium">{t("rulesContentTypes")}</span>
                     <div className="mt-1 flex flex-wrap gap-1">
                       {rule.contentTypes.length > 0 ? (
                         rule.contentTypes.map((ct) => (
@@ -122,21 +120,27 @@ export function RulesView({ rules, onAddRule, onEditRule, onToggleRule }: RulesV
                           </span>
                         ))
                       ) : (
-                        <span className="text-xs text-gray-400">All types</span>
+                        <span className="text-xs text-gray-400">{t("rulesAllTypes")}</span>
                       )}
                     </div>
                   </div>
                   <div>
-                    <span className="text-gray-600 font-medium">Limits:</span>
+                    <span className="text-gray-600 font-medium">{t("rulesLimits")}</span>
                     <div className="mt-1 space-y-1">
                       {rule.maxPostsPerDay !== null && (
-                        <div className="text-xs">Max {rule.maxPostsPerDay} posts/day</div>
+                        <div className="text-xs">
+                          {t("rulesMaxPerDay", { count: rule.maxPostsPerDay })}
+                        </div>
                       )}
                       {rule.maxPostsPerHour !== null && (
-                        <div className="text-xs">Max {rule.maxPostsPerHour} posts/hour</div>
+                        <div className="text-xs">
+                          {t("rulesMaxPerHour", { count: rule.maxPostsPerHour })}
+                        </div>
                       )}
                       {rule.minIntervalMinutes !== null && (
-                        <div className="text-xs">Min {rule.minIntervalMinutes}m interval</div>
+                        <div className="text-xs">
+                          {t("rulesMinInterval", { minutes: rule.minIntervalMinutes })}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -145,12 +149,16 @@ export function RulesView({ rules, onAddRule, onEditRule, onToggleRule }: RulesV
                 {/* Performance stats */}
                 {(rule.successRate !== null || rule.avgPerformance !== null) && (
                   <div className="mt-3 pt-3 border-t flex gap-4 text-xs text-gray-500">
-                    <span>Applied {rule.timesApplied} times</span>
+                    <span>{t("rulesAppliedTimes", { count: rule.timesApplied })}</span>
                     {rule.successRate !== null && (
-                      <span>{Math.round(rule.successRate * 100)}% success rate</span>
+                      <span>
+                        {t("rulesSuccessRate", { rate: Math.round(rule.successRate * 100) })}
+                      </span>
                     )}
                     {rule.avgPerformance !== null && (
-                      <span>Avg. performance: {Math.round(rule.avgPerformance)}</span>
+                      <span>
+                        {t("rulesAvgPerformance", { value: Math.round(rule.avgPerformance) })}
+                      </span>
                     )}
                   </div>
                 )}
@@ -162,11 +170,11 @@ export function RulesView({ rules, onAddRule, onEditRule, onToggleRule }: RulesV
 
       {/* Help section */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="font-medium text-blue-900 mb-2">💡 Rule Examples</h4>
+        <h4 className="font-medium text-blue-900 mb-2">{t("rulesExamplesTitle")}</h4>
         <ul className="text-sm text-blue-800 space-y-1">
-          <li>• Post to Twitter daily between 9 AM - 5 PM, max 5 posts</li>
-          <li>• Post to LinkedIn on weekdays only, minimum 4 hours apart</li>
-          <li>• Post to Instagram daily at optimal times, max 3 posts</li>
+          <li>{t("rulesExample1")}</li>
+          <li>{t("rulesExample2")}</li>
+          <li>{t("rulesExample3")}</li>
         </ul>
       </div>
     </div>

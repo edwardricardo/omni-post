@@ -4,11 +4,16 @@
  * @layer application
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { RegisterCustomerUseCase } from "../../../src/application/customer-auth/RegisterCustomerUseCase.js";
-import type { CustomerUserRepository } from "../../../src/domain/repositories/CustomerUserRepository.js";
-import type { AccountRepositoryPort } from "../../../src/domain/repositories/AccountRepository.js";
-import type { EmailPort } from "../../../src/domain/repositories/EmailPort.js";
-import type { PlatformCredentialService } from "../../../src/security/PlatformCredentialService.js";
+import { RegisterCustomerUseCase } from "@core/application/customer-auth/RegisterCustomerUseCase.js";
+import { Argon2PasswordHasher } from "../../../src/infrastructure/adapters/Argon2PasswordHasher.js";
+import { CustomerTokenServiceAdapter } from "../../../src/infrastructure/adapters/CustomerTokenServiceAdapter.js";
+import type { CustomerUserRepository } from "@core/domain/repositories/CustomerUserRepository.js";
+import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
+import type { WelcomeMailer } from "@core/domain/repositories/WelcomeMailer.js";
+import type { PlatformCredentialReader } from "@core/domain/repositories/PlatformCredentialReader.js";
+
+const hasher = new Argon2PasswordHasher();
+const tokenService = new CustomerTokenServiceAdapter();
 
 function makeMockCustomerUserRepo(): CustomerUserRepository {
   return {
@@ -26,17 +31,17 @@ function makeMockAccountRepo(): AccountRepositoryPort {
   } as unknown as AccountRepositoryPort;
 }
 
-function makeMockEmailPort(): EmailPort {
-  return { send: vi.fn().mockResolvedValue({ ok: true, value: undefined }) };
+function makeMockWelcomeMailer(): WelcomeMailer {
+  return { sendWelcome: vi.fn().mockResolvedValue({ ok: true, value: undefined }) };
 }
 
-function makeMockCredentialService(): PlatformCredentialService {
+function makeMockCredentialService(): PlatformCredentialReader {
   return {
-    getGroup: vi.fn().mockResolvedValue({
+    getPlatformCredentials: vi.fn().mockResolvedValue({
       ok: true,
       value: { baseUrl: "https://app.test.io", supportEmail: "help@test.io" },
     }),
-  } as unknown as PlatformCredentialService;
+  };
 }
 
 const validInput = {
@@ -49,8 +54,8 @@ const validInput = {
 };
 
 describe("Welcome email on registration", () => {
-  let emailPort: EmailPort;
-  let credService: PlatformCredentialService;
+  let welcomeMailer: WelcomeMailer;
+  let credService: PlatformCredentialReader;
 
   function makeMockCustomerRoleRepo() {
     return {
@@ -70,7 +75,7 @@ describe("Welcome email on registration", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    emailPort = makeMockEmailPort();
+    welcomeMailer = makeMockWelcomeMailer();
     credService = makeMockCredentialService();
   });
 
@@ -79,9 +84,11 @@ describe("Welcome email on registration", () => {
       makeMockCustomerUserRepo(),
       makeMockCustomerRoleRepo(),
       makeMockAccountRepo(),
+      hasher,
+      tokenService,
       undefined,
       undefined,
-      emailPort,
+      welcomeMailer,
       credService
     );
 
@@ -90,26 +97,26 @@ describe("Welcome email on registration", () => {
     expect(result.ok).toBe(true);
     // Wait for async email send (fire-and-forget)
     await new Promise((r) => setTimeout(r, 50));
-    expect(emailPort.send).toHaveBeenCalledWith(
-      expect.objectContaining({
-        to: ["john@test.com"],
-        subject: expect.stringContaining("Welcome"),
-      })
+    expect(welcomeMailer.sendWelcome).toHaveBeenCalledWith(
+      "john@test.com",
+      expect.objectContaining({ accountName: "Test Account" })
     );
   });
 
   it("does NOT fail registration if email send fails", async () => {
-    const failingEmailPort: EmailPort = {
-      send: vi.fn().mockRejectedValue(new Error("SMTP down")),
+    const failingMailer: WelcomeMailer = {
+      sendWelcome: vi.fn().mockRejectedValue(new Error("SMTP down")),
     };
 
     const useCase = new RegisterCustomerUseCase(
       makeMockCustomerUserRepo(),
       makeMockCustomerRoleRepo(),
       makeMockAccountRepo(),
+      hasher,
+      tokenService,
       undefined,
       undefined,
-      failingEmailPort,
+      failingMailer,
       credService
     );
 
@@ -118,7 +125,7 @@ describe("Welcome email on registration", () => {
     expect(result.ok).toBe(true);
     // Wait for async catch
     await new Promise((r) => setTimeout(r, 50));
-    expect(failingEmailPort.send).toHaveBeenCalled();
+    expect(failingMailer.sendWelcome).toHaveBeenCalled();
   });
 
   it("uses baseUrl from PLATFORM settings", async () => {
@@ -126,28 +133,31 @@ describe("Welcome email on registration", () => {
       makeMockCustomerUserRepo(),
       makeMockCustomerRoleRepo(),
       makeMockAccountRepo(),
+      hasher,
+      tokenService,
       undefined,
       undefined,
-      emailPort,
+      welcomeMailer,
       credService
     );
 
     await useCase.execute(validInput);
     await new Promise((r) => setTimeout(r, 50));
 
-    expect(credService.getGroup).toHaveBeenCalledWith("PLATFORM");
-    expect(emailPort.send).toHaveBeenCalledWith(
-      expect.objectContaining({
-        html: expect.stringContaining("https://app.test.io"),
-      })
+    expect(credService.getPlatformCredentials).toHaveBeenCalled();
+    expect(welcomeMailer.sendWelcome).toHaveBeenCalledWith(
+      "john@test.com",
+      expect.objectContaining({ onboardingUrl: expect.stringContaining("https://app.test.io") })
     );
   });
 
-  it("works without email port (backward compatible)", async () => {
+  it("works without a mailer (backward compatible)", async () => {
     const useCase = new RegisterCustomerUseCase(
       makeMockCustomerUserRepo(),
       makeMockCustomerRoleRepo(),
-      makeMockAccountRepo()
+      makeMockAccountRepo(),
+      hasher,
+      tokenService
     );
 
     const result = await useCase.execute(validInput);

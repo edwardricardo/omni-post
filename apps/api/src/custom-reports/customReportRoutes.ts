@@ -25,14 +25,14 @@ import {
   DATE_RANGE_PRESETS,
   CHART_TYPES,
   REPORT_FORMATS,
-} from "../domain/analytics/ReportSchema.js";
-import type { CreateCustomReportUseCase } from "../application/custom-reports/CreateCustomReportUseCase.js";
-import type { UpdateCustomReportUseCase } from "../application/custom-reports/UpdateCustomReportUseCase.js";
-import type { DeleteCustomReportUseCase } from "../application/custom-reports/DeleteCustomReportUseCase.js";
-import type { ListCustomReportsQuery } from "../application/custom-reports/ListCustomReportsQuery.js";
-import type { GetCustomReportQuery } from "../application/custom-reports/GetCustomReportQuery.js";
-import type { RunCustomReportQuery } from "../application/custom-reports/RunCustomReportQuery.js";
-import type { ScheduleCustomReportUseCase } from "../application/custom-reports/ScheduleCustomReportUseCase.js";
+} from "@core/domain/analytics/ReportSchema.js";
+import type { CreateCustomReportUseCase } from "@core/application/custom-reports/CreateCustomReportUseCase.js";
+import type { UpdateCustomReportUseCase } from "@core/application/custom-reports/UpdateCustomReportUseCase.js";
+import type { DeleteCustomReportUseCase } from "@core/application/custom-reports/DeleteCustomReportUseCase.js";
+import type { ListCustomReportsQuery } from "@core/application/custom-reports/ListCustomReportsQuery.js";
+import type { GetCustomReportQuery } from "@core/application/custom-reports/GetCustomReportQuery.js";
+import type { RunCustomReportQuery } from "@core/application/custom-reports/RunCustomReportQuery.js";
+import type { ScheduleCustomReportUseCase } from "@core/application/custom-reports/ScheduleCustomReportUseCase.js";
 
 // ============================================================================
 // Schemas

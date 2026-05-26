@@ -4,9 +4,12 @@
  * @file TemplateVariableModal.tsx
  * @description Modal dialog for filling in variable placeholders in a content template
  * before applying it to a new post, with dynamic form fields per variable.
+ * @component TemplateVariableModal
+ * @layer infrastructure
  */
 
 import React, { useState, useEffect, useId } from "react";
+import { useTranslations } from "next-intl";
 import type { ContentTemplate } from "./types";
 
 interface TemplateVariableModalProps {
@@ -27,6 +30,7 @@ export const TemplateVariableModal: React.FC<TemplateVariableModalProps> = ({
   onClose,
   onSubmit,
 }) => {
+  const t = useTranslations("content");
   const [variables, setVariables] = useState<Record<string, string>>({});
   const variableIdPrefix = useId();
 
@@ -55,7 +59,9 @@ export const TemplateVariableModal: React.FC<TemplateVariableModalProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Configure Template: {template.name}</h3>
+          <h3 className="text-lg font-semibold">
+            {t("variableModal.title", { name: template.name })}
+          </h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             ×
           </button>
@@ -127,13 +133,13 @@ export const TemplateVariableModal: React.FC<TemplateVariableModalProps> = ({
             onClick={onClose}
             className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
           >
-            Cancel
+            {t("variableModal.cancel")}
           </button>
           <button
             onClick={handleSubmit}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            Create Content
+            {t("variableModal.submit")}
           </button>
         </div>
       </div>

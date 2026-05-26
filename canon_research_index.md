@@ -18,6 +18,16 @@ Fuentes externas validadas por batch. Consultar ANTES de cualquier nuevo researc
 
 ---
 
+## Security / Authentication
+
+### Brute-force / credential-stuffing protection — OWASP + NIST
+
+- **URLs:** https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html · https://pages.nist.gov/800-63-4/sp800-63b.html (SP 800-63B-4)
+- **Resumen (canon):** NIST **SHALL** = rate-limiting de intentos fallidos por cuenta (prefiere throttling sobre lockout duro: umbral alto ~100 + delays progresivos + IP throttle + CAPTCHA). OWASP: el contador de fallos se asocia a la **CUENTA, no a la IP** (atacantes rotan IPs; IP solo throttle supletorio, ojo NAT/compartida); lockout con auto-expiry o duración **exponencial**, consciente de **DoS** (permitir forgot-password aun bloqueado); **CAPTCHA** tras unos pocos fallos (defense-in-depth, no preventivo); **MFA** = defensa #1 (99.9% per Microsoft).
+- **Consumido por:** B2 del maratón prisma→DI (2026-05-24) — auditoría de las 3 impls divergentes (admin Prisma / customer rate-limit-only / huérfano Redis). Diseño de homologación en `docs/security/BRUTE_FORCE_HOMOLOGATION_ES.md` (workstream BF-HOMOLOG, backlog SMELL-35).
+
+---
+
 ## A11y / E2E
 
 ### @axe-core/playwright — canonical helper pattern
@@ -129,6 +139,51 @@ Fuentes externas validadas por batch. Consultar ANTES de cualquier nuevo researc
 - **URL:** internal — `~/.claude/projects/.../memory/feedback_three_questions_before_delete.md`
 - **Resumen:** ANTES de declarar código huérfano y removerlo, responder explícitamente: **(Q1)** ¿Qué es? (tipo, propósito declarado en JSDoc, signature). **(Q2)** ¿Para qué se supone que fue creado? (intent original, business value). **(Q3)** ¿Existe algo actualmente que haga lo que se supone que hace? (consumers reales + funcionalidad alternativa + feature roadmap). Decision rule: Q3=NO+sin roadmap → safe remove; Q3=NO+podría-ser-feature-pendiente → AskUserQuestion; Q3=SÍ → no es dead.
 - **Consumido por:** T2-H revisitado canon (2026-05-04) — Edward agregó al preflight `pre_delete_gate`. Aplicado evitó remove erróneo de 4 fields que resultaron ser features planeadas para client (migrate hecho + 3 backlog entries en lugar de delete).
+
+---
+
+## Architecture / Hexagonal monorepo — distribución de código
+
+### Explicit Architecture (Graça) + domain-driven-hexagon (Sairyss) + Composition Root (Seemann) + Nx library-first
+
+- **URLs:**
+  - https://herbertograca.com/2017/11/16/explicit-architecture-01-ddd-hexagonal-onion-clean-cqrs-how-i-put-it-all-together/
+  - https://github.com/Sairyss/domain-driven-hexagon
+  - https://blog.ploeh.dk/2011/07/28/CompositionRoot/ · https://blog.ploeh.dk/2019/06/17/composition-root-location/
+  - https://dev.to/artnikbrothers/the-8020-library-first-monorepo-why-your-apps-should-be-almost-empty-1gom · https://nx.dev/blog/virtuous-cycle-of-workspace-structure
+- **Resumen (canon backend-flavored):** Application Core = Application layer (use-cases + **ports**) + Domain layer
+  (entities/VOs/eventos/servicios). _"Ports belong inside the business logic, adapters belong outside"_ (Graça);
+  dependencias hacia adentro; **un solo core para múltiples entry-points** (HTTP, queue, CLI). Capas concretas TS:
+  domain (entities/aggregates/VOs/domain-events/errors + repository ports), application (use-cases/handlers/DTOs),
+  interface (controllers + HTTP DTOs), infrastructure (repo impls/adapters/ORM) — Sairyss. **Un composition root por
+  ejecutable** en el entry-point; el DI container no se filtra al core — Seemann. **Apps = contenedores de
+  despliegue, no de código**; lógica en libs; boundaries **enforced** no por convención — Nx library-first
+  (backend: Graça/Sairyss/Seemann mandan; Nx informa el packaging).
+- **Verificación:** WebFetch real de las 4 (2026-05). Graça/Sairyss/Seemann = citas literales confirmadas; Nx 80/20 =
+  fuente frontend-flavored (aplica el packaging, no el taxonomy feature/ui/state).
+- **Consumido por:** decisión Opción A (core→`packages/@core`) + grafo objetivo en
+  `docs/architecture/TARGET_ARCHITECTURE_CANON_ES.md` (2026-05). Existe debate canónico legítimo: modular-monolith /
+  in-process consumers (la Opción B usada para resolver DUP-01/02) también es canon — ambos extremos del espectro
+  decoupling↔simplicidad.
+
+---
+
+### Config injection into use-cases — Composition Root + Primitive Dependencies (Seemann/van Deursen)
+
+- **URLs:**
+  - https://blog.ploeh.dk/2011/07/28/CompositionRoot/
+  - "Dependency Injection Principles, Practices, and Patterns" (Seemann & van Deursen) — patrón _Primitive Dependencies_
+  - https://khorikov.org/posts/2019-07-31-commands-primitives/ (primitivos cruzan boundaries)
+- **Resumen:** una application use-case que necesita un valor de configuración (URL base, model name, connection
+  string) **NO** debe inyectar un objeto de configuración amplio (`IConfiguration`/`AppConfig` god-object) — eso es un
+  smell de **Service Locator** que oculta las dependencias reales del consumidor. El **Composition Root** (único lugar
+  que lee la config tipada/validada) resuelve e **inyecta los valores específicos como primitivos** por constructor
+  (_Primitive Dependencies_). El dominio queda puro (Khorikov): sin DI ni config; valores cruzan como primitivos/DTOs.
+- **Verificación:** WebSearch 2026-05 (DEV/Clean-Arch sources + ploeh + khorikov.org); confirmado el patrón Primitive
+  Dependencies y el anti-patrón del config-object amplio.
+- **Consumido por:** A6.1 (2026-05-25) — quitar `config/env` de 5 use-cases inyectando `clientUrl` /
+  `embeddingModel`+`embeddingDimensions` desde `setup*.ts`; NO se creó un `AppConfigPort`. Aplica a las demás
+  sub-fases de A6 que necesiten inyectar config (no ports de servicio).
 
 ---
 

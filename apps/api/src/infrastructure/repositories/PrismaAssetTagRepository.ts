@@ -11,7 +11,7 @@ import { type Result, ok, err } from "@shared/types";
 import {
   type AssetTagRepository,
   type AssetTagDTO,
-} from "../../domain/repositories/AssetTagRepository.js";
+} from "@core/domain/repositories/AssetTagRepository.js";
 
 /**
  * Raw Prisma row shape for an AssetTag record.

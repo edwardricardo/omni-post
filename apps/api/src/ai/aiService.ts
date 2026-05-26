@@ -9,10 +9,20 @@ import type { BackgroundTaskScheduler } from "@observability/background-schedule
 import type { CachePort } from "@ports/core";
 import { BaseService } from "../services/BaseService.js";
 import { AppError } from "../lib/errors/AppError.js";
+import { type Result, ok, err } from "@shared/types";
+import { logger } from "../lib/logger.js";
 import { AIOrchestrator } from "./orchestrator.js";
-import type { ImageGenerationOptions, ImageGenerationResult, AIResponse, AITask } from "./types.js";
+import type {
+  ImageGenerationOptions,
+  ImageGenerationResult,
+  AIResponse,
+  AITask,
+  StructuredOutputSpec,
+} from "./types.js";
 import type { AIMessage, GenerationOptions as AIGenerateOptions } from "./types.js";
 import type { AiRequestService } from "./AiRequestService.js";
+
+const aiServiceLogger = logger.child({ module: "ai", service: "AIService" });
 
 type Message = AIMessage;
 type GenerateOptions = AIGenerateOptions;
@@ -147,6 +157,75 @@ export class AIService extends BaseService {
         return { success: true, content: result.value, metadata: result.metadata };
       }
     );
+  }
+
+  /**
+   * @method generateStructured
+   * @description Schema-validated structured generation via the pool
+   *   orchestrator's native structured-output path. Returns a `Result` and
+   *   never throws across the port boundary. Routes through the pool/admin
+   *   orchestrator; per-account (BYOK) structured routing is not yet wired.
+   * @param messages - Conversation messages.
+   * @param spec - Technology-free structured-output spec (name/schema/parse).
+   * @param options - Generation options.
+   * @param _accountId - Per-account routing key; unused until BYOK structured
+   *   routing is wired.
+   * @returns Result of the validated value `T`, or `"AI_ERROR"`.
+   */
+  async generateStructured<T>(
+    messages: Message[],
+    spec: StructuredOutputSpec<T>,
+    options?: GenerateOptions,
+    _accountId?: string
+  ): Promise<Result<T, "AI_ERROR">> {
+    try {
+      const orchestrator = this.getAdminOrchestrator();
+      const res = await orchestrator.generateStructured<T>(messages, spec, options);
+      if (!res.ok || res.value === undefined) {
+        aiServiceLogger.warn(
+          { schema: spec.name, error: res.error?.code ?? "UNKNOWN" },
+          "Structured generation failed across all providers"
+        );
+        return err("AI_ERROR");
+      }
+      return ok(res.value);
+    } catch (error: unknown) {
+      aiServiceLogger.error({ err: error, schema: spec.name }, "Structured generation threw");
+      return err("AI_ERROR");
+    }
+  }
+
+  /**
+   * @method generateEmbeddings
+   * @description Generates dense vector embeddings via the orchestrator's
+   *   cross-provider routing. Providers without `supportsEmbeddings` are
+   *   skipped automatically.
+   * @param texts - One or more strings to embed.
+   * @param options - Override the model or dimensions (default 768).
+   * @param _accountId - Per-account routing key; unused until BYOK
+   *   embeddings routing is wired.
+   * @returns Result of the embedding matrix, or `"AI_ERROR"`.
+   */
+  async generateEmbeddings(
+    texts: string[],
+    options?: { model?: string; dimensions?: number },
+    _accountId?: string
+  ): Promise<Result<number[][], "AI_ERROR">> {
+    try {
+      const orchestrator = this.getAdminOrchestrator();
+      const res = await orchestrator.generateEmbeddings(texts, options);
+      if (!res.ok || res.value === undefined) {
+        aiServiceLogger.warn(
+          { textCount: texts.length, error: res.error?.code ?? "UNKNOWN" },
+          "Embeddings generation failed across all providers"
+        );
+        return err("AI_ERROR");
+      }
+      return ok(res.value);
+    } catch (error: unknown) {
+      aiServiceLogger.error({ err: error, textCount: texts.length }, "Embeddings generation threw");
+      return err("AI_ERROR");
+    }
   }
 
   /**

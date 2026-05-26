@@ -7,6 +7,16 @@ import { describe, it, beforeEach, vi, expect } from "vitest";
 import { OpenAIProvider } from "../../../src/ai/providers/openai.js";
 import type { AIMessage, GenerationOptions } from "../../../src/ai/types.js";
 import { mockConfig } from "./openai.test-helpers.js";
+import {
+  AI_ENDPOINTS,
+  aiWireServer,
+  http,
+  HttpResponse,
+  openAiChatResponse,
+  useAiWireServer,
+} from "./msw/aiWireServer.js";
+
+useAiWireServer();
 
 function makeOpenAIMockClient(createFn: (...args: any[]) => any) {
   return { chat: { completions: { create: createFn } } };
@@ -188,115 +198,106 @@ describe("OpenAIProvider - Content Analysis", () => {
     provider = new OpenAIProvider(mockConfig);
   });
 
-  it("should analyze sentiment correctly", async (_t) => {
-    const mockResponse = JSON.stringify({
-      score: 0.8,
-      label: "positive",
-      confidence: 0.95,
-    });
-
-    const createFn = vi.fn(async () => ({
-      choices: [{ message: { content: mockResponse } }],
-    }));
-    const mockClient = makeOpenAIMockClient(createFn);
-    // @ts-ignore
-    provider.client = mockClient;
+  it("returns the schema-validated sentiment slice", async () => {
+    aiWireServer.use(
+      http.post(AI_ENDPOINTS.openai, () =>
+        openAiChatResponse({ sentiment: { score: 0.8, label: "positive", confidence: 0.95 } })
+      )
+    );
 
     const result = await provider.analyzeContent("I love this product!", "sentiment");
-    expect(result.score).toBe(0.8);
-    expect(result.label).toBe("positive");
-    expect(result.confidence).toBe(0.95);
+
+    expect(result.sentiment?.score).toBe(0.8);
+    expect(result.sentiment?.label).toBe("positive");
+    expect(result.sentiment?.confidence).toBe(0.95);
   });
 
-  it("should analyze tone correctly", async (_t) => {
-    const mockResponse = JSON.stringify({
-      detected: "professional",
-      confidence: 0.9,
-      suggestions: ["Add personal touches", "Use contractions"],
-    });
-
-    const createFn = vi.fn(async () => ({
-      choices: [{ message: { content: mockResponse } }],
-    }));
-    const mockClient = makeOpenAIMockClient(createFn);
-    // @ts-ignore
-    provider.client = mockClient;
+  it("returns the schema-validated tone slice", async () => {
+    aiWireServer.use(
+      http.post(AI_ENDPOINTS.openai, () =>
+        openAiChatResponse({
+          tone: {
+            detected: "professional",
+            confidence: 0.9,
+            suggestions: ["Add personal touches", "Use contractions"],
+          },
+        })
+      )
+    );
 
     const result = await provider.analyzeContent("Dear Sir/Madam, I am writing...", "tone");
-    expect(result.detected).toBe("professional");
-    expect(result.confidence).toBe(0.9);
-    expect(Array.isArray(result.suggestions)).toBeTruthy();
+
+    expect(result.tone?.detected).toBe("professional");
+    expect(result.tone?.confidence).toBe(0.9);
+    expect(result.tone?.suggestions.length).toBe(2);
   });
 
-  it("should analyze readability correctly", async (_t) => {
-    const mockResponse = JSON.stringify({
-      score: 75,
-      level: "High School",
-      suggestions: ["Simplify complex sentences", "Use common vocabulary"],
-    });
-
-    const createFn = vi.fn(async () => ({
-      choices: [{ message: { content: mockResponse } }],
-    }));
-    const mockClient = makeOpenAIMockClient(createFn);
-    // @ts-ignore
-    provider.client = mockClient;
+  it("returns the schema-validated readability slice", async () => {
+    aiWireServer.use(
+      http.post(AI_ENDPOINTS.openai, () =>
+        openAiChatResponse({
+          readability: {
+            score: 75,
+            level: "High School",
+            suggestions: ["Simplify complex sentences"],
+          },
+        })
+      )
+    );
 
     const result = await provider.analyzeContent("Complex technical content", "readability");
-    expect(result.score).toBe(75);
-    expect(result.level).toBe("High School");
+
+    expect(result.readability?.score).toBe(75);
+    expect(result.readability?.level).toBe("High School");
   });
 
-  it("should analyze engagement correctly", async (_t) => {
-    const mockResponse = JSON.stringify({
-      score: 85,
-      factors: [
-        { factor: "emotional appeal", impact: 80, suggestion: "Add storytelling" },
-        { factor: "call-to-action", impact: 90, suggestion: "Strong CTA" },
-      ],
-    });
-
-    const createFn = vi.fn(async () => ({
-      choices: [{ message: { content: mockResponse } }],
-    }));
-    const mockClient = makeOpenAIMockClient(createFn);
-    // @ts-ignore
-    provider.client = mockClient;
+  it("returns the schema-validated engagement slice", async () => {
+    aiWireServer.use(
+      http.post(AI_ENDPOINTS.openai, () =>
+        openAiChatResponse({
+          engagement: {
+            score: 85,
+            factors: [{ factor: "call-to-action", impact: 90, suggestion: "Strong CTA" }],
+          },
+        })
+      )
+    );
 
     const result = await provider.analyzeContent("Join us today!", "engagement");
-    expect(result.score).toBe(85);
-    expect(Array.isArray(result.factors)).toBeTruthy();
+
+    expect(result.engagement?.score).toBe(85);
+    expect(result.engagement?.factors.length).toBe(1);
   });
 
-  it("should include system message for JSON response", async (_t) => {
-    const createFn = vi.fn(async (params: any) => {
-      expect(params.messages.length).toBe(2);
-      expect(params.messages[0].role).toBe("system");
-      expect(params.messages[0].content.includes("JSON")).toBeTruthy();
-      return {
-        choices: [
-          { message: { content: '{"score": 0.5, "label": "neutral", "confidence": 0.8}' } },
-        ],
-      };
-    });
-    const mockClient = makeOpenAIMockClient(createFn);
-    // @ts-ignore
-    provider.client = mockClient;
+  it("sends a strict json_schema response_format named for the analysis type", async () => {
+    let sentBody: Record<string, unknown> = {};
+    aiWireServer.use(
+      http.post(AI_ENDPOINTS.openai, async ({ request }) => {
+        sentBody = (await request.json()) as Record<string, unknown>;
+        return openAiChatResponse({ sentiment: { score: 0.5, label: "neutral", confidence: 0.8 } });
+      })
+    );
 
     await provider.analyzeContent("Neutral content", "sentiment");
-    expect(createFn.mock.calls.length).toBe(1);
+
+    const responseFormat = sentBody.response_format as {
+      type: string;
+      json_schema: { name: string; strict: boolean };
+    };
+    expect(responseFormat.type).toBe("json_schema");
+    expect(responseFormat.json_schema.name).toBe("content_sentiment");
+    expect(responseFormat.json_schema.strict).toBe(true);
   });
 
-  it("should throw error on malformed JSON response", async (_t) => {
-    const createFn = vi.fn(async () => ({
-      choices: [{ message: { content: "Not JSON at all" } }],
-    }));
-    const mockClient = makeOpenAIMockClient(createFn);
-    // @ts-ignore
-    provider.client = mockClient;
+  it("throws a structured-generation error when the API rejects the request", async () => {
+    aiWireServer.use(
+      http.post(AI_ENDPOINTS.openai, () =>
+        HttpResponse.json({ error: { message: "Bad request" } }, { status: 400 })
+      )
+    );
 
     await expect(provider.analyzeContent("Test content", "sentiment")).rejects.toThrow(
-      /OpenAI analysis failed/
+      /OpenAI structured generation failed/
     );
   });
 });

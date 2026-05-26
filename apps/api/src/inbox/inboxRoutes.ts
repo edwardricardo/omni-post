@@ -14,18 +14,18 @@ import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
 // Use case / query types (type-only imports)
-import type { MarkMessageReadUseCase } from "../application/inbox/MarkMessageReadUseCase.js";
-import type { MarkMessageArchivedUseCase } from "../application/inbox/MarkMessageArchivedUseCase.js";
-import type { AssignMessageUseCase } from "../application/inbox/AssignMessageUseCase.js";
-import type { SendReplyUseCase } from "../application/inbox/SendReplyUseCase.js";
-import type { ResolveConversationUseCase } from "../application/inbox/ResolveConversationUseCase.js";
-import type { ReopenConversationUseCase } from "../application/inbox/ReopenConversationUseCase.js";
-import type { SyncProviderCommentsUseCase } from "../application/inbox/SyncProviderCommentsUseCase.js";
-import type { GetInboxQuery } from "../application/inbox/GetInboxQuery.js";
-import type { GetMentionsQuery } from "../application/inbox/GetMentionsQuery.js";
-import type { GetConversationQuery } from "../application/inbox/GetConversationQuery.js";
-import type { GetConversationMessagesQuery } from "../application/inbox/GetConversationMessagesQuery.js";
-import type { GetUnreadInboxCountQuery } from "../application/inbox/GetUnreadInboxCountQuery.js";
+import type { MarkMessageReadUseCase } from "@core/application/inbox/MarkMessageReadUseCase.js";
+import type { MarkMessageArchivedUseCase } from "@core/application/inbox/MarkMessageArchivedUseCase.js";
+import type { AssignMessageUseCase } from "@core/application/inbox/AssignMessageUseCase.js";
+import type { SendReplyUseCase } from "@core/application/inbox/SendReplyUseCase.js";
+import type { ResolveConversationUseCase } from "@core/application/inbox/ResolveConversationUseCase.js";
+import type { ReopenConversationUseCase } from "@core/application/inbox/ReopenConversationUseCase.js";
+import type { SyncProviderCommentsUseCase } from "@core/application/inbox/SyncProviderCommentsUseCase.js";
+import type { GetInboxQuery } from "@core/application/inbox/GetInboxQuery.js";
+import type { GetMentionsQuery } from "@core/application/inbox/GetMentionsQuery.js";
+import type { GetConversationQuery } from "@core/application/inbox/GetConversationQuery.js";
+import type { GetConversationMessagesQuery } from "@core/application/inbox/GetConversationMessagesQuery.js";
+import type { GetUnreadInboxCountQuery } from "@core/application/inbox/GetUnreadInboxCountQuery.js";
 
 // ============================================================================
 // Zod Validation Schemas
@@ -121,6 +121,9 @@ class InboxRouteHandler extends BaseRouteHandler {
       NOT_FOUND: 404,
       FORBIDDEN: 403,
       CONFLICT: 409,
+      // Canon §9.1 guardrail rejection — 422 (Unprocessable Entity)
+      // signals "valid request, but content violates a runtime policy".
+      GUARDRAIL_REJECTED: 422,
       INTERNAL_ERROR: 500,
     };
     return mapping[code] ?? 500;
@@ -133,7 +136,7 @@ class InboxRouteHandler extends BaseRouteHandler {
    * @returns The accountId string, or an empty string if unavailable
    */
   private extractAccountId(request: FastifyRequest): string {
-    return request.user?.accountId ?? "";
+    return request.customerUser?.accountId ?? "";
   }
 
   // --------------------------------------------------------------------------
@@ -153,7 +156,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid query parameters");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -192,7 +195,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid query parameters");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -226,7 +229,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid query parameters");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -261,7 +264,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid conversation ID format");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -295,7 +298,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid query parameters");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -331,7 +334,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid message ID format");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -359,7 +362,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid message ID format");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -393,7 +396,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request body: assigneeId (UUID) is required");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -431,7 +434,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request body: body (non-empty string) is required");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -473,7 +476,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request body: resolvedById (UUID) is required");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -506,7 +509,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid conversation ID format");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -542,7 +545,7 @@ class InboxRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid channel ID format");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }

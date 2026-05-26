@@ -12,6 +12,7 @@
 
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import argon2 from "argon2";
+import { Argon2PasswordHasher } from "../../../src/infrastructure/adapters/Argon2PasswordHasher.js";
 
 import {
   CreateApiKeyUseCase,
@@ -19,12 +20,9 @@ import {
   ListApiKeysUseCase,
   RotateApiKeyUseCase,
   DeactivateApiKeyUseCase,
-} from "../../../src/application/apiKeys/ApiKeyUseCases.js";
-import type {
-  ApiKeyRepository,
-  DomainApiKey,
-} from "../../../src/domain/repositories/ApiKeyRepository.js";
-import { ApiKeyNotFoundError } from "../../../src/domain/repositories/ApiKeyRepository.js";
+} from "@core/application/apiKeys/ApiKeyUseCases.js";
+import type { ApiKeyRepository, DomainApiKey } from "@core/domain/repositories/ApiKeyRepository.js";
+import { ApiKeyNotFoundError } from "@core/domain/repositories/ApiKeyRepository.js";
 import { ok, err } from "@shared/types";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -72,7 +70,7 @@ describe("CreateApiKeyUseCase", () => {
 
   beforeEach(() => {
     repo = makeMockRepo();
-    useCase = new CreateApiKeyUseCase(repo);
+    useCase = new CreateApiKeyUseCase(repo, new Argon2PasswordHasher());
   });
 
   it("creates key with default permissions and rateLimit", async () => {
@@ -162,7 +160,7 @@ describe("ValidateApiKeyUseCase", () => {
 
   beforeEach(() => {
     repo = makeMockRepo();
-    useCase = new ValidateApiKeyUseCase(repo);
+    useCase = new ValidateApiKeyUseCase(repo, new Argon2PasswordHasher());
   });
 
   it("returns UNAUTHORIZED for malformed key (no prefix)", async () => {
@@ -277,7 +275,7 @@ describe("RotateApiKeyUseCase", () => {
 
   beforeEach(() => {
     repo = makeMockRepo();
-    useCase = new RotateApiKeyUseCase(repo);
+    useCase = new RotateApiKeyUseCase(repo, new Argon2PasswordHasher());
   });
 
   it("returns ok with updated key and new rawKey", async () => {

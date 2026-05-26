@@ -8,19 +8,21 @@
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import type { CachePort } from "@ports/core";
-import type { CampaignRepository } from "../../domain/repositories/CampaignRepository.js";
-import type { CampaignQueryRepository } from "../../domain/repositories/CampaignQueryRepository.js";
-import type { AnalyticsReadRepositoryPort } from "../../domain/repositories/AnalyticsReadRepository.js";
-import type { TrackedLinkRepository } from "../../domain/repositories/TrackedLinkRepository.js";
+import type { CampaignRepository } from "@core/domain/repositories/CampaignRepository.js";
+import type { CampaignQueryRepository } from "@core/domain/repositories/CampaignQueryRepository.js";
+import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
+import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
+import type { ConversionRepositoryPort } from "@core/domain/repositories/ConversionRepository.js";
+import type { TrackedLinkRepository } from "@core/domain/repositories/TrackedLinkRepository.js";
 import {
   GetCrossPlatformAnalyticsUseCase,
   ComparePerformanceUseCase,
   CalculateROIUseCase,
-} from "../../application/analytics/index.js";
+} from "@core/application/analytics/index.js";
 import { CrossPlatformAnalyticsAdapter } from "../adapters/CrossPlatformAnalyticsAdapter.js";
 import { PerformanceComparatorAdapter } from "../adapters/PerformanceComparatorAdapter.js";
 import { ROICalculatorAdapter } from "../adapters/ROICalculatorAdapter.js";
-import { OptimizeContentUseCase, PredictOptimalTimingUseCase } from "../../application/ml/index.js";
+import { OptimizeContentUseCase, PredictOptimalTimingUseCase } from "@core/application/ml/index.js";
 import {
   CreateCampaignUseCase,
   UpdateCampaignUseCase,
@@ -30,21 +32,21 @@ import {
   GetCampaignAnalyticsUseCase,
   ListCampaignsQuery,
   GetCampaignQuery,
-} from "../../application/campaigns/index.js";
-import { GetHistoricalAnalyticsQuery } from "../../application/analytics/GetHistoricalAnalyticsQuery.js";
-import { GenerateUTMLinksUseCase } from "../../application/utm/index.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
-import type { AnalyticsWriteRepository } from "../../domain/repositories/AnalyticsWriteRepository.js";
-import type { ChannelQueryForIngestion } from "../../domain/repositories/ChannelQueryForIngestion.js";
-import { IngestChannelAnalyticsUseCase } from "../../application/analytics/IngestChannelAnalyticsUseCase.js";
-import { DispatchAnalyticsIngestionUseCase } from "../../application/analytics/DispatchAnalyticsIngestionUseCase.js";
+} from "@core/application/campaigns/index.js";
+import { GetHistoricalAnalyticsQuery } from "@core/application/analytics/GetHistoricalAnalyticsQuery.js";
+import { GenerateUTMLinksUseCase } from "@core/application/utm/index.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
+import type { AnalyticsWriteRepository } from "@core/domain/repositories/AnalyticsWriteRepository.js";
+import type { ChannelQueryForIngestion } from "@core/domain/repositories/ChannelQueryForIngestion.js";
+import { IngestChannelAnalyticsUseCase } from "@core/application/analytics/IngestChannelAnalyticsUseCase.js";
+import { DispatchAnalyticsIngestionUseCase } from "@core/application/analytics/DispatchAnalyticsIngestionUseCase.js";
 import { PrismaAnalyticsWriteRepository } from "../repositories/PrismaAnalyticsWriteRepository.js";
 import { PrismaChannelQueryForIngestion } from "../repositories/PrismaChannelQueryForIngestion.js";
 import { PrismaTopPerformersQuery } from "../repositories/PrismaTopPerformersQuery.js";
 import {
   GetTopPerformersContextUseCase,
   type TopPerformersQueryPort,
-} from "../../application/ai/GetTopPerformersContextUseCase.js";
+} from "@core/application/ai/GetTopPerformersContextUseCase.js";
 import type { PrismaClient } from "@infra/prisma";
 import type { QueuePortRegistry } from "@ports/core";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
@@ -56,17 +58,33 @@ export function setupAnalyticsUseCases(container: Container): void {
   // Register Analytics Port Adapters
   container.register<CrossPlatformAnalyticsAdapter>(
     TOKENS.CrossPlatformAnalyticsAdapter,
-    () => new CrossPlatformAnalyticsAdapter(container.resolve<CachePort>(TOKENS.CachePort)),
+    () =>
+      new CrossPlatformAnalyticsAdapter(
+        container.resolve<CachePort>(TOKENS.CachePort),
+        container.resolve<ProjectQueryRepositoryPort>(TOKENS.ProjectQueryRepository),
+        container.resolve<AnalyticsReadRepositoryPort>(TOKENS.AnalyticsReadRepository)
+      ),
     true
   );
   container.register<PerformanceComparatorAdapter>(
     TOKENS.PerformanceComparatorAdapter,
-    () => new PerformanceComparatorAdapter(container.resolve<CachePort>(TOKENS.CachePort)),
+    () =>
+      new PerformanceComparatorAdapter(
+        container.resolve<CachePort>(TOKENS.CachePort),
+        container.resolve<ProjectQueryRepositoryPort>(TOKENS.ProjectQueryRepository),
+        container.resolve<AnalyticsReadRepositoryPort>(TOKENS.AnalyticsReadRepository)
+      ),
     true
   );
   container.register<ROICalculatorAdapter>(
     TOKENS.ROICalculatorAdapter,
-    () => new ROICalculatorAdapter(container.resolve<CachePort>(TOKENS.CachePort)),
+    () =>
+      new ROICalculatorAdapter(
+        container.resolve<CachePort>(TOKENS.CachePort),
+        container.resolve<ProjectQueryRepositoryPort>(TOKENS.ProjectQueryRepository),
+        container.resolve<AnalyticsReadRepositoryPort>(TOKENS.AnalyticsReadRepository),
+        container.resolve<ConversionRepositoryPort>(TOKENS.ConversionRepository)
+      ),
     true
   );
 
@@ -101,7 +119,7 @@ export function setupAnalyticsUseCases(container: Container): void {
     TOKENS.OptimizeContentUseCase,
     () =>
       new OptimizeContentUseCase(
-        container.resolve<import("../../domain/repositories/AIServicePort.js").AIServicePort>(
+        container.resolve<import("@core/domain/repositories/AIServicePort.js").AIServicePort>(
           TOKENS.AIServicePort
         )
       ),
@@ -111,11 +129,11 @@ export function setupAnalyticsUseCases(container: Container): void {
     TOKENS.PredictOptimalTimingUseCase,
     () =>
       new PredictOptimalTimingUseCase(
-        container.resolve<import("../../domain/repositories/AIServicePort.js").AIServicePort>(
+        container.resolve<import("@core/domain/repositories/AIServicePort.js").AIServicePort>(
           TOKENS.AIServicePort
         ),
         container.resolve<
-          import("../../domain/repositories/AnalyticsReadRepository.js").AnalyticsReadRepositoryPort
+          import("@core/domain/repositories/AnalyticsReadRepository.js").AnalyticsReadRepositoryPort
         >(TOKENS.AnalyticsReadRepository)
       ),
     true

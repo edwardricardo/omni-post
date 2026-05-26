@@ -1,12 +1,9 @@
 /**
  * @file mfaService.test.ts
  * @description Unit tests for MfaService — MFA setup, verification, and management.
- *              Uses InMemoryAdminUserRepository + mockPrisma (no real database).
- *
- *              The MfaService reads user state via its injected AdminUserRepositoryPort
- *              but writes via prisma.adminUser.update() directly. To keep both stores
- *              in sync, the mockPrisma.adminUser.update mock is overridden to also
- *              update the InMemoryAdminUserRepository.
+ *              Uses InMemoryAdminUserRepository as the single source of truth;
+ *              MfaService reads and writes user state through the injected
+ *              AdminUserRepositoryPort.
  * @layer infrastructure
  */
 
@@ -148,6 +145,7 @@ vi.mock("../../src/lib/logger.js", () => {
 
 import { MfaService } from "../../src/auth/mfaService.js";
 import { InMemoryAdminUserRepository } from "./helpers/InMemoryAdminUserRepository.js";
+import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 import { makeAdminUser, resetFactoryCounter } from "./helpers/factories.js";
 import { authenticator } from "otplib";
 
@@ -156,23 +154,6 @@ import { authenticator } from "otplib";
 // ---------------------------------------------------------------------------
 
 const inMemoryRepo = new InMemoryAdminUserRepository();
-
-// Override the prisma.adminUser.update mock to also sync InMemoryAdminUserRepository
-const _originalPrismaUpdate = mockModule.prisma.adminUser.update;
-mockModule.prisma.adminUser.update.mockImplementation(
-  async ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
-    // 1) Update the prisma store
-    const id = where["id"] as string;
-    const updated = stores.adminUser.update(id, { ...data, updatedAt: new Date() });
-
-    // 2) Sync the InMemoryAdminUserRepository
-    if (id && data) {
-      inMemoryRepo.update(id, data);
-    }
-
-    return updated ?? null;
-  }
-);
 
 let testUserId: string;
 let mfaSecret: string;
@@ -188,7 +169,7 @@ const testEmail = `test-mfa-${timestamp}@example.com`;
 // ---------------------------------------------------------------------------
 
 describe("MfaService Tests", () => {
-  const mfaService = new MfaService(inMemoryRepo);
+  const mfaService = new MfaService(inMemoryRepo, new InMemoryAuditLogRepository());
 
   beforeAll(() => {
     resetFactoryCounter();
@@ -266,7 +247,7 @@ describe("MfaService Tests", () => {
     it("should reject when MFA already enabled", async () => {
       // Enable MFA for test user — update both stores
       stores.adminUser.update(testUserId, { mfaEnabled: true });
-      inMemoryRepo.update(testUserId, { mfaEnabled: true });
+      inMemoryRepo.patch(testUserId, { mfaEnabled: true });
 
       const alreadyEnabledResult = await mfaService.setupMfa(testUserId, testEmail);
 
@@ -279,7 +260,7 @@ describe("MfaService Tests", () => {
         mfaSecret: null,
         passwordResetToken: null,
       });
-      inMemoryRepo.update(testUserId, {
+      inMemoryRepo.patch(testUserId, {
         mfaEnabled: false,
         mfaSecret: null,
         passwordResetToken: null,
@@ -374,7 +355,7 @@ describe("MfaService Tests", () => {
         mfaSecret: null,
         passwordResetToken: null,
       });
-      inMemoryRepo.update(testUserId, {
+      inMemoryRepo.patch(testUserId, {
         mfaEnabled: false,
         mfaSecret: null,
         passwordResetToken: null,
@@ -393,7 +374,7 @@ describe("MfaService Tests", () => {
         mfaSecret: mfaSecret,
         passwordResetToken: "invalid-json-data",
       });
-      inMemoryRepo.update(testUserId, {
+      inMemoryRepo.patch(testUserId, {
         mfaEnabled: false,
         mfaSecret: mfaSecret,
         passwordResetToken: "invalid-json-data",
@@ -422,7 +403,7 @@ describe("MfaService Tests", () => {
     beforeAll(async () => {
       // Ensure MFA is enabled with valid secret — update both stores
       stores.adminUser.update(testUserId, { mfaEnabled: true, mfaSecret: mfaSecret });
-      inMemoryRepo.update(testUserId, { mfaEnabled: true, mfaSecret: mfaSecret });
+      inMemoryRepo.patch(testUserId, { mfaEnabled: true, mfaSecret: mfaSecret });
     });
 
     it("should verify login with valid TOTP", async () => {
@@ -473,7 +454,7 @@ describe("MfaService Tests", () => {
     it("should reject when MFA not enabled", async () => {
       // Temporarily disable MFA — update both stores
       stores.adminUser.update(testUserId, { mfaEnabled: false });
-      inMemoryRepo.update(testUserId, { mfaEnabled: false });
+      inMemoryRepo.patch(testUserId, { mfaEnabled: false });
 
       const mfaNotEnabledResult = await mfaService.verifyMfaToken(testUserId, "123456");
 
@@ -482,7 +463,7 @@ describe("MfaService Tests", () => {
 
       // Re-enable for other tests — update both stores
       stores.adminUser.update(testUserId, { mfaEnabled: true });
-      inMemoryRepo.update(testUserId, { mfaEnabled: true });
+      inMemoryRepo.patch(testUserId, { mfaEnabled: true });
     });
 
     it("should handle invalid backup code JSON", async () => {
@@ -492,7 +473,7 @@ describe("MfaService Tests", () => {
         mfaSecret: mfaSecret,
         passwordResetToken: "invalid-json",
       });
-      inMemoryRepo.update(testUserId, {
+      inMemoryRepo.patch(testUserId, {
         mfaEnabled: true,
         mfaSecret: mfaSecret,
         passwordResetToken: "invalid-json",
@@ -509,7 +490,7 @@ describe("MfaService Tests", () => {
     it("should generate new backup codes", async () => {
       // Ensure MFA is enabled — update both stores
       stores.adminUser.update(testUserId, { mfaEnabled: true, mfaSecret: mfaSecret });
-      inMemoryRepo.update(testUserId, { mfaEnabled: true, mfaSecret: mfaSecret });
+      inMemoryRepo.patch(testUserId, { mfaEnabled: true, mfaSecret: mfaSecret });
 
       const regenToken = authenticator.generate(mfaSecret);
 

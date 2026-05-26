@@ -15,6 +15,7 @@
 
 import { describe, it, beforeAll, expect } from "vitest";
 import { FacebookWebhookProcessor } from "../../../src/webhooks/processors/facebookWebhookProcessor.js";
+import { makeWebhookPrismaFake } from "../helpers/webhookPrismaFake.js";
 
 // ===========================
 // Comment Event Parsing Tests (4 tests)
@@ -24,7 +25,7 @@ describe("FacebookWebhookProcessor - Comment Event Parsing", () => {
   let processor: FacebookWebhookProcessor;
 
   beforeAll(() => {
-    processor = new FacebookWebhookProcessor();
+    processor = new FacebookWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should parse comment received event", async () => {
@@ -162,7 +163,7 @@ describe("FacebookWebhookProcessor - Reaction Event Parsing", () => {
   let processor: FacebookWebhookProcessor;
 
   beforeAll(() => {
-    processor = new FacebookWebhookProcessor();
+    processor = new FacebookWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should parse like reaction event", async () => {
@@ -331,7 +332,7 @@ describe("FacebookWebhookProcessor - Mention Event Parsing", () => {
   let processor: FacebookWebhookProcessor;
 
   beforeAll(() => {
-    processor = new FacebookWebhookProcessor();
+    processor = new FacebookWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should parse mention event", async () => {
@@ -406,7 +407,7 @@ describe("FacebookWebhookProcessor - Page Event Parsing", () => {
   let processor: FacebookWebhookProcessor;
 
   beforeAll(() => {
-    processor = new FacebookWebhookProcessor();
+    processor = new FacebookWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should parse page updated event", async () => {
@@ -481,7 +482,7 @@ describe("FacebookWebhookProcessor - Live Video Event Parsing", () => {
   let processor: FacebookWebhookProcessor;
 
   beforeAll(() => {
-    processor = new FacebookWebhookProcessor();
+    processor = new FacebookWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should parse live video published event", async () => {
@@ -583,7 +584,7 @@ describe("FacebookWebhookProcessor - Messaging Event Parsing", () => {
   let processor: FacebookWebhookProcessor;
 
   beforeAll(() => {
-    processor = new FacebookWebhookProcessor();
+    processor = new FacebookWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should parse messenger message event", async () => {
@@ -654,7 +655,7 @@ describe("FacebookWebhookProcessor - Error Handling", () => {
   let processor: FacebookWebhookProcessor;
 
   beforeAll(() => {
-    processor = new FacebookWebhookProcessor();
+    processor = new FacebookWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should throw error for missing entry in payload", async () => {
@@ -681,7 +682,7 @@ describe("FacebookWebhookProcessor - Error Handling", () => {
   });
 
   it("should handle verification errors gracefully", () => {
-    const processor = new FacebookWebhookProcessor();
+    const processor = new FacebookWebhookProcessor(makeWebhookPrismaFake().prisma);
 
     // This should return false instead of throwing
     const isValid = processor.verify("invalid\x00data", "signature", "secret");
@@ -697,7 +698,7 @@ describe("FacebookWebhookProcessor - Unknown Event Handling", () => {
   let processor: FacebookWebhookProcessor;
 
   beforeAll(() => {
-    processor = new FacebookWebhookProcessor();
+    processor = new FacebookWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("should default to POST_UPDATED for unknown field types", async () => {

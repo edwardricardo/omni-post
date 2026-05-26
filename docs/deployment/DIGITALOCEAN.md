@@ -308,8 +308,8 @@ PERPLEXITY_MODEL=llama-3.1-sonar-small-128k-online
 
 # ---- Payment ----
 PAYMENT_PROVIDER=stripe
-STRIPE_SECRET_KEY=sk_live_xxxxxxxxxxxx
-STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxx
+STRIPE_SECRET_KEY=sk_live_<YOUR_STRIPE_LIVE_KEY>
+STRIPE_WEBHOOK_SECRET=whsec_<YOUR_WEBHOOK_SECRET>
 
 # ---- Observability ----
 TRACING_ENABLED=false

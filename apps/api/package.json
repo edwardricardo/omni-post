@@ -11,6 +11,7 @@
     "test:unit": "vitest run",
     "test:unit:watch": "vitest watch",
     "test:unit:coverage": "vitest run --coverage",
+    "test:eval": "vitest run tests/eval",
     "test:all": "bash scripts/run-tests.sh",
     "test:integration": "bash scripts/run-tests.sh",
     "test:plan": "cross-env NODE_ENV=test node --import tsx --test --test-force-exit tests/planPublication.test.ts",
@@ -65,7 +66,7 @@
     "@adapters/fallback-strategies": "workspace:*",
     "@adapters/queue-bullmq": "workspace:*",
     "@adapters/storage-s3": "workspace:*",
-    "@anthropic-ai/sdk": "^0.88.0",
+    "@anthropic-ai/sdk": "0.91.1",
     "@core/engine": "workspace:*",
     "@fastify/cookie": "11.0.2",
     "@fastify/cors": "11.1.0",
@@ -74,6 +75,8 @@
     "@fastify/websocket": "11.2.0",
     "@google/genai": "1.20.0",
     "@infra/prisma": "workspace:*",
+    "@langchain/core": "1.1.46",
+    "@langchain/langgraph": "1.3.1",
     "@monitoring/circuit-breaker": "workspace:*",
     "@monitoring/health-checks": "workspace:*",
     "@node-saml/node-saml": "5.1.0",
@@ -103,6 +106,7 @@
     "@t3-oss/env-core": "0.13.11",
     "argon2": "0.44.0",
     "bullmq": "5.58.9",
+    "csv-parse": "6.2.1",
     "dotenv": "17.2.2",
     "fastify": "5.6.1",
     "fastify-plugin": "5.0.1",
@@ -114,6 +118,7 @@
     "openai": "6.33.0",
     "openid-client": "6.8.2",
     "otplib": "12.0.1",
+    "pgvector": "0.2.1",
     "pino": "10.3.1",
     "prom-client": "15.1.3",
     "qrcode": "1.5.4",
@@ -123,7 +128,8 @@
     "validator": "13.15.15",
     "ws": "8.18.3",
     "xml2js": "0.6.2",
-    "zod": "4.4.3"
+    "zod": "4.4.3",
+    "zod-to-json-schema": "3.25.2"
   },
   "devDependencies": {
     "@faker-js/faker": "10.0.0",
@@ -136,6 +142,7 @@
     "@types/xml2js": "0.4.14",
     "@vitest/coverage-v8": "4.0.18",
     "cross-env": "10.0.0",
+    "msw": "2.14.3",
     "tsx": "4.20.5",
     "vitest": "4.0.18"
   }

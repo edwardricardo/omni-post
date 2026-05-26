@@ -7,6 +7,7 @@
 
 import { describe, it, beforeEach, expect, vi } from "vitest";
 import { randomUUID } from "crypto";
+import type { PrismaClient } from "@infra/prisma";
 import { createMockPrismaModule, createStore, buildModelMock } from "./helpers/mockPrisma.js";
 import { createSignature, createTestSubscriptionData } from "./webhookHandler.test-helpers.js";
 
@@ -124,10 +125,8 @@ const extendedPrisma = {
   instagramAnalytics: buildModelMock(instagramAnalyticsStore),
 };
 
-vi.mock("@infra/prisma", async (importOriginal) => {
-  const orig = await importOriginal<Record<string, unknown>>();
-  return { ...orig, prisma: extendedPrisma };
-});
+// Injected into the handler via the constructor (DI) — no module mock.
+const mockDb = extendedPrisma as unknown as PrismaClient;
 
 // Mock the logger to avoid console noise
 vi.mock("../../src/lib/logger.js", () => ({
@@ -194,7 +193,7 @@ describe("WebhookHandler - Processing Statistics", () => {
   });
 
   it("should return empty stats when no events", async () => {
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
 
     const stats = await handler.getProcessingStats();
 
@@ -228,7 +227,7 @@ describe("WebhookHandler - Processing Statistics", () => {
       processingTime: 50,
     });
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const stats = await handler.getProcessingStats();
 
     expect(typeof stats === "object").toBeTruthy();
@@ -250,14 +249,14 @@ describe("WebhookHandler - Processing Statistics", () => {
       processed: true,
     });
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const stats = await handler.getProcessingStats("X");
 
     expect(typeof stats === "object").toBeTruthy();
   });
 
   it("should filter stats by time range", async () => {
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const start = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const end = new Date();
 
@@ -293,7 +292,7 @@ describe("WebhookHandler - Processing Statistics", () => {
       processingTime: 200,
     });
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const stats = await handler.getProcessingStats("FACEBOOK");
 
     expect(typeof stats === "object").toBeTruthy();
@@ -329,7 +328,7 @@ describe("WebhookHandler - Failed Event Retry", () => {
       nextRetryAt: new Date(Date.now() - 1000),
     });
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const retriedCount = await handler.retryFailedEvents();
 
     expect(typeof retriedCount === "number").toBeTruthy();
@@ -350,7 +349,7 @@ describe("WebhookHandler - Failed Event Retry", () => {
       nextRetryAt: new Date(Date.now() + 60000),
     });
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const retriedCount = await handler.retryFailedEvents();
 
     expect(retriedCount >= 0).toBeTruthy();
@@ -372,7 +371,7 @@ describe("WebhookHandler - Failed Event Retry", () => {
       receivedAt: new Date(Date.now() - 48 * 60 * 60 * 1000),
     });
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const maxAge = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     const retriedCount = await handler.retryFailedEvents(maxAge);
@@ -392,7 +391,7 @@ describe("WebhookHandler - Edge Cases", () => {
   it("should handle empty payload object", async () => {
     const { subscription } = seedSubscription("INSTAGRAM");
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const payload = JSON.stringify({});
 
     const signature = createSignature(payload, subscription.secretKey);
@@ -406,7 +405,7 @@ describe("WebhookHandler - Edge Cases", () => {
   it("should handle payload with unexpected structure", async () => {
     const { subscription } = seedSubscription("X");
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const payload = JSON.stringify({ unexpected: "structure" });
 
     const signature = createSignature(payload, subscription.secretKey);
@@ -420,7 +419,7 @@ describe("WebhookHandler - Edge Cases", () => {
   it("should handle very large payload", async () => {
     const { subscription } = seedSubscription("INSTAGRAM");
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const largePayload = JSON.stringify({
       entry: [
         {
@@ -460,7 +459,7 @@ describe("WebhookHandler - Subscription Stats Update", () => {
   it("should increment subscription stats on successful processing", async () => {
     const { subscription } = seedSubscription("INSTAGRAM");
 
-    const handler = new UniversalWebhookHandler();
+    const handler = new UniversalWebhookHandler(mockDb);
     const payload = JSON.stringify({
       entry: [
         {

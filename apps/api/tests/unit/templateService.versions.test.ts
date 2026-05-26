@@ -57,7 +57,7 @@ describe("TemplateService - Duplicate Template", () => {
   const mocks: any[] = [];
 
   beforeEach(() => {
-    service = new TemplateService();
+    service = new TemplateService(prisma);
     for (const m of mocks) {
       restoreMock(m);
     }
@@ -220,7 +220,7 @@ describe("TemplateService - Compile Template", () => {
   const mocks: any[] = [];
 
   beforeEach(() => {
-    service = new TemplateService();
+    service = new TemplateService(prisma);
     for (const m of mocks) {
       restoreMock(m);
     }
@@ -252,7 +252,7 @@ describe("TemplateService - Version Management", () => {
   const mocks: any[] = [];
 
   beforeEach(() => {
-    service = new TemplateService();
+    service = new TemplateService(prisma);
     for (const m of mocks) {
       restoreMock(m);
     }
@@ -385,7 +385,7 @@ describe("TemplateService - A/B Testing", () => {
   const mocks: any[] = [];
 
   beforeEach(() => {
-    service = new TemplateService();
+    service = new TemplateService(prisma);
     for (const m of mocks) {
       restoreMock(m);
     }

@@ -9,11 +9,11 @@
 import { describe, it, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { ok, err, type Result } from "@shared/types";
-import { UpdateChannelAuthStateUseCase } from "../../../../src/application/channels/UpdateChannelAuthStateUseCase.js";
-import { Channel } from "../../../../src/domain/entities/Channel.js";
-import { ChannelId, ProjectId } from "../../../../src/domain/value-objects/EntityId.js";
-import { Provider } from "../../../../src/domain/value-objects/Provider.js";
-import { EntityNotFoundError } from "../../../../src/domain/errors/index.js";
+import { UpdateChannelAuthStateUseCase } from "@core/application/channels/UpdateChannelAuthStateUseCase.js";
+import { Channel } from "@core/domain/entities/Channel.js";
+import { ChannelId, ProjectId } from "@core/domain/value-objects/EntityId.js";
+import { Provider } from "@core/domain/value-objects/Provider.js";
+import { EntityNotFoundError } from "@core/domain/errors/index.js";
 
 const VALID_CHANNEL_ID = "550e8400-e29b-41d4-a716-446655440001";
 const VALID_PROJECT_ID = "550e8400-e29b-41d4-a716-446655440000";

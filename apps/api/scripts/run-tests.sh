@@ -88,11 +88,13 @@ echo "── Integration tests (node:test) ──"
 # Repository integration tests (Prisma against real DB)
 CONCURRENCY=1 run_batch "integration:repositories" \
   tests/integration/repositories/UserRepository.test.ts \
-  tests/integration/repositories/AccountRepository.test.ts \
+  tests/integration/repositories/AccountQueryRepository.test.ts \
   tests/integration/repositories/ProjectRepository.test.ts \
+  tests/integration/repositories/PrismaPostRepository.test.ts \
   tests/integration/repositories/AnalyticsRepository.basic.test.ts \
   tests/integration/repositories/AnalyticsRepository.channel.test.ts \
-  tests/integration/repositories/AnalyticsRepository.timeseries.test.ts
+  tests/integration/repositories/AnalyticsRepository.timeseries.test.ts \
+  tests/integration/repositories/ConversionRepository.test.ts
 
 CONCURRENCY=1 run_batch "integration:sync" \
   tests/integration/syncEngine/syncEngine.init.test.ts \

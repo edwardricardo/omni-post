@@ -63,6 +63,7 @@ describe("InstagramAdapter", () => {
     it("should have correct capabilities", () => {
       assert.deepStrictEqual(adapter.capabilities, {
         publish: true,
+        mentions: true,
         schedule: false,
         analytics: true,
         comments: true,

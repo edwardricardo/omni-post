@@ -6,4 +6,3 @@
  */
 
 export * from "./ServerTemplateEngine";
-export { serverTemplateEngine as templateEngine } from "./ServerTemplateEngine";

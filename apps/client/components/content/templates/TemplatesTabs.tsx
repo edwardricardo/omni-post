@@ -4,9 +4,12 @@
  * @file TemplatesTabs.tsx
  * @description Tab navigation component for the templates section, switching between
  * the templates list and the automation rules list tabs.
+ * @component TemplatesTabs
+ * @layer infrastructure
  */
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import type { TabOption } from "./types";
 
 interface TemplatesTabsProps {
@@ -27,6 +30,7 @@ export const TemplatesTabs: React.FC<TemplatesTabsProps> = ({
   templatesCount,
   automationsCount,
 }) => {
+  const t = useTranslations("content");
   return (
     <div className="border-b">
       <nav className="flex space-x-8">
@@ -38,7 +42,7 @@ export const TemplatesTabs: React.FC<TemplatesTabsProps> = ({
               : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
         >
-          Templates ({templatesCount})
+          {t("tabs.templates", { count: templatesCount })}
         </button>
         <button
           onClick={() => onTabChange("automation")}
@@ -48,7 +52,7 @@ export const TemplatesTabs: React.FC<TemplatesTabsProps> = ({
               : "border-transparent text-gray-500 hover:text-gray-700"
           }`}
         >
-          Automation ({automationsCount})
+          {t("tabs.automation", { count: automationsCount })}
         </button>
       </nav>
     </div>

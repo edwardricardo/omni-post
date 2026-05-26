@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { DispatchInboxSyncUseCase } from "../../../src/application/inbox/DispatchInboxSyncUseCase.js";
+import { DispatchInboxSyncUseCase } from "@core/application/inbox/DispatchInboxSyncUseCase.js";
 import { ok, err } from "@shared/types";
 
 function makeMockChannelQuery(

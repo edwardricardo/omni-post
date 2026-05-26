@@ -8,7 +8,7 @@
 
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { DomainEvent } from "./events";
+import { EventStoreEvent } from "./events";
 
 /**
  * Base Command interface - represents user intentions to change state
@@ -80,7 +80,7 @@ export interface QueryHandler<TQuery extends Query = Query, TResult = unknown> {
 export interface CommandResult<T = void> {
   success: boolean;
   data?: T;
-  events?: DomainEvent[];
+  events?: EventStoreEvent[];
   error?: string;
   validationErrors?: ValidationError[];
 }
@@ -128,7 +128,7 @@ export interface ReadModel {
 export interface Projection<TReadModel extends ReadModel = ReadModel> {
   name: string;
   eventTypes: string[];
-  handle(event: DomainEvent): Promise<TReadModel | TReadModel[] | null>;
+  handle(event: EventStoreEvent): Promise<TReadModel | TReadModel[] | null>;
   rebuild?(): Promise<void>;
 }
 

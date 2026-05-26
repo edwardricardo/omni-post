@@ -70,6 +70,7 @@ const PINTEREST_METADATA: ProviderMetadata = {
 
 const PINTEREST_CAPABILITIES = {
   publish: true,
+  mentions: false,
   schedule: true,
   analytics: true,
   comments: false,

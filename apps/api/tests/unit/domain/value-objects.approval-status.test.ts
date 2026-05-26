@@ -6,10 +6,7 @@
 
 import { describe, it, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import {
-  ApprovalStatus,
-  APPROVAL_STATUSES,
-} from "../../../src/domain/value-objects/ApprovalStatus.js";
+import { ApprovalStatus, APPROVAL_STATUSES } from "@core/domain/value-objects/ApprovalStatus.js";
 
 describe("ApprovalStatus", () => {
   beforeEach(() => {

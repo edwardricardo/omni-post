@@ -13,7 +13,7 @@
 import { PrismaClient, Prisma } from "@infra/prisma";
 import Redis from "ioredis";
 import {
-  DomainEvent,
+  EventStoreEvent,
   EventEnvelope,
   EventStore as IEventStore,
   serializeEvent,
@@ -64,7 +64,11 @@ export class PostgreSQLEventStore implements IEventStore {
    * insert uses a single multi-row `INSERT … VALUES (…)` that Prisma Client
    * cannot express atomically.
    */
-  async append(streamId: string, events: DomainEvent[], expectedVersion?: number): Promise<void> {
+  async append(
+    streamId: string,
+    events: EventStoreEvent[],
+    expectedVersion?: number
+  ): Promise<void> {
     if (events.length === 0) return;
 
     if (events.length > this.maxBatchSize) {
@@ -96,7 +100,7 @@ export class PostgreSQLEventStore implements IEventStore {
   async appendInTx(
     tx: Prisma.TransactionClient,
     streamId: string,
-    events: DomainEvent[],
+    events: EventStoreEvent[],
     expectedVersion?: number
   ): Promise<void> {
     if (events.length === 0) return;
@@ -293,7 +297,7 @@ export class PostgreSQLEventStore implements IEventStore {
   /**
    * Publish events to Redis for real-time subscriptions.
    */
-  private async publishEvents(events: DomainEvent[]): Promise<void> {
+  private async publishEvents(events: EventStoreEvent[]): Promise<void> {
     try {
       const pipeline = this.redis.pipeline();
 

@@ -8,19 +8,26 @@
  */
 
 import { ok, err, type Result } from "@shared/types";
-import { prisma } from "@infra/prisma";
 import { logger } from "../lib/logger.js";
 
 const adminLogger = logger.child({ module: "admin" });
-import type { AdminSession } from "@infra/prisma";
 import { AuditableService } from "../services/AuditableService.js";
 import { hashPassword } from "../auth/passwordHashing.js";
-import type { AdminUserRepositoryPort } from "../domain/repositories/AdminUserRepository.js";
+import type { AdminUserRepositoryPort } from "@core/domain/repositories/AdminUserRepository.js";
+import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
+import type {
+  AdminSessionRepository,
+  AdminSessionDto,
+} from "@core/domain/repositories/AdminSessionRepository.js";
 import type { ResetPasswordRequest } from "./accountLifecycleTypes.js";
 
 export class AccountSessionService extends AuditableService {
-  constructor(private readonly userRepo: AdminUserRepositoryPort) {
-    super("AccountSessionService");
+  constructor(
+    private readonly userRepo: AdminUserRepositoryPort,
+    private readonly sessionRepo: AdminSessionRepository,
+    auditLog: AuditLogRepository
+  ) {
+    super("AccountSessionService", auditLog);
   }
 
   /**
@@ -67,15 +74,12 @@ export class AccountSessionService extends AuditableService {
           severity: "HIGH",
         },
         async () => {
-          await prisma.adminUser.update({
-            where: { id: accountId },
-            data: {
-              passwordHash,
-              passwordResetToken: data.requirePasswordChange ? "CHANGE_REQUIRED" : null,
-              passwordResetExpires: data.requirePasswordChange
-                ? new Date(Date.now() + 24 * 60 * 60 * 1000)
-                : null, // 24 hours
-            },
+          await this.userRepo.update(accountId, {
+            passwordHash,
+            passwordResetToken: data.requirePasswordChange ? "CHANGE_REQUIRED" : null,
+            passwordResetExpires: data.requirePasswordChange
+              ? new Date(Date.now() + 24 * 60 * 60 * 1000)
+              : null,
           });
         }
       );
@@ -106,7 +110,7 @@ export class AccountSessionService extends AuditableService {
    */
   async getAccountSessions(
     accountId: string
-  ): Promise<Result<AdminSession[], "NOT_FOUND" | "DATABASE_ERROR">> {
+  ): Promise<Result<AdminSessionDto[], "NOT_FOUND" | "DATABASE_ERROR">> {
     try {
       this.validateRequired({ accountId }, "Account ID is required");
 
@@ -116,10 +120,7 @@ export class AccountSessionService extends AuditableService {
         return err("NOT_FOUND");
       }
 
-      const sessions = await prisma.adminSession.findMany({
-        where: { userId: accountId },
-        orderBy: { createdAt: "desc" },
-      });
+      const sessions = await this.sessionRepo.findByUserId(accountId);
 
       return ok(sessions);
     } catch (error: unknown) {
@@ -161,17 +162,7 @@ export class AccountSessionService extends AuditableService {
           severity: "HIGH",
         },
         async () => {
-          const result = await prisma.adminSession.updateMany({
-            where: {
-              userId: accountId,
-              isActive: true,
-            },
-            data: {
-              isActive: false,
-              revokedAt: new Date(),
-            },
-          });
-          return result.count;
+          return this.sessionRepo.revokeAllForUser(accountId);
         }
       );
 
@@ -196,7 +187,3 @@ export class AccountSessionService extends AuditableService {
     }
   }
 }
-
-// NOTE: No module-level singleton. AccountSessionService is registered in
-// the DI container (TOKENS.AccountSessionService) and receives
-// AdminUserRepositoryPort via constructor injection. See setup.ts.

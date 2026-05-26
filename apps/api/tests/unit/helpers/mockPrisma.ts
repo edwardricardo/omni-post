@@ -90,7 +90,9 @@ function matchesWhere(record: Record<string, unknown>, where: Record<string, unk
     const recordVal = record[key];
 
     if (val === null || val === undefined) {
-      if (recordVal !== val) return false;
+      // Prisma treats an absent column as NULL: `where: { x: null }` matches a
+      // record whose `x` is null OR undefined.
+      if (recordVal !== null && recordVal !== undefined) return false;
       continue;
     }
 

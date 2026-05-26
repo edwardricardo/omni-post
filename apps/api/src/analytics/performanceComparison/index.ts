@@ -4,7 +4,6 @@
  *              generation, benchmarking, provider comparison, and trend detection.
  * @layer infrastructure
  */
-import { prisma } from "@infra/prisma";
 import { createLogger } from "../../lib/logger.js";
 
 const analyticsLogger = createLogger("analytics");
@@ -15,7 +14,8 @@ import type {
   CompetitorComparison,
   TrendDataPoint,
 } from "@shared/analytics";
-import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
+import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
+import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
 import type {
   PerformanceComparisonOptions,
   PerformanceComparison,
@@ -39,7 +39,8 @@ export class PerformanceComparator {
 
   constructor(
     private readonly projectRepository: ProjectQueryRepositoryPort,
-    private readonly cache: CachePort
+    private readonly cache: CachePort,
+    private readonly analyticsRepository: AnalyticsReadRepositoryPort
   ) {}
 
   /**
@@ -474,40 +475,39 @@ export class PerformanceComparator {
     return { startDate: start, endDate: end };
   }
 
+  private async getScopedProjectIds(options: PerformanceComparisonOptions): Promise<string[]> {
+    if (options.projectId) {
+      return [options.projectId];
+    }
+    const projects = await this.projectRepository.getByAccountId(options.accountId);
+    return projects.map((p) => p.id);
+  }
+
   private async getAnalyticsData(
     options: PerformanceComparisonOptions,
     startDate: Date,
     endDate: Date
   ): Promise<AnalyticsDataPoint[]> {
-    const whereClause: Record<string, unknown> = {
-      capturedAt: {
-        gte: startDate,
-        lte: endDate,
-      },
-    };
+    const projectIds = await this.getScopedProjectIds(options);
+    const postIdsArrays = await Promise.all(
+      projectIds.map((projectId) => this.projectRepository.getPostIds(projectId))
+    );
+    const postIds = postIdsArrays.flat();
 
-    if (options.projectId) {
-      const postIds = await this.projectRepository.getPostIds(options.projectId);
-      whereClause.postId = { in: postIds };
-    } else {
-      const projects = await this.projectRepository.getByAccountId(options.accountId);
-      const projectIds = projects.map((p) => p.id);
-
-      const postIdsArrays = await Promise.all(
-        projectIds.map((projectId) => this.projectRepository.getPostIds(projectId))
-      );
-      const postIds = postIdsArrays.flat();
-      whereClause.postId = { in: postIds };
-    }
-
-    if (options.providers && options.providers.length > 0) {
-      whereClause.provider = { in: options.providers };
-    }
-
-    return (await prisma.analytics.findMany({
-      where: whereClause,
+    const analytics = await this.analyticsRepository.getByPostIds(postIds, {
+      startDate,
+      endDate,
       orderBy: { capturedAt: "asc" },
-    })) as AnalyticsDataPoint[];
+    });
+
+    const filtered =
+      options.providers && options.providers.length > 0
+        ? analytics.filter((record) =>
+            (options.providers as unknown as string[]).includes(record.provider)
+          )
+        : analytics;
+
+    return filtered as unknown as AnalyticsDataPoint[];
   }
 
   private async getPostsData(
@@ -515,27 +515,15 @@ export class PerformanceComparator {
     startDate: Date,
     endDate: Date
   ): Promise<PostData[]> {
-    const whereClause: Record<string, unknown> = {
-      createdAt: {
-        gte: startDate,
-        lte: endDate,
-      },
-    };
+    const projectIds = await this.getScopedProjectIds(options);
+    const postsByProject = await Promise.all(
+      projectIds.map((projectId) => this.projectRepository.getPostsWithContent(projectId))
+    );
+    const posts = postsByProject.flat();
 
-    if (options.projectId) {
-      whereClause.projectId = options.projectId;
-    } else {
-      const projects = await this.projectRepository.getByAccountId(options.accountId);
-      whereClause.projectId = { in: projects.map((p) => p.id) };
-    }
-
-    return (await prisma.post.findMany({
-      where: whereClause,
-      include: {
-        contents: true,
-        media: true,
-      },
-    })) as PostData[];
+    return posts
+      .filter((post) => post.createdAt >= startDate && post.createdAt <= endDate)
+      .map((post) => ({ id: post.id }));
   }
 
   private async getHistoricalData(

@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { BrandKit } from "../../../src/domain/entities/BrandKit.js";
+import { BrandKit } from "@core/domain/entities/BrandKit.js";
 
 describe("BrandKit Entity", () => {
   beforeEach(() => {

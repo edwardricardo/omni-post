@@ -8,6 +8,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { Button, Input, Label } from "@packages/ui";
 import { useCreateTask } from "@/hooks/api/useTasks";
 
@@ -21,6 +22,7 @@ interface CreateTaskModalProps {
 const PRIORITY_OPTIONS = ["LOW", "MEDIUM", "HIGH", "URGENT"] as const;
 
 export function CreateTaskModal({ accountId, userId, open, onClose }: CreateTaskModalProps) {
+  const t = useTranslations("tasks.components");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<(typeof PRIORITY_OPTIONS)[number]>("MEDIUM");
@@ -67,33 +69,33 @@ export function CreateTaskModal({ accountId, userId, open, onClose }: CreateTask
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <button
         type="button"
-        aria-label="Close modal"
+        aria-label={t("closeModal")}
         className="fixed inset-0 bg-black/25 cursor-default"
         onClick={onClose}
       />
       <div className="relative z-50 w-full max-w-lg rounded-lg bg-card border shadow-lg p-6">
-        <h2 className="text-lg font-semibold mb-4">New Task</h2>
+        <h2 className="text-lg font-semibold mb-4">{t("newTask")}</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="task-title">Title *</Label>
+            <Label htmlFor="task-title">{t("titleLabel")}</Label>
             <Input
               ref={titleInputRef}
               id="task-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="What needs to be done?"
+              placeholder={t("titlePlaceholder")}
               maxLength={200}
             />
           </div>
 
           <div>
-            <Label htmlFor="task-description">Description</Label>
+            <Label htmlFor="task-description">{t("descriptionLabel")}</Label>
             <textarea
               id="task-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Add details..."
+              placeholder={t("descriptionPlaceholder")}
               rows={3}
               className="w-full rounded-md border px-3 py-2 text-sm bg-background resize-none"
             />
@@ -101,7 +103,7 @@ export function CreateTaskModal({ accountId, userId, open, onClose }: CreateTask
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="task-priority">Priority</Label>
+              <Label htmlFor="task-priority">{t("priorityLabel")}</Label>
               <select
                 id="task-priority"
                 value={priority}
@@ -110,14 +112,14 @@ export function CreateTaskModal({ accountId, userId, open, onClose }: CreateTask
               >
                 {PRIORITY_OPTIONS.map((p) => (
                   <option key={p} value={p}>
-                    {p}
+                    {t(`priority.${p}`)}
                   </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <Label htmlFor="task-due-date">Due Date</Label>
+              <Label htmlFor="task-due-date">{t("dueDateLabel")}</Label>
               <Input
                 id="task-due-date"
                 type="date"
@@ -129,10 +131,10 @@ export function CreateTaskModal({ accountId, userId, open, onClose }: CreateTask
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" onClick={onClose}>
-              Cancel
+              {t("cancel")}
             </Button>
             <Button type="submit" disabled={!canSubmit}>
-              {createMutation.isPending ? "Creating..." : "Create Task"}
+              {createMutation.isPending ? t("creating") : t("createTask")}
             </Button>
           </div>
         </form>

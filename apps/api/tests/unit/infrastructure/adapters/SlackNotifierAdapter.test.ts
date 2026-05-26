@@ -14,9 +14,9 @@ import type {
   HttpClientPort,
   HttpResponse,
   HttpError,
-} from "../../../../src/domain/repositories/HttpClientPort.js";
-import { InvariantViolationError } from "../../../../src/domain/errors/index.js";
-import type { NotificationPayload } from "../../../../src/domain/repositories/ExternalNotifierPort.js";
+} from "@core/domain/repositories/HttpClientPort.js";
+import { InvariantViolationError } from "@core/domain/errors/index.js";
+import type { NotificationPayload } from "@core/domain/repositories/ExternalNotifierPort.js";
 
 function makeMockHttpClient(postResult: Result<HttpResponse, HttpError>): {
   client: HttpClientPort;

@@ -7,8 +7,8 @@
 
 import type { PrismaClient } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
-import { Account, AccountId, EntityNotFoundError } from "../../domain/index.js";
-import type { AccountRepositoryPort } from "../../domain/repositories/AccountRepository.js";
+import { Account, AccountId, EntityNotFoundError } from "@core/domain/index.js";
+import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
 
 /**
  * Maps a Prisma Account row to the Account domain entity
@@ -23,6 +23,8 @@ function toDomain(row: {
   trialEndDate: Date | null;
   autoRenewal: boolean;
   billingCycle: string;
+  nextBillingDate: Date | null;
+  lastBillingDate: Date | null;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
   createdAt: Date;
@@ -40,6 +42,8 @@ function toDomain(row: {
     ...(row.trialEndDate !== null && { trialEndDate: row.trialEndDate }),
     autoRenewal: row.autoRenewal,
     billingCycle: row.billingCycle as "monthly" | "yearly",
+    ...(row.nextBillingDate !== null && { nextBillingDate: row.nextBillingDate }),
+    ...(row.lastBillingDate !== null && { lastBillingDate: row.lastBillingDate }),
     ...(row.stripeCustomerId !== null && { stripeCustomerId: row.stripeCustomerId }),
     ...(row.stripeSubscriptionId !== null && { stripeSubscriptionId: row.stripeSubscriptionId }),
     createdAt: row.createdAt,
@@ -110,6 +114,12 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
           ...(account.trialEndDate !== undefined && { trialEndDate: account.trialEndDate }),
           autoRenewal: account.autoRenewal,
           billingCycle: account.billingCycle,
+          ...(account.nextBillingDate !== undefined && {
+            nextBillingDate: account.nextBillingDate,
+          }),
+          ...(account.lastBillingDate !== undefined && {
+            lastBillingDate: account.lastBillingDate,
+          }),
           ...(account.stripeCustomerId !== undefined && {
             stripeCustomerId: account.stripeCustomerId,
           }),
@@ -128,6 +138,8 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
           trialEndDate: account.trialEndDate ?? null,
           autoRenewal: account.autoRenewal,
           billingCycle: account.billingCycle,
+          nextBillingDate: account.nextBillingDate ?? null,
+          lastBillingDate: account.lastBillingDate ?? null,
           stripeCustomerId: account.stripeCustomerId ?? null,
           stripeSubscriptionId: account.stripeSubscriptionId ?? null,
           updatedAt: account.updatedAt,

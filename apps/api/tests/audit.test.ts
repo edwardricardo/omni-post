@@ -5,15 +5,28 @@
  */
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { auditService, AuditActions, AuditResources } from "../src/audit/auditService.js";
+import { AuditService, AuditActions, AuditResources } from "../src/audit/auditService.js";
 import { AuthService } from "../src/auth/authService.js";
 import { MfaService } from "../src/auth/mfaService.js";
 import { prisma } from "@infra/prisma";
 import { PrismaAdminUserRepository } from "../src/infrastructure/repositories/PrismaAdminUserRepository.js";
+import { PrismaRoleRepository } from "../src/infrastructure/repositories/PrismaRoleRepository.js";
+import { PrismaAdminSessionRepository } from "../src/infrastructure/repositories/PrismaAdminSessionRepository.js";
+import { PrismaAuditLogRepository } from "../src/infrastructure/repositories/PrismaAuditLogRepository.js";
 
+const auditService = new AuditService(prisma);
 const adminUserRepo = new PrismaAdminUserRepository(prisma);
-const mfaService = new MfaService(adminUserRepo);
-const authService = new AuthService(adminUserRepo, mfaService);
+const roleRepo = new PrismaRoleRepository(prisma);
+const sessionRepo = new PrismaAdminSessionRepository(prisma);
+const mfaService = new MfaService(adminUserRepo, new PrismaAuditLogRepository(prisma));
+const authService = new AuthService(
+  prisma,
+  adminUserRepo,
+  mfaService,
+  roleRepo,
+  sessionRepo,
+  new PrismaAuditLogRepository(prisma)
+);
 
 describe("Audit System", () => {
   let testUserId: string;

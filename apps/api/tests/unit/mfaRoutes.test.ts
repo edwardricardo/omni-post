@@ -7,6 +7,7 @@
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 import { createMockPrismaModule } from "./helpers/mockPrisma.js";
+import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 
 // ---------------------------------------------------------------------------
 // Mock setup
@@ -56,9 +57,13 @@ const { serializerCompiler, validatorCompiler } = await import("fastify-type-pro
 const { mfaRoutes } = await import("../../src/auth/mfaRoutes.js");
 const { AuthService, setRedisInstance } = await import("../../src/auth/authService.js");
 const { MfaService } = await import("../../src/auth/mfaService.js");
-const { auditService } = await import("../../src/audit/auditService.js");
+const { AuditService } = await import("../../src/audit/auditService.js");
 const { PrismaAdminUserRepository } =
   await import("../../src/infrastructure/repositories/PrismaAdminUserRepository.js");
+const { PrismaRoleRepository } =
+  await import("../../src/infrastructure/repositories/PrismaRoleRepository.js");
+const { PrismaAdminSessionRepository } =
+  await import("../../src/infrastructure/repositories/PrismaAdminSessionRepository.js");
 const { Container } = await import("../../src/infrastructure/container/Container.js");
 const { TOKENS } = await import("../../src/infrastructure/container/types.js");
 const { RbacService } = await import("../../src/auth/rbacService.js");
@@ -69,9 +74,19 @@ const { RbacService } = await import("../../src/auth/rbacService.js");
 
 setRedisInstance(null as unknown as import("ioredis").default);
 
+const auditService = new AuditService(mockPrisma.prisma as never);
 const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
-const mfaService = new MfaService(adminUserRepo);
-const authService = new AuthService(adminUserRepo, mfaService);
+const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
+const sessionRepo = new PrismaAdminSessionRepository(mockPrisma.prisma as never);
+const mfaService = new MfaService(adminUserRepo, new InMemoryAuditLogRepository());
+const authService = new AuthService(
+  mockPrisma.prisma,
+  adminUserRepo,
+  mfaService,
+  roleRepo,
+  sessionRepo,
+  new InMemoryAuditLogRepository()
+);
 
 async function createTestApp() {
   const app = Fastify({ logger: false });
@@ -83,7 +98,10 @@ async function createTestApp() {
   container.registerInstance(TOKENS.AuthService, authService);
   container.registerInstance(TOKENS.MfaService, mfaService);
   container.registerInstance(TOKENS.AuditService, auditService);
-  container.registerInstance(TOKENS.RbacService, new RbacService(adminUserRepo));
+  container.registerInstance(
+    TOKENS.RbacService,
+    new RbacService(adminUserRepo, roleRepo, new InMemoryAuditLogRepository())
+  );
   app.decorate("container", container);
 
   await app.register(mfaRoutes);

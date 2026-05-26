@@ -7,24 +7,29 @@
 
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import type { PrismaClient } from "@infra/prisma";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { QueuePortRegistry } from "@ports/core";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
-import { ApproveRepurposeVariantUseCase } from "../../application/ai/ApproveRepurposeVariantUseCase.js";
-import { RejectRepurposeVariantUseCase } from "../../application/ai/RejectRepurposeVariantUseCase.js";
-import { DetectRepurposeCandidatesUseCase } from "../../application/ai/DetectRepurposeCandidatesUseCase.js";
+import { ApproveRepurposeVariantUseCase } from "@core/application/ai/ApproveRepurposeVariantUseCase.js";
+import { RejectRepurposeVariantUseCase } from "@core/application/ai/RejectRepurposeVariantUseCase.js";
+import { DetectRepurposeCandidatesUseCase } from "@core/application/ai/DetectRepurposeCandidatesUseCase.js";
+import { DispatchDetectRepurposeUseCase } from "@core/application/ai/DispatchDetectRepurposeUseCase.js";
+import { ListRepurposeProposalsQuery } from "@core/application/ai/ListRepurposeProposalsQuery.js";
+import type { ChannelQueryForIngestion } from "@core/domain/repositories/ChannelQueryForIngestion.js";
 import {
   GenerateRepurposeVariantsUseCase,
   type NotificationPort,
-} from "../../application/ai/GenerateRepurposeVariantsUseCase.js";
+} from "@core/application/ai/GenerateRepurposeVariantsUseCase.js";
 import {
   GeneratePlatformVariantsUseCase,
   type AIGeneratePort,
-} from "../../application/ai/GeneratePlatformVariantsUseCase.js";
-import type { GetTopPerformersContextUseCase } from "../../application/ai/GetTopPerformersContextUseCase.js";
+} from "@core/application/ai/GeneratePlatformVariantsUseCase.js";
+import type { GetTopPerformersContextUseCase } from "@core/application/ai/GetTopPerformersContextUseCase.js";
 import { PrismaApproveVariantAdapter } from "../repositories/PrismaApproveVariantAdapter.js";
 import { PrismaRejectVariantAdapter } from "../repositories/PrismaRejectVariantAdapter.js";
 import { PrismaRepurposeDetectionAdapter } from "../repositories/PrismaRepurposeDetectionAdapter.js";
+import { PrismaRepurposeProposalQueryAdapter } from "../repositories/PrismaRepurposeProposalQueryAdapter.js";
 import { PrismaRepurposeVariantAdapter } from "../repositories/PrismaRepurposeVariantAdapter.js";
 import { BullMQRepurposeJobDispatcher } from "../repositories/BullMQRepurposeJobDispatcher.js";
 
@@ -51,7 +56,7 @@ export function setupRepurposeUseCases(container: Container): void {
     TOKENS.ApproveRepurposeVariantUseCase,
     () =>
       new ApproveRepurposeVariantUseCase(
-        new PrismaApproveVariantAdapter(),
+        new PrismaApproveVariantAdapter(container.resolve<PrismaClient>(TOKENS.PrismaClient)),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
@@ -62,7 +67,7 @@ export function setupRepurposeUseCases(container: Container): void {
     TOKENS.RejectRepurposeVariantUseCase,
     () =>
       new RejectRepurposeVariantUseCase(
-        new PrismaRejectVariantAdapter(),
+        new PrismaRejectVariantAdapter(container.resolve<PrismaClient>(TOKENS.PrismaClient)),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
@@ -73,7 +78,7 @@ export function setupRepurposeUseCases(container: Container): void {
     TOKENS.DetectRepurposeCandidatesUseCase,
     () =>
       new DetectRepurposeCandidatesUseCase(
-        new PrismaRepurposeDetectionAdapter(),
+        new PrismaRepurposeDetectionAdapter(container.resolve<PrismaClient>(TOKENS.PrismaClient)),
         new BullMQRepurposeJobDispatcher(
           container
             .resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
@@ -81,6 +86,34 @@ export function setupRepurposeUseCases(container: Container): void {
           QUEUE_NAMES.GENERATE_REPURPOSE
         ),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+
+  // DispatchDetectRepurposeUseCase — daily coordinator: one DETECT job per
+  // account with active channels.
+  container.register<DispatchDetectRepurposeUseCase>(
+    TOKENS.DispatchDetectRepurposeUseCase,
+    () =>
+      new DispatchDetectRepurposeUseCase(
+        container.resolve<ChannelQueryForIngestion>(TOKENS.ChannelQueryForIngestion),
+        container
+          .resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
+          .forQueue(QUEUE_NAMES.DETECT_REPURPOSE),
+        QUEUE_NAMES.DETECT_REPURPOSE,
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
+      ),
+    true
+  );
+
+  // ListRepurposeProposalsQuery — read-side: account-scoped proposals page.
+  container.register<ListRepurposeProposalsQuery>(
+    TOKENS.ListRepurposeProposalsQuery,
+    () =>
+      new ListRepurposeProposalsQuery(
+        new PrismaRepurposeProposalQueryAdapter(
+          container.resolve<PrismaClient>(TOKENS.PrismaClient)
+        )
       ),
     true
   );
@@ -93,7 +126,7 @@ export function setupRepurposeUseCases(container: Container): void {
         notify: async () => {},
       };
       return new GenerateRepurposeVariantsUseCase(
-        new PrismaRepurposeVariantAdapter(),
+        new PrismaRepurposeVariantAdapter(container.resolve<PrismaClient>(TOKENS.PrismaClient)),
         container.resolve<GeneratePlatformVariantsUseCase>(TOKENS.GeneratePlatformVariantsUseCase),
         noOpNotification,
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)

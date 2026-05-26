@@ -7,6 +7,7 @@
 
 import { describe, it, beforeAll, afterAll, beforeEach, expect, vi } from "vitest";
 import { createMockPrismaModule, createStore, buildModelMock } from "../helpers/mockPrisma.js";
+import { InMemoryAuditLogRepository } from "../helpers/InMemoryAuditLogRepository.js";
 
 // ---------------------------------------------------------------------------
 // Mock setup
@@ -85,6 +86,10 @@ const { AuthService, setRedisInstance } = await import("../../../src/auth/authSe
 const { MfaService } = await import("../../../src/auth/mfaService.js");
 const { PrismaAdminUserRepository } =
   await import("../../../src/infrastructure/repositories/PrismaAdminUserRepository.js");
+const { PrismaRoleRepository } =
+  await import("../../../src/infrastructure/repositories/PrismaRoleRepository.js");
+const { PrismaAdminSessionRepository } =
+  await import("../../../src/infrastructure/repositories/PrismaAdminSessionRepository.js");
 
 setRedisInstance(null as never);
 
@@ -116,8 +121,17 @@ async function createTestApp() {
   const container = setupContainer({ prisma: mockPrisma.prisma as never });
 
   const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
-  const mfaSvc = new MfaService(adminUserRepo);
-  const authSvc = new AuthService(adminUserRepo, mfaSvc);
+  const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
+  const sessionRepo = new PrismaAdminSessionRepository(mockPrisma.prisma as never);
+  const mfaSvc = new MfaService(adminUserRepo, new InMemoryAuditLogRepository());
+  const authSvc = new AuthService(
+    mockPrisma.prisma,
+    adminUserRepo,
+    mfaSvc,
+    roleRepo,
+    sessionRepo,
+    new InMemoryAuditLogRepository()
+  );
   container.registerInstance(TOKENS.AuthService, authSvc);
 
   // Override NotificationBroadcaster with mock (no Redis needed)

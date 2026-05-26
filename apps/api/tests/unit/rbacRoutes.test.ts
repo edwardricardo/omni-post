@@ -7,6 +7,7 @@
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 import { createMockPrismaModule } from "./helpers/mockPrisma.js";
+import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 
 // ---------------------------------------------------------------------------
 // Mock setup
@@ -54,6 +55,10 @@ const { MfaService } = await import("../../src/auth/mfaService.js");
 const { RbacService } = await import("../../src/auth/rbacService.js");
 const { PrismaAdminUserRepository } =
   await import("../../src/infrastructure/repositories/PrismaAdminUserRepository.js");
+const { PrismaRoleRepository } =
+  await import("../../src/infrastructure/repositories/PrismaRoleRepository.js");
+const { PrismaAdminSessionRepository } =
+  await import("../../src/infrastructure/repositories/PrismaAdminSessionRepository.js");
 const { Container } = await import("../../src/infrastructure/container/Container.js");
 const { TOKENS } = await import("../../src/infrastructure/container/types.js");
 
@@ -64,9 +69,18 @@ const { TOKENS } = await import("../../src/infrastructure/container/types.js");
 setRedisInstance(null as unknown as import("ioredis").default);
 
 const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
-const mfaService = new MfaService(adminUserRepo);
-const authService = new AuthService(adminUserRepo, mfaService);
-const rbacService = new RbacService(adminUserRepo);
+const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
+const sessionRepo = new PrismaAdminSessionRepository(mockPrisma.prisma as never);
+const mfaService = new MfaService(adminUserRepo, new InMemoryAuditLogRepository());
+const authService = new AuthService(
+  mockPrisma.prisma,
+  adminUserRepo,
+  mfaService,
+  roleRepo,
+  sessionRepo,
+  new InMemoryAuditLogRepository()
+);
+const rbacService = new RbacService(adminUserRepo, roleRepo, new InMemoryAuditLogRepository());
 
 async function createTestApp() {
   const app = Fastify({ logger: false });
@@ -75,6 +89,7 @@ async function createTestApp() {
   app.setSerializerCompiler(serializerCompiler);
 
   const container = new Container();
+  container.registerInstance(TOKENS.PrismaClient, mockPrisma.prisma);
   container.registerInstance(TOKENS.AuthService, authService);
   container.registerInstance(TOKENS.RbacService, rbacService);
   app.decorate("container", container);

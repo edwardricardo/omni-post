@@ -6,7 +6,7 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import type { TriageCrmPort } from "../../application/inbox/TriageInboxMessageUseCase.js";
+import type { TriageCrmPort } from "@core/application/inbox/TriageInboxMessageUseCase.js";
 
 export class PrismaTriageCrmAdapter implements TriageCrmPort {
   constructor(private readonly prisma: PrismaClient) {}

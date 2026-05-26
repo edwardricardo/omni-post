@@ -5,10 +5,12 @@
  * @layer infrastructure
  */
 
-import { prisma } from "@infra/prisma";
-import type { ApproveVariantPort } from "../../application/ai/ApproveRepurposeVariantUseCase.js";
+import type { PrismaClient } from "@infra/prisma";
+import type { ApproveVariantPort } from "@core/application/ai/ApproveRepurposeVariantUseCase.js";
 
 export class PrismaApproveVariantAdapter implements ApproveVariantPort {
+  constructor(private readonly prisma: PrismaClient) {}
+
   async loadVariant(variantId: string): Promise<{
     id: string;
     proposalId: string;
@@ -18,7 +20,7 @@ export class PrismaApproveVariantAdapter implements ApproveVariantPort {
     status: string;
     proposal: { accountId: string; sourcePostId: string };
   } | null> {
-    const row = await prisma.repurposeVariant.findUnique({
+    const row = await this.prisma.repurposeVariant.findUnique({
       where: { id: variantId },
       include: {
         proposal: {
@@ -44,7 +46,7 @@ export class PrismaApproveVariantAdapter implements ApproveVariantPort {
   }
 
   async setVariantApproved(variantId: string, postId: string): Promise<void> {
-    await prisma.repurposeVariant.update({
+    await this.prisma.repurposeVariant.update({
       where: { id: variantId },
       data: { status: "APPROVED", postId },
     });
@@ -56,7 +58,7 @@ export class PrismaApproveVariantAdapter implements ApproveVariantPort {
     content: string;
     scheduleAt?: Date;
   }): Promise<string> {
-    const project = await prisma.project.findFirst({
+    const project = await this.prisma.project.findFirst({
       where: { accountId: params.accountId, deletedAt: null },
       select: { id: true },
       orderBy: { createdAt: "asc" },
@@ -66,7 +68,7 @@ export class PrismaApproveVariantAdapter implements ApproveVariantPort {
       throw new Error("No project found for account");
     }
 
-    const post = await prisma.post.create({
+    const post = await this.prisma.post.create({
       data: {
         projectId: project.id,
         status: "DRAFT",
@@ -74,7 +76,7 @@ export class PrismaApproveVariantAdapter implements ApproveVariantPort {
       },
     });
 
-    await prisma.postContent.create({
+    await this.prisma.postContent.create({
       data: {
         postId: post.id,
         locale: "en",

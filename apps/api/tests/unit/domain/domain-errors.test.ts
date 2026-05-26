@@ -18,7 +18,7 @@ import {
   EntityNotFoundError,
   InvariantViolationError,
   type DomainErrorType,
-} from "../../../src/domain/errors/DomainError.js";
+} from "@core/domain/errors/DomainError.js";
 
 describe("Domain Errors", () => {
   describe("DomainError (base class)", () => {

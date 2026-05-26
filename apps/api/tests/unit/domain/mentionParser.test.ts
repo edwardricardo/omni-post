@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { MentionParser } from "../../../src/domain/services/MentionParser.js";
+import { MentionParser } from "@core/domain/services/MentionParser.js";
 
 describe("MentionParser", () => {
   describe("parse", () => {

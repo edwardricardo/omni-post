@@ -1,40 +1,47 @@
 /**
  * @file proxy.ts
- * @description Next.js 16 proxy for the admin app — cookie-based route protection that redirects
- *              unauthenticated users to /auth/login and authenticated users away from login.
+ * @description Next.js 16 proxy composing next-intl locale routing with the
+ *              admin auth gate. next-intl runs first (resolves locale, redirects
+ *              "/" -> "/en", prepends the locale prefix); the auth logic then
+ *              works against the locale-stripped pathname: unauthenticated users
+ *              on protected routes go to the locale-prefixed login, and
+ *              authenticated users on the login page go to the locale-prefixed
+ *              dashboard root.
  * @layer infrastructure
  */
+import createMiddleware from "next-intl/middleware";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { routing } from "./i18n/routing";
 
-import { NextRequest, NextResponse } from "next/server";
+const handleI18nRouting = createMiddleware(routing);
 
 const COOKIE_NAME = "admin-session";
+// Paths compared AFTER stripping the locale prefix.
 const PUBLIC_PATHS = ["/login"];
 
+const LOCALE_PREFIX_RE = /^\/(en|es)(?=\/|$)/;
+
 export function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  const localeMatch = pathname.match(LOCALE_PREFIX_RE);
+  const locale = localeMatch?.[1] ?? routing.defaultLocale;
+  const pathWithoutLocale = localeMatch ? pathname.slice(localeMatch[0].length) || "/" : pathname;
+
   const session = request.cookies.get(COOKIE_NAME);
-  const isPublic = PUBLIC_PATHS.some((p) => request.nextUrl.pathname.startsWith(p));
+  const isPublic = PUBLIC_PATHS.some((p) => pathWithoutLocale.startsWith(p));
 
   if (!session && !isPublic) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL(`/${locale}/login`, request.url));
   }
   if (session && isPublic) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(new URL(`/${locale}`, request.url));
   }
-  return NextResponse.next();
+
+  return handleI18nRouting(request);
 }
 
-/**
- * Proxy Matcher Configuration
- *
- * Apply proxy to all routes except:
- * - /api/* (Next.js API routes)
- * - _next/static (static files)
- * - _next/image (image optimization)
- * - favicon.ico
- * - public image files
- */
 export const config = {
-  matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
+  matcher: ["/((?!api|_next|_vercel|.*\\..*).*)"],
 };

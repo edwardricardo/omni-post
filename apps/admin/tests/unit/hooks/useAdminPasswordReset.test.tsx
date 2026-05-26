@@ -1,11 +1,9 @@
 /**
  * @file useAdminPasswordReset.test.tsx
- * @description Integration tests for `useAdminPasswordReset` — guards against
- *              the L-330 regression: silent failure without error handling.
- *              Verifies that the hook propagates `ApiError` on !ok responses,
- *              succeeds on ok responses, and calls the correct backend
- *              endpoint with POST. Written verification-first to confirm the
- *              T2-E retroactive fix actually resolved the finding.
+ * @description Integration tests for `useAdminPasswordReset`. Verifies
+ *              that the hook propagates `ApiError` on `!ok` responses,
+ *              succeeds on `ok` responses, and calls the correct
+ *              backend endpoint with `POST`.
  * @layer infrastructure
  */
 

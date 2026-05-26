@@ -14,11 +14,11 @@ import type {
   NotificationPreferenceDTO,
   NotificationFindOptions,
   NotificationPaginatedResult,
-} from "../../domain/repositories/NotificationRepository.js";
-import { NotificationEntity } from "../../domain/entities/Notification.js";
-import { NotificationId } from "../../domain/value-objects/NotificationId.js";
-import { NotificationType } from "../../domain/value-objects/NotificationType.js";
-import { EntityNotFoundError } from "../../domain/errors/index.js";
+} from "@core/domain/repositories/NotificationRepository.js";
+import { NotificationEntity } from "@core/domain/entities/Notification.js";
+import { NotificationId } from "@core/domain/value-objects/NotificationId.js";
+import { NotificationType } from "@core/domain/value-objects/NotificationType.js";
+import { EntityNotFoundError } from "@core/domain/errors/index.js";
 
 /**
  * Raw Prisma row shape for type-safe mapping

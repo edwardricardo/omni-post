@@ -20,14 +20,10 @@ import {
   ListPostsUseCase,
   DeletePostUseCase,
   USE_CASE_ERRORS,
-} from "../../../src/application/index.js";
-import { PostAggregate, ProjectId, EntityNotFoundError } from "../../../src/domain/index.js";
-import type {
-  PostRepository,
-  PostQueryRepository,
-  PostReadModel,
-} from "../../../src/domain/index.js";
-import type { EventDispatcher } from "../../../src/domain/events/DomainEvent.js";
+} from "@core/application/index.js";
+import { PostAggregate, ProjectId, EntityNotFoundError } from "@core/domain/index.js";
+import type { PostRepository, PostQueryRepository, PostReadModel } from "@core/domain/index.js";
+import type { EventDispatcher } from "@core/domain/events/DomainEvent.js";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -114,6 +110,14 @@ function createMockEventDispatcher(): EventDispatcher {
   };
 }
 
+function createMockBusinessMetrics() {
+  return {
+    incrementPostCreated: vi.fn(),
+    incrementPostPublished: vi.fn(),
+    incrementPostDeleted: vi.fn(),
+  };
+}
+
 function makeReadModel(overrides: Partial<PostReadModel> = {}): PostReadModel {
   return {
     id: randomUUID(),
@@ -142,7 +146,7 @@ describe("Post Use Cases", () => {
 
   describe("CreatePostUseCase", () => {
     it("should create a new draft post with body, title, and tags", async () => {
-      const useCase = new CreatePostUseCase(postRepo, eventDispatcher);
+      const useCase = new CreatePostUseCase(postRepo, eventDispatcher, createMockBusinessMetrics());
 
       const result = await useCase.execute({
         projectId: TEST_PROJECT_ID,
@@ -164,7 +168,7 @@ describe("Post Use Cases", () => {
     });
 
     it("should create a scheduled post when scheduledAt is in the future", async () => {
-      const useCase = new CreatePostUseCase(postRepo, eventDispatcher);
+      const useCase = new CreatePostUseCase(postRepo, eventDispatcher, createMockBusinessMetrics());
       const futureDate = new Date(Date.now() + 60 * 60 * 1000);
 
       const result = await useCase.execute({
@@ -179,7 +183,7 @@ describe("Post Use Cases", () => {
     });
 
     it("should reject invalid project ID format", async () => {
-      const useCase = new CreatePostUseCase(postRepo, eventDispatcher);
+      const useCase = new CreatePostUseCase(postRepo, eventDispatcher, createMockBusinessMetrics());
 
       const result = await useCase.execute({
         projectId: "invalid-id",
@@ -192,7 +196,7 @@ describe("Post Use Cases", () => {
     });
 
     it("should reject empty body", async () => {
-      const useCase = new CreatePostUseCase(postRepo, eventDispatcher);
+      const useCase = new CreatePostUseCase(postRepo, eventDispatcher, createMockBusinessMetrics());
 
       const result = await useCase.execute({
         projectId: TEST_PROJECT_ID,
@@ -208,7 +212,7 @@ describe("Post Use Cases", () => {
         err(new Error("Database connection lost"))
       );
 
-      const useCase = new CreatePostUseCase(postRepo, eventDispatcher);
+      const useCase = new CreatePostUseCase(postRepo, eventDispatcher, createMockBusinessMetrics());
 
       const result = await useCase.execute({
         projectId: TEST_PROJECT_ID,
@@ -435,7 +439,7 @@ describe("Post Use Cases", () => {
 
       (postRepo.findById as any).mockImplementation(async () => ok(post));
 
-      const useCase = new DeletePostUseCase(postRepo);
+      const useCase = new DeletePostUseCase(postRepo, createMockBusinessMetrics());
       const result = await useCase.execute({ postId: post.id.value });
 
       expect(result.ok).toBeTruthy();
@@ -444,7 +448,7 @@ describe("Post Use Cases", () => {
     });
 
     it("should return NOT_FOUND for non-existent post", async () => {
-      const useCase = new DeletePostUseCase(postRepo);
+      const useCase = new DeletePostUseCase(postRepo, createMockBusinessMetrics());
 
       const result = await useCase.execute({
         postId: "a0000000-0000-4000-8000-000000000000",
@@ -455,7 +459,7 @@ describe("Post Use Cases", () => {
     });
 
     it("should reject invalid post ID format", async () => {
-      const useCase = new DeletePostUseCase(postRepo);
+      const useCase = new DeletePostUseCase(postRepo, createMockBusinessMetrics());
 
       const result = await useCase.execute({ postId: "not-a-valid-uuid" });
 
@@ -478,7 +482,7 @@ describe("Post Use Cases", () => {
 
       (postRepo.findById as any).mockImplementation(async () => ok(post));
 
-      const useCase = new DeletePostUseCase(postRepo);
+      const useCase = new DeletePostUseCase(postRepo, createMockBusinessMetrics());
       const result = await useCase.execute({ postId: post.id.value });
 
       expect(result.ok).toBeFalsy();

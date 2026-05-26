@@ -9,6 +9,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import * as Popover from "@radix-ui/react-popover";
 import * as ScrollArea from "@radix-ui/react-scroll-area";
 import { Bell } from "lucide-react";
@@ -16,7 +17,7 @@ import { useNotificationStore } from "@/lib/stores/notificationStore";
 import type { NotificationItem as NotificationItemType } from "@/lib/stores/notificationStore";
 import { useNotificationStream } from "@/hooks/useNotificationStream";
 import { NotificationItem } from "./NotificationItem";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import {
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
@@ -36,6 +37,7 @@ import {
  *              and individual mark-read actions.
  */
 export function NotificationBell() {
+  const t = useTranslations("notifications");
   const [open, setOpen] = useState(false);
 
   // Start SSE stream (once, at layout level)
@@ -58,10 +60,9 @@ export function NotificationBell() {
     refetch,
   } = useNotificationsList({ enabled: open });
 
-  // Sync server notifications into Zustand store when data arrives. Zustand
-  // stays as the intermediary because `useNotificationStream` (SSE) pushes
-  // real-time additions directly into the store; replacing it with TanStack
-  // cache writes from the SSE handler is tracked as future canon work.
+  // Sync server notifications into the Zustand store when data arrives.
+  // The store is the merge point for both the fetched list and the
+  // real-time additions pushed by `useNotificationStream` over SSE.
   useEffect(() => {
     if (serverNotifications) {
       setNotifications(serverNotifications);
@@ -101,7 +102,9 @@ export function NotificationBell() {
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger asChild>
         <button
-          aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
+          aria-label={
+            unreadCount > 0 ? t("bellAriaLabelUnread", { count: unreadCount }) : t("bellAriaLabel")
+          }
           className="relative rounded-full p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         >
           <Bell className="h-5 w-5" aria-hidden="true" />
@@ -121,17 +124,17 @@ export function NotificationBell() {
           align="end"
           sideOffset={8}
           className="z-50 w-[360px] max-w-[calc(100vw-1rem)] rounded-xl bg-white shadow-lg ring-1 ring-black/5 focus:outline-none"
-          aria-label="Notifications"
+          aria-label={t("title")}
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-            <h2 className="text-sm font-semibold text-gray-900">Notifications</h2>
+            <h2 className="text-sm font-semibold text-gray-900">{t("title")}</h2>
             <button
               onClick={handleMarkAllRead}
               disabled={unreadCount === 0 || markAllReadMutation.isPending}
               className="text-xs text-blue-600 hover:text-blue-700 disabled:text-gray-400 disabled:cursor-not-allowed"
             >
-              Mark all read
+              {t("markAllRead")}
             </button>
           </div>
 
@@ -155,12 +158,12 @@ export function NotificationBell() {
 
               {isError && (
                 <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
-                  <p className="text-sm text-gray-500">Failed to load notifications</p>
+                  <p className="text-sm text-gray-500">{t("loadError")}</p>
                   <button
                     onClick={() => void refetch()}
                     className="text-xs text-blue-600 hover:text-blue-700"
                   >
-                    Retry
+                    {t("retry")}
                   </button>
                 </div>
               )}
@@ -168,7 +171,7 @@ export function NotificationBell() {
               {!isLoading && !isError && displayNotifications.length === 0 && (
                 <div className="px-4 py-8 text-center">
                   <Bell className="mx-auto h-8 w-8 text-gray-300" aria-hidden="true" />
-                  <p className="mt-2 text-sm text-gray-500">No notifications</p>
+                  <p className="mt-2 text-sm text-gray-500">{t("empty")}</p>
                 </div>
               )}
 
@@ -202,7 +205,7 @@ export function NotificationBell() {
               className="text-xs text-gray-500 hover:text-gray-700"
               onClick={() => setOpen(false)}
             >
-              Notification preferences
+              {t("preferencesLink")}
             </Link>
           </div>
 

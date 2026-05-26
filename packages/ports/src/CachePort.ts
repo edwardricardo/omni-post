@@ -11,9 +11,9 @@
  *              their own flow.
  *
  *              Stampede protection (single-flight, XFetch, stale-while-
- *              revalidate, jitter) is intentionally NOT in the port surface
- *              yet — adding it requires hot-key metrics and per-policy
- *              decisions. Tracked separately in the backlog.
+ *              revalidate, jitter) is intentionally NOT part of the
+ *              port surface — adding it requires hot-key metrics and
+ *              per-policy decisions.
  * @layer domain
  */
 
@@ -39,11 +39,10 @@ export interface CachePort {
   ): Promise<void>;
 
   /**
-   * Cache-aside: returns cached value or invokes `factory` + caches the
-   * result before returning. The factory runs at most once per call; if
-   * concurrent callers race on a missed key, each runs the factory
-   * independently (no single-flight protection — see PR-29 backlog for
-   * stampede mitigation work).
+   * Cache-aside: returns cached value or invokes `factory` + caches
+   * the result before returning. The factory runs at most once per
+   * call; if concurrent callers race on a missed key, each runs the
+   * factory independently (no single-flight protection).
    */
   getOrSet<T>(
     key: string,

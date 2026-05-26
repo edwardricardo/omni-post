@@ -6,17 +6,19 @@
  * @layer infrastructure
  */
 
-import { prisma } from "@infra/prisma";
-import type { RepurposeVariantPort } from "../../application/ai/GenerateRepurposeVariantsUseCase.js";
+import type { PrismaClient } from "@infra/prisma";
+import type { RepurposeVariantPort } from "@core/application/ai/GenerateRepurposeVariantsUseCase.js";
 
 export class PrismaRepurposeVariantAdapter implements RepurposeVariantPort {
+  constructor(private readonly prisma: PrismaClient) {}
+
   async loadProposal(proposalId: string): Promise<{
     id: string;
     accountId: string;
     sourcePostId: string;
     sourcePlatform: string;
   } | null> {
-    const row = await prisma.repurposeProposal.findUnique({
+    const row = await this.prisma.repurposeProposal.findUnique({
       where: { id: proposalId },
       select: {
         id: true,
@@ -37,7 +39,7 @@ export class PrismaRepurposeVariantAdapter implements RepurposeVariantPort {
   }
 
   async getPostContent(postId: string): Promise<string | null> {
-    const content = await prisma.postContent.findFirst({
+    const content = await this.prisma.postContent.findFirst({
       where: { postId },
       select: { body: true },
       orderBy: { revision: "desc" },
@@ -47,7 +49,7 @@ export class PrismaRepurposeVariantAdapter implements RepurposeVariantPort {
   }
 
   async getConnectedPlatforms(accountId: string): Promise<string[]> {
-    const channels = await prisma.channel.findMany({
+    const channels = await this.prisma.channel.findMany({
       where: {
         project: { accountId },
         deletedAt: null,
@@ -65,7 +67,7 @@ export class PrismaRepurposeVariantAdapter implements RepurposeVariantPort {
     content: string;
     hashtags: string[];
   }): Promise<void> {
-    await prisma.repurposeVariant.create({
+    await this.prisma.repurposeVariant.create({
       data: {
         proposalId: params.proposalId,
         platform: params.platform as never,
@@ -74,5 +76,15 @@ export class PrismaRepurposeVariantAdapter implements RepurposeVariantPort {
         status: "PENDING",
       },
     });
+  }
+
+  async existingVariantPlatforms(proposalId: string): Promise<string[]> {
+    const rows = await this.prisma.repurposeVariant.findMany({
+      where: { proposalId },
+      select: { platform: true },
+      distinct: ["platform"],
+    });
+
+    return rows.map((r) => r.platform);
   }
 }

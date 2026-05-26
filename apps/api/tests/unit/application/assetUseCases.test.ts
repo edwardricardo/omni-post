@@ -8,24 +8,24 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { CreateMediaAssetUseCase } from "../../../src/application/assets/CreateMediaAssetUseCase.js";
-import { UpdateMediaAssetUseCase } from "../../../src/application/assets/UpdateMediaAssetUseCase.js";
-import { DeleteMediaAssetUseCase } from "../../../src/application/assets/DeleteMediaAssetUseCase.js";
-import { TagMediaAssetUseCase } from "../../../src/application/assets/TagMediaAssetUseCase.js";
-import { GetMediaAssetsQuery } from "../../../src/application/assets/GetMediaAssetsQuery.js";
-import { CreateAssetTagUseCase } from "../../../src/application/assets/CreateAssetTagUseCase.js";
-import { ListAssetTagsQuery } from "../../../src/application/assets/ListAssetTagsQuery.js";
-import { CreateAssetFolderUseCase } from "../../../src/application/assets/CreateAssetFolderUseCase.js";
-import { MediaAsset } from "../../../src/domain/entities/MediaAsset.js";
-import { type MediaAssetRepository } from "../../../src/domain/repositories/MediaAssetRepository.js";
+import { CreateMediaAssetUseCase } from "@core/application/assets/CreateMediaAssetUseCase.js";
+import { UpdateMediaAssetUseCase } from "@core/application/assets/UpdateMediaAssetUseCase.js";
+import { DeleteMediaAssetUseCase } from "@core/application/assets/DeleteMediaAssetUseCase.js";
+import { TagMediaAssetUseCase } from "@core/application/assets/TagMediaAssetUseCase.js";
+import { GetMediaAssetsQuery } from "@core/application/assets/GetMediaAssetsQuery.js";
+import { CreateAssetTagUseCase } from "@core/application/assets/CreateAssetTagUseCase.js";
+import { ListAssetTagsQuery } from "@core/application/assets/ListAssetTagsQuery.js";
+import { CreateAssetFolderUseCase } from "@core/application/assets/CreateAssetFolderUseCase.js";
+import { MediaAsset } from "@core/domain/entities/MediaAsset.js";
+import { type MediaAssetRepository } from "@core/domain/repositories/MediaAssetRepository.js";
 import {
   type AssetTagRepository,
   type AssetTagDTO,
-} from "../../../src/domain/repositories/AssetTagRepository.js";
+} from "@core/domain/repositories/AssetTagRepository.js";
 import {
   type AssetFolderRepository,
   type AssetFolderDTO,
-} from "../../../src/domain/repositories/AssetFolderRepository.js";
+} from "@core/domain/repositories/AssetFolderRepository.js";
 
 // ---------------------------------------------------------------------------
 // Mock factories

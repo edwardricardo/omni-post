@@ -14,8 +14,8 @@ import { requireAdminAuth } from "./auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "../auth/rbacService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { MassForceReauthByProviderUseCase } from "../application/providers/MassForceReauthByProviderUseCase.js";
-import { auditService } from "../audit/auditService.js";
+import type { MassForceReauthByProviderUseCase } from "@core/application/providers/MassForceReauthByProviderUseCase.js";
+import type { AuditService } from "../audit/auditService.js";
 
 const ParamsSchema = z.object({ provider: z.string().min(1) });
 // `flagChannels` covers the disable-style intent (sets needsReauth) and
@@ -30,7 +30,10 @@ const BodySchema = z.object({
 class MassReauthRouteHandler extends BaseRouteHandler {
   protected routeName = "provider-mass-reauth";
 
-  constructor(private readonly useCase: MassForceReauthByProviderUseCase) {
+  constructor(
+    private readonly useCase: MassForceReauthByProviderUseCase,
+    private readonly auditService: AuditService
+  ) {
     super();
   }
 
@@ -66,7 +69,7 @@ class MassReauthRouteHandler extends BaseRouteHandler {
           : result.error.code === "NOT_FOUND"
             ? 404
             : 500;
-      await auditService.log({
+      await this.auditService.log({
         action: "PROVIDER_MASS_FORCE_REAUTH",
         resource: "Provider",
         resourceId: params.data.provider,
@@ -77,7 +80,7 @@ class MassReauthRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, status, result.error.message);
     }
 
-    await auditService.log({
+    await this.auditService.log({
       action: "PROVIDER_MASS_FORCE_REAUTH",
       resource: "Provider",
       resourceId: result.value.provider,
@@ -100,7 +103,8 @@ const massReauthRoutes: FastifyPluginAsync = async (fastify) => {
   const useCase = fastify.container!.resolve<MassForceReauthByProviderUseCase>(
     TOKENS.MassForceReauthByProviderUseCase
   );
-  const handler = new MassReauthRouteHandler(useCase);
+  const auditService = fastify.container!.resolve<AuditService>(TOKENS.AuditService);
+  const handler = new MassReauthRouteHandler(useCase, auditService);
 
   fastify.post(
     "/admin/providers/:provider/force-mass-reauth",

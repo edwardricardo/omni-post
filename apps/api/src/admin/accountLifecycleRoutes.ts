@@ -21,13 +21,7 @@ import { Permission } from "../auth/rbacService.js";
 import { removeUndefinedProperties } from "../utils/typeUtils.js";
 import { SecureSchemas } from "../security/inputValidation.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import { prisma } from "@infra/prisma";
-import {
-  PricingCalculator,
-  type ProviderTier,
-  type AccountTier,
-  type BundleDef,
-} from "../domain/billing/PricingCalculator.js";
+import type { CustomerAccountBillingService } from "./CustomerAccountBillingService.js";
 
 // ✅ Zod schemas for validation with security enhancement
 const AdminRoleSchema = z.string().min(1);
@@ -126,7 +120,10 @@ const BulkReactivateSchema = z.object({
 class AccountLifecycleHandler extends BaseRouteHandler {
   protected routeName = "account-lifecycle";
 
-  constructor(private readonly accountLifecycleService: AccountLifecycleService) {
+  constructor(
+    private readonly accountLifecycleService: AccountLifecycleService,
+    private readonly billingService: CustomerAccountBillingService
+  ) {
     super();
   }
 
@@ -574,56 +571,25 @@ class AccountLifecycleHandler extends BaseRouteHandler {
 
     const { accountId } = validated.value.params;
     const body = validated.value.body;
+    const adminUserId = request.auth?.user?.id;
 
     try {
-      const account = await prisma.account.findUnique({ where: { id: accountId } });
-
-      if (!account) {
-        return this.sendError(ctx, 404, "Account not found");
-      }
-
-      const updatedAccount = await prisma.account.update({
-        where: { id: accountId },
-        data: {
+      const result = await this.billingService.updateAccountStatus(
+        accountId,
+        {
           ...(body.isActive !== undefined && { isActive: body.isActive }),
           ...(body.name !== undefined && { name: body.name }),
           ...(body.email !== undefined && { email: body.email }),
           ...(body.phone !== undefined && { phone: body.phone }),
         },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          phone: true,
-          isActive: true,
-          updatedAt: true,
-        },
-      });
-
-      // Create audit log with resource: "Account"
-      const adminUserId = request.auth?.user?.id;
-      if (adminUserId) {
-        await prisma.auditLog.create({
-          data: {
-            action: "ACCOUNT_UPDATE",
-            resource: "Account",
-            resourceId: accountId,
-            userId: adminUserId,
-            details: {
-              changes: {
-                ...(body.isActive !== undefined && {
-                  isActive: { from: account.isActive, to: body.isActive },
-                }),
-                ...(body.name !== undefined && { name: { from: account.name, to: body.name } }),
-              },
-              updatedBy: adminUserId,
-            },
-          },
-        });
+        ...(adminUserId !== undefined ? ([adminUserId] as const) : ([] as const))
+      );
+      if (!result.ok) {
+        return this.sendError(ctx, 404, "Account not found");
       }
 
       this.logInfo(ctx, "Account updated", { accountId, changes: body });
-      return this.sendSuccess(ctx, { account: updatedAccount });
+      return this.sendSuccess(ctx, { account: result.value });
     } catch (error: unknown) {
       this.logError(ctx, "Failed to update account status", {
         error: error instanceof Error ? error.message : String(error),
@@ -646,205 +612,17 @@ class AccountLifecycleHandler extends BaseRouteHandler {
     const { accountId } = validated.value.params;
 
     try {
-      // 1. Load account
-      const account = await prisma.account.findUnique({ where: { id: accountId } });
-      if (!account) {
-        return this.sendError(ctx, 404, "Account not found");
+      const result = await this.billingService.getAccountBilling(accountId);
+      if (!result.ok) {
+        if (result.error.code === "NOT_FOUND") {
+          return this.sendError(ctx, 404, "Account not found");
+        }
+        return reply.code(500).send({
+          ok: false,
+          error: { code: result.error.code, message: result.error.message },
+        });
       }
-
-      // 1b. Load account subscription with bundle info and price history
-      const subscription = await prisma.accountSubscription.findUnique({
-        where: { accountId },
-        include: {
-          bundle: true,
-          history: { orderBy: { createdAt: "desc" }, take: 1 },
-        },
-      });
-
-      // 2. Build provider list from subscription only (no client channel data)
-      const subscriptionProviders = subscription?.providers?.map(String) ?? [];
-      const providerCounts = new Map<string, number>();
-      for (const p of subscriptionProviders) {
-        providerCounts.set(p, 1);
-      }
-
-      // 3. Load active pricing tiers
-      const rawProviderTiers = await prisma.providerPricingTier.findMany({
-        where: { isActive: true },
-        orderBy: { minProviders: "asc" },
-      });
-      const rawAccountTiers = await prisma.accountPricingTier.findMany({
-        where: { isActive: true },
-        orderBy: { minAccounts: "asc" },
-      });
-      const rawBundles = await prisma.providerBundle.findMany({
-        where: { isActive: true },
-      });
-
-      // 4. Map Prisma models to PricingCalculator interfaces
-      const providerTiers: ProviderTier[] = rawProviderTiers.map((t) => ({
-        minProviders: t.minProviders,
-        maxProviders: t.maxProviders,
-        pricePerProviderMonth: Number(t.pricePerProviderMonth),
-        isActive: t.isActive,
-      }));
-      const accountTiers: AccountTier[] = rawAccountTiers.map((t) => ({
-        minAccounts: t.minAccounts,
-        maxAccounts: t.maxAccounts,
-        multiplier: Number(t.multiplier),
-        isActive: t.isActive,
-      }));
-      const bundles: BundleDef[] = rawBundles.map((b) => ({
-        id: b.id,
-        name: b.name,
-        slug: b.slug,
-        providers: b.providers.map(String),
-        pricePerAccountMonth: Number(b.pricePerAccountMonth),
-        isActive: b.isActive,
-      }));
-
-      const providerCount = providerCounts.size;
-
-      // If no pricing tiers exist, return zero-cost breakdown
-      const hasTiers = providerTiers.length > 0;
-      let total = 0;
-      let breakdown = {
-        pricePerProvider: 0,
-        basePricePerAccount: 0,
-        accountLines: [] as Array<{ accountNumber: number; multiplier: number; price: number }>,
-        subtotal: 0,
-        savings: 0,
-      };
-      let cheaperBundle: {
-        bundle: { name: string; slug: string };
-        bundleTotal: number;
-        customTotal: number;
-        savings: number;
-      } | null = null;
-
-      if (hasTiers && providerCount > 0) {
-        const priceResult = PricingCalculator.calculateCustomPrice(
-          providerCount,
-          1,
-          providerTiers,
-          accountTiers
-        );
-        if (!priceResult.ok) {
-          return reply.code(500).send({
-            ok: false,
-            error: {
-              code: priceResult.error.code,
-              message: priceResult.error.message,
-            },
-          });
-        }
-        total = priceResult.value.total;
-        breakdown = priceResult.value.breakdown;
-
-        const selectedProviders = Array.from(providerCounts.keys());
-        const cheaperBundleResult = PricingCalculator.findCheaperBundle(
-          selectedProviders,
-          total,
-          bundles,
-          1,
-          accountTiers
-        );
-        if (!cheaperBundleResult.ok) {
-          return reply.code(500).send({
-            ok: false,
-            error: {
-              code: cheaperBundleResult.error.code,
-              message: cheaperBundleResult.error.message,
-            },
-          });
-        }
-        const cheaperBundleMatch = cheaperBundleResult.value;
-        if (cheaperBundleMatch) {
-          cheaperBundle = {
-            bundle: {
-              name: cheaperBundleMatch.bundle.name,
-              slug: cheaperBundleMatch.bundle.slug,
-            },
-            bundleTotal: cheaperBundleMatch.total,
-            customTotal: total,
-            savings: cheaperBundleMatch.savings,
-          };
-        }
-      }
-
-      const providers = Array.from(providerCounts.keys()).map((platform) => ({
-        platform,
-        pricePerProvider: breakdown.pricePerProvider,
-      }));
-
-      // Determine plan type and grandfathering
-      let planType: "custom" | "bundle" | "none" = "none";
-      let bundleInfo: { name: string; slug: string } | null = null;
-      let isGrandfathered = false;
-      let grandfathering: {
-        lockedPrice: number;
-        currentListPrice: number;
-        savingsFromGrandfathering: number;
-        expiresAt: string | null;
-      } | null = null;
-
-      if (subscription) {
-        if (subscription.bundleId && subscription.bundle) {
-          planType = "bundle";
-          bundleInfo = {
-            name: subscription.bundle.name,
-            slug: subscription.bundle.slug,
-          };
-        } else if (subscription.providers.length > 0) {
-          planType = "custom";
-        }
-
-        if (subscription.status === "GRANDFATHERED") {
-          isGrandfathered = true;
-          const lockedPrice = Number(subscription.pricePerMonth);
-          const currentListPrice = total;
-          const lastHistory = subscription.history[0];
-
-          grandfathering = {
-            lockedPrice,
-            currentListPrice,
-            savingsFromGrandfathering: Math.round((currentListPrice - lockedPrice) * 100) / 100,
-            ...(lastHistory?.effectiveAt
-              ? { expiresAt: lastHistory.effectiveAt.toISOString() }
-              : { expiresAt: null }),
-          };
-        }
-      }
-
-      return this.sendSuccess(ctx, {
-        accountId: account.id,
-        accountName: account.name,
-        planType,
-        bundleInfo,
-        isGrandfathered,
-        grandfathering,
-        providers,
-        calculation: {
-          providerCount,
-          accountCount: 1,
-          basePrice: breakdown.basePricePerAccount,
-          totalMonthly: isGrandfathered ? Number(subscription!.pricePerMonth) : total,
-          listPrice: total,
-          savings: breakdown.savings,
-        },
-        cheaperBundle,
-        ...(account.isOnTrial &&
-          account.trialEndDate && {
-            trial: {
-              isOnTrial: true,
-              trialEndDate: account.trialEndDate.toISOString(),
-              daysRemaining: Math.max(
-                0,
-                Math.ceil((account.trialEndDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-              ),
-            },
-          }),
-      });
+      return this.sendSuccess(ctx, result.value);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
       const stack = error instanceof Error ? error.stack : "";
@@ -866,33 +644,11 @@ class AccountLifecycleHandler extends BaseRouteHandler {
     if (newDate <= new Date()) return this.sendError(ctx, 400, "Date must be in the future");
 
     try {
-      const sub = await prisma.accountSubscription.findUnique({
-        where: { accountId },
-        include: { history: { orderBy: { createdAt: "desc" }, take: 1 } },
-      });
-      if (!sub || sub.status !== "GRANDFATHERED") {
+      const result = await this.billingService.updateGrandfathering(accountId, newDate);
+      if (!result.ok) {
         return this.sendError(ctx, 404, "No grandfathered subscription found");
       }
-
-      const history = sub.history[0];
-      if (history) {
-        await prisma.subscriptionPriceHistory.update({
-          where: { id: history.id },
-          data: { effectiveAt: newDate },
-        });
-      } else {
-        await prisma.subscriptionPriceHistory.create({
-          data: {
-            subscriptionId: sub.id,
-            previousPrice: sub.pricePerMonth,
-            newPrice: sub.pricePerMonth,
-            reason: "Grandfathering window adjusted",
-            effectiveAt: newDate,
-          },
-        });
-      }
-
-      return this.sendSuccess(ctx, { effectiveAt: newDate.toISOString() });
+      return this.sendSuccess(ctx, result.value);
     } catch (error: unknown) {
       this.logError(ctx, "Failed to update grandfathering", {
         error: error instanceof Error ? error.message : String(error),
@@ -907,7 +663,10 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
   const accountLifecycleService = fastify.container!.resolve<AccountLifecycleService>(
     TOKENS.AccountLifecycleService
   );
-  const handler = new AccountLifecycleHandler(accountLifecycleService);
+  const billingService = fastify.container!.resolve<CustomerAccountBillingService>(
+    TOKENS.CustomerAccountBillingService
+  );
+  const handler = new AccountLifecycleHandler(accountLifecycleService, billingService);
 
   // ✅ Create new admin account (Super Admin only)
   fastify.post(

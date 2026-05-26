@@ -3,27 +3,21 @@
  * @description Tests for Webhook signature verification — InstagramWebhookProcessor
  * @layer infrastructure
  */
-import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
+import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";
 import { createHmac } from "node:crypto";
 
-vi.mock("@infra/prisma", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@infra/prisma")>();
-  return {
-    ...actual,
-    prisma: {},
-  };
-});
 import { InstagramWebhookProcessor } from "../../../src/webhooks/processors/instagramWebhookProcessor.js";
 import { FacebookWebhookProcessor } from "../../../src/webhooks/processors/facebookWebhookProcessor.js";
 import { YouTubeWebhookProcessor } from "../../../src/webhooks/processors/youtubeWebhookProcessor.js";
 import { signPayload } from "./webhookSignatureVerification.test-helpers.js";
+import { makeWebhookPrismaFake } from "../helpers/webhookPrismaFake.js";
 
 describe("Webhook signature verification — InstagramWebhookProcessor", () => {
   const secret = "instagram-test-secret-abc";
   let processor: InstagramWebhookProcessor;
 
   beforeEach(() => {
-    processor = new InstagramWebhookProcessor();
+    processor = new InstagramWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("scenario 1: valid payload with correct signature → accepted", () => {
@@ -76,7 +70,7 @@ describe("Webhook signature verification — FacebookWebhookProcessor", () => {
   let processor: FacebookWebhookProcessor;
 
   beforeEach(() => {
-    processor = new FacebookWebhookProcessor();
+    processor = new FacebookWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   it("scenario 1: valid payload with correct signature → accepted", () => {
@@ -137,7 +131,7 @@ describe("Webhook signature verification — YouTubeWebhookProcessor (SHA-1)", (
   });
 
   beforeEach(() => {
-    processor = new YouTubeWebhookProcessor();
+    processor = new YouTubeWebhookProcessor(makeWebhookPrismaFake().prisma);
   });
 
   function signYouTube(rawBody: string, s: string): string {

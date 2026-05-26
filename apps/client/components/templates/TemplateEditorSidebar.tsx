@@ -5,9 +5,11 @@
  * @component TemplateEditorSidebar
  * @description Settings/properties panel for the TemplateEditor. Renders the template
  * name, description, category selector, and supported platforms picker.
+ * @layer infrastructure
  */
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@packages/ui";
 import { Button } from "@packages/ui";
 import { Input } from "@packages/ui";
@@ -21,25 +23,26 @@ export function TemplateEditorSidebar({
   categories,
   onFormDataChange,
 }: TemplateEditorSidebarProps) {
+  const t = useTranslations("templates.components.editor");
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Template Information</CardTitle>
-        <CardDescription>Basic template details and configuration</CardDescription>
+        <CardTitle>{t("sidebarTitle")}</CardTitle>
+        <CardDescription>{t("sidebarDescription")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Template Name *</Label>
+            <Label htmlFor="name">{t("nameLabel")}</Label>
             <Input
               id="name"
               value={formData.name || ""}
               onChange={(e) => onFormDataChange((prev) => ({ ...prev, name: e.target.value }))}
-              placeholder="Enter template name"
+              placeholder={t("namePlaceholder")}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="category">Category</Label>
+            <Label htmlFor="category">{t("categoryLabel")}</Label>
             <Select
               value={formData.category || "announcement"}
               onValueChange={(value) => onFormDataChange((prev) => ({ ...prev, category: value }))}
@@ -62,17 +65,17 @@ export function TemplateEditorSidebar({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="description">Description</Label>
+          <Label htmlFor="description">{t("descriptionLabel")}</Label>
           <Input
             id="description"
             value={formData.description || ""}
             onChange={(e) => onFormDataChange((prev) => ({ ...prev, description: e.target.value }))}
-            placeholder="Brief description of this template"
+            placeholder={t("descriptionPlaceholder")}
           />
         </div>
 
         <div className="space-y-2">
-          <Label>Supported Platforms</Label>
+          <Label>{t("supportedPlatforms")}</Label>
           <div className="flex flex-wrap gap-2">
             {availablePlatforms.map((platform) => (
               <Button

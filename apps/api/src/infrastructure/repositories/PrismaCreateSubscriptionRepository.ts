@@ -4,17 +4,19 @@
  * @layer infrastructure
  */
 
-import { prisma } from "@infra/prisma";
-import type { CreateSubscriptionRepository } from "../../application/billing/CreateAccountSubscriptionUseCase.js";
-import type { ProviderTier, AccountTier } from "../../domain/billing/PricingCalculator.js";
+import type { PrismaClient } from "@infra/prisma";
+import type { CreateSubscriptionRepository } from "@core/application/billing/CreateAccountSubscriptionUseCase.js";
+import type { ProviderTier, AccountTier } from "@core/domain/billing/PricingCalculator.js";
 
 export class PrismaCreateSubscriptionRepository implements CreateSubscriptionRepository {
+  constructor(private readonly prisma: PrismaClient) {}
+
   async findAccount(accountId: string): Promise<{ id: string } | null> {
-    return prisma.account.findUnique({ where: { id: accountId }, select: { id: true } });
+    return this.prisma.account.findUnique({ where: { id: accountId }, select: { id: true } });
   }
 
   async findSubscriptionByAccountId(accountId: string): Promise<{ id: string } | null> {
-    return prisma.accountSubscription.findUnique({
+    return this.prisma.accountSubscription.findUnique({
       where: { accountId },
       select: { id: true },
     });
@@ -26,7 +28,7 @@ export class PrismaCreateSubscriptionRepository implements CreateSubscriptionRep
     pricePerAccountMonth: number;
     isActive: boolean;
   } | null> {
-    const b = await prisma.providerBundle.findUnique({ where: { id: bundleId } });
+    const b = await this.prisma.providerBundle.findUnique({ where: { id: bundleId } });
     if (!b) return null;
     return {
       id: b.id,
@@ -37,7 +39,7 @@ export class PrismaCreateSubscriptionRepository implements CreateSubscriptionRep
   }
 
   async findProviderPricingTiers(): Promise<ProviderTier[]> {
-    const rows = await prisma.providerPricingTier.findMany({
+    const rows = await this.prisma.providerPricingTier.findMany({
       where: { isActive: true },
       orderBy: { minProviders: "asc" },
     });
@@ -50,7 +52,7 @@ export class PrismaCreateSubscriptionRepository implements CreateSubscriptionRep
   }
 
   async findAccountPricingTiers(): Promise<AccountTier[]> {
-    const rows = await prisma.accountPricingTier.findMany({
+    const rows = await this.prisma.accountPricingTier.findMany({
       where: { isActive: true },
       orderBy: { minAccounts: "asc" },
     });
@@ -71,7 +73,7 @@ export class PrismaCreateSubscriptionRepository implements CreateSubscriptionRep
     status: string;
     trialEndsAt?: Date;
   }): Promise<string> {
-    const sub = await prisma.accountSubscription.create({
+    const sub = await this.prisma.accountSubscription.create({
       data: {
         accountId: params.accountId,
         ...(params.bundleId !== undefined && { bundleId: params.bundleId }),

@@ -1,18 +1,14 @@
 /**
  * @file useSchedulingDashboardSidebar.integration.test.tsx
- * @description Integration tests for the PR-51.A POC hook
- *              (`useSchedulingDashboardSidebar`). Verifies the canon pattern
- *              wiring: queryOptions factory consumed by useQuery, partial-key
- *              hierarchy works, queries are gated by `enabled` on projectId,
- *              and meta.suppressGlobalErrorToast is set on both leaves.
- *
- *              Migration POC for canon
- *              `msw-v2-setup-for-vitest-tests-with-tanstack-query`: replaces
- *              the previous `vi.stubGlobal('fetch', ...)` pattern with MSW
- *              handlers (default success path served by
+ * @description Integration tests for `useSchedulingDashboardSidebar`.
+ *              Verifies that the queryOptions factory is consumed by
+ *              `useQuery`, the partial-key hierarchy works, queries are
+ *              gated by `enabled` on `projectId`, and
+ *              `meta.suppressGlobalErrorToast` is set on both leaves.
+ *              MSW handlers serve the default success path from
  *              `tests/mocks/handlers/scheduling.ts`; per-test failure
- *              scenarios via `server.use(http.X(...))` inside individual
- *              `it()` blocks).
+ *              scenarios use `server.use(http.X(...))` inside individual
+ *              `it()` blocks.
  * @layer infrastructure
  */
 

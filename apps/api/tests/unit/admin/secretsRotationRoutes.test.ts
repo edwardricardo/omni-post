@@ -17,8 +17,8 @@ import {
   GetSecretRotationStatusQuery,
   type GetSecretRotationStatusOutput,
   type SecretRotationLogReadRepository,
-} from "../../../src/application/security/GetSecretRotationStatusQuery.js";
-import { UseCaseError, USE_CASE_ERRORS } from "../../../src/application/UseCase.js";
+} from "@core/application/security/GetSecretRotationStatusQuery.js";
+import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 
 interface CapturedRoute {
   url: string;

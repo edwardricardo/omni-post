@@ -14,7 +14,7 @@ import { randomBytes } from "node:crypto";
 import { PrismaChannelRepository } from "../../../src/infrastructure/repositories/PrismaChannelRepository.js";
 import { ChannelCredentialsCrypto } from "../../../src/security/ChannelCredentialsCrypto.js";
 import { EncryptionService } from "../../../src/security/EncryptionService.js";
-import { ChannelId, ProjectId } from "../../../src/domain/index.js";
+import { ChannelId, ProjectId, AccountId } from "@core/domain/index.js";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -139,6 +139,94 @@ describe("PrismaChannelRepository", () => {
       await repo.findByProjectId(projectId);
 
       expect(capturedWhere?.deletedAt).toEqual(null);
+    });
+  });
+
+  describe("findConnectionViewsByProjectScopedToAccount", () => {
+    const PROJECT_ID = "b0000000-0000-4000-8000-000000000001";
+    const ACCOUNT_ID = "a0000000-0000-4000-8000-000000000001";
+
+    function viewRow() {
+      return {
+        id: "f0000000-0000-4000-8000-000000000001",
+        provider: "X",
+        handle: "@myaccount",
+        accountName: "My Account",
+        profileImage: "https://img/pic.png",
+        connectedAt: new Date("2026-01-02"),
+        lastUsedAt: new Date("2026-01-03"),
+        expiredAt: null,
+        needsReauth: false,
+      };
+    }
+
+    it("scopes the query to the account (tenancy) and excludes soft-deleted", async () => {
+      let captured: { where?: Record<string, unknown> } = {};
+      prisma.channel.findMany.mockImplementation(
+        async (args: { where: Record<string, unknown> }) => {
+          captured = args;
+          return [viewRow()];
+        }
+      );
+
+      await repo.findConnectionViewsByProjectScopedToAccount(
+        ProjectId.fromStringUnsafe(PROJECT_ID),
+        AccountId.fromStringUnsafe(ACCOUNT_ID)
+      );
+
+      expect(captured.where?.projectId).toBe(PROJECT_ID);
+      expect(captured.where?.deletedAt).toEqual(null);
+      expect(captured.where?.project).toEqual({ accountId: ACCOUNT_ID });
+    });
+
+    it("maps rows to the credential-free view shape", async () => {
+      prisma.channel.findMany.mockImplementation(async () => [viewRow()]);
+
+      const views = await repo.findConnectionViewsByProjectScopedToAccount(
+        ProjectId.fromStringUnsafe(PROJECT_ID),
+        AccountId.fromStringUnsafe(ACCOUNT_ID)
+      );
+
+      expect(views).toHaveLength(1);
+      expect(views[0]).toEqual({
+        id: "f0000000-0000-4000-8000-000000000001",
+        provider: "X",
+        handle: "@myaccount",
+        accountName: "My Account",
+        profileImage: "https://img/pic.png",
+        connectedAt: new Date("2026-01-02"),
+        lastUsedAt: new Date("2026-01-03"),
+        expiredAt: null,
+        needsReauth: false,
+      });
+    });
+  });
+
+  describe("findOwnerAccountIdByChannelId", () => {
+    const CHANNEL_ID = "f0000000-0000-4000-8000-000000000001";
+
+    it("returns ok(accountId) resolved via the project relation", async () => {
+      prisma.channel.findFirst.mockImplementation(
+        async () => ({ project: { accountId: "a0000000-0000-4000-8000-000000000009" } }) as never
+      );
+
+      const result = await repo.findOwnerAccountIdByChannelId(
+        ChannelId.fromStringUnsafe(CHANNEL_ID)
+      );
+
+      expect(result.ok).toBeTruthy();
+      expect(result.ok && result.value).toBe("a0000000-0000-4000-8000-000000000009");
+    });
+
+    it("returns err(EntityNotFoundError) when the channel is absent or soft-deleted", async () => {
+      prisma.channel.findFirst.mockImplementation(async () => null);
+
+      const result = await repo.findOwnerAccountIdByChannelId(
+        ChannelId.fromStringUnsafe(CHANNEL_ID)
+      );
+
+      expect(result.ok).toBeFalsy();
+      expect(!result.ok && result.error.message).toMatch(/Channel/);
     });
   });
 

@@ -7,9 +7,9 @@
 
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import { MassForceReauthByProviderUseCase } from "../../application/providers/MassForceReauthByProviderUseCase.js";
-import type { ChannelRepository } from "../../domain/repositories/ChannelRepository.js";
-import type { UnitOfWork } from "../../domain/repositories/Repository.js";
+import { MassForceReauthByProviderUseCase } from "@core/application/providers/MassForceReauthByProviderUseCase.js";
+import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 
 export function setupProviderAdminUseCases(container: Container): void {
   container.register<MassForceReauthByProviderUseCase>(

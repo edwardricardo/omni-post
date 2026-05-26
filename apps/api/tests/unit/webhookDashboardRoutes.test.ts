@@ -12,15 +12,6 @@
 
 import { describe, it, beforeAll, afterAll, beforeEach, vi, expect } from "vitest";
 
-vi.mock("@infra/prisma", async (importOriginal) => {
-  const original = await importOriginal<Record<string, unknown>>();
-  const { createMockPrismaModule } = await import("./helpers/mockPrisma.js");
-  const { mockPrisma } = createMockPrismaModule();
-  // Store on globalThis so we can access it later
-  (globalThis as Record<string, unknown>).__webhookTestMockPrisma = mockPrisma;
-  return { ...original, prisma: mockPrisma.prisma };
-});
-
 vi.mock("../../src/admin/auth/adminAuthMiddleware.js", async () => {
   const { createAdminAuthMock } = await import("./helpers/mockAuthMiddleware.js");
   return createAdminAuthMock();
@@ -43,14 +34,17 @@ vi.mock("../../src/lib/logger.js", () => {
 import Fastify, { FastifyInstance } from "fastify";
 import { ZodTypeProvider, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 import { registerWebhookDashboardRoutes } from "../../src/webhooks/webhookDashboardRoutes.js";
-import { webhookDashboardService } from "../../src/webhooks/webhookDashboardService.js";
+import { WebhookDashboardService } from "../../src/webhooks/webhookDashboardService.js";
 import { AuthService } from "../../src/auth/authService.js";
 import { MfaService } from "../../src/auth/mfaService.js";
 import { PrismaAdminUserRepository } from "../../src/infrastructure/repositories/PrismaAdminUserRepository.js";
-import { prisma } from "@infra/prisma";
+import { PrismaRoleRepository } from "../../src/infrastructure/repositories/PrismaRoleRepository.js";
+import { PrismaAdminSessionRepository } from "../../src/infrastructure/repositories/PrismaAdminSessionRepository.js";
+import { makeWebhookPrismaFake } from "./helpers/webhookPrismaFake.js";
 import { createTestContainer } from "../../src/infrastructure/container/setup.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
 import { RbacService } from "../../src/auth/rbacService.js";
+import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { ok, err } from "@shared/types";
 import jwt from "jsonwebtoken";
@@ -62,10 +56,24 @@ const testToken = jwt.sign(
   { expiresIn: "1h" }
 );
 
+// In-memory prisma fake injected into the repos + dashboard service (DI) —
+// no module mock of @infra/prisma.
+const { prisma } = makeWebhookPrismaFake();
+const webhookDashboardService = new WebhookDashboardService(prisma);
+
 // Create a local authService instance for mocking (no global singleton)
 const adminUserRepo = new PrismaAdminUserRepository(prisma);
-const mfaSvc = new MfaService(adminUserRepo);
-const authService = new AuthService(adminUserRepo, mfaSvc);
+const roleRepo = new PrismaRoleRepository(prisma);
+const sessionRepo = new PrismaAdminSessionRepository(prisma);
+const mfaSvc = new MfaService(adminUserRepo, new InMemoryAuditLogRepository());
+const authService = new AuthService(
+  prisma,
+  adminUserRepo,
+  mfaSvc,
+  roleRepo,
+  sessionRepo,
+  new InMemoryAuditLogRepository()
+);
 
 // Mock user for authentication
 const mockUser = {
@@ -219,7 +227,10 @@ async function createTestApp(): Promise<FastifyInstance> {
   container.registerInstance(TOKENS.AuthService, authService);
   container.registerInstance(TOKENS.WebhookDashboardService, webhookDashboardService);
   container.registerInstance(TOKENS.RealtimeWebhookBroadcaster, mockBroadcaster);
-  container.registerInstance(TOKENS.RbacService, new RbacService(adminUserRepo));
+  container.registerInstance(
+    TOKENS.RbacService,
+    new RbacService(adminUserRepo, roleRepo, new InMemoryAuditLogRepository())
+  );
   container.registerInstance(TOKENS.BackgroundTaskScheduler, new NoopBackgroundTaskScheduler());
   typedApp.decorate("container", container);
 

@@ -6,8 +6,8 @@
 
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { Campaign } from "../../../src/domain/entities/Campaign.js";
-import { ProjectId } from "../../../src/domain/value-objects/EntityId.js";
+import { Campaign } from "@core/domain/entities/Campaign.js";
+import { ProjectId } from "@core/domain/value-objects/EntityId.js";
 
 function makeProps(overrides: Record<string, unknown> = {}) {
   return {

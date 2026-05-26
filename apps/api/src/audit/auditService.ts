@@ -4,7 +4,7 @@
  *              compliance-ready trails for user actions, security events, and system changes.
  * @layer infrastructure
  */
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { type Result, type AdminRole } from "@shared/types";
 import { BaseService } from "../services/BaseService";
 
@@ -53,7 +53,7 @@ export interface AuditLogFilters {
 }
 
 export class AuditService extends BaseService {
-  constructor() {
+  constructor(private readonly prisma: PrismaClient) {
     super("AuditService");
   }
   /**
@@ -79,8 +79,8 @@ export class AuditService extends BaseService {
         if (params.userAgent) createData.userAgent = params.userAgent;
         if (params.error) createData.error = params.error;
 
-        const auditLog = await prisma.auditLog.create({
-          data: createData as Parameters<typeof prisma.auditLog.create>[0]["data"],
+        const auditLog = await this.prisma.auditLog.create({
+          data: createData as Parameters<typeof this.prisma.auditLog.create>[0]["data"],
           include: {
             user: {
               select: {
@@ -145,7 +145,7 @@ export class AuditService extends BaseService {
           where.createdAt = createdAt;
         }
 
-        const logs = await prisma.auditLog.findMany({
+        const logs = await this.prisma.auditLog.findMany({
           where: where as Record<string, unknown> & { createdAt?: Record<string, Date> },
           include: {
             user: {
@@ -218,13 +218,13 @@ export class AuditService extends BaseService {
 
         // Get basic counts
         const [total, successful, failed] = await Promise.all([
-          prisma.auditLog.count({ where }),
-          prisma.auditLog.count({ where: { ...where, success: true } }),
-          prisma.auditLog.count({ where: { ...where, success: false } }),
+          this.prisma.auditLog.count({ where }),
+          this.prisma.auditLog.count({ where: { ...where, success: true } }),
+          this.prisma.auditLog.count({ where: { ...where, success: false } }),
         ]);
 
         // Get top actions
-        const topActionsRaw = await prisma.auditLog.groupBy({
+        const topActionsRaw = await this.prisma.auditLog.groupBy({
           by: ["action"],
           where,
           _count: { action: true },
@@ -238,7 +238,7 @@ export class AuditService extends BaseService {
         }));
 
         // Get top resources
-        const topResourcesRaw = await prisma.auditLog.groupBy({
+        const topResourcesRaw = await this.prisma.auditLog.groupBy({
           by: ["resource"],
           where: { ...where, resource: { not: null } },
           _count: { resource: true },
@@ -252,7 +252,7 @@ export class AuditService extends BaseService {
         }));
 
         // Get top users
-        const topUsersRaw = await prisma.auditLog.groupBy({
+        const topUsersRaw = await this.prisma.auditLog.groupBy({
           by: ["userId"],
           where: { ...where, userId: { not: null } },
           _count: { userId: true },
@@ -261,7 +261,7 @@ export class AuditService extends BaseService {
         });
 
         const userIds = topUsersRaw.map((item) => item.userId!);
-        const users = await prisma.adminUser.findMany({
+        const users = await this.prisma.adminUser.findMany({
           where: { id: { in: userIds } },
           select: { id: true, email: true, name: true },
         });
@@ -328,7 +328,7 @@ export class AuditService extends BaseService {
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
-        const result = await prisma.auditLog.deleteMany({
+        const result = await this.prisma.auditLog.deleteMany({
           where: {
             createdAt: {
               lt: cutoffDate,
@@ -392,9 +392,6 @@ export class AuditService extends BaseService {
     await this.log(params);
   }
 }
-
-// Singleton instance
-export const auditService = new AuditService();
 
 // Audit action constants
 export const AuditActions = {

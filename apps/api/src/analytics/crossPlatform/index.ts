@@ -11,9 +11,8 @@ import { createLogger } from "../../lib/logger.js";
 const analyticsLogger = createLogger("analytics");
 
 import type { CrossPlatformMetrics, TimeRange } from "@shared/analytics";
-import type { ProjectQueryRepositoryPort } from "../../domain/repositories/ProjectQueryRepository.js";
-import { PrismaProjectQueryRepository } from "../../infrastructure/repositories/PrismaProjectQueryRepository.js";
-import { prisma } from "@infra/prisma";
+import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
+import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
 
 import type { CrossPlatformAnalyticsOptions } from "./types";
 import { getAnalyticsData, getPostsData, getChannelsData, getCompetitorData } from "./dataFetcher";
@@ -37,15 +36,12 @@ export type { CrossPlatformMetrics } from "@shared/analytics";
 export class CrossPlatformAnalyticsEngine {
   private cachePrefix = "analytics:cross_platform:";
   private cacheTTL = 300; // 5 minutes
-  private readonly projectRepository: ProjectQueryRepositoryPort;
 
   constructor(
     private readonly cache: CachePort,
-    projectRepository?: ProjectQueryRepositoryPort
-  ) {
-    // Fallback to a Prisma-backed instance when not injected (e.g. singleton use)
-    this.projectRepository = projectRepository ?? new PrismaProjectQueryRepository(prisma);
-  }
+    private readonly projectRepository: ProjectQueryRepositoryPort,
+    private readonly analyticsRepository: AnalyticsReadRepositoryPort
+  ) {}
 
   /**
    * Generate comprehensive cross-platform analytics
@@ -73,7 +69,13 @@ export class CrossPlatformAnalyticsEngine {
 
       // Get all relevant data in parallel
       const [analyticsData, postsData, channelsData, competitorData] = await Promise.all([
-        getAnalyticsData(options, startDate, endDate, this.projectRepository),
+        getAnalyticsData(
+          options,
+          startDate,
+          endDate,
+          this.analyticsRepository,
+          this.projectRepository
+        ),
         getPostsData(options, startDate, endDate, this.projectRepository),
         getChannelsData(options, this.projectRepository),
         options.includeCompetitive ? getCompetitorData(options) : null,

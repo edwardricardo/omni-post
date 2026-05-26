@@ -6,6 +6,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import cronstrue from "cronstrue";
 import { ConfirmDialog } from "@packages/ui";
 import { useLogger, extractErrorInfo } from "@observability/browser-logger";
@@ -33,8 +34,8 @@ function humanizeCron(cron: string): string {
   }
 }
 
-function formatDate(iso: string | null): string {
-  if (!iso) return "Never";
+function formatDate(iso: string | null, neverLabel: string): string {
+  if (!iso) return neverLabel;
   return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -42,17 +43,18 @@ function formatDate(iso: string | null): string {
   });
 }
 
-const TABLE_HEADERS = [
-  "Name",
-  "Schedule",
-  "Format",
-  "Recipients",
-  "Status",
-  "Last Run",
-  "Actions",
+const TABLE_HEADER_KEYS = [
+  "headerName",
+  "headerSchedule",
+  "headerFormat",
+  "headerRecipients",
+  "headerStatus",
+  "headerLastRun",
+  "headerActions",
 ] as const;
 
 export function ScheduledReportsList({ projectId, onCreateClick }: ScheduledReportsListProps) {
+  const t = useTranslations("analytics.components");
   const logger = useLogger("client.scheduled-reports");
   const { data: reports, isLoading, error, refetch } = useReports(projectId);
   const deleteReport = useDeleteReport();
@@ -109,12 +111,12 @@ export function ScheduledReportsList({ projectId, onCreateClick }: ScheduledRepo
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              {TABLE_HEADERS.map((h) => (
+              {TABLE_HEADER_KEYS.map((h) => (
                 <th
                   key={h}
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
-                  {h}
+                  {t(h)}
                 </th>
               ))}
             </tr>
@@ -138,12 +140,12 @@ export function ScheduledReportsList({ projectId, onCreateClick }: ScheduledRepo
   if (error) {
     return (
       <div className="bg-white rounded-lg shadow-sm p-8 text-center" role="alert">
-        <p className="text-red-600 mb-4">Failed to load scheduled reports</p>
+        <p className="text-red-600 mb-4">{t("loadFailed")}</p>
         <button
           onClick={() => void refetch()}
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
         >
-          Retry
+          {t("retry")}
         </button>
       </div>
     );
@@ -152,15 +154,13 @@ export function ScheduledReportsList({ projectId, onCreateClick }: ScheduledRepo
   if (!reports || reports.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-        <p className="text-gray-500 text-lg mb-2">No scheduled reports yet</p>
-        <p className="text-gray-400 text-sm mb-6">
-          Create your first report to receive automated analytics summaries.
-        </p>
+        <p className="text-gray-500 text-lg mb-2">{t("emptyTitle")}</p>
+        <p className="text-gray-400 text-sm mb-6">{t("emptyDescription")}</p>
         <button
           onClick={onCreateClick}
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
         >
-          Create your first report
+          {t("emptyAction")}
         </button>
       </div>
     );
@@ -172,17 +172,17 @@ export function ScheduledReportsList({ projectId, onCreateClick }: ScheduledRepo
         <table
           className="min-w-full divide-y divide-gray-200"
           role="table"
-          aria-label="Scheduled reports"
+          aria-label={t("tableAria")}
         >
           <thead className="bg-gray-50">
             <tr>
-              {TABLE_HEADERS.map((h) => (
+              {TABLE_HEADER_KEYS.map((h) => (
                 <th
                   key={h}
                   scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
-                  {h}
+                  {t(h)}
                 </th>
               ))}
             </tr>
@@ -191,7 +191,11 @@ export function ScheduledReportsList({ projectId, onCreateClick }: ScheduledRepo
             {reports.map((report) => {
               const status: GenerateStatus = generateStatus[report.id] ?? "idle";
               const generateLabel =
-                status === "success" ? "Queued" : status === "error" ? "Failed" : "Generate Now";
+                status === "success"
+                  ? t("generateQueued")
+                  : status === "error"
+                    ? t("generateFailed")
+                    : t("generateNow");
               const generatePrefix =
                 status === "success" ? "\u2713 " : status === "error" ? "\u2717 " : "";
 
@@ -212,8 +216,7 @@ export function ScheduledReportsList({ projectId, onCreateClick }: ScheduledRepo
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {report.recipients.length} recipient
-                    {report.recipients.length !== 1 ? "s" : ""}
+                    {t("recipientCount", { count: report.recipients.length })}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
@@ -223,18 +226,18 @@ export function ScheduledReportsList({ projectId, onCreateClick }: ScheduledRepo
                           : "bg-gray-100 text-gray-500"
                       }`}
                     >
-                      {report.isActive ? "Active" : "Inactive"}
+                      {report.isActive ? t("statusActive") : t("statusInactive")}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatDate(report.lastRunAt)}
+                    {formatDate(report.lastRunAt, t("never"))}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
                     <button
                       onClick={() => void handleGenerate(report.id)}
                       disabled={generateReport.isPending}
                       className="text-blue-600 hover:text-blue-800 disabled:opacity-50 font-medium"
-                      aria-label={`Generate report ${report.name} now`}
+                      aria-label={t("generateAria", { name: report.name })}
                     >
                       {generatePrefix}
                       {generateLabel}
@@ -243,9 +246,9 @@ export function ScheduledReportsList({ projectId, onCreateClick }: ScheduledRepo
                       onClick={() => void handleDelete(report.id, report.name)}
                       disabled={deleteReport.isPending}
                       className="text-red-600 hover:text-red-800 disabled:opacity-50 font-medium"
-                      aria-label={`Delete report ${report.name}`}
+                      aria-label={t("deleteAria", { name: report.name })}
                     >
-                      Delete
+                      {t("delete")}
                     </button>
                   </td>
                 </tr>
@@ -260,13 +263,13 @@ export function ScheduledReportsList({ projectId, onCreateClick }: ScheduledRepo
         onOpenChange={(open) => {
           if (!open) setDeleteTarget(null);
         }}
-        title="Delete scheduled report?"
+        title={t("deleteDialogTitle")}
         description={
           deleteTarget
-            ? `Delete report "${deleteTarget.name}"? This cannot be undone.`
-            : "This cannot be undone."
+            ? t("deleteDialogDescription", { name: deleteTarget.name })
+            : t("deleteDialogDescriptionFallback")
         }
-        confirmLabel="Delete"
+        confirmLabel={t("delete")}
         variant="danger"
         onConfirm={handleConfirmDelete}
         loading={deleteReport.isPending}

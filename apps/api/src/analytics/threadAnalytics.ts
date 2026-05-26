@@ -4,13 +4,13 @@
  *              completion rates, and performance tracking across thread posts.
  * @layer infrastructure
  */
-import { prisma } from "@infra/prisma";
 import type { CachePort } from "@ports/core";
 import { createLogger } from "../lib/logger.js";
 
 const analyticsLogger = createLogger("analytics");
 import type { ApiMetrics } from "../metrics/apiMetrics.js";
-import type { AnalyticsReadRepositoryPort } from "../domain/repositories/AnalyticsReadRepository.js";
+import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
+import type { ThreadReadRepositoryPort } from "@core/domain/repositories/ThreadReadRepository.js";
 import { AnalyticsAggregator } from "./analyticsUtils";
 
 interface ThreadMetrics {
@@ -72,16 +72,19 @@ interface ThreadAnalyticsSummary {
 export class ThreadAnalytics {
   private metrics: ApiMetrics;
   private readonly analyticsRepository: AnalyticsReadRepositoryPort;
+  private readonly threadRepository: ThreadReadRepositoryPort;
   private cachePrefix = "thread_analytics:";
   private cacheTTL = 300; // 5 minutes
 
   constructor(
     private readonly cache: CachePort,
     metrics: ApiMetrics,
-    analyticsRepository: AnalyticsReadRepositoryPort
+    analyticsRepository: AnalyticsReadRepositoryPort,
+    threadRepository: ThreadReadRepositoryPort
   ) {
     this.metrics = metrics;
     this.analyticsRepository = analyticsRepository;
+    this.threadRepository = threadRepository;
   }
 
   // Calculate comprehensive thread metrics
@@ -96,19 +99,7 @@ export class ThreadAnalytics {
   private async computeThreadMetrics(threadId: string): Promise<ThreadMetrics | null> {
     try {
       // Fetch thread with related data
-      const thread = await prisma.thread.findUnique({
-        where: { id: threadId },
-        include: {
-          post: {
-            include: {
-              project: true,
-            },
-          },
-          tweets: {
-            orderBy: { sequenceNumber: "asc" },
-          },
-        },
-      });
+      const thread = await this.threadRepository.getById(threadId);
 
       if (!thread) return null;
 
@@ -254,14 +245,7 @@ export class ThreadAnalytics {
   // Get engagement trends for a thread
   async getEngagementTrends(threadId: string): Promise<EngagementTrend[]> {
     try {
-      const thread = await prisma.thread.findUnique({
-        where: { id: threadId },
-        include: {
-          tweets: {
-            orderBy: { sequenceNumber: "asc" },
-          },
-        },
-      });
+      const thread = await this.threadRepository.getById(threadId);
 
       if (!thread) return [];
 
@@ -321,33 +305,16 @@ export class ThreadAnalytics {
   ): Promise<ThreadAnalyticsSummary> {
     try {
       const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const endDate = new Date();
 
-      // Build where clause
-      const whereClause: Record<string, unknown> = {
-        createdAt: { gte: startDate },
-      };
-
-      if (projectId) {
-        whereClause.post = { projectId };
-      } else if (accountId) {
-        whereClause.post = {
-          project: { accountId },
-        };
-      }
-
-      // Get all threads in timeframe
-      const threads = await prisma.thread.findMany({
-        where: whereClause,
-        include: {
-          post: {
-            include: {
-              project: true,
-            },
-          },
-          tweets: true,
-        },
-        orderBy: { createdAt: "desc" },
-      });
+      // Get all threads in timeframe, scoped to a project or an account.
+      // A scope (projectId or accountId) is required for tenant-safe reads;
+      // with neither, no threads are returned and the empty summary applies.
+      const threads = projectId
+        ? await this.threadRepository.getByProjectIdAndTimeframe(projectId, startDate, endDate)
+        : accountId
+          ? await this.threadRepository.getByAccountIdAndTimeframe(accountId, startDate, endDate)
+          : [];
 
       const totalThreads = threads.length;
       const completedThreads = threads.filter((t) =>
@@ -440,22 +407,13 @@ export class ThreadAnalytics {
     }>
   > {
     try {
-      const whereClause: Record<string, unknown> = {};
-
-      if (projectId) {
-        whereClause.post = { projectId };
-      } else if (accountId) {
-        whereClause.post = {
-          project: { accountId },
-        };
-      }
-
-      const threads = await prisma.thread.findMany({
-        where: whereClause,
-        include: {
-          tweets: true,
-        },
-      });
+      // A scope (projectId or accountId) is required for tenant-safe reads;
+      // with neither, no threads are returned and the comparison is empty.
+      const threads = projectId
+        ? await this.threadRepository.getByProjectId(projectId)
+        : accountId
+          ? await this.threadRepository.getByAccountId(accountId)
+          : [];
 
       const strategyStats = new Map<
         string,
@@ -583,19 +541,7 @@ export class ThreadAnalytics {
   private async getThreadMetricsBatch(threadIds: string[]): Promise<(ThreadMetrics | null)[]> {
     try {
       // Fetch all threads with related data in one query
-      const threads = await prisma.thread.findMany({
-        where: { id: { in: threadIds } },
-        include: {
-          post: {
-            include: {
-              project: true,
-            },
-          },
-          tweets: {
-            orderBy: { sequenceNumber: "asc" },
-          },
-        },
-      });
+      const threads = await this.threadRepository.getByIds(threadIds);
 
       // Collect all tweet IDs
       const allTweetIds = threads.flatMap((thread) =>

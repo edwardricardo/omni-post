@@ -5,8 +5,8 @@
  * @layer infrastructure
  */
 
-import type { AdminUserDto } from "../../../src/domain/repositories/ReadModelDtos.js";
-import type { AdminRoleKind } from "../../../src/domain/repositories/ReadModelDtos.js";
+import type { AdminUserDto } from "@core/domain/repositories/ReadModelDtos.js";
+import type { AdminRoleKind } from "@core/domain/repositories/ReadModelDtos.js";
 
 let counter = 0;
 

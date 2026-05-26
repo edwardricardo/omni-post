@@ -6,11 +6,13 @@
  * @layer infrastructure
  */
 
+import { useTranslations } from "next-intl";
 import type { PreviewProps } from "./types";
 
 const PIN_DESCRIPTION_LIMIT = 200;
 
 export function PinterestPreview({ content, media, userInfo }: PreviewProps) {
+  const t = useTranslations("editor");
   const pinDescription =
     content.length > PIN_DESCRIPTION_LIMIT
       ? content.slice(0, PIN_DESCRIPTION_LIMIT) + "..."
@@ -22,17 +24,19 @@ export function PinterestPreview({ content, media, userInfo }: PreviewProps) {
           <img src={media[0].url} alt="" className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
-            2:3 image
+            {t("preview.pinterestImagePlaceholder")}
           </div>
         )}
         <button className="absolute top-3 right-3 bg-red-600 text-white text-sm font-semibold rounded-full px-3 py-1">
-          Save
+          {t("preview.save")}
         </button>
       </div>
       <div className="p-3">
         <p className="font-semibold text-sm text-gray-900 truncate">{userInfo.name}</p>
         <p className="text-sm text-gray-700 mt-1 line-clamp-3">{pinDescription}</p>
-        <p className="text-xs text-gray-400 mt-2">{userInfo.username} · Board</p>
+        <p className="text-xs text-gray-400 mt-2">
+          {userInfo.username} · {t("preview.pinterestBoard")}
+        </p>
       </div>
     </div>
   );

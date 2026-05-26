@@ -9,7 +9,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { randomBytes } from "node:crypto";
 import { PrismaOidcConfigurationRepository } from "../../../src/infrastructure/repositories/PrismaOidcConfigurationRepository.js";
 import { EncryptionService } from "../../../src/security/EncryptionService.js";
-import type { OidcConfiguration } from "../../../src/domain/entities/OidcConfiguration.js";
+import type { OidcConfiguration } from "@core/domain/entities/OidcConfiguration.js";
 
 const VALID_KEY = randomBytes(32).toString("base64");
 

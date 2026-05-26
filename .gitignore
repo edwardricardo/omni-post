@@ -149,5 +149,10 @@ docker-compose.local.yml
 .claude/hooks-py/__pycache__/
 **/__pycache__/
 
+# Claude Code skill bundles + lockfile (installed locally, not project code)
+.agents/
+.claude/skills/
+skills-lock.json
+
 # graphify knowledge-graph outputs (regenerable)
 graphify-out/

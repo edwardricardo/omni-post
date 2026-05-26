@@ -10,6 +10,9 @@ export * from "./types";
 // Channel.credentials envelope encryption (api, workers, seed all use this)
 export * from "./channelCredentialsCrypto";
 
+// CSV export (pure RFC 4180 serializer; api, workers, admin frontend all use this)
+export * from "./csv";
+
 // Error handling
 export * from "./errors";
 

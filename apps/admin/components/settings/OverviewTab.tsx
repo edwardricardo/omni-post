@@ -9,6 +9,7 @@
 import { useTranslations } from "next-intl";
 import { Badge } from "../ui/Badge";
 import { SOCIAL_GROUPS, TAB_GROUP_MAP } from "./constants";
+import type { CredentialGroup } from "./constants";
 import type { SettingsStatus } from "@/hooks/api/useSettings";
 
 interface OverviewTabProps {
@@ -23,7 +24,7 @@ const HEALTH_VARIANT: Record<string, "success" | "warning" | "error"> = {
 };
 
 /** Map a group name to the tab key that manages it */
-function groupToTab(group: string): string | null {
+function groupToTab(group: CredentialGroup): string | null {
   for (const [tab, groups] of Object.entries(TAB_GROUP_MAP)) {
     if (groups.includes(group)) return tab;
   }
@@ -31,7 +32,15 @@ function groupToTab(group: string): string | null {
 }
 
 /** Non-social, non-duplicate display groups */
-const CARD_GROUPS = ["STRIPE", "PADDLE", "RESEND", "AI_POOL", "STORAGE", "PLATFORM", "MONITORING"];
+const CARD_GROUPS = [
+  "STRIPE",
+  "PADDLE",
+  "RESEND",
+  "AI_POOL",
+  "STORAGE",
+  "PLATFORM",
+  "MONITORING",
+] as const satisfies CredentialGroup[];
 
 /**
  * @component OverviewTab

@@ -10,11 +10,11 @@ import type { PrismaClient } from "@infra/prisma";
 import { type $Enums } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
 
-import { type CampaignRepository } from "../../domain/repositories/CampaignRepository.js";
-import { Campaign, type CampaignProps } from "../../domain/entities/Campaign.js";
-import { CampaignId, ProjectId } from "../../domain/value-objects/EntityId.js";
-import { CampaignStatus } from "../../domain/value-objects/CampaignStatus.js";
-import { EntityNotFoundError } from "../../domain/errors/index.js";
+import { type CampaignRepository } from "@core/domain/repositories/CampaignRepository.js";
+import { Campaign, type CampaignProps } from "@core/domain/entities/Campaign.js";
+import { CampaignId, ProjectId } from "@core/domain/value-objects/EntityId.js";
+import { CampaignStatus } from "@core/domain/value-objects/CampaignStatus.js";
+import { EntityNotFoundError } from "@core/domain/errors/index.js";
 
 /**
  * Shape of a raw Campaign row returned by Prisma queries.

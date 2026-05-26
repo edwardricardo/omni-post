@@ -1,11 +1,39 @@
 /**
  * @file gemini.advanced.test.ts
- * @description Tests for GeminiProvider - Performance Prediction
+ * @description HTTP-faithful tests for GeminiProvider performance prediction,
+ *              content variations, and plain-text error handling. Intercepts
+ *              the real Google GenAI generateContent wire via MSW.
  * @layer infrastructure
  */
-import { describe, it, beforeEach, vi, expect } from "vitest";
+import { describe, it, beforeEach, expect } from "vitest";
 import { GeminiProvider } from "../../../src/ai/providers/gemini.js";
-import { mockConfig, makeMockClient } from "./gemini.test-helpers.js";
+import { mockConfig } from "./gemini.test-helpers.js";
+import {
+  AI_ENDPOINTS,
+  aiWireServer,
+  geminiResponse,
+  http,
+  HttpResponse,
+  useAiWireServer,
+} from "./msw/aiWireServer.js";
+
+useAiWireServer();
+
+const predictionPayload = {
+  platform: "twitter",
+  metrics: {
+    expectedEngagement: { value: 150, confidence: 0.8, range: { min: 100, max: 200 } },
+    expectedReach: { value: 5000, confidence: 0.75, range: { min: 3000, max: 7000 } },
+    viralPotential: 65,
+    conversionPotential: 45,
+  },
+  optimalTiming: { hour: 14, day: "Tuesday", timezone: "UTC", confidence: 0.85 },
+  competitiveAnalysis: {
+    benchmarkScore: 78,
+    opportunities: ["Trending topic alignment"],
+    threats: ["High competition"],
+  },
+};
 
 describe("GeminiProvider - Performance Prediction", () => {
   let provider: GeminiProvider;
@@ -14,74 +42,41 @@ describe("GeminiProvider - Performance Prediction", () => {
     provider = new GeminiProvider(mockConfig);
   });
 
-  it("should predict performance metrics", async (_t) => {
-    const mockResponse = JSON.stringify({
-      platform: "twitter",
-      metrics: {
-        expectedEngagement: { value: 150, confidence: 0.8, range: { min: 100, max: 200 } },
-        expectedReach: { value: 5000, confidence: 0.75, range: { min: 3000, max: 7000 } },
-        viralPotential: 65,
-        conversionPotential: 45,
-      },
-      optimalTiming: { hour: 14, day: "Tuesday", timezone: "UTC", confidence: 0.85 },
-      competitiveAnalysis: {
-        benchmarkScore: 78,
-        opportunities: ["Trending topic alignment"],
-        threats: ["High competition"],
-      },
-    });
-
-    const generateContentFn = vi.fn(async () => ({ text: mockResponse }));
-    const mockClient = makeMockClient(generateContentFn);
-    // @ts-ignore
-    provider.client = mockClient;
+  it("returns the schema-validated prediction", async () => {
+    aiWireServer.use(http.post(AI_ENDPOINTS.gemini, () => geminiResponse(predictionPayload)));
 
     const result = await provider.predictPerformance("Great content!", "twitter");
+
     expect(result.platform).toBe("twitter");
     expect(result.metrics.expectedEngagement.value).toBe(150);
     expect(result.optimalTiming.hour).toBe(14);
   });
 
-  it("should include historical data in prediction", async (_t) => {
-    const historicalData = [
+  it("includes the historical performance context in the prompt on the wire", async () => {
+    let rawBody = "";
+    aiWireServer.use(
+      http.post(AI_ENDPOINTS.gemini, async ({ request }) => {
+        rawBody = JSON.stringify(await request.json());
+        return geminiResponse(predictionPayload);
+      })
+    );
+
+    await provider.predictPerformance("Test content", "twitter", [
       { engagement: 200, reach: 5000 },
-      { engagement: 150, reach: 4500 },
-    ];
+    ]);
 
-    const mockResponse = JSON.stringify({
-      platform: "twitter",
-      metrics: {
-        expectedEngagement: { value: 175, confidence: 0.9, range: { min: 150, max: 200 } },
-        expectedReach: { value: 4750, confidence: 0.85, range: { min: 4000, max: 5500 } },
-        viralPotential: 70,
-        conversionPotential: 50,
-      },
-      optimalTiming: { hour: 15, day: "Wednesday", timezone: "UTC", confidence: 0.9 },
-      competitiveAnalysis: { benchmarkScore: 80, opportunities: [], threats: [] },
-    });
-
-    const generateContentFn = vi.fn(async (params: any) => {
-      expect(params.contents.includes("Historical performance context")).toBeTruthy();
-      return { text: mockResponse };
-    });
-    const mockClient = makeMockClient(generateContentFn);
-    // @ts-ignore
-    provider.client = mockClient;
-
-    await provider.predictPerformance("Test content", "twitter", historicalData);
-    expect(generateContentFn.mock.calls.length).toBe(1);
+    expect(rawBody.includes("Historical performance context")).toBeTruthy();
   });
 
-  it("should throw error on prediction failure", async (_t) => {
-    const generateContentFn = vi.fn(async () => {
-      throw new Error("API Error");
-    });
-    const mockClient = makeMockClient(generateContentFn);
-    // @ts-ignore
-    provider.client = mockClient;
+  it("throws a structured-generation error when the API rejects the request", async () => {
+    aiWireServer.use(
+      http.post(AI_ENDPOINTS.gemini, () =>
+        HttpResponse.json({ error: { message: "bad request" } }, { status: 400 })
+      )
+    );
 
     await expect(provider.predictPerformance("Test content", "twitter")).rejects.toThrow(
-      /Gemini prediction failed/
+      /Gemini structured generation failed/
     );
   });
 });
@@ -93,137 +88,68 @@ describe("GeminiProvider - Content Variations", () => {
     provider = new GeminiProvider(mockConfig);
   });
 
-  it("should generate tone variations", async (_t) => {
-    const mockResponse = JSON.stringify([
-      "Professional tone variation",
-      "Casual tone variation",
-      "Humorous tone variation",
-    ]);
-
-    const generateContentFn = vi.fn(async () => ({ text: mockResponse }));
-    const mockClient = makeMockClient(generateContentFn);
-    // @ts-ignore
-    provider.client = mockClient;
+  it("unwraps the schema-validated variations object into a string array", async () => {
+    aiWireServer.use(
+      http.post(AI_ENDPOINTS.gemini, () =>
+        geminiResponse({ variations: ["Professional", "Casual", "Humorous"] })
+      )
+    );
 
     const result = await provider.generateVariations("Original content", "tone", 3);
+
     expect(Array.isArray(result)).toBeTruthy();
     expect(result.length).toBe(3);
+    expect(result[0]).toBe("Professional");
   });
 
-  it("should generate length variations", async (_t) => {
-    const mockResponse = JSON.stringify([
-      "Short version",
-      "Medium length version here",
-      "Long detailed version with more context",
-    ]);
+  it("varies by the requested dimension on the wire", async () => {
+    let rawBody = "";
+    aiWireServer.use(
+      http.post(AI_ENDPOINTS.gemini, async ({ request }) => {
+        rawBody = JSON.stringify(await request.json());
+        return geminiResponse({ variations: ["For execs", "For marketers"] });
+      })
+    );
 
-    const generateContentFn = vi.fn(async () => ({ text: mockResponse }));
-    const mockClient = makeMockClient(generateContentFn);
-    // @ts-ignore
-    provider.client = mockClient;
+    await provider.generateVariations("Original content", "audience", 2);
 
-    const result = await provider.generateVariations("Original content", "length", 3);
-    expect(Array.isArray(result)).toBeTruthy();
-    expect(result.length).toBe(3);
+    expect(rawBody.includes("audience")).toBeTruthy();
   });
 
-  it("should generate audience variations", async (_t) => {
-    const mockResponse = JSON.stringify(["For executives", "For marketers", "For consumers"]);
-
-    const generateContentFn = vi.fn(async () => ({ text: mockResponse }));
-    const mockClient = makeMockClient(generateContentFn);
-    // @ts-ignore
-    provider.client = mockClient;
-
-    const result = await provider.generateVariations("Original content", "audience", 3);
-    expect(Array.isArray(result)).toBeTruthy();
-    expect(result.length).toBe(3);
-  });
-
-  it("should extract JSON array from markdown-wrapped response", async (_t) => {
-    const mockResponse = '```json\n["Variation 1", "Variation 2"]\n```';
-
-    const generateContentFn = vi.fn(async () => ({ text: mockResponse }));
-    const mockClient = makeMockClient(generateContentFn);
-    // @ts-ignore
-    provider.client = mockClient;
-
-    const result = await provider.generateVariations("Original", "tone", 2);
-    expect(Array.isArray(result)).toBeTruthy();
-    expect(result.length).toBe(2);
-  });
-
-  it("should throw error on variation generation failure", async (_t) => {
-    const generateContentFn = vi.fn(async () => {
-      throw new Error("API Error");
-    });
-    const mockClient = makeMockClient(generateContentFn);
-    // @ts-ignore
-    provider.client = mockClient;
+  it("throws a structured-generation error when the API rejects the request", async () => {
+    aiWireServer.use(
+      http.post(AI_ENDPOINTS.gemini, () =>
+        HttpResponse.json({ error: { message: "bad request" } }, { status: 400 })
+      )
+    );
 
     await expect(provider.generateVariations("Test", "tone", 3)).rejects.toThrow(
-      /Gemini variation generation failed/
+      /Gemini structured generation failed/
     );
   });
 });
 
-describe("GeminiProvider - Error Handling", () => {
+describe("GeminiProvider - Plain Text Error Handling", () => {
   let provider: GeminiProvider;
 
   beforeEach(() => {
     provider = new GeminiProvider(mockConfig);
   });
 
-  it("should handle rate limit errors", async (_t) => {
-    const generateContentFn = vi.fn(async () => {
-      const error: any = new Error("Rate limit exceeded");
-      error.status = 429;
-      throw error;
-    });
-    const mockClient = makeMockClient(generateContentFn);
-    // @ts-ignore
-    provider.client = mockClient;
+  it("wraps an API error into an AppError on plain-text generation", async () => {
+    aiWireServer.use(
+      http.post(AI_ENDPOINTS.gemini, () =>
+        HttpResponse.json({ error: { message: "Invalid API key" } }, { status: 400 })
+      )
+    );
 
     await expect(provider.generateText([{ role: "user", content: "Test" }])).rejects.toThrow(
       /Gemini generation failed/
     );
   });
 
-  it("should handle authentication errors", async (_t) => {
-    const generateContentFn = vi.fn(async () => {
-      const error: any = new Error("Invalid API key");
-      error.status = 401;
-      throw error;
-    });
-    const mockClient = makeMockClient(generateContentFn);
-    // @ts-ignore
-    provider.client = mockClient;
-
-    await expect(provider.generateText([{ role: "user", content: "Test" }])).rejects.toThrow(
-      /Gemini generation failed/
-    );
-  });
-
-  it("should handle server errors", async (_t) => {
-    const generateContentFn = vi.fn(async () => {
-      const error: any = new Error("Internal server error");
-      error.status = 500;
-      throw error;
-    });
-    const mockClient = makeMockClient(generateContentFn);
-    // @ts-ignore
-    provider.client = mockClient;
-
-    await expect(provider.generateText([{ role: "user", content: "Test" }])).rejects.toThrow(
-      /Gemini generation failed/
-    );
-  });
-
-  it("should handle malformed API responses", async (_t) => {
-    const generateContentFn = vi.fn(async () => ({}));
-    const mockClient = makeMockClient(generateContentFn);
-    // @ts-ignore
-    provider.client = mockClient;
+  it("returns an empty string when the response has no candidates", async () => {
+    aiWireServer.use(http.post(AI_ENDPOINTS.gemini, () => HttpResponse.json({})));
 
     const result = await provider.generateText([{ role: "user", content: "Test" }]);
     expect(result).toBe("");

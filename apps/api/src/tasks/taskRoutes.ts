@@ -18,13 +18,13 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
-import type { CreateTaskUseCase } from "../application/tasks/CreateTaskUseCase.js";
-import type { UpdateTaskUseCase } from "../application/tasks/UpdateTaskUseCase.js";
-import type { CompleteTaskUseCase } from "../application/tasks/CompleteTaskUseCase.js";
-import type { CancelTaskUseCase } from "../application/tasks/CancelTaskUseCase.js";
-import type { ListTasksQuery } from "../application/tasks/ListTasksQuery.js";
-import type { GetTaskQuery } from "../application/tasks/GetTaskQuery.js";
-import type { TaskRepository } from "../domain/repositories/TaskRepository.js";
+import type { CreateTaskUseCase } from "@core/application/tasks/CreateTaskUseCase.js";
+import type { UpdateTaskUseCase } from "@core/application/tasks/UpdateTaskUseCase.js";
+import type { CompleteTaskUseCase } from "@core/application/tasks/CompleteTaskUseCase.js";
+import type { CancelTaskUseCase } from "@core/application/tasks/CancelTaskUseCase.js";
+import type { ListTasksQuery } from "@core/application/tasks/ListTasksQuery.js";
+import type { GetTaskQuery } from "@core/application/tasks/GetTaskQuery.js";
+import type { TaskRepository } from "@core/domain/repositories/TaskRepository.js";
 
 // ============================================================================
 // Schemas

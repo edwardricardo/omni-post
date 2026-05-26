@@ -94,7 +94,7 @@ describe("AuditLogger Tests", () => {
     // Clear stores
     stores.auditLog.clear();
 
-    auditLogger = new AuditLogger(redis, scheduler, {
+    auditLogger = new AuditLogger(mockPrisma.prisma, redis, scheduler, {
       enableRealTimeAlerts: false,
       retentionDays: 7,
       enableDetailedLogging: true,
@@ -529,12 +529,12 @@ describe("AuditLogger Tests", () => {
 
   describe("Factory Function and Configs", () => {
     it("should create audit logger with factory function", () => {
-      const logger = createAuditLogger(redis, scheduler);
+      const logger = createAuditLogger(mockPrisma.prisma, redis, scheduler);
       expect(logger).toBeTruthy();
     });
 
     it("should create audit logger with custom config", () => {
-      const logger = createAuditLogger(redis, scheduler, {
+      const logger = createAuditLogger(mockPrisma.prisma, redis, scheduler, {
         enableRealTimeAlerts: false,
         retentionDays: 30,
       });
@@ -581,7 +581,7 @@ describe("AuditLogger Tests", () => {
         }
       ) as unknown as ReturnType<typeof createInMemoryRedis>;
 
-      const badLogger = new AuditLogger(badRedis, scheduler, {
+      const badLogger = new AuditLogger(mockPrisma.prisma, badRedis, scheduler, {
         enableRealTimeAlerts: false,
       });
 

@@ -9,7 +9,7 @@
 
 import { describe, it, afterEach, beforeEach, expect } from "vitest";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
-import { DomainEvent, EventHandler, createDomainEvent, EVENT_TYPES } from "@shared/events";
+import { EventStoreEvent, EventHandler, createEventStoreEvent, EVENT_TYPES } from "@shared/events";
 
 const scheduler = new NoopBackgroundTaskScheduler();
 
@@ -145,7 +145,7 @@ describe("EventPublisher - Event Publishing", () => {
   });
 
   it("should publish single event to specific channel", async () => {
-    const event: DomainEvent = createDomainEvent(
+    const event: EventStoreEvent = createEventStoreEvent(
       EVENT_TYPES.POST_CREATED,
       "post-123",
       "Post",
@@ -165,7 +165,7 @@ describe("EventPublisher - Event Publishing", () => {
   });
 
   it("should publish event to global channel", async () => {
-    const event: DomainEvent = createDomainEvent(
+    const event: EventStoreEvent = createEventStoreEvent(
       EVENT_TYPES.POST_UPDATED,
       "post-123",
       "Post",
@@ -181,7 +181,7 @@ describe("EventPublisher - Event Publishing", () => {
   });
 
   it("should increment published metrics", async () => {
-    const event: DomainEvent = createDomainEvent(
+    const event: EventStoreEvent = createEventStoreEvent(
       EVENT_TYPES.POST_CREATED,
       "post-123",
       "Post",
@@ -199,7 +199,7 @@ describe("EventPublisher - Event Publishing", () => {
   it("should handle publish failures gracefully", async () => {
     mockRedis.setFailPublish(true);
 
-    const event: DomainEvent = createDomainEvent(
+    const event: EventStoreEvent = createEventStoreEvent(
       EVENT_TYPES.POST_CREATED,
       "post-123",
       "Post",
@@ -215,7 +215,7 @@ describe("EventPublisher - Event Publishing", () => {
 
   it("should serialize events correctly", async () => {
     const timestamp = new Date("2024-01-01T12:00:00Z");
-    const event: DomainEvent = {
+    const event: EventStoreEvent = {
       id: "event-123",
       type: EVENT_TYPES.POST_PUBLISHED,
       version: 1,
@@ -265,22 +265,22 @@ describe("EventPublisher - Batch Publishing", () => {
   });
 
   it("should publish multiple events in batch", async () => {
-    const events: DomainEvent[] = [
-      createDomainEvent(
+    const events: EventStoreEvent[] = [
+      createEventStoreEvent(
         EVENT_TYPES.POST_CREATED,
         "post-1",
         "Post",
         { postId: "post-1", projectId: "project-1", status: "DRAFT", channelIds: [] },
         { source: "TestSuite" }
       ),
-      createDomainEvent(
+      createEventStoreEvent(
         EVENT_TYPES.POST_CREATED,
         "post-2",
         "Post",
         { postId: "post-2", projectId: "project-1", status: "DRAFT", channelIds: [] },
         { source: "TestSuite" }
       ),
-      createDomainEvent(
+      createEventStoreEvent(
         EVENT_TYPES.POST_CREATED,
         "post-3",
         "Post",
@@ -303,8 +303,8 @@ describe("EventPublisher - Batch Publishing", () => {
   });
 
   it("should update average latency on batch publish", async () => {
-    const events: DomainEvent[] = [
-      createDomainEvent(
+    const events: EventStoreEvent[] = [
+      createEventStoreEvent(
         EVENT_TYPES.POST_CREATED,
         "post-1",
         "Post",
@@ -342,7 +342,7 @@ describe("EventPublisher - Subscription Management", () => {
   it("should register event handler for specific type", async () => {
     const handler: EventHandler = {
       eventType: EVENT_TYPES.POST_CREATED,
-      async handle(_event: DomainEvent): Promise<void> {
+      async handle(_event: EventStoreEvent): Promise<void> {
         // Handler logic
       },
     };
@@ -356,7 +356,7 @@ describe("EventPublisher - Subscription Management", () => {
   it("should unregister event handler", async () => {
     const handler: EventHandler = {
       eventType: EVENT_TYPES.POST_CREATED,
-      async handle(_event: DomainEvent): Promise<void> {
+      async handle(_event: EventStoreEvent): Promise<void> {
         // Handler logic
       },
     };
@@ -373,14 +373,14 @@ describe("EventPublisher - Subscription Management", () => {
   it("should support multiple handlers for same event type", async () => {
     const handler1: EventHandler = {
       eventType: EVENT_TYPES.POST_CREATED,
-      async handle(_event: DomainEvent): Promise<void> {
+      async handle(_event: EventStoreEvent): Promise<void> {
         // Handler 1
       },
     };
 
     const handler2: EventHandler = {
       eventType: EVENT_TYPES.POST_CREATED,
-      async handle(_event: DomainEvent): Promise<void> {
+      async handle(_event: EventStoreEvent): Promise<void> {
         // Handler 2
       },
     };
@@ -396,7 +396,7 @@ describe("EventPublisher - Subscription Management", () => {
   it("should subscribe to all events with wildcard", async () => {
     const handler: EventHandler = {
       eventType: "*",
-      async handle(_event: DomainEvent): Promise<void> {
+      async handle(_event: EventStoreEvent): Promise<void> {
         // Global handler
       },
     };
@@ -466,7 +466,7 @@ describe("EventPublisher - Metrics", () => {
   });
 
   it("should track published events count", async () => {
-    const event: DomainEvent = createDomainEvent(
+    const event: EventStoreEvent = createEventStoreEvent(
       EVENT_TYPES.POST_CREATED,
       "post-123",
       "Post",
@@ -489,7 +489,7 @@ describe("EventPublisher - Metrics", () => {
   it("should track failed events count", async () => {
     mockRedis.setFailPublish(true);
 
-    const event: DomainEvent = createDomainEvent(
+    const event: EventStoreEvent = createEventStoreEvent(
       EVENT_TYPES.POST_CREATED,
       "post-123",
       "Post",
@@ -508,7 +508,7 @@ describe("EventPublisher - Metrics", () => {
   });
 
   it("should track average latency", async () => {
-    const event: DomainEvent = createDomainEvent(
+    const event: EventStoreEvent = createEventStoreEvent(
       EVENT_TYPES.POST_CREATED,
       "post-123",
       "Post",
@@ -523,7 +523,7 @@ describe("EventPublisher - Metrics", () => {
   });
 
   it("should track last activity timestamp", async () => {
-    const event: DomainEvent = createDomainEvent(
+    const event: EventStoreEvent = createEventStoreEvent(
       EVENT_TYPES.POST_CREATED,
       "post-123",
       "Post",
@@ -538,7 +538,7 @@ describe("EventPublisher - Metrics", () => {
   });
 
   it("should reset metrics", async () => {
-    const event: DomainEvent = createDomainEvent(
+    const event: EventStoreEvent = createEventStoreEvent(
       EVENT_TYPES.POST_CREATED,
       "post-123",
       "Post",
@@ -599,7 +599,7 @@ describe("EventPublisher - Health Check", () => {
   it("should include active subscriptions count", async () => {
     const handler: EventHandler = {
       eventType: EVENT_TYPES.POST_CREATED,
-      async handle(_event: DomainEvent): Promise<void> {},
+      async handle(_event: EventStoreEvent): Promise<void> {},
     };
 
     publisher.subscribe(EVENT_TYPES.POST_CREATED, handler);
@@ -625,7 +625,7 @@ describe("EventPublisher - Shutdown", () => {
     // Subscribe to verify shutdown cleans up
     const handler: EventHandler = {
       eventType: EVENT_TYPES.POST_CREATED,
-      async handle(_event: DomainEvent): Promise<void> {},
+      async handle(_event: EventStoreEvent): Promise<void> {},
     };
     publisher.subscribe(EVENT_TYPES.POST_CREATED, handler);
 
@@ -636,7 +636,7 @@ describe("EventPublisher - Shutdown", () => {
   it("should unsubscribe from all channels on shutdown", async () => {
     const handler: EventHandler = {
       eventType: EVENT_TYPES.POST_CREATED,
-      async handle(_event: DomainEvent): Promise<void> {},
+      async handle(_event: EventStoreEvent): Promise<void> {},
     };
 
     publisher.subscribe(EVENT_TYPES.POST_CREATED, handler);

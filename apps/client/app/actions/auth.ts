@@ -10,6 +10,7 @@
  * @layer infrastructure
  */
 import { redirect } from "next/navigation";
+import { getLocale } from "next-intl/server";
 import { ConsoleLoggerAdapter } from "@observability/browser-logger";
 
 import { setSessionCookie, setRefreshCookie, readAuthTokens } from "@/lib/auth/sessionCookie";
@@ -87,7 +88,7 @@ export async function loginAction(
   }
 
   // Redirect OUTSIDE try/catch — redirect() throws internally (NEXT_REDIRECT)
-  redirect("/dashboard");
+  redirect(`/${await getLocale()}/dashboard`);
 }
 
 /**
@@ -175,5 +176,5 @@ export async function registerAction(
   }
 
   // Redirect OUTSIDE try/catch — redirect() throws internally (NEXT_REDIRECT)
-  redirect("/dashboard");
+  redirect(`/${await getLocale()}/dashboard`);
 }

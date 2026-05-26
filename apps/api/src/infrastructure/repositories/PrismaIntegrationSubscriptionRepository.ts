@@ -8,9 +8,9 @@
 
 import type { PrismaClient } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
-import type { IntegrationSubscriptionRepository } from "../../domain/repositories/IntegrationSubscriptionRepository.js";
-import { IntegrationSubscription } from "../../domain/entities/IntegrationSubscription.js";
-import type { IntegrationPlatformValue } from "../../domain/entities/IntegrationApiKey.js";
+import type { IntegrationSubscriptionRepository } from "@core/domain/repositories/IntegrationSubscriptionRepository.js";
+import { IntegrationSubscription } from "@core/domain/entities/IntegrationSubscription.js";
+import type { IntegrationPlatformValue } from "@core/domain/entities/IntegrationApiKey.js";
 
 /**
  * Raw Prisma row shape for type-safe mapping

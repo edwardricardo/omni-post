@@ -6,8 +6,8 @@
  */
 
 import type { Prisma } from "@infra/prisma";
-import type { DomainEvent } from "../../domain/events/DomainEvent.js";
-import type { OutboxWriter } from "../../domain/repositories/OutboxWriter.js";
+import type { DomainEvent } from "@core/domain/events/DomainEvent.js";
+import type { OutboxWriter } from "@core/domain/repositories/OutboxWriter.js";
 
 type TxClient = Prisma.TransactionClient;
 

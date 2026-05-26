@@ -6,9 +6,9 @@
 
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import { CreateAccountSubscriptionUseCase } from "../../application/billing/CreateAccountSubscriptionUseCase.js";
-import { ChangeAccountSubscriptionUseCase } from "../../application/billing/ChangeAccountSubscriptionUseCase.js";
-import { UpdatePricingConfigUseCase } from "../../application/billing/UpdatePricingConfigUseCase.js";
+import { CreateAccountSubscriptionUseCase } from "@core/application/billing/CreateAccountSubscriptionUseCase.js";
+import { ChangeAccountSubscriptionUseCase } from "@core/application/billing/ChangeAccountSubscriptionUseCase.js";
+import { UpdatePricingConfigUseCase } from "@core/application/billing/UpdatePricingConfigUseCase.js";
 import { PrismaCreateSubscriptionRepository } from "../repositories/PrismaCreateSubscriptionRepository.js";
 import { PrismaChangeSubscriptionRepository } from "../repositories/PrismaChangeSubscriptionRepository.js";
 import {
@@ -17,7 +17,7 @@ import {
 } from "../billing/GatewayAdapterRegistry.js";
 import { GatewayBillingService } from "../../billing/GatewayBillingService.js";
 import { GatewaySwitchJobService } from "../../billing/GatewaySwitchJobService.js";
-import type { EmailPort } from "../../domain/repositories/EmailPort.js";
+import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
 import type { PrismaClient } from "@infra/prisma";
 import { createRedisConnection } from "../../lib/redis.js";
 
@@ -55,12 +55,18 @@ export function setupBillingUseCases(container: Container): void {
 
   container.register<CreateAccountSubscriptionUseCase>(
     TOKENS.CreateAccountSubscriptionUseCase,
-    () => new CreateAccountSubscriptionUseCase(new PrismaCreateSubscriptionRepository())
+    () =>
+      new CreateAccountSubscriptionUseCase(
+        new PrismaCreateSubscriptionRepository(container.resolve<PrismaClient>(TOKENS.PrismaClient))
+      )
   );
 
   container.register<ChangeAccountSubscriptionUseCase>(
     TOKENS.ChangeAccountSubscriptionUseCase,
-    () => new ChangeAccountSubscriptionUseCase(new PrismaChangeSubscriptionRepository())
+    () =>
+      new ChangeAccountSubscriptionUseCase(
+        new PrismaChangeSubscriptionRepository(container.resolve<PrismaClient>(TOKENS.PrismaClient))
+      )
   );
 
   // UpdatePricingConfigUseCase requires PricingConfigRepository + NotificationJobDispatcher adapters.

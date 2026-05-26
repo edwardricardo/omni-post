@@ -22,13 +22,13 @@ import {
   PostSubmittedForReview,
   PostApproved,
   PostRejected,
-} from "../../../src/domain/index.js";
+} from "@core/domain/index.js";
 import {
   PostUnscheduled,
   PostPublishingStarted,
   PostMediaAdded,
   PostMediaRemoved,
-} from "../../../src/domain/events/PostEvents.js";
+} from "@core/domain/events/PostEvents.js";
 
 const projectId = ProjectId.generate();
 

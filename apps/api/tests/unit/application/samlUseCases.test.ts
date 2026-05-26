@@ -7,15 +7,15 @@
 
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import assert from "node:assert/strict";
-import { ConfigureSamlUseCase } from "../../../src/application/auth/ConfigureSamlUseCase.js";
-import { EnableSsoUseCase } from "../../../src/application/auth/EnableSsoUseCase.js";
-import { DisableSsoUseCase } from "../../../src/application/auth/DisableSsoUseCase.js";
-import { GetSamlConfigurationQuery } from "../../../src/application/auth/GetSamlConfigurationQuery.js";
+import { ConfigureSamlUseCase } from "@core/application/auth/ConfigureSamlUseCase.js";
+import { EnableSsoUseCase } from "@core/application/auth/EnableSsoUseCase.js";
+import { DisableSsoUseCase } from "@core/application/auth/DisableSsoUseCase.js";
+import { GetSamlConfigurationQuery } from "@core/application/auth/GetSamlConfigurationQuery.js";
 import type {
   SamlConfigurationRepository,
   SamlConfigurationData,
-} from "../../../src/domain/repositories/SamlConfigurationRepository.js";
-import type { AccountQueryRepositoryPort } from "../../../src/domain/repositories/AccountQueryRepository.js";
+} from "@core/domain/repositories/SamlConfigurationRepository.js";
+import type { AccountQueryRepositoryPort } from "@core/domain/repositories/AccountQueryRepository.js";
 import { ok } from "@shared/types";
 
 // ── Mock Factories ──────────────────────────────────────────────────────────

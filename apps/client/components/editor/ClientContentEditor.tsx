@@ -4,9 +4,12 @@
  * @file ClientContentEditor.tsx
  * @description Client-side content editor wrapping ContentEditorCore with auto-save,
  * provider integration, platform previews, template selector, and schedule picker.
+ * @component ClientContentEditor
+ * @layer infrastructure
  */
 
 import React, { useMemo, useCallback, useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import {
   ChannelMultiSelect,
   ContentEditorCore,
@@ -56,6 +59,7 @@ export function ClientContentEditor({
   onContentChange,
   onMediaAdd,
 }: ClientContentEditorProps) {
+  const t = useTranslations("editor");
   const { enabledProviders, getProviderConfig } = useProviders();
   const { user } = useAuth();
   const { success, error: showError } = useToast();
@@ -154,8 +158,8 @@ export function ClientContentEditor({
   const handlePublish = useCallback(async () => {
     if (selectedProviders.length === 0) {
       showError({
-        title: "Platform Selection Required",
-        description: "Please select at least one platform to publish to.",
+        title: t("toast.platformRequiredTitle"),
+        description: t("toast.platformRequiredPublishDescription"),
       });
       return;
     }
@@ -170,16 +174,15 @@ export function ClientContentEditor({
       });
 
       success({
-        title: "Post Published!",
-        description: "Your post has been published successfully.",
+        title: t("toast.publishedTitle"),
+        description: t("toast.publishedDescription"),
       });
 
       clearDraft();
     } catch (error) {
       showError({
-        title: "Publishing Failed",
-        description:
-          error instanceof Error ? error.message : "Failed to publish post. Please try again.",
+        title: t("toast.publishFailedTitle"),
+        description: error instanceof Error ? error.message : t("toast.publishFailedDescription"),
       });
     }
   }, [
@@ -193,6 +196,7 @@ export function ClientContentEditor({
     publishPost,
     success,
     clearDraft,
+    t,
   ]);
 
   // Handle schedule — canonical state-machine flow: ensure the post exists on
@@ -202,17 +206,16 @@ export function ClientContentEditor({
     async (scheduledAt: Date, _timezone?: string) => {
       if (selectedProviders.length === 0) {
         showError({
-          title: "Platform Selection Required",
-          description: "Please select at least one platform to schedule for.",
+          title: t("toast.platformRequiredTitle"),
+          description: t("toast.platformRequiredScheduleDescription"),
         });
         return;
       }
 
       if (selectedChannelIds.length === 0) {
         showError({
-          title: "Channel Selection Required",
-          description:
-            "Please connect a channel for the selected platforms or pick at least one channel.",
+          title: t("toast.channelRequiredTitle"),
+          description: t("toast.channelRequiredDescription"),
         });
         return;
       }
@@ -221,8 +224,8 @@ export function ClientContentEditor({
         await saveNow();
       } catch (err) {
         showError({
-          title: "Schedule Failed",
-          description: err instanceof Error ? err.message : "Failed to save the post draft.",
+          title: t("toast.scheduleFailedTitle"),
+          description: err instanceof Error ? err.message : t("toast.saveDraftFailedDescription"),
         });
         return;
       }
@@ -230,8 +233,8 @@ export function ClientContentEditor({
       const targetPostId = serverPostId;
       if (!targetPostId) {
         showError({
-          title: "Schedule Failed",
-          description: "The post is still being saved — please try again in a moment.",
+          title: t("toast.scheduleFailedTitle"),
+          description: t("toast.stillSavingDescription"),
         });
         return;
       }
@@ -244,14 +247,14 @@ export function ClientContentEditor({
         });
 
         success({
-          title: "Post Scheduled!",
-          description: `Your post has been scheduled for ${scheduledAt.toLocaleString()}.`,
+          title: t("toast.scheduledTitle"),
+          description: t("toast.scheduledDescription", { date: scheduledAt.toLocaleString() }),
         });
         clearDraft();
       } catch (err) {
         showError({
-          title: "Schedule Failed",
-          description: err instanceof Error ? err.message : "Failed to schedule the post.",
+          title: t("toast.scheduleFailedTitle"),
+          description: err instanceof Error ? err.message : t("toast.scheduleFailedDescription"),
         });
       }
     },
@@ -264,6 +267,7 @@ export function ClientContentEditor({
       showError,
       success,
       clearDraft,
+      t,
     ]
   );
 
@@ -277,8 +281,8 @@ export function ClientContentEditor({
 
   // User info for preview
   const userInfo = {
-    name: user?.name || "Your Name",
-    username: user?.email?.split("@")[0] || "yourusername",
+    name: user?.name || t("preview.defaultName"),
+    username: user?.email?.split("@")[0] || t("preview.defaultUsername"),
   };
 
   return (
@@ -288,22 +292,24 @@ export function ClientContentEditor({
         {saveStatus === "saving" && (
           <div className="flex items-center gap-1">
             <Clock aria-hidden="true" className="h-4 w-4 animate-spin" />
-            <span>Saving...</span>
+            <span>{t("status.saving")}</span>
           </div>
         )}
         {saveStatus === "saved" && (
           <div role="status" className="flex items-center gap-1 text-green-600">
             <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
-            <span>Saved</span>
+            <span>{t("status.saved")}</span>
           </div>
         )}
         {saveStatus === "error" && (
           <div role="alert" className="flex items-center gap-1 text-red-600">
             <AlertCircle aria-hidden="true" className="h-4 w-4" />
-            <span>Save failed</span>
+            <span>{t("status.saveFailed")}</span>
           </div>
         )}
-        {lastSaved && <span>Last saved: {lastSaved.toLocaleTimeString()}</span>}
+        {lastSaved && (
+          <span>{t("status.lastSaved", { time: lastSaved.toLocaleTimeString() })}</span>
+        )}
       </div>
 
       {/* Content Editor Core */}
@@ -325,7 +331,7 @@ export function ClientContentEditor({
           providerSelection: true,
           dragAndDrop: true,
         }}
-        placeholder="What's on your mind?"
+        placeholder={t("contentPlaceholder")}
         validateOnChange={true}
       />
 
@@ -347,7 +353,7 @@ export function ClientContentEditor({
             disabled={isPublishing || !initialContent.trim()}
             size="sm"
           >
-            {isPublishing ? "Publishing..." : "Publish"}
+            {isPublishing ? t("actions.publishing") : t("actions.publish")}
           </Button>
           <Button
             onClick={() => setShowSchedulePicker(true)}
@@ -360,7 +366,7 @@ export function ClientContentEditor({
             size="sm"
           >
             <Calendar className="h-4 w-4 mr-1" />
-            {scheduleMutation.isPending ? "Scheduling..." : "Schedule"}
+            {scheduleMutation.isPending ? t("actions.scheduling") : t("actions.schedule")}
           </Button>
         </div>
       )}

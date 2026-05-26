@@ -38,6 +38,7 @@ export { createChannelRepository } from "./ChannelRepository.js";
 export { createPublishLogRepository } from "./PublishLogRepository.js";
 export { createAnalyticsRepository } from "./AnalyticsRepository.js";
 export { createThreadRepository } from "./ThreadRepository.js";
+export { PrismaMentionRepository } from "./MentionRepository.js";
 export {
   createDatabaseCircuitBreaker,
   withDatabaseRetry,
