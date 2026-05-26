@@ -160,6 +160,9 @@ export * from "./repositories/SocialMessageQueryRepository.js";
 export * from "./repositories/SocialMessageRepository.js";
 export * from "./repositories/SocialOutboundReplyRepository.js";
 export * from "./repositories/MentionQueryRepository.js";
+export * from "./value-objects/MentionId.js";
+export * from "./aggregates/MentionAggregate.js";
+export * from "./repositories/MentionRepository.js";
 
 // Auth / customer-auth: identifiers, SSO config entities, repository ports
 export * from "./value-objects/CustomerUserId.js";

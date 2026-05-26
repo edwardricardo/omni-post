@@ -817,6 +817,12 @@ importers:
       '@adapters/queue-bullmq':
         specifier: workspace:*
         version: link:../../packages/adapters/queue-bullmq
+      '@core/application':
+        specifier: workspace:*
+        version: link:../../packages/core/application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../../packages/core/domain
       '@infra/prisma':
         specifier: workspace:*
         version: link:../../infra/prisma
@@ -999,6 +1005,9 @@ importers:
 
   packages/adapters/db-prisma:
     dependencies:
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../../core/domain
       '@infra/prisma':
         specifier: workspace:*
         version: link:../../../infra/prisma

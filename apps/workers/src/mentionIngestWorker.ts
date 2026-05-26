@@ -38,9 +38,11 @@ import { createLinkedInAdapter } from "@providers/linkedin";
 import { createBlueskyAdapter } from "@providers/bluesky";
 import type { Provider, PrismaClient } from "@infra/prisma";
 import { workerPrisma, verifyDatabaseAuth } from "./container/workerContainer.js";
-import { createPrismaRepoAdapter } from "@adapters/db-prisma";
+import { createPrismaRepoAdapter, PrismaMentionRepository } from "@adapters/db-prisma";
 import { decryptChannelCredentials } from "@shared/types";
 import type { ProviderAdapter, ProviderMention } from "@ports/core";
+import { IngestMentionUseCase } from "@core/application/listening/IngestMentionUseCase.js";
+import type { ProviderType } from "@core/domain/value-objects/Provider.js";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info", name: "mention-ingest-worker" });
 
@@ -68,6 +70,7 @@ const credentialResolver = new CredentialResolver(repo);
 interface MentionJobDeps {
   prisma: PrismaClient;
   authFailureRecorder: ChannelAuthFailureRecorder;
+  ingestMention: IngestMentionUseCase;
 }
 
 const providerAdapters: Record<string, ProviderAdapter> = {
@@ -152,47 +155,32 @@ async function persistMention(
   },
   deps: MentionJobDeps
 ): Promise<"created" | "skipped"> {
-  const existing = await deps.prisma.mention.findFirst({
-    where: { provider: context.providerEnum, externalId: mention.providerMentionId },
-    select: { id: true },
+  const result = await deps.ingestMention.execute({
+    accountId: context.accountId,
+    projectId: context.projectId,
+    ...(context.channelId !== undefined && { channelId: context.channelId }),
+    provider: context.providerEnum as ProviderType,
+    externalId: mention.providerMentionId,
+    source: context.source,
+    ...(context.trackedTermId !== undefined && { trackedTermId: context.trackedTermId }),
+    authorName: mention.authorName,
+    ...(mention.authorHandle !== undefined && { authorHandle: mention.authorHandle }),
+    ...(mention.authorAvatarUrl !== undefined && { authorAvatarUrl: mention.authorAvatarUrl }),
+    authorProviderId: mention.authorProviderId,
+    ...(mention.url !== undefined && { url: mention.url }),
+    body: mention.body,
+    ...(mention.lang !== undefined && { lang: mention.lang }),
+    ...(mention.mediaUrls !== undefined &&
+      mention.mediaUrls.length > 0 && { mediaUrls: mention.mediaUrls }),
+    providerCreatedAt: mention.createdAt,
   });
-  if (existing) {
-    return "skipped";
-  }
 
-  try {
-    await deps.prisma.mention.create({
-      data: {
-        accountId: context.accountId,
-        projectId: context.projectId,
-        provider: context.providerEnum,
-        externalId: mention.providerMentionId,
-        source: context.source,
-        ...(context.trackedTermId !== undefined && { trackedTermId: context.trackedTermId }),
-        ...(context.channelId !== undefined && { channelId: context.channelId }),
-        authorName: mention.authorName,
-        ...(mention.authorHandle !== undefined && { authorHandle: mention.authorHandle }),
-        ...(mention.authorAvatarUrl !== undefined && { authorAvatarUrl: mention.authorAvatarUrl }),
-        authorProviderId: mention.authorProviderId,
-        ...(mention.url !== undefined && { url: mention.url }),
-        body: mention.body,
-        ...(mention.lang !== undefined && { lang: mention.lang }),
-        ...(mention.mediaUrls !== undefined &&
-          mention.mediaUrls.length > 0 && { mediaUrls: mention.mediaUrls }),
-        providerCreatedAt: mention.createdAt,
-      },
-    });
-    return "created";
-  } catch (error: unknown) {
-    if (
-      error !== null &&
-      typeof error === "object" &&
-      (error as { code?: string }).code === "P2002"
-    ) {
-      return "skipped";
-    }
-    throw error;
+  // Transient failures (INTERNAL_ERROR) propagate so BullMQ retries; the
+  // (provider, externalId) unique constraint keeps retries idempotent.
+  if (!result.ok) {
+    throw result.error;
   }
+  return result.value.isNew ? "created" : "skipped";
 }
 
 /** Attribute a mention to the first tracked term whose text appears in its body. */
@@ -375,7 +363,8 @@ export async function startMentionIngestWorker(
   await verifyDatabaseAuth();
 
   const authFailureRecorder = new ChannelAuthFailureRecorder({ prisma: options.prisma });
-  const deps: MentionJobDeps = { prisma: options.prisma, authFailureRecorder };
+  const ingestMention = new IngestMentionUseCase(new PrismaMentionRepository(options.prisma));
+  const deps: MentionJobDeps = { prisma: options.prisma, authFailureRecorder, ingestMention };
 
   const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
     maxRetriesPerRequest: null,

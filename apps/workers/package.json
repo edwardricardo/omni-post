@@ -11,6 +11,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@core/application": "workspace:*",
+    "@core/domain": "workspace:*",
     "@infra/prisma": "workspace:*",
     "@adapters/db-prisma": "workspace:*",
     "@adapters/external-apis": "workspace:*",
