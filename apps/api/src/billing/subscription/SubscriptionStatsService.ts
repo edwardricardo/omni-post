@@ -7,7 +7,7 @@
  */
 import { ok, err, type Result } from "@shared/types";
 import type { SubscriptionStatsQueryRepository } from "@core/domain/repositories/SubscriptionStatsQueryRepository.js";
-import { logServiceError } from "../../services/audit.js";
+import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { SubscriptionStats } from "./types.js";
 
 export class SubscriptionStatsService {
@@ -18,7 +18,7 @@ export class SubscriptionStatsService {
    * @description Calculates comprehensive subscription analytics including MRR, status distribution, churn risk, and growth metrics.
    * @returns Result with subscription statistics on success, or DATABASE_ERROR on failure
    */
-  async getSubscriptionStats(): Promise<Result<SubscriptionStats, "DATABASE_ERROR">> {
+  async getSubscriptionStats(): Promise<Result<SubscriptionStats, UseCaseError>> {
     try {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
@@ -91,8 +91,13 @@ export class SubscriptionStatsService {
         customCount,
       });
     } catch (error) {
-      logServiceError("getSubscriptionStats", error);
-      return err("DATABASE_ERROR");
+      return err(
+        new UseCaseError(
+          "Failed to compute subscription stats",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
+        )
+      );
     }
   }
 

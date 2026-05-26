@@ -45,6 +45,10 @@ export interface AuditInput {
   details?: Record<string, unknown>;
   ipAddress?: string;
   userAgent?: string;
+  /** Overall success flag; defaults to `true`. Set false for batch failures. */
+  success?: boolean;
+  /** Failure detail when `success` is false. */
+  error?: string;
 }
 
 /**
@@ -62,13 +66,14 @@ export async function emitAudit(repo: AuditLogRepository, input: AuditInput): Pr
     await repo.create({
       action: input.action,
       details: { category: input.category, severity, ...input.details },
-      success: true,
+      success: input.success ?? true,
       ...(input.userId !== undefined && { userId: input.userId }),
       ...(input.accountId !== undefined && { accountId: input.accountId }),
       ...(input.resourceType !== undefined && { resource: input.resourceType }),
       ...(input.resourceId !== undefined && { resourceId: input.resourceId }),
       ...(input.ipAddress !== undefined && { ipAddress: input.ipAddress }),
       ...(input.userAgent !== undefined && { userAgent: input.userAgent }),
+      ...(input.error !== undefined && { error: input.error }),
     });
   } catch (error) {
     logger.error(

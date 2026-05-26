@@ -24,6 +24,7 @@ import { PrismaAccountSubscriptionQueryRepository } from "../src/infrastructure/
 import { PrismaSubscriptionStatsQueryRepository } from "../src/infrastructure/repositories/PrismaSubscriptionStatsQueryRepository.js";
 import { PrismaProjectQueryRepository } from "../src/infrastructure/repositories/PrismaProjectQueryRepository.js";
 import { PrismaAuditLogRepository } from "../src/infrastructure/repositories/PrismaAuditLogRepository.js";
+import { AuditEmitterAdapter } from "../src/services/AuditEmitterAdapter.js";
 
 const adminUserRepo = new PrismaAdminUserRepository(prisma);
 const roleRepo = new PrismaRoleRepository(prisma);
@@ -39,7 +40,8 @@ const authService = new AuthService(
 );
 
 // Build the subscription facade from real Prisma adapters (integration: real DB)
-const billingSvc = new BillingService(new PrismaAuditLogRepository(prisma));
+const auditEmitter = new AuditEmitterAdapter(new PrismaAuditLogRepository(prisma));
+const billingSvc = new BillingService(auditEmitter);
 const subQueryRepo = new PrismaAccountSubscriptionQueryRepository(prisma);
 const acctQueryRepo = new PrismaAccountQueryRepository(prisma);
 const planSvc = new SubscriptionPlanService(subQueryRepo);
@@ -50,7 +52,7 @@ const managementSvc = new SubscriptionManagementService(
   new PrismaAccountSubscriptionAdapter(prisma),
   new PrismaProjectQueryRepository(prisma),
   billingSvc,
-  new PrismaAuditLogRepository(prisma)
+  auditEmitter
 );
 const trialSvc = new TrialManagementService(
   new PrismaAccountRepository(prisma),
@@ -58,7 +60,7 @@ const trialSvc = new TrialManagementService(
   subQueryRepo,
   planSvc,
   billingSvc,
-  new PrismaAuditLogRepository(prisma)
+  auditEmitter
 );
 const subscriptionService = new SubscriptionService(
   planSvc,
@@ -176,9 +178,9 @@ describe("Trial Period Management", () => {
       assert.ok(!duplicateResult.ok, "Duplicate trial start should fail");
       if (duplicateResult.ok) return;
       assert.strictEqual(
-        duplicateResult.error,
-        "ALREADY_ON_TRIAL",
-        "Should return ALREADY_ON_TRIAL error"
+        duplicateResult.error.code,
+        "CONFLICT",
+        "Should return CONFLICT error code (mapped from ALREADY_ON_TRIAL)"
       );
 
       // Clean up
@@ -195,7 +197,7 @@ describe("Trial Period Management", () => {
 
       assert.ok(!result.ok, "Should fail for non-existent account");
       if (result.ok) return;
-      assert.strictEqual(result.error, "NOT_FOUND", "Should return NOT_FOUND error");
+      assert.strictEqual(result.error.code, "NOT_FOUND", "Should return NOT_FOUND error");
     });
   });
 
@@ -229,7 +231,11 @@ describe("Trial Period Management", () => {
 
       assert.ok(!result.ok, "Should fail for account not on trial");
       if (result.ok) return;
-      assert.strictEqual(result.error, "NOT_ON_TRIAL", "Should return NOT_ON_TRIAL error");
+      assert.strictEqual(
+        result.error.code,
+        "VALIDATION_FAILED",
+        "Should return VALIDATION_FAILED error"
+      );
     });
   });
 
@@ -289,7 +295,11 @@ describe("Trial Period Management", () => {
 
       assert.ok(!result.ok, "Should fail for account not on trial");
       if (result.ok) return;
-      assert.strictEqual(result.error, "NOT_ON_TRIAL", "Should return NOT_ON_TRIAL error");
+      assert.strictEqual(
+        result.error.code,
+        "VALIDATION_FAILED",
+        "Should return VALIDATION_FAILED error"
+      );
     });
   });
 

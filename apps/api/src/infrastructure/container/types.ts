@@ -24,6 +24,7 @@ export const TOKENS = {
   AdminSessionRepository: Symbol.for("AdminSessionRepository"),
   RoleRepository: Symbol.for("RoleRepository"),
   AuditLogRepository: Symbol.for("AuditLogRepository"),
+  AuditEmitterPort: Symbol.for("AuditEmitterPort"),
 
   // Repositories
   AccountRepository: Symbol.for("AccountRepository"),

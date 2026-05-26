@@ -10,6 +10,7 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../../lib/route-handler/index.js";
 import type { SubscriptionService } from "../subscription/index.js";
 import type { ChangeAccountSubscriptionUseCase } from "@core/application/billing/ChangeAccountSubscriptionUseCase.js";
+import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { removeUndefinedProperties } from "../../utils/typeUtils.js";
 import {
   ParamsWithAccountIdSchema,
@@ -164,7 +165,7 @@ export class SubscriptionAccountHandler extends BaseRouteHandler {
     );
 
     if (!result.ok) {
-      if (result.error === "NOT_FOUND") {
+      if (result.error.code === USE_CASE_ERRORS.NOT_FOUND) {
         return this.sendError(ctx, 404, "Account not found");
       }
       return this.sendError(ctx, 500, "Internal server error");
@@ -205,7 +206,7 @@ export class SubscriptionAccountHandler extends BaseRouteHandler {
     );
 
     if (!result.ok) {
-      if (result.error === "NOT_FOUND") {
+      if (result.error.code === USE_CASE_ERRORS.NOT_FOUND) {
         return this.sendError(ctx, 404, "Account not found");
       }
       return this.sendError(ctx, 500, "Internal server error");

@@ -1,22 +1,19 @@
 /**
  * @file TrialManagementService.ts
  * @description Service managing trial lifecycle operations: start, end, convert to paid,
- *              and expiring trial queries. Emits audit logs via the `emitAudit` composition
- *              helper; no longer inherits from AuditableService.
- * @layer infrastructure
+ *              and expiring trial queries. Emits audit logs via the injected
+ *              `AuditEmitterPort` (composition; no inheritance).
+ * @layer application
  */
 import { ok, err, type Result } from "@shared/types";
-import { createLogger } from "../../lib/logger.js";
-
-const log = createLogger("billing");
 import type { AccountQueryRepositoryPort } from "@core/domain/repositories/AccountQueryRepository.js";
 import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
 import type { AccountSubscriptionQueryRepository } from "@core/domain/repositories/AccountSubscriptionQueryRepository.js";
-import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
+import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { Account } from "@core/domain/entities/Account.js";
 import { AccountId } from "@core/domain/value-objects/EntityId.js";
-import { emitAudit, logServiceError } from "../../services/audit.js";
+import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { SubscriptionPlanService } from "./SubscriptionPlanService";
 import type { BillingService } from "./BillingService";
 import { type AccountTrialResponse, type StartTrialRequest } from "./types";
@@ -32,16 +29,18 @@ export class TrialManagementService {
     private readonly subscriptionQueryRepo: AccountSubscriptionQueryRepository,
     private readonly subscriptionPlanService: SubscriptionPlanService,
     private readonly billingService: BillingService,
-    private readonly auditLog: AuditLogRepository,
+    private readonly auditEmitter: AuditEmitterPort,
     private readonly unitOfWork?: UnitOfWork
   ) {}
 
   /**
    * Load the Account aggregate by its string id.
    */
-  private async loadAccount(accountId: string): Promise<Result<Account, "NOT_FOUND">> {
+  private async loadAccount(accountId: string): Promise<Result<Account, UseCaseError>> {
     const result = await this.accountRepository.findById(AccountId.fromStringUnsafe(accountId));
-    if (!result.ok) return err("NOT_FOUND");
+    if (!result.ok) {
+      return err(new UseCaseError(`Account not found: ${accountId}`, USE_CASE_ERRORS.NOT_FOUND));
+    }
     return ok(result.value);
   }
 
@@ -69,9 +68,11 @@ export class TrialManagementService {
    */
   private async buildTrialResponse(
     accountId: string
-  ): Promise<Result<AccountTrialResponse, "NOT_FOUND" | "DATABASE_ERROR">> {
+  ): Promise<Result<AccountTrialResponse, UseCaseError>> {
     const accountResult = await this.accountQueryRepo.findWithProjects(accountId);
-    if (!accountResult.ok) return err("NOT_FOUND");
+    if (!accountResult.ok) {
+      return err(new UseCaseError(`Account not found: ${accountId}`, USE_CASE_ERRORS.NOT_FOUND));
+    }
 
     const account = accountResult.value;
     const subscription = await this.subscriptionQueryRepo.getDetailByAccountId(accountId);
@@ -146,12 +147,7 @@ export class TrialManagementService {
   async startTrial(
     request: StartTrialRequest,
     startedByUserId?: string
-  ): Promise<
-    Result<
-      AccountTrialResponse,
-      "NOT_FOUND" | "ALREADY_ON_TRIAL" | "TRIAL_EXPIRED" | "DATABASE_ERROR"
-    >
-  > {
+  ): Promise<Result<AccountTrialResponse, UseCaseError>> {
     try {
       const {
         accountId,
@@ -164,7 +160,7 @@ export class TrialManagementService {
       const accountResult = await this.accountQueryRepo.findWithProjects(accountId);
 
       if (!accountResult.ok) {
-        return err("NOT_FOUND");
+        return err(new UseCaseError(`Account not found: ${accountId}`, USE_CASE_ERRORS.NOT_FOUND));
       }
 
       const account = accountResult.value;
@@ -174,7 +170,7 @@ export class TrialManagementService {
 
       // Check if account is already on trial or trial has expired
       if (trialInfo.isOnTrial) {
-        return err("ALREADY_ON_TRIAL");
+        return err(new UseCaseError("Account is already on trial", USE_CASE_ERRORS.CONFLICT));
       }
 
       const now = new Date();
@@ -185,7 +181,7 @@ export class TrialManagementService {
       );
 
       const accountAggregate = await this.loadAccount(accountId);
-      if (!accountAggregate.ok) return err("NOT_FOUND");
+      if (!accountAggregate.ok) return err(accountAggregate.error);
       accountAggregate.value.startTrial({
         trialDurationDays,
         autoRenewal,
@@ -196,7 +192,7 @@ export class TrialManagementService {
 
       // Log account action for audit trail
       if (startedByUserId) {
-        await emitAudit(this.auditLog, {
+        await this.auditEmitter.emit({
           action: "TRIAL_START",
           category: "BILLING",
           severity: "MEDIUM",
@@ -231,11 +227,13 @@ export class TrialManagementService {
 
       return this.buildTrialResponse(accountId);
     } catch (error) {
-      logServiceError("startTrial", error, {
-        accountId: request.accountId,
-        ...(startedByUserId !== undefined && { userId: startedByUserId }),
-      });
-      return err("DATABASE_ERROR");
+      return err(
+        new UseCaseError(
+          "Failed to start trial",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
+        )
+      );
     }
   }
 
@@ -246,28 +244,28 @@ export class TrialManagementService {
     accountId: string,
     reason: string,
     endedByUserId?: string
-  ): Promise<Result<AccountTrialResponse, "NOT_FOUND" | "NOT_ON_TRIAL" | "DATABASE_ERROR">> {
+  ): Promise<Result<AccountTrialResponse, UseCaseError>> {
     try {
       const accountResult = await this.accountQueryRepo.findWithProjects(accountId);
 
       if (!accountResult.ok) {
-        return err("NOT_FOUND");
+        return err(new UseCaseError(`Account not found: ${accountId}`, USE_CASE_ERRORS.NOT_FOUND));
       }
 
       const account = accountResult.value;
 
       if (!account.isOnTrial) {
-        return err("NOT_ON_TRIAL");
+        return err(new UseCaseError("Account is not on trial", USE_CASE_ERRORS.VALIDATION_FAILED));
       }
 
       const accountAggregate = await this.loadAccount(accountId);
-      if (!accountAggregate.ok) return err("NOT_FOUND");
+      if (!accountAggregate.ok) return err(accountAggregate.error);
       accountAggregate.value.endTrial();
       await this.persistAccount(accountAggregate.value);
 
       // Log account action for audit trail
       if (endedByUserId) {
-        await emitAudit(this.auditLog, {
+        await this.auditEmitter.emit({
           action: "TRIAL_END",
           category: "BILLING",
           severity: "MEDIUM",
@@ -291,11 +289,13 @@ export class TrialManagementService {
 
       return this.buildTrialResponse(accountId);
     } catch (error) {
-      logServiceError("endTrial", error, {
-        accountId,
-        ...(endedByUserId !== undefined && { userId: endedByUserId }),
-      });
-      return err("DATABASE_ERROR");
+      return err(
+        new UseCaseError(
+          "Failed to end trial",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
+        )
+      );
     }
   }
 
@@ -304,7 +304,7 @@ export class TrialManagementService {
    */
   async getExpiringTrials(
     daysBeforeExpiration = 1
-  ): Promise<Result<AccountTrialResponse[], "DATABASE_ERROR">> {
+  ): Promise<Result<AccountTrialResponse[], UseCaseError>> {
     try {
       const targetDate = new Date();
       targetDate.setDate(targetDate.getDate() + daysBeforeExpiration);
@@ -321,8 +321,13 @@ export class TrialManagementService {
 
       return ok(accountInfos);
     } catch (error) {
-      logServiceError("getExpiringTrials", error);
-      return err("DATABASE_ERROR");
+      return err(
+        new UseCaseError(
+          "Failed to fetch expiring trials",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
+        )
+      );
     }
   }
 
@@ -333,18 +338,18 @@ export class TrialManagementService {
     accountId: string,
     billingCycle: "monthly" | "yearly" = "monthly",
     convertedByUserId?: string
-  ): Promise<Result<AccountTrialResponse, "NOT_FOUND" | "NOT_ON_TRIAL" | "DATABASE_ERROR">> {
+  ): Promise<Result<AccountTrialResponse, UseCaseError>> {
     try {
       const accountResult = await this.accountQueryRepo.findWithProjects(accountId);
 
       if (!accountResult.ok) {
-        return err("NOT_FOUND");
+        return err(new UseCaseError(`Account not found: ${accountId}`, USE_CASE_ERRORS.NOT_FOUND));
       }
 
       const account = accountResult.value;
 
       if (!account.isOnTrial) {
-        return err("NOT_ON_TRIAL");
+        return err(new UseCaseError("Account is not on trial", USE_CASE_ERRORS.VALIDATION_FAILED));
       }
 
       // Look up plan from AccountSubscription model
@@ -355,7 +360,7 @@ export class TrialManagementService {
       const nextBilling = this.billingService.calculateNextBillingDate(billingCycle, now);
 
       const accountAggregate = await this.loadAccount(accountId);
-      if (!accountAggregate.ok) return err("NOT_FOUND");
+      if (!accountAggregate.ok) return err(accountAggregate.error);
       accountAggregate.value.convertTrialToPaid({
         billingCycle,
         lastBillingDate: now,
@@ -365,7 +370,7 @@ export class TrialManagementService {
 
       // Log account action for audit trail
       if (convertedByUserId) {
-        await emitAudit(this.auditLog, {
+        await this.auditEmitter.emit({
           action: "TRIAL_CONVERT",
           category: "BILLING",
           severity: "HIGH",
@@ -397,11 +402,13 @@ export class TrialManagementService {
 
       return this.buildTrialResponse(accountId);
     } catch (error) {
-      logServiceError("convertTrialToPaid", error, {
-        accountId,
-        ...(convertedByUserId !== undefined && { userId: convertedByUserId }),
-      });
-      return err("DATABASE_ERROR");
+      return err(
+        new UseCaseError(
+          "Failed to convert trial",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
+        )
+      );
     }
   }
 
@@ -415,7 +422,7 @@ export class TrialManagementService {
         failed: number;
         details: Array<{ accountId: string; status: "success" | "failed"; error?: string }>;
       },
-      "DATABASE_ERROR"
+      UseCaseError
     >
   > {
     try {
@@ -446,7 +453,7 @@ export class TrialManagementService {
             await this.persistAccount(accountAggregate.value);
 
             // Log account action for audit trail (system action, no userId)
-            await emitAudit(this.auditLog, {
+            await this.auditEmitter.emit({
               action: "AUTO_RENEWAL",
               category: "BILLING",
               severity: "MEDIUM",
@@ -476,7 +483,6 @@ export class TrialManagementService {
 
             return { accountId: account.id, status: "success" as const };
           } catch (_error: unknown) {
-            log.error({ err: _error, accountId: account.id }, "Auto-renewal failed for account");
             return {
               accountId: account.id,
               status: "failed" as const,
@@ -495,9 +501,11 @@ export class TrialManagementService {
       const processed = details.filter((d) => d.status === "success").length;
       const failed = details.filter((d) => d.status === "failed").length;
 
-      await this.auditLog.create({
+      await this.auditEmitter.emit({
         action: "AUTO_RENEWAL_BATCH",
-        resource: "Billing",
+        category: "SYSTEM",
+        severity: "MEDIUM",
+        resourceType: "Billing",
         ...(triggeredByUserId != null && { userId: triggeredByUserId }),
         details: { processed, failed, details, triggeredManually: true },
         success: failed === 0,
@@ -510,8 +518,13 @@ export class TrialManagementService {
         details,
       });
     } catch (error) {
-      logServiceError("processAutoRenewals", error);
-      return err("DATABASE_ERROR");
+      return err(
+        new UseCaseError(
+          "Failed to process auto-renewals",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
+        )
+      );
     }
   }
 

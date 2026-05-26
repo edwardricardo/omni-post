@@ -39,6 +39,8 @@ import { SubscriptionManagementService } from "../../billing/subscription/Subscr
 import { TrialManagementService } from "../../billing/subscription/TrialManagementService.js";
 import { SubscriptionStatsService } from "../../billing/subscription/SubscriptionStatsService.js";
 import { SubscriptionService } from "../../billing/subscription/SubscriptionService.js";
+import { AuditEmitterAdapter } from "../../services/AuditEmitterAdapter.js";
+import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
 import { WebhookDashboardService } from "../../webhooks/webhookDashboardService.js";
 import { RealtimeWebhookBroadcaster } from "../../webhooks/realtimeWebhookBroadcaster.js";
 import { ProviderService } from "../../providers/providerService.js";
@@ -309,9 +311,14 @@ export function setupServices(
     true
   );
   container.registerInstance(TOKENS.TemplateAnalytics, templateAnalytics);
+  container.register<AuditEmitterPort>(
+    TOKENS.AuditEmitterPort,
+    () => new AuditEmitterAdapter(container.resolve<AuditLogRepository>(TOKENS.AuditLogRepository)),
+    true
+  );
   container.register<BillingService>(
     TOKENS.BillingService,
-    () => new BillingService(container.resolve<AuditLogRepository>(TOKENS.AuditLogRepository)),
+    () => new BillingService(container.resolve<AuditEmitterPort>(TOKENS.AuditEmitterPort)),
     true
   );
   container.register<SubscriptionPlanService>(
@@ -333,7 +340,7 @@ export function setupServices(
         container.resolve(TOKENS.AccountSubscriptionPort),
         container.resolve(TOKENS.ProjectQueryRepository),
         container.resolve(TOKENS.BillingService),
-        container.resolve(TOKENS.AuditLogRepository)
+        container.resolve(TOKENS.AuditEmitterPort)
       ),
     true
   );
@@ -346,7 +353,7 @@ export function setupServices(
         container.resolve(TOKENS.AccountSubscriptionQueryRepository),
         container.resolve(TOKENS.SubscriptionPlanService),
         container.resolve(TOKENS.BillingService),
-        container.resolve(TOKENS.AuditLogRepository),
+        container.resolve(TOKENS.AuditEmitterPort),
         container.resolve(TOKENS.UnitOfWork)
       ),
     true

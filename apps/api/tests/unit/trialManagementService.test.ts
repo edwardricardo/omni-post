@@ -83,7 +83,7 @@ function makeDeps() {
       calculateNextBillingDate: vi.fn().mockReturnValue(new Date("2026-08-01")),
       logBillingEvent: vi.fn().mockResolvedValue(undefined),
     },
-    auditLogRepo: { create: vi.fn().mockResolvedValue(undefined) },
+    auditEmitter: { emit: vi.fn().mockResolvedValue(undefined) },
   };
 }
 
@@ -94,7 +94,7 @@ function makeService(deps: ReturnType<typeof makeDeps>) {
     deps.subscriptionQueryRepo as never,
     deps.subscriptionPlanService as never,
     deps.billingService as never,
-    deps.auditLogRepo as never
+    deps.auditEmitter as never
   );
 }
 
@@ -125,7 +125,7 @@ describe("TrialManagementService", () => {
     });
     const result = await service.startTrial({ accountId: "acc-1" });
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toBe("ALREADY_ON_TRIAL");
+    if (!result.ok) expect(result.error.code).toBe("CONFLICT");
     expect(deps.aggregate.startTrial).not.toHaveBeenCalled();
   });
 
@@ -133,7 +133,7 @@ describe("TrialManagementService", () => {
     deps.accountQueryRepo.findWithProjects.mockResolvedValue({ ok: false, error: "NOT_FOUND" });
     const result = await service.startTrial({ accountId: "nope" });
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toBe("NOT_FOUND");
+    if (!result.ok) expect(result.error.code).toBe("NOT_FOUND");
   });
 
   it("endTrial applies endTrial on an account currently on trial", async () => {
@@ -154,7 +154,7 @@ describe("TrialManagementService", () => {
     });
     const result = await service.endTrial("acc-1", "manual");
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toBe("NOT_ON_TRIAL");
+    if (!result.ok) expect(result.error.code).toBe("VALIDATION_FAILED");
     expect(deps.aggregate.endTrial).not.toHaveBeenCalled();
   });
 
@@ -176,7 +176,7 @@ describe("TrialManagementService", () => {
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value.processed).toBe(1);
     expect(deps.aggregate.recordRenewal).toHaveBeenCalledOnce();
-    expect(deps.auditLogRepo.create).toHaveBeenCalledWith(
+    expect(deps.auditEmitter.emit).toHaveBeenCalledWith(
       expect.objectContaining({ action: "AUTO_RENEWAL_BATCH", success: true })
     );
   });

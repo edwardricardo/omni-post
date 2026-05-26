@@ -5,17 +5,13 @@
  * @layer application
  */
 
-import { emitAudit } from "../../services/audit.js";
-import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
+import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
 import type { BillingEvent } from "./types.js";
-import { createLogger } from "../../lib/logger.js";
-
-const log = createLogger("billing");
 
 export type ChangeType = "UPGRADE" | "DOWNGRADE" | "LATERAL";
 
 export class BillingService {
-  constructor(private readonly auditLog: AuditLogRepository) {}
+  constructor(private readonly auditEmitter: AuditEmitterPort) {}
 
   /**
    * @method getChangeType
@@ -55,8 +51,6 @@ export class BillingService {
       currency: event.currency || "USD",
     };
 
-    log.info({ billingEvent }, "Billing event logged");
-
     if (event.processedBy) {
       const eventDetails: Record<string, unknown> = {
         type: billingEvent.type,
@@ -68,7 +62,7 @@ export class BillingService {
         metadata: billingEvent.metadata,
       };
 
-      await emitAudit(this.auditLog, {
+      await this.auditEmitter.emit({
         action: `BILLING_${event.type}`,
         category: "ACCOUNT",
         severity: "MEDIUM",

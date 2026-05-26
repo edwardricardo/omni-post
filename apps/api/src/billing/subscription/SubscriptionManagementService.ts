@@ -9,8 +9,8 @@ import type { AccountQueryRepositoryPort } from "@core/domain/repositories/Accou
 import type { AccountSubscriptionQueryRepository } from "@core/domain/repositories/AccountSubscriptionQueryRepository.js";
 import type { AccountSubscriptionPort } from "@core/domain/repositories/AccountSubscriptionPort.js";
 import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
-import { emitAudit, logServiceError } from "../../services/audit.js";
-import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
+import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
+import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { BillingService } from "./BillingService.js";
 
 export class SubscriptionManagementService {
@@ -20,7 +20,7 @@ export class SubscriptionManagementService {
     private readonly subscriptionPort: AccountSubscriptionPort,
     private readonly projectQueryRepo: ProjectQueryRepositoryPort,
     private readonly billingService: BillingService,
-    private readonly auditLog: AuditLogRepository
+    private readonly auditEmitter: AuditEmitterPort
   ) {}
 
   // ═══════════════════════════════════════════════════════════════
@@ -68,16 +68,13 @@ export class SubscriptionManagementService {
     operation: "CREATE_PROJECT" | "ADD_TEAM_MEMBER" | "UPLOAD_MEDIA",
     amount = 1
   ): Promise<
-    Result<
-      { allowed: boolean; limit: number; current: number; remaining: number },
-      "NOT_FOUND" | "DATABASE_ERROR"
-    >
+    Result<{ allowed: boolean; limit: number; current: number; remaining: number }, UseCaseError>
   > {
     try {
       const maxProjects = await this.subscriptionQueryRepo.getMaxProjects(accountId);
 
       if (maxProjects === null) {
-        return err("NOT_FOUND");
+        return err(new UseCaseError(`Account not found: ${accountId}`, USE_CASE_ERRORS.NOT_FOUND));
       }
 
       switch (operation) {
@@ -123,8 +120,13 @@ export class SubscriptionManagementService {
           return ok({ allowed: true, limit: 0, current: 0, remaining: 0 });
       }
     } catch (error) {
-      logServiceError("validateSubscriptionLimits", error, { accountId });
-      return err("DATABASE_ERROR");
+      return err(
+        new UseCaseError(
+          "Failed to validate subscription limits",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
+        )
+      );
     }
   }
 
@@ -140,10 +142,12 @@ export class SubscriptionManagementService {
     accountId: string,
     reason: string,
     suspendedByUserId?: string
-  ): Promise<Result<void, "NOT_FOUND" | "DATABASE_ERROR">> {
+  ): Promise<Result<void, UseCaseError>> {
     try {
       const accountResult = await this.accountQueryRepo.findById(accountId);
-      if (!accountResult.ok) return err("NOT_FOUND");
+      if (!accountResult.ok) {
+        return err(new UseCaseError(`Account not found: ${accountId}`, USE_CASE_ERRORS.NOT_FOUND));
+      }
 
       const account = accountResult.value;
 
@@ -151,7 +155,7 @@ export class SubscriptionManagementService {
       await this.subscriptionPort.cancelByAccountId(accountId);
 
       if (suspendedByUserId) {
-        await emitAudit(this.auditLog, {
+        await this.auditEmitter.emit({
           action: "SUBSCRIPTION_SUSPEND",
           category: "BILLING",
           severity: "HIGH",
@@ -174,11 +178,13 @@ export class SubscriptionManagementService {
 
       return ok(undefined);
     } catch (error) {
-      logServiceError("suspendSubscription", error, {
-        accountId,
-        ...(suspendedByUserId !== undefined && { userId: suspendedByUserId }),
-      });
-      return err("DATABASE_ERROR");
+      return err(
+        new UseCaseError(
+          "Failed to suspend subscription",
+          USE_CASE_ERRORS.INTERNAL_ERROR,
+          error instanceof Error ? error : undefined
+        )
+      );
     }
   }
 }

@@ -8,14 +8,14 @@
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { BillingService } from "../../src/billing/subscription/BillingService.js";
-import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
+import { InMemoryAuditEmitter } from "./helpers/InMemoryAuditEmitter.js";
 
 describe("BillingService", () => {
   let service: BillingService;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new BillingService(new InMemoryAuditLogRepository());
+    service = new BillingService(new InMemoryAuditEmitter());
   });
 
   // =========================================================================

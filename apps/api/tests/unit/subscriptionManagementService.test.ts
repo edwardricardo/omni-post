@@ -7,7 +7,7 @@
  * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
+import { InMemoryAuditEmitter } from "./helpers/InMemoryAuditEmitter.js";
 
 vi.mock("@infra/prisma", () => ({ prisma: { auditLog: { create: vi.fn() } }, Prisma: {} }));
 
@@ -40,7 +40,7 @@ function makeService(deps: ReturnType<typeof makeDeps>) {
     deps.subscriptionPort as never,
     deps.projectQueryRepo as never,
     deps.billingService as never,
-    new InMemoryAuditLogRepository()
+    new InMemoryAuditEmitter()
   );
 }
 
@@ -74,7 +74,7 @@ describe("SubscriptionManagementService", () => {
     deps.subscriptionQueryRepo.getMaxProjects.mockResolvedValue(null);
     const result = await service.validateSubscriptionLimits("acc-x", "CREATE_PROJECT");
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toBe("NOT_FOUND");
+    if (!result.ok) expect(result.error.code).toBe("NOT_FOUND");
   });
 
   it("validateSubscriptionLimits UPLOAD_MEDIA estimates storage from media counts", async () => {
@@ -103,7 +103,7 @@ describe("SubscriptionManagementService", () => {
     deps.accountQueryRepo.findById.mockResolvedValue({ ok: false, error: "NOT_FOUND" });
     const result = await service.suspendSubscription("acc-x", "fraud");
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toBe("NOT_FOUND");
+    if (!result.ok) expect(result.error.code).toBe("NOT_FOUND");
     expect(deps.subscriptionPort.cancelByAccountId).not.toHaveBeenCalled();
   });
 });

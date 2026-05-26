@@ -40,6 +40,7 @@ export * from "./repositories/CustomerRoleRepository.js";
 export * from "./repositories/RoleRepository.js";
 export * from "./repositories/OutboxWriter.js";
 export * from "./repositories/AuditLogRepository.js";
+export * from "./repositories/AuditEmitterPort.js";
 export * from "./repositories/EmailPort.js";
 export * from "./repositories/HttpClientPort.js";
 export * from "./repositories/BusinessMetricsPort.js";

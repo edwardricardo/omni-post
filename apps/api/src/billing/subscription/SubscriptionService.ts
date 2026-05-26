@@ -7,6 +7,7 @@
  */
 
 import type { Result } from "@shared/types";
+import type { UseCaseError } from "@core/application/UseCase.js";
 import type { SubscriptionPlanService } from "./SubscriptionPlanService.js";
 import type { SubscriptionManagementService } from "./SubscriptionManagementService.js";
 import type { TrialManagementService } from "./TrialManagementService.js";
@@ -50,10 +51,7 @@ export class SubscriptionService {
     operation: "CREATE_PROJECT" | "ADD_TEAM_MEMBER" | "UPLOAD_MEDIA",
     amount?: number
   ): Promise<
-    Result<
-      { allowed: boolean; limit: number; current: number; remaining: number },
-      "NOT_FOUND" | "DATABASE_ERROR"
-    >
+    Result<{ allowed: boolean; limit: number; current: number; remaining: number }, UseCaseError>
   > {
     return this.management.validateSubscriptionLimits(accountId, operation, amount);
   }
@@ -62,7 +60,7 @@ export class SubscriptionService {
     accountId: string,
     reason: string,
     suspendedByUserId?: string
-  ): Promise<Result<void, "NOT_FOUND" | "DATABASE_ERROR">> {
+  ): Promise<Result<void, UseCaseError>> {
     return this.management.suspendSubscription(accountId, reason, suspendedByUserId);
   }
 
@@ -70,12 +68,7 @@ export class SubscriptionService {
   async startTrial(
     request: StartTrialRequest,
     startedByUserId?: string
-  ): Promise<
-    Result<
-      AccountTrialResponse,
-      "NOT_FOUND" | "ALREADY_ON_TRIAL" | "TRIAL_EXPIRED" | "DATABASE_ERROR"
-    >
-  > {
+  ): Promise<Result<AccountTrialResponse, UseCaseError>> {
     return this.trials.startTrial(request, startedByUserId);
   }
 
@@ -83,7 +76,7 @@ export class SubscriptionService {
     accountId: string,
     reason: string,
     endedByUserId?: string
-  ): Promise<Result<AccountTrialResponse, "NOT_FOUND" | "NOT_ON_TRIAL" | "DATABASE_ERROR">> {
+  ): Promise<Result<AccountTrialResponse, UseCaseError>> {
     return this.trials.endTrial(accountId, reason, endedByUserId);
   }
 
@@ -94,7 +87,7 @@ export class SubscriptionService {
         failed: number;
         details: Array<{ accountId: string; status: "success" | "failed"; error?: string }>;
       },
-      "DATABASE_ERROR"
+      UseCaseError
     >
   > {
     return this.trials.processAutoRenewals(triggeredByUserId);
@@ -102,7 +95,7 @@ export class SubscriptionService {
 
   async getExpiringTrials(
     daysBeforeExpiration?: number
-  ): Promise<Result<AccountTrialResponse[], "DATABASE_ERROR">> {
+  ): Promise<Result<AccountTrialResponse[], UseCaseError>> {
     return this.trials.getExpiringTrials(daysBeforeExpiration);
   }
 
@@ -110,7 +103,7 @@ export class SubscriptionService {
     accountId: string,
     billingCycle?: "monthly" | "yearly",
     convertedByUserId?: string
-  ): Promise<Result<AccountTrialResponse, "NOT_FOUND" | "NOT_ON_TRIAL" | "DATABASE_ERROR">> {
+  ): Promise<Result<AccountTrialResponse, UseCaseError>> {
     return this.trials.convertTrialToPaid(accountId, billingCycle, convertedByUserId);
   }
 
@@ -127,7 +120,7 @@ export class SubscriptionService {
   }
 
   // Statistics operations
-  async getSubscriptionStats(): Promise<Result<SubscriptionStats, "DATABASE_ERROR">> {
+  async getSubscriptionStats(): Promise<Result<SubscriptionStats, UseCaseError>> {
     return this.stats.getSubscriptionStats();
   }
 

@@ -9,6 +9,7 @@ import { FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../../lib/route-handler/index.js";
 import type { SubscriptionService } from "../subscription/index.js";
+import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import {
   ParamsWithAccountIdSchema,
   StartTrialSchema,
@@ -52,14 +53,14 @@ export class SubscriptionTrialHandler extends BaseRouteHandler {
     );
 
     if (!result.ok) {
-      if (result.error === "NOT_FOUND") {
+      if (result.error.code === USE_CASE_ERRORS.NOT_FOUND) {
         return this.sendError(ctx, 404, "Account not found");
       }
-      if (result.error === "ALREADY_ON_TRIAL") {
+      if (result.error.code === USE_CASE_ERRORS.CONFLICT) {
         return this.sendError(ctx, 409, "Account is already on trial");
       }
-      if (result.error === "TRIAL_EXPIRED") {
-        return this.sendError(ctx, 409, "Trial has already expired for this account");
+      if (result.error.code === USE_CASE_ERRORS.VALIDATION_FAILED) {
+        return this.sendError(ctx, 409, "Trial cannot be started for this account");
       }
       return this.sendError(ctx, 500, "Internal server error");
     }
@@ -97,10 +98,10 @@ export class SubscriptionTrialHandler extends BaseRouteHandler {
     const result = await this.subscriptionService.endTrial(accountId, reason, endedByUserId);
 
     if (!result.ok) {
-      if (result.error === "NOT_FOUND") {
+      if (result.error.code === USE_CASE_ERRORS.NOT_FOUND) {
         return this.sendError(ctx, 404, "Account not found");
       }
-      if (result.error === "NOT_ON_TRIAL") {
+      if (result.error.code === USE_CASE_ERRORS.VALIDATION_FAILED) {
         return this.sendError(ctx, 409, "Account is not on trial");
       }
       return this.sendError(ctx, 500, "Internal server error");
@@ -140,10 +141,10 @@ export class SubscriptionTrialHandler extends BaseRouteHandler {
     );
 
     if (!result.ok) {
-      if (result.error === "NOT_FOUND") {
+      if (result.error.code === USE_CASE_ERRORS.NOT_FOUND) {
         return this.sendError(ctx, 404, "Account not found");
       }
-      if (result.error === "NOT_ON_TRIAL") {
+      if (result.error.code === USE_CASE_ERRORS.VALIDATION_FAILED) {
         return this.sendError(ctx, 409, "Account is not on trial");
       }
       return this.sendError(ctx, 500, "Internal server error");
