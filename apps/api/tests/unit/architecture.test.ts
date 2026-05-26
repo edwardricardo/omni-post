@@ -2,15 +2,21 @@
  * Architecture Enforcement Tests
  *
  * Verifies that hexagonal architecture layer boundaries are not violated.
+ * After the @core migration, the domain and application layers live in
+ * `packages/core/{domain,application}/src/` (not `apps/api/src/`). This test
+ * scans those locations.
  *
  * Rules enforced:
- *   - domain/ files must NEVER import infrastructure concerns
+ *   - @core/domain files must NEVER import infrastructure concerns
  *     (Prisma, Redis, BullMQ, Fastify, prom-client, node:http, node:net)
- *   - application/ files must NEVER import infrastructure concerns
+ *   - @core/application files must NEVER import infrastructure concerns
  *     (same list minus prom-client, which is allowed via application-layer metrics)
- *   - Neither layer may import from src/infrastructure/ directly
+ *   - Neither layer may import from apps/api infrastructure directly
  *
  * These tests are Tier 0: pure filesystem reads, zero external dependencies.
+ * They are belt-and-suspenders alongside the dependency-cruiser `core-*` rules
+ * (`core-no-apps`, `core-domain-no-framework`, `core-application-no-infrastructure`)
+ * which CI runs separately.
  *
  * @module tests/unit/architecture
  *
@@ -183,10 +189,14 @@ const APPLICATION_FORBIDDEN: RegExp[] = [
 // ---------------------------------------------------------------------------
 
 describe("Architecture Enforcement", () => {
-  // Resolve relative to the test file location: tests/unit/ → ../../src
-  const srcRoot = join(__dirname, "..", "..", "src");
-  const domainDir = join(srcRoot, "domain");
-  const applicationDir = join(srcRoot, "application");
+  // Resolve relative to the test file location:
+  // apps/api/tests/unit/ → ../../../../packages/core
+  // The @core migration moved domain+application out of apps/api into shared
+  // packages. `srcRoot` is kept as the variable name (used to strip prefixes in
+  // error messages) but now points at `packages/core/`.
+  const srcRoot = join(__dirname, "..", "..", "..", "..", "packages", "core");
+  const domainDir = join(srcRoot, "domain", "src");
+  const applicationDir = join(srcRoot, "application", "src");
 
   // -------------------------------------------------------------------------
   describe("Domain layer — no infrastructure imports", () => {
