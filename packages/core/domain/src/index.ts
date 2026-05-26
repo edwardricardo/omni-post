@@ -21,6 +21,8 @@ export * from "./value-objects/PublishStatus.js";
 export * from "./value-objects/ScheduledTime.js";
 export * from "./value-objects/MediaAttachment.js";
 export * from "./value-objects/NotificationType.js";
+export * from "./value-objects/CredentialGroup.js";
+export * from "./value-objects/AccountCredentialGroup.js";
 export * from "./events/ProjectEvents.js";
 export * from "./entities/Account.js";
 export * from "./entities/Channel.js";

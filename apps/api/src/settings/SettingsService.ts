@@ -7,9 +7,10 @@
  */
 
 import { ok, err, type Result } from "@shared/types";
-import type { PrismaClient, CredentialGroup } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
+import type { CredentialGroup } from "@core/domain/value-objects/CredentialGroup.js";
 import type { PlatformCredentialService } from "../security/PlatformCredentialService.js";
-import { CREDENTIAL_KEYS, NON_SECRET_KEYS } from "./credentialKeys.js";
+import { CREDENTIAL_KEYS, NON_SECRET_KEYS } from "@core/application/settings/credentialKeys.js";
 
 type SettingsError =
   | "NOT_FOUND"

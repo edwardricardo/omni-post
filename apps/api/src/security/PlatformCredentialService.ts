@@ -7,7 +7,9 @@
  * @layer application
  */
 import { ok, err, type Result } from "@shared/types";
-import type { PrismaClient, CredentialGroup, AccountCredentialGroup } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
+import type { CredentialGroup } from "@core/domain/value-objects/CredentialGroup.js";
+import type { AccountCredentialGroup } from "@core/domain/value-objects/AccountCredentialGroup.js";
 import type { PlatformCredentialReader } from "@core/domain/repositories/PlatformCredentialReader.js";
 import type { EncryptionService } from "./EncryptionService.js";
 

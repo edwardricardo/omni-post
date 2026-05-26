@@ -11,7 +11,7 @@ import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { SettingsService } from "./SettingsService.js";
 import type { PlatformCredentialService } from "../security/PlatformCredentialService.js";
-import type { CredentialGroup } from "@infra/prisma";
+import type { CredentialGroup } from "@core/domain/value-objects/CredentialGroup.js";
 import {
   groupParamsSchema,
   groupKeyParamsSchema,

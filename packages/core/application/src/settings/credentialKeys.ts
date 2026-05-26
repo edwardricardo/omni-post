@@ -5,7 +5,7 @@
  * @layer application
  */
 
-import type { CredentialGroup } from "@infra/prisma";
+import type { CredentialGroup } from "@core/domain/value-objects/CredentialGroup.js";
 
 /**
  * Expected keys for each credential group. Acts as a whitelist —
