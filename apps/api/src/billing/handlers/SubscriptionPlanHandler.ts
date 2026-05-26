@@ -7,7 +7,7 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../../lib/route-handler/index.js";
-import type { SubscriptionService } from "../subscription/index.js";
+import type { SubscriptionService } from "@core/application/billing/index.js";
 import { ParamsWithTierSchema } from "../subscriptionSchemas.js";
 
 export class SubscriptionPlanHandler extends BaseRouteHandler {

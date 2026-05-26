@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@infra/prisma", () => ({ prisma: { auditLog: { create: vi.fn() } }, Prisma: {} }));
 
 const { TrialManagementService } =
-  await import("../../src/billing/subscription/TrialManagementService.js");
+  await import("@core/application/billing/TrialManagementService.js");
 
 function makeAccountDto(overrides: Record<string, unknown> = {}) {
   const now = new Date();

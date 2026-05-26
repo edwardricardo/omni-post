@@ -33,12 +33,12 @@ import { CustomerAccountBillingService } from "../../admin/CustomerAccountBillin
 import { PricingAdminService } from "../../admin/PricingAdminService.js";
 import { TemplateService } from "../../templates/templateService.js";
 import { templateAnalytics } from "../../templates/templateAnalytics.js";
-import { BillingService } from "../../billing/subscription/BillingService.js";
-import { SubscriptionPlanService } from "../../billing/subscription/SubscriptionPlanService.js";
-import { SubscriptionManagementService } from "../../billing/subscription/SubscriptionManagementService.js";
-import { TrialManagementService } from "../../billing/subscription/TrialManagementService.js";
-import { SubscriptionStatsService } from "../../billing/subscription/SubscriptionStatsService.js";
-import { SubscriptionService } from "../../billing/subscription/SubscriptionService.js";
+import { BillingService } from "@core/application/billing/BillingService.js";
+import { SubscriptionPlanService } from "@core/application/billing/SubscriptionPlanService.js";
+import { SubscriptionManagementService } from "@core/application/billing/SubscriptionManagementService.js";
+import { TrialManagementService } from "@core/application/billing/TrialManagementService.js";
+import { SubscriptionStatsService } from "@core/application/billing/SubscriptionStatsService.js";
+import { SubscriptionService } from "@core/application/billing/SubscriptionService.js";
 import { AuditEmitterAdapter } from "../../services/AuditEmitterAdapter.js";
 import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
 import { WebhookDashboardService } from "../../webhooks/webhookDashboardService.js";

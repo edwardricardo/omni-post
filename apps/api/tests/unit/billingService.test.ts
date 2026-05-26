@@ -7,7 +7,7 @@
 
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { BillingService } from "../../src/billing/subscription/BillingService.js";
+import { BillingService } from "@core/application/billing/BillingService.js";
 import { InMemoryAuditEmitter } from "./helpers/InMemoryAuditEmitter.js";
 
 describe("BillingService", () => {

@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 import { FastifyPluginAsync } from "fastify";
-import type { SubscriptionService } from "./subscription/index.js";
+import type { SubscriptionService } from "@core/application/billing/index.js";
 import type { ChangeAccountSubscriptionUseCase } from "@core/application/billing/ChangeAccountSubscriptionUseCase.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";

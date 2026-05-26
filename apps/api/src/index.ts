@@ -821,7 +821,7 @@ async function start() {
     // SubscriptionService (the duplicate apps/workers autoRenewalWorker was
     // removed — FN-004 dual-write/double-charge risk).
     const { SubscriptionService: _SubscriptionServiceType } =
-      await import("./billing/subscription/SubscriptionService.js");
+      await import("@core/application/billing/SubscriptionService.js");
     const subscriptionSvc = app.container!.resolve<InstanceType<typeof _SubscriptionServiceType>>(
       TOKENS.SubscriptionService
     );
