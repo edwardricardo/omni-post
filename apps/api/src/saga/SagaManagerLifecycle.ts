@@ -2,7 +2,7 @@
  * @file SagaManagerLifecycle.ts
  * @description Saga lifecycle management handling initialization, registration, start,
  *              event handling, health checks, metrics collection, and graceful shutdown.
- * @layer application
+ * @layer infrastructure
  */
 
 import type { SagaManager, SagaDefinition, SagaInstance, SagaContext } from "@shared/saga";

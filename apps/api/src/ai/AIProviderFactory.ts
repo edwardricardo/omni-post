@@ -2,7 +2,7 @@
  * @file AIProviderFactory.ts
  * @description Factory for creating AI provider instances from credentials.
  *   Builds providers from raw API keys with sensible defaults.
- * @layer application
+ * @layer infrastructure
  */
 import type { AIProvider, AIProviderConfig } from "./types.js";
 import { OpenAIProvider } from "./providers/openai.js";

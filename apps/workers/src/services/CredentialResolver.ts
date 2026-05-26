@@ -6,10 +6,13 @@
  *   at construction time with the decryption function it needs, so this class
  *   stays free of crypto concerns and is trivially testable with a fake repo.
  *
- *   Canon: Cockburn hexagonal — credentials resolution is an application
- *   service, not an infrastructure concern. Provider adapters receive resolved
- *   credentials per-call rather than performing their own DB lookup.
- * @layer application
+ *   Lives in `apps/workers` and carries `@layer infrastructure` per the
+ *   workers-deployable convention. The composition algorithm (port +
+ *   decryption function) is reusable application logic — a candidate for
+ *   promotion to `@core/application` if a second deployable ever needs it.
+ *   Provider adapters receive resolved credentials per-call rather than
+ *   performing their own DB lookup.
+ * @layer infrastructure
  */
 
 import { ok, err, type Result } from "@shared/types";

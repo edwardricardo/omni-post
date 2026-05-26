@@ -1,7 +1,7 @@
 /**
  * @file PostQueryGetList.ts
  * @description CQRS query handlers for single post retrieval (GetPostQueryHandler) and paginated post listing (ListPostsQueryHandler) via PostQueryRepository.
- * @layer application
+ * @layer infrastructure
  */
 
 import {

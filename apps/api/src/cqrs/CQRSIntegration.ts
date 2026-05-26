@@ -1,7 +1,7 @@
 /**
  * @file CQRSIntegration.ts
  * @description Fastify integration layer that registers CQRS command/query endpoints, wires handler factories to the bus, and exposes health and metrics routes.
- * @layer application
+ * @layer infrastructure
  */
 
 import { randomUUID } from "node:crypto";

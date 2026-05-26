@@ -1,7 +1,7 @@
 /**
  * @file CQRSBus.ts
  * @description CQRS bus implementation providing command/query dispatching with handler registration, validation, Redis-based query caching, and performance metrics.
- * @layer application
+ * @layer infrastructure
  */
 
 import {

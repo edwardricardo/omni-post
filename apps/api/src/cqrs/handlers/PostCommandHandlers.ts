@@ -1,7 +1,7 @@
 /**
  * @file PostCommandHandlers.ts
  * @description CQRS command handlers for Post aggregate operations (create, update, publish) that delegate to application use cases and handle schema validation, cache invalidation, and integration events.
- * @layer application
+ * @layer infrastructure
  */
 
 import {

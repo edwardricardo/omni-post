@@ -1,7 +1,7 @@
 /**
  * @file PostQuerySearchAnalytics.ts
  * @description CQRS query handlers for full-text post search (SearchPostsQueryHandler) and post analytics retrieval (GetPostAnalyticsQueryHandler) via PostQueryRepository.
- * @layer application
+ * @layer infrastructure
  */
 
 import {

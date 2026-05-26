@@ -2,7 +2,7 @@
  * @file SagaManager.ts
  * @description Saga manager facade composing lifecycle and execution engine into
  *              the unified SagaManagerImpl public API.
- * @layer application
+ * @layer infrastructure
  */
 
 import type { SagaManager, SagaDefinition, SagaInstance, SagaContext } from "@shared/saga";

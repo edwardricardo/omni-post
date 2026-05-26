@@ -1,7 +1,7 @@
 /**
  * @file PostQueryHandlers.ts
  * @description Facade that re-exports all post query handler classes and provides the createPostQueryHandlers factory function.
- * @layer application
+ * @layer infrastructure
  */
 
 import type { PostQueryRepository } from "@core/domain/index.js";

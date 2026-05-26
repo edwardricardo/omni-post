@@ -806,11 +806,11 @@ Every public class method gets:
 
 **Use exactly these three values — no variations, no new values. The rule applies to every `.ts` and `.tsx` file in `apps/` and `packages/`, including tests, frontend components, hooks, pages, UI primitives, config files, and barrel exports. No exceptions.**
 
-| Value            | Use for                                                                                                                                         |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `domain`         | Entities, value objects, aggregates, domain events, repository interfaces, domain errors                                                        |
-| `application`    | Use cases, application services, handlers, command/query objects, DTOs                                                                          |
-| `infrastructure` | Adapters, repository implementations, routes, processors, BullMQ jobs, config, middleware, React components, hooks, pages, UI primitives, tests |
+| Value            | Use for                                                                                                                                                                                         |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `domain`         | Entities, value objects, aggregates, domain events, repository interfaces, domain errors                                                                                                        |
+| `application`    | Use cases, application services, application command/query handler classes (the use-case-like ones), command/query objects, DTOs                                                                |
+| `infrastructure` | Adapters, repository implementations, routes, processors, BullMQ jobs, CQRS bus + bus dispatch handlers, saga engines, config, middleware, React components, hooks, pages, UI primitives, tests |
 
 ### Mapping by context
 
