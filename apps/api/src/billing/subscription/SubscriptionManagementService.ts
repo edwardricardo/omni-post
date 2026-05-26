@@ -9,21 +9,19 @@ import type { AccountQueryRepositoryPort } from "@core/domain/repositories/Accou
 import type { AccountSubscriptionQueryRepository } from "@core/domain/repositories/AccountSubscriptionQueryRepository.js";
 import type { AccountSubscriptionPort } from "@core/domain/repositories/AccountSubscriptionPort.js";
 import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
-import { AuditableService } from "../../services/AuditableService.js";
+import { emitAudit, logServiceError } from "../../services/audit.js";
 import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 import type { BillingService } from "./BillingService.js";
 
-export class SubscriptionManagementService extends AuditableService {
+export class SubscriptionManagementService {
   constructor(
     private readonly accountQueryRepo: AccountQueryRepositoryPort,
     private readonly subscriptionQueryRepo: AccountSubscriptionQueryRepository,
     private readonly subscriptionPort: AccountSubscriptionPort,
     private readonly projectQueryRepo: ProjectQueryRepositoryPort,
     private readonly billingService: BillingService,
-    auditLog: AuditLogRepository
-  ) {
-    super("SubscriptionManagementService", auditLog);
-  }
+    private readonly auditLog: AuditLogRepository
+  ) {}
 
   // ═══════════════════════════════════════════════════════════════
   // New AccountSubscription-based methods
@@ -75,7 +73,6 @@ export class SubscriptionManagementService extends AuditableService {
       "NOT_FOUND" | "DATABASE_ERROR"
     >
   > {
-    const startTime = Date.now();
     try {
       const maxProjects = await this.subscriptionQueryRepo.getMaxProjects(accountId);
 
@@ -126,16 +123,7 @@ export class SubscriptionManagementService extends AuditableService {
           return ok({ allowed: true, limit: 0, current: 0, remaining: 0 });
       }
     } catch (error) {
-      const serviceError = this.createServiceError(error, {
-        serviceName: this.serviceName,
-        operation: "validateSubscriptionLimits",
-        accountId,
-      });
-      this.logError(
-        { serviceName: this.serviceName, operation: "validateSubscriptionLimits", accountId },
-        serviceError,
-        Date.now() - startTime
-      );
+      logServiceError("validateSubscriptionLimits", error, { accountId });
       return err("DATABASE_ERROR");
     }
   }
@@ -153,7 +141,6 @@ export class SubscriptionManagementService extends AuditableService {
     reason: string,
     suspendedByUserId?: string
   ): Promise<Result<void, "NOT_FOUND" | "DATABASE_ERROR">> {
-    const startTime = Date.now();
     try {
       const accountResult = await this.accountQueryRepo.findById(accountId);
       if (!accountResult.ok) return err("NOT_FOUND");
@@ -164,11 +151,12 @@ export class SubscriptionManagementService extends AuditableService {
       await this.subscriptionPort.cancelByAccountId(accountId);
 
       if (suspendedByUserId) {
-        await this.logAccountAction(suspendedByUserId, {
-          accountId,
+        await emitAudit(this.auditLog, {
           action: "SUBSCRIPTION_SUSPEND",
           category: "BILLING",
           severity: "HIGH",
+          userId: suspendedByUserId,
+          accountId,
           details: {
             email: account.email,
             reason,
@@ -186,22 +174,10 @@ export class SubscriptionManagementService extends AuditableService {
 
       return ok(undefined);
     } catch (error) {
-      const serviceError = this.createServiceError(error, {
-        serviceName: this.serviceName,
-        operation: "suspendSubscription",
+      logServiceError("suspendSubscription", error, {
         accountId,
         ...(suspendedByUserId !== undefined && { userId: suspendedByUserId }),
       });
-      this.logError(
-        {
-          serviceName: this.serviceName,
-          operation: "suspendSubscription",
-          accountId,
-          ...(suspendedByUserId !== undefined && { userId: suspendedByUserId }),
-        },
-        serviceError,
-        Date.now() - startTime
-      );
       return err("DATABASE_ERROR");
     }
   }

@@ -6,14 +6,12 @@
  * @layer application
  */
 import { ok, err, type Result } from "@shared/types";
-import { BaseService } from "../../services/BaseService.js";
 import type { SubscriptionStatsQueryRepository } from "@core/domain/repositories/SubscriptionStatsQueryRepository.js";
+import { logServiceError } from "../../services/audit.js";
 import type { SubscriptionStats } from "./types.js";
 
-export class SubscriptionStatsService extends BaseService {
-  constructor(private readonly statsQueryRepo: SubscriptionStatsQueryRepository) {
-    super("SubscriptionStatsService");
-  }
+export class SubscriptionStatsService {
+  constructor(private readonly statsQueryRepo: SubscriptionStatsQueryRepository) {}
 
   /**
    * @method getSubscriptionStats
@@ -21,7 +19,6 @@ export class SubscriptionStatsService extends BaseService {
    * @returns Result with subscription statistics on success, or DATABASE_ERROR on failure
    */
   async getSubscriptionStats(): Promise<Result<SubscriptionStats, "DATABASE_ERROR">> {
-    const startTime = Date.now();
     try {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
@@ -94,15 +91,7 @@ export class SubscriptionStatsService extends BaseService {
         customCount,
       });
     } catch (error) {
-      const serviceError = this.createServiceError(error, {
-        serviceName: this.serviceName,
-        operation: "getSubscriptionStats",
-      });
-      this.logError(
-        { serviceName: this.serviceName, operation: "getSubscriptionStats" },
-        serviceError,
-        Date.now() - startTime
-      );
+      logServiceError("getSubscriptionStats", error);
       return err("DATABASE_ERROR");
     }
   }

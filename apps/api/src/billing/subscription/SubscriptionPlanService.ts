@@ -5,7 +5,6 @@
  * @layer application
  */
 
-import { BaseService } from "../../services/BaseService.js";
 import type { AccountSubscriptionQueryRepository } from "@core/domain/repositories/AccountSubscriptionQueryRepository.js";
 import { type TrialInfo } from "./types.js";
 
@@ -20,10 +19,8 @@ export interface TrialAccountView {
   trialEndDate: Date | null;
 }
 
-export class SubscriptionPlanService extends BaseService {
-  constructor(private readonly subscriptionQueryRepo: AccountSubscriptionQueryRepository) {
-    super("SubscriptionPlanService");
-  }
+export class SubscriptionPlanService {
+  constructor(private readonly subscriptionQueryRepo: AccountSubscriptionQueryRepository) {}
 
   /**
    * @method getAccountPlan

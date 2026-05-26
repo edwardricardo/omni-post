@@ -5,7 +5,7 @@
  * @layer application
  */
 
-import { AuditableService } from "../../services/AuditableService.js";
+import { emitAudit } from "../../services/audit.js";
 import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 import type { BillingEvent } from "./types.js";
 import { createLogger } from "../../lib/logger.js";
@@ -14,10 +14,8 @@ const log = createLogger("billing");
 
 export type ChangeType = "UPGRADE" | "DOWNGRADE" | "LATERAL";
 
-export class BillingService extends AuditableService {
-  constructor(auditLog: AuditLogRepository) {
-    super("BillingService", auditLog);
-  }
+export class BillingService {
+  constructor(private readonly auditLog: AuditLogRepository) {}
 
   /**
    * @method getChangeType
@@ -70,11 +68,12 @@ export class BillingService extends AuditableService {
         metadata: billingEvent.metadata,
       };
 
-      await this.logAccountAction(event.processedBy, {
-        accountId: event.accountId,
+      await emitAudit(this.auditLog, {
         action: `BILLING_${event.type}`,
         category: "ACCOUNT",
         severity: "MEDIUM",
+        userId: event.processedBy,
+        accountId: event.accountId,
         details: eventDetails,
       });
     }

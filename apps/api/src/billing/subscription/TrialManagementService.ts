@@ -1,7 +1,8 @@
 /**
  * @file TrialManagementService.ts
  * @description Service managing trial lifecycle operations: start, end, convert to paid,
- *              and expiring trial queries. Extends AuditableService for compliance logging.
+ *              and expiring trial queries. Emits audit logs via the `emitAudit` composition
+ *              helper; no longer inherits from AuditableService.
  * @layer infrastructure
  */
 import { ok, err, type Result } from "@shared/types";
@@ -15,7 +16,7 @@ import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepos
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { Account } from "@core/domain/entities/Account.js";
 import { AccountId } from "@core/domain/value-objects/EntityId.js";
-import { AuditableService } from "../../services/AuditableService";
+import { emitAudit, logServiceError } from "../../services/audit.js";
 import type { SubscriptionPlanService } from "./SubscriptionPlanService";
 import type { BillingService } from "./BillingService";
 import { type AccountTrialResponse, type StartTrialRequest } from "./types";
@@ -24,18 +25,16 @@ import { type AccountTrialResponse, type StartTrialRequest } from "./types";
  * Service responsible for trial period management operations:
  * start trial, end trial, convert trial to paid, expiring trials
  */
-export class TrialManagementService extends AuditableService {
+export class TrialManagementService {
   constructor(
     private readonly accountRepository: AccountRepositoryPort,
     private readonly accountQueryRepo: AccountQueryRepositoryPort,
     private readonly subscriptionQueryRepo: AccountSubscriptionQueryRepository,
     private readonly subscriptionPlanService: SubscriptionPlanService,
     private readonly billingService: BillingService,
-    auditLog: AuditLogRepository,
+    private readonly auditLog: AuditLogRepository,
     private readonly unitOfWork?: UnitOfWork
-  ) {
-    super("TrialManagementService", auditLog);
-  }
+  ) {}
 
   /**
    * Load the Account aggregate by its string id.
@@ -153,7 +152,6 @@ export class TrialManagementService extends AuditableService {
       "NOT_FOUND" | "ALREADY_ON_TRIAL" | "TRIAL_EXPIRED" | "DATABASE_ERROR"
     >
   > {
-    const startTime = Date.now();
     try {
       const {
         accountId,
@@ -198,11 +196,12 @@ export class TrialManagementService extends AuditableService {
 
       // Log account action for audit trail
       if (startedByUserId) {
-        await this.logAccountAction(startedByUserId, {
-          accountId,
+        await emitAudit(this.auditLog, {
           action: "TRIAL_START",
           category: "BILLING",
           severity: "MEDIUM",
+          userId: startedByUserId,
+          accountId,
           details: {
             email: account.email,
             tier,
@@ -232,22 +231,10 @@ export class TrialManagementService extends AuditableService {
 
       return this.buildTrialResponse(accountId);
     } catch (error) {
-      const serviceError = this.createServiceError(error, {
-        serviceName: this.serviceName,
-        operation: "startTrial",
+      logServiceError("startTrial", error, {
         accountId: request.accountId,
         ...(startedByUserId !== undefined && { userId: startedByUserId }),
       });
-      this.logError(
-        {
-          serviceName: this.serviceName,
-          operation: "startTrial",
-          accountId: request.accountId,
-          ...(startedByUserId !== undefined && { userId: startedByUserId }),
-        },
-        serviceError,
-        Date.now() - startTime
-      );
       return err("DATABASE_ERROR");
     }
   }
@@ -260,7 +247,6 @@ export class TrialManagementService extends AuditableService {
     reason: string,
     endedByUserId?: string
   ): Promise<Result<AccountTrialResponse, "NOT_FOUND" | "NOT_ON_TRIAL" | "DATABASE_ERROR">> {
-    const startTime = Date.now();
     try {
       const accountResult = await this.accountQueryRepo.findWithProjects(accountId);
 
@@ -281,11 +267,12 @@ export class TrialManagementService extends AuditableService {
 
       // Log account action for audit trail
       if (endedByUserId) {
-        await this.logAccountAction(endedByUserId, {
-          accountId,
+        await emitAudit(this.auditLog, {
           action: "TRIAL_END",
           category: "BILLING",
           severity: "MEDIUM",
+          userId: endedByUserId,
+          accountId,
           details: {
             email: account.email,
             reason,
@@ -304,22 +291,10 @@ export class TrialManagementService extends AuditableService {
 
       return this.buildTrialResponse(accountId);
     } catch (error) {
-      const serviceError = this.createServiceError(error, {
-        serviceName: this.serviceName,
-        operation: "endTrial",
+      logServiceError("endTrial", error, {
         accountId,
         ...(endedByUserId !== undefined && { userId: endedByUserId }),
       });
-      this.logError(
-        {
-          serviceName: this.serviceName,
-          operation: "endTrial",
-          accountId,
-          ...(endedByUserId !== undefined && { userId: endedByUserId }),
-        },
-        serviceError,
-        Date.now() - startTime
-      );
       return err("DATABASE_ERROR");
     }
   }
@@ -330,7 +305,6 @@ export class TrialManagementService extends AuditableService {
   async getExpiringTrials(
     daysBeforeExpiration = 1
   ): Promise<Result<AccountTrialResponse[], "DATABASE_ERROR">> {
-    const startTime = Date.now();
     try {
       const targetDate = new Date();
       targetDate.setDate(targetDate.getDate() + daysBeforeExpiration);
@@ -347,15 +321,7 @@ export class TrialManagementService extends AuditableService {
 
       return ok(accountInfos);
     } catch (error) {
-      const serviceError = this.createServiceError(error, {
-        serviceName: this.serviceName,
-        operation: "getExpiringTrials",
-      });
-      this.logError(
-        { serviceName: this.serviceName, operation: "getExpiringTrials" },
-        serviceError,
-        Date.now() - startTime
-      );
+      logServiceError("getExpiringTrials", error);
       return err("DATABASE_ERROR");
     }
   }
@@ -368,7 +334,6 @@ export class TrialManagementService extends AuditableService {
     billingCycle: "monthly" | "yearly" = "monthly",
     convertedByUserId?: string
   ): Promise<Result<AccountTrialResponse, "NOT_FOUND" | "NOT_ON_TRIAL" | "DATABASE_ERROR">> {
-    const startTime = Date.now();
     try {
       const accountResult = await this.accountQueryRepo.findWithProjects(accountId);
 
@@ -400,11 +365,12 @@ export class TrialManagementService extends AuditableService {
 
       // Log account action for audit trail
       if (convertedByUserId) {
-        await this.logAccountAction(convertedByUserId, {
-          accountId,
+        await emitAudit(this.auditLog, {
           action: "TRIAL_CONVERT",
           category: "BILLING",
           severity: "HIGH",
+          userId: convertedByUserId,
+          accountId,
           details: {
             email: account.email,
             billingCycle,
@@ -431,22 +397,10 @@ export class TrialManagementService extends AuditableService {
 
       return this.buildTrialResponse(accountId);
     } catch (error) {
-      const serviceError = this.createServiceError(error, {
-        serviceName: this.serviceName,
-        operation: "convertTrialToPaid",
+      logServiceError("convertTrialToPaid", error, {
         accountId,
         ...(convertedByUserId !== undefined && { userId: convertedByUserId }),
       });
-      this.logError(
-        {
-          serviceName: this.serviceName,
-          operation: "convertTrialToPaid",
-          accountId,
-          ...(convertedByUserId !== undefined && { userId: convertedByUserId }),
-        },
-        serviceError,
-        Date.now() - startTime
-      );
       return err("DATABASE_ERROR");
     }
   }
@@ -464,7 +418,6 @@ export class TrialManagementService extends AuditableService {
       "DATABASE_ERROR"
     >
   > {
-    const startTime = Date.now();
     try {
       const now = new Date();
 
@@ -493,11 +446,11 @@ export class TrialManagementService extends AuditableService {
             await this.persistAccount(accountAggregate.value);
 
             // Log account action for audit trail (system action, no userId)
-            await this.logSystemAction({
-              accountId: account.id,
+            await emitAudit(this.auditLog, {
               action: "AUTO_RENEWAL",
               category: "BILLING",
               severity: "MEDIUM",
+              accountId: account.id,
               details: {
                 email: account.email,
                 amount,
@@ -557,15 +510,7 @@ export class TrialManagementService extends AuditableService {
         details,
       });
     } catch (error) {
-      const serviceError = this.createServiceError(error, {
-        serviceName: this.serviceName,
-        operation: "processAutoRenewals",
-      });
-      this.logError(
-        { serviceName: this.serviceName, operation: "processAutoRenewals" },
-        serviceError,
-        Date.now() - startTime
-      );
+      logServiceError("processAutoRenewals", error);
       return err("DATABASE_ERROR");
     }
   }

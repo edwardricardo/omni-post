@@ -9,7 +9,7 @@
 
 import { ok, err, type Result } from "@shared/types";
 import type { CachePort } from "@ports/core";
-import { AuditableService } from "../services/AuditableService";
+import { emitAudit } from "../services/audit.js";
 import type { AdminUserRepositoryPort } from "@core/domain/repositories/AdminUserRepository.js";
 import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 import type { RoleRepository } from "@core/domain/repositories/RoleRepository.js";
@@ -101,7 +101,7 @@ export interface UserPermissions {
 // Service
 // ---------------------------------------------------------------------------
 
-export class RbacService extends AuditableService {
+export class RbacService {
   private cache: CachePort | undefined;
   private static readonly CACHE_TTL_SECONDS = 60;
   private static readonly CACHE_KEY_PREFIX = "rbac:role:";
@@ -110,10 +110,9 @@ export class RbacService extends AuditableService {
   constructor(
     private readonly userRepo: AdminUserRepositoryPort,
     private readonly roleRepo: RoleRepository,
-    auditLog: AuditLogRepository,
+    private readonly auditLog: AuditLogRepository,
     cache?: CachePort
   ) {
-    super("RbacService", auditLog);
     this.cache = cache;
   }
 
@@ -321,11 +320,12 @@ export class RbacService extends AuditableService {
       await this.userRepo.update(targetUserId, { roleId: role.id });
 
       // Log the role change
-      await this.logResourceAction(adminUserId, {
-        accountId: adminUser.id,
+      await emitAudit(this.auditLog, {
         action: "USER_ROLE_UPDATED",
         category: "SECURITY",
         severity: "CRITICAL",
+        userId: adminUserId,
+        accountId: adminUser.id,
         resourceType: "AdminUser",
         resourceId: targetUserId,
         details: {
