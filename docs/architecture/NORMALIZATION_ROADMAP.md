@@ -143,7 +143,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 ---
 
-### 1.6 Auto-load feedback memories via `@`-imports en CLAUDE.local.md — `P2` · `M` · `STATUS: DONE (TBD-sha)`
+### 1.6 Auto-load feedback memories via `@`-imports en CLAUDE.local.md — `P2` · `M` · `STATUS: DONE (eed703a)`
 
 **Qué:** Replicar el approach de `@`-import (canon en §1.2) para los feedback memories de Claude (`~/.claude/projects/-root-omni-post/memory/feedback_*.md`). Hoy solo las primeras 200 líneas / 25KB de `MEMORY.md` se auto-cargan; cada `feedback_*.md` individual requiere que Claude lo lea manualmente cuando MEMORY.md lo lista como relevante. Resultado: feedback discipline depende de mi consciencia en cada turno (probadamente falible).
 
