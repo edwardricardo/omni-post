@@ -807,7 +807,7 @@ async function start() {
 
     // Data retention cleanup — daily
     const { DataRetentionService: _DataRetentionType } =
-      await import("./compliance/DataRetentionService.js");
+      await import("@core/application/compliance/DataRetentionService.js");
     const dataRetention = app.container!.resolve<InstanceType<typeof _DataRetentionType>>(
       TOKENS.DataRetentionService
     );

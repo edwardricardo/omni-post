@@ -8,7 +8,7 @@ import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.
 import type { PrismaClient } from "@infra/prisma";
 import type { ProviderName } from "@shared/types";
 import { AnalyticsMetricsQuerySchema } from "./analyticsSchemas.js";
-import type { ComplianceService } from "../compliance/ComplianceService.js";
+import type { ComplianceService } from "@core/application/compliance/ComplianceService.js";
 
 /**
  * Analytics Dashboard Route Handler

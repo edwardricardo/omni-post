@@ -55,8 +55,8 @@ import { ThreadAnalytics } from "../../analytics/threadAnalytics.js";
 // Future: GeoAnalyticsService — deleted (100% fake geographic distribution)
 import type { ApiMetrics } from "../../metrics/apiMetrics.js";
 import { createPostsService } from "../../posts/postsService.js";
-import { ComplianceService } from "../../compliance/ComplianceService.js";
-import { DataRetentionService } from "../../compliance/DataRetentionService.js";
+import { ComplianceService } from "@core/application/compliance/ComplianceService.js";
+import { DataRetentionService } from "@core/application/compliance/DataRetentionService.js";
 import { DlqArchivalService } from "../../webhooks/DlqArchivalService.js";
 import { DatabaseOptimizer } from "../../database/DatabaseOptimizer.js";
 import { RedisCacheManager, RedisCacheAdapter, createCacheManager } from "@adapters/cache-redis";

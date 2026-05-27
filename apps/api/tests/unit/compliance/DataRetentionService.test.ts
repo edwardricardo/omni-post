@@ -9,7 +9,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { DataRetentionService } from "../../../src/compliance/DataRetentionService.js";
+import { DataRetentionService } from "@core/application/compliance/DataRetentionService.js";
 import type { GdprSettingsRepository } from "@core/domain/repositories/GdprSettingsRepository.js";
 import type { AuditLogRetentionPort } from "@core/domain/repositories/AuditLogRetentionPort.js";
 import type { DsarRequestRepository } from "@core/domain/repositories/DsarRequestRepository.js";

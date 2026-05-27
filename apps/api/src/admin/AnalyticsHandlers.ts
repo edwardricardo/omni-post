@@ -7,7 +7,7 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { BaseRouteHandler } from "../lib/route-handler/index.js";
 import type { PrismaClient } from "@infra/prisma";
-import type { ComplianceService } from "../compliance/ComplianceService.js";
+import type { ComplianceService } from "@core/application/compliance/ComplianceService.js";
 import { AnalyticsDashboardHandler } from "./AnalyticsDashboardHandlers.js";
 import { AnalyticsComplianceHandler } from "./AnalyticsComplianceHandlers.js";
 import { AnalyticsAccountHandler } from "./AnalyticsAccountHandlers.js";

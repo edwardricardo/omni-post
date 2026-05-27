@@ -23,7 +23,7 @@ export const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
   }
   const prisma = container.resolve<PrismaClient>(TOKENS.PrismaClient);
   const complianceService = container.resolve<
-    import("../compliance/ComplianceService.js").ComplianceService
+    import("@core/application/compliance/ComplianceService.js").ComplianceService
   >(TOKENS.ComplianceService);
   const handler = new AnalyticsRouteHandler(prisma, complianceService);
 
