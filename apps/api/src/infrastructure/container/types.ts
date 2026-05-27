@@ -560,6 +560,8 @@ export const TOKENS = {
   EncryptionService: Symbol.for("EncryptionService"),
   ChannelCredentialsCrypto: Symbol.for("ChannelCredentialsCrypto"),
   PlatformCredentialService: Symbol.for("PlatformCredentialService"),
+  PlatformCredentialRepository: Symbol.for("PlatformCredentialRepository"),
+  EncryptionPort: Symbol.for("EncryptionPort"),
 
   // Settings
   SettingsService: Symbol.for("SettingsService"),

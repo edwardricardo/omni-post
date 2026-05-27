@@ -66,7 +66,9 @@ export class SettingsService {
     if (!keys) return err("VALIDATION_ERROR");
 
     const groupResult = await this.credentialService.getGroup(group);
-    if (!groupResult.ok) return err(groupResult.error as SettingsError);
+    if (!groupResult.ok) {
+      return err(groupResult.error.code === "NOT_FOUND" ? "NOT_FOUND" : "DATABASE_ERROR");
+    }
 
     const decrypted = groupResult.value;
     const masked: Record<string, string | null> = {};
@@ -106,7 +108,9 @@ export class SettingsService {
 
     for (const [key, value] of Object.entries(values)) {
       const result = await this.credentialService.setCredential(group, key, value, updatedBy);
-      if (!result.ok) return err(result.error as SettingsError);
+      if (!result.ok) {
+        return err(result.error.code === "NOT_FOUND" ? "NOT_FOUND" : "DATABASE_ERROR");
+      }
     }
 
     return ok(undefined);
@@ -119,7 +123,9 @@ export class SettingsService {
    */
   async getConfigurationStatus(): Promise<Result<ConfigurationStatus, SettingsError>> {
     const configuredResult = await this.credentialService.listConfiguredGroups();
-    if (!configuredResult.ok) return err(configuredResult.error as SettingsError);
+    if (!configuredResult.ok) {
+      return err(configuredResult.error.code === "NOT_FOUND" ? "NOT_FOUND" : "DATABASE_ERROR");
+    }
 
     const configuredSet = new Set(configuredResult.value);
     const groups: Record<string, boolean> = {};
@@ -160,7 +166,9 @@ export class SettingsService {
     }
 
     const groupResult = await this.credentialService.getGroup(group);
-    if (!groupResult.ok) return err(groupResult.error as SettingsError);
+    if (!groupResult.ok) {
+      return err(groupResult.error.code === "NOT_FOUND" ? "NOT_FOUND" : "DATABASE_ERROR");
+    }
 
     const creds = groupResult.value;
     if (Object.keys(creds).length === 0) {
@@ -285,7 +293,9 @@ export class SettingsService {
       provider,
       apiKey
     );
-    if (!result.ok) return err(result.error as SettingsError);
+    if (!result.ok) {
+      return err(result.error.code === "NOT_FOUND" ? "NOT_FOUND" : "DATABASE_ERROR");
+    }
     return ok(undefined);
   }
 
@@ -301,7 +311,9 @@ export class SettingsService {
       "AI_BYOK",
       provider
     );
-    if (!result.ok) return err(result.error as SettingsError);
+    if (!result.ok) {
+      return err(result.error.code === "NOT_FOUND" ? "NOT_FOUND" : "DATABASE_ERROR");
+    }
     return ok(undefined);
   }
 

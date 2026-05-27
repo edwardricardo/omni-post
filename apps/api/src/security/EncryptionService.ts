@@ -30,35 +30,23 @@
  * @layer infrastructure
  */
 import { randomBytes, createCipheriv, createDecipheriv } from "node:crypto";
+import type {
+  EncryptionPort,
+  EncryptedValue as PortEncryptedValue,
+  EncryptionContext as PortEncryptionContext,
+} from "@core/domain/repositories/EncryptionPort.js";
 import { env } from "../config/env.js";
 import { getRequestAuditContext } from "./decryptAuditContext.js";
+
+// Re-export the canonical types from the @core/domain port so existing callers
+// that imported them from this file keep compiling.
+export type EncryptedValue = PortEncryptedValue;
+export type EncryptionContext = PortEncryptionContext;
 
 const ALGORITHM = "aes-256-gcm" as const;
 const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;
 const KEY_LENGTH = 32;
-
-export interface EncryptedValue {
-  encryptedValue: string;
-  iv: string;
-  authTag: string;
-  keyVersion: number;
-}
-
-/**
- * Caller-supplied context bound as AAD and logged on every encrypt/decrypt.
- * MUST NOT contain sensitive data — both fields appear in plaintext in the
- * AuditLog (ASVS V16.2.5: never log credentials/payment details).
- */
-export interface EncryptionContext {
-  /** Logical field being encrypted (e.g. "Channel.credentials"). */
-  readonly fieldName: string;
-  /** Stable identifier for the row being encrypted (e.g. `channel.id`). */
-  readonly recordId: string;
-  /** Optional caller hint (service or use-case name) — audit metadata only,
-   *  NOT bound as AAD (so re-grouping doesn't break decryption). */
-  readonly caller?: string;
-}
 
 /**
  * Audit emission port. Kept narrow to avoid dragging the full AuditService
@@ -117,7 +105,7 @@ function canonicaliseContext(ctx: EncryptionContext): Buffer {
  * @description Stateless AES-256-GCM encryption with key versioning + AAD
  *   binding + decrypt-time audit emission.
  */
-export class EncryptionService {
+export class EncryptionService implements EncryptionPort {
   private readonly activeVersion: number;
   private readonly activeKey: Buffer;
   private readonly priorKeys: Map<number, Buffer>;

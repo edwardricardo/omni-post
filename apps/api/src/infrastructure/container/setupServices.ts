@@ -67,6 +67,9 @@ import { SagaManagerImpl } from "../../saga/SagaManager.js";
 import type { IntegrationEventPublisher } from "../integration-events/IntegrationEventPort.js";
 import { EventSchemaRegistry } from "../integration-events/EventSchemaRegistry.js";
 import { EncryptionService } from "../../security/EncryptionService.js";
+import type { EncryptionPort } from "@core/domain/repositories/EncryptionPort.js";
+import { PrismaPlatformCredentialRepository } from "../repositories/PrismaPlatformCredentialRepository.js";
+import type { PlatformCredentialRepository } from "@core/domain/repositories/PlatformCredentialRepository.js";
 import { ChannelCredentialsCrypto } from "../../security/ChannelCredentialsCrypto.js";
 import { PlatformCredentialService } from "../../security/PlatformCredentialService.js";
 import { SettingsService } from "../../settings/SettingsService.js";
@@ -735,12 +738,27 @@ export function setupServices(
       new ChannelCredentialsCrypto(container.resolve<EncryptionService>(TOKENS.EncryptionService)),
     true
   );
+  // Platform credential adapter — implements PlatformCredentialRepository
+  // (raw envelope storage). Same instance also serves the EncryptionPort token
+  // below for service injection.
+  container.register<PlatformCredentialRepository>(
+    TOKENS.PlatformCredentialRepository,
+    () => new PrismaPlatformCredentialRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  // EncryptionPort token resolves to the existing EncryptionService instance.
+  container.register<EncryptionPort>(
+    TOKENS.EncryptionPort,
+    () => container.resolve<EncryptionService>(TOKENS.EncryptionService),
+    true
+  );
   container.register<PlatformCredentialService>(
     TOKENS.PlatformCredentialService,
     () =>
       new PlatformCredentialService(
-        container.resolve(TOKENS.PrismaClient),
-        container.resolve<EncryptionService>(TOKENS.EncryptionService)
+        container.resolve<PlatformCredentialRepository>(TOKENS.PlatformCredentialRepository),
+        container.resolve<EncryptionPort>(TOKENS.EncryptionPort),
+        container.resolve(TOKENS.AuditEmitterPort)
       ),
     true
   );

@@ -127,15 +127,18 @@ describe("SettingsService", () => {
       }
     });
 
-    it("propagates credential service errors", async () => {
+    it("propagates credential service errors (collapsed to DATABASE_ERROR)", async () => {
+      // PCS now returns Result<T, UseCaseError>. SettingsService collapses any
+      // non-NOT_FOUND UseCaseError to "DATABASE_ERROR" (encryption-vs-DB
+      // distinction is not surfaced at the settings layer).
       (mockCreds.getGroup as ReturnType<typeof vi.fn>).mockResolvedValue({
         ok: false,
-        error: "ENCRYPTION_ERROR",
+        error: { code: "INTERNAL_ERROR", message: "encryption broke" },
       });
 
       const result = await service.getGroupSettings("STRIPE");
       expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.error).toBe("ENCRYPTION_ERROR");
+      if (!result.ok) expect(result.error).toBe("DATABASE_ERROR");
     });
   });
 
