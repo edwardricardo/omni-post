@@ -190,7 +190,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 ---
 
-### 2.2 Coverage + mutation gates en CI — `P1` · `M` · `STATUS: DONE-Phase-A1 (TBD-sha)` · follow-ups §2.2.a-CI + §2.2.b
+### 2.2 Coverage + mutation gates en CI — `P1` · `M` · `STATUS: DONE-Phase-A1 (5934b37)` · follow-ups §2.2.a-CI + §2.2.b
 
 **Qué:** CLAUDE.md declara coverage targets (90% domain, 85% app, 70% infra/routes/providers) y Stryker está configurado, pero no son gates de CI hoy.
 
