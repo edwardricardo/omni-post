@@ -274,24 +274,21 @@ The error class carries `model`, `contextAccountId`, and
 
 ---
 
-## Known gaps tracked for S2.1d
+## Resolved in S2.1d
 
-Identified during S2.1a foundation work; will be fixed in S2.1d audit + fix
-pass:
+The two known raw-pgvector gaps documented during S2.1a are now fixed:
 
-1. **`PrismaStyleGuideRuleRepository.ts` (line 179)** — raw `$executeRaw`
-   UPDATE on `StyleGuideRule` (tenant-scoped) using pgvector for embedding
-   update. Currently filters only by `id`, not by `accountId`. Risk: a
-   caller passing a rule id owned by another tenant could update it.
-   **Fix:** add `AND "accountId" = ${ctx.accountId}` to the WHERE clause
-   (read context via `requireTenantContext()`).
-2. **`PrismaGlossaryRepository.ts` (line 160)** — same pattern on the
-   `Glossary` table. Same fix.
+1. **`PrismaStyleGuideRuleRepository.ts` (`updateEmbedding`)** — raw
+   `$executeRaw` UPDATE on `StyleGuideRule` now carries
+   `AND "accountId" = ${requireTenantContext().accountId}` in the WHERE clause.
+2. **`PrismaGlossaryRepository.ts` (`updateEmbedding`)** — same fix on the
+   `Glossary` table.
 
-Both queries use raw SQL because Prisma doesn't natively support `pgvector`
-operations. The fix is mechanical (one `AND` clause) but requires reading
-the `TenantContext` at the adapter level. Excluded from fitness `#23` until
-S2.1d ships.
+Both still use raw SQL because Prisma doesn't natively support pgvector
+operations, but they are no longer cross-tenant exploitable.
+
+See `docs/security/MULTI_TENANT_AUDIT_2026-05-27.md` for the full audit
+methodology + verdict.
 
 ---
 

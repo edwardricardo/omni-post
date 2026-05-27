@@ -437,11 +437,14 @@ jobs:
           # (so PostgreSQL RLS catches it via SET LOCAL app.account_id from
           # TenantContext, S2.1c) or explicitly opted-in via
           # withSystemContext() for admin/system flows.
-          # Hard-zero. Exceptions:
+          # Hard-zero. Exceptions (all audited-safe, no known-gap):
           #   - events/EventStore.ts: StoredEvent is a global table (no accountId).
           #   - PrismaStyleGuideRuleRepository.ts + PrismaGlossaryRepository.ts:
-          #     raw pgvector UPDATEs — KNOWN GAPS tracked for fix in S2.1d
-          #     (see docs/security/MULTI_TENANT_GUARDS.md).
+          #     raw pgvector UPDATEs — AUDITED S2.1d, both now carry
+          #     AND "accountId" = ${requireTenantContext().accountId}.
+          #     CWE-639 closed. See docs/security/MULTI_TENANT_AUDIT_2026-05-27.md.
+          #     The regex cannot validate the AND clause on a multi-line
+          #     Prisma.sql template literal; exception remains for clarity.
           #   - unitofwork/PrismaUnitOfWork.ts (S2.1c): emits set_config(
           #     'app.account_id', ..., true) to bind the RLS GUC at tx start.
           #     THE canonical entry point for tenant scope in transactions.

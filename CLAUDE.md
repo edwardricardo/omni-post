@@ -1113,11 +1113,14 @@ grep -rnE "\.\\\$(queryRaw|executeRaw|queryRawUnsafe|executeRawUnsafe)\(" \
   grep -vE "/extensions/tenantGuard|/infrastructure/container/|/tests/|\.test\." | \
   grep -vE "/events/EventStore\.ts|/PrismaStyleGuideRuleRepository\.ts|/PrismaGlossaryRepository\.ts" | \
   grep -vE "/unitofwork/PrismaUnitOfWork\.ts" | wc -l
-# Excepciones (al introducir #23 en S2.1a):
+# Excepciones (al cierre de S2.1d) — todas son audited-safe, no known-gap:
 #   - events/EventStore.ts: StoredEvent es tabla global (no accountId). OK.
-#   - PrismaStyleGuideRuleRepository.ts + PrismaGlossaryRepository.ts: raw pgvector
-#     UPDATEs — KNOWN GAPS pendientes de fix en S2.1d (añadir AND "accountId"=...
-#     via TenantContext). Documentados en `docs/security/MULTI_TENANT_GUARDS.md`.
+#   - PrismaStyleGuideRuleRepository.ts + PrismaGlossaryRepository.ts:
+#     raw pgvector UPDATEs — AUDITED S2.1d, ambas filtran por
+#     `AND "accountId" = ${requireTenantContext().accountId}`. CWE-639 cerrado.
+#     Razón de quedar en excepción: el regex no puede validar el AND clause en
+#     un Prisma.sql multilínea; auditoría manual periódica documentada en
+#     `docs/security/MULTI_TENANT_AUDIT_2026-05-27.md`.
 #   - unitofwork/PrismaUnitOfWork.ts (S2.1c): emits `set_config('app.account_id',
 #     ..., true)` to bind the RLS GUC at tx start. THE canonical entry point for
 #     tenant scope in transactions — bypassing it would defeat layer 2.

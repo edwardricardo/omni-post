@@ -11,6 +11,7 @@ import { ok, err, type Result } from "@shared/types";
 import type { PrismaClient } from "@infra/prisma";
 import { Prisma } from "@infra/prisma";
 import pgvector from "pgvector/utils";
+import { requireTenantContext } from "../../security/tenantContext.js";
 import type {
   StyleGuideRule,
   StyleGuideRuleRepository,
@@ -175,13 +176,18 @@ export class PrismaStyleGuideRuleRepository implements StyleGuideRuleRepository 
     embeddingModel: string
   ): Promise<Result<void, StyleGuideRuleRepositoryError>> {
     try {
+      // S2.1d — raw UPDATEs bypass the Prisma $extends tenant guard (S2.1b),
+      // so they MUST carry an explicit accountId predicate against the bound
+      // TenantContext (CWE-639). Layer 2 (RLS) covers UoW-wrapped callers,
+      // but background callers without a tx still rely on this filter.
+      const { accountId } = requireTenantContext();
       const vectorLiteral = pgvector.toSql(embedding) as string;
       const affected = await this.prisma.$executeRaw(Prisma.sql`
         UPDATE "StyleGuideRule"
         SET embedding = ${vectorLiteral}::vector,
             "embeddingModel" = ${embeddingModel},
             "updatedAt" = NOW()
-        WHERE id = ${id}
+        WHERE id = ${id} AND "accountId" = ${accountId}
       `);
       if (affected === 0) return err("NOT_FOUND");
       return ok(undefined);

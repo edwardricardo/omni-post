@@ -10,6 +10,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { withTenantContext } from "../../../../src/security/tenantContext.js";
 
 class FakePrismaClientKnownRequestError extends Error {
   code: string;
@@ -173,14 +174,26 @@ describe("PrismaGlossaryRepository", () => {
 
   it("updateEmbedding returns NOT_FOUND when no rows are affected", async () => {
     prisma.$executeRaw.mockResolvedValue(0);
-    const result = await repo.updateEmbedding("missing", [0.1, 0.2], "model-x");
+    const result = await withTenantContext({ accountId: "acc-test" }, () =>
+      repo.updateEmbedding("missing", [0.1, 0.2], "model-x")
+    );
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBe("NOT_FOUND");
   });
 
   it("updateEmbedding succeeds when the row is updated", async () => {
     prisma.$executeRaw.mockResolvedValue(1);
-    const result = await repo.updateEmbedding("g-1", [0.1, 0.2], "model-x");
+    const result = await withTenantContext({ accountId: "acc-test" }, () =>
+      repo.updateEmbedding("g-1", [0.1, 0.2], "model-x")
+    );
     expect(result.ok).toBe(true);
+  });
+
+  it("updateEmbedding throws when no TenantContext is bound (S2.1d guard)", async () => {
+    prisma.$executeRaw.mockResolvedValue(1);
+    const result = await repo.updateEmbedding("g-1", [0.1, 0.2], "model-x");
+    // The adapter catches TenantContextMissingError and maps to PERSISTENCE_ERROR.
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe("PERSISTENCE_ERROR");
   });
 });
