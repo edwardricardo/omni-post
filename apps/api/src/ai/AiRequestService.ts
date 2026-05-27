@@ -10,7 +10,7 @@ import { ok, err, type Result } from "@shared/types";
 import type { PrismaClient } from "@infra/prisma";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { CachePort } from "@ports/core";
-import type { PlatformCredentialService } from "../security/PlatformCredentialService.js";
+import type { PlatformCredentialService } from "@core/application/security/PlatformCredentialService.js";
 import type { AITask, AIResponse, AIProvider } from "./types.js";
 import { AIOrchestrator } from "./orchestrator.js";
 import { AIProviderFactory } from "./AIProviderFactory.js";

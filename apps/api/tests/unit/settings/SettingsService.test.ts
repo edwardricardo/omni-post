@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { SettingsService } from "../../../src/settings/SettingsService.js";
-import type { PlatformCredentialService } from "../../../src/security/PlatformCredentialService.js";
+import type { PlatformCredentialService } from "@core/application/security/PlatformCredentialService.js";
 import type { PrismaClient } from "@infra/prisma";
 
 function makeMockCredentialService(

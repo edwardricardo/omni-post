@@ -364,7 +364,7 @@ async function createApp(): Promise<FastifyInstance> {
   try {
     const { initSentry } = await import("./observability/sentryInit.js");
     const credService = container.resolve<
-      import("./security/PlatformCredentialService.js").PlatformCredentialService
+      import("@core/application/security/PlatformCredentialService.js").PlatformCredentialService
     >(TOKENS.PlatformCredentialService);
     const monitoringCreds = await credService.getGroup("MONITORING");
     if (monitoringCreds.ok) {

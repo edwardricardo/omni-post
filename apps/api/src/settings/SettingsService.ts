@@ -9,7 +9,7 @@
 import { ok, err, type Result } from "@shared/types";
 import type { PrismaClient } from "@infra/prisma";
 import type { CredentialGroup } from "@core/domain/value-objects/CredentialGroup.js";
-import type { PlatformCredentialService } from "../security/PlatformCredentialService.js";
+import type { PlatformCredentialService } from "@core/application/security/PlatformCredentialService.js";
 import { CREDENTIAL_KEYS, NON_SECRET_KEYS } from "@core/application/settings/credentialKeys.js";
 
 type SettingsError =

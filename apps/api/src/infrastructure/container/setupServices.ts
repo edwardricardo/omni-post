@@ -71,7 +71,7 @@ import type { EncryptionPort } from "@core/domain/repositories/EncryptionPort.js
 import { PrismaPlatformCredentialRepository } from "../repositories/PrismaPlatformCredentialRepository.js";
 import type { PlatformCredentialRepository } from "@core/domain/repositories/PlatformCredentialRepository.js";
 import { ChannelCredentialsCrypto } from "../../security/ChannelCredentialsCrypto.js";
-import { PlatformCredentialService } from "../../security/PlatformCredentialService.js";
+import { PlatformCredentialService } from "@core/application/security/PlatformCredentialService.js";
 import { SettingsService } from "../../settings/SettingsService.js";
 import { UpcasterChain } from "../integration-events/EventUpcaster.js";
 import { NotificationBroadcaster } from "../../services/NotificationBroadcaster.js";
