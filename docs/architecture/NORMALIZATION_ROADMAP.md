@@ -107,7 +107,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 ---
 
-### 1.4 Test env normalization — `P1` · `S` · `STATUS: DONE (TBD-sha)`
+### 1.4 Test env normalization — `P1` · `S` · `STATUS: DONE (d0961f5)`
 
 **Qué:** Hoy `pnpm exec vitest run <single-file>` falla con env-validation errors porque vitest no carga `.env.test` cuando corres un archivo aislado. Lo vimos 3+ veces durante S3.4c/S4.1/S4.3.
 
