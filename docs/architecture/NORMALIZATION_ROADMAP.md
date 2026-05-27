@@ -143,7 +143,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 ---
 
-### 1.6 Auto-load feedback memories via `@`-imports en CLAUDE.local.md — `P2` · `M` · `STATUS: PENDING`
+### 1.6 Auto-load feedback memories via `@`-imports en CLAUDE.local.md — `P2` · `M` · `STATUS: DONE (TBD-sha)`
 
 **Qué:** Replicar el approach de `@`-import (canon en §1.2) para los feedback memories de Claude (`~/.claude/projects/-root-omni-post/memory/feedback_*.md`). Hoy solo las primeras 200 líneas / 25KB de `MEMORY.md` se auto-cargan; cada `feedback_*.md` individual requiere que Claude lo lea manualmente cuando MEMORY.md lo lista como relevante. Resultado: feedback discipline depende de mi consciencia en cada turno (probadamente falible).
 
@@ -157,7 +157,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 **Dependencias:** §1.2 (probar el `@`-import pattern primero — DONE). Empezar tras esto.
 
-**Definition of done:** subset curado de feedbacks (5-10) auto-cargado vía `@`-imports en `CLAUDE.local.md`, verificado vía `/memory`. Re-evaluación al cierre: ¿reduce las repeticiones de Edward? Si sí, expandir el subset.
+**Definition of done:** subset curado de feedbacks (5-10) auto-cargado vía `@`-imports en `CLAUDE.local.md`, verificado vía `/memory`. Re-evaluación al cierre: ¿reduce las repeticiones de Edward? Si sí, expandir el subset. ✅ Closure: 51 feedback memories consolidados en 5 archivos temáticos (`~/.claude/feedback/workflow.md`, `canon-research.md`, `audit-deletion.md`, `runtime-contract.md`, `tools-infra.md`, ~960 LOC total); `CLAUDE.local.md` creado en repo root (gitignored) con `@`-imports a los 5; originales archivados en `~/.claude/projects/-root-omni-post/memory/feedback_archive/`; `MEMORY.md` Feedback section colapsada a un puntero. Re-evaluación post-uso pendiente.
 
 ---
 
