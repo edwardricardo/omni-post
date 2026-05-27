@@ -250,7 +250,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 ---
 
-### 3.2 Provider sandbox + contract tests — `P1` · `L` · `STATUS: DONE-Phase-A1 (TBD-sha)` · follow-ups §3.2.b/c/d
+### 3.2 Provider sandbox + contract tests — `P1` · `L` · `STATUS: DONE-Phase-A1 (30dc599)` · follow-ups §3.2.b/c/d
 
 **Qué:** 11 social providers + Stripe + Paddle. Hoy todos están unit-tested con mocks (`vi.fn()` de HTTP). **No atrapan** cambios de API upstream. Recomendación:
 
