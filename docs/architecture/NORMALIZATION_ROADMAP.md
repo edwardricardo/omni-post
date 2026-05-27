@@ -219,7 +219,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 > Objetivo: prevenir regressions silenciosas en boundaries externos (frontend↔backend) y upstream APIs (providers).
 
-### 3.1 OpenAPI auto-gen + tipos frontend — `P1` · `M` · `STATUS: DONE-Phase-A1 (TBD-sha)` · follow-up §3.1.b
+### 3.1 OpenAPI auto-gen + tipos frontend — `P1` · `M` · `STATUS: DONE-Phase-A1 (f478128)` · follow-up §3.1.b
 
 **Qué:** Fastify es schema-first; podemos exportar OpenAPI spec auto-generado, consumido por admin/client como **tipos generados** vía `openapi-typescript`.
 
