@@ -9,7 +9,7 @@ import { requireAdminAuth } from "./auth/adminAuthMiddleware.js";
 import { AnalyticsRouteHandler } from "./AnalyticsHandlers.js";
 import { AnalyticsAccountHandler } from "./AnalyticsAccountHandlers.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
-import { Permission } from "../auth/rbacService.js";
+import { Permission } from "@core/domain/auth/Permission.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
 /**

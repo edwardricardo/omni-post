@@ -6,7 +6,7 @@
  */
 import { FastifyRequest, FastifyReply } from "fastify";
 import type { RbacService } from "./rbacService.js";
-import { Permission } from "./rbacService.js";
+import { Permission } from "@core/domain/auth/Permission.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { authLogger } from "../lib/logger.js";
 import { env } from "../config/env.js";

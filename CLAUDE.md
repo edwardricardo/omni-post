@@ -1086,6 +1086,16 @@ grep -rnE "\.(addRepeatable|getRepeatableJobs|removeRepeatableByKey|removeRepeat
 grep -rlE "import \{[^}]*\bprisma\b[^}]*\} from \"@infra/prisma\"" \
   apps/api/src apps/workers/src --include="*.ts" | \
   grep -vE "/infrastructure/container/|/index\.ts$|/container/|\.test\.|/tests/" | wc -l
+
+# 22. No `@layer application` files in apps/api/src — application code lives
+# in `packages/core/application/` after the application-services-to-core
+# workstream (S1'→S4). Adding `@layer application` inside apps/api/src
+# reintroduces the inverted-dependency smell the workstream eliminated;
+# new application-layer code MUST go to `packages/core/application/<context>/`
+# and apps/api consumers import it as `@core/application/<context>/<Service>.js`.
+# Scope: apps/api/src. Hard-zero (S5 closed the workstream — count = 0 at
+# branch tip).
+grep -rlE "^\s*\*\s*@layer application\s*$" apps/api/src --include="*.ts" | wc -l
 ```
 
 **Extending the suite.** Adding a new fitness check requires three coordinated edits, in order:

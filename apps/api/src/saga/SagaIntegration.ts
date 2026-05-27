@@ -47,7 +47,7 @@ import { createRedisConnection } from "../lib/redis.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
-import { Permission } from "../auth/rbacService.js";
+import { Permission } from "@core/domain/auth/Permission.js";
 import { SecureSchemas } from "../security/inputValidation.js";
 import { ProjectId, AccountId, PostId } from "@core/domain/value-objects/EntityId.js";
 import type { ProjectRepositoryPort } from "@core/domain/repositories/ProjectRepository.js";

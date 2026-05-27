@@ -10,7 +10,7 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { requireAdminAuth } from "./auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
-import { Permission } from "../auth/rbacService.js";
+import { Permission } from "@core/domain/auth/Permission.js";
 import type { AdminAuthService } from "./auth/AdminAuthService.js";
 import type { AdminUserAdminService } from "./AdminUserAdminService.js";
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";

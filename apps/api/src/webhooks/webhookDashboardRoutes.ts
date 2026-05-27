@@ -9,7 +9,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
-import { Permission } from "../auth/rbacService.js";
+import { Permission } from "@core/domain/auth/Permission.js";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { WebhookDashboardService } from "./webhookDashboardService.js";

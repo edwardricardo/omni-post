@@ -405,12 +405,32 @@ jobs:
             exit 1
           fi
 
+      - name: "#22 No @layer application in apps/api/src (application code lives in @core/application)"
+        if: always()
+        run: |
+          set -uo pipefail
+          # Workstream application-services-to-core (S1' -> S4) relocated every
+          # @layer application file from apps/api/src to packages/core/application/.
+          # Re-introducing @layer application in apps/api/src reverses that move
+          # and reintroduces the inverted-dependency smell. New application-layer
+          # code MUST go to packages/core/application/<context>/ and apps/api
+          # consumers import it as @core/application/<context>/<Service>.js.
+          # Hard-zero (S5 closed the workstream).
+          MATCHES=$(grep -rlE "^[[:space:]]*\*[[:space:]]*@layer application[[:space:]]*$" apps/api/src --include="*.ts" 2>/dev/null || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #22 violation::$COUNT @layer application file(s) in apps/api/src. Move the file to packages/core/application/<context>/ and repoint consumers via @core/application/<context>/<Service>.js."
+            printf "%s\n" "$MATCHES" | head -40
+            exit 1
+          fi
+
       - name: Fitness summary
         if: always()
         run: |
           echo "## Fitness Functions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "21 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
+          echo "22 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
           echo "Hard-zero threshold: any new occurrence fails this workflow with an \`::error\` annotation." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "See individual step results above for any violations." >> $GITHUB_STEP_SUMMARY

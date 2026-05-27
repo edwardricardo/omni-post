@@ -4,7 +4,7 @@
  *              backed by the Role / RolePermission tables instead of a
  *              hardcoded map. SUPER_ADMIN always receives all permissions
  *              regardless of the DB contents.
- * @layer application
+ * @layer infrastructure
  */
 
 import { ok, err, type Result } from "@shared/types";
@@ -15,10 +15,6 @@ import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepos
 import type { RoleRepository } from "@core/domain/repositories/RoleRepository.js";
 import { Permission } from "@core/domain/auth/Permission.js";
 import { authLogger } from "../lib/logger.js";
-
-// Re-export so existing imports (`import { Permission } from "./rbacService.js"`)
-// keep resolving without churn. Canonical home is @core/domain/auth/Permission.
-export { Permission };
 
 // ---------------------------------------------------------------------------
 // Types

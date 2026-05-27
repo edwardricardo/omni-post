@@ -24,7 +24,7 @@ import type { ChannelCredentialsCrypto } from "../security/ChannelCredentialsCry
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
-import { Permission } from "../auth/rbacService.js";
+import { Permission } from "@core/domain/auth/Permission.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { PrismaClient } from "@infra/prisma";
 import { BlueskyClient } from "@providers/bluesky";

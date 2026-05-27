@@ -16,7 +16,7 @@ import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.
 import type { AuditService } from "./auditService.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
-import { Permission } from "../auth/rbacService.js";
+import { Permission } from "@core/domain/auth/Permission.js";
 import { SecureSchemas } from "../security/inputValidation.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 

@@ -11,7 +11,7 @@ import { IdSchema } from "@packages/api-common";
 import type { MfaService } from "./mfaService.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "./rbacMiddleware.js";
-import { Permission } from "./rbacService.js";
+import { Permission } from "@core/domain/auth/Permission.js";
 import { requireClientAuth } from "./customerAuthMiddleware.js";
 import type { AuditService } from "../audit/auditService.js";
 import type { AuthenticatedUser } from "./authService.js";

@@ -9,7 +9,7 @@ import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { IdSchema } from "@packages/api-common";
-import { Permission } from "./rbacService.js";
+import { Permission } from "@core/domain/auth/Permission.js";
 import type { RbacService } from "./rbacService.js";
 import { RoleManagementService } from "@core/application/auth/RoleManagementService.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";

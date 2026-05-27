@@ -8,7 +8,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
-import { Permission } from "../auth/rbacService.js";
+import { Permission } from "@core/domain/auth/Permission.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { ComplianceService } from "@core/application/compliance/ComplianceService.js";
 import {

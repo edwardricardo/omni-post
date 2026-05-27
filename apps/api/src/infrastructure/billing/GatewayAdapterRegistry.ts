@@ -12,8 +12,6 @@ import { StripePaymentAdapter, type StripeConfig } from "./StripePaymentAdapter.
 import { PaddlePaymentAdapter, type PaddleConfig } from "./PaddlePaymentAdapter.js";
 import type { GatewayAdapterRegistryPort } from "@core/domain/repositories/GatewayAdapterRegistryPort.js";
 
-export type { GatewayAdapterRegistryPort };
-
 interface GatewayRegistryConfig {
   stripe: StripeConfig;
   paddle: PaddleConfig;

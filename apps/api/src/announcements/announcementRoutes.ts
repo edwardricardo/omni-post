@@ -10,7 +10,7 @@ import type { PrismaClient } from "@infra/prisma";
 import { z } from "zod";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
-import { Permission } from "../auth/rbacService.js";
+import { Permission } from "@core/domain/auth/Permission.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
 const createSchema = z.object({
