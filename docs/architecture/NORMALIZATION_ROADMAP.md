@@ -127,7 +127,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 ---
 
-### 1.5 Mover este roadmap + referenciar desde CLAUDE.md — `P2` · `S` · `STATUS: PENDING`
+### 1.5 Mover este roadmap + referenciar desde CLAUDE.md — `P2` · `S` · `STATUS: DONE (TBD-sha)`
 
 **Qué:** El propio doc que estás leyendo (`docs/architecture/NORMALIZATION_ROADMAP.md`) vive en docs/architecture/. Necesita:
 
@@ -139,7 +139,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 **Dependencias:** ninguna.
 
-**Definition of done:** este doc existe + 2 links desde otros files + entrada en MEMORY.
+**Definition of done:** este doc existe + 2 links desde otros files + entrada en MEMORY. ✅ Closure: link añadido en `CLAUDE.md §Documentation Policy` + entrada en memoria `project_workstreams_index.md`. Links pre-existentes en `docs/product/IMPLEMENTATION_PLAN_ES.md`, ADR-0009/10/11, `docs/architecture/secrets-and-env.md`, `docs/security/MULTI_TENANT_AUDIT_2026-05-27.md`.
 
 ---
 

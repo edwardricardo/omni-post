@@ -143,6 +143,8 @@ To rebuild a graph manually: `cd <target> && graphify update .` (sub-second for 
 | `docs/admin/`        | Admin-specific operational docs                                                                                                                                                    |
 | `docs/client/`       | Client-facing documentation                                                                                                                                                        |
 
+**Normalization Roadmap.** Cross-cutting improvements to architecture, security, DX, and operational quality are tracked in [docs/architecture/NORMALIZATION_ROADMAP.md](docs/architecture/NORMALIZATION_ROADMAP.md). Each item has a `STATUS` (PENDING / DONE) and a commit SHA on closure; consult before starting any non-feature work to avoid duplicating an in-flight item.
+
 ---
 
 ## Architecture — Hexagonal (Ports & Adapters)
