@@ -54,6 +54,8 @@ export * from "./repositories/PlatformCredentialReader.js";
 export * from "./repositories/PlatformCredentialRepository.js";
 export * from "./repositories/PlatformEncryptionKeyRepository.js";
 export * from "./repositories/AiTokenUsageReader.js";
+export * from "./repositories/AccountBillingRepository.js";
+export * from "./repositories/AccountSubscriptionBillingRepository.js";
 export * from "./repositories/EncryptionPort.js";
 export * from "./repositories/ReferralRewardMailer.js";
 export * from "./repositories/WelcomeMailer.js";

@@ -567,6 +567,10 @@ export const TOKENS = {
   SettingsService: Symbol.for("SettingsService"),
   PlatformEncryptionKeyRepository: Symbol.for("PlatformEncryptionKeyRepository"),
   AiTokenUsageReader: Symbol.for("AiTokenUsageReader"),
+
+  // Gateway billing (S3.4 ports — scaffolded for GatewayBillingService refactor)
+  AccountBillingRepository: Symbol.for("AccountBillingRepository"),
+  AccountSubscriptionBillingRepository: Symbol.for("AccountSubscriptionBillingRepository"),
 } as const;
 
 /**

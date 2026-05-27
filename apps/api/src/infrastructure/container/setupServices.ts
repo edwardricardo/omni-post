@@ -74,6 +74,10 @@ import { PrismaPlatformEncryptionKeyRepository } from "../repositories/PrismaPla
 import type { PlatformEncryptionKeyRepository } from "@core/domain/repositories/PlatformEncryptionKeyRepository.js";
 import { PrismaAiTokenUsageRepository } from "../repositories/PrismaAiTokenUsageRepository.js";
 import type { AiTokenUsageReader } from "@core/domain/repositories/AiTokenUsageReader.js";
+import { PrismaAccountBillingRepository } from "../repositories/PrismaAccountBillingRepository.js";
+import type { AccountBillingRepository } from "@core/domain/repositories/AccountBillingRepository.js";
+import { PrismaAccountSubscriptionBillingRepository } from "../repositories/PrismaAccountSubscriptionBillingRepository.js";
+import type { AccountSubscriptionBillingRepository } from "@core/domain/repositories/AccountSubscriptionBillingRepository.js";
 import { ChannelCredentialsCrypto } from "../../security/ChannelCredentialsCrypto.js";
 import { PlatformCredentialService } from "@core/application/security/PlatformCredentialService.js";
 import { SettingsService } from "@core/application/settings/SettingsService.js";
@@ -778,6 +782,19 @@ export function setupServices(
   container.register<AiTokenUsageReader>(
     TOKENS.AiTokenUsageReader,
     () => new PrismaAiTokenUsageRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  // Account billing adapter (S3.4 scaffolding) — implements AccountBillingRepository
+  // (raw read/write of billing-specific fields on the Account row).
+  container.register<AccountBillingRepository>(
+    TOKENS.AccountBillingRepository,
+    () => new PrismaAccountBillingRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  // Account-subscription billing adapter (S3.4 scaffolding).
+  container.register<AccountSubscriptionBillingRepository>(
+    TOKENS.AccountSubscriptionBillingRepository,
+    () => new PrismaAccountSubscriptionBillingRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
   // Register Settings Service
