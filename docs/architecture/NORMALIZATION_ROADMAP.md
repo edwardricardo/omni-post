@@ -88,7 +88,7 @@ CLAUDE.md operativo queda ágil; los 4 hijos se cargan bajo demanda cuando el co
 
 ---
 
-### 1.3 Sección "Cuándo NO seguir el canon" en CLAUDE.md — `P2` · `S` · `STATUS: PENDING`
+### 1.3 Sección "Cuándo NO seguir el canon" en CLAUDE.md — `P2` · `S` · `STATUS: DONE (TBD-sha)`
 
 **Qué:** Añadir una sección §"Pragmatic Exceptions" con escenarios donde es OK saltarse parte del canon:
 
@@ -103,7 +103,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 **Dependencias:** después de 1.2 (split), porque la sección va en CLAUDE.md operativo.
 
-**Definition of done:** sección §"Pragmatic Exceptions" en CLAUDE.md con 4-6 escenarios documentados + ejemplo de ADR follow-up obligatorio.
+**Definition of done:** sección §"Pragmatic Exceptions" en CLAUDE.md con 4-6 escenarios documentados + ejemplo de ADR follow-up obligatorio. ✅ Closure: sección añadida en CLAUDE.md (líneas 174-237) con tabla de 6 escenarios permitidos (migration, prototype, hotpatch, spike, test-fixture, generated code), lista explícita de "forbidden — no exception" (security/multi-tenant/DI/@layer), ADR template + reviewer protocol + audit grep command. CLAUDE.md ahora 528 líneas (sigue < 550 bound).
 
 ---
 
