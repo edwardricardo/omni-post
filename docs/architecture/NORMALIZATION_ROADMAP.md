@@ -147,7 +147,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 > Objetivo: cerrar gaps de seguridad que crecen con cada feature nueva. Una vez cerrados, dejas de pagar interés sobre el technical debt.
 
-### 2.1 Multi-tenant isolation guards — `P0` · `L` · `STATUS: PENDING`
+### 2.1 Multi-tenant isolation guards — `P0` · `L` · `STATUS: DONE (S2.1a 14ccd64 · S2.1b f9b8db8 · S2.1c 4b29ac8 · S2.1d 468a608)`
 
 **Qué:** En un SaaS multi-tenant, **un missed `where: { accountId }` = data leak entre cuentas**. Hoy depende de que cada use case lo recuerde. Necesitamos defense-in-depth.
 
@@ -163,11 +163,12 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 **Definition of done:**
 
-- Lista de tablas multi-tenant en `docs/security/MULTI_TENANT_GUARDS.md`
-- Prisma middleware activo + tests
-- RLS migration applied + tests E2E que verifican que session-var works
-- Fitness #23 hard-zero en CI
-- ADR 0013 documentando la decisión 3-capas
+- ✅ Lista de tablas multi-tenant en `docs/security/MULTI_TENANT_GUARDS.md`
+- ✅ Prisma `$extends` guard activo + 19 unit tests
+- ✅ RLS migration applied (51 policies) + 11 integration tests via non-superuser role
+- ✅ Fitness #23 hard-zero en CI
+- ✅ Audit retroactiva + pgvector fixes (`docs/security/MULTI_TENANT_AUDIT_2026-05-27.md`)
+- ⏭ ADR 0014 (TBD) — deferred al rotation pass; el detalle vive ya en MULTI_TENANT_GUARDS.md
 
 ---
 
