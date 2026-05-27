@@ -4,12 +4,21 @@
   "type": "module",
   "main": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./test-utils/msw-helpers": "./src/test-utils/msw-helpers.ts"
   },
   "dependencies": {
     "@ports/core": "workspace:*",
     "@shared/types": "workspace:*",
     "pino": "10.3.1"
+  },
+  "peerDependencies": {
+    "msw": "2.x"
+  },
+  "peerDependenciesMeta": {
+    "msw": {
+      "optional": true
+    }
   },
   "scripts": {
     "test": "vitest run",

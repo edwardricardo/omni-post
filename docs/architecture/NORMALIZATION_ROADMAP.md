@@ -250,7 +250,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 ---
 
-### 3.2 Provider sandbox + contract tests — `P1` · `L` · `STATUS: PENDING`
+### 3.2 Provider sandbox + contract tests — `P1` · `L` · `STATUS: DONE-Phase-A1 (TBD-sha)` · follow-ups §3.2.b/c/d
 
 **Qué:** 11 social providers + Stripe + Paddle. Hoy todos están unit-tested con mocks (`vi.fn()` de HTTP). **No atrapan** cambios de API upstream. Recomendación:
 
@@ -268,6 +268,16 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 - Nightly job que corre estos tests
 - Sentry alert si falla
 - Runbook `docs/runbooks/provider-contract-failure.md`
+
+✅ **Phase A1 closure:** railroad MSW + proof-of-concept en Telegram (2 tests verdes). `msw@2.14.3` instalado (root devDeps, pinned). `packages/providers/shared/src/test-utils/msw-helpers.ts` con wrapper canónico. Alias vitest agregado a telegram. Template `_template/tests/integration/sandbox.template.test.ts` listo para copy-paste. Doc canon en `docs/architecture/provider-testing.md`. Tests `vi.fn()` existentes siguen verde (zero regression).
+
+⏭ **Phase B / §3.2.b PENDING**: migrar 10 providers restantes a MSW handlers (~20h trabajo progresivo). Cada uno: agregar alias `@providers/shared/test-utils` al vitest.config + migrar ≥1 test.
+
+⏭ **Phase C / §3.2.c PENDING**: provisioning de sandbox apps por provider (Edward, fuera del repo) + GitHub Actions Secrets + implementar real assertions en cada `sandbox.test.ts`.
+
+⏭ **Phase D / §3.2.d PENDING**: `.github/workflows/provider-sandbox.yml` nightly + Sentry/issue alert chain. 30-50 LOC bloqueados por `omnipost-allow sensitive-edit` token (mismo issue que §2.2.a-CI / §3.1.b CI gate).
+
+**Out of scope (Stripe/Paddle)**: estos viven en `apps/api/src/billing/` adapters, NO en `packages/providers/`. Si quieren su propio sandbox testing → workstream §3.3 separado.
 
 ---
 

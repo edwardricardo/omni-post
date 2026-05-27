@@ -34,6 +34,11 @@ export default defineConfig({
         "packages/adapters/fallback-strategies/src/index.ts"
       ),
       "@observability/logger": path.join(root, "packages/observability/logger/src/index.ts"),
+      // More-specific subpath alias before the bare one — `@providers/shared`
+      // resolves to `src/index.ts` (a file), so subpath imports like
+      // `@providers/shared/test-utils/msw-helpers` would otherwise fail
+      // con ENOTDIR. §3.2 Normalization Roadmap.
+      "@providers/shared/test-utils": path.join(root, "packages/providers/shared/src/test-utils"),
       "@providers/shared": path.join(root, "packages/providers/shared/src/index.ts"),
     },
   },
