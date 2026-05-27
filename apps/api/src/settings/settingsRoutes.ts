@@ -9,7 +9,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { requireAdminAuth, requireSuperAdmin } from "../admin/auth/adminAuthMiddleware.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { SettingsService } from "./SettingsService.js";
+import type { SettingsService } from "@core/application/settings/SettingsService.js";
 import type { PlatformCredentialService } from "@core/application/security/PlatformCredentialService.js";
 import type { CredentialGroup } from "@core/domain/value-objects/CredentialGroup.js";
 import {

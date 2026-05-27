@@ -76,7 +76,7 @@ import { PrismaAiTokenUsageRepository } from "../repositories/PrismaAiTokenUsage
 import type { AiTokenUsageReader } from "@core/domain/repositories/AiTokenUsageReader.js";
 import { ChannelCredentialsCrypto } from "../../security/ChannelCredentialsCrypto.js";
 import { PlatformCredentialService } from "@core/application/security/PlatformCredentialService.js";
-import { SettingsService } from "../../settings/SettingsService.js";
+import { SettingsService } from "@core/application/settings/SettingsService.js";
 import { UpcasterChain } from "../integration-events/EventUpcaster.js";
 import { NotificationBroadcaster } from "../../services/NotificationBroadcaster.js";
 import { AnalyticsStreamBroadcaster } from "../../services/AnalyticsStreamBroadcaster.js";
