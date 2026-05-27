@@ -9,6 +9,7 @@
 import { Queue } from "bullmq";
 import type { Redis } from "ioredis";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
+import type { GatewaySwitchJobPort } from "@core/domain/repositories/GatewaySwitchJobPort.js";
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
@@ -23,7 +24,7 @@ interface SwitchJobData {
   type: "REMINDER" | "SUSPEND";
 }
 
-export class GatewaySwitchJobService {
+export class GatewaySwitchJobService implements GatewaySwitchJobPort {
   private queue: Queue<SwitchJobData>;
 
   constructor(redisConnection: Redis) {

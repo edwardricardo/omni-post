@@ -571,6 +571,11 @@ export const TOKENS = {
   // Gateway billing (S3.4 ports — scaffolded for GatewayBillingService refactor)
   AccountBillingRepository: Symbol.for("AccountBillingRepository"),
   AccountSubscriptionBillingRepository: Symbol.for("AccountSubscriptionBillingRepository"),
+  GatewaySwitchEventRepository: Symbol.for("GatewaySwitchEventRepository"),
+  BillingEventRepository: Symbol.for("BillingEventRepository"),
+  InvoiceRepository: Symbol.for("InvoiceRepository"),
+  ProviderBundleReader: Symbol.for("ProviderBundleReader"),
+  GatewaySwitchJobPort: Symbol.for("GatewaySwitchJobPort"),
 } as const;
 
 /**

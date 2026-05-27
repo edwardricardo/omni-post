@@ -20,6 +20,15 @@ import { GatewaySwitchJobService } from "../../billing/GatewaySwitchJobService.j
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
 import type { PrismaClient } from "@infra/prisma";
 import { createRedisConnection } from "../../lib/redis.js";
+import { PrismaGatewaySwitchEventRepository } from "../repositories/PrismaGatewaySwitchEventRepository.js";
+import type { GatewaySwitchEventRepository } from "@core/domain/repositories/GatewaySwitchEventRepository.js";
+import { PrismaBillingEventRepository } from "../repositories/PrismaBillingEventRepository.js";
+import type { BillingEventRepository } from "@core/domain/repositories/BillingEventRepository.js";
+import { PrismaInvoiceRepository } from "../repositories/PrismaInvoiceRepository.js";
+import type { InvoiceRepository } from "@core/domain/repositories/InvoiceRepository.js";
+import { PrismaProviderBundleRepository } from "../repositories/PrismaProviderBundleRepository.js";
+import type { ProviderBundleReader } from "@core/domain/repositories/ProviderBundleReader.js";
+import type { GatewaySwitchJobPort } from "@core/domain/repositories/GatewaySwitchJobPort.js";
 
 export function setupBillingUseCases(container: Container): void {
   // Gateway Adapter Registry — dual-gateway access (Stripe + Paddle)
@@ -38,6 +47,36 @@ export function setupBillingUseCases(container: Container): void {
       return new GatewaySwitchJobService(redis);
     },
     true // singleton
+  );
+
+  // S3.4b scaffolding — port aliases + new billing repositories. The
+  // GatewaySwitchJobPort token resolves to the existing job-service
+  // instance (which now declares `implements GatewaySwitchJobPort`).
+  container.register<GatewaySwitchJobPort>(
+    TOKENS.GatewaySwitchJobPort,
+    () => container.resolve<GatewaySwitchJobService>(TOKENS.GatewaySwitchJobService),
+    true
+  );
+  container.register<GatewaySwitchEventRepository>(
+    TOKENS.GatewaySwitchEventRepository,
+    () =>
+      new PrismaGatewaySwitchEventRepository(container.resolve<PrismaClient>(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<BillingEventRepository>(
+    TOKENS.BillingEventRepository,
+    () => new PrismaBillingEventRepository(container.resolve<PrismaClient>(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<InvoiceRepository>(
+    TOKENS.InvoiceRepository,
+    () => new PrismaInvoiceRepository(container.resolve<PrismaClient>(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<ProviderBundleReader>(
+    TOKENS.ProviderBundleReader,
+    () => new PrismaProviderBundleRepository(container.resolve<PrismaClient>(TOKENS.PrismaClient)),
+    true
   );
 
   // Gateway Billing Service — gateway switch lifecycle
