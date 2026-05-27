@@ -2,61 +2,84 @@
  * @file ComplianceService.test.ts
  * @description Unit tests for compliance service — GDPR/security settings,
  *   compliance scoring (11 checks), DSAR lifecycle, breach reports.
+ *   Post-S4.1 the service is framework-free; tests mock the 6 ports + audit.
  * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { ComplianceService } from "../../../src/compliance/ComplianceService.js";
-import type { PrismaClient } from "@infra/prisma";
-
-// ── Mock logger to avoid side effects ──────────────────────────────────────
-vi.mock("../../../src/lib/logger.js", () => ({
-  logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
-}));
+import type { GdprSettingsRepository } from "@core/domain/repositories/GdprSettingsRepository.js";
+import type { SecuritySettingsRepository } from "@core/domain/repositories/SecuritySettingsRepository.js";
+import type { DsarRequestRepository } from "@core/domain/repositories/DsarRequestRepository.js";
+import type { DataBreachReportRepository } from "@core/domain/repositories/DataBreachReportRepository.js";
+import type { AuditLogRetentionPort } from "@core/domain/repositories/AuditLogRetentionPort.js";
+import type { AccountNotificationReader } from "@core/domain/repositories/AccountNotificationReader.js";
+import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
+import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
 
 // ── Mock Factories ─────────────────────────────────────────────────────────
 
-function makeMockPrisma() {
+function makeGdprRepo(): GdprSettingsRepository {
   return {
-    gdprSettings: {
-      findFirst: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-    },
-    securitySettings: {
-      findFirst: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-    },
-    auditLog: {
-      create: vi.fn(),
-      count: vi.fn().mockResolvedValue(5),
-    },
-    dsarRequest: {
-      findMany: vi.fn().mockResolvedValue([]),
-      findUnique: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      count: vi.fn().mockResolvedValue(0),
-    },
-    dataBreachReport: {
-      findMany: vi.fn().mockResolvedValue([]),
-      findUnique: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      count: vi.fn().mockResolvedValue(0),
-    },
-    account: {
-      findMany: vi.fn().mockResolvedValue([]),
-    },
+    findSingleton: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    createDefault: vi.fn(),
+    update: vi.fn(),
   };
 }
 
-function makeMockEmailPort() {
-  return { send: vi.fn().mockResolvedValue({ ok: true, value: undefined }) };
+function makeSecurityRepo(): SecuritySettingsRepository {
+  return {
+    findSingleton: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    createDefault: vi.fn(),
+    update: vi.fn(),
+  };
 }
 
-function makeGdprSettings(overrides = {}) {
+function makeDsarRepo(): DsarRequestRepository {
+  return {
+    listWithAccount: vi.fn().mockResolvedValue({ ok: true, value: { requests: [], total: 0 } }),
+    findByIdWithAccount: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    findById: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    countPendingByEmail: vi.fn().mockResolvedValue({ ok: true, value: 0 }),
+    create: vi.fn(),
+    update: vi.fn(),
+    markOverdueAsExpired: vi.fn().mockResolvedValue({ ok: true, value: 0 }),
+  };
+}
+
+function makeBreachRepo(): DataBreachReportRepository {
+  return {
+    list: vi.fn().mockResolvedValue({ ok: true, value: { reports: [], total: 0 } }),
+    findById: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    create: vi.fn(),
+    update: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+  };
+}
+
+function makeAuditLogRetention(): AuditLogRetentionPort {
+  return {
+    countSince: vi.fn().mockResolvedValue({ ok: true, value: 5 }),
+    deleteOlderThan: vi.fn().mockResolvedValue({ ok: true, value: 0 }),
+  };
+}
+
+function makeAccountNotifications(): AccountNotificationReader {
+  return {
+    listActiveEmails: vi.fn().mockResolvedValue({ ok: true, value: [] }),
+  };
+}
+
+function makeAuditEmitter(): AuditEmitterPort {
+  return { emit: vi.fn().mockResolvedValue(undefined) };
+}
+
+function makeMockEmailPort(): EmailPort {
+  return {
+    send: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+  } as unknown as EmailPort;
+}
+
+function makeGdprSettings(overrides: Record<string, unknown> = {}) {
   return {
     id: "gdpr-001",
     privacyPolicyUrl: "https://example.com/privacy",
@@ -80,7 +103,7 @@ function makeGdprSettings(overrides = {}) {
   };
 }
 
-function makeSecuritySettings(overrides = {}) {
+function makeSecuritySettings(overrides: Record<string, unknown> = {}) {
   return {
     id: "sec-001",
     require2FA: false,
@@ -97,56 +120,83 @@ function makeSecuritySettings(overrides = {}) {
   };
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-function createService(prisma: ReturnType<typeof makeMockPrisma>, emailPort = makeMockEmailPort()) {
-  return new ComplianceService(prisma as unknown as PrismaClient, emailPort);
+interface Bag {
+  gdpr: GdprSettingsRepository;
+  security: SecuritySettingsRepository;
+  dsar: DsarRequestRepository;
+  breach: DataBreachReportRepository;
+  auditLog: AuditLogRetentionPort;
+  notifications: AccountNotificationReader;
+  audit: AuditEmitterPort;
+  email: EmailPort;
 }
 
-/**
- * Configures prisma mocks so getGdprSettings / getSecuritySettings return
- * the supplied objects (via findFirst).
- */
+function createService(bag: Bag): ComplianceService {
+  return new ComplianceService(
+    bag.gdpr,
+    bag.security,
+    bag.dsar,
+    bag.breach,
+    bag.auditLog,
+    bag.notifications,
+    bag.email,
+    bag.audit
+  );
+}
+
 function stubSettings(
-  prisma: ReturnType<typeof makeMockPrisma>,
-  gdpr = makeGdprSettings(),
-  security = makeSecuritySettings()
-) {
-  prisma.gdprSettings.findFirst.mockResolvedValue(gdpr);
-  prisma.securitySettings.findFirst.mockResolvedValue(security);
+  bag: Bag,
+  gdpr: Record<string, unknown> = makeGdprSettings(),
+  security: Record<string, unknown> = makeSecuritySettings()
+): void {
+  (bag.gdpr.findSingleton as ReturnType<typeof vi.fn>).mockResolvedValue({
+    ok: true,
+    value: gdpr,
+  });
+  (bag.security.findSingleton as ReturnType<typeof vi.fn>).mockResolvedValue({
+    ok: true,
+    value: security,
+  });
+  (bag.gdpr.update as ReturnType<typeof vi.fn>).mockResolvedValue({
+    ok: true,
+    value: gdpr,
+  });
+  (bag.security.update as ReturnType<typeof vi.fn>).mockResolvedValue({
+    ok: true,
+    value: security,
+  });
 }
-
-// ═══════════════════════════════════════════════════════════════════════════
-// updateGdprSettings — DPO validation
-// ═══════════════════════════════════════════════════════════════════════════
 
 describe("ComplianceService", () => {
-  let prisma: ReturnType<typeof makeMockPrisma>;
-  let emailPort: ReturnType<typeof makeMockEmailPort>;
+  let bag: Bag;
   let service: ComplianceService;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    prisma = makeMockPrisma();
-    emailPort = makeMockEmailPort();
-    service = createService(prisma, emailPort);
+    bag = {
+      gdpr: makeGdprRepo(),
+      security: makeSecurityRepo(),
+      dsar: makeDsarRepo(),
+      breach: makeBreachRepo(),
+      auditLog: makeAuditLogRetention(),
+      notifications: makeAccountNotifications(),
+      audit: makeAuditEmitter(),
+      email: makeMockEmailPort(),
+    };
+    service = createService(bag);
   });
 
   // ─── updateGdprSettings ────────────────────────────────────────────────
 
   describe("updateGdprSettings", () => {
-    beforeEach(() => {
-      stubSettings(prisma);
-      prisma.gdprSettings.update.mockResolvedValue(makeGdprSettings());
-    });
+    beforeEach(() => stubSettings(bag));
 
     it("returns VALIDATION_ERROR when dpoType=INTERNAL and dpoEmail is null", async () => {
       const result = await service.updateGdprSettings(
         { dpoType: "INTERNAL", dpoEmail: null },
         "admin-001"
       );
-
-      assert.ok(!result.ok, "Should fail validation");
+      assert.ok(!result.ok);
       assert.strictEqual(result.error, "VALIDATION_ERROR");
     });
 
@@ -155,8 +205,7 @@ describe("ComplianceService", () => {
         { dpoType: "INTERNAL", dpoEmail: "" },
         "admin-001"
       );
-
-      assert.ok(!result.ok, "Empty string is falsy, should fail validation");
+      assert.ok(!result.ok);
       assert.strictEqual(result.error, "VALIDATION_ERROR");
     });
 
@@ -165,8 +214,7 @@ describe("ComplianceService", () => {
         { dpoType: "EXTERNAL", dpoUrl: null },
         "admin-001"
       );
-
-      assert.ok(!result.ok, "Should fail validation");
+      assert.ok(!result.ok);
       assert.strictEqual(result.error, "VALIDATION_ERROR");
     });
 
@@ -175,8 +223,7 @@ describe("ComplianceService", () => {
         { dpoType: "EXTERNAL", dpoUrl: "" },
         "admin-001"
       );
-
-      assert.ok(!result.ok, "Empty string is falsy, should fail validation");
+      assert.ok(!result.ok);
       assert.strictEqual(result.error, "VALIDATION_ERROR");
     });
 
@@ -185,8 +232,7 @@ describe("ComplianceService", () => {
         { dpoType: "INTERNAL", dpoEmail: "dpo@example.com" },
         "admin-001"
       );
-
-      assert.ok(result.ok, "Should succeed with valid INTERNAL DPO email");
+      assert.ok(result.ok);
     });
 
     it("succeeds when dpoType=EXTERNAL and dpoUrl is valid", async () => {
@@ -194,57 +240,45 @@ describe("ComplianceService", () => {
         { dpoType: "EXTERNAL", dpoUrl: "https://dpo.example.com" },
         "admin-001"
       );
-
-      assert.ok(result.ok, "Should succeed with valid EXTERNAL DPO url");
+      assert.ok(result.ok);
     });
 
     it("returns VALIDATION_ERROR when dataRetentionDays < 30", async () => {
       const result = await service.updateGdprSettings({ dataRetentionDays: 29 }, "admin-001");
-
-      assert.ok(!result.ok, "Should fail for retention days below minimum");
+      assert.ok(!result.ok);
       assert.strictEqual(result.error, "VALIDATION_ERROR");
     });
 
     it("returns VALIDATION_ERROR when dataRetentionDays > 3650", async () => {
       const result = await service.updateGdprSettings({ dataRetentionDays: 3651 }, "admin-001");
-
-      assert.ok(!result.ok, "Should fail for retention days above maximum");
+      assert.ok(!result.ok);
       assert.strictEqual(result.error, "VALIDATION_ERROR");
     });
 
     it("returns VALIDATION_ERROR when dsarResponseDays < 15", async () => {
       const result = await service.updateGdprSettings({ dsarResponseDays: 14 }, "admin-001");
-
-      assert.ok(!result.ok, "Should fail for DSAR days below minimum");
+      assert.ok(!result.ok);
       assert.strictEqual(result.error, "VALIDATION_ERROR");
     });
 
     it("returns VALIDATION_ERROR when dsarResponseDays > 45", async () => {
       const result = await service.updateGdprSettings({ dsarResponseDays: 46 }, "admin-001");
-
-      assert.ok(!result.ok, "Should fail for DSAR days above maximum");
+      assert.ok(!result.ok);
       assert.strictEqual(result.error, "VALIDATION_ERROR");
     });
 
     it("records updatedBy from provided userId", async () => {
-      const updatedSettings = makeGdprSettings({ updatedBy: "admin-999" });
-      prisma.gdprSettings.update.mockResolvedValue(updatedSettings);
-
       const result = await service.updateGdprSettings(
         { privacyPolicyUrl: "https://new.example.com/privacy" },
         "admin-999"
       );
-
-      assert.ok(result.ok, "Should succeed");
-      expect(prisma.gdprSettings.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ updatedBy: "admin-999" }),
-        })
+      assert.ok(result.ok);
+      expect(bag.gdpr.update).toHaveBeenCalledWith(
+        "gdpr-001",
+        expect.objectContaining({ updatedBy: "admin-999" })
       );
-      expect(prisma.auditLog.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ userId: "admin-999" }),
-        })
+      expect(bag.audit.emit).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: "admin-999", action: "GDPR_SETTINGS_UPDATED" })
       );
     });
   });
@@ -253,20 +287,15 @@ describe("ComplianceService", () => {
 
   describe("getComplianceScore", () => {
     it("returns score=100 when all 11 checks pass", async () => {
-      stubSettings(prisma, makeGdprSettings(), makeSecuritySettings());
-
+      stubSettings(bag);
       const { score, checks } = await service.getComplianceScore();
-
       assert.strictEqual(score, 100);
-      assert.ok(
-        checks.every((c) => c.passing),
-        "All checks should pass"
-      );
+      assert.ok(checks.every((c) => c.passing));
     });
 
     it("returns score=0 when all checks fail", async () => {
       stubSettings(
-        prisma,
+        bag,
         makeGdprSettings({
           privacyPolicyUrl: null,
           termsOfServiceUrl: null,
@@ -285,178 +314,143 @@ describe("ComplianceService", () => {
           maxLoginAttempts: 11,
         })
       );
-      prisma.auditLog.count.mockResolvedValue(0);
+      (bag.auditLog.countSince as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: 0,
+      });
 
       const { score, checks } = await service.getComplianceScore();
-
       assert.strictEqual(score, 0);
-      assert.ok(
-        checks.every((c) => !c.passing),
-        "All checks should fail"
-      );
+      assert.ok(checks.every((c) => !c.passing));
     });
 
     it("privacy_policy_url check has weight=12 and fails when null", async () => {
-      stubSettings(prisma, makeGdprSettings({ privacyPolicyUrl: null }), makeSecuritySettings());
-
+      stubSettings(bag, makeGdprSettings({ privacyPolicyUrl: null }), makeSecuritySettings());
       const { score, checks } = await service.getComplianceScore();
       const check = checks.find((c) => c.key === "privacy_policy_url");
-
-      assert.ok(check, "Check must exist");
+      assert.ok(check);
       assert.strictEqual(check.weight, 12);
       assert.strictEqual(check.passing, false);
       assert.strictEqual(score, 100 - 12);
     });
 
     it("terms_of_service_url check has weight=8 and fails when null", async () => {
-      stubSettings(prisma, makeGdprSettings({ termsOfServiceUrl: null }), makeSecuritySettings());
-
+      stubSettings(bag, makeGdprSettings({ termsOfServiceUrl: null }), makeSecuritySettings());
       const { score, checks } = await service.getComplianceScore();
       const check = checks.find((c) => c.key === "terms_of_service_url");
-
-      assert.ok(check, "Check must exist");
+      assert.ok(check);
       assert.strictEqual(check.weight, 8);
       assert.strictEqual(check.passing, false);
       assert.strictEqual(score, 100 - 8);
     });
 
     it("dpo_configured passes with INTERNAL+email, fails with INTERNAL+no email", async () => {
-      // Passing: INTERNAL with email
       stubSettings(
-        prisma,
+        bag,
         makeGdprSettings({ dpoType: "INTERNAL", dpoEmail: "dpo@example.com" }),
         makeSecuritySettings()
       );
-
       const passing = await service.getComplianceScore();
       const checkPass = passing.checks.find((c) => c.key === "dpo_configured");
-      assert.ok(checkPass, "Check must exist");
+      assert.ok(checkPass);
       assert.strictEqual(checkPass.weight, 12);
       assert.strictEqual(checkPass.passing, true);
 
-      // Failing: INTERNAL without email
       stubSettings(
-        prisma,
+        bag,
         makeGdprSettings({ dpoType: "INTERNAL", dpoEmail: null }),
         makeSecuritySettings()
       );
-
       const failing = await service.getComplianceScore();
       const checkFail = failing.checks.find((c) => c.key === "dpo_configured");
-      assert.ok(checkFail, "Check must exist");
+      assert.ok(checkFail);
       assert.strictEqual(checkFail.passing, false);
     });
 
     it("dpo_configured passes with EXTERNAL+url, fails with EXTERNAL+no url", async () => {
-      // Passing: EXTERNAL with url
       stubSettings(
-        prisma,
+        bag,
         makeGdprSettings({ dpoType: "EXTERNAL", dpoUrl: "https://dpo.example.com" }),
         makeSecuritySettings()
       );
-
       const passing = await service.getComplianceScore();
       const checkPass = passing.checks.find((c) => c.key === "dpo_configured");
-      assert.ok(checkPass, "Check must exist");
+      assert.ok(checkPass);
       assert.strictEqual(checkPass.passing, true);
 
-      // Failing: EXTERNAL without url
       stubSettings(
-        prisma,
+        bag,
         makeGdprSettings({ dpoType: "EXTERNAL", dpoUrl: null }),
         makeSecuritySettings()
       );
-
       const failing = await service.getComplianceScore();
       const checkFail = failing.checks.find((c) => c.key === "dpo_configured");
-      assert.ok(checkFail, "Check must exist");
+      assert.ok(checkFail);
       assert.strictEqual(checkFail.passing, false);
     });
 
     it("data_retention_set has weight=10 and fails when enableAutoDataDeletion=false", async () => {
       stubSettings(
-        prisma,
+        bag,
         makeGdprSettings({ enableAutoDataDeletion: false }),
         makeSecuritySettings()
       );
-
       const { score, checks } = await service.getComplianceScore();
       const check = checks.find((c) => c.key === "data_retention_set");
-
-      assert.ok(check, "Check must exist");
+      assert.ok(check);
       assert.strictEqual(check.weight, 10);
       assert.strictEqual(check.passing, false);
       assert.strictEqual(score, 100 - 10);
     });
 
     it("data_retention_set fails when dataRetentionDays=0", async () => {
-      stubSettings(prisma, makeGdprSettings({ dataRetentionDays: 0 }), makeSecuritySettings());
-
+      stubSettings(bag, makeGdprSettings({ dataRetentionDays: 0 }), makeSecuritySettings());
       const { checks } = await service.getComplianceScore();
       const check = checks.find((c) => c.key === "data_retention_set");
-
-      assert.ok(check, "Check must exist");
+      assert.ok(check);
       assert.strictEqual(check.passing, false);
     });
 
     it("session_timeout has weight=8 and fails when >480", async () => {
-      stubSettings(
-        prisma,
-        makeGdprSettings(),
-        makeSecuritySettings({ sessionTimeoutMinutes: 481 })
-      );
-
+      stubSettings(bag, makeGdprSettings(), makeSecuritySettings({ sessionTimeoutMinutes: 481 }));
       const { score, checks } = await service.getComplianceScore();
       const check = checks.find((c) => c.key === "session_timeout");
-
-      assert.ok(check, "Check must exist");
+      assert.ok(check);
       assert.strictEqual(check.weight, 8);
       assert.strictEqual(check.passing, false);
       assert.strictEqual(score, 100 - 8);
     });
 
     it("session_timeout passes at exactly 480 (boundary)", async () => {
-      stubSettings(
-        prisma,
-        makeGdprSettings(),
-        makeSecuritySettings({ sessionTimeoutMinutes: 480 })
-      );
-
+      stubSettings(bag, makeGdprSettings(), makeSecuritySettings({ sessionTimeoutMinutes: 480 }));
       const { checks } = await service.getComplianceScore();
       const check = checks.find((c) => c.key === "session_timeout");
-
-      assert.ok(check, "Check must exist");
+      assert.ok(check);
       assert.strictEqual(check.passing, true);
     });
 
     it("login_protection has weight=8 and passes at exactly 10 (boundary)", async () => {
-      stubSettings(prisma, makeGdprSettings(), makeSecuritySettings({ maxLoginAttempts: 10 }));
-
+      stubSettings(bag, makeGdprSettings(), makeSecuritySettings({ maxLoginAttempts: 10 }));
       const { checks } = await service.getComplianceScore();
       const check = checks.find((c) => c.key === "login_protection");
-
-      assert.ok(check, "Check must exist");
+      assert.ok(check);
       assert.strictEqual(check.weight, 8);
       assert.strictEqual(check.passing, true);
     });
 
     it("dsar_response_time has weight=7 and passes at exactly 30 (boundary)", async () => {
-      stubSettings(prisma, makeGdprSettings({ dsarResponseDays: 30 }), makeSecuritySettings());
-
+      stubSettings(bag, makeGdprSettings({ dsarResponseDays: 30 }), makeSecuritySettings());
       const { checks } = await service.getComplianceScore();
       const check = checks.find((c) => c.key === "dsar_response_time");
-
-      assert.ok(check, "Check must exist");
+      assert.ok(check);
       assert.strictEqual(check.weight, 7);
       assert.strictEqual(check.passing, true);
     });
 
     it("weights sum to 100", async () => {
-      stubSettings(prisma);
-
+      stubSettings(bag);
       const { checks } = await service.getComplianceScore();
       const totalWeight = checks.reduce((sum, c) => sum + c.weight, 0);
-
       assert.strictEqual(totalWeight, 100);
     });
   });
@@ -471,10 +465,10 @@ describe("ComplianceService", () => {
     };
 
     beforeEach(() => {
-      stubSettings(prisma);
-      prisma.dsarRequest.create.mockImplementation(async ({ data }) => ({
-        id: "dsar-001",
-        ...data,
+      stubSettings(bag);
+      (bag.dsar.create as ReturnType<typeof vi.fn>).mockImplementation(async (input) => ({
+        ok: true,
+        value: { id: "dsar-001", ...input },
       }));
     });
 
@@ -484,12 +478,11 @@ describe("ComplianceService", () => {
         ...baseDsarInput,
         jurisdiction: "LGPD",
       });
-
-      assert.ok(result.ok, "Should succeed");
+      assert.ok(result.ok);
       const deadline = result.value.deadlineAt.getTime();
       const expectedMin = before + 15 * 24 * 60 * 60 * 1000;
       const expectedMax = Date.now() + 15 * 24 * 60 * 60 * 1000;
-      assert.ok(deadline >= expectedMin && deadline <= expectedMax, "Deadline should be ~15 days");
+      assert.ok(deadline >= expectedMin && deadline <= expectedMax);
     });
 
     it("deadline +45 days for CCPA", async () => {
@@ -498,12 +491,11 @@ describe("ComplianceService", () => {
         ...baseDsarInput,
         jurisdiction: "CCPA",
       });
-
-      assert.ok(result.ok, "Should succeed");
+      assert.ok(result.ok);
       const deadline = result.value.deadlineAt.getTime();
       const expectedMin = before + 45 * 24 * 60 * 60 * 1000;
       const expectedMax = Date.now() + 45 * 24 * 60 * 60 * 1000;
-      assert.ok(deadline >= expectedMin && deadline <= expectedMax, "Deadline should be ~45 days");
+      assert.ok(deadline >= expectedMin && deadline <= expectedMax);
     });
 
     it("deadline +30 days for GDPR", async () => {
@@ -512,12 +504,11 @@ describe("ComplianceService", () => {
         ...baseDsarInput,
         jurisdiction: "GDPR",
       });
-
-      assert.ok(result.ok, "Should succeed");
+      assert.ok(result.ok);
       const deadline = result.value.deadlineAt.getTime();
       const expectedMin = before + 30 * 24 * 60 * 60 * 1000;
       const expectedMax = Date.now() + 30 * 24 * 60 * 60 * 1000;
-      assert.ok(deadline >= expectedMin && deadline <= expectedMax, "Deadline should be ~30 days");
+      assert.ok(deadline >= expectedMin && deadline <= expectedMax);
     });
 
     it("deadline +30 days for PIPEDA", async () => {
@@ -526,87 +517,77 @@ describe("ComplianceService", () => {
         ...baseDsarInput,
         jurisdiction: "PIPEDA",
       });
-
-      assert.ok(result.ok, "Should succeed");
+      assert.ok(result.ok);
       const deadline = result.value.deadlineAt.getTime();
       const expectedMin = before + 30 * 24 * 60 * 60 * 1000;
       const expectedMax = Date.now() + 30 * 24 * 60 * 60 * 1000;
-      assert.ok(deadline >= expectedMin && deadline <= expectedMax, "Deadline should be ~30 days");
+      assert.ok(deadline >= expectedMin && deadline <= expectedMax);
     });
 
     it("uses gdprSettings.dsarResponseDays for unknown jurisdiction", async () => {
       const customDays = 25;
-      prisma.gdprSettings.findFirst.mockResolvedValue(
-        makeGdprSettings({ dsarResponseDays: customDays, defaultJurisdiction: "GDPR" })
-      );
-
+      (bag.gdpr.findSingleton as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeGdprSettings({ dsarResponseDays: customDays, defaultJurisdiction: "GDPR" }),
+      });
       const before = Date.now();
       const result = await service.submitDsarRequest({
         ...baseDsarInput,
         jurisdiction: "UNKNOWN_JURISDICTION",
       });
-
-      assert.ok(result.ok, "Should succeed");
+      assert.ok(result.ok);
       const deadline = result.value.deadlineAt.getTime();
       const expectedMin = before + customDays * 24 * 60 * 60 * 1000;
       const expectedMax = Date.now() + customDays * 24 * 60 * 60 * 1000;
-      assert.ok(
-        deadline >= expectedMin && deadline <= expectedMax,
-        `Deadline should be ~${customDays} days (from dsarResponseDays)`
-      );
+      assert.ok(deadline >= expectedMin && deadline <= expectedMax);
     });
 
     it("returns RATE_LIMITED when 3 pending requests for same email", async () => {
-      prisma.dsarRequest.count.mockResolvedValue(3);
-
+      (bag.dsar.countPendingByEmail as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: 3,
+      });
       const result = await service.submitDsarRequest(baseDsarInput);
-
-      assert.ok(!result.ok, "Should be rate limited");
+      assert.ok(!result.ok);
       assert.strictEqual(result.error, "RATE_LIMITED");
     });
 
     it("succeeds when 2 pending requests (under limit)", async () => {
-      prisma.dsarRequest.count.mockResolvedValue(2);
-
+      (bag.dsar.countPendingByEmail as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: 2,
+      });
       const result = await service.submitDsarRequest(baseDsarInput);
-
-      assert.ok(result.ok, "Should succeed with 2 pending requests");
+      assert.ok(result.ok);
     });
 
     it("succeeds when 3 COMPLETED requests (not counted)", async () => {
-      // count mock returns 0 by default (only counts PENDING/IN_PROGRESS)
-      prisma.dsarRequest.count.mockResolvedValue(0);
-
+      (bag.dsar.countPendingByEmail as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: 0,
+      });
       const result = await service.submitDsarRequest(baseDsarInput);
-
-      assert.ok(result.ok, "Completed requests should not count toward rate limit");
+      assert.ok(result.ok);
     });
 
     it("generates verificationToken", async () => {
-      const result = await service.submitDsarRequest(baseDsarInput);
-
-      assert.ok(result.ok, "Should succeed");
-      expect(prisma.dsarRequest.create).toHaveBeenCalledWith(
+      await service.submitDsarRequest(baseDsarInput);
+      expect(bag.dsar.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({
-            verificationToken: expect.stringMatching(
-              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-            ),
-          }),
+          verificationToken: expect.stringMatching(
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+          ),
         })
       );
     });
 
-    it("writes to auditLog", async () => {
+    it("emits audit event", async () => {
       await service.submitDsarRequest(baseDsarInput);
-
-      expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect(bag.audit.emit).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({
-            action: "DSAR_SUBMITTED",
-            resource: "dsar_request",
-            success: true,
-          }),
+          action: "DSAR_SUBMITTED",
+          resourceType: "dsar_request",
+          success: true,
         })
       );
     });
@@ -615,18 +596,14 @@ describe("ComplianceService", () => {
   // ─── updateSecuritySettings ────────────────────────────────────────────
 
   describe("updateSecuritySettings", () => {
-    beforeEach(() => {
-      stubSettings(prisma);
-      prisma.securitySettings.update.mockResolvedValue(makeSecuritySettings());
-    });
+    beforeEach(() => stubSettings(bag));
 
     it("returns VALIDATION_ERROR when sessionTimeoutMinutes < 15", async () => {
       const result = await service.updateSecuritySettings(
         { sessionTimeoutMinutes: 14 },
         "admin-001"
       );
-
-      assert.ok(!result.ok, "Should fail validation");
+      assert.ok(!result.ok);
       assert.strictEqual(result.error, "VALIDATION_ERROR");
     });
 
@@ -635,22 +612,19 @@ describe("ComplianceService", () => {
         { sessionTimeoutMinutes: 10081 },
         "admin-001"
       );
-
-      assert.ok(!result.ok, "Should fail validation");
+      assert.ok(!result.ok);
       assert.strictEqual(result.error, "VALIDATION_ERROR");
     });
 
     it("returns VALIDATION_ERROR when maxLoginAttempts < 3", async () => {
       const result = await service.updateSecuritySettings({ maxLoginAttempts: 2 }, "admin-001");
-
-      assert.ok(!result.ok, "Should fail validation");
+      assert.ok(!result.ok);
       assert.strictEqual(result.error, "VALIDATION_ERROR");
     });
 
     it("returns VALIDATION_ERROR when passwordMinLength < 6", async () => {
       const result = await service.updateSecuritySettings({ passwordMinLength: 5 }, "admin-001");
-
-      assert.ok(!result.ok, "Should fail validation");
+      assert.ok(!result.ok);
       assert.strictEqual(result.error, "VALIDATION_ERROR");
     });
   });

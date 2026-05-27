@@ -78,6 +78,18 @@ import { PrismaAccountBillingRepository } from "../repositories/PrismaAccountBil
 import type { AccountBillingRepository } from "@core/domain/repositories/AccountBillingRepository.js";
 import { PrismaAccountSubscriptionBillingRepository } from "../repositories/PrismaAccountSubscriptionBillingRepository.js";
 import type { AccountSubscriptionBillingRepository } from "@core/domain/repositories/AccountSubscriptionBillingRepository.js";
+import { PrismaGdprSettingsRepository } from "../repositories/PrismaGdprSettingsRepository.js";
+import type { GdprSettingsRepository } from "@core/domain/repositories/GdprSettingsRepository.js";
+import { PrismaSecuritySettingsRepository } from "../repositories/PrismaSecuritySettingsRepository.js";
+import type { SecuritySettingsRepository } from "@core/domain/repositories/SecuritySettingsRepository.js";
+import { PrismaDsarRequestRepository } from "../repositories/PrismaDsarRequestRepository.js";
+import type { DsarRequestRepository } from "@core/domain/repositories/DsarRequestRepository.js";
+import { PrismaDataBreachReportRepository } from "../repositories/PrismaDataBreachReportRepository.js";
+import type { DataBreachReportRepository } from "@core/domain/repositories/DataBreachReportRepository.js";
+import { PrismaAuditLogRetentionRepository } from "../repositories/PrismaAuditLogRetentionRepository.js";
+import type { AuditLogRetentionPort } from "@core/domain/repositories/AuditLogRetentionPort.js";
+import { PrismaAccountNotificationRepository } from "../repositories/PrismaAccountNotificationRepository.js";
+import type { AccountNotificationReader } from "@core/domain/repositories/AccountNotificationReader.js";
 import { ChannelCredentialsCrypto } from "../../security/ChannelCredentialsCrypto.js";
 import { PlatformCredentialService } from "@core/application/security/PlatformCredentialService.js";
 import { SettingsService } from "@core/application/settings/SettingsService.js";
@@ -390,14 +402,51 @@ export function setupServices(
     true
   );
 
-  // Compliance
+  // Compliance — S4.1 ports (GdprSettings, SecuritySettings, DsarRequest,
+  // DataBreachReport, AuditLogRetention, AccountNotification).
+  container.register<GdprSettingsRepository>(
+    TOKENS.GdprSettingsRepository,
+    () => new PrismaGdprSettingsRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<SecuritySettingsRepository>(
+    TOKENS.SecuritySettingsRepository,
+    () => new PrismaSecuritySettingsRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<DsarRequestRepository>(
+    TOKENS.DsarRequestRepository,
+    () => new PrismaDsarRequestRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<DataBreachReportRepository>(
+    TOKENS.DataBreachReportRepository,
+    () => new PrismaDataBreachReportRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<AuditLogRetentionPort>(
+    TOKENS.AuditLogRetentionPort,
+    () => new PrismaAuditLogRetentionRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<AccountNotificationReader>(
+    TOKENS.AccountNotificationReader,
+    () => new PrismaAccountNotificationRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
   container.register<ComplianceService>(
     TOKENS.ComplianceService,
-    () => {
-      const p = container.resolve<import("@infra/prisma").PrismaClient>(TOKENS.PrismaClient);
-      const emailPort = container.resolve<EmailPort>(TOKENS.EmailPort);
-      return new ComplianceService(p, emailPort);
-    },
+    () =>
+      new ComplianceService(
+        container.resolve<GdprSettingsRepository>(TOKENS.GdprSettingsRepository),
+        container.resolve<SecuritySettingsRepository>(TOKENS.SecuritySettingsRepository),
+        container.resolve<DsarRequestRepository>(TOKENS.DsarRequestRepository),
+        container.resolve<DataBreachReportRepository>(TOKENS.DataBreachReportRepository),
+        container.resolve<AuditLogRetentionPort>(TOKENS.AuditLogRetentionPort),
+        container.resolve<AccountNotificationReader>(TOKENS.AccountNotificationReader),
+        container.resolve<EmailPort>(TOKENS.EmailPort),
+        container.resolve(TOKENS.AuditEmitterPort)
+      ),
     true
   );
   container.register<DlqArchivalService>(
@@ -412,7 +461,10 @@ export function setupServices(
     TOKENS.DataRetentionService,
     () =>
       new DataRetentionService(
-        container.resolve<import("@infra/prisma").PrismaClient>(TOKENS.PrismaClient)
+        container.resolve<GdprSettingsRepository>(TOKENS.GdprSettingsRepository),
+        container.resolve<AuditLogRetentionPort>(TOKENS.AuditLogRetentionPort),
+        container.resolve<DsarRequestRepository>(TOKENS.DsarRequestRepository),
+        container.resolve(TOKENS.AuditEmitterPort)
       ),
     true
   );

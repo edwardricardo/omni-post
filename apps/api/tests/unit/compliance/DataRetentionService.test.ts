@@ -1,32 +1,53 @@
 /**
  * @file DataRetentionService.test.ts
- * @description Unit tests for DataRetentionService — automated data retention cleanup
- *              including audit log deletion and DSAR request expiration.
+ * @description Unit tests for DataRetentionService — automated data
+ *   retention cleanup including audit log deletion and DSAR request
+ *   expiration. Post-S4.1 the service is framework-free; tests mock the
+ *   4 ports (GdprSettings, AuditLogRetention, DsarRequest, AuditEmitter).
  * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import type { PrismaClient } from "@infra/prisma";
 import { DataRetentionService } from "../../../src/compliance/DataRetentionService.js";
+import type { GdprSettingsRepository } from "@core/domain/repositories/GdprSettingsRepository.js";
+import type { AuditLogRetentionPort } from "@core/domain/repositories/AuditLogRetentionPort.js";
+import type { DsarRequestRepository } from "@core/domain/repositories/DsarRequestRepository.js";
+import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
 
 // ===========================
-// Mock Factory
+// Mock Factories
 // ===========================
 
-function makeMockPrisma() {
+function makeGdprRepo(): GdprSettingsRepository {
   return {
-    gdprSettings: {
-      findFirst: vi.fn(),
-    },
-    auditLog: {
-      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
-      create: vi.fn().mockResolvedValue({}),
-    },
-    dsarRequest: {
-      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
-    },
+    findSingleton: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    createDefault: vi.fn(),
+    update: vi.fn(),
   };
+}
+
+function makeAuditLogRetention(): AuditLogRetentionPort {
+  return {
+    countSince: vi.fn().mockResolvedValue({ ok: true, value: 0 }),
+    deleteOlderThan: vi.fn().mockResolvedValue({ ok: true, value: 0 }),
+  };
+}
+
+function makeDsarRepo(): DsarRequestRepository {
+  return {
+    listWithAccount: vi.fn(),
+    findByIdWithAccount: vi.fn(),
+    findById: vi.fn(),
+    countPendingByEmail: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    markOverdueAsExpired: vi.fn().mockResolvedValue({ ok: true, value: 0 }),
+  };
+}
+
+function makeAuditEmitter(): AuditEmitterPort {
+  return { emit: vi.fn().mockResolvedValue(undefined) };
 }
 
 // ===========================
@@ -35,16 +56,25 @@ function makeMockPrisma() {
 
 describe("DataRetentionService - guard (auto-deletion disabled)", () => {
   let service: DataRetentionService;
-  let mockPrisma: ReturnType<typeof makeMockPrisma>;
+  let gdpr: GdprSettingsRepository;
+  let auditLog: AuditLogRetentionPort;
+  let dsar: DsarRequestRepository;
+  let audit: AuditEmitterPort;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPrisma = makeMockPrisma();
-    service = new DataRetentionService(mockPrisma as unknown as PrismaClient);
+    gdpr = makeGdprRepo();
+    auditLog = makeAuditLogRetention();
+    dsar = makeDsarRepo();
+    audit = makeAuditEmitter();
+    service = new DataRetentionService(gdpr, auditLog, dsar, audit);
   });
 
   it("returns zeros when enableAutoDataDeletion is false", async () => {
-    mockPrisma.gdprSettings.findFirst.mockResolvedValue({ enableAutoDataDeletion: false });
+    (gdpr.findSingleton as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      value: { enableAutoDataDeletion: false },
+    });
 
     const result = await service.runRetentionCleanup();
 
@@ -53,7 +83,10 @@ describe("DataRetentionService - guard (auto-deletion disabled)", () => {
   });
 
   it("returns zeros when no gdprSettings record exists", async () => {
-    mockPrisma.gdprSettings.findFirst.mockResolvedValue(null);
+    (gdpr.findSingleton as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      value: null,
+    });
 
     const result = await service.runRetentionCleanup();
 
@@ -61,20 +94,26 @@ describe("DataRetentionService - guard (auto-deletion disabled)", () => {
     assert.strictEqual(result.expiredDsarRequests, 0);
   });
 
-  it("does not query auditLog when disabled", async () => {
-    mockPrisma.gdprSettings.findFirst.mockResolvedValue({ enableAutoDataDeletion: false });
+  it("does not call auditLog.deleteOlderThan when disabled", async () => {
+    (gdpr.findSingleton as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      value: { enableAutoDataDeletion: false },
+    });
 
     await service.runRetentionCleanup();
 
-    expect(mockPrisma.auditLog.deleteMany).not.toHaveBeenCalled();
+    expect(auditLog.deleteOlderThan).not.toHaveBeenCalled();
   });
 
-  it("does not query dsarRequest when disabled", async () => {
-    mockPrisma.gdprSettings.findFirst.mockResolvedValue({ enableAutoDataDeletion: false });
+  it("does not call dsar.markOverdueAsExpired when disabled", async () => {
+    (gdpr.findSingleton as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      value: { enableAutoDataDeletion: false },
+    });
 
     await service.runRetentionCleanup();
 
-    expect(mockPrisma.dsarRequest.updateMany).not.toHaveBeenCalled();
+    expect(dsar.markOverdueAsExpired).not.toHaveBeenCalled();
   });
 });
 
@@ -84,7 +123,10 @@ describe("DataRetentionService - guard (auto-deletion disabled)", () => {
 
 describe("DataRetentionService - active cleanup", () => {
   let service: DataRetentionService;
-  let mockPrisma: ReturnType<typeof makeMockPrisma>;
+  let gdpr: GdprSettingsRepository;
+  let auditLog: AuditLogRetentionPort;
+  let dsar: DsarRequestRepository;
+  let audit: AuditEmitterPort;
 
   const activeSettings = {
     enableAutoDataDeletion: true,
@@ -93,23 +135,29 @@ describe("DataRetentionService - active cleanup", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPrisma = makeMockPrisma();
-    service = new DataRetentionService(mockPrisma as unknown as PrismaClient);
-    mockPrisma.gdprSettings.findFirst.mockResolvedValue(activeSettings);
+    gdpr = makeGdprRepo();
+    auditLog = makeAuditLogRetention();
+    dsar = makeDsarRepo();
+    audit = makeAuditEmitter();
+    service = new DataRetentionService(gdpr, auditLog, dsar, audit);
+    (gdpr.findSingleton as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      value: activeSettings,
+    });
   });
 
   it("deletes audit logs older than retention period", async () => {
-    mockPrisma.auditLog.deleteMany.mockResolvedValue({ count: 15 });
+    (auditLog.deleteOlderThan as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      value: 15,
+    });
 
     const result = await service.runRetentionCleanup();
 
     assert.strictEqual(result.auditLogsDeleted, 15);
-    expect(mockPrisma.auditLog.deleteMany).toHaveBeenCalledTimes(1);
-
-    const call = mockPrisma.auditLog.deleteMany.mock.calls[0]![0]!;
-    const where = call.where as Record<string, Record<string, Date>>;
-    expect(where.createdAt).toHaveProperty("lt");
-    expect(where.createdAt.lt).toBeInstanceOf(Date);
+    expect(auditLog.deleteOlderThan).toHaveBeenCalledTimes(1);
+    const cutoffArg = (auditLog.deleteOlderThan as ReturnType<typeof vi.fn>).mock.calls[0]![0];
+    expect(cutoffArg).toBeInstanceOf(Date);
   });
 
   it("uses correct cutoff based on auditLogRetentionDays", async () => {
@@ -117,77 +165,68 @@ describe("DataRetentionService - active cleanup", () => {
     await service.runRetentionCleanup();
     const after = Date.now();
 
-    const call = mockPrisma.auditLog.deleteMany.mock.calls[0]![0]!;
-    const cutoff = (call.where as Record<string, Record<string, Date>>).createdAt.lt;
+    const cutoff = (auditLog.deleteOlderThan as ReturnType<typeof vi.fn>).mock.calls[0]![0] as Date;
     const retentionMs = 90 * 24 * 60 * 60 * 1000;
-    // Cutoff should be within the time window accounting for execution time
     assert.ok(cutoff.getTime() >= before - retentionMs - 100);
     assert.ok(cutoff.getTime() <= after - retentionMs + 100);
   });
 
-  it("marks PENDING DSAR requests as expired when past deadline", async () => {
-    mockPrisma.dsarRequest.updateMany.mockResolvedValue({ count: 3 });
+  it("marks overdue DSAR requests as EXPIRED via the dedicated port method", async () => {
+    (dsar.markOverdueAsExpired as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      value: 3,
+    });
 
     const result = await service.runRetentionCleanup();
 
     assert.strictEqual(result.expiredDsarRequests, 3);
-
-    const call = mockPrisma.dsarRequest.updateMany.mock.calls[0]![0]!;
-    const where = call.where as Record<string, Record<string, unknown>>;
-    expect((where.status as Record<string, string[]>).in).toContain("PENDING");
-    expect(call.data).toEqual({ status: "EXPIRED" });
+    expect(dsar.markOverdueAsExpired).toHaveBeenCalledTimes(1);
   });
 
-  it("marks IN_PROGRESS DSAR requests as expired when past deadline", async () => {
-    mockPrisma.dsarRequest.updateMany.mockResolvedValue({ count: 2 });
+  it("passes a `now` Date to markOverdueAsExpired", async () => {
+    const before = Date.now();
+    await service.runRetentionCleanup();
+    const after = Date.now();
+
+    const nowArg = (dsar.markOverdueAsExpired as ReturnType<typeof vi.fn>).mock
+      .calls[0]![0] as Date;
+    expect(nowArg).toBeInstanceOf(Date);
+    assert.ok(nowArg.getTime() >= before - 100);
+    assert.ok(nowArg.getTime() <= after + 100);
+  });
+
+  it("emits cleanup summary via AuditEmitterPort", async () => {
+    (auditLog.deleteOlderThan as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      value: 10,
+    });
+    (dsar.markOverdueAsExpired as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      value: 4,
+    });
 
     await service.runRetentionCleanup();
 
-    const call = mockPrisma.dsarRequest.updateMany.mock.calls[0]![0]!;
-    const where = call.where as Record<string, Record<string, unknown>>;
-    expect((where.status as Record<string, string[]>).in).toContain("IN_PROGRESS");
-  });
-
-  it("does not expire COMPLETED or REJECTED DSAR requests (only PENDING, IN_PROGRESS)", async () => {
-    await service.runRetentionCleanup();
-
-    const call = mockPrisma.dsarRequest.updateMany.mock.calls[0]![0]!;
-    const where = call.where as Record<string, Record<string, unknown>>;
-    const statusIn = (where.status as Record<string, string[]>).in;
-
-    expect(statusIn).not.toContain("COMPLETED");
-    expect(statusIn).not.toContain("REJECTED");
-    assert.strictEqual(statusIn.length, 2);
-  });
-
-  it("filters DSAR requests by deadlineAt < now", async () => {
-    await service.runRetentionCleanup();
-
-    const call = mockPrisma.dsarRequest.updateMany.mock.calls[0]![0]!;
-    const where = call.where as Record<string, Record<string, Date>>;
-    expect(where.deadlineAt).toHaveProperty("lt");
-    expect(where.deadlineAt.lt).toBeInstanceOf(Date);
-  });
-
-  it("writes cleanup summary to audit log", async () => {
-    mockPrisma.auditLog.deleteMany.mockResolvedValue({ count: 10 });
-    mockPrisma.dsarRequest.updateMany.mockResolvedValue({ count: 4 });
-
-    await service.runRetentionCleanup();
-
-    expect(mockPrisma.auditLog.create).toHaveBeenCalledTimes(1);
-
-    const createCall = mockPrisma.auditLog.create.mock.calls[0]![0]!;
-    const data = createCall.data as Record<string, unknown>;
-    assert.strictEqual(data.action, "DATA_RETENTION_CLEANUP");
-    assert.strictEqual(data.resource, "system");
-    assert.strictEqual(data.success, true);
-    expect(data.details).toEqual({ auditLogsDeleted: 10, expiredDsarRequests: 4 });
+    expect(audit.emit).toHaveBeenCalledTimes(1);
+    const emitCall = (audit.emit as ReturnType<typeof vi.fn>).mock.calls[0]![0] as Record<
+      string,
+      unknown
+    >;
+    assert.strictEqual(emitCall.action, "DATA_RETENTION_CLEANUP");
+    assert.strictEqual(emitCall.resourceType, "system");
+    assert.strictEqual(emitCall.success, true);
+    expect(emitCall.details).toEqual({ auditLogsDeleted: 10, expiredDsarRequests: 4 });
   });
 
   it("returns both counts in the result", async () => {
-    mockPrisma.auditLog.deleteMany.mockResolvedValue({ count: 7 });
-    mockPrisma.dsarRequest.updateMany.mockResolvedValue({ count: 1 });
+    (auditLog.deleteOlderThan as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      value: 7,
+    });
+    (dsar.markOverdueAsExpired as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      value: 1,
+    });
 
     const result = await service.runRetentionCleanup();
 

@@ -489,6 +489,12 @@ export const TOKENS = {
   // Compliance
   ComplianceService: Symbol.for("ComplianceService"),
   DataRetentionService: Symbol.for("DataRetentionService"),
+  GdprSettingsRepository: Symbol.for("GdprSettingsRepository"),
+  SecuritySettingsRepository: Symbol.for("SecuritySettingsRepository"),
+  DsarRequestRepository: Symbol.for("DsarRequestRepository"),
+  DataBreachReportRepository: Symbol.for("DataBreachReportRepository"),
+  AuditLogRetentionPort: Symbol.for("AuditLogRetentionPort"),
+  AccountNotificationReader: Symbol.for("AccountNotificationReader"),
 
   // DLQ Lifecycle
   DlqArchivalService: Symbol.for("DlqArchivalService"),

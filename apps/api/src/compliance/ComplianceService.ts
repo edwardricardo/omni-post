@@ -3,14 +3,43 @@
  * @description Central compliance service for GDPR/LGPD/CCPA/PIPEDA.
  *   Manages settings, compliance score, DSAR requests, and breach reports.
  *   All public methods return Result<T, E> — no throws.
+ *
+ *   Framework-free: depends only on @core/domain ports + AuditEmitterPort +
+ *   @observability/logger.
  * @layer application
  */
 
 import { ok, err, type Result } from "@shared/types";
-import type { PrismaClient } from "@infra/prisma";
 import crypto from "crypto";
+import { createLogger } from "@observability/logger";
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
-import { logger } from "../lib/logger.js";
+import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
+import type {
+  GdprSettings,
+  GdprSettingsRepository,
+  JurisdictionType,
+} from "@core/domain/repositories/GdprSettingsRepository.js";
+import type {
+  SecuritySettings,
+  SecuritySettingsRepository,
+} from "@core/domain/repositories/SecuritySettingsRepository.js";
+import type {
+  DsarListFilters,
+  DsarRequestRepository,
+  DsarRequestRow,
+  DsarRequestRowWithAccount,
+  DsarRequestType,
+  DsarStatus,
+} from "@core/domain/repositories/DsarRequestRepository.js";
+import type {
+  DataBreachListFilters,
+  DataBreachReport,
+  DataBreachReportRepository,
+} from "@core/domain/repositories/DataBreachReportRepository.js";
+import type { AuditLogRetentionPort } from "@core/domain/repositories/AuditLogRetentionPort.js";
+import type { AccountNotificationReader } from "@core/domain/repositories/AccountNotificationReader.js";
+
+const logger = createLogger("compliance");
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -56,8 +85,14 @@ const JURISDICTION_DAYS: Record<string, number> = {
 
 export class ComplianceService {
   constructor(
-    private readonly prisma: PrismaClient,
-    private readonly emailPort: EmailPort
+    private readonly gdprRepo: GdprSettingsRepository,
+    private readonly securityRepo: SecuritySettingsRepository,
+    private readonly dsarRepo: DsarRequestRepository,
+    private readonly breachRepo: DataBreachReportRepository,
+    private readonly auditLogRetention: AuditLogRetentionPort,
+    private readonly accountNotifications: AccountNotificationReader,
+    private readonly emailPort: EmailPort,
+    private readonly auditEmitter: AuditEmitterPort
   ) {}
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -67,35 +102,29 @@ export class ComplianceService {
   /**
    * @method getGdprSettings
    * @description Retrieves the singleton GDPR settings record, creating defaults if none exist.
-   * @returns The current GDPR settings
    */
-  async getGdprSettings() {
-    const settings = await this.prisma.gdprSettings.findFirst();
-    if (settings) return settings;
-    return this.prisma.gdprSettings.create({
-      data: { id: "gdpr-singleton" },
-    });
+  async getGdprSettings(): Promise<GdprSettings> {
+    const existing = await this.gdprRepo.findSingleton();
+    if (existing.ok && existing.value) return existing.value;
+    const created = await this.gdprRepo.createDefault("gdpr-singleton");
+    if (!created.ok) {
+      throw new Error("Failed to create default GDPR settings");
+    }
+    return created.value;
   }
 
   /**
    * @method updateGdprSettings
    * @description Validates and persists changes to GDPR settings with audit logging.
-   * @param data - Key-value map of GDPR setting fields to update
-   * @param updatedBy - User ID of the admin performing the update
-   * @returns Result with updated settings on success, or ComplianceError on failure
    */
   async updateGdprSettings(
     data: Record<string, unknown>,
     updatedBy: string
-  ): Promise<Result<unknown, ComplianceError>> {
+  ): Promise<Result<GdprSettings, ComplianceError>> {
     try {
       const dpoType = (data.dpoType as string) ?? undefined;
-      if (dpoType === "INTERNAL" && !data.dpoEmail) {
-        return err("VALIDATION_ERROR");
-      }
-      if (dpoType === "EXTERNAL" && !data.dpoUrl) {
-        return err("VALIDATION_ERROR");
-      }
+      if (dpoType === "INTERNAL" && !data.dpoEmail) return err("VALIDATION_ERROR");
+      if (dpoType === "EXTERNAL" && !data.dpoUrl) return err("VALIDATION_ERROR");
 
       const retentionDays = data.dataRetentionDays as number | undefined;
       if (retentionDays !== undefined && (retentionDays < 30 || retentionDays > 3650)) {
@@ -108,23 +137,23 @@ export class ComplianceService {
       }
 
       const existing = await this.getGdprSettings();
-      const updated = await this.prisma.gdprSettings.update({
-        where: { id: existing.id },
-        data: { ...data, updatedBy, updatedAt: new Date() },
+      const updated = await this.gdprRepo.update(existing.id, {
+        ...(data as Partial<Omit<GdprSettings, "id" | "updatedAt">>),
+        updatedBy,
+      });
+      if (!updated.ok) return err("DATABASE_ERROR");
+
+      await this.auditEmitter.emit({
+        action: "GDPR_SETTINGS_UPDATED",
+        category: "COMPLIANCE",
+        resourceType: "gdpr_settings",
+        resourceId: updated.value.id,
+        userId: updatedBy,
+        details: data as Record<string, unknown>,
+        success: true,
       });
 
-      await this.prisma.auditLog.create({
-        data: {
-          action: "GDPR_SETTINGS_UPDATED",
-          resource: "gdpr_settings",
-          resourceId: updated.id,
-          userId: updatedBy,
-          details: data as object,
-          success: true,
-        },
-      });
-
-      return ok(updated);
+      return ok(updated.value);
     } catch (error) {
       logger.error({ err: error }, "Failed to update GDPR settings");
       return err("DATABASE_ERROR");
@@ -134,27 +163,25 @@ export class ComplianceService {
   /**
    * @method getSecuritySettings
    * @description Retrieves the singleton security settings record, creating defaults if none exist.
-   * @returns The current security settings
    */
-  async getSecuritySettings() {
-    const settings = await this.prisma.securitySettings.findFirst();
-    if (settings) return settings;
-    return this.prisma.securitySettings.create({
-      data: { id: "security-singleton" },
-    });
+  async getSecuritySettings(): Promise<SecuritySettings> {
+    const existing = await this.securityRepo.findSingleton();
+    if (existing.ok && existing.value) return existing.value;
+    const created = await this.securityRepo.createDefault("security-singleton");
+    if (!created.ok) {
+      throw new Error("Failed to create default security settings");
+    }
+    return created.value;
   }
 
   /**
    * @method updateSecuritySettings
    * @description Validates and persists changes to security settings with audit logging.
-   * @param data - Key-value map of security setting fields to update
-   * @param updatedBy - User ID of the admin performing the update
-   * @returns Result with updated settings on success, or ComplianceError on failure
    */
   async updateSecuritySettings(
     data: Record<string, unknown>,
     updatedBy: string
-  ): Promise<Result<unknown, ComplianceError>> {
+  ): Promise<Result<SecuritySettings, ComplianceError>> {
     try {
       const timeout = data.sessionTimeoutMinutes as number | undefined;
       if (timeout !== undefined && (timeout < 15 || timeout > 10080)) {
@@ -172,23 +199,23 @@ export class ComplianceService {
       }
 
       const existing = await this.getSecuritySettings();
-      const updated = await this.prisma.securitySettings.update({
-        where: { id: existing.id },
-        data: { ...data, updatedBy, updatedAt: new Date() },
+      const updated = await this.securityRepo.update(existing.id, {
+        ...(data as Partial<Omit<SecuritySettings, "id" | "updatedAt">>),
+        updatedBy,
+      });
+      if (!updated.ok) return err("DATABASE_ERROR");
+
+      await this.auditEmitter.emit({
+        action: "SECURITY_SETTINGS_UPDATED",
+        category: "SECURITY",
+        resourceType: "security_settings",
+        resourceId: updated.value.id,
+        userId: updatedBy,
+        details: data as Record<string, unknown>,
+        success: true,
       });
 
-      await this.prisma.auditLog.create({
-        data: {
-          action: "SECURITY_SETTINGS_UPDATED",
-          resource: "security_settings",
-          resourceId: updated.id,
-          userId: updatedBy,
-          details: data as object,
-          success: true,
-        },
-      });
-
-      return ok(updated);
+      return ok(updated.value);
     } catch (error) {
       logger.error({ err: error }, "Failed to update security settings");
       return err("DATABASE_ERROR");
@@ -202,16 +229,16 @@ export class ComplianceService {
   /**
    * @method getComplianceScore
    * @description Evaluates 11 weighted compliance checks across GDPR, security, and audit settings and returns an aggregate score.
-   * @returns Compliance score (0-100) and individual check results
    */
   async getComplianceScore(): Promise<ComplianceScoreResult> {
-    const [gdpr, security, recentAuditCount] = await Promise.all([
+    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [gdpr, security, recentAuditResult] = await Promise.all([
       this.getGdprSettings(),
       this.getSecuritySettings(),
-      this.prisma.auditLog.count({
-        where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
-      }),
+      this.auditLogRetention.countSince(since24h),
     ]);
+
+    const recentAuditCount = recentAuditResult.ok ? recentAuditResult.value : 0;
 
     const checks: ComplianceCheck[] = [
       {
@@ -296,71 +323,64 @@ export class ComplianceService {
   /**
    * @method getDsarRequests
    * @description Retrieves a paginated list of DSAR requests with optional status and type filters.
-   * @param filters - Filtering and pagination options for the DSAR query
-   * @returns Paginated list of DSAR requests with associated account info
    */
-  async getDsarRequests(filters: DsarFilters) {
+  async getDsarRequests(filters: DsarFilters): Promise<{
+    requests: DsarRequestRowWithAccount[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const page = filters.page ?? 1;
     const limit = filters.limit ?? 50;
-    const where: Record<string, unknown> = {};
-    if (filters.status) where.status = filters.status;
-    if (filters.type) where.type = filters.type;
-
-    const [requests, total] = await Promise.all([
-      this.prisma.dsarRequest.findMany({
-        where,
-        include: { account: { select: { id: true, name: true, email: true } } },
-        orderBy: { requestedAt: "desc" },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      this.prisma.dsarRequest.count({ where }),
-    ]);
-
-    return { requests, total, page, limit };
+    const portFilters: DsarListFilters = {
+      page,
+      limit,
+      ...(filters.status !== undefined && { status: filters.status as DsarStatus }),
+      ...(filters.type !== undefined && { type: filters.type as DsarRequestType }),
+    };
+    const result = await this.dsarRepo.listWithAccount(portFilters);
+    if (!result.ok) return { requests: [], total: 0, page, limit };
+    return { ...result.value, page, limit };
   }
 
   /**
    * @method getDsarById
    * @description Retrieves a single DSAR request by its unique identifier.
-   * @param id - The DSAR request ID
-   * @returns The DSAR request with associated account info, or null if not found
    */
-  async getDsarById(id: string) {
-    return this.prisma.dsarRequest.findUnique({
-      where: { id },
-      include: { account: { select: { id: true, name: true, email: true } } },
-    });
+  async getDsarById(id: string): Promise<DsarRequestRowWithAccount | null> {
+    const result = await this.dsarRepo.findByIdWithAccount(id);
+    return result.ok ? result.value : null;
   }
 
   /**
    * @method acknowledgeDsar
    * @description Transitions a DSAR request to IN_PROGRESS status and records the acknowledgment timestamp.
-   * @param id - The DSAR request ID to acknowledge
-   * @param adminId - User ID of the admin acknowledging the request
-   * @returns Result with updated DSAR on success, or ComplianceError on failure
    */
-  async acknowledgeDsar(id: string, adminId: string): Promise<Result<unknown, ComplianceError>> {
+  async acknowledgeDsar(
+    id: string,
+    adminId: string
+  ): Promise<Result<DsarRequestRow, ComplianceError>> {
     try {
-      const dsar = await this.prisma.dsarRequest.findUnique({ where: { id } });
-      if (!dsar) return err("NOT_FOUND");
+      const dsarResult = await this.dsarRepo.findById(id);
+      if (!dsarResult.ok) return err("DATABASE_ERROR");
+      if (!dsarResult.value) return err("NOT_FOUND");
 
-      const updated = await this.prisma.dsarRequest.update({
-        where: { id },
-        data: { status: "IN_PROGRESS", acknowledgedAt: new Date() },
+      const updated = await this.dsarRepo.update(id, {
+        status: "IN_PROGRESS",
+        acknowledgedAt: new Date(),
+      });
+      if (!updated.ok) return err("DATABASE_ERROR");
+
+      await this.auditEmitter.emit({
+        action: "DSAR_ACKNOWLEDGED",
+        category: "COMPLIANCE",
+        resourceType: "dsar_request",
+        resourceId: id,
+        userId: adminId,
+        success: true,
       });
 
-      await this.prisma.auditLog.create({
-        data: {
-          action: "DSAR_ACKNOWLEDGED",
-          resource: "dsar_request",
-          resourceId: id,
-          userId: adminId,
-          success: true,
-        },
-      });
-
-      return ok(updated);
+      return ok(updated.value);
     } catch (error) {
       logger.error({ err: error, id }, "Failed to acknowledge DSAR");
       return err("DATABASE_ERROR");
@@ -370,44 +390,38 @@ export class ComplianceService {
   /**
    * @method completeDsar
    * @description Marks a DSAR request as COMPLETED, optionally attaching an export URL with a 7-day expiry.
-   * @param id - The DSAR request ID to complete
-   * @param adminId - User ID of the admin completing the request
-   * @param exportUrl - Optional URL where the data export can be downloaded
-   * @returns Result with updated DSAR on success, or ComplianceError on failure
    */
   async completeDsar(
     id: string,
     adminId: string,
     exportUrl?: string
-  ): Promise<Result<unknown, ComplianceError>> {
+  ): Promise<Result<DsarRequestRow, ComplianceError>> {
     try {
-      const dsar = await this.prisma.dsarRequest.findUnique({ where: { id } });
-      if (!dsar) return err("NOT_FOUND");
+      const dsarResult = await this.dsarRepo.findById(id);
+      if (!dsarResult.ok) return err("DATABASE_ERROR");
+      if (!dsarResult.value) return err("NOT_FOUND");
 
-      const updated = await this.prisma.dsarRequest.update({
-        where: { id },
-        data: {
-          status: "COMPLETED",
-          completedAt: new Date(),
-          completedBy: adminId,
-          ...(exportUrl !== undefined && {
-            exportUrl,
-            exportExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-          }),
-        },
+      const updated = await this.dsarRepo.update(id, {
+        status: "COMPLETED",
+        completedAt: new Date(),
+        completedBy: adminId,
+        ...(exportUrl !== undefined && {
+          exportUrl,
+          exportExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        }),
+      });
+      if (!updated.ok) return err("DATABASE_ERROR");
+
+      await this.auditEmitter.emit({
+        action: "DSAR_COMPLETED",
+        category: "COMPLIANCE",
+        resourceType: "dsar_request",
+        resourceId: id,
+        userId: adminId,
+        success: true,
       });
 
-      await this.prisma.auditLog.create({
-        data: {
-          action: "DSAR_COMPLETED",
-          resource: "dsar_request",
-          resourceId: id,
-          userId: adminId,
-          success: true,
-        },
-      });
-
-      return ok(updated);
+      return ok(updated.value);
     } catch (error) {
       logger.error({ err: error, id }, "Failed to complete DSAR");
       return err("DATABASE_ERROR");
@@ -417,42 +431,36 @@ export class ComplianceService {
   /**
    * @method rejectDsar
    * @description Rejects a DSAR request with a stated reason and records the rejection in the audit log.
-   * @param id - The DSAR request ID to reject
-   * @param adminId - User ID of the admin rejecting the request
-   * @param reason - Explanation for why the request was rejected
-   * @returns Result with updated DSAR on success, or ComplianceError on failure
    */
   async rejectDsar(
     id: string,
     adminId: string,
     reason: string
-  ): Promise<Result<unknown, ComplianceError>> {
+  ): Promise<Result<DsarRequestRow, ComplianceError>> {
     try {
-      const dsar = await this.prisma.dsarRequest.findUnique({ where: { id } });
-      if (!dsar) return err("NOT_FOUND");
+      const dsarResult = await this.dsarRepo.findById(id);
+      if (!dsarResult.ok) return err("DATABASE_ERROR");
+      if (!dsarResult.value) return err("NOT_FOUND");
 
-      const updated = await this.prisma.dsarRequest.update({
-        where: { id },
-        data: {
-          status: "REJECTED",
-          rejectedAt: new Date(),
-          rejectedBy: adminId,
-          rejectionReason: reason,
-        },
+      const updated = await this.dsarRepo.update(id, {
+        status: "REJECTED",
+        rejectedAt: new Date(),
+        rejectedBy: adminId,
+        rejectionReason: reason,
+      });
+      if (!updated.ok) return err("DATABASE_ERROR");
+
+      await this.auditEmitter.emit({
+        action: "DSAR_REJECTED",
+        category: "COMPLIANCE",
+        resourceType: "dsar_request",
+        resourceId: id,
+        userId: adminId,
+        details: { reason },
+        success: true,
       });
 
-      await this.prisma.auditLog.create({
-        data: {
-          action: "DSAR_REJECTED",
-          resource: "dsar_request",
-          resourceId: id,
-          userId: adminId,
-          details: { reason } as object,
-          success: true,
-        },
-      });
-
-      return ok(updated);
+      return ok(updated.value);
     } catch (error) {
       logger.error({ err: error, id }, "Failed to reject DSAR");
       return err("DATABASE_ERROR");
@@ -462,8 +470,6 @@ export class ComplianceService {
   /**
    * @method submitDsarRequest
    * @description Creates a new DSAR request with jurisdiction-based deadline, rate limiting (max 3 pending per email), and audit trail.
-   * @param data - Requestor details including email, type, jurisdiction, and optional account association
-   * @returns Result with the created request ID, deadline, and confirmation message
    */
   async submitDsarRequest(data: {
     requestorEmail: string;
@@ -474,51 +480,43 @@ export class ComplianceService {
     ipAddress?: string;
   }): Promise<Result<{ id: string; deadlineAt: Date; message: string }, ComplianceError>> {
     try {
-      // Rate limit: max 3 pending per email
-      const pendingCount = await this.prisma.dsarRequest.count({
-        where: {
-          requestorEmail: data.requestorEmail,
-          status: { in: ["PENDING", "IN_PROGRESS"] },
-        },
-      });
-      if (pendingCount >= 3) return err("RATE_LIMITED");
+      const pendingCountResult = await this.dsarRepo.countPendingByEmail(data.requestorEmail);
+      if (!pendingCountResult.ok) return err("DATABASE_ERROR");
+      if (pendingCountResult.value >= 3) return err("RATE_LIMITED");
 
       const gdprSettings = await this.getGdprSettings();
-      const jurisdiction = data.jurisdiction ?? gdprSettings.defaultJurisdiction;
+      const jurisdiction = (data.jurisdiction ??
+        gdprSettings.defaultJurisdiction) as JurisdictionType;
       const daysToRespond = JURISDICTION_DAYS[jurisdiction] ?? gdprSettings.dsarResponseDays;
       const deadlineAt = new Date(Date.now() + daysToRespond * 24 * 60 * 60 * 1000);
 
-      const request = await this.prisma.dsarRequest.create({
-        data: {
-          requestorEmail: data.requestorEmail,
-          ...(data.requestorName !== undefined && {
-            requestorName: data.requestorName,
-          }),
-          type: data.type as "EXPORT" | "DELETION" | "ACCESS",
-          jurisdiction: jurisdiction as "GDPR" | "LGPD" | "CCPA" | "PIPEDA" | "OTHER",
-          deadlineAt,
-          verificationToken: crypto.randomUUID(),
-          ...(data.accountId !== undefined && { accountId: data.accountId }),
-          ...(data.ipAddress !== undefined && { ipAddress: data.ipAddress }),
-        },
+      const created = await this.dsarRepo.create({
+        requestorEmail: data.requestorEmail,
+        ...(data.requestorName !== undefined && { requestorName: data.requestorName }),
+        type: data.type as DsarRequestType,
+        jurisdiction,
+        deadlineAt,
+        verificationToken: crypto.randomUUID(),
+        ...(data.accountId !== undefined && { accountId: data.accountId }),
+        ...(data.ipAddress !== undefined && { ipAddress: data.ipAddress }),
       });
+      if (!created.ok) return err("DATABASE_ERROR");
 
-      await this.prisma.auditLog.create({
-        data: {
-          action: "DSAR_SUBMITTED",
-          resource: "dsar_request",
-          resourceId: request.id,
-          details: {
-            type: data.type,
-            jurisdiction,
-            email: data.requestorEmail,
-          } as object,
-          success: true,
+      await this.auditEmitter.emit({
+        action: "DSAR_SUBMITTED",
+        category: "COMPLIANCE",
+        resourceType: "dsar_request",
+        resourceId: created.value.id,
+        details: {
+          type: data.type,
+          jurisdiction,
+          email: data.requestorEmail,
         },
+        success: true,
       });
 
       return ok({
-        id: request.id,
+        id: created.value.id,
         deadlineAt,
         message: `Your request has been received. We will respond within ${daysToRespond} days.`,
       });
@@ -535,34 +533,28 @@ export class ComplianceService {
   /**
    * @method getBreachReports
    * @description Retrieves a paginated list of data breach reports with optional resolved-status filter.
-   * @param filters - Filtering and pagination options for the breach query
-   * @returns Paginated list of breach reports
    */
-  async getBreachReports(filters: BreachFilters) {
+  async getBreachReports(filters: BreachFilters): Promise<{
+    reports: DataBreachReport[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const page = filters.page ?? 1;
     const limit = filters.limit ?? 50;
-    const where: Record<string, unknown> = {};
-    if (filters.resolved !== undefined) where.resolved = filters.resolved;
-
-    const [reports, total] = await Promise.all([
-      this.prisma.dataBreachReport.findMany({
-        where,
-        orderBy: { reportedAt: "desc" },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      this.prisma.dataBreachReport.count({ where }),
-    ]);
-
-    return { reports, total, page, limit };
+    const portFilters: DataBreachListFilters = {
+      page,
+      limit,
+      ...(filters.resolved !== undefined && { resolved: filters.resolved }),
+    };
+    const result = await this.breachRepo.list(portFilters);
+    if (!result.ok) return { reports: [], total: 0, page, limit };
+    return { ...result.value, page, limit };
   }
 
   /**
    * @method createBreachReport
    * @description Records a new data breach report with severity, affected data types, and audit logging.
-   * @param data - Breach details including title, description, severity, and affected data types
-   * @param reportedBy - User ID of the admin reporting the breach
-   * @returns Result with the created breach report on success, or ComplianceError on failure
    */
   async createBreachReport(
     data: {
@@ -574,34 +566,32 @@ export class ComplianceService {
       affectedUserCount?: number;
     },
     reportedBy: string
-  ): Promise<Result<unknown, ComplianceError>> {
+  ): Promise<Result<DataBreachReport, ComplianceError>> {
     try {
-      const report = await this.prisma.dataBreachReport.create({
-        data: {
-          title: data.title,
-          description: data.description,
-          discoveredAt: new Date(data.discoveredAt),
-          severity: data.severity,
-          dataTypesAffected: data.dataTypesAffected,
-          reportedBy,
-          ...(data.affectedUserCount !== undefined && {
-            affectedUserCount: data.affectedUserCount,
-          }),
-        },
+      const created = await this.breachRepo.create({
+        title: data.title,
+        description: data.description,
+        discoveredAt: new Date(data.discoveredAt),
+        severity: data.severity,
+        dataTypesAffected: data.dataTypesAffected,
+        reportedBy,
+        ...(data.affectedUserCount !== undefined && {
+          affectedUserCount: data.affectedUserCount,
+        }),
+      });
+      if (!created.ok) return err("DATABASE_ERROR");
+
+      await this.auditEmitter.emit({
+        action: "BREACH_REPORTED",
+        category: "SECURITY",
+        resourceType: "data_breach",
+        resourceId: created.value.id,
+        userId: reportedBy,
+        details: { title: data.title, severity: data.severity },
+        success: true,
       });
 
-      await this.prisma.auditLog.create({
-        data: {
-          action: "BREACH_REPORTED",
-          resource: "data_breach",
-          resourceId: report.id,
-          userId: reportedBy,
-          details: { title: data.title, severity: data.severity } as object,
-          success: true,
-        },
-      });
-
-      return ok(report);
+      return ok(created.value);
     } catch (error) {
       logger.error({ err: error }, "Failed to create breach report");
       return err("DATABASE_ERROR");
@@ -611,31 +601,26 @@ export class ComplianceService {
   /**
    * @method sendBreachNotifications
    * @description Sends email notifications about a breach to all active accounts and records the notification event.
-   * @param breachId - The breach report ID to notify about
-   * @param adminId - User ID of the admin triggering the notifications
-   * @returns Result with notified and error counts on success, or ComplianceError on failure
    */
   async sendBreachNotifications(
     breachId: string,
     adminId: string
   ): Promise<Result<{ notified: number; errors: number }, ComplianceError>> {
     try {
-      const breach = await this.prisma.dataBreachReport.findUnique({
-        where: { id: breachId },
-      });
+      const breachResult = await this.breachRepo.findById(breachId);
+      if (!breachResult.ok) return err("DATABASE_ERROR");
+      const breach = breachResult.value;
       if (!breach) return err("NOT_FOUND");
 
-      const accounts = await this.prisma.account.findMany({
-        where: { isActive: true },
-        select: { email: true },
-      });
+      const emailsResult = await this.accountNotifications.listActiveEmails();
+      if (!emailsResult.ok) return err("DATABASE_ERROR");
 
       let notified = 0;
       let errors = 0;
 
-      for (const account of accounts) {
+      for (const email of emailsResult.value) {
         const result = await this.emailPort.send({
-          to: [account.email],
+          to: [email],
           subject: `Security Notice: ${breach.title}`,
           body: `We are writing to inform you of a data security incident: ${breach.description}. Data types potentially affected: ${breach.dataTypesAffected.join(", ")}. If you have questions, please contact our Data Protection Officer.`,
         });
@@ -646,23 +631,20 @@ export class ComplianceService {
         }
       }
 
-      await this.prisma.dataBreachReport.update({
-        where: { id: breachId },
-        data: {
-          notificationSentAt: new Date(),
-          notificationSentBy: adminId,
-        },
+      const updateResult = await this.breachRepo.update(breachId, {
+        notificationSentAt: new Date(),
+        notificationSentBy: adminId,
       });
+      if (!updateResult.ok) return err("DATABASE_ERROR");
 
-      await this.prisma.auditLog.create({
-        data: {
-          action: "BREACH_NOTIFICATIONS_SENT",
-          resource: "data_breach",
-          resourceId: breachId,
-          userId: adminId,
-          details: { notified, errors } as object,
-          success: true,
-        },
+      await this.auditEmitter.emit({
+        action: "BREACH_NOTIFICATIONS_SENT",
+        category: "SECURITY",
+        resourceType: "data_breach",
+        resourceId: breachId,
+        userId: adminId,
+        details: { notified, errors },
+        success: true,
       });
 
       return ok({ notified, errors });

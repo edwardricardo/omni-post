@@ -3,60 +3,61 @@
  * @description Automated data retention cleanup. Deletes expired audit logs
  *   and marks overdue DSAR requests as EXPIRED. Only runs when
  *   enableAutoDataDeletion is true.
+ *
+ *   Framework-free: depends only on @core/domain ports + AuditEmitterPort +
+ *   @observability/logger.
  * @layer application
  */
 
-import type { PrismaClient } from "@infra/prisma";
-import { logger } from "../lib/logger.js";
+import { createLogger } from "@observability/logger";
+import type { GdprSettingsRepository } from "@core/domain/repositories/GdprSettingsRepository.js";
+import type { AuditLogRetentionPort } from "@core/domain/repositories/AuditLogRetentionPort.js";
+import type { DsarRequestRepository } from "@core/domain/repositories/DsarRequestRepository.js";
+import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
+
+const logger = createLogger("data-retention");
 
 export class DataRetentionService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly gdprRepo: GdprSettingsRepository,
+    private readonly auditLogRetention: AuditLogRetentionPort,
+    private readonly dsarRepo: DsarRequestRepository,
+    private readonly auditEmitter: AuditEmitterPort
+  ) {}
+
   /**
    * @method runRetentionCleanup
    * @description Deletes expired audit logs beyond the retention period and marks overdue DSAR requests as EXPIRED.
-   * @returns Counts of deleted audit logs and expired DSAR requests
    */
   async runRetentionCleanup(): Promise<{
     auditLogsDeleted: number;
     expiredDsarRequests: number;
   }> {
-    const settings = await this.prisma.gdprSettings.findFirst();
+    const settingsResult = await this.gdprRepo.findSingleton();
+    const settings = settingsResult.ok ? settingsResult.value : null;
     if (!settings?.enableAutoDataDeletion) {
       return { auditLogsDeleted: 0, expiredDsarRequests: 0 };
     }
 
     const now = new Date();
-
-    // Delete audit logs older than retention period
     const auditCutoff = new Date(
       now.getTime() - settings.auditLogRetentionDays * 24 * 60 * 60 * 1000
     );
-    const deletedAuditLogs = await this.prisma.auditLog.deleteMany({
-      where: { createdAt: { lt: auditCutoff } },
-    });
 
-    // Mark overdue DSAR requests as EXPIRED
-    const expiredDsars = await this.prisma.dsarRequest.updateMany({
-      where: {
-        deadlineAt: { lt: now },
-        status: { in: ["PENDING", "IN_PROGRESS"] },
-      },
-      data: { status: "EXPIRED" },
-    });
+    const deletedAuditResult = await this.auditLogRetention.deleteOlderThan(auditCutoff);
+    const expiredDsarResult = await this.dsarRepo.markOverdueAsExpired(now);
 
     const result = {
-      auditLogsDeleted: deletedAuditLogs.count,
-      expiredDsarRequests: expiredDsars.count,
+      auditLogsDeleted: deletedAuditResult.ok ? deletedAuditResult.value : 0,
+      expiredDsarRequests: expiredDsarResult.ok ? expiredDsarResult.value : 0,
     };
 
-    // Log cleanup summary
-    await this.prisma.auditLog.create({
-      data: {
-        action: "DATA_RETENTION_CLEANUP",
-        resource: "system",
-        details: result as object,
-        success: true,
-      },
+    await this.auditEmitter.emit({
+      action: "DATA_RETENTION_CLEANUP",
+      category: "SYSTEM",
+      resourceType: "system",
+      details: result,
+      success: true,
     });
 
     logger.info(result, "Data retention cleanup completed");
