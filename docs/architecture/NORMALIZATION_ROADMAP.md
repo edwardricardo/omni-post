@@ -68,7 +68,7 @@ Estos NO son items accionables — son notas para revisar en horizonte Q2/Q3 202
 
 ---
 
-### 1.2 CLAUDE.md split en 5 documentos — `P1` · `M` · `STATUS: DONE (TBD-sha)`
+### 1.2 CLAUDE.md split en 5 documentos — `P1` · `M` · `STATUS: DONE (d3d8e24)`
 
 **Qué:** Splitting CLAUDE.md (1100+ líneas hoy) en:
 
