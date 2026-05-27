@@ -498,6 +498,7 @@ export const TOKENS = {
 
   // DLQ Lifecycle
   DlqArchivalService: Symbol.for("DlqArchivalService"),
+  WebhookDeadLetterArchivalPort: Symbol.for("WebhookDeadLetterArchivalPort"),
 
   // Report Sharing
   EnableReportSharingUseCase: Symbol.for("EnableReportSharingUseCase"),

@@ -68,6 +68,7 @@ export * from "./repositories/DsarRequestRepository.js";
 export * from "./repositories/DataBreachReportRepository.js";
 export * from "./repositories/AuditLogRetentionPort.js";
 export * from "./repositories/AccountNotificationReader.js";
+export * from "./repositories/WebhookDeadLetterArchivalPort.js";
 export * from "./repositories/EncryptionPort.js";
 export * from "./repositories/ReferralRewardMailer.js";
 export * from "./repositories/WelcomeMailer.js";

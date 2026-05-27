@@ -57,7 +57,9 @@ import type { ApiMetrics } from "../../metrics/apiMetrics.js";
 import { createPostsService } from "../../posts/postsService.js";
 import { ComplianceService } from "@core/application/compliance/ComplianceService.js";
 import { DataRetentionService } from "@core/application/compliance/DataRetentionService.js";
-import { DlqArchivalService } from "../../webhooks/DlqArchivalService.js";
+import { DlqArchivalService } from "@core/application/webhooks/DlqArchivalService.js";
+import { PrismaWebhookDeadLetterArchivalRepository } from "../repositories/PrismaWebhookDeadLetterArchivalRepository.js";
+import type { WebhookDeadLetterArchivalPort } from "@core/domain/repositories/WebhookDeadLetterArchivalPort.js";
 import { DatabaseOptimizer } from "../../database/DatabaseOptimizer.js";
 import { RedisCacheManager, RedisCacheAdapter, createCacheManager } from "@adapters/cache-redis";
 import type { CachePort } from "@ports/core";
@@ -449,11 +451,16 @@ export function setupServices(
       ),
     true
   );
+  container.register<WebhookDeadLetterArchivalPort>(
+    TOKENS.WebhookDeadLetterArchivalPort,
+    () => new PrismaWebhookDeadLetterArchivalRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
   container.register<DlqArchivalService>(
     TOKENS.DlqArchivalService,
     () =>
       new DlqArchivalService(
-        container.resolve<import("@infra/prisma").PrismaClient>(TOKENS.PrismaClient)
+        container.resolve<WebhookDeadLetterArchivalPort>(TOKENS.WebhookDeadLetterArchivalPort)
       ),
     true
   );

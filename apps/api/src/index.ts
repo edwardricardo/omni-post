@@ -792,7 +792,7 @@ async function start() {
 
     // DLQ archival — daily
     const { DlqArchivalService: _DlqArchivalType } =
-      await import("./webhooks/DlqArchivalService.js");
+      await import("@core/application/webhooks/DlqArchivalService.js");
     const dlqArchival = app.container!.resolve<InstanceType<typeof _DlqArchivalType>>(
       TOKENS.DlqArchivalService
     );

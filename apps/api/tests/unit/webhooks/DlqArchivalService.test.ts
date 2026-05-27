@@ -1,25 +1,20 @@
 /**
  * @file DlqArchivalService.test.ts
- * @description Unit tests for DlqArchivalService — soft-archival of resolved DLQ events
- *              and flagging of stale unresolved events.
+ * @description Unit tests for DlqArchivalService — soft-archival of resolved
+ *   DLQ events and flagging of stale unresolved events. Post-S4.2 the
+ *   service is framework-free; tests mock the archival port.
  * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import type { PrismaClient } from "@infra/prisma";
-import { DlqArchivalService } from "../../../src/webhooks/DlqArchivalService.js";
+import { DlqArchivalService } from "@core/application/webhooks/DlqArchivalService.js";
+import type { WebhookDeadLetterArchivalPort } from "@core/domain/repositories/WebhookDeadLetterArchivalPort.js";
 
-// ===========================
-// Mock Factory
-// ===========================
-
-function makeMockPrisma() {
+function makeArchivalPort(): WebhookDeadLetterArchivalPort {
   return {
-    webhookDeadLetter: {
-      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
-      findMany: vi.fn().mockResolvedValue([]),
-    },
+    archiveResolvedBefore: vi.fn().mockResolvedValue({ ok: true, value: 0 }),
+    findStaleUnresolved: vi.fn().mockResolvedValue({ ok: true, value: [] }),
   };
 }
 
@@ -29,26 +24,27 @@ function makeMockPrisma() {
 
 describe("DlqArchivalService - archiveResolvedEvents", () => {
   let service: DlqArchivalService;
-  let mockPrisma: ReturnType<typeof makeMockPrisma>;
+  let archivalRepo: WebhookDeadLetterArchivalPort;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPrisma = makeMockPrisma();
-    service = new DlqArchivalService(mockPrisma as unknown as PrismaClient);
+    archivalRepo = makeArchivalPort();
+    service = new DlqArchivalService(archivalRepo);
   });
 
   it("archives resolved events older than retentionDays", async () => {
-    mockPrisma.webhookDeadLetter.updateMany.mockResolvedValue({ count: 5 });
+    (archivalRepo.archiveResolvedBefore as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      value: 5,
+    });
 
     const result = await service.archiveResolvedEvents(30);
 
     assert.strictEqual(result.archived, 5);
-
-    const call = mockPrisma.webhookDeadLetter.updateMany.mock.calls[0]![0]!;
-    const where = call.where as Record<string, unknown>;
-    expect(where).toHaveProperty("resolvedAt");
-    expect(where).toHaveProperty("archivedAt", null);
-    expect(call.data).toHaveProperty("archivedAt");
+    expect(archivalRepo.archiveResolvedBefore).toHaveBeenCalledTimes(1);
+    const cutoffArg = (archivalRepo.archiveResolvedBefore as ReturnType<typeof vi.fn>).mock
+      .calls[0]![0] as Date;
+    expect(cutoffArg).toBeInstanceOf(Date);
   });
 
   it("uses correct cutoff date based on retentionDays", async () => {
@@ -57,24 +53,19 @@ describe("DlqArchivalService - archiveResolvedEvents", () => {
 
     await service.archiveResolvedEvents(90);
 
-    const call = mockPrisma.webhookDeadLetter.updateMany.mock.calls[0]![0]!;
-    const resolvedAt = (call.where as Record<string, Record<string, Date>>).resolvedAt;
+    const cutoffArg = (archivalRepo.archiveResolvedBefore as ReturnType<typeof vi.fn>).mock
+      .calls[0]![0] as Date;
     const expectedCutoff = new Date(now - 90 * 24 * 60 * 60 * 1000);
-    assert.strictEqual(resolvedAt.lt.getTime(), expectedCutoff.getTime());
+    assert.strictEqual(cutoffArg.getTime(), expectedCutoff.getTime());
 
     vi.restoreAllMocks();
   });
 
-  it("skips unresolved events (resolvedAt filter requires not null)", async () => {
-    await service.archiveResolvedEvents(30);
-
-    const call = mockPrisma.webhookDeadLetter.updateMany.mock.calls[0]![0]!;
-    const where = call.where as Record<string, Record<string, unknown>>;
-    expect(where.resolvedAt).toHaveProperty("not", null);
-  });
-
-  it("returns count from updateMany result", async () => {
-    mockPrisma.webhookDeadLetter.updateMany.mockResolvedValue({ count: 42 });
+  it("returns count from port result", async () => {
+    (archivalRepo.archiveResolvedBefore as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      value: 42,
+    });
 
     const result = await service.archiveResolvedEvents(7);
 
@@ -82,7 +73,21 @@ describe("DlqArchivalService - archiveResolvedEvents", () => {
   });
 
   it("returns 0 when no events qualify for archival", async () => {
-    mockPrisma.webhookDeadLetter.updateMany.mockResolvedValue({ count: 0 });
+    (archivalRepo.archiveResolvedBefore as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      value: 0,
+    });
+
+    const result = await service.archiveResolvedEvents(30);
+
+    assert.strictEqual(result.archived, 0);
+  });
+
+  it("returns 0 when the port fails (DATABASE_ERROR)", async () => {
+    (archivalRepo.archiveResolvedBefore as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: false,
+      error: "DATABASE_ERROR",
+    });
 
     const result = await service.archiveResolvedEvents(30);
 
@@ -96,12 +101,12 @@ describe("DlqArchivalService - archiveResolvedEvents", () => {
 
 describe("DlqArchivalService - flagStaleEvents", () => {
   let service: DlqArchivalService;
-  let mockPrisma: ReturnType<typeof makeMockPrisma>;
+  let archivalRepo: WebhookDeadLetterArchivalPort;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPrisma = makeMockPrisma();
-    service = new DlqArchivalService(mockPrisma as unknown as PrismaClient);
+    archivalRepo = makeArchivalPort();
+    service = new DlqArchivalService(archivalRepo);
   });
 
   it("finds stale unresolved events older than staleAfterDays", async () => {
@@ -119,7 +124,10 @@ describe("DlqArchivalService - flagStaleEvents", () => {
         firstFailedAt: new Date("2024-01-05"),
       },
     ];
-    mockPrisma.webhookDeadLetter.findMany.mockResolvedValue(staleEvents);
+    (archivalRepo.findStaleUnresolved as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      value: staleEvents,
+    });
 
     const result = await service.flagStaleEvents(14);
 
@@ -127,13 +135,13 @@ describe("DlqArchivalService - flagStaleEvents", () => {
     assert.deepStrictEqual(result.eventIds, ["evt-1", "evt-2"]);
   });
 
-  it("queries for unresolved and non-archived events only", async () => {
+  it("delegates to the archival port with a cutoff Date", async () => {
     await service.flagStaleEvents(7);
 
-    const call = mockPrisma.webhookDeadLetter.findMany.mock.calls[0]![0]!;
-    const where = call.where as Record<string, unknown>;
-    assert.strictEqual(where.resolvedAt, null);
-    assert.strictEqual(where.archivedAt, null);
+    expect(archivalRepo.findStaleUnresolved).toHaveBeenCalledTimes(1);
+    const cutoffArg = (archivalRepo.findStaleUnresolved as ReturnType<typeof vi.fn>).mock
+      .calls[0]![0] as Date;
+    expect(cutoffArg).toBeInstanceOf(Date);
   });
 
   it("uses correct cutoff date for staleAfterDays", async () => {
@@ -142,10 +150,10 @@ describe("DlqArchivalService - flagStaleEvents", () => {
 
     await service.flagStaleEvents(21);
 
-    const call = mockPrisma.webhookDeadLetter.findMany.mock.calls[0]![0]!;
-    const firstFailedAt = (call.where as Record<string, Record<string, Date>>).firstFailedAt;
+    const cutoffArg = (archivalRepo.findStaleUnresolved as ReturnType<typeof vi.fn>).mock
+      .calls[0]![0] as Date;
     const expectedCutoff = new Date(now - 21 * 24 * 60 * 60 * 1000);
-    assert.strictEqual(firstFailedAt.lt.getTime(), expectedCutoff.getTime());
+    assert.strictEqual(cutoffArg.getTime(), expectedCutoff.getTime());
 
     vi.restoreAllMocks();
   });
@@ -154,7 +162,10 @@ describe("DlqArchivalService - flagStaleEvents", () => {
     const staleEvents = [
       { id: "stale-a", provider: "INSTAGRAM", eventType: "API_ERROR", firstFailedAt: new Date() },
     ];
-    mockPrisma.webhookDeadLetter.findMany.mockResolvedValue(staleEvents);
+    (archivalRepo.findStaleUnresolved as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      value: staleEvents,
+    });
 
     const result = await service.flagStaleEvents(30);
 
@@ -163,7 +174,10 @@ describe("DlqArchivalService - flagStaleEvents", () => {
   });
 
   it("returns empty result when no stale events exist", async () => {
-    mockPrisma.webhookDeadLetter.findMany.mockResolvedValue([]);
+    (archivalRepo.findStaleUnresolved as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      value: [],
+    });
 
     const result = await service.flagStaleEvents(7);
 

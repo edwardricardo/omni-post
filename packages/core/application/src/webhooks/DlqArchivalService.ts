@@ -1,16 +1,22 @@
 /**
  * @file DlqArchivalService.ts
  * @description Archives resolved DLQ events and flags stale unresolved events.
- *   Soft-archive only — never deletes records.
- *   Idempotent — running twice produces the same result.
+ *   Soft-archive only — never deletes records. Idempotent — running twice
+ *   produces the same result.
+ *
+ *   Framework-free: depends only on `WebhookDeadLetterArchivalPort` +
+ *   @observability/logger.
  * @layer application
  */
 
-import type { PrismaClient } from "@infra/prisma";
-import { logger } from "../lib/logger.js";
+import { createLogger } from "@observability/logger";
+import type { WebhookDeadLetterArchivalPort } from "@core/domain/repositories/WebhookDeadLetterArchivalPort.js";
+
+const logger = createLogger("dlq-archival");
 
 export class DlqArchivalService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly archivalRepo: WebhookDeadLetterArchivalPort) {}
+
   /**
    * @method archiveResolvedEvents
    * @description Soft-archives resolved WebhookDeadLetter events older than retentionDays.
@@ -18,22 +24,14 @@ export class DlqArchivalService {
   async archiveResolvedEvents(retentionDays: number): Promise<{ archived: number }> {
     const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
 
-    const result = await this.prisma.webhookDeadLetter.updateMany({
-      where: {
-        resolvedAt: { not: null, lt: cutoff },
-        archivedAt: null,
-      },
-      data: { archivedAt: new Date() },
-    });
+    const result = await this.archivalRepo.archiveResolvedBefore(cutoff);
+    const archived = result.ok ? result.value : 0;
 
-    if (result.count > 0) {
-      logger.info(
-        { archived: result.count, retentionDays },
-        "DLQ archival: resolved events archived"
-      );
+    if (archived > 0) {
+      logger.info({ archived, retentionDays }, "DLQ archival: resolved events archived");
     }
 
-    return { archived: result.count };
+    return { archived };
   }
 
   /**
@@ -43,14 +41,8 @@ export class DlqArchivalService {
   async flagStaleEvents(staleAfterDays: number): Promise<{ stale: number; eventIds: string[] }> {
     const cutoff = new Date(Date.now() - staleAfterDays * 24 * 60 * 60 * 1000);
 
-    const staleEvents = await this.prisma.webhookDeadLetter.findMany({
-      where: {
-        resolvedAt: null,
-        archivedAt: null,
-        firstFailedAt: { lt: cutoff },
-      },
-      select: { id: true, provider: true, eventType: true, firstFailedAt: true },
-    });
+    const result = await this.archivalRepo.findStaleUnresolved(cutoff);
+    const staleEvents = result.ok ? result.value : [];
 
     if (staleEvents.length > 0) {
       logger.warn(
