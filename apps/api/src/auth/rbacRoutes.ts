@@ -11,7 +11,7 @@ import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.
 import { IdSchema } from "@packages/api-common";
 import { Permission } from "./rbacService.js";
 import type { RbacService } from "./rbacService.js";
-import { RoleManagementService } from "./roleManagementService.js";
+import { RoleManagementService } from "@core/application/auth/RoleManagementService.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "./rbacMiddleware.js";
 import type { AuthenticatedUser } from "./authService.js";
@@ -531,9 +531,8 @@ class RbacRouteHandler extends BaseRouteHandler {
 
 const rbacRoutes: FastifyPluginAsync = async (fastify) => {
   const rbacService = fastify.container!.resolve<RbacService>(TOKENS.RbacService);
-  const roleManagement = new RoleManagementService(
-    fastify.container!.resolve(TOKENS.PrismaClient),
-    rbacService
+  const roleManagement = fastify.container!.resolve<RoleManagementService>(
+    TOKENS.RoleManagementService
   );
   const handler = new RbacRouteHandler(rbacService, roleManagement);
 

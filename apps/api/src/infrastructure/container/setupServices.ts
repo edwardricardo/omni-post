@@ -17,6 +17,11 @@ import type { EventDispatcher as _EventDispatcher } from "@core/domain/index.js"
 import { AuthService } from "../../auth/authService.js";
 import { MfaService } from "../../auth/mfaService.js";
 import { RbacService } from "../../auth/rbacService.js";
+import { RoleManagementService } from "@core/application/auth/RoleManagementService.js";
+import { PrismaRoleManagementRepository } from "../repositories/PrismaRoleManagementRepository.js";
+import type { RoleManagementRepository } from "@core/domain/repositories/RoleManagementRepository.js";
+import { RbacCacheInvalidatorAdapter } from "../../auth/RbacCacheInvalidatorAdapter.js";
+import type { RbacCacheInvalidatorPort } from "@core/domain/repositories/RbacCacheInvalidatorPort.js";
 import { AuditService } from "../../audit/auditService.js";
 import { ActivityFeedService } from "../../audit/activityFeedService.js";
 import { AIService } from "../../ai/aiService.js";
@@ -187,6 +192,26 @@ export function setupServices(
         container.resolve<RoleRepository>(TOKENS.RoleRepository),
         container.resolve<AuditLogRepository>(TOKENS.AuditLogRepository),
         container.resolve<CachePort>(TOKENS.CachePort)
+      ),
+    true
+  );
+  // S4.4 — RoleManagementService (@core/application) + its two ports
+  container.register<RoleManagementRepository>(
+    TOKENS.RoleManagementRepository,
+    () => new PrismaRoleManagementRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<RbacCacheInvalidatorPort>(
+    TOKENS.RbacCacheInvalidatorPort,
+    () => new RbacCacheInvalidatorAdapter(container.resolve<RbacService>(TOKENS.RbacService)),
+    true
+  );
+  container.register<RoleManagementService>(
+    TOKENS.RoleManagementService,
+    () =>
+      new RoleManagementService(
+        container.resolve<RoleManagementRepository>(TOKENS.RoleManagementRepository),
+        container.resolve<RbacCacheInvalidatorPort>(TOKENS.RbacCacheInvalidatorPort)
       ),
     true
   );
