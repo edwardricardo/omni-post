@@ -5,6 +5,7 @@
  * @layer infrastructure
  */
 import type { PrismaClient } from "@infra/prisma";
+import { tenantGuardExtension } from "@infra/prisma/extensions/tenantGuard.js";
 import { Container, getContainer } from "./Container.js";
 import { TOKENS } from "./types.js";
 import { InMemoryEventDispatcher, type EventDispatcher } from "@core/domain/index.js";
@@ -15,6 +16,7 @@ import { setupUseCases } from "./setupUseCases.js";
 import { setupBillingUseCases } from "./setupBillingUseCases.js";
 import { setupServices } from "./setupServices.js";
 import { setupAgentOrchestration } from "./setupAgentOrchestration.js";
+import { getTenantContext, getSystemContext } from "../../security/tenantContext.js";
 
 /**
  * Container setup options
@@ -44,8 +46,17 @@ export interface ContainerSetupOptions {
 export function setupContainer(options: ContainerSetupOptions): Container {
   const container = getContainer();
 
-  // Register Prisma client
-  container.registerInstance(TOKENS.PrismaClient, options.prisma);
+  // Wrap the Prisma client with the tenant guard extension (S2.1b). Every
+  // consumer that resolves PrismaClient from the container gets the
+  // guarded instance; scripts/migrations that import `prisma` directly
+  // from `@infra/prisma` get the unwrapped client. The extension reads
+  // tenant + system context via the AsyncLocalStorage holders in
+  // `apps/api/src/security/tenantContext.ts` — see
+  // `docs/security/MULTI_TENANT_GUARDS.md`.
+  const guardedPrisma = options.prisma.$extends(
+    tenantGuardExtension({ getTenantContext, getSystemContext })
+  ) as unknown as PrismaClient;
+  container.registerInstance(TOKENS.PrismaClient, guardedPrisma);
 
   // Register Event Dispatcher
   container.register<EventDispatcher>(

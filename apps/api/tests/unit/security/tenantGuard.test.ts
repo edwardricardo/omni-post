@@ -1,0 +1,329 @@
+/**
+ * @file tenantGuard.test.ts
+ * @description Unit tests for the Prisma `$extends` tenant-guard extension
+ *   (S2.1b). Tests the guard's decision matrix in isolation by exercising
+ *   the inner `$allOperations` callback with synthesised inputs. Does NOT
+ *   require a Prisma client or PostgreSQL — pure logic tests.
+ * @layer infrastructure
+ */
+import { describe, it, expect, vi } from "vitest";
+import {
+  tenantGuardCheck,
+  TenantContextMissingError,
+  TenantContextMismatchError,
+  getTenantScopedModels,
+  type TenantContextProvider,
+} from "../../../../../infra/prisma/src/extensions/tenantGuard.js";
+
+/**
+ * Thin wrapper around `tenantGuardCheck` so each test reads as a single
+ * call with named inputs. Uses a default `query` stub when the test doesn't
+ * supply its own.
+ */
+function callGuard(input: {
+  provider: TenantContextProvider;
+  model: string;
+  operation: string;
+  args: Record<string, unknown>;
+  query?: (args: unknown) => Promise<unknown>;
+}) {
+  const queryFn = input.query ?? (async (a) => ({ called: true, args: a }));
+  return tenantGuardCheck(
+    {
+      model: input.model,
+      operation: input.operation,
+      args: input.args,
+      query: queryFn,
+    },
+    input.provider
+  );
+}
+
+function makeProvider(overrides: Partial<TenantContextProvider> = {}): TenantContextProvider {
+  return {
+    getTenantContext: () => undefined,
+    getSystemContext: () => undefined,
+    ...overrides,
+  };
+}
+
+describe("tenantGuardExtension", () => {
+  describe("denylist (global tables)", () => {
+    it("bypasses for Account model", async () => {
+      const queryFn = vi.fn().mockResolvedValue("bypassed");
+      const result = await callGuard({
+        provider: makeProvider(),
+        model: "Account",
+        operation: "findFirst",
+        args: { where: { id: "acc-1" } },
+        query: queryFn,
+      });
+      expect(result).toBe("bypassed");
+      expect(queryFn).toHaveBeenCalledWith({ where: { id: "acc-1" } });
+    });
+
+    it("bypasses for AuditLog model", async () => {
+      const queryFn = vi.fn().mockResolvedValue([]);
+      await callGuard({
+        provider: makeProvider(),
+        model: "AuditLog",
+        operation: "findMany",
+        args: { where: { action: "LOGIN" } },
+        query: queryFn,
+      });
+      expect(queryFn).toHaveBeenCalledWith({ where: { action: "LOGIN" } });
+    });
+
+    it("bypasses for ProviderBundle (global pricing config)", async () => {
+      const queryFn = vi.fn();
+      await callGuard({
+        provider: makeProvider(),
+        model: "ProviderBundle",
+        operation: "findMany",
+        args: {},
+        query: queryFn,
+      });
+      expect(queryFn).toHaveBeenCalled();
+    });
+  });
+
+  describe("tenant-scoped table + no context", () => {
+    it("throws TenantContextMissingError on findFirst", async () => {
+      await expect(
+        callGuard({
+          provider: makeProvider(),
+          model: "ApiKey",
+          operation: "findFirst",
+          args: { where: { id: "key-1" } },
+        })
+      ).rejects.toThrow(TenantContextMissingError);
+    });
+
+    it("throws on update", async () => {
+      // Pick a tenant-scoped model that's in the SET (Project is in the list).
+      await expect(
+        callGuard({
+          provider: makeProvider(),
+          model: "Project",
+          operation: "update",
+          args: { where: { id: "proj-1" }, data: { name: "new" } },
+        })
+      ).rejects.toThrow(TenantContextMissingError);
+    });
+
+    it("error carries model + operation", async () => {
+      try {
+        await callGuard({
+          provider: makeProvider(),
+          model: "MediaAsset",
+          operation: "findMany",
+          args: {},
+        });
+        expect.fail("should have thrown");
+      } catch (e) {
+        expect(e).toBeInstanceOf(TenantContextMissingError);
+        expect((e as Error).message).toContain("MediaAsset");
+        expect((e as Error).message).toContain("findMany");
+      }
+    });
+  });
+
+  describe("tenant-scoped table + SystemContext (bypass)", () => {
+    it("bypasses when SystemContext is active", async () => {
+      const queryFn = vi.fn().mockResolvedValue([]);
+      const provider = makeProvider({
+        getSystemContext: () => ({ reason: "admin-impersonation" }),
+      });
+      await callGuard({
+        provider,
+        model: "Project",
+        operation: "findMany",
+        args: { where: { name: "X" } },
+        query: queryFn,
+      });
+      expect(queryFn).toHaveBeenCalledWith({ where: { name: "X" } });
+    });
+
+    it("does not inject accountId under SystemContext", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getSystemContext: () => ({ reason: "system:test" }),
+      });
+      await callGuard({
+        provider,
+        model: "ApiKey",
+        operation: "findFirst",
+        args: { where: { id: "key-1" } },
+        query: queryFn,
+      });
+      const calledWith = queryFn.mock.calls[0]?.[0] as { where?: Record<string, unknown> };
+      expect(calledWith.where?.accountId).toBeUndefined();
+    });
+  });
+
+  describe("tenant-scoped table + TenantContext bound", () => {
+    it("injects accountId into where when missing (findMany)", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "MediaAsset",
+        operation: "findMany",
+        args: {},
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as { where: { accountId: string } };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+    });
+
+    it("injects accountId into where when missing (findFirst)", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "Mention",
+        operation: "findFirst",
+        args: { where: { topic: "X" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; topic: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.topic).toBe("X");
+    });
+
+    it("passes through when explicit accountId matches context", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "ApiKey",
+        operation: "findFirst",
+        args: { where: { accountId: "acc-A", isActive: true } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as { where: { accountId: string } };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+    });
+
+    it("bypasses transitively-scoped models like Post (not in direct list)", async () => {
+      const queryFn = vi.fn().mockResolvedValue([]);
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "Post",
+        operation: "findMany",
+        args: { where: { accountId: "acc-B" } },
+        query: queryFn,
+      });
+      expect(queryFn).toHaveBeenCalledWith({ where: { accountId: "acc-B" } });
+    });
+
+    it("throws TenantContextMismatchError on direct tenant table", async () => {
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      try {
+        await callGuard({
+          provider,
+          model: "ApiKey",
+          operation: "findFirst",
+          args: { where: { accountId: "acc-B" } },
+        });
+        expect.fail("should have thrown");
+      } catch (e) {
+        expect(e).toBeInstanceOf(TenantContextMismatchError);
+        expect((e as TenantContextMismatchError).contextAccountId).toBe("acc-A");
+        expect((e as TenantContextMismatchError).queryAccountId).toBe("acc-B");
+      }
+    });
+
+    it("injects accountId into data on create", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "ApiKey",
+        operation: "create",
+        args: { data: { name: "test-key", isActive: true } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as { data: { accountId: string } };
+      expect(calledArgs.data.accountId).toBe("acc-A");
+    });
+
+    it("injects accountId into each row of createMany", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "ApiKey",
+        operation: "createMany",
+        args: {
+          data: [
+            { name: "k1", isActive: true },
+            { name: "k2", isActive: false },
+          ],
+        },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        data: Array<{ accountId: string }>;
+      };
+      expect(calledArgs.data).toHaveLength(2);
+      expect(calledArgs.data[0]?.accountId).toBe("acc-A");
+      expect(calledArgs.data[1]?.accountId).toBe("acc-A");
+    });
+
+    it("rejects create with mismatching explicit accountId", async () => {
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await expect(
+        callGuard({
+          provider,
+          model: "ApiKey",
+          operation: "create",
+          args: { data: { accountId: "acc-B", name: "k" } },
+        })
+      ).rejects.toThrow(TenantContextMismatchError);
+    });
+  });
+
+  describe("model classification", () => {
+    it("getTenantScopedModels returns 51 entries", () => {
+      expect(getTenantScopedModels().size).toBe(51);
+    });
+
+    it("includes well-known tenant tables (project, apiKey, mediaAsset)", () => {
+      const models = getTenantScopedModels();
+      expect(models.has("project")).toBe(true);
+      expect(models.has("apiKey")).toBe(true);
+      expect(models.has("mediaAsset")).toBe(true);
+      expect(models.has("socialMessage")).toBe(true);
+    });
+
+    it("excludes global tables (account, auditLog, providerBundle, post, channel)", () => {
+      const models = getTenantScopedModels();
+      // Post and Channel are transitively scoped (via project FK), not in this direct list
+      expect(models.has("account")).toBe(false);
+      expect(models.has("auditLog")).toBe(false);
+      expect(models.has("providerBundle")).toBe(false);
+      expect(models.has("post")).toBe(false);
+      expect(models.has("channel")).toBe(false);
+    });
+  });
+});

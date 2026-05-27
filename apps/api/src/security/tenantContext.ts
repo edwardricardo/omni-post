@@ -26,6 +26,7 @@
  * @layer infrastructure
  */
 import { AsyncLocalStorage } from "node:async_hooks";
+import { TenantContextMissingError } from "@infra/prisma/extensions/tenantGuard.js";
 
 /** Customer-side tenant context bound by the auth middleware. */
 export interface TenantContext {
@@ -143,44 +144,10 @@ export function getSystemContext(): SystemContext | undefined {
 
 // ─── Errors ─────────────────────────────────────────────────────────────────
 
-/**
- * @class TenantContextMissingError
- * @description Thrown when a tenant-scoped Prisma query runs without an
- *   active `TenantContext` or `SystemContext`. Indicates a code path that
- *   forgot to bind tenant scope — typically a system job that should run
- *   inside `withSystemContext()`.
- */
-export class TenantContextMissingError extends Error {
-  readonly code = "TENANT_CONTEXT_MISSING";
-
-  constructor(model?: string, operation?: string) {
-    super(
-      model && operation
-        ? `No TenantContext or SystemContext bound for ${model}.${operation}`
-        : "No TenantContext or SystemContext bound"
-    );
-    this.name = "TenantContextMissingError";
-  }
-}
-
-/**
- * @class TenantContextMismatchError
- * @description Thrown when a Prisma query carries an explicit `accountId`
- *   in its `where` clause that disagrees with the bound `TenantContext`.
- *   Indicates either a bug (caller passing wrong accountId) or an
- *   attempted authorization-bypass (CWE-639).
- */
-export class TenantContextMismatchError extends Error {
-  readonly code = "TENANT_CONTEXT_MISMATCH";
-
-  constructor(
-    readonly model: string,
-    readonly contextAccountId: string,
-    readonly queryAccountId: string
-  ) {
-    super(
-      `Tenant mismatch on ${model}: context.accountId=${contextAccountId} but query.where.accountId=${queryAccountId}`
-    );
-    this.name = "TenantContextMismatchError";
-  }
-}
+// Error classes live in `@infra/prisma/extensions/tenantGuard.ts` so the
+// Prisma extension can throw them without an apps/api dep cycle. We
+// re-export here so apps/api consumers have a single import path.
+export {
+  TenantContextMissingError,
+  TenantContextMismatchError,
+} from "@infra/prisma/extensions/tenantGuard.js";

@@ -66,6 +66,11 @@ export default defineConfig({
         root,
         "packages/observability/opentelemetry/src/index.ts"
       ),
+      // More specific subpath alias MUST come before the bare `@infra/prisma`
+      // alias so it wins prefix matching (Vite resolves aliases in declaration
+      // order). Without this, `@infra/prisma/extensions/...` would resolve to
+      // `vitest-entry.ts/extensions/...` (a non-existent path inside a file).
+      "@infra/prisma/extensions": path.join(root, "infra/prisma/src/extensions"),
       "@infra/prisma": path.join(root, "infra/prisma/src/vitest-entry.ts"),
       "@providers/shared": path.join(root, "packages/providers/shared/src/index.ts"),
       "@providers/x": path.join(root, "packages/providers/x/src/index.ts"),
