@@ -2,57 +2,106 @@
  * @file GatewayBillingService.test.ts
  * @description Unit tests for gateway billing service — switch lifecycle,
  *   checkout sessions, billing portal, idempotency, and query methods.
+ *   After S3.4c the service is framework-free; tests mock the 9 ports + UoW.
  * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { GatewayBillingService } from "../../../src/billing/GatewayBillingService.js";
-import type { PrismaClient } from "@infra/prisma";
-import type { GatewayAdapterRegistryPort } from "../../../src/infrastructure/billing/GatewayAdapterRegistry.js";
-import type { GatewaySwitchJobService } from "../../../src/billing/GatewaySwitchJobService.js";
+import type { AccountBillingRepository } from "@core/domain/repositories/AccountBillingRepository.js";
+import type { AccountSubscriptionBillingRepository } from "@core/domain/repositories/AccountSubscriptionBillingRepository.js";
+import type { GatewaySwitchEventRepository } from "@core/domain/repositories/GatewaySwitchEventRepository.js";
+import type { BillingEventRepository } from "@core/domain/repositories/BillingEventRepository.js";
+import type { InvoiceRepository } from "@core/domain/repositories/InvoiceRepository.js";
+import type { ProviderBundleReader } from "@core/domain/repositories/ProviderBundleReader.js";
+import type { GatewaySwitchJobPort } from "@core/domain/repositories/GatewaySwitchJobPort.js";
+import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
+import type { GatewayAdapterRegistryPort } from "../../../src/infrastructure/billing/GatewayAdapterRegistry.js";
 
 // ── Mock Factories ──────────────────────────────────────────────────────────
 
-function makeMockPrisma() {
+function makeAccountRepo(): AccountBillingRepository {
   return {
-    account: {
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      update: vi.fn(),
-    },
-    accountSubscription: {
-      findFirst: vi.fn(),
-      update: vi.fn(),
-      updateMany: vi.fn(),
-    },
-    gatewaySwitchEvent: {
-      findFirst: vi.fn(),
-      findUnique: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      count: vi.fn(),
-      findMany: vi.fn(),
-    },
-    billingEvent: {
-      findUnique: vi.fn(),
-      upsert: vi.fn(),
-      update: vi.fn(),
-    },
-    providerBundle: {
-      findMany: vi.fn(),
-    },
-    auditLog: {
-      create: vi.fn(),
-    },
-    $transaction: vi.fn(async (ops: unknown[]) => {
-      const results = [];
-      for (const op of ops) {
-        results.push(await (op as Promise<unknown>));
-      }
-      return results;
+    findById: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    findByGatewayCustomerId: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    updateBillingFields: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+  };
+}
+
+function makeSubscriptionRepo(): AccountSubscriptionBillingRepository {
+  return {
+    findActiveOrTrialingByAccount: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    findLatestByAccount: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    findByAccountAndStatus: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    update: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+    updateAllForAccount: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+  };
+}
+
+function makeSwitchEventRepo(): GatewaySwitchEventRepository {
+  return {
+    create: vi.fn().mockResolvedValue({ ok: true, value: { id: "switch-new" } }),
+    findById: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    findLatestByAccountAndStatus: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    update: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+    listWithAccount: vi.fn().mockResolvedValue({
+      ok: true,
+      value: {
+        events: [],
+        counts: { total: 0, scheduled: 0, pendingCheckout: 0, suspended: 0, completed30d: 0 },
+      },
     }),
+    findByIdWithAccount: vi.fn().mockResolvedValue({ ok: true, value: null }),
+  };
+}
+
+function makeBillingEventRepo(): BillingEventRepository {
+  return {
+    findByGatewayEventId: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    upsertNew: vi.fn().mockResolvedValue({ ok: true, value: { id: "be-new" } }),
+    markProcessed: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+    markError: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+  };
+}
+
+function makeInvoiceRepo(): InvoiceRepository {
+  return {
+    upsertByGatewayInvoiceId: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+  };
+}
+
+function makeBundleReader(): ProviderBundleReader {
+  return {
+    listActive: vi.fn().mockResolvedValue({ ok: true, value: [] }),
+  };
+}
+
+function makeSwitchJobs(): GatewaySwitchJobPort {
+  return {
+    startCheckoutWindow: vi.fn().mockResolvedValue(undefined),
+    cancelJobs: vi.fn().mockResolvedValue(undefined),
+    rescheduleJobs: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
+function makeAuditEmitter(): AuditEmitterPort {
+  return {
+    emit: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
+function makeEmailPort(): EmailPort {
+  return {
+    send: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+  } as unknown as EmailPort;
+}
+
+function makeUnitOfWork(): UnitOfWork {
+  return {
+    executeInTransaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
   };
 }
 
@@ -79,31 +128,17 @@ function makeMockRegistry(overrides: Record<string, unknown> = {}) {
   return { getAdapter: vi.fn().mockReturnValue(adapter), _adapter: adapter };
 }
 
-function makeMockSwitchJobService() {
-  return {
-    startCheckoutWindow: vi.fn().mockResolvedValue(undefined),
-    cancelJobs: vi.fn().mockResolvedValue(undefined),
-    rescheduleJobs: vi.fn().mockResolvedValue(undefined),
-    close: vi.fn().mockResolvedValue(undefined),
-  };
-}
-
-function makeMockEmailPort() {
-  return {
-    send: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
-  };
-}
-
 function makeAccount(overrides: Record<string, unknown> = {}) {
   return {
     id: "account-001",
     name: "Test Account",
     email: "test@example.com",
-    gatewayProvider: "STRIPE",
+    gatewayProvider: "STRIPE" as const,
     gatewayCustomerId: "cus_existing",
     pendingGatewaySwitch: false,
     pendingGatewayProvider: null,
     gatewaySwitchAt: null,
+    status: "ACTIVE",
     ...overrides,
   };
 }
@@ -112,11 +147,13 @@ function makeSubscription(overrides: Record<string, unknown> = {}) {
   return {
     id: "sub-001",
     accountId: "account-001",
-    status: "ACTIVE",
+    status: "ACTIVE" as const,
+    gatewayProvider: "STRIPE" as const,
     gatewaySubscriptionId: "ext_sub_001",
     externalSubscriptionId: null,
     cancelAtPeriodEnd: false,
     currentPeriodEnd: new Date("2026-06-01T00:00:00Z"),
+    bundleId: "bundle-1",
     ...overrides,
   };
 }
@@ -125,15 +162,16 @@ function makeSwitchEvent(overrides: Record<string, unknown> = {}) {
   return {
     id: "switch-001",
     accountId: "account-001",
-    fromGateway: "STRIPE",
-    toGateway: "PADDLE",
-    status: "SCHEDULED",
+    fromGateway: "STRIPE" as const,
+    toGateway: "PADDLE" as const,
+    status: "SCHEDULED" as const,
     scheduledFor: new Date("2026-06-01T00:00:00Z"),
     extendedUntil: null,
     extendedBy: null,
     completedAt: null,
     cancelledAt: null,
     suspendedAt: null,
+    reminderSentAt: null,
     createdAt: new Date("2026-05-01T00:00:00Z"),
     ...overrides,
   };
@@ -143,22 +181,43 @@ function makeSwitchEvent(overrides: Record<string, unknown> = {}) {
 
 describe("GatewayBillingService", () => {
   let service: GatewayBillingService;
-  let mockPrisma: ReturnType<typeof makeMockPrisma>;
+  let accountRepo: AccountBillingRepository;
+  let subscriptionRepo: AccountSubscriptionBillingRepository;
+  let switchEventRepo: GatewaySwitchEventRepository;
+  let billingEventRepo: BillingEventRepository;
+  let invoiceRepo: InvoiceRepository;
+  let bundleReader: ProviderBundleReader;
+  let switchJobs: GatewaySwitchJobPort;
+  let auditEmitter: AuditEmitterPort;
+  let emailPort: EmailPort;
+  let unitOfWork: UnitOfWork;
   let mockRegistry: ReturnType<typeof makeMockRegistry>;
-  let mockSwitchJobService: ReturnType<typeof makeMockSwitchJobService>;
-  let mockEmailPort: ReturnType<typeof makeMockEmailPort>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPrisma = makeMockPrisma();
+    accountRepo = makeAccountRepo();
+    subscriptionRepo = makeSubscriptionRepo();
+    switchEventRepo = makeSwitchEventRepo();
+    billingEventRepo = makeBillingEventRepo();
+    invoiceRepo = makeInvoiceRepo();
+    bundleReader = makeBundleReader();
+    switchJobs = makeSwitchJobs();
+    auditEmitter = makeAuditEmitter();
+    emailPort = makeEmailPort();
+    unitOfWork = makeUnitOfWork();
     mockRegistry = makeMockRegistry();
-    mockSwitchJobService = makeMockSwitchJobService();
-    mockEmailPort = makeMockEmailPort();
     service = new GatewayBillingService(
-      mockPrisma as unknown as PrismaClient,
+      accountRepo,
+      subscriptionRepo,
+      switchEventRepo,
+      billingEventRepo,
+      invoiceRepo,
+      bundleReader,
       mockRegistry as unknown as GatewayAdapterRegistryPort,
-      mockSwitchJobService as unknown as GatewaySwitchJobService,
-      mockEmailPort as unknown as EmailPort
+      switchJobs,
+      emailPort,
+      auditEmitter,
+      unitOfWork
     );
   });
 
@@ -166,7 +225,10 @@ describe("GatewayBillingService", () => {
 
   describe("initiateGatewaySwitch", () => {
     it("returns ACCOUNT_NOT_FOUND when account is null", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(null);
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: null,
+      });
 
       const result = await service.initiateGatewaySwitch("account-001", "paddle");
 
@@ -175,7 +237,10 @@ describe("GatewayBillingService", () => {
     });
 
     it("returns SAME_GATEWAY when account.gatewayProvider matches target", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(makeAccount({ gatewayProvider: "STRIPE" }));
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeAccount({ gatewayProvider: "STRIPE" }),
+      });
 
       const result = await service.initiateGatewaySwitch("account-001", "stripe");
 
@@ -184,7 +249,10 @@ describe("GatewayBillingService", () => {
     });
 
     it("returns SWITCH_ALREADY_PENDING when pendingGatewaySwitch is true", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(makeAccount({ pendingGatewaySwitch: true }));
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeAccount({ pendingGatewaySwitch: true }),
+      });
 
       const result = await service.initiateGatewaySwitch("account-001", "paddle");
 
@@ -193,8 +261,13 @@ describe("GatewayBillingService", () => {
     });
 
     it("returns NO_ACTIVE_SUBSCRIPTION when no active/trialing subscription", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(makeAccount());
-      mockPrisma.accountSubscription.findFirst.mockResolvedValue(null);
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeAccount(),
+      });
+      (
+        subscriptionRepo.findActiveOrTrialingByAccount as ReturnType<typeof vi.fn>
+      ).mockResolvedValue({ ok: true, value: null });
 
       const result = await service.initiateGatewaySwitch("account-001", "paddle");
 
@@ -203,9 +276,13 @@ describe("GatewayBillingService", () => {
     });
 
     it("calls getSubscriptionDetails on registry adapter", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(makeAccount());
-      mockPrisma.accountSubscription.findFirst.mockResolvedValue(makeSubscription());
-      mockPrisma.$transaction.mockResolvedValue([{ id: "switch-new", accountId: "account-001" }]);
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeAccount(),
+      });
+      (
+        subscriptionRepo.findActiveOrTrialingByAccount as ReturnType<typeof vi.fn>
+      ).mockResolvedValue({ ok: true, value: makeSubscription() });
 
       await service.initiateGatewaySwitch("account-001", "paddle");
 
@@ -216,9 +293,13 @@ describe("GatewayBillingService", () => {
     });
 
     it("calls cancelAtPeriodEnd on adapter with subscription ID", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(makeAccount());
-      mockPrisma.accountSubscription.findFirst.mockResolvedValue(makeSubscription());
-      mockPrisma.$transaction.mockResolvedValue([{ id: "switch-new", accountId: "account-001" }]);
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeAccount(),
+      });
+      (
+        subscriptionRepo.findActiveOrTrialingByAccount as ReturnType<typeof vi.fn>
+      ).mockResolvedValue({ ok: true, value: makeSubscription() });
 
       await service.initiateGatewaySwitch("account-001", "paddle");
 
@@ -228,23 +309,63 @@ describe("GatewayBillingService", () => {
       });
     });
 
-    it("creates GatewaySwitchEvent via $transaction", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(makeAccount());
-      mockPrisma.accountSubscription.findFirst.mockResolvedValue(makeSubscription());
-      mockPrisma.$transaction.mockResolvedValue([{ id: "switch-new", accountId: "account-001" }]);
+    it("persists switch event + account + subscription inside UoW transaction", async () => {
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeAccount(),
+      });
+      (
+        subscriptionRepo.findActiveOrTrialingByAccount as ReturnType<typeof vi.fn>
+      ).mockResolvedValue({ ok: true, value: makeSubscription() });
 
       await service.initiateGatewaySwitch("account-001", "paddle");
 
-      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
-      const txArgs = mockPrisma.$transaction.mock.calls[0][0];
-      assert.ok(Array.isArray(txArgs), "$transaction should receive an array");
-      assert.equal(txArgs.length, 4); // create switch, update account, update sub, audit log
+      expect(unitOfWork.executeInTransaction).toHaveBeenCalledTimes(1);
+      expect(switchEventRepo.create).toHaveBeenCalledTimes(1);
+      expect(accountRepo.updateBillingFields).toHaveBeenCalledWith(
+        "account-001",
+        expect.objectContaining({
+          pendingGatewaySwitch: true,
+          pendingGatewayProvider: "PADDLE",
+        })
+      );
+      expect(subscriptionRepo.update).toHaveBeenCalledWith("sub-001", { cancelAtPeriodEnd: true });
+    });
+
+    it("emits audit event after successful initiation", async () => {
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeAccount(),
+      });
+      (
+        subscriptionRepo.findActiveOrTrialingByAccount as ReturnType<typeof vi.fn>
+      ).mockResolvedValue({ ok: true, value: makeSubscription() });
+
+      await service.initiateGatewaySwitch("account-001", "paddle", "user-99");
+
+      expect(auditEmitter.emit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "GATEWAY_SWITCH_INITIATED",
+          category: "BILLING",
+          resourceType: "account",
+          resourceId: "account-001",
+          userId: "user-99",
+        })
+      );
     });
 
     it("returns switchEventId and scheduledFor", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(makeAccount());
-      mockPrisma.accountSubscription.findFirst.mockResolvedValue(makeSubscription());
-      mockPrisma.$transaction.mockResolvedValue([{ id: "switch-new", accountId: "account-001" }]);
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeAccount(),
+      });
+      (
+        subscriptionRepo.findActiveOrTrialingByAccount as ReturnType<typeof vi.fn>
+      ).mockResolvedValue({ ok: true, value: makeSubscription() });
+      (switchEventRepo.create as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: { id: "switch-new" },
+      });
 
       const result = await service.initiateGatewaySwitch("account-001", "paddle");
 
@@ -255,8 +376,10 @@ describe("GatewayBillingService", () => {
       assert.equal(result.value.toGateway, "PADDLE");
     });
 
-    it("returns DATABASE_ERROR when prisma throws", async () => {
-      mockPrisma.account.findUnique.mockRejectedValue(new Error("Connection lost"));
+    it("returns DATABASE_ERROR when account read throws", async () => {
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error("Connection lost")
+      );
 
       const result = await service.initiateGatewaySwitch("account-001", "paddle");
 
@@ -266,23 +389,25 @@ describe("GatewayBillingService", () => {
 
     it("works without externalSubscriptionId (uses currentPeriodEnd from DB)", async () => {
       const periodEnd = new Date("2026-07-15T00:00:00Z");
-      mockPrisma.account.findUnique.mockResolvedValue(makeAccount());
-      mockPrisma.accountSubscription.findFirst.mockResolvedValue(
-        makeSubscription({
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeAccount(),
+      });
+      (
+        subscriptionRepo.findActiveOrTrialingByAccount as ReturnType<typeof vi.fn>
+      ).mockResolvedValue({
+        ok: true,
+        value: makeSubscription({
           gatewaySubscriptionId: null,
           externalSubscriptionId: null,
           currentPeriodEnd: periodEnd,
-        })
-      );
-      mockPrisma.$transaction.mockResolvedValue([
-        { id: "switch-no-ext", accountId: "account-001" },
-      ]);
+        }),
+      });
 
       const result = await service.initiateGatewaySwitch("account-001", "paddle");
 
       assert.ok(result.ok, "should succeed without external subscription ID");
       assert.equal(result.value.scheduledFor.toISOString(), periodEnd.toISOString());
-      // Should NOT call getSubscriptionDetails or cancelAtPeriodEnd
       const adapter = mockRegistry._adapter;
       expect(adapter.getSubscriptionDetails).not.toHaveBeenCalled();
       expect(adapter.cancelAtPeriodEnd).not.toHaveBeenCalled();
@@ -293,7 +418,10 @@ describe("GatewayBillingService", () => {
 
   describe("cancelPendingSwitch", () => {
     it("returns ACCOUNT_NOT_FOUND when account null", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(null);
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: null,
+      });
 
       const result = await service.cancelPendingSwitch("account-001");
 
@@ -301,8 +429,11 @@ describe("GatewayBillingService", () => {
       assert.equal(result.error, "ACCOUNT_NOT_FOUND");
     });
 
-    it("returns SWITCH_NOT_FOUND when no pending switch", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(makeAccount({ pendingGatewaySwitch: false }));
+    it("returns SWITCH_NOT_FOUND when no pending switch on account", async () => {
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeAccount({ pendingGatewaySwitch: false }),
+      });
 
       const result = await service.cancelPendingSwitch("account-001");
 
@@ -311,10 +442,17 @@ describe("GatewayBillingService", () => {
     });
 
     it("calls reactivateSubscription on adapter", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(makeAccount({ pendingGatewaySwitch: true }));
-      mockPrisma.gatewaySwitchEvent.findFirst.mockResolvedValue(makeSwitchEvent());
-      mockPrisma.accountSubscription.findFirst.mockResolvedValue(makeSubscription());
-      mockPrisma.$transaction.mockResolvedValue([]);
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeAccount({ pendingGatewaySwitch: true }),
+      });
+      (switchEventRepo.findLatestByAccountAndStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeSwitchEvent(),
+      });
+      (
+        subscriptionRepo.findActiveOrTrialingByAccount as ReturnType<typeof vi.fn>
+      ).mockResolvedValue({ ok: true, value: makeSubscription() });
 
       await service.cancelPendingSwitch("account-001");
 
@@ -324,28 +462,53 @@ describe("GatewayBillingService", () => {
       });
     });
 
-    it("calls switchJobService.cancelJobs", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(makeAccount({ pendingGatewaySwitch: true }));
-      mockPrisma.gatewaySwitchEvent.findFirst.mockResolvedValue(makeSwitchEvent());
-      mockPrisma.accountSubscription.findFirst.mockResolvedValue(makeSubscription());
-      mockPrisma.$transaction.mockResolvedValue([]);
+    it("calls switchJobs.cancelJobs", async () => {
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeAccount({ pendingGatewaySwitch: true }),
+      });
+      (switchEventRepo.findLatestByAccountAndStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeSwitchEvent(),
+      });
+      (
+        subscriptionRepo.findActiveOrTrialingByAccount as ReturnType<typeof vi.fn>
+      ).mockResolvedValue({ ok: true, value: makeSubscription() });
 
       await service.cancelPendingSwitch("account-001");
 
-      expect(mockSwitchJobService.cancelJobs).toHaveBeenCalledWith("account-001");
+      expect(switchJobs.cancelJobs).toHaveBeenCalledWith("account-001");
     });
 
-    it("clears pending fields on account", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(makeAccount({ pendingGatewaySwitch: true }));
-      mockPrisma.gatewaySwitchEvent.findFirst.mockResolvedValue(makeSwitchEvent());
-      mockPrisma.accountSubscription.findFirst.mockResolvedValue(makeSubscription());
-      mockPrisma.$transaction.mockResolvedValue([]);
+    it("clears pending fields on account inside UoW", async () => {
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeAccount({ pendingGatewaySwitch: true }),
+      });
+      (switchEventRepo.findLatestByAccountAndStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeSwitchEvent(),
+      });
+      (
+        subscriptionRepo.findActiveOrTrialingByAccount as ReturnType<typeof vi.fn>
+      ).mockResolvedValue({ ok: true, value: makeSubscription() });
 
       const result = await service.cancelPendingSwitch("account-001");
 
       assert.ok(result.ok, "should succeed");
       assert.deepEqual(result.value, { cancelled: true });
-      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(unitOfWork.executeInTransaction).toHaveBeenCalledTimes(1);
+      expect(accountRepo.updateBillingFields).toHaveBeenCalledWith(
+        "account-001",
+        expect.objectContaining({
+          pendingGatewaySwitch: false,
+          pendingGatewayProvider: null,
+        })
+      );
+      expect(switchEventRepo.update).toHaveBeenCalledWith(
+        "switch-001",
+        expect.objectContaining({ status: "CANCELLED" })
+      );
     });
   });
 
@@ -353,7 +516,10 @@ describe("GatewayBillingService", () => {
 
   describe("handleSubscriptionCanceled", () => {
     it("returns ACCOUNT_NOT_FOUND when account null", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(null);
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: null,
+      });
 
       const result = await service.handleSubscriptionCanceled("account-001");
 
@@ -362,90 +528,100 @@ describe("GatewayBillingService", () => {
     });
 
     it("returns ok when no pending switch (normal cancellation)", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(
-        makeAccount({ pendingGatewaySwitch: false, pendingGatewayProvider: null })
-      );
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeAccount({ pendingGatewaySwitch: false, pendingGatewayProvider: null }),
+      });
 
       const result = await service.handleSubscriptionCanceled("account-001");
 
       assert.ok(result.ok, "should return ok for normal cancellation");
-      // Should not query for switch events
-      expect(mockPrisma.gatewaySwitchEvent.findFirst).not.toHaveBeenCalled();
+      expect(switchEventRepo.findLatestByAccountAndStatus).not.toHaveBeenCalled();
     });
 
-    it("transitions switch to PENDING_CHECKOUT when pendingGatewaySwitch=true", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(
-        makeAccount({ pendingGatewaySwitch: true, pendingGatewayProvider: "PADDLE" })
-      );
-      mockPrisma.gatewaySwitchEvent.findFirst.mockResolvedValue(makeSwitchEvent());
-      mockPrisma.accountSubscription.findFirst.mockResolvedValue(makeSubscription());
-      mockPrisma.$transaction.mockResolvedValue([]);
+    it("transitions switch to PENDING_CHECKOUT via UoW when pendingGatewaySwitch=true", async () => {
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeAccount({ pendingGatewaySwitch: true, pendingGatewayProvider: "PADDLE" }),
+      });
+      (switchEventRepo.findLatestByAccountAndStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeSwitchEvent(),
+      });
+      (subscriptionRepo.findLatestByAccount as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeSubscription(),
+      });
 
       const result = await service.handleSubscriptionCanceled("account-001");
 
       assert.ok(result.ok, "should succeed");
-      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(unitOfWork.executeInTransaction).toHaveBeenCalledTimes(1);
+      expect(switchEventRepo.update).toHaveBeenCalledWith(
+        "switch-001",
+        expect.objectContaining({ status: "PENDING_CHECKOUT" })
+      );
+      expect(subscriptionRepo.update).toHaveBeenCalledWith(
+        "sub-001",
+        expect.objectContaining({ status: "CANCELED" })
+      );
     });
 
-    it("calls switchJobService.startCheckoutWindow", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(
-        makeAccount({ pendingGatewaySwitch: true, pendingGatewayProvider: "PADDLE" })
-      );
-      mockPrisma.gatewaySwitchEvent.findFirst.mockResolvedValue(makeSwitchEvent());
-      mockPrisma.accountSubscription.findFirst.mockResolvedValue(makeSubscription());
-      mockPrisma.$transaction.mockResolvedValue([]);
+    it("calls switchJobs.startCheckoutWindow", async () => {
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeAccount({ pendingGatewaySwitch: true, pendingGatewayProvider: "PADDLE" }),
+      });
+      (switchEventRepo.findLatestByAccountAndStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeSwitchEvent(),
+      });
+      (subscriptionRepo.findLatestByAccount as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeSubscription(),
+      });
 
       await service.handleSubscriptionCanceled("account-001");
 
-      expect(mockSwitchJobService.startCheckoutWindow).toHaveBeenCalledWith(
-        "account-001",
-        "switch-001"
-      );
+      expect(switchJobs.startCheckoutWindow).toHaveBeenCalledWith("account-001", "switch-001");
     });
 
     it("sends email notification", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(
-        makeAccount({ pendingGatewaySwitch: true, pendingGatewayProvider: "PADDLE" })
-      );
-      mockPrisma.gatewaySwitchEvent.findFirst.mockResolvedValue(makeSwitchEvent());
-      mockPrisma.accountSubscription.findFirst.mockResolvedValue(makeSubscription());
-      mockPrisma.$transaction.mockResolvedValue([]);
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeAccount({ pendingGatewaySwitch: true, pendingGatewayProvider: "PADDLE" }),
+      });
+      (switchEventRepo.findLatestByAccountAndStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeSwitchEvent(),
+      });
+      (subscriptionRepo.findLatestByAccount as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeSubscription(),
+      });
 
       await service.handleSubscriptionCanceled("account-001");
 
-      expect(mockEmailPort.send).toHaveBeenCalledTimes(1);
-      const emailCall = mockEmailPort.send.mock.calls[0][0];
+      expect(emailPort.send).toHaveBeenCalledTimes(1);
+      const emailCall = (emailPort.send as ReturnType<typeof vi.fn>).mock.calls[0][0];
       assert.deepEqual(emailCall.to, ["test@example.com"]);
-      assert.ok(emailCall.subject.includes("gateway switch"));
-    });
-
-    it("marks subscription as CANCELED", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(
-        makeAccount({ pendingGatewaySwitch: true, pendingGatewayProvider: "PADDLE" })
-      );
-      mockPrisma.gatewaySwitchEvent.findFirst.mockResolvedValue(makeSwitchEvent());
-      mockPrisma.accountSubscription.findFirst.mockResolvedValue(makeSubscription());
-      mockPrisma.$transaction.mockResolvedValue([]);
-
-      await service.handleSubscriptionCanceled("account-001");
-
-      // $transaction receives array with switch update + subscription update
-      const txArgs = mockPrisma.$transaction.mock.calls[0][0];
-      assert.ok(Array.isArray(txArgs));
-      assert.equal(txArgs.length, 2); // switch event update + subscription update
+      assert.ok(String(emailCall.subject).includes("gateway switch"));
     });
 
     it("returns ok(undefined) when switchEvent not found", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(
-        makeAccount({ pendingGatewaySwitch: true, pendingGatewayProvider: "PADDLE" })
-      );
-      mockPrisma.gatewaySwitchEvent.findFirst.mockResolvedValue(null);
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeAccount({ pendingGatewaySwitch: true, pendingGatewayProvider: "PADDLE" }),
+      });
+      (switchEventRepo.findLatestByAccountAndStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: null,
+      });
 
       const result = await service.handleSubscriptionCanceled("account-001");
 
       assert.ok(result.ok, "should return ok when no switch event found");
-      // Should not start checkout window
-      expect(mockSwitchJobService.startCheckoutWindow).not.toHaveBeenCalled();
+      expect(switchJobs.startCheckoutWindow).not.toHaveBeenCalled();
     });
   });
 
@@ -453,7 +629,10 @@ describe("GatewayBillingService", () => {
 
   describe("handleCheckoutCompleted", () => {
     it("returns ACCOUNT_NOT_FOUND when account null", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(null);
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: null,
+      });
 
       const result = await service.handleCheckoutCompleted("account-001", "cus_new", "sub_new");
 
@@ -462,42 +641,73 @@ describe("GatewayBillingService", () => {
     });
 
     it("returns ok when no pending switch event", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(makeAccount());
-      mockPrisma.gatewaySwitchEvent.findFirst.mockResolvedValue(null);
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeAccount(),
+      });
+      (switchEventRepo.findLatestByAccountAndStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: null,
+      });
 
       const result = await service.handleCheckoutCompleted("account-001", "cus_new", "sub_new");
 
       assert.ok(result.ok, "should return ok for normal checkout");
-      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+      expect(unitOfWork.executeInTransaction).not.toHaveBeenCalled();
     });
 
-    it("updates switch to COMPLETED", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(makeAccount());
-      mockPrisma.gatewaySwitchEvent.findFirst.mockResolvedValue(
-        makeSwitchEvent({ status: "PENDING_CHECKOUT" })
-      );
-      mockPrisma.$transaction.mockResolvedValue([]);
+    it("updates account + subscriptions + switch to COMPLETED via UoW", async () => {
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeAccount(),
+      });
+      (switchEventRepo.findLatestByAccountAndStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeSwitchEvent({ status: "PENDING_CHECKOUT" }),
+      });
 
       const result = await service.handleCheckoutCompleted("account-001", "cus_new", "sub_new");
 
       assert.ok(result.ok, "should succeed");
-      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
-      const txArgs = mockPrisma.$transaction.mock.calls[0][0];
-      assert.ok(Array.isArray(txArgs));
-      // account update, subscription updateMany, switch update, audit log
-      assert.equal(txArgs.length, 4);
+      expect(unitOfWork.executeInTransaction).toHaveBeenCalledTimes(1);
+      expect(accountRepo.updateBillingFields).toHaveBeenCalledWith(
+        "account-001",
+        expect.objectContaining({
+          gatewayProvider: "PADDLE",
+          gatewayCustomerId: "cus_new",
+          pendingGatewaySwitch: false,
+        })
+      );
+      expect(subscriptionRepo.updateAllForAccount).toHaveBeenCalledWith(
+        "account-001",
+        expect.objectContaining({
+          gatewayProvider: "PADDLE",
+          gatewaySubscriptionId: "sub_new",
+          status: "ACTIVE",
+        })
+      );
+      expect(switchEventRepo.update).toHaveBeenCalledWith(
+        "switch-001",
+        expect.objectContaining({ status: "COMPLETED" })
+      );
+      expect(auditEmitter.emit).toHaveBeenCalledWith(
+        expect.objectContaining({ action: "GATEWAY_SWITCH_COMPLETED" })
+      );
     });
 
-    it("calls switchJobService.cancelJobs", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(makeAccount());
-      mockPrisma.gatewaySwitchEvent.findFirst.mockResolvedValue(
-        makeSwitchEvent({ status: "PENDING_CHECKOUT" })
-      );
-      mockPrisma.$transaction.mockResolvedValue([]);
+    it("calls switchJobs.cancelJobs", async () => {
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeAccount(),
+      });
+      (switchEventRepo.findLatestByAccountAndStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeSwitchEvent({ status: "PENDING_CHECKOUT" }),
+      });
 
       await service.handleCheckoutCompleted("account-001", "cus_new", "sub_new");
 
-      expect(mockSwitchJobService.cancelJobs).toHaveBeenCalledWith("account-001");
+      expect(switchJobs.cancelJobs).toHaveBeenCalledWith("account-001");
     });
   });
 
@@ -512,7 +722,10 @@ describe("GatewayBillingService", () => {
     });
 
     it("returns SWITCH_NOT_FOUND when no PENDING_CHECKOUT event", async () => {
-      mockPrisma.gatewaySwitchEvent.findFirst.mockResolvedValue(null);
+      (switchEventRepo.findLatestByAccountAndStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: null,
+      });
 
       const result = await service.extendSwitchDeadline("account-001", 24, "admin-001");
 
@@ -522,12 +735,10 @@ describe("GatewayBillingService", () => {
 
     it("calculates new deadline from extendedUntil if set", async () => {
       const extendedUntil = new Date("2026-06-02T12:00:00Z");
-      mockPrisma.gatewaySwitchEvent.findFirst.mockResolvedValue(
-        makeSwitchEvent({
-          status: "PENDING_CHECKOUT",
-          extendedUntil,
-        })
-      );
+      (switchEventRepo.findLatestByAccountAndStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeSwitchEvent({ status: "PENDING_CHECKOUT", extendedUntil }),
+      });
 
       const result = await service.extendSwitchDeadline("account-001", 24, "admin-001");
 
@@ -538,13 +749,14 @@ describe("GatewayBillingService", () => {
 
     it("calculates new deadline from scheduledFor if not extended", async () => {
       const scheduledFor = new Date("2026-06-01T00:00:00Z");
-      mockPrisma.gatewaySwitchEvent.findFirst.mockResolvedValue(
-        makeSwitchEvent({
+      (switchEventRepo.findLatestByAccountAndStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeSwitchEvent({
           status: "PENDING_CHECKOUT",
           extendedUntil: null,
           scheduledFor,
-        })
-      );
+        }),
+      });
 
       const result = await service.extendSwitchDeadline("account-001", 48, "admin-001");
 
@@ -553,43 +765,36 @@ describe("GatewayBillingService", () => {
       assert.equal(result.value.newDeadline.toISOString(), expectedDeadline.toISOString());
     });
 
-    it("calls switchJobService.rescheduleJobs", async () => {
+    it("calls switchJobs.rescheduleJobs", async () => {
       const scheduledFor = new Date("2026-06-01T00:00:00Z");
-      mockPrisma.gatewaySwitchEvent.findFirst.mockResolvedValue(
-        makeSwitchEvent({
+      (switchEventRepo.findLatestByAccountAndStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeSwitchEvent({
           status: "PENDING_CHECKOUT",
           extendedUntil: null,
           scheduledFor,
-        })
-      );
+        }),
+      });
 
       await service.extendSwitchDeadline("account-001", 12, "admin-001");
 
       const expectedDeadline = new Date(scheduledFor.getTime() + 12 * 60 * 60 * 1000);
-      expect(mockSwitchJobService.rescheduleJobs).toHaveBeenCalledWith(
-        "account-001",
-        expectedDeadline
-      );
+      expect(switchJobs.rescheduleJobs).toHaveBeenCalledWith("account-001", expectedDeadline);
     });
 
-    it("updates gatewaySwitchEvent with new deadline", async () => {
-      mockPrisma.gatewaySwitchEvent.findFirst.mockResolvedValue(
-        makeSwitchEvent({
-          status: "PENDING_CHECKOUT",
-          extendedUntil: null,
-        })
-      );
+    it("updates switch event with new deadline", async () => {
+      (switchEventRepo.findLatestByAccountAndStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeSwitchEvent({ status: "PENDING_CHECKOUT", extendedUntil: null }),
+      });
 
       const result = await service.extendSwitchDeadline("account-001", 24, "admin-001");
 
       assert.ok(result.ok, "should succeed");
       assert.equal(result.value.extendedBy, "admin-001");
-      expect(mockPrisma.gatewaySwitchEvent.update).toHaveBeenCalledWith({
-        where: { id: "switch-001" },
-        data: {
-          extendedUntil: result.value.newDeadline,
-          extendedBy: "admin-001",
-        },
+      expect(switchEventRepo.update).toHaveBeenCalledWith("switch-001", {
+        extendedUntil: result.value.newDeadline,
+        extendedBy: "admin-001",
       });
     });
   });
@@ -598,7 +803,10 @@ describe("GatewayBillingService", () => {
 
   describe("createCheckoutSession", () => {
     it("returns ACCOUNT_NOT_FOUND when account null", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(null);
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: null,
+      });
 
       const result = await service.createCheckoutSession(
         "account-001",
@@ -612,7 +820,10 @@ describe("GatewayBillingService", () => {
     });
 
     it("creates customer when gatewayCustomerId missing", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(makeAccount({ gatewayCustomerId: null }));
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeAccount({ gatewayCustomerId: null }),
+      });
 
       const result = await service.createCheckoutSession(
         "account-001",
@@ -628,18 +839,17 @@ describe("GatewayBillingService", () => {
         name: "Test Account",
         metadata: { accountId: "account-001" },
       });
-      // Account should be updated with new customer ID
-      expect(mockPrisma.account.update).toHaveBeenCalledWith({
-        where: { id: "account-001" },
-        data: {
-          gatewayCustomerId: "cus_test",
-          gatewayProvider: "STRIPE",
-        },
+      expect(accountRepo.updateBillingFields).toHaveBeenCalledWith("account-001", {
+        gatewayCustomerId: "cus_test",
+        gatewayProvider: "STRIPE",
       });
     });
 
     it("returns checkout URL from adapter", async () => {
-      mockPrisma.account.findUnique.mockResolvedValue(makeAccount());
+      (accountRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: makeAccount(),
+      });
 
       const result = await service.createCheckoutSession(
         "account-001",

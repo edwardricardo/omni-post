@@ -2,100 +2,137 @@
  * @file billingWebhookIdempotency.test.ts
  * @description Unit tests for GatewayBillingService webhook helper methods:
  *   resolveAccountIdByCustomer, checkBillingEventIdempotency,
- *   markBillingEventProcessed, markBillingEventError.
+ *   markBillingEventProcessed, markBillingEventError. Post-S3.4c the
+ *   service is framework-free; tests mock the 9 ports + UoW.
  * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { GatewayBillingService } from "../../../src/billing/GatewayBillingService.js";
-import type { PrismaClient } from "@infra/prisma";
+import type { AccountBillingRepository } from "@core/domain/repositories/AccountBillingRepository.js";
+import type { AccountSubscriptionBillingRepository } from "@core/domain/repositories/AccountSubscriptionBillingRepository.js";
+import type { GatewaySwitchEventRepository } from "@core/domain/repositories/GatewaySwitchEventRepository.js";
+import type { BillingEventRepository } from "@core/domain/repositories/BillingEventRepository.js";
+import type { InvoiceRepository } from "@core/domain/repositories/InvoiceRepository.js";
+import type { ProviderBundleReader } from "@core/domain/repositories/ProviderBundleReader.js";
+import type { GatewaySwitchJobPort } from "@core/domain/repositories/GatewaySwitchJobPort.js";
+import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
+import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
+import type { GatewayAdapterRegistryPort } from "../../../src/infrastructure/billing/GatewayAdapterRegistry.js";
 
 // ─── Mock Factories ─────────────────────────────────────────────────────────
 
-function makeMockPrisma() {
+function makeAccountRepo(): AccountBillingRepository {
   return {
-    account: {
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      update: vi.fn(),
-    },
-    accountSubscription: {
-      findFirst: vi.fn(),
-      update: vi.fn(),
-      updateMany: vi.fn(),
-    },
-    gatewaySwitchEvent: {
-      findFirst: vi.fn(),
-      findUnique: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-    },
-    billingEvent: {
-      findUnique: vi.fn(),
-      upsert: vi.fn(),
-      update: vi.fn(),
-    },
-    providerBundle: { findMany: vi.fn() },
-    auditLog: { create: vi.fn() },
-    $transaction: vi.fn(async (ops: unknown[]) => Promise.all(ops as Promise<unknown>[])),
+    findById: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    findByGatewayCustomerId: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    updateBillingFields: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
   };
 }
 
-function makeMockRegistry() {
+function makeSubscriptionRepo(): AccountSubscriptionBillingRepository {
   return {
-    getAdapter: vi.fn().mockReturnValue({
-      provider: "stripe" as const,
-      cancelAtPeriodEnd: vi.fn(),
-      reactivateSubscription: vi.fn(),
-      getSubscriptionDetails: vi.fn(),
-      createCustomer: vi.fn(),
-      createCheckoutSession: vi.fn(),
-      createBillingPortalSession: vi.fn(),
-      createSubscription: vi.fn(),
-      updateSubscription: vi.fn(),
-      cancelSubscription: vi.fn(),
-      parseWebhookEvent: vi.fn(),
-      mapEventType: vi.fn(),
+    findActiveOrTrialingByAccount: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    findLatestByAccount: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    findByAccountAndStatus: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    update: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+    updateAllForAccount: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+  };
+}
+
+function makeSwitchEventRepo(): GatewaySwitchEventRepository {
+  return {
+    create: vi.fn().mockResolvedValue({ ok: true, value: { id: "switch-new" } }),
+    findById: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    findLatestByAccountAndStatus: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    update: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+    listWithAccount: vi.fn().mockResolvedValue({
+      ok: true,
+      value: {
+        events: [],
+        counts: { total: 0, scheduled: 0, pendingCheckout: 0, suspended: 0, completed30d: 0 },
+      },
     }),
+    findByIdWithAccount: vi.fn().mockResolvedValue({ ok: true, value: null }),
   };
 }
 
-function makeMockSwitchJobService() {
+function makeBillingEventRepo(): BillingEventRepository {
   return {
-    startCheckoutWindow: vi.fn(),
-    cancelJobs: vi.fn(),
-    rescheduleJobs: vi.fn(),
-    close: vi.fn(),
+    findByGatewayEventId: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    upsertNew: vi.fn().mockResolvedValue({ ok: true, value: { id: "be-new" } }),
+    markProcessed: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+    markError: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
   };
 }
 
-function makeMockEmailPort() {
+function makeInvoiceRepo(): InvoiceRepository {
+  return {
+    upsertByGatewayInvoiceId: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+  };
+}
+
+function makeBundleReader(): ProviderBundleReader {
+  return {
+    listActive: vi.fn().mockResolvedValue({ ok: true, value: [] }),
+  };
+}
+
+function makeSwitchJobs(): GatewaySwitchJobPort {
+  return {
+    startCheckoutWindow: vi.fn().mockResolvedValue(undefined),
+    cancelJobs: vi.fn().mockResolvedValue(undefined),
+    rescheduleJobs: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
+function makeAuditEmitter(): AuditEmitterPort {
+  return { emit: vi.fn().mockResolvedValue(undefined) };
+}
+
+function makeEmailPort(): EmailPort {
   return {
     send: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+  } as unknown as EmailPort;
+}
+
+function makeUnitOfWork(): UnitOfWork {
+  return {
+    executeInTransaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
   };
+}
+
+function makeMockRegistry(): GatewayAdapterRegistryPort {
+  return {
+    getAdapter: vi.fn().mockReturnValue({}),
+  } as unknown as GatewayAdapterRegistryPort;
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 describe("GatewayBillingService — webhook helpers", () => {
   let service: GatewayBillingService;
-  let mockPrisma: ReturnType<typeof makeMockPrisma>;
+  let accountRepo: AccountBillingRepository;
+  let billingEventRepo: BillingEventRepository;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPrisma = makeMockPrisma();
+    accountRepo = makeAccountRepo();
+    billingEventRepo = makeBillingEventRepo();
     service = new GatewayBillingService(
-      mockPrisma as unknown as PrismaClient,
-      makeMockRegistry() as unknown as Parameters<
-        typeof GatewayBillingService.prototype.constructor
-      >[1],
-      makeMockSwitchJobService() as unknown as Parameters<
-        typeof GatewayBillingService.prototype.constructor
-      >[2],
-      makeMockEmailPort() as unknown as Parameters<
-        typeof GatewayBillingService.prototype.constructor
-      >[3]
+      accountRepo,
+      makeSubscriptionRepo(),
+      makeSwitchEventRepo(),
+      billingEventRepo,
+      makeInvoiceRepo(),
+      makeBundleReader(),
+      makeMockRegistry(),
+      makeSwitchJobs(),
+      makeEmailPort(),
+      makeAuditEmitter(),
+      makeUnitOfWork()
     );
   });
 
@@ -103,19 +140,22 @@ describe("GatewayBillingService — webhook helpers", () => {
 
   describe("resolveAccountIdByCustomer", () => {
     it("returns accountId when account found", async () => {
-      mockPrisma.account.findFirst.mockResolvedValue({ id: "acc-123" });
+      (accountRepo.findByGatewayCustomerId as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: { id: "acc-123" },
+      });
 
       const result = await service.resolveAccountIdByCustomer("cus_test", "stripe");
 
       assert.equal(result, "acc-123");
-      expect(mockPrisma.account.findFirst).toHaveBeenCalledWith({
-        where: { gatewayCustomerId: "cus_test", gatewayProvider: "STRIPE" },
-        select: { id: true },
-      });
+      expect(accountRepo.findByGatewayCustomerId).toHaveBeenCalledWith("STRIPE", "cus_test");
     });
 
     it("returns null when no account found", async () => {
-      mockPrisma.account.findFirst.mockResolvedValue(null);
+      (accountRepo.findByGatewayCustomerId as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: null,
+      });
 
       const result = await service.resolveAccountIdByCustomer("cus_missing", "paddle");
 
@@ -125,7 +165,7 @@ describe("GatewayBillingService — webhook helpers", () => {
     it("returns null when gatewayCustomerId is empty", async () => {
       const result = await service.resolveAccountIdByCustomer("", "stripe");
       assert.equal(result, null);
-      expect(mockPrisma.account.findFirst).not.toHaveBeenCalled();
+      expect(accountRepo.findByGatewayCustomerId).not.toHaveBeenCalled();
     });
   });
 
@@ -133,9 +173,9 @@ describe("GatewayBillingService — webhook helpers", () => {
 
   describe("checkBillingEventIdempotency", () => {
     it("returns skip=true when event already processed", async () => {
-      mockPrisma.billingEvent.findUnique.mockResolvedValue({
-        id: "be-1",
-        processed: true,
+      (billingEventRepo.findByGatewayEventId as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: { id: "be-1", processed: true },
       });
 
       const result = await service.checkBillingEventIdempotency(
@@ -151,8 +191,14 @@ describe("GatewayBillingService — webhook helpers", () => {
     });
 
     it("returns skip=false and creates record on first processing", async () => {
-      mockPrisma.billingEvent.findUnique.mockResolvedValue(null);
-      mockPrisma.billingEvent.upsert.mockResolvedValue({ id: "be-new" });
+      (billingEventRepo.findByGatewayEventId as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: null,
+      });
+      (billingEventRepo.upsertNew as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: { id: "be-new" },
+      });
 
       const result = await service.checkBillingEventIdempotency(
         "evt_456",
@@ -164,15 +210,18 @@ describe("GatewayBillingService — webhook helpers", () => {
 
       assert.equal(result.skip, false);
       assert.equal(result.recordId, "be-new");
-      expect(mockPrisma.billingEvent.upsert).toHaveBeenCalled();
+      expect(billingEventRepo.upsertNew).toHaveBeenCalled();
     });
 
     it("returns skip=false for unprocessed existing record", async () => {
-      mockPrisma.billingEvent.findUnique.mockResolvedValue({
-        id: "be-retry",
-        processed: false,
+      (billingEventRepo.findByGatewayEventId as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: { id: "be-retry", processed: false },
       });
-      mockPrisma.billingEvent.upsert.mockResolvedValue({ id: "be-retry" });
+      (billingEventRepo.upsertNew as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: { id: "be-retry" },
+      });
 
       const result = await service.checkBillingEventIdempotency(
         "evt_789",
@@ -189,30 +238,20 @@ describe("GatewayBillingService — webhook helpers", () => {
   // ─── markBillingEventProcessed ──────────────────────────────────────────
 
   describe("markBillingEventProcessed", () => {
-    it("sets processed=true and processedAt", async () => {
-      mockPrisma.billingEvent.update.mockResolvedValue({});
-
+    it("delegates to billingEventRepo.markProcessed", async () => {
       await service.markBillingEventProcessed("be-1");
 
-      expect(mockPrisma.billingEvent.update).toHaveBeenCalledWith({
-        where: { id: "be-1" },
-        data: { processed: true, processedAt: expect.any(Date) },
-      });
+      expect(billingEventRepo.markProcessed).toHaveBeenCalledWith("be-1");
     });
   });
 
   // ─── markBillingEventError ──────────────────────────────────────────────
 
   describe("markBillingEventError", () => {
-    it("records error string on the billing event", async () => {
-      mockPrisma.billingEvent.update.mockResolvedValue({});
-
+    it("delegates to billingEventRepo.markError with the error string", async () => {
       await service.markBillingEventError("be-1", "ACCOUNT_NOT_FOUND");
 
-      expect(mockPrisma.billingEvent.update).toHaveBeenCalledWith({
-        where: { id: "be-1" },
-        data: { error: "ACCOUNT_NOT_FOUND" },
-      });
+      expect(billingEventRepo.markError).toHaveBeenCalledWith("be-1", "ACCOUNT_NOT_FOUND");
     });
   });
 });

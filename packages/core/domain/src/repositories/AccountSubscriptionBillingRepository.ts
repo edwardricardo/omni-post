@@ -37,6 +37,7 @@ export interface AccountSubscriptionBillingFields {
   bundleId: string | null;
   gatewayProvider: AccountGatewayProvider;
   gatewaySubscriptionId: string | null;
+  externalSubscriptionId: string | null;
 }
 
 /**

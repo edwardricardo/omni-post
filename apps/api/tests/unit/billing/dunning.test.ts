@@ -1,51 +1,224 @@
 /**
  * @file dunning.test.ts
- * @description Unit tests for dunning (payment failed/succeeded) and cancellation email.
- * @layer application
+ * @description Unit tests for dunning (payment failed/succeeded) and
+ *   cancellation email. Post-S3.4c the service is framework-free; tests
+ *   mock the 9 ports + UoW.
+ * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GatewayBillingService } from "../../../src/billing/GatewayBillingService.js";
-import type { PrismaClient } from "@infra/prisma";
+import type { AccountBillingRepository } from "@core/domain/repositories/AccountBillingRepository.js";
+import type { AccountSubscriptionBillingRepository } from "@core/domain/repositories/AccountSubscriptionBillingRepository.js";
+import type { GatewaySwitchEventRepository } from "@core/domain/repositories/GatewaySwitchEventRepository.js";
+import type { BillingEventRepository } from "@core/domain/repositories/BillingEventRepository.js";
+import type { InvoiceRepository } from "@core/domain/repositories/InvoiceRepository.js";
+import type { ProviderBundleReader } from "@core/domain/repositories/ProviderBundleReader.js";
+import type { GatewaySwitchJobPort } from "@core/domain/repositories/GatewaySwitchJobPort.js";
+import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { GatewayAdapterRegistryPort } from "../../../src/infrastructure/billing/GatewayAdapterRegistry.js";
-import type { GatewaySwitchJobService } from "../../../src/billing/GatewaySwitchJobService.js";
 
-function makeMockEmailPort(): EmailPort {
-  return { send: vi.fn().mockResolvedValue({ ok: true, value: undefined }) };
-}
+// ─── Mock Factories ─────────────────────────────────────────────────────────
 
-function makeMockPrisma(overrides: Record<string, unknown> = {}): PrismaClient {
+const TEST_ACCOUNT = {
+  id: "acc-1",
+  name: "Test Co",
+  email: "test@co.com",
+  gatewayProvider: "STRIPE" as const,
+  gatewayCustomerId: "cus_123",
+  pendingGatewaySwitch: false,
+  pendingGatewayProvider: null,
+  gatewaySwitchAt: null,
+  status: "ACTIVE",
+};
+
+const TEST_SUBSCRIPTION = {
+  id: "sub-1",
+  accountId: "acc-1",
+  status: "ACTIVE" as const,
+  gatewayProvider: "STRIPE" as const,
+  gatewaySubscriptionId: null,
+  externalSubscriptionId: null,
+  cancelAtPeriodEnd: false,
+  currentPeriodEnd: new Date("2026-05-01"),
+  bundleId: "bundle-1",
+};
+
+function makeAccountRepo(
+  overrides: { account?: typeof TEST_ACCOUNT | null } = {}
+): AccountBillingRepository {
+  const account = overrides.account === undefined ? TEST_ACCOUNT : overrides.account;
   return {
-    account: {
-      findFirst: vi.fn().mockResolvedValue({ id: "acc-1", name: "Test Co", email: "test@co.com" }),
-      findUnique: vi.fn().mockResolvedValue({
-        id: "acc-1",
-        name: "Test Co",
-        email: "test@co.com",
-        pendingGatewaySwitch: false,
-        pendingGatewayProvider: null,
-      }),
-    },
-    invoice: {
-      upsert: vi.fn().mockResolvedValue({ id: "inv-1" }),
-    },
-    accountSubscription: {
-      findFirst: vi.fn().mockResolvedValue({
-        id: "sub-1",
-        accountId: "acc-1",
-        status: "ACTIVE",
-        currentPeriodEnd: new Date("2026-05-01"),
-      }),
-      update: vi.fn().mockResolvedValue({}),
-    },
-    ...overrides,
-  } as unknown as PrismaClient;
+    findById: vi.fn().mockResolvedValue({ ok: true, value: account }),
+    findByGatewayCustomerId: vi.fn().mockResolvedValue({ ok: true, value: account }),
+    updateBillingFields: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+  };
 }
 
-function createService(prisma: PrismaClient, emailPort: EmailPort): GatewayBillingService {
-  const registry = {} as GatewayAdapterRegistryPort;
-  const jobService = {} as GatewaySwitchJobService;
-  return new GatewayBillingService(prisma, registry, jobService, emailPort);
+function makeSubscriptionRepo(
+  overrides: {
+    sub?: typeof TEST_SUBSCRIPTION | null;
+    pastDueSub?: typeof TEST_SUBSCRIPTION | null;
+  } = {}
+): AccountSubscriptionBillingRepository {
+  return {
+    findActiveOrTrialingByAccount: vi.fn().mockResolvedValue({
+      ok: true,
+      value: overrides.sub === undefined ? TEST_SUBSCRIPTION : overrides.sub,
+    }),
+    findLatestByAccount: vi.fn().mockResolvedValue({
+      ok: true,
+      value: overrides.sub === undefined ? TEST_SUBSCRIPTION : overrides.sub,
+    }),
+    findByAccountAndStatus: vi.fn().mockResolvedValue({
+      ok: true,
+      value: overrides.pastDueSub ?? null,
+    }),
+    update: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+    updateAllForAccount: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+  };
+}
+
+function makeSwitchEventRepo(
+  overrides: { event?: { id: string; status: string } | null } = {}
+): GatewaySwitchEventRepository {
+  const event = overrides.event;
+  return {
+    create: vi.fn().mockResolvedValue({ ok: true, value: { id: "switch-new" } }),
+    findById: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    findLatestByAccountAndStatus: vi.fn().mockResolvedValue({
+      ok: true,
+      value: event
+        ? {
+            id: event.id,
+            accountId: "acc-1",
+            fromGateway: "STRIPE",
+            toGateway: "PADDLE",
+            status: event.status,
+            scheduledFor: new Date(),
+            extendedUntil: null,
+            extendedBy: null,
+            completedAt: null,
+            cancelledAt: null,
+            suspendedAt: null,
+            reminderSentAt: null,
+            createdAt: new Date(),
+          }
+        : null,
+    }),
+    update: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+    listWithAccount: vi.fn().mockResolvedValue({
+      ok: true,
+      value: {
+        events: [],
+        counts: { total: 0, scheduled: 0, pendingCheckout: 0, suspended: 0, completed30d: 0 },
+      },
+    }),
+    findByIdWithAccount: vi.fn().mockResolvedValue({ ok: true, value: null }),
+  };
+}
+
+function makeBillingEventRepo(): BillingEventRepository {
+  return {
+    findByGatewayEventId: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    upsertNew: vi.fn().mockResolvedValue({ ok: true, value: { id: "be-new" } }),
+    markProcessed: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+    markError: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+  };
+}
+
+function makeInvoiceRepo(): InvoiceRepository {
+  return {
+    upsertByGatewayInvoiceId: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+  };
+}
+
+function makeBundleReader(): ProviderBundleReader {
+  return { listActive: vi.fn().mockResolvedValue({ ok: true, value: [] }) };
+}
+
+function makeSwitchJobs(): GatewaySwitchJobPort {
+  return {
+    startCheckoutWindow: vi.fn().mockResolvedValue(undefined),
+    cancelJobs: vi.fn().mockResolvedValue(undefined),
+    rescheduleJobs: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
+function makeAuditEmitter(): AuditEmitterPort {
+  return { emit: vi.fn().mockResolvedValue(undefined) };
+}
+
+function makeEmailPort(): EmailPort {
+  return {
+    send: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+  } as unknown as EmailPort;
+}
+
+function makeUnitOfWork(): UnitOfWork {
+  return {
+    executeInTransaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
+  };
+}
+
+function makeMockRegistry(): GatewayAdapterRegistryPort {
+  return { getAdapter: vi.fn().mockReturnValue({}) } as unknown as GatewayAdapterRegistryPort;
+}
+
+interface ServiceBag {
+  service: GatewayBillingService;
+  accountRepo: AccountBillingRepository;
+  subscriptionRepo: AccountSubscriptionBillingRepository;
+  switchEventRepo: GatewaySwitchEventRepository;
+  invoiceRepo: InvoiceRepository;
+  switchJobs: GatewaySwitchJobPort;
+  emailPort: EmailPort;
+}
+
+function buildService(
+  overrides: {
+    account?: typeof TEST_ACCOUNT | null;
+    sub?: typeof TEST_SUBSCRIPTION | null;
+    pastDueSub?: typeof TEST_SUBSCRIPTION | null;
+    event?: { id: string; status: string } | null;
+  } = {}
+): ServiceBag {
+  const accountRepo = makeAccountRepo({
+    ...("account" in overrides && { account: overrides.account }),
+  });
+  const subscriptionRepo = makeSubscriptionRepo({
+    ...("sub" in overrides && { sub: overrides.sub }),
+    ...("pastDueSub" in overrides && { pastDueSub: overrides.pastDueSub }),
+  });
+  const switchEventRepo = makeSwitchEventRepo({
+    ...("event" in overrides && { event: overrides.event }),
+  });
+  const invoiceRepo = makeInvoiceRepo();
+  const switchJobs = makeSwitchJobs();
+  const emailPort = makeEmailPort();
+  const service = new GatewayBillingService(
+    accountRepo,
+    subscriptionRepo,
+    switchEventRepo,
+    makeBillingEventRepo(),
+    invoiceRepo,
+    makeBundleReader(),
+    makeMockRegistry(),
+    switchJobs,
+    emailPort,
+    makeAuditEmitter(),
+    makeUnitOfWork()
+  );
+  return {
+    service,
+    accountRepo,
+    subscriptionRepo,
+    switchEventRepo,
+    invoiceRepo,
+    switchJobs,
+    emailPort,
+  };
 }
 
 const makeEventData = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({
@@ -59,47 +232,38 @@ const makeEventData = (overrides: Record<string, unknown> = {}): Record<string, 
   ...overrides,
 });
 
-describe("handlePaymentFailed", () => {
-  let emailPort: EmailPort;
+// ─── Tests ──────────────────────────────────────────────────────────────────
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    emailPort = makeMockEmailPort();
-  });
+describe("handlePaymentFailed", () => {
+  beforeEach(() => vi.clearAllMocks());
 
   it("transitions subscription to PAST_DUE on first attempt", async () => {
-    const prisma = makeMockPrisma();
-    const service = createService(prisma, emailPort);
-
-    const result = await service.handlePaymentFailed(makeEventData(), "cus_123");
+    const bag = buildService();
+    const result = await bag.service.handlePaymentFailed(makeEventData(), "cus_123");
 
     expect(result.ok).toBe(true);
-    expect(prisma.accountSubscription.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { status: "PAST_DUE" } })
+    expect(bag.subscriptionRepo.update).toHaveBeenCalledWith(
+      "sub-1",
+      expect.objectContaining({ status: "PAST_DUE" })
     );
   });
 
   it("creates Invoice record with PAYMENT_FAILED status", async () => {
-    const prisma = makeMockPrisma();
-    const service = createService(prisma, emailPort);
+    const bag = buildService();
+    await bag.service.handlePaymentFailed(makeEventData(), "cus_123");
 
-    await service.handlePaymentFailed(makeEventData(), "cus_123");
-
-    expect(prisma.invoice.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { gatewayInvoiceId: "inv_test_123" },
-        create: expect.objectContaining({ status: "PAYMENT_FAILED", attemptCount: 1 }),
-      })
+    expect(bag.invoiceRepo.upsertByGatewayInvoiceId).toHaveBeenCalledWith(
+      "inv_test_123",
+      expect.objectContaining({ status: "PAYMENT_FAILED", attemptCount: 1 }),
+      expect.objectContaining({ status: "PAYMENT_FAILED" })
     );
   });
 
   it("sends dunning email with correct attempt count", async () => {
-    const prisma = makeMockPrisma();
-    const service = createService(prisma, emailPort);
+    const bag = buildService();
+    await bag.service.handlePaymentFailed(makeEventData({ attempt_count: 2 }), "cus_123");
 
-    await service.handlePaymentFailed(makeEventData({ attempt_count: 2 }), "cus_123");
-
-    expect(emailPort.send).toHaveBeenCalledWith(
+    expect(bag.emailPort.send).toHaveBeenCalledWith(
       expect.objectContaining({
         to: ["test@co.com"],
         subject: expect.stringContaining("Payment failed"),
@@ -108,27 +272,24 @@ describe("handlePaymentFailed", () => {
   });
 
   it("cancels subscription after 3 failed attempts", async () => {
-    const prisma = makeMockPrisma();
-    const service = createService(prisma, emailPort);
-
-    const result = await service.handlePaymentFailed(
+    const bag = buildService();
+    const result = await bag.service.handlePaymentFailed(
       makeEventData({ attempt_count: 3 }),
       "cus_123"
     );
 
     expect(result.ok).toBe(true);
-    expect(prisma.accountSubscription.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { status: "CANCELED" } })
+    expect(bag.subscriptionRepo.update).toHaveBeenCalledWith(
+      "sub-1",
+      expect.objectContaining({ status: "CANCELED" })
     );
   });
 
   it("sends final notice email on 3rd attempt", async () => {
-    const prisma = makeMockPrisma();
-    const service = createService(prisma, emailPort);
+    const bag = buildService();
+    await bag.service.handlePaymentFailed(makeEventData({ attempt_count: 3 }), "cus_123");
 
-    await service.handlePaymentFailed(makeEventData({ attempt_count: 3 }), "cus_123");
-
-    expect(emailPort.send).toHaveBeenCalledWith(
+    expect(bag.emailPort.send).toHaveBeenCalledWith(
       expect.objectContaining({
         subject: expect.stringContaining("suspended"),
       })
@@ -136,26 +297,18 @@ describe("handlePaymentFailed", () => {
   });
 
   it("is idempotent — same gatewayInvoiceId processed twice", async () => {
-    const prisma = makeMockPrisma();
-    const service = createService(prisma, emailPort);
+    const bag = buildService();
+    await bag.service.handlePaymentFailed(makeEventData(), "cus_123");
+    await bag.service.handlePaymentFailed(makeEventData(), "cus_123");
 
-    await service.handlePaymentFailed(makeEventData(), "cus_123");
-    await service.handlePaymentFailed(makeEventData(), "cus_123");
-
-    // Upsert is idempotent by design
-    expect(prisma.invoice.upsert).toHaveBeenCalledTimes(2);
-    // Same invoice ID used both times
-    const calls = (prisma.invoice.upsert as ReturnType<typeof vi.fn>).mock.calls;
-    expect(calls[0][0].where.gatewayInvoiceId).toBe(calls[1][0].where.gatewayInvoiceId);
+    expect(bag.invoiceRepo.upsertByGatewayInvoiceId).toHaveBeenCalledTimes(2);
+    const calls = (bag.invoiceRepo.upsertByGatewayInvoiceId as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0][0]).toBe(calls[1][0]);
   });
 
   it("returns ACCOUNT_NOT_FOUND when customer does not exist", async () => {
-    const prisma = makeMockPrisma({
-      account: { findFirst: vi.fn().mockResolvedValue(null) },
-    });
-    const service = createService(prisma, emailPort);
-
-    const result = await service.handlePaymentFailed(makeEventData(), "unknown");
+    const bag = buildService({ account: null });
+    const result = await bag.service.handlePaymentFailed(makeEventData(), "unknown");
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBe("ACCOUNT_NOT_FOUND");
@@ -163,60 +316,39 @@ describe("handlePaymentFailed", () => {
 });
 
 describe("handlePaymentSucceeded", () => {
-  let emailPort: EmailPort;
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    emailPort = makeMockEmailPort();
-  });
+  beforeEach(() => vi.clearAllMocks());
 
   it("creates Invoice record with PAID status", async () => {
-    const prisma = makeMockPrisma({
-      accountSubscription: { findFirst: vi.fn().mockResolvedValue(null) },
-    });
-    const service = createService(prisma, emailPort);
+    const bag = buildService({ sub: null });
+    await bag.service.handlePaymentSucceeded(makeEventData({ amount_paid: 2900 }), "cus_123");
 
-    await service.handlePaymentSucceeded(makeEventData({ amount_paid: 2900 }), "cus_123");
-
-    expect(prisma.invoice.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        create: expect.objectContaining({ status: "PAID" }),
-      })
+    expect(bag.invoiceRepo.upsertByGatewayInvoiceId).toHaveBeenCalledWith(
+      "inv_test_123",
+      expect.objectContaining({ status: "PAID" }),
+      expect.objectContaining({ status: "PAID" })
     );
   });
 
   it("recovers PAST_DUE subscription to ACTIVE", async () => {
-    const prisma = makeMockPrisma({
-      accountSubscription: {
-        findFirst: vi.fn().mockResolvedValue({ id: "sub-1", status: "PAST_DUE" }),
-        update: vi.fn().mockResolvedValue({}),
-      },
-    });
-    const service = createService(prisma, emailPort);
+    const pastDueSub = { ...TEST_SUBSCRIPTION, status: "PAST_DUE" as const };
+    const bag = buildService({ pastDueSub });
+    await bag.service.handlePaymentSucceeded(makeEventData(), "cus_123");
 
-    await service.handlePaymentSucceeded(makeEventData(), "cus_123");
-
-    expect(prisma.accountSubscription.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { status: "ACTIVE" } })
+    expect(bag.subscriptionRepo.update).toHaveBeenCalledWith(
+      pastDueSub.id,
+      expect.objectContaining({ status: "ACTIVE" })
     );
   });
 });
 
 describe("handleSubscriptionCanceled — email", () => {
-  let emailPort: EmailPort;
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    emailPort = makeMockEmailPort();
-  });
+  beforeEach(() => vi.clearAllMocks());
 
   it("sends cancellation email for regular cancellation", async () => {
-    const prisma = makeMockPrisma();
-    const service = createService(prisma, emailPort);
+    const bag = buildService();
+    await bag.service.handleSubscriptionCanceled("acc-1");
 
-    await service.handleSubscriptionCanceled("acc-1");
-
-    expect(emailPort.send).toHaveBeenCalledWith(
+    expect(bag.emailPort.send).toHaveBeenCalledWith(
       expect.objectContaining({
         to: ["test@co.com"],
         subject: expect.stringContaining("cancelled"),
@@ -225,42 +357,20 @@ describe("handleSubscriptionCanceled — email", () => {
   });
 
   it("does NOT send cancellation email for gateway-switch cancellation", async () => {
-    const prisma = makeMockPrisma({
-      account: {
-        findUnique: vi.fn().mockResolvedValue({
-          id: "acc-1",
-          name: "Test Co",
-          email: "test@co.com",
-          pendingGatewaySwitch: true,
-          pendingGatewayProvider: "PADDLE",
-        }),
-      },
-      accountSubscription: {
-        findFirst: vi.fn().mockResolvedValue({
-          id: "sub-1",
-          accountId: "acc-1",
-          status: "ACTIVE",
-        }),
-        update: vi.fn().mockResolvedValue({}),
-      },
-      gatewaySwitchEvent: {
-        findFirst: vi.fn().mockResolvedValue({ id: "sw-1", status: "SCHEDULED" }),
-        update: vi.fn().mockResolvedValue({}),
-      },
-      $transaction: vi.fn().mockImplementation(async (ops: Promise<unknown>[]) => {
-        return Promise.all(ops);
-      }),
+    const switchAccount = {
+      ...TEST_ACCOUNT,
+      pendingGatewaySwitch: true,
+      pendingGatewayProvider: "PADDLE" as const,
+    };
+    const bag = buildService({
+      account: switchAccount,
+      event: { id: "sw-1", status: "SCHEDULED" },
     });
-    const registry = {} as GatewayAdapterRegistryPort;
-    const jobService = {
-      startCheckoutWindow: vi.fn().mockResolvedValue(undefined),
-    } as unknown as GatewaySwitchJobService;
-    const service = new GatewayBillingService(prisma, registry, jobService, emailPort);
 
-    await service.handleSubscriptionCanceled("acc-1");
+    await bag.service.handleSubscriptionCanceled("acc-1");
 
-    // The email sent is the gateway-switch email, not cancellation email
-    const sendCalls = (emailPort.send as ReturnType<typeof vi.fn>).mock.calls;
+    // The email sent is the gateway-switch email, not the regular cancellation email.
+    const sendCalls = (bag.emailPort.send as ReturnType<typeof vi.fn>).mock.calls;
     expect(sendCalls).toHaveLength(1);
     expect(sendCalls[0][0].subject).toContain("gateway switch");
   });

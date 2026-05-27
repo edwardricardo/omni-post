@@ -29,6 +29,10 @@ import type { InvoiceRepository } from "@core/domain/repositories/InvoiceReposit
 import { PrismaProviderBundleRepository } from "../repositories/PrismaProviderBundleRepository.js";
 import type { ProviderBundleReader } from "@core/domain/repositories/ProviderBundleReader.js";
 import type { GatewaySwitchJobPort } from "@core/domain/repositories/GatewaySwitchJobPort.js";
+import type { AccountBillingRepository } from "@core/domain/repositories/AccountBillingRepository.js";
+import type { AccountSubscriptionBillingRepository } from "@core/domain/repositories/AccountSubscriptionBillingRepository.js";
+import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 
 export function setupBillingUseCases(container: Container): void {
   // Gateway Adapter Registry — dual-gateway access (Stripe + Paddle)
@@ -79,15 +83,24 @@ export function setupBillingUseCases(container: Container): void {
     true
   );
 
-  // Gateway Billing Service — gateway switch lifecycle
+  // Gateway Billing Service — gateway switch lifecycle (S3.4c canon refactor)
   container.register<GatewayBillingService>(
     TOKENS.GatewayBillingService,
     () =>
       new GatewayBillingService(
-        container.resolve<PrismaClient>(TOKENS.PrismaClient),
+        container.resolve<AccountBillingRepository>(TOKENS.AccountBillingRepository),
+        container.resolve<AccountSubscriptionBillingRepository>(
+          TOKENS.AccountSubscriptionBillingRepository
+        ),
+        container.resolve<GatewaySwitchEventRepository>(TOKENS.GatewaySwitchEventRepository),
+        container.resolve<BillingEventRepository>(TOKENS.BillingEventRepository),
+        container.resolve<InvoiceRepository>(TOKENS.InvoiceRepository),
+        container.resolve<ProviderBundleReader>(TOKENS.ProviderBundleReader),
         container.resolve<GatewayAdapterRegistry>(TOKENS.GatewayAdapterRegistry),
-        container.resolve<GatewaySwitchJobService>(TOKENS.GatewaySwitchJobService),
-        container.resolve<EmailPort>(TOKENS.EmailPort)
+        container.resolve<GatewaySwitchJobPort>(TOKENS.GatewaySwitchJobPort),
+        container.resolve<EmailPort>(TOKENS.EmailPort),
+        container.resolve<AuditEmitterPort>(TOKENS.AuditEmitterPort),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true // singleton
   );

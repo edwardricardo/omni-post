@@ -28,14 +28,13 @@ export type AccountBillingStoreError = "NOT_FOUND" | "DATABASE_ERROR";
  */
 export interface AccountBillingFields {
   id: string;
+  name: string;
   email: string | null;
   gatewayProvider: AccountGatewayProvider;
+  gatewayCustomerId: string | null;
   pendingGatewaySwitch: boolean | null;
   pendingGatewayProvider: AccountGatewayProvider | null;
-  pendingSwitchScheduledFor: Date | null;
-  pendingSwitchDeadline: Date | null;
-  stripeCustomerId: string | null;
-  paddleCustomerId: string | null;
+  gatewaySwitchAt: Date | null;
   status: string;
 }
 
@@ -46,12 +45,10 @@ export interface AccountBillingFields {
  */
 export interface AccountBillingUpdate {
   gatewayProvider?: AccountGatewayProvider;
+  gatewayCustomerId?: string | null;
   pendingGatewaySwitch?: boolean;
   pendingGatewayProvider?: AccountGatewayProvider | null;
-  pendingSwitchScheduledFor?: Date | null;
-  pendingSwitchDeadline?: Date | null;
-  stripeCustomerId?: string | null;
-  paddleCustomerId?: string | null;
+  gatewaySwitchAt?: Date | null;
   status?: string;
 }
 
@@ -67,11 +64,11 @@ export interface AccountBillingRepository {
   ): Promise<Result<AccountBillingFields | null, AccountBillingStoreError>>;
 
   /**
-   * Look up an account by the external customer id stored on either the
-   * Stripe or Paddle column. The implementation should match the gateway
-   * to the column (`STRIPE` → `stripeCustomerId`, `PADDLE` → `paddleCustomerId`).
+   * Look up an account by the `gatewayCustomerId` column scoped to a
+   * specific gateway. Returns `null` (success-case) when the row does
+   * not exist.
    */
-  findByExternalCustomerId(
+  findByGatewayCustomerId(
     gateway: AccountGatewayProvider,
     customerId: string
   ): Promise<Result<AccountBillingFields | null, AccountBillingStoreError>>;

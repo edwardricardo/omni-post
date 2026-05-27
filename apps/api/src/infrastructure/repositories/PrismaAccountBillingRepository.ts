@@ -18,41 +18,38 @@ import type {
 
 const ACCOUNT_BILLING_SELECT = {
   id: true,
+  name: true,
   email: true,
   gatewayProvider: true,
+  gatewayCustomerId: true,
   pendingGatewaySwitch: true,
   pendingGatewayProvider: true,
-  pendingSwitchScheduledFor: true,
-  pendingSwitchDeadline: true,
-  stripeCustomerId: true,
-  paddleCustomerId: true,
+  gatewaySwitchAt: true,
   status: true,
 } as const;
 
 type AccountBillingRow = {
   id: string;
+  name: string;
   email: string | null;
   gatewayProvider: AccountGatewayProvider;
+  gatewayCustomerId: string | null;
   pendingGatewaySwitch: boolean | null;
   pendingGatewayProvider: AccountGatewayProvider | null;
-  pendingSwitchScheduledFor: Date | null;
-  pendingSwitchDeadline: Date | null;
-  stripeCustomerId: string | null;
-  paddleCustomerId: string | null;
+  gatewaySwitchAt: Date | null;
   status: string;
 };
 
 function rowToFields(row: AccountBillingRow): AccountBillingFields {
   return {
     id: row.id,
+    name: row.name,
     email: row.email,
     gatewayProvider: row.gatewayProvider,
+    gatewayCustomerId: row.gatewayCustomerId,
     pendingGatewaySwitch: row.pendingGatewaySwitch,
     pendingGatewayProvider: row.pendingGatewayProvider,
-    pendingSwitchScheduledFor: row.pendingSwitchScheduledFor,
-    pendingSwitchDeadline: row.pendingSwitchDeadline,
-    stripeCustomerId: row.stripeCustomerId,
-    paddleCustomerId: row.paddleCustomerId,
+    gatewaySwitchAt: row.gatewaySwitchAt,
     status: row.status,
   };
 }
@@ -74,15 +71,13 @@ export class PrismaAccountBillingRepository implements AccountBillingRepository 
     }
   }
 
-  async findByExternalCustomerId(
+  async findByGatewayCustomerId(
     gateway: AccountGatewayProvider,
     customerId: string
   ): Promise<Result<AccountBillingFields | null, AccountBillingStoreError>> {
     try {
-      const where =
-        gateway === "STRIPE" ? { stripeCustomerId: customerId } : { paddleCustomerId: customerId };
       const row = await this.prisma.account.findFirst({
-        where,
+        where: { gatewayCustomerId: customerId, gatewayProvider: gateway },
         select: ACCOUNT_BILLING_SELECT,
       });
       return ok(row ? rowToFields(row as AccountBillingRow) : null);

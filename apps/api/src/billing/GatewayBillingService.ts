@@ -2,17 +2,40 @@
  * @file GatewayBillingService.ts
  * @description Manages the lifecycle of payment gateway switches (Stripe ↔ Paddle).
  *   Handles initiation, cancellation, extension, webhook-driven transitions,
- *   and admin force-actions. All public methods return Result<T, E>.
+ *   admin force-actions, and dunning. All public methods return Result<T, E>.
+ *
+ *   Framework-free: depends only on @core/domain ports + UoW. The concrete
+ *   Prisma adapters live in apps/api/src/infrastructure/repositories/; the
+ *   BullMQ job scheduler lives in apps/api/src/billing/GatewaySwitchJobService.ts.
  * @layer application
  */
 
 import { ok, err, type Result } from "@shared/types";
-import type { PrismaClient } from "@infra/prisma";
-import type { GatewayAdapterRegistryPort } from "../infrastructure/billing/GatewayAdapterRegistry.js";
-import type { GatewaySwitchJobService } from "./GatewaySwitchJobService.js";
+import { createLogger } from "@observability/logger";
+import type {
+  AccountBillingRepository,
+  AccountBillingFields,
+} from "@core/domain/repositories/AccountBillingRepository.js";
+import type { AccountSubscriptionBillingRepository } from "@core/domain/repositories/AccountSubscriptionBillingRepository.js";
+import type {
+  GatewaySwitchEventRepository,
+  GatewaySwitchEventWithAccount,
+  SwitchEventCounts,
+} from "@core/domain/repositories/GatewaySwitchEventRepository.js";
+import type { BillingEventRepository } from "@core/domain/repositories/BillingEventRepository.js";
+import type { InvoiceRepository } from "@core/domain/repositories/InvoiceRepository.js";
+import type {
+  ProviderBundleReader,
+  ProviderBundleSummary,
+} from "@core/domain/repositories/ProviderBundleReader.js";
+import type { GatewaySwitchJobPort } from "@core/domain/repositories/GatewaySwitchJobPort.js";
+import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
+import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
+import type { GatewayAdapterRegistryPort } from "../infrastructure/billing/GatewayAdapterRegistry.js";
 import type { GatewayProviderType } from "@ports/core";
-import { logger } from "../lib/logger.js";
+
+const logger = createLogger("gateway-billing");
 
 // ─── Error Types ────────────────────────────────────────────────────────────
 
@@ -48,14 +71,25 @@ function mapGatewayToAdapterProvider(gateway: "STRIPE" | "PADDLE"): GatewayProvi
   return gateway === "STRIPE" ? "stripe" : "paddle";
 }
 
+function mapAdapterProviderToGateway(provider: GatewayProviderType): "STRIPE" | "PADDLE" {
+  return provider === "stripe" ? "STRIPE" : "PADDLE";
+}
+
 // ─── Service ────────────────────────────────────────────────────────────────
 
 export class GatewayBillingService {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly accountRepo: AccountBillingRepository,
+    private readonly subscriptionRepo: AccountSubscriptionBillingRepository,
+    private readonly switchEventRepo: GatewaySwitchEventRepository,
+    private readonly billingEventRepo: BillingEventRepository,
+    private readonly invoiceRepo: InvoiceRepository,
+    private readonly bundleReader: ProviderBundleReader,
     private readonly registry: GatewayAdapterRegistryPort,
-    private readonly switchJobService: GatewaySwitchJobService,
-    private readonly emailPort: EmailPort
+    private readonly switchJobs: GatewaySwitchJobPort,
+    private readonly emailPort: EmailPort,
+    private readonly auditEmitter: AuditEmitterPort,
+    private readonly unitOfWork: UnitOfWork
   ) {}
 
   /**
@@ -70,24 +104,20 @@ export class GatewayBillingService {
     requestedByUserId?: string
   ): Promise<Result<SwitchInitiatedResult, SwitchError>> {
     try {
-      const account = await this.prisma.account.findUnique({
-        where: { id: accountId },
-      });
+      const accountResult = await this.accountRepo.findById(accountId);
+      if (!accountResult.ok) return err("DATABASE_ERROR");
+      const account = accountResult.value;
       if (!account) return err("ACCOUNT_NOT_FOUND");
 
-      const targetGateway = newProvider === "stripe" ? "STRIPE" : "PADDLE";
+      const targetGateway = mapAdapterProviderToGateway(newProvider);
       if (account.gatewayProvider === targetGateway) return err("SAME_GATEWAY");
       if (account.pendingGatewaySwitch) return err("SWITCH_ALREADY_PENDING");
 
-      const subscription = await this.prisma.accountSubscription.findFirst({
-        where: {
-          accountId,
-          status: { in: ["ACTIVE", "TRIALING"] },
-        },
-      });
+      const subResult = await this.subscriptionRepo.findActiveOrTrialingByAccount(accountId);
+      if (!subResult.ok) return err("DATABASE_ERROR");
+      const subscription = subResult.value;
       if (!subscription) return err("NO_ACTIVE_SUBSCRIPTION");
 
-      // Determine the switch date from the gateway
       let switchDate: Date;
       const externalSubId =
         subscription.gatewaySubscriptionId ?? subscription.externalSubscriptionId;
@@ -101,58 +131,55 @@ export class GatewayBillingService {
         });
         switchDate = details.currentPeriodEnd;
 
-        // Mark subscription for cancellation at period end
-        await currentAdapter.cancelAtPeriodEnd({
-          externalSubscriptionId: externalSubId,
-        });
+        await currentAdapter.cancelAtPeriodEnd({ externalSubscriptionId: externalSubId });
       } else {
-        // No external subscription yet — use currentPeriodEnd from DB or 30 days
         switchDate =
           subscription.currentPeriodEnd ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       }
 
-      // Persist everything in a single transaction
       const fromGateway = account.gatewayProvider;
-      const [switchEvent] = await this.prisma.$transaction([
-        this.prisma.gatewaySwitchEvent.create({
-          data: {
-            accountId,
-            fromGateway,
-            toGateway: targetGateway,
-            scheduledFor: switchDate,
-            status: "SCHEDULED",
-          },
-        }),
-        this.prisma.account.update({
-          where: { id: accountId },
-          data: {
-            pendingGatewayProvider: targetGateway,
-            pendingGatewaySwitch: true,
-            gatewaySwitchAt: switchDate,
-          },
-        }),
-        this.prisma.accountSubscription.update({
-          where: { id: subscription.id },
-          data: { cancelAtPeriodEnd: true },
-        }),
-        this.prisma.auditLog.create({
-          data: {
-            action: "GATEWAY_SWITCH_INITIATED",
-            resource: "account",
-            resourceId: accountId,
-            userId: requestedByUserId ?? accountId,
-            details: {
-              from: fromGateway,
-              to: targetGateway,
-              scheduledFor: switchDate.toISOString(),
-            },
-            success: true,
-          },
-        }),
-      ]);
+      let switchEventId = "";
+
+      await this.unitOfWork.executeInTransaction(async () => {
+        const created = await this.switchEventRepo.create({
+          accountId,
+          fromGateway,
+          toGateway: targetGateway,
+          scheduledFor: switchDate,
+          status: "SCHEDULED",
+        });
+        if (!created.ok) throw new Error("DATABASE_ERROR");
+        switchEventId = created.value.id;
+
+        const accUpdate = await this.accountRepo.updateBillingFields(accountId, {
+          pendingGatewayProvider: targetGateway,
+          pendingGatewaySwitch: true,
+          gatewaySwitchAt: switchDate,
+        });
+        if (!accUpdate.ok) throw new Error("DATABASE_ERROR");
+
+        const subUpdate = await this.subscriptionRepo.update(subscription.id, {
+          cancelAtPeriodEnd: true,
+        });
+        if (!subUpdate.ok) throw new Error("DATABASE_ERROR");
+      });
+
+      await this.auditEmitter.emit({
+        action: "GATEWAY_SWITCH_INITIATED",
+        category: "BILLING",
+        resourceType: "account",
+        resourceId: accountId,
+        userId: requestedByUserId ?? accountId,
+        details: {
+          from: fromGateway,
+          to: targetGateway,
+          scheduledFor: switchDate.toISOString(),
+        },
+        success: true,
+      });
 
       return ok({
-        switchEventId: switchEvent.id,
+        switchEventId,
         scheduledFor: switchDate,
         fromGateway,
         toGateway: targetGateway,
@@ -170,26 +197,23 @@ export class GatewayBillingService {
    */
   async cancelPendingSwitch(accountId: string): Promise<Result<{ cancelled: true }, SwitchError>> {
     try {
-      const account = await this.prisma.account.findUnique({
-        where: { id: accountId },
-      });
+      const accountResult = await this.accountRepo.findById(accountId);
+      if (!accountResult.ok) return err("DATABASE_ERROR");
+      const account = accountResult.value;
       if (!account) return err("ACCOUNT_NOT_FOUND");
       if (!account.pendingGatewaySwitch) return err("SWITCH_NOT_FOUND");
 
-      const switchEvent = await this.prisma.gatewaySwitchEvent.findFirst({
-        where: { accountId, status: "SCHEDULED" },
-        orderBy: { createdAt: "desc" },
-      });
+      const switchEventResult = await this.switchEventRepo.findLatestByAccountAndStatus(accountId, [
+        "SCHEDULED",
+      ]);
+      if (!switchEventResult.ok) return err("DATABASE_ERROR");
+      const switchEvent = switchEventResult.value;
       if (!switchEvent) return err("SWITCH_NOT_FOUND");
 
-      const subscription = await this.prisma.accountSubscription.findFirst({
-        where: {
-          accountId,
-          status: { in: ["ACTIVE", "TRIALING"] },
-        },
-      });
+      const subResult = await this.subscriptionRepo.findActiveOrTrialingByAccount(accountId);
+      if (!subResult.ok) return err("DATABASE_ERROR");
+      const subscription = subResult.value;
 
-      // Reactivate on current gateway
       const externalSubId =
         subscription?.gatewaySubscriptionId ?? subscription?.externalSubscriptionId;
       if (externalSubId) {
@@ -201,31 +225,29 @@ export class GatewayBillingService {
         });
       }
 
-      await this.prisma.$transaction([
-        this.prisma.account.update({
-          where: { id: accountId },
-          data: {
-            pendingGatewayProvider: null,
-            pendingGatewaySwitch: false,
-            gatewaySwitchAt: null,
-          },
-        }),
-        ...(subscription
-          ? [
-              this.prisma.accountSubscription.update({
-                where: { id: subscription.id },
-                data: { cancelAtPeriodEnd: false },
-              }),
-            ]
-          : []),
-        this.prisma.gatewaySwitchEvent.update({
-          where: { id: switchEvent.id },
-          data: { status: "CANCELLED", cancelledAt: new Date() },
-        }),
-      ]);
+      await this.unitOfWork.executeInTransaction(async () => {
+        const accUpdate = await this.accountRepo.updateBillingFields(accountId, {
+          pendingGatewayProvider: null,
+          pendingGatewaySwitch: false,
+          gatewaySwitchAt: null,
+        });
+        if (!accUpdate.ok) throw new Error("DATABASE_ERROR");
 
-      // Cancel any pending jobs
-      await this.switchJobService.cancelJobs(accountId);
+        if (subscription) {
+          const subUpdate = await this.subscriptionRepo.update(subscription.id, {
+            cancelAtPeriodEnd: false,
+          });
+          if (!subUpdate.ok) throw new Error("DATABASE_ERROR");
+        }
+
+        const switchUpdate = await this.switchEventRepo.update(switchEvent.id, {
+          status: "CANCELLED",
+          cancelledAt: new Date(),
+        });
+        if (!switchUpdate.ok) throw new Error("DATABASE_ERROR");
+      });
+
+      await this.switchJobs.cancelJobs(accountId);
 
       return ok({ cancelled: true });
     } catch (error) {
@@ -247,21 +269,23 @@ export class GatewayBillingService {
     try {
       if (extraHours > 72) return err("MAX_EXTENSION_EXCEEDED");
 
-      const switchEvent = await this.prisma.gatewaySwitchEvent.findFirst({
-        where: { accountId, status: "PENDING_CHECKOUT" },
-        orderBy: { createdAt: "desc" },
-      });
+      const switchEventResult = await this.switchEventRepo.findLatestByAccountAndStatus(accountId, [
+        "PENDING_CHECKOUT",
+      ]);
+      if (!switchEventResult.ok) return err("DATABASE_ERROR");
+      const switchEvent = switchEventResult.value;
       if (!switchEvent) return err("SWITCH_NOT_FOUND");
 
       const base = switchEvent.extendedUntil ?? switchEvent.scheduledFor;
       const newDeadline = new Date(base.getTime() + extraHours * 60 * 60 * 1000);
 
-      await this.prisma.gatewaySwitchEvent.update({
-        where: { id: switchEvent.id },
-        data: { extendedUntil: newDeadline, extendedBy: adminUserId },
+      const update = await this.switchEventRepo.update(switchEvent.id, {
+        extendedUntil: newDeadline,
+        extendedBy: adminUserId,
       });
+      if (!update.ok) return err("DATABASE_ERROR");
 
-      await this.switchJobService.rescheduleJobs(accountId, newDeadline);
+      await this.switchJobs.rescheduleJobs(accountId, newDeadline);
 
       return ok({ newDeadline, extendedBy: adminUserId });
     } catch (error) {
@@ -277,21 +301,19 @@ export class GatewayBillingService {
    */
   async handleSubscriptionCanceled(accountId: string): Promise<Result<void, SwitchError>> {
     try {
-      const account = await this.prisma.account.findUnique({
-        where: { id: accountId },
-      });
+      const accountResult = await this.accountRepo.findById(accountId);
+      if (!accountResult.ok) return err("DATABASE_ERROR");
+      const account = accountResult.value;
       if (!account) return err("ACCOUNT_NOT_FOUND");
 
       if (!account.pendingGatewaySwitch || !account.pendingGatewayProvider) {
-        // Not a gateway switch — regular cancellation: send notification email
+        // Regular cancellation — send notification email.
         if (account.email) {
-          const sub = await this.prisma.accountSubscription.findFirst({
-            where: { accountId },
-            select: { currentPeriodEnd: true, bundleId: true },
-          });
-          const accessUntil = sub?.currentPeriodEnd
-            ? (sub.currentPeriodEnd.toISOString().split("T")[0] ?? "N/A")
-            : "N/A";
+          const subResult = await this.subscriptionRepo.findLatestByAccount(accountId);
+          const accessUntil =
+            subResult.ok && subResult.value?.currentPeriodEnd
+              ? (subResult.value.currentPeriodEnd.toISOString().split("T")[0] ?? "N/A")
+              : "N/A";
           await this.emailPort
             .send({
               to: [account.email],
@@ -303,37 +325,34 @@ export class GatewayBillingService {
         return ok(undefined);
       }
 
-      const switchEvent = await this.prisma.gatewaySwitchEvent.findFirst({
-        where: { accountId, status: "SCHEDULED" },
-        orderBy: { createdAt: "desc" },
-      });
+      const switchEventResult = await this.switchEventRepo.findLatestByAccountAndStatus(accountId, [
+        "SCHEDULED",
+      ]);
+      if (!switchEventResult.ok) return err("DATABASE_ERROR");
+      const switchEvent = switchEventResult.value;
       if (!switchEvent) return ok(undefined);
 
-      const subscription = await this.prisma.accountSubscription.findFirst({
-        where: { accountId },
-        orderBy: { createdAt: "desc" },
-      });
+      const subResult = await this.subscriptionRepo.findLatestByAccount(accountId);
+      if (!subResult.ok) return err("DATABASE_ERROR");
+      const subscription = subResult.value;
 
       // Transition: SCHEDULED → PENDING_CHECKOUT
-      await this.prisma.$transaction([
-        this.prisma.gatewaySwitchEvent.update({
-          where: { id: switchEvent.id },
-          data: { status: "PENDING_CHECKOUT" },
-        }),
-        ...(subscription
-          ? [
-              this.prisma.accountSubscription.update({
-                where: { id: subscription.id },
-                data: { status: "CANCELED" },
-              }),
-            ]
-          : []),
-      ]);
+      await this.unitOfWork.executeInTransaction(async () => {
+        const switchUpdate = await this.switchEventRepo.update(switchEvent.id, {
+          status: "PENDING_CHECKOUT",
+        });
+        if (!switchUpdate.ok) throw new Error("DATABASE_ERROR");
 
-      // Start 48h checkout window with reminder + suspend jobs
-      await this.switchJobService.startCheckoutWindow(accountId, switchEvent.id);
+        if (subscription) {
+          const subUpdate = await this.subscriptionRepo.update(subscription.id, {
+            status: "CANCELED",
+          });
+          if (!subUpdate.ok) throw new Error("DATABASE_ERROR");
+        }
+      });
 
-      // Send immediate email notification
+      await this.switchJobs.startCheckoutWindow(accountId, switchEvent.id);
+
       if (account.email) {
         await this.emailPort.send({
           to: [account.email],
@@ -363,65 +382,60 @@ export class GatewayBillingService {
     newGatewaySubscriptionId: string
   ): Promise<Result<void, SwitchError>> {
     try {
-      const account = await this.prisma.account.findUnique({
-        where: { id: accountId },
-      });
+      const accountResult = await this.accountRepo.findById(accountId);
+      if (!accountResult.ok) return err("DATABASE_ERROR");
+      const account = accountResult.value;
       if (!account) return err("ACCOUNT_NOT_FOUND");
 
-      const switchEvent = await this.prisma.gatewaySwitchEvent.findFirst({
-        where: { accountId, status: "PENDING_CHECKOUT" },
-        orderBy: { createdAt: "desc" },
-      });
-
-      if (!switchEvent) {
-        // No pending switch — this is a normal checkout
-        return ok(undefined);
-      }
+      const switchEventResult = await this.switchEventRepo.findLatestByAccountAndStatus(accountId, [
+        "PENDING_CHECKOUT",
+      ]);
+      if (!switchEventResult.ok) return err("DATABASE_ERROR");
+      const switchEvent = switchEventResult.value;
+      if (!switchEvent) return ok(undefined); // No pending switch — normal checkout
 
       const targetGateway = switchEvent.toGateway;
 
-      await this.prisma.$transaction([
-        this.prisma.account.update({
-          where: { id: accountId },
-          data: {
-            gatewayProvider: targetGateway,
-            gatewayCustomerId: newGatewayCustomerId,
-            pendingGatewayProvider: null,
-            pendingGatewaySwitch: false,
-            gatewaySwitchAt: null,
-          },
-        }),
-        this.prisma.accountSubscription.updateMany({
-          where: { accountId },
-          data: {
-            gatewayProvider: targetGateway,
-            gatewaySubscriptionId: newGatewaySubscriptionId,
-            status: "ACTIVE",
-            cancelAtPeriodEnd: false,
-          },
-        }),
-        this.prisma.gatewaySwitchEvent.update({
-          where: { id: switchEvent.id },
-          data: { status: "COMPLETED", completedAt: new Date() },
-        }),
-        this.prisma.auditLog.create({
-          data: {
-            action: "GATEWAY_SWITCH_COMPLETED",
-            resource: "account",
-            resourceId: accountId,
-            userId: accountId,
-            details: {
-              from: switchEvent.fromGateway,
-              to: targetGateway,
-              switchEventId: switchEvent.id,
-            },
-            success: true,
-          },
-        }),
-      ]);
+      await this.unitOfWork.executeInTransaction(async () => {
+        const accUpdate = await this.accountRepo.updateBillingFields(accountId, {
+          gatewayProvider: targetGateway,
+          gatewayCustomerId: newGatewayCustomerId,
+          pendingGatewayProvider: null,
+          pendingGatewaySwitch: false,
+          gatewaySwitchAt: null,
+        });
+        if (!accUpdate.ok) throw new Error("DATABASE_ERROR");
 
-      // Cancel the reminder/suspend jobs
-      await this.switchJobService.cancelJobs(accountId);
+        const subUpdate = await this.subscriptionRepo.updateAllForAccount(accountId, {
+          gatewayProvider: targetGateway,
+          gatewaySubscriptionId: newGatewaySubscriptionId,
+          status: "ACTIVE",
+          cancelAtPeriodEnd: false,
+        });
+        if (!subUpdate.ok) throw new Error("DATABASE_ERROR");
+
+        const switchUpdate = await this.switchEventRepo.update(switchEvent.id, {
+          status: "COMPLETED",
+          completedAt: new Date(),
+        });
+        if (!switchUpdate.ok) throw new Error("DATABASE_ERROR");
+      });
+
+      await this.auditEmitter.emit({
+        action: "GATEWAY_SWITCH_COMPLETED",
+        category: "BILLING",
+        resourceType: "account",
+        resourceId: accountId,
+        userId: accountId,
+        details: {
+          from: switchEvent.fromGateway,
+          to: targetGateway,
+          switchEventId: switchEvent.id,
+        },
+        success: true,
+      });
+
+      await this.switchJobs.cancelJobs(accountId);
 
       return ok(undefined);
     } catch (error) {
@@ -442,43 +456,43 @@ export class GatewayBillingService {
     adminUserId: string
   ): Promise<Result<void, SwitchError>> {
     try {
-      const switchEvent = await this.prisma.gatewaySwitchEvent.findUnique({
-        where: { id: switchEventId },
-      });
+      const switchEventResult = await this.switchEventRepo.findById(switchEventId);
+      if (!switchEventResult.ok) return err("DATABASE_ERROR");
+      const switchEvent = switchEventResult.value;
       if (!switchEvent) return err("SWITCH_NOT_FOUND");
       if (switchEvent.status !== "PENDING_CHECKOUT") return err("INVALID_STATUS");
 
-      await this.prisma.$transaction([
-        this.prisma.gatewaySwitchEvent.update({
-          where: { id: switchEventId },
-          data: { status: "COMPLETED", completedAt: new Date() },
-        }),
-        this.prisma.account.update({
-          where: { id: switchEvent.accountId },
-          data: {
-            gatewayProvider: switchEvent.toGateway,
-            pendingGatewayProvider: null,
-            pendingGatewaySwitch: false,
-            gatewaySwitchAt: null,
-          },
-        }),
-        this.prisma.auditLog.create({
-          data: {
-            action: "GATEWAY_SWITCH_FORCE_COMPLETED",
-            resource: "account",
-            resourceId: switchEvent.accountId,
-            userId: adminUserId,
-            details: {
-              switchEventId,
-              from: switchEvent.fromGateway,
-              to: switchEvent.toGateway,
-            },
-            success: true,
-          },
-        }),
-      ]);
+      await this.unitOfWork.executeInTransaction(async () => {
+        const switchUpdate = await this.switchEventRepo.update(switchEventId, {
+          status: "COMPLETED",
+          completedAt: new Date(),
+        });
+        if (!switchUpdate.ok) throw new Error("DATABASE_ERROR");
 
-      await this.switchJobService.cancelJobs(switchEvent.accountId);
+        const accUpdate = await this.accountRepo.updateBillingFields(switchEvent.accountId, {
+          gatewayProvider: switchEvent.toGateway,
+          pendingGatewayProvider: null,
+          pendingGatewaySwitch: false,
+          gatewaySwitchAt: null,
+        });
+        if (!accUpdate.ok) throw new Error("DATABASE_ERROR");
+      });
+
+      await this.auditEmitter.emit({
+        action: "GATEWAY_SWITCH_FORCE_COMPLETED",
+        category: "BILLING",
+        resourceType: "account",
+        resourceId: switchEvent.accountId,
+        userId: adminUserId,
+        details: {
+          switchEventId,
+          from: switchEvent.fromGateway,
+          to: switchEvent.toGateway,
+        },
+        success: true,
+      });
+
+      await this.switchJobs.cancelJobs(switchEvent.accountId);
 
       return ok(undefined);
     } catch (error) {
@@ -490,53 +504,51 @@ export class GatewayBillingService {
   /**
    * @method forceSuspend
    * @description Admin action to force-suspend a PENDING_CHECKOUT switch.
-   *   Uses the existing suspension mechanism.
    */
   async forceSuspend(
     switchEventId: string,
     adminUserId: string
   ): Promise<Result<void, SwitchError>> {
     try {
-      const switchEvent = await this.prisma.gatewaySwitchEvent.findUnique({
-        where: { id: switchEventId },
-      });
+      const switchEventResult = await this.switchEventRepo.findById(switchEventId);
+      if (!switchEventResult.ok) return err("DATABASE_ERROR");
+      const switchEvent = switchEventResult.value;
       if (!switchEvent) return err("SWITCH_NOT_FOUND");
       if (switchEvent.status !== "PENDING_CHECKOUT") return err("INVALID_STATUS");
 
-      await this.prisma.$transaction([
-        this.prisma.accountSubscription.updateMany({
-          where: { accountId: switchEvent.accountId },
-          data: { status: "CANCELED" },
-        }),
-        this.prisma.gatewaySwitchEvent.update({
-          where: { id: switchEventId },
-          data: { status: "SUSPENDED", suspendedAt: new Date() },
-        }),
-        this.prisma.auditLog.create({
-          data: {
-            action: "GATEWAY_SWITCH_FORCE_SUSPENDED",
-            resource: "account",
-            resourceId: switchEvent.accountId,
-            userId: adminUserId,
-            details: {
-              switchEventId,
-              reason: "Admin forced suspension",
-            },
-            success: true,
-          },
-        }),
-      ]);
+      await this.unitOfWork.executeInTransaction(async () => {
+        const subUpdate = await this.subscriptionRepo.updateAllForAccount(switchEvent.accountId, {
+          status: "CANCELED",
+        });
+        if (!subUpdate.ok) throw new Error("DATABASE_ERROR");
 
-      await this.switchJobService.cancelJobs(switchEvent.accountId);
+        const switchUpdate = await this.switchEventRepo.update(switchEventId, {
+          status: "SUSPENDED",
+          suspendedAt: new Date(),
+        });
+        if (!switchUpdate.ok) throw new Error("DATABASE_ERROR");
+      });
+
+      await this.auditEmitter.emit({
+        action: "GATEWAY_SWITCH_FORCE_SUSPENDED",
+        category: "BILLING",
+        resourceType: "account",
+        resourceId: switchEvent.accountId,
+        userId: adminUserId,
+        details: {
+          switchEventId,
+          reason: "Admin forced suspension",
+        },
+        success: true,
+      });
+
+      await this.switchJobs.cancelJobs(switchEvent.accountId);
 
       // Notify account
-      const account = await this.prisma.account.findUnique({
-        where: { id: switchEvent.accountId },
-        select: { email: true },
-      });
-      if (account?.email) {
+      const accountResult = await this.accountRepo.findById(switchEvent.accountId);
+      if (accountResult.ok && accountResult.value?.email) {
         await this.emailPort.send({
-          to: [account.email],
+          to: [accountResult.value.email],
           subject: "Account suspended — gateway switch incomplete",
           body: "Your account has been suspended because the gateway switch was not completed in time. Please contact support.",
         });
@@ -552,7 +564,6 @@ export class GatewayBillingService {
   /**
    * @method getAccountSwitchStatus
    * @description Returns the current gateway switch status for an account.
-   *   Used by client billing UI to determine which state to render.
    */
   async getAccountSwitchStatus(accountId: string): Promise<
     Result<
@@ -570,24 +581,26 @@ export class GatewayBillingService {
     >
   > {
     try {
-      const account = await this.prisma.account.findUnique({
-        where: { id: accountId },
-        select: {
-          gatewayProvider: true,
-          pendingGatewaySwitch: true,
-        },
-      });
+      const accountResult = await this.accountRepo.findById(accountId);
+      if (!accountResult.ok) return err("DATABASE_ERROR");
+      const account = accountResult.value;
       if (!account) return err("ACCOUNT_NOT_FOUND");
 
-      let pendingSwitch = null;
+      let pendingSwitch: {
+        id: string;
+        toGateway: string;
+        status: string;
+        scheduledFor: Date;
+        extendedUntil: Date | null;
+      } | null = null;
+
       if (account.pendingGatewaySwitch) {
-        const switchEvent = await this.prisma.gatewaySwitchEvent.findFirst({
-          where: {
-            accountId,
-            status: { in: ["SCHEDULED", "PENDING_CHECKOUT"] },
-          },
-          orderBy: { createdAt: "desc" },
-        });
+        const switchEventResult = await this.switchEventRepo.findLatestByAccountAndStatus(
+          accountId,
+          ["SCHEDULED", "PENDING_CHECKOUT"]
+        );
+        if (!switchEventResult.ok) return err("DATABASE_ERROR");
+        const switchEvent = switchEventResult.value;
         if (switchEvent) {
           pendingSwitch = {
             id: switchEvent.id,
@@ -621,17 +634,17 @@ export class GatewayBillingService {
     cancelUrl: string
   ): Promise<Result<{ url: string }, SwitchError>> {
     try {
-      const account = await this.prisma.account.findUnique({
-        where: { id: accountId },
-      });
+      const accountResult = await this.accountRepo.findById(accountId);
+      if (!accountResult.ok) return err("DATABASE_ERROR");
+      const account = accountResult.value;
       if (!account) return err("ACCOUNT_NOT_FOUND");
 
       const adapter = this.registry.getAdapter(gatewayProvider);
-      const targetGateway = gatewayProvider === "stripe" ? "STRIPE" : "PADDLE";
+      const targetGateway = mapAdapterProviderToGateway(gatewayProvider);
 
-      // Get or create gateway customer
       let customerId = account.gatewayCustomerId;
       if (!customerId || account.gatewayProvider !== targetGateway) {
+        if (!account.email) return err("ACCOUNT_NOT_FOUND");
         const customerResult = await adapter.createCustomer({
           email: account.email,
           name: account.name,
@@ -639,13 +652,11 @@ export class GatewayBillingService {
         });
         customerId = customerResult.externalCustomerId;
 
-        await this.prisma.account.update({
-          where: { id: accountId },
-          data: {
-            gatewayCustomerId: customerId,
-            gatewayProvider: targetGateway,
-          },
+        const upd = await this.accountRepo.updateBillingFields(accountId, {
+          gatewayCustomerId: customerId,
+          gatewayProvider: targetGateway,
         });
+        if (!upd.ok) return err("DATABASE_ERROR");
       }
 
       const session = await adapter.createCheckoutSession({
@@ -672,9 +683,9 @@ export class GatewayBillingService {
     returnUrl: string
   ): Promise<Result<{ url: string }, SwitchError>> {
     try {
-      const account = await this.prisma.account.findUnique({
-        where: { id: accountId },
-      });
+      const accountResult = await this.accountRepo.findById(accountId);
+      if (!accountResult.ok) return err("DATABASE_ERROR");
+      const account = accountResult.value;
       if (!account) return err("ACCOUNT_NOT_FOUND");
       if (!account.gatewayCustomerId) return err("NO_ACTIVE_SUBSCRIPTION");
 
@@ -706,15 +717,12 @@ export class GatewayBillingService {
     provider: GatewayProviderType
   ): Promise<string | null> {
     if (!gatewayCustomerId) return null;
-    const providerEnum = provider === "stripe" ? "STRIPE" : "PADDLE";
-    const account = await this.prisma.account.findFirst({
-      where: {
-        gatewayCustomerId,
-        gatewayProvider: providerEnum as "STRIPE" | "PADDLE",
-      },
-      select: { id: true },
-    });
-    return account?.id ?? null;
+    const providerEnum = mapAdapterProviderToGateway(provider);
+    const accResult = await this.accountRepo.findByGatewayCustomerId(
+      providerEnum,
+      gatewayCustomerId
+    );
+    return accResult.ok && accResult.value ? accResult.value.id : null;
   }
 
   /**
@@ -730,31 +738,23 @@ export class GatewayBillingService {
     data: Record<string, unknown>
   ): Promise<{ skip: boolean; recordId: string | null }> {
     const gatewayEventId = eventId || `${provider}-${eventType}-${Date.now()}`;
-    const providerEnum = provider === "stripe" ? ("STRIPE" as const) : ("PADDLE" as const);
+    const providerEnum = mapAdapterProviderToGateway(provider);
 
-    const existing = await this.prisma.billingEvent.findUnique({
-      where: { gatewayEventId },
-      select: { id: true, processed: true },
-    });
-
-    if (existing?.processed) {
-      return { skip: true, recordId: existing.id };
+    const existingResult = await this.billingEventRepo.findByGatewayEventId(gatewayEventId);
+    if (existingResult.ok && existingResult.value?.processed) {
+      return { skip: true, recordId: existingResult.value.id };
     }
 
-    const record = await this.prisma.billingEvent.upsert({
-      where: { gatewayEventId },
-      create: {
-        gatewayEventId,
-        gatewayProvider: providerEnum,
-        eventType: domainEvent,
-        rawEventType: eventType,
-        payload: data as object,
-        processed: false,
-      },
-      update: {},
+    const upsertResult = await this.billingEventRepo.upsertNew({
+      gatewayEventId,
+      gatewayProvider: providerEnum,
+      eventType: domainEvent,
+      rawEventType: eventType,
+      payload: data as object,
     });
+    if (!upsertResult.ok) return { skip: false, recordId: null };
 
-    return { skip: false, recordId: record.id };
+    return { skip: false, recordId: upsertResult.value.id };
   }
 
   /**
@@ -762,10 +762,7 @@ export class GatewayBillingService {
    * @description Marks a BillingEvent as successfully processed.
    */
   async markBillingEventProcessed(recordId: string): Promise<void> {
-    await this.prisma.billingEvent.update({
-      where: { id: recordId },
-      data: { processed: true, processedAt: new Date() },
-    });
+    await this.billingEventRepo.markProcessed(recordId);
   }
 
   /**
@@ -773,10 +770,7 @@ export class GatewayBillingService {
    * @description Records a processing error on a BillingEvent.
    */
   async markBillingEventError(recordId: string, error: string): Promise<void> {
-    await this.prisma.billingEvent.update({
-      where: { id: recordId },
-      data: { error },
-    });
+    await this.billingEventRepo.markError(recordId, error);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -787,85 +781,70 @@ export class GatewayBillingService {
    * @method getAvailablePlans
    * @description Returns active provider bundles for the public plans endpoint.
    */
-  async getAvailablePlans() {
-    const plans = await this.prisma.providerBundle.findMany({
-      where: { isActive: true },
-      orderBy: { sortOrder: "asc" },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        description: true,
-        providers: true,
-        pricePerAccountMonth: true,
-        sortOrder: true,
-      },
-    });
-    return plans.map((p) => ({
-      ...p,
-      pricePerAccountMonth: Number(p.pricePerAccountMonth),
-    }));
+  async getAvailablePlans(): Promise<ProviderBundleSummary[]> {
+    const result = await this.bundleReader.listActive();
+    return result.ok ? result.value : [];
   }
 
   /**
    * @method listGatewaySwitches
    * @description Lists gateway switch events with pagination and stats.
    */
-  async listGatewaySwitches(filters: { status?: string; page: number; limit: number }) {
-    const where: Record<string, unknown> =
-      filters.status && filters.status !== "ALL" ? { status: filters.status } : {};
-    const offset = (filters.page - 1) * filters.limit;
-
-    const [events, total, scheduled, pendingCheckout, suspended, completed30d] = await Promise.all([
-      this.prisma.gatewaySwitchEvent.findMany({
-        where,
-        include: {
-          account: { select: { id: true, name: true, email: true } },
-        },
-        orderBy: { createdAt: "desc" },
-        skip: offset,
-        take: filters.limit,
-      }),
-      this.prisma.gatewaySwitchEvent.count({ where }),
-      this.prisma.gatewaySwitchEvent.count({
-        where: { status: "SCHEDULED" },
-      }),
-      this.prisma.gatewaySwitchEvent.count({
-        where: { status: "PENDING_CHECKOUT" },
-      }),
-      this.prisma.gatewaySwitchEvent.count({
-        where: { status: "SUSPENDED" },
-      }),
-      this.prisma.gatewaySwitchEvent.count({
-        where: {
-          status: "COMPLETED",
-          completedAt: {
-            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-          },
-        },
-      }),
-    ]);
-
-    return {
-      events,
-      total,
+  async listGatewaySwitches(filters: { status?: string; page: number; limit: number }): Promise<{
+    events: GatewaySwitchEventWithAccount[];
+    total: number;
+    page: number;
+    limit: number;
+    stats: Omit<SwitchEventCounts, "total">;
+  }> {
+    const status =
+      filters.status && filters.status !== "ALL"
+        ? (filters.status as
+            | "SCHEDULED"
+            | "PENDING_CHECKOUT"
+            | "COMPLETED"
+            | "CANCELLED"
+            | "SUSPENDED"
+            | "EXPIRED")
+        : undefined;
+    const result = await this.switchEventRepo.listWithAccount({
       page: filters.page,
       limit: filters.limit,
-      stats: { scheduled, pendingCheckout, suspended, completed30d },
+      ...(status !== undefined && { status }),
+    });
+    if (!result.ok) {
+      return {
+        events: [],
+        total: 0,
+        page: filters.page,
+        limit: filters.limit,
+        stats: { scheduled: 0, pendingCheckout: 0, suspended: 0, completed30d: 0 },
+      };
+    }
+    const { events, counts } = result.value;
+    return {
+      events,
+      total: counts.total,
+      page: filters.page,
+      limit: filters.limit,
+      stats: {
+        scheduled: counts.scheduled,
+        pendingCheckout: counts.pendingCheckout,
+        suspended: counts.suspended,
+        completed30d: counts.completed30d,
+      },
     };
   }
 
   /**
    * @method getGatewaySwitchById
-   * @description Returns a single gateway switch event by ID.
+   * @description Returns a single gateway switch event by ID, joined with the
+   *   account row. Returns `null` if not found or on error (consumers treat
+   *   both the same — a 404 from the route handler).
    */
-  async getGatewaySwitchById(id: string) {
-    return this.prisma.gatewaySwitchEvent.findUnique({
-      where: { id },
-      include: {
-        account: { select: { id: true, name: true, email: true } },
-      },
-    });
+  async getGatewaySwitchById(id: string): Promise<GatewaySwitchEventWithAccount | null> {
+    const result = await this.switchEventRepo.findByIdWithAccount(id);
+    return result.ok ? result.value : null;
   }
 
   // ─── Dunning (Payment Failed / Succeeded) ────────────────────────────
@@ -874,18 +853,18 @@ export class GatewayBillingService {
    * @method handlePaymentFailed
    * @description Handles failed payment webhook. Upserts Invoice, transitions
    *   subscription to PAST_DUE, sends dunning email. On 3rd attempt, cancels.
-   * @param data - Raw webhook event data
-   * @param gatewayCustomerId - Gateway customer ID to look up account
    */
   async handlePaymentFailed(
     data: Record<string, unknown>,
     gatewayCustomerId: string
   ): Promise<Result<void, SwitchError>> {
     try {
-      const account = await this.prisma.account.findFirst({
-        where: { gatewayCustomerId },
-        select: { id: true, name: true, email: true },
-      });
+      const provider: "STRIPE" | "PADDLE" = String(data.subscription_id ?? "").startsWith("sub_")
+        ? "STRIPE"
+        : "PADDLE";
+      const accResult = await this.accountRepo.findByGatewayCustomerId(provider, gatewayCustomerId);
+      if (!accResult.ok) return err("DATABASE_ERROR");
+      const account = accResult.value;
       if (!account) return err("ACCOUNT_NOT_FOUND");
 
       const invoiceId = String(data.id ?? data.invoice_id ?? "");
@@ -896,18 +875,14 @@ export class GatewayBillingService {
         ? new Date(Number(data.period_start) * 1000)
         : new Date();
       const periodEnd = data.period_end ? new Date(Number(data.period_end) * 1000) : new Date();
-      const gatewayProvider = String(data.subscription_id ?? "").startsWith("sub_")
-        ? "STRIPE"
-        : "PADDLE";
 
       if (!invoiceId) return err("DATABASE_ERROR");
 
-      // Upsert Invoice (idempotent by gatewayInvoiceId)
-      await this.prisma.invoice.upsert({
-        where: { gatewayInvoiceId: invoiceId },
-        create: {
+      const upsert = await this.invoiceRepo.upsertByGatewayInvoiceId(
+        invoiceId,
+        {
           accountId: account.id,
-          gatewayProvider: gatewayProvider as "STRIPE" | "PADDLE",
+          gatewayProvider: provider,
           gatewayInvoiceId: invoiceId,
           status: "PAYMENT_FAILED",
           amountDue,
@@ -916,29 +891,24 @@ export class GatewayBillingService {
           periodEnd,
           attemptCount,
         },
-        update: { status: "PAYMENT_FAILED", attemptCount },
-      });
+        { status: "PAYMENT_FAILED", attemptCount }
+      );
+      if (!upsert.ok) return err("DATABASE_ERROR");
 
-      const sub = await this.prisma.accountSubscription.findFirst({
-        where: { accountId: account.id },
-      });
+      const subResult = await this.subscriptionRepo.findLatestByAccount(account.id);
+      if (!subResult.ok) return err("DATABASE_ERROR");
+      const sub = subResult.value;
 
       if (attemptCount >= 3) {
-        // Final attempt — cancel subscription
         if (sub) {
-          await this.prisma.accountSubscription.update({
-            where: { id: sub.id },
-            data: { status: "CANCELED" },
-          });
+          const upd = await this.subscriptionRepo.update(sub.id, { status: "CANCELED" });
+          if (!upd.ok) return err("DATABASE_ERROR");
         }
       } else if (sub && sub.status !== "PAST_DUE") {
-        await this.prisma.accountSubscription.update({
-          where: { id: sub.id },
-          data: { status: "PAST_DUE" },
-        });
+        const upd = await this.subscriptionRepo.update(sub.id, { status: "PAST_DUE" });
+        if (!upd.ok) return err("DATABASE_ERROR");
       }
 
-      // Send dunning email
       if (account.email) {
         const isFinal = attemptCount >= 3;
         await this.emailPort
@@ -966,18 +936,18 @@ export class GatewayBillingService {
    * @method handlePaymentSucceeded
    * @description Handles successful payment webhook. Upserts Invoice as PAID,
    *   recovers PAST_DUE subscriptions to ACTIVE.
-   * @param data - Raw webhook event data
-   * @param gatewayCustomerId - Gateway customer ID
    */
   async handlePaymentSucceeded(
     data: Record<string, unknown>,
     gatewayCustomerId: string
   ): Promise<Result<void, SwitchError>> {
     try {
-      const account = await this.prisma.account.findFirst({
-        where: { gatewayCustomerId },
-        select: { id: true },
-      });
+      const provider: "STRIPE" | "PADDLE" = String(data.subscription_id ?? "").startsWith("sub_")
+        ? "STRIPE"
+        : "PADDLE";
+      const accResult = await this.accountRepo.findByGatewayCustomerId(provider, gatewayCustomerId);
+      if (!accResult.ok) return err("DATABASE_ERROR");
+      const account = accResult.value;
       if (!account) return err("ACCOUNT_NOT_FOUND");
 
       const invoiceId = String(data.id ?? data.invoice_id ?? "");
@@ -987,19 +957,16 @@ export class GatewayBillingService {
         ? new Date(Number(data.period_start) * 1000)
         : new Date();
       const periodEnd = data.period_end ? new Date(Number(data.period_end) * 1000) : new Date();
-      const hostedUrl = data.hosted_invoice_url ? String(data.hosted_invoice_url) : null;
-      const pdfUrl = data.invoice_pdf ? String(data.invoice_pdf) : null;
-      const gatewayProvider = String(data.subscription_id ?? "").startsWith("sub_")
-        ? "STRIPE"
-        : "PADDLE";
+      const hostedUrl = data.hosted_invoice_url ? String(data.hosted_invoice_url) : undefined;
+      const pdfUrl = data.invoice_pdf ? String(data.invoice_pdf) : undefined;
 
       if (!invoiceId) return err("DATABASE_ERROR");
 
-      await this.prisma.invoice.upsert({
-        where: { gatewayInvoiceId: invoiceId },
-        create: {
+      const upsert = await this.invoiceRepo.upsertByGatewayInvoiceId(
+        invoiceId,
+        {
           accountId: account.id,
-          gatewayProvider: gatewayProvider as "STRIPE" | "PADDLE",
+          gatewayProvider: provider,
           gatewayInvoiceId: invoiceId,
           status: "PAID",
           amountDue: amountPaid,
@@ -1008,27 +975,25 @@ export class GatewayBillingService {
           periodStart,
           periodEnd,
           paidAt: new Date(),
-          ...(hostedUrl && { hostedUrl }),
-          ...(pdfUrl && { pdfUrl }),
+          ...(hostedUrl !== undefined && { hostedUrl }),
+          ...(pdfUrl !== undefined && { pdfUrl }),
         },
-        update: {
+        {
           status: "PAID",
           amountPaid,
           paidAt: new Date(),
-          ...(hostedUrl && { hostedUrl }),
-          ...(pdfUrl && { pdfUrl }),
-        },
-      });
+          ...(hostedUrl !== undefined && { hostedUrl }),
+          ...(pdfUrl !== undefined && { pdfUrl }),
+        }
+      );
+      if (!upsert.ok) return err("DATABASE_ERROR");
 
-      // Recover PAST_DUE → ACTIVE
-      const sub = await this.prisma.accountSubscription.findFirst({
-        where: { accountId: account.id, status: "PAST_DUE" },
-      });
+      const subResult = await this.subscriptionRepo.findByAccountAndStatus(account.id, "PAST_DUE");
+      if (!subResult.ok) return err("DATABASE_ERROR");
+      const sub = subResult.value;
       if (sub) {
-        await this.prisma.accountSubscription.update({
-          where: { id: sub.id },
-          data: { status: "ACTIVE" },
-        });
+        const upd = await this.subscriptionRepo.update(sub.id, { status: "ACTIVE" });
+        if (!upd.ok) return err("DATABASE_ERROR");
         logger.info({ accountId: account.id }, "Subscription recovered from PAST_DUE");
       }
 

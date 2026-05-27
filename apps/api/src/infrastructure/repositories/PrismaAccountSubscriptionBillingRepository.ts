@@ -25,6 +25,7 @@ const SUBSCRIPTION_BILLING_SELECT = {
   bundleId: true,
   gatewayProvider: true,
   gatewaySubscriptionId: true,
+  externalSubscriptionId: true,
 } as const;
 
 type SubscriptionBillingRow = {
@@ -36,6 +37,7 @@ type SubscriptionBillingRow = {
   bundleId: string | null;
   gatewayProvider: AccountGatewayProvider;
   gatewaySubscriptionId: string | null;
+  externalSubscriptionId: string | null;
 };
 
 function rowToFields(row: SubscriptionBillingRow): AccountSubscriptionBillingFields {
@@ -48,6 +50,7 @@ function rowToFields(row: SubscriptionBillingRow): AccountSubscriptionBillingFie
     bundleId: row.bundleId,
     gatewayProvider: row.gatewayProvider,
     gatewaySubscriptionId: row.gatewaySubscriptionId,
+    externalSubscriptionId: row.externalSubscriptionId,
   };
 }
 
