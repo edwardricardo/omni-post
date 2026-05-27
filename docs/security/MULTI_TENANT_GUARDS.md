@@ -38,25 +38,50 @@ This catches programming mistakes (forgot to filter) AND tampering attempts
 
 ## Layer 2 — PostgreSQL Row Level Security (RLS)
 
-**File:** `infra/prisma/migrations/<ts>_add_rls_tenant_isolation/migration.sql`
+**File:** `infra/prisma/migrations/20260527000000_add_rls_tenant_isolation/migration.sql`
 (applied in S2.1c).
 
-Each of the 50 tenant-scoped tables gets:
+Each of the 51 tenant-scoped tables gets:
 
 ```sql
 ALTER TABLE "<Model>" ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "tenant_isolation" ON "<Model>"
-  USING ("accountId" = current_setting('app.account_id', true));
+CREATE POLICY tenant_isolation ON "<Model>"
+  USING (
+    current_setting('app.account_id', true) = '__system__'
+    OR "accountId" = current_setting('app.account_id', true)
+  )
+  WITH CHECK (
+    current_setting('app.account_id', true) = '__system__'
+    OR "accountId" = current_setting('app.account_id', true)
+  );
 ```
 
-The `PrismaUnitOfWork.executeInTransaction` issues `SET LOCAL
-app.account_id = '<accountId>'` from the bound `TenantContext` at tx
-start. Queries running inside the tx see only rows matching the setting;
-queries without the setting see zero rows (NULL ≠ any accountId).
+`AIPromptTemplate` has an extended USING that additionally allows
+`accountId IS NULL` so global system templates remain visible to every
+tenant. WITH CHECK retains the strict form — only the system context can
+write NULL accountId rows.
+
+The `PrismaUnitOfWork.executeInTransaction` binds the GUC via
+`set_config('app.account_id', <value>, true)` at tx start, reading the
+bound `TenantContext` / `SystemContext`. Three states:
+
+- **TenantContext active** → real accountId. RLS sees only matching rows
+  (plus NULL rows on AIPromptTemplate).
+- **SystemContext active** → sentinel `'__system__'`. RLS passes for any
+  row — explicit cross-tenant bypass for admin / scheduled sweeps.
+- **Neither** → no `set_config`. `current_setting(name, true)` returns
+  NULL, policy evaluates to false, tenant-scoped queries return 0 rows /
+  reject writes (fail-closed default).
 
 **Defense scope:** transactional queries (every mutating use case). Read
 queries outside transactions depend on Layer 1 alone — acknowledged
 trade-off.
+
+**Operational note:** RLS only applies to non-superuser, non-BYPASSRLS
+roles. Migrations + seed scripts run as DB owner (typically superuser
+in local dev) and intentionally bypass RLS. The application role in
+production MUST be `NOSUPERUSER NOBYPASSRLS` — verify with `\du` in psql
+before deploying.
 
 ## Layer 3 — CI fitness function #23 + code review
 

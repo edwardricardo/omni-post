@@ -92,6 +92,17 @@ async function createTestApp() {
   container.registerInstance(TOKENS.PrismaClient, mockPrisma.prisma);
   container.registerInstance(TOKENS.AuthService, authService);
   container.registerInstance(TOKENS.RbacService, rbacService);
+  // S4.4 moved RoleManagementService to @core/application; rbacRoutes resolves
+  // it at register time. Provide a minimal stub for this test — the role-write
+  // endpoints aren't exercised here (this test covers read-only permission
+  // checks). Methods that ARE invoked would need a richer fake.
+  const roleManagementStub = {
+    createRole: vi.fn(),
+    updateRole: vi.fn(),
+    setRolePermissions: vi.fn(),
+    deleteRole: vi.fn(),
+  };
+  container.registerInstance(TOKENS.RoleManagementService, roleManagementStub);
   app.decorate("container", container);
 
   await app.register(rbacRoutes);

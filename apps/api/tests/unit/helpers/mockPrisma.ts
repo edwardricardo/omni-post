@@ -646,6 +646,21 @@ export function createMockPrismaModule() {
       }
       return Promise.all(fnOrArray as Promise<unknown>[]);
     }),
+    // $extends — identity wrapper for unit tests. The real Prisma $extends
+    // returns a wrapped client; our tests don't exercise the tenant guard
+    // semantics (those are covered by tests/unit/security/tenantGuard.test.ts
+    // and the RLS integration test), so returning the same mock is sufficient
+    // for composition root code paths that call setupContainer({ prisma }).
+    $extends: vi.fn(function (this: unknown) {
+      return prisma;
+    }),
+    // Raw query stubs — used by PrismaUnitOfWork (S2.1c) to bind
+    // `app.account_id` via set_config. In tests the RLS layer doesn't
+    // apply, so these are no-ops.
+    $queryRaw: vi.fn(async () => []),
+    $queryRawUnsafe: vi.fn(async () => []),
+    $executeRaw: vi.fn(async () => 0),
+    $executeRawUnsafe: vi.fn(async () => 0),
   };
 
   // Build the full module mock -- re-export all enums from the real vitest-entry

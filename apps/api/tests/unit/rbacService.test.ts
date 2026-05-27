@@ -48,7 +48,8 @@ vi.mock("../../src/lib/logger.js", () => {
 // Import SUT after mocks are in place
 // ---------------------------------------------------------------------------
 
-const { RbacService, Permission } = await import("../../src/auth/rbacService.js");
+const { RbacService } = await import("../../src/auth/rbacService.js");
+const { Permission } = await import("@core/domain/auth/Permission.js");
 
 // ---------------------------------------------------------------------------
 // Test data

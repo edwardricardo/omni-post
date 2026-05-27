@@ -442,10 +442,14 @@ jobs:
           #   - PrismaStyleGuideRuleRepository.ts + PrismaGlossaryRepository.ts:
           #     raw pgvector UPDATEs — KNOWN GAPS tracked for fix in S2.1d
           #     (see docs/security/MULTI_TENANT_GUARDS.md).
+          #   - unitofwork/PrismaUnitOfWork.ts (S2.1c): emits set_config(
+          #     'app.account_id', ..., true) to bind the RLS GUC at tx start.
+          #     THE canonical entry point for tenant scope in transactions.
           MATCHES=$(grep -rnE "\.\\\$(queryRaw|executeRaw|queryRawUnsafe|executeRawUnsafe)\(" \
             apps/api/src apps/workers/src --include="*.ts" 2>/dev/null | \
             grep -vE "/extensions/tenantGuard|/infrastructure/container/|/tests/|\.test\." | \
-            grep -vE "/events/EventStore\.ts|/PrismaStyleGuideRuleRepository\.ts|/PrismaGlossaryRepository\.ts" || true)
+            grep -vE "/events/EventStore\.ts|/PrismaStyleGuideRuleRepository\.ts|/PrismaGlossaryRepository\.ts" | \
+            grep -vE "/unitofwork/PrismaUnitOfWork\.ts" || true)
           COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
           COUNT=${COUNT:-0}
           if [ "$COUNT" -gt 0 ]; then

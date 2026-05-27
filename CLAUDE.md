@@ -1111,12 +1111,16 @@ grep -rlE "^\s*\*\s*@layer application\s*$" apps/api/src --include="*.ts" | wc -
 grep -rnE "\.\\\$(queryRaw|executeRaw|queryRawUnsafe|executeRawUnsafe)\(" \
   apps/api/src apps/workers/src --include="*.ts" 2>/dev/null | \
   grep -vE "/extensions/tenantGuard|/infrastructure/container/|/tests/|\.test\." | \
-  grep -vE "/events/EventStore\.ts|/PrismaStyleGuideRuleRepository\.ts|/PrismaGlossaryRepository\.ts" | wc -l
+  grep -vE "/events/EventStore\.ts|/PrismaStyleGuideRuleRepository\.ts|/PrismaGlossaryRepository\.ts" | \
+  grep -vE "/unitofwork/PrismaUnitOfWork\.ts" | wc -l
 # Excepciones (al introducir #23 en S2.1a):
 #   - events/EventStore.ts: StoredEvent es tabla global (no accountId). OK.
 #   - PrismaStyleGuideRuleRepository.ts + PrismaGlossaryRepository.ts: raw pgvector
 #     UPDATEs — KNOWN GAPS pendientes de fix en S2.1d (añadir AND "accountId"=...
 #     via TenantContext). Documentados en `docs/security/MULTI_TENANT_GUARDS.md`.
+#   - unitofwork/PrismaUnitOfWork.ts (S2.1c): emits `set_config('app.account_id',
+#     ..., true)` to bind the RLS GUC at tx start. THE canonical entry point for
+#     tenant scope in transactions — bypassing it would defeat layer 2.
 ```
 
 **Extending the suite.** Adding a new fitness check requires three coordinated edits, in order:

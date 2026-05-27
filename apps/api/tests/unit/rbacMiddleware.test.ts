@@ -35,7 +35,8 @@ const {
   auditPermissionAccess,
   debugPermissions,
 } = await import("../../src/auth/rbacMiddleware.js");
-const { RbacService, Permission } = await import("../../src/auth/rbacService.js");
+const { RbacService } = await import("../../src/auth/rbacService.js");
+const { Permission } = await import("@core/domain/auth/Permission.js");
 const { TOKENS } = await import("../../src/infrastructure/container/types.js");
 const { PrismaAdminUserRepository } =
   await import("../../src/infrastructure/repositories/PrismaAdminUserRepository.js");

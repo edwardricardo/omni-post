@@ -11,8 +11,19 @@ import { templateAnalytics } from "../../src/templates/templateAnalytics.js";
 import { setupContainer } from "../../src/infrastructure/container/setup.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
 
-// Mock PrismaClient for unit tests (no real DB connection needed)
-const mockPrisma = {} as any;
+// Mock PrismaClient for unit tests (no real DB connection needed).
+// `$extends` must return itself so the tenant-guard wiring in
+// setupContainer can call it without crashing — these tests don't
+// exercise tenant guard semantics (covered by tenantGuard.test.ts).
+const mockPrisma: any = {};
+mockPrisma.$extends = vi.fn(() => mockPrisma);
+mockPrisma.$queryRaw = vi.fn(async () => []);
+mockPrisma.$queryRawUnsafe = vi.fn(async () => []);
+mockPrisma.$executeRaw = vi.fn(async () => 0);
+mockPrisma.$executeRawUnsafe = vi.fn(async () => 0);
+mockPrisma.$transaction = vi.fn(async (fn: unknown) =>
+  typeof fn === "function" ? (fn as (tx: unknown) => Promise<unknown>)(mockPrisma) : undefined
+);
 
 export const mockTemplateService = {
   getTemplates: vi.fn(async () => ({

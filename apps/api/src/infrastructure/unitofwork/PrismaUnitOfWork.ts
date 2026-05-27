@@ -9,6 +9,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import type { PrismaClient } from "@infra/prisma";
 import { Prisma } from "@infra/prisma";
 import type { UnitOfWork } from "@core/domain/index.js";
+import { getTenantContext, getSystemContext } from "../../security/tenantContext.js";
 
 type TxClient = Prisma.TransactionClient;
 
@@ -64,11 +65,36 @@ export class PrismaUnitOfWork implements UnitOfWork {
   async executeInTransaction<T>(fn: () => Promise<T>, options?: TransactionOptions): Promise<T> {
     const opts = { ...this.defaultOptions, ...options };
 
-    return this.prisma.$transaction(async (tx) => txStorage.run(tx, fn), {
-      ...(opts.maxWait !== undefined && { maxWait: opts.maxWait }),
-      ...(opts.timeout !== undefined && { timeout: opts.timeout }),
-      ...(opts.isolationLevel !== undefined && { isolationLevel: opts.isolationLevel }),
-    });
+    return this.prisma.$transaction(
+      async (tx) => {
+        // S2.1c — RLS layer 2. Bind `app.account_id` as a transaction-local
+        // GUC so the `tenant_isolation` policy on the 51 tenant-scoped
+        // tables gates every statement inside this tx.
+        //   - SystemContext active  → sentinel '__system__' (policy bypass).
+        //   - TenantContext bound   → real accountId from the customer JWT.
+        //   - Neither               → leave unset; `current_setting(...,true)`
+        //                             returns NULL, RLS evaluates to false,
+        //                             tenant-scoped queries return 0 rows /
+        //                             reject writes (fail-closed default).
+        // `set_config(name, value, is_local)` with is_local=true is the SQL
+        // function form of `SET LOCAL` — scoped to this tx, auto-reset on
+        // COMMIT/ROLLBACK, safe under pgbouncer/connection-pooled deploys.
+        const systemCtx = getSystemContext();
+        const tenantCtx = getTenantContext();
+        if (systemCtx) {
+          await tx.$queryRaw`SELECT set_config('app.account_id', '__system__', true)`;
+        } else if (tenantCtx) {
+          await tx.$queryRaw`SELECT set_config('app.account_id', ${tenantCtx.accountId}, true)`;
+        }
+
+        return txStorage.run(tx, fn);
+      },
+      {
+        ...(opts.maxWait !== undefined && { maxWait: opts.maxWait }),
+        ...(opts.timeout !== undefined && { timeout: opts.timeout }),
+        ...(opts.isolationLevel !== undefined && { isolationLevel: opts.isolationLevel }),
+      }
+    );
   }
 
   /**
