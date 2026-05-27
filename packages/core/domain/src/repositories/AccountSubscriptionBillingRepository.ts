@@ -38,6 +38,10 @@ export interface AccountSubscriptionBillingFields {
   gatewayProvider: AccountGatewayProvider;
   gatewaySubscriptionId: string | null;
   externalSubscriptionId: string | null;
+  /** Social providers included in the subscription (drives token-budget multiplier). */
+  providers: string[];
+  /** Number of accounts the subscription covers (drives token-budget multiplier). */
+  accountCount: number;
 }
 
 /**

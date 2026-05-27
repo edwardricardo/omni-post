@@ -32,4 +32,21 @@ export interface AiTokenUsageReader {
     accountId: string,
     includeByok: boolean
   ): Promise<Result<number, AiTokenUsageReadError>>;
+
+  /**
+   * Append a single usage row. Fire-and-forget semantics on the caller side;
+   * implementations swallow infrastructure errors and surface them via the
+   * Result so the caller can log without breaking the main flow.
+   *
+   * @param accountId - Account that incurred the usage.
+   * @param provider - Provider name (e.g. "openai", "anthropic").
+   * @param tokensUsed - Token count for this single request.
+   * @param isByok - `true` when the call used the account's own API key.
+   */
+  recordUsage(
+    accountId: string,
+    provider: string,
+    tokensUsed: number,
+    isByok: boolean
+  ): Promise<Result<void, AiTokenUsageReadError>>;
 }

@@ -39,7 +39,7 @@ vi.mock("../../src/ai/orchestrator.js", () => ({
 }));
 
 import { AIService } from "../../src/ai/aiService.js";
-import type { AiRequestService } from "../../src/ai/AiRequestService.js";
+import type { AiRequestService } from "@core/application/ai/AiRequestService.js";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { InMemoryCacheAdapter } from "@adapters/cache-redis";
 

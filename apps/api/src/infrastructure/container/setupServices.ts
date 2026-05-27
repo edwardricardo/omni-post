@@ -23,7 +23,9 @@ import { AIService } from "../../ai/aiService.js";
 import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
 import type { HttpClientPort } from "@core/domain/repositories/HttpClientPort.js";
 import { FetchHttpClient } from "../adapters/FetchHttpClient.js";
-import { AiRequestService } from "../../ai/AiRequestService.js";
+import { AiRequestService } from "@core/application/ai/AiRequestService.js";
+import { AIRequestExecutorAdapter } from "../../ai/AIRequestExecutorAdapter.js";
+import type { AIRequestExecutorPort } from "@core/domain/repositories/AIRequestExecutorPort.js";
 import { DashboardService } from "../../admin/dashboardService.js";
 import { AccountLifecycleService } from "../../admin/accountLifecycleService.js";
 import { AccountSessionService } from "../../admin/AccountSessionService.js";
@@ -200,14 +202,27 @@ export function setupServices(
     () => new ActivityFeedService(container.resolve(TOKENS.PrismaClient)),
     true
   );
+  // S4.3 — AIRequestExecutor adapter (wraps AIProviderFactory + AIOrchestrator
+  // so AiRequestService can live in @core/application).
+  container.register<AIRequestExecutorPort>(
+    TOKENS.AIRequestExecutorPort,
+    () =>
+      new AIRequestExecutorAdapter(
+        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
+        container.resolve<CachePort>(TOKENS.CachePort)
+      ),
+    true
+  );
   container.register<AiRequestService>(
     TOKENS.AiRequestService,
     () =>
       new AiRequestService(
-        container.resolve(TOKENS.PrismaClient),
         container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService),
-        container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
-        container.resolve<CachePort>(TOKENS.CachePort)
+        container.resolve<AIRequestExecutorPort>(TOKENS.AIRequestExecutorPort),
+        container.resolve<AccountSubscriptionBillingRepository>(
+          TOKENS.AccountSubscriptionBillingRepository
+        ),
+        container.resolve<AiTokenUsageReader>(TOKENS.AiTokenUsageReader)
       ),
     true
   );

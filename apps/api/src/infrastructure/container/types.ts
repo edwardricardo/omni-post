@@ -126,6 +126,7 @@ export const TOKENS = {
   CachePort: Symbol.for("CachePort"),
   RedisCacheManager: Symbol.for("RedisCacheManager"),
   AiRequestService: Symbol.for("AiRequestService"),
+  AIRequestExecutorPort: Symbol.for("AIRequestExecutorPort"),
   DashboardService: Symbol.for("DashboardService"),
   AccountLifecycleService: Symbol.for("AccountLifecycleService"),
   AccountLifecycleQueryService: Symbol.for("AccountLifecycleQueryService"),

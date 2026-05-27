@@ -36,4 +36,20 @@ export class PrismaAiTokenUsageRepository implements AiTokenUsageReader {
       return err("DATABASE_ERROR");
     }
   }
+
+  async recordUsage(
+    accountId: string,
+    provider: string,
+    tokensUsed: number,
+    isByok: boolean
+  ): Promise<Result<void, AiTokenUsageReadError>> {
+    try {
+      await this.prisma.aiTokenUsage.create({
+        data: { accountId, provider, tokensUsed, isByok },
+      });
+      return ok(undefined);
+    } catch {
+      return err("DATABASE_ERROR");
+    }
+  }
 }
