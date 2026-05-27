@@ -190,7 +190,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 ---
 
-### 2.2 Coverage + mutation gates en CI — `P1` · `M` · `STATUS: PENDING`
+### 2.2 Coverage + mutation gates en CI — `P1` · `M` · `STATUS: DONE-Phase-A1 (TBD-sha)` · follow-ups §2.2.a-CI + §2.2.b
 
 **Qué:** CLAUDE.md declara coverage targets (90% domain, 85% app, 70% infra/routes/providers) y Stryker está configurado, pero no son gates de CI hoy.
 
@@ -206,6 +206,12 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 **Dependencias:** 1.4 (test env normalization, porque coverage corre tests).
 
 **Definition of done:** PR a `main` falla si coverage < threshold. Stryker nightly publica reporte. Sentry/Slack alerta si baja.
+
+✅ **Phase A1 closure:** `apps/api/vitest.config.ts` coverage block actualizado con per-scope threshold structure (domain + application + global, todos al floor 55/55/45 para no romper CI hoy) + reporters (`text`, `html`, `json-summary`) + `reportsDirectory`. Stryker thresholds confirmados intencionalmente calibrados por Edward (root break 52, batch-1 57). `test:unit:coverage` script ya existía en `apps/api/package.json` (no se duplicó).
+
+⏭ **Phase A2 (§2.2.a-CI, PENDING):** wire `ci.yml` test step a `pnpm --filter @apps/api test:unit:coverage` + upload coverage artefact. Edit de 1 step bloqueado por sensitive-edit hook intermittency; queda como follow-up de 10 LOC en un commit separado por Edward o sesión futura.
+
+⏭ **Phase B (§2.2.b, PENDING):** medir per-scope coverage actual + ratchet thresholds a aspiracional (domain 90, application 85, infra 70). Requiere data from Phase A2 (CI con `--coverage` corriendo y reportando per-scope).
 
 ---
 

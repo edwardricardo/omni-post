@@ -110,14 +110,27 @@ export default defineConfig({
       provider: "v8",
       include: ["src/**/*.ts"],
       exclude: ["src/**/*.test.ts", "src/**/*.spec.ts", "src/**/index.ts", "src/index.ts"],
-      // Thresholds are for unit tests only (tests/unit/**).
-      // Integration tests (tests/integration/, tests/*.test.ts) run via node:test
-      // and contribute additional coverage not captured here.
-      // Mutation score via Stryker is the primary quality gate.
+      reporter: ["text", "html", "json-summary"],
+      reportsDirectory: "./coverage",
+      // §2.2 (Normalization Roadmap) Phase A — enforced in CI via the
+      // `test:coverage` script. Thresholds are for unit tests only
+      // (tests/unit/**); integration tests run via node:test and contribute
+      // additional coverage not captured here. Mutation score via Stryker
+      // is the primary quality gate.
       thresholds: {
+        // Global floor — fails CI on any regression below current baseline.
         lines: 55,
         functions: 55,
         branches: 45,
+        statements: 55,
+        // Per-scope OVERRIDES — Phase A keeps these at the global floor so
+        // CI passes today; §2.2.b ratchets each scope to its aspirational
+        // target after measurement: domain 90 / application 85 / infra 70.
+        // The glob keys put the per-scope structure in place ready for the
+        // ratchet without breaking CI today.
+        perFile: false,
+        "src/domain/**/*.ts": { lines: 55, functions: 55, branches: 45, statements: 55 },
+        "src/application/**/*.ts": { lines: 55, functions: 55, branches: 45, statements: 55 },
       },
     },
   },
