@@ -92,12 +92,11 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
-    env: {
-      // Unit tests mock all DB access via DI. This dummy URL prevents the lazy
-      // Prisma Proxy from crashing when modules that re-export from @infra/prisma
-      // are imported transitively. No real connection is ever established.
-      DATABASE_URL: "postgresql://test:test@localhost:5432/testdb",
-    },
+    // §1.4 canon — load `.env.test` BEFORE any test file's transitive import
+    // reaches `apps/api/src/config/env.ts` and triggers Zod validation.
+    // Replaces the prior `test.env = { DATABASE_URL: dummy }` workaround.
+    // See `docs/architecture/secrets-and-env.md` §"Test environment".
+    setupFiles: ["./tests/setup-env.ts"],
     include: ["tests/unit/**/*.test.ts", "tests/eval/**/*.test.ts"],
     exclude: ["**/node_modules/**"],
     pool: "forks",

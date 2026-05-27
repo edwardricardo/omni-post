@@ -107,7 +107,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 ---
 
-### 1.4 Test env normalization — `P1` · `S` · `STATUS: PENDING`
+### 1.4 Test env normalization — `P1` · `S` · `STATUS: DONE (TBD-sha)`
 
 **Qué:** Hoy `pnpm exec vitest run <single-file>` falla con env-validation errors porque vitest no carga `.env.test` cuando corres un archivo aislado. Lo vimos 3+ veces durante S3.4c/S4.1/S4.3.
 
@@ -123,7 +123,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 **Dependencias:** ninguna.
 
-**Definition of done:** `pnpm --filter @apps/api exec vitest run tests/unit/security/PlatformCredentialService.test.ts` pasa sin tocar nada más.
+**Definition of done:** `pnpm --filter @apps/api exec vitest run tests/unit/security/PlatformCredentialService.test.ts` pasa sin tocar nada más. ✅ Closure: Opción A implementada (`apps/api/tests/setup-env.ts` + `apps/workers/tests/setup-env.ts` registrados como `setupFiles`); `.env.test.example` tracked template; `test.env` workaround removed de ambos vitest configs; docs en `docs/architecture/secrets-and-env.md` §"Test environment". Full suite 498/498 archivos, 7961/7961 tests.
 
 ---
 

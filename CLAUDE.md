@@ -696,6 +696,7 @@ describe("Integration Feature", () => {
 - Integration tests only: `pnpm --filter @apps/api test:integration`
 - Mutation testing: `cd apps/api && pnpm exec stryker run` (Stryker with vitest-runner, `coverageAnalysis: 'perTest'`)
 - **Integration tests need real services**: Start PostgreSQL and Redis with `pnpm db:up` before running tests that use Prisma or Redis. Never skip tests because services are down — start them.
+- **Test env**: vitest auto-loads `.env.test` via the `setupFiles` hook (`apps/api/tests/setup-env.ts`, `apps/workers/tests/setup-env.ts`). On fresh clone, run `cp .env.test.example .env.test` and edit `DATABASE_URL` / `REDIS_URL` to point at your local infra. Full canon in [docs/architecture/secrets-and-env.md](docs/architecture/secrets-and-env.md) §Test environment.
 
 ---
 

@@ -85,6 +85,42 @@ Threat coverage applied to each credential type vivo en el repo:
 | **Denial of Service**      | Rotation outage if secret rotated without grace window                   | KEK rotation re-wraps ALL rows (slow); plan dual-key window     | Rate-limited at OAuth provider; cache rate-limit headers | Connection pool tuned + circuit breaker    | Per-row decrypt caches via L1+L2 cache (5-15% perf hit acceptable) |
 | **Elevation of Privilege** | Stolen JWT signing key bypasses RBAC entirely                            | Stolen KEK → read others' OAuth tokens, impersonate via API     | Stolen → escalate to platform-level scope                | Stolen → bypass all app-level RBAC         | Per-tenant DEK (BYOK, future) limits to single tenant              |
 
+## Test environment
+
+The test runner (vitest) needs the same Zod-validated env shape as production
+but with safe dummies. Canon since §1.4 (Normalization Roadmap):
+
+| File                              | Tracked? | Purpose                                                                                                  |
+| --------------------------------- | -------- | -------------------------------------------------------------------------------------------------------- |
+| `.env.test`                       | NO       | Local test env. Each dev owns their own; gitignored. Copy from the example, edit DATABASE_URL/REDIS_URL. |
+| `.env.test.example`               | YES      | Tracked template. Documents the schema with safe dummy values (32-byte base64 keys, placeholder URLs).   |
+| `apps/api/tests/setup-env.ts`     | YES      | Vitest `setupFiles` hook for `apps/api`. Loads `.env.test` before any test's transitive `env.ts` import. |
+| `apps/workers/tests/setup-env.ts` | YES      | Same for `apps/workers`.                                                                                 |
+| `scripts/ci-setup-test-env.sh`    | YES      | CI-only synthesiser — fails if `DATABASE_URL` / `REDIS_URL` not exported by the CI job.                  |
+
+Local dev flow (one-time, after fresh clone):
+
+```bash
+cp .env.test.example .env.test
+# Edit DATABASE_URL and REDIS_URL to point at your local docker-compose host
+# (e.g. `localhost:5432` or `omnipost-infra:5432`).
+```
+
+Vitest auto-loads `.env.test` via the `setupFiles` hook — no manual `source`
+needed. Run any single test file:
+
+```bash
+pnpm --filter @apps/api exec vitest run tests/unit/security/PlatformCredentialService.test.ts
+```
+
+CI: `scripts/ci-setup-test-env.sh` synthesises the file at job start from
+shell-exported `DATABASE_URL` / `REDIS_URL` (no secret literals in the
+repo, no `.env.test` file needed).
+
+Adding a new test-only env var: extend `.env.test.example`, the `setup-env.ts`
+loader picks it up automatically. If the var is REQUIRED in the Zod schema,
+also update `ci-setup-test-env.sh` so CI provides it.
+
 ## CI gates
 
 Two fitness functions in `.github/workflows/fitness.yml` enforce the design:

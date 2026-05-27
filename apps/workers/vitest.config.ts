@@ -50,8 +50,9 @@ export default defineConfig({
     globals: true,
     include: ["tests/**/*.test.ts"],
     pool: "forks",
-    env: {
-      DATABASE_URL: "postgresql://test:test@localhost:5432/testdb",
-    },
+    // §1.4 canon — mirror `apps/api`. Loads `.env.test` from repo root
+    // before any test's transitive Zod env validation kicks in.
+    // See `docs/architecture/secrets-and-env.md` §"Test environment".
+    setupFiles: ["./tests/setup-env.ts"],
   },
 });
