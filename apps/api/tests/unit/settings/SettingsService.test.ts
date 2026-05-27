@@ -6,7 +6,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { SettingsService } from "../../../src/settings/SettingsService.js";
 import type { PlatformCredentialService } from "@core/application/security/PlatformCredentialService.js";
-import type { PrismaClient } from "@infra/prisma";
+import type { PlatformEncryptionKeyRepository } from "@core/domain/repositories/PlatformEncryptionKeyRepository.js";
+import type { AiTokenUsageReader } from "@core/domain/repositories/AiTokenUsageReader.js";
+import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
 
 function makeMockCredentialService(
   overrides: Partial<Record<keyof PlatformCredentialService, unknown>> = {}
@@ -25,31 +27,39 @@ function makeMockCredentialService(
   } as unknown as PlatformCredentialService;
 }
 
-function makeMockPrisma() {
+function makeMockEncryptionKeyRepo(): PlatformEncryptionKeyRepository {
   return {
-    aiTokenUsage: {
-      aggregate: vi.fn().mockResolvedValue({ _sum: { tokensUsed: 0 } }),
-    },
-    platformEncryptionKey: {
-      findFirst: vi.fn().mockResolvedValue(null),
-      create: vi.fn().mockResolvedValue({}),
-    },
-    auditLog: {
-      create: vi.fn().mockResolvedValue({}),
-    },
-  } as unknown as PrismaClient;
+    findActiveLatest: vi.fn().mockResolvedValue({ ok: true, value: null }),
+    createRotation: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+  };
+}
+
+function makeMockTokenUsageReader(): AiTokenUsageReader {
+  return {
+    sumTokensThisMonth: vi.fn().mockResolvedValue({ ok: true, value: 0 }),
+  };
+}
+
+function makeMockAuditEmitter(): AuditEmitterPort {
+  return {
+    emit: vi.fn().mockResolvedValue(undefined),
+  };
 }
 
 describe("SettingsService", () => {
   let service: SettingsService;
   let mockCreds: PlatformCredentialService;
-  let mockPrisma: ReturnType<typeof makeMockPrisma>;
+  let mockKeyRepo: PlatformEncryptionKeyRepository;
+  let mockTokenReader: AiTokenUsageReader;
+  let mockAudit: AuditEmitterPort;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockCreds = makeMockCredentialService();
-    mockPrisma = makeMockPrisma();
-    service = new SettingsService(mockCreds, mockPrisma as PrismaClient);
+    mockKeyRepo = makeMockEncryptionKeyRepo();
+    mockTokenReader = makeMockTokenUsageReader();
+    mockAudit = makeMockAuditEmitter();
+    service = new SettingsService(mockCreds, mockKeyRepo, mockTokenReader, mockAudit);
   });
 
   // ─── getGroupSettings ──────────────────────────────────────────────
@@ -357,34 +367,33 @@ describe("SettingsService", () => {
     it("creates PlatformEncryptionKey record and audit log", async () => {
       const result = await service.logEncryptionKeyRotation("admin-1", "Quarterly rotation");
       expect(result.ok).toBe(true);
-      expect(mockPrisma.platformEncryptionKey.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          keyVersion: 1,
-          rotatedBy: "admin-1",
-          note: "Quarterly rotation",
-          isActive: true,
-        }),
+      expect(mockKeyRepo.createRotation).toHaveBeenCalledWith({
+        keyVersion: 1,
+        rotatedBy: "admin-1",
+        note: "Quarterly rotation",
       });
-      expect(mockPrisma.auditLog.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
+      expect(mockAudit.emit).toHaveBeenCalledWith(
+        expect.objectContaining({
           action: "ENCRYPTION_KEY_ROTATED",
-          resource: "platform_encryption_key",
+          category: "SECURITY",
+          resourceType: "platform_encryption_key",
           details: { version: 1 },
           userId: "admin-1",
-        }),
-      });
+        })
+      );
     });
 
     it("increments version from latest existing key", async () => {
-      (mockPrisma.platformEncryptionKey.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({
-        keyVersion: 3,
+      (mockKeyRepo.findActiveLatest as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: { keyVersion: 3 },
       });
 
       const result = await service.logEncryptionKeyRotation("admin-1");
       expect(result.ok).toBe(true);
-      expect(mockPrisma.platformEncryptionKey.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({ keyVersion: 4 }),
-      });
+      expect(mockKeyRepo.createRotation).toHaveBeenCalledWith(
+        expect.objectContaining({ keyVersion: 4 })
+      );
     });
   });
 
@@ -419,8 +428,9 @@ describe("SettingsService", () => {
     });
 
     it("returns correct remainingTokens calculation", async () => {
-      (mockPrisma.aiTokenUsage.aggregate as ReturnType<typeof vi.fn>).mockResolvedValue({
-        _sum: { tokensUsed: 250000 },
+      (mockTokenReader.sumTokensThisMonth as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: 250000,
       });
       (mockCreds.getCredential as ReturnType<typeof vi.fn>).mockResolvedValue({
         ok: true,

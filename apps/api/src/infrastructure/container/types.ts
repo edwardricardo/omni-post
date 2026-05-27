@@ -565,6 +565,8 @@ export const TOKENS = {
 
   // Settings
   SettingsService: Symbol.for("SettingsService"),
+  PlatformEncryptionKeyRepository: Symbol.for("PlatformEncryptionKeyRepository"),
+  AiTokenUsageReader: Symbol.for("AiTokenUsageReader"),
 } as const;
 
 /**

@@ -7,9 +7,11 @@
  */
 
 import { ok, err, type Result } from "@shared/types";
-import type { PrismaClient } from "@infra/prisma";
 import type { CredentialGroup } from "@core/domain/value-objects/CredentialGroup.js";
 import type { PlatformCredentialService } from "@core/application/security/PlatformCredentialService.js";
+import type { PlatformEncryptionKeyRepository } from "@core/domain/repositories/PlatformEncryptionKeyRepository.js";
+import type { AiTokenUsageReader } from "@core/domain/repositories/AiTokenUsageReader.js";
+import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
 import { CREDENTIAL_KEYS, NON_SECRET_KEYS } from "@core/application/settings/credentialKeys.js";
 
 type SettingsError =
@@ -50,7 +52,9 @@ const CRITICAL_GROUPS: CredentialGroup[] = ["STRIPE", "RESEND", "AI_POOL"];
 export class SettingsService {
   constructor(
     private readonly credentialService: PlatformCredentialService,
-    private readonly prisma: PrismaClient
+    private readonly encryptionKeyRepo: PlatformEncryptionKeyRepository,
+    private readonly tokenUsageReader: AiTokenUsageReader,
+    private readonly auditEmitter: AuditEmitterPort
   ) {}
 
   /**
@@ -201,36 +205,27 @@ export class SettingsService {
     adminId: string,
     note?: string
   ): Promise<Result<void, SettingsError>> {
-    try {
-      const latestKey = await this.prisma.platformEncryptionKey.findFirst({
-        where: { isActive: true },
-        orderBy: { keyVersion: "desc" },
-      });
+    const latestResult = await this.encryptionKeyRepo.findActiveLatest();
+    if (!latestResult.ok) return err("DATABASE_ERROR");
 
-      const nextVersion = latestKey ? latestKey.keyVersion + 1 : 1;
+    const nextVersion = latestResult.value ? latestResult.value.keyVersion + 1 : 1;
 
-      await this.prisma.platformEncryptionKey.create({
-        data: {
-          keyVersion: nextVersion,
-          rotatedBy: adminId,
-          ...(note !== undefined && { note }),
-          isActive: true,
-        },
-      });
+    const createResult = await this.encryptionKeyRepo.createRotation({
+      keyVersion: nextVersion,
+      rotatedBy: adminId,
+      ...(note !== undefined && { note }),
+    });
+    if (!createResult.ok) return err("DATABASE_ERROR");
 
-      await this.prisma.auditLog.create({
-        data: {
-          action: "ENCRYPTION_KEY_ROTATED",
-          resource: "platform_encryption_key",
-          details: { version: nextVersion },
-          userId: adminId,
-        },
-      });
+    await this.auditEmitter.emit({
+      action: "ENCRYPTION_KEY_ROTATED",
+      category: "SECURITY",
+      resourceType: "platform_encryption_key",
+      details: { version: nextVersion },
+      userId: adminId,
+    });
 
-      return ok(undefined);
-    } catch {
-      return err("DATABASE_ERROR");
-    }
+    return ok(undefined);
   }
 
   /**
@@ -240,39 +235,29 @@ export class SettingsService {
    * @returns Rate limit status including BYOK info and token usage
    */
   async getAiRateLimit(accountId: string): Promise<Result<AiRateLimitStatus, SettingsError>> {
-    try {
-      const now = new Date();
-      const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const firstOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const now = new Date();
+    const firstOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-      const [tokenUsage, budgetResult, byokResult] = await Promise.all([
-        this.prisma.aiTokenUsage.aggregate({
-          where: {
-            accountId,
-            usedAt: { gte: firstOfMonth },
-            isByok: false,
-          },
-          _sum: { tokensUsed: true },
-        }),
-        this.credentialService.getCredential("AI_POOL", "monthlyTokenBudget"),
-        this.credentialService.getAccountCredential(accountId, "AI_BYOK", "openai"),
-      ]);
+    const [usageResult, budgetResult, byokResult] = await Promise.all([
+      this.tokenUsageReader.sumTokensThisMonth(accountId, false),
+      this.credentialService.getCredential("AI_POOL", "monthlyTokenBudget"),
+      this.credentialService.getAccountCredential(accountId, "AI_BYOK", "openai"),
+    ]);
 
-      const usedThisMonth = tokenUsage._sum.tokensUsed ?? 0;
-      const monthlyBudget = budgetResult.ok && budgetResult.value ? Number(budgetResult.value) : 0;
-      const hasOwnKey = byokResult.ok && byokResult.value !== null;
+    if (!usageResult.ok) return err("DATABASE_ERROR");
 
-      return ok({
-        hasOwnKey,
-        byokProvider: hasOwnKey ? "openai" : null,
-        monthlyBudget,
-        usedThisMonth,
-        remainingTokens: Math.max(0, monthlyBudget - usedThisMonth),
-        resetDate: firstOfNextMonth,
-      });
-    } catch {
-      return err("DATABASE_ERROR");
-    }
+    const usedThisMonth = usageResult.value;
+    const monthlyBudget = budgetResult.ok && budgetResult.value ? Number(budgetResult.value) : 0;
+    const hasOwnKey = byokResult.ok && byokResult.value !== null;
+
+    return ok({
+      hasOwnKey,
+      byokProvider: hasOwnKey ? "openai" : null,
+      monthlyBudget,
+      usedThisMonth,
+      remainingTokens: Math.max(0, monthlyBudget - usedThisMonth),
+      resetDate: firstOfNextMonth,
+    });
   }
 
   /**

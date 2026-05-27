@@ -70,6 +70,10 @@ import { EncryptionService } from "../../security/EncryptionService.js";
 import type { EncryptionPort } from "@core/domain/repositories/EncryptionPort.js";
 import { PrismaPlatformCredentialRepository } from "../repositories/PrismaPlatformCredentialRepository.js";
 import type { PlatformCredentialRepository } from "@core/domain/repositories/PlatformCredentialRepository.js";
+import { PrismaPlatformEncryptionKeyRepository } from "../repositories/PrismaPlatformEncryptionKeyRepository.js";
+import type { PlatformEncryptionKeyRepository } from "@core/domain/repositories/PlatformEncryptionKeyRepository.js";
+import { PrismaAiTokenUsageRepository } from "../repositories/PrismaAiTokenUsageRepository.js";
+import type { AiTokenUsageReader } from "@core/domain/repositories/AiTokenUsageReader.js";
 import { ChannelCredentialsCrypto } from "../../security/ChannelCredentialsCrypto.js";
 import { PlatformCredentialService } from "@core/application/security/PlatformCredentialService.js";
 import { SettingsService } from "../../settings/SettingsService.js";
@@ -763,13 +767,28 @@ export function setupServices(
     true
   );
 
+  // Platform encryption-key adapter — implements PlatformEncryptionKeyRepository
+  // (rotation log for the platform-wide data-key).
+  container.register<PlatformEncryptionKeyRepository>(
+    TOKENS.PlatformEncryptionKeyRepository,
+    () => new PrismaPlatformEncryptionKeyRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  // AI token-usage reader — implements AiTokenUsageReader for monthly aggregation.
+  container.register<AiTokenUsageReader>(
+    TOKENS.AiTokenUsageReader,
+    () => new PrismaAiTokenUsageRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
   // Register Settings Service
   container.register<SettingsService>(
     TOKENS.SettingsService,
     () =>
       new SettingsService(
         container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService),
-        container.resolve(TOKENS.PrismaClient)
+        container.resolve<PlatformEncryptionKeyRepository>(TOKENS.PlatformEncryptionKeyRepository),
+        container.resolve<AiTokenUsageReader>(TOKENS.AiTokenUsageReader),
+        container.resolve(TOKENS.AuditEmitterPort)
       ),
     true
   );
