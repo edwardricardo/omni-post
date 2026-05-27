@@ -68,7 +68,7 @@ Estos NO son items accionables — son notas para revisar en horizonte Q2/Q3 202
 
 ---
 
-### 1.2 CLAUDE.md split en 5 documentos — `P1` · `M` · `STATUS: PENDING`
+### 1.2 CLAUDE.md split en 5 documentos — `P1` · `M` · `STATUS: DONE (TBD-sha)`
 
 **Qué:** Splitting CLAUDE.md (1100+ líneas hoy) en:
 
@@ -84,7 +84,7 @@ CLAUDE.md operativo queda ágil; los 4 hijos se cargan bajo demanda cuando el co
 
 **Dependencias:** ninguna. Mover contenido manualmente.
 
-**Definition of done:** 5 archivos final, CLAUDE.md reducido ≥60%, cross-links explícitos, fitness function checks que cada hijo tiene su §"How to extend" + dueño.
+**Definition of done:** 5 archivos final, CLAUDE.md reducido ≥60%, cross-links explícitos, fitness function checks que cada hijo tiene su §"How to extend" + dueño. ✅ Closure: 4 children creados (ARCHITECTURE_CANON, CODING_STANDARDS, SECURITY_CANON, LOGGING_CANON) en sus paths canónicos, CLAUDE.md 1183→454 líneas (**62% reducción**), `@`-imports auto-cargan los 4 hijos al startup (verificado contra [Claude Code memory docs](https://code.claude.com/docs/en/memory)), fitness #24 valida existencia + §"How to extend" + `**Owner:**` con anti-borrado guardrail probado.
 
 ---
 
@@ -140,6 +140,24 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 **Dependencias:** ninguna.
 
 **Definition of done:** este doc existe + 2 links desde otros files + entrada en MEMORY. ✅ Closure: link añadido en `CLAUDE.md §Documentation Policy` + entrada en memoria `project_workstreams_index.md`. Links pre-existentes en `docs/product/IMPLEMENTATION_PLAN_ES.md`, ADR-0009/10/11, `docs/architecture/secrets-and-env.md`, `docs/security/MULTI_TENANT_AUDIT_2026-05-27.md`.
+
+---
+
+### 1.6 Auto-load feedback memories via `@`-imports en CLAUDE.local.md — `P2` · `M` · `STATUS: PENDING`
+
+**Qué:** Replicar el approach de `@`-import (canon en §1.2) para los feedback memories de Claude (`~/.claude/projects/-root-omni-post/memory/feedback_*.md`). Hoy solo las primeras 200 líneas / 25KB de `MEMORY.md` se auto-cargan; cada `feedback_*.md` individual requiere que Claude lo lea manualmente cuando MEMORY.md lo lista como relevante. Resultado: feedback discipline depende de mi consciencia en cada turno (probadamente falible).
+
+**Opciones:**
+
+- **A)** Curar un subset alto-impacto de feedbacks y agregarlos como líneas `@~/.claude/projects/-root-omni-post/memory/feedback_X.md` en `CLAUDE.local.md` (gitignored, per-dev). Auto-carga garantizada.
+- **B)** Crear un nuevo archivo `~/.claude/feedback_index.md` con `@`-imports a todos los feedbacks (depth 1) + agregar `@~/.claude/feedback_index.md` en CLAUDE.local.md (depth 2, dentro del límite de 4 hops).
+- **C)** Mantener status quo + agregar enforcement vía hooks que recuerden leer feedbacks específicos cuando se detecte patrón asociado.
+
+**Por qué importa:** auto-memory's first-200-lines rule es un techo bajo. Feedbacks olvidados = patterns repetidos que ya tengo documentados ("don't anchor on remediation plan", "robustez sobre velocidad", "feedback_three_questions_before_delete"). Edward los teclea repetidamente.
+
+**Dependencias:** §1.2 (probar el `@`-import pattern primero — DONE). Empezar tras esto.
+
+**Definition of done:** subset curado de feedbacks (5-10) auto-cargado vía `@`-imports en `CLAUDE.local.md`, verificado vía `/memory`. Re-evaluación al cierre: ¿reduce las repeticiones de Edward? Si sí, expandir el subset.
 
 ---
 

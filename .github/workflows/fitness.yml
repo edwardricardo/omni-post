@@ -461,12 +461,44 @@ jobs:
             exit 1
           fi
 
+      - name: "#24 Canon child docs MUST exist + structured (anti-borrado)"
+        if: always()
+        run: |
+          set -uo pipefail
+          # The 4 canon child docs are auto-loaded into every Claude Code
+          # session via @-imports in CLAUDE.md. Deleting one silently strips
+          # load-bearing rules from every future session, so this fitness
+          # step asserts each file exists AND carries the required structure
+          # (§"How to extend" + **Owner:** line). Hard-zero anti-borrado guardrail.
+          MISSING=0
+          for f in docs/architecture/ARCHITECTURE_CANON.md \
+                   docs/development/CODING_STANDARDS.md \
+                   docs/security/SECURITY_CANON.md \
+                   docs/observability/LOGGING_CANON.md; do
+            if [ ! -f "$f" ]; then
+              echo "::error title=Fitness #24 violation::MISSING canon child: $f"
+              MISSING=$((MISSING + 1))
+              continue
+            fi
+            if ! grep -q '^## How to extend' "$f"; then
+              echo "::error title=Fitness #24 violation::MISSING §'How to extend' heading in $f"
+              MISSING=$((MISSING + 1))
+            fi
+            if ! grep -q '^\*\*Owner:' "$f"; then
+              echo "::error title=Fitness #24 violation::MISSING **Owner:** line in $f"
+              MISSING=$((MISSING + 1))
+            fi
+          done
+          if [ "$MISSING" -gt 0 ]; then
+            exit 1
+          fi
+
       - name: Fitness summary
         if: always()
         run: |
           echo "## Fitness Functions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "23 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
+          echo "24 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
           echo "Hard-zero threshold: any new occurrence fails this workflow with an \`::error\` annotation." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "See individual step results above for any violations." >> $GITHUB_STEP_SUMMARY
