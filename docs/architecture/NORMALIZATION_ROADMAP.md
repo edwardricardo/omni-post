@@ -88,7 +88,7 @@ CLAUDE.md operativo queda ágil; los 4 hijos se cargan bajo demanda cuando el co
 
 ---
 
-### 1.3 Sección "Cuándo NO seguir el canon" en CLAUDE.md — `P2` · `S` · `STATUS: DONE (TBD-sha)`
+### 1.3 Sección "Cuándo NO seguir el canon" en CLAUDE.md — `P2` · `S` · `STATUS: DONE (df6bc5b)`
 
 **Qué:** Añadir una sección §"Pragmatic Exceptions" con escenarios donde es OK saltarse parte del canon:
 
