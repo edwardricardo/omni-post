@@ -6,7 +6,7 @@
  * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { GatewayBillingService } from "../../../src/billing/GatewayBillingService.js";
+import { GatewayBillingService } from "@core/application/billing/GatewayBillingService.js";
 import type { AccountBillingRepository } from "@core/domain/repositories/AccountBillingRepository.js";
 import type { AccountSubscriptionBillingRepository } from "@core/domain/repositories/AccountSubscriptionBillingRepository.js";
 import type { GatewaySwitchEventRepository } from "@core/domain/repositories/GatewaySwitchEventRepository.js";

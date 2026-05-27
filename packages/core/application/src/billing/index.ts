@@ -13,6 +13,12 @@ export { SubscriptionManagementService } from "./SubscriptionManagementService.j
 export { SubscriptionStatsService } from "./SubscriptionStatsService.js";
 export { BillingService, type ChangeType } from "./BillingService.js";
 export { TrialManagementService } from "./TrialManagementService.js";
+export {
+  GatewayBillingService,
+  type SwitchError,
+  type SwitchInitiatedResult,
+  type ExtendResult,
+} from "./GatewayBillingService.js";
 export * from "./types.js";
 
 // Existing use-cases already in this folder (kept by reference; barrel

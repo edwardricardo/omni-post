@@ -15,7 +15,7 @@ import {
   GatewayAdapterRegistry,
   createGatewayRegistry,
 } from "../billing/GatewayAdapterRegistry.js";
-import { GatewayBillingService } from "../../billing/GatewayBillingService.js";
+import { GatewayBillingService } from "@core/application/billing/GatewayBillingService.js";
 import { GatewaySwitchJobService } from "../../billing/GatewaySwitchJobService.js";
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
 import type { PrismaClient } from "@infra/prisma";

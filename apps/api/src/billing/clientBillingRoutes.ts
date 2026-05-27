@@ -9,7 +9,7 @@ import type { FastifyPluginAsync } from "fastify";
 import type { PrismaClient } from "@infra/prisma";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { GatewayBillingService } from "./GatewayBillingService.js";
+import type { GatewayBillingService } from "@core/application/billing/GatewayBillingService.js";
 import { initiateGatewaySwitchSchema } from "./gatewaySwitchSchemas.js";
 import { env } from "../config/env.js";
 

@@ -11,7 +11,7 @@ import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "../auth/rbacService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { GatewayBillingService } from "./GatewayBillingService.js";
+import type { GatewayBillingService } from "@core/application/billing/GatewayBillingService.js";
 import { gatewaySwitchFiltersSchema, extendSwitchDeadlineSchema } from "./gatewaySwitchSchemas.js";
 
 export const adminBillingRoutes: FastifyPluginAsync = async (fastify) => {
