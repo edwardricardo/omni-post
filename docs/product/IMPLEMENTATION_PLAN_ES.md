@@ -2,6 +2,10 @@
 
 > Derivado de [FEATURE_TRACE_MATRIX_ES.md](FEATURE_TRACE_MATRIX_ES.md) §8.4 (orden) y §9 (canon 2026). Solo cubre **gaps** (🟡/📐/💬/⛔); lo ✅ no entra. Orden macro: **Bloqueantes compartidos → Fase 0 → Fase 1 → Fase 2 → Fase 3**.
 >
+> **Canon arquitectónico post S1'→S5** (workstream `application-services-to-core`, cerrado 2026-05-27): los items que crean services de aplicación viven en `packages/core/application/<context>/` con ports en `packages/core/domain/repositories/` + adapters Prisma en `apps/api/src/infrastructure/repositories/`. Los routes en `apps/api/src/<context>/` solo resuelven use cases del DI container. Ver [../architecture/NORMALIZATION_ROADMAP.md](../architecture/NORMALIZATION_ROADMAP.md) para mejoras transversales (multi-tenant guards, ADRs, contract tests, chaos testing).
+>
+> **Dependencia bloqueante:** items que crean tablas o datos **tenant-scoped** (reviews, branding, recycling, competitor benchmarking, link-in-bio, content discovery, paid ads) esperan al cierre de `Normalization Roadmap §2.1 Multi-tenant guards` para evitar deuda de seguridad.
+>
 > **Workstreams técnicos relacionados** (en curso, rama `workstream/prisma-di-migration`): migración prisma→DI — [../development/PRISMA_DI_MIGRATION_ES.md](../development/PRISMA_DI_MIGRATION_ES.md); realtime SSE (analytics + notifications) — [../features/REALTIME_SSE_ES.md](../features/REALTIME_SSE_ES.md).
 
 ## Cómo se trackea
