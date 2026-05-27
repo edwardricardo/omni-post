@@ -128,20 +128,20 @@ To rebuild a graph manually: `cd <target> && graphify update .` (sub-second for 
 
 ### `/docs/` Structure
 
-| Directory            | Content                                                         |
-| -------------------- | --------------------------------------------------------------- |
-| `docs/api/`          | REST API reference (endpoints, services, types)                 |
-| `docs/frontend/`     | Frontend portals (admin-portal, client-portal, REACT_STANDARDS) |
-| `docs/architecture/` | System design and architectural decisions                       |
-| `docs/development/`  | Developer guides, contributing, migration guides                |
-| `docs/features/`     | Feature specifications and design docs                          |
-| `docs/reports/`      | Sprint reports and session logs                                 |
-| `docs/security/`     | Security policies and audits                                    |
-| `docs/deployment/`   | Infrastructure and deployment guides                            |
-| `docs/technical/`    | Technical deep-dives and ADRs                                   |
-| `docs/product/`      | Product requirements and roadmap                                |
-| `docs/admin/`        | Admin-specific operational docs                                 |
-| `docs/client/`       | Client-facing documentation                                     |
+| Directory            | Content                                                                                                                                                                            |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/api/`          | REST API reference (endpoints, services, types)                                                                                                                                    |
+| `docs/frontend/`     | Frontend portals (admin-portal, client-portal, REACT_STANDARDS)                                                                                                                    |
+| `docs/architecture/` | System design and architectural decisions                                                                                                                                          |
+| `docs/development/`  | Developer guides, contributing, migration guides                                                                                                                                   |
+| `docs/features/`     | Feature specifications and design docs                                                                                                                                             |
+| `docs/reports/`      | Sprint reports and session logs                                                                                                                                                    |
+| `docs/security/`     | Security policies and audits                                                                                                                                                       |
+| `docs/deployment/`   | Infrastructure and deployment guides                                                                                                                                               |
+| `docs/technical/`    | Technical deep-dives and ADRs (`ADR-NNNN-*.md`, see ADR-0001 for template — Status/Date/Deciders/Context/Decision/Rationale/Alternatives/Consequences/Revisit if/Risks/References) |
+| `docs/product/`      | Product requirements and roadmap                                                                                                                                                   |
+| `docs/admin/`        | Admin-specific operational docs                                                                                                                                                    |
+| `docs/client/`       | Client-facing documentation                                                                                                                                                        |
 
 ---
 

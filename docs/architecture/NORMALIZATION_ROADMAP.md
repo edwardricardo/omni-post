@@ -36,34 +36,35 @@ Estos NO son items accionables — son notas para revisar en horizonte Q2/Q3 202
 
 > Objetivo: capturar conocimiento mientras está fresco, reducir fricción diaria. Sin cambios de código de runtime.
 
-### 1.1 ADRs retroactivos de las decisiones S0→S5 — `P1` · `M` · `STATUS: PENDING`
+### 1.1 ADRs retroactivos de las decisiones S0→S5 — `P1` · `M` · `STATUS: DONE`
 
-**Qué:** crear `docs/decisions/` con un ADR por decisión arquitectónica importante ya tomada.
+**Qué:** capturar las decisiones arquitectónicas importantes ya tomadas como ADRs versionados en `docs/technical/` (alineado a `ADR-0001-agent-orchestration.md` existente, no `docs/decisions/` como inicialmente propuesto).
 
-**ADRs iniciales (mínimo viable):**
+**ADRs creados (12 nuevos + `ADR-0001` existente):**
 
-| #    | Título                                                     | Source de info                         |
-| ---- | ---------------------------------------------------------- | -------------------------------------- |
-| 0001 | Hexagonal Architecture over Modular Fastify                | CLAUDE.md §Architecture                |
-| 0002 | DDD with Entity/VO/Aggregate                               | CLAUDE.md §Domain-Driven Design        |
-| 0003 | CQRS — Command vs Query separation                         | CLAUDE.md §CQRS                        |
-| 0004 | Unit of Work with PrismaUnitOfWork + AsyncLocalStorage     | CLAUDE.md §Unit of Work                |
-| 0005 | Result<T, E> over throws cross-layer                       | CLAUDE.md §Result Type                 |
-| 0006 | DI Composition Root with 130+ TOKENS                       | CLAUDE.md §Dependency Injection        |
-| 0007 | Saga Pattern canon-aligned (Richardson + Azure)            | CLAUDE.md §Saga Pattern                |
-| 0008 | Permission enum promoted to @core/domain/auth/             | S4.4 (ee8d4a0)                         |
-| 0009 | AI contracts promoted to @core/domain/ai/                  | S4.3 (262faaf)                         |
-| 0010 | application-services-to-core workstream closure            | S1'→S5, ee8d4a0 + 1734890              |
-| 0011 | 22 Fitness Functions as architecture-test layer            | CLAUDE.md §Automated Compliance Checks |
-| 0012 | 3-logger model + redaction (apps/api / packages / browser) | CLAUDE.md §Logging                     |
+| #        | Título                                                                          | Fuente principal                       |
+| -------- | ------------------------------------------------------------------------------- | -------------------------------------- |
+| **0001** | Agent Orchestration Engine and Schema-Validated Provider Substrate              | (pre-existente, 2026-05-19)            |
+| **0002** | Hexagonal Architecture (Ports & Adapters) over Modular Fastify                  | CLAUDE.md §Architecture                |
+| **0003** | DDD — Entity / Value Object / Aggregate / Domain Events                         | CLAUDE.md §Domain-Driven Design        |
+| **0004** | CQRS — Command vs Query separation                                              | CLAUDE.md §CQRS                        |
+| **0005** | Unit of Work with `PrismaUnitOfWork` + `AsyncLocalStorage`                      | CLAUDE.md §Unit of Work                |
+| **0006** | `Result<T, E>` over thrown exceptions cross-layer                               | CLAUDE.md §Result Type                 |
+| **0007** | Dependency Injection — Composition Root with 130+ tokens                        | CLAUDE.md §Dependency Injection        |
+| **0008** | Saga Pattern canon-aligned (Richardson + Azure §4-20)                           | CLAUDE.md §Saga Pattern                |
+| **0009** | Promote `Permission` enum to `@core/domain/auth/`                               | S4.4 (`ee8d4a0`) + S5 (`1734890`)      |
+| **0010** | Promote AI contracts (`AIProvider`/`AITask`/`AIResponse`) to `@core/domain/ai/` | S4.3 (`262faaf`)                       |
+| **0011** | `application-services-to-core` workstream closure (S1'→S5)                      | 22 commits del workstream              |
+| **0012** | 22 Fitness Functions as architecture-test layer                                 | CLAUDE.md §Automated Compliance Checks |
+| **0013** | 3-logger factory model + redaction (apps/api / packages / browser)              | CLAUDE.md §Logging                     |
 
-**Formato por ADR (~1 página):** Context · Decision · Consequences · Alternatives considered · Date · Status (Accepted/Superseded).
+**Formato:** cada ADR sigue el template `ADR-0001` (Status / Date / Deciders / Supersedes / Superseded by / Context / Decision / Rationale / Alternatives Considered / Consequences / Revisit if / Risks and Mitigations / References).
 
-**Por qué importa:** las decisiones de S1'→S5 están vivas en commits + MEMORY de sesiones Claude, pero esa memoria es efímera. Sin ADRs, en 3 meses el "por qué" se pierde — y cuando llegue dev nuevo / comprador / auditor, no hay rastro.
+**Por qué importa:** captura el "por qué" de las decisiones arquitectónicas mientras está fresco; cierra la brecha pre-acquisition due-diligence.
 
-**Dependencias:** ninguna. Es puro doc.
+**Dependencias:** ninguna. Pure doc.
 
-**Definition of done:** 12 ADRs en `docs/decisions/`, link desde CLAUDE.md sección §Architecture, link desde `canon_research_index.md`.
+**Definition of done (✅):** 12 ADRs en `docs/technical/`, bullet en CLAUDE.md §Documentation Policy apuntando al pattern `docs/technical/ADR-NNNN-*.md`, formato matchea ADR-0001, numeración consecutiva sin huecos.
 
 ---
 
