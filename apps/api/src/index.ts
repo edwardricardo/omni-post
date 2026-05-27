@@ -31,7 +31,12 @@ if (env.TRACING_ENABLED) {
 // ✅ CORRECT Fastify v5.6.1 Import Syntax
 import Fastify, { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import { serializerCompiler, validatorCompiler, ZodTypeProvider } from "fastify-type-provider-zod";
+import {
+  serializerCompiler,
+  validatorCompiler,
+  ZodTypeProvider,
+  jsonSchemaTransform,
+} from "fastify-type-provider-zod";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import { closeDatabaseConnections, prisma, verifyDatabaseAuth } from "@infra/prisma";
 import type { QueuePortRegistry } from "@ports/core";
@@ -171,9 +176,15 @@ async function createApp(): Promise<FastifyInstance> {
   typedApp.setValidatorCompiler(validatorCompiler);
   typedApp.setSerializerCompiler(serializerCompiler);
 
-  // Register OpenAPI documentation (before routes so schemas are captured)
+  // Register OpenAPI documentation (before routes so schemas are captured).
+  // `transform: jsonSchemaTransform` (§3.1 Normalization Roadmap) convierte
+  // los Zod schemas a JSON Schema OpenAPI 3.0 antes de que el swagger plugin
+  // los emita; sin esto el spec contiene el `{ def: ... }` raw de Zod 4 y
+  // los generadores downstream (hey-api, openapi-typescript) emiten
+  // `{[key:string]: unknown}` en vez de los tipos reales.
   const fastifySwagger = await import("@fastify/swagger");
   await typedApp.register(fastifySwagger.default, {
+    transform: jsonSchemaTransform,
     openapi: {
       info: {
         title: "OmniPost API",

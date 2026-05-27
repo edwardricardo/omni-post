@@ -219,7 +219,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 > Objetivo: prevenir regressions silenciosas en boundaries externos (frontend↔backend) y upstream APIs (providers).
 
-### 3.1 OpenAPI auto-gen + tipos frontend — `P1` · `M` · `STATUS: PENDING`
+### 3.1 OpenAPI auto-gen + tipos frontend — `P1` · `M` · `STATUS: DONE-Phase-A1 (TBD-sha)` · follow-up §3.1.b
 
 **Qué:** Fastify es schema-first; podemos exportar OpenAPI spec auto-generado, consumido por admin/client como **tipos generados** vía `openapi-typescript`.
 
@@ -235,6 +235,18 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 **Dependencias:** ninguna técnica.
 
 **Definition of done:** `packages/shared/src/api-types.generated.ts` checked in + CI gate de "no drift" + admin/client consumiendo al menos 3 endpoints con tipos generados.
+
+✅ **Phase A1 closure:**
+
+- **Tooling canon-aligned**: tras recon descubrimos que `openapi-typescript` v7.13 tiene bug con Node 24 (transitive `@redocly@1.34` + `js-yaml@3.14`). Switched a `@hey-api/openapi-ts` v0.97.3 + `@hey-api/client-fetch` v0.13.1 (canon 2026, 2.7M downloads/week, backed Vercel/PayPal/Amazon).
+- **Root cause fix**: agregado `transform: jsonSchemaTransform` al `@fastify/swagger` register en `apps/api/src/index.ts` — sin esto el spec emitía Zod raw (`{def: ...}`) y los tipos generados eran `{[key:string]: unknown}`.
+- **Override removed**: el pnpm `js-yaml: 3.14.2` override (commit 3fd4203) forzaba a eslint/eslintrc DOWN a v3 cuando wants v4; removido sin breakage (eslint, secretlint, etc. siguen ok).
+- **Generator pipeline**: `apps/api/scripts/dump-openapi-spec.ts` (bootea createApp + dumpea swagger spec a `/tmp`) + `scripts/generate-api-types.ts` (orquesta dump + openapi-ts + post-procesa `@file/@layer` headers JSDoc para survivar regen).
+- **3 health routes migradas** (`/health`, `/health/live`, `/health/ready`) con response schemas Zod completos. Verificados en spec + tipos generados (`GetHealthResponses` ahora es `{status: 'healthy'|'degraded'|'unhealthy', timestamp, uptime?}`, no más `unknown`).
+- **`packages/shared/src/api-generated/{types.gen.ts, index.ts}` committed** con 414 paths tipados (3 con responses reales, ~411 con responses `unknown` esperando migración progresiva).
+- **Docs en `docs/architecture/openapi-migration.md`** con recipe + caveats + canon de fastify-type-provider-zod.
+
+⏭ **Phase B (§3.1.b PENDING)**: migrar las ~342 rutas restantes a Zod schemas completos (params/query/body/response) — ~50-60h trabajo progresivo. Wirear admin/client typed-clients con ≥3 endpoints consumed. Gate de drift en CI (10 LOC bloqueados esta sesión por `omnipost-allow sensitive-edit` intermittency).
 
 ---
 

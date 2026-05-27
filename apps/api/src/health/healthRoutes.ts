@@ -111,10 +111,23 @@ export async function healthRoutes(
    * Returns 200 if system is healthy, 503 if unhealthy
    *
    * This is the fastest health check endpoint.
+   *
+   * §3.1 Normalization Roadmap — response schema Zod migrado (Phase A1).
    */
+  const healthResponseSchema = z.object({
+    status: z.enum(["healthy", "degraded", "unhealthy"]),
+    timestamp: z.string(),
+    uptime: z.number().optional(),
+  });
   fastify.get(
     "/health",
-    { schema: { tags: ["Health"], summary: "Simple health check" } },
+    {
+      schema: {
+        tags: ["Health"],
+        summary: "Simple health check",
+        response: { 200: healthResponseSchema, 503: healthResponseSchema },
+      },
+    },
     async (_request: FastifyRequest, reply: FastifyReply) => {
       const status = healthManager.getCurrentStatus();
 
@@ -195,10 +208,23 @@ export async function healthRoutes(
    *
    * This probe should only fail if the application is completely broken.
    * Kubernetes will restart the pod if this fails.
+   *
+   * §3.1 Normalization Roadmap — response schema Zod migrado (Phase A1).
    */
+  const liveResponseSchema = z.object({
+    status: z.literal("alive"),
+    timestamp: z.string(),
+    uptime: z.number(),
+  });
   fastify.get(
     "/health/live",
-    { schema: { tags: ["Health"], summary: "Kubernetes liveness probe" } },
+    {
+      schema: {
+        tags: ["Health"],
+        summary: "Kubernetes liveness probe",
+        response: { 200: liveResponseSchema },
+      },
+    },
     async (_request: FastifyRequest, reply: FastifyReply) => {
       // Liveness check is very simple - just verify the process is responsive
       return reply.send({
@@ -215,10 +241,28 @@ export async function healthRoutes(
    *
    * This probe checks critical dependencies. If it fails, Kubernetes
    * will stop routing traffic to this pod but won't restart it.
+   *
+   * §3.1 Normalization Roadmap — response schema Zod migrado (Phase A1).
    */
+  const readyOkSchema = z.object({
+    status: z.literal("ready"),
+    timestamp: z.string(),
+  });
+  const readyFailSchema = z.object({
+    status: z.literal("not ready"),
+    timestamp: z.string(),
+    message: z.string(),
+    unhealthyDependencies: z.array(z.string()),
+  });
   fastify.get(
     "/health/ready",
-    { schema: { tags: ["Health"], summary: "Kubernetes readiness probe" } },
+    {
+      schema: {
+        tags: ["Health"],
+        summary: "Kubernetes readiness probe",
+        response: { 200: readyOkSchema, 503: readyFailSchema },
+      },
+    },
     async (_request: FastifyRequest, reply: FastifyReply) => {
       // Check only critical dependencies for readiness
       const criticalChecks = ["database", "redis", "queue"];
