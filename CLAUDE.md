@@ -1096,6 +1096,27 @@ grep -rlE "import \{[^}]*\bprisma\b[^}]*\} from \"@infra/prisma\"" \
 # Scope: apps/api/src. Hard-zero (S5 closed the workstream — count = 0 at
 # branch tip).
 grep -rlE "^\s*\*\s*@layer application\s*$" apps/api/src --include="*.ts" | wc -l
+
+# 23. No raw Prisma queries (`$queryRaw`, `$executeRaw`, `$queryRawUnsafe`,
+# `$executeRawUnsafe`) outside the tenant guard extension or composition
+# root. Raw queries BYPASS the Prisma `$extends` tenant-guard middleware
+# (S2.1b) because Prisma extensions only hook the typed query API. Any
+# raw SQL touching tenant-scoped tables MUST either (a) wrap in a UoW
+# (RLS layer 2 catches it via SET LOCAL app.account_id from
+# TenantContext) or (b) explicitly opt-in via `withSystemContext()` for
+# admin/system flows. Hard-zero: new raw queries require explicit ADR
+# justification + this fitness exception updated. Scope: apps/api/src +
+# apps/workers/src. Exceptions: the tenant guard extension itself,
+# Prisma client construction, and tests (which can stub).
+grep -rnE "\.\\\$(queryRaw|executeRaw|queryRawUnsafe|executeRawUnsafe)\(" \
+  apps/api/src apps/workers/src --include="*.ts" 2>/dev/null | \
+  grep -vE "/extensions/tenantGuard|/infrastructure/container/|/tests/|\.test\." | \
+  grep -vE "/events/EventStore\.ts|/PrismaStyleGuideRuleRepository\.ts|/PrismaGlossaryRepository\.ts" | wc -l
+# Excepciones (al introducir #23 en S2.1a):
+#   - events/EventStore.ts: StoredEvent es tabla global (no accountId). OK.
+#   - PrismaStyleGuideRuleRepository.ts + PrismaGlossaryRepository.ts: raw pgvector
+#     UPDATEs — KNOWN GAPS pendientes de fix en S2.1d (añadir AND "accountId"=...
+#     via TenantContext). Documentados en `docs/security/MULTI_TENANT_GUARDS.md`.
 ```
 
 **Extending the suite.** Adding a new fitness check requires three coordinated edits, in order:

@@ -8,6 +8,7 @@
 
 import type { FastifyRequest, FastifyReply } from "fastify";
 import { verifyCustomerToken } from "./customerJwt.js";
+import { enterTenantContext } from "../security/tenantContext.js";
 import { authLogger } from "../lib/logger.js";
 
 /**
@@ -62,6 +63,11 @@ export async function requireClientAuth(
       roleName: payload.roleName,
       permissions: payload.permissions,
     };
+
+    // Bind tenant context for the rest of the async chain (handlers, hooks,
+    // Prisma queries). The tenant guard extension (S2.1b) reads this on
+    // every query to a tenant-scoped table.
+    enterTenantContext({ accountId: payload.accountId });
   } catch (error: unknown) {
     authLogger.warn({ err: error }, "Customer authentication failed");
     return reply.code(401).send({ error: "Invalid or expired token" });

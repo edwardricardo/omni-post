@@ -425,12 +425,41 @@ jobs:
             exit 1
           fi
 
+      - name: "#23 No raw Prisma queries outside tenant guard + composition root"
+        if: always()
+        run: |
+          set -uo pipefail
+          # Raw Prisma queries ($queryRaw, $executeRaw, $queryRawUnsafe,
+          # $executeRawUnsafe) BYPASS the Prisma $extends tenant-guard
+          # middleware (S2.1b) because Prisma extensions only hook the typed
+          # query API. Any raw SQL touching tenant-scoped tables introduces
+          # a CWE-639 (Authorization Bypass) risk unless wrapped in a UoW
+          # (so PostgreSQL RLS catches it via SET LOCAL app.account_id from
+          # TenantContext, S2.1c) or explicitly opted-in via
+          # withSystemContext() for admin/system flows.
+          # Hard-zero. Exceptions:
+          #   - events/EventStore.ts: StoredEvent is a global table (no accountId).
+          #   - PrismaStyleGuideRuleRepository.ts + PrismaGlossaryRepository.ts:
+          #     raw pgvector UPDATEs — KNOWN GAPS tracked for fix in S2.1d
+          #     (see docs/security/MULTI_TENANT_GUARDS.md).
+          MATCHES=$(grep -rnE "\.\\\$(queryRaw|executeRaw|queryRawUnsafe|executeRawUnsafe)\(" \
+            apps/api/src apps/workers/src --include="*.ts" 2>/dev/null | \
+            grep -vE "/extensions/tenantGuard|/infrastructure/container/|/tests/|\.test\." | \
+            grep -vE "/events/EventStore\.ts|/PrismaStyleGuideRuleRepository\.ts|/PrismaGlossaryRepository\.ts" || true)
+          COUNT=$(printf "%s" "$MATCHES" | grep -c . || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #23 violation::$COUNT raw Prisma query(s) outside tenant guard + composition root. Raw queries bypass the Prisma extension tenant guard (S2.1b); wrap in UoW (RLS catches) OR use withSystemContext() for admin flows OR add to fitness #23 exception list with ADR justification."
+            printf "%s\n" "$MATCHES" | head -40
+            exit 1
+          fi
+
       - name: Fitness summary
         if: always()
         run: |
           echo "## Fitness Functions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "22 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
+          echo "23 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
           echo "Hard-zero threshold: any new occurrence fails this workflow with an \`::error\` annotation." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "See individual step results above for any violations." >> $GITHUB_STEP_SUMMARY
