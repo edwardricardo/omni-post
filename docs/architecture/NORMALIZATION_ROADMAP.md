@@ -127,7 +127,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 ---
 
-### 1.5 Mover este roadmap + referenciar desde CLAUDE.md — `P2` · `S` · `STATUS: DONE (TBD-sha)`
+### 1.5 Mover este roadmap + referenciar desde CLAUDE.md — `P2` · `S` · `STATUS: DONE (2386f00)`
 
 **Qué:** El propio doc que estás leyendo (`docs/architecture/NORMALIZATION_ROADMAP.md`) vive en docs/architecture/. Necesita:
 
