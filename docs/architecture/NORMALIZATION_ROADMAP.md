@@ -323,7 +323,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 ---
 
-### 4.2 Observability operativa: dashboards + alerts + runbooks — `P1` · `L` · `STATUS: PENDING`
+### 4.2 Observability operativa: dashboards + alerts + runbooks — `P1` · `L` · `STATUS: DONE-Phase-A1 (TBD-sha)` · follow-ups §4.2.b/c
 
 **Qué:** Tienes Pino + OTel + métricas Prometheus + Sentry inicializado. Pero no vi:
 
@@ -344,6 +344,21 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 **Dependencias:** ninguna técnica; sí coordinación con quien-sea-que-tenga-acceso a la stack Grafana/Prometheus en homelab/prod.
 
 **Definition of done:** dashboards versionados + ≥10 alertas declaradas + runbook por cada una.
+
+✅ **Phase A1 closure:** Prometheus alerting habilitado (uncomment `rule_files`) + 4 alert rules canon + 4 runbooks + SLO.md centralizado.
+
+- `prometheus/prometheus.yml` — uncomment `rule_files: ["alerts/*.yml"]`.
+- `prometheus/alerts/api.yml` — `ApiLatencyP99High` + `ApiErrorRateHigh`.
+- `prometheus/alerts/saga.yml` — `SagaTimeoutSpike`.
+- `prometheus/alerts/outbox.yml` — `OutboxLagHigh`.
+- 4 runbooks en `docs/runbooks/alert-{api-latency,api-error-rate,saga-timeout,outbox-lag}.md` — síntoma + diagnóstico paso-a-paso + remediation + escalation criteria + links a Grafana/Sentry.
+- `docs/observability/SLO.md` — SLO targets centralizados con coverage matrix (Phase A1: 2/3 API, 1/3 Saga, 1/3 Outbox alerts wireados).
+
+**Recon hallazgo (positivo)**: Grafana provisioning (`grafana/provisioning/{dashboards,datasources}/`) Y docker-compose mounts YA existían — recon inicial los subestimó como gap. Los 3 dashboards committeados (api-performance, system-resources, business-metrics) ya auto-loadean al restart. Phase A1 sin ese trabajo extra; Phase B no necesita revisitarlo.
+
+⏭ **Phase B / §4.2.b PENDING**: 6+ alerts adicionales canon (Availability, SagaCompletionRateLow, SagaAvgDurationHigh, OutboxPublishLatencyHigh, PostCreationP99High, PublishSuccessRateLow) + runbooks correspondientes. Cada alert: ~30min trabajo. Total ~3-4h.
+
+⏭ **Phase C / §4.2.c PENDING**: alertmanager wireup en docker-compose + Slack/PagerDuty notification routing + Sentry alert rules via API. Bloqueado parcialmente por sensitive-edit token (docker-compose changes); Sentry API via secrets management aparte.
 
 ---
 

@@ -8,16 +8,22 @@ global:
     cluster: "omni-post"
     environment: "development"
 
-# Alertmanager configuration (optional - can be added later)
+# Alertmanager configuration. §4.2.b PENDING — alertmanager wireup +
+# Slack/PagerDuty notification routing. Sin esto, las rules se evalúan y
+# quedan disponibles en /api/v1/alerts pero no se envía notification push.
 # alerting:
 #   alertmanagers:
 #     - static_configs:
 #         - targets:
 #           - 'alertmanager:9093'
 
-# Rule files (optional - can be added later for alerts)
-# rule_files:
-#   - 'alerts/*.yml'
+# Rule files. §4.2 Phase A1 — primeras 4 rules canon:
+#   - alerts/api.yml    (ApiLatencyP99High, ApiErrorRateHigh)
+#   - alerts/saga.yml   (SagaTimeoutSpike)
+#   - alerts/outbox.yml (OutboxLagHigh)
+# §4.2.b agregará 6+ rules adicionales (DLQ, billing, AI, Redis, DB pool, worker backlog).
+rule_files:
+  - "alerts/*.yml"
 
 scrape_configs:
   # Prometheus self-monitoring

@@ -1,0 +1,19 @@
+# Saga alerts — §4.2 Normalization Roadmap Phase A1.
+# Métricas fuente: SagaManagerLifecycle + sagas_failed_total counter.
+# Invariante: las sagas son críticas para correctness distribuida (pre-pivot
+# rollback semantics); timeout spike indica step que cuelga.
+groups:
+  - name: saga
+    interval: 30s
+    rules:
+      - alert: SagaTimeoutSpike
+        expr: increase(sagas_failed_total{reason="timeout"}[10m]) > 3
+        for: 1m
+        labels:
+          severity: critical
+          component: saga
+        annotations:
+          summary: "More than 3 sagas timed out in 10min"
+          description: "El SagaManagerLifecycle.startTimeoutChecker (60s poll) marcó más de 3 sagas como FAILED por timeout en 10min. Esto indica step que cuelga (provider API down, DB deadlock, infinite loop). Inspeccionar Grafana saga-health dashboard + Jaeger traces."
+          runbook: docs/runbooks/alert-saga-timeout.md
+          slo: docs/observability/SLO.md#saga

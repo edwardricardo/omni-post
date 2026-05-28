@@ -1,0 +1,29 @@
+# API alerts — §4.2 Normalization Roadmap Phase A1.
+# Métricas fuente: prom-client custom en apps/api/src/metrics/apiMetrics.ts.
+groups:
+  - name: api
+    interval: 30s
+    rules:
+      - alert: ApiLatencyP99High
+        expr: histogram_quantile(0.99, rate(http_duration_bucket{job="api"}[5m])) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "API p99 latency > 1s for 5min"
+          description: "p99 HTTP request duration ha excedido 1000ms por más de 5min sostenido. Indica saturación de DB, dependencias externas lentas, o algún endpoint con regression."
+          runbook: docs/runbooks/alert-api-latency.md
+          slo: docs/observability/SLO.md#api
+
+      - alert: ApiErrorRateHigh
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "API 5xx error rate > 5% for 5min"
+          description: "Tasa de 5xx ha excedido 5% por más de 5min. Crítico — afecta a usuarios reales. Investigá deploys recientes + logs Sentry + Grafana api-performance dashboard."
+          runbook: docs/runbooks/alert-api-error-rate.md
+          slo: docs/observability/SLO.md#api
