@@ -55,8 +55,18 @@ PLAN_BLOCKS_LOG = Path(".claude/planmode-blocks.log")
 HEURISTIC_OVERRIDES_LOG = Path(".claude/heuristic-overrides.log")
 
 WORKSTREAM_BRANCH_RE = re.compile(r"^workstream/")
-PLAN_FILE_PATH_RE = re.compile(r'/\.claude/plans/[^"\']+\.md')
-PLAN_MODE_TOOL_RE = re.compile(r'"name":\s*"(?:EnterPlanMode|ExitPlanMode)"')
+# STRICT: only an EnterPlanMode tool_use event counts as Plan Mode activity.
+# A Read/Edit/Write of a plan file (or a Bash command mentioning one) is NOT
+# the same as being IN Plan Mode — the assistant must explicitly invoke
+# EnterPlanMode to make the model + UI enter the plan-only mode that
+# guarantees no Write/Edit/Bash side-effects until ExitPlanMode is approved.
+#
+# Bug fix (2026-05-28): the previous design counted any plan-path mention
+# in the transcript (e.g., `tail -30 /root/.claude/plans/foo.md`) as plan
+# activity. That allowed phase work to start in workstream/* branches
+# without an actual Plan Mode entry — exactly the discipline gap this
+# hook was meant to prevent.
+PLAN_MODE_ENTER_RE = re.compile(r'"name":\s*"EnterPlanMode"')
 
 TRIVIAL_LINE_THRESHOLD = 30
 
@@ -100,11 +110,8 @@ def has_recent_plan_activity(transcript_path: str | None) -> bool:
     except OSError as e:
         log(f"WARN: cannot read transcript {transcript_path}: {e}")
         return False
-    if PLAN_FILE_PATH_RE.search(tail):
-        log("plan file path found in recent transcript")
-        return True
-    if PLAN_MODE_TOOL_RE.search(tail):
-        log("EnterPlanMode/ExitPlanMode tool found in recent transcript")
+    if PLAN_MODE_ENTER_RE.search(tail):
+        log("EnterPlanMode tool found in recent transcript — Plan Mode active")
         return True
     return False
 
