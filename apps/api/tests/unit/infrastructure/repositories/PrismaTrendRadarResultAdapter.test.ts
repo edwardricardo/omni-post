@@ -12,10 +12,7 @@ import { describe, it, vi } from "vitest";
 import assert from "node:assert/strict";
 import { PrismaTrendRadarResultAdapter } from "../../../../src/infrastructure/repositories/PrismaTrendRadarResultAdapter.js";
 import type { PrismaClient } from "@infra/prisma";
-import type {
-  TrendRadarRow,
-  TrendRadarUpsertInput,
-} from "@core/application/trends/TrendRadarResultPort.js";
+import type { TrendRadarRow, TrendRadarUpsertInput } from "@core/trends/TrendRadarResultPort.js";
 
 function makePrisma(opts: { existing?: ReadonlyArray<{ id: string } | null> }): {
   prisma: PrismaClient;

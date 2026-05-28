@@ -6,7 +6,7 @@
  *              A failed run throws so the queue retries.
  * @layer infrastructure
  */
-import type { DetectTrendsUseCase } from "@core/application/trends/DetectTrendsUseCase.js";
+import type { DetectTrendsUseCase } from "@core/trends/DetectTrendsUseCase.js";
 import type { RepurposeJobLogger } from "./repurposeGenerateHandler.js";
 
 export interface TrendRadarDeps {

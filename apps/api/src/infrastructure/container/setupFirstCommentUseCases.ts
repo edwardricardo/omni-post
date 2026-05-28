@@ -7,10 +7,10 @@ import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import type { FirstCommentRepository } from "@core/domain/repositories/FirstCommentRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
-import { SetFirstCommentUseCase } from "@core/application/first-comment/SetFirstCommentUseCase.js";
-import { RemoveFirstCommentUseCase } from "@core/application/first-comment/RemoveFirstCommentUseCase.js";
-import { GetFirstCommentQuery } from "@core/application/first-comment/GetFirstCommentQuery.js";
-import { PublishFirstCommentUseCase } from "@core/application/first-comment/PublishFirstCommentUseCase.js";
+import { SetFirstCommentUseCase } from "@core/first-comment/SetFirstCommentUseCase.js";
+import { RemoveFirstCommentUseCase } from "@core/first-comment/RemoveFirstCommentUseCase.js";
+import { GetFirstCommentQuery } from "@core/first-comment/GetFirstCommentQuery.js";
+import { PublishFirstCommentUseCase } from "@core/first-comment/PublishFirstCommentUseCase.js";
 
 /**
  * @method setupFirstCommentUseCases

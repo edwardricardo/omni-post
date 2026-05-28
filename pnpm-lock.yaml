@@ -379,9 +379,120 @@ importers:
       '@anthropic-ai/sdk':
         specifier: 0.91.1
         version: 0.91.1(zod@4.3.6)
+      '@core/ai-image':
+        specifier: workspace:*
+        version: link:../../packages/core/ai-image
+      '@core/aiPromptTemplates':
+        specifier: workspace:*
+        version: link:../../packages/core/aiPromptTemplates
+      '@core/analytics':
+        specifier: workspace:*
+        version: link:../../packages/core/analytics
+      '@core/apiKeys':
+        specifier: workspace:*
+        version: link:../../packages/core/apiKeys
+      '@core/approvals':
+        specifier: workspace:*
+        version: link:../../packages/core/approvals
+      '@core/assets':
+        specifier: workspace:*
+        version: link:../../packages/core/assets
+      '@core/auth':
+        specifier: workspace:*
+        version: link:../../packages/core/auth
+      '@core/billing':
+        specifier: workspace:*
+        version: link:../../packages/core/billing
+      '@core/brand-kit':
+        specifier: workspace:*
+        version: link:../../packages/core/brand-kit
+      '@core/brand-voice':
+        specifier: workspace:*
+        version: link:../../packages/core/brand-voice
+      '@core/campaigns':
+        specifier: workspace:*
+        version: link:../../packages/core/campaigns
+      '@core/channels':
+        specifier: workspace:*
+        version: link:../../packages/core/channels
+      '@core/comments':
+        specifier: workspace:*
+        version: link:../../packages/core/comments
+      '@core/compliance':
+        specifier: workspace:*
+        version: link:../../packages/core/compliance
+      '@core/crisis':
+        specifier: workspace:*
+        version: link:../../packages/core/crisis
+      '@core/crm':
+        specifier: workspace:*
+        version: link:../../packages/core/crm
+      '@core/custom-reports':
+        specifier: workspace:*
+        version: link:../../packages/core/custom-reports
+      '@core/customer-auth':
+        specifier: workspace:*
+        version: link:../../packages/core/customer-auth
       '@core/engine':
         specifier: workspace:*
         version: link:../../packages/core
+      '@core/external-notifications':
+        specifier: workspace:*
+        version: link:../../packages/core/external-notifications
+      '@core/first-comment':
+        specifier: workspace:*
+        version: link:../../packages/core/first-comment
+      '@core/guardrails':
+        specifier: workspace:*
+        version: link:../../packages/core/guardrails
+      '@core/integrations':
+        specifier: workspace:*
+        version: link:../../packages/core/integrations
+      '@core/links':
+        specifier: workspace:*
+        version: link:../../packages/core/links
+      '@core/listening':
+        specifier: workspace:*
+        version: link:../../packages/core/listening
+      '@core/ml':
+        specifier: workspace:*
+        version: link:../../packages/core/ml
+      '@core/notifications':
+        specifier: workspace:*
+        version: link:../../packages/core/notifications
+      '@core/posts':
+        specifier: workspace:*
+        version: link:../../packages/core/posts
+      '@core/providers':
+        specifier: workspace:*
+        version: link:../../packages/core/providers
+      '@core/referral':
+        specifier: workspace:*
+        version: link:../../packages/core/referral
+      '@core/reports':
+        specifier: workspace:*
+        version: link:../../packages/core/reports
+      '@core/security':
+        specifier: workspace:*
+        version: link:../../packages/core/security
+      '@core/settings':
+        specifier: workspace:*
+        version: link:../../packages/core/settings
+      '@core/team':
+        specifier: workspace:*
+        version: link:../../packages/core/team
+      '@core/trends':
+        specifier: workspace:*
+        version: link:../../packages/core/trends
+      '@core/usage':
+        specifier: workspace:*
+        version: link:../../packages/core/usage
+      '@core/utm':
+        specifier: workspace:*
+        version: link:../../packages/core/utm
+      '@core/webhooks':
+        specifier: workspace:*
+        version: link:../../packages/core/webhooks
       '@fastify/cookie':
         specifier: 11.0.2
         version: 11.0.2

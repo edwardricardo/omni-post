@@ -8,7 +8,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { DlqArchivalService } from "@core/application/webhooks/DlqArchivalService.js";
+import { DlqArchivalService } from "@core/webhooks/DlqArchivalService.js";
 import type { WebhookDeadLetterArchivalPort } from "@core/domain/repositories/WebhookDeadLetterArchivalPort.js";
 
 function makeArchivalPort(): WebhookDeadLetterArchivalPort {

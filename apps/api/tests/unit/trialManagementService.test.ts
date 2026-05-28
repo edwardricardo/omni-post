@@ -10,8 +10,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@infra/prisma", () => ({ prisma: { auditLog: { create: vi.fn() } }, Prisma: {} }));
 
-const { TrialManagementService } =
-  await import("@core/application/billing/TrialManagementService.js");
+const { TrialManagementService } = await import("@core/billing/TrialManagementService.js");
 
 function makeAccountDto(overrides: Record<string, unknown> = {}) {
   const now = new Date();

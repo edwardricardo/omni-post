@@ -17,7 +17,7 @@ import type {
   LogoutCustomerUseCase,
   RequestPasswordResetUseCase,
   ResetPasswordUseCase,
-} from "@core/application/customer-auth/index.js";
+} from "@core/customer-auth/index.js";
 
 // ---- Zod schemas ----
 

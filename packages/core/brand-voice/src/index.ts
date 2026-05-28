@@ -1,12 +1,9 @@
 /**
  * @file index.ts
- * @description Barrel for the `brand-voice` bounded context (`@core/brand-voice`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel for `brand-voice` bounded context (`@core/brand-voice`).
+ *   Auto-generated during §5.1.b extraction.
  * @layer application
  */
-
-export {};
+export * from "./DeleteBrandVoiceUseCase.js";
+export * from "./GetBrandVoiceQuery.js";
+export * from "./UpsertBrandVoiceUseCase.js";

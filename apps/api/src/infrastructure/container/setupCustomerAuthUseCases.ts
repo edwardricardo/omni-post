@@ -30,7 +30,7 @@ import {
   LogoutCustomerUseCase,
   RequestPasswordResetUseCase,
   ResetPasswordUseCase,
-} from "@core/application/customer-auth/index.js";
+} from "@core/customer-auth/index.js";
 
 /**
  * @function setupCustomerAuthUseCases

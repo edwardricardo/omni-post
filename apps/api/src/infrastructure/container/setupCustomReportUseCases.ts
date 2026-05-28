@@ -10,13 +10,13 @@ import { TOKENS } from "./types.js";
 import { prisma } from "@infra/prisma";
 import { PrismaCustomReportRepository } from "../repositories/PrismaCustomReportRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
-import { CreateCustomReportUseCase } from "@core/application/custom-reports/CreateCustomReportUseCase.js";
-import { UpdateCustomReportUseCase } from "@core/application/custom-reports/UpdateCustomReportUseCase.js";
-import { DeleteCustomReportUseCase } from "@core/application/custom-reports/DeleteCustomReportUseCase.js";
-import { ListCustomReportsQuery } from "@core/application/custom-reports/ListCustomReportsQuery.js";
-import { GetCustomReportQuery } from "@core/application/custom-reports/GetCustomReportQuery.js";
-import { RunCustomReportQuery } from "@core/application/custom-reports/RunCustomReportQuery.js";
-import { ScheduleCustomReportUseCase } from "@core/application/custom-reports/ScheduleCustomReportUseCase.js";
+import { CreateCustomReportUseCase } from "@core/custom-reports/CreateCustomReportUseCase.js";
+import { UpdateCustomReportUseCase } from "@core/custom-reports/UpdateCustomReportUseCase.js";
+import { DeleteCustomReportUseCase } from "@core/custom-reports/DeleteCustomReportUseCase.js";
+import { ListCustomReportsQuery } from "@core/custom-reports/ListCustomReportsQuery.js";
+import { GetCustomReportQuery } from "@core/custom-reports/GetCustomReportQuery.js";
+import { RunCustomReportQuery } from "@core/custom-reports/RunCustomReportQuery.js";
+import { ScheduleCustomReportUseCase } from "@core/custom-reports/ScheduleCustomReportUseCase.js";
 import { PrismaAnalyticsAggregationQuery } from "../repositories/PrismaAnalyticsAggregationQuery.js";
 
 /**

@@ -11,11 +11,11 @@ import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.
 import { IdSchema } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
-import type { CreateTrackedLinkUseCase } from "@core/application/links/CreateTrackedLinkUseCase.js";
-import type { GetTrackedLinkUseCase } from "@core/application/links/GetTrackedLinkUseCase.js";
-import type { RedirectAndTrackClickUseCase } from "@core/application/links/RedirectAndTrackClickUseCase.js";
-import type { GetLinkStatsUseCase } from "@core/application/links/GetLinkStatsUseCase.js";
-import type { DeleteTrackedLinkUseCase } from "@core/application/links/DeleteTrackedLinkUseCase.js";
+import type { CreateTrackedLinkUseCase } from "@core/links/CreateTrackedLinkUseCase.js";
+import type { GetTrackedLinkUseCase } from "@core/links/GetTrackedLinkUseCase.js";
+import type { RedirectAndTrackClickUseCase } from "@core/links/RedirectAndTrackClickUseCase.js";
+import type { GetLinkStatsUseCase } from "@core/links/GetLinkStatsUseCase.js";
+import type { DeleteTrackedLinkUseCase } from "@core/links/DeleteTrackedLinkUseCase.js";
 
 // Zod Schemas
 const CreateLinkBodySchema = z.object({

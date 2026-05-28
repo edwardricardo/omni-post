@@ -1,12 +1,10 @@
 /**
  * @file index.ts
- * @description Barrel for the `listening` bounded context (`@core/listening`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel for `listening` bounded context (`@core/listening`).
+ *   Auto-generated during §5.1.b extraction.
  * @layer application
  */
-
-export {};
+export * from "./DispatchMentionSearchUseCase.js";
+export * from "./GetShareOfVoiceQuery.js";
+export * from "./IngestMentionUseCase.js";
+export * from "./ListMentionsQuery.js";

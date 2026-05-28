@@ -11,12 +11,12 @@ import type { PasswordHasher } from "@core/domain/repositories/PasswordHasher.js
 import type { IntegrationSubscriptionRepository } from "@core/domain/repositories/IntegrationSubscriptionRepository.js";
 import { PrismaIntegrationApiKeyRepository } from "../repositories/PrismaIntegrationApiKeyRepository.js";
 import { PrismaIntegrationSubscriptionRepository } from "../repositories/PrismaIntegrationSubscriptionRepository.js";
-import { GenerateIntegrationApiKeyUseCase } from "@core/application/integrations/GenerateIntegrationApiKeyUseCase.js";
-import { RevokeIntegrationApiKeyUseCase } from "@core/application/integrations/RevokeIntegrationApiKeyUseCase.js";
-import { ListIntegrationApiKeysQuery } from "@core/application/integrations/ListIntegrationApiKeysQuery.js";
-import { SubscribeIntegrationTriggerUseCase } from "@core/application/integrations/SubscribeIntegrationTriggerUseCase.js";
-import { UnsubscribeIntegrationTriggerUseCase } from "@core/application/integrations/UnsubscribeIntegrationTriggerUseCase.js";
-import { TriggerIntegrationEventService } from "@core/application/integrations/TriggerIntegrationEventService.js";
+import { GenerateIntegrationApiKeyUseCase } from "@core/integrations/GenerateIntegrationApiKeyUseCase.js";
+import { RevokeIntegrationApiKeyUseCase } from "@core/integrations/RevokeIntegrationApiKeyUseCase.js";
+import { ListIntegrationApiKeysQuery } from "@core/integrations/ListIntegrationApiKeysQuery.js";
+import { SubscribeIntegrationTriggerUseCase } from "@core/integrations/SubscribeIntegrationTriggerUseCase.js";
+import { UnsubscribeIntegrationTriggerUseCase } from "@core/integrations/UnsubscribeIntegrationTriggerUseCase.js";
+import { TriggerIntegrationEventService } from "@core/integrations/TriggerIntegrationEventService.js";
 import { IntegrationEventDeliveryHandler } from "../../integrations/IntegrationEventDeliveryHandler.js";
 
 /**

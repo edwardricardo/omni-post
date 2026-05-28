@@ -13,7 +13,7 @@
  */
 
 import { ok, err, type Result } from "@shared/types";
-import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
+import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
 import type { BrandVoiceRepository } from "@core/domain/repositories/BrandVoiceRepository.js";
 import type { SemanticRetrievalPort } from "@core/domain/repositories/SemanticRetrievalPort.js";

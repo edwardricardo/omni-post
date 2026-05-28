@@ -12,10 +12,10 @@ import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.
 import { IdSchema } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
-import type { ConfigureExternalNotificationUseCase } from "@core/application/external-notifications/ConfigureExternalNotificationUseCase.js";
-import type { ListExternalNotificationsQuery } from "@core/application/external-notifications/ListExternalNotificationsQuery.js";
-import type { DeleteExternalNotificationUseCase } from "@core/application/external-notifications/DeleteExternalNotificationUseCase.js";
-import type { TestExternalNotificationUseCase } from "@core/application/external-notifications/TestExternalNotificationUseCase.js";
+import type { ConfigureExternalNotificationUseCase } from "@core/external-notifications/ConfigureExternalNotificationUseCase.js";
+import type { ListExternalNotificationsQuery } from "@core/external-notifications/ListExternalNotificationsQuery.js";
+import type { DeleteExternalNotificationUseCase } from "@core/external-notifications/DeleteExternalNotificationUseCase.js";
+import type { TestExternalNotificationUseCase } from "@core/external-notifications/TestExternalNotificationUseCase.js";
 
 // ---- Zod Schemas ----
 

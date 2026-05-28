@@ -28,7 +28,7 @@ import { Permission } from "@core/domain/auth/Permission.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { PrismaClient } from "@infra/prisma";
 import { BlueskyClient } from "@providers/bluesky";
-import { SetPrimaryChannelUseCase } from "@core/application/channels/index.js";
+import { SetPrimaryChannelUseCase } from "@core/channels/index.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 
 // ─── Schemas ────────────────────────────────────────────────────────────────

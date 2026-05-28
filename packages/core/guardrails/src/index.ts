@@ -1,12 +1,7 @@
 /**
  * @file index.ts
- * @description Barrel for the `guardrails` bounded context (`@core/guardrails`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel for `guardrails` bounded context (`@core/guardrails`).
+ *   Auto-generated during §5.1.b extraction.
  * @layer application
  */
-
-export {};
+export * from "./GuardrailRegistry.js";

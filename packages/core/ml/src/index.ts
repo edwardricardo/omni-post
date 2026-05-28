@@ -1,12 +1,25 @@
 /**
  * @file index.ts
- * @description Barrel for the `ml` bounded context (`@core/ml`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel export for ML use cases (content optimization, timing prediction) and shared type definitions.
  * @layer application
  */
 
-export {};
+// Types
+export type {
+  MLProvider,
+  ContentType,
+  OptimizationGoal,
+  // OptimizeContent types
+  OptimizeContentInput,
+  OptimizeContentOutput,
+  ContentVariation,
+  // PredictTiming types
+  PredictTimingInput,
+  PredictTimingOutput,
+  OptimalTimeSlot,
+  ActivityPattern,
+} from "./types.js";
+
+// Use Cases
+export { OptimizeContentUseCase } from "./OptimizeContentUseCase.js";
+export { PredictOptimalTimingUseCase } from "./PredictOptimalTimingUseCase.js";

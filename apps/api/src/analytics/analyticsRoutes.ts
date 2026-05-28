@@ -24,7 +24,7 @@ import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/Proje
 import type {
   CalculateROIUseCase,
   GetCrossPlatformAnalyticsUseCase,
-} from "@core/application/analytics/index.js";
+} from "@core/analytics/index.js";
 // Future: GeoAnalyticsService — deleted (100% fake geographic distribution)
 import { TOKENS } from "../infrastructure/container/types.js";
 

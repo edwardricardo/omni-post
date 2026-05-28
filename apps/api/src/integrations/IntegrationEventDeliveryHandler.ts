@@ -15,7 +15,7 @@
  */
 
 import type { DomainEvent, DomainEventHandler } from "@core/domain/events/DomainEvent.js";
-import type { TriggerIntegrationEventService } from "@core/application/integrations/TriggerIntegrationEventService.js";
+import type { TriggerIntegrationEventService } from "@core/integrations/TriggerIntegrationEventService.js";
 import { logger } from "../lib/logger.js";
 
 /**

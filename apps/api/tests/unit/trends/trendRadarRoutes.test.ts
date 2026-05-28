@@ -29,7 +29,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { ok, err } from "@shared/types";
 import { Container } from "../../../src/infrastructure/container/Container.js";
 import { TOKENS } from "../../../src/infrastructure/container/types.js";
-import type { GetTrendRadarQuery } from "@core/application/trends/GetTrendRadarQuery.js";
+import type { GetTrendRadarQuery } from "@core/trends/GetTrendRadarQuery.js";
 import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 
 function makeQuery(

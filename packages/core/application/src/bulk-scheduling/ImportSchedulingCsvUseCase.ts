@@ -13,7 +13,7 @@
 import { randomUUID } from "node:crypto";
 import { type Result, ok, err } from "@shared/types";
 import type { QueuePort, QueueJob } from "@ports/core";
-import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
+import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
 import type {

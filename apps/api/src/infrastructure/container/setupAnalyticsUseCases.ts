@@ -18,11 +18,11 @@ import {
   GetCrossPlatformAnalyticsUseCase,
   ComparePerformanceUseCase,
   CalculateROIUseCase,
-} from "@core/application/analytics/index.js";
+} from "@core/analytics/index.js";
 import { CrossPlatformAnalyticsAdapter } from "../adapters/CrossPlatformAnalyticsAdapter.js";
 import { PerformanceComparatorAdapter } from "../adapters/PerformanceComparatorAdapter.js";
 import { ROICalculatorAdapter } from "../adapters/ROICalculatorAdapter.js";
-import { OptimizeContentUseCase, PredictOptimalTimingUseCase } from "@core/application/ml/index.js";
+import { OptimizeContentUseCase, PredictOptimalTimingUseCase } from "@core/ml/index.js";
 import {
   CreateCampaignUseCase,
   UpdateCampaignUseCase,
@@ -32,14 +32,14 @@ import {
   GetCampaignAnalyticsUseCase,
   ListCampaignsQuery,
   GetCampaignQuery,
-} from "@core/application/campaigns/index.js";
-import { GetHistoricalAnalyticsQuery } from "@core/application/analytics/GetHistoricalAnalyticsQuery.js";
-import { GenerateUTMLinksUseCase } from "@core/application/utm/index.js";
+} from "@core/campaigns/index.js";
+import { GetHistoricalAnalyticsQuery } from "@core/analytics/GetHistoricalAnalyticsQuery.js";
+import { GenerateUTMLinksUseCase } from "@core/utm/index.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { AnalyticsWriteRepository } from "@core/domain/repositories/AnalyticsWriteRepository.js";
 import type { ChannelQueryForIngestion } from "@core/domain/repositories/ChannelQueryForIngestion.js";
-import { IngestChannelAnalyticsUseCase } from "@core/application/analytics/IngestChannelAnalyticsUseCase.js";
-import { DispatchAnalyticsIngestionUseCase } from "@core/application/analytics/DispatchAnalyticsIngestionUseCase.js";
+import { IngestChannelAnalyticsUseCase } from "@core/analytics/IngestChannelAnalyticsUseCase.js";
+import { DispatchAnalyticsIngestionUseCase } from "@core/analytics/DispatchAnalyticsIngestionUseCase.js";
 import { PrismaAnalyticsWriteRepository } from "../repositories/PrismaAnalyticsWriteRepository.js";
 import { PrismaChannelQueryForIngestion } from "../repositories/PrismaChannelQueryForIngestion.js";
 import { PrismaTopPerformersQuery } from "../repositories/PrismaTopPerformersQuery.js";

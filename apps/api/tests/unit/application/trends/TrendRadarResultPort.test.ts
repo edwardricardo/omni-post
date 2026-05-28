@@ -16,8 +16,8 @@ import {
   TREND_SOURCE_TO_ENUM,
   type TrendRadarProvider,
   type TrendRadarSourceEnum,
-} from "@core/application/trends/TrendRadarResultPort.js";
-import type { TrendSource } from "@core/application/trends/FetchTrendingTopicsUseCase.js";
+} from "@core/trends/TrendRadarResultPort.js";
+import type { TrendSource } from "@core/trends/FetchTrendingTopicsUseCase.js";
 
 describe("TrendRadarResultPort — TREND_RADAR_PROVIDERS", () => {
   it("contains exactly the 11 canonical providers in SCREAMING_SNAKE form", () => {

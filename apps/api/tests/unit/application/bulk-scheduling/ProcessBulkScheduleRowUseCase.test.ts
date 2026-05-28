@@ -15,8 +15,8 @@ import type {
   BulkScheduleItemState,
 } from "@core/domain/repositories/BulkScheduleBatchRepository.js";
 import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
-import type { CreatePostUseCase } from "@core/application/posts/CreatePostUseCase.js";
-import type { SchedulePostUseCase } from "@core/application/posts/SchedulePostUseCase.js";
+import type { CreatePostUseCase } from "@core/posts/CreatePostUseCase.js";
+import type { SchedulePostUseCase } from "@core/posts/SchedulePostUseCase.js";
 import type { Channel } from "@core/domain/entities/Channel.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 

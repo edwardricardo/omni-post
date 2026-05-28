@@ -6,8 +6,8 @@
  * @layer infrastructure
  */
 import type { CachePort } from "@ports/core";
-import type { PerformanceComparatorPort } from "@core/application/analytics/ComparePerformanceUseCase.js";
-import type { PerformanceSnapshot } from "@core/application/analytics/types.js";
+import type { PerformanceComparatorPort } from "@core/analytics/ComparePerformanceUseCase.js";
+import type { PerformanceSnapshot } from "@core/analytics/types.js";
 import { PerformanceComparator } from "../../analytics/performanceComparison/index.js";
 import type { PerformanceComparisonOptions } from "../../analytics/performanceComparison/types.js";
 import type { TimeRange, ProviderType, MetricType } from "@shared/analytics";

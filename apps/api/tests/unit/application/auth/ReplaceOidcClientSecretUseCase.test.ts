@@ -13,7 +13,7 @@ import { ok, err } from "@shared/types";
 import {
   ReplaceOidcClientSecretUseCase,
   type OidcHandshakeProbe,
-} from "@core/application/auth/ReplaceOidcClientSecretUseCase.js";
+} from "@core/auth/ReplaceOidcClientSecretUseCase.js";
 import type {
   OidcConfigurationRepository,
   OidcConfigurationData,

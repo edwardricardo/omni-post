@@ -1,12 +1,15 @@
 /**
  * @file index.ts
- * @description Barrel for the `compliance` bounded context (`@core/compliance`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Per-context barrel for compliance. Exposes the
+ *   `ComplianceService` (GDPR/LGPD/CCPA/PIPEDA settings + DSAR + breach
+ *   reports) alongside the `DataRetentionService` (scheduled cleanup).
  * @layer application
  */
 
-export {};
+export {
+  ComplianceService,
+  type ComplianceError,
+  type ComplianceCheck,
+  type ComplianceScoreResult,
+} from "./ComplianceService.js";
+export { DataRetentionService } from "./DataRetentionService.js";

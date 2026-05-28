@@ -10,11 +10,11 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { SubmitForReviewUseCase } from "@core/application/approvals/SubmitForReviewUseCase.js";
-import type { ApprovePostUseCase } from "@core/application/approvals/ApprovePostUseCase.js";
-import type { RejectPostUseCase } from "@core/application/approvals/RejectPostUseCase.js";
-import type { GetApprovalHistoryQuery } from "@core/application/approvals/GetApprovalHistoryQuery.js";
-import type { GetPendingApprovalsQuery } from "@core/application/approvals/GetPendingApprovalsQuery.js";
+import type { SubmitForReviewUseCase } from "@core/approvals/SubmitForReviewUseCase.js";
+import type { ApprovePostUseCase } from "@core/approvals/ApprovePostUseCase.js";
+import type { RejectPostUseCase } from "@core/approvals/RejectPostUseCase.js";
+import type { GetApprovalHistoryQuery } from "@core/approvals/GetApprovalHistoryQuery.js";
+import type { GetPendingApprovalsQuery } from "@core/approvals/GetPendingApprovalsQuery.js";
 
 // --- Zod Schemas ---
 

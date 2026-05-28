@@ -7,7 +7,7 @@
  */
 
 import { type Result, ok, err } from "@shared/types";
-import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
+import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { type ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
 import { ChannelId } from "@core/domain/value-objects/EntityId.js";
 import { type IngestSocialMessageUseCase } from "./IngestSocialMessageUseCase.js";

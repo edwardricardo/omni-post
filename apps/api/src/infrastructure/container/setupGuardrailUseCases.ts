@@ -17,7 +17,7 @@ import { TOKENS } from "./types.js";
 import type { GuardrailPort } from "@core/domain/repositories/GuardrailPort.js";
 import { ContentPolicyGuardrail } from "../guardrails/ContentPolicyGuardrail.js";
 import { PIIRedactionGuardrail } from "../guardrails/PIIRedactionGuardrail.js";
-import { GuardrailRegistry } from "@core/application/guardrails/GuardrailRegistry.js";
+import { GuardrailRegistry } from "@core/guardrails/GuardrailRegistry.js";
 import { createGuardrailMetrics } from "../../metrics/guardrailMetrics.js";
 
 /**

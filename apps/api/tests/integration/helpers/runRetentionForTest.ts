@@ -13,7 +13,7 @@
  * @layer infrastructure
  */
 import { prisma } from "@infra/prisma";
-import { DataRetentionService } from "@core/application/compliance/DataRetentionService.js";
+import { DataRetentionService } from "@core/compliance/DataRetentionService.js";
 import { PrismaGdprSettingsRepository } from "../../../src/infrastructure/repositories/PrismaGdprSettingsRepository.js";
 import { PrismaAuditLogRetentionRepository } from "../../../src/infrastructure/repositories/PrismaAuditLogRetentionRepository.js";
 import { PrismaDsarRequestRepository } from "../../../src/infrastructure/repositories/PrismaDsarRequestRepository.js";

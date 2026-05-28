@@ -7,7 +7,7 @@
  *
  *   Resolves §5.1 cross-context violation `settings -> security`
  *   (SettingsService type-imported PlatformCredentialService from
- *   `@core/application/security`). The `settings` context used to depend on
+ *   `@core/security`). The `settings` context used to depend on
  *   a security implementation type; now it depends on this port and the
  *   composition root injects the security adapter.
  *

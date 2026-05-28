@@ -7,7 +7,7 @@
  */
 
 import { type Result, ok, err } from "@shared/types";
-import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
+import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { type SocialConversationRepository } from "@core/domain/repositories/SocialConversationRepository.js";
 import { SocialConversationId } from "@core/domain/value-objects/SocialConversationId.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";

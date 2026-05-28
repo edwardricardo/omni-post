@@ -1,12 +1,15 @@
 /**
  * @file index.ts
- * @description Barrel for the `links` bounded context (`@core/links`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel export for link tracking use cases including create, get, redirect, stats, and delete operations.
  * @layer application
  */
 
-export {};
+// Types
+export * from "./types.js";
+
+// Use Cases
+export { CreateTrackedLinkUseCase } from "./CreateTrackedLinkUseCase.js";
+export { GetTrackedLinkUseCase } from "./GetTrackedLinkUseCase.js";
+export { RedirectAndTrackClickUseCase } from "./RedirectAndTrackClickUseCase.js";
+export { GetLinkStatsUseCase } from "./GetLinkStatsUseCase.js";
+export { DeleteTrackedLinkUseCase } from "./DeleteTrackedLinkUseCase.js";

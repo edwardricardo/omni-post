@@ -18,7 +18,7 @@ import {
   type GetAnalyticsInput,
   type ComparePerformanceInput,
   type CalculateROIInput,
-} from "@core/application/analytics/index.js";
+} from "@core/analytics/index.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 
 function createMocks() {

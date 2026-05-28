@@ -11,10 +11,7 @@
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import { MultiSourceTrendingDataAdapter } from "../../../../src/infrastructure/repositories/MultiSourceTrendingDataAdapter.js";
-import type {
-  TrendingDataPort,
-  TrendingTopic,
-} from "@core/application/trends/FetchTrendingTopicsUseCase.js";
+import type { TrendingDataPort, TrendingTopic } from "@core/trends/FetchTrendingTopicsUseCase.js";
 
 function topic(overrides: Partial<TrendingTopic>): TrendingTopic {
   return {

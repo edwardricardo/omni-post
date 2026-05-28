@@ -7,7 +7,7 @@
  */
 
 import { MentionParser } from "@core/domain/services/MentionParser.js";
-import type { CreateNotificationUseCase } from "../notifications/CreateNotificationUseCase.js";
+import type { CreateNotificationUseCase } from "@core/notifications/CreateNotificationUseCase.js";
 import { NOTIFICATION_TYPES } from "@core/domain/value-objects/NotificationType.js";
 
 /**

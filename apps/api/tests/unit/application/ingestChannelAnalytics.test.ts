@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import {
   IngestChannelAnalyticsUseCase,
   INGEST_ERRORS,
-} from "@core/application/analytics/IngestChannelAnalyticsUseCase.js";
+} from "@core/analytics/IngestChannelAnalyticsUseCase.js";
 import { ok, err } from "@shared/types";
 
 function makeChannel(overrides: Record<string, unknown> = {}) {

@@ -11,10 +11,10 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { CreateCommentUseCase } from "@core/application/comments/CreateCommentUseCase.js";
-import type { EditCommentUseCase } from "@core/application/comments/EditCommentUseCase.js";
-import type { DeleteCommentUseCase } from "@core/application/comments/DeleteCommentUseCase.js";
-import type { GetPostCommentsQuery } from "@core/application/comments/GetPostCommentsQuery.js";
+import type { CreateCommentUseCase } from "@core/comments/CreateCommentUseCase.js";
+import type { EditCommentUseCase } from "@core/comments/EditCommentUseCase.js";
+import type { DeleteCommentUseCase } from "@core/comments/DeleteCommentUseCase.js";
+import type { GetPostCommentsQuery } from "@core/comments/GetPostCommentsQuery.js";
 
 // --- Zod Schemas ---
 

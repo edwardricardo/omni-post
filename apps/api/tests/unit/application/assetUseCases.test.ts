@@ -8,14 +8,14 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { CreateMediaAssetUseCase } from "@core/application/assets/CreateMediaAssetUseCase.js";
-import { UpdateMediaAssetUseCase } from "@core/application/assets/UpdateMediaAssetUseCase.js";
-import { DeleteMediaAssetUseCase } from "@core/application/assets/DeleteMediaAssetUseCase.js";
-import { TagMediaAssetUseCase } from "@core/application/assets/TagMediaAssetUseCase.js";
-import { GetMediaAssetsQuery } from "@core/application/assets/GetMediaAssetsQuery.js";
-import { CreateAssetTagUseCase } from "@core/application/assets/CreateAssetTagUseCase.js";
-import { ListAssetTagsQuery } from "@core/application/assets/ListAssetTagsQuery.js";
-import { CreateAssetFolderUseCase } from "@core/application/assets/CreateAssetFolderUseCase.js";
+import { CreateMediaAssetUseCase } from "@core/assets/CreateMediaAssetUseCase.js";
+import { UpdateMediaAssetUseCase } from "@core/assets/UpdateMediaAssetUseCase.js";
+import { DeleteMediaAssetUseCase } from "@core/assets/DeleteMediaAssetUseCase.js";
+import { TagMediaAssetUseCase } from "@core/assets/TagMediaAssetUseCase.js";
+import { GetMediaAssetsQuery } from "@core/assets/GetMediaAssetsQuery.js";
+import { CreateAssetTagUseCase } from "@core/assets/CreateAssetTagUseCase.js";
+import { ListAssetTagsQuery } from "@core/assets/ListAssetTagsQuery.js";
+import { CreateAssetFolderUseCase } from "@core/assets/CreateAssetFolderUseCase.js";
 import { MediaAsset } from "@core/domain/entities/MediaAsset.js";
 import { type MediaAssetRepository } from "@core/domain/repositories/MediaAssetRepository.js";
 import {

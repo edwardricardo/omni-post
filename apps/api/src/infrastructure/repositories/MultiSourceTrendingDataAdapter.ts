@@ -14,7 +14,7 @@ import type {
   TrendingDataPort,
   TrendingTopic,
   FetchTrendingInput,
-} from "@core/application/trends/FetchTrendingTopicsUseCase.js";
+} from "@core/trends/FetchTrendingTopicsUseCase.js";
 
 const logger = createLogger("multi-source-trending");
 

@@ -8,7 +8,7 @@
 
 import { describe, it, vi } from "vitest";
 import assert from "node:assert/strict";
-import { GetUsageUseCase } from "@core/application/usage/GetUsageUseCase.js";
+import { GetUsageUseCase } from "@core/usage/GetUsageUseCase.js";
 
 function makeContext(overrides: Record<string, unknown> = {}) {
   return {

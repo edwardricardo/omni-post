@@ -15,14 +15,14 @@
  */
 
 import { type Result, ok, err } from "@shared/types";
-import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
+import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { ProjectId } from "@core/domain/index.js";
 import { Provider } from "@core/domain/value-objects/Provider.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
 import type { BulkScheduleBatchRepository } from "@core/domain/repositories/BulkScheduleBatchRepository.js";
-import type { CreatePostUseCase } from "../posts/CreatePostUseCase.js";
-import type { SchedulePostUseCase } from "../posts/SchedulePostUseCase.js";
+import type { CreatePostUseCase } from "@core/posts/CreatePostUseCase.js";
+import type { SchedulePostUseCase } from "@core/posts/SchedulePostUseCase.js";
 
 /** Validated row payload carried by the BullMQ job. */
 export interface ProcessBulkScheduleRowInput {

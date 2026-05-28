@@ -1,12 +1,11 @@
 /**
  * @file index.ts
- * @description Barrel for the `utm` bounded context (`@core/utm`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Application Layer - UTM use case exports.
  * @layer application
  */
 
-export {};
+export {
+  GenerateUTMLinksUseCase,
+  type GenerateUTMLinksInput,
+  type GenerateUTMLinksOutput,
+} from "./GenerateUTMLinksUseCase.js";

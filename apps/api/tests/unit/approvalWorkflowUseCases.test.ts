@@ -8,10 +8,10 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok, err } from "@shared/types";
-import { CreateApprovalWorkflowUseCase } from "@core/application/approvals/CreateApprovalWorkflowUseCase.js";
-import { UpdateApprovalWorkflowUseCase } from "@core/application/approvals/UpdateApprovalWorkflowUseCase.js";
-import { DeleteApprovalWorkflowUseCase } from "@core/application/approvals/DeleteApprovalWorkflowUseCase.js";
-import { ListApprovalWorkflowsQuery } from "@core/application/approvals/ListApprovalWorkflowsQuery.js";
+import { CreateApprovalWorkflowUseCase } from "@core/approvals/CreateApprovalWorkflowUseCase.js";
+import { UpdateApprovalWorkflowUseCase } from "@core/approvals/UpdateApprovalWorkflowUseCase.js";
+import { DeleteApprovalWorkflowUseCase } from "@core/approvals/DeleteApprovalWorkflowUseCase.js";
+import { ListApprovalWorkflowsQuery } from "@core/approvals/ListApprovalWorkflowsQuery.js";
 import { ApprovalWorkflow } from "@core/domain/entities/ApprovalWorkflow.js";
 import { EntityNotFoundError } from "@core/domain/errors/index.js";
 import type { ApprovalWorkflowRepository } from "@core/domain/repositories/ApprovalWorkflowRepository.js";

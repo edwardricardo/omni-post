@@ -13,7 +13,7 @@ import type { FastifyRequest, FastifyReply } from "fastify";
 import { ok, err } from "@shared/types";
 import { apiKeyAdminRoutes } from "../../../src/admin/apiKeyAdminRoutes.js";
 import { TOKENS } from "../../../src/infrastructure/container/types.js";
-import type { RotateApiKeyUseCase } from "@core/application/apiKeys/ApiKeyUseCases.js";
+import type { RotateApiKeyUseCase } from "@core/apiKeys/ApiKeyUseCases.js";
 import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 
 const KEY_ID = "ak-uuid-789";

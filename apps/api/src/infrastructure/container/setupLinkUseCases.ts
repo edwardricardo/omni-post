@@ -15,7 +15,7 @@ import {
   RedirectAndTrackClickUseCase,
   GetLinkStatsUseCase,
   DeleteTrackedLinkUseCase,
-} from "@core/application/links/index.js";
+} from "@core/links/index.js";
 
 /**
  * Register all tracked link use cases in the container

@@ -7,7 +7,7 @@
 
 import { describe, it, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { RunCustomReportQuery } from "@core/application/custom-reports/RunCustomReportQuery.js";
+import { RunCustomReportQuery } from "@core/custom-reports/RunCustomReportQuery.js";
 import { ok, err } from "@shared/types";
 
 function makeReportDto(overrides: Record<string, unknown> = {}) {

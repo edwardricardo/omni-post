@@ -26,13 +26,13 @@ import { z } from "zod";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { integrationAuthMiddleware } from "../auth/integrationAuthMiddleware.js";
-import type { ListIntegrationApiKeysQuery } from "@core/application/integrations/ListIntegrationApiKeysQuery.js";
-import type { GenerateIntegrationApiKeyUseCase } from "@core/application/integrations/GenerateIntegrationApiKeyUseCase.js";
-import type { RevokeIntegrationApiKeyUseCase } from "@core/application/integrations/RevokeIntegrationApiKeyUseCase.js";
-import type { SubscribeIntegrationTriggerUseCase } from "@core/application/integrations/SubscribeIntegrationTriggerUseCase.js";
-import type { UnsubscribeIntegrationTriggerUseCase } from "@core/application/integrations/UnsubscribeIntegrationTriggerUseCase.js";
-import type { CreatePostUseCase } from "@core/application/posts/CreatePostUseCase.js";
-import type { SchedulePostUseCase } from "@core/application/posts/SchedulePostUseCase.js";
+import type { ListIntegrationApiKeysQuery } from "@core/integrations/ListIntegrationApiKeysQuery.js";
+import type { GenerateIntegrationApiKeyUseCase } from "@core/integrations/GenerateIntegrationApiKeyUseCase.js";
+import type { RevokeIntegrationApiKeyUseCase } from "@core/integrations/RevokeIntegrationApiKeyUseCase.js";
+import type { SubscribeIntegrationTriggerUseCase } from "@core/integrations/SubscribeIntegrationTriggerUseCase.js";
+import type { UnsubscribeIntegrationTriggerUseCase } from "@core/integrations/UnsubscribeIntegrationTriggerUseCase.js";
+import type { CreatePostUseCase } from "@core/posts/CreatePostUseCase.js";
+import type { SchedulePostUseCase } from "@core/posts/SchedulePostUseCase.js";
 import type { PrismaClient } from "@infra/prisma";
 
 // ============================================================================

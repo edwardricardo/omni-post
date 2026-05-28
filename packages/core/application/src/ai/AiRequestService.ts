@@ -12,7 +12,7 @@
  */
 import { ok, err, type Result } from "@shared/types";
 import { createLogger } from "@observability/logger";
-import type { PlatformCredentialService } from "../security/PlatformCredentialService.js";
+import type { PlatformCredentialService } from "@core/security/PlatformCredentialService.js";
 import type { AIProviderName, AIResponse, AITask } from "@core/domain/ai/AIContracts.js";
 import type { AIRequestExecutorPort } from "@core/domain/repositories/AIRequestExecutorPort.js";
 import type { AccountSubscriptionBillingRepository } from "@core/domain/repositories/AccountSubscriptionBillingRepository.js";

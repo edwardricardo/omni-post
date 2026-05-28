@@ -6,7 +6,7 @@
  */
 
 import { type Result, ok } from "@shared/types";
-import { type UseCase, type UseCaseError } from "../UseCase.js";
+import { type UseCase, type UseCaseError } from "@core/application/UseCase.js";
 import {
   type SocialMessageQueryRepository,
   type CursorPaginatedResult,

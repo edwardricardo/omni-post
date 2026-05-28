@@ -1,12 +1,26 @@
 /**
  * @file index.ts
- * @description Barrel for the `team` bounded context (`@core/team`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel export for all team-related use cases and queries.
  * @layer application
  */
 
-export {};
+export { InviteTeamMemberUseCase, type InviteTeamMemberInput } from "./InviteTeamMemberUseCase.js";
+
+export {
+  GetTeamMembersQuery,
+  type GetTeamMembersInput,
+  type TeamMemberDTO,
+} from "./GetTeamMembersQuery.js";
+
+export {
+  UpdateTeamMemberRoleUseCase,
+  type UpdateTeamMemberRoleInput,
+} from "./UpdateTeamMemberRoleUseCase.js";
+
+export { RemoveTeamMemberUseCase, type RemoveTeamMemberInput } from "./RemoveTeamMemberUseCase.js";
+
+export {
+  SearchTeamMembersQuery,
+  type SearchTeamMembersInput,
+  type TeamMemberSearchResult,
+} from "./SearchTeamMembersQuery.js";

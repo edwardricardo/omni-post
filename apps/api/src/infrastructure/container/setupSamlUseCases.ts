@@ -13,15 +13,15 @@ import { PrismaOidcConfigurationRepository } from "../repositories/PrismaOidcCon
 import type { EncryptionService } from "../../security/EncryptionService.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { AccountQueryRepositoryPort } from "@core/domain/repositories/AccountQueryRepository.js";
-import { ConfigureSamlUseCase } from "@core/application/auth/ConfigureSamlUseCase.js";
-import { EnableSsoUseCase } from "@core/application/auth/EnableSsoUseCase.js";
-import { DisableSsoUseCase } from "@core/application/auth/DisableSsoUseCase.js";
-import { GetSamlConfigurationQuery } from "@core/application/auth/GetSamlConfigurationQuery.js";
-import { ConfigureOidcUseCase } from "@core/application/auth/ConfigureOidcUseCase.js";
-import { EnableOidcSsoUseCase } from "@core/application/auth/EnableOidcSsoUseCase.js";
-import { DisableOidcSsoUseCase } from "@core/application/auth/DisableOidcSsoUseCase.js";
-import { GetOidcConfigurationQuery } from "@core/application/auth/GetOidcConfigurationQuery.js";
-import { ReplaceOidcClientSecretUseCase } from "@core/application/auth/ReplaceOidcClientSecretUseCase.js";
+import { ConfigureSamlUseCase } from "@core/auth/ConfigureSamlUseCase.js";
+import { EnableSsoUseCase } from "@core/auth/EnableSsoUseCase.js";
+import { DisableSsoUseCase } from "@core/auth/DisableSsoUseCase.js";
+import { GetSamlConfigurationQuery } from "@core/auth/GetSamlConfigurationQuery.js";
+import { ConfigureOidcUseCase } from "@core/auth/ConfigureOidcUseCase.js";
+import { EnableOidcSsoUseCase } from "@core/auth/EnableOidcSsoUseCase.js";
+import { DisableOidcSsoUseCase } from "@core/auth/DisableOidcSsoUseCase.js";
+import { GetOidcConfigurationQuery } from "@core/auth/GetOidcConfigurationQuery.js";
+import { ReplaceOidcClientSecretUseCase } from "@core/auth/ReplaceOidcClientSecretUseCase.js";
 import { OpenidClientHandshakeProbe } from "../auth/OpenidClientHandshakeProbe.js";
 
 /**

@@ -15,9 +15,9 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
-import type { GetBrandVoiceQuery } from "@core/application/brand-voice/GetBrandVoiceQuery.js";
-import type { UpsertBrandVoiceUseCase } from "@core/application/brand-voice/UpsertBrandVoiceUseCase.js";
-import type { DeleteBrandVoiceUseCase } from "@core/application/brand-voice/DeleteBrandVoiceUseCase.js";
+import type { GetBrandVoiceQuery } from "@core/brand-voice/GetBrandVoiceQuery.js";
+import type { UpsertBrandVoiceUseCase } from "@core/brand-voice/UpsertBrandVoiceUseCase.js";
+import type { DeleteBrandVoiceUseCase } from "@core/brand-voice/DeleteBrandVoiceUseCase.js";
 
 // ============================================================================
 // Schemas

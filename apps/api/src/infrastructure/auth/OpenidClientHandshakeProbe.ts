@@ -21,7 +21,7 @@ import * as openidClient from "openid-client";
 import type {
   OidcHandshakeProbe,
   OidcHandshakeResult,
-} from "@core/application/auth/ReplaceOidcClientSecretUseCase.js";
+} from "@core/auth/ReplaceOidcClientSecretUseCase.js";
 
 export class OpenidClientHandshakeProbe implements OidcHandshakeProbe {
   async discover(input: {

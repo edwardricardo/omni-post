@@ -6,10 +6,7 @@
  */
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import {
-  SetPrimaryChannelUseCase,
-  UpdateChannelAuthStateUseCase,
-} from "@core/application/channels/index.js";
+import { SetPrimaryChannelUseCase, UpdateChannelAuthStateUseCase } from "@core/channels/index.js";
 import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 

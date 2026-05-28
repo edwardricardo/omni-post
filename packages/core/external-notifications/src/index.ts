@@ -1,12 +1,20 @@
 /**
  * @file index.ts
- * @description Barrel for the `external-notifications` bounded context (`@core/external-notifications`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel exports for external notification use cases.
  * @layer application
  */
 
-export {};
+export { ConfigureExternalNotificationUseCase } from "./ConfigureExternalNotificationUseCase.js";
+export type {
+  ConfigureExternalNotificationInput,
+  ExternalNotificationConfigOutput,
+} from "./ConfigureExternalNotificationUseCase.js";
+
+export { ListExternalNotificationsQuery } from "./ListExternalNotificationsQuery.js";
+export type { ListExternalNotificationsInput } from "./ListExternalNotificationsQuery.js";
+
+export { DeleteExternalNotificationUseCase } from "./DeleteExternalNotificationUseCase.js";
+export type { DeleteExternalNotificationInput } from "./DeleteExternalNotificationUseCase.js";
+
+export { TestExternalNotificationUseCase } from "./TestExternalNotificationUseCase.js";
+export type { TestExternalNotificationInput } from "./TestExternalNotificationUseCase.js";

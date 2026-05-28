@@ -5,7 +5,7 @@
  */
 
 import { type Result, ok } from "@shared/types";
-import { type UseCase, UseCaseError } from "../UseCase.js";
+import { type UseCase, UseCaseError } from "@core/application/UseCase.js";
 import type { RecurringPostRepository } from "@core/domain/repositories/RecurringPostRepository.js";
 
 /**

@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { GenerateUTMLinksUseCase } from "@core/application/utm/GenerateUTMLinksUseCase.js";
+import { GenerateUTMLinksUseCase } from "@core/utm/GenerateUTMLinksUseCase.js";
 import { TrackedLinkId } from "@core/domain/value-objects/EntityId.js";
 
 // Mock TrackedLink entity

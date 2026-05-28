@@ -10,7 +10,7 @@ import {
   NotifyMentionedUsersService,
   MENTION_CONTEXT,
 } from "@core/application/mentions/NotifyMentionedUsersService.js";
-import type { CreateNotificationUseCase } from "@core/application/notifications/CreateNotificationUseCase.js";
+import type { CreateNotificationUseCase } from "@core/notifications/CreateNotificationUseCase.js";
 import { ok } from "@shared/types";
 
 /**

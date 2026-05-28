@@ -7,7 +7,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok, err, type Result } from "@shared/types";
-import { PlatformCredentialService } from "@core/application/security/PlatformCredentialService.js";
+import { PlatformCredentialService } from "@core/security/PlatformCredentialService.js";
 import type {
   PlatformCredentialRepository,
   CredentialStoreError,

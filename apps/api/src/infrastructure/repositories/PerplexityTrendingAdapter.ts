@@ -15,7 +15,7 @@ import type {
   TrendingDataPort,
   TrendingTopic,
   FetchTrendingInput,
-} from "@core/application/trends/FetchTrendingTopicsUseCase.js";
+} from "@core/trends/FetchTrendingTopicsUseCase.js";
 
 export class PerplexityTrendingAdapter implements TrendingDataPort {
   constructor(private readonly aiServicePort: AIServicePort) {}

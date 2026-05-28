@@ -18,7 +18,7 @@ import { ListRecurringPostsQuery } from "@core/application/recurring/ListRecurri
 import { GetRecurringPostQuery } from "@core/application/recurring/GetRecurringPostQuery.js";
 import { ProcessRecurrenceUseCase } from "@core/application/recurring/ProcessRecurrenceUseCase.js";
 import { CreatePostFromRecurrenceUseCase } from "@core/application/recurring/CreatePostFromRecurrenceUseCase.js";
-import { SchedulePostUseCase } from "@core/application/posts/SchedulePostUseCase.js";
+import { SchedulePostUseCase } from "@core/posts/SchedulePostUseCase.js";
 import { RecurrenceScheduler } from "../../recurring/RecurrenceScheduler.js";
 import { createLogger } from "../../lib/logger.js";
 

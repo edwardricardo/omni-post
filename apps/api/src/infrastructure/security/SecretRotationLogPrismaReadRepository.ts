@@ -7,7 +7,7 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import type { SecretRotationLogReadRepository } from "@core/application/security/GetSecretRotationStatusQuery.js";
+import type { SecretRotationLogReadRepository } from "@core/security/GetSecretRotationStatusQuery.js";
 
 export class SecretRotationLogPrismaReadRepository implements SecretRotationLogReadRepository {
   constructor(private readonly prisma: PrismaClient) {}

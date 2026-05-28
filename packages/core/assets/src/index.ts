@@ -1,12 +1,38 @@
 /**
  * @file index.ts
- * @description Barrel for the `assets` bounded context (`@core/assets`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel export for Asset Library application use cases and types.
  * @layer application
  */
 
-export {};
+export {
+  CreateMediaAssetUseCase,
+  type CreateMediaAssetInput,
+  type CreateMediaAssetOutput,
+} from "./CreateMediaAssetUseCase.js";
+
+export {
+  UpdateMediaAssetUseCase,
+  type UpdateMediaAssetInput,
+  type UpdateMediaAssetOutput,
+} from "./UpdateMediaAssetUseCase.js";
+
+export { DeleteMediaAssetUseCase, type DeleteMediaAssetInput } from "./DeleteMediaAssetUseCase.js";
+
+export { TagMediaAssetUseCase, type TagMediaAssetInput } from "./TagMediaAssetUseCase.js";
+
+export { GetMediaAssetsQuery, type GetMediaAssetsInput } from "./GetMediaAssetsQuery.js";
+
+export { CreateAssetTagUseCase, type CreateAssetTagInput } from "./CreateAssetTagUseCase.js";
+
+export { ListAssetTagsQuery, type ListAssetTagsInput } from "./ListAssetTagsQuery.js";
+
+export {
+  CreateAssetFolderUseCase,
+  type CreateAssetFolderInput,
+} from "./CreateAssetFolderUseCase.js";
+
+export {
+  ImportFromGoogleDriveUseCase,
+  type ImportFromGoogleDriveInput,
+  type ImportFromGoogleDriveOutput,
+} from "./ImportFromGoogleDriveUseCase.js";

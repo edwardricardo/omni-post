@@ -14,7 +14,7 @@ import type Redis from "ioredis";
 import { createBullMQConsumerAdapter, QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { SyncProviderCommentsUseCase } from "@core/application/inbox/SyncProviderCommentsUseCase.js";
-import type { UpdateChannelAuthStateUseCase } from "@core/application/channels/UpdateChannelAuthStateUseCase.js";
+import type { UpdateChannelAuthStateUseCase } from "@core/channels/UpdateChannelAuthStateUseCase.js";
 
 /** Minimal logger surface (a pino child satisfies this structurally). */
 export interface InboxSyncConsumerLogger {

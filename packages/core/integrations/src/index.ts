@@ -1,12 +1,12 @@
 /**
  * @file index.ts
- * @description Barrel for the `integrations` bounded context (`@core/integrations`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel for `integrations` bounded context (`@core/integrations`).
+ *   Auto-generated during §5.1.b extraction.
  * @layer application
  */
-
-export {};
+export * from "./GenerateIntegrationApiKeyUseCase.js";
+export * from "./ListIntegrationApiKeysQuery.js";
+export * from "./RevokeIntegrationApiKeyUseCase.js";
+export * from "./SubscribeIntegrationTriggerUseCase.js";
+export * from "./TriggerIntegrationEventService.js";
+export * from "./UnsubscribeIntegrationTriggerUseCase.js";

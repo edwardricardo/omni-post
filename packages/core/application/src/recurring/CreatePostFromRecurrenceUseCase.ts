@@ -14,7 +14,7 @@
  */
 
 import { type Result, ok, err } from "@shared/types";
-import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
+import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import {
   PostAggregate,
   PostId,
@@ -23,7 +23,7 @@ import {
   type EventDispatcher,
 } from "@core/domain/index.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
-import { SchedulePostUseCase } from "../posts/SchedulePostUseCase.js";
+import { SchedulePostUseCase } from "@core/posts/SchedulePostUseCase.js";
 
 export interface CreatePostFromRecurrenceInput {
   /** RecurringPost ID — used only for log breadcrumbs / tracing. */

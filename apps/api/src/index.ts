@@ -59,8 +59,8 @@ import { processRepurposeGenerateJob } from "./ai/consumers/repurposeGenerateHan
 import { processRepurposeDetectJob } from "./ai/consumers/repurposeDetectHandler.js";
 import { processTriageInboxJob } from "./ai/consumers/triageInboxHandler.js";
 import { processTrendRadarJob } from "./ai/consumers/trendRadarHandler.js";
-import type { DetectTrendsUseCase } from "@core/application/trends/DetectTrendsUseCase.js";
-import type { DispatchDetectTrendsUseCase } from "@core/application/trends/DispatchDetectTrendsUseCase.js";
+import type { DetectTrendsUseCase } from "@core/trends/DetectTrendsUseCase.js";
+import type { DispatchDetectTrendsUseCase } from "@core/trends/DispatchDetectTrendsUseCase.js";
 import {
   TriageDispatchEventHandler,
   TRIAGE_HANDLED_EVENT_TYPES,
@@ -73,9 +73,9 @@ import type { ProcessBulkScheduleRowUseCase } from "@core/application/bulk-sched
 import type { FailBulkScheduleRowUseCase } from "@core/application/bulk-scheduling/FailBulkScheduleRowUseCase.js";
 import { startAnalyticsIngestConsumer } from "./analytics/analyticsIngestConsumer.js";
 import { startInboxSyncConsumer } from "./inbox/inboxSyncConsumer.js";
-import type { IngestChannelAnalyticsUseCase } from "@core/application/analytics/IngestChannelAnalyticsUseCase.js";
+import type { IngestChannelAnalyticsUseCase } from "@core/analytics/IngestChannelAnalyticsUseCase.js";
 import type { SyncProviderCommentsUseCase } from "@core/application/inbox/SyncProviderCommentsUseCase.js";
-import type { UpdateChannelAuthStateUseCase } from "@core/application/channels/UpdateChannelAuthStateUseCase.js";
+import type { UpdateChannelAuthStateUseCase } from "@core/channels/UpdateChannelAuthStateUseCase.js";
 import type { DispatchDetectRepurposeUseCase } from "@core/application/ai/DispatchDetectRepurposeUseCase.js";
 import type { RedisCacheManager } from "@adapters/cache-redis";
 import fastifyCookie from "@fastify/cookie";
@@ -375,7 +375,7 @@ async function createApp(): Promise<FastifyInstance> {
   try {
     const { initSentry } = await import("./observability/sentryInit.js");
     const credService = container.resolve<
-      import("@core/application/security/PlatformCredentialService.js").PlatformCredentialService
+      import("@core/security/PlatformCredentialService.js").PlatformCredentialService
     >(TOKENS.PlatformCredentialService);
     const monitoringCreds = await credService.getGroup("MONITORING");
     if (monitoringCreds.ok) {
@@ -803,7 +803,7 @@ async function start() {
 
     // DLQ archival — daily
     const { DlqArchivalService: _DlqArchivalType } =
-      await import("@core/application/webhooks/DlqArchivalService.js");
+      await import("@core/webhooks/DlqArchivalService.js");
     const dlqArchival = app.container!.resolve<InstanceType<typeof _DlqArchivalType>>(
       TOKENS.DlqArchivalService
     );
@@ -818,7 +818,7 @@ async function start() {
 
     // Data retention cleanup — daily
     const { DataRetentionService: _DataRetentionType } =
-      await import("@core/application/compliance/DataRetentionService.js");
+      await import("@core/compliance/DataRetentionService.js");
     const dataRetention = app.container!.resolve<InstanceType<typeof _DataRetentionType>>(
       TOKENS.DataRetentionService
     );
@@ -832,7 +832,7 @@ async function start() {
     // SubscriptionService (the duplicate apps/workers autoRenewalWorker was
     // removed — FN-004 dual-write/double-charge risk).
     const { SubscriptionService: _SubscriptionServiceType } =
-      await import("@core/application/billing/SubscriptionService.js");
+      await import("@core/billing/SubscriptionService.js");
     const subscriptionSvc = app.container!.resolve<InstanceType<typeof _SubscriptionServiceType>>(
       TOKENS.SubscriptionService
     );
@@ -873,7 +873,7 @@ async function start() {
     // mentions missed by webhooks or transient search failures. Both enqueue
     // jobs into QUEUE_NAMES.MENTION_INGEST consumed by the workers' bootstrap.
     const { DispatchMentionSearchUseCase: _DispatchMentionSearchType } =
-      await import("@core/application/listening/DispatchMentionSearchUseCase.js");
+      await import("@core/listening/DispatchMentionSearchUseCase.js");
     const dispatchMentionSearch = app.container!.resolve<
       InstanceType<typeof _DispatchMentionSearchType>
     >(TOKENS.DispatchMentionSearchUseCase);
@@ -904,7 +904,7 @@ async function start() {
     // QUEUE_NAMES.ANALYTICS_AGGREGATION and upserts metrics into
     // AnalyticsDailySummary via IngestChannelAnalyticsUseCase. (Audit finding FN-016.)
     const { DispatchAnalyticsIngestionUseCase: _DispatchAnalyticsType } =
-      await import("@core/application/analytics/DispatchAnalyticsIngestionUseCase.js");
+      await import("@core/analytics/DispatchAnalyticsIngestionUseCase.js");
     const dispatchAnalyticsIngestion = app.container!.resolve<
       InstanceType<typeof _DispatchAnalyticsType>
     >(TOKENS.DispatchAnalyticsIngestionUseCase);

@@ -9,7 +9,7 @@ import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { ZodError } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../../lib/route-handler/index.js";
 import type { AdminAuthService } from "./AdminAuthService.js";
-import type { PlatformCredentialService } from "@core/application/security/PlatformCredentialService.js";
+import type { PlatformCredentialService } from "@core/security/PlatformCredentialService.js";
 import { requireAdminAuth, rateLimit } from "./adminAuthMiddleware";
 import { requirePermission } from "../../auth/rbacMiddleware.js";
 import { Permission } from "@core/domain/auth/Permission.js";

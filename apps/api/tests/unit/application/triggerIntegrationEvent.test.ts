@@ -9,7 +9,7 @@
 
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { ok, err, type Result } from "@shared/types";
-import { TriggerIntegrationEventService } from "@core/application/integrations/TriggerIntegrationEventService.js";
+import { TriggerIntegrationEventService } from "@core/integrations/TriggerIntegrationEventService.js";
 import type {
   HttpClientPort,
   HttpResponse,

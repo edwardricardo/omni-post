@@ -11,9 +11,9 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { GenerateImageUseCase } from "@core/application/ai-image/GenerateImageUseCase.js";
-import type { ListGeneratedImagesQuery } from "@core/application/ai-image/ListGeneratedImagesQuery.js";
-import type { IncrementUsageUseCase } from "@core/application/usage/IncrementUsageUseCase.js";
+import type { GenerateImageUseCase } from "@core/ai-image/GenerateImageUseCase.js";
+import type { ListGeneratedImagesQuery } from "@core/ai-image/ListGeneratedImagesQuery.js";
+import type { IncrementUsageUseCase } from "@core/usage/IncrementUsageUseCase.js";
 
 // --- Zod Schemas ---
 

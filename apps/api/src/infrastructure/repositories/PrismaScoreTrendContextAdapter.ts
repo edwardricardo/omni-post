@@ -6,7 +6,7 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import type { ScoreTrendContextPort } from "@core/application/trends/ScoreTrendRelevanceUseCase.js";
+import type { ScoreTrendContextPort } from "@core/trends/ScoreTrendRelevanceUseCase.js";
 
 export class PrismaScoreTrendContextAdapter implements ScoreTrendContextPort {
   constructor(private readonly prisma: PrismaClient) {}

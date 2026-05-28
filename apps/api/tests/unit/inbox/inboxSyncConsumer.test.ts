@@ -11,7 +11,7 @@ import { ok, err } from "@shared/types";
 import { processInboxSyncJob } from "../../../src/inbox/inboxSyncConsumer.js";
 import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { SyncProviderCommentsUseCase } from "@core/application/inbox/SyncProviderCommentsUseCase.js";
-import type { UpdateChannelAuthStateUseCase } from "@core/application/channels/UpdateChannelAuthStateUseCase.js";
+import type { UpdateChannelAuthStateUseCase } from "@core/channels/UpdateChannelAuthStateUseCase.js";
 
 const makeLogger = () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() });
 

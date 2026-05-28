@@ -5,7 +5,7 @@
  */
 
 import { type Result, ok } from "@shared/types";
-import { type UseCase, type UseCaseError } from "../UseCase.js";
+import { type UseCase, type UseCaseError } from "@core/application/UseCase.js";
 import type { TaskRepository, TaskFilters } from "@core/domain/repositories/TaskRepository.js";
 import type { TaskStatusValue, TaskPriorityValue, TaskProps } from "@core/domain/entities/Task.js";
 

@@ -1,12 +1,23 @@
 /**
  * @file index.ts
- * @description Barrel for the `campaigns` bounded context (`@core/campaigns`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel export for Campaign application use cases and types.
  * @layer application
  */
 
-export {};
+export {
+  type CreateCampaignInput,
+  type UpdateCampaignInput,
+  type CampaignPostInput,
+  type CampaignAnalyticsOutput,
+} from "./types.js";
+export { CreateCampaignUseCase, type CreateCampaignOutput } from "./CreateCampaignUseCase.js";
+export { UpdateCampaignUseCase } from "./UpdateCampaignUseCase.js";
+export { ArchiveCampaignUseCase, type ArchiveCampaignInput } from "./ArchiveCampaignUseCase.js";
+export { TagPostWithCampaignUseCase } from "./TagPostWithCampaignUseCase.js";
+export { UntagPostFromCampaignUseCase } from "./UntagPostFromCampaignUseCase.js";
+export {
+  GetCampaignAnalyticsUseCase,
+  type GetCampaignAnalyticsInput,
+} from "./GetCampaignAnalyticsUseCase.js";
+export { ListCampaignsQuery, type ListCampaignsInput } from "./ListCampaignsQuery.js";
+export { GetCampaignQuery, type GetCampaignInput } from "./GetCampaignQuery.js";

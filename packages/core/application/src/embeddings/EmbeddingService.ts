@@ -9,7 +9,7 @@
  */
 
 import { ok, err, type Result } from "@shared/types";
-import { UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
+import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
 
 export interface EmbeddingsOptions {

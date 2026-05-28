@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { ok, err } from "@shared/types";
-import { GenerateImageUseCase } from "@core/application/ai-image/GenerateImageUseCase.js";
+import { GenerateImageUseCase } from "@core/ai-image/GenerateImageUseCase.js";
 
 function makeRepo() {
   return {

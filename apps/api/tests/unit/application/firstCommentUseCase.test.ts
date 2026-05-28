@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { SetFirstCommentUseCase } from "@core/application/first-comment/SetFirstCommentUseCase.js";
+import { SetFirstCommentUseCase } from "@core/first-comment/SetFirstCommentUseCase.js";
 
 function makeRepo() {
   return {

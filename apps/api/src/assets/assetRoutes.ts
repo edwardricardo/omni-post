@@ -13,15 +13,15 @@ import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
 // Use case / query types (type-only imports)
-import type { CreateMediaAssetUseCase } from "@core/application/assets/CreateMediaAssetUseCase.js";
-import type { UpdateMediaAssetUseCase } from "@core/application/assets/UpdateMediaAssetUseCase.js";
-import type { DeleteMediaAssetUseCase } from "@core/application/assets/DeleteMediaAssetUseCase.js";
-import type { TagMediaAssetUseCase } from "@core/application/assets/TagMediaAssetUseCase.js";
-import type { GetMediaAssetsQuery } from "@core/application/assets/GetMediaAssetsQuery.js";
-import type { CreateAssetTagUseCase } from "@core/application/assets/CreateAssetTagUseCase.js";
-import type { ListAssetTagsQuery } from "@core/application/assets/ListAssetTagsQuery.js";
-import type { CreateAssetFolderUseCase } from "@core/application/assets/CreateAssetFolderUseCase.js";
-import type { ImportFromGoogleDriveUseCase } from "@core/application/assets/ImportFromGoogleDriveUseCase.js";
+import type { CreateMediaAssetUseCase } from "@core/assets/CreateMediaAssetUseCase.js";
+import type { UpdateMediaAssetUseCase } from "@core/assets/UpdateMediaAssetUseCase.js";
+import type { DeleteMediaAssetUseCase } from "@core/assets/DeleteMediaAssetUseCase.js";
+import type { TagMediaAssetUseCase } from "@core/assets/TagMediaAssetUseCase.js";
+import type { GetMediaAssetsQuery } from "@core/assets/GetMediaAssetsQuery.js";
+import type { CreateAssetTagUseCase } from "@core/assets/CreateAssetTagUseCase.js";
+import type { ListAssetTagsQuery } from "@core/assets/ListAssetTagsQuery.js";
+import type { CreateAssetFolderUseCase } from "@core/assets/CreateAssetFolderUseCase.js";
+import type { ImportFromGoogleDriveUseCase } from "@core/assets/ImportFromGoogleDriveUseCase.js";
 import type { AssetTagRepository } from "@core/domain/repositories/AssetTagRepository.js";
 import type { AssetFolderRepository } from "@core/domain/repositories/AssetFolderRepository.js";
 

@@ -20,7 +20,7 @@ import {
   ListApiKeysUseCase,
   RotateApiKeyUseCase,
   DeactivateApiKeyUseCase,
-} from "@core/application/apiKeys/ApiKeyUseCases.js";
+} from "@core/apiKeys/ApiKeyUseCases.js";
 import type { ApiKeyRepository, DomainApiKey } from "@core/domain/repositories/ApiKeyRepository.js";
 import { ApiKeyNotFoundError } from "@core/domain/repositories/ApiKeyRepository.js";
 import { ok, err } from "@shared/types";

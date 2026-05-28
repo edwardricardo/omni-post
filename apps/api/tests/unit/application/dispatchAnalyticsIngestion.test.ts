@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { DispatchAnalyticsIngestionUseCase } from "@core/application/analytics/DispatchAnalyticsIngestionUseCase.js";
+import { DispatchAnalyticsIngestionUseCase } from "@core/analytics/DispatchAnalyticsIngestionUseCase.js";
 import { ok, err } from "@shared/types";
 
 function makeMockChannelQuery(

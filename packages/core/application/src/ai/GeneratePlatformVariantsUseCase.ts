@@ -7,7 +7,7 @@
  */
 
 import { type Result, ok, err } from "@shared/types";
-import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
+import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { PLATFORM_CONTENT_PROFILES } from "@core/domain/ai/PlatformContentProfile.js";
 import { buildEnhancedSystemPrompt } from "./buildEnhancedSystemPrompt.js";
 import type { GetTopPerformersContextUseCase } from "./GetTopPerformersContextUseCase.js";

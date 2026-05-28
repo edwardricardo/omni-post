@@ -6,8 +6,8 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { ConvertReferralUseCase } from "@core/application/referral/ConvertReferralUseCase.js";
-import { GrantReferralRewardUseCase } from "@core/application/referral/GrantReferralRewardUseCase.js";
+import { ConvertReferralUseCase } from "@core/referral/ConvertReferralUseCase.js";
+import { GrantReferralRewardUseCase } from "@core/referral/GrantReferralRewardUseCase.js";
 import { ok } from "@shared/types";
 
 function makeMockConvertRepo(

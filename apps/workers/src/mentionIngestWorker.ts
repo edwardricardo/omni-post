@@ -41,7 +41,7 @@ import { workerPrisma, verifyDatabaseAuth } from "./container/workerContainer.js
 import { createPrismaRepoAdapter, PrismaMentionRepository } from "@adapters/db-prisma";
 import { decryptChannelCredentials } from "@shared/types";
 import type { ProviderAdapter, ProviderMention } from "@ports/core";
-import { IngestMentionUseCase } from "@core/application/listening/IngestMentionUseCase.js";
+import { IngestMentionUseCase } from "@core/listening/IngestMentionUseCase.js";
 import type { ProviderType } from "@core/domain/value-objects/Provider.js";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info", name: "mention-ingest-worker" });

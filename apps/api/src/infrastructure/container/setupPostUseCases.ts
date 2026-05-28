@@ -31,7 +31,7 @@ import {
   ArchivePostsBatchUseCase,
   HardDeletePostsBatchUseCase,
   DuplicatePostsBatchUseCase,
-} from "@core/application/posts/index.js";
+} from "@core/posts/index.js";
 import { ImportSchedulingCsvUseCase } from "@core/application/bulk-scheduling/ImportSchedulingCsvUseCase.js";
 import { ProcessBulkScheduleRowUseCase } from "@core/application/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
 import { FailBulkScheduleRowUseCase } from "@core/application/bulk-scheduling/FailBulkScheduleRowUseCase.js";

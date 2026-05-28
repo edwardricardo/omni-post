@@ -18,9 +18,9 @@ import {
   PublishPostCommandSchema,
 } from "@shared/cqrs";
 import { createPostEvent, createUserActionEvent, EVENT_TYPES } from "@shared/events";
-import type { CreatePostUseCase } from "@core/application/posts/CreatePostUseCase.js";
-import type { UpdatePostUseCase } from "@core/application/posts/UpdatePostUseCase.js";
-import type { DeletePostUseCase } from "@core/application/posts/DeletePostUseCase.js";
+import type { CreatePostUseCase } from "@core/posts/CreatePostUseCase.js";
+import type { UpdatePostUseCase } from "@core/posts/UpdatePostUseCase.js";
+import type { DeletePostUseCase } from "@core/posts/DeletePostUseCase.js";
 import {
   PostId,
   ChannelId,

@@ -1,12 +1,11 @@
 /**
  * @file index.ts
- * @description Barrel for the `aiPromptTemplates` bounded context (`@core/aiPromptTemplates`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel for `aiPromptTemplates` bounded context (`@core/aiPromptTemplates`).
+ *   Auto-generated during §5.1.b extraction.
  * @layer application
  */
-
-export {};
+export * from "./CreateAIPromptTemplateUseCase.js";
+export * from "./DeleteAIPromptTemplateUseCase.js";
+export * from "./ListAIPromptTemplatesQuery.js";
+export * from "./UpdateAIPromptTemplateUseCase.js";
+export * from "./types.js";

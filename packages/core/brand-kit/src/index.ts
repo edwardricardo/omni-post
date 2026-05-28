@@ -1,12 +1,9 @@
 /**
  * @file index.ts
- * @description Barrel for the `brand-kit` bounded context (`@core/brand-kit`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel for `brand-kit` bounded context (`@core/brand-kit`).
+ *   Auto-generated during §5.1.b extraction.
  * @layer application
  */
-
-export {};
+export * from "./DeleteBrandKitUseCase.js";
+export * from "./GetBrandKitQuery.js";
+export * from "./UpsertBrandKitUseCase.js";

@@ -11,7 +11,7 @@ import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.
 import { IdSchema } from "@packages/api-common";
 import { Permission } from "@core/domain/auth/Permission.js";
 import type { RbacService } from "./rbacService.js";
-import { RoleManagementService } from "@core/application/auth/RoleManagementService.js";
+import { RoleManagementService } from "@core/auth/RoleManagementService.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "./rbacMiddleware.js";
 import type { AuthenticatedUser } from "./authService.js";

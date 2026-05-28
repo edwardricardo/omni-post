@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { ListMentionsQuery } from "@core/application/listening/ListMentionsQuery.js";
+import { ListMentionsQuery } from "@core/listening/ListMentionsQuery.js";
 import type {
   CursorPaginatedResult,
   MentionDTO,

@@ -7,7 +7,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { IngestMentionUseCase } from "@core/application/listening/IngestMentionUseCase.js";
+import { IngestMentionUseCase } from "@core/listening/IngestMentionUseCase.js";
 import { MentionAggregate } from "@core/domain/aggregates/MentionAggregate.js";
 import { AccountId, ProjectId } from "@core/domain/value-objects/EntityId.js";
 import type { ProviderType } from "@core/domain/value-objects/Provider.js";

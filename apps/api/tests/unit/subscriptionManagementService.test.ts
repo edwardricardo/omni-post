@@ -12,7 +12,7 @@ import { InMemoryAuditEmitter } from "./helpers/InMemoryAuditEmitter.js";
 vi.mock("@infra/prisma", () => ({ prisma: { auditLog: { create: vi.fn() } }, Prisma: {} }));
 
 const { SubscriptionManagementService } =
-  await import("@core/application/billing/SubscriptionManagementService.js");
+  await import("@core/billing/SubscriptionManagementService.js");
 
 function makeDeps() {
   return {

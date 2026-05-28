@@ -15,7 +15,7 @@ import type {
   SocialOutboundReplyRepository,
 } from "@core/domain/index.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
-import type { CreateNotificationUseCase } from "@core/application/notifications/index.js";
+import type { CreateNotificationUseCase } from "@core/notifications/index.js";
 import {
   IngestSocialMessageUseCase,
   MarkMessageReadUseCase,
@@ -39,9 +39,9 @@ import type { NotifyMentionedUsersService } from "@core/application/mentions/ind
 import { InboxEventHandlers } from "@core/application/inbox/handlers/InboxEventHandlers.js";
 import type { ProviderRegistryService } from "../../providers/providerRegistry.js";
 import { DispatchInboxSyncUseCase } from "@core/application/inbox/DispatchInboxSyncUseCase.js";
-import { DispatchMentionSearchUseCase } from "@core/application/listening/DispatchMentionSearchUseCase.js";
-import { GetShareOfVoiceQuery } from "@core/application/listening/GetShareOfVoiceQuery.js";
-import { ListMentionsQuery } from "@core/application/listening/ListMentionsQuery.js";
+import { DispatchMentionSearchUseCase } from "@core/listening/DispatchMentionSearchUseCase.js";
+import { GetShareOfVoiceQuery } from "@core/listening/GetShareOfVoiceQuery.js";
+import { ListMentionsQuery } from "@core/listening/ListMentionsQuery.js";
 import type { ChannelQueryForIngestion } from "@core/domain/repositories/ChannelQueryForIngestion.js";
 import type { TrackedTermQuery } from "@core/domain/repositories/TrackedTermQuery.js";
 import type { MentionQueryRepository } from "@core/domain/repositories/MentionQueryRepository.js";
@@ -61,7 +61,7 @@ import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
 import { triageSpec } from "../../ai/structuredSchemas.js";
 import type { BrandVoiceRepository } from "@core/domain/repositories/BrandVoiceRepository.js";
 import { TriageDispatchEventHandler } from "../../inbox/handlers/TriageDispatchEventHandler.js";
-import type { GuardrailRegistry } from "@core/application/guardrails/GuardrailRegistry.js";
+import type { GuardrailRegistry } from "@core/guardrails/GuardrailRegistry.js";
 
 /**
  * Register social inbox commands, queries, and event handlers

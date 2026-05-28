@@ -1,12 +1,19 @@
 /**
  * @file index.ts
- * @description Barrel for the `reports` bounded context (`@core/reports`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel export for Scheduled Report use cases and queries.
  * @layer application
  */
 
-export {};
+export { CreateScheduledReportUseCase } from "./CreateScheduledReportUseCase.js";
+export { UpdateScheduledReportUseCase } from "./UpdateScheduledReportUseCase.js";
+export { DeleteScheduledReportUseCase } from "./DeleteScheduledReportUseCase.js";
+export { ListScheduledReportsQuery } from "./ListScheduledReportsQuery.js";
+export { GenerateReportUseCase } from "./GenerateReportUseCase.js";
+export type {
+  CreateScheduledReportInput,
+  UpdateScheduledReportInput,
+  DeleteScheduledReportInput,
+  ListScheduledReportsInput,
+  GenerateReportInput,
+  CreateScheduledReportOutput,
+} from "./types.js";

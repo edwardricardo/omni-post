@@ -14,9 +14,9 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
-import type { GetBrandKitQuery } from "@core/application/brand-kit/GetBrandKitQuery.js";
-import type { UpsertBrandKitUseCase } from "@core/application/brand-kit/UpsertBrandKitUseCase.js";
-import type { DeleteBrandKitUseCase } from "@core/application/brand-kit/DeleteBrandKitUseCase.js";
+import type { GetBrandKitQuery } from "@core/brand-kit/GetBrandKitQuery.js";
+import type { UpsertBrandKitUseCase } from "@core/brand-kit/UpsertBrandKitUseCase.js";
+import type { DeleteBrandKitUseCase } from "@core/brand-kit/DeleteBrandKitUseCase.js";
 
 // ============================================================================
 // Schemas

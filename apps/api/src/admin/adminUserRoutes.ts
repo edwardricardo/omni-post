@@ -14,7 +14,7 @@ import { Permission } from "@core/domain/auth/Permission.js";
 import type { AdminAuthService } from "./auth/AdminAuthService.js";
 import type { AdminUserAdminService } from "./AdminUserAdminService.js";
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
-import type { PlatformCredentialService } from "@core/application/security/PlatformCredentialService.js";
+import type { PlatformCredentialService } from "@core/security/PlatformCredentialService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { passwordResetEmail } from "../infrastructure/email/templates/emailTemplates.js";
 import { createLogger } from "../lib/logger.js";

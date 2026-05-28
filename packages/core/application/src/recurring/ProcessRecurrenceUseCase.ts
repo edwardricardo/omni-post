@@ -7,7 +7,7 @@
  */
 
 import { type Result, ok, err } from "@shared/types";
-import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
+import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { RecurringPostRepository } from "@core/domain/repositories/RecurringPostRepository.js";
 import { RecurringPost, CronExpression } from "@core/domain/entities/RecurringPost.js";
 import { RecurringPostId, ProjectId } from "@core/domain/value-objects/EntityId.js";

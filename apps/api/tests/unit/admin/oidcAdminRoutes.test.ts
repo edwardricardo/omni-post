@@ -16,7 +16,7 @@ import { TOKENS } from "../../../src/infrastructure/container/types.js";
 import type {
   ReplaceOidcClientSecretUseCase,
   ReplaceOidcClientSecretOutput,
-} from "@core/application/auth/ReplaceOidcClientSecretUseCase.js";
+} from "@core/auth/ReplaceOidcClientSecretUseCase.js";
 import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 
 const ACCOUNT_ID = "acct-uuid-123";

@@ -6,8 +6,8 @@
  * @layer infrastructure
  */
 import type { CachePort } from "@ports/core";
-import type { ROICalculatorPort } from "@core/application/analytics/CalculateROIUseCase.js";
-import type { ChannelROI } from "@core/application/analytics/types.js";
+import type { ROICalculatorPort } from "@core/analytics/CalculateROIUseCase.js";
+import type { ChannelROI } from "@core/analytics/types.js";
 import { ROICalculator } from "../../analytics/roiCalculator.js";
 import type { ROICalculationOptions } from "../../analytics/roi/types.js";
 import type { TimeRange, ProviderType } from "@shared/analytics";

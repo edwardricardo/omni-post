@@ -1,12 +1,12 @@
 /**
  * @file index.ts
- * @description Barrel for the `auth` bounded context (`@core/auth`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Per-context barrel for auth services.
  * @layer application
  */
 
-export {};
+export {
+  RoleManagementService,
+  type CreateRoleInput,
+  type UpdateRoleInput,
+  type RoleDetail,
+} from "./RoleManagementService.js";

@@ -1,12 +1,12 @@
 /**
  * @file index.ts
- * @description Barrel for the `trends` bounded context (`@core/trends`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel for `trends` bounded context (`@core/trends`).
+ *   Auto-generated during §5.1.b extraction.
  * @layer application
  */
-
-export {};
+export * from "./DetectTrendsUseCase.js";
+export * from "./DispatchDetectTrendsUseCase.js";
+export * from "./FetchTrendingTopicsUseCase.js";
+export * from "./GetTrendRadarQuery.js";
+export * from "./ScoreTrendRelevanceUseCase.js";
+export * from "./TrendRadarResultPort.js";

@@ -24,21 +24,21 @@ import { AccountAnalyticsTrendingAdapter } from "../repositories/AccountAnalytic
 import { InboxMentionsTrendingAdapter } from "../repositories/InboxMentionsTrendingAdapter.js";
 import { MultiSourceTrendingDataAdapter } from "../repositories/MultiSourceTrendingDataAdapter.js";
 import { PrismaTrendRadarResultAdapter } from "../repositories/PrismaTrendRadarResultAdapter.js";
-import type { TrendRadarResultPort } from "@core/application/trends/TrendRadarResultPort.js";
+import type { TrendRadarResultPort } from "@core/trends/TrendRadarResultPort.js";
 import { PrismaTrendRadarQueryAdapter } from "../repositories/PrismaTrendRadarQueryAdapter.js";
 import type { TrendRadarQueryRepository } from "@core/domain/repositories/TrendRadarQueryRepository.js";
-import { GetTrendRadarQuery } from "@core/application/trends/GetTrendRadarQuery.js";
+import { GetTrendRadarQuery } from "@core/trends/GetTrendRadarQuery.js";
 
 import {
   FetchTrendingTopicsUseCase,
   type TrendingDataPort,
-} from "@core/application/trends/FetchTrendingTopicsUseCase.js";
+} from "@core/trends/FetchTrendingTopicsUseCase.js";
 import {
   ScoreTrendRelevanceUseCase,
   type ScoreTrendContextPort,
-} from "@core/application/trends/ScoreTrendRelevanceUseCase.js";
-import { DetectTrendsUseCase } from "@core/application/trends/DetectTrendsUseCase.js";
-import { DispatchDetectTrendsUseCase } from "@core/application/trends/DispatchDetectTrendsUseCase.js";
+} from "@core/trends/ScoreTrendRelevanceUseCase.js";
+import { DetectTrendsUseCase } from "@core/trends/DetectTrendsUseCase.js";
+import { DispatchDetectTrendsUseCase } from "@core/trends/DispatchDetectTrendsUseCase.js";
 
 /**
  * @method setupTrendUseCases

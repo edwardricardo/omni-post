@@ -1,12 +1,10 @@
 /**
  * @file index.ts
- * @description Barrel for the `security` bounded context (`@core/security`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Per-context barrel for security/credentials. Exposes the
+ *   `PlatformCredentialService` (encrypted credential CRUD facade) alongside
+ *   any existing use-cases already in this folder.
  * @layer application
  */
 
-export {};
+export { PlatformCredentialService } from "./PlatformCredentialService.js";
+export { GetSecretRotationStatusQuery } from "./GetSecretRotationStatusQuery.js";

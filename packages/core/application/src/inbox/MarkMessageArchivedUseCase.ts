@@ -6,7 +6,7 @@
  */
 
 import { type Result, ok, err } from "@shared/types";
-import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
+import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { type SocialMessageRepository } from "@core/domain/repositories/SocialMessageRepository.js";
 import { type EventDispatcher } from "@core/domain/events/DomainEvent.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";

@@ -8,7 +8,7 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../../lib/route-handler/index.js";
-import type { SubscriptionService } from "@core/application/billing/index.js";
+import type { SubscriptionService } from "@core/billing/index.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import {
   ParamsWithAccountIdSchema,

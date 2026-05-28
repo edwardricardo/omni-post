@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { GetShareOfVoiceQuery } from "@core/application/listening/GetShareOfVoiceQuery.js";
+import { GetShareOfVoiceQuery } from "@core/listening/GetShareOfVoiceQuery.js";
 import type { ShareOfVoiceDTO } from "@core/domain/repositories/MentionQueryRepository.js";
 
 function makeDTO(overrides: Partial<ShareOfVoiceDTO> = {}): ShareOfVoiceDTO {

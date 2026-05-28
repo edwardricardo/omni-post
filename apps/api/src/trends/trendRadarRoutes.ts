@@ -18,7 +18,7 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
-import type { GetTrendRadarQuery } from "@core/application/trends/GetTrendRadarQuery.js";
+import type { GetTrendRadarQuery } from "@core/trends/GetTrendRadarQuery.js";
 
 const RadarQuerySchema = z.object({
   accountId: z.string().min(1).optional(),

@@ -13,8 +13,8 @@ import {
   IngestChannelAnalyticsError,
   INGEST_ERRORS,
   type IngestChannelAnalyticsUseCase,
-} from "@core/application/analytics/IngestChannelAnalyticsUseCase.js";
-import type { UpdateChannelAuthStateUseCase } from "@core/application/channels/UpdateChannelAuthStateUseCase.js";
+} from "@core/analytics/IngestChannelAnalyticsUseCase.js";
+import type { UpdateChannelAuthStateUseCase } from "@core/channels/UpdateChannelAuthStateUseCase.js";
 
 const makeLogger = () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() });
 

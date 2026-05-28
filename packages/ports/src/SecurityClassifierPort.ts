@@ -5,7 +5,7 @@
  *   in `@core/security` and is wired in the composition root.
  *
  *   Resolves §5.1 cross-context violation `ai -> security`. The `ai` context
- *   used to import `PromptShieldService` directly from `@core/application/security`;
+ *   used to import `PromptShieldService` directly from `@core/security`;
  *   now it depends on this port instead and the composition root injects the
  *   security adapter.
  *

@@ -16,11 +16,11 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
-import type { ConnectCrmUseCase } from "@core/application/crm/ConnectCrmUseCase.js";
-import type { DisconnectCrmUseCase } from "@core/application/crm/DisconnectCrmUseCase.js";
-import type { GetCrmConnectionsQuery } from "@core/application/crm/GetCrmConnectionsQuery.js";
-import type { SyncCrmContactsUseCase } from "@core/application/crm/SyncCrmContactsUseCase.js";
-import type { GetCrmSyncLogsQuery } from "@core/application/crm/GetCrmSyncLogsQuery.js";
+import type { ConnectCrmUseCase } from "@core/crm/ConnectCrmUseCase.js";
+import type { DisconnectCrmUseCase } from "@core/crm/DisconnectCrmUseCase.js";
+import type { GetCrmConnectionsQuery } from "@core/crm/GetCrmConnectionsQuery.js";
+import type { SyncCrmContactsUseCase } from "@core/crm/SyncCrmContactsUseCase.js";
+import type { GetCrmSyncLogsQuery } from "@core/crm/GetCrmSyncLogsQuery.js";
 import { env } from "../config/env.js";
 
 // ============================================================================

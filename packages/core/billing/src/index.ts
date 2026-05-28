@@ -1,12 +1,28 @@
 /**
  * @file index.ts
- * @description Barrel for the `billing` bounded context (`@core/billing`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Per-context barrel for billing/subscription. Exposes the 6
+ *   subscription services (facade + plan + management + stats + billing +
+ *   trial) plus the 3 use-cases that already lived here, plus the shared
+ *   types module.
  * @layer application
  */
 
-export {};
+export { SubscriptionService } from "./SubscriptionService.js";
+export { SubscriptionPlanService, type TrialAccountView } from "./SubscriptionPlanService.js";
+export { SubscriptionManagementService } from "./SubscriptionManagementService.js";
+export { SubscriptionStatsService } from "./SubscriptionStatsService.js";
+export { BillingService, type ChangeType } from "./BillingService.js";
+export { TrialManagementService } from "./TrialManagementService.js";
+export {
+  GatewayBillingService,
+  type SwitchError,
+  type SwitchInitiatedResult,
+  type ExtendResult,
+} from "./GatewayBillingService.js";
+export * from "./types.js";
+
+// Existing use-cases already in this folder (kept by reference; barrel
+// surfaces them alongside the services).
+export { CreateAccountSubscriptionUseCase } from "./CreateAccountSubscriptionUseCase.js";
+export { ChangeAccountSubscriptionUseCase } from "./ChangeAccountSubscriptionUseCase.js";
+export { UpdatePricingConfigUseCase } from "./UpdatePricingConfigUseCase.js";

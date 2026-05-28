@@ -4,8 +4,8 @@
  * @layer application
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { SettingsService } from "@core/application/settings/SettingsService.js";
-import type { PlatformCredentialService } from "@core/application/security/PlatformCredentialService.js";
+import { SettingsService } from "@core/settings/SettingsService.js";
+import type { PlatformCredentialService } from "@core/security/PlatformCredentialService.js";
 import type { PlatformEncryptionKeyRepository } from "@core/domain/repositories/PlatformEncryptionKeyRepository.js";
 import type { AiTokenUsageReader } from "@core/domain/repositories/AiTokenUsageReader.js";
 import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";

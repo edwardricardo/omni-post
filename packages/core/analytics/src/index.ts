@@ -1,12 +1,53 @@
 /**
  * @file index.ts
- * @description Barrel for the `analytics` bounded context (`@core/analytics`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel export for analytics use cases, ports, and shared type definitions.
  * @layer application
  */
 
-export {};
+// Types
+export type {
+  TimeRange,
+  ProviderType,
+  ContentType,
+  MetricType,
+  // GetAnalytics types
+  GetAnalyticsInput,
+  GetAnalyticsOutput,
+  AnalyticsSummary,
+  // ComparePerformance types
+  ComparePerformanceInput,
+  ComparePerformanceOutput,
+  PerformanceSnapshot,
+  // PredictEngagement types
+  PredictEngagementInput,
+  PredictEngagementOutput,
+  OptimalTimeSlot,
+  TimingPrediction,
+  // CalculateROI types
+  CalculateROIInput,
+  CalculateROIOutput,
+  InvestmentDetails,
+  ROIBreakdown,
+  ChannelROI,
+} from "./types.js";
+
+// Use Cases
+export {
+  GetCrossPlatformAnalyticsUseCase,
+  type CrossPlatformAnalyticsPort,
+} from "./GetCrossPlatformAnalyticsUseCase.js";
+
+export {
+  ComparePerformanceUseCase,
+  type PerformanceComparatorPort,
+} from "./ComparePerformanceUseCase.js";
+
+// Note: PredictEngagementUseCase removed — was not registered in DI and not called from any route.
+
+export { CalculateROIUseCase, type ROICalculatorPort } from "./CalculateROIUseCase.js";
+
+export {
+  GetHistoricalAnalyticsQuery,
+  type GetHistoricalAnalyticsInput,
+  type GetHistoricalAnalyticsOutput,
+} from "./GetHistoricalAnalyticsQuery.js";

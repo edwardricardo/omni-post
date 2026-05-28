@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import {
   GetSecretRotationStatusQuery,
   type SecretRotationLogReadRepository,
-} from "@core/application/security/GetSecretRotationStatusQuery.js";
+} from "@core/security/GetSecretRotationStatusQuery.js";
 import { SECRETS_CATALOG } from "@core/domain/security/secretCatalog.js";
 
 const FIXED_NOW = new Date("2026-05-06T00:00:00.000Z");

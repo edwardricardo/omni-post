@@ -1,12 +1,18 @@
 /**
  * @file index.ts
- * @description Barrel for the `channels` bounded context (`@core/channels`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel export for channel use cases — primary management today;
+ *              channel CRUD lives in route handlers and may move here later.
  * @layer application
  */
 
-export {};
+export {
+  SetPrimaryChannelUseCase,
+  type SetPrimaryChannelInput,
+  type SetPrimaryChannelOutput,
+} from "./SetPrimaryChannelUseCase.js";
+
+export {
+  UpdateChannelAuthStateUseCase,
+  type UpdateChannelAuthStateInput,
+  type UpdateChannelAuthStateOutput,
+} from "./UpdateChannelAuthStateUseCase.js";

@@ -10,7 +10,7 @@ import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "@core/domain/auth/Permission.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { ComplianceService } from "@core/application/compliance/ComplianceService.js";
+import type { ComplianceService } from "@core/compliance/ComplianceService.js";
 import {
   updateGdprSettingsSchema,
   updateSecuritySettingsSchema,

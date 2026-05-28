@@ -13,7 +13,7 @@ import {
   PredictOptimalTimingUseCase,
   type OptimizeContentInput,
   type PredictTimingInput,
-} from "@core/application/ml/index.js";
+} from "@core/ml/index.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 
 /**

@@ -8,7 +8,7 @@
  */
 
 import { ok, err, type Result } from "@shared/types";
-import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
+import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type {
   StyleGuideRule,
   StyleGuideRuleRepository,

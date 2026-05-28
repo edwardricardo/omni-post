@@ -13,11 +13,11 @@ import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
 // Use case / query types (type-only imports)
-import type { CreateScheduledReportUseCase } from "@core/application/reports/CreateScheduledReportUseCase.js";
-import type { UpdateScheduledReportUseCase } from "@core/application/reports/UpdateScheduledReportUseCase.js";
-import type { DeleteScheduledReportUseCase } from "@core/application/reports/DeleteScheduledReportUseCase.js";
-import type { ListScheduledReportsQuery } from "@core/application/reports/ListScheduledReportsQuery.js";
-import type { GenerateReportUseCase } from "@core/application/reports/GenerateReportUseCase.js";
+import type { CreateScheduledReportUseCase } from "@core/reports/CreateScheduledReportUseCase.js";
+import type { UpdateScheduledReportUseCase } from "@core/reports/UpdateScheduledReportUseCase.js";
+import type { DeleteScheduledReportUseCase } from "@core/reports/DeleteScheduledReportUseCase.js";
+import type { ListScheduledReportsQuery } from "@core/reports/ListScheduledReportsQuery.js";
+import type { GenerateReportUseCase } from "@core/reports/GenerateReportUseCase.js";
 
 // ============================================================================
 // Zod Validation Schemas

@@ -11,10 +11,10 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
-import type { ListAIPromptTemplatesQuery } from "@core/application/aiPromptTemplates/ListAIPromptTemplatesQuery.js";
-import type { CreateAIPromptTemplateUseCase } from "@core/application/aiPromptTemplates/CreateAIPromptTemplateUseCase.js";
-import type { UpdateAIPromptTemplateUseCase } from "@core/application/aiPromptTemplates/UpdateAIPromptTemplateUseCase.js";
-import type { DeleteAIPromptTemplateUseCase } from "@core/application/aiPromptTemplates/DeleteAIPromptTemplateUseCase.js";
+import type { ListAIPromptTemplatesQuery } from "@core/aiPromptTemplates/ListAIPromptTemplatesQuery.js";
+import type { CreateAIPromptTemplateUseCase } from "@core/aiPromptTemplates/CreateAIPromptTemplateUseCase.js";
+import type { UpdateAIPromptTemplateUseCase } from "@core/aiPromptTemplates/UpdateAIPromptTemplateUseCase.js";
+import type { DeleteAIPromptTemplateUseCase } from "@core/aiPromptTemplates/DeleteAIPromptTemplateUseCase.js";
 
 // ============================================================================
 // Zod Validation Schemas
@@ -117,8 +117,7 @@ class PromptTemplateRouteHandler extends BaseRouteHandler {
       category: body.category,
       platforms: body.platforms,
       prompt: body.prompt,
-      variables:
-        body.variables as import("@core/application/aiPromptTemplates/types.js").TemplateVariableDto[],
+      variables: body.variables as import("@core/aiPromptTemplates/types.js").TemplateVariableDto[],
       tone: body.tone,
     });
     if (!result.ok) {
@@ -141,17 +140,16 @@ class PromptTemplateRouteHandler extends BaseRouteHandler {
     }
 
     const body = bodyValidation.value;
-    const input: import("@core/application/aiPromptTemplates/types.js").UpdateAIPromptTemplateInput =
-      {
-        templateId: paramsValidation.value.id,
-      };
+    const input: import("@core/aiPromptTemplates/types.js").UpdateAIPromptTemplateInput = {
+      templateId: paramsValidation.value.id,
+    };
     if (body.name !== undefined) input.name = body.name;
     if (body.category !== undefined) input.category = body.category;
     if (body.platforms !== undefined) input.platforms = body.platforms;
     if (body.prompt !== undefined) input.prompt = body.prompt;
     if (body.variables !== undefined) {
       input.variables =
-        body.variables as import("@core/application/aiPromptTemplates/types.js").TemplateVariableDto[];
+        body.variables as import("@core/aiPromptTemplates/types.js").TemplateVariableDto[];
     }
     if (body.tone !== undefined) input.tone = body.tone;
     const result = await this.updateUseCase.execute(input);

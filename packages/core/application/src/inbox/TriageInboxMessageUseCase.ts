@@ -10,12 +10,12 @@
  */
 
 import { type Result, ok, err } from "@shared/types";
-import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
+import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
 import type { AIMessage, StructuredOutputSpec } from "@core/domain/ai/AiServiceContract.js";
 import type { TriageClassification } from "@core/domain/ai/AiStructuredOutputs.js";
-import type { GuardrailRegistry } from "../guardrails/GuardrailRegistry.js";
+import type { GuardrailRegistry } from "@core/guardrails/GuardrailRegistry.js";
 
 export interface TriageInboxInput {
   messageId: string;

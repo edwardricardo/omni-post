@@ -18,7 +18,7 @@ import {
   MarkAllNotificationsReadUseCase,
   GetUnreadCountQuery,
   NotificationEventHandlers,
-} from "@core/application/notifications/index.js";
+} from "@core/notifications/index.js";
 
 /**
  * Register notification use cases and event handlers

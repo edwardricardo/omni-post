@@ -8,7 +8,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok, err } from "@shared/types";
-import { HardDeletePostsBatchUseCase } from "@core/application/posts/HardDeletePostsBatchUseCase.js";
+import { HardDeletePostsBatchUseCase } from "@core/posts/HardDeletePostsBatchUseCase.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { PostId } from "@core/domain/index.js";
 

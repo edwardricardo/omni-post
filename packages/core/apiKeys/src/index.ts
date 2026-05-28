@@ -1,12 +1,18 @@
 /**
  * @file index.ts
- * @description Barrel for the `apiKeys` bounded context (`@core/apiKeys`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel export for API key management use cases and their input/output types.
  * @layer application
  */
 
-export {};
+export {
+  CreateApiKeyUseCase,
+  ValidateApiKeyUseCase,
+  ListApiKeysUseCase,
+  RotateApiKeyUseCase,
+  DeactivateApiKeyUseCase,
+  type CreateApiKeyInput,
+  type CreateApiKeyOutput,
+  type ValidateApiKeyInput,
+  type ValidateApiKeyOutput,
+  type RotateApiKeyOutput,
+} from "./ApiKeyUseCases.js";

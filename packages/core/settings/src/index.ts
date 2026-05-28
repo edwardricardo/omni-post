@@ -1,12 +1,9 @@
 /**
  * @file index.ts
- * @description Barrel for the `settings` bounded context (`@core/settings`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Per-context barrel for settings. Exposes the `SettingsService`
+ *   facade alongside the canonical credential-key catalog.
  * @layer application
  */
 
-export {};
+export { SettingsService } from "./SettingsService.js";
+export { CREDENTIAL_KEYS, NON_SECRET_KEYS } from "./credentialKeys.js";

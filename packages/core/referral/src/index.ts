@@ -1,12 +1,10 @@
 /**
  * @file index.ts
- * @description Barrel for the `referral` bounded context (`@core/referral`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel for `referral` bounded context (`@core/referral`).
+ *   Auto-generated during §5.1.b extraction.
  * @layer application
  */
-
-export {};
+export * from "./ConvertReferralUseCase.js";
+export * from "./GetOrCreateReferralCodeUseCase.js";
+export * from "./GrantReferralRewardUseCase.js";
+export * from "./TrackReferralSignupUseCase.js";

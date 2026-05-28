@@ -10,9 +10,9 @@ import { TOKENS } from "./types.js";
 import { prisma } from "@infra/prisma";
 import { PrismaBrandKitRepository } from "../repositories/PrismaBrandKitRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
-import { GetBrandKitQuery } from "@core/application/brand-kit/GetBrandKitQuery.js";
-import { UpsertBrandKitUseCase } from "@core/application/brand-kit/UpsertBrandKitUseCase.js";
-import { DeleteBrandKitUseCase } from "@core/application/brand-kit/DeleteBrandKitUseCase.js";
+import { GetBrandKitQuery } from "@core/brand-kit/GetBrandKitQuery.js";
+import { UpsertBrandKitUseCase } from "@core/brand-kit/UpsertBrandKitUseCase.js";
+import { DeleteBrandKitUseCase } from "@core/brand-kit/DeleteBrandKitUseCase.js";
 
 export function setupBrandKitUseCases(container: Container): void {
   const repo = new PrismaBrandKitRepository(prisma);

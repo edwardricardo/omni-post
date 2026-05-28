@@ -1,12 +1,16 @@
 /**
  * @file index.ts
- * @description Barrel for the `custom-reports` bounded context (`@core/custom-reports`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel for `custom-reports` bounded context (`@core/custom-reports`).
+ *   Auto-generated during §5.1.b extraction.
  * @layer application
  */
-
-export {};
+export * from "./CreateCustomReportUseCase.js";
+export * from "./DeleteCustomReportUseCase.js";
+export * from "./DisableReportSharingUseCase.js";
+export * from "./EnableReportSharingUseCase.js";
+export * from "./GetCustomReportQuery.js";
+export * from "./ListCustomReportsQuery.js";
+export * from "./RunCustomReportQuery.js";
+export * from "./ScheduleCustomReportUseCase.js";
+export * from "./UpdateCustomReportUseCase.js";
+export * from "./types.js";

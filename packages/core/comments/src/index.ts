@@ -1,12 +1,21 @@
 /**
  * @file index.ts
- * @description Barrel for the `comments` bounded context (`@core/comments`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel export for comment application use cases and queries.
  * @layer application
  */
 
-export {};
+export { CreateCommentUseCase } from "./CreateCommentUseCase.js";
+export type { CreateCommentCommand, CreateCommentOutput } from "./CreateCommentUseCase.js";
+
+export { EditCommentUseCase } from "./EditCommentUseCase.js";
+export type { EditCommentCommand } from "./EditCommentUseCase.js";
+
+export { DeleteCommentUseCase } from "./DeleteCommentUseCase.js";
+export type { DeleteCommentCommand } from "./DeleteCommentUseCase.js";
+
+export { GetPostCommentsQuery } from "./GetPostCommentsQuery.js";
+export type {
+  GetPostCommentsQueryParams,
+  GetPostCommentsOutput,
+  CommentDTO,
+} from "./GetPostCommentsQuery.js";

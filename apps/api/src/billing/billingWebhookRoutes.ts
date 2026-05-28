@@ -11,7 +11,7 @@
 import type { FastifyPluginAsync, FastifyBaseLogger } from "fastify";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { GatewayAdapterRegistryPort } from "@core/domain/repositories/GatewayAdapterRegistryPort.js";
-import type { GatewayBillingService } from "@core/application/billing/GatewayBillingService.js";
+import type { GatewayBillingService } from "@core/billing/GatewayBillingService.js";
 import type { GatewayProviderType, BillingDomainEvent } from "@ports/core";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

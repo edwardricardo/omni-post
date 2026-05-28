@@ -14,7 +14,7 @@ import { requireAdminAuth } from "./auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "@core/domain/auth/Permission.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { MassForceReauthByProviderUseCase } from "@core/application/providers/MassForceReauthByProviderUseCase.js";
+import type { MassForceReauthByProviderUseCase } from "@core/providers/MassForceReauthByProviderUseCase.js";
 import type { AuditService } from "../audit/auditService.js";
 
 const ParamsSchema = z.object({ provider: z.string().min(1) });

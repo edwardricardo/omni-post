@@ -10,8 +10,8 @@ import type { ImageGenerationPort } from "@core/domain/repositories/ImageGenerat
 import type { AIService } from "../../ai/aiService.js";
 import { PrismaGeneratedImageRepository } from "../repositories/PrismaGeneratedImageRepository.js";
 import { AiServiceImageGenerationAdapter } from "../adapters/AiServiceImageGenerationAdapter.js";
-import { GenerateImageUseCase } from "@core/application/ai-image/GenerateImageUseCase.js";
-import { ListGeneratedImagesQuery } from "@core/application/ai-image/ListGeneratedImagesQuery.js";
+import { GenerateImageUseCase } from "@core/ai-image/GenerateImageUseCase.js";
+import { ListGeneratedImagesQuery } from "@core/ai-image/ListGeneratedImagesQuery.js";
 
 /**
  * @method setupAIImageUseCases

@@ -1,12 +1,13 @@
 /**
  * @file index.ts
- * @description Barrel for the `crisis` bounded context (`@core/crisis`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel export for crisis mode use cases and shared type definitions.
  * @layer application
  */
 
-export {};
+// Types
+export * from "./types.js";
+
+// Use Cases
+export { EnterCrisisModeUseCase } from "./EnterCrisisModeUseCase.js";
+export { ExitCrisisModeUseCase } from "./ExitCrisisModeUseCase.js";
+export { GetCrisisStatusUseCase } from "./GetCrisisStatusUseCase.js";

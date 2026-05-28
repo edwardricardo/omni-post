@@ -13,11 +13,11 @@ import { describe, it, beforeEach, vi, expect } from "vitest";
 import { randomUUID } from "crypto";
 
 import { ok, err } from "@shared/types";
-import { CreatePostUseCase } from "@core/application/posts/CreatePostUseCase.js";
-import { GetPostUseCase } from "@core/application/posts/GetPostUseCase.js";
-import { UpdatePostUseCase } from "@core/application/posts/UpdatePostUseCase.js";
-import { ListPostsUseCase } from "@core/application/posts/ListPostsUseCase.js";
-import { DeletePostUseCase } from "@core/application/posts/DeletePostUseCase.js";
+import { CreatePostUseCase } from "@core/posts/CreatePostUseCase.js";
+import { GetPostUseCase } from "@core/posts/GetPostUseCase.js";
+import { UpdatePostUseCase } from "@core/posts/UpdatePostUseCase.js";
+import { ListPostsUseCase } from "@core/posts/ListPostsUseCase.js";
+import { DeletePostUseCase } from "@core/posts/DeletePostUseCase.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { PostAggregate, ProjectId, EntityNotFoundError } from "@core/domain/index.js";
 import type { PostRepository, PostQueryRepository, PostReadModel } from "@core/domain/index.js";

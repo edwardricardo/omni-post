@@ -20,7 +20,7 @@ import {
   DeleteTrackedLinkUseCase,
   type CreateTrackedLinkInput,
   type RedirectInput,
-} from "@core/application/links/index.js";
+} from "@core/links/index.js";
 
 // Mock repository factory
 function createMockRepository() {

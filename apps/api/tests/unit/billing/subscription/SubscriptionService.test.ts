@@ -6,7 +6,7 @@
  * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { SubscriptionService } from "@core/application/billing/SubscriptionService.js";
+import { SubscriptionService } from "@core/billing/SubscriptionService.js";
 
 function makeDeps() {
   return {

@@ -12,8 +12,8 @@ import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
-import type { GenerateUTMLinksUseCase } from "@core/application/utm/GenerateUTMLinksUseCase.js";
-import type { GetTrackedLinkUseCase } from "@core/application/links/GetTrackedLinkUseCase.js";
+import type { GenerateUTMLinksUseCase } from "@core/utm/GenerateUTMLinksUseCase.js";
+import type { GetTrackedLinkUseCase } from "@core/links/GetTrackedLinkUseCase.js";
 
 // ============================================================================
 // Zod Validation Schemas

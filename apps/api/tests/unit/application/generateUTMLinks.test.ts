@@ -9,7 +9,7 @@
 
 import { describe, it, vi, expect } from "vitest";
 import { ok, err } from "@shared/types";
-import { GenerateUTMLinksUseCase } from "@core/application/utm/GenerateUTMLinksUseCase.js";
+import { GenerateUTMLinksUseCase } from "@core/utm/GenerateUTMLinksUseCase.js";
 
 function makeMockLink(): {
   setUTMParameters: ReturnType<typeof vi.fn>;

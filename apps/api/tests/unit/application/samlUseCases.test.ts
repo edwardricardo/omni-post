@@ -7,10 +7,10 @@
 
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import assert from "node:assert/strict";
-import { ConfigureSamlUseCase } from "@core/application/auth/ConfigureSamlUseCase.js";
-import { EnableSsoUseCase } from "@core/application/auth/EnableSsoUseCase.js";
-import { DisableSsoUseCase } from "@core/application/auth/DisableSsoUseCase.js";
-import { GetSamlConfigurationQuery } from "@core/application/auth/GetSamlConfigurationQuery.js";
+import { ConfigureSamlUseCase } from "@core/auth/ConfigureSamlUseCase.js";
+import { EnableSsoUseCase } from "@core/auth/EnableSsoUseCase.js";
+import { DisableSsoUseCase } from "@core/auth/DisableSsoUseCase.js";
+import { GetSamlConfigurationQuery } from "@core/auth/GetSamlConfigurationQuery.js";
 import type {
   SamlConfigurationRepository,
   SamlConfigurationData,

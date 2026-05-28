@@ -42,7 +42,7 @@ import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
 import type { UnitOfWork } from "@core/domain/index.js";
 import type { TrackedLinkRepository } from "@core/domain/repositories/TrackedLinkRepository.js";
 import { PrismaTrackedLinkRepository } from "../repositories/PrismaTrackedLinkRepository.js";
-import type { CrisisProjectRepository } from "@core/application/crisis/types.js";
+import type { CrisisProjectRepository } from "@core/crisis/types.js";
 import { PrismaCrisisProjectRepository } from "../repositories/PrismaCrisisProjectRepository.js";
 import type { ApprovalRequestRepository } from "@core/domain/repositories/ApprovalRequestRepository.js";
 import { PrismaApprovalRequestRepository } from "../repositories/PrismaApprovalRequestRepository.js";

@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { UpdatePricingConfigUseCase } from "@core/application/billing/UpdatePricingConfigUseCase.js";
+import { UpdatePricingConfigUseCase } from "@core/billing/UpdatePricingConfigUseCase.js";
 
 function makeMockRepo(
   affected: Array<{ id: string; pricePerMonth: number }> = [

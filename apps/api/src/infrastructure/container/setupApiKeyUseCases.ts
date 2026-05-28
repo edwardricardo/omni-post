@@ -14,7 +14,7 @@ import {
   ListApiKeysUseCase,
   RotateApiKeyUseCase,
   DeactivateApiKeyUseCase,
-} from "@core/application/apiKeys/index.js";
+} from "@core/apiKeys/index.js";
 
 /**
  * Register all API key use cases in the container

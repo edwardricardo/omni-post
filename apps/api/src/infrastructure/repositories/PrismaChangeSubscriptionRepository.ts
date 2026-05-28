@@ -5,7 +5,7 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import type { ChangeSubscriptionRepository } from "@core/application/billing/ChangeAccountSubscriptionUseCase.js";
+import type { ChangeSubscriptionRepository } from "@core/billing/ChangeAccountSubscriptionUseCase.js";
 import type { ProviderTier, AccountTier } from "@core/domain/billing/PricingCalculator.js";
 
 export class PrismaChangeSubscriptionRepository implements ChangeSubscriptionRepository {

@@ -7,7 +7,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { ComplianceService } from "@core/application/compliance/ComplianceService.js";
+import { ComplianceService } from "@core/compliance/ComplianceService.js";
 import type { GdprSettingsRepository } from "@core/domain/repositories/GdprSettingsRepository.js";
 import type { SecuritySettingsRepository } from "@core/domain/repositories/SecuritySettingsRepository.js";
 import type { DsarRequestRepository } from "@core/domain/repositories/DsarRequestRepository.js";

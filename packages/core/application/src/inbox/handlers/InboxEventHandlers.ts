@@ -6,7 +6,7 @@
  * @layer application
  */
 
-import { type CreateNotificationUseCase } from "../../notifications/CreateNotificationUseCase.js";
+import { type CreateNotificationUseCase } from "@core/notifications/CreateNotificationUseCase.js";
 
 /**
  * Context for inbox event handlers — carries project/team info.

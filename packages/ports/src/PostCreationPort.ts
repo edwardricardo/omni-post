@@ -7,7 +7,7 @@
  *   Resolves §5.1 cross-context violations `bulk-scheduling -> posts` and
  *   `recurring -> posts`. The `bulk-scheduling` and `recurring` contexts
  *   used to import `CreatePostUseCase` directly from
- *   `@core/application/posts`; now they depend on this port instead and the
+ *   `@core/posts`; now they depend on this port instead and the
  *   composition root injects the posts adapter.
  *
  *   Workstream: §5.1 Normalization Roadmap — fullscope split.

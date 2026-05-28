@@ -7,7 +7,7 @@
  */
 
 import { type Result, ok, err } from "@shared/types";
-import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "../UseCase.js";
+import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { type SocialMessageRepository } from "@core/domain/repositories/SocialMessageRepository.js";
 import {
   type SocialOutboundReplyRepository,
@@ -19,7 +19,7 @@ import { SocialMessageId } from "@core/domain/value-objects/SocialMessageId.js";
 import { type ProviderAdapter } from "@ports/core";
 import { type ProviderType } from "@core/domain/value-objects/Provider.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
-import type { GuardrailRegistry } from "../guardrails/GuardrailRegistry.js";
+import type { GuardrailRegistry } from "@core/guardrails/GuardrailRegistry.js";
 
 /**
  * Resolves a ProviderAdapter by provider type. Injected via DI.

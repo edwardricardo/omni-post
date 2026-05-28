@@ -1,12 +1,41 @@
 /**
  * @file index.ts
- * @description Barrel for the `posts` bounded context (`@core/posts`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel export for post use cases including CRUD operations, scheduling, thread queries, and global listing.
  * @layer application
  */
 
-export {};
+export {
+  CreatePostUseCase,
+  type CreatePostInput,
+  type CreatePostOutput,
+} from "./CreatePostUseCase.js";
+export { GetPostUseCase, type GetPostInput, type PostDTO } from "./GetPostUseCase.js";
+export { UpdatePostUseCase, type UpdatePostInput } from "./UpdatePostUseCase.js";
+export { ListPostsUseCase, type ListPostsInput, type ListPostsOutput } from "./ListPostsUseCase.js";
+export { DeletePostUseCase, type DeletePostInput } from "./DeletePostUseCase.js";
+export {
+  SchedulePostUseCase,
+  type SchedulePostInput,
+  type SchedulePostOutput,
+} from "./SchedulePostUseCase.js";
+export { GetPostWithThreadQuery, type GetPostWithThreadInput } from "./GetPostWithThreadQuery.js";
+export {
+  ListPostsGlobalQuery,
+  type ListPostsGlobalInput,
+  type ListPostsGlobalOutput,
+} from "./ListPostsGlobalQuery.js";
+export {
+  ArchivePostsBatchUseCase,
+  type ArchivePostsBatchInput,
+  type ArchivePostsBatchOutput,
+} from "./ArchivePostsBatchUseCase.js";
+export {
+  HardDeletePostsBatchUseCase,
+  type HardDeletePostsBatchInput,
+  type HardDeletePostsBatchOutput,
+} from "./HardDeletePostsBatchUseCase.js";
+export {
+  DuplicatePostsBatchUseCase,
+  type DuplicatePostsBatchInput,
+  type DuplicatePostsBatchOutput,
+} from "./DuplicatePostsBatchUseCase.js";

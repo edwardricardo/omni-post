@@ -7,7 +7,7 @@
  *
  *   Resolves §5.1 cross-context violation `inbox -> guardrails` (2 imports:
  *   SendReplyUseCase + TriageInboxMessageUseCase). The `inbox` context used
- *   to import guardrail services directly from `@core/application/guardrails`;
+ *   to import guardrail services directly from `@core/guardrails`;
  *   now it depends on this port instead and the composition root injects the
  *   guardrails adapter.
  *

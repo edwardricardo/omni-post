@@ -13,7 +13,7 @@ import type {
   TrendingDataPort,
   TrendingTopic,
   FetchTrendingInput,
-} from "@core/application/trends/FetchTrendingTopicsUseCase.js";
+} from "@core/trends/FetchTrendingTopicsUseCase.js";
 
 const LOOKBACK_DAYS = 30;
 const TOPIC_LIMIT = 20;

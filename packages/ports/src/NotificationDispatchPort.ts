@@ -7,7 +7,7 @@
  *
  *   Resolves §5.1 cross-context violation `mentions -> notifications`
  *   (NotifyMentionedUsersService). The `mentions` context used to import
- *   notification services directly from `@core/application/notifications`;
+ *   notification services directly from `@core/notifications`;
  *   now it depends on this port instead and the composition root injects
  *   the notifications adapter.
  *

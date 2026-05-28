@@ -6,16 +6,16 @@
 
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
-import { CreateAccountSubscriptionUseCase } from "@core/application/billing/CreateAccountSubscriptionUseCase.js";
-import { ChangeAccountSubscriptionUseCase } from "@core/application/billing/ChangeAccountSubscriptionUseCase.js";
-import { UpdatePricingConfigUseCase } from "@core/application/billing/UpdatePricingConfigUseCase.js";
+import { CreateAccountSubscriptionUseCase } from "@core/billing/CreateAccountSubscriptionUseCase.js";
+import { ChangeAccountSubscriptionUseCase } from "@core/billing/ChangeAccountSubscriptionUseCase.js";
+import { UpdatePricingConfigUseCase } from "@core/billing/UpdatePricingConfigUseCase.js";
 import { PrismaCreateSubscriptionRepository } from "../repositories/PrismaCreateSubscriptionRepository.js";
 import { PrismaChangeSubscriptionRepository } from "../repositories/PrismaChangeSubscriptionRepository.js";
 import {
   GatewayAdapterRegistry,
   createGatewayRegistry,
 } from "../billing/GatewayAdapterRegistry.js";
-import { GatewayBillingService } from "@core/application/billing/GatewayBillingService.js";
+import { GatewayBillingService } from "@core/billing/GatewayBillingService.js";
 import { GatewaySwitchJobService } from "../../billing/GatewaySwitchJobService.js";
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
 import type { PrismaClient } from "@infra/prisma";

@@ -14,7 +14,7 @@ import { requireAdminAuth } from "./auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "@core/domain/auth/Permission.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { UpdateChannelAuthStateUseCase } from "@core/application/channels/index.js";
+import type { UpdateChannelAuthStateUseCase } from "@core/channels/index.js";
 import type { AuditService } from "../audit/auditService.js";
 
 const ParamsSchema = z.object({ id: z.string().min(1) });

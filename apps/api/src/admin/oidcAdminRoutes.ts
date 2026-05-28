@@ -13,7 +13,7 @@ import { requireAdminAuth } from "./auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import { Permission } from "@core/domain/auth/Permission.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { ReplaceOidcClientSecretUseCase } from "@core/application/auth/ReplaceOidcClientSecretUseCase.js";
+import type { ReplaceOidcClientSecretUseCase } from "@core/auth/ReplaceOidcClientSecretUseCase.js";
 import type { AuditService } from "../audit/auditService.js";
 
 const ParamsSchema = z.object({ accountId: z.string().min(1) });
