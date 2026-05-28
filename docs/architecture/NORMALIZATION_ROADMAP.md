@@ -362,7 +362,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 ---
 
-### 4.3 Data retention enforcement E2E + GDPR compliance verification — `P2` · `M` · `STATUS: DONE-Phase-A1 (TBD-sha)` · follow-ups §4.3.b/c/d
+### 4.3 Data retention enforcement E2E + GDPR compliance verification — `P2` · `M` · `STATUS: DONE-Phase-A1 (00c96f1)` · follow-ups §4.3.b/c/d
 
 **Qué:** `DataRetentionService.runRetentionCleanup` existe (67 LOC), está registrado DAILY vía `BackgroundTaskScheduler` en `apps/api/src/index.ts:825-829`, y borra `AuditLog` viejos + marca `DsarRequest` overdue como `EXPIRED`. Faltaban: (a) tests E2E con datos artificialmente envejecidos verificando borrado real, (b) calendario central de retention, (c) DSAR EXPORT real, (d) PII masking + reporting API.
 
