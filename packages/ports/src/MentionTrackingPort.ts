@@ -1,33 +1,27 @@
 /**
  * @file MentionTrackingPort.ts
- * @description Application-layer port for tracking mentions of accounts/users
- *   from outside the `mentions` bounded context. Adapter lives in
+ * @description Port for tracking @mentions from outside the `mentions`
+ *   bounded context. Adapter wraps `NotifyMentionedUsersService` from
  *   `@core/mentions` and is wired in the composition root.
  *
- *   Resolves §5.1 cross-context violations `inbox -> mentions`
- *   (AddConversationNoteUseCase) and `tasks -> mentions` (CreateTaskUseCase).
- *   These contexts used to import mention services directly from
- *   `@core/application/mentions`; now they depend on this port instead and
- *   the composition root injects the mentions adapter.
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
+ *   Consumers (inbox conversation notes, tasks) call `mentionNotifier.notify(...)`
+ *   to dispatch mention notifications. The port decouples them from the
+ *   concrete notifier implementation.
  *
  * @layer domain
  */
 
-export interface TrackMentionInput {
-  readonly accountId: string;
-  readonly mentionedUserId: string;
-  readonly sourceType: "INBOX_NOTE" | "TASK_COMMENT";
-  readonly sourceId: string;
-  readonly mentioningUserId: string;
-  readonly mentioningContext: string;
-}
+import type { MentionContextType } from "@core/domain/value-objects/MentionContext.js";
 
-export interface TrackMentionResult {
-  readonly mentionId: string;
+export interface NotifyMentionedUsersInput {
+  readonly text: string;
+  readonly accountId: string;
+  readonly mentionedById: string;
+  readonly mentionedByName: string;
+  readonly context: MentionContextType;
+  readonly contextId: string;
 }
 
 export interface MentionTrackingPort {
-  track(input: TrackMentionInput): Promise<TrackMentionResult>;
+  notify(input: NotifyMentionedUsersInput): Promise<ReadonlyArray<string>>;
 }

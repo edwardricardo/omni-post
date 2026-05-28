@@ -1,38 +1,38 @@
 /**
  * @file NotificationDispatchPort.ts
- * @description Application-layer port for dispatching user notifications
- *   (in-app + push + email fanout) from outside the `notifications`
- *   bounded context. Adapter lives in `@core/notifications` and is wired
- *   in the composition root.
+ * @description Port for dispatching user notifications from outside the
+ *   `notifications` bounded context. Adapter wraps `CreateNotificationUseCase`
+ *   from `@core/notifications` and is wired in the composition root.
  *
- *   Resolves §5.1 cross-context violation `mentions -> notifications`
- *   (NotifyMentionedUsersService). The `mentions` context used to import
- *   notification services directly from `@core/notifications`;
- *   now it depends on this port instead and the composition root injects
- *   the notifications adapter.
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
+ *   Resolves §5.1 cross-context violations `mentions → notifications` and
+ *   `inbox/handlers → notifications`. The consumer's call shape was
+ *   `createNotification.execute({...})`; port method `dispatch(...)` takes
+ *   the same primitive-friendly input.
  *
  * @layer domain
  */
 
-export type NotificationChannel = "IN_APP" | "PUSH" | "EMAIL";
+import type { Result } from "@shared/types";
+import type { UseCaseError } from "@core/application/UseCase.js";
 
 export interface DispatchNotificationInput {
-  readonly accountId: string;
-  readonly recipientUserId: string;
-  readonly type: string;
-  readonly title: string;
-  readonly body: string;
-  readonly channels: ReadonlyArray<NotificationChannel>;
-  readonly payload?: Readonly<Record<string, unknown>> | undefined;
+  recipientId: string;
+  type: string;
+  title: string;
+  body: string;
+  resourceType?: string;
+  resourceId?: string;
+  actorId?: string;
+  actorName?: string;
+  metadata?: Record<string, unknown>;
 }
 
-export interface DispatchNotificationResult {
-  readonly notificationId: string;
-  readonly dispatched: ReadonlyArray<NotificationChannel>;
+export interface DispatchNotificationOutput {
+  id: string;
 }
 
 export interface NotificationDispatchPort {
-  dispatch(input: DispatchNotificationInput): Promise<DispatchNotificationResult>;
+  dispatch(
+    input: DispatchNotificationInput
+  ): Promise<Result<DispatchNotificationOutput, UseCaseError>>;
 }

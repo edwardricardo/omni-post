@@ -1,35 +1,45 @@
 /**
  * @file PostCreationPort.ts
- * @description Application-layer port for creating posts from outside the
- *   `posts` bounded context. Adapter lives in `@core/posts` and is wired
- *   in the composition root.
+ * @description Port for creating + scheduling posts from outside the `posts`
+ *   bounded context. Adapter (`apps/api/src/infrastructure/container/adapters/
+ *   PostCreationAdapter.ts`) wraps `CreatePostUseCase` + `SchedulePostUseCase`
+ *   from `@core/posts` and is wired in the composition root.
  *
- *   Resolves §5.1 cross-context violations `bulk-scheduling -> posts` and
- *   `recurring -> posts`. The `bulk-scheduling` and `recurring` contexts
- *   used to import `CreatePostUseCase` directly from
- *   `@core/posts`; now they depend on this port instead and the
- *   composition root injects the posts adapter.
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
+ *   Method signatures match the existing service call sites in
+ *   `bulk-scheduling/ProcessBulkScheduleRowUseCase` and
+ *   `recurring/CreatePostFromRecurrenceUseCase` to minimize call-site
+ *   refactor — only the constructor parameter type changes.
  *
  * @layer domain
  */
 
-export interface CreatePostFromExternalInput {
-  readonly accountId: string;
+import type { Result } from "@shared/types";
+import type { UseCaseError } from "@core/application/UseCase.js";
+
+export interface CreatePostPortInput {
   readonly projectId: string;
-  readonly authorUserId: string;
-  readonly content: string;
-  readonly channelIds: ReadonlyArray<string>;
-  readonly scheduledAt?: Date | undefined;
-  readonly mediaIds?: ReadonlyArray<string> | undefined;
-  readonly origin: "BULK_SCHEDULE" | "RECURRING";
+  readonly body: string;
+  readonly title?: string;
+  readonly tags?: ReadonlyArray<string>;
 }
 
-export interface CreatePostFromExternalResult {
+export interface CreatePostPortOutput {
   readonly postId: string;
 }
 
+export interface SchedulePostPortInput {
+  readonly postId: string;
+  readonly channelIds: ReadonlyArray<string>;
+  readonly scheduledFor: string;
+  readonly timezone?: string;
+}
+
+export interface SchedulePostPortOutput {
+  readonly postId: string;
+  readonly scheduledFor: string;
+}
+
 export interface PostCreationPort {
-  createFromExternal(input: CreatePostFromExternalInput): Promise<CreatePostFromExternalResult>;
+  createPost(input: CreatePostPortInput): Promise<Result<CreatePostPortOutput, UseCaseError>>;
+  schedulePost(input: SchedulePostPortInput): Promise<Result<SchedulePostPortOutput, UseCaseError>>;
 }
