@@ -323,7 +323,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 ---
 
-### 4.2 Observability operativa: dashboards + alerts + runbooks — `P1` · `L` · `STATUS: DONE-Phase-A1 (TBD-sha)` · follow-ups §4.2.b/c
+### 4.2 Observability operativa: dashboards + alerts + runbooks — `P1` · `L` · `STATUS: DONE-Phase-A1 (92509d5)` · follow-ups §4.2.b/c
 
 **Qué:** Tienes Pino + OTel + métricas Prometheus + Sentry inicializado. Pero no vi:
 
