@@ -52,6 +52,9 @@ import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { prisma } from "@infra/prisma";
 import { PrismaTriageMessageAdapter } from "../repositories/PrismaTriageMessageAdapter.js";
 import { PrismaTriageCrmAdapter } from "../repositories/PrismaTriageCrmAdapter.js";
+import { NotificationDispatchAdapter } from "./adapters/NotificationDispatchAdapter.js";
+import { GuardrailEvaluationAdapter } from "./adapters/GuardrailEvaluationAdapter.js";
+import { MentionTrackingAdapter } from "./adapters/MentionTrackingAdapter.js";
 import {
   TriageInboxMessageUseCase,
   type TriageMessagePort,
@@ -120,7 +123,9 @@ export function setupInboxUseCases(container: Container): void {
         container.resolve<ChannelRepository>(TOKENS.ChannelRepository),
         { resolve: (provider) => registry.getAdapter(provider) },
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
-        container.resolve<GuardrailRegistry>(TOKENS.GuardrailRegistry)
+        new GuardrailEvaluationAdapter(
+          container.resolve<GuardrailRegistry>(TOKENS.GuardrailRegistry)
+        )
       );
     },
     true
@@ -205,7 +210,12 @@ export function setupInboxUseCases(container: Container): void {
       new AddConversationNoteUseCase(
         container.resolve<ConversationNoteRepository>(TOKENS.ConversationNoteRepository),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
-        container.tryResolve<NotifyMentionedUsersService>(TOKENS.NotifyMentionedUsersService)
+        (() => {
+          const svc = container.tryResolve<NotifyMentionedUsersService>(
+            TOKENS.NotifyMentionedUsersService
+          );
+          return svc ? new MentionTrackingAdapter(svc) : undefined;
+        })()
       ),
     true
   );
@@ -284,7 +294,9 @@ export function setupInboxUseCases(container: Container): void {
     TOKENS.InboxEventHandlers,
     () =>
       new InboxEventHandlers(
-        container.resolve<CreateNotificationUseCase>(TOKENS.CreateNotificationUseCase)
+        new NotificationDispatchAdapter(
+          container.resolve<CreateNotificationUseCase>(TOKENS.CreateNotificationUseCase)
+        )
       ),
     true
   );
@@ -318,7 +330,9 @@ export function setupInboxUseCases(container: Container): void {
         container.resolve<TriageCrmPort>(TOKENS.TriageCrmPort),
         brandVoiceResolver,
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
-        container.resolve<GuardrailRegistry>(TOKENS.GuardrailRegistry)
+        new GuardrailEvaluationAdapter(
+          container.resolve<GuardrailRegistry>(TOKENS.GuardrailRegistry)
+        )
       );
     },
     true

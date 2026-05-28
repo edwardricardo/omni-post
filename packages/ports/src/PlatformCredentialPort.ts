@@ -1,33 +1,59 @@
 /**
  * @file PlatformCredentialPort.ts
- * @description Port for read access to platform credentials (provider API
- *   keys/tokens, BYOK secrets) from outside the `security` bounded context.
- *   Adapter wraps `PlatformCredentialService` from `@core/security` and is
- *   wired in the composition root.
+ * @description Port for the platform credentials service (provider API
+ *   keys/tokens, BYOK secrets, system credentials). Adapter wraps
+ *   `PlatformCredentialService` from `@core/security` and is wired in the
+ *   composition root.
  *
- *   Methods match the existing service call sites:
- *     `credentialService.getAccountCredential(accountId, group, key)` —
- *       per-account BYOK lookup.
- *     `credentialService.getGroup(group)` — system-wide credential group
- *       lookup (e.g. AI_POOL).
- *
- *   Returns decrypted values; encryption stays inside the adapter.
+ *   Exposes the read + write surface used by consumers outside the
+ *   `security` context (settings, ai). Encryption stays inside the adapter.
  *
  * @layer domain
  */
 
 import type { Result } from "@shared/types";
 import type { UseCaseError } from "@core/application/UseCase.js";
-import type {
-  AccountCredentialGroup,
-  CredentialGroup,
-} from "@core/domain/value-objects/CredentialGroup.js";
+import type { CredentialGroup } from "@core/domain/value-objects/CredentialGroup.js";
+import type { AccountCredentialGroup } from "@core/domain/value-objects/AccountCredentialGroup.js";
 
 export interface PlatformCredentialPort {
+  // System-wide credential groups
+  setCredential(
+    group: CredentialGroup,
+    key: string,
+    value: string,
+    updatedBy: string
+  ): Promise<Result<void, UseCaseError>>;
+
+  getCredential(group: CredentialGroup, key: string): Promise<Result<string | null, UseCaseError>>;
+
+  deleteCredential(
+    group: CredentialGroup,
+    key: string,
+    deletedBy: string
+  ): Promise<Result<void, UseCaseError>>;
+
+  getGroup(group: CredentialGroup): Promise<Result<Record<string, string>, UseCaseError>>;
+
+  listConfiguredGroups(): Promise<Result<CredentialGroup[], UseCaseError>>;
+
+  // Per-account credentials (BYOK)
+  setAccountCredential(
+    accountId: string,
+    group: AccountCredentialGroup,
+    key: string,
+    value: string
+  ): Promise<Result<void, UseCaseError>>;
+
   getAccountCredential(
     accountId: string,
     group: AccountCredentialGroup,
     key: string
   ): Promise<Result<string | null, UseCaseError>>;
-  getGroup(group: CredentialGroup): Promise<Result<Record<string, string>, UseCaseError>>;
+
+  deleteAccountCredential(
+    accountId: string,
+    group: AccountCredentialGroup,
+    key: string
+  ): Promise<Result<void, UseCaseError>>;
 }

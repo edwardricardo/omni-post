@@ -33,6 +33,7 @@ import {
   DuplicatePostsBatchUseCase,
 } from "@core/posts/index.js";
 import { ImportSchedulingCsvUseCase } from "@core/application/bulk-scheduling/ImportSchedulingCsvUseCase.js";
+import { PostCreationAdapter } from "./adapters/PostCreationAdapter.js";
 import { ProcessBulkScheduleRowUseCase } from "@core/application/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
 import { FailBulkScheduleRowUseCase } from "@core/application/bulk-scheduling/FailBulkScheduleRowUseCase.js";
 import { GetBulkScheduleBatchQuery } from "@core/application/bulk-scheduling/GetBulkScheduleBatchQuery.js";
@@ -160,8 +161,10 @@ export function setupPostUseCases(container: Container): void {
       new ProcessBulkScheduleRowUseCase(
         container.resolve<BulkScheduleBatchRepository>(TOKENS.BulkScheduleBatchRepository),
         container.resolve<ChannelRepository>(TOKENS.ChannelRepository),
-        container.resolve<CreatePostUseCase>(TOKENS.CreatePostUseCase),
-        container.resolve<SchedulePostUseCase>(TOKENS.SchedulePostUseCase),
+        new PostCreationAdapter(
+          container.resolve<CreatePostUseCase>(TOKENS.CreatePostUseCase),
+          container.resolve<SchedulePostUseCase>(TOKENS.SchedulePostUseCase)
+        ),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true

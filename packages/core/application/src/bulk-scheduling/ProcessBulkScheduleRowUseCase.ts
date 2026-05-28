@@ -21,8 +21,7 @@ import { Provider } from "@core/domain/value-objects/Provider.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
 import type { BulkScheduleBatchRepository } from "@core/domain/repositories/BulkScheduleBatchRepository.js";
-import type { CreatePostUseCase } from "@core/posts/CreatePostUseCase.js";
-import type { SchedulePostUseCase } from "@core/posts/SchedulePostUseCase.js";
+import type { PostCreationPort } from "@ports/core";
 
 /** Validated row payload carried by the BullMQ job. */
 export interface ProcessBulkScheduleRowInput {
@@ -60,8 +59,7 @@ export class ProcessBulkScheduleRowUseCase implements UseCase<
   constructor(
     private readonly batchRepo: BulkScheduleBatchRepository,
     private readonly channelRepository: ChannelRepository,
-    private readonly createPostUseCase: CreatePostUseCase,
-    private readonly schedulePostUseCase: SchedulePostUseCase,
+    private readonly postCreation: PostCreationPort,
     private readonly unitOfWork?: UnitOfWork
   ) {}
 
@@ -119,7 +117,7 @@ export class ProcessBulkScheduleRowUseCase implements UseCase<
       if (item.postId !== null) {
         postId = item.postId;
       } else {
-        const created = await this.createPostUseCase.execute({
+        const created = await this.postCreation.createPost({
           projectId: input.projectId,
           body: input.row.content,
           ...(input.row.title !== undefined && { title: input.row.title }),
@@ -139,7 +137,7 @@ export class ProcessBulkScheduleRowUseCase implements UseCase<
       }
 
       // 4. Schedule the post onto the resolved channels.
-      const scheduled = await this.schedulePostUseCase.execute({
+      const scheduled = await this.postCreation.schedulePost({
         postId,
         channelIds,
         scheduledFor: input.row.scheduledFor,

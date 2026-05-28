@@ -18,7 +18,9 @@ import { ListRecurringPostsQuery } from "@core/application/recurring/ListRecurri
 import { GetRecurringPostQuery } from "@core/application/recurring/GetRecurringPostQuery.js";
 import { ProcessRecurrenceUseCase } from "@core/application/recurring/ProcessRecurrenceUseCase.js";
 import { CreatePostFromRecurrenceUseCase } from "@core/application/recurring/CreatePostFromRecurrenceUseCase.js";
+import { CreatePostUseCase } from "@core/posts/CreatePostUseCase.js";
 import { SchedulePostUseCase } from "@core/posts/SchedulePostUseCase.js";
+import { PostCreationAdapter } from "./adapters/PostCreationAdapter.js";
 import { RecurrenceScheduler } from "../../recurring/RecurrenceScheduler.js";
 import { createLogger } from "../../lib/logger.js";
 
@@ -68,7 +70,10 @@ export function setupRecurringPostUseCases(container: Container): void {
       new CreatePostFromRecurrenceUseCase(
         container.resolve<PostRepository>(TOKENS.PostRepository),
         container.resolve<EventDispatcher>(TOKENS.EventDispatcher),
-        container.resolve<SchedulePostUseCase>(TOKENS.SchedulePostUseCase),
+        new PostCreationAdapter(
+          container.resolve<CreatePostUseCase>(TOKENS.CreatePostUseCase),
+          container.resolve<SchedulePostUseCase>(TOKENS.SchedulePostUseCase)
+        ),
         uow()
       ),
     true

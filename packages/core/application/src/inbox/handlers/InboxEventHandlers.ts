@@ -6,7 +6,7 @@
  * @layer application
  */
 
-import { type CreateNotificationUseCase } from "@core/notifications/CreateNotificationUseCase.js";
+import type { NotificationDispatchPort } from "@ports/core";
 
 /**
  * Context for inbox event handlers — carries project/team info.
@@ -23,7 +23,7 @@ export interface InboxEventContext {
  *   for relevant team members. Registered as a singleton in DI.
  */
 export class InboxEventHandlers {
-  constructor(private readonly createNotification: CreateNotificationUseCase) {}
+  constructor(private readonly notifications: NotificationDispatchPort) {}
 
   /**
    * @method onSocialMessageReceived
@@ -46,7 +46,7 @@ export class InboxEventHandlers {
     const title = isMention ? `${authorName} te mencionó` : `Nuevo comentario de ${authorName}`;
     const truncatedBody = body.length > 200 ? `${body.slice(0, 197)}...` : body;
 
-    await this.createNotification.execute({
+    await this.notifications.dispatch({
       recipientId: context.recipientId,
       type,
       title,
@@ -70,7 +70,7 @@ export class InboxEventHandlers {
     replierName: string,
     context: InboxEventContext
   ): Promise<void> {
-    await this.createNotification.execute({
+    await this.notifications.dispatch({
       recipientId: context.recipientId,
       type: "INBOX_MESSAGE_RECEIVED",
       title: `${replierName} respondió a un mensaje`,

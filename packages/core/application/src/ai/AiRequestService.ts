@@ -12,7 +12,7 @@
  */
 import { ok, err, type Result } from "@shared/types";
 import { createLogger } from "@observability/logger";
-import type { PlatformCredentialService } from "@core/security/PlatformCredentialService.js";
+import type { PlatformCredentialPort } from "@ports/core";
 import type { AIProviderName, AIResponse, AITask } from "@core/domain/ai/AIContracts.js";
 import type { AIRequestExecutorPort } from "@core/domain/repositories/AIRequestExecutorPort.js";
 import type { AccountSubscriptionBillingRepository } from "@core/domain/repositories/AccountSubscriptionBillingRepository.js";
@@ -53,7 +53,7 @@ const BASE_TOKENS_PER_UNIT = 10_000;
  */
 export class AiRequestService {
   constructor(
-    private readonly credentialService: PlatformCredentialService,
+    private readonly credentialService: PlatformCredentialPort,
     private readonly executor: AIRequestExecutorPort,
     private readonly subscriptionRepo: AccountSubscriptionBillingRepository,
     private readonly tokenUsageRepo: AiTokenUsageReader

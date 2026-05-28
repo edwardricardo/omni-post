@@ -35,6 +35,7 @@ import {
 } from "@core/team/index.js";
 import { NotifyMentionedUsersService } from "@core/application/mentions/index.js";
 import type { CreateNotificationUseCase } from "@core/notifications/index.js";
+import { NotificationDispatchAdapter } from "./adapters/NotificationDispatchAdapter.js";
 import {
   CreateCommentUseCase,
   EditCommentUseCase,
@@ -184,7 +185,9 @@ export function setupTeamUseCases(container: Container): void {
     TOKENS.NotifyMentionedUsersService,
     () =>
       new NotifyMentionedUsersService(
-        container.resolve<CreateNotificationUseCase>(TOKENS.CreateNotificationUseCase)
+        new NotificationDispatchAdapter(
+          container.resolve<CreateNotificationUseCase>(TOKENS.CreateNotificationUseCase)
+        )
       ),
     true
   );

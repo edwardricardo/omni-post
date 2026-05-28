@@ -23,7 +23,7 @@ import {
   type EventDispatcher,
 } from "@core/domain/index.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
-import { SchedulePostUseCase } from "@core/posts/SchedulePostUseCase.js";
+import type { PostCreationPort } from "@ports/core";
 
 export interface CreatePostFromRecurrenceInput {
   /** RecurringPost ID — used only for log breadcrumbs / tracing. */
@@ -67,7 +67,7 @@ export class CreatePostFromRecurrenceUseCase implements UseCase<
   constructor(
     private readonly postRepository: PostRepository,
     private readonly eventDispatcher: EventDispatcher,
-    private readonly schedulePostUseCase: SchedulePostUseCase,
+    private readonly postCreation: PostCreationPort,
     private readonly unitOfWork?: UnitOfWork
   ) {}
 
@@ -188,7 +188,7 @@ export class CreatePostFromRecurrenceUseCase implements UseCase<
       }
 
       // 5. Transition DRAFT → SCHEDULED + assign channels
-      const scheduleResult = await this.schedulePostUseCase.execute({
+      const scheduleResult = await this.postCreation.schedulePost({
         postId: clone.id.value,
         channelIds: input.channels,
         scheduledFor: input.dueAt.toISOString(),

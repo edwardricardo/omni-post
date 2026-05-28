@@ -24,7 +24,7 @@ export interface CreatePostPortInput {
 }
 
 export interface CreatePostPortOutput {
-  readonly postId: string;
+  readonly id: string;
 }
 
 export interface SchedulePostPortInput {
@@ -35,7 +35,7 @@ export interface SchedulePostPortInput {
 }
 
 export interface SchedulePostPortOutput {
-  readonly postId: string;
+  readonly id: string;
   readonly scheduledFor: string;
 }
 

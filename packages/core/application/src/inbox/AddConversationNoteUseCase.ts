@@ -9,7 +9,7 @@ import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/U
 import type { ConversationNoteRepository } from "@core/domain/repositories/ConversationNoteRepository.js";
 import { ConversationNote } from "@core/domain/entities/ConversationNote.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
-import type { NotifyMentionedUsersService } from "../mentions/NotifyMentionedUsersService.js";
+import type { MentionTrackingPort } from "@ports/core";
 import { MENTION_CONTEXT } from "@core/domain/value-objects/MentionContext.js";
 
 /**
@@ -42,7 +42,7 @@ export class AddConversationNoteUseCase implements UseCase<
   constructor(
     private readonly noteRepo: ConversationNoteRepository,
     private readonly unitOfWork?: UnitOfWork,
-    private readonly mentionNotifier?: NotifyMentionedUsersService
+    private readonly mentionNotifier?: MentionTrackingPort
   ) {}
 
   /**

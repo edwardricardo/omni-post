@@ -9,7 +9,7 @@ import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/U
 import type { TaskRepository } from "@core/domain/repositories/TaskRepository.js";
 import { Task, type TaskPriorityValue } from "@core/domain/entities/Task.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
-import type { NotifyMentionedUsersService } from "../mentions/NotifyMentionedUsersService.js";
+import type { MentionTrackingPort } from "@ports/core";
 import { MENTION_CONTEXT } from "@core/domain/value-objects/MentionContext.js";
 
 /**
@@ -44,7 +44,7 @@ export class CreateTaskUseCase implements UseCase<CreateTaskInput, CreateTaskOut
   constructor(
     private readonly taskRepository: TaskRepository,
     private readonly unitOfWork?: UnitOfWork,
-    private readonly mentionNotifier?: NotifyMentionedUsersService
+    private readonly mentionNotifier?: MentionTrackingPort
   ) {}
 
   /**

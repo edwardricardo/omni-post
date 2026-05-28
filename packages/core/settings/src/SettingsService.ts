@@ -8,7 +8,7 @@
 
 import { ok, err, type Result } from "@shared/types";
 import type { CredentialGroup } from "@core/domain/value-objects/CredentialGroup.js";
-import type { PlatformCredentialService } from "@core/security/PlatformCredentialService.js";
+import type { PlatformCredentialPort } from "@ports/core";
 import type { PlatformEncryptionKeyRepository } from "@core/domain/repositories/PlatformEncryptionKeyRepository.js";
 import type { AiTokenUsageReader } from "@core/domain/repositories/AiTokenUsageReader.js";
 import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
@@ -51,7 +51,7 @@ const CRITICAL_GROUPS: CredentialGroup[] = ["STRIPE", "RESEND", "AI_POOL"];
  */
 export class SettingsService {
   constructor(
-    private readonly credentialService: PlatformCredentialService,
+    private readonly credentialService: PlatformCredentialPort,
     private readonly encryptionKeyRepo: PlatformEncryptionKeyRepository,
     private readonly tokenUsageReader: AiTokenUsageReader,
     private readonly auditEmitter: AuditEmitterPort

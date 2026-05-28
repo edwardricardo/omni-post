@@ -8,6 +8,7 @@ import { TOKENS } from "./types.js";
 import type { TaskRepository } from "@core/domain/repositories/TaskRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { NotifyMentionedUsersService } from "@core/application/mentions/index.js";
+import { MentionTrackingAdapter } from "./adapters/MentionTrackingAdapter.js";
 import {
   CreateTaskUseCase,
   UpdateTaskUseCase,
@@ -27,7 +28,12 @@ export function setupTaskUseCases(container: Container): void {
       new CreateTaskUseCase(
         container.resolve<TaskRepository>(TOKENS.TaskRepository),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
-        container.tryResolve<NotifyMentionedUsersService>(TOKENS.NotifyMentionedUsersService)
+        (() => {
+          const svc = container.tryResolve<NotifyMentionedUsersService>(
+            TOKENS.NotifyMentionedUsersService
+          );
+          return svc ? new MentionTrackingAdapter(svc) : undefined;
+        })()
       ),
     true
   );

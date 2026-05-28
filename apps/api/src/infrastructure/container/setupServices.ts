@@ -101,6 +101,7 @@ import { PrismaAccountNotificationRepository } from "../repositories/PrismaAccou
 import type { AccountNotificationReader } from "@core/domain/repositories/AccountNotificationReader.js";
 import { ChannelCredentialsCrypto } from "../../security/ChannelCredentialsCrypto.js";
 import { PlatformCredentialService } from "@core/security/PlatformCredentialService.js";
+import { PlatformCredentialAdapter } from "./adapters/PlatformCredentialAdapter.js";
 import { SettingsService } from "@core/settings/SettingsService.js";
 import { UpcasterChain } from "../integration-events/EventUpcaster.js";
 import { NotificationBroadcaster } from "../../services/NotificationBroadcaster.js";
@@ -242,7 +243,9 @@ export function setupServices(
     TOKENS.AiRequestService,
     () =>
       new AiRequestService(
-        container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService),
+        new PlatformCredentialAdapter(
+          container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService)
+        ),
         container.resolve<AIRequestExecutorPort>(TOKENS.AIRequestExecutorPort),
         container.resolve<AccountSubscriptionBillingRepository>(
           TOKENS.AccountSubscriptionBillingRepository
@@ -901,7 +904,9 @@ export function setupServices(
     TOKENS.SettingsService,
     () =>
       new SettingsService(
-        container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService),
+        new PlatformCredentialAdapter(
+          container.resolve<PlatformCredentialService>(TOKENS.PlatformCredentialService)
+        ),
         container.resolve<PlatformEncryptionKeyRepository>(TOKENS.PlatformEncryptionKeyRepository),
         container.resolve<AiTokenUsageReader>(TOKENS.AiTokenUsageReader),
         container.resolve(TOKENS.AuditEmitterPort)

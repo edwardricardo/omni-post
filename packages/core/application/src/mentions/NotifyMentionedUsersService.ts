@@ -7,7 +7,7 @@
  */
 
 import { MentionParser } from "@core/domain/services/MentionParser.js";
-import type { CreateNotificationUseCase } from "@core/notifications/CreateNotificationUseCase.js";
+import type { NotificationDispatchPort } from "@ports/core";
 import { NOTIFICATION_TYPES } from "@core/domain/value-objects/NotificationType.js";
 import {
   MENTION_CONTEXT,
@@ -40,7 +40,7 @@ export interface NotifyMentionedUsersInput {
  *   for each uniquely mentioned team member. Self-mentions are ignored.
  */
 export class NotifyMentionedUsersService {
-  constructor(private readonly createNotification: CreateNotificationUseCase) {}
+  constructor(private readonly notifications: NotificationDispatchPort) {}
 
   /**
    * @method notify
@@ -63,7 +63,7 @@ export class NotifyMentionedUsersService {
     const notificationIds: string[] = [];
 
     for (const recipientId of recipientIds) {
-      const result = await this.createNotification.execute({
+      const result = await this.notifications.dispatch({
         recipientId,
         type: NOTIFICATION_TYPES.MENTION,
         title: `${input.mentionedByName} mentioned you`,

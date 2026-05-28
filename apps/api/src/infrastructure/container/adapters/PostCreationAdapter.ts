@@ -33,10 +33,10 @@ export class PostCreationAdapter implements PostCreationPort {
       projectId: input.projectId,
       body: input.body,
       ...(input.title !== undefined && { title: input.title }),
-      ...(input.tags !== undefined && { tags: input.tags }),
+      ...(input.tags !== undefined && { tags: [...input.tags] }),
     });
     if (!result.ok) return result;
-    return { ok: true, value: { postId: result.value.postId } };
+    return { ok: true, value: { id: result.value.id } };
   }
 
   async schedulePost(
@@ -51,7 +51,7 @@ export class PostCreationAdapter implements PostCreationPort {
     if (!result.ok) return result;
     return {
       ok: true,
-      value: { postId: result.value.postId, scheduledFor: result.value.scheduledFor },
+      value: { id: result.value.id, scheduledFor: result.value.scheduledFor },
     };
   }
 }
