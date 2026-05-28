@@ -355,7 +355,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 ⏭ **Phase C / §4.1.c PENDING**: L2 real-crash infra — `child_process.spawn` API + `SIGKILL` mid-flight + restart + verify invariants persisted. ~6-10h trabajo invasivo. Diferido hasta Phase B estable.
 
-⏭ **Phase D / §4.1.d (workflow nightly only)**: planeado fix retroactive en sesión 2026-05-28 audit — `.github/workflows/chaos.yml` nightly minimal con notify-on-failure GitHub issue creation. Sentry alert chain queda en sub-phase posterior (requiere Sentry secrets management aparte, mismo análisis que §4.2.c).
+✅ **Phase D-workflow closure (c29d9e73, 2026-05-28)**: `.github/workflows/chaos.yml` creado — cron `30 3 * * *` (staggered 30 min después del nightly full-suite), services postgres+redis, runs `vitest run tests/chaos/` (additive — picks up new scenarios sin workflow edit), notify-on-failure crea GitHub issue con labels `chaos-failure`/`P1`/`reliability` + links a runbook directory. Cierre del DoD tercer ítem "nightly". Sentry alert chain queda en sub-phase posterior (requiere Sentry secrets management aparte, mismo análisis que §4.2.c).
 
 ---
 
