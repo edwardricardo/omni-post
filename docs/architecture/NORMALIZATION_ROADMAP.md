@@ -208,11 +208,11 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 - ✅ RLS migration applied (51 policies) + 11 integration tests via non-superuser role
 - ✅ Fitness #23 hard-zero en CI
 - ✅ Audit retroactiva + pgvector fixes (`docs/security/MULTI_TENANT_AUDIT_2026-05-27.md`)
-- ⏭ ADR 0014 (TBD) — deferred al rotation pass; el detalle vive ya en MULTI_TENANT_GUARDS.md
+- ✅ ADR-0014 — Multi-tenant isolation guards, 3-layer defense (`docs/technical/ADR-0014-multi-tenant-isolation-guards.md`, 2026-05-28)
 
 ---
 
-### 2.2 Coverage + mutation gates en CI — `P1` · `M` · `STATUS: DONE-Phase-A1 (5934b37)` · follow-ups §2.2.a-CI + §2.2.b
+### 2.2 Coverage + mutation gates en CI — `P1` · `M` · `STATUS: DONE-Phase-A1 (5934b37) + DONE-Phase-A2 (TBD-sha)` · follow-up §2.2.b
 
 **Qué:** CLAUDE.md declara coverage targets (90% domain, 85% app, 70% infra/routes/providers) y Stryker está configurado, pero no son gates de CI hoy.
 
@@ -227,13 +227,15 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 **Dependencias:** 1.4 (test env normalization, porque coverage corre tests).
 
-**Definition of done:** PR a `main` falla si coverage < threshold. Stryker nightly publica reporte. Sentry/Slack alerta si baja.
+**Definition of done (clarified 2026-05-28 audit):** PR a `main` falla si coverage baja del threshold floor configurado en `vitest.config.ts` (vía `test:unit:coverage` corriendo en CI). Stryker nightly publica reportes uploadeados como artifact; corre con `continue-on-error: true` por design (Edward's intent: long-running variable-runtime health check, treated as informational trend signal, NOT an aspirational gate). Sentry/Slack alert PENDING para Phase B.
 
-✅ **Phase A1 closure:** `apps/api/vitest.config.ts` coverage block actualizado con per-scope threshold structure (domain + application + global, todos al floor 55/55/45 para no romper CI hoy) + reporters (`text`, `html`, `json-summary`) + `reportsDirectory`. Stryker thresholds confirmados intencionalmente calibrados por Edward (root break 52, batch-1 57). `test:unit:coverage` script ya existía en `apps/api/package.json` (no se duplicó).
+✅ **Phase A1 closure (5934b37, 2026-05-27):** `apps/api/vitest.config.ts` coverage block actualizado con per-scope threshold structure (domain + application + global, todos al floor 55/55/45 para no romper CI hoy) + reporters (`text`, `html`, `json-summary`) + `reportsDirectory`. Stryker thresholds confirmados intencionalmente calibrados por Edward (root break 52, batch-1 57). `test:unit:coverage` script ya existía en `apps/api/package.json` (no se duplicó).
 
-⏭ **Phase A2 (§2.2.a-CI, PENDING):** wire `ci.yml` test step a `pnpm --filter @apps/api test:unit:coverage` + upload coverage artefact. Edit de 1 step bloqueado por sensitive-edit hook intermittency; queda como follow-up de 10 LOC en un commit separado por Edward o sesión futura.
+✅ **Phase A2 closure (§2.2.a-CI, 2026-05-28):** `.github/workflows/ci.yml` test step migrado de `pnpm --filter @apps/api test` a `pnpm --filter @apps/api test:unit:coverage` + nuevo step "Upload coverage report" con `actions/upload-artifact@v4` (retention 14 days). CI ahora falla si coverage baja del floor configurado en `vitest.config.ts` (55/55/45 hoy). Cierre del DoD original "PR a main falla si coverage < threshold". Identificado como TIME-BOMB HIGH durante audit retroactivo §2 (hook tripwire active session 2026-05-28); el "follow-up de 10 LOC" de la closure original no era patch deferible — era el fix mismo del item.
 
-⏭ **Phase B (§2.2.b, PENDING):** medir per-scope coverage actual + ratchet thresholds a aspiracional (domain 90, application 85, infra 70). Requiere data from Phase A2 (CI con `--coverage` corriendo y reportando per-scope).
+⏭ **Phase B (§2.2.b, PENDING):** medir per-scope coverage actual (con la nueva CI run reportando per-scope vía `vitest --coverage`) + ratchet thresholds a aspiracional (domain 90, application 85, infra 70) en passes incrementales. Bloqueante: requiere data de al menos 1 CI run post-Phase A2 con `--coverage` (próximo push a main). Sentry/Slack alert para mutation drift también queda en este alcance.
+
+🚨 **Stryker realignment (2026-05-28 audit)**: el DoD original decía "mutation score threshold (>60% para domain)" pero la implementación en `nightly.yml:67-72` es `continue-on-error: true` con comentario "treated as informational". La decisión técnica de Edward es correcta (mutation testing es noisy y long-running); el time-bomb era el roadmap aspirando a un gate que el workflow ya había descartado. Realignment: Stryker es informational signal (artifact upload + GitHub failure notification issue creation) — NO gate hard. La aspiración "Sentry/Slack alert si baja" queda en Phase B donde tiene sentido (data-driven trigger).
 
 ---
 

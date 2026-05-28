@@ -305,7 +305,7 @@ methodology + verdict.
 
 ## References
 
-- ADR-0014 (TBD) — Multi-tenant isolation guards, 3-layer defense
+- ADR-0014 — Multi-tenant isolation guards, 3-layer defense (`docs/technical/ADR-0014-multi-tenant-isolation-guards.md`)
 - ADR-0005 — Unit of Work with AsyncLocalStorage (the existing ALS
   pattern this layer extends)
 - CLAUDE.md §Automated Compliance Checks — fitness #23

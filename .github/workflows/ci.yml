@@ -103,8 +103,17 @@ jobs:
       - name: Run database migrations
         run: pnpm --filter @infra/prisma db:migrate
 
-      - name: Run API tests
-        run: pnpm --filter @apps/api test
+      - name: Run API tests with coverage
+        run: pnpm --filter @apps/api test:unit:coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-${{ github.run_id }}
+          path: apps/api/coverage/
+          retention-days: 14
+          if-no-files-found: warn
 
   build:
     name: Build Check
