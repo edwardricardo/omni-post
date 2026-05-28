@@ -115,6 +115,19 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
+      - name: Regenerate API types (OpenAPI drift gate)
+        run: pnpm generate:api-types
+
+      - name: Verify no API-types drift
+        run: |
+          if ! git diff --quiet -- packages/shared/src/api-generated/; then
+            echo "::error title=API types out of sync::Generated OpenAPI types differ from committed copy."
+            echo "::error::Run 'pnpm generate:api-types' locally and commit the result."
+            git diff --stat -- packages/shared/src/api-generated/
+            exit 1
+          fi
+          echo "API types are in sync with the OpenAPI spec."
+
   build:
     name: Build Check
     runs-on: ubuntu-latest

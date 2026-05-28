@@ -243,7 +243,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 > Objetivo: prevenir regressions silenciosas en boundaries externos (frontend↔backend) y upstream APIs (providers).
 
-### 3.1 OpenAPI auto-gen + tipos frontend — `P1` · `M` · `STATUS: DONE-Phase-A1 (f478128)` · follow-up §3.1.b
+### 3.1 OpenAPI auto-gen + tipos frontend — `P1` · `M` · `STATUS: DONE-Phase-A1 (f478128) + DONE-Phase-A2-drift-gate (TBD-sha)` · follow-ups §3.1.b/c
 
 **Qué:** Fastify es schema-first; podemos exportar OpenAPI spec auto-generado, consumido por admin/client como **tipos generados** vía `openapi-typescript`.
 
@@ -270,11 +270,17 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 - **`packages/shared/src/api-generated/{types.gen.ts, index.ts}` committed** con 414 paths tipados (3 con responses reales, ~411 con responses `unknown` esperando migración progresiva).
 - **Docs en `docs/architecture/openapi-migration.md`** con recipe + caveats + canon de fastify-type-provider-zod.
 
-⏭ **Phase B (§3.1.b PENDING)**: migrar las ~342 rutas restantes a Zod schemas completos (params/query/body/response) — ~50-60h trabajo progresivo. Wirear admin/client typed-clients con ≥3 endpoints consumed. Gate de drift en CI (10 LOC bloqueados esta sesión por `omnipost-allow sensitive-edit` intermittency).
+🚨 **DoD honest gap (2026-05-28 audit)**: el DoD original textual de §3.1 era _"`packages/shared/src/api-generated.ts` checked in + CI gate de 'no drift' + admin/client consumiendo al menos 3 endpoints con tipos generados"_. Phase A1 entregó solo el primer ítem (types committed, 414 paths). Los otros dos quedaron diferidos como "Phase B" pero el item estaba marked DONE-Phase-A1 — framing que ocultó que **el DoD textual NO estaba cumplido**.
+
+✅ **Phase A2 closure (drift gate, 2026-05-28)**: `.github/workflows/ci.yml` job test agregó (1) step "Regenerate API types (OpenAPI drift gate)" que corre `pnpm generate:api-types`, (2) step "Verify no API-types drift" que `git diff --quiet packages/shared/src/api-generated/` y falla CI con `::error` annotation si hay drift. CI ahora bloquea PRs cuya regen no coincide con el checked-in copy. Cierre del DoD segundo ítem.
+
+⏭ **Phase B (§3.1.b PENDING)**: migrar las ~342 rutas restantes a Zod schemas completos (params/query/body/response) — ~50-60h trabajo progresivo. Sin esta migración, `types.gen.ts` tiene 411 paths con response `unknown` (no aportan valor de tipo en consumidores).
+
+⏭ **Phase C (§3.1.c PENDING — DoD tercer ítem original)**: wirear admin/client typed-clients consumiendo ≥3 endpoints con tipos generados. Bloqueado por §3.1.b (sin Zod schemas en backend → consumers no obtienen valor). Estimación: ~5-10h tras §3.1.b suficiente avance (≥3 endpoints con response Zod schemas concretos).
 
 ---
 
-### 3.2 Provider sandbox + contract tests — `P1` · `L` · `STATUS: DONE-Phase-A1 (30dc599)` · follow-ups §3.2.b/c/d
+### 3.2 Provider sandbox + contract tests — `P1` · `L` · `STATUS: DONE-Phase-A1-railroad (30dc599) + DONE-Phase-A2-runbook (TBD-sha)` · follow-ups §3.2.b/c/d
 
 **Qué:** 11 social providers + Stripe + Paddle. Hoy todos están unit-tested con mocks (`vi.fn()` de HTTP). **No atrapan** cambios de API upstream. Recomendación:
 
@@ -293,9 +299,13 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 - Sentry alert si falla
 - Runbook `docs/runbooks/provider-contract-failure.md`
 
-✅ **Phase A1 closure:** railroad MSW + proof-of-concept en Telegram (2 tests verdes). `msw@2.14.3` instalado (root devDeps, pinned). `packages/providers/shared/src/test-utils/msw-helpers.ts` con wrapper canónico. Alias vitest agregado a telegram. Template `_template/tests/integration/sandbox.template.test.ts` listo para copy-paste. Doc canon en `docs/architecture/provider-testing.md`. Tests `vi.fn()` existentes siguen verde (zero regression).
+🚨 **DoD honest gap (2026-05-28 audit)**: el DoD original textual de §3.2 era _"11 providers + Stripe + Paddle con sandbox/contract tests, Nightly job que corre estos tests, Sentry alert si falla, Runbook `docs/runbooks/provider-contract-failure.md`"_. Phase A1 entregó solo el railroad MSW + 1 de 13 providers (Telegram, **7.7% del DoD**). Los otros 3 ítems quedaron diferidos como "Phase B/C/D" pero el item estaba marked DONE-Phase-A1 — framing que ocultó que **el DoD textual estaba 7.7% cumplido**.
 
-⏭ **Phase B / §3.2.b PENDING**: migrar 10 providers restantes a MSW handlers (~20h trabajo progresivo). Cada uno: agregar alias `@providers/shared/test-utils` al vitest.config + migrar ≥1 test.
+✅ **Phase A1 closure (railroad, 30dc599, 2026-05-27)**: railroad MSW + proof-of-concept en Telegram (2 tests verdes). `msw@2.14.3` instalado (root devDeps, pinned). `packages/providers/shared/src/test-utils/msw-helpers.ts` con wrapper canónico. Alias vitest agregado a telegram. Template `_template/tests/integration/sandbox.template.test.ts` listo para copy-paste. Doc canon en `docs/architecture/provider-testing.md`. Tests `vi.fn()` existentes siguen verde (zero regression).
+
+✅ **Phase A2 closure (runbook, 2026-05-28)**: `docs/runbooks/provider-contract-failure.md` creado como skeleton estructurado: síntoma, severidad (HIGH/MEDIUM/LOW por footprint), diagnóstico paso-a-paso (CI annotation → reproduce local → read diff → cross-check provider changelog → classify drift), resolución por clase (request shape vs response shape), production impact protocol, prevention. Links a 10 provider changelog URLs canónicos. Cierre del DoD cuarto ítem ("Runbook").
+
+⏭ **Phase B (§3.2.b PENDING — DoD primer ítem)**: migrar 10 providers restantes a MSW handlers (x, instagram, facebook, youtube, tiktok, snapchat, pinterest, linkedin, bluesky, threads — Telegram ya done) — ~20h trabajo progresivo. Cada uno: agregar alias `@providers/shared/test-utils` al vitest.config + migrar ≥1 test. Stripe + Paddle out-of-scope (workstream §3.3 separado, billing adapters).
 
 ⏭ **Phase C / §3.2.c PENDING**: provisioning de sandbox apps por provider (Edward, fuera del repo) + GitHub Actions Secrets + implementar real assertions en cada `sandbox.test.ts`.
 
