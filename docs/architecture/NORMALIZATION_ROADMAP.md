@@ -23,12 +23,12 @@ Antes de listar los items, dejamos por escrito los costos reales de las decision
 
 ### 0.2 Preferencias futuras sobre nuestra organización actual
 
-Estos NO son items accionables — son notas para revisar en horizonte Q2/Q3 2026 cuando el equipo crezca o la complejidad lo justifique. Hoy NO se ejecutan.
+Estos eran items DEFERRED en el roadmap inicial. **Realineación 2026-05-28 audit**:
 
-- **Split de `@core/application/` en bounded contexts separados** (`packages/billing`, `packages/auth`, `packages/ai`, `packages/compliance`). DDD canon = un package por bounded context. Hoy todo vive en `@core/application/` para simplicidad de packaging; sacrificamos boundary enforcement DDD real por facilidad. Cuando el repo tenga 5-10 contextos maduros + 5+ developers, el split valdrá la pena.
-- **Triada `packages/queue-types` + `queue-client` + `queue-worker`** vs nuestro `@adapters/queue-bullmq` que mezcla las tres responsabilidades. La separación canónica es más limpia. Hoy es over-engineering para nuestro caso; futuro cuando workers escalen sí.
+- **Split de `@core/application/` en bounded contexts separados** (`packages/core/<context>/`). DDD canon = un package por bounded context. **Trigger event CUMPLIDO** (re-evaluación 2026-05-28): el contador inicial de §0.2 era "7 contexts" (estimación heurística); recon real durante §5.1.a reveló **46 bounded contexts** dentro de `@core/application/src/` + **11 cross-context boundary violations** (ai→embeddings/security, inbox→guardrails/mentions, mentions→notifications, bulk-scheduling/recurring→posts, glossary/style-guide→embeddings, tasks→mentions, settings→security). El gate "team-size 5+ devs" NO aplica a este equipo (Edward + Claude); fue heredado del canon genérico monorepo 2026. **Status:** §5.1 abierto como IN-PROGRESS — ver §5.1 abajo para detalle.
+- **Triada `packages/queue-types` + `queue-client` + `queue-worker`** vs nuestro `@adapters/queue-bullmq` que mezcla las tres responsabilidades. La separación canónica es más limpia. **Trigger event NO cumplido** (re-evaluación 2026-05-28): hoy 1 worker entry `apps/workers`, sin fricción operativa detectada. **Status:** §5.2 sigue DEFERRED legítimamente.
 
-> **Reglas para revisar §0.2:** trigger event = nuevo bounded context #6 (hoy tenemos billing/security/settings/compliance/webhooks/ai/auth = 7) **o** worker process #4 (hoy tenemos 1 entry apps/workers). Si llega cualquiera de los dos, abre item en Phase 5.
+> **Reglas para revisar §0.2:** triggers explícitos por item — ver cada §5.x. Counter de bounded contexts ya no es heurística (46 contexts reales en `packages/core/application/src/`); el trigger gate real es boundary violation evidence + cost-benefit del refactor.
 
 ---
 
@@ -424,27 +424,65 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 > Objetivo: capturar mejoras estructurales mayores propuestas por el canon genérico monorepo 2026 — **no se ejecutan ahora** pero quedan registradas para revisión Q2/Q3 2026 según trigger events de §0.2.
 
-### 5.1 Split `@core/application/` en bounded contexts separados — `P2` · `XL` · `STATUS: DEFERRED`
+### 5.1 Split `@core/application/` en bounded contexts separados — `P1` · `XL` · `STATUS: IN-PROGRESS Phase-A (431b8667) + Phase-B (7f49e69c)` · sub-phases §5.1.c/d PENDING
 
-**Qué:** Re-organizar `@core/application/{billing,auth,ai,compliance,security,settings,webhooks}/` a paquetes top-level: `packages/billing`, `packages/auth`, `packages/ai`, etc. — un package por bounded context (DDD canon).
+**Qué:** Re-organizar `@core/application/<context>/` a packages top-level por context bajo `packages/core/<context>/` — un package por bounded context (DDD canon). Recon (2026-05-28) reveló **46 bounded contexts** en `@core/application/src/` (no 7 como inicialmente estimaba §0.2).
 
-**Trigger event:** ver §0.2. Se abre como item live cuando:
+**Trigger gate (re-evaluado 2026-05-28):**
 
-- Bounded context #8 aparece, o
-- Equipo crece a 5+ developers, o
-- Aparece evidencia clara de boundary violation cross-context
+- ✅ **Boundary violation evidence**: 11 cross-context imports detectados (lista en §5.1.a commit). Trigger CUMPLIDO.
+- ❌ Team-size gate (5+ devs) — no aplica a este equipo (Edward + Claude). Gate descartado por feedback.
+- 46 contexts >> el threshold #8 original (el counter inicial era heurística — recon real lo rebasó 5.75×).
 
-**Por qué se difiere:** hoy todo en `@core/application/` es simplicidad de packaging. Beneficio del split (boundary enforcement DDD real, build paralelismo, deployment independence si llegara) no justifica el costo (32-file refactor + 130+ token reassignments) en este momento.
+**Por qué se abrió:** el contexto está aquí (46 bounded contexts), las violations cross-context están aquí (11 documentadas), y el hook tripwire system (commit 8dea6aba+) ahora previene NUEVAS violations. El split convierte los bounded contexts en estructura técnica enforced, no convención.
 
-**Definition of done (cuando se ejecute):** un package por bounded context + depcruise rules entre packages + 0 imports cross-context fuera de ports compartidos.
+**Definition of done (cuando se cierre):** un package por bounded context + depcruise rules cross-context enforced + 0 imports cross-context fuera de ports compartidos + ports nuevos en `@ports/core` para 11 violations resueltas.
+
+✅ **Phase A1 closure (scaffold, 431b8667, 2026-05-28):**
+
+- 46 packages scaffolded en `packages/core/<context>/` (package.json + tsconfig.json + src/index.ts empty barrel)
+- 6 ports nuevos en `@ports/core` para resolver las 11 violations: `SecurityClassifierPort`, `PostCreationPort`, `GuardrailEvaluationPort`, `MentionTrackingPort`, `NotificationDispatchPort`, `PlatformCredentialPort`
+- 46 aliases en `tsconfig.base.json` + `apps/api/vitest.config.ts`
+- pnpm install discovers 50 `@core/*` packages (46 nuevos + engine + application + domain + threading)
+- tsc green, fitness checks intact
+
+✅ **Phase B closure (extract 35 leaf contexts, 7f49e69c, 2026-05-28):**
+
+- 35 leaf contexts (sin cross-context out) movidos a `packages/core/<ctx>/src/` via `git mv` (preserva blame)
+- 245 importer files updated via sed (`@core/application/<ctx>` → `@core/<ctx>`)
+- 190 UseCase.js imports normalized
+- 35 nuevos workspace deps en `apps/api/package.json`
+- tsc green, fitness checks intact, 0 residual `@core/application/<leaf>` references
+
+🚨 **Phase B time-bomb identified (audit 2026-05-28)**: el commit 7f49e69c también dejó **7 absolute cross-bounded-context imports** dentro de los 9 contexts remaining en `@core/application/src/` (ai→@core/security, bulk-scheduling/recurring→@core/posts, inbox→@core/guardrails, inbox/handlers/mentions→@core/notifications). El framing original fue "puente temporal hasta §5.1.c". El hook tripwire (commit 8dea6aba+) AHORA bloquearía la introducción de patrones idénticos — pero los 7 existentes pasaron antes del hook. **Quedan a resolver en §5.1.c via los 6 ports creados en Phase A.**
+
+⏭ **Phase C / §5.1.c PENDING**: resolver las 11 cross-context violations:
+
+1. Crear 6 adapters en composition root (`apps/api/src/infrastructure/container/adapters/`) que implementen los ports nuevos wrapping los services concretos en `@core/<dest>/`.
+2. Refactorizar los 11 use cases en los 9 contexts remaining (ai/bulk-scheduling/embeddings/glossary/inbox/mentions/recurring/style-guide/tasks) para depender del port en lugar del service concreto (constructor injection type-change).
+3. Update DI container registrations.
+4. Mover los 9 contexts remaining a `packages/core/<ctx>/src/` (mismo patrón que Phase B).
+5. Update apps/api/package.json con 9 nuevos workspace deps.
+6. tsc green + fitness checks intact.
+7. Estimación honesta: ~3-4h.
+
+⏭ **Phase D / §5.1.d PENDING**: cleanup `@core/application` (queda con UseCase.ts + index.ts mínimo) + depcruise rule structural `no-cross-bounded-context` + `docs/architecture/BOUNDED_CONTEXTS.md` canon doc nuevo (listado de los 46 contexts + responsibility + dependencies declared + decision log de los 6 ports). Estimación ~1h.
+
+⏭ **Phase E / §5.1.e (opcional) PENDING**: eliminar `@core/application` package vacío cuando sea seguro (sin importers residuales). Diferido hasta verificar zero impact.
 
 ---
 
-### 5.2 Triada `queue-types` + `queue-client` + `queue-worker` separada — `P2` · `L` · `STATUS: DEFERRED`
+### 5.2 Triada `queue-types` + `queue-client` + `queue-worker` separada — `P2` · `L` · `STATUS: DEFERRED (trigger no cumplido al 2026-05-28)`
 
-**Qué:** Hoy `@adapters/queue-bullmq` mezcla las tres responsabilidades (tipos de jobs, enqueuer, base classes de workers). El canon separa en 3 packages.
+**Qué:** Hoy `@adapters/queue-bullmq` mezcla las tres responsabilidades (tipos de jobs, enqueuer, base classes de workers, 821 LOC, 7 archivos, 35 consumers en el repo). El canon separa en 3 packages.
 
-**Trigger event:** worker process #4 (hoy hay 1 entry `apps/workers`), o equipo de workers crece a 3+ devs.
+**Trigger gate (re-evaluado 2026-05-28):**
+
+- ❌ Worker process #4 (hoy **1** entry `apps/workers`). NO cumplido.
+- ❌ Equipo de workers 3+ devs. NO aplica.
+- ❌ Fricción operativa cross-paquete. Recon NO detectó (1 worker entry, paquete no es god-object, no boundary violations cross-cutting).
+
+**Por qué sigue DEFERRED:** con 1 worker entry, split en 3 packages es over-engineering (3× boilerplate, sin retorno hoy). El trigger gate se mantendrá viable cuando aparezca worker process #2 (entonces el cost-benefit cambia).
 
 **Definition of done (cuando se ejecute):** 3 packages + apps/api consume `queue-client` + apps/workers consume `queue-worker` + `queue-types` es leaf-dep de ambos.
 
