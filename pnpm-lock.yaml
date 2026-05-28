@@ -1371,6 +1371,131 @@ importers:
         specifier: 4.0.18
         version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
 
+  packages/core/ai:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/ai-image:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/aiPromptTemplates:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/analytics:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/apiKeys:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
   packages/core/application:
     dependencies:
       '@core/domain':
@@ -1385,6 +1510,381 @@ importers:
       csv-parse:
         specifier: 6.2.1
         version: 6.2.1
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/approvals:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/assets:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/auth:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/billing:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/brand-kit:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/brand-voice:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/bulk-scheduling:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/campaigns:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/channels:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/comments:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/compliance:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/crisis:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/crm:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/custom-reports:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/customer-auth:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
     devDependencies:
       '@types/node':
         specifier: 24.5.2
@@ -1415,6 +1915,556 @@ importers:
         specifier: 4.0.18
         version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
 
+  packages/core/embeddings:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/external-notifications:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/first-comment:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/glossary:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/guardrails:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/inbox:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/integrations:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/links:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/listening:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/mentions:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/ml:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/notifications:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/posts:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/providers:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/recurring:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/referral:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/reports:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/security:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/settings:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/style-guide:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/tasks:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/team:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
   packages/core/threading:
     dependencies:
       '@shared/types':
@@ -1427,6 +2477,106 @@ importers:
       typescript:
         specifier: 5.9.3
         version: 5.9.3
+
+  packages/core/trends:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/usage:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/utm:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/core/webhooks:
+    dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@ports/core':
+        specifier: workspace:*
+        version: link:../../ports
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
 
   packages/monitoring/circuit-breaker:
     dependencies:
@@ -1828,6 +2978,9 @@ importers:
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
+      msw:
+        specifier: 2.x
+        version: 2.14.3(@types/node@22.13.3)(typescript@5.9.3)
       pino:
         specifier: 10.3.1
         version: 10.3.1
@@ -17679,7 +18832,6 @@ snapshots:
       '@inquirer/type': 4.0.5(@types/node@22.13.3)
     optionalDependencies:
       '@types/node': 22.13.3
-    optional: true
 
   '@inquirer/confirm@6.0.12(@types/node@24.5.2)':
     dependencies:
@@ -17706,7 +18858,6 @@ snapshots:
       signal-exit: 4.1.0
     optionalDependencies:
       '@types/node': 22.13.3
-    optional: true
 
   '@inquirer/core@11.1.9(@types/node@24.5.2)':
     dependencies:
@@ -17810,7 +18961,6 @@ snapshots:
   '@inquirer/type@4.0.5(@types/node@22.13.3)':
     optionalDependencies:
       '@types/node': 22.13.3
-    optional: true
 
   '@inquirer/type@4.0.5(@types/node@24.5.2)':
     optionalDependencies:
@@ -23002,7 +24152,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.0.3
-      vitest: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
+      vitest: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@25.0.1(bufferutil@4.1.0)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3)
 
   '@vitest/utils@3.2.4':
     dependencies:
@@ -27654,7 +28804,6 @@ snapshots:
       typescript: 5.9.3
     transitivePeerDependencies:
       - '@types/node'
-    optional: true
 
   msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3):
     dependencies:
@@ -30853,7 +32002,7 @@ snapshots:
   vitest@4.0.18(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/ui@4.0.18)(jiti@2.7.0)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(lightningcss@1.32.0)(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3):
     dependencies:
       '@vitest/expect': 4.0.18
-      '@vitest/mocker': 4.0.18(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(vite@7.3.2(@types/node@24.5.2)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3))
+      '@vitest/mocker': 4.0.18(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(vite@7.3.2(@types/node@24.5.2)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3))
       '@vitest/pretty-format': 4.0.18
       '@vitest/runner': 4.0.18
       '@vitest/snapshot': 4.0.18
