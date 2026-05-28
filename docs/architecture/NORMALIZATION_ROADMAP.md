@@ -143,7 +143,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 ---
 
-### 1.6 Auto-load feedback memories via `@`-imports en CLAUDE.local.md — `P2` · `M` · `STATUS: DONE (eed703a)`
+### 1.6 Auto-load feedback memories via `@`-imports en CLAUDE.local.md — `P2` · `M` · `STATUS: DONE-Phase-1 (eed703a) + DONE-Phase-2 (8dea6aba)`
 
 **Qué:** Replicar el approach de `@`-import (canon en §1.2) para los feedback memories de Claude (`~/.claude/projects/-root-omni-post/memory/feedback_*.md`). Hoy solo las primeras 200 líneas / 25KB de `MEMORY.md` se auto-cargan; cada `feedback_*.md` individual requiere que Claude lo lea manualmente cuando MEMORY.md lo lista como relevante. Resultado: feedback discipline depende de mi consciencia en cada turno (probadamente falible).
 
@@ -157,7 +157,29 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 **Dependencias:** §1.2 (probar el `@`-import pattern primero — DONE). Empezar tras esto.
 
-**Definition of done:** subset curado de feedbacks (5-10) auto-cargado vía `@`-imports en `CLAUDE.local.md`, verificado vía `/memory`. Re-evaluación al cierre: ¿reduce las repeticiones de Edward? Si sí, expandir el subset. ✅ Closure: 51 feedback memories consolidados en 5 archivos temáticos (`~/.claude/feedback/workflow.md`, `canon-research.md`, `audit-deletion.md`, `runtime-contract.md`, `tools-infra.md`, ~960 LOC total); `CLAUDE.local.md` creado en repo root (gitignored) con `@`-imports a los 5; originales archivados en `~/.claude/projects/-root-omni-post/memory/feedback_archive/`; `MEMORY.md` Feedback section colapsada a un puntero. Re-evaluación post-uso pendiente.
+**Definition of done:** subset curado de feedbacks (5-10) auto-cargado vía `@`-imports en `CLAUDE.local.md`, verificado vía `/memory`. Re-evaluación al cierre: ¿reduce las repeticiones de Edward? Si sí, expandir el subset.
+
+✅ **Phase-1 Closure (eed703a, 2026-05-27)**: 51 feedback memories consolidados en 5 archivos temáticos (`~/.claude/feedback/workflow.md`, `canon-research.md`, `audit-deletion.md`, `runtime-contract.md`, `tools-infra.md`, ~960 LOC total); `CLAUDE.local.md` creado en repo root (gitignored) con `@`-imports a los 5; originales archivados en `~/.claude/projects/-root-omni-post/memory/feedback_archive/`; `MEMORY.md` Feedback section colapsada a un puntero.
+
+🚨 **Phase-1 Re-evaluación honesta (2026-05-28)**: el sistema `@`-imports cargado solo NO redujo las repeticiones de Edward. Evidence: en la sesión §5.1.b yo cerré con 7 absolute path cross-bounded-context imports (`@core/security/X` desde inside `packages/core/application/src/ai/`) y los justifiqué como puente temporal hasta §5.1.c — eso es time-bomb que `feedback/canon-research.md §no-time-bombs` prohíbe explícitamente. Edward intervino: _"se supone que fue tu recomendación y que los pondrías en práctica… ya estoy cansado de estar recordándote… necesitamos conseguir la manera de obligarte a cumplirlo si no lo quieres hacer por tu cuenta"_. Root cause: el cargo vía `@`-import garantiza que el contenido esté en context, pero NO obliga la aplicación deliberada en cada decision point. La discipline-by-self falló.
+
+✅ **Phase-2 Closure (8dea6aba, 2026-05-28)** — Hard-blocking enforcement: convierte canon de "context dump" a "checkpoint obligatorio" mediante tres piezas:
+
+1. **CLAUDE.md §"Mandatory Pre-Action Triggers (Tripwires)"** — sección nueva con tabla de tripwire patterns que el hook detecta. Patterns cubiertos:
+   - Comments con 20 anti-pattern signature words (EN+ES) derivados de grep en `~/.claude/feedback/` + `feedback_archive/` (extensión 2026-05-28).
+   - `// TODO §X.Y` markers (defers a fase futura indefinida).
+   - `// canon-exception:` sin scenario de la allowed list.
+   - Cross-bounded-context imports inside `packages/core/<b>/src/` referencing `@core/<a>/` where `a ∉ {b, domain, embeddings, application}`.
+2. **`.claude/commands/canon-check.md`** slash command — fuerza protocol: re-leer canon, listar applicable rules con verdict ✅/❌ per rule, emit canon-check line, OR REJECTED con alternativa.
+3. **`.claude/hooks-py/pre_edit_tripwire_blocker.py`** (registrado en `.claude/settings.json` como tercer hook PreToolUse en `Edit|Write|MultiEdit`) — bloquea via `exit 2 + stderr` (hard-block). Skip `.md` / `.mdx` files (documentación legítimamente cita los patterns como referencia). Bypass priorities: (a) `canon-check:` signature en último assistant message del transcript (regex `^canon-check:\s*\S+\.md\s+§\S.*?\s+[—\-]\s+.+`), (b) token `omnipost-allow tripwire-override` (15 min TTL, mismo contrato que `sensitive-edit`), (c) env var `EDWARD_AUTHORIZED_TRIPWIRE=yes` (case-by-case, auditado en `.claude/heuristic-overrides.log`). Bloqueos quedan en `.claude/tripwire-blocks.log`.
+
+**Test suite (6 escenarios + 14 nuevos patterns, todos verdes en commit 8dea6aba+actual)**: time-bomb comment sin bypass → BLOCK, cross-bounded-context import sin bypass → BLOCK, clean diff → ALLOW, tripwire + env var → ALLOW, tripwire + canon-check signature → ALLOW, tripwire + canon-check malformed → BLOCK. Identifiers como `patchedConfig`/`stubInstance` → ALLOW (word-boundary regex impide false positives en código legítimo).
+
+**Coverage honesta (~80-90%)**: cubre patterns grep-ables (signatures de workaround en código). Gaps: decisions cognitivas puramente conversacionales antes de file changes, patterns no listados en `TRIPWIRE_PATTERNS`. Edward sigue como reviewer último para esos gaps; el hook reduce load porque los workaround signatures predecibles se bloquean automáticamente. Iteración: cada nuevo gap detectado → agregar pattern al hook + ADR si aplica.
+
+**Cómo Edward me activa** (manual de uso documentado en CLAUDE.md §Mandatory Pre-Action Triggers): hablar normal — el hook se dispara automático. Keywords para forzar revisión: `"qué canon aplica?"`, `"muéstrame el canon-check"`, `"verificá canon antes"`. Para emergencias: `omnipost-allow tripwire-override` o `EDWARD_AUTHORIZED_TRIPWIRE=yes`.
+
+⏭ **Phase-3 PENDING** (ramp-up): conforme detectemos nuevos patterns que se filtren por el hook actual, agregar a `TRIPWIRE_PATTERNS` + actualizar la tabla en CLAUDE.md §Mandatory Pre-Action Triggers (How-to-extend section).
 
 ---
 

@@ -60,9 +60,26 @@ CROSS_CONTEXT_WHITELIST = frozenset({"domain", "embeddings", "application"})
 TRIPWIRE_PATTERNS: list[dict] = [
     {
         "id": "time-bomb-comment",
-        "regex": re.compile(r"//\s*(?:temporary|puente|bridge|phase-bridge|hack)\b", re.IGNORECASE),
-        "canon_ref": "feedback/canon-research.md §no-time-bombs",
-        "description": "Time-bomb comment marker — workaround sin remediation real",
+        # Word list derived from grep over ~/.claude/feedback/ + feedback_archive/.
+        # Bilingual (EN + ES) workaround/patch signatures that Edward has flagged
+        # historically. Excludes overly generic words (TODO, defer, skip, ignore)
+        # that would create high false-positive rate in legit domain code.
+        "regex": re.compile(
+            r"//\s*(?:"
+            r"temporary|temporal|provisional|"  # time-axis markers
+            r"puente|bridge|phase-bridge|"      # bridging workarounds
+            r"hack|kludge|"                     # admitted hacks
+            r"workaround|patch|parche|atajo|"   # workaround names (EN+ES)
+            r"stub|placeholder|"                # incomplete-impl markers
+            r"FIXME|XXX|"                       # dev-stage markers
+            r"time.?bomb|"                      # explicit self-naming
+            r"silencioso|"                      # ES "silent failure" warning
+            r"truco|trampa"                     # ES "trick"/"trap"
+            r")\b",
+            re.IGNORECASE,
+        ),
+        "canon_ref": "feedback/canon-research.md §no-time-bombs §no-patches",
+        "description": "Time-bomb / patch / workaround comment marker — derived from feedback files history",
     },
     {
         "id": "todo-phase-marker",
@@ -215,6 +232,15 @@ def main() -> None:
     file_path = data.get("tool_input", {}).get("file_path", "")
     diff_text = extract_diff_text(data)
     if not diff_text:
+        sys.exit(0)
+
+    # Skip Markdown documentation files. Docs legitimately mention the
+    # tripwire patterns as reference (CLAUDE.md §Mandatory Pre-Action
+    # Triggers, NORMALIZATION_ROADMAP.md §1.6, etc.). The patterns are
+    # only meaningful inside executable code (TS/JS/Python), so scoping
+    # the hook to non-.md preserves intent without false positives.
+    if file_path.endswith(".md") or file_path.endswith(".mdx"):
+        log(f"SKIP: documentation file ({file_path})")
         sys.exit(0)
 
     matches = find_tripwire_matches(diff_text, file_path)
