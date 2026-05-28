@@ -243,7 +243,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 > Objetivo: prevenir regressions silenciosas en boundaries externos (frontend↔backend) y upstream APIs (providers).
 
-### 3.1 OpenAPI auto-gen + tipos frontend — `P1` · `M` · `STATUS: DONE-Phase-A1 (f478128) + DONE-Phase-A2-drift-gate (TBD-sha)` · follow-ups §3.1.b/c
+### 3.1 OpenAPI auto-gen + tipos frontend — `P1` · `M` · `STATUS: DONE-Phase-A1 (f478128) + DONE-Phase-A2-drift-gate (927c59dd)` · follow-ups §3.1.b/c
 
 **Qué:** Fastify es schema-first; podemos exportar OpenAPI spec auto-generado, consumido por admin/client como **tipos generados** vía `openapi-typescript`.
 
@@ -280,7 +280,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 ---
 
-### 3.2 Provider sandbox + contract tests — `P1` · `L` · `STATUS: DONE-Phase-A1-railroad (30dc599) + DONE-Phase-A2-runbook (TBD-sha)` · follow-ups §3.2.b/c/d
+### 3.2 Provider sandbox + contract tests — `P1` · `L` · `STATUS: DONE-Phase-A1-railroad (30dc599) + DONE-Phase-A2-runbook (927c59dd)` · follow-ups §3.2.b/c/d
 
 **Qué:** 11 social providers + Stripe + Paddle. Hoy todos están unit-tested con mocks (`vi.fn()` de HTTP). **No atrapan** cambios de API upstream. Recomendación:
 
