@@ -285,7 +285,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 > Objetivo: probar que el sistema sobrevive a fallos reales en infraestructura distribuida. Lo que las fases anteriores construyen, esta lo estresa.
 
-### 4.1 Saga + Outbox chaos testing — `P1` · `L` · `STATUS: DONE-Phase-A1 (TBD-sha)` · follow-ups §4.1.b/c/d
+### 4.1 Saga + Outbox chaos testing — `P1` · `L` · `STATUS: DONE-Phase-A1 (03bce70)` · follow-ups §4.1.b/c/d
 
 **Qué:** Tienes saga engine canon-aligned (Richardson + Azure §4-20) + outbox pattern. **Críticos** para correctness distribuida. Pero los unit tests no atrapan:
 
