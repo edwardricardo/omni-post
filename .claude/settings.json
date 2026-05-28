@@ -30,6 +30,10 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks-py/pre_edit_tripwire_blocker.py"
+          },
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks-py/pre_edit_planmode_guard.py"
           }
         ]
       }

@@ -97,6 +97,28 @@ TRIPWIRE_PATTERNS: list[dict] = [
         "canon_ref": "CLAUDE.md §Pragmatic-Exceptions",
         "description": "canon-exception marker without allowed scenario (migration/prototype/hotfix/spike/test-fixture/generated)",
     },
+    {
+        "id": "plan-phase-reference-in-comment",
+        # Matches plan/phase/sprint/timeline references inside line comments
+        # (`//`) or JSDoc-style block comments (` * ...`). Per CLAUDE.md
+        # §Coding-Standards §Comment-Quality-Rules: "No references to sprint
+        # numbers, implementation phases, or development timeline — they
+        # belong in git history, not source code".
+        "regex": re.compile(
+            r"^\s*(?://|\*)\s*(?:"
+            r"Workstream\s*:|"                       # JSDoc Workstream tag
+            r"Phase\s+[A-Z]\d+|"                     # Phase A1, Phase B2
+            r"§\d+\.\d+(?:\.[a-z])?|"                # §5.1, §5.1.b, §5.1.b.2
+            r"S\d+\.\d+[a-z]?|"                      # S2.1a (sprint refs)
+            r"Per\s+§|Resolves\s+§|Closes\s+§|"      # narrative refs to phases
+            r"\b(?:Sprint|Phase|Fase)\s+\d+|"        # Sprint 3, Phase 2, Fase 1
+            r"Roadmap\s+(?:item|fase|phase|§)"       # Roadmap references
+            r")",
+            re.MULTILINE,
+        ),
+        "canon_ref": "CLAUDE.md §Coding-Standards §Comment-Quality-Rules",
+        "description": "Plan/phase/sprint/timeline reference in code comment — belongs in git history, not source",
+    },
 ]
 
 # Cross-bounded-context detection is contextual (depends on file_path),
