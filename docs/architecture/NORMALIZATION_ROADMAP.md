@@ -285,7 +285,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 > Objetivo: probar que el sistema sobrevive a fallos reales en infraestructura distribuida. Lo que las fases anteriores construyen, esta lo estresa.
 
-### 4.1 Saga + Outbox chaos testing — `P1` · `L` · `STATUS: PENDING`
+### 4.1 Saga + Outbox chaos testing — `P1` · `L` · `STATUS: DONE-Phase-A1 (TBD-sha)` · follow-ups §4.1.b/c/d
 
 **Qué:** Tienes saga engine canon-aligned (Richardson + Azure §4-20) + outbox pattern. **Críticos** para correctness distribuida. Pero los unit tests no atrapan:
 
@@ -307,6 +307,19 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 **Dependencias:** test env funcionando bien (1.4) + sandbox tests funcionando (3.2).
 
 **Definition of done:** suite chaos verde nightly + ≥3 escenarios cubiertos + runbook por escenario.
+
+✅ **Phase A1 closure:** L1 simulated chaos railroad + 1 scenario verde:
+
+- `apps/api/tests/chaos/chaos-helpers.ts` — harness con NoopBackgroundTaskScheduler + `TransientFailingStep` + `waitForSagaStatus`.
+- `apps/api/tests/chaos/saga-step-retry-recovery.test.ts` — 1 scenario (saga step transient failure → recovery scheduler retries → COMPLETED). 3 runs consecutivas verde @ 150ms cada, sin flakes.
+- `docs/runbooks/chaos-saga-step-retry.md` — runbook con invariante validada + diagnóstico paso-a-paso si falla.
+- `docs/architecture/chaos-testing.md` — framework canon (3 niveles L1/L2/L3) + scenario backlog + recipe.
+
+⏭ **Phase B / §4.1.b PENDING**: 2 escenarios L1 restantes (outbox relay crash entre claim y publish + BullMQ worker stalled mid-job). ~1-2h cada con helpers nuevos.
+
+⏭ **Phase C / §4.1.c PENDING**: L2 real-crash infra — `child_process.spawn` API + `SIGKILL` mid-flight + restart + verify invariants persisted. ~6-10h trabajo invasivo. Diferido hasta Phase B estable.
+
+⏭ **Phase D / §4.1.d PENDING**: `.github/workflows/chaos.yml` nightly + Sentry/issue alert chain. 30-50 LOC bloqueados por `omnipost-allow sensitive-edit` token (mismo issue que §2.2.a-CI, §3.1.b CI gate, §3.2.d).
 
 ---
 
