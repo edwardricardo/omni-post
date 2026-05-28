@@ -245,6 +245,57 @@ A non-zero count is FINE — that's the design. A growing count without paired A
 
 ---
 
+## Mandatory Pre-Action Triggers (Tripwires)
+
+> **Hard-blocking checkpoints — these are NOT advisory.** The pre-edit
+> tripwire blocker hook (`.claude/hooks-py/pre_edit_tripwire_blocker.py`)
+> enforces this list automatically. Edit/Write/MultiEdit that matches any
+> tripwire below is **blocked** unless the assistant message contains a
+> valid `canon-check:` citation, OR `EDWARD_AUTHORIZED_TRIPWIRE=yes` is
+> set in the session (audited in `.claude/heuristic-overrides.log`).
+
+### Tripwires (auto-blocked)
+
+| #   | Pattern                                                                                                                                                      | Why it's a tripwire                                                                                                                                                |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Comments matching `// temporary`, `// puente`, `// bridge`, `// phase-bridge`, `// TODO §`, `// hack`                                                        | Time-bomb signature. Per `feedback/canon-research.md §no-time-bombs`: "nunca poner un check en verde suprimiendo/ignorando/degradando a warn sin prevención real". |
+| 2   | `// canon-exception:` without a scenario from the [Pragmatic Exceptions](#pragmatic-exceptions) allowed list following the colon                             | Marker must cite a real scenario; un-tagged exceptions defeat the audit grep.                                                                                      |
+| 3   | Import `from "@core/<a>/..."` inside a file under `packages/core/<b>/src/` where `<a> ≠ <b>` and `<a> ∉ {domain, embeddings, application/UseCase}`           | Cross-bounded-context import. Resolve via port-adapter (see §5.1 normalization roadmap).                                                                           |
+| 4   | Mass `sed -i` against import paths in Bash (regex `sed.*-i.*from.*@core`)                                                                                    | Mass-rewrite of imports is the carrier for time-bomb resolution shortcuts. Force review per-file.                                                                  |
+| 5   | Architectural pattern choice: `extends X`, `class Y implements Z` for new bounded-context-crossing types, `Shared Kernel` / `Anti-Corruption Layer` in JSDoc | Patterns that require DDD canon research (Evans + Vaughn Vernon).                                                                                                  |
+
+### Canon-check signature format
+
+To bypass a tripwire, the assistant message preceding the Edit/Write **must** contain a line of this exact form:
+
+```
+canon-check: <canon-file> §<rule-id> — <decision> autorizada porque <razón canónica>
+```
+
+Examples (valid):
+
+```
+canon-check: feedback/canon-research.md §no-time-bombs — bridge `// TODO §5.1.c` rechazado; resolución vía port.
+canon-check: ARCHITECTURE_CANON.md §Saga.compensable — cross-context import `@core/saga` autorizado porque saga engine es transversal infra, no bounded context.
+canon-check: feedback/audit-deletion.md §3-preguntas — comment `// TODO §X.Y` autorizado tras (1) ¿es time-bomb? no — TTL es 1 sesión, (2) ¿hay ADR? sí ADR-NNNN, (3) ¿la remediación es testable? sí.
+```
+
+The hook greps the prior assistant message for `^canon-check:`. If absent or malformed, the Edit/Write is blocked.
+
+### Bypass via authorization token
+
+`omnipost-allow tripwire-override` creates a 15-minute token for emergencies (e.g., production hotfix). All overrides are logged to `.claude/heuristic-overrides.log` and require ADR follow-up within 5 days (same protocol as hotpatch).
+
+### How to extend tripwires
+
+1. Add the pattern to the table above with rationale.
+2. Add the regex to `pre_edit_tripwire_blocker.py` `TRIPWIRE_PATTERNS`.
+3. Reset baseline: run `grep -rn '<new pattern>' apps/ packages/` and document any pre-existing instances in a ramp-down ADR.
+
+**Owner:** Platform engineering.
+
+---
+
 ## Automated Compliance Checks (CI Fitness Functions)
 
 **Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request`. Threshold: **hard-zero** for all checks — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest.) Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
