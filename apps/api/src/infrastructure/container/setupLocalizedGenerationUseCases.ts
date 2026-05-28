@@ -24,7 +24,7 @@ import { PrismaGlossaryRepository } from "../repositories/PrismaGlossaryReposito
 import { PrismaStyleGuideRuleRepository } from "../repositories/PrismaStyleGuideRuleRepository.js";
 import { PrismaSemanticRetrievalAdapter } from "../repositories/PrismaSemanticRetrievalAdapter.js";
 
-import { EmbeddingService } from "@core/application/embeddings/EmbeddingService.js";
+import { EmbeddingService } from "@core/embeddings/EmbeddingService.js";
 import { UpsertGlossaryTermUseCase } from "@core/application/glossary/UpsertGlossaryTermUseCase.js";
 import { DeleteGlossaryTermUseCase } from "@core/application/glossary/DeleteGlossaryTermUseCase.js";
 import { ListGlossaryByLocaleQuery } from "@core/application/glossary/ListGlossaryByLocaleQuery.js";

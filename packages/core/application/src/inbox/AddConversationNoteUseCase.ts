@@ -10,7 +10,7 @@ import type { ConversationNoteRepository } from "@core/domain/repositories/Conve
 import { ConversationNote } from "@core/domain/entities/ConversationNote.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { NotifyMentionedUsersService } from "../mentions/NotifyMentionedUsersService.js";
-import { MENTION_CONTEXT } from "../mentions/NotifyMentionedUsersService.js";
+import { MENTION_CONTEXT } from "@core/domain/value-objects/MentionContext.js";
 
 /**
  * Input DTO for adding a conversation note.

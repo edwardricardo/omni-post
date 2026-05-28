@@ -81,3 +81,6 @@ export { CampaignStatus, CAMPAIGN_STATUS, type CampaignStatusValue } from "./Cam
 export { ApprovalRequestId } from "./ApprovalRequestId.js";
 export { ApprovalStatus, APPROVAL_STATUSES, type ApprovalStatusValue } from "./ApprovalStatus.js";
 export { ReviewDecision, REVIEW_DECISIONS, type ReviewDecisionValue } from "./ReviewDecision.js";
+
+// Mention context value object — used by mentions, inbox, tasks contexts
+export { MENTION_CONTEXT, type MentionContextType } from "./MentionContext.js";

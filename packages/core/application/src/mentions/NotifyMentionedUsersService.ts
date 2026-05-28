@@ -9,17 +9,12 @@
 import { MentionParser } from "@core/domain/services/MentionParser.js";
 import type { CreateNotificationUseCase } from "@core/notifications/CreateNotificationUseCase.js";
 import { NOTIFICATION_TYPES } from "@core/domain/value-objects/NotificationType.js";
+import {
+  MENTION_CONTEXT,
+  type MentionContextType,
+} from "@core/domain/value-objects/MentionContext.js";
 
-/**
- * Context types that support @mentions.
- */
-export const MENTION_CONTEXT = {
-  CONVERSATION_NOTE: "conversation_note",
-  TASK: "task",
-  POST_COMMENT: "post_comment",
-} as const;
-
-export type MentionContextType = (typeof MENTION_CONTEXT)[keyof typeof MENTION_CONTEXT];
+export { MENTION_CONTEXT, type MentionContextType };
 
 /**
  * Input for the notification service.

@@ -7,7 +7,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { ok, err } from "@shared/types";
 import { UpsertStyleGuideRuleUseCase } from "@core/application/style-guide/UpsertStyleGuideRuleUseCase.js";
-import { EmbeddingService } from "@core/application/embeddings/EmbeddingService.js";
+import { EmbeddingService } from "@core/embeddings/EmbeddingService.js";
 import type {
   StyleGuideRule,
   StyleGuideRuleRepository,

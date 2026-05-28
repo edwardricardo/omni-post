@@ -13,7 +13,7 @@ import type {
   GlossaryEntry,
   GlossaryRepository,
 } from "@core/domain/repositories/GlossaryRepository.js";
-import type { EmbeddingService } from "../embeddings/EmbeddingService.js";
+import type { EmbeddingService } from "@core/embeddings/EmbeddingService.js";
 
 export interface UpsertGlossaryTermInput {
   accountId: string;

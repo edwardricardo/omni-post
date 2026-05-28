@@ -16,7 +16,7 @@ import { setupLocalizedGenerationUseCases } from "../../../../src/infrastructure
 import { PrismaGlossaryRepository } from "../../../../src/infrastructure/repositories/PrismaGlossaryRepository.js";
 import { PrismaStyleGuideRuleRepository } from "../../../../src/infrastructure/repositories/PrismaStyleGuideRuleRepository.js";
 import { PrismaSemanticRetrievalAdapter } from "../../../../src/infrastructure/repositories/PrismaSemanticRetrievalAdapter.js";
-import { EmbeddingService } from "@core/application/embeddings/EmbeddingService.js";
+import { EmbeddingService } from "@core/embeddings/EmbeddingService.js";
 import { UpsertGlossaryTermUseCase } from "@core/application/glossary/UpsertGlossaryTermUseCase.js";
 import { DeleteGlossaryTermUseCase } from "@core/application/glossary/DeleteGlossaryTermUseCase.js";
 import { ListGlossaryByLocaleQuery } from "@core/application/glossary/ListGlossaryByLocaleQuery.js";

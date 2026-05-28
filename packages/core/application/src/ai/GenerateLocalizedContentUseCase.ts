@@ -19,7 +19,7 @@ import type { BrandVoiceRepository } from "@core/domain/repositories/BrandVoiceR
 import type { SemanticRetrievalPort } from "@core/domain/repositories/SemanticRetrievalPort.js";
 import type { AIMessage, StructuredOutputSpec } from "@core/domain/ai/AiServiceContract.js";
 import type { LocalizedContentClassification } from "@core/domain/ai/AiStructuredOutputs.js";
-import type { EmbeddingService } from "../embeddings/EmbeddingService.js";
+import type { EmbeddingService } from "@core/embeddings/EmbeddingService.js";
 
 export interface GenerateLocalizedContentInput {
   accountId: string;

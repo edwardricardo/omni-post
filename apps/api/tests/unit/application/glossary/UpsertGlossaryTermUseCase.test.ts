@@ -11,7 +11,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { ok, err } from "@shared/types";
 import { UpsertGlossaryTermUseCase } from "@core/application/glossary/UpsertGlossaryTermUseCase.js";
-import { EmbeddingService } from "@core/application/embeddings/EmbeddingService.js";
+import { EmbeddingService } from "@core/embeddings/EmbeddingService.js";
 import type {
   GlossaryEntry,
   GlossaryRepository,

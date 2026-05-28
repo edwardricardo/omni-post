@@ -10,7 +10,7 @@ import type { TaskRepository } from "@core/domain/repositories/TaskRepository.js
 import { Task, type TaskPriorityValue } from "@core/domain/entities/Task.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { NotifyMentionedUsersService } from "../mentions/NotifyMentionedUsersService.js";
-import { MENTION_CONTEXT } from "../mentions/NotifyMentionedUsersService.js";
+import { MENTION_CONTEXT } from "@core/domain/value-objects/MentionContext.js";
 
 /**
  * Input DTO for creating a task.

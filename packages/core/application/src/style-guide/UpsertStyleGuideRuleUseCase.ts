@@ -13,7 +13,7 @@ import type {
   StyleGuideRule,
   StyleGuideRuleRepository,
 } from "@core/domain/repositories/StyleGuideRuleRepository.js";
-import type { EmbeddingService } from "../embeddings/EmbeddingService.js";
+import type { EmbeddingService } from "@core/embeddings/EmbeddingService.js";
 
 export interface UpsertStyleGuideRuleInput {
   id?: string;
