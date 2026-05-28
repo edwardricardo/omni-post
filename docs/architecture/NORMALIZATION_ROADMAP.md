@@ -342,6 +342,8 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 **Definition of done:** suite chaos verde nightly + ≥3 escenarios cubiertos + runbook por escenario.
 
+🚨 **DoD honest gap (2026-05-28 audit)**: el DoD original textual era _"suite chaos verde nightly + ≥3 escenarios cubiertos + runbook por escenario"_. Phase A1 entregó 1 escenario (saga step retry-recovery) + 1 runbook + harness reusable — es decir **33% del DoD de escenarios** + 0% del DoD nightly (no workflow). El gap (2 escenarios restantes + workflow nightly + Sentry alert chain) queda en Phase B/C/D; el item estaba marked DONE-Phase-A1 sin esta explícita-callout — framing fix aplicado retro (2026-05-28 audit).
+
 ✅ **Phase A1 closure:** L1 simulated chaos railroad + 1 scenario verde:
 
 - `apps/api/tests/chaos/chaos-helpers.ts` — harness con NoopBackgroundTaskScheduler + `TransientFailingStep` + `waitForSagaStatus`.
@@ -353,7 +355,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 ⏭ **Phase C / §4.1.c PENDING**: L2 real-crash infra — `child_process.spawn` API + `SIGKILL` mid-flight + restart + verify invariants persisted. ~6-10h trabajo invasivo. Diferido hasta Phase B estable.
 
-⏭ **Phase D / §4.1.d PENDING**: `.github/workflows/chaos.yml` nightly + Sentry/issue alert chain. 30-50 LOC bloqueados por `omnipost-allow sensitive-edit` token (mismo issue que §2.2.a-CI, §3.1.b CI gate, §3.2.d).
+⏭ **Phase D / §4.1.d (workflow nightly only)**: planeado fix retroactive en sesión 2026-05-28 audit — `.github/workflows/chaos.yml` nightly minimal con notify-on-failure GitHub issue creation. Sentry alert chain queda en sub-phase posterior (requiere Sentry secrets management aparte, mismo análisis que §4.2.c).
 
 ---
 
@@ -379,6 +381,8 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 **Definition of done:** dashboards versionados + ≥10 alertas declaradas + runbook por cada una.
 
+🚨 **DoD honest gap (2026-05-28 audit)**: el DoD original textual era _"dashboards versionados + ≥10 alertas declaradas + runbook por cada una"_. Phase A1 entregó 4 alertas canon + 4 runbooks + dashboards Grafana provisioned (3 dashboards) — es decir **40% del DoD de alertas** (4/10) + 100% del DoD de dashboards. El gap de 6 alertas + alertmanager wireup queda en Phase B/C; el item estaba marked DONE-Phase-A1 sin esta explícita-callout — framing fix aplicado retro (2026-05-28 audit).
+
 ✅ **Phase A1 closure:** Prometheus alerting habilitado (uncomment `rule_files`) + 4 alert rules canon + 4 runbooks + SLO.md centralizado.
 
 - `prometheus/prometheus.yml` — uncomment `rule_files: ["alerts/*.yml"]`.
@@ -392,7 +396,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 ⏭ **Phase B / §4.2.b PENDING**: 6+ alerts adicionales canon (Availability, SagaCompletionRateLow, SagaAvgDurationHigh, OutboxPublishLatencyHigh, PostCreationP99High, PublishSuccessRateLow) + runbooks correspondientes. Cada alert: ~30min trabajo. Total ~3-4h.
 
-⏭ **Phase C / §4.2.c PENDING**: alertmanager wireup en docker-compose + Slack/PagerDuty notification routing + Sentry alert rules via API. Bloqueado parcialmente por sensitive-edit token (docker-compose changes); Sentry API via secrets management aparte.
+⏭ **Phase C / §4.2.c PENDING**: alertmanager wireup en docker-compose + Slack/PagerDuty notification routing + Sentry alert rules via API. Realignment 2026-05-28: el framing original _"Bloqueado parcialmente por sensitive-edit token"_ sugirió que era 10-LOC-token-blocked como §2.2.a-CI / §3.1.b. Realidad: alertmanager wireup requiere (1) decisión arquitectónica (alertmanager-prometheus dev vs cloud-managed prod), (2) Slack/PagerDuty webhook secrets, (3) Sentry API token + alert rules config. Es **trabajo real (~4-6h)**, no token-blocked. Phase C queda PENDING con scope claro, no como time-bomb.
 
 ---
 

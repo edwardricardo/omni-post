@@ -1,0 +1,109 @@
+name: Chaos Test Suite (Saga + Outbox)
+
+# Runs the chaos test harness on a nightly schedule.
+#
+# Scope (today): saga retry-recovery scenario; the harness is in
+# `apps/api/tests/chaos/` and grows additively as new scenarios are
+# added under that directory (no workflow edit required).
+#
+# Failure handling: if any chaos test fails, the job fails AND a GitHub
+# issue is opened (via the "Notify on failure" step at the bottom) so an
+# operator picks it up the next morning. Chaos failures are correctness
+# signals, not noise — treat as P1.
+#
+# Workstream: NORMALIZATION_ROADMAP §4.1 (DoD third item "nightly").
+
+on:
+  schedule:
+    # Daily at 03:30 UTC (off-peak; staggered 30 min after the existing
+    # full-suite nightly at 03:00 to avoid resource contention).
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  chaos:
+    name: Chaos scenarios
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: password123
+          POSTGRES_USER: postgres
+          POSTGRES_DB: omnipostdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js with pnpm and cache
+        uses: ./.github/actions/setup-node-pnpm-cache
+        with:
+          node-version: "24"
+
+      - name: Setup test environment
+        run: |
+          cp .env.example .env
+          export DATABASE_URL="postgresql://postgres:password123@localhost:5432/omnipostdb?schema=test"
+          export REDIS_URL="redis://localhost:6379"
+          bash scripts/ci-setup-test-env.sh
+
+      - name: Generate Prisma client
+        run: pnpm --filter @infra/prisma exec prisma generate
+
+      - name: Run database migrations
+        run: pnpm --filter @infra/prisma db:migrate
+
+      - name: Run chaos scenarios
+        run: pnpm --filter @apps/api exec vitest run tests/chaos/
+
+      - name: Notify on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `Chaos test failure ${new Date().toISOString().slice(0,10)}`;
+            const body = [
+              `One or more chaos scenarios failed in run \`${context.runId}\`.`,
+              '',
+              `Logs: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              '',
+              'Severity: **P1** — chaos failures indicate a regression in distributed-correctness invariants (saga recovery, outbox idempotency, BullMQ stalled detection).',
+              '',
+              'Runbooks per scenario live under `docs/runbooks/chaos-*.md`.',
+              '',
+              'Next steps:',
+              '1. Read the failing test name from the logs.',
+              '2. Open the matching runbook (e.g. `docs/runbooks/chaos-saga-step-retry.md`).',
+              '3. Follow the diagnostic + remediation steps in the runbook.',
+            ].join('\n');
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['chaos-failure', 'P1', 'reliability'],
+            });
