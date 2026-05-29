@@ -7,7 +7,7 @@
 // OpenTelemetry initialization for Social Media CMS Workers
 // This MUST be imported before any other modules to ensure proper instrumentation
 
-import pino from "pino";
+import { createLogger } from "@observability/logger";
 import type {
   PublishInstrumentation,
   DatabaseInstrumentation,
@@ -15,7 +15,7 @@ import type {
   ContentMetrics,
 } from "./instrumentationTypes.js";
 
-const telemetryLogger = pino({ name: "worker-telemetry" });
+const telemetryLogger = createLogger("worker-telemetry");
 
 // ---- Mock implementations (used when OTel fails to initialize) ----
 

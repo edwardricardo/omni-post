@@ -20,7 +20,7 @@ dotenv.config({ path: "../../.env" });
 
 import { Worker } from "bullmq";
 import Redis from "ioredis";
-import pino from "pino";
+import { createLogger } from "@observability/logger";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { registerGracefulShutdown, type ShutdownTarget } from "./lib/gracefulShutdown.js";
 import { handleProviderAuthError } from "./lib/handleProviderAuthError.js";
@@ -44,7 +44,7 @@ import type { ProviderAdapter, ProviderMention } from "@ports/core";
 import { IngestMentionUseCase } from "@core/listening/IngestMentionUseCase.js";
 import type { ProviderType } from "@core/domain/value-objects/Provider.js";
 
-const logger = pino({ level: process.env.LOG_LEVEL ?? "info", name: "mention-ingest-worker" });
+const logger = createLogger("mention-ingest-worker");
 
 // Cap pages per search job: each page is one paid provider read (X bills per
 // read), so bound the fan-out per cycle. Reconciliation widens the window, not

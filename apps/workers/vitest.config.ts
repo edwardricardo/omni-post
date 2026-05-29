@@ -33,6 +33,7 @@ export default defineConfig({
       // re-export from `@core/domain/<subpath>.js`.
       "@core/domain": path.join(root, "packages/core/domain/src"),
       "@core/application": path.join(root, "packages/core/application/src"),
+      "@core/listening": path.join(root, "packages/core/listening/src"),
       "@infra/prisma": path.join(root, "infra/prisma/src/vitest-entry.ts"),
       "@observability/logger": path.join(root, "packages/observability/logger/src/index.ts"),
       "@monitoring/circuit-breaker": path.join(
