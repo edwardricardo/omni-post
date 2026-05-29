@@ -30,13 +30,13 @@
 import dotenv from "dotenv";
 dotenv.config({ path: "../../.env" });
 
-import pino from "pino";
+import { createLogger } from "@observability/logger";
 import { workerPrisma } from "./container/workerContainer.js";
 import { startPublishWorker } from "./publishWorker.js";
 import { startMentionIngestWorker } from "./mentionIngestWorker.js";
 import { registerGracefulShutdown, type ShutdownTarget } from "./lib/gracefulShutdown.js";
 
-const logger = pino({ level: process.env.LOG_LEVEL ?? "info", name: "workers-bootstrap" });
+const logger = createLogger("workers-bootstrap");
 
 async function main(): Promise<void> {
   logger.info("Bootstrapping workers process");

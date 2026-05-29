@@ -47,14 +47,14 @@ const decryptCredentialsForWorker = (envelope: {
 import { DefaultBackgroundTaskScheduler } from "@observability/background-scheduler";
 import client from "prom-client";
 import http from "http";
-import pino from "pino";
+import { createLogger } from "@observability/logger";
 import Redis from "ioredis";
 import { WorkerMetrics } from "./metrics/workerMetrics.js";
 import { PublishHandler } from "./publishHandler.js";
 import type { PublishProvider } from "./publishHandler.js";
 
 const consumer = createBullMQConsumerAdapter({ queueName: QUEUE_NAMES.PUBLISH });
-const logger = pino({ level: process.env.LOG_LEVEL ?? "info" });
+const logger = createLogger("publish-worker");
 const scheduler = new DefaultBackgroundTaskScheduler({
   logger: {
     error: (msg, data) => logger.error({ data }, msg),
