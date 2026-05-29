@@ -70,7 +70,7 @@ ENV NODE_OPTIONS="--max-old-space-size=256"
 
 USER nonroot
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD node -e "const Redis=require('ioredis');const redis=new Redis(process.env.REDIS_URL||'redis://localhost:6379');redis.ping().then(()=>{redis.disconnect();process.exit(0)}).catch(()=>process.exit(1));"
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+  CMD node -e "fetch('http://localhost:'+(process.env.METRICS_PORT||3300)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1));"
 
 CMD ["dist/bootstrap.js"]
