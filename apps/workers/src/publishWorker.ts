@@ -46,7 +46,6 @@ const decryptCredentialsForWorker = (envelope: {
 }) => decryptChannelCredentials(envelope, platformEncryptionKey);
 import { DefaultBackgroundTaskScheduler } from "@observability/background-scheduler";
 import client from "prom-client";
-import http from "http";
 import { createLogger } from "@observability/logger";
 import Redis from "ioredis";
 import { WorkerMetrics } from "./metrics/workerMetrics.js";
@@ -62,7 +61,12 @@ const scheduler = new DefaultBackgroundTaskScheduler({
     debug: (msg, data) => logger.debug({ data }, msg),
   },
 });
-const repo = createPrismaRepoAdapter({
+/**
+ * @description Repo adapter bound to the workers' PrismaClient. Exported so
+ *   `bootstrap.ts` can wire it into the shared `DatabaseHealthChecker` without
+ *   constructing a second adapter (avoids duplicating the decrypt closure).
+ */
+export const publishRepo = createPrismaRepoAdapter({
   scheduler,
   decryptChannelCredentials: decryptCredentialsForWorker,
 });
@@ -89,12 +93,16 @@ const providerRegistry: Record<string, PublishProvider> = {
   threads: createThreadsAdapter({ logger }),
 };
 
-const credentialResolver = new CredentialResolver(repo);
+const credentialResolver = new CredentialResolver(publishRepo);
 
-// Enhanced Metrics
-const registry = new client.Registry();
-client.collectDefaultMetrics({ register: registry });
-const workerMetrics = new WorkerMetrics(registry);
+/**
+ * @description Prometheus registry holding default Node metrics + WorkerMetrics
+ *   gauges. Exported so `bootstrap.ts` can merge it into the aggregated
+ *   `/metrics` endpoint served from the unified health server.
+ */
+export const publishMetricsRegistry = new client.Registry();
+client.collectDefaultMetrics({ register: publishMetricsRegistry });
+const workerMetrics = new WorkerMetrics(publishMetricsRegistry);
 
 // Redis connection for saga pub/sub notifications (best-effort)
 const notifyRedis = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
@@ -113,7 +121,7 @@ notifyRedis.on("error", () => {
 
 // Create the handler with all real dependencies
 const handler = new PublishHandler({
-  repo,
+  repo: publishRepo,
   providerRegistry,
   credentialResolver,
   workerMetrics,
@@ -159,44 +167,11 @@ export async function startPublishWorker(
       dedupeKey: job.dedupeKey,
     });
   });
+  workerMetrics.setHealthy();
   logger.info(
     { providers: Object.keys(providerRegistry) },
     "Worker subscribed. Awaiting jobs in 'publish'."
   );
-
-  // Enhanced metrics and health endpoint
-  // Port 3300 is the canonical OmniPost worker metrics port: outside
-  // Prometheus's reserved 9090–9999 exporter range (9090=server, 9091=pushgateway,
-  // 9100=node_exporter), so it never collides with the prometheus container or a
-  // host-side node_exporter. See `prometheus/prometheus.yml` workers job.
-  const metricsPort = Number(process.env.METRICS_PORT ?? 3300);
-  http
-    .createServer(async (req, res) => {
-      if (req.url === "/metrics") {
-        res.setHeader("Content-Type", registry.contentType);
-        res.end(await registry.metrics());
-      } else if (req.url === "/health") {
-        res.setHeader("Content-Type", "application/json");
-        const healthData = {
-          ok: true,
-          timestamp: new Date().toISOString(),
-          activeJobs: workerMetrics.metrics.jobsActive.get(),
-          activeThreads: workerMetrics.metrics.threadsInProgress.get(),
-          queueDepth: workerMetrics.metrics.queueDepth.get(),
-          workerHealth: workerMetrics.metrics.workerHealth.get(),
-          correlationTracking: workerMetrics.metrics.correlationTracker.get(),
-          availableProviders: Object.keys(providerRegistry),
-        };
-        res.end(JSON.stringify(healthData));
-      } else {
-        res.statusCode = 404;
-        res.end();
-      }
-    })
-    .listen(metricsPort, () => {
-      workerMetrics.setHealthy();
-      logger.info({ metricsPort }, "Enhanced metrics server listening");
-    });
 
   // Graceful shutdown — closes the consumer (waits for active jobs), the
   // scheduler (cancels recurring tasks), and the saga notification Redis
