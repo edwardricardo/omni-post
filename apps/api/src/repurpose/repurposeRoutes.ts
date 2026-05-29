@@ -20,8 +20,8 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
-import type { ListRepurposeProposalsQuery } from "@core/application/ai/ListRepurposeProposalsQuery.js";
-import type { DetectRepurposeCandidatesUseCase } from "@core/application/ai/DetectRepurposeCandidatesUseCase.js";
+import type { ListRepurposeProposalsQuery } from "@core/ai/ListRepurposeProposalsQuery.js";
+import type { DetectRepurposeCandidatesUseCase } from "@core/ai/DetectRepurposeCandidatesUseCase.js";
 
 // ============================================================================
 // Schemas

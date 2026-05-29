@@ -9,7 +9,7 @@
 import { describe, it, expect } from "vitest";
 import assert from "node:assert/strict";
 import { ok, err } from "@shared/types";
-import type { DetectRepurposeCandidatesUseCase } from "@core/application/ai/DetectRepurposeCandidatesUseCase.js";
+import type { DetectRepurposeCandidatesUseCase } from "@core/ai/DetectRepurposeCandidatesUseCase.js";
 import { processRepurposeDetectJob } from "../../../../src/ai/consumers/repurposeDetectHandler.js";
 
 function silentLogger() {

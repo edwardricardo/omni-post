@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { GetTopPerformersContextUseCase } from "@core/application/ai/GetTopPerformersContextUseCase.js";
+import { GetTopPerformersContextUseCase } from "@core/ai/GetTopPerformersContextUseCase.js";
 import { InMemoryCacheAdapter } from "../../../../../packages/adapters/cache-redis/src/in-memory-cache-adapter.js";
 
 function makeMockQueryPort(

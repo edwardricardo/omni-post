@@ -379,6 +379,9 @@ importers:
       '@anthropic-ai/sdk':
         specifier: 0.91.1
         version: 0.91.1(zod@4.3.6)
+      '@core/ai':
+        specifier: workspace:*
+        version: link:../../packages/core/ai
       '@core/ai-image':
         specifier: workspace:*
         version: link:../../packages/core/ai-image
@@ -409,6 +412,9 @@ importers:
       '@core/brand-voice':
         specifier: workspace:*
         version: link:../../packages/core/brand-voice
+      '@core/bulk-scheduling':
+        specifier: workspace:*
+        version: link:../../packages/core/bulk-scheduling
       '@core/campaigns':
         specifier: workspace:*
         version: link:../../packages/core/campaigns
@@ -433,6 +439,9 @@ importers:
       '@core/customer-auth':
         specifier: workspace:*
         version: link:../../packages/core/customer-auth
+      '@core/embeddings':
+        specifier: workspace:*
+        version: link:../../packages/core/embeddings
       '@core/engine':
         specifier: workspace:*
         version: link:../../packages/core
@@ -442,9 +451,15 @@ importers:
       '@core/first-comment':
         specifier: workspace:*
         version: link:../../packages/core/first-comment
+      '@core/glossary':
+        specifier: workspace:*
+        version: link:../../packages/core/glossary
       '@core/guardrails':
         specifier: workspace:*
         version: link:../../packages/core/guardrails
+      '@core/inbox':
+        specifier: workspace:*
+        version: link:../../packages/core/inbox
       '@core/integrations':
         specifier: workspace:*
         version: link:../../packages/core/integrations
@@ -454,6 +469,9 @@ importers:
       '@core/listening':
         specifier: workspace:*
         version: link:../../packages/core/listening
+      '@core/mentions':
+        specifier: workspace:*
+        version: link:../../packages/core/mentions
       '@core/ml':
         specifier: workspace:*
         version: link:../../packages/core/ml
@@ -466,6 +484,9 @@ importers:
       '@core/providers':
         specifier: workspace:*
         version: link:../../packages/core/providers
+      '@core/recurring':
+        specifier: workspace:*
+        version: link:../../packages/core/recurring
       '@core/referral':
         specifier: workspace:*
         version: link:../../packages/core/referral
@@ -478,6 +499,12 @@ importers:
       '@core/settings':
         specifier: workspace:*
         version: link:../../packages/core/settings
+      '@core/style-guide':
+        specifier: workspace:*
+        version: link:../../packages/core/style-guide
+      '@core/tasks':
+        specifier: workspace:*
+        version: link:../../packages/core/tasks
       '@core/team':
         specifier: workspace:*
         version: link:../../packages/core/team
@@ -1796,6 +1823,9 @@ importers:
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
+      csv-parse:
+        specifier: 6.2.1
+        version: 6.2.1
     devDependencies:
       '@types/node':
         specifier: 24.5.2

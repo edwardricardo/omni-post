@@ -33,7 +33,7 @@ import {
   RemoveTeamMemberUseCase,
   SearchTeamMembersQuery,
 } from "@core/team/index.js";
-import { NotifyMentionedUsersService } from "@core/application/mentions/index.js";
+import { NotifyMentionedUsersService } from "@core/mentions/index.js";
 import type { CreateNotificationUseCase } from "@core/notifications/index.js";
 import { NotificationDispatchAdapter } from "./adapters/NotificationDispatchAdapter.js";
 import {

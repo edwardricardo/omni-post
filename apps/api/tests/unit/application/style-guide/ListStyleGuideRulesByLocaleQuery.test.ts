@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { ok, err } from "@shared/types";
-import { ListStyleGuideRulesByLocaleQuery } from "@core/application/style-guide/ListStyleGuideRulesByLocaleQuery.js";
+import { ListStyleGuideRulesByLocaleQuery } from "@core/style-guide/ListStyleGuideRulesByLocaleQuery.js";
 import type {
   StyleGuideRule,
   StyleGuideRuleRepository,

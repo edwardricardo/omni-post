@@ -18,13 +18,13 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
-import type { GenerateLocalizedContentUseCase } from "@core/application/ai/GenerateLocalizedContentUseCase.js";
-import type { UpsertGlossaryTermUseCase } from "@core/application/glossary/UpsertGlossaryTermUseCase.js";
-import type { DeleteGlossaryTermUseCase } from "@core/application/glossary/DeleteGlossaryTermUseCase.js";
-import type { ListGlossaryByLocaleQuery } from "@core/application/glossary/ListGlossaryByLocaleQuery.js";
-import type { UpsertStyleGuideRuleUseCase } from "@core/application/style-guide/UpsertStyleGuideRuleUseCase.js";
-import type { DeleteStyleGuideRuleUseCase } from "@core/application/style-guide/DeleteStyleGuideRuleUseCase.js";
-import type { ListStyleGuideRulesByLocaleQuery } from "@core/application/style-guide/ListStyleGuideRulesByLocaleQuery.js";
+import type { GenerateLocalizedContentUseCase } from "@core/ai/GenerateLocalizedContentUseCase.js";
+import type { UpsertGlossaryTermUseCase } from "@core/glossary/UpsertGlossaryTermUseCase.js";
+import type { DeleteGlossaryTermUseCase } from "@core/glossary/DeleteGlossaryTermUseCase.js";
+import type { ListGlossaryByLocaleQuery } from "@core/glossary/ListGlossaryByLocaleQuery.js";
+import type { UpsertStyleGuideRuleUseCase } from "@core/style-guide/UpsertStyleGuideRuleUseCase.js";
+import type { DeleteStyleGuideRuleUseCase } from "@core/style-guide/DeleteStyleGuideRuleUseCase.js";
+import type { ListStyleGuideRulesByLocaleQuery } from "@core/style-guide/ListStyleGuideRulesByLocaleQuery.js";
 
 const SupportedLocaleSchema = z.enum(["es", "en"]);
 

@@ -6,7 +6,7 @@
  */
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { GetBulkScheduleBatchQuery } from "@core/application/bulk-scheduling/GetBulkScheduleBatchQuery.js";
+import { GetBulkScheduleBatchQuery } from "@core/bulk-scheduling/GetBulkScheduleBatchQuery.js";
 import type {
   BulkScheduleQueryRepository,
   BulkScheduleBatchDTO,

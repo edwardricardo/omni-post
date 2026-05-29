@@ -6,9 +6,9 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { DetectRepurposeCandidatesUseCase } from "@core/application/ai/DetectRepurposeCandidatesUseCase.js";
-import { ApproveRepurposeVariantUseCase } from "@core/application/ai/ApproveRepurposeVariantUseCase.js";
-import { RejectRepurposeVariantUseCase } from "@core/application/ai/RejectRepurposeVariantUseCase.js";
+import { DetectRepurposeCandidatesUseCase } from "@core/ai/DetectRepurposeCandidatesUseCase.js";
+import { ApproveRepurposeVariantUseCase } from "@core/ai/ApproveRepurposeVariantUseCase.js";
+import { RejectRepurposeVariantUseCase } from "@core/ai/RejectRepurposeVariantUseCase.js";
 
 function makeMockDetectionPort(
   avg = 3,

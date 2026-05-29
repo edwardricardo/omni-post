@@ -9,7 +9,7 @@ import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { ok, err } from "@shared/types";
 import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
-import { ProcessBulkScheduleRowUseCase } from "@core/application/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
+import { ProcessBulkScheduleRowUseCase } from "@core/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
 import type {
   BulkScheduleBatchRepository,
   BulkScheduleItemState,

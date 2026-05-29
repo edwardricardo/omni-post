@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { GenerateContentCalendarUseCase } from "@core/application/ai/GenerateContentCalendarUseCase.js";
+import { GenerateContentCalendarUseCase } from "@core/ai/GenerateContentCalendarUseCase.js";
 import { ok } from "@shared/types";
 
 const MOCK_CALENDAR_JSON = JSON.stringify({

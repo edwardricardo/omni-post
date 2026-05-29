@@ -1,12 +1,11 @@
 /**
  * @file index.ts
- * @description Barrel for the `bulk-scheduling` bounded context (`@core/bulk-scheduling`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel for `bulk-scheduling` bounded context (`@core/bulk-scheduling`).
+ *   Auto-generated during extraction from `@core/application`.
  * @layer application
  */
-
-export {};
+export * from "./FailBulkScheduleRowUseCase.js";
+export * from "./GetBulkScheduleBatchQuery.js";
+export * from "./ImportSchedulingCsvUseCase.js";
+export * from "./ProcessBulkScheduleRowUseCase.js";
+export * from "./schedulingCsv.js";

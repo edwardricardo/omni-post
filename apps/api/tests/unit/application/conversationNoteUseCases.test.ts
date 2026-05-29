@@ -5,9 +5,9 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { AddConversationNoteUseCase } from "@core/application/inbox/AddConversationNoteUseCase.js";
-import { DeleteConversationNoteUseCase } from "@core/application/inbox/DeleteConversationNoteUseCase.js";
-import { ListConversationNotesQuery } from "@core/application/inbox/ListConversationNotesQuery.js";
+import { AddConversationNoteUseCase } from "@core/inbox/AddConversationNoteUseCase.js";
+import { DeleteConversationNoteUseCase } from "@core/inbox/DeleteConversationNoteUseCase.js";
+import { ListConversationNotesQuery } from "@core/inbox/ListConversationNotesQuery.js";
 import { ConversationNote } from "@core/domain/entities/ConversationNote.js";
 
 // ============================================================================

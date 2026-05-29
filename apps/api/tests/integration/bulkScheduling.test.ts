@@ -19,7 +19,7 @@ import { PrismaBulkScheduleBatchRepository } from "../../src/infrastructure/repo
 import { PrismaBulkScheduleQueryRepository } from "../../src/infrastructure/repositories/PrismaBulkScheduleQueryRepository.js";
 import { PrismaProjectQueryRepository } from "../../src/infrastructure/repositories/PrismaProjectQueryRepository.js";
 import { PrismaUnitOfWork } from "../../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
-import { ImportSchedulingCsvUseCase } from "@core/application/bulk-scheduling/ImportSchedulingCsvUseCase.js";
+import { ImportSchedulingCsvUseCase } from "@core/bulk-scheduling/ImportSchedulingCsvUseCase.js";
 
 const future = (ms: number): string => new Date(Date.now() + ms).toISOString();
 const TWO_DAYS = 2 * 24 * 60 * 60 * 1000;

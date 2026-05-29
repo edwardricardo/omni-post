@@ -1,12 +1,18 @@
 /**
  * @file index.ts
- * @description Barrel for the `ai` bounded context (`@core/ai`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel for `ai` bounded context (`@core/ai`).
+ *   Auto-generated during extraction from `@core/application`.
  * @layer application
  */
-
-export {};
+export * from "./AiRequestService.js";
+export * from "./ApproveRepurposeVariantUseCase.js";
+export * from "./DetectRepurposeCandidatesUseCase.js";
+export * from "./DispatchDetectRepurposeUseCase.js";
+export * from "./GenerateContentCalendarUseCase.js";
+export * from "./GenerateLocalizedContentUseCase.js";
+export * from "./GeneratePlatformVariantsUseCase.js";
+export * from "./GenerateRepurposeVariantsUseCase.js";
+export * from "./GetTopPerformersContextUseCase.js";
+export * from "./ListRepurposeProposalsQuery.js";
+export * from "./RejectRepurposeVariantUseCase.js";
+export * from "./buildEnhancedSystemPrompt.js";

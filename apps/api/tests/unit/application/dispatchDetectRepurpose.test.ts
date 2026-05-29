@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { type Result, ok, err } from "@shared/types";
 import type { QueuePort } from "@ports/core";
 import type { ChannelQueryForIngestion } from "@core/domain/repositories/ChannelQueryForIngestion.js";
-import { DispatchDetectRepurposeUseCase } from "@core/application/ai/DispatchDetectRepurposeUseCase.js";
+import { DispatchDetectRepurposeUseCase } from "@core/ai/DispatchDetectRepurposeUseCase.js";
 
 type Channel = Awaited<ReturnType<ChannelQueryForIngestion["findActiveChannels"]>>[number];
 

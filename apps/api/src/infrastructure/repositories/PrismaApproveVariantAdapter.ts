@@ -6,7 +6,7 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import type { ApproveVariantPort } from "@core/application/ai/ApproveRepurposeVariantUseCase.js";
+import type { ApproveVariantPort } from "@core/ai/ApproveRepurposeVariantUseCase.js";
 
 export class PrismaApproveVariantAdapter implements ApproveVariantPort {
   constructor(private readonly prisma: PrismaClient) {}

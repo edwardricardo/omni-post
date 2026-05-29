@@ -12,9 +12,9 @@ import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
-import type { AddConversationNoteUseCase } from "@core/application/inbox/AddConversationNoteUseCase.js";
-import type { DeleteConversationNoteUseCase } from "@core/application/inbox/DeleteConversationNoteUseCase.js";
-import type { ListConversationNotesQuery } from "@core/application/inbox/ListConversationNotesQuery.js";
+import type { AddConversationNoteUseCase } from "@core/inbox/AddConversationNoteUseCase.js";
+import type { DeleteConversationNoteUseCase } from "@core/inbox/DeleteConversationNoteUseCase.js";
+import type { ListConversationNotesQuery } from "@core/inbox/ListConversationNotesQuery.js";
 
 // ============================================================================
 // Zod Validation Schemas

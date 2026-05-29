@@ -9,7 +9,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ok, err } from "@shared/types";
-import { CreatePostFromRecurrenceUseCase } from "@core/application/recurring/CreatePostFromRecurrenceUseCase.js";
+import { CreatePostFromRecurrenceUseCase } from "@core/recurring/CreatePostFromRecurrenceUseCase.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { PostAggregate, PostId, ProjectId } from "@core/domain/index.js";
 import { EntityNotFoundError } from "@core/domain/errors/index.js";

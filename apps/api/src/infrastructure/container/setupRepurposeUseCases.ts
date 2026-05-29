@@ -11,21 +11,21 @@ import type { PrismaClient } from "@infra/prisma";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { QueuePortRegistry } from "@ports/core";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
-import { ApproveRepurposeVariantUseCase } from "@core/application/ai/ApproveRepurposeVariantUseCase.js";
-import { RejectRepurposeVariantUseCase } from "@core/application/ai/RejectRepurposeVariantUseCase.js";
-import { DetectRepurposeCandidatesUseCase } from "@core/application/ai/DetectRepurposeCandidatesUseCase.js";
-import { DispatchDetectRepurposeUseCase } from "@core/application/ai/DispatchDetectRepurposeUseCase.js";
-import { ListRepurposeProposalsQuery } from "@core/application/ai/ListRepurposeProposalsQuery.js";
+import { ApproveRepurposeVariantUseCase } from "@core/ai/ApproveRepurposeVariantUseCase.js";
+import { RejectRepurposeVariantUseCase } from "@core/ai/RejectRepurposeVariantUseCase.js";
+import { DetectRepurposeCandidatesUseCase } from "@core/ai/DetectRepurposeCandidatesUseCase.js";
+import { DispatchDetectRepurposeUseCase } from "@core/ai/DispatchDetectRepurposeUseCase.js";
+import { ListRepurposeProposalsQuery } from "@core/ai/ListRepurposeProposalsQuery.js";
 import type { ChannelQueryForIngestion } from "@core/domain/repositories/ChannelQueryForIngestion.js";
 import {
   GenerateRepurposeVariantsUseCase,
   type NotificationPort,
-} from "@core/application/ai/GenerateRepurposeVariantsUseCase.js";
+} from "@core/ai/GenerateRepurposeVariantsUseCase.js";
 import {
   GeneratePlatformVariantsUseCase,
   type AIGeneratePort,
-} from "@core/application/ai/GeneratePlatformVariantsUseCase.js";
-import type { GetTopPerformersContextUseCase } from "@core/application/ai/GetTopPerformersContextUseCase.js";
+} from "@core/ai/GeneratePlatformVariantsUseCase.js";
+import type { GetTopPerformersContextUseCase } from "@core/ai/GetTopPerformersContextUseCase.js";
 import { PrismaApproveVariantAdapter } from "../repositories/PrismaApproveVariantAdapter.js";
 import { PrismaRejectVariantAdapter } from "../repositories/PrismaRejectVariantAdapter.js";
 import { PrismaRepurposeDetectionAdapter } from "../repositories/PrismaRepurposeDetectionAdapter.js";

@@ -6,7 +6,7 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import type { RepurposeDetectionPort } from "@core/application/ai/DetectRepurposeCandidatesUseCase.js";
+import type { RepurposeDetectionPort } from "@core/ai/DetectRepurposeCandidatesUseCase.js";
 
 export class PrismaRepurposeDetectionAdapter implements RepurposeDetectionPort {
   /** @param prisma - Injected Prisma client (composition root owns the singleton). */

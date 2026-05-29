@@ -8,7 +8,7 @@
  */
 
 import type { MentionTrackingPort, NotifyMentionedUsersInput } from "@ports/core";
-import type { NotifyMentionedUsersService } from "@core/application/mentions/NotifyMentionedUsersService.js";
+import type { NotifyMentionedUsersService } from "@core/mentions/NotifyMentionedUsersService.js";
 
 export class MentionTrackingAdapter implements MentionTrackingPort {
   constructor(private readonly service: NotifyMentionedUsersService) {}

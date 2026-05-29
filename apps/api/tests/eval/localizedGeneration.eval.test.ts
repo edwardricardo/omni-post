@@ -17,7 +17,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { ok } from "@shared/types";
-import { GenerateLocalizedContentUseCase } from "@core/application/ai/GenerateLocalizedContentUseCase.js";
+import { GenerateLocalizedContentUseCase } from "@core/ai/GenerateLocalizedContentUseCase.js";
 import { EmbeddingService } from "@core/embeddings/EmbeddingService.js";
 import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
 import { localizedContentSpec } from "../../src/ai/structuredSchemas.js";

@@ -7,8 +7,8 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { IngestSocialMessageUseCase } from "@core/application/inbox/IngestSocialMessageUseCase.js";
-import { MarkMessageReadUseCase } from "@core/application/inbox/MarkMessageReadUseCase.js";
+import { IngestSocialMessageUseCase } from "@core/inbox/IngestSocialMessageUseCase.js";
+import { MarkMessageReadUseCase } from "@core/inbox/MarkMessageReadUseCase.js";
 import { AccountId, ProjectId, ChannelId } from "@core/domain/value-objects/EntityId.js";
 import { SocialMessageAggregate } from "@core/domain/aggregates/SocialMessageAggregate.js";
 import { SocialMessageType } from "@core/domain/value-objects/SocialMessageType.js";
@@ -382,7 +382,7 @@ describe("SendReplyUseCase", () => {
     const aggregate = createTestAggregate();
     msgRepo.findById.mockResolvedValueOnce({ ok: true, value: aggregate });
 
-    const { SendReplyUseCase } = await import("@core/application/inbox/SendReplyUseCase.js");
+    const { SendReplyUseCase } = await import("@core/inbox/SendReplyUseCase.js");
     const uc = new SendReplyUseCase(
       msgRepo as any,
       outboundRepo,
@@ -411,7 +411,7 @@ describe("SendReplyUseCase", () => {
     const aggregate = createTestAggregate();
     msgRepo.findById.mockResolvedValueOnce({ ok: true, value: aggregate });
 
-    const { SendReplyUseCase } = await import("@core/application/inbox/SendReplyUseCase.js");
+    const { SendReplyUseCase } = await import("@core/inbox/SendReplyUseCase.js");
     const uc = new SendReplyUseCase(
       msgRepo as any,
       outboundRepo,
@@ -446,7 +446,7 @@ describe("SendReplyUseCase", () => {
       postReply: undefined,
     });
 
-    const { SendReplyUseCase } = await import("@core/application/inbox/SendReplyUseCase.js");
+    const { SendReplyUseCase } = await import("@core/inbox/SendReplyUseCase.js");
     const uc = new SendReplyUseCase(
       msgRepo as any,
       outboundRepo,
@@ -476,7 +476,7 @@ describe("SendReplyUseCase", () => {
       })),
     });
 
-    const { SendReplyUseCase } = await import("@core/application/inbox/SendReplyUseCase.js");
+    const { SendReplyUseCase } = await import("@core/inbox/SendReplyUseCase.js");
     const uc = new SendReplyUseCase(
       msgRepo as any,
       outboundRepo,
@@ -505,7 +505,7 @@ describe("SendReplyUseCase", () => {
     const aggregate = createTestAggregate();
     msgRepo.findById.mockResolvedValueOnce({ ok: true, value: aggregate });
 
-    const { SendReplyUseCase } = await import("@core/application/inbox/SendReplyUseCase.js");
+    const { SendReplyUseCase } = await import("@core/inbox/SendReplyUseCase.js");
     const uc = new SendReplyUseCase(
       msgRepo as any,
       outboundRepo,
@@ -531,7 +531,7 @@ describe("SendReplyUseCase", () => {
       error: new Error("Channel not found"),
     });
 
-    const { SendReplyUseCase } = await import("@core/application/inbox/SendReplyUseCase.js");
+    const { SendReplyUseCase } = await import("@core/inbox/SendReplyUseCase.js");
     const uc = new SendReplyUseCase(
       msgRepo as any,
       outboundRepo,
@@ -554,7 +554,7 @@ describe("SendReplyUseCase", () => {
     const aggregate = createTestAggregate();
     msgRepo.findById.mockResolvedValueOnce({ ok: true, value: aggregate });
 
-    const { SendReplyUseCase } = await import("@core/application/inbox/SendReplyUseCase.js");
+    const { SendReplyUseCase } = await import("@core/inbox/SendReplyUseCase.js");
     const uc = new SendReplyUseCase(msgRepo as any, outboundRepo, dispatcher as any);
 
     const r = await uc.execute({
@@ -652,7 +652,7 @@ describe("AssignMessageUseCase", () => {
   it("assigns message to team member", async () => {
     let uc: any;
     try {
-      const mod = await import("@core/application/inbox/AssignMessageUseCase.js");
+      const mod = await import("@core/inbox/AssignMessageUseCase.js");
       uc = new mod.AssignMessageUseCase(msgRepo as any, dispatcher as any);
     } catch {
       // If module doesn't match expected constructor, skip

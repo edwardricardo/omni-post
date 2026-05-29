@@ -8,7 +8,7 @@
 import { describe, it, expect } from "vitest";
 import assert from "node:assert/strict";
 import { ok, err } from "@shared/types";
-import type { TriageInboxMessageUseCase } from "@core/application/inbox/TriageInboxMessageUseCase.js";
+import type { TriageInboxMessageUseCase } from "@core/inbox/TriageInboxMessageUseCase.js";
 import { processTriageInboxJob } from "../../../../src/ai/consumers/triageInboxHandler.js";
 
 function silentLogger() {

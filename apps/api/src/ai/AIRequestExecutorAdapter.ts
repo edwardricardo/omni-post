@@ -2,7 +2,7 @@
  * @file AIRequestExecutorAdapter.ts
  * @description Concrete adapter implementing `AIRequestExecutorPort`. Wraps
  *   `AIProviderFactory` + `AIOrchestrator` so `AiRequestService` (now in
- *   @core/application/ai/) can execute BYOK and pool requests without
+ *   @core/ai/) can execute BYOK and pool requests without
  *   depending on either concrete.
  * @layer infrastructure
  */

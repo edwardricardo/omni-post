@@ -28,7 +28,7 @@ import { AIService } from "../../ai/aiService.js";
 import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
 import type { HttpClientPort } from "@core/domain/repositories/HttpClientPort.js";
 import { FetchHttpClient } from "../adapters/FetchHttpClient.js";
-import { AiRequestService } from "@core/application/ai/AiRequestService.js";
+import { AiRequestService } from "@core/ai/AiRequestService.js";
 import { AIRequestExecutorAdapter } from "../../ai/AIRequestExecutorAdapter.js";
 import type { AIRequestExecutorPort } from "@core/domain/repositories/AIRequestExecutorPort.js";
 import { DashboardService } from "../../admin/dashboardService.js";

@@ -25,13 +25,13 @@ import { PrismaStyleGuideRuleRepository } from "../repositories/PrismaStyleGuide
 import { PrismaSemanticRetrievalAdapter } from "../repositories/PrismaSemanticRetrievalAdapter.js";
 
 import { EmbeddingService } from "@core/embeddings/EmbeddingService.js";
-import { UpsertGlossaryTermUseCase } from "@core/application/glossary/UpsertGlossaryTermUseCase.js";
-import { DeleteGlossaryTermUseCase } from "@core/application/glossary/DeleteGlossaryTermUseCase.js";
-import { ListGlossaryByLocaleQuery } from "@core/application/glossary/ListGlossaryByLocaleQuery.js";
-import { UpsertStyleGuideRuleUseCase } from "@core/application/style-guide/UpsertStyleGuideRuleUseCase.js";
-import { DeleteStyleGuideRuleUseCase } from "@core/application/style-guide/DeleteStyleGuideRuleUseCase.js";
-import { ListStyleGuideRulesByLocaleQuery } from "@core/application/style-guide/ListStyleGuideRulesByLocaleQuery.js";
-import { GenerateLocalizedContentUseCase } from "@core/application/ai/GenerateLocalizedContentUseCase.js";
+import { UpsertGlossaryTermUseCase } from "@core/glossary/UpsertGlossaryTermUseCase.js";
+import { DeleteGlossaryTermUseCase } from "@core/glossary/DeleteGlossaryTermUseCase.js";
+import { ListGlossaryByLocaleQuery } from "@core/glossary/ListGlossaryByLocaleQuery.js";
+import { UpsertStyleGuideRuleUseCase } from "@core/style-guide/UpsertStyleGuideRuleUseCase.js";
+import { DeleteStyleGuideRuleUseCase } from "@core/style-guide/DeleteStyleGuideRuleUseCase.js";
+import { ListStyleGuideRulesByLocaleQuery } from "@core/style-guide/ListStyleGuideRulesByLocaleQuery.js";
+import { GenerateLocalizedContentUseCase } from "@core/ai/GenerateLocalizedContentUseCase.js";
 
 /**
  * @method setupLocalizedGenerationUseCases

@@ -7,7 +7,7 @@
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
-import { parseSchedulingCsv } from "@core/application/bulk-scheduling/schedulingCsv.js";
+import { parseSchedulingCsv } from "@core/bulk-scheduling/schedulingCsv.js";
 
 const future = (ms: number): string => new Date(Date.now() + ms).toISOString();
 const TWO_DAYS = 2 * 24 * 60 * 60 * 1000;

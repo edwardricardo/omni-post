@@ -13,7 +13,7 @@ import type {
   RepurposeProposalDto,
   RepurposeProposalQueryOptions,
 } from "@core/domain/repositories/RepurposeProposalQueryRepository.js";
-import { ListRepurposeProposalsQuery } from "@core/application/ai/ListRepurposeProposalsQuery.js";
+import { ListRepurposeProposalsQuery } from "@core/ai/ListRepurposeProposalsQuery.js";
 
 const makeDto = (overrides?: Partial<RepurposeProposalDto>): RepurposeProposalDto => ({
   id: "prop-1",

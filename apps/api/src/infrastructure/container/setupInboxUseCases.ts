@@ -33,12 +33,12 @@ import {
   AddConversationNoteUseCase,
   DeleteConversationNoteUseCase,
   ListConversationNotesQuery,
-} from "@core/application/inbox/index.js";
+} from "@core/inbox/index.js";
 import type { ConversationNoteRepository } from "@core/domain/repositories/ConversationNoteRepository.js";
-import type { NotifyMentionedUsersService } from "@core/application/mentions/index.js";
-import { InboxEventHandlers } from "@core/application/inbox/handlers/InboxEventHandlers.js";
+import type { NotifyMentionedUsersService } from "@core/mentions/index.js";
+import { InboxEventHandlers } from "@core/inbox/handlers/InboxEventHandlers.js";
 import type { ProviderRegistryService } from "../../providers/providerRegistry.js";
-import { DispatchInboxSyncUseCase } from "@core/application/inbox/DispatchInboxSyncUseCase.js";
+import { DispatchInboxSyncUseCase } from "@core/inbox/DispatchInboxSyncUseCase.js";
 import { DispatchMentionSearchUseCase } from "@core/listening/DispatchMentionSearchUseCase.js";
 import { GetShareOfVoiceQuery } from "@core/listening/GetShareOfVoiceQuery.js";
 import { ListMentionsQuery } from "@core/listening/ListMentionsQuery.js";
@@ -59,7 +59,7 @@ import {
   TriageInboxMessageUseCase,
   type TriageMessagePort,
   type TriageCrmPort,
-} from "@core/application/inbox/TriageInboxMessageUseCase.js";
+} from "@core/inbox/TriageInboxMessageUseCase.js";
 import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
 import { triageSpec } from "../../ai/structuredSchemas.js";
 import type { BrandVoiceRepository } from "@core/domain/repositories/BrandVoiceRepository.js";

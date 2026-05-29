@@ -7,7 +7,7 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import type { RepurposeVariantPort } from "@core/application/ai/GenerateRepurposeVariantsUseCase.js";
+import type { RepurposeVariantPort } from "@core/ai/GenerateRepurposeVariantsUseCase.js";
 
 export class PrismaRepurposeVariantAdapter implements RepurposeVariantPort {
   constructor(private readonly prisma: PrismaClient) {}

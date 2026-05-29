@@ -46,7 +46,7 @@ import { PrismaTopPerformersQuery } from "../repositories/PrismaTopPerformersQue
 import {
   GetTopPerformersContextUseCase,
   type TopPerformersQueryPort,
-} from "@core/application/ai/GetTopPerformersContextUseCase.js";
+} from "@core/ai/GetTopPerformersContextUseCase.js";
 import type { PrismaClient } from "@infra/prisma";
 import type { QueuePortRegistry } from "@ports/core";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";

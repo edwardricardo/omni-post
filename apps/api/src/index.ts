@@ -65,18 +65,18 @@ import {
   TriageDispatchEventHandler,
   TRIAGE_HANDLED_EVENT_TYPES,
 } from "./inbox/handlers/TriageDispatchEventHandler.js";
-import type { TriageInboxMessageUseCase } from "@core/application/inbox/TriageInboxMessageUseCase.js";
+import type { TriageInboxMessageUseCase } from "@core/inbox/TriageInboxMessageUseCase.js";
 import { PrismaRepurposeVariantAdapter } from "./infrastructure/repositories/PrismaRepurposeVariantAdapter.js";
-import type { DetectRepurposeCandidatesUseCase } from "@core/application/ai/DetectRepurposeCandidatesUseCase.js";
+import type { DetectRepurposeCandidatesUseCase } from "@core/ai/DetectRepurposeCandidatesUseCase.js";
 import { startBulkScheduleWorker } from "./bulk-scheduling/bulkScheduleWorker.js";
-import type { ProcessBulkScheduleRowUseCase } from "@core/application/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
-import type { FailBulkScheduleRowUseCase } from "@core/application/bulk-scheduling/FailBulkScheduleRowUseCase.js";
+import type { ProcessBulkScheduleRowUseCase } from "@core/bulk-scheduling/ProcessBulkScheduleRowUseCase.js";
+import type { FailBulkScheduleRowUseCase } from "@core/bulk-scheduling/FailBulkScheduleRowUseCase.js";
 import { startAnalyticsIngestConsumer } from "./analytics/analyticsIngestConsumer.js";
 import { startInboxSyncConsumer } from "./inbox/inboxSyncConsumer.js";
 import type { IngestChannelAnalyticsUseCase } from "@core/analytics/IngestChannelAnalyticsUseCase.js";
-import type { SyncProviderCommentsUseCase } from "@core/application/inbox/SyncProviderCommentsUseCase.js";
+import type { SyncProviderCommentsUseCase } from "@core/inbox/SyncProviderCommentsUseCase.js";
 import type { UpdateChannelAuthStateUseCase } from "@core/channels/UpdateChannelAuthStateUseCase.js";
-import type { DispatchDetectRepurposeUseCase } from "@core/application/ai/DispatchDetectRepurposeUseCase.js";
+import type { DispatchDetectRepurposeUseCase } from "@core/ai/DispatchDetectRepurposeUseCase.js";
 import type { RedisCacheManager } from "@adapters/cache-redis";
 import fastifyCookie from "@fastify/cookie";
 import { createTenantHealthMonitor } from "@monitoring/health-checks";
@@ -853,7 +853,7 @@ async function start() {
     // ingests comments into SocialMessage via SyncProviderCommentsUseCase.
     // (Audit finding FN-015.)
     const { DispatchInboxSyncUseCase: _DispatchInboxSyncType } =
-      await import("@core/application/inbox/DispatchInboxSyncUseCase.js");
+      await import("@core/inbox/DispatchInboxSyncUseCase.js");
     const dispatchInboxSync = app.container!.resolve<InstanceType<typeof _DispatchInboxSyncType>>(
       TOKENS.DispatchInboxSyncUseCase
     );

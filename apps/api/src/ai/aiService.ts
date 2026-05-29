@@ -20,7 +20,7 @@ import type {
   StructuredOutputSpec,
 } from "./types.js";
 import type { AIMessage, GenerationOptions as AIGenerateOptions } from "./types.js";
-import type { AiRequestService } from "@core/application/ai/AiRequestService.js";
+import type { AiRequestService } from "@core/ai/AiRequestService.js";
 
 const aiServiceLogger = logger.child({ module: "ai", service: "AIService" });
 

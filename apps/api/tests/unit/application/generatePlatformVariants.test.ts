@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { GeneratePlatformVariantsUseCase } from "@core/application/ai/GeneratePlatformVariantsUseCase.js";
+import { GeneratePlatformVariantsUseCase } from "@core/ai/GeneratePlatformVariantsUseCase.js";
 import { PLATFORM_CONTENT_PROFILES } from "@core/domain/ai/PlatformContentProfile.js";
 import { ok } from "@shared/types";
 

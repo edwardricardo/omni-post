@@ -8,10 +8,10 @@ import { describe, it, beforeEach, vi, expect } from "vitest";
 import assert from "node:assert/strict";
 import { ok, err } from "@shared/types";
 import { Task, TASK_STATUS, TASK_PRIORITY } from "@core/domain/entities/Task.js";
-import { CreateTaskUseCase } from "@core/application/tasks/CreateTaskUseCase.js";
-import { CompleteTaskUseCase } from "@core/application/tasks/CompleteTaskUseCase.js";
-import { CancelTaskUseCase } from "@core/application/tasks/CancelTaskUseCase.js";
-import { ListTasksQuery } from "@core/application/tasks/ListTasksQuery.js";
+import { CreateTaskUseCase } from "@core/tasks/CreateTaskUseCase.js";
+import { CompleteTaskUseCase } from "@core/tasks/CompleteTaskUseCase.js";
+import { CancelTaskUseCase } from "@core/tasks/CancelTaskUseCase.js";
+import { ListTasksQuery } from "@core/tasks/ListTasksQuery.js";
 import type { TaskRepository } from "@core/domain/repositories/TaskRepository.js";
 
 // ============================================================================

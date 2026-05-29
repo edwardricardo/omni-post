@@ -1,12 +1,16 @@
 /**
  * @file index.ts
- * @description Barrel for the `tasks` bounded context (`@core/tasks`).
- *   Empty during §5.1.a scaffold; populated in §5.1.b (leaf contexts) or
- *   §5.1.c (contexts with cross-context violations resolved via ports).
- *
- *   Workstream: §5.1 Normalization Roadmap — fullscope split.
- *
+ * @description Barrel export for task use cases and queries.
  * @layer application
  */
 
-export {};
+export {
+  CreateTaskUseCase,
+  type CreateTaskInput,
+  type CreateTaskOutput,
+} from "./CreateTaskUseCase.js";
+export { UpdateTaskUseCase, type UpdateTaskInput } from "./UpdateTaskUseCase.js";
+export { CompleteTaskUseCase, type CompleteTaskInput } from "./CompleteTaskUseCase.js";
+export { CancelTaskUseCase, type CancelTaskInput } from "./CancelTaskUseCase.js";
+export { ListTasksQuery, type ListTasksInput } from "./ListTasksQuery.js";
+export { GetTaskQuery, type GetTaskInput } from "./GetTaskQuery.js";

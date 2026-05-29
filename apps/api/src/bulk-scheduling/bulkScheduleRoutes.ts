@@ -13,8 +13,8 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
-import type { ImportSchedulingCsvUseCase } from "@core/application/bulk-scheduling/ImportSchedulingCsvUseCase.js";
-import type { GetBulkScheduleBatchQuery } from "@core/application/bulk-scheduling/GetBulkScheduleBatchQuery.js";
+import type { ImportSchedulingCsvUseCase } from "@core/bulk-scheduling/ImportSchedulingCsvUseCase.js";
+import type { GetBulkScheduleBatchQuery } from "@core/bulk-scheduling/GetBulkScheduleBatchQuery.js";
 
 /** Generous 16 MB cap for the CSV body (default Fastify limit is 1 MB). */
 const IMPORT_BODY_LIMIT_BYTES = 16 * 1024 * 1024;
