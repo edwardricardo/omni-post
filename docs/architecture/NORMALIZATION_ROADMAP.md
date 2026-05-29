@@ -424,7 +424,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 > Objetivo: capturar mejoras estructurales mayores propuestas por el canon genérico monorepo 2026 — **no se ejecutan ahora** pero quedan registradas para revisión Q2/Q3 2026 según trigger events de §0.2.
 
-### 5.1 Split `@core/application/` en bounded contexts separados — `P1` · `XL` · `STATUS: DONE (TBD-sha)` · sub-phases §5.1.a/b/c/d all DONE
+### 5.1 Split `@core/application/` en bounded contexts separados — `P1` · `XL` · `STATUS: DONE (b4819864)` · sub-phases §5.1.a/b/c/d all DONE
 
 **Qué:** Re-organizar `@core/application/<context>/` a packages top-level por context bajo `packages/core/<context>/` — un package por bounded context (DDD canon). Recon (2026-05-28) reveló **46 bounded contexts** en `@core/application/src/` (no 7 como inicialmente estimaba §0.2).
 
@@ -463,7 +463,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 - `57b47caf` §5.1.c.3 + .c.5: 8 violator use cases refactored to inject ports instead of concrete services. DI container wires updated across 6 setup files.
 - `d85e2fe4` §5.1.c.4: 8 remaining contexts (ai, bulk-scheduling, glossary, inbox, mentions, recurring, style-guide, tasks) moved via `git mv` to `packages/core/<ctx>/src/`. 82 importer files sed-updated. 9 new workspace deps in `apps/api/package.json`. `csv-parse@6.2.1` migrated to `@core/bulk-scheduling` package.
 
-✅ **Phase D closure (§5.1.d, TBD-sha)** — depcruise rule + canon doc + cleanup:
+✅ **Phase D closure (§5.1.d, b4819864)** — depcruise rule + canon doc + cleanup:
 
 - `.dependency-cruiser.cjs` extended with `no-cross-bounded-context` rule. Pattern: a context at `packages/core/<a>/src/` cannot import from `packages/core/<b>/src/` when `a ≠ b` AND neither `a` nor `b` is `domain`, `embeddings`, or `application`. Whitelist matches the canon (shared kernels + base layer).
 - `docs/architecture/BOUNDED_CONTEXTS.md` — canon doc with inventory of all 46 bounded contexts + the 5 port-adapter pairs + how to add a new context + how to extend (port / shared kernel) + git history preservation note.
