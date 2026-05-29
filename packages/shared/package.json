@@ -19,10 +19,14 @@
     "handlebars": "4.7.8"
   },
   "peerDependencies": {
-    "next-intl": "*"
+    "next-intl": "*",
+    "zustand": "*"
   },
   "peerDependenciesMeta": {
     "next-intl": {
+      "optional": true
+    },
+    "zustand": {
       "optional": true
     }
   },
