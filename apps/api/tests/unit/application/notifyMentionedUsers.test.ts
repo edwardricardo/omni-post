@@ -10,15 +10,15 @@ import {
   NotifyMentionedUsersService,
   MENTION_CONTEXT,
 } from "@core/mentions/NotifyMentionedUsersService.js";
-import type { CreateNotificationUseCase } from "@core/notifications/CreateNotificationUseCase.js";
+import type { NotificationDispatchPort } from "@ports/core";
 import { ok } from "@shared/types";
 
 /**
- * Factory for creating a mock CreateNotificationUseCase.
+ * Factory for creating a mock NotificationDispatchPort.
  */
-function makeMockCreateNotification(): CreateNotificationUseCase {
+function makeMockNotificationDispatch(): NotificationDispatchPort {
   return {
-    execute: vi.fn().mockResolvedValue(ok({ id: "notif-001" })),
+    dispatch: vi.fn().mockResolvedValue(ok({ id: "notif-001" })),
   };
 }
 
@@ -35,13 +35,13 @@ function makeInput(overrides?: Partial<Parameters<NotifyMentionedUsersService["n
 }
 
 describe("NotifyMentionedUsersService", () => {
-  let createNotification: ReturnType<typeof makeMockCreateNotification>;
+  let notificationDispatch: ReturnType<typeof makeMockNotificationDispatch>;
   let service: NotifyMentionedUsersService;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    createNotification = makeMockCreateNotification();
-    service = new NotifyMentionedUsersService(createNotification);
+    notificationDispatch = makeMockNotificationDispatch();
+    service = new NotifyMentionedUsersService(notificationDispatch);
   });
 
   it("notifies each unique mentioned member", async () => {
@@ -51,17 +51,17 @@ describe("NotifyMentionedUsersService", () => {
 
     const result = await service.notify(input);
 
-    expect(createNotification.execute).toHaveBeenCalledTimes(2);
+    expect(notificationDispatch.dispatch).toHaveBeenCalledTimes(2);
     expect(result).toHaveLength(2);
 
     // Verify first call
-    const firstCall = vi.mocked(createNotification.execute).mock.calls[0]?.[0];
+    const firstCall = vi.mocked(notificationDispatch.dispatch).mock.calls[0]?.[0];
     expect(firstCall?.recipientId).toBe("member-1");
     expect(firstCall?.type).toBe("MENTION");
     expect(firstCall?.actorId).toBe("member-999");
 
     // Verify second call
-    const secondCall = vi.mocked(createNotification.execute).mock.calls[1]?.[0];
+    const secondCall = vi.mocked(notificationDispatch.dispatch).mock.calls[1]?.[0];
     expect(secondCall?.recipientId).toBe("member-2");
   });
 
@@ -74,8 +74,8 @@ describe("NotifyMentionedUsersService", () => {
     const result = await service.notify(input);
 
     // Should only notify Alice, not Bob (self-mention)
-    expect(createNotification.execute).toHaveBeenCalledTimes(1);
-    const call = vi.mocked(createNotification.execute).mock.calls[0]?.[0];
+    expect(notificationDispatch.dispatch).toHaveBeenCalledTimes(1);
+    const call = vi.mocked(notificationDispatch.dispatch).mock.calls[0]?.[0];
     expect(call?.recipientId).toBe("member-1");
     expect(result).toHaveLength(1);
   });
@@ -87,7 +87,7 @@ describe("NotifyMentionedUsersService", () => {
 
     const result = await service.notify(input);
 
-    expect(createNotification.execute).not.toHaveBeenCalled();
+    expect(notificationDispatch.dispatch).not.toHaveBeenCalled();
     expect(result).toEqual([]);
   });
 
@@ -99,7 +99,7 @@ describe("NotifyMentionedUsersService", () => {
     const result = await service.notify(input);
 
     // Should only notify Alice once
-    expect(createNotification.execute).toHaveBeenCalledTimes(1);
+    expect(notificationDispatch.dispatch).toHaveBeenCalledTimes(1);
     expect(result).toHaveLength(1);
   });
 
@@ -111,7 +111,7 @@ describe("NotifyMentionedUsersService", () => {
 
     const result = await service.notify(input);
 
-    expect(createNotification.execute).not.toHaveBeenCalled();
+    expect(notificationDispatch.dispatch).not.toHaveBeenCalled();
     expect(result).toEqual([]);
   });
 
@@ -123,7 +123,7 @@ describe("NotifyMentionedUsersService", () => {
 
     await service.notify(input);
 
-    const call = vi.mocked(createNotification.execute).mock.calls[0]?.[0];
+    const call = vi.mocked(notificationDispatch.dispatch).mock.calls[0]?.[0];
     expect(call?.resourceType).toBe("task");
     expect(call?.resourceId).toBe("task-001");
     expect(call?.metadata).toEqual(
@@ -141,24 +141,22 @@ describe("NotifyMentionedUsersService", () => {
 
     await service.notify(input);
 
-    const call = vi.mocked(createNotification.execute).mock.calls[0]?.[0];
+    const call = vi.mocked(notificationDispatch.dispatch).mock.calls[0]?.[0];
     expect(call?.title).toBe("Charlie Brown mentioned you");
     expect(call?.actorName).toBe("Charlie Brown");
   });
 
   it("handles notification creation failure gracefully", async () => {
-    const failingUseCase = {
-      execute: vi.fn().mockResolvedValue({ ok: false, error: new Error("DB error") }),
+    const failingPort: NotificationDispatchPort = {
+      dispatch: vi.fn().mockResolvedValue({ ok: false, error: new Error("DB error") }),
     };
-    const failService = new NotifyMentionedUsersService(
-      failingUseCase as unknown as CreateNotificationUseCase
-    );
+    const failService = new NotifyMentionedUsersService(failingPort);
 
     const input = makeInput();
     const result = await failService.notify(input);
 
     // Should still complete without throwing, but no IDs collected
-    expect(failingUseCase.execute).toHaveBeenCalledTimes(1);
+    expect(failingPort.dispatch).toHaveBeenCalledTimes(1);
     expect(result).toEqual([]);
   });
 });

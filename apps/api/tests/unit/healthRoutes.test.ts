@@ -12,6 +12,11 @@
 
 import { describe, it, beforeAll, afterAll, vi, expect } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
+import {
+  serializerCompiler,
+  validatorCompiler,
+  type ZodTypeProvider,
+} from "fastify-type-provider-zod";
 import type Redis from "ioredis";
 import type { RedisCacheManager } from "@adapters/cache-redis";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
@@ -226,6 +231,11 @@ describe("healthRoutes - Unit Tests", () => {
     );
 
     app = Fastify({ logger: false });
+    // healthRoutes uses Zod response schemas — register the type-provider
+    // compilers so Fastify can serialize them. Mirrors apps/api/src/index.ts.
+    app.withTypeProvider<ZodTypeProvider>();
+    app.setValidatorCompiler(validatorCompiler);
+    app.setSerializerCompiler(serializerCompiler);
 
     // Provide a DI container so healthRoutes can resolve BackgroundTaskScheduler.
     const container = createTestContainer();

@@ -2,7 +2,7 @@
   "$schema": "https://unpkg.com/knip@latest/schema.json",
   "workspaces": {
     ".": {
-      "project": ["*.{ts,js,cjs,mjs}"],
+      "project": ["*.{ts,js,cjs,mjs}", "scripts/**/*.{ts,js,mjs}"],
       "ignoreDependencies": [
         "loadtest",
         "jq",
@@ -13,14 +13,21 @@
         "@types/react",
         "@types/react-dom",
         "react",
-        "react-dom"
+        "react-dom",
+        "@axe-core/playwright",
+        "@hey-api/client-fetch",
+        "@secretlint/secretlint-rule-preset-recommend",
+        "msw",
+        "@t3-oss/env-core",
+        "@t3-oss/env-nextjs"
       ],
       "ignore": ["performance/**"]
     },
     "apps/api": {
       "entry": ["src/index.ts"],
-      "project": ["src/**/*.ts"],
-      "ignore": ["tests/**", "src/**/*.test.ts", "reports/**", "scripts/**"]
+      "project": ["src/**/*.{ts,tsx}"],
+      "ignore": ["tests/**", "src/**/*.test.ts", "reports/**", "scripts/**"],
+      "ignoreDependencies": ["@fastify/websocket"]
     },
     "apps/workers": {
       "entry": ["src/bootstrap.ts", "src/publishWorker.ts"],
@@ -29,8 +36,8 @@
     },
     "apps/admin": {
       "project": ["**/*.{ts,tsx}"],
-      "ignore": ["tests/**", "**/ui-safelist.ts", "**/useAuditStats.ts", "**/notificationStore.ts"],
-      "ignoreDependencies": ["@vitest/coverage-v8", "tailwindcss"]
+      "ignore": ["tests/**", "**/ui-safelist.ts", "**/useAuditStats.ts"],
+      "ignoreDependencies": ["@vitest/coverage-v8", "tailwindcss", "@axe-core/playwright"]
     },
     "apps/client": {
       "project": ["**/*.{ts,tsx}"],

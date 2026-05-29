@@ -46,6 +46,19 @@
 > No hay use-case equivalente para `mentionIngestWorker` ni `autoRenewalWorker` — su lógica vive sólo en
 > el worker (no son duplicaciones).
 
+## DUP-03 — hooks TanStack de saga vs `runSagaAndAwaitTerminal` (declarativo vs imperativo) · PENDING (KEEP-both)
+
+- **Estado:** **PENDING — veredicto propuesto KEEP-both.** Las dos formas cubren el mismo flow `POST /sagas/post-publishing/start` → `GET /sagas/:sagaId` (polling), pero con semánticas legítimamente distintas: imperativa (resolve-with-Post, sin loading state continuous) vs declarativa (non-blocking, expone status mid-flight para UI progress). Detectado durante S2 cleanup audit del audit `docs/audits/ESTADO_REPO.md` F13+F14.
+- **"Duplicado":** `apps/client/lib/hooks/useSagaStatus.ts` (F13, TanStack `useQuery` con polling 1s hasta terminal) + `apps/client/lib/hooks/useStartPostPublishingSaga.ts` (F14, TanStack `useMutation`)
+- **"Canónico" actual:** `apps/client/lib/api/clients/sagaClient.ts:171-215` → `runSagaAndAwaitTerminal({ start, getStatus })` (helper imperativo). 6 callers reales: `useSchedulePostViaSaga()`, `useCreateDraftViaSaga()`, preview page, editor page, ClientContentEditor publish-now button.
+- **Evidencia:**
+  - Mismos endpoints consumidos: `apiClient.startPostPublishingSaga()` (POST) + `apiClient.getSagaStatus()` (GET poll).
+  - Commit `6c4651c5` (2026-05-09) introdujo AMBAS formas a propósito — message: _"Frontend repoint of the customer post-publishing flow to the saga endpoint. The 6 callers of the legacy create/schedule/publish triplet now drive POST /sagas/post-publishing/start with a mode discriminator, and observe terminal state via either an imperative wait helper (for hooks that must preserve their resolve-with-Post contract) **or polling TanStack queries (for UI loading states)**."_
+  - Imperativa adoptada (6 callers reales). Declarativa orfana (0 callers en `apps/admin` + `apps/client`).
+- **Más completo/canónico:** **ambas son válidas para su use-case respectivo.** La imperativa preserva contrato `Promise<Post>` que esperan los callers existentes; la declarativa preserva el estado intermedio que un futuro `<SagaProgress>` necesita exponer (status enum, progress, errors visible mid-flight).
+- **Veredicto propuesto:** **KEEP-both.** No borrar los hooks declarativos — son la primitiva correcta para UI real-time de saga, su consumer (componente `<SagaProgress>`) sólo está pendiente. Cierre del wire pendiente trackeado como SMELL-46 en `roadmap-detected-smells-backlog.md`.
+- **Bloqueo del wire (no de la duplicación):** decisión de producto sobre dónde montar `<SagaProgress>` en la UI (SchedulingDashboard como progress card por cada saga en curso, modal en click, etc.).
+
 ## Notas
 
 - Detectado durante **B8** (maratón prisma→DI); **resuelto** justo después vía **Opción B** (consumidores

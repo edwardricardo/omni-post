@@ -69,9 +69,10 @@ function makeMockDispatcher() {
   };
 }
 
-function makeMockSchedule() {
+function makeMockPostCreation() {
   return {
-    execute: vi.fn(async () => ok({ postId: "scheduled", status: "SCHEDULED" })),
+    createPost: vi.fn(async () => ok({ id: "post-1" })),
+    schedulePost: vi.fn(async () => ok({ id: "scheduled", scheduledFor: "2026-05-15T09:00:00Z" })),
   };
 }
 
@@ -88,7 +89,7 @@ describe("CreatePostFromRecurrenceUseCase", () => {
   let template: PostAggregate;
   let postRepo: ReturnType<typeof makeMockPostRepository>;
   let dispatcher: ReturnType<typeof makeMockDispatcher>;
-  let schedule: ReturnType<typeof makeMockSchedule>;
+  let postCreation: ReturnType<typeof makeMockPostCreation>;
   let useCase: CreatePostFromRecurrenceUseCase;
 
   beforeEach(() => {
@@ -96,11 +97,11 @@ describe("CreatePostFromRecurrenceUseCase", () => {
     template = makeTemplatePost();
     postRepo = makeMockPostRepository(template);
     dispatcher = makeMockDispatcher();
-    schedule = makeMockSchedule();
+    postCreation = makeMockPostCreation();
     useCase = new CreatePostFromRecurrenceUseCase(
       postRepo as never,
       dispatcher as never,
-      schedule as never
+      postCreation as never
     );
   });
 
@@ -181,7 +182,7 @@ describe("CreatePostFromRecurrenceUseCase", () => {
       expect(dispatcher.dispatchAll).toHaveBeenCalled();
 
       // SchedulePostUseCase received the new postId + channels + dueAt.
-      expect(schedule.execute).toHaveBeenCalledWith({
+      expect(postCreation.schedulePost).toHaveBeenCalledWith({
         postId: clone.id.value,
         channelIds: VALID_INPUT.channels,
         scheduledFor: VALID_INPUT.dueAt.toISOString(),
@@ -200,7 +201,7 @@ describe("CreatePostFromRecurrenceUseCase", () => {
       expect(result.ok).toBe(false);
       if (result.ok) return;
       expect(result.error.code).toBe(USE_CASE_ERRORS.NOT_FOUND);
-      expect(schedule.execute).not.toHaveBeenCalled();
+      expect(postCreation.schedulePost).not.toHaveBeenCalled();
     });
   });
 
@@ -216,7 +217,7 @@ describe("CreatePostFromRecurrenceUseCase", () => {
       expect(result.ok).toBe(false);
       if (result.ok) return;
       expect(result.error.code).toBe(USE_CASE_ERRORS.INTERNAL_ERROR);
-      expect(schedule.execute).not.toHaveBeenCalled();
+      expect(postCreation.schedulePost).not.toHaveBeenCalled();
     });
 
     it("surfaces SchedulePostUseCase failure as INTERNAL_ERROR", async () => {
@@ -224,7 +225,7 @@ describe("CreatePostFromRecurrenceUseCase", () => {
         code: USE_CASE_ERRORS.VALIDATION_FAILED,
         message: "Channel not found",
       };
-      schedule.execute.mockResolvedValueOnce(err(innerErr) as never);
+      postCreation.schedulePost.mockResolvedValueOnce(err(innerErr) as never);
 
       const result = await useCase.execute({
         ...VALID_INPUT,
