@@ -169,6 +169,19 @@ module.exports = {
         path: ["^(punycode|domain|constants|sys|_linklist|_stream_wrap)$"],
       },
     },
+    {
+      name: "no-cross-bounded-context",
+      severity: "error",
+      comment:
+        "Each bounded context lives in packages/core/<context>/ and must NOT import from sibling contexts. The only allowed cross-context dependencies are: @core/domain (shared kernel), @core/embeddings (shared kernel for ML), @core/application (UseCase base), @ports/core (port interfaces), and @shared/types. Sibling-context use cases compose via ports + adapters wired in the composition root (apps/api or apps/workers).",
+      from: {
+        path: "^packages/core/(?!domain|embeddings|application)([^/]+)/src/",
+      },
+      to: {
+        path: "^packages/core/(?!domain|embeddings|application)([^/]+)/src/",
+        pathNot: "^packages/core/$1/src/",
+      },
+    },
   ],
   options: {
     doNotFollow: {

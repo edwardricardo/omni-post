@@ -424,7 +424,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 > Objetivo: capturar mejoras estructurales mayores propuestas por el canon genérico monorepo 2026 — **no se ejecutan ahora** pero quedan registradas para revisión Q2/Q3 2026 según trigger events de §0.2.
 
-### 5.1 Split `@core/application/` en bounded contexts separados — `P1` · `XL` · `STATUS: IN-PROGRESS Phase-A (431b8667) + Phase-B (7f49e69c)` · sub-phases §5.1.c/d PENDING
+### 5.1 Split `@core/application/` en bounded contexts separados — `P1` · `XL` · `STATUS: DONE (TBD-sha)` · sub-phases §5.1.a/b/c/d all DONE
 
 **Qué:** Re-organizar `@core/application/<context>/` a packages top-level por context bajo `packages/core/<context>/` — un package por bounded context (DDD canon). Recon (2026-05-28) reveló **46 bounded contexts** en `@core/application/src/` (no 7 como inicialmente estimaba §0.2).
 
@@ -456,19 +456,26 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 🚨 **Phase B time-bomb identified (audit 2026-05-28)**: el commit 7f49e69c también dejó **7 absolute cross-bounded-context imports** dentro de los 9 contexts remaining en `@core/application/src/` (ai→@core/security, bulk-scheduling/recurring→@core/posts, inbox→@core/guardrails, inbox/handlers/mentions→@core/notifications). El framing original fue "puente temporal hasta §5.1.c". El hook tripwire (commit 8dea6aba+) AHORA bloquearía la introducción de patrones idénticos — pero los 7 existentes pasaron antes del hook. **Quedan a resolver en §5.1.c via los 6 ports creados en Phase A.**
 
-⏭ **Phase C / §5.1.c PENDING**: resolver las 11 cross-context violations:
+✅ **Phase C closure (§5.1.c, 2026-05-28)** — 12 cross-context violations resolved + 8 contexts extracted. Granular sub-commits:
 
-1. Crear 6 adapters en composition root (`apps/api/src/infrastructure/container/adapters/`) que implementen los ports nuevos wrapping los services concretos en `@core/<dest>/`.
-2. Refactorizar los 11 use cases en los 9 contexts remaining (ai/bulk-scheduling/embeddings/glossary/inbox/mentions/recurring/style-guide/tasks) para depender del port en lugar del service concreto (constructor injection type-change).
-3. Update DI container registrations.
-4. Mover los 9 contexts remaining a `packages/core/<ctx>/src/` (mismo patrón que Phase B).
-5. Update apps/api/package.json con 9 nuevos workspace deps.
-6. tsc green + fitness checks intact.
-7. Estimación honesta: ~3-4h.
+- `a8730ad5` §5.1.c.1: `@core/embeddings` shared kernel + `MENTION_CONTEXT` moved to `@core/domain/value-objects/`.
+- `31814583` §5.1.c.2: 5 ports redesigned (shapes match consumer call sites) + 5 adapters in composition root (`PostCreationAdapter`, `NotificationDispatchAdapter`, `MentionTrackingAdapter`, `GuardrailEvaluationAdapter`, `PlatformCredentialAdapter`). Stale `SecurityClassifierPort` removed.
+- `57b47caf` §5.1.c.3 + .c.5: 8 violator use cases refactored to inject ports instead of concrete services. DI container wires updated across 6 setup files.
+- `d85e2fe4` §5.1.c.4: 8 remaining contexts (ai, bulk-scheduling, glossary, inbox, mentions, recurring, style-guide, tasks) moved via `git mv` to `packages/core/<ctx>/src/`. 82 importer files sed-updated. 9 new workspace deps in `apps/api/package.json`. `csv-parse@6.2.1` migrated to `@core/bulk-scheduling` package.
 
-⏭ **Phase D / §5.1.d PENDING**: cleanup `@core/application` (queda con UseCase.ts + index.ts mínimo) + depcruise rule structural `no-cross-bounded-context` + `docs/architecture/BOUNDED_CONTEXTS.md` canon doc nuevo (listado de los 46 contexts + responsibility + dependencies declared + decision log de los 6 ports). Estimación ~1h.
+✅ **Phase D closure (§5.1.d, TBD-sha)** — depcruise rule + canon doc + cleanup:
 
-⏭ **Phase E / §5.1.e (opcional) PENDING**: eliminar `@core/application` package vacío cuando sea seguro (sin importers residuales). Diferido hasta verificar zero impact.
+- `.dependency-cruiser.cjs` extended with `no-cross-bounded-context` rule. Pattern: a context at `packages/core/<a>/src/` cannot import from `packages/core/<b>/src/` when `a ≠ b` AND neither `a` nor `b` is `domain`, `embeddings`, or `application`. Whitelist matches the canon (shared kernels + base layer).
+- `docs/architecture/BOUNDED_CONTEXTS.md` — canon doc with inventory of all 46 bounded contexts + the 5 port-adapter pairs + how to add a new context + how to extend (port / shared kernel) + git history preservation note.
+- `@core/application` package final state: only `UseCase.ts` (base abstract class) + minimal `index.ts` barrel. Future cleanup §5.1.e (optional) eliminates the package once zero importers remain.
+
+**Verification end-to-end:**
+
+- `pnpm --filter @apps/api exec tsc --noEmit` (with `NODE_OPTIONS=--max-old-space-size=4096`) → 0 errors. Workspace-wide `tsc` from root is intentionally avoided per `feedback/tools-infra.md §LXC-memory-caps` (it OOMs the dev container).
+- 0 cross-bounded-context imports verified via per-context grep, excluding the whitelist.
+- `git log --follow packages/core/<ctx>/src/<file>.ts` reproduces the full history through the rename.
+
+⏭ **Phase E / §5.1.e (opcional, PENDING)**: eliminar `@core/application` package vacío cuando sea seguro (sin importers residuales). Diferido hasta verificar zero impact + potencial move de `UseCase.ts` a `@core/domain`.
 
 ---
 
