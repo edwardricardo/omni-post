@@ -20,6 +20,7 @@ import type { BackgroundTaskScheduler } from "@observability/background-schedule
 import { ThreadAnalytics } from "./threadAnalytics.js";
 import type { RealtimeAnalyticsService } from "./realtimeAnalytics.js";
 import type { AnalyticsStreamBroadcaster } from "../services/AnalyticsStreamBroadcaster.js";
+import type { StreamConnectionTracker } from "../services/StreamConnectionTracker.js";
 import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
 import type {
   CalculateROIUseCase,
@@ -135,7 +136,8 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
     private readonly scheduler: BackgroundTaskScheduler,
     private readonly realtimeService: RealtimeAnalyticsService,
     private readonly calculateROIUseCase: CalculateROIUseCase,
-    private readonly getCrossPlatformAnalyticsUseCase: GetCrossPlatformAnalyticsUseCase
+    private readonly getCrossPlatformAnalyticsUseCase: GetCrossPlatformAnalyticsUseCase,
+    private readonly streamTracker: StreamConnectionTracker
   ) {
     super();
   }
@@ -285,6 +287,17 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
       postSet = postIdArrays.flat();
     }
 
+    // Reserve a per-account stream slot before allocating any per-connection state
+    // (subscription, heartbeat). Rejects when the cap is reached — DoS protection.
+    const subId = randomUUID();
+    if (!this.streamTracker.tryReserve(user.accountId, subId)) {
+      return reply.code(429).send({
+        ok: false,
+        error: "Too many concurrent streams for account",
+        maxConcurrent: this.streamTracker.getMaxPerAccount(),
+      });
+    }
+
     // SSE headers (mirror notifications stream).
     reply.raw.writeHead(200, {
       "Content-Type": "text/event-stream",
@@ -304,7 +317,6 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
     }
 
     // Subscribe to per-post broadcasts.
-    const subId = randomUUID();
     this.broadcaster.subscribe(subId, postSet, (event) => {
       try {
         reply.raw.write(`data: ${JSON.stringify(event)}\n\n`);
@@ -323,6 +335,7 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
         } catch {
           this.scheduler.unregister(heartbeatTaskId);
           this.broadcaster.unsubscribe(subId);
+          this.streamTracker.release(user.accountId, subId);
         }
       },
       30_000
@@ -332,6 +345,7 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
     request.raw.on("close", () => {
       this.scheduler.unregister(heartbeatTaskId);
       this.broadcaster.unsubscribe(subId);
+      this.streamTracker.release(user.accountId, subId);
     });
   }
 
@@ -980,6 +994,9 @@ const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.container.resolve<GetCrossPlatformAnalyticsUseCase>(
       TOKENS.GetCrossPlatformAnalyticsUseCase
     );
+  const streamTracker = fastify.container.resolve<StreamConnectionTracker>(
+    TOKENS.StreamConnectionTracker
+  );
 
   const handler = new AnalyticsRouteHandler(
     prisma,
@@ -989,7 +1006,8 @@ const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
     scheduler,
     realtimeService,
     calculateROIUseCase,
-    getCrossPlatformAnalyticsUseCase
+    getCrossPlatformAnalyticsUseCase,
+    streamTracker
   );
 
   // Real-time analytics metrics stream (Server-Sent Events)

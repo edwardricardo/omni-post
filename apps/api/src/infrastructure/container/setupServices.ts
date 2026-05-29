@@ -106,6 +106,7 @@ import { SettingsService } from "@core/settings/SettingsService.js";
 import { UpcasterChain } from "../integration-events/EventUpcaster.js";
 import { NotificationBroadcaster } from "../../services/NotificationBroadcaster.js";
 import { AnalyticsStreamBroadcaster } from "../../services/AnalyticsStreamBroadcaster.js";
+import { StreamConnectionTracker } from "../../services/StreamConnectionTracker.js";
 import { RealtimeAnalyticsService } from "../../analytics/realtimeAnalytics.js";
 import { GA4TrackingAdapter } from "../adapters/GA4TrackingAdapter.js";
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
@@ -740,6 +741,14 @@ export function setupServices(
       broadcaster.initialize();
       return broadcaster;
     },
+    true
+  );
+
+  // Register StreamConnectionTracker (per-account SSE cap — DoS protection,
+  // shared by /analytics/stream and /notifications/stream).
+  container.register<StreamConnectionTracker>(
+    TOKENS.StreamConnectionTracker,
+    () => new StreamConnectionTracker(env.MAX_STREAMS_PER_ACCOUNT),
     true
   );
 

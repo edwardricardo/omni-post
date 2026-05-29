@@ -235,6 +235,13 @@ export const env = createEnv({
 
     // ── Feature flags ───────────────────────────────────────────────────
     ENABLE_RATE_LIMITING: boolFromString.default(true),
+
+    // ── SSE per-account cap (DoS protection) ────────────────────────────
+    // Max concurrent SSE connections per account per process. Authenticated
+    // DoS surface: a user can open N streams; each allocates a subscription +
+    // per-connection heartbeat. Default 10 covers typical multi-tab/multi-device
+    // usage with headroom; raise for ops-heavy accounts after capacity review.
+    MAX_STREAMS_PER_ACCOUNT: z.coerce.number().int().min(1).max(100).default(10),
   },
 
   /**
