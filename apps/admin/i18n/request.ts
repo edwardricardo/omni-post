@@ -1,22 +1,12 @@
 /**
  * @file request.ts
- * @description next-intl request-scoped configuration. Resolves the active
- *              locale from the request (locale path segment via the proxy /
- *              routing), validates it against the supported set, falls back
- *              to the default locale, and loads the matching message catalogue
- *              from `messages/{locale}.json`.
+ * @description next-intl request-scoped configuration. Delegates locale
+ *   resolution + message loading to the shared `createRequestConfig` factory
+ *   from `@shared/types/i18n/createRequestConfig` so admin + client stay in
+ *   lockstep.
  * @layer infrastructure
  */
-import { getRequestConfig } from "next-intl/server";
-import { hasLocale } from "next-intl";
+import { createRequestConfig } from "@shared/types/i18n/createRequestConfig";
 import { routing } from "./routing";
 
-export default getRequestConfig(async ({ requestLocale }) => {
-  const requested = await requestLocale;
-  const locale = hasLocale(routing.locales, requested) ? requested : routing.defaultLocale;
-
-  return {
-    locale,
-    messages: (await import(`../messages/${locale}.json`)).default,
-  };
-});
+export default createRequestConfig(routing, (locale) => import(`../messages/${locale}.json`));
