@@ -396,6 +396,10 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
 
   async getEngagementTrends(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
+    const user = request.customerUser;
+    if (!user) {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
 
     const validated = await this.validateRequest<z.infer<typeof EngagementTrendsQuerySchema>>(ctx, {
       query: EngagementTrendsQuerySchema.shape.query,
@@ -411,6 +415,11 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
       timeRange: _timeRange2,
       granularity: _granularity,
     } = validated.value.query;
+
+    const hasAccess = await this.projectRepository.getProjectAccess(user.accountId, projectId);
+    if (!hasAccess) {
+      return this.sendError(ctx, 403, "Access denied to project");
+    }
 
     try {
       // getEngagementTrends takes threadId, not projectId — needs project-level aggregation
@@ -428,6 +437,10 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
 
   async getBestPostingTimes(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
+    const user = request.customerUser;
+    if (!user) {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
 
     const validated = await this.validateRequest<z.infer<typeof BestTimesQuerySchema>>(ctx, {
       query: BestTimesQuerySchema.shape.query,
@@ -438,6 +451,11 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
     }
 
     const { projectId, provider, timezone, lookbackDays } = validated.value.query;
+
+    const hasAccess = await this.projectRepository.getProjectAccess(user.accountId, projectId);
+    if (!hasAccess) {
+      return this.sendError(ctx, 403, "Access denied to project");
+    }
 
     return this.sendError(ctx, 501, "Analytics service not yet implemented", {
       feature: "best-posting-times",
@@ -450,6 +468,10 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
 
   async getGeographicAnalytics(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
+    const user = request.customerUser;
+    if (!user) {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
 
     const validated = await this.validateRequest<z.infer<typeof GeographicAnalyticsQuerySchema>>(
       ctx,
@@ -464,6 +486,11 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
 
     const { projectId, provider, timeRange } = validated.value.query;
 
+    const hasAccess = await this.projectRepository.getProjectAccess(user.accountId, projectId);
+    if (!hasAccess) {
+      return this.sendError(ctx, 403, "Access denied to project");
+    }
+
     // Future: Geographic analytics requires real provider API location data
     return this.sendError(ctx, 501, "Geographic analytics not yet implemented", {
       feature: "geographic-analytics",
@@ -475,6 +502,10 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
 
   async getMediaPerformance(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
+    const user = request.customerUser;
+    if (!user) {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
 
     const validated = await this.validateRequest<z.infer<typeof MediaPerformanceQuerySchema>>(ctx, {
       query: MediaPerformanceQuerySchema.shape.query,
@@ -486,6 +517,11 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
 
     const { projectId, provider, timeRange } = validated.value.query;
 
+    const hasAccess = await this.projectRepository.getProjectAccess(user.accountId, projectId);
+    if (!hasAccess) {
+      return this.sendError(ctx, 403, "Access denied to project");
+    }
+
     return this.sendError(ctx, 501, "Analytics service not yet implemented", {
       feature: "media-performance",
       projectId,
@@ -496,6 +532,10 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
 
   async getDashboard(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
+    const user = request.customerUser;
+    if (!user) {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
 
     const validated = await this.validateRequest<z.infer<typeof DashboardQuerySchema>>(ctx, {
       query: DashboardQuerySchema.shape.query,
@@ -507,13 +547,12 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
 
     const { projectId, timeRange } = validated.value.query;
 
+    const hasAccess = await this.projectRepository.getProjectAccess(user.accountId, projectId);
+    if (!hasAccess) {
+      return this.sendError(ctx, 403, "Access denied to project");
+    }
+
     try {
-      const project = await this.prisma.project.findUnique({ where: { id: projectId } });
-
-      if (!project) {
-        return this.sendError(ctx, 404, "Project not found");
-      }
-
       const days = timeRange === "7d" ? 7 : timeRange === "30d" ? 30 : 90;
       const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
@@ -622,6 +661,10 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
 
   async exportAnalytics(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
+    const user = request.customerUser;
+    if (!user) {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
 
     const validated = await this.validateRequest<z.infer<typeof ExportQuerySchema>>(ctx, {
       query: ExportQuerySchema.shape.query,
@@ -633,6 +676,11 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
 
     const { projectId, timeRange, format, includeThreads, includePosts, includeAnalytics } =
       validated.value.query;
+
+    const hasAccess = await this.projectRepository.getProjectAccess(user.accountId, projectId);
+    if (!hasAccess) {
+      return this.sendError(ctx, 403, "Access denied to project");
+    }
 
     try {
       const project = await this.prisma.project.findUnique({ where: { id: projectId } });
@@ -852,6 +900,10 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
    */
   async getProjectAnalytics(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
+    const user = request.customerUser;
+    if (!user) {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
 
     const ProjectParamsSchema = z.object({ projectId: IdSchema });
     const validated = await this.validateParams(ctx, ProjectParamsSchema);
@@ -862,13 +914,12 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
 
     const { projectId } = validated.value;
 
+    const hasAccess = await this.projectRepository.getProjectAccess(user.accountId, projectId);
+    if (!hasAccess) {
+      return this.sendError(ctx, 403, "Access denied to project");
+    }
+
     try {
-      const project = await this.prisma.project.findUnique({ where: { id: projectId } });
-
-      if (!project) {
-        return this.sendError(ctx, 404, "Project not found");
-      }
-
       const [postCount, analytics] = await Promise.all([
         this.prisma.post.count({ where: { projectId, deletedAt: null } }),
         this.prisma.analytics.findMany({
@@ -951,10 +1002,13 @@ const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.streamRealtime(request, reply)
   );
 
-  // Get project-level analytics summary (no auth required for read)
+  // Get project-level analytics summary (tenant-safe: requireClientAuth + ownership check)
   fastify.get(
     "/analytics/project/:projectId",
-    { schema: { tags: ["Analytics"], summary: "Get project analytics summary" } },
+    {
+      preHandler: [requireClientAuth],
+      schema: { tags: ["Analytics"], summary: "Get project analytics summary" },
+    },
     async (request, reply) => handler.getProjectAnalytics(request, reply)
   );
 
