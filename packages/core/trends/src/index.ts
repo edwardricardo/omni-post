@@ -1,7 +1,6 @@
 /**
  * @file index.ts
  * @description Barrel for `trends` bounded context (`@core/trends`).
- *   Auto-generated during §5.1.b extraction.
  * @layer application
  */
 export * from "./DetectTrendsUseCase.js";

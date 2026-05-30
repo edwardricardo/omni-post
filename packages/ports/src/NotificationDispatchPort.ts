@@ -2,12 +2,9 @@
  * @file NotificationDispatchPort.ts
  * @description Port for dispatching user notifications from outside the
  *   `notifications` bounded context. Adapter wraps `CreateNotificationUseCase`
- *   from `@core/notifications` and is wired in the composition root.
- *
- *   Resolves §5.1 cross-context violations `mentions → notifications` and
- *   `inbox/handlers → notifications`. The consumer's call shape was
- *   `createNotification.execute({...})`; port method `dispatch(...)` takes
- *   the same primitive-friendly input.
+ *   from `@core/notifications` and is wired in the composition root. Takes
+ *   primitive-friendly input so consumers stay decoupled from the notifications
+ *   domain types.
  *
  * @layer domain
  */

@@ -5,11 +5,6 @@
  *   PostCreationAdapter.ts`) wraps `CreatePostUseCase` + `SchedulePostUseCase`
  *   from `@core/posts` and is wired in the composition root.
  *
- *   Method signatures match the existing service call sites in
- *   `bulk-scheduling/ProcessBulkScheduleRowUseCase` and
- *   `recurring/CreatePostFromRecurrenceUseCase` to minimize call-site
- *   refactor — only the constructor parameter type changes.
- *
  * @layer domain
  */
 

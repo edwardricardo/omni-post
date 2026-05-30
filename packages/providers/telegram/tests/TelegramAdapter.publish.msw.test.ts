@@ -1,25 +1,10 @@
 /**
  * @file TelegramAdapter.publish.msw.test.ts
- * @description Proof-of-concept MSW contract test for TelegramAdapter. Uses
- *   MSW (Mock Service Worker) handlers to intercept the REAL HTTP calls
- *   made by `TelegramApiClient.callApi(...)` against `api.telegram.org`,
- *   en lugar del patrón histórico `vi.fn()` + factory injection.
- *
- *   Establecido en §3.2 Phase A1 del Normalization Roadmap como pattern
- *   reference. Coexiste con `TelegramAdapter.test.ts` (vi.fn() pattern)
- *   sin reemplazarlo — migración progresiva en §3.2.b.
- *
- *   Ventajas del MSW pattern vs vi.fn():
- *   - Ejerce el adapter+apiClient stack completo (parsing, error handling,
- *     URL construction) — no solo la lógica del adapter.
- *   - Fixtures HTTP reutilizables entre tests (contract fixtures).
- *   - Más resiliente a refactors internos del apiClient — el contrato
- *     externo (HTTP) es lo que importa.
- *
- *   Desventajas:
- *   - Más brittle si Telegram cambia el HTTP shape — bueno, lo queremos
- *     atrapar.
- *   - Setup más pesado (server.listen/close en hooks).
+ * @description MSW contract test for TelegramAdapter. Uses MSW (Mock Service
+ *   Worker) handlers to intercept the REAL HTTP calls made by
+ *   `TelegramApiClient.callApi(...)` against `api.telegram.org`, exercising
+ *   the adapter+apiClient stack end-to-end (parsing, error handling, URL
+ *   construction) rather than mocking the apiClient directly.
  *
  * @layer infrastructure
  */

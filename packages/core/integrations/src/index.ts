@@ -1,7 +1,6 @@
 /**
  * @file index.ts
  * @description Barrel for `integrations` bounded context (`@core/integrations`).
- *   Auto-generated during §5.1.b extraction.
  * @layer application
  */
 export * from "./GenerateIntegrationApiKeyUseCase.js";

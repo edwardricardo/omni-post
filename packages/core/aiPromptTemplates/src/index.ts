@@ -1,7 +1,6 @@
 /**
  * @file index.ts
  * @description Barrel for `aiPromptTemplates` bounded context (`@core/aiPromptTemplates`).
- *   Auto-generated during §5.1.b extraction.
  * @layer application
  */
 export * from "./CreateAIPromptTemplateUseCase.js";

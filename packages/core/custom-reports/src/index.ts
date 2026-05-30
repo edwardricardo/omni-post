@@ -1,7 +1,6 @@
 /**
  * @file index.ts
  * @description Barrel for `custom-reports` bounded context (`@core/custom-reports`).
- *   Auto-generated during §5.1.b extraction.
  * @layer application
  */
 export * from "./CreateCustomReportUseCase.js";

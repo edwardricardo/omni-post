@@ -21,13 +21,12 @@
  *     (alternative: every Redis blip locks everyone out → worse DoS surface).
  *     Operational alerting on the warning metric is REQUIRED.
  *
- *   References (research 2026-05-30, NIST 800-63B-4 finalized July 2025):
+ *   References:
  *   - NIST SP 800-63B-4 §Rate Limiting — verifier SHALL implement per-account
  *     limit, prefers throttling over hard lockout.
  *   - OWASP Auth Cheat Sheet §Account Lockout — counter per CUENTA not IP;
  *     auto-expiry; CAPTCHA after few failures; MFA is defense #1.
- *   - Design doc: `docs/security/BRUTE_FORCE_HOMOLOGATION_ES.md` (2026-05-24).
- *   - ADR: `docs/technical/ADR-NNNN-bf-homolog.md` (this sprint).
+ *   - Design doc: `docs/security/BRUTE_FORCE_HOMOLOGATION_ES.md`.
  * @layer domain
  */
 

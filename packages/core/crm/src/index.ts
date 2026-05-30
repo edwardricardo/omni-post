@@ -1,7 +1,6 @@
 /**
  * @file index.ts
  * @description Barrel for `crm` bounded context (`@core/crm`).
- *   Auto-generated during §5.1.b extraction.
  * @layer application
  */
 export * from "./ConnectCrmUseCase.js";
