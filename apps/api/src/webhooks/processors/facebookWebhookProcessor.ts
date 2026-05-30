@@ -577,12 +577,10 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   ): Promise<void> {
     const entityChannelId = entities.channelId as string | undefined;
     if (entityChannelId) {
-      // Page-settings metadata used to be merged into the credentials JSON,
-      // conflating non-secret page state with the auth token envelope.
-      // With credentials now encrypted at rest, this field is reserved for
-      // OAuth tokens only — page-settings telemetry needs its own column.
-      // Captured silently for now; downstream notifications + analytics
-      // tracking will live in a dedicated table.
+      // The credentials field is reserved for OAuth tokens only —
+      // page-settings telemetry needs its own column. Captured silently;
+      // downstream notifications + analytics tracking will live in a
+      // dedicated table.
       void data;
       void entityChannelId;
     }

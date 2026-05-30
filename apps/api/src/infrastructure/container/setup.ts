@@ -52,7 +52,7 @@ export interface ContainerSetupOptions {
 export function setupContainer(options: ContainerSetupOptions): Container {
   const container = getContainer();
 
-  // Wrap the Prisma client with the tenant guard extension (S2.1b). Every
+  // Wrap the Prisma client with the tenant guard extension. Every
   // consumer that resolves PrismaClient from the container gets the
   // guarded instance; scripts/migrations that import `prisma` directly
   // from `@infra/prisma` get the unwrapped client. The extension reads

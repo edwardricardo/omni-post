@@ -7,10 +7,10 @@
  *              service invokes CreatePostFromRecurrenceUseCase to clone +
  *              schedule the resulting Post.
  *
- *              Phase-1 design: inline post creation (no intermediate queue).
- *              The `RECURRING_POSTS` queue constant remains unused for now;
- *              if tick latency or fan-out grows, we promote to BullMQ
- *              repeatable jobs later (out of scope for the wire-up).
+ *              Inline post creation (no intermediate queue). The
+ *              `RECURRING_POSTS` queue constant remains unused; if tick
+ *              latency or fan-out grows, the implementation can be
+ *              promoted to BullMQ job schedulers later.
  * @layer infrastructure
  */
 

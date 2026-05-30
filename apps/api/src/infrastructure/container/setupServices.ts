@@ -199,7 +199,7 @@ export function setupServices(
       ),
     true
   );
-  // S4.4 — RoleManagementService (@core/application) + its two ports
+  // RoleManagementService (@core/application) + its two ports.
   container.register<RoleManagementRepository>(
     TOKENS.RoleManagementRepository,
     () => new PrismaRoleManagementRepository(container.resolve(TOKENS.PrismaClient)),
@@ -231,8 +231,8 @@ export function setupServices(
     () => new ActivityFeedService(container.resolve(TOKENS.PrismaClient)),
     true
   );
-  // S4.3 — AIRequestExecutor adapter (wraps AIProviderFactory + AIOrchestrator
-  // so AiRequestService can live in @core/application).
+  // AIRequestExecutor adapter wraps AIProviderFactory + AIOrchestrator so
+  // AiRequestService can live in @core/application.
   container.register<AIRequestExecutorPort>(
     TOKENS.AIRequestExecutorPort,
     () =>
@@ -454,7 +454,7 @@ export function setupServices(
     true
   );
 
-  // Compliance — S4.1 ports (GdprSettings, SecuritySettings, DsarRequest,
+  // Compliance ports (GdprSettings, SecuritySettings, DsarRequest,
   // DataBreachReport, AuditLogRetention, AccountNotification).
   container.register<GdprSettingsRepository>(
     TOKENS.GdprSettingsRepository,
@@ -921,14 +921,14 @@ export function setupServices(
     () => new PrismaAiTokenUsageRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
-  // Account billing adapter (S3.4 scaffolding) — implements AccountBillingRepository
-  // (raw read/write of billing-specific fields on the Account row).
+  // Account billing adapter — implements AccountBillingRepository (raw
+  // read/write of billing-specific fields on the Account row).
   container.register<AccountBillingRepository>(
     TOKENS.AccountBillingRepository,
     () => new PrismaAccountBillingRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
-  // Account-subscription billing adapter (S3.4 scaffolding).
+  // Account-subscription billing adapter.
   container.register<AccountSubscriptionBillingRepository>(
     TOKENS.AccountSubscriptionBillingRepository,
     () => new PrismaAccountSubscriptionBillingRepository(container.resolve(TOKENS.PrismaClient)),

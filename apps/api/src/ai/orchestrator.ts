@@ -224,8 +224,7 @@ export class AIOrchestrator {
    * auto-orphans cached entries on prompt-template upgrade and tolerates
    * property-order/whitespace variations in the input.
    *
-   * Refs: amitkoth, AWS LLM caching, Brenndoerfer (canon_research_index.md
-   * §Caching · LLM / AI-specific).
+   * Refs: amitkoth, AWS LLM caching, Brenndoerfer.
    */
   private generateCacheKey(task: AITask): string {
     const normalized = stableStringify({
@@ -803,10 +802,9 @@ export class AIOrchestrator {
   }
 
   /**
-   * Hit-rate metric for AI cache. Note: `size` field was dropped post
-   * CachePort migration — it represented per-instance Map size, which is
-   * misleading info in multi-pod deployments. Cluster-wide cache stats are
-   * available via Prometheus metrics emitted by `RedisCacheManager.getStats()`.
+   * Hit-rate metric for AI cache. Per-instance counter; cluster-wide cache
+   * stats are available via Prometheus metrics emitted by
+   * `RedisCacheManager.getStats()`.
    */
   getCacheStats(): { hitRate: number } {
     const total = this.cacheHitStats.hits + this.cacheHitStats.misses;

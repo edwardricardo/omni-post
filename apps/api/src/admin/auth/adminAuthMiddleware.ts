@@ -13,7 +13,6 @@ import type { FastifyRequest, FastifyReply } from "fastify";
 import type { AdminAuthService } from "./AdminAuthService.js";
 import { TOKENS } from "../../infrastructure/container/types.js";
 import type { AuthContext, AuthErrorCode } from "./adminAuthTypes";
-// AdminRole is now a string type (DB-driven via Role table)
 
 // ============================================================================
 // Augment Fastify Request with auth context

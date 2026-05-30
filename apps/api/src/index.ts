@@ -28,7 +28,7 @@ if (env.TRACING_ENABLED) {
   otelLogger.info("Tracing disabled (TRACING_ENABLED != true)");
 }
 
-// ✅ CORRECT Fastify v5.6.1 Import Syntax
+// Fastify v5.6.1 Import Syntax
 import Fastify, { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import {
@@ -155,9 +155,9 @@ import aiRoutes from "./ai/routes.js";
 // Cache middleware
 import { autoCachePlugin } from "./middleware/autoCacheMiddleware.js";
 
-// ✅ PROPER Fastify v5.6.1 Application Creation
+// Fastify v5.6.1 Application Creation
 async function createApp(): Promise<FastifyInstance> {
-  // ✅ Correct constructor syntax - Fastify v5.6.1
+  // Fastify v5.6.1 constructor syntax
   const app = Fastify({
     logger: true,
     trustProxy: true,
@@ -169,19 +169,19 @@ async function createApp(): Promise<FastifyInstance> {
     requestTimeout: 30_000,
   });
 
-  // ✅ Apply ZodTypeProvider for type safety
+  // Apply ZodTypeProvider for type safety
   const typedApp = app.withTypeProvider<ZodTypeProvider>();
 
-  // ✅ Set up Zod validation compiler
+  // Set up Zod validation compiler
   typedApp.setValidatorCompiler(validatorCompiler);
   typedApp.setSerializerCompiler(serializerCompiler);
 
   // Register OpenAPI documentation (before routes so schemas are captured).
-  // `transform: jsonSchemaTransform` (§3.1 Normalization Roadmap) convierte
-  // los Zod schemas a JSON Schema OpenAPI 3.0 antes de que el swagger plugin
-  // los emita; sin esto el spec contiene el `{ def: ... }` raw de Zod 4 y
-  // los generadores downstream (hey-api, openapi-typescript) emiten
-  // `{[key:string]: unknown}` en vez de los tipos reales.
+  // `transform: jsonSchemaTransform` converts Zod schemas to OpenAPI 3.0
+  // JSON Schema before the swagger plugin emits them; without it the spec
+  // contains raw `{ def: ... }` from Zod 4 and downstream generators
+  // (hey-api, openapi-typescript) emit `{[key:string]: unknown}` instead of
+  // the real types.
   const fastifySwagger = await import("@fastify/swagger");
   await typedApp.register(fastifySwagger.default, {
     transform: jsonSchemaTransform,
@@ -285,8 +285,8 @@ async function createApp(): Promise<FastifyInstance> {
   // Initialize components
   const repoAdapter = createPrismaRepoAdapter({ scheduler: bootstrapScheduler });
   // Queue adapter resolved from the registry so this top-level wiring
-  // shares the same Redis connection and queue instances as the rest of the
-  // container. Targets the PUBLISH queue for legacy callers that expect a
+  // shares the same Redis connection and queue instances as the rest of
+  // the container. Targets the PUBLISH queue for callers that expect a
   // single QueuePort; per-queue routing happens through the registry.
   const queueRegistry = container.resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry);
   const queueAdapter = queueRegistry.forQueue(QUEUE_NAMES.PUBLISH);
@@ -358,7 +358,7 @@ async function createApp(): Promise<FastifyInstance> {
     cacheManager
   );
 
-  // ✅ PROPER middleware registration using Fastify v5 patterns
+  // Middleware registration (Fastify v5 patterns)
 
   // Register audit middleware first (for all routes)
   await typedApp.register(async function auditPlugin(fastify) {
@@ -491,7 +491,7 @@ async function createApp(): Promise<FastifyInstance> {
     }
   );
 
-  // ✅ PROPER route registration using Fastify v5 async plugin pattern
+  // Route registration (Fastify v5 async plugin pattern)
 
   // Register health routes first (no authentication required)
   const { healthRoutes } = await import("./health/healthRoutes.js");
@@ -725,7 +725,7 @@ async function createApp(): Promise<FastifyInstance> {
     }
   );
 
-  // ✅ Root endpoint
+  // Root endpoint
   typedApp.get("/", async (_request: FastifyRequest, reply: FastifyReply) => {
     return reply.send({
       name: "OmniPost API",
@@ -738,7 +738,7 @@ async function createApp(): Promise<FastifyInstance> {
   return typedApp;
 }
 
-// ✅ PROPER server startup
+// Server startup
 async function start() {
   try {
     // Fail fast if DATABASE_URL credentials don't authenticate. Catches the

@@ -19,7 +19,7 @@ import type {
   ProviderId,
 } from "@shared/types";
 
-// Re-export ProviderId for backward compatibility
+// Re-export ProviderId from @shared/types.
 export type { ProviderId };
 
 export type ProviderAuthType = "oauth" | "api_key" | "username_password";
@@ -170,8 +170,7 @@ export interface ProviderPreview {
   };
 }
 
-// Enhanced Provider Adapter Interface (Consolidated)
-// This is now the single source of truth for all provider adapters
+// Provider Adapter Interface — single source of truth for all provider adapters.
 export interface ProviderAdapter {
   // Basic adapter properties
   readonly id: ProviderId;

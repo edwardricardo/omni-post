@@ -53,9 +53,9 @@ export function setupBillingUseCases(container: Container): void {
     true // singleton
   );
 
-  // S3.4b scaffolding — port aliases + new billing repositories. The
-  // GatewaySwitchJobPort token resolves to the existing job-service
-  // instance (which now declares `implements GatewaySwitchJobPort`).
+  // Port aliases + billing repositories. The GatewaySwitchJobPort token
+  // resolves to the existing job-service instance (which declares
+  // `implements GatewaySwitchJobPort`).
   container.register<GatewaySwitchJobPort>(
     TOKENS.GatewaySwitchJobPort,
     () => container.resolve<GatewaySwitchJobService>(TOKENS.GatewaySwitchJobService),
@@ -83,7 +83,7 @@ export function setupBillingUseCases(container: Container): void {
     true
   );
 
-  // Gateway Billing Service — gateway switch lifecycle (S3.4c canon refactor)
+  // Gateway Billing Service — gateway switch lifecycle.
   container.register<GatewayBillingService>(
     TOKENS.GatewayBillingService,
     () =>

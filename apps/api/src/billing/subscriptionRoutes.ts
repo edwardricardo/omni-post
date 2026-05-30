@@ -18,7 +18,7 @@ import {
 } from "./handlers/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
-// ✅ PROPER Fastify v5.6.1 Plugin Implementation
+// Fastify v5.6.1 Plugin Implementation
 const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   const subscriptionService = fastify.container!.resolve<SubscriptionService>(
     TOKENS.SubscriptionService
@@ -31,7 +31,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   const trialHandler = new SubscriptionTrialHandler(subscriptionService);
   const analyticsHandler = new SubscriptionAnalyticsHandler(subscriptionService);
 
-  // ✅ Get all available subscription plans
+  // Get all available subscription plans
   fastify.get(
     "/admin/billing/plans",
     {
@@ -41,7 +41,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => planHandler.getAllPlans(request, reply)
   );
 
-  // ✅ Get specific subscription plan
+  // Get specific subscription plan
   fastify.get(
     "/admin/billing/plans/:tier",
     {
@@ -51,7 +51,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => planHandler.getSpecificPlan(request, reply)
   );
 
-  // ✅ Get account subscription details
+  // Get account subscription details
   fastify.get(
     "/admin/billing/accounts/:accountId/subscription",
     {
@@ -61,7 +61,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => accountHandler.getAccountSubscription(request, reply)
   );
 
-  // ✅ Update account subscription
+  // Update account subscription
   fastify.put(
     "/admin/billing/accounts/:accountId/subscription",
     {
@@ -71,7 +71,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => accountHandler.updateAccountSubscription(request, reply)
   );
 
-  // ✅ List all account subscriptions
+  // List all account subscriptions
   fastify.get(
     "/admin/billing/subscriptions",
     {
@@ -81,7 +81,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => accountHandler.listSubscriptions(request, reply)
   );
 
-  // ✅ Get subscription statistics
+  // Get subscription statistics
   fastify.get(
     "/admin/billing/stats",
     {
@@ -91,7 +91,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => analyticsHandler.getSubscriptionStats(request, reply)
   );
 
-  // ✅ Validate subscription limits for an account
+  // Validate subscription limits for an account
   fastify.post(
     "/admin/billing/accounts/:accountId/validate-limits",
     {
@@ -101,7 +101,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => accountHandler.validateLimits(request, reply)
   );
 
-  // ✅ Suspend account subscription
+  // Suspend account subscription
   fastify.post(
     "/admin/billing/accounts/:accountId/suspend",
     {
@@ -111,7 +111,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => accountHandler.suspendSubscription(request, reply)
   );
 
-  // ✅ Bulk upgrade subscriptions (Super Admin only)
+  // Bulk upgrade subscriptions (Super Admin only)
   fastify.post(
     "/admin/billing/bulk/upgrade",
     {
@@ -123,7 +123,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Future: Revenue analytics endpoint — requires payment provider integration
 
-  // ✅ Subscription health endpoint
+  // Subscription health endpoint
   fastify.get(
     "/admin/billing/health",
     {
@@ -133,7 +133,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => analyticsHandler.getSubscriptionHealth(request, reply)
   );
 
-  // ✅ Export subscription data (CRITICAL FIX: CSV injection prevention)
+  // Export subscription data (CSV injection prevention applied)
   fastify.get(
     "/admin/billing/export",
     {
@@ -143,7 +143,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => analyticsHandler.exportSubscriptions(request, reply)
   );
 
-  // ✅ Start trial for an account
+  // Start trial for an account
   fastify.post(
     "/admin/billing/accounts/:accountId/trial/start",
     {
@@ -153,7 +153,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => trialHandler.startTrial(request, reply)
   );
 
-  // ✅ End trial for an account
+  // End trial for an account
   fastify.post(
     "/admin/billing/accounts/:accountId/trial/end",
     {
@@ -163,7 +163,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => trialHandler.endTrial(request, reply)
   );
 
-  // ✅ Convert trial to paid subscription
+  // Convert trial to paid subscription
   fastify.post(
     "/admin/billing/accounts/:accountId/trial/convert",
     {
@@ -173,7 +173,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => trialHandler.convertTrial(request, reply)
   );
 
-  // ✅ Get expiring trials
+  // Get expiring trials
   fastify.get(
     "/admin/billing/trials/expiring",
     {
@@ -183,7 +183,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => trialHandler.getExpiringTrials(request, reply)
   );
 
-  // ✅ Process auto-renewals (manual trigger for admin)
+  // Process auto-renewals (manual trigger for admin)
   fastify.post(
     "/admin/billing/auto-renewals/process",
     {
@@ -193,7 +193,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => trialHandler.processAutoRenewals(request, reply)
   );
 
-  // ✅ Get trial statistics
+  // Get trial statistics
   fastify.get(
     "/admin/billing/trials/stats",
     {

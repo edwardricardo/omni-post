@@ -483,15 +483,12 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.smartAnalysis(request, reply)
   );
 
-  // Metrics endpoint removed - use main /metrics endpoint instead
-
-  // ─── Predictive analytics scaffolding ──────────────────────────────────────
+  // ─── Predictive analytics ─────────────────────────────────────────────────
   // The two endpoints below are wired so the route table reflects the planned
   // contract, but the underlying ML/statistical implementation is pending. They
   // respond with 501 NOT_IMPLEMENTED so the frontend (`usePredictiveData`) can
   // surface a clear "feature in development" state instead of silently
-  // receiving 404s. Replace these handlers when the real scoring + segment
-  // models are wired into the AI service.
+  // receiving 404s.
 
   fastify.post(
     "/predict-timing",

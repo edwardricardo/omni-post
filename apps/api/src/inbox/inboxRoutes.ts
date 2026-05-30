@@ -121,8 +121,8 @@ class InboxRouteHandler extends BaseRouteHandler {
       NOT_FOUND: 404,
       FORBIDDEN: 403,
       CONFLICT: 409,
-      // Canon §9.1 guardrail rejection — 422 (Unprocessable Entity)
-      // signals "valid request, but content violates a runtime policy".
+      // Guardrail rejection — 422 (Unprocessable Entity) signals
+      // "valid request, but content violates a runtime policy".
       GUARDRAIL_REJECTED: 422,
       INTERNAL_ERROR: 500,
     };

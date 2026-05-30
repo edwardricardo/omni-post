@@ -17,7 +17,7 @@ import type {
   SagaExecutionEnginePort,
 } from "./sagaManagerTypes.js";
 
-// Re-export for consumers that previously imported from this file
+// Re-export for consumers that import types from this file.
 export type { SagaManagerConfig, SagaMetrics } from "./sagaManagerTypes.js";
 
 /**

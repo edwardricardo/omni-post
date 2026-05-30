@@ -1,23 +1,20 @@
 /**
  * @file RedisBruteForceAdapter.ts
  * @description Redis-backed implementation of `BruteForceProtectionPort`.
- *   Consolidates the canon-correct logic of the pre-existing
- *   `apps/api/src/auth/bruteForceProtection.ts` (orphan) with the 6 alignment
- *   adjustments enumerated in `docs/security/BRUTE_FORCE_HOMOLOGATION_ES.md`:
+ *
+ *   Canon properties:
  *
  *   1. **Account-based primary** (identifier counter); IP throttle supletoria
  *      with high threshold (~100) so shared NAT / proxies don't false-positive.
  *   2. **Exponential backoff** with auto-expiry (1s → 300s cap, 30min window).
  *   3. **CAPTCHA threshold = 3** failures.
- *   4. **forgot-password bypass** — the `isBypassForRecovery(identifier)` is
+ *   4. **forgot-password bypass** — `isBypassForRecovery(identifier)` is
  *      OUT OF SCOPE for the adapter: the recovery flow MUST NOT call
- *      `checkLoginAttempt` (the caller controls bypass). Adapter docs this
- *      contract; tests verify.
+ *      `checkLoginAttempt` (the caller controls bypass).
  *   5. **No `redis.keys()` O(N)** — `getStats` uses explicit counters
  *      (`bf:stats:*`) updated atomically on each lockout/block emit.
  *   6. **`AuditService` injection** — every state-changing call emits an
- *      audit event for the durable trail (cross-link S4.3: `AuditLog.accountId`
- *      column now persists).
+ *      audit event for the durable trail.
  *
  *   **Fail-open on Redis outage** (anti-DoS canon, OWASP Auth Cheat Sheet):
  *   try/catch wraps every Redis call. On error: `allowed=true`, warning log,

@@ -94,7 +94,7 @@ export async function getPostsData(
   return posts
     .filter((post) => post.createdAt >= startDate && post.createdAt <= endDate)
     .map((post) => {
-      // Latest content revision first — mirrors the legacy `take: 1` ordered desc.
+      // Latest content revision first.
       const latestContent = [...post.contents].sort(
         (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
       )[0];

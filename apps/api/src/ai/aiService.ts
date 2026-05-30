@@ -144,7 +144,7 @@ export class AIService extends BaseService {
           };
         }
 
-        // Fallback for requests without accountId (legacy)
+        // Fallback for requests without accountId.
         const orchestrator = this.getAdminOrchestrator();
         const result = await orchestrator.generateContent(messages, options);
         if (!result.ok) {

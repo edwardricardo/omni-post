@@ -67,9 +67,9 @@ export class PrismaUnitOfWork implements UnitOfWork {
 
     return this.prisma.$transaction(
       async (tx) => {
-        // S2.1c — RLS layer 2. Bind `app.account_id` as a transaction-local
-        // GUC so the `tenant_isolation` policy on the 51 tenant-scoped
-        // tables gates every statement inside this tx.
+        // RLS layer 2. Bind `app.account_id` as a transaction-local GUC
+        // so the `tenant_isolation` policy on the 51 tenant-scoped tables
+        // gates every statement inside this tx.
         //   - SystemContext active  → sentinel '__system__' (policy bypass).
         //   - TenantContext bound   → real accountId from the customer JWT.
         //   - Neither               → leave unset; `current_setting(...,true)`

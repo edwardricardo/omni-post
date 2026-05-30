@@ -35,7 +35,7 @@ declare module "fastify" {
   }
 }
 
-// ✅ Zod schemas for validation
+// Zod schemas for validation
 const ThreadPerformanceParamsSchema = z.object({
   params: z.object({
     threadId: z.string().min(1),
@@ -124,7 +124,7 @@ const ExportQuerySchema = z.object({
   }),
 });
 
-// ✅ BaseRouteHandler implementation with real service integration
+// BaseRouteHandler implementation with real service integration
 class AnalyticsRouteHandler extends BaseRouteHandler {
   protected routeName = "analytics";
 
@@ -967,9 +967,7 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
 
 /**
  * Analytics Routes Plugin
- * Resolves ThreadAnalytics, GeoAnalyticsService and PrismaClient from the DI container
- * when available, falling back to constructed singletons for backward compatibility
- * during migration. The module-level Redis connection is only created in the fallback path.
+ * Resolves ThreadAnalytics, GeoAnalyticsService and PrismaClient from the DI container.
  */
 const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
   const prisma = fastify.container.resolve<PrismaClient>(TOKENS.PrismaClient);
