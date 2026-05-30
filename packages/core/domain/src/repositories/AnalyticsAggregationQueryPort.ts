@@ -18,7 +18,13 @@ export interface AnalyticsSummaryRow {
 }
 
 export interface AnalyticsAggregationQueryPort {
+  /** List every channel id owned by an account (used to scope a custom-report run). */
   findChannelIdsByAccount(accountId: string): Promise<string[]>;
+  /**
+   * Aggregate daily summaries over the given channels and date range,
+   * optionally narrowed to a provider via `platformFilter`. One row per
+   * (date, provider, channel, post).
+   */
   findSummaries(params: {
     channelIds: string[];
     startDate: Date;

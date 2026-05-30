@@ -3,6 +3,7 @@
  * @description YouTubePlaylistManager — CRUD operations and analytics for YouTube playlists.
  * Types are defined in playlistTypes.ts; pure analytics/optimization helpers live in
  * playlistAnalyticsHelpers.ts.
+ * @layer infrastructure
  */
 
 import { google, youtube_v3 } from "googleapis";

@@ -29,6 +29,11 @@ export interface DispatchNotificationOutput {
 }
 
 export interface NotificationDispatchPort {
+  /**
+   * Dispatch a notification to a recipient. Delegates to the notifications
+   * bounded context via the adapter wired in the composition root. Returns
+   * the persisted notification id on success.
+   */
   dispatch(
     input: DispatchNotificationInput
   ): Promise<Result<DispatchNotificationOutput, UseCaseError>>;

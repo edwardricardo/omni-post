@@ -61,13 +61,17 @@ export interface DataBreachUpdateInput {
 }
 
 export interface DataBreachReportRepository {
+  /** Paginated listing with optional `resolved` filter for the compliance dashboard. */
   list(
     filters: DataBreachListFilters
   ): Promise<Result<{ reports: DataBreachReport[]; total: number }, DataBreachStoreError>>;
 
+  /** Load one report by id; ok(null) when not found. */
   findById(id: string): Promise<Result<DataBreachReport | null, DataBreachStoreError>>;
 
+  /** Persist a new breach report. `id`, `reportedAt`, timestamps are assigned by the adapter. */
   create(input: DataBreachCreateInput): Promise<Result<DataBreachReport, DataBreachStoreError>>;
 
+  /** Patch mutable fields on a report (notification trail, resolution status, notes). */
   update(id: string, fields: DataBreachUpdateInput): Promise<Result<void, DataBreachStoreError>>;
 }

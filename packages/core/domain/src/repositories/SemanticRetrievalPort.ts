@@ -35,6 +35,16 @@ export interface StyleGuideHit {
 }
 
 export interface SemanticRetrievalPort {
+  /**
+   * Rank glossary entries for `query.accountId` + `query.locale` by cosine
+   * similarity against `queryEmbedding` and return the top `topK` hits with
+   * their distance score.
+   */
   searchGlossary(query: SemanticRetrievalQuery): Promise<GlossaryHit[]>;
+  /**
+   * Rank style-guide rules for `query.accountId` + `query.locale` by cosine
+   * similarity against `queryEmbedding` and return the top `topK` hits with
+   * their distance score.
+   */
   searchStyleGuide(query: SemanticRetrievalQuery): Promise<StyleGuideHit[]>;
 }

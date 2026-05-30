@@ -4,6 +4,7 @@
  * challenge discovery, and recommendation workflows.
  * Types live in hashtagTypes.ts, discovery helpers in hashtagDiscovery.ts,
  * and analytics helpers in hashtagAnalytics.ts.
+ * @layer infrastructure
  */
 
 import {

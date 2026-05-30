@@ -2,6 +2,7 @@
  * @file apiClientTypes.ts
  * @description Type definitions for the YouTube Data API client.
  * Consumed by apiClient.ts and any module that needs YouTube API types.
+ * @layer infrastructure
  */
 
 export interface YouTubeCredentials {

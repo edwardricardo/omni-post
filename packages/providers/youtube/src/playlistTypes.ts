@@ -2,6 +2,7 @@
  * @file playlistTypes.ts
  * @description Type definitions, interfaces, and shared constants for the YouTube playlist manager.
  * Provides the data contracts used by YouTubePlaylistManager and its consumers.
+ * @layer infrastructure
  */
 
 import client from "prom-client";

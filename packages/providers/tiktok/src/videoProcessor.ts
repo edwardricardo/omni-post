@@ -3,6 +3,7 @@
  * @description TikTok video processing service -- analysis, optimization,
  * template application, and batch processing with ffmpeg.
  * Types live in videoProcessorTypes.ts; helpers in videoProcessorHelpers.ts.
+ * @layer infrastructure
  */
 
 import {

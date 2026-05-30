@@ -2,6 +2,7 @@
  * @file videoProcessorHelpers.ts
  * @description Pure helper functions for TikTok video processing calculations.
  * Extracted from TikTokVideoProcessor to keep files under 600 lines.
+ * @layer infrastructure
  */
 
 import type {

@@ -36,6 +36,12 @@ export type JobStatesAggregate = {
 };
 
 export interface QueuePort {
+  /**
+   * Enqueue a single job. `dedupeKey` is REQUIRED — the adapter relies on it
+   * to suppress duplicates within the BullMQ deduplication window so saga
+   * retries and outbox re-dispatch do not produce double executions.
+   * Returns the assigned job id on success.
+   */
   enqueue(job: QueueJob): Promise<Result<string, "CONNECTION_ERROR" | "VALIDATION_ERROR">>;
   /**
    * Enqueue many jobs in a single round-trip (BullMQ `addBulk`). Used for bulk
@@ -43,7 +49,16 @@ export interface QueuePort {
    * failed job never aborts the others. Returns the enqueued job ids in order.
    */
   enqueueBulk(jobs: QueueJob[]): Promise<Result<string[], "CONNECTION_ERROR" | "VALIDATION_ERROR">>;
+  /**
+   * Report queue health snapshot (connection state + counters per JobState).
+   * Used by liveness/readiness probes and ops dashboards.
+   */
   health(): Promise<Result<QueueHealth, "CONNECTION_ERROR">>;
+  /**
+   * Remove a job by id. Returns `ok(true)` if removed, `err("NOT_FOUND")` if
+   * the job no longer exists (already completed + evicted, or never existed).
+   * Idempotent from the caller's perspective.
+   */
   remove(jobId: string): Promise<Result<boolean, "CONNECTION_ERROR" | "NOT_FOUND">>;
   /**
    * Reads the current state of each job from the queue and returns an

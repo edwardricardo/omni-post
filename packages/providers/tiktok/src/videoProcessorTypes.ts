@@ -3,6 +3,7 @@
  * @description Type definitions for TikTok video processing.
  * Consumed by videoProcessor.ts, videoProcessorHelpers.ts, and any module
  * that interacts with TikTok video features.
+ * @layer infrastructure
  */
 
 export interface TikTokVideoSpecs {

@@ -35,6 +35,15 @@ export interface SchedulePostPortOutput {
 }
 
 export interface PostCreationPort {
+  /**
+   * Create a new draft post inside a project. Delegates to the posts bounded
+   * context use case; returns the persisted post id.
+   */
   createPost(input: CreatePostPortInput): Promise<Result<CreatePostPortOutput, UseCaseError>>;
+  /**
+   * Schedule an existing post for publication to one or more channels at
+   * `scheduledFor`. The adapter validates the timezone and enforces the
+   * provider's `schedulingAdvance` window.
+   */
   schedulePost(input: SchedulePostPortInput): Promise<Result<SchedulePostPortOutput, UseCaseError>>;
 }

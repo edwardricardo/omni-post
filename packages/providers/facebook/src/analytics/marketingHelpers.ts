@@ -2,6 +2,7 @@
  * @file marketingHelpers.ts
  * @description Helper functions for Facebook Marketing API data processing.
  * Extracted from FacebookMarketingApi to keep files under 600 lines.
+ * @layer infrastructure
  */
 
 import type { FacebookAdInsights, FacebookAdRecommendation } from "./marketingTypes.js";

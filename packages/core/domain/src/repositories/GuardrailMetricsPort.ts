@@ -16,6 +16,11 @@ export type GuardrailMetricDecision = "allow" | "block";
  * no-op or spy.
  */
 export interface GuardrailMetrics {
+  /**
+   * Record one guardrail evaluation outcome. Drives the
+   * `guardrail_evaluations_total` counter (labelled by guardrail/action/
+   * decision) and the `guardrail_evaluation_duration_seconds` histogram.
+   */
   recordEvaluation(params: {
     guardrail: string;
     action: string;

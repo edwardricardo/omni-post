@@ -2,6 +2,7 @@
  * @file apiClientTypes.ts
  * @description Type definitions for the Facebook Graph API client.
  * Consumed by apiClient.ts and any module that needs Facebook API types.
+ * @layer infrastructure
  */
 
 export interface FacebookCredentials {

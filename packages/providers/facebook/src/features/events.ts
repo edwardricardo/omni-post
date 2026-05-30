@@ -2,6 +2,7 @@
  * @file events.ts
  * @description Facebook Events API client -- CRUD, attendees, insights, posts, invites.
  * Type definitions live in eventTypes.ts.
+ * @layer infrastructure
  */
 
 import { FacebookApiClient, FacebookCredentials } from "../apiClient.js";

@@ -3,6 +3,7 @@
  * @description Analytics, recommendation scoring, and warning generation
  * helpers for TikTok hashtag features.
  * Extracted from TikTokHashtagManager to keep files under 600 lines.
+ * @layer infrastructure
  */
 
 import type { TikTokTrendingHashtag } from "./researchApiClient.js";

@@ -14,5 +14,10 @@
 import type { PaymentAdapter, GatewayProviderType } from "@ports/core";
 
 export interface GatewayAdapterRegistryPort {
+  /**
+   * Resolve the `PaymentAdapter` for a given gateway. Throws when the
+   * provider is not configured — the caller MUST have validated provider
+   * support upstream (e.g. account billing config).
+   */
   getAdapter(provider: GatewayProviderType): PaymentAdapter;
 }

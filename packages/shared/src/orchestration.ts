@@ -2,6 +2,7 @@
  * @file orchestration.ts
  * @description TypeScript types for multi-provider content synchronization
  *              and orchestration (plans, executions, conflicts, sync configs).
+ * @layer domain
  */
 
 import type { CanonicalPost, Result } from "./types";

@@ -3,6 +3,7 @@
  * @description YouTube Data API client with circuit-breaker resilience,
  * OAuth2 token management, video upload/search/update, and channel analytics.
  * Type definitions live in apiClientTypes.ts.
+ * @layer infrastructure
  */
 
 import { createExternalApiCircuitBreaker } from "@adapters/external-apis";

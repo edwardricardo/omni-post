@@ -3,6 +3,7 @@
  * @description Pure helper functions for YouTube playlist analytics and optimization.
  * Extracted from YouTubePlaylistManager to keep file sizes within the 800-line limit.
  * These functions are stateless and operate solely on the data types defined in playlistTypes.ts.
+ * @layer infrastructure
  */
 
 import type { PlaylistAnalytics, PlaylistItem, PlaylistOptimization } from "./playlistTypes.js";

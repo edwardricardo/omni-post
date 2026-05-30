@@ -4,6 +4,7 @@
  * Extracted from apiClient.ts to break circular dependency cycles between
  * apiClient.ts and the specialist clients (authService, contentAnalyticsClient,
  * marketingApiClient, researchApiClient) that extend TikTokCredentials.
+ * @layer infrastructure
  */
 
 export interface TikTokCredentials {

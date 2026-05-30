@@ -16,5 +16,10 @@
 import type { GuardrailInput, GuardrailDecision } from "@core/domain/repositories/GuardrailPort.js";
 
 export interface GuardrailEvaluationPort {
+  /**
+   * Evaluate content against the composed guardrail registry. The decision
+   * carries the action (`block` / `warn` / `allow`) plus the list of triggered
+   * rules so callers can surface diagnostics to the editor or audit trail.
+   */
   evaluate(input: GuardrailInput): Promise<GuardrailDecision>;
 }
