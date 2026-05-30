@@ -3445,8 +3445,8 @@ model RepurposeProposal {
   sourcePost Post               @relation("RepurposeSource", fields: [sourcePostId], references: [id])
   variants   RepurposeVariant[]
 
+  @@unique([accountId, sourcePostId])
   @@index([accountId, status])
-  @@index([sourcePostId])
 }
 
 model RepurposeVariant {

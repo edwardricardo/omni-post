@@ -22,8 +22,9 @@ function makeMockDetectionPort(
   return {
     getAccountAvgEngagement: vi.fn().mockResolvedValue(avg),
     getHighPerformers: vi.fn().mockResolvedValue(candidates),
-    proposalExistsForPost: vi.fn().mockResolvedValue(false),
-    createProposal: vi.fn().mockResolvedValue("proposal-1"),
+    createProposalIdempotent: vi
+      .fn()
+      .mockResolvedValue({ proposalId: "proposal-1", created: true }),
   };
 }
 
@@ -47,7 +48,7 @@ describe("DetectRepurposeCandidatesUseCase", () => {
     const result = await useCase.execute({ accountId: "acc-1" });
     assert.ok(result.ok);
     assert.strictEqual(result.value.detected, 1);
-    expect(port.createProposal).toHaveBeenCalledOnce();
+    expect(port.createProposalIdempotent).toHaveBeenCalledOnce();
   });
 
   it("does not detect when no candidates exceed threshold", async () => {
@@ -59,13 +60,17 @@ describe("DetectRepurposeCandidatesUseCase", () => {
     assert.strictEqual(result.value.detected, 0);
   });
 
-  it("skips posts already proposed", async () => {
-    port.proposalExistsForPost.mockResolvedValue(true);
+  it("counts as alreadyProposed when idempotent create returns existing row (TOCTOU-safe)", async () => {
+    port.createProposalIdempotent.mockResolvedValue({
+      proposalId: "existing-proposal",
+      created: false,
+    });
 
     const result = await useCase.execute({ accountId: "acc-1" });
     assert.ok(result.ok);
     assert.strictEqual(result.value.detected, 0);
     assert.strictEqual(result.value.alreadyProposed, 1);
+    expect(dispatcher.dispatchGenerateVariants).not.toHaveBeenCalled();
   });
 
   it("dispatches GenerateRepurposeVariants job per new proposal", async () => {
@@ -84,7 +89,7 @@ describe("DetectRepurposeCandidatesUseCase", () => {
 
   it("calculates correct engagement multiplier", async () => {
     await useCase.execute({ accountId: "acc-1" });
-    const call = port.createProposal.mock.calls[0]?.[0] as Record<string, unknown>;
+    const call = port.createProposalIdempotent.mock.calls[0]?.[0] as Record<string, unknown>;
     assert.ok(call);
     assert.strictEqual(call.engagementMultiplier, 2.5);
   });

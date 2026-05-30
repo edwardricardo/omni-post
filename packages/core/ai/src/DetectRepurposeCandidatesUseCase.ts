@@ -35,14 +35,13 @@ export interface RepurposeDetectionPort {
       content: string;
     }>
   >;
-  proposalExistsForPost(postId: string): Promise<boolean>;
-  createProposal(params: {
+  createProposalIdempotent(params: {
     accountId: string;
     sourcePostId: string;
     sourcePlatform: string;
     engagementRate: number;
     engagementMultiplier: number;
-  }): Promise<string>;
+  }): Promise<{ proposalId: string; created: boolean }>;
 }
 
 export interface RepurposeJobDispatcher {
@@ -82,15 +81,9 @@ export class DetectRepurposeCandidatesUseCase implements UseCase<
       let alreadyProposed = 0;
 
       for (const candidate of candidates) {
-        const exists = await this.port.proposalExistsForPost(candidate.postId);
-        if (exists) {
-          alreadyProposed++;
-          continue;
-        }
-
         const multiplier = Math.round((candidate.engagementRate / avgEngagement) * 100) / 100;
 
-        const proposalId = await this.port.createProposal({
+        const result = await this.port.createProposalIdempotent({
           accountId: input.accountId,
           sourcePostId: candidate.postId,
           sourcePlatform: candidate.platform,
@@ -98,8 +91,12 @@ export class DetectRepurposeCandidatesUseCase implements UseCase<
           engagementMultiplier: multiplier,
         });
 
-        await this.dispatcher.dispatchGenerateVariants(proposalId);
-        detected++;
+        if (result.created) {
+          await this.dispatcher.dispatchGenerateVariants(result.proposalId);
+          detected++;
+        } else {
+          alreadyProposed++;
+        }
       }
 
       return ok({ detected, alreadyProposed });
