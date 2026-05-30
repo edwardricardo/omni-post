@@ -1,6 +1,8 @@
 /**
  * @file worker.smoke.ts
- * @description Tests for worker smoke
+ * @description Smoke test that enqueues a minimal publish job against the
+ *              live queue + repo to verify a dev worker can pick it up.
+ *              Exits cleanly when queue or repo are unavailable.
  * @layer infrastructure
  */
 import { createBullMQQueueAdapter, QUEUE_NAMES } from "@adapters/queue-bullmq";

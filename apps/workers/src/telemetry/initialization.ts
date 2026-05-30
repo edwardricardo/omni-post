@@ -1,11 +1,12 @@
 /**
  * @file initialization.ts
- * @description OpenTelemetry instrumentation initialization for publish workers. Must be imported
- *              before other modules. Provides publishing, database, and business KPI instrumentation.
+ * @description OpenTelemetry instrumentation initialization for publish workers.
+ *              Must be imported before other modules so spans wrap subsequent
+ *              work. Provides publishing, database, and business KPI
+ *              instrumentation, falling back to no-op implementations when
+ *              tracing is disabled or the OTel package fails to start.
  * @layer infrastructure
  */
-// OpenTelemetry initialization for Social Media CMS Workers
-// This MUST be imported before any other modules to ensure proper instrumentation
 
 import { createLogger } from "@observability/logger";
 import type {
@@ -54,8 +55,7 @@ const mockBusinessKPITracker: BusinessKPITracker = {
   },
 };
 
-// ---- Placeholder metric aliases (not yet modelled) ----
-// ContentMetrics + the instrumentation interfaces live in ./instrumentationTypes.ts.
+// ---- Placeholder metric aliases ----
 
 export type UserMetrics = any;
 export type ProviderMetrics = any;

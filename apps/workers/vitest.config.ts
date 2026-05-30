@@ -51,9 +51,8 @@ export default defineConfig({
     globals: true,
     include: ["tests/**/*.test.ts"],
     pool: "forks",
-    // §1.4 canon — mirror `apps/api`. Loads `.env.test` from repo root
-    // before any test's transitive Zod env validation kicks in.
-    // See `docs/architecture/secrets-and-env.md` §"Test environment".
+    // Loads `.env.test` from repo root before any test's transitive Zod env
+    // validation kicks in. See `docs/architecture/secrets-and-env.md`.
     setupFiles: ["./tests/setup-env.ts"],
   },
 });

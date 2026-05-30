@@ -1,13 +1,8 @@
 /**
- * Edge-case tests for PublishHandler.handleJob
- *
- * Covers three scenarios not tested elsewhere:
- *   1. Unknown provider → job resolves but records failure metrics
- *   2. Provider error propagation → publishSinglePost throws, handleJob catches
- *   3. Multi-provider independence → one provider failure does not affect others
- *
  * @file publishHandlerEdgeCases.test.ts
- * @description Tests for PublishHandler.handleJob edge cases
+ * @description Edge-case tests for PublishHandler.handleJob: unknown provider,
+ *              provider error propagation, multi-provider independence, and
+ *              idempotency on already-published dedupeKeys.
  * @layer infrastructure
  */
 import { describe, it, beforeEach, vi } from "vitest";

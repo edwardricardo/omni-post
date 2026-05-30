@@ -1,9 +1,7 @@
 /**
- * Test utilities and mock factories for worker tests.
- * Uses node:test mock module for all mocking needs.
- *
  * @file setup.ts
- * @description Test setup for setup
+ * @description Test utilities, data factories, and mock dependency factories
+ *              for PublishHandler unit tests.
  * @layer infrastructure
  */
 import client from "prom-client";
@@ -214,9 +212,6 @@ export function createTestWorkerMetrics(): WorkerMetrics {
   return new WorkerMetrics(registry);
 }
 
-/**
- * Creates a complete set of mock dependencies for PublishHandler.
- */
 /**
  * Creates a provider registry with the mock provider registered under "x".
  * Tests that need to override individual provider methods can do so via

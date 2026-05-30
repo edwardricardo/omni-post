@@ -1,7 +1,6 @@
 /**
  * @file publishHandlerTypes.ts
- * @description Type definitions for the PublishHandler, extracted into a separate file to keep
- *              publishHandler.ts under the 800-line limit. Re-exported for backwards compatibility.
+ * @description Type definitions for the PublishHandler (repo, provider, deps, job input).
  * @layer infrastructure
  */
 

@@ -72,12 +72,9 @@ export const publishRepo = createPrismaRepoAdapter({
 });
 
 /**
- * Registry of provider adapters indexed by provider name.
- * Used to route publish jobs to the correct social media platform adapter.
- *
- * The worker reads `job.data.provider` to determine which adapter handles
- * the publishing. If a job doesn't specify a provider, it defaults to "x"
- * for backwards compatibility with existing jobs in the queue.
+ * Registry of provider adapters indexed by provider name. The worker reads
+ * `job.data.provider` to route to the correct adapter; missing values fall
+ * back to "x".
  */
 const providerRegistry: Record<string, PublishProvider> = {
   x: createXAdapter({ logger }),

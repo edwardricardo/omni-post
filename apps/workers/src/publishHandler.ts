@@ -20,7 +20,6 @@ import type {
   BusinessKPITracker,
 } from "./telemetry/instrumentationTypes.js";
 
-// Re-export all types for backwards compatibility
 export type {
   ContentMetrics,
   PublishInstrumentation,
@@ -44,11 +43,8 @@ import type {
 } from "./publishHandlerTypes.js";
 
 /**
- * PublishHandler extracts the core publishing logic from publishWorker.ts
- * into a testable class with injected dependencies.
- *
- * It resolves the correct provider adapter from the registry based on
- * `job.data.provider`, defaulting to "x" for backwards compatibility.
+ * Core publishing orchestrator. Resolves the correct provider adapter from
+ * the registry based on `job.data.provider`, defaulting to "x" when absent.
  */
 export class PublishHandler {
   private readonly repo: PublishRepo;
