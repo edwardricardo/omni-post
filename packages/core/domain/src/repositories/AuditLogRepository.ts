@@ -15,6 +15,16 @@ export interface AuditLogCreateInput {
   resource?: string;
   resourceId?: string;
   userId?: string;
+  /**
+   * Account scope for searchability — does NOT enforce isolation.
+   *
+   * AuditLog is kept in the tenant-guard denylist (see
+   * `docs/security/MULTI_TENANT_GUARDS.md` §Global-tables-denylist) so admin
+   * compliance flows can read cross-account without `withSystemContext`
+   * wrapping (immutable evidence canon). Customer-facing queries scope per
+   * account via the explicit filter in `findByAccount`.
+   */
+  accountId?: string;
   ipAddress?: string;
   userAgent?: string;
   details: Record<string, unknown>;
@@ -40,6 +50,7 @@ export interface AuditLogQueryOptions {
 export interface AuditLogRecordDto {
   id: string;
   userId: string | null;
+  accountId: string | null;
   action: string;
   resource: string | null;
   resourceId: string | null;
@@ -85,6 +96,21 @@ export interface AuditLogRepository {
     resourceId: string,
     options?: AuditLogQueryOptions
   ): Promise<AuditLogRecordDto[]>;
+
+  /**
+   * Return audit entries scoped to an account, newest first.
+   *
+   * Customer-facing query — the caller (route handler / use case) is
+   * responsible for binding the `accountId` from the authenticated
+   * `TenantContext`, never from a client-supplied parameter. AuditLog
+   * is NOT in `TENANT_SCOPED_MODELS` by canon (immutable evidence outside
+   * RLS, see `docs/security/MULTI_TENANT_GUARDS.md`); this method provides
+   * the explicit account-scoping that the customer flow needs.
+   *
+   * @param accountId - The account whose audit trail to fetch
+   * @param options - Filtering and pagination (defaults: limit 50, offset 0)
+   */
+  findByAccount(accountId: string, options?: AuditLogQueryOptions): Promise<AuditLogRecordDto[]>;
 
   /**
    * Detach a user from their audit entries by nulling the userId, preserving
