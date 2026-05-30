@@ -53,6 +53,13 @@ function configFromEnv(): PaymentAdapterFactoryConfig {
   };
 }
 
+/**
+ * @function createPaymentAdapter
+ * @description Builds the configured PaymentAdapter (Stripe, Paddle, or none) from
+ *              env-derived config; fails fast on missing required secrets.
+ * @param config - Optional factory config (defaults to configFromEnv())
+ * @returns Concrete PaymentAdapter implementation
+ */
 export function createPaymentAdapter(
   config: PaymentAdapterFactoryConfig = configFromEnv()
 ): PaymentAdapter {

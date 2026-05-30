@@ -39,6 +39,12 @@ export class PaddlePaymentAdapter implements PaymentAdapter {
     this.webhookSecret = config.webhookSecret;
   }
 
+  /**
+   * @method createCustomer
+   * @description Creates a Paddle customer with accountId attached as custom data.
+   * @param params - Email, display name, and accountId metadata
+   * @returns Object with the externalCustomerId issued by Paddle
+   */
   async createCustomer(params: {
     email: string;
     name: string;
@@ -52,6 +58,13 @@ export class PaddlePaymentAdapter implements PaymentAdapter {
     return { externalCustomerId: customer.id };
   }
 
+  /**
+   * @method createSubscription
+   * @description Returns a placeholder subscription record; Paddle subscriptions are typically
+   *              finalised through a Checkout overlay callback rather than backend-initiated.
+   * @param params - Customer id, plan, billing cycle, optional trial days
+   * @returns Pending subscription summary
+   */
   async createSubscription(params: {
     externalCustomerId: string;
     plan: BillingPlan;
@@ -72,6 +85,12 @@ export class PaddlePaymentAdapter implements PaymentAdapter {
     };
   }
 
+  /**
+   * @method updateSubscription
+   * @description Updates the Paddle subscription with the new price and prorates immediately.
+   * @param params - Subscription id and new plan/cycle
+   * @returns Updated subscription summary
+   */
   async updateSubscription(params: {
     externalSubscriptionId: string;
     newPlan: BillingPlan;
@@ -91,6 +110,11 @@ export class PaddlePaymentAdapter implements PaymentAdapter {
     };
   }
 
+  /**
+   * @method cancelSubscription
+   * @description Cancels a Paddle subscription either immediately or at next billing period.
+   * @param params - Subscription id and the immediately flag
+   */
   async cancelSubscription(params: {
     externalSubscriptionId: string;
     immediately?: boolean;
@@ -100,18 +124,35 @@ export class PaddlePaymentAdapter implements PaymentAdapter {
     });
   }
 
+  /**
+   * @method cancelAtPeriodEnd
+   * @description Schedules a Paddle subscription cancellation at the next billing period.
+   * @param params - Subscription id
+   */
   async cancelAtPeriodEnd(params: { externalSubscriptionId: string }): Promise<void> {
     await this.paddle.subscriptions.cancel(params.externalSubscriptionId, {
       effectiveFrom: "next_billing_period",
     });
   }
 
+  /**
+   * @method reactivateSubscription
+   * @description Clears any scheduled change on the Paddle subscription, restoring it.
+   * @param params - Subscription id
+   */
   async reactivateSubscription(params: { externalSubscriptionId: string }): Promise<void> {
     await this.paddle.subscriptions.update(params.externalSubscriptionId, {
       scheduledChange: null,
     });
   }
 
+  /**
+   * @method getSubscriptionDetails
+   * @description Fetches the current Paddle subscription state.
+   * @param params - Subscription id
+   * @returns Current period end, mapped status, and cancel-at-period-end flag derived
+   *          from any pending scheduledChange
+   */
   async getSubscriptionDetails(params: {
     externalSubscriptionId: string;
   }): Promise<SubscriptionDetails> {
@@ -126,6 +167,12 @@ export class PaddlePaymentAdapter implements PaymentAdapter {
     };
   }
 
+  /**
+   * @method createCheckoutSession
+   * @description Builds a Paddle-hosted Checkout URL using a customer auth token.
+   * @param params - Customer id, success/cancel URLs, optional metadata
+   * @returns Hosted checkout URL
+   */
   async createCheckoutSession(params: {
     externalCustomerId: string;
     successUrl: string;
@@ -140,6 +187,12 @@ export class PaddlePaymentAdapter implements PaymentAdapter {
     };
   }
 
+  /**
+   * @method createBillingPortalSession
+   * @description Builds the Paddle customer portal URL for self-serve subscription management.
+   * @param params - Customer id and return URL
+   * @returns Hosted portal URL
+   */
   async createBillingPortalSession(params: {
     externalCustomerId: string;
     returnUrl: string;
@@ -151,6 +204,12 @@ export class PaddlePaymentAdapter implements PaymentAdapter {
     };
   }
 
+  /**
+   * @method parseWebhookEvent
+   * @description Verifies the signature and parses a Paddle webhook payload.
+   * @param params - Raw payload buffer/string and the Paddle-Signature header value
+   * @returns Normalised webhook event (id, type, data)
+   */
   async parseWebhookEvent(params: {
     payload: Buffer | string;
     signature: string;
@@ -167,6 +226,12 @@ export class PaddlePaymentAdapter implements PaymentAdapter {
     };
   }
 
+  /**
+   * @method mapEventType
+   * @description Translates a Paddle webhook event type to its canonical BillingDomainEvent.
+   * @param type - Paddle event type string
+   * @returns Domain event, or null when the Paddle event has no domain counterpart
+   */
   mapEventType(type: string): BillingDomainEvent | null {
     const map: Record<string, BillingDomainEvent> = {
       "subscription.activated": "subscription.activated",

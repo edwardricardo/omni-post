@@ -35,6 +35,12 @@ export class StripePaymentAdapter implements PaymentAdapter {
     this.webhookSecret = config.webhookSecret;
   }
 
+  /**
+   * @method createCustomer
+   * @description Creates a Stripe customer for an account.
+   * @param params - Email, display name, and accountId metadata
+   * @returns Object with the externalCustomerId issued by Stripe
+   */
   async createCustomer(params: {
     email: string;
     name: string;
@@ -48,6 +54,12 @@ export class StripePaymentAdapter implements PaymentAdapter {
     return { externalCustomerId: customer.id };
   }
 
+  /**
+   * @method createSubscription
+   * @description Creates a Stripe subscription with the resolved price id and optional trial.
+   * @param params - Customer id, plan, billing cycle, and optional trial period in days
+   * @returns Subscription id, mapped status, and current period end
+   */
   async createSubscription(params: {
     externalCustomerId: string;
     plan: BillingPlan;
@@ -70,6 +82,12 @@ export class StripePaymentAdapter implements PaymentAdapter {
     };
   }
 
+  /**
+   * @method updateSubscription
+   * @description Swaps the subscription's price to the new plan/cycle with prorations.
+   * @param params - Subscription id and new plan/cycle
+   * @returns Updated subscription summary
+   */
   async updateSubscription(params: {
     externalSubscriptionId: string;
     newPlan: BillingPlan;
@@ -92,6 +110,11 @@ export class StripePaymentAdapter implements PaymentAdapter {
     };
   }
 
+  /**
+   * @method cancelSubscription
+   * @description Cancels a subscription immediately or schedules cancellation at period end.
+   * @param params - Subscription id and the immediately flag
+   */
   async cancelSubscription(params: {
     externalSubscriptionId: string;
     immediately?: boolean;
@@ -105,18 +128,34 @@ export class StripePaymentAdapter implements PaymentAdapter {
     }
   }
 
+  /**
+   * @method cancelAtPeriodEnd
+   * @description Flags the subscription to cancel at the end of the current billing period.
+   * @param params - Subscription id
+   */
   async cancelAtPeriodEnd(params: { externalSubscriptionId: string }): Promise<void> {
     await this.stripe.subscriptions.update(params.externalSubscriptionId, {
       cancel_at_period_end: true,
     });
   }
 
+  /**
+   * @method reactivateSubscription
+   * @description Clears the cancel-at-period-end flag, restoring the subscription.
+   * @param params - Subscription id
+   */
   async reactivateSubscription(params: { externalSubscriptionId: string }): Promise<void> {
     await this.stripe.subscriptions.update(params.externalSubscriptionId, {
       cancel_at_period_end: false,
     });
   }
 
+  /**
+   * @method getSubscriptionDetails
+   * @description Fetches the current subscription state from Stripe.
+   * @param params - Subscription id
+   * @returns Current period end, mapped status, and cancel-at-period-end flag
+   */
   async getSubscriptionDetails(params: {
     externalSubscriptionId: string;
   }): Promise<SubscriptionDetails> {
@@ -129,6 +168,12 @@ export class StripePaymentAdapter implements PaymentAdapter {
     };
   }
 
+  /**
+   * @method createCheckoutSession
+   * @description Creates a Stripe-hosted Checkout session for subscription signup.
+   * @param params - Customer id, success/cancel URLs, optional metadata
+   * @returns Hosted checkout URL
+   */
   async createCheckoutSession(params: {
     externalCustomerId: string;
     successUrl: string;
@@ -148,6 +193,12 @@ export class StripePaymentAdapter implements PaymentAdapter {
     return { url: session.url };
   }
 
+  /**
+   * @method createBillingPortalSession
+   * @description Creates a Stripe Billing Portal session for self-serve subscription management.
+   * @param params - Customer id and return URL
+   * @returns Hosted portal URL
+   */
   async createBillingPortalSession(params: {
     externalCustomerId: string;
     returnUrl: string;
@@ -159,6 +210,12 @@ export class StripePaymentAdapter implements PaymentAdapter {
     return { url: session.url };
   }
 
+  /**
+   * @method parseWebhookEvent
+   * @description Verifies the signature and parses a Stripe webhook payload.
+   * @param params - Raw payload buffer/string and the Stripe-Signature header value
+   * @returns Normalised webhook event (id, type, data)
+   */
   async parseWebhookEvent(params: {
     payload: Buffer | string;
     signature: string;
@@ -175,6 +232,12 @@ export class StripePaymentAdapter implements PaymentAdapter {
     };
   }
 
+  /**
+   * @method mapEventType
+   * @description Translates a Stripe webhook event type to its canonical BillingDomainEvent.
+   * @param type - Stripe event type string
+   * @returns Domain event, or null when the Stripe event has no domain counterpart
+   */
   mapEventType(type: string): BillingDomainEvent | null {
     const map: Record<string, BillingDomainEvent> = {
       "customer.subscription.created": "subscription.activated",

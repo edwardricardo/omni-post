@@ -11,6 +11,13 @@ interface ErrorWithCorrelation extends Error {
   correlationId?: string;
 }
 
+/**
+ * @function createMetricsMiddleware
+ * @description Builds Fastify hooks (preHandler / onResponse / onError) that record per-request
+ *              Prometheus metrics, propagate correlation IDs, and count endpoint errors.
+ * @param apiMetrics - ApiMetrics façade exposing counters, histograms, and helpers
+ * @returns Object with preHandler / onResponse / onError hook callbacks
+ */
 export function createMetricsMiddleware(apiMetrics: ApiMetrics) {
   return {
     // Pre-handler hook to start request tracking
@@ -113,12 +120,23 @@ export function createMetricsMiddleware(apiMetrics: ApiMetrics) {
   };
 }
 
-// Helper to extract clean route from request
+/**
+ * @function getRoutePattern
+ * @description Extracts a clean route pattern (without query string) from a Fastify request.
+ * @param request - Incoming Fastify request
+ * @returns Route URL pattern or "unknown"
+ */
 export function getRoutePattern(request: FastifyRequest): string {
   return request.routeOptions?.url || request.url?.split("?")[0] || "unknown";
 }
 
-// Helper to record business logic metrics
+/**
+ * @function recordBusinessMetric
+ * @description Increments the relevant business-metric counter for a known operation.
+ * @param apiMetrics - ApiMetrics façade
+ * @param operation - Business operation name (e.g. post_created, post_published)
+ * @param labels - Optional Prometheus labels for the counter
+ */
 export function recordBusinessMetric(
   apiMetrics: ApiMetrics,
   operation: string,

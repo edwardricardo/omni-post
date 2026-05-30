@@ -36,6 +36,12 @@ import {
 // Content feature extraction
 // ---------------------------------------------------------------------------
 
+/**
+ * @function extractContentFeatures
+ * @description Computes content-level prediction factors (length, hashtags, media, type, sentiment).
+ * @param request - Prediction request with content text and platform metadata
+ * @returns Array of weighted prediction factors
+ */
 export function extractContentFeatures(request: PredictionRequest): PredictionFactor[] {
   const features: PredictionFactor[] = [];
 
@@ -101,6 +107,13 @@ export function extractContentFeatures(request: PredictionRequest): PredictionFa
 // Timing factor calculation
 // ---------------------------------------------------------------------------
 
+/**
+ * @function calculateTimingFactors
+ * @description Computes timing-based prediction factors (hour-of-day, day-of-week, season).
+ * @param scheduledTime - Scheduled publish time (returns empty when absent)
+ * @param provider - Target platform
+ * @returns Array of timing factors
+ */
 export function calculateTimingFactors(
   scheduledTime: Date | undefined,
   provider: PredictionRequest["provider"]
@@ -152,6 +165,13 @@ export function calculateTimingFactors(
 // Platform factor calculation
 // ---------------------------------------------------------------------------
 
+/**
+ * @function calculatePlatformFactors
+ * @description Computes platform-level prediction factors (historical perf, trending, audience).
+ * @param request - Prediction request
+ * @param context - Historical context for the account and platform benchmarks
+ * @returns Array of platform factors
+ */
 export function calculatePlatformFactors(
   request: PredictionRequest,
   context: HistoricalContext
@@ -197,6 +217,16 @@ export function calculatePlatformFactors(
 // Prediction calculation
 // ---------------------------------------------------------------------------
 
+/**
+ * @function calculatePrediction
+ * @description Aggregates factors into a final performance prediction (impressions, engagements, virality).
+ * @param contentFeatures - Content-derived factors
+ * @param timingFactors - Timing-derived factors
+ * @param platformFactors - Platform-derived factors
+ * @param context - Historical context providing baseline metrics
+ * @param request - Original prediction request
+ * @returns Performance prediction with expected metrics and confidence
+ */
 export function calculatePrediction(
   contentFeatures: PredictionFactor[],
   timingFactors: PredictionFactor[],
@@ -248,6 +278,15 @@ export function calculatePrediction(
 // Optimisation suggestions
 // ---------------------------------------------------------------------------
 
+/**
+ * @function generateOptimizationSuggestions
+ * @description Produces actionable suggestions (content length, hashtags, media, timing) ranked
+ *              by expected impact.
+ * @param request - Prediction request
+ * @param _prediction - Computed prediction (currently unused, reserved for future tuning)
+ * @param _context - Historical context (reserved)
+ * @returns Suggestions sorted by descending expected improvement
+ */
 export function generateOptimizationSuggestions(
   request: PredictionRequest,
   _prediction: PerformancePrediction,

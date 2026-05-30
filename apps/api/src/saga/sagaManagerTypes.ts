@@ -1,8 +1,9 @@
 /**
  * @file sagaManagerTypes.ts
- * @description Shared type definitions for the Saga Manager.
- * Extracted to break the circular dependency between
- * SagaManagerLifecycle.ts and SagaManagerExecution.ts.
+ * @description Shared type definitions for the Saga Manager (config, lifecycle hooks,
+ *              execution state), extracted to break circular deps between lifecycle and
+ *              execution modules.
+ * @layer infrastructure
  *
  * @module saga/sagaManagerTypes
  */

@@ -78,6 +78,13 @@ class PricingHandler extends BaseRouteHandler {
     super();
   }
 
+  /**
+   * @method getTiers
+   * @description Returns all pricing tiers and provider bundles.
+   * @param request - Fastify request
+   * @param reply - Fastify reply
+   * @returns Resolves when the reply is sent
+   */
   async getTiers(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
     try {
@@ -91,6 +98,13 @@ class PricingHandler extends BaseRouteHandler {
     }
   }
 
+  /**
+   * @method updateProviderTier
+   * @description Updates a provider pricing tier.
+   * @param request - Fastify request with id param and UpdateProviderTierSchema body
+   * @param reply - Fastify reply
+   * @returns Resolves when the reply is sent
+   */
   async updateProviderTier(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
     const paramsResult = IdParamsSchema.safeParse(request.params);
@@ -117,6 +131,13 @@ class PricingHandler extends BaseRouteHandler {
     }
   }
 
+  /**
+   * @method updateAccountTier
+   * @description Updates an account pricing tier.
+   * @param request - Fastify request with id param and UpdateAccountTierSchema body
+   * @param reply - Fastify reply
+   * @returns Resolves when the reply is sent
+   */
   async updateAccountTier(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
     const paramsResult = IdParamsSchema.safeParse(request.params);
@@ -141,6 +162,13 @@ class PricingHandler extends BaseRouteHandler {
     }
   }
 
+  /**
+   * @method updateBundle
+   * @description Updates a provider bundle.
+   * @param request - Fastify request with id param and UpdateBundleSchema body
+   * @param reply - Fastify reply
+   * @returns Resolves when the reply is sent
+   */
   async updateBundle(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
     const paramsResult = IdParamsSchema.safeParse(request.params);

@@ -11,6 +11,11 @@ import { prisma } from "@infra/prisma";
 import { SecretRotationLogPrismaReadRepository } from "../security/SecretRotationLogPrismaReadRepository.js";
 import { GetSecretRotationStatusQuery } from "@core/security/GetSecretRotationStatusQuery.js";
 
+/**
+ * @function setupSecretsRotationUseCases
+ * @description Registers secret-rotation status repository and read-side query in the container.
+ * @param container - DI container
+ */
 export function setupSecretsRotationUseCases(container: Container): void {
   const repo = new SecretRotationLogPrismaReadRepository(prisma);
   container.registerInstance(TOKENS.SecretRotationLogReadRepository, repo);

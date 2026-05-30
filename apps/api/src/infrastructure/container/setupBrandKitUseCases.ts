@@ -14,6 +14,11 @@ import { GetBrandKitQuery } from "@core/brand-kit/GetBrandKitQuery.js";
 import { UpsertBrandKitUseCase } from "@core/brand-kit/UpsertBrandKitUseCase.js";
 import { DeleteBrandKitUseCase } from "@core/brand-kit/DeleteBrandKitUseCase.js";
 
+/**
+ * @function setupBrandKitUseCases
+ * @description Registers brand-kit repository and use cases (get/upsert/delete) in the container.
+ * @param container - DI container
+ */
 export function setupBrandKitUseCases(container: Container): void {
   const repo = new PrismaBrandKitRepository(prisma);
   const uow = () => container.resolve<UnitOfWork>(TOKENS.UnitOfWork);

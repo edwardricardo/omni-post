@@ -15,6 +15,12 @@ function require<T extends string | undefined>(value: T, key: string): NonNullab
   return value as NonNullable<T>;
 }
 
+/**
+ * @function createStorageAdapter
+ * @description Builds the configured StoragePort adapter (DigitalOcean Spaces, R2, MinIO, etc.)
+ *              based on the STORAGE_PROVIDER env variable.
+ * @returns StoragePort instance for the active provider
+ */
 export function createStorageAdapter(): StoragePort {
   switch (env.STORAGE_PROVIDER) {
     case "do-spaces":

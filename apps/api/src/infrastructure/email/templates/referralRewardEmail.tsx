@@ -118,6 +118,13 @@ function ReferralRewardEmailComponent(props: ReferralRewardEmailProps) {
   );
 }
 
+/**
+ * @function referralRewardEmail
+ * @description Renders the referral-reward notification email shown when a referred account
+ *              becomes a paying customer.
+ * @param params - Template parameters (referrer name, reward days, referred company name)
+ * @returns Subject line and rendered HTML body
+ */
 export async function referralRewardEmail(
   params: ReferralRewardEmailProps
 ): Promise<{ subject: string; html: string }> {

@@ -34,6 +34,12 @@ import type { AccountSubscriptionBillingRepository } from "@core/domain/reposito
 import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 
+/**
+ * @function setupBillingUseCases
+ * @description Registers billing infrastructure (gateway registry, job services, use cases)
+ *              and dual-gateway adapters in the container.
+ * @param container - DI container
+ */
 export function setupBillingUseCases(container: Container): void {
   // Gateway Adapter Registry — dual-gateway access (Stripe + Paddle)
   container.register<GatewayAdapterRegistry>(

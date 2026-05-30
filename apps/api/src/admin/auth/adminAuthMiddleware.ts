@@ -216,6 +216,14 @@ export const requireAdmin = requireRole(["SUPER_ADMIN", "ADMIN"]);
  */
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
+/**
+ * @function rateLimit
+ * @description Builds an in-memory rate-limit middleware keyed by request IP + route. Replies with
+ *              HTTP 429 when the per-window limit is exceeded.
+ * @param maxRequests - Maximum requests allowed inside the window
+ * @param windowMs - Window size in milliseconds
+ * @returns Fastify handler middleware
+ */
 export function rateLimit(maxRequests: number, windowMs: number) {
   return async function (request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const key = `${request.ip}:${request.routeOptions.url}`;

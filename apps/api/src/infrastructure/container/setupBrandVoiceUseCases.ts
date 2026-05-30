@@ -14,6 +14,11 @@ import { GetBrandVoiceQuery } from "@core/brand-voice/GetBrandVoiceQuery.js";
 import { UpsertBrandVoiceUseCase } from "@core/brand-voice/UpsertBrandVoiceUseCase.js";
 import { DeleteBrandVoiceUseCase } from "@core/brand-voice/DeleteBrandVoiceUseCase.js";
 
+/**
+ * @function setupBrandVoiceUseCases
+ * @description Registers brand-voice repository and use cases (get/upsert/delete) in the container.
+ * @param container - DI container
+ */
 export function setupBrandVoiceUseCases(container: Container): void {
   const repo = new PrismaBrandVoiceRepository(prisma);
   const uow = () => container.resolve<UnitOfWork>(TOKENS.UnitOfWork);
