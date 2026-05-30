@@ -131,6 +131,8 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
       email: body.email,
       password: body.password,
       ...(body.accountSlug !== undefined && { accountSlug: body.accountSlug }),
+      ip: request.ip,
+      userAgent: request.headers["user-agent"] ?? "",
     });
 
     if (!result.ok) {
@@ -140,6 +142,10 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
         MULTIPLE_ACCOUNTS: {
           code: 409,
           message: "Multiple accounts found. Please provide accountSlug.",
+        },
+        RATE_LIMITED: {
+          code: 429,
+          message: "Too many login attempts. Please try again later.",
         },
         INTERNAL_ERROR: { code: 500, message: "Internal server error" },
       };

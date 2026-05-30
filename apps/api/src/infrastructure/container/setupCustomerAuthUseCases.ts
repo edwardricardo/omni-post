@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-import type { CachePort } from "@ports/core";
+import type { BruteForceProtectionPort, CachePort } from "@ports/core";
 import type { PrismaClient } from "@infra/prisma";
 
 import type { Container } from "./Container.js";
@@ -76,7 +76,8 @@ export function setupCustomerAuthUseCases(container: Container): void {
         container.resolve<CustomerUserRepository>(TOKENS.CustomerUserRepository),
         container.resolve<AccountRepositoryPort>(TOKENS.AccountRepository),
         container.resolve<PasswordHasher>(TOKENS.PasswordHasher),
-        container.resolve<CustomerTokenService>(TOKENS.CustomerTokenService)
+        container.resolve<CustomerTokenService>(TOKENS.CustomerTokenService),
+        container.resolve<BruteForceProtectionPort>(TOKENS.BruteForceProtectionPort)
       ),
     true
   );
