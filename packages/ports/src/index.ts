@@ -4,6 +4,7 @@
  *              StoragePort, CrmAdapter, PaymentAdapter, and AgentOrchestrationPort interfaces.
  * @layer domain
  */
+export * from "./BruteForceProtectionPort";
 export * from "./CachePort";
 export * from "./AgentOrchestrationPort";
 export * from "./OAuthFlowStorePort";
