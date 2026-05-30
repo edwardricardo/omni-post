@@ -64,6 +64,9 @@ class TestAuditableService extends AuditableService {
   readByResource(resource: string, resourceId: string): Promise<unknown[]> {
     return this.getResourceAuditLogs(resource, resourceId);
   }
+  readByAccount(accountId: string): Promise<unknown[]> {
+    return this.getAccountAuditLogs(accountId);
+  }
 }
 
 describe("AuditableService", () => {
@@ -150,6 +153,17 @@ describe("AuditableService", () => {
       expect(details.category).toBe("ACCOUNT");
       expect(details.from).toBe("BASIC");
     });
+
+    it("persists accountId on the row (SMELL-34 fix) for searchability", async () => {
+      await service.logAccount("admin-1", {
+        accountId: "acc-1",
+        action: "SUBSCRIPTION_UPGRADE",
+        category: "ACCOUNT",
+        details: {},
+      });
+      const row = repo.rows[0]!;
+      expect(row.accountId).toBe("acc-1");
+    });
   });
 
   describe("logResourceAction", () => {
@@ -189,6 +203,18 @@ describe("AuditableService", () => {
       const details = row.details as Record<string, unknown>;
       expect(details.category).toBe("BILLING");
       expect(details.amount).toBe(199);
+    });
+
+    it("persists accountId on system action rows (SMELL-34 fix)", async () => {
+      await service.logSystem({
+        accountId: "acc-7",
+        action: "DATA_RETENTION_SWEEP",
+        category: "SYSTEM",
+        details: {},
+      });
+      const row = repo.rows[0]!;
+      expect(row.userId).toBe(null);
+      expect(row.accountId).toBe("acc-7");
     });
   });
 
@@ -242,6 +268,25 @@ describe("AuditableService", () => {
       expect(rows[0]!.userId).toBe("user-1");
     });
 
+    it("delegates getAccountAuditLogs to the port's findByAccount (customer-scoped query)", async () => {
+      await service.logAccount("user-1", {
+        accountId: "acc-A",
+        action: "ACCOUNT_UPDATE",
+        category: "ACCOUNT",
+        details: {},
+      });
+      await service.logAccount("user-2", {
+        accountId: "acc-B",
+        action: "ACCOUNT_UPDATE",
+        category: "ACCOUNT",
+        details: {},
+      });
+
+      const rowsA = (await service.readByAccount("acc-A")) as Array<{ accountId: string | null }>;
+      expect(rowsA).toHaveLength(1);
+      expect(rowsA[0]!.accountId).toBe("acc-A");
+    });
+
     it("delegates getResourceAuditLogs to the port's findByResource", async () => {
       await service.logResource("user-1", {
         accountId: "acc-1",
@@ -265,6 +310,7 @@ describe("AuditableService", () => {
         create,
         findByUser: async () => [],
         findByResource: async () => [],
+        findByAccount: async () => [],
         anonymizeUser: async () => 0,
       };
       const svc = new TestAuditableService(failing);

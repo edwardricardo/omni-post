@@ -64,6 +64,37 @@ describe("AuditLogRepository contract", () => {
     assert.strictEqual(rows[0]?.resourceId, "a-1");
   });
 
+  it("scopes findByAccount to accountId (customer search)", async () => {
+    await repo.create(entry({ accountId: "acc-A", action: "ACCOUNT_UPDATE" }));
+    await repo.create(entry({ accountId: "acc-B", action: "ACCOUNT_UPDATE" }));
+    await repo.create(entry({ accountId: "acc-A", action: "SUBSCRIPTION_UPGRADE" }));
+    const rowsA = await repo.findByAccount("acc-A");
+    const rowsB = await repo.findByAccount("acc-B");
+    assert.strictEqual(rowsA.length, 2);
+    assert.strictEqual(rowsB.length, 1);
+    assert.strictEqual(rowsA[0]?.action, "SUBSCRIPTION_UPGRADE"); // newest first
+    assert.strictEqual(rowsB[0]?.action, "ACCOUNT_UPDATE");
+  });
+
+  it("findByAccount excludes rows without accountId (system-level entries)", async () => {
+    await repo.create(entry({ userId: "u-1" })); // no accountId
+    await repo.create(entry({ accountId: "acc-A", userId: "u-1" }));
+    const rows = await repo.findByAccount("acc-A");
+    assert.strictEqual(rows.length, 1);
+    assert.strictEqual(rows[0]?.accountId, "acc-A");
+  });
+
+  it("findByAccount respects action filter + pagination", async () => {
+    await repo.create(entry({ accountId: "acc-A", action: "X" }));
+    await repo.create(entry({ accountId: "acc-A", action: "Y" }));
+    await repo.create(entry({ accountId: "acc-A", action: "X" }));
+    const xs = await repo.findByAccount("acc-A", { action: "X" });
+    assert.strictEqual(xs.length, 2);
+    const page = await repo.findByAccount("acc-A", { limit: 1, offset: 1 });
+    assert.strictEqual(page.length, 1);
+    assert.strictEqual(page[0]?.action, "Y"); // 2nd-newest (X, Y, X reversed → X, Y, X)
+  });
+
   it("anonymizeUser nulls userId, preserves the rows, and returns the count", async () => {
     await repo.create(entry({ userId: "u-1" }));
     await repo.create(entry({ userId: "u-1" }));
