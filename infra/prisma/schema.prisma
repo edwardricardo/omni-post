@@ -237,6 +237,7 @@ model AdminSession {
 model AuditLog {
   id         String   @id @default(uuid())
   userId     String? // Nullable for system actions
+  accountId  String? // Searchability column (NOT for RLS): customer-facing queries filter via findByAccount; AuditLog remains in tenant-guard denylist by canon — immutable evidence requires audit logs outside RLS (see MULTI_TENANT_GUARDS.md §Global-tables-denylist)
   action     String // e.g., "LOGIN", "CREATE_PROJECT", "DELETE_USER"
   resource   String? // e.g., "Project", "Account", "AdminUser"
   resourceId String? // ID of the affected resource
@@ -252,6 +253,7 @@ model AuditLog {
   // @@index([createdAt]) - REMOVED: Covered by composites above
 
   @@index([userId, createdAt])
+  @@index([accountId, createdAt])
   @@index([action, createdAt])
   @@index([resource, resourceId])
   @@index([success, createdAt])
