@@ -1,6 +1,6 @@
 /**
  * @file runRetentionForTest.ts
- * @description Helper para integration tests de §4.3 (GDPR + retention). Construye
+ * @description Helper para integration tests de > 4.3 (GDPR + retention). Construye
  *   un `DataRetentionService` con los 4 adapters Prisma reales + un `AuditEmitter`
  *   stub (no necesitamos persistir el audit log del retention cleanup mismo durante
  *   tests). Llama `runRetentionCleanup()` y retorna el resultado.

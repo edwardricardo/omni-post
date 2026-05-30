@@ -17,7 +17,7 @@
  *   ROLLBACK, so the role exists only for the test's lifetime.
  *
  *   In production, the application role is non-superuser by design (per
- *   docs/security/MULTI_TENANT_GUARDS.md §migrations); this test is a
+ *   docs/security/MULTI_TENANT_GUARDS.md > migrations); this test is a
  *   forcing function for that property.
  *
  * @layer infrastructure

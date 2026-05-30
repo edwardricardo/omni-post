@@ -137,7 +137,7 @@ export class PostAggregateMapper {
       contentVersions,
       createdAt: prismaPost.createdAt,
       updatedAt: prismaPost.updatedAt,
-      // OCC version (Azure saga §15-20). Persisted column on Post; the
+      // OCC version (Azure saga > 15-20). Persisted column on Post; the
       // repository uses it as a WHERE-clause guard on update. Reconstituting
       // with the stored value lets the aggregate enforce expectedVersion
       // checks at the use-case layer.

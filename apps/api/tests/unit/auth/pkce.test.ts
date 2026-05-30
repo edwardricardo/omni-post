@@ -15,7 +15,7 @@ import {
 
 describe("PKCE helper", () => {
   it("derives the RFC 7636 Appendix-B S256 reference challenge", () => {
-    // RFC 7636 §Appendix B canonical vector.
+    // RFC 7636 > Appendix B canonical vector.
     const verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
     const challenge = deriveCodeChallenge(verifier);
     assert.strictEqual(challenge, "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM");

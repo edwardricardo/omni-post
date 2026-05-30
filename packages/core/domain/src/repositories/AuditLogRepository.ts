@@ -19,7 +19,7 @@ export interface AuditLogCreateInput {
    * Account scope for searchability — does NOT enforce isolation.
    *
    * AuditLog is kept in the tenant-guard denylist (see
-   * `docs/security/MULTI_TENANT_GUARDS.md` §Global-tables-denylist) so admin
+   * `docs/security/MULTI_TENANT_GUARDS.md` > Global-tables-denylist) so admin
    * compliance flows can read cross-account without `withSystemContext`
    * wrapping (immutable evidence canon). Customer-facing queries scope per
    * account via the explicit filter in `findByAccount`.

@@ -184,7 +184,7 @@ export type CreatePostCommand = z.infer<typeof CreatePostCommandSchema>;
 /**
  * Update Post Command.
  *
- * `expectedVersion` carries the OCC token from the caller (Azure saga §15-20).
+ * `expectedVersion` carries the OCC token from the caller (Azure saga > 15-20).
  * Saga retryable steps that update Post post-pivot pass createData.version so
  * the use case can detect concurrent writes. Optional — when omitted, only the
  * repository-level WHERE-clause guard applies.

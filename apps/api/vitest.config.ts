@@ -138,10 +138,10 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
-    // §1.4 canon — load `.env.test` BEFORE any test file's transitive import
+    // > 1.4 canon — load `.env.test` BEFORE any test file's transitive import
     // reaches `apps/api/src/config/env.ts` and triggers Zod validation.
     // Replaces the prior `test.env = { DATABASE_URL: dummy }` workaround.
-    // See `docs/architecture/secrets-and-env.md` §"Test environment".
+    // See `docs/architecture/secrets-and-env.md` > "Test environment".
     setupFiles: ["./tests/setup-env.ts"],
     include: ["tests/unit/**/*.test.ts", "tests/eval/**/*.test.ts"],
     exclude: ["**/node_modules/**"],
@@ -158,7 +158,7 @@ export default defineConfig({
       exclude: ["src/**/*.test.ts", "src/**/*.spec.ts", "src/**/index.ts", "src/index.ts"],
       reporter: ["text", "html", "json-summary"],
       reportsDirectory: "./coverage",
-      // §2.2 (Normalization Roadmap) Phase A — enforced in CI via the
+      // > 2.2 (Normalization Roadmap) Phase A — enforced in CI via the
       // `test:coverage` script. Thresholds are for unit tests only
       // (tests/unit/**); integration tests run via node:test and contribute
       // additional coverage not captured here. Mutation score via Stryker
@@ -170,7 +170,7 @@ export default defineConfig({
         branches: 45,
         statements: 55,
         // Per-scope OVERRIDES — Phase A keeps these at the global floor so
-        // CI passes today; §2.2.b ratchets each scope to its aspirational
+        // CI passes today; > 2.2.b ratchets each scope to its aspirational
         // target after measurement: domain 90 / application 85 / infra 70.
         // The glob keys put the per-scope structure in place ready for the
         // ratchet without breaking CI today.

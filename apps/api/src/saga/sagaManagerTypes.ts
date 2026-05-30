@@ -24,7 +24,7 @@ export interface SagaManagerConfig {
   defaultTimeout?: number;
   maxConcurrentSagas?: number;
   /**
-   * Optional semantic-lock backend (Azure §15-20). When provided, steps
+   * Optional semantic-lock backend (Azure > 15-20). When provided, steps
    * that declare a `semanticLock` countermeasure are gated through
    * lockStore.acquire() and released on terminal-state transitions.
    * When omitted, semanticLock declarations are silently skipped — useful

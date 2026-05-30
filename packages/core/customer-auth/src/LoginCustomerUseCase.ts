@@ -2,7 +2,7 @@
  * @file LoginCustomerUseCase.ts
  * @description Authenticates a customer user by email/password, issues JWT tokens.
  *   Handles the multi-account scenario where an email may exist across accounts.
- *   Gated by BruteForceProtectionPort (NIST SP 800-63B-4 §rate-limiting + OWASP
+ *   Gated by BruteForceProtectionPort (NIST SP 800-63B-4 > rate-limiting + OWASP
  *   Authentication Cheat Sheet): account-based throttling, exponential backoff,
  *   CAPTCHA signalling, fail-open on adapter outage.
  * @layer application
@@ -82,7 +82,7 @@ export class LoginCustomerUseCase {
         return err("INVALID_CREDENTIALS");
       }
 
-      // Brute-force gate (NIST 800-63B-4 §rate-limiting + OWASP Auth Cheat Sheet).
+      // Brute-force gate (NIST 800-63B-4 > rate-limiting + OWASP Auth Cheat Sheet).
       // Identifier is the account-primary key: an attacker rotating IPs cannot
       // bypass this counter.
       const check = await this.bruteForce.checkLoginAttempt({

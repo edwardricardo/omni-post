@@ -1,15 +1,15 @@
 /**
  * @file data-retention.integration.test.ts
  * @description Integration tests E2E para `DataRetentionService.runRetentionCleanup`
- *   (§4.3 Phase A1 Normalization Roadmap). Verifica con Postgres real que:
+ *   (> 4.3 Phase A1 Normalization Roadmap). Verifica con Postgres real que:
  *
  *   1. AuditLog rows con `createdAt` más viejas que `auditLogRetentionDays`
  *      son borradas; las dentro del window NO.
  *   2. DsarRequest rows con `status=PENDING` y `deadlineAt < now` son marcadas
  *      `EXPIRED`; las on-time NO.
  *
- *   El DoD §4.3 original pedía 3 E2E tests — el 3ro (DSAR EXPORT real dump)
- *   queda en §4.3.b PENDING porque requiere S3 integration + tenant data
+ *   El DoD > 4.3 original pedía 3 E2E tests — el 3ro (DSAR EXPORT real dump)
+ *   queda en > 4.3.b PENDING porque requiere S3 integration + tenant data
  *   serializer (multi-table dump) que no existen hoy.
  *
  *   Pre-requisite: `pnpm db:up` (Postgres). Sin DB up, el test falla loud

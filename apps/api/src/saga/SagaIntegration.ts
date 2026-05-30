@@ -73,7 +73,7 @@ interface SagaIntegrationConfig {
   /** Required for the customer-facing /start endpoint to verify ownership +
    * status of the existing post when `postId` is provided in the body. */
   postRepository: PostRepository;
-  /** Optional semantic-lock backend for concurrency control (Azure §15-20).
+  /** Optional semantic-lock backend for concurrency control (Azure > 15-20).
    * When provided, sagas with `semanticLock` countermeasures gate their
    * execution through this store. Omit in tests that do not exercise the
    * concurrency check. */
@@ -278,7 +278,7 @@ export class SagaIntegration {
         return post.value.status.value;
       }
       // No cancelJob: SchedulePublishingJobsStep is a PivotStep (point of
-      // no return per Azure §5). Once jobs are accepted by BullMQ, workers
+      // no return per Azure > 5). Once jobs are accepted by BullMQ, workers
       // may dispatch to the provider before any saga-side cancel could
       // fire — compensation has no canonically valid semantics here.
     );

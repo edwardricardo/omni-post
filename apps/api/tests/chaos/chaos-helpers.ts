@@ -1,6 +1,6 @@
 /**
  * @file chaos-helpers.ts
- * @description Shared helpers para chaos tests (§4.1 Normalization Roadmap).
+ * @description Shared helpers para chaos tests (> 4.1 Normalization Roadmap).
  *   Establece el harness mínimo para inyectar fallas controladas en saga
  *   steps + verificar que el recovery scheduler (`startRetryRecoveryChecker`,
  *   poll 5s en runtime) recupera el saga a estado COMPLETED.
@@ -12,7 +12,7 @@
  *   sin esperar 5s wall-clock por iteración.
  *
  *   Phase A1 establece el patrón. §4.1.b agrega escenarios outbox + BullMQ
- *   stalled. §4.1.c agrega real-kill-9 chaos. §4.1.d agrega CI nightly job.
+ *   stalled. > 4.1.c agrega real-kill-9 chaos. > 4.1.d agrega CI nightly job.
  *
  * @layer infrastructure
  */

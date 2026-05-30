@@ -1,6 +1,6 @@
 /**
  * @file SemanticLockPort.ts
- * @description Saga semantic lock port (Azure §15-20). Provides keyed,
+ * @description Saga semantic lock port (Azure > 15-20). Provides keyed,
  *              holder-aware mutual exclusion so two concurrent sagas cannot
  *              progress past the locked step on the same aggregate. The
  *              lock has a TTL so a crashed holder cannot deadlock the

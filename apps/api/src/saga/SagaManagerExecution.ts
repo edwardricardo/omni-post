@@ -101,7 +101,7 @@ export class SagaExecutionEngine {
         let stepResult;
 
         try {
-          // Countermeasures (Azure §15-20) — activated in canonical order
+          // Countermeasures (Azure > 15-20) — activated in canonical order
           // before step.execute():
           //   1. SemanticLock — admission control, rejects concurrent saga.
           //   2. RereadCheck — guards against dirty reads.
@@ -198,7 +198,7 @@ export class SagaExecutionEngine {
 
           // Retries exhausted. Canon-discriminated terminal handling:
           //   - compensable step (pre-pivot): trigger compensation walk
-          //   - pivot step (point of no return): FAILED, no rollback (Azure §5)
+          //   - pivot step (point of no return): FAILED, no rollback (Azure > 5)
           //   - retryable step (post-pivot): FAILED, forward-recovery exhausted
           await this.persistSagaInstance(instance, [stepEvent]);
           const errMsg = stepResult.error || "Step execution failed";
@@ -259,7 +259,7 @@ export class SagaExecutionEngine {
         continue;
       }
 
-      // Canon enforcement (Azure §5): only compensable steps strictly before
+      // Canon enforcement (Azure > 5): only compensable steps strictly before
       // the pivot are eligible for compensation. Pivot + post-pivot retryable
       // steps are forward-recovery only — rolling them back has no canon-
       // valid semantics (provider may have already accepted the side-effect).

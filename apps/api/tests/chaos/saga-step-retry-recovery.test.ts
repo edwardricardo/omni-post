@@ -1,6 +1,6 @@
 /**
  * @file saga-step-retry-recovery.test.ts
- * @description Chaos scenario 1 (§4.1 Normalization Roadmap Phase A1):
+ * @description Chaos scenario 1 (> 4.1 Normalization Roadmap Phase A1):
  *   un saga step falla transiently — el recovery scheduler retoma el saga
  *   desde el `nextRetryAt` persistido y eventualmente alcanza COMPLETED.
  *

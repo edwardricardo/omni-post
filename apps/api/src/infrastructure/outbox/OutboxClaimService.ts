@@ -3,7 +3,7 @@
  * @description Atomic claim + release + DLQ archival for the transactional
  *              outbox. Uses the canonical PostgreSQL `UPDATE ... WHERE id IN
  *              (SELECT ... FOR UPDATE SKIP LOCKED LIMIT N) RETURNING ...`
- *              pattern (inferable.ai, npiontko.pro, postgres docs §SELECT)
+ *              pattern (inferable.ai, npiontko.pro, postgres docs > SELECT)
  *              so multiple OutboxRelay instances can poll the same table
  *              concurrently without dispatching the same event twice.
  *

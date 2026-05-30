@@ -18,7 +18,7 @@ import { type PostDTO } from "./GetPostUseCase.js";
 /**
  * Input DTO for updating a post.
  *
- * `expectedVersion` is the OCC token (Azure saga §15-20). When provided, the
+ * `expectedVersion` is the OCC token (Azure saga > 15-20). When provided, the
  * use case rejects the call with a CONFLICT error if the persisted version
  * has advanced past it — another writer committed in the meantime. When
  * omitted, the use case falls back to the repository-level OCC guard alone
@@ -106,7 +106,7 @@ export class UpdatePostUseCase implements UseCase<UpdatePostInput, PostDTO, UseC
       );
     }
 
-    // OCC pre-check (Azure saga §15-20). If the caller passed expectedVersion,
+    // OCC pre-check (Azure saga > 15-20). If the caller passed expectedVersion,
     // reject when the persisted version has advanced — another writer committed
     // between the caller's read and this update. Returns CONFLICT so the caller
     // (e.g., a saga retryable step) can re-read and retry against fresh state.

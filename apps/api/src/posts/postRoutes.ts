@@ -39,7 +39,7 @@ const UpdatePostBodySchema = z.object({
   title: SecureSchemas.userName.optional(),
   summary: z.string().max(500).optional(),
   tags: z.array(z.string()).optional(),
-  // OCC token (Azure saga §15-20). When provided, the use case rejects with
+  // OCC token (Azure saga > 15-20). When provided, the use case rejects with
   // CONFLICT (409) if the persisted Post.version has advanced past this —
   // another writer committed in the meantime. Optional; omitting falls back
   // to repository-level WHERE-clause OCC alone.
