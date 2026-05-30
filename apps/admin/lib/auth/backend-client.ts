@@ -224,8 +224,7 @@ export async function logoutFromBackend(
         body: body.slice(0, 200),
       });
       // Continue — frontend will clear session regardless. Log surfaces
-      // the failure so observability picks up CSRF / session-state regressions
-      // (vs the prior silent .catch(() => {}) that masked the bug for months).
+      // the failure so observability picks up CSRF / session-state regressions.
     }
   } catch (error) {
     log.error("Network error during logout", error);

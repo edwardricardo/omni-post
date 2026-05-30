@@ -4,8 +4,6 @@
  *   `/admin/accounts/export` endpoint. The server renders the CSV using the
  *   canonical `exportToCSV` utility (RFC 4180 + CSV-injection prevention),
  *   matching the same pattern used by billing/audit/webhook exports in admin.
- *   Replaces the prior client-side manual CSV builder which had a buggy
- *   escaping path for fields containing quotes, commas, or newlines.
  * @layer infrastructure
  */
 

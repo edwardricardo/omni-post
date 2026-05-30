@@ -30,7 +30,7 @@ export interface TokenPair {
 }
 
 // ============================================================================
-// Server Actions Auth Types (new pattern — replaces NextAuth)
+// Server Actions Auth Types
 // ============================================================================
 
 /**

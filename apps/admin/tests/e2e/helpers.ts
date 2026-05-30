@@ -1,12 +1,9 @@
 /**
  * @file helpers.ts
- * @description Test helpers for helpers
+ * @description Shared Playwright E2E helpers for admin auth flows.
  * @layer infrastructure
  */
-// tests/e2e/helpers.ts
 import { Page } from "@playwright/test";
-
-// Note: API_URL not currently used but kept for future backend test endpoints
 
 /**
  * Test admin credentials

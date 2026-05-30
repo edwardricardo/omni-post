@@ -1,11 +1,12 @@
 /**
  * @file apiClient.ts
- * @description Facade for the admin app's API surface. Composes 7 per-domain
- *              clients (Health, legacy Posts, Dashboard, Audit, Auth, MFA,
- *              RBAC) into the single `api` object used across the admin app,
- *              preserving the existing nested shape (`api.admin.X`,
- *              `api.audit.X`, `api.security.mfa.X`, `api.security.rbac.X`).
- *              Types are re-exported for consumers that import them from
+ * @description Facade for the admin app's API surface. Composes per-domain
+ *              clients (Health, Dashboard, Audit, Auth, MFA, RBAC, Secrets,
+ *              Channels, Webhooks, OIDC, API keys, Providers) into the single
+ *              `api` object used across the admin app, exposing them under a
+ *              nested shape (`api.admin.X`, `api.audit.X`,
+ *              `api.security.mfa.X`, `api.security.rbac.X`). Types are
+ *              re-exported for consumers that import them from
  *              `@/lib/apiClient`.
  * @layer infrastructure
  */
@@ -23,7 +24,7 @@ import { oidcAdminClient } from "./api/clients/oidcAdminClient";
 import { apiKeysAdminClient } from "./api/clients/apiKeysAdminClient";
 import { providersAdminClient } from "./api/clients/providersAdminClient";
 
-// Re-export types so existing consumers continue to import from "@/lib/apiClient".
+// Re-export types so consumers can import them from "@/lib/apiClient".
 export type {
   AccountSummary,
   AuditLog,
@@ -36,7 +37,7 @@ export type {
 
 /**
  * @const api
- * @description Flat facade preserving the legacy nested API. Each property is
+ * @description Flat facade with a nested per-domain shape. Each property is
  *              backed by a per-domain client; this object only re-exposes
  *              their methods.
  */
