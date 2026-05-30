@@ -691,7 +691,7 @@ export function setupServices(
     () =>
       new ThreadAnalytics(
         container.resolve<CachePort>(TOKENS.CachePort),
-        {} as ApiMetrics,
+        container.resolve<ApiMetrics>(TOKENS.ApiMetrics),
         container.resolve<AnalyticsReadRepositoryPort>(TOKENS.AnalyticsReadRepository),
         container.resolve<ThreadReadRepositoryPort>(TOKENS.ThreadReadRepository)
       ),
@@ -772,7 +772,7 @@ export function setupServices(
       return new RedisBruteForceAdapter(
         redis,
         container.resolve<AuditService>(TOKENS.AuditService),
-        {} as ApiMetrics
+        container.resolve<ApiMetrics>(TOKENS.ApiMetrics)
       );
     },
     true

@@ -236,9 +236,14 @@ async function createApp(): Promise<FastifyInstance> {
   // Initialize unified authentication service with Redis
   setRedisInstance(redis);
 
+  // Build the Prometheus-backed metrics collector BEFORE the container so it
+  // can be registered as a singleton and resolved by infra wiring that emits
+  // metrics (BF adapter, etc.) rather than receiving `{} as ApiMetrics`.
+  const apiMetrics = new ApiMetrics(client.register);
+
   // Initialize DI container and decorate Fastify instance (needed so scheduler is
   // available to downstream adapters/managers created below).
-  const container = setupContainer({ prisma });
+  const container = setupContainer({ prisma, apiMetrics });
   typedApp.decorate("container", container);
   const bootstrapScheduler = container.resolve<BackgroundTaskScheduler>(
     TOKENS.BackgroundTaskScheduler
@@ -296,9 +301,6 @@ async function createApp(): Promise<FastifyInstance> {
 
   // Initialize circuit breaker monitor
   const _circuitBreakerMonitor = createCircuitBreakerMonitor(client.register);
-
-  // Initialize API metrics
-  const apiMetrics = new ApiMetrics(client.register);
 
   // Initialize security manager
   const securityManager = new SecurityManager({

@@ -162,6 +162,7 @@ export const TOKENS = {
   RealtimeAnalyticsService: Symbol.for("RealtimeAnalyticsService"),
   StreamConnectionTracker: Symbol.for("StreamConnectionTracker"),
   BruteForceProtectionPort: Symbol.for("BruteForceProtectionPort"),
+  ApiMetrics: Symbol.for("ApiMetrics"),
 
   // ML Use Cases (B0-2 — DI violation fix in ai/routes.ts)
   OptimizeContentUseCase: Symbol.for("OptimizeContentUseCase"),
