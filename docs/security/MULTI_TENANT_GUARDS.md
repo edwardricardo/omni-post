@@ -180,8 +180,36 @@ joined-filter pattern where missing.**
 
 ## Global tables (denylist — guard bypasses)
 
-Tables without `accountId` because they are platform-wide, audit-only,
+Tables without `accountId` (or with `accountId` for searchability only —
+see `AuditLog` below) because they are platform-wide, audit-only,
 or admin-scoped:
+
+### `AuditLog` design note (2026-05-30)
+
+`AuditLog` has an `accountId` column for **searchability** (customer
+queries via `AuditLogRepository.findByAccount(accountId, ...)`) but
+remains in this denylist by design. Three reasons converging:
+
+1. **Immutable evidence canon**: industry best practice (AWS SaaS
+   Factory, ClickHouse, GSoft Consulting, AWS Prescriptive Guidance)
+   keeps audit logs outside RLS so admin / compliance teams query
+   cross-account unfiltered when a customer disputes an event.
+2. **Compliance flows are already cross-account**: 5 admin readers
+   (`AnalyticsComplianceHandlers`, `AnalyticsDashboardHandlers`,
+   `auditRoutes`, `auditService`, `activityFeedService`) read across
+   all accounts to surface system-wide health, audit trails, and
+   forensic data. Wrapping them in `withSystemContext` would be
+   ceremonial — RLS bypass is the canonical state for AuditLog
+   reads.
+3. **Customer scope is opt-in**: customer-facing endpoints filter
+   explicitly via `findByAccount(accountId)`; the `accountId` column
+   makes that filter efficient (indexed at `[accountId, createdAt]`)
+   without conferring isolation guarantees.
+
+The `accountId` column on write is best-effort: `AuditableService.
+writeAuditLog` threads it through when the caller provides it.
+Pre-existing rows (created before 2026-05-30) have `accountId = NULL`
+and remain queryable by the cross-account flows.
 
 ```
 Account                  AdminUser                AdminSession
