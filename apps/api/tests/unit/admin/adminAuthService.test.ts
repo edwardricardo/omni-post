@@ -432,8 +432,26 @@ describe("AdminAuthService (Unit - Mocked Prisma)", () => {
     // Clear mock call history
     vi.clearAllMocks();
 
-    // Create service instance
-    authService = new AdminAuthService(mockModule.prisma as unknown as PrismaClient);
+    // Create service instance with a permissive BF stub (tests credential
+    // verification paths, not the brute-force gate itself).
+    const bfStub = {
+      checkLoginAttempt: vi.fn(async () => ({
+        allowed: true,
+        delaySeconds: 0,
+        captchaRequired: false,
+      })),
+      recordFailedAttempt: vi.fn(async () => undefined),
+      recordSuccessfulAttempt: vi.fn(async () => undefined),
+      unlockAccount: vi.fn(async () => true),
+      unblockIp: vi.fn(async () => true),
+      getStats: vi.fn(async () => ({
+        lockedAccounts: 0,
+        blockedIps: 0,
+        recentFailures: 0,
+        suspiciousActivities: 0,
+      })),
+    };
+    authService = new AdminAuthService(mockModule.prisma as unknown as PrismaClient, bfStub);
 
     // Seed a test admin user with a real argon2 hash
     const passwordHash = await argon2.hash(TEST_PASSWORD);

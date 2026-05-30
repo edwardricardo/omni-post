@@ -349,7 +349,11 @@ export function setupServices(
 
   container.register<AdminAuthService>(
     TOKENS.AdminAuthService,
-    () => new AdminAuthService(container.resolve(TOKENS.PrismaClient)),
+    () =>
+      new AdminAuthService(
+        container.resolve(TOKENS.PrismaClient),
+        container.resolve<BruteForceProtectionPort>(TOKENS.BruteForceProtectionPort)
+      ),
     true
   );
   container.register<AdminUserAdminService>(
