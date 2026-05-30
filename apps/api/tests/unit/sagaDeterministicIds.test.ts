@@ -3,7 +3,7 @@
  * @description Verifies that saga steps emit deterministic command IDs keyed
  *              on (sagaId, stepId) so retries collapse to a single dedupeKey
  *              instead of fanning out per-attempt. This is the canonical
- *              dedup contract (Richardson saga + Azure > 15-20 OCC).
+ *              dedup contract (Richardson saga + Azure §15-20 OCC).
  * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";

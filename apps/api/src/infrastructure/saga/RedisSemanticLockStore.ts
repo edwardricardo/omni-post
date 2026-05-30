@@ -1,7 +1,7 @@
 /**
  * @file RedisSemanticLockStore.ts
  * @description Redis-backed implementation of SemanticLockPort for saga
- *              concurrency control (Azure saga > 15-20). Uses SET NX EX for
+ *              concurrency control (Azure saga §15-20). Uses SET NX EX for
  *              atomic acquisition and a Lua script for holder-gated release.
  *              Tracks per-saga held keys in a Redis set so terminal-state
  *              cleanup (releaseAllForSaga) can drop them in one round trip.

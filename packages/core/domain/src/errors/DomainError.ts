@@ -118,7 +118,7 @@ export class InvariantViolationError extends DomainError {
 }
 
 /**
- * Optimistic Concurrency Control conflict (Azure saga > 15-20). Raised when a
+ * Optimistic Concurrency Control conflict (Azure saga §15-20). Raised when a
  * write detects that the aggregate version in the database has advanced past
  * the version held by the caller — another process has committed in the
  * meantime, so the current write would silently overwrite (lost update).

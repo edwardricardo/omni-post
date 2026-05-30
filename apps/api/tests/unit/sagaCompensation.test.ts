@@ -1,7 +1,7 @@
 /**
  * @file sagaCompensation.test.ts
  * @description Tests for SchedulePublishingJobsStep — classified as PivotStep
- *   per Azure saga > 5-8 / > 15-20. As a pivot, the step has no compensate()
+ *   per Azure saga §5-8 / §15-20. As a pivot, the step has no compensate()
  *   method (point of no return); the forward path enqueues publishing jobs
  *   for each channel. These tests cover the canonical pivot contract.
  *
@@ -145,7 +145,7 @@ describe("SchedulePublishingJobsStep — Pivot contract", () => {
     const result = await step.execute(ctx);
 
     // Pivots do not roll back. The step reports failure, but no compensate()
-    // exists — the engine treats this as terminal FAILED per canon Azure > 5.
+    // exists — the engine treats this as terminal FAILED per canon Azure §5.
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/Queue unreachable/);
     expect((step as unknown as { compensate?: unknown }).compensate).toBeUndefined();

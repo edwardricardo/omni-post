@@ -170,7 +170,7 @@ export default defineConfig({
         branches: 45,
         statements: 55,
         // Per-scope OVERRIDES — Phase A keeps these at the global floor so
-        // CI passes today; > 2.2.b ratchets each scope to its aspirational
+        // CI passes today; §2.2.b ratchets each scope to its aspirational
         // target after measurement: domain 90 / application 85 / infra 70.
         // The glob keys put the per-scope structure in place ready for the
         // ratchet without breaking CI today.

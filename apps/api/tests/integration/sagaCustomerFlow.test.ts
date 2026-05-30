@@ -479,7 +479,7 @@ describe("Saga customer flow integration", () => {
   });
 
   // -----------------------------------------------------------------------
-  // Canon coverage — OCC (Azure saga > 15-20)
+  // Canon coverage — OCC (Azure saga §15-20)
   // -----------------------------------------------------------------------
 
   it("rejects PATCH /posts/:id with stale expectedVersion (CONFLICT)", async () => {
@@ -532,7 +532,7 @@ describe("Saga customer flow integration", () => {
   });
 
   // -----------------------------------------------------------------------
-  // Canon coverage — pivot semantics (Azure > 5)
+  // Canon coverage — pivot semantics (Azure §5)
   // -----------------------------------------------------------------------
 
   it("does NOT compensate steps at or after the pivot when saga fails post-pivot", async () => {

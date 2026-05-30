@@ -1,6 +1,6 @@
 /**
  * @file sandbox.template.test.ts
- * @description Template para sandbox integration tests por-provider (> 3.2.c
+ * @description Template para sandbox integration tests por-provider (§3.2.c
  *   PENDING). Copiar este archivo a `packages/providers/<provider>/tests/
  *   integration/sandbox.test.ts`, reemplazar los placeholders <PROVIDER> y
  *   las assertions con la lógica real del adapter.
@@ -15,7 +15,7 @@
  *   2. Agregar `<PROVIDER>_TEST_*` env vars a GitHub Actions Secrets.
  *   3. Copiar este template a `packages/providers/<provider>/tests/
  *      integration/sandbox.test.ts` y reemplazar placeholders.
- *   4. Habilitar el `provider-sandbox.yml` workflow (> 3.2.d).
+ *   4. Habilitar el `provider-sandbox.yml` workflow (§3.2.d).
  *
  * @layer infrastructure
  */

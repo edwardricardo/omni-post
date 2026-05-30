@@ -7,7 +7,7 @@
  *   client. This adapter chains both:
  *     1. `openidClient.discovery(...)` — validates issuerUrl + builds Configuration
  *     2. `openidClient.clientCredentialsGrant(config)` — authenticates clientSecret
- *        against the IdP's token endpoint per RFC 6749 > 5.2
+ *        against the IdP's token endpoint per RFC 6749 §5.2
  *   Returns `{ validated: "strict" }` on full validation; `{ validated: "partial" }`
  *   when the IdP rejects `client_credentials` grant with `unsupported_grant_type`.
  *   Any other error (`invalid_client`, network/timeout, malformed metadata)

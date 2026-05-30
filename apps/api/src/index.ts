@@ -664,7 +664,7 @@ async function createApp(): Promise<FastifyInstance> {
     redis,
   }).forEach((handler) => sagaCQRSBus.registerCommandHandler(handler));
 
-  // Semantic lock backend (Azure saga > 15-20). Reuses the saga's redis
+  // Semantic lock backend (Azure saga §15-20). Reuses the saga's redis
   // connection — lock ops are short, non-blocking SET NX / Lua release.
   const { RedisSemanticLockStore } =
     await import("./infrastructure/saga/RedisSemanticLockStore.js");

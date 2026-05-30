@@ -149,7 +149,7 @@ export interface CompensableStep<
 
 /**
  * PivotStep — point of no return. Has NO compensate method. After this step
- * commits, downstream failures trigger forward-recovery only (Azure > 5).
+ * commits, downstream failures trigger forward-recovery only (Azure §5).
  */
 export interface PivotStep<TData = unknown> extends BaseSagaStep<TData> {
   readonly class: "pivot";
@@ -157,7 +157,7 @@ export interface PivotStep<TData = unknown> extends BaseSagaStep<TData> {
 
 /**
  * RetryableStep — post-pivot step. Has NO compensate. Idempotent execution;
- * retried with backoff until success or terminal failure (Azure > 8).
+ * retried with backoff until success or terminal failure (Azure §8).
  */
 export interface RetryableStep<TData = unknown> extends BaseSagaStep<TData> {
   readonly class: "retryable";
@@ -563,7 +563,7 @@ export class CreatePostStep implements CompensableStep<StepExecuteData, CreateSt
  *
  * Once publish jobs are enqueued in BullMQ, the workers may execute them
  * before any compensation could cancel them — the provider may already have
- * received the post (Azure > 5: "after a pivot transaction succeeds,
+ * received the post (Azure §5: "after a pivot transaction succeeds,
  * compensable transactions are no longer relevant"). Therefore this step
  * has NO compensate(): rolling it back would create misleading semantics.
  *
@@ -782,7 +782,7 @@ export class UpdatePostStatusStep implements RetryableStep {
 
       const newStatus = publishingSuccess ? "PUBLISHED" : "FAILED";
 
-      // Pass createData.version as expectedVersion (Azure saga > 15-20 OCC).
+      // Pass createData.version as expectedVersion (Azure saga §15-20 OCC).
       // The use case rejects with CONFLICT when the persisted version has
       // advanced past this — meaning a concurrent writer mutated the post
       // between Create and UpdateStatus. This step is RetryableStep, so the
@@ -863,7 +863,7 @@ export function createPostPublishingSagaDefinition(
    * Post.status (or null if missing). When provided, the pivot step gains a
    * RereadCheck countermeasure that aborts before enqueueing jobs if the
    * post is no longer DRAFT — closing the dirty-read window between Create
-   * and Schedule (Azure > 15-18).
+   * and Schedule (Azure §15-18).
    */
   getPostStatus?: (postId: string) => Promise<string | null>
 ): SagaDefinition {

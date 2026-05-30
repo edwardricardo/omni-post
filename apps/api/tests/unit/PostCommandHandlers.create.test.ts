@@ -40,7 +40,7 @@ describe("CreatePostCommandHandler", () => {
     expect(result.data).toBeTruthy();
     expect(result.data.postId).toBe(TEST_POST_ID);
     // Fresh Posts start at version 0 — the OCC seed propagated to the saga's
-    // UpdatePostStatusStep as expectedVersion (Azure saga > 15-20).
+    // UpdatePostStatusStep as expectedVersion (Azure saga §15-20).
     expect(result.data.version).toBe(0);
   });
 

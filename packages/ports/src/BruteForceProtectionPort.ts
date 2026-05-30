@@ -1,7 +1,7 @@
 /**
  * @file BruteForceProtectionPort.ts
  * @description Port for brute-force / credential-stuffing protection across
- *   customer + admin login. Canon-aligned per NIST SP 800-63B-4 > rate-limiting
+ *   customer + admin login. Canon-aligned per NIST SP 800-63B-4 §rate-limiting
  *   + OWASP Authentication Cheat Sheet:
  *
  *   - **Account-based primary**: counter keyed by identifier (email/username)
@@ -22,9 +22,9 @@
  *     Operational alerting on the warning metric is REQUIRED.
  *
  *   References:
- *   - NIST SP 800-63B-4 > Rate Limiting — verifier SHALL implement per-account
+ *   - NIST SP 800-63B-4 §Rate Limiting — verifier SHALL implement per-account
  *     limit, prefers throttling over hard lockout.
- *   - OWASP Auth Cheat Sheet > Account Lockout — counter per account not IP;
+ *   - OWASP Auth Cheat Sheet §Account Lockout — counter per account not IP;
  *     auto-expiry; CAPTCHA after few failures; MFA is defense #1.
  * @layer domain
  */

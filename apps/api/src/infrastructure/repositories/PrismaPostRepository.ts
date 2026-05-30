@@ -520,7 +520,7 @@ export class PrismaPostRepository implements PostRepository {
     const postId = aggregate.id.value;
     const expectedVersion = aggregate.version;
 
-    // OCC update (Azure saga > 15-20). The WHERE clause includes the version
+    // OCC update (Azure saga §15-20). The WHERE clause includes the version
     // so concurrent writers are rejected — Prisma throws P2025 when no row
     // matches. We translate that to VersionConflictError so the use case
     // layer can surface a meaningful conflict response to the caller.

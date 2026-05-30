@@ -62,7 +62,7 @@ export class AdminAuthService {
     const ip = device.ipAddress ?? "0.0.0.0";
     const userAgent = device.userAgent ?? "";
 
-    // Brute-force gate (NIST SP 800-63B-4 > rate-limiting + OWASP Auth Cheat Sheet).
+    // Brute-force gate (NIST SP 800-63B-4 §rate-limiting + OWASP Auth Cheat Sheet).
     // Account-based primary — IP rotation does not bypass this counter.
     const check = await this.bruteForce.checkLoginAttempt({
       identifier: email,

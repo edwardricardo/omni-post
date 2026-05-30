@@ -60,7 +60,7 @@ export interface SecretEntry {
  * Every secret tracked for rotation. Order is stable for UI display.
  */
 export const SECRETS_CATALOG: readonly SecretEntry[] = [
-  // > 3 — Master keys
+  // §3 — Master keys
   {
     name: "PLATFORM_ENCRYPTION_KEY",
     category: "KEK",
