@@ -31,12 +31,19 @@ interface StackedBarSeries {
 }
 
 interface StackedBarChartProps {
+  /** Data points keyed by `label`, with one numeric field per series key. */
   data: StackedBarDatum[];
+  /** Series metadata (key, color, display name) used to render and label each stack layer. */
   series: StackedBarSeries[];
+  /** Chart pixel height. Defaults to 256. */
   height?: number;
+  /** Formatter applied to the X-axis category labels. */
   formatLabel?: (label: string) => string;
+  /** Formatter applied to the Y-axis numeric ticks. */
   formatValue?: (v: number) => string;
+  /** Message shown when `data` is empty. Defaults to "No data available". */
   emptyMessage?: string;
+  /** Additional CSS classes appended to the chart wrapper. */
   className?: string;
 }
 

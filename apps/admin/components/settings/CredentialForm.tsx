@@ -25,9 +25,13 @@ import { Badge } from "../ui/Badge";
 import type { FieldDef } from "./constants";
 
 interface CredentialFormProps {
+  /** Credential group key (e.g. `STRIPE`, `AWS_S3`) being edited. */
   group: string;
+  /** Ordered field definitions describing the inputs to render. */
   fields: FieldDef[];
+  /** Optional section title rendered above the form. */
   title?: string;
+  /** Optional helper text rendered below the title. */
   description?: string;
 }
 

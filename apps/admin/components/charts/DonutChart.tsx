@@ -16,12 +16,19 @@ export interface DonutChartDatum {
 }
 
 interface DonutChartProps {
+  /** Slices to render; each entry has a name, numeric value, and color. */
   data: DonutChartDatum[];
+  /** Overall block height; the pie occupies ~65% to leave room for the legend. Defaults to 280. */
   height?: number;
+  /** Inner radius of the donut hole. Defaults to 55. */
   innerRadius?: number;
+  /** Outer radius of the donut ring. Defaults to 85. */
   outerRadius?: number;
+  /** Whether to render the vertical legend below the chart. Defaults to true. */
   showLegend?: boolean;
+  /** Message shown when `data` is empty or sums to zero. Defaults to "No data available". */
   emptyMessage?: string;
+  /** Additional CSS classes appended to the chart wrapper. */
   className?: string;
 }
 

@@ -20,11 +20,17 @@ import { useChartColors } from "@/hooks/useChartColors";
 import { ChartEmptyState } from "./ChartEmptyState";
 
 interface TrendAreaChartProps {
+  /** Time-series points with category label and numeric value. */
   data: Array<{ label: string; value: number }>;
+  /** Chart pixel height. Defaults to 200. */
   height?: number;
+  /** Override color for the stroke and gradient fill; defaults to theme accent. */
   color?: string;
+  /** Formatter applied to Y-axis ticks and tooltip values. */
   formatValue?: (v: number) => string;
+  /** Message shown when `data` is empty. Defaults to "No data available". */
   emptyMessage?: string;
+  /** Additional CSS classes appended to the chart wrapper. */
   className?: string;
 }
 

@@ -8,6 +8,7 @@
  *
  * This file is never imported at runtime — it exists only for the Tailwind scanner
  * (referenced via @source in globals.css).
+ * @layer infrastructure
  */
 
 // Dialog (packages/ui/src/components/dialog.tsx)

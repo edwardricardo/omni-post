@@ -14,8 +14,11 @@ interface Tab {
 }
 
 interface TabNavProps {
+  /** Tab definitions with stable `key` and visible `label`. */
   tabs: Tab[];
+  /** Key of the currently selected tab. */
   activeTab: string;
+  /** Fired with the key of the newly selected tab when the user clicks. */
   onChange: (key: string) => void;
 }
 

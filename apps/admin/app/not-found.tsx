@@ -4,6 +4,7 @@
  *              locale context). Renders its own HTML shell because the
  *              passthrough root layout provides none. Localized 404s inside a
  *              locale are handled by `app/[locale]/not-found.tsx`.
+ * @component GlobalNotFound
  * @layer infrastructure
  */
 import Link from "next/link";

@@ -3,6 +3,7 @@
  * @description Server-side API client for proxying authenticated requests from the admin
  * dashboard to the Fastify backend via httpOnly session cookies. Provides login, token
  * verification, token refresh, logout, and health-check functions.
+ * @layer infrastructure
  */
 
 import { cache } from "react";

@@ -8,8 +8,11 @@
 import React from "react";
 
 interface LoadingSpinnerProps {
+  /** Spinner diameter: `sm`, `md`, or `lg`. Defaults to `md`. */
   size?: "sm" | "md" | "lg";
+  /** Screen-reader-only label announcing the loading state. Defaults to `Loading...`. */
   label?: string;
+  /** Additional CSS classes appended to the wrapper element. */
   className?: string;
 }
 

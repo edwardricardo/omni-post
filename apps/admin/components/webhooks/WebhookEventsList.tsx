@@ -4,6 +4,8 @@
  * @file WebhookEventsList.tsx
  * @description Paginated list of webhook events with search, filtering by provider and status,
  * event payload inspection, and export functionality for webhook delivery audit trails.
+ * @component WebhookEventsList
+ * @layer infrastructure
  */
 
 import { useState } from "react";
@@ -30,7 +32,9 @@ import { Search, Eye, RefreshCw, Download, ChevronLeft, ChevronRight } from "luc
 import { formatDistanceToNow } from "date-fns";
 
 interface WebhookEventsListProps {
+  /** Optional provider key used to pre-filter the events list. */
   provider?: string;
+  /** Token whose change triggers a refetch of the events list. */
   refreshTrigger?: string;
 }
 

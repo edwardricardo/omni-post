@@ -6,6 +6,7 @@
  *              Next.js still requires a root layout to exist (e.g. for the
  *              global `app/not-found.tsx`), so it is kept as a thin
  *              passthrough.
+ * @component RootLayout
  * @layer infrastructure
  */
 export default function RootLayout({ children }: { children: React.ReactNode }) {

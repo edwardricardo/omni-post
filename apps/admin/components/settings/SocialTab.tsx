@@ -62,6 +62,7 @@ function Collapsible({
 // ---------------------------------------------------------------------------
 
 interface SocialTabProps {
+  /** Map of credential group key to "configured" boolean from settings status. */
   groupStatus?: Record<string, boolean> | undefined;
 }
 

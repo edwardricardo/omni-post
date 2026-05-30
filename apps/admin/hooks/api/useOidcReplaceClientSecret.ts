@@ -5,6 +5,7 @@
  *              from the IdP console; the backend performs a discovery
  *              handshake before committing — failed handshake surfaces
  *              the IdP error message inline.
+ * @hook useOidcReplaceClientSecret
  * @layer infrastructure
  */
 

@@ -9,8 +9,11 @@
 import React from "react";
 
 interface ActionButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  /** Visual style mapping to the theme tokens. Defaults to `primary`. */
   variant?: "primary" | "secondary" | "danger";
+  /** Button height and font size. Defaults to `md`. */
   size?: "sm" | "md" | "lg";
+  /** When true, shows a spinner and disables interaction. Defaults to false. */
   loading?: boolean;
 }
 

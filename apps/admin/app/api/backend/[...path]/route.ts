@@ -4,6 +4,7 @@
  * calls to the Fastify backend, injecting the httpOnly "admin-session" JWT so the browser
  * never directly handles the token. Automatically refreshes expired access tokens using
  * the stored refresh token cookie.
+ * @layer infrastructure
  */
 
 import { cookies } from "next/headers";

@@ -43,7 +43,9 @@ import { useTheme } from "@/providers/ThemeProvider";
 // ---------------------------------------------------------------------------
 
 interface SidebarNavProps {
+  /** Display name rendered in the sidebar footer's user card. */
   userName?: string;
+  /** Role label rendered beneath `userName` in the footer. */
   userRole?: string;
 }
 

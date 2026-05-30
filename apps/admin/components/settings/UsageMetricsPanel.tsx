@@ -11,9 +11,13 @@ import React from "react";
 import { useUsageMetrics } from "@/hooks/api/useUsageMetrics";
 
 interface UsageBarProps {
+  /** Caption rendered above the bar. */
   label: string;
+  /** Consumed amount for the current billing period. */
   used: number;
+  /** Plan limit; `null` means unlimited and the bar is hidden. */
   limit: number | null;
+  /** Optional unit suffix appended after `used`/`limit` (e.g. ` GB`). */
   unit?: string;
 }
 
@@ -46,6 +50,7 @@ function UsageBar({ label, used, limit, unit = "" }: UsageBarProps) {
 }
 
 interface UsageMetricsPanelProps {
+  /** Account whose current-period usage metrics are displayed. */
   accountId: string;
 }
 

@@ -2,6 +2,7 @@
  * @file page.tsx
  * @description Admin login page with split layout. Left side features the OmniPost
  * branding on a dark background; right side houses the LoginForm component.
+ * @layer infrastructure
  */
 import { LoginForm } from "@/components/auth/login-form";
 

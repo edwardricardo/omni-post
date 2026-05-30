@@ -11,7 +11,9 @@ import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 
 interface AccessDeniedProps {
+  /** Custom error message; falls back to an i18n default when omitted. */
   message?: string;
+  /** When provided, displays the role required to access the resource. */
   requiredRole?: string;
 }
 

@@ -3,6 +3,7 @@
  * @description Client context that exposes the current admin user's name, role,
  * and permissions to all dashboard pages. Permissions are fetched from the API
  * on mount and cached. Provides hasPermission() for granular access control.
+ * @component AuthProvider
  * @layer infrastructure
  */
 "use client";

@@ -2,6 +2,7 @@
  * @file types.ts
  * @description TypeScript type definitions for admin authentication including user profiles,
  * token pairs, login responses, Server Action state shapes, and the discriminated auth result union.
+ * @layer infrastructure
  */
 import type { AdminRole } from "@shared/types";
 

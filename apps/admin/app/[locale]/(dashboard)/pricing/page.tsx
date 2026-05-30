@@ -367,12 +367,19 @@ const INPUT_CLASS =
   "w-full px-3 py-2 border border-[var(--border-default)] rounded-md bg-[var(--bg-surface)] text-[var(--text-primary)] focus:outline-hidden focus:ring-2 focus:ring-[var(--accent)] text-sm";
 
 interface BundleFormDialogProps {
+  /** Whether the dialog is currently visible. */
   open: boolean;
+  /** Fired to toggle dialog visibility, mirroring the Radix Dialog API. */
   onOpenChange: (open: boolean) => void;
+  /** Current bundle form draft values. */
   form: BundleFormData;
+  /** Fired with the next form values whenever the user edits a field. */
   onChange: (form: BundleFormData) => void;
+  /** Fired when the user confirms the save action. */
   onSave: () => void;
+  /** When true, treats the dialog as an edit of an existing bundle (vs create). */
   isEdit: boolean;
+  /** When true, shows a loading spinner on the save button. */
   loading: boolean;
 }
 
