@@ -72,21 +72,21 @@ export const SECRETS_CATALOG: readonly SecretEntry[] = [
     description: "AES-256-GCM master key for ProviderConnection token columns",
   },
 
-  // > 4.1 — Database
+  // §4.1 — Database
   {
     name: "DATABASE_URL",
     category: "DB_PASSWORD",
     description: "PostgreSQL connection string with embedded role password",
   },
 
-  // > 4.2 — Redis
+  // §4.2 — Redis
   {
     name: "REDIS_PASSWORD",
     category: "REDIS_PASSWORD",
     description: "Redis ACL password (when ACL enabled)",
   },
 
-  // > 4.3 — Auth / sessions
+  // §4.3 — Auth / sessions
   {
     name: "JWT_ACCESS_SECRET",
     category: "JWT",
@@ -118,7 +118,7 @@ export const SECRETS_CATALOG: readonly SecretEntry[] = [
     description: "Signed-cookie integrity secret",
   },
 
-  // > 4.4 — Storage (S3)
+  // §4.4 — Storage (S3)
   {
     name: "S3_ACCESS_KEY_ID",
     category: "S3_CREDENTIAL",
@@ -130,26 +130,26 @@ export const SECRETS_CATALOG: readonly SecretEntry[] = [
     description: "S3 / MinIO secret access key",
   },
 
-  // > 5.1 — AI providers
+  // §5.1 — AI providers
   { name: "OPENAI_API_KEY", category: "AI_API_KEY", description: "OpenAI GPT API key" },
   { name: "PERPLEXITY_API_KEY", category: "AI_API_KEY", description: "Perplexity API key" },
   { name: "GEMINI_API_KEY", category: "AI_API_KEY", description: "Google Gemini API key" },
 
-  // > 5.2 — Email
+  // §5.2 — Email
   {
     name: "RESEND_API_KEY",
     category: "EMAIL_API_KEY",
     description: "Resend transactional email API key",
   },
 
-  // > 5.3 — Analytics
+  // §5.3 — Analytics
   {
     name: "GA4_API_SECRET",
     category: "ANALYTICS_API_KEY",
     description: "GA4 Measurement Protocol API secret",
   },
 
-  // > 5.4 — Payment
+  // §5.4 — Payment
   {
     name: "STRIPE_SECRET_KEY",
     category: "PAYMENT_API_KEY",
@@ -171,7 +171,7 @@ export const SECRETS_CATALOG: readonly SecretEntry[] = [
     description: "Paddle webhook signature verification secret",
   },
 
-  // > 5.5 — Provider OAuth client secrets
+  // §5.5 — Provider OAuth client secrets
   {
     name: "FACEBOOK_CLIENT_SECRET",
     category: "OAUTH_PROVIDER",

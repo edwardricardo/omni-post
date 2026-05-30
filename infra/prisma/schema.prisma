@@ -677,7 +677,7 @@ model Post {
   recurringInstances        RecurringPost[]           @relation("RecurringTemplatePost")
   archivedAt                DateTime?                 @db.Timestamptz(6)
   deletedAt                 DateTime?                 @db.Timestamptz(6)
-  // Optimistic Concurrency Control (Azure saga > 15-20). Read by the repository
+  // Optimistic Concurrency Control (Azure saga §15-20). Read by the repository
   // on findById, used as a WHERE-clause guard on update so concurrent writers
   // are rejected with a version conflict. Incremented on every successful
   // mutation. Sagas that traverse Post lifecycle pass `expectedVersion` in

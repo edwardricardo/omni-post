@@ -251,8 +251,9 @@ A non-zero count is FINE — that's the design. A growing count without paired A
 > tripwire blocker hook (`.claude/hooks-py/pre_edit_tripwire_blocker.py`)
 > enforces this list automatically. Edit/Write/MultiEdit that matches any
 > tripwire below is **blocked** unless the assistant message contains a
-> valid `canon-check:` citation, OR `EDWARD_AUTHORIZED_TRIPWIRE=yes` is
-> set in the session (audited in `.claude/heuristic-overrides.log`).
+> valid `canon-check:` citation, OR a `sensitive-edit` token issued by
+> `omnipost-allow sensitive-edit` is active (audited in
+> `.claude/heuristic-overrides.log`).
 
 ### Tripwires (auto-blocked)
 
@@ -287,7 +288,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ### Bypass via authorization token
 
-`omnipost-allow tripwire-override` creates a 15-minute token for emergencies (e.g., production hotfix). All overrides are logged to `.claude/heuristic-overrides.log` and require ADR follow-up within 5 days (same protocol as hotpatch).
+`omnipost-allow sensitive-edit` creates a 15-minute token. The same token gates two surfaces — direct edits to sensitive paths AND tripwire bypass — so the authorization surface is unified. All overrides are logged to `.claude/heuristic-overrides.log` and require ADR follow-up within 5 days (same protocol as hotpatch).
 
 ### How to extend tripwires
 

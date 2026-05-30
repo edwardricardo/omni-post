@@ -158,8 +158,8 @@ export default defineConfig({
       exclude: ["src/**/*.test.ts", "src/**/*.spec.ts", "src/**/index.ts", "src/index.ts"],
       reporter: ["text", "html", "json-summary"],
       reportsDirectory: "./coverage",
-      // > 2.2 (Normalization Roadmap) Phase A — enforced in CI via the
-      // `test:coverage` script. Thresholds are for unit tests only
+      // Coverage thresholds enforced in CI via the `test:coverage` script.
+      // Thresholds are for unit tests only
       // (tests/unit/**); integration tests run via node:test and contribute
       // additional coverage not captured here. Mutation score via Stryker
       // is the primary quality gate.
