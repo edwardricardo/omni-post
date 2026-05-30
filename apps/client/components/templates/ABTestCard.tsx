@@ -1,7 +1,8 @@
 /**
  * @file ABTestCard.tsx
- * @component ABTestCard
  * @description Card component displaying an individual A/B test's status, metrics, variant breakdown, and action controls.
+ * @component ABTestCard
+ * @layer infrastructure
  */
 
 import { useTranslations } from "next-intl";

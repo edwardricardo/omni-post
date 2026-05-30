@@ -4,6 +4,8 @@
  * @file SmartContentOptimizerTone.tsx
  * @description Tone analysis tab for the SmartContentOptimizer, displaying detected
  * tone, confidence score, emotional analysis bars, and tone recommendations.
+ * @component SmartContentOptimizerTone
+ * @layer infrastructure
  */
 
 import React from "react";

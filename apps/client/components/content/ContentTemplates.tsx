@@ -4,6 +4,8 @@
  * @file ContentTemplates.tsx
  * @description Main content templates management component that orchestrates sub-components
  * for template browsing, filtering, automation management, and template variable filling.
+ * @component ContentTemplates
+ * @layer infrastructure
  *
  * Sub-components are located in ./templates/ and handle their own rendering logic:
  * - TemplatesHeader: Title + create buttons

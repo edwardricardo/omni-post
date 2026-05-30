@@ -2,6 +2,7 @@
  * @file types.ts
  * @description TypeScript type definitions for the templates section, including ContentTemplate,
  * AutomationTemplate, tab options, filter options, sort options, and view mode types.
+ * @layer infrastructure
  */
 
 export interface ContentTemplate {

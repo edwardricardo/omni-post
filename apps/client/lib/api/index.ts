@@ -1,6 +1,7 @@
 /**
  * @file index.ts
  * @description Barrel export for the API layer, re-exporting the API client singleton, all TanStack Query hooks, types, and the React context provider.
+ * @layer infrastructure
  */
 
 // API Client exports

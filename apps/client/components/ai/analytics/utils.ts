@@ -3,6 +3,7 @@
  * @description Pure formatting and colour-mapping helpers shared across predictive
  * analytics components, including confidence level colours, number formatting (K/M),
  * and viral-potential badge colours.
+ * @layer infrastructure
  */
 
 export const getConfidenceColor = (confidence: number): string => {

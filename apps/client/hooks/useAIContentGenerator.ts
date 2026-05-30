@@ -3,6 +3,8 @@
  * @description Custom hook encapsulating all state and business logic for the AI content
  * generation workflow: template loading, form data management, generation settings,
  * content generation via the backend AI API, and clipboard operations.
+ * @hook useAIContentGenerator
+ * @layer infrastructure
  */
 
 import { useState, useEffect, useCallback } from "react";

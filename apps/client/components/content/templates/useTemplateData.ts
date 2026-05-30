@@ -2,6 +2,8 @@
  * @file useTemplateData.ts
  * @description Custom hook that fetches content templates from the API via TanStack Query and
  * exposes client-side filtering, sorting, and optimistic local mutation support.
+ * @hook useTemplateData
+ * @layer infrastructure
  */
 
 import { useState, useMemo, useCallback, useRef } from "react";

@@ -2,8 +2,9 @@
 
 /**
  * @file page.tsx
- * @component LoginPage
  * @description Login page with email/password authentication form.
+ * @component LoginPage
+ * @layer infrastructure
  */
 
 import { useActionState } from "react";

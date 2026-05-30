@@ -2,9 +2,10 @@
 
 /**
  * @file SchedulingDashboardCalendar.tsx
- * @component SchedulingDashboardCalendar
  * @description Month view calendar grid for the SchedulingDashboard, including the
  * month navigation header, day-of-week column headers, and per-day post badges.
+ * @component SchedulingDashboardCalendar
+ * @layer infrastructure
  */
 
 import React from "react";

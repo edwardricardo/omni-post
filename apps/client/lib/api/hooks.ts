@@ -3,6 +3,7 @@
 /**
  * @file hooks.ts
  * @description TanStack Query hooks for every API endpoint, providing type-safe data fetching, mutations, cache invalidation, and query keys for posts, projects, providers, channels, analytics, publishing, and AI features.
+ * @layer infrastructure
  */
 
 import {

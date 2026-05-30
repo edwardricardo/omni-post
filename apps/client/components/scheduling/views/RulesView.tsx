@@ -2,9 +2,10 @@
 
 /**
  * @file RulesView.tsx
- * @component RulesView
  * @description Scheduling rules management view that lists and allows editing of automated
  * scheduling rules defining when and how posts are published across platforms.
+ * @component RulesView
+ * @layer infrastructure
  */
 
 import React from "react";

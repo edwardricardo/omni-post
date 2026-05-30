@@ -4,6 +4,8 @@
  * @file AITemplateSelector.tsx
  * @description Grid of selectable AI content templates, highlighting the active
  * selection and allowing users to pick a template to drive the generation workflow.
+ * @component AITemplateSelector
+ * @layer infrastructure
  */
 
 import React from "react";

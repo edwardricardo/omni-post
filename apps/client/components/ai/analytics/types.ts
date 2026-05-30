@@ -3,6 +3,7 @@
  * @description TypeScript interfaces and union types used across the predictive
  * analytics components, including PerformancePrediction, ROIForecast, AudienceInsight,
  * CompetitorAnalysis, AnalysisTab, Timeframe, and PredictiveAnalyticsProps.
+ * @layer infrastructure
  */
 
 export interface PerformancePrediction {

@@ -24,6 +24,7 @@
  *              Pattern reference: TkDodo (TanStack Query maintainer) on
  *              combining server state queries with React Context. TanStack
  *              docs on `refetch()` for explicit re-fetching after errors.
+ * @component ProjectProvider
  * @layer infrastructure
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";

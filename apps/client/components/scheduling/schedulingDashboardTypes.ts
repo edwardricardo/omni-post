@@ -3,6 +3,7 @@
  * @description Type definitions local to the SchedulingDashboard component and its
  * sub-modules. The hook maps the shared ScheduledPost API response (types/scheduling.ts)
  * into these dashboard-specific types for rendering.
+ * @layer infrastructure
  */
 
 // ---------------------------------------------------------------------------

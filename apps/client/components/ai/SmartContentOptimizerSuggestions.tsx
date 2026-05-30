@@ -4,6 +4,8 @@
  * @file SmartContentOptimizerSuggestions.tsx
  * @description Suggestions tab for the SmartContentOptimizer, displaying optimization
  * suggestions with priority badges, expected impact, and apply/dismiss actions.
+ * @component SmartContentOptimizerSuggestions
+ * @layer infrastructure
  */
 
 import React from "react";

@@ -2,6 +2,8 @@
  * @file ROITab.tsx
  * @description Tab panel that renders an ROIForecastCard for each campaign forecast
  * returned by the analytics ROI endpoint.
+ * @component ROITab
+ * @layer infrastructure
  */
 
 import React from "react";

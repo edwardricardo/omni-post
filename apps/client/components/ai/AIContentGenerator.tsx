@@ -5,6 +5,8 @@
  * @description Top-level orchestrator for the AI content generation workflow.
  * Combines template selection, prompt configuration, generation preview,
  * and results display into a tabbed multi-step flow.
+ * @component AIContentGenerator
+ * @layer infrastructure
  *
  * Sub-components: AITemplateSelector, AIPromptForm, AIGenerationPreview, AIContentResults
  * State management: useAIContentGenerator hook

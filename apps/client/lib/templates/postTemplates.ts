@@ -1,6 +1,7 @@
 /**
  * @file postTemplates.ts
  * @description Pre-built social media post templates organized by category (announcement, promotion, engagement, etc.) with variable placeholders and platform targeting.
+ * @layer infrastructure
  */
 
 export interface PostTemplate {

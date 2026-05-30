@@ -4,6 +4,8 @@
  * @file AIContentResults.tsx
  * @description Displays the list of AI-generated content variants with per-item copy,
  * save, and media-type indicators, plus a bulk "save all" and "new generation" action.
+ * @component AIContentResults
+ * @layer infrastructure
  */
 
 import React from "react";

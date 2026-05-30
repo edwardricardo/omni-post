@@ -3,6 +3,7 @@
  * @description Client-side utility functions for AI content generation: character limit color
  * thresholds, engagement score colors, hashtag generation, media suggestions, and platform-specific
  * text optimization with emoji and variation helpers.
+ * @layer infrastructure
  */
 // AI Content Generation Utility Functions
 

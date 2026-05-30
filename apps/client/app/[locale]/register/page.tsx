@@ -2,8 +2,9 @@
 
 /**
  * @file page.tsx
- * @component RegisterPage
  * @description Registration page with email, name, and password form for new users.
+ * @component RegisterPage
+ * @layer infrastructure
  */
 
 import { useActionState } from "react";

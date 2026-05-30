@@ -2,6 +2,7 @@
  * @file ai-content.ts
  * @description TypeScript type definitions for the AI content generation feature: content templates,
  * template variables, generated content shapes, metrics, variations, brand consistency, and settings.
+ * @layer infrastructure
  */
 // AI Content Generation Types
 

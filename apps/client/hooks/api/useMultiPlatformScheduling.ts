@@ -2,6 +2,7 @@
  * @file useMultiPlatformScheduling.ts
  * @description TanStack Query hooks for multi-platform scheduling: fetching available slots,
  * optimal posting times, scheduling rules, and mutations for creating individual or bulk slots.
+ * @layer infrastructure
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type {

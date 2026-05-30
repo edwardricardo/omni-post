@@ -3,6 +3,8 @@
  * @description Custom hook that encapsulates all state management, data loading, filtering,
  * calendar generation, and post management logic for the SchedulingDashboard component.
  * Fetches real data from the backend via the useScheduledPosts API hook.
+ * @hook useSchedulingDashboard
+ * @layer infrastructure
  */
 
 import { useState, useCallback, useEffect, useMemo } from "react";
