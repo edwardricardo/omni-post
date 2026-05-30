@@ -1,14 +1,12 @@
 /**
  * @file dump-openapi-spec.ts
- * @description Bootea `createApp()` en-memoria, dumpea `app.swagger()` a
- *   `/tmp/omnipost-openapi.json`, y cierra. Invocado por
- *   `scripts/generate-api-types.ts` en root via `pnpm --filter @apps/api dump:openapi`.
+ * @description Boots `createApp()` in-memory, dumps `app.swagger()` to
+ *   `/tmp/omnipost-openapi.json`, and exits. Invoked by
+ *   `scripts/generate-api-types.ts` at repo root via `pnpm --filter @apps/api dump:openapi`.
  *
- *   Vive en `apps/api/scripts/` (no en root `scripts/`) para que tsx
- *   resuelva los path aliases del `apps/api/tsconfig.json` (`@core/*`,
+ *   Lives in `apps/api/scripts/` (not the root `scripts/`) so tsx resolves
+ *   the path aliases declared in `apps/api/tsconfig.json` (`@core/*`,
  *   `@adapters/*`, etc.).
- *
- *   Workstream: §3.1 Normalization Roadmap.
  *
  * @layer infrastructure
  */

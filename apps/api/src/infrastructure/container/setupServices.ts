@@ -758,10 +758,10 @@ export function setupServices(
     true
   );
 
-  // Register BruteForceProtectionPort (canon-aligned, single source for
-  // customer + admin login per docs/security/BRUTE_FORCE_HOMOLOGATION_ES.md).
-  // Uses a dedicated Redis connection (commandTimeout: 5s) to fail-open fast
-  // if Redis stalls instead of stalling login. Singleton.
+  // Register BruteForceProtectionPort — single source of brute-force
+  // throttling for both customer and admin login. Uses a dedicated Redis
+  // connection (commandTimeout: 5s) to fail-open fast if Redis stalls,
+  // instead of stalling login. Singleton.
   container.register<BruteForceProtectionPort>(
     TOKENS.BruteForceProtectionPort,
     () => {

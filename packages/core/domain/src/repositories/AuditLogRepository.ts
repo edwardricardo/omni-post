@@ -18,11 +18,10 @@ export interface AuditLogCreateInput {
   /**
    * Account scope for searchability — does NOT enforce isolation.
    *
-   * AuditLog is kept in the tenant-guard denylist (see
-   * `docs/security/MULTI_TENANT_GUARDS.md` > Global-tables-denylist) so admin
-   * compliance flows can read cross-account without `withSystemContext`
-   * wrapping (immutable evidence canon). Customer-facing queries scope per
-   * account via the explicit filter in `findByAccount`.
+   * AuditLog is kept in the tenant-guard denylist so admin compliance flows
+   * can read cross-account without `withSystemContext` wrapping (immutable
+   * evidence canon). Customer-facing queries scope per account via the
+   * explicit filter in `findByAccount`.
    */
   accountId?: string;
   ipAddress?: string;
@@ -104,8 +103,8 @@ export interface AuditLogRepository {
    * responsible for binding the `accountId` from the authenticated
    * `TenantContext`, never from a client-supplied parameter. AuditLog
    * is NOT in `TENANT_SCOPED_MODELS` by canon (immutable evidence outside
-   * RLS, see `docs/security/MULTI_TENANT_GUARDS.md`); this method provides
-   * the explicit account-scoping that the customer flow needs.
+   * RLS); this method provides the explicit account-scoping that the
+   * customer flow needs.
    *
    * @param accountId - The account whose audit trail to fetch
    * @param options - Filtering and pagination (defaults: limit 50, offset 0)

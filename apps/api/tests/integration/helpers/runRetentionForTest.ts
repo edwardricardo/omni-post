@@ -1,14 +1,12 @@
 /**
  * @file runRetentionForTest.ts
- * @description Helper para integration tests de > 4.3 (GDPR + retention). Construye
- *   un `DataRetentionService` con los 4 adapters Prisma reales + un `AuditEmitter`
- *   stub (no necesitamos persistir el audit log del retention cleanup mismo durante
- *   tests). Llama `runRetentionCleanup()` y retorna el resultado.
+ * @description Helper for GDPR + retention integration tests. Builds a
+ *   `DataRetentionService` with the four real Prisma adapters plus a stub
+ *   `AuditEmitter` (we don't need to persist the retention cleanup's own audit
+ *   log during tests). Calls `runRetentionCleanup()` and returns the result.
  *
- *   Aisla la dependencia para que los tests no necesiten construir el
- *   container DI completo de apps/api (con SagaManager, BullMQ, Redis, etc.).
- *
- *   Workstream: §4.3 Normalization Roadmap Phase A1.
+ *   Isolates the dependency so tests don't need to construct the full apps/api
+ *   DI container (with SagaManager, BullMQ, Redis, etc.).
  *
  * @layer infrastructure
  */

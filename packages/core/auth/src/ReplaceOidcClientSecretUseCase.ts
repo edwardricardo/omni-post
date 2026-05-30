@@ -4,7 +4,7 @@
  *              Performs an IdP handshake test against the new secret BEFORE
  *              persisting; if the handshake fails, no DB write happens. The
  *              handshake runs OUTSIDE the UoW (external HTTP); the persistence
- *              runs INSIDE the UoW (canonical CLAUDE.md rule).
+ *              runs INSIDE the UoW so external I/O never blocks a transaction.
  * @layer application
  */
 

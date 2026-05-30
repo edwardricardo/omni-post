@@ -1,18 +1,15 @@
 /**
  * @file chaos-helpers.ts
- * @description Shared helpers para chaos tests (> 4.1 Normalization Roadmap).
- *   Establece el harness mínimo para inyectar fallas controladas en saga
- *   steps + verificar que el recovery scheduler (`startRetryRecoveryChecker`,
- *   poll 5s en runtime) recupera el saga a estado COMPLETED.
+ * @description Shared helpers for chaos tests. Establishes the minimal harness
+ *   to inject controlled failures into saga steps and verify the recovery
+ *   scheduler (`startRetryRecoveryChecker`, polling at 5 s in runtime) drives
+ *   the saga to COMPLETED.
  *
- *   Reusa la infrastructure de unit tests existente (mock Prisma + Redis +
- *   EventService) en `tests/unit/sagaManager.test-helpers.ts`, pero expone
- *   el `NoopBackgroundTaskScheduler` para que los tests puedan manualmente
- *   `triggerTask("saga-retry-recovery")` y simular el tick del scheduler
- *   sin esperar 5s wall-clock por iteración.
- *
- *   Phase A1 establece el patrón. §4.1.b agrega escenarios outbox + BullMQ
- *   stalled. > 4.1.c agrega real-kill-9 chaos. > 4.1.d agrega CI nightly job.
+ *   Reuses the existing unit-test infrastructure (mock Prisma + Redis +
+ *   EventService) from `tests/unit/sagaManager.test-helpers.ts`, but exposes
+ *   the `NoopBackgroundTaskScheduler` so tests can manually
+ *   `triggerTask("saga-retry-recovery")` and simulate the scheduler tick
+ *   without waiting 5 s wall-clock per iteration.
  *
  * @layer infrastructure
  */

@@ -1,26 +1,24 @@
 /**
  * @file saga-step-retry-recovery.test.ts
- * @description Chaos scenario 1 (> 4.1 Normalization Roadmap Phase A1):
- *   un saga step falla transiently — el recovery scheduler retoma el saga
- *   desde el `nextRetryAt` persistido y eventualmente alcanza COMPLETED.
+ * @description Chaos scenario: a saga step fails transiently — the recovery
+ *   scheduler picks up the saga from the persisted `nextRetryAt` and eventually
+ *   reaches COMPLETED.
  *
- *   Esto valida la invariante: **un crash del proceso entre intentos de un
- *   step retryable no debe perder el saga**. El test simula el crash con
- *   un step que falla N veces (no "proceso muerto") + dispara manualmente
- *   el recovery scheduler para evitar wait wall-clock de 5s por iteración.
+ *   Validates the invariant: **a process crash between attempts of a retryable
+ *   step must not lose the saga**. The test simulates the crash with a step
+ *   that fails N times (not by killing the process) and triggers the recovery
+ *   scheduler manually to avoid a 5 s wall-clock wait per iteration.
  *
- *   La invariante real depende de TRES propiedades del saga engine:
- *   1. `nextRetryAt` se persiste al `SagaInstance` cuando un retryable
- *      step falla con retry policy en scope.
- *   2. `startRetryRecoveryChecker` (`SagaManagerLifecycle.ts:380-408`)
- *      poll-ea sagas con `status=RUNNING` y `nextRetryAt <= now`.
- *   3. `executionEngine.executeSagaAsync(sagaId)` retoma el saga desde el
- *      step actual usando la `compensationData` previa.
+ *   The invariant depends on THREE properties of the saga engine:
+ *   1. `nextRetryAt` is persisted onto the `SagaInstance` when a retryable
+ *      step fails with a retry policy in scope.
+ *   2. `startRetryRecoveryChecker` (`SagaManagerLifecycle.ts:380-408`) polls
+ *      sagas with `status=RUNNING` and `nextRetryAt <= now`.
+ *   3. `executionEngine.executeSagaAsync(sagaId)` resumes the saga from the
+ *      current step using the prior `compensationData`.
  *
- *   Si CUALQUIERA de las 3 se rompe → este test falla → tenemos data
- *   loss potencial entre crashes.
- *
- *   Workstream: §4.1 Normalization Roadmap Phase A1.
+ *   If ANY of the three breaks → this test fails → potential data loss between
+ *   crashes.
  *
  * @layer infrastructure
  */

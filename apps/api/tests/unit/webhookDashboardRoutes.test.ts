@@ -660,8 +660,7 @@ describe("webhookDashboardRoutes", () => {
   });
 
   describe("GET /api/webhooks/dashboard/stream", () => {
-    // SSE connection test moved to integration — requires real HTTP, not inject()
-    // See: docs/development/TESTING_BACKLOG.md
+    // SSE connection test moved to integration — requires real HTTP, not inject().
 
     it("should reject SSE without authentication", async () => {
       const response = await app.inject({

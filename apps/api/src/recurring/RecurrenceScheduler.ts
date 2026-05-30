@@ -1,7 +1,7 @@
 /**
  * @file RecurrenceScheduler.ts
  * @description Wires the recurring-post pipeline into the API process via
- *              `BackgroundTaskScheduler` (canon CLAUDE.md). On each tick:
+ *              `BackgroundTaskScheduler`. On each tick:
  *              (1) ProcessRecurrenceUseCase advances every recurrence whose
  *              `nextScheduledAt <= now`, (2) for each due result, this
  *              service invokes CreatePostFromRecurrenceUseCase to clone +

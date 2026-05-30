@@ -12,10 +12,6 @@
  *   - The fail-loud error classes (so non-apps/api consumers can catch)
  *   - The extension factory itself
  *
- *   Companion docs:
- *   - `docs/security/MULTI_TENANT_GUARDS.md` — 3-layer strategy + table
- *     classification + runbooks.
- *
  *   ## Decision matrix
  *
  *   | Context state            | Model in denylist | Model tenant-scoped | Behavior                                          |

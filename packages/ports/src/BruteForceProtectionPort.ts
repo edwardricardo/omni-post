@@ -24,9 +24,8 @@
  *   References:
  *   - NIST SP 800-63B-4 > Rate Limiting — verifier SHALL implement per-account
  *     limit, prefers throttling over hard lockout.
- *   - OWASP Auth Cheat Sheet > Account Lockout — counter per CUENTA not IP;
+ *   - OWASP Auth Cheat Sheet > Account Lockout — counter per account not IP;
  *     auto-expiry; CAPTCHA after few failures; MFA is defense #1.
- *   - Design doc: `docs/security/BRUTE_FORCE_HOMOLOGATION_ES.md`.
  * @layer domain
  */
 

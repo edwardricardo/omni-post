@@ -52,7 +52,7 @@ export default defineConfig({
     include: ["tests/**/*.test.ts"],
     pool: "forks",
     // Loads `.env.test` from repo root before any test's transitive Zod env
-    // validation kicks in. See `docs/architecture/secrets-and-env.md`.
+    // validation kicks in.
     setupFiles: ["./tests/setup-env.ts"],
   },
 });

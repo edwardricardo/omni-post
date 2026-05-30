@@ -66,7 +66,7 @@ export type AgentRunOutcome<TState> =
       readonly trajectory: AgentTrajectory;
     };
 
-/** Failure modes are data, never thrown (CLAUDE.md: Result across boundaries). */
+/** Failure modes are data, never thrown — callers always receive a Result across the port boundary. */
 export type AgentOrchestrationError =
   | "GRAPH_NOT_FOUND"
   | "MAX_STEPS_EXCEEDED"

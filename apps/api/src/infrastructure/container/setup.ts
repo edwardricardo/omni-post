@@ -57,8 +57,7 @@ export function setupContainer(options: ContainerSetupOptions): Container {
   // guarded instance; scripts/migrations that import `prisma` directly
   // from `@infra/prisma` get the unwrapped client. The extension reads
   // tenant + system context via the AsyncLocalStorage holders in
-  // `apps/api/src/security/tenantContext.ts` — see
-  // `docs/security/MULTI_TENANT_GUARDS.md`.
+  // `apps/api/src/security/tenantContext.ts`.
   const guardedPrisma = options.prisma.$extends(
     tenantGuardExtension({ getTenantContext, getSystemContext })
   ) as unknown as PrismaClient;
