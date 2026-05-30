@@ -22,6 +22,11 @@ import {
 
 export interface DetectTrendsInput {
   accountId: string;
+  /** Calendar day bucket (YYYY-MM-DD UTC) computed once by the caller
+   * (DispatchDetectTrendsUseCase). Propagated to the result port so the
+   * unique constraint `(accountId, dayKey, topic)` deduplicates results
+   * even when the detection run crosses midnight. */
+  dayKey: string;
   sources?: TrendSource[];
   limit?: number;
 }
@@ -101,6 +106,7 @@ export class DetectTrendsUseCase implements UseCase<
       const fetchedAt = new Date();
       const persistResult = await this.resultPort.upsert({
         accountId: input.accountId,
+        dayKey: input.dayKey,
         fetchedAt,
         trends: rows,
       });

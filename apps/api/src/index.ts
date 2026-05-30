@@ -1016,7 +1016,7 @@ async function start() {
     await trendRadarConsumer.subscribe(async (job) => {
       await processTrendRadarJob(
         { detect: detectTrendsUseCase, logger },
-        job.payload as { accountId: string }
+        job.payload as { accountId: string; dayKey: string }
       );
     });
     logger.info("TREND_RADAR consumer started");

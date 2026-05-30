@@ -3485,6 +3485,12 @@ enum MessagePriority {
 model TrendRadarResult {
   id             String       @id @default(cuid())
   accountId      String
+  /// Calendar day bucket the trend belongs to, formatted YYYY-MM-DD in UTC.
+  /// Computed once upstream (DispatchDetectTrendsUseCase) and propagated
+  /// through the pipeline so jobs crossing midnight don't generate a second
+  /// row in the next day's bucket. Backs the unique constraint that closes
+  /// the find-then-create TOCTOU window.
+  dayKey         String
   topic          String
   platform       Provider
   /// Provenance: which data source surfaced this trend (web search, own
@@ -3502,8 +3508,8 @@ model TrendRadarResult {
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
+  @@unique([accountId, dayKey, topic])
   @@index([accountId, expiresAt])
-  @@index([accountId, topic, fetchedAt])
 }
 
 enum TrendUrgency {

@@ -152,7 +152,7 @@ describe("trajectory eval — trends slice", () => {
     const scoreUseCase = new ScoreTrendRelevanceUseCase(ai, trendScoringSpec, contextPort);
     const detect = new DetectTrendsUseCase(fetchUseCase, scoreUseCase, result.port);
 
-    const out = await detect.execute({ accountId: "acc-1" });
+    const out = await detect.execute({ accountId: "acc-1", dayKey: "2026-05-30" });
     expect(out.ok).toBe(true);
     expect(stageOrder).toEqual(EXPECTED_PIPELINE);
   });
@@ -174,7 +174,7 @@ describe("trajectory eval — trends slice", () => {
     const scoreUseCase = new ScoreTrendRelevanceUseCase(ai, trendScoringSpec, contextPort);
     const detect = new DetectTrendsUseCase(fetchUseCase, scoreUseCase, result.port);
 
-    await detect.execute({ accountId: "acc-1" });
+    await detect.execute({ accountId: "acc-1", dayKey: "2026-05-30" });
 
     const invocations = generateStructured.mock.calls.length;
     expect(
@@ -201,7 +201,7 @@ describe("trajectory eval — trends slice", () => {
     const scoreUseCase = new ScoreTrendRelevanceUseCase(ai, trendScoringSpec, contextPort);
     const detect = new DetectTrendsUseCase(fetchUseCase, scoreUseCase, result.port);
 
-    const out = await detect.execute({ accountId: "acc-1" });
+    const out = await detect.execute({ accountId: "acc-1", dayKey: "2026-05-30" });
 
     expect(out.ok).toBe(true);
     if (out.ok) {
@@ -224,7 +224,7 @@ describe("trajectory eval — trends slice", () => {
     const scoreUseCase = new ScoreTrendRelevanceUseCase(ai, trendScoringSpec, contextPort);
     const detect = new DetectTrendsUseCase(fetchUseCase, scoreUseCase, result.port);
 
-    const out = await detect.execute({ accountId: "acc-empty" });
+    const out = await detect.execute({ accountId: "acc-empty", dayKey: "2026-05-30" });
 
     expect(out.ok).toBe(true);
     expect(generateStructured.mock.calls.length).toBe(0);
@@ -246,7 +246,7 @@ describe("trajectory eval — trends slice", () => {
     const scoreUseCase = new ScoreTrendRelevanceUseCase(ai, trendScoringSpec, contextPort);
     const detect = new DetectTrendsUseCase(fetchUseCase, scoreUseCase, result.port);
 
-    await detect.execute({ accountId: "acc-1" });
+    await detect.execute({ accountId: "acc-1", dayKey: "2026-05-30" });
 
     const sources = result.captured[0]?.trends.map((t) => t.source).sort() ?? [];
     expect(sources).toEqual(["ACCOUNT_ANALYTICS", "PERPLEXITY_WEB"]);
