@@ -42,8 +42,7 @@ export function useNotificationsList(
  * @hook useNotificationsUnreadCount
  * @description Fetches the user's unread notification count. Refreshes
  *              every ~30s via the canon staleTime; coordinated with
- *              SSE-driven cache writes via `notificationsQueries.unreadCount()`
- *              (future work).
+ *              SSE-driven cache writes via `notificationsQueries.unreadCount()`.
  */
 export function useNotificationsUnreadCount(): UseQueryResult<number, Error> {
   return useQuery(notificationsQueries.unreadCount());

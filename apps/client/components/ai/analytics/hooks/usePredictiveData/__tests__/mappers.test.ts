@@ -4,7 +4,7 @@
  *              backend use-case outputs (verified live: /analytics/roi,
  *              /analytics/cross-platform, /ai/predict-timing) into the card prop
  *              shapes. Fixtures mirror the actual API payloads so the cards render
- *              real data once the endpoints are wired (B4).
+ *              real data once the endpoints are wired.
  * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";

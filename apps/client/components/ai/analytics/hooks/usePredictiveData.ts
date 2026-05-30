@@ -38,8 +38,7 @@ const STALE_TIME_MS = 5 * 60 * 1000;
 
 /**
  * Throws an explicit error when a predictive-analytics endpoint comes
- * back non-2xx or with `ok: false`. Callers prefer this over the
- * legacy `try/catch → null` pattern so the hook's `error` field
+ * back non-2xx or with `ok: false`, so the hook's `error` field
  * accurately reflects the unavailability of the feature instead of
  * silently degrading to empty data.
  */

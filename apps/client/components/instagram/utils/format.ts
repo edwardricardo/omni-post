@@ -2,8 +2,6 @@
  * @file format.ts
  * @description Shared formatting helpers for Instagram media UI: time
  *              (mm:ss), file size (KB / MB), duration (mm:ss padded).
- *              Consolidates formatters that previously lived inline in
- *              both MediaUploadZone and VideoSplitPreview.
  * @layer infrastructure
  */
 

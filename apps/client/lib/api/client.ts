@@ -3,11 +3,11 @@
  * @description Facade for the client app's API surface. Composes 9 per-domain
  *              clients (Health, Projects, Posts, Providers, Channels,
  *              Analytics, Publishing, Uploads, AI) and exposes a single
- *              `apiClient` instance that preserves the legacy flat method
- *              shape — callers continue to call `apiClient.getPosts()`
- *              without knowing the underlying split. All requests route
- *              through the Next.js proxy (`/api/backend`) so authentication
- *              is handled via httpOnly cookies — no tokens in browser storage.
+ *              `apiClient` instance with a flat method shape — callers call
+ *              `apiClient.getPosts()` without knowing the underlying split.
+ *              All requests route through the Next.js proxy (`/api/backend`)
+ *              so authentication is handled via httpOnly cookies — no tokens
+ *              in browser storage.
  * @layer infrastructure
  */
 

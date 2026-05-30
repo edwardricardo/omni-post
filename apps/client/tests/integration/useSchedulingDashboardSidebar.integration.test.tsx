@@ -25,11 +25,10 @@ import { server } from "../mocks/server";
 const PROXY = "/api/backend";
 
 // MSW lifecycle scoped to THIS file. Per-test-file rather than global
-// (vitest setupFiles) so legacy tests using vi.stubGlobal('fetch') keep
+// (vitest setupFiles) so tests using vi.stubGlobal('fetch') keep
 // working — MSW intercepts at the http/undici level, below the fetch
 // global, so a global listen() with onUnhandledRequest: 'error' breaks
-// any test that didn't declare handlers. Migration is incremental: each
-// test that adopts MSW wires its own lifecycle. Strict 'error' is
+// any test that didn't declare handlers. Strict 'error' is
 // preserved within this file's scope.
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => server.resetHandlers());

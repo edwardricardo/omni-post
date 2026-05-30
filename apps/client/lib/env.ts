@@ -23,9 +23,8 @@ export const env = createEnv({
      */
     API_URL: urlString.default("http://localhost:3000"),
     /**
-     * Alternative API base URL — currently aliased to API_URL but kept as a
-     * separate key because some routes reference `process.env.API_BASE_URL`
-     * (preserved during migration). Future cleanup may consolidate.
+     * Alternative API base URL — aliased to API_URL. Kept as a separate key
+     * because some routes reference `process.env.API_BASE_URL`.
      */
     API_BASE_URL: urlString.default("http://localhost:3000"),
     SENTRY_DSN: z.string().optional(),
