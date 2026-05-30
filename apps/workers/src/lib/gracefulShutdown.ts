@@ -39,9 +39,13 @@ export interface RegisterGracefulShutdownOptions {
 }
 
 /**
- * Register `SIGTERM` and `SIGINT` handlers that drain the worker cleanly.
- * Safe to call once per worker process; duplicate signals during shutdown
- * are no-ops (the second one will not double-close anything).
+ * @function registerGracefulShutdown
+ * @description Register `SIGTERM` and `SIGINT` handlers that drain the worker
+ *              cleanly. Safe to call once per worker process; duplicate
+ *              signals during shutdown are no-ops (the second one will not
+ *              double-close anything).
+ * @param options - Worker name, shutdown target (workers/queues/connections/prisma),
+ *                  and logger sink.
  */
 export function registerGracefulShutdown(options: RegisterGracefulShutdownOptions): void {
   const { name, target, logger } = options;

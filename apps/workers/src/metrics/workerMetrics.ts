@@ -261,7 +261,12 @@ export class WorkerMetrics {
     this.metrics.workerHealth.set(1);
   }
 
-  // Correlation ID management for request tracking
+  /**
+   * @method generateCorrelationId
+   * @description Mint a correlation UUID for a dedupe key and track it as in-flight.
+   * @param dedupeKey - Job-level dedupe key used as the lookup index.
+   * @returns The generated correlation UUID.
+   */
   generateCorrelationId(dedupeKey: string): string {
     const correlationId = uuidv4();
     this.correlationIds.set(dedupeKey, correlationId);
@@ -269,17 +274,33 @@ export class WorkerMetrics {
     return correlationId;
   }
 
+  /**
+   * @method getCorrelationId
+   * @description Look up the correlation UUID previously minted for a dedupe key.
+   * @param dedupeKey - Job-level dedupe key.
+   * @returns The correlation UUID, or undefined when none is registered.
+   */
   getCorrelationId(dedupeKey: string): string | undefined {
     return this.correlationIds.get(dedupeKey);
   }
 
+  /**
+   * @method removeCorrelationId
+   * @description Drop the correlation entry for a dedupe key and decrement the
+   *              in-flight gauge.
+   * @param dedupeKey - Job-level dedupe key.
+   */
   removeCorrelationId(dedupeKey: string): void {
     if (this.correlationIds.delete(dedupeKey)) {
       this.metrics.correlationTracker.dec();
     }
   }
 
-  // Helper methods for common metric operations
+  /**
+   * @method recordJobStart
+   * @description Increment the active-jobs gauge and start a duration timer.
+   * @returns A finalizer that decrements the gauge and stops the timer.
+   */
   recordJobStart(): () => void {
     this.metrics.jobsActive.inc();
     const timer = this.metrics.jobProcessingDuration.startTimer();
@@ -290,6 +311,13 @@ export class WorkerMetrics {
     };
   }
 
+  /**
+   * @method recordThreadStart
+   * @description Increment the in-progress thread gauge and start a thread
+   *              duration timer scoped to a provider.
+   * @param provider - Provider label for the thread metric.
+   * @returns A finalizer that decrements the gauge and stops the timer.
+   */
   recordThreadStart(provider: string): () => void {
     this.metrics.threadsInProgress.inc({ provider });
     const timer = this.metrics.threadDuration.startTimer();
@@ -300,6 +328,14 @@ export class WorkerMetrics {
     };
   }
 
+  /**
+   * @method recordError
+   * @description Increment the errors-by-type counter with component, type, and
+   *              recoverability labels.
+   * @param component - Component reporting the error (e.g. "publisher", "renderer").
+   * @param errorType - Short error classification label.
+   * @param isRecoverable - True when the worker can retry the operation.
+   */
   recordError(component: string, errorType: string, isRecoverable: boolean): void {
     this.metrics.errorsByType.inc({
       component,
@@ -308,15 +344,32 @@ export class WorkerMetrics {
     });
   }
 
+  /**
+   * @method recordRetry
+   * @description Increment the retry-attempts counter for a component + reason.
+   * @param component - Component performing the retry.
+   * @param reason - Short reason label.
+   */
   recordRetry(component: string, reason: string): void {
     this.metrics.retryAttempts.inc({ component, retry_reason: reason });
   }
 
+  /**
+   * @method recordCircuitBreakerTrip
+   * @description Increment the circuit-breaker trip counter for a component.
+   * @param component - Component owning the breaker.
+   * @param breakerName - Identifier of the tripped breaker.
+   */
   recordCircuitBreakerTrip(component: string, breakerName: string): void {
     this.metrics.circuitBreakerTrips.inc({ component, breaker_name: breakerName });
   }
 
-  // Thread-specific helpers
+  /**
+   * @method getTweetCountRange
+   * @description Bucket a tweet count into a histogram-friendly range label.
+   * @param count - Number of tweets in the thread.
+   * @returns A range label such as "1-2", "3-5", "6-10", "11-20", or "20+".
+   */
   getTweetCountRange(count: number): string {
     if (count <= 2) return "1-2";
     if (count <= 5) return "3-5";
@@ -325,38 +378,70 @@ export class WorkerMetrics {
     return "20+";
   }
 
-  // Business SLO metric helpers
+  /**
+   * @method recordPostPublished
+   * @description Increment the SLO counter for posts successfully published.
+   */
   recordPostPublished(): void {
     this.metrics.postsPublishedTotal.inc();
   }
 
+  /**
+   * @method recordPostPublishFailed
+   * @description Increment the SLO counter for failed publish attempts.
+   */
   recordPostPublishFailed(): void {
     this.metrics.postsPublishFailedTotal.inc();
   }
 
+  /**
+   * @method recordProviderPublishSuccess
+   * @description Increment the per-provider success counter.
+   * @param provider - Provider label.
+   */
   recordProviderPublishSuccess(provider: string): void {
     this.metrics.providerPublishSuccessTotal.inc({ provider });
   }
 
+  /**
+   * @method recordProviderPublishFailure
+   * @description Increment the per-provider failure counter.
+   * @param provider - Provider label.
+   */
   recordProviderPublishFailure(provider: string): void {
     this.metrics.providerPublishFailureTotal.inc({ provider });
   }
 
-  // Health status management
+  /**
+   * @method setHealthy
+   * @description Flip the worker-health gauge to 1.
+   */
   setHealthy(): void {
     this.metrics.workerHealth.set(1);
   }
 
+  /**
+   * @method setUnhealthy
+   * @description Flip the worker-health gauge to 0.
+   */
   setUnhealthy(): void {
     this.metrics.workerHealth.set(0);
   }
 
-  // Queue depth monitoring (to be called periodically)
+  /**
+   * @method updateQueueDepth
+   * @description Set the queue-depth gauge to the observed waiting-job count.
+   * @param depth - Current number of jobs waiting in the queue.
+   */
   updateQueueDepth(depth: number): void {
     this.metrics.queueDepth.set(depth);
   }
 
-  // Get registry for HTTP endpoint
+  /**
+   * @method getRegistry
+   * @description Expose the prom-client registry for the metrics HTTP endpoint.
+   * @returns The underlying prom-client Registry.
+   */
   getRegistry(): client.Registry {
     return this.registry;
   }

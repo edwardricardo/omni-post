@@ -111,6 +111,20 @@ export class PublishHandler {
     }
   }
 
+  /**
+   * @method publishSinglePost
+   * @description Publish a single rendered post through a provider adapter,
+   *              logging the outcome, updating metrics, and optionally notifying
+   *              the saga orchestrator.
+   * @param postId - Aggregate identifier of the post being published.
+   * @param channelId - Destination channel.
+   * @param dedupeKey - Stable key used for idempotency and correlation tracking.
+   * @param rendered - Provider-rendered post payload.
+   * @param providerName - Provider key matching the registry entry.
+   * @param provider - Resolved provider adapter implementation.
+   * @param sagaId - Optional saga identifier for orchestration callbacks.
+   * @returns The provider's publish receipt.
+   */
   async publishSinglePost(
     postId: string,
     channelId: string,
@@ -298,6 +312,22 @@ export class PublishHandler {
     )) as PublishReceipt;
   }
 
+  /**
+   * @method publishThreadPost
+   * @description Publish a thread (multi-tweet) post: create the thread + tweet
+   *              records, invoke the provider's `publishThread`, update tweet
+   *              statuses with provider IDs, log the receipt, and emit thread
+   *              metrics. Returns void when the thread is already fully
+   *              published (idempotent re-entry).
+   * @param postId - Aggregate identifier of the post being threaded.
+   * @param channelId - Destination channel.
+   * @param dedupeKey - Stable key used for idempotency and correlation tracking.
+   * @param threadPlan - Strategy + ordered tweet fragments to publish.
+   * @param providerName - Provider key matching the registry entry.
+   * @param provider - Resolved provider adapter (must implement `publishThread`).
+   * @param sagaId - Optional saga identifier for orchestration callbacks.
+   * @returns The thread receipt, or void if the thread was already complete.
+   */
   async publishThreadPost(
     postId: string,
     channelId: string,
@@ -560,6 +590,14 @@ export class PublishHandler {
     return publishResult.value;
   }
 
+  /**
+   * @method handleJob
+   * @description Entry point for a BullMQ publish job. Resolves the provider,
+   *              short-circuits on prior OK logs (idempotency), loads + renders
+   *              the post, and dispatches to single or thread publishing.
+   *              Rethrows on failure so BullMQ applies its retry policy.
+   * @param job - Job payload from BullMQ with post/channel/provider hints.
+   */
   async handleJob(job: PublishJobInput): Promise<void> {
     const finishJob = this.workerMetrics.recordJobStart();
     const { postId, channelId } = job.payload;

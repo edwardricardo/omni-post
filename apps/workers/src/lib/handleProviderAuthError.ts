@@ -14,9 +14,15 @@
 import type { ChannelAuthFailureRecorder } from "../services/ChannelAuthFailureRecorder.js";
 
 /**
- * Record the auth failure and throw. Returns `never` — the throw is the
- * post-condition. Recorder errors propagate (deliberate: if we cannot
- * persist the state, surfacing the failure beats silent swallowing).
+ * @function handleProviderAuthError
+ * @description Record the auth failure and throw. Returns `never` — the throw
+ *              is the post-condition. Recorder errors propagate (deliberate:
+ *              if we cannot persist the state, surfacing the failure beats
+ *              silent swallowing).
+ * @param recorder - Persists the channel auth-failure state + outbox event.
+ * @param channelId - Channel whose call returned AUTH.
+ * @param provider - Provider key for the failing channel.
+ * @param context - Short context label that explains where the auth check fired.
  */
 export async function handleProviderAuthError(
   recorder: ChannelAuthFailureRecorder,

@@ -183,7 +183,14 @@ async function persistMention(
   return result.value.isNew ? "created" : "skipped";
 }
 
-/** Attribute a mention to the first tracked term whose text appears in its body. */
+/**
+ * @function matchTrackedTermId
+ * @description Attribute a mention to the first tracked term whose text appears
+ *              in its body (case-insensitive substring match).
+ * @param body - Mention body text.
+ * @param terms - Tracked terms to test against.
+ * @returns The matching term id, or undefined when no term matches.
+ */
 export function matchTrackedTermId(body: string, terms: TrackedTermPayload[]): string | undefined {
   const lowerBody = body.toLowerCase();
   const matched = terms.find((t) => lowerBody.includes(t.term.toLowerCase()));
