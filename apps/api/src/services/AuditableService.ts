@@ -290,6 +290,7 @@ export abstract class AuditableService extends BaseService {
         ...(entry.resourceType && { resource: entry.resourceType }),
         ...(entry.resourceId && { resourceId: entry.resourceId }),
         ...(entry.userId && { userId: entry.userId }),
+        ...(entry.accountId && { accountId: entry.accountId }),
         ...(entry.ipAddress && { ipAddress: entry.ipAddress }),
         ...(entry.userAgent && { userAgent: entry.userAgent }),
       });
@@ -415,8 +416,7 @@ export abstract class AuditableService extends BaseService {
   }
 
   /**
-   * Query audit logs for a resource
-   * Note: Since accountId is not in schema, query by resource/resourceId
+   * Query audit logs for a resource.
    */
   protected async getResourceAuditLogs(
     resource: string,
@@ -430,5 +430,24 @@ export abstract class AuditableService extends BaseService {
     }
   ) {
     return this.auditLog.findByResource(resource, resourceId, options);
+  }
+
+  /**
+   * Query audit logs scoped to an account. Customer-facing flow — the caller
+   * binds `accountId` from the authenticated `TenantContext`. Admin
+   * compliance reads use `findByUser` / `findByResource` without account
+   * filter (AuditLog stays outside RLS by canon — immutable evidence).
+   */
+  protected async getAccountAuditLogs(
+    accountId: string,
+    options?: {
+      limit?: number;
+      offset?: number;
+      action?: string;
+      startDate?: Date;
+      endDate?: Date;
+    }
+  ) {
+    return this.auditLog.findByAccount(accountId, options);
   }
 }
