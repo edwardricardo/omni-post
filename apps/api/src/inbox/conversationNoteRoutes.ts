@@ -80,7 +80,7 @@ class ConversationNoteRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid conversation ID format");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -114,14 +114,14 @@ class ConversationNoteRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request body: body (1-5000 chars) is required");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
 
-    const authorId = user.id ?? "system";
-    const authorName = user.name ?? "Unknown";
-    const accountId = user.accountId ?? "";
+    const authorId = user.id;
+    const authorName = user.roleName;
+    const accountId = user.accountId;
 
     const result = await this.addConversationNoteUseCase.execute({
       conversationId: paramsValidation.value.id,
@@ -151,12 +151,12 @@ class ConversationNoteRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid conversation or note ID format");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
 
-    const authorId = user.id ?? "system";
+    const authorId = user.id;
 
     const result = await this.deleteConversationNoteUseCase.execute({
       noteId: paramsValidation.value.noteId,

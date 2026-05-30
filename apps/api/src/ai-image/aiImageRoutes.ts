@@ -67,7 +67,7 @@ class AIImageRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request body");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -111,7 +111,7 @@ class AIImageRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "projectId query parameter is required");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }

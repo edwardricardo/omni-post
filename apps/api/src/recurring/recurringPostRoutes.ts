@@ -84,7 +84,7 @@ class RecurringPostRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request body");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -126,7 +126,7 @@ class RecurringPostRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Missing or invalid projectId query parameter");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -157,7 +157,7 @@ class RecurringPostRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid recurring post ID");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -200,7 +200,7 @@ class RecurringPostRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request body");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -248,7 +248,7 @@ class RecurringPostRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid recurring post ID");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }

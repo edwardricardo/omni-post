@@ -105,7 +105,7 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
       schema: { tags: ["Zapier"], summary: "List active Zapier API keys" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const accountId = request.user?.accountId;
+      const accountId = request.customerUser?.accountId;
       if (!accountId) {
         return reply.code(400).send({ error: "Account ID required" });
       }
@@ -126,7 +126,7 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
       schema: { tags: ["Zapier"], summary: "Generate a new Zapier API key" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const accountId = request.user?.accountId;
+      const accountId = request.customerUser?.accountId;
       if (!accountId) {
         return reply.code(400).send({ error: "Account ID required" });
       }
@@ -158,7 +158,7 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
       schema: { tags: ["Zapier"], summary: "Revoke a Zapier API key" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const accountId = request.user?.accountId;
+      const accountId = request.customerUser?.accountId;
       if (!accountId) {
         return reply.code(400).send({ error: "Account ID required" });
       }
@@ -195,7 +195,7 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
       schema: { tags: ["Zapier"], summary: "Subscribe to a Zapier trigger event" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const accountId = request.user?.accountId;
+      const accountId = request.customerUser?.accountId;
       if (!accountId) {
         return reply.code(400).send({ error: "Account ID required" });
       }
@@ -230,7 +230,7 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
       schema: { tags: ["Zapier"], summary: "Unsubscribe from a Zapier trigger event" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const accountId = request.user?.accountId;
+      const accountId = request.customerUser?.accountId;
       if (!accountId) {
         return reply.code(400).send({ error: "Account ID required" });
       }
@@ -346,7 +346,7 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
       schema: { tags: ["Zapier"], summary: "Poll last 25 published posts" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const accountId = request.user?.accountId;
+      const accountId = request.customerUser?.accountId;
       if (!accountId) {
         return reply.code(400).send({ error: "Account ID required" });
       }

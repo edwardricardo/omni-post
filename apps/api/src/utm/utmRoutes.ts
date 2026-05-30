@@ -82,7 +82,7 @@ class UTMRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request body");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -117,7 +117,7 @@ class UTMRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid link ID format");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }

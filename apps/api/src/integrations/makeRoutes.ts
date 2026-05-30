@@ -108,7 +108,7 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
       schema: { tags: ["Make"], summary: "List active Make API keys" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const accountId = request.user?.accountId;
+      const accountId = request.customerUser?.accountId;
       if (!accountId) {
         return reply.code(400).send({ error: "Account ID required" });
       }
@@ -131,7 +131,7 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
       schema: { tags: ["Make"], summary: "Generate a new Make API key" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const accountId = request.user?.accountId;
+      const accountId = request.customerUser?.accountId;
       if (!accountId) {
         return reply.code(400).send({ error: "Account ID required" });
       }
@@ -163,7 +163,7 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
       schema: { tags: ["Make"], summary: "Revoke a Make API key" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const accountId = request.user?.accountId;
+      const accountId = request.customerUser?.accountId;
       if (!accountId) {
         return reply.code(400).send({ error: "Account ID required" });
       }
@@ -200,7 +200,7 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
       schema: { tags: ["Make"], summary: "Subscribe to a Make trigger event" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const accountId = request.user?.accountId;
+      const accountId = request.customerUser?.accountId;
       if (!accountId) {
         return reply.code(400).send({ error: "Account ID required" });
       }
@@ -235,7 +235,7 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
       schema: { tags: ["Make"], summary: "Unsubscribe from a Make trigger event" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const accountId = request.user?.accountId;
+      const accountId = request.customerUser?.accountId;
       if (!accountId) {
         return reply.code(400).send({ error: "Account ID required" });
       }
@@ -351,7 +351,7 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
       schema: { tags: ["Make"], summary: "Poll last 25 published posts" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const accountId = request.user?.accountId;
+      const accountId = request.customerUser?.accountId;
       if (!accountId) {
         return reply.code(400).send({ error: "Account ID required" });
       }
