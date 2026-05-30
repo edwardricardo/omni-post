@@ -161,6 +161,7 @@ export const TOKENS = {
   AnalyticsStreamBroadcaster: Symbol.for("AnalyticsStreamBroadcaster"),
   RealtimeAnalyticsService: Symbol.for("RealtimeAnalyticsService"),
   StreamConnectionTracker: Symbol.for("StreamConnectionTracker"),
+  BruteForceProtectionPort: Symbol.for("BruteForceProtectionPort"),
 
   // ML Use Cases (B0-2 — DI violation fix in ai/routes.ts)
   OptimizeContentUseCase: Symbol.for("OptimizeContentUseCase"),

@@ -107,6 +107,8 @@ import { UpcasterChain } from "../integration-events/EventUpcaster.js";
 import { NotificationBroadcaster } from "../../services/NotificationBroadcaster.js";
 import { AnalyticsStreamBroadcaster } from "../../services/AnalyticsStreamBroadcaster.js";
 import { StreamConnectionTracker } from "../../services/StreamConnectionTracker.js";
+import { RedisBruteForceAdapter } from "../adapters/RedisBruteForceAdapter.js";
+import type { BruteForceProtectionPort } from "@ports/core";
 import { RealtimeAnalyticsService } from "../../analytics/realtimeAnalytics.js";
 import { GA4TrackingAdapter } from "../adapters/GA4TrackingAdapter.js";
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
@@ -749,6 +751,26 @@ export function setupServices(
   container.register<StreamConnectionTracker>(
     TOKENS.StreamConnectionTracker,
     () => new StreamConnectionTracker(env.MAX_STREAMS_PER_ACCOUNT),
+    true
+  );
+
+  // Register BruteForceProtectionPort (canon-aligned, single source for
+  // customer + admin login per docs/security/BRUTE_FORCE_HOMOLOGATION_ES.md).
+  // Uses a dedicated Redis connection (commandTimeout: 5s) to fail-open fast
+  // if Redis stalls instead of stalling login. Singleton.
+  container.register<BruteForceProtectionPort>(
+    TOKENS.BruteForceProtectionPort,
+    () => {
+      const redis = createRedisConnection();
+      redis.on("error", () => {
+        // Errors surface via the adapter's fail-open path (logged + metric).
+      });
+      return new RedisBruteForceAdapter(
+        redis,
+        container.resolve<AuditService>(TOKENS.AuditService),
+        {} as ApiMetrics
+      );
+    },
     true
   );
 
