@@ -46,7 +46,15 @@ export interface BillingEventRepository {
    */
   upsertNew(input: BillingEventUpsert): Promise<Result<{ id: string }, BillingEventStoreError>>;
 
-  markProcessed(id: string): Promise<Result<void, BillingEventStoreError>>;
+  /**
+   * Atomic compare-and-swap claim: flips `processed=false → true` in a single
+   * UPDATE. Returns `{ claimed: true }` when this caller was the first to
+   * acquire the event (the caller MUST run the side-effect handler).
+   * Returns `{ claimed: false }` when another concurrent webhook delivery
+   * already acquired the event (the caller MUST skip the handler to avoid
+   * double side-effects, e.g. double-charge).
+   */
+  markProcessed(id: string): Promise<Result<{ claimed: boolean }, BillingEventStoreError>>;
 
   markError(id: string, error: string): Promise<Result<void, BillingEventStoreError>>;
 }
