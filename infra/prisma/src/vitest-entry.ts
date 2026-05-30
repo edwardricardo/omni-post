@@ -8,7 +8,7 @@
  *              Unit tests mock all DB access via DI, so a real PrismaClient is
  *              never needed. The `prisma` export is a no-op Proxy that will throw
  *              a clear error if any test accidentally uses it instead of DI.
- * @layer test-infrastructure
+ * @layer infrastructure
  */
 
 // ── Enums (runtime values — imported from standalone generated file, no Prisma runtime) ──

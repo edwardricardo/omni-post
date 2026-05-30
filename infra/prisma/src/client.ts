@@ -78,7 +78,7 @@ export {
   AccountCredentialGroup,
 } from "../generated/prisma/client/client.js";
 
-// Also re-export the $Enums namespace for backward compatibility
+// Re-export the $Enums namespace.
 export { $Enums } from "../generated/prisma/client/client.js";
 
 const g = globalThis as unknown as {

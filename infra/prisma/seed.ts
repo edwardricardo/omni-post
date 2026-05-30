@@ -142,7 +142,7 @@ async function main() {
     },
   });
 
-  // Seed system AI prompt templates (migrated from hardcoded array)
+  // Seed system AI prompt templates
   const systemTemplates = [
     {
       name: "Product Launch Announcement",
@@ -492,10 +492,8 @@ async function main() {
   }
 
   // Customer-side RBAC roles (scoped to CustomerUser within an Account).
-  // Names mirror the legacy TeamRole enum (OWNER/MANAGER/MEMBER/VIEWER) so
-  // the backfill from TeamMember.role can look up CustomerRole.id by name.
-  // OWNER and MANAGER are distinct here (fixing the latent bug in the legacy
-  // TeamRole VO where both had identical permission sets).
+  // Role names are OWNER / MANAGER / MEMBER / VIEWER, each with its own
+  // distinct permission set.
   const customerSystemRoles = [
     {
       id: "role-owner",
