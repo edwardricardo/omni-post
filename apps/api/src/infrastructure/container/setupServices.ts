@@ -252,6 +252,18 @@ export function setupServices(
       }),
     true
   );
+  // Cross-pod token-bucket limiter for INBOUND HTTP requests (same port +
+  // algorithm as the AI one — one rate-limiting canon — a distinct instance
+  // with its own key prefix + Redis connection). Per-path capacity/window come
+  // from the rule table passed per call by the HTTP preHandler.
+  container.register<RateLimiterPort>(
+    TOKENS.HttpRateLimiter,
+    () =>
+      new RedisTokenBucketRateLimiter(createRedisConnection(), {
+        keyPrefix: "http:ratelimit:",
+      }),
+    true
+  );
   // AIRequestExecutor adapter wraps AIProviderFactory + AIOrchestrator so
   // AiRequestService can live in @core/application.
   container.register<AIRequestExecutorPort>(

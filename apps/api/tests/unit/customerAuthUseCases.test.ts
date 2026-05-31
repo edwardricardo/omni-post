@@ -13,6 +13,21 @@ import { RefreshCustomerTokenUseCase } from "@core/customer-auth/RefreshCustomer
 import { ResetPasswordUseCase } from "@core/customer-auth/ResetPasswordUseCase.js";
 import { RequestPasswordResetUseCase } from "@core/customer-auth/RequestPasswordResetUseCase.js";
 import { LogoutCustomerUseCase } from "@core/customer-auth/LogoutCustomerUseCase.js";
+import type { BruteForceProtectionPort } from "@ports/core";
+
+/** Brute-force port mock that allows by default (the gate is exercised in its
+ *  own adapter tests + the e2e smoke). */
+function makeBruteForce(): BruteForceProtectionPort {
+  return {
+    checkLoginAttempt: vi.fn(async () => ({
+      allowed: true,
+      delaySeconds: 0,
+      captchaRequired: false,
+    })),
+    recordFailedAttempt: vi.fn(async () => undefined),
+    recordSuccessfulAttempt: vi.fn(async () => undefined),
+  } as unknown as BruteForceProtectionPort;
+}
 import { Argon2PasswordHasher } from "../../src/infrastructure/adapters/Argon2PasswordHasher.js";
 import { CustomerTokenServiceAdapter } from "../../src/infrastructure/adapters/CustomerTokenServiceAdapter.js";
 import { InMemoryCacheAdapter } from "@adapters/cache-redis";
@@ -202,7 +217,13 @@ describe("LoginCustomerUseCase", () => {
     vi.clearAllMocks();
     customerUserRepo = makeCustomerUserRepo();
     accountRepo = makeAccountRepo();
-    useCase = new LoginCustomerUseCase(customerUserRepo, accountRepo, hasher, tokenService);
+    useCase = new LoginCustomerUseCase(
+      customerUserRepo,
+      accountRepo,
+      hasher,
+      tokenService,
+      makeBruteForce()
+    );
 
     // Pre-hash a password for testing
     hashedPassword = await argon2.hash("correctpassword");

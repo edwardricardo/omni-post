@@ -45,7 +45,13 @@ import type { RealtimeAnalyticsService } from "./analytics/realtimeAnalytics.js"
 import type { AnalyticsStreamBroadcaster } from "./services/AnalyticsStreamBroadcaster.js";
 import client from "prom-client";
 import { createStorageAdapter } from "./infrastructure/storage/createStorageAdapter.js";
-import { RateLimit, RateLimitConfigs, EXPENSIVE_ENDPOINT_RULES } from "./security/rateLimit.js";
+import {
+  createHttpRateLimitPreHandler,
+  RateLimitConfigs,
+  STANDARD_ROUTE_RULES,
+  EXPENSIVE_ENDPOINT_RULES,
+} from "./security/httpRateLimitPreHandler.js";
+import type { RateLimiterPort } from "@ports/core";
 import { createErrorHandler } from "./lib/errors/errorHandler.js";
 import { createRedisConnection, getRedisUrl } from "./lib/redis.js";
 import { logger } from "./lib/logger.js";
@@ -398,48 +404,25 @@ async function createApp(): Promise<FastifyInstance> {
   typedApp.setErrorHandler(errorHandler);
   typedApp.log.info("Centralized error handler enabled - all errors sanitized");
 
-  // Rate limiting setup
+  // Rate limiting setup. The token-bucket limiter is resolved from the
+  // composition root (RateLimiterPort, http-scoped instance); per-path
+  // capacity/window come from the rule table. Standard rules are applied
+  // before the expensive ones — first prefix match wins.
   if (env.ENABLE_RATE_LIMITING) {
-    const rateLimit = new RateLimit(redis, RateLimitConfigs.STANDARD);
-
-    // Configure rate limit rules for standard endpoints
-    rateLimit.addRule("/health", RateLimitConfigs.HEALTH);
-    rateLimit.addRule("/publish/", RateLimitConfigs.STRICT);
-    rateLimit.addRule("/media/", RateLimitConfigs.UPLOAD);
-    rateLimit.addRule("/accounts$", RateLimitConfigs.AUTH);
-
-    // 🔒 SECURITY: Add rate limiting for expensive endpoints (DoS prevention)
-    // These endpoints perform resource-intensive operations and need strict limits
-    for (const rule of EXPENSIVE_ENDPOINT_RULES) {
-      rateLimit.addRule(rule.path, rule.config);
-    }
+    const httpRateLimiter = container.resolve<RateLimiterPort>(TOKENS.HttpRateLimiter);
+    const rules = [...STANDARD_ROUTE_RULES, ...EXPENSIVE_ENDPOINT_RULES];
 
     typedApp.log.info(
       `Rate limiting enabled: ${EXPENSIVE_ENDPOINT_RULES.length} expensive endpoints protected`
     );
 
-    typedApp.addHook("preHandler", async (request: FastifyRequest, reply: FastifyReply) => {
-      try {
-        const result = await rateLimit.checkRateLimit(request);
-
-        // Always add rate limit headers
-        reply.header("X-RateLimit-Remaining", result.remaining.toString());
-        reply.header("X-RateLimit-Reset", result.resetTime.toString());
-
-        if (!result.allowed) {
-          reply.code(429);
-          return reply.send({
-            ok: false,
-            error: "RATE_LIMIT_EXCEEDED",
-            message: "Too many requests. Please try again later.",
-            retryAfter: new Date(result.resetTime).toISOString(),
-          });
-        }
-      } catch (error) {
-        logger.error({ err: error }, "Rate limiting error");
-        // On error, allow request to continue
-      }
-    });
+    typedApp.addHook(
+      "preHandler",
+      createHttpRateLimitPreHandler(httpRateLimiter, {
+        defaultConfig: RateLimitConfigs.STANDARD,
+        rules,
+      })
+    );
   }
 
   // Register security and performance middleware

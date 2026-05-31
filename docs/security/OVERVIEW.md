@@ -114,19 +114,26 @@ const threatPatterns = {
 
 ### Rate Limiting
 
-Sliding window algorithm with Redis:
+Token-bucket algorithm via the cross-pod `RateLimiterPort` (atomic Lua over
+Redis), enforced as a global Fastify preHandler with per-path rules:
 
-| Endpoint | Limit       | Window     |
-| -------- | ----------- | ---------- |
-| Auth     | 5 requests  | 15 minutes |
-| API      | 60 requests | 1 minute   |
-| Upload   | 10 requests | 5 minutes  |
+| Endpoint class       | Limit         | Window    |
+| -------------------- | ------------- | --------- |
+| Standard (default)   | 100 requests  | 1 minute  |
+| Health               | 120 requests  | 1 minute  |
+| Publish / strict     | 10 requests   | 1 minute  |
+| Upload               | 20 requests   | 5 minutes |
+| Expensive (DoS tier) | 5–20 requests | 1 minute  |
 
-**Features**:
+**Behaviour**:
 
-- Progressive blocking (5min to 24hr)
-- IP + User Agent fingerprinting
-- Suspicious activity detection
+- Per-IP + per-URL bucket; capacity/window from the matched rule.
+- `X-RateLimit-Remaining` / `X-RateLimit-Reset` headers + `Retry-After` on 429.
+- Fail-open: a limiter outage allows traffic rather than hard-blocking.
+
+Auth-abuse defence (account lockout, IP block, CAPTCHA, exponential backoff per
+NIST SP 800-63B-4) is a separate concern, handled by the
+`BruteForceProtectionPort` on the login flows — not by this throttle.
 
 ### Circuit Breakers
 
@@ -248,7 +255,7 @@ AUDIT_RETENTION_DAYS=90
 - [x] JWT authentication with refresh tokens
 - [x] Multi-Factor Authentication (TOTP + backup codes)
 - [x] Role-Based Access Control (47 permissions)
-- [x] Sliding window rate limiting
+- [x] Token-bucket rate limiting (per-path rules, cross-pod via RateLimiterPort)
 - [x] Circuit breakers with fallbacks
 - [x] Input validation with threat detection
 - [x] SQL injection protection (Prisma ORM)

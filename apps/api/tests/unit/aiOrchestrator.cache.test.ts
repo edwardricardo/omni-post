@@ -167,31 +167,39 @@ describe("AIOrchestrator — Cache & Metrics", () => {
       expect(successCount > 0).toBeTruthy();
     });
 
-    it("should skip rate-limited providers", async () => {
-      // Manually set rate limit
-      (orchestrator as any).rateLimits.set("openai", {
-        requests: 100,
-        tokens: 20000,
-        resetTime: Date.now() + 60000,
-      });
+    it("should skip providers the injected rate limiter denies", async () => {
+      // Inject a limiter that denies "openai" but allows the rest.
+      const denyOpenAI = {
+        tryConsume: async (key: string) =>
+          key === "openai"
+            ? { allowed: false, remaining: 0, resetAtMs: Date.now() + 60000, retryAfterMs: 60000 }
+            : { allowed: true, remaining: 99, resetAtMs: Date.now() + 60000 },
+      };
+      const fixture = createOrchestrator(undefined, { rateLimiter: denyOpenAI });
 
       const messages: AIMessage[] = [{ role: "user", content: "Test message" }];
-      const result = await orchestrator.generateContent(messages);
+      const result = await fixture.orchestrator.generateContent(messages);
 
       expect(result.ok).toBe(true);
-      expect(mockOpenAI.callCount).toBe(0);
-      expect(mockGemini.callCount > 0 || mockPerplexity.callCount > 0).toBeTruthy();
+      expect(fixture.mockOpenAI.callCount).toBe(0);
+      expect(fixture.mockGemini.callCount > 0 || fixture.mockPerplexity.callCount > 0).toBeTruthy();
     });
 
-    it("should track token usage in rate limits", async () => {
-      const messages: AIMessage[] = [{ role: "user", content: "Message that will consume tokens" }];
+    it("consults the injected rate limiter before calling a provider", async () => {
+      const keys: string[] = [];
+      const recordingLimiter = {
+        tryConsume: async (key: string) => {
+          keys.push(key);
+          return { allowed: true, remaining: 99, resetAtMs: Date.now() + 60000 };
+        },
+      };
+      const fixture = createOrchestrator(undefined, { rateLimiter: recordingLimiter });
 
-      await orchestrator.generateContent(messages, { cacheResults: false });
+      const messages: AIMessage[] = [{ role: "user", content: "Message that consumes a permit" }];
+      await fixture.orchestrator.generateContent(messages, { cacheResults: false });
 
-      const rateLimits = (orchestrator as any).rateLimits.get("openai");
-      expect(rateLimits).toBeTruthy();
-      expect(rateLimits.requests > 0).toBeTruthy();
-      expect(rateLimits.tokens > 0).toBeTruthy();
+      expect(keys.length > 0).toBeTruthy();
+      expect(keys).toContain("openai");
     });
   });
 

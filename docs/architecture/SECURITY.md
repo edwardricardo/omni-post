@@ -199,37 +199,33 @@ class CredentialManager {
 
 ### Rate Limiting ✅ IMPLEMENTED
 
-Advanced sliding window rate limiting with behavioral analysis:
+Token-bucket rate limiting through the technology-free `RateLimiterPort`,
+backed by an atomic Lua token bucket over Redis (cross-pod). Enforced as a
+global Fastify preHandler with per-path rules; the same port + algorithm also
+throttles outbound AI provider calls (one rate-limiting canon, two instances).
 
-- **Sliding Window Algorithm**: True sliding window implementation using Redis sorted sets
-- **Progressive Blocking**: Escalating block durations for repeated violations (5min → 24hr)
-- **Multi-Factor Key Generation**: IP + User Agent fingerprinting + User ID
-- **Suspicious Activity Detection**: Pattern recognition for potential attacks
-- **Configurable Policies**: Different limits for AUTH (5/15min), API (60/min), UPLOAD (10/5min)
-- **Comprehensive Headers**: Rate limit information in response headers
+- **Token-bucket algorithm**: atomic refill-and-consume in a single Redis `EVAL`
+  (no read-modify-write race across pods).
+- **Per-path rules**: STANDARD default + HEALTH / STRICT / UPLOAD + an expensive
+  DoS tier (5–20 req/min); capacity + window passed per call from the matched rule.
+- **Per-IP + per-URL bucket**; `X-RateLimit-Remaining` / `X-RateLimit-Reset`
+  headers + `Retry-After` on 429.
+- **Fail-open**: a limiter outage allows traffic rather than hard-blocking.
 
 ```typescript
-// Sliding window rate limiter
-class SlidingWindowRateLimit {
-  async checkRateLimit(req: FastifyRequest): Promise<{
-    allowed: boolean;
-    remaining: number;
-    resetTime: number;
-    windowInfo: {
-      requestsInWindow: number;
-      oldestRequest: number;
-      newestRequest: number;
-    };
-  }>;
+// Technology-free port; the Fastify preHandler adapts it to requests.
+interface RateLimiterPort {
+  tryConsume(
+    key: string,
+    opts?: { cost?: number; capacity?: number; refillWindowMs?: number }
+  ): Promise<{ allowed: boolean; remaining: number; resetAtMs: number; retryAfterMs?: number }>;
 }
-
-// Rate limit configurations
-const SlidingWindowConfigs = {
-  AUTH: { windowMs: 15 * 60 * 1000, maxRequests: 5 },
-  API: { windowMs: 60 * 1000, maxRequests: 60 },
-  UPLOAD: { windowMs: 5 * 60 * 1000, maxRequests: 10 },
-};
 ```
+
+> Auth-abuse defence (account lockout, IP block, CAPTCHA, exponential backoff
+> per NIST SP 800-63B-4) is handled separately by the `BruteForceProtectionPort`
+> on the login flows — not by this throttle. Progressive blocking and
+> suspicious-pattern detection live there, by design.
 
 ### Circuit Breakers ✅ IMPLEMENTED
 

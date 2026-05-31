@@ -13,6 +13,7 @@
 import { AIOrchestrator } from "../../src/ai/orchestrator.js";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { InMemoryCacheAdapter } from "@adapters/cache-redis";
+import type { RateLimiterPort } from "@ports/core";
 import type {
   AIProvider,
   AIMessage,
@@ -216,7 +217,8 @@ export interface OrchestratorFixture {
 }
 
 export function createOrchestrator(
-  latencies = { openai: 50, perplexity: 75, gemini: 100 }
+  latencies = { openai: 50, perplexity: 75, gemini: 100 },
+  opts: { rateLimiter?: RateLimiterPort } = {}
 ): OrchestratorFixture {
   const mockOpenAI = new MockAIProvider("openai", true, false, latencies.openai);
   const mockPerplexity = new MockAIProvider("perplexity", true, false, latencies.perplexity);
@@ -230,7 +232,10 @@ export function createOrchestrator(
   const orchestrator = new AIOrchestrator(
     providers,
     new NoopBackgroundTaskScheduler(),
-    new InMemoryCacheAdapter()
+    new InMemoryCacheAdapter(),
+    undefined,
+    undefined,
+    opts.rateLimiter
   );
 
   // Initialize usage metrics for each mock provider

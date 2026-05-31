@@ -15,13 +15,13 @@
  * @layer infrastructure
  */
 
-import type { RateLimiterPort, RateLimitDecision } from "@ports/core";
+import type { RateLimiterPort, RateLimitDecision, RateLimitOptions } from "@ports/core";
 
 export interface TokenBucketOptions {
-  /** Max permits the bucket holds. Default 60. */
+  /** Default max permits a bucket holds when a call omits `capacity`. Default 60. */
   readonly capacity?: number;
-  /** Window over which `capacity` permits fully refill, in ms. Default
-   *  60 000 (one minute). */
+  /** Default window over which `capacity` permits fully refill, in ms, when a
+   *  call omits `refillWindowMs`. Default 60 000 (one minute). */
   readonly refillWindowMs?: number;
   /** Injectable clock for deterministic tests. Default `Date.now`. */
   readonly now?: () => number;
@@ -36,44 +36,60 @@ const DEFAULT_CAPACITY = 60;
 const DEFAULT_REFILL_WINDOW_MS = 60_000;
 
 export class InMemoryTokenBucketRateLimiter implements RateLimiterPort {
-  private readonly capacity: number;
-  private readonly refillWindowMs: number;
+  private readonly defaultCapacity: number;
+  private readonly defaultRefillWindowMs: number;
   private readonly now: () => number;
-  private readonly refillPerMs: number;
   private readonly buckets = new Map<string, Bucket>();
 
   constructor(options: TokenBucketOptions = {}) {
-    this.capacity = options.capacity ?? DEFAULT_CAPACITY;
-    this.refillWindowMs = options.refillWindowMs ?? DEFAULT_REFILL_WINDOW_MS;
+    this.defaultCapacity = options.capacity ?? DEFAULT_CAPACITY;
+    this.defaultRefillWindowMs = options.refillWindowMs ?? DEFAULT_REFILL_WINDOW_MS;
     this.now = options.now ?? Date.now;
-    this.refillPerMs = this.capacity / this.refillWindowMs;
   }
 
-  async tryConsume(key: string, cost = 1): Promise<RateLimitDecision> {
+  async tryConsume(key: string, opts: RateLimitOptions = {}): Promise<RateLimitDecision> {
+    const cost = opts.cost ?? 1;
+    const capacity = opts.capacity ?? this.defaultCapacity;
+    const refillWindowMs = opts.refillWindowMs ?? this.defaultRefillWindowMs;
+    const refillPerMs = capacity / refillWindowMs;
+
     const now = this.now();
-    const bucket = this.refill(key, now);
+    const bucket = this.refill(key, now, capacity, refillPerMs);
 
     if (bucket.tokens >= cost) {
       bucket.tokens -= cost;
-      return { allowed: true };
+      return {
+        allowed: true,
+        remaining: Math.floor(bucket.tokens),
+        resetAtMs: this.resetAtMs(now, bucket.tokens, capacity, refillPerMs),
+      };
     }
 
-    const deficit = cost - bucket.tokens;
-    const retryAfterMs = Math.ceil(deficit / this.refillPerMs);
-    return { allowed: false, retryAfterMs };
+    const retryAfterMs = Math.ceil((cost - bucket.tokens) / refillPerMs);
+    return {
+      allowed: false,
+      remaining: Math.floor(bucket.tokens),
+      resetAtMs: this.resetAtMs(now, bucket.tokens, capacity, refillPerMs),
+      retryAfterMs,
+    };
   }
 
-  private refill(key: string, now: number): Bucket {
+  private resetAtMs(now: number, tokens: number, capacity: number, refillPerMs: number): number {
+    if (tokens >= capacity || refillPerMs <= 0) return now;
+    return now + Math.ceil((capacity - tokens) / refillPerMs);
+  }
+
+  private refill(key: string, now: number, capacity: number, refillPerMs: number): Bucket {
     let bucket = this.buckets.get(key);
     if (!bucket) {
-      bucket = { tokens: this.capacity, lastRefillMs: now };
+      bucket = { tokens: capacity, lastRefillMs: now };
       this.buckets.set(key, bucket);
       return bucket;
     }
 
     const elapsed = now - bucket.lastRefillMs;
     if (elapsed > 0) {
-      bucket.tokens = Math.min(this.capacity, bucket.tokens + elapsed * this.refillPerMs);
+      bucket.tokens = Math.min(capacity, bucket.tokens + elapsed * refillPerMs);
       bucket.lastRefillMs = now;
     }
     return bucket;

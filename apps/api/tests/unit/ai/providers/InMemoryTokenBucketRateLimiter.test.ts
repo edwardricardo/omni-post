@@ -65,8 +65,30 @@ describe("InMemoryTokenBucketRateLimiter", () => {
 
   it("supports a cost greater than one", async () => {
     const limiter = new InMemoryTokenBucketRateLimiter({ capacity: 5, refillWindowMs: 60_000 });
-    expect((await limiter.tryConsume("openai", 3)).allowed).toBe(true);
-    expect((await limiter.tryConsume("openai", 3)).allowed).toBe(false);
-    expect((await limiter.tryConsume("openai", 2)).allowed).toBe(true);
+    expect((await limiter.tryConsume("openai", { cost: 3 })).allowed).toBe(true);
+    expect((await limiter.tryConsume("openai", { cost: 3 })).allowed).toBe(false);
+    expect((await limiter.tryConsume("openai", { cost: 2 })).allowed).toBe(true);
+  });
+
+  it("reports remaining and a future resetAtMs", async () => {
+    let nowMs = 1_000_000;
+    const limiter = new InMemoryTokenBucketRateLimiter({
+      capacity: 5,
+      refillWindowMs: 5_000,
+      now: () => nowMs,
+    });
+    const first = await limiter.tryConsume("openai");
+    expect(first.remaining).toBe(4);
+    expect(first.resetAtMs).toBeGreaterThan(nowMs);
+  });
+
+  it("honors a per-call capacity override", async () => {
+    const limiter = new InMemoryTokenBucketRateLimiter({ capacity: 100, refillWindowMs: 60_000 });
+    expect((await limiter.tryConsume("path-a", { capacity: 2 })).allowed).toBe(true);
+    expect((await limiter.tryConsume("path-a", { capacity: 2 })).allowed).toBe(true);
+    const denied = await limiter.tryConsume("path-a", { capacity: 2 });
+    expect(denied.allowed).toBe(false);
+    expect(denied.remaining).toBe(0);
+    expect(denied.retryAfterMs).toBeGreaterThan(0);
   });
 });
