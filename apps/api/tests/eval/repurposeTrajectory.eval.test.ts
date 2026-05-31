@@ -144,4 +144,49 @@ describe("trajectory eval — repurpose slice", () => {
     expect(finalState.values.approved).toBe(true);
     expect(finalState.next.length).toBe(0);
   });
+
+  it("retries a generation node that throws a transient error, then completes", async () => {
+    let planCalls = 0;
+    const fakeAIThrowOnce = {
+      generateStructured: async <T>(
+        _messages: unknown,
+        spec: StructuredOutputSpec<T>
+      ): Promise<{ ok: true; value: T } | { ok: false; error: "AI_ERROR" }> => {
+        switch (spec.name) {
+          case "repurpose_plan":
+            planCalls += 1;
+            // First invocation simulates a thrown transient (e.g. checkpointer
+            // IO or an unexpected upstream blip) that the node does not swallow.
+            if (planCalls === 1) throw new Error("transient upstream blip");
+            return { ok: true, value: { strategy: "thread", angles: ["hook"] } as T };
+          case "repurpose_draft":
+            return { ok: true, value: { content: "REWRITTEN" } as T };
+          case "repurpose_critique":
+            return { ok: true, value: { acceptable: true, feedback: "" } as T };
+          default:
+            return { ok: false, error: "AI_ERROR" };
+        }
+      },
+      optimizeContent: async () => ({ success: false }),
+      analyzeContent: async () => ({ success: false }),
+      generateVariations: async () => ({ success: false }),
+      generateContent: async () => ({ success: false }),
+    } as unknown as AIServicePort;
+
+    const graph = buildRepurposeGraph({ ai: fakeAIThrowOnce, recorder, maxAttempts: 3 });
+    const compiled = graph.compile({ checkpointer: new MemorySaver() });
+    const config = { configurable: { thread_id: "eval-node-retry" }, recursionLimit: 25 };
+
+    try {
+      await compiled.invoke(initialState, config);
+    } catch (e) {
+      if (!isGraphInterrupt(e)) throw e;
+    }
+
+    // The planning node threw once and the node-level RetryPolicy re-ran it;
+    // the graph still reached the canonical sequence and the HITL gate.
+    expect(planCalls).toBe(2);
+    const snap = recorder.snapshot();
+    expect(snap.steps.map((s) => s.node)).toEqual(EXPECTED_NODE_ORDER);
+  });
 });

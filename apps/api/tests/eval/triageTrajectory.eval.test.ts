@@ -16,7 +16,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ok } from "@shared/types";
+import { ok, err } from "@shared/types";
 import { TriageInboxMessageUseCase } from "@core/inbox/TriageInboxMessageUseCase.js";
 import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
 import type { TriageClassification } from "@core/domain/ai/AiStructuredOutputs.js";
@@ -143,5 +143,27 @@ describe("trajectory eval — triage slice", () => {
     if (result.ok) {
       expect(["URGENT", "NORMAL", "LOW"]).toContain(result.value.priority);
     }
+  });
+
+  it("falls back to NORMAL defaults when the AI call fails (triage is non-blocking)", async () => {
+    (ai.generateStructured as ReturnType<typeof vi.fn>).mockResolvedValueOnce(err("AI_ERROR"));
+
+    const result = await useCase.execute({ messageId: "msg-1", accountId: "acc-1" });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.priority).toBe("NORMAL");
+      expect(result.value.sentimentScore).toBe(0);
+      expect(result.value.suggestedReplies).toEqual([]);
+    }
+    expect(port.updateMessageTriage).not.toHaveBeenCalled();
+  });
+
+  it("does not invoke the AI a second time when the first call fails (no hidden retry)", async () => {
+    (ai.generateStructured as ReturnType<typeof vi.fn>).mockResolvedValue(err("AI_ERROR"));
+
+    await useCase.execute({ messageId: "msg-1", accountId: "acc-1" });
+
+    expect((ai.generateStructured as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1);
   });
 });

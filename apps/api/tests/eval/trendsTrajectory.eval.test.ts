@@ -14,7 +14,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ok } from "@shared/types";
+import { ok, err } from "@shared/types";
 import { DetectTrendsUseCase } from "@core/trends/DetectTrendsUseCase.js";
 import { FetchTrendingTopicsUseCase } from "@core/trends/FetchTrendingTopicsUseCase.js";
 import { ScoreTrendRelevanceUseCase } from "@core/trends/ScoreTrendRelevanceUseCase.js";
@@ -250,5 +250,42 @@ describe("trajectory eval — trends slice", () => {
 
     const sources = result.captured[0]?.trends.map((t) => t.source).sort() ?? [];
     expect(sources).toEqual(["ACCOUNT_ANALYTICS", "PERPLEXITY_WEB"]);
+  });
+
+  it("returns an empty result without persisting when AI scoring fails", async () => {
+    const { port: fetchPort } = makeFetch([topic({ topic: "#A" }), topic({ topic: "#B" })]);
+    const { ai, generateStructured } = makeAI([]);
+    generateStructured.mockResolvedValueOnce(err("AI_ERROR"));
+    const result = makeResultPort();
+
+    const fetchUseCase = new FetchTrendingTopicsUseCase(fetchPort, cache);
+    const scoreUseCase = new ScoreTrendRelevanceUseCase(ai, trendScoringSpec, contextPort);
+    const detect = new DetectTrendsUseCase(fetchUseCase, scoreUseCase, result.port);
+
+    const out = await detect.execute({ accountId: "acc-ai-fail", dayKey: "2026-05-30" });
+
+    expect(out.ok).toBe(true);
+    if (out.ok) expect(out.value.scored).toBe(0);
+    expect(result.upsert.mock.calls.length).toBe(0);
+  });
+
+  it("drops scores referencing an out-of-bounds topic index without crashing", async () => {
+    const { port: fetchPort } = makeFetch([topic({ topic: "#Only" })]);
+    const { ai } = makeAI([
+      { index: 1, score: 9 }, // valid
+      { index: 99, score: 10 }, // out of bounds → dropped, not a crash
+    ]);
+    const result = makeResultPort();
+
+    const fetchUseCase = new FetchTrendingTopicsUseCase(fetchPort, cache);
+    const scoreUseCase = new ScoreTrendRelevanceUseCase(ai, trendScoringSpec, contextPort);
+    const detect = new DetectTrendsUseCase(fetchUseCase, scoreUseCase, result.port);
+
+    const out = await detect.execute({ accountId: "acc-oob", dayKey: "2026-05-30" });
+
+    expect(out.ok).toBe(true);
+    if (out.ok) expect(out.value.scored).toBe(1);
+    const persisted = result.captured[0]?.trends.map((t) => t.topic) ?? [];
+    expect(persisted).toEqual(["#Only"]);
   });
 });

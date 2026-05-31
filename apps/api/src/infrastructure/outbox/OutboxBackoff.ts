@@ -1,13 +1,14 @@
 /**
  * @file OutboxBackoff.ts
- * @description Full-jitter exponential backoff for outbox retry scheduling.
- *              Pattern from AWS Architecture Blog "Exponential Backoff and
- *              Jitter" (Marc Brooker, 2015) — `delay = random(0, min(cap,
- *              base * 2^attempt))`. Reduces thundering-herd risk when many
- *              events fail simultaneously and would otherwise retry in
- *              lockstep.
+ * @description Class-based wrapper around the shared full-jitter primitive
+ *              (`computeFullJitterDelayMs`) tailored to outbox retry
+ *              scheduling. Carries (baseMs, capMs) as instance state plus a
+ *              `computeNextRetryAt` convenience that returns an absolute
+ *              Date for the outbox row's `nextRetryAt` column.
  * @layer infrastructure
  */
+
+import { computeFullJitterDelayMs } from "../../lib/retry/backoff.js";
 
 export interface OutboxBackoffOptions {
   baseMs?: number;
@@ -35,11 +36,7 @@ export class OutboxBackoff {
    * Always returns a non-negative integer below the upper bound.
    */
   computeDelayMs(attempt: number): number {
-    const safeAttempt = Math.max(0, attempt);
-    const exponential = this.baseMs * Math.pow(2, safeAttempt);
-    const upperBound = Math.min(this.capMs, exponential);
-    if (upperBound <= 0) return 0;
-    return Math.floor(Math.random() * upperBound);
+    return computeFullJitterDelayMs(attempt, { baseMs: this.baseMs, capMs: this.capMs });
   }
 
   /**

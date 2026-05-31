@@ -92,6 +92,14 @@ export type AITask =
       data: { content: string; variationType: "tone" | "length" | "audience"; count: number };
     };
 
+/** Classification of an AI provider failure used to drive retry / surface
+ *  decisions.
+ *  - `transient`     → 5xx, 429, network → retry with backoff
+ *  - `recoverable`   → malformed response, schema parse fail → reformulate
+ *  - `user-fixable`  → 4xx auth / validation → surface to user, no retry
+ *  - `unexpected`    → panic / OOM → crash loudly, no retry */
+export type AIErrorCategory = "transient" | "recoverable" | "user-fixable" | "unexpected";
+
 export interface AIResponse<T = unknown> {
   ok: boolean;
   value?: T;
@@ -100,6 +108,11 @@ export interface AIResponse<T = unknown> {
     message: string;
     provider: string;
     retryable: boolean;
+    category: AIErrorCategory;
+    /** Provider-supplied wait hint recovered from the `Retry-After` header
+     *  (RFC 9110 §10.2.3). When present, the orchestrator pauses at least
+     *  this long before retrying. */
+    retryAfterMs?: number;
   };
   metadata: {
     provider: string;

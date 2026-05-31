@@ -15,8 +15,8 @@ import {
   AIProviderConfig,
   StructuredOutputSpec,
 } from "../types.js";
-import { AppError } from "../../lib/errors/AppError.js";
 import { logger } from "../../lib/logger.js";
+import { toAIProviderError } from "./AIProviderError.js";
 import {
   analysisSpec,
   optimizationSpec,
@@ -82,7 +82,7 @@ export class GeminiProvider implements AIProvider {
       return result.text || "";
     } catch (error: unknown) {
       aiLogger.error({ err: error }, "Gemini generation failed");
-      throw AppError.externalService("Gemini", `Gemini generation failed: ${error}`);
+      throw toAIProviderError("gemini", error, "Gemini generation failed");
     }
   }
 
@@ -118,7 +118,7 @@ export class GeminiProvider implements AIProvider {
       return spec.parse(JSON.parse(result.text || ""));
     } catch (error: unknown) {
       aiLogger.error({ err: error }, "Gemini structured generation failed");
-      throw AppError.externalService("Gemini", `Gemini structured generation failed: ${error}`);
+      throw toAIProviderError("gemini", error, "Gemini structured generation failed");
     }
   }
 

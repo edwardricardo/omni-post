@@ -83,6 +83,8 @@ export const TOKENS = {
   OutboxClaimService: Symbol.for("OutboxClaimService"),
   OutboxBackoff: Symbol.for("OutboxBackoff"),
   OutboxInbox: Symbol.for("OutboxInbox"),
+  AICircuitBreaker: Symbol.for("AICircuitBreaker"),
+  RateLimiterPort: Symbol.for("RateLimiterPort"),
 
   // Background task scheduler — centralised setInterval registry for all
   // recurring in-process work (cleanup jobs, health checks, metrics pushes).

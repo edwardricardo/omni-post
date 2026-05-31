@@ -30,6 +30,9 @@ import type { HttpClientPort } from "@core/domain/repositories/HttpClientPort.js
 import { FetchHttpClient } from "../adapters/FetchHttpClient.js";
 import { AiRequestService } from "@core/ai/AiRequestService.js";
 import { AIRequestExecutorAdapter } from "../../ai/AIRequestExecutorAdapter.js";
+import { AICircuitBreaker } from "../../ai/providers/AICircuitBreaker.js";
+import { RedisTokenBucketRateLimiter } from "../../ai/providers/RedisTokenBucketRateLimiter.js";
+import type { RateLimiterPort } from "@ports/core";
 import type { AIRequestExecutorPort } from "@core/domain/repositories/AIRequestExecutorPort.js";
 import { DashboardService } from "../../admin/dashboardService.js";
 import { AccountLifecycleService } from "../../admin/accountLifecycleService.js";
@@ -231,6 +234,24 @@ export function setupServices(
     () => new ActivityFeedService(container.resolve(TOKENS.PrismaClient)),
     true
   );
+  // Single per-process circuit breaker shared by every orchestrator instance
+  // (the per-request orchestrators built inside AIRequestExecutorAdapter and
+  // the admin orchestrator in AIService). Sharing it is the whole point:
+  // breaker state must outlive the ephemeral orchestrators so a tripped
+  // provider stays skipped across requests.
+  container.register<AICircuitBreaker>(TOKENS.AICircuitBreaker, () => new AICircuitBreaker(), true);
+  // Cross-pod token-bucket rate limiter for outbound provider calls. Its own
+  // Redis connection (independent failure domain from cache/queue); fail-open
+  // so a limiter outage never blocks AI traffic. Shared singleton so every
+  // ephemeral orchestrator throttles against the same buckets.
+  container.register<RateLimiterPort>(
+    TOKENS.RateLimiterPort,
+    () =>
+      new RedisTokenBucketRateLimiter(createRedisConnection(), {
+        capacity: env.AI_PROVIDER_REQUESTS_PER_MIN,
+      }),
+    true
+  );
   // AIRequestExecutor adapter wraps AIProviderFactory + AIOrchestrator so
   // AiRequestService can live in @core/application.
   container.register<AIRequestExecutorPort>(
@@ -238,7 +259,9 @@ export function setupServices(
     () =>
       new AIRequestExecutorAdapter(
         container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
-        container.resolve<CachePort>(TOKENS.CachePort)
+        container.resolve<CachePort>(TOKENS.CachePort),
+        container.resolve<AICircuitBreaker>(TOKENS.AICircuitBreaker),
+        container.resolve<RateLimiterPort>(TOKENS.RateLimiterPort)
       ),
     true
   );
@@ -264,7 +287,9 @@ export function setupServices(
       new AIService(
         container.resolve<AiRequestService>(TOKENS.AiRequestService),
         container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
-        container.resolve<CachePort>(TOKENS.CachePort)
+        container.resolve<CachePort>(TOKENS.CachePort),
+        container.resolve<AICircuitBreaker>(TOKENS.AICircuitBreaker),
+        container.resolve<RateLimiterPort>(TOKENS.RateLimiterPort)
       ),
     true
   );

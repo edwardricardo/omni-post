@@ -11,11 +11,37 @@
  * @layer infrastructure
  */
 
-import { StateGraph, Annotation, START, END, interrupt } from "@langchain/langgraph";
+import {
+  StateGraph,
+  Annotation,
+  START,
+  END,
+  interrupt,
+  isGraphInterrupt,
+} from "@langchain/langgraph";
 import { z } from "zod";
 import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
 import type { StructuredOutputSpec } from "../types.js";
 import { TrajectoryRecorder, type RepurposeHumanDecision } from "./types.js";
+
+/**
+ * Node-level retry for the generation nodes. This is the LangGraph-canonical
+ * reliability layer (LangGraph docs: node RetryPolicy and provider HTTP retry
+ * "work on different layers; use both"). The provider-level retry (jitter,
+ * Retry-After, circuit breaker) lives in the AI orchestrator; this policy is
+ * the backstop for thrown errors a node can surface — checkpointer IO with a
+ * durable saver, or unexpected throws — which the HTTP layer never sees.
+ * `retryOn` excludes the HITL interrupt signal so a control-flow bubble is
+ * never mistaken for a transient failure. Applied only to the generation
+ * nodes — never to `approve`, whose `interrupt()` must not be retried.
+ */
+const GENERATION_NODE_RETRY = {
+  maxAttempts: 3,
+  initialInterval: 500,
+  backoffFactor: 2,
+  jitter: true,
+  retryOn: (error: unknown): boolean => !isGraphInterrupt(error),
+} as const;
 
 const PlanSchema = z.object({
   strategy: z.string(),
@@ -151,9 +177,9 @@ export function buildRepurposeGraph(deps: BuildRepurposeGraphDeps) {
   // node is "planning" (the `plan` channel holds its output). Trajectory step
   // labels are independent of node ids — see each node's recorder label.
   return new StateGraph(RepurposeState)
-    .addNode("planning", plan)
-    .addNode("act", act)
-    .addNode("reflect", reflect)
+    .addNode("planning", plan, { retryPolicy: GENERATION_NODE_RETRY })
+    .addNode("act", act, { retryPolicy: GENERATION_NODE_RETRY })
+    .addNode("reflect", reflect, { retryPolicy: GENERATION_NODE_RETRY })
     .addNode("approve", approve)
     .addEdge(START, "planning")
     .addEdge("planning", "act")

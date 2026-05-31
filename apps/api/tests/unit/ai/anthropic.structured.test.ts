@@ -212,7 +212,7 @@ describe("AnthropicProvider - Performance Prediction and Variations", () => {
     );
 
     await expect(provider.generateVariations("Test", "tone", 3)).rejects.toThrow(
-      /Anthropic structured generation failed/
+      /no tool_use block/
     );
   });
 });

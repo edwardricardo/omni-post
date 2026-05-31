@@ -14,8 +14,8 @@ import {
   AIProviderConfig,
   StructuredOutputSpec,
 } from "../types.js";
-import { AppError } from "../../lib/errors/AppError.js";
 import { logger } from "../../lib/logger.js";
+import { errorFromFetchResponse, toAIProviderError } from "./AIProviderError.js";
 import {
   analysisSpec,
   optimizationSpec,
@@ -86,17 +86,14 @@ export class PerplexityProvider implements AIProvider {
       });
 
       if (!response.ok) {
-        throw AppError.externalService(
-          "Perplexity",
-          `Perplexity API error: ${response.status} ${response.statusText}`
-        );
+        throw errorFromFetchResponse("perplexity", response, "Perplexity API error");
       }
 
       const data = await response.json();
       return data.choices[0]?.message?.content || "";
-    } catch (_error: unknown) {
-      aiLogger.error({ err: _error }, "Perplexity generation failed");
-      throw AppError.externalService("Perplexity", `Perplexity generation failed: ${_error}`);
+    } catch (error: unknown) {
+      aiLogger.error({ err: error }, "Perplexity generation failed");
+      throw toAIProviderError("perplexity", error, "Perplexity generation failed");
     }
   }
 
@@ -138,10 +135,7 @@ export class PerplexityProvider implements AIProvider {
       });
 
       if (!response.ok) {
-        throw AppError.externalService(
-          "Perplexity",
-          `Perplexity API error: ${response.status} ${response.statusText}`
-        );
+        throw errorFromFetchResponse("perplexity", response, "Perplexity API error");
       }
 
       const data = await response.json();
@@ -149,10 +143,7 @@ export class PerplexityProvider implements AIProvider {
       return spec.parse(JSON.parse(content));
     } catch (error: unknown) {
       aiLogger.error({ err: error }, "Perplexity structured generation failed");
-      throw AppError.externalService(
-        "Perplexity",
-        `Perplexity structured generation failed: ${error}`
-      );
+      throw toAIProviderError("perplexity", error, "Perplexity structured generation failed");
     }
   }
 
