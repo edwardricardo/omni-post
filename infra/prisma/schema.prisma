@@ -35,7 +35,6 @@ model Account {
   projects                 Project[]
   apiKeys                  ApiKey[]
   contentTemplates         ContentTemplate[]
-  publishingQueue          PublishingQueue[]
   instagramStoryProjects   InstagramStoryProject[]
   videoProcessingJobs      VideoProcessingJob[]
   instagramAnalytics       InstagramAnalytics[]
@@ -615,7 +614,6 @@ model Project {
   posts                       Post[]
   account                     Account                      @relation(fields: [accountId], references: [id], onDelete: Cascade)
   contentTemplates            ContentTemplate[]
-  publishingQueue             PublishingQueue[]
   instagramStoryProjects      InstagramStoryProject[]
   videoProcessingJobs         VideoProcessingJob[]
   instagramAnalytics          InstagramAnalytics[]
@@ -659,7 +657,6 @@ model Post {
   contents                  PostContent[]
   media                     PostMedia[]
   thread                    Thread?
-  publishingQueue           PublishingQueue[]
   contentVersions           ContentVersion[]
   webhookEvents             WebhookEvent[]
   analytics                 Analytics[]
@@ -1022,7 +1019,6 @@ model ContentTemplate {
   project         Project?          @relation(fields: [projectId], references: [id], onDelete: Cascade)
   parent          ContentTemplate?  @relation("TemplateVersions", fields: [parentId], references: [id])
   versions        ContentTemplate[] @relation("TemplateVersions")
-  publishingQueue PublishingQueue[]
   contentVersions ContentVersion[]
 
   @@index([accountId, isActive])
@@ -1036,95 +1032,10 @@ model ContentTemplate {
   @@index([parentId, version])
 }
 
-model PublishingQueue {
-  id         String  @id @default(uuid())
-  accountId  String
-  projectId  String
-  postId     String? // Reference to existing post
-  templateId String? // Reference to template used
-
-  // Content to publish
-  content         Json // CanonicalPost or processed content
-  originalContent Json? // Original content before adaptations
-
-  // Publishing configuration
-  providers          Provider[] // Target providers
-  contentType        InstagramContentType? // Specific content type for Instagram
-  scheduledAt        DateTime?             @db.Timestamptz(6)
-  timezone           String                @default("UTC")
-  publishImmediately Boolean               @default(false)
-
-  // Instagram-specific settings
-  storyProjectId       String? // Reference to Instagram Story Project
-  videoProcessingJobId String? // Reference to video processing job
-  priority             QueuePriority @default(MEDIUM)
-
-  // Optimization settings
-  optimizeForEngagement Boolean @default(false)
-  respectRateLimits     Boolean @default(true)
-  autoRetry             Boolean @default(true)
-
-  // Cross-platform settings
-  adaptContent  Boolean @default(true)
-  optimizeMedia Boolean @default(true)
-
-  // Status and progress
-  status      PublishingStatus @default(PENDING)
-  progress    Int              @default(0) // 0-100
-  startedAt   DateTime?        @db.Timestamptz(6)
-  completedAt DateTime?        @db.Timestamptz(6)
-
-  // Results and tracking
-  results             Json? // PublishResult per provider
-  totalProviders      Int   @default(0)
-  successfulProviders Int   @default(0)
-  failedProviders     Int   @default(0)
-
-  // Error handling
-  retryCount  Int       @default(0)
-  maxRetries  Int       @default(3)
-  lastError   String?
-  lastErrorAt DateTime? @db.Timestamptz(6)
-
-  // Dependencies and sequencing
-  parentQueueId  String? // For threaded publishing
-  sequenceNumber Int? // Order in sequence
-  dependsOn      String[] @default([]) // Queue IDs this depends on
-
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @db.Timestamptz(6)
-
-  // Relationships
-  account            Account                @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  project            Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  post               Post?                  @relation(fields: [postId], references: [id], onDelete: SetNull)
-  template           ContentTemplate?       @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  parent             PublishingQueue?       @relation("QueueSequence", fields: [parentQueueId], references: [id])
-  children           PublishingQueue[]      @relation("QueueSequence")
-  contentVersions    ContentVersion[]
-  storyProject       InstagramStoryProject? @relation(fields: [storyProjectId], references: [id], onDelete: SetNull)
-  videoProcessingJob VideoProcessingJob?    @relation(fields: [videoProcessingJobId], references: [id], onDelete: SetNull)
-
-  @@index([accountId, status])
-  @@index([projectId, status])
-  @@index([scheduledAt, status])
-  @@index([status, createdAt])
-  @@index([providers])
-  @@index([parentQueueId, sequenceNumber])
-  @@index([contentType])
-  @@index([priority])
-  @@index([storyProjectId])
-  @@index([videoProcessingJobId])
-  @@index([createdAt])
-  @@index([updatedAt])
-  @@index([completedAt])
-}
-
 model ContentVersion {
   id         String  @id @default(uuid())
   postId     String
   templateId String?
-  queueId    String?
 
   // Version metadata
   version     Int
@@ -1155,12 +1066,10 @@ model ContentVersion {
   // Relationships
   post     Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
   template ContentTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  queue    PublishingQueue? @relation(fields: [queueId], references: [id], onDelete: SetNull)
 
   @@unique([postId, version])
   // @@index([postId, version]) - REMOVED: Duplicate of unique constraint
   @@index([templateId])
-  @@index([queueId])
   @@index([changeType])
   @@index([createdBy])
   @@index([approvedAt])
@@ -1207,16 +1116,6 @@ enum TweetStatus {
   PUBLISHING
   PUBLISHED
   FAILED
-}
-
-enum PublishingStatus {
-  PENDING
-  QUEUED
-  PROCESSING
-  PUBLISHED
-  FAILED
-  CANCELLED
-  RETRYING
 }
 
 enum VersionChangeType {
@@ -1271,7 +1170,6 @@ model InstagramStoryProject {
   // Relationships
   account         Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
   project         Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  publishingQueue PublishingQueue[]
 
   @@index([accountId, status])
   @@index([projectId, status])
@@ -1380,7 +1278,6 @@ model VideoProcessingJob {
   account         Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
   project         Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
   originalMedia   PostMedia         @relation(fields: [originalMediaId], references: [id], onDelete: Cascade)
-  publishingQueue PublishingQueue[]
 
   @@index([accountId, status])
   @@index([projectId, status])
@@ -1726,13 +1623,6 @@ enum InstagramContentType {
   REELS
   CAROUSEL
   IGTV
-}
-
-enum QueuePriority {
-  LOW
-  MEDIUM
-  HIGH
-  URGENT
 }
 
 // Webhook-related enums

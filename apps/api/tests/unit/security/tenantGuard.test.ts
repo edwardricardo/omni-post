@@ -304,8 +304,8 @@ describe("tenantGuardExtension", () => {
   });
 
   describe("model classification", () => {
-    it("getTenantScopedModels returns 51 entries", () => {
-      expect(getTenantScopedModels().size).toBe(51);
+    it("getTenantScopedModels returns 50 entries", () => {
+      expect(getTenantScopedModels().size).toBe(50);
     });
 
     it("includes well-known tenant tables (project, apiKey, mediaAsset)", () => {

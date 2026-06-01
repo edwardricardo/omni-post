@@ -121,7 +121,6 @@ const TENANT_SCOPED_MODELS = new Set<string>([
   "mention",
   "oidcConfiguration",
   "project",
-  "publishingQueue",
   "referralCode",
   "repurposeProposal",
   "sagaInstance",

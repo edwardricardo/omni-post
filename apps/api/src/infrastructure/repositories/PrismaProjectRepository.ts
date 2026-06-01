@@ -222,18 +222,16 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
     await this.prisma.postContent.deleteMany({ where: { post: { projectId } } });
     // 5. ContentVersions
     await this.prisma.contentVersion.deleteMany({ where: { post: { projectId } } });
-    // 6. PublishingQueue
-    await this.prisma.publishingQueue.deleteMany({ where: { projectId } });
-    // 7. Tweets → Threads
+    // 6. Tweets → Threads
     if (postIds.length > 0) {
       await this.prisma.tweet.deleteMany({ where: { thread: { postId: { in: postIds } } } });
       await this.prisma.thread.deleteMany({ where: { postId: { in: postIds } } });
     }
-    // 8. Posts
+    // 7. Posts
     await this.prisma.post.deleteMany({ where: { projectId } });
-    // 9. Channels
+    // 8. Channels
     await this.prisma.channel.deleteMany({ where: { projectId } });
-    // 10. Other project-level records
+    // 9. Other project-level records
     await this.prisma.contentTemplate.deleteMany({ where: { projectId } });
     await this.prisma.instagramStoryProject.deleteMany({ where: { projectId } });
     await this.prisma.videoProcessingJob.deleteMany({ where: { projectId } });
@@ -242,7 +240,7 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
     await this.prisma.webhookEvent.deleteMany({ where: { projectId } });
     await this.prisma.webhookSubscription.deleteMany({ where: { projectId } });
     await this.prisma.template.deleteMany({ where: { projectId } });
-    // 11. Project itself
+    // 10. Project itself
     await this.prisma.project.delete({ where: { id: projectId } });
 
     return ok(undefined);
