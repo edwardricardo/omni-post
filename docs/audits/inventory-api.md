@@ -525,12 +525,12 @@ False-positive risks to manually confirm:
 | [apps/api/src/domain/events/PostEvents.ts](apps/api/src/domain/events/PostEvents.ts)                                     | domain-event    | domain | VÁLIDO                                                         |
 | [apps/api/src/domain/events/ProjectEvents.ts](apps/api/src/domain/events/ProjectEvents.ts)                               | domain-event    | domain | VÁLIDO                                                         |
 | [apps/api/src/domain/index.ts](apps/api/src/domain/index.ts)                                                             | barrel          | domain | VÁLIDO                                                         |
-| [apps/api/src/domain/repositories/\*.ts](../../apps/api/src/domain/repositories/)                                        | repository-port | domain | VÁLIDO — 59 port interfaces, each bound to a Prisma\* impl     |
+| [packages/core/domain/src/repositories/\*.ts](../../packages/core/domain/src/repositories/)                              | repository-port | domain | VÁLIDO — 59 port interfaces, each bound to a Prisma\* impl     |
 | [apps/api/src/domain/security/rotationStatusRules.ts](apps/api/src/domain/security/rotationStatusRules.ts)               | service         | domain | VÁLIDO                                                         |
 | [apps/api/src/domain/security/secretCatalog.ts](apps/api/src/domain/security/secretCatalog.ts)                           | service         | domain | VÁLIDO                                                         |
 | [apps/api/src/domain/services/index.ts](apps/api/src/domain/services/index.ts)                                           | barrel          | domain | VÁLIDO                                                         |
 | [apps/api/src/domain/services/MentionParser.ts](apps/api/src/domain/services/MentionParser.ts)                           | service         | domain | VÁLIDO                                                         |
-| [apps/api/src/domain/value-objects/\*.ts](../../apps/api/src/domain/value-objects/)                                      | value-object    | domain | VÁLIDO — 22 value objects (IDs, statuses, content, scheduling) |
+| [packages/core/domain/src/value-objects/\*.ts](../../packages/core/domain/src/value-objects/)                            | value-object    | domain | VÁLIDO — 22 value objects (IDs, statuses, content, scheduling) |
 
 ### apps/api/src/application/
 
