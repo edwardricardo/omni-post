@@ -112,7 +112,7 @@ async function callConfirm(input: BulkScheduleConfirmInput): Promise<BulkSchedul
 
 /**
  * @hook useBulkScheduleParse
- * @description Mutation hook for Phase 1 of the bulk-scheduling flow.
+ * @description Mutation hook for the parse step of the bulk-scheduling flow.
  *   POSTs the raw CSV to `/bulk-scheduling/parse` for server-side structural
  *   validation. Does NOT write any data to the database.
  * @returns TanStack mutation with `{ validRows, errors, totalDataRows }` on success.
@@ -125,7 +125,7 @@ export function useBulkScheduleParse() {
 
 /**
  * @hook useBulkScheduleConfirm
- * @description Mutation hook for Phase 2 of the bulk-scheduling flow.
+ * @description Mutation hook for the confirm step of the bulk-scheduling flow.
  *   POSTs validated rows + selected channel IDs to `/bulk-scheduling/confirm`.
  *   The server persists the batch atomically (one UoW transaction). Throws on
  *   403 (foreign channelId), 500, or any non-ok response.

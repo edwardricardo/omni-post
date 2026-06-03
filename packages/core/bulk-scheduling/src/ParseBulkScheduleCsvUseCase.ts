@@ -1,9 +1,9 @@
 /**
  * @file ParseBulkScheduleCsvUseCase.ts
- * @description Phase-1 use case for bulk-scheduling: parses a CSV and returns a
+ * @description Parse-step use case for bulk-scheduling: parses a CSV and returns a
  *              validated row preview. Stateless — no DB, no UoW, no queue. The
  *              client uses the returned rows to show a preview and then calls
- *              ConfirmBulkScheduleUseCase (Phase 2) with a selected channelIds[].
+ *              ConfirmBulkScheduleUseCase (the confirm step) with a selected channelIds[].
  * @layer application
  */
 
