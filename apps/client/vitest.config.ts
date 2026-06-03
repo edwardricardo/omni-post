@@ -24,6 +24,14 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./"),
       "@packages/api-errors": path.resolve(__dirname, "../../packages/api-errors/src/index.ts"),
+      "@packages/ui": path.resolve(__dirname, "../../packages/ui/src/index.ts"),
+      // Sub-path alias for the runtime-free scheduling CSV schema module.
+      // Points at the schema file directly (not the barrel index or the server parser)
+      // so Vite/Vitest never attempts to resolve csv-parse (server-only dep).
+      "@core/bulk-scheduling/schedulingCsvSchema.js": path.resolve(
+        __dirname,
+        "../../packages/core/bulk-scheduling/src/schedulingCsvSchema.ts"
+      ),
     },
   },
 });

@@ -186,4 +186,55 @@ describe("parseSchedulingCsv — content-pure schema", () => {
       assert.strictEqual(result.validRows[1]?.row, 2);
     });
   });
+
+  describe("generic parsing — malformed input, tokenizer, list columns", () => {
+    it("returns a row-0 error on a malformed CSV (inconsistent column count)", () => {
+      const csv = `${HEADER}\nHello,${future(TWO_DAYS)},unexpected-extra-field`;
+      const result = parseSchedulingCsv(csv);
+      assert.strictEqual(result.validRows.length, 0);
+      assert.strictEqual(result.errors[0]?.row, 0);
+      assert.match(result.errors[0]?.message ?? "", /malformed csv/i);
+    });
+
+    it("returns a row-0 error when the CSV has a header but no data rows", () => {
+      const result = parseSchedulingCsv(HEADER);
+      assert.strictEqual(result.validRows.length, 0);
+      assert.strictEqual(result.errors[0]?.row, 0);
+      assert.match(result.errors[0]?.message ?? "", /no data rows/i);
+    });
+
+    it("preserves a quoted field that contains a comma", () => {
+      const csv = `${HEADER}\n"Hello, world",${future(TWO_DAYS)}`;
+      const result = parseSchedulingCsv(csv);
+      assert.strictEqual(result.validRows.length, 1);
+      assert.strictEqual(result.validRows[0]?.content, "Hello, world");
+    });
+
+    it("splits pipe-separated mediaUrls and tags into lists", () => {
+      const csv = `content,scheduledFor,mediaUrls,tags\nHello,${future(TWO_DAYS)},https://cdn.example.com/a.jpg|https://cdn.example.com/b.png,foo|bar`;
+      const result = parseSchedulingCsv(csv);
+      assert.strictEqual(result.validRows.length, 1);
+      assert.strictEqual(result.validRows[0]?.media.length, 2);
+      assert.deepStrictEqual(result.validRows[0]?.tags, ["foo", "bar"]);
+    });
+
+    it("returns a per-row error for a syntactically invalid media URL", () => {
+      const csv = `content,scheduledFor,mediaUrls\nHello,${future(TWO_DAYS)},not a url`;
+      const result = parseSchedulingCsv(csv);
+      assert.strictEqual(result.validRows.length, 0);
+      assert.strictEqual(result.errors[0]?.row, 1);
+      assert.strictEqual(result.errors[0]?.field, "mediaUrls");
+      assert.match(result.errors[0]?.message ?? "", /invalid url/i);
+    });
+
+    it("emits scheduledFor as a canonical ISO-8601 string with milliseconds", () => {
+      const csv = `${HEADER}\nHello,${future(TWO_DAYS)}`;
+      const result = parseSchedulingCsv(csv);
+      assert.strictEqual(result.validRows.length, 1);
+      assert.match(
+        result.validRows[0]?.scheduledFor ?? "",
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
+      );
+    });
+  });
 });

@@ -15,14 +15,12 @@ import type {
   CreatedSlot,
   SchedulerView,
   CreateScheduleInput,
-  BulkCreateScheduleInput,
 } from "../../types/multi-platform-scheduling";
 import {
   useScheduleSlots,
   useOptimalTimes,
   useSchedulingRules,
   useCreateSchedule,
-  useBulkCreateSchedules,
   useCreateSchedulingRule,
   useUpdateSchedulingRule,
   useToggleSchedulingRule,
@@ -62,7 +60,6 @@ export function MultiPlatformScheduler({
   const { data: optimalTimes = [] } = useOptimalTimes({ projectId });
   const { data: schedulingRules = [] } = useSchedulingRules({ projectId });
   const createScheduleMutation = useCreateSchedule();
-  const bulkCreateMutation = useBulkCreateSchedules();
   const createRuleMutation = useCreateSchedulingRule();
   const updateRuleMutation = useUpdateSchedulingRule();
   const toggleRuleMutation = useToggleSchedulingRule();
@@ -130,52 +127,6 @@ export function MultiPlatformScheduler({
       });
     },
     [handleCreateSchedule, projectId, selectedProviders]
-  );
-
-  const handleBulkSchedule = useCallback(
-    async (
-      contents: string[],
-      providers: string[],
-      startDate: Date,
-      frequency: "daily" | "weekly" | "monthly",
-      interval: number
-    ) => {
-      const slotInputs = contents.map((_, index) => {
-        const scheduleDate = new Date(startDate);
-
-        switch (frequency) {
-          case "daily":
-            scheduleDate.setDate(startDate.getDate() + index * interval);
-            break;
-          case "weekly":
-            scheduleDate.setDate(startDate.getDate() + index * interval * 7);
-            break;
-          case "monthly":
-            scheduleDate.setMonth(startDate.getMonth() + index * interval);
-            break;
-        }
-
-        return {
-          dayOfWeek: scheduleDate.getDay(),
-          hour: scheduleDate.getHours(),
-          minute: scheduleDate.getMinutes(),
-          providers,
-        };
-      });
-
-      const input: BulkCreateScheduleInput = {
-        projectId,
-        slots: slotInputs,
-      };
-
-      try {
-        const createdSchedules = await bulkCreateMutation.mutateAsync(input);
-        createdSchedules.forEach((schedule) => onScheduleCreated?.(schedule));
-      } catch {
-        // Error surfaced by TanStack Query mutation state
-      }
-    },
-    [bulkCreateMutation, onScheduleCreated, projectId]
   );
 
   const handleAddRule = useCallback(async () => {
@@ -285,7 +236,7 @@ export function MultiPlatformScheduler({
           />
         )}
 
-        {view === "bulk" && <BulkScheduleView onBulkSchedule={handleBulkSchedule} />}
+        {view === "bulk" && <BulkScheduleView projectId={projectId} />}
       </div>
 
       <InputDialog
