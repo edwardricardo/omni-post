@@ -1,8 +1,8 @@
 /**
  * @file ParseBulkScheduleCsvUseCase.test.ts
  * @description Unit tests for ParseBulkScheduleCsvUseCase.
- *   Spec scenarios: "Valid CSV parses successfully in Phase 1",
- *   "Abandon after Phase 1 leaves no DB rows".
+ *   Spec scenarios: "Valid CSV parses successfully in the parse step",
+ *   "Abandon after the parse step leaves no DB rows".
  * @layer infrastructure
  */
 
