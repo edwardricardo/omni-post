@@ -216,11 +216,7 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
       await this.prisma.contentVersion.deleteMany({
         where: { post: { projectId: { in: projectIds } } },
       });
-      // 6. PublishingQueue
-      await this.prisma.publishingQueue.deleteMany({
-        where: { projectId: { in: projectIds } },
-      });
-      // 7. Threads + Tweets
+      // 6. Threads + Tweets
       const posts = await this.prisma.post.findMany({
         where: { projectId: { in: projectIds } },
         select: { id: true },
@@ -234,11 +230,11 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
           where: { postId: { in: postIds } },
         });
       }
-      // 8. Posts
+      // 7. Posts
       await this.prisma.post.deleteMany({ where: { projectId: { in: projectIds } } });
-      // 9. Channels (single connection model — covers tokens + display state)
+      // 8. Channels (single connection model — covers tokens + display state)
       await this.prisma.channel.deleteMany({ where: { projectId: { in: projectIds } } });
-      // 10. Misc project-scoped tables
+      // 9. Misc project-scoped tables
       await this.prisma.contentTemplate.deleteMany({ where: { projectId: { in: projectIds } } });
       await this.prisma.instagramStoryProject.deleteMany({
         where: { projectId: { in: projectIds } },
@@ -251,14 +247,13 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
         where: { projectId: { in: projectIds } },
       });
       await this.prisma.template.deleteMany({ where: { projectId: { in: projectIds } } });
-      // 11. Projects
+      // 10. Projects
       await this.prisma.project.deleteMany({ where: { id: { in: projectIds } } });
     }
 
     // Account-level records
     await this.prisma.apiKey.deleteMany({ where: { accountId } });
     await this.prisma.contentTemplate.deleteMany({ where: { accountId } });
-    await this.prisma.publishingQueue.deleteMany({ where: { accountId } });
     await this.prisma.instagramStoryProject.deleteMany({ where: { accountId } });
     await this.prisma.videoProcessingJob.deleteMany({ where: { accountId } });
     await this.prisma.instagramAnalytics.deleteMany({ where: { accountId } });

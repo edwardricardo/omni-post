@@ -22,8 +22,6 @@ export interface NewBulkScheduleItem {
   id: string;
   /** 1-based CSV data row number (header excluded). */
   rowNumber: number;
-  /** Provider id for valid rows; empty string for parse-failed rows. */
-  provider: string;
   /** Only PENDING (valid row, awaiting its job) or FAILED (parse error). */
   status: Extract<BulkScheduleItemStatus, "PENDING" | "FAILED">;
   /** Parse error message — present only for FAILED items. */

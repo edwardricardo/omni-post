@@ -20,7 +20,6 @@ import { useProject } from "@/providers/ProjectProvider";
 import {
   useOptimalTimes,
   useSchedulingRules,
-  useBulkCreateSchedules,
   useCreateSchedulingRule,
   useUpdateSchedulingRule,
   useToggleSchedulingRule,
@@ -52,60 +51,9 @@ export default function SchedulingPage() {
   const { data: optimalTimes = [] } = useOptimalTimes({ projectId });
   const { data: rules = [] } = useSchedulingRules({ projectId });
 
-  const bulkCreateMutation = useBulkCreateSchedules();
   const createRuleMutation = useCreateSchedulingRule();
   const updateRuleMutation = useUpdateSchedulingRule();
   const toggleRuleMutation = useToggleSchedulingRule();
-
-  const handleBulkSchedule = useCallback(
-    async (
-      contents: string[],
-      providers: string[],
-      startDate: Date,
-      frequency: "daily" | "weekly" | "monthly",
-      interval: number
-    ) => {
-      const slotInputs = contents.map((_, index) => {
-        const scheduleDate = new Date(startDate);
-        switch (frequency) {
-          case "daily":
-            scheduleDate.setDate(startDate.getDate() + index * interval);
-            break;
-          case "weekly":
-            scheduleDate.setDate(startDate.getDate() + index * interval * 7);
-            break;
-          case "monthly":
-            scheduleDate.setMonth(startDate.getMonth() + index * interval);
-            break;
-        }
-        return {
-          dayOfWeek: scheduleDate.getDay(),
-          hour: scheduleDate.getHours(),
-          minute: scheduleDate.getMinutes(),
-          providers,
-        };
-      });
-
-      try {
-        const created = await bulkCreateMutation.mutateAsync({
-          projectId,
-          slots: slotInputs,
-        });
-        toast({
-          title: t("bulkScheduleCreatedTitle"),
-          description: t("bulkScheduleCreatedDescription", { count: created.length }),
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : t("bulkScheduleFailedFallback");
-        toast({
-          title: t("bulkScheduleFailedTitle"),
-          description: message,
-          variant: "destructive",
-        });
-      }
-    },
-    [bulkCreateMutation, projectId, t]
-  );
 
   const handleScheduleAtTime = useCallback(
     (dayOfWeek: number, hour: number) => {
@@ -268,7 +216,7 @@ export default function SchedulingPage() {
 
         {activeTab === "bulk" && (
           <div role="tabpanel" id="tab-panel-bulk" aria-label={t("tabs.bulk")} className="p-6">
-            <BulkScheduleView onBulkSchedule={handleBulkSchedule} projectId={projectId} />
+            <BulkScheduleView projectId={projectId} />
           </div>
         )}
 

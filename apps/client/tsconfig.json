@@ -20,7 +20,10 @@
       "@providers/instagram/*": ["../../packages/providers/instagram/*"],
       "@packages/api-errors": ["../../packages/api-errors/src/index.ts"],
       "@packages/ui": ["../../packages/ui/src/index.ts"],
-      "@packages/ui/*": ["../../packages/ui/src/*"]
+      "@packages/ui/*": ["../../packages/ui/src/*"],
+      "@core/bulk-scheduling/schedulingCsvSchema.js": [
+        "../../packages/core/bulk-scheduling/src/schedulingCsvSchema.ts"
+      ]
     },
     "plugins": [
       {

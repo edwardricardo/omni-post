@@ -482,10 +482,15 @@ export const TOKENS = {
   // Bulk CSV Scheduling
   BulkScheduleBatchRepository: Symbol.for("BulkScheduleBatchRepository"),
   BulkScheduleQueryRepository: Symbol.for("BulkScheduleQueryRepository"),
-  ImportSchedulingCsvUseCase: Symbol.for("ImportSchedulingCsvUseCase"),
+  // 2-phase bulk scheduling use cases:
+  ParseBulkScheduleCsvUseCase: Symbol.for("ParseBulkScheduleCsvUseCase"),
+  ConfirmBulkScheduleUseCase: Symbol.for("ConfirmBulkScheduleUseCase"),
   ProcessBulkScheduleRowUseCase: Symbol.for("ProcessBulkScheduleRowUseCase"),
   FailBulkScheduleRowUseCase: Symbol.for("FailBulkScheduleRowUseCase"),
   GetBulkScheduleBatchQuery: Symbol.for("GetBulkScheduleBatchQuery"),
+  // Durability core — dispatch handler + reconciliation backstop
+  BulkScheduleDispatchEventHandler: Symbol.for("BulkScheduleDispatchEventHandler"),
+  BulkScheduleReconciliationService: Symbol.for("BulkScheduleReconciliationService"),
 
   // Payment Billing
   PaymentAdapter: Symbol.for("PaymentAdapter"),

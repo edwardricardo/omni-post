@@ -41,7 +41,7 @@ This catches programming mistakes (forgot to filter) AND tampering attempts
 **File:** `infra/prisma/migrations/20260527000000_add_rls_tenant_isolation/migration.sql`
 (applied in S2.1c).
 
-Each of the 51 tenant-scoped tables gets:
+Each of the 50 tenant-scoped tables gets:
 
 ```sql
 ALTER TABLE "<Model>" ENABLE ROW LEVEL SECURITY;
@@ -119,7 +119,7 @@ ApprovalWorkflow            CrmContact              MediaAsset
 AssetFolder                 CustomReport            Mention
 AssetTag                    CustomerUser            OidcConfiguration
 BillingEvent (*)            DsarRequest             Project
-BrandKit                    GatewaySwitchEvent      PublishingQueue
+BrandKit                    GatewaySwitchEvent
 BrandVoice                  ReferralCode            RepurposeProposal
 SagaInstance                SamlConfiguration       SamlSession
 SchedulingRule              SocialConversation      SocialMessage

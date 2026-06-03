@@ -42,7 +42,7 @@ Operational reference (where every secret lives + how to rotate it): [docs/secur
 
 ## Multi-Tenant Isolation
 
-Closed via §2.1 of the Normalization Roadmap. Layer 1 (Prisma `$extends` guard) auto-injects `accountId` on tenant-scoped queries; layer 2 (PostgreSQL RLS) gates rows by `app.account_id` GUC bound at tx start by `PrismaUnitOfWork`; layer 3 (fitness #23) blocks raw queries outside the guard. Full strategy + 51-table list + runbooks in [docs/security/MULTI_TENANT_GUARDS.md](MULTI_TENANT_GUARDS.md). The recurring audit cadence lives in `MULTI_TENANT_AUDIT_<date>.md`.
+Closed via §2.1 of the Normalization Roadmap. Layer 1 (Prisma `$extends` guard) auto-injects `accountId` on tenant-scoped queries; layer 2 (PostgreSQL RLS) gates rows by `app.account_id` GUC bound at tx start by `PrismaUnitOfWork`; layer 3 (fitness #23) blocks raw queries outside the guard. Full strategy + 50-table list + runbooks in [docs/security/MULTI_TENANT_GUARDS.md](MULTI_TENANT_GUARDS.md). The recurring audit cadence lives in `MULTI_TENANT_AUDIT_<date>.md`.
 
 When adding a new `accountId`-bearing model:
 

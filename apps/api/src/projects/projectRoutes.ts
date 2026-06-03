@@ -310,7 +310,7 @@ class ProjectRouteHandler extends BaseRouteHandler {
       });
 
       // 2. Posts reference Project without onDelete: Cascade
-      //    (Thread, ContentVersion, Analytics cascade; PublishLog, PublishingQueue, WebhookEvent set null)
+      //    (Thread, ContentVersion, Analytics cascade; PublishLog, WebhookEvent set null)
       await this.prisma.post.deleteMany({
         where: { projectId },
       });

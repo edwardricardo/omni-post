@@ -16,7 +16,6 @@ import type {
 export interface BulkScheduleItemDTO {
   id: string;
   rowNumber: number;
-  provider: string;
   status: BulkScheduleItemStatus;
   /** Created post id once the row is SCHEDULED, else null. */
   postId: string | null;

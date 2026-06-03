@@ -1,27 +1,29 @@
 /**
  * @file ProcessBulkScheduleRowUseCase.ts
  * @description Mutating use case run by the bulk-schedule worker, one invocation
- *              per CSV row job. It resolves the row's channels, creates the post
- *              (reusing `CreatePostUseCase`) and schedules it (`SchedulePostUseCase`),
- *              then advances the manifest item. It is idempotent: an already
- *              SCHEDULED/FAILED item is skipped, and a post created on a prior
- *              attempt is reused rather than duplicated. Deterministic failures
- *              (no channel, bad provider, scheduling rejected) mark the item
- *              FAILED and return ok — no retry. Transient failures (sub-use-case
- *              INTERNAL_ERROR or an unexpected error) return INTERNAL_ERROR so
- *              the worker (infrastructure) can re-raise it and let BullMQ retry →
- *              DLQ. The use case itself never raises (application-layer rule).
+ *              per CSV row job. Consumes channelIds[] from the job payload (set
+ *              at confirm time by the user) and typed media[] (inferred at parse
+ *              time). Creates the post (reusing CreatePostUseCase) and schedules
+ *              it (SchedulePostUseCase), then advances the manifest item.
+ *              Idempotent: an already SCHEDULED/FAILED item is skipped, and a
+ *              post created on a prior attempt is reused rather than duplicated.
+ *              Deterministic failures (no channel, scheduling rejected) mark the
+ *              item FAILED and return ok — no retry. Transient failures
+ *              (sub-use-case INTERNAL_ERROR or an unexpected error) return
+ *              INTERNAL_ERROR so the worker can re-raise it and let BullMQ
+ *              retry → DLQ. The use case itself never raises (application-layer
+ *              rule).
  * @layer application
  */
 
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
-import { ProjectId } from "@core/domain/index.js";
-import { Provider } from "@core/domain/value-objects/Provider.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
-import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
 import type { BulkScheduleBatchRepository } from "@core/domain/repositories/BulkScheduleBatchRepository.js";
-import type { PostCreationPort } from "@ports/core";
+import type { PostCreationPort, CreatePostMedia } from "@ports/core";
+import type { BulkScheduleRowMedia } from "./events/BulkScheduleRowConfirmed.js";
+
+export type { BulkScheduleRowMedia };
 
 /** Validated row payload carried by the BullMQ job. */
 export interface ProcessBulkScheduleRowInput {
@@ -29,13 +31,15 @@ export interface ProcessBulkScheduleRowInput {
   itemId: string;
   accountId: string;
   projectId: string;
+  /** Channel IDs selected by the user at confirm time. */
+  channelIds: string[];
   row: {
-    provider: string;
     content: string;
     scheduledFor: string;
     timezone: string;
     title?: string;
-    mediaUrls: string[];
+    /** Typed media items (resolved at parse time — no raw URLs in the job). */
+    media: BulkScheduleRowMedia[];
     tags: string[];
   };
 }
@@ -50,6 +54,8 @@ export interface ProcessBulkScheduleRowOutput {
 /**
  * @class ProcessBulkScheduleRowUseCase
  * @description Idempotent per-row processor for the bulk-scheduling worker.
+ *   Receives explicit channelIds[] and typed media[] from the job payload;
+ *   no provider fan-out or channel lookup by provider is performed here.
  */
 export class ProcessBulkScheduleRowUseCase implements UseCase<
   ProcessBulkScheduleRowInput,
@@ -58,16 +64,15 @@ export class ProcessBulkScheduleRowUseCase implements UseCase<
 > {
   constructor(
     private readonly batchRepo: BulkScheduleBatchRepository,
-    private readonly channelRepository: ChannelRepository,
     private readonly postCreation: PostCreationPort,
     private readonly unitOfWork?: UnitOfWork
   ) {}
 
   /**
    * @method execute
-   * @description Processes one row idempotently: guard → resolve channels →
-   *   create → schedule → mark SCHEDULED (or FAILED on a deterministic error).
-   * @param input - The row job payload.
+   * @description Processes one row idempotently: guard → create → schedule →
+   *   mark SCHEDULED (or FAILED on a deterministic error).
+   * @param input - The row job payload with channelIds and typed media.
    * @returns SCHEDULED/FAILED/SKIPPED on success, or INTERNAL_ERROR (transient)
    *   which the worker turns into a retry.
    */
@@ -91,37 +96,27 @@ export class ProcessBulkScheduleRowUseCase implements UseCase<
         return ok({ itemId: input.itemId, status: "FAILED" });
       }
 
-      // 2. Resolve the row's channels (deterministic failure if none).
-      const providerResult = Provider.fromString(input.row.provider);
-      if (!providerResult.ok) {
-        return this.fail(input, `Invalid provider: ${input.row.provider}`);
+      // 2. Validate channelIds are present.
+      if (!input.channelIds || input.channelIds.length === 0) {
+        return this.fail(input, "No channelIds provided in job payload");
       }
-      const projectIdResult = ProjectId.fromString(input.projectId);
-      if (!projectIdResult.ok) {
-        return this.fail(input, `Invalid project id: ${input.projectId}`);
-      }
-      const channels = await this.channelRepository.findByProjectAndProvider(
-        projectIdResult.value,
-        providerResult.value
-      );
-      if (channels.length === 0) {
-        return this.fail(
-          input,
-          `No ${providerResult.value.type} channel connected for this project`
-        );
-      }
-      const channelIds = channels.map((c) => c.id.value);
 
       // 3. Create the post — reuse the one from a prior attempt if present.
       let postId: string;
       if (item.postId !== null) {
         postId = item.postId;
       } else {
+        const media: CreatePostMedia[] = (input.row.media ?? []).map((m) => ({
+          url: m.url,
+          type: m.type,
+        }));
+
         const created = await this.postCreation.createPost({
           projectId: input.projectId,
           body: input.row.content,
           ...(input.row.title !== undefined && { title: input.row.title }),
           tags: input.row.tags,
+          ...(media.length > 0 && { media }),
         });
         if (!created.ok) {
           return this.classify(created.error, input);
@@ -136,10 +131,10 @@ export class ProcessBulkScheduleRowUseCase implements UseCase<
         }
       }
 
-      // 4. Schedule the post onto the resolved channels.
+      // 4. Schedule the post onto the confirmed channels.
       const scheduled = await this.postCreation.schedulePost({
         postId,
-        channelIds,
+        channelIds: input.channelIds,
         scheduledFor: input.row.scheduledFor,
         timezone: input.row.timezone,
       });

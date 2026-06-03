@@ -15,6 +15,20 @@ import {
 } from "@core/domain/index.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { BusinessMetricsPort } from "@core/domain/repositories/BusinessMetricsPort.js";
+import type { MediaType } from "@core/domain/value-objects/MediaAttachment.js";
+
+/**
+ * A single media item to attach to the post after creation.
+ * Mirrors `CreatePostMedia` from `PostCreationPort` — kept local so the
+ * application use case does not take a hard dependency on the ports package.
+ */
+export interface CreatePostMediaItem {
+  readonly url: string;
+  readonly type: MediaType;
+  readonly width?: number;
+  readonly height?: number;
+  readonly alt?: string;
+}
 
 /**
  * Input DTO for creating a post
@@ -27,6 +41,12 @@ export interface CreatePostInput {
   tags?: string[];
   locale?: ContentLocale;
   scheduledAt?: Date;
+  /**
+   * Optional media items to attach via `PostAggregate.addMedia()` immediately
+   * after creation while the post is still DRAFT. Each item is validated by the
+   * domain aggregate — a failure returns `VALIDATION_FAILED` early.
+   */
+  media?: ReadonlyArray<CreatePostMediaItem>;
 }
 
 /**
@@ -99,6 +119,29 @@ export class CreatePostUseCase implements UseCase<CreatePostInput, CreatePostOut
     }
 
     const post = createResult.value;
+
+    // Attach media items while the post is still DRAFT and editable.
+    // addMedia validates each item via the domain aggregate — an invalid item
+    // (bad URL, unsupported type) returns VALIDATION_FAILED early before any
+    // DB write.
+    for (const m of input.media ?? []) {
+      const mediaResult = post.addMedia({
+        type: m.type,
+        url: m.url,
+        ...(m.width !== undefined && { width: m.width }),
+        ...(m.height !== undefined && { height: m.height }),
+        ...(m.alt !== undefined && { altText: m.alt }),
+      });
+      if (!mediaResult.ok) {
+        return err(
+          new UseCaseError(
+            mediaResult.error.message,
+            USE_CASE_ERRORS.VALIDATION_FAILED,
+            mediaResult.error
+          )
+        );
+      }
+    }
 
     // Persist the post and dispatch domain events
     const persistResult = await this.persistAndDispatch(post);

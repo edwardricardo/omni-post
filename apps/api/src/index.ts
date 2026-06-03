@@ -71,6 +71,11 @@ import {
   TriageDispatchEventHandler,
   TRIAGE_HANDLED_EVENT_TYPES,
 } from "./inbox/handlers/TriageDispatchEventHandler.js";
+import {
+  BulkScheduleDispatchEventHandler,
+  BULK_SCHEDULE_HANDLED_EVENT_TYPES,
+} from "./bulk-scheduling/BulkScheduleDispatchEventHandler.js";
+import type { BulkScheduleReconciliationService } from "./bulk-scheduling/BulkScheduleReconciliationService.js";
 import type { TriageInboxMessageUseCase } from "@core/inbox/TriageInboxMessageUseCase.js";
 import { PrismaRepurposeVariantAdapter } from "./infrastructure/repositories/PrismaRepurposeVariantAdapter.js";
 import type { DetectRepurposeCandidatesUseCase } from "@core/ai/DetectRepurposeCandidatesUseCase.js";
@@ -758,8 +763,22 @@ async function start() {
       eventDispatcher.register(eventType, triageDispatchHandler);
     }
 
+    // BulkScheduleRowConfirmed → BULK_SCHEDULE BullMQ job.
+    // Idempotent via dedupeKey = bulk-{batchId}-{itemId}.
+    const bulkScheduleDispatchHandler = app.container!.resolve<BulkScheduleDispatchEventHandler>(
+      TOKENS.BulkScheduleDispatchEventHandler
+    );
+    for (const eventType of BULK_SCHEDULE_HANDLED_EVENT_TYPES) {
+      eventDispatcher.register(eventType, bulkScheduleDispatchHandler);
+    }
+
     outboxRelay.start();
     outboxCleaner.start();
+
+    // Arm the 60-second reconciliation sweep by resolving the singleton.
+    app.container!.resolve<BulkScheduleReconciliationService>(
+      TOKENS.BulkScheduleReconciliationService
+    );
 
     // Gateway switch processor — BullMQ worker for reminder/suspend jobs
     const { GatewaySwitchProcessor } = await import("./billing/gatewaySwitchProcessor.js");

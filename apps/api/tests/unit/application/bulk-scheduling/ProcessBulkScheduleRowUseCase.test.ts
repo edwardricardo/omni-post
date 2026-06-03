@@ -2,7 +2,9 @@
  * @file ProcessBulkScheduleRowUseCase.test.ts
  * @description Unit tests for the per-row worker use case: happy path, the
  *              deterministic-vs-transient failure split, idempotency (terminal
- *              item skip + post reuse on retry), and the no-channel case.
+ *              item skip + post reuse on retry), and the empty-channelIds case.
+ *              Updated to use the new job payload shape: channelIds[] + typed
+ *              media[] (no provider fan-out, no findByProjectAndProvider).
  * @layer infrastructure
  */
 import { describe, it, beforeEach, vi } from "vitest";
@@ -14,15 +16,11 @@ import type {
   BulkScheduleBatchRepository,
   BulkScheduleItemState,
 } from "@core/domain/repositories/BulkScheduleBatchRepository.js";
-import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
 import type { PostCreationPort } from "@ports/core";
-import type { Channel } from "@core/domain/entities/Channel.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 
 const PROJECT_ID = "550e8400-e29b-41d4-a716-446655440000";
 const passthroughUow: UnitOfWork = { executeInTransaction: async (fn) => fn() };
-
-const channel = (id: string): Channel => ({ id: { value: id } }) as unknown as Channel;
 
 const makeBatchRepo = (item: BulkScheduleItemState | null): BulkScheduleBatchRepository => ({
   createBatch: vi.fn(async () => {}),
@@ -32,9 +30,6 @@ const makeBatchRepo = (item: BulkScheduleItemState | null): BulkScheduleBatchRep
   markItemFailed: vi.fn(async () => {}),
   completeBatchIfSettled: vi.fn(async () => {}),
 });
-
-const makeChannelRepo = (channels: Channel[]): ChannelRepository =>
-  ({ findByProjectAndProvider: vi.fn(async () => channels) }) as unknown as ChannelRepository;
 
 const makePostCreation = (
   createImpl: PostCreationPort["createPost"],
@@ -49,17 +44,17 @@ const createOk: PostCreationPort["createPost"] = async () => ok({ id: "post-1" }
 const scheduleOk: PostCreationPort["schedulePost"] = async () =>
   ok({ id: "post-1", scheduledFor: "2026-06-01T00:00:00Z" });
 
-const input = (overrides?: Partial<{ provider: string; postId: string }>) => ({
+const input = (overrides?: { channelIds?: string[] }) => ({
   batchId: "batch-1",
   itemId: "item-1",
   accountId: "acc-1",
   projectId: PROJECT_ID,
+  channelIds: overrides?.channelIds ?? ["ch-001"],
   row: {
-    provider: overrides?.provider ?? "X",
     content: "Hello",
     scheduledFor: "2026-06-01T00:00:00Z",
     timezone: "UTC",
-    mediaUrls: [] as string[],
+    media: [] as Array<{ url: string; type: "image" | "video" | "gif" }>,
     tags: [] as string[],
   },
 });
@@ -78,7 +73,6 @@ describe("ProcessBulkScheduleRowUseCase", () => {
     const batchRepo = makeBatchRepo(pendingItem());
     const uc = new ProcessBulkScheduleRowUseCase(
       batchRepo,
-      makeChannelRepo([channel("c1")]),
       makePostCreation(createOk, scheduleOk),
       passthroughUow
     );
@@ -102,17 +96,26 @@ describe("ProcessBulkScheduleRowUseCase", () => {
     );
   });
 
-  it("marks the item FAILED (no retry) when no channel exists for the provider", async () => {
+  it("passes channelIds to schedulePost directly (no findByProjectAndProvider)", async () => {
     const batchRepo = makeBatchRepo(pendingItem());
     const postCreation = makePostCreation(createOk, scheduleOk);
-    const uc = new ProcessBulkScheduleRowUseCase(
-      batchRepo,
-      makeChannelRepo([]),
-      postCreation,
-      passthroughUow
-    );
+    const uc = new ProcessBulkScheduleRowUseCase(batchRepo, postCreation, passthroughUow);
 
-    const result = await uc.execute(input());
+    await uc.execute(input({ channelIds: ["ch-abc", "ch-def"] }));
+
+    const scheduleArgs = (postCreation.schedulePost as ReturnType<typeof vi.fn>).mock
+      .calls[0]?.[0] as {
+      channelIds: string[];
+    };
+    assert.deepStrictEqual(scheduleArgs?.channelIds, ["ch-abc", "ch-def"]);
+  });
+
+  it("marks the item FAILED (no retry) when channelIds is empty", async () => {
+    const batchRepo = makeBatchRepo(pendingItem());
+    const postCreation = makePostCreation(createOk, scheduleOk);
+    const uc = new ProcessBulkScheduleRowUseCase(batchRepo, postCreation, passthroughUow);
+
+    const result = await uc.execute(input({ channelIds: [] }));
 
     assert.ok(result.ok, "deterministic failure returns ok(FAILED)");
     assert.strictEqual(result.value.status, "FAILED");
@@ -120,26 +123,33 @@ describe("ProcessBulkScheduleRowUseCase", () => {
     assert.strictEqual((postCreation.createPost as ReturnType<typeof vi.fn>).mock.calls.length, 0);
   });
 
-  it("marks the item FAILED on an unsupported provider value", async () => {
+  it("passes typed media[] to createPost", async () => {
     const batchRepo = makeBatchRepo(pendingItem());
-    const uc = new ProcessBulkScheduleRowUseCase(
-      batchRepo,
-      makeChannelRepo([channel("c1")]),
-      makePostCreation(createOk, scheduleOk),
-      passthroughUow
-    );
+    const postCreation = makePostCreation(createOk, scheduleOk);
+    const uc = new ProcessBulkScheduleRowUseCase(batchRepo, postCreation, passthroughUow);
 
-    const result = await uc.execute(input({ provider: "MYSPACE" }));
+    const inputWithMedia = {
+      ...input(),
+      row: {
+        ...input().row,
+        media: [{ url: "https://cdn.example.com/photo.jpg", type: "image" as const }],
+      },
+    };
 
-    assert.ok(result.ok);
-    assert.strictEqual(result.value.status, "FAILED");
+    await uc.execute(inputWithMedia);
+
+    const createArgs = (postCreation.createPost as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as {
+      media: Array<{ url: string; type: string }>;
+    };
+    assert.deepStrictEqual(createArgs?.media, [
+      { url: "https://cdn.example.com/photo.jpg", type: "image" },
+    ]);
   });
 
   it("marks the item FAILED when CreatePost returns a deterministic error", async () => {
     const batchRepo = makeBatchRepo(pendingItem());
     const uc = new ProcessBulkScheduleRowUseCase(
       batchRepo,
-      makeChannelRepo([channel("c1")]),
       makePostCreation(
         async () => err(new UseCaseError("bad body", USE_CASE_ERRORS.VALIDATION_FAILED)),
         scheduleOk
@@ -158,7 +168,6 @@ describe("ProcessBulkScheduleRowUseCase", () => {
     const batchRepo = makeBatchRepo(pendingItem());
     const uc = new ProcessBulkScheduleRowUseCase(
       batchRepo,
-      makeChannelRepo([channel("c1")]),
       makePostCreation(
         async () => err(new UseCaseError("db down", USE_CASE_ERRORS.INTERNAL_ERROR)),
         scheduleOk
@@ -177,7 +186,6 @@ describe("ProcessBulkScheduleRowUseCase", () => {
     const batchRepo = makeBatchRepo(pendingItem());
     const uc = new ProcessBulkScheduleRowUseCase(
       batchRepo,
-      makeChannelRepo([channel("c1")]),
       makePostCreation(createOk, async () =>
         err(new UseCaseError("db down", USE_CASE_ERRORS.INTERNAL_ERROR))
       ),
@@ -203,12 +211,7 @@ describe("ProcessBulkScheduleRowUseCase", () => {
       postId: "post-1",
     });
     const postCreation = makePostCreation(createOk, scheduleOk);
-    const uc = new ProcessBulkScheduleRowUseCase(
-      batchRepo,
-      makeChannelRepo([channel("c1")]),
-      postCreation,
-      passthroughUow
-    );
+    const uc = new ProcessBulkScheduleRowUseCase(batchRepo, postCreation, passthroughUow);
 
     const result = await uc.execute(input());
 
@@ -221,12 +224,7 @@ describe("ProcessBulkScheduleRowUseCase", () => {
   it("reuses the existing post on retry instead of creating a duplicate", async () => {
     const batchRepo = makeBatchRepo(pendingItem("post-existing"));
     const postCreation = makePostCreation(createOk, scheduleOk);
-    const uc = new ProcessBulkScheduleRowUseCase(
-      batchRepo,
-      makeChannelRepo([channel("c1")]),
-      postCreation,
-      passthroughUow
-    );
+    const uc = new ProcessBulkScheduleRowUseCase(batchRepo, postCreation, passthroughUow);
 
     const result = await uc.execute(input());
 
