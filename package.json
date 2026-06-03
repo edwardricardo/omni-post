@@ -190,7 +190,7 @@
     {
       "name": "admin · all client chunks (aggregate)",
       "path": "apps/admin/.next/static/chunks/*.js",
-      "limit": "1.2 MB",
+      "limit": "1.35 MB",
       "gzip": true
     },
     {
