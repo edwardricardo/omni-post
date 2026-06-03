@@ -4,6 +4,8 @@
  * @file AIPromptForm.tsx
  * @description Form component for configuring AI content generation, allowing users
  * to fill in template variables and adjust generation settings before triggering a run.
+ * @component AIPromptForm
+ * @layer infrastructure
  */
 
 import React, { useId } from "react";

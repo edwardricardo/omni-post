@@ -19,10 +19,15 @@ interface EditFormData {
 }
 
 interface AccountEditFormProps {
+  /** Account being edited; used to scope input ids and the save mutation. */
   accountId: string;
+  /** Current draft form values for the account fields. */
   editForm: EditFormData;
+  /** Updater callback for partially modifying the form state. */
   onFormChange: (updater: (prev: EditFormData) => EditFormData) => void;
+  /** Fired when the user confirms the edit (save button). */
   onSave: () => void;
+  /** Fired when the user discards the edit (cancel button). */
   onCancel: () => void;
 }
 

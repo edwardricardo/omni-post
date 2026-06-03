@@ -3,7 +3,6 @@
  * @description Tests for login page
  * @layer infrastructure
  */
-// tests/e2e/fixtures/LoginPage.ts
 import { Page, Locator, expect } from "@playwright/test";
 
 /**

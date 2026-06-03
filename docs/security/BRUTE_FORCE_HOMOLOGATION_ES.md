@@ -1,8 +1,9 @@
 # Homologación de Brute-Force Protection (admin + customer) — workstream BF-HOMOLOG
 
-> **Estado:** diseño capturado (NO implementado). Surgió durante B2 del maratón prisma→DI (#21) al auditar el
-> consumidor huérfano `auth/bruteForceProtection.ts`. Ejecutar al cerrar el maratón o cuando se priorice.
-> Backlog: SMELL-35. Canon: ver `canon_research_index.md` (OWASP Auth Cheat Sheet + NIST SP 800-63B-4).
+> **Estado:** **DONE (S4.4, 2026-05-30).** Ejecutado en 7 phases (port → adapter → DI → customer wire →
+> admin refactor → legacy delete → tests). Decisiones grabadas en
+> [ADR-0015](../technical/ADR-0015-brute-force-protection-port-canon.md). Backlog SMELL-35 → FIX.
+> Canon: ver `canon_research_index.md` (OWASP Auth Cheat Sheet + NIST SP 800-63B-4).
 
 ## Problema
 

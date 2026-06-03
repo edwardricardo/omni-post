@@ -16,7 +16,13 @@ export interface TrendRadarDeps {
 
 export interface TrendRadarPayload {
   readonly accountId: string;
+  /** Calendar day bucket snapshotted at dispatch time (YYYY-MM-DD UTC).
+   * Propagated through to the result port so the unique constraint
+   * deduplicates results when the consumer crosses midnight. */
+  readonly dayKey: string;
 }
+
+const DAY_KEY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * @function processTrendRadarJob
@@ -30,13 +36,19 @@ export async function processTrendRadarJob(
 ): Promise<void> {
   const { detect, logger } = deps;
   const accountId = payload.accountId;
+  const dayKey = payload.dayKey;
 
   if (typeof accountId !== "string" || accountId.length === 0) {
     logger.warn({ payload }, "Trend radar job missing accountId; skipping");
     return;
   }
 
-  const result = await detect.execute({ accountId });
+  if (typeof dayKey !== "string" || !DAY_KEY_REGEX.test(dayKey)) {
+    logger.warn({ payload }, "Trend radar job missing or malformed dayKey; skipping");
+    return;
+  }
+
+  const result = await detect.execute({ accountId, dayKey });
   if (!result.ok) {
     logger.error({ accountId, error: result.error }, "Trend radar detection failed");
     throw new Error(`Trend radar detection failed for account ${accountId}`);

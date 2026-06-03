@@ -53,13 +53,27 @@ export class PrismaBillingEventRepository implements BillingEventRepository {
     }
   }
 
-  async markProcessed(id: string): Promise<Result<void, BillingEventStoreError>> {
+  /**
+   * @method markProcessed
+   * @description Atomic compare-and-swap: sets processed=true only if the
+   *   row currently has processed=false. Returns `{ claimed: true }` if this
+   *   call was the first to flip the flag (caller should run the side-effect
+   *   handler). Returns `{ claimed: false }` if another concurrent webhook
+   *   delivery already claimed the event (caller MUST skip the handler to
+   *   avoid double side-effects, e.g. double-charge).
+   *
+   *   Trade-off: if the handler crashes after a successful claim, retry
+   *   is not possible without manual intervention because processed=true
+   *   blocks reentry. A lease-based pattern (claimedAt with TTL) would
+   *   permit retry but requires a schema migration. Accepted limitation.
+   */
+  async markProcessed(id: string): Promise<Result<{ claimed: boolean }, BillingEventStoreError>> {
     try {
-      await this.prisma.billingEvent.update({
-        where: { id },
+      const result = await this.prisma.billingEvent.updateMany({
+        where: { id, processed: false },
         data: { processed: true, processedAt: new Date() },
       });
-      return ok(undefined);
+      return ok({ claimed: result.count > 0 });
     } catch {
       return err("DATABASE_ERROR");
     }

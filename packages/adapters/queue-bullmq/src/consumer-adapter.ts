@@ -2,8 +2,8 @@
  * @file consumer-adapter.ts
  * @description BullMQ consumer adapter — creates a Worker bound to a single
  *              queue name. Concurrency, removeOnComplete and removeOnFail
- *              are now caller-provided (previously hardcoded to 5/100/50).
- *              Workers must be closed explicitly via `Worker.close()`.
+ *              are caller-provided. Workers must be closed explicitly via
+ *              `Worker.close()`.
  * @layer infrastructure
  */
 import { Worker } from "bullmq";

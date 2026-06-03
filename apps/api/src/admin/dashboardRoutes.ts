@@ -14,7 +14,7 @@ import { Permission } from "@core/domain/auth/Permission.js";
 import type { DashboardService } from "./dashboardService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
-// ✅ Zod schemas for validation (planned for future time-range filtering)
+// Zod schemas for validation (planned for future time-range filtering)
 const _TimeRangeQuerySchema = z.object({
   query: z.object({
     timeRange: z.enum(["7d", "30d", "90d"]).default("30d").optional(),
@@ -28,7 +28,7 @@ const ExportAccountsQuerySchema = z.object({
   }),
 });
 
-// ✅ BaseRouteHandler implementation
+// BaseRouteHandler implementation
 class DashboardRouteHandler extends BaseRouteHandler {
   protected routeName = "dashboard";
 
@@ -116,12 +116,12 @@ class DashboardRouteHandler extends BaseRouteHandler {
   }
 }
 
-// ✅ PROPER Fastify v5.6.1 Plugin Implementation
+// Fastify v5.6.1 Plugin Implementation
 const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
   const dashboardService = fastify.container!.resolve<DashboardService>(TOKENS.DashboardService);
   const handler = new DashboardRouteHandler(dashboardService);
 
-  // ✅ Get dashboard statistics
+  // Get dashboard statistics
   fastify.get(
     "/admin/dashboard/stats",
     {
@@ -131,7 +131,7 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.getStats(request, reply)
   );
 
-  // ✅ Get account statistics for account management page
+  // Get account statistics for account management page
   fastify.get(
     "/admin/accounts/summary",
     {
@@ -141,7 +141,7 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.getAccountsSummary(request, reply)
   );
 
-  // ✅ Export accounts as CSV (RFC 4180 + CSV-injection prevention via @packages/api-common)
+  // Export accounts as CSV (RFC 4180 + CSV-injection prevention via @packages/api-common)
   fastify.get(
     "/admin/accounts/export",
     {
@@ -151,7 +151,7 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.exportAccounts(request, reply)
   );
 
-  // ✅ Get subscription statistics for subscription management page
+  // Get subscription statistics for subscription management page
   fastify.get(
     "/admin/subscriptions/summary",
     {
@@ -161,7 +161,7 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.getSubscriptionsSummary(request, reply)
   );
 
-  // ✅ Get analytics overview data
+  // Get analytics overview data
   fastify.get(
     "/admin/analytics/overview",
     {

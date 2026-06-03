@@ -349,8 +349,7 @@ class AccountRouteHandler extends BaseRouteHandler {
 /**
  * Account Routes Plugin
  * Registers account management endpoints.
- * Resolves PrismaClient from the DI container when available,
- * falling back to the singleton for backward compatibility during migration.
+ * Resolves PrismaClient from the DI container.
  */
 export const accountRoutes: FastifyPluginAsync = async (fastify) => {
   const prisma = fastify.container.resolve<PrismaClient>(TOKENS.PrismaClient);

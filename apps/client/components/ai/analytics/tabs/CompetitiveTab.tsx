@@ -2,6 +2,8 @@
  * @file CompetitiveTab.tsx
  * @description Tab panel that renders a CompetitorAnalysisCard for each competitor
  * account returned by the cross-platform analytics endpoint.
+ * @component CompetitiveTab
+ * @layer infrastructure
  */
 
 import React from "react";

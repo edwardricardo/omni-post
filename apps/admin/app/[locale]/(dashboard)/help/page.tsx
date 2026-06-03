@@ -64,11 +64,17 @@ const SECTION_KEYS: { key: HelpSectionKey; id: string; icon: LucideIcon }[] = [
 // ---------------------------------------------------------------------------
 
 interface AccordionSectionProps {
+  /** Help section metadata (icon, title, bullets) rendered in the accordion. */
   section: HelpSection;
+  /** Whether the section's body is currently expanded. */
   isOpen: boolean;
+  /** Fired when the user toggles the accordion section. */
   onToggle: () => void;
+  /** Localized label for the "Shows" bullet group. */
   labelShows: string;
+  /** Localized label for the "Actions" bullet group. */
   labelActions: string;
+  /** Localized label for the "Concepts" bullet group. */
   labelConcepts: string;
 }
 

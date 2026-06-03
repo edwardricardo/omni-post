@@ -27,8 +27,6 @@
  *   importar directamente de `msw` — el wrapper permite refactorizar el
  *   pattern en un solo lugar si MSW v3 cambia API.
  *
- *   Workstream: §3.2 Normalization Roadmap.
- *
  * @layer infrastructure
  */
 import { setupServer, type SetupServerApi } from "msw/node";

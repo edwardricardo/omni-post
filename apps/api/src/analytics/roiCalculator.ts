@@ -44,9 +44,8 @@ export type {
 } from "./roi/types.js";
 
 export class ROICalculator {
-  // Redis kept for `updateRealTimeROI` hgetall/hmset pattern (distinct from
-  // cache-aside; PR-33 categorization keeps this as KEEP — distributed counters
-  // are not a CachePort concern). Cache-aside operations migrated to CachePort.
+  // Redis used for `updateRealTimeROI` hgetall/hmset pattern (distributed
+  // counters — distinct from cache-aside, which uses CachePort).
   private redis: Redis;
   private readonly cachePrefix = "roi:";
   private readonly cacheTTL = 600; // 10 minutes

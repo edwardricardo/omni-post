@@ -3,7 +3,6 @@
  * @description Tests for Authentication Flow
  * @layer infrastructure
  */
-// tests/e2e/auth.spec.ts
 import { test, expect } from "@playwright/test";
 import { LoginPage } from "./fixtures/LoginPage";
 import {

@@ -20,6 +20,11 @@ import { SyncCrmContactsUseCase } from "@core/crm/SyncCrmContactsUseCase.js";
 import { LogCrmActivityUseCase } from "@core/crm/LogCrmActivityUseCase.js";
 import { GetCrmSyncLogsQuery } from "@core/crm/GetCrmSyncLogsQuery.js";
 
+/**
+ * @function setupCrmUseCases
+ * @description Registers CRM repositories, queries, and use cases as singletons in the container.
+ * @param container - DI container
+ */
 export function setupCrmUseCases(container: Container): void {
   const connRepo = new PrismaCrmConnectionRepository(prisma);
   const contactRepo = new PrismaCrmContactRepository(prisma);

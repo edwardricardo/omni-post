@@ -23,7 +23,7 @@ import { SecureSchemas } from "../security/inputValidation.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { CustomerAccountBillingService } from "./CustomerAccountBillingService.js";
 
-// ✅ Zod schemas for validation with security enhancement
+// Zod schemas for validation with security enhancement
 const AdminRoleSchema = z.string().min(1);
 
 const CreateAccountSchema = z.object({
@@ -116,7 +116,7 @@ const BulkReactivateSchema = z.object({
   }),
 });
 
-// ✅ BaseRouteHandler implementation
+// BaseRouteHandler implementation
 class AccountLifecycleHandler extends BaseRouteHandler {
   protected routeName = "account-lifecycle";
 
@@ -658,7 +658,7 @@ class AccountLifecycleHandler extends BaseRouteHandler {
   }
 }
 
-// ✅ PROPER Fastify v5.6.1 Plugin Implementation
+// Fastify v5.6.1 Plugin Implementation
 const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
   const accountLifecycleService = fastify.container!.resolve<AccountLifecycleService>(
     TOKENS.AccountLifecycleService
@@ -668,7 +668,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
   );
   const handler = new AccountLifecycleHandler(accountLifecycleService, billingService);
 
-  // ✅ Create new admin account (Super Admin only)
+  // Create new admin account (Super Admin only)
   fastify.post(
     "/admin/accounts",
     {
@@ -678,7 +678,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.createAccount(request, reply)
   );
 
-  // ✅ List accounts with filtering and pagination
+  // List accounts with filtering and pagination
   fastify.get(
     "/admin/accounts",
     {
@@ -688,7 +688,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.listAccounts(request, reply)
   );
 
-  // ✅ Get account statistics (must be before /:accountId to avoid route collision)
+  // Get account statistics (must be before /:accountId to avoid route collision)
   fastify.get(
     "/admin/accounts/stats",
     {
@@ -698,7 +698,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.getAccountStats(request, reply)
   );
 
-  // ✅ Get account by ID
+  // Get account by ID
   fastify.get(
     "/admin/accounts/:accountId",
     {
@@ -708,7 +708,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.getAccount(request, reply)
   );
 
-  // ✅ Update account
+  // Update account
   fastify.put(
     "/admin/accounts/:accountId",
     {
@@ -718,7 +718,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.updateAccount(request, reply)
   );
 
-  // ✅ Update account active status (operates on Account model, not AdminUser)
+  // Update account active status (operates on Account model, not AdminUser)
   fastify.put(
     "/admin/accounts/:accountId/status",
     {
@@ -728,7 +728,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.updateAccountStatus(request, reply)
   );
 
-  // ✅ Get account billing breakdown
+  // Get account billing breakdown
   fastify.get(
     "/admin/accounts/:accountId/billing",
     {
@@ -738,7 +738,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.getAccountBilling(request, reply)
   );
 
-  // ✅ Suspend account
+  // Suspend account
   fastify.post(
     "/admin/accounts/:accountId/suspend",
     {
@@ -748,7 +748,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.suspendAccount(request, reply)
   );
 
-  // ✅ Reactivate account
+  // Reactivate account
   fastify.post(
     "/admin/accounts/:accountId/reactivate",
     {
@@ -758,7 +758,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.reactivateAccount(request, reply)
   );
 
-  // ✅ Reset account password (Admin action)
+  // Reset account password (Admin action)
   fastify.post(
     "/admin/accounts/:accountId/reset-password",
     {
@@ -768,7 +768,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.resetPassword(request, reply)
   );
 
-  // ✅ Delete account (Super Admin only)
+  // Delete account (Super Admin only)
   fastify.delete(
     "/admin/accounts/:accountId",
     {
@@ -778,7 +778,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.deleteAccount(request, reply)
   );
 
-  // ✅ Get account sessions
+  // Get account sessions
   fastify.get(
     "/admin/accounts/:accountId/sessions",
     {
@@ -788,7 +788,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.getAccountSessions(request, reply)
   );
 
-  // ✅ Revoke all sessions for an account
+  // Revoke all sessions for an account
   fastify.post(
     "/admin/accounts/:accountId/revoke-sessions",
     {
@@ -798,7 +798,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.revokeAllSessions(request, reply)
   );
 
-  // ✅ Update grandfathering expiry
+  // Update grandfathering expiry
   fastify.patch(
     "/admin/accounts/:accountId/grandfathering",
     {
@@ -808,7 +808,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.updateGrandfathering(request, reply)
   );
 
-  // ✅ Bulk suspend accounts
+  // Bulk suspend accounts
   fastify.post(
     "/admin/accounts/bulk/suspend",
     {
@@ -818,7 +818,7 @@ const accountLifecycleRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.bulkSuspend(request, reply)
   );
 
-  // ✅ Bulk reactivate accounts
+  // Bulk reactivate accounts
   fastify.post(
     "/admin/accounts/bulk/reactivate",
     {

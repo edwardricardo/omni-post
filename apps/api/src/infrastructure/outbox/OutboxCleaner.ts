@@ -3,7 +3,7 @@
  * @description Outbox cleaner that periodically removes old published events from the
  *              OutboxEvent table to prevent unbounded table growth. Runs via the
  *              centralised BackgroundTaskScheduler; callers drive lifecycle with
- *              `start()` / `stop()` for parity with the pre-migration API.
+ *              `start()` / `stop()`.
  * @layer infrastructure
  */
 

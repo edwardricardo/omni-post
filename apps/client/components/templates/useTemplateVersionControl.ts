@@ -1,6 +1,8 @@
 /**
  * @file useTemplateVersionControl.ts
  * @description Custom hook encapsulating all state management and handlers for the TemplateVersionControl component.
+ * @hook useTemplateVersionControl
+ * @layer infrastructure
  */
 
 import { useState, useCallback, useMemo } from "react";

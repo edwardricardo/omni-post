@@ -111,8 +111,6 @@ export async function healthRoutes(
    * Returns 200 if system is healthy, 503 if unhealthy
    *
    * This is the fastest health check endpoint.
-   *
-   * §3.1 Normalization Roadmap — response schema Zod migrado (Phase A1).
    */
   const healthResponseSchema = z.object({
     status: z.enum(["healthy", "degraded", "unhealthy"]),
@@ -208,8 +206,6 @@ export async function healthRoutes(
    *
    * This probe should only fail if the application is completely broken.
    * Kubernetes will restart the pod if this fails.
-   *
-   * §3.1 Normalization Roadmap — response schema Zod migrado (Phase A1).
    */
   const liveResponseSchema = z.object({
     status: z.literal("alive"),
@@ -241,8 +237,6 @@ export async function healthRoutes(
    *
    * This probe checks critical dependencies. If it fails, Kubernetes
    * will stop routing traffic to this pod but won't restart it.
-   *
-   * §3.1 Normalization Roadmap — response schema Zod migrado (Phase A1).
    */
   const readyOkSchema = z.object({
     status: z.literal("ready"),

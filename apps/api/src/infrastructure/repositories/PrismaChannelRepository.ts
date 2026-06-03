@@ -456,7 +456,7 @@ export class PrismaChannelRepository implements ChannelRepository {
     const now = new Date();
     // updateManyAndReturn (Prisma 6.2.0+) uses Postgres RETURNING under the
     // hood — single SQL roundtrip + atomic, no race window between SELECT
-    // and UPDATE. Replaces legacy findMany+updateMany 2-query pattern.
+    // and UPDATE.
     const updated = await this.prisma.channel.updateManyAndReturn({
       where: { provider: providerType, deletedAt: null, needsReauth: false },
       data: {

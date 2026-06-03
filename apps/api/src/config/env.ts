@@ -168,6 +168,9 @@ export const env = createEnv({
     GEMINI_EMBEDDINGS_MODEL: z.string().default("gemini-embedding-001"),
     EMBEDDINGS_DIMENSIONS: z.coerce.number().int().positive().default(768),
     EMBEDDINGS_PROVIDER_PREFERENCE: z.string().default("openai,gemini"),
+    // Per-provider outbound request budget for the AI orchestrator token
+    // bucket (capacity = permits, refilled over one minute).
+    AI_PROVIDER_REQUESTS_PER_MIN: z.coerce.number().int().positive().default(60),
 
     // ── Email (Resend) ──────────────────────────────────────────────────
     RESEND_API_KEY: z.string().optional(),
@@ -235,6 +238,13 @@ export const env = createEnv({
 
     // ── Feature flags ───────────────────────────────────────────────────
     ENABLE_RATE_LIMITING: boolFromString.default(true),
+
+    // ── SSE per-account cap (DoS protection) ────────────────────────────
+    // Max concurrent SSE connections per account per process. Authenticated
+    // DoS surface: a user can open N streams; each allocates a subscription +
+    // per-connection heartbeat. Default 10 covers typical multi-tab/multi-device
+    // usage with headroom; raise for ops-heavy accounts after capacity review.
+    MAX_STREAMS_PER_ACCOUNT: z.coerce.number().int().min(1).max(100).default(10),
   },
 
   /**

@@ -5,6 +5,7 @@
  *              parsing. The new secretKey appears once in the response and
  *              must be displayed to the operator immediately (it is not
  *              recoverable later — same model as ApiKey rotation).
+ * @hook useWebhookRotateSecret
  * @layer infrastructure
  */
 

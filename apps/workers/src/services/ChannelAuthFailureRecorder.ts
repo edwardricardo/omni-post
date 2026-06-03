@@ -33,11 +33,16 @@ export class ChannelAuthFailureRecorder {
   }
 
   /**
-   * Mark `channelId` as needing reauth and emit a `ChannelAuthFailed` event
-   * to the outbox. Idempotent at the observable level — calling twice with
-   * the same channelId refreshes `authFailedAt`/`authFailureReason` and
-   * emits a second event (downstream handlers should treat repeated events
-   * as state refreshes, not new failures).
+   * @method record
+   * @description Mark `channelId` as needing reauth and emit a
+   *              `ChannelAuthFailed` event to the outbox. Idempotent at the
+   *              observable level — calling twice with the same channelId
+   *              refreshes `authFailedAt`/`authFailureReason` and emits a
+   *              second event (downstream handlers should treat repeated
+   *              events as state refreshes, not new failures).
+   * @param channelId - Channel whose auth has failed.
+   * @param provider - Provider key for the failing channel.
+   * @param reason - Human-readable failure reason for the audit trail.
    */
   async record(channelId: string, provider: string, reason: string): Promise<void> {
     const detectedAt = new Date();

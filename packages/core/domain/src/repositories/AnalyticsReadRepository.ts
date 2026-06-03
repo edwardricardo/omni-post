@@ -132,8 +132,7 @@ export interface HistoricalTrendDto {
  * that analytics services can use them directly.
  *
  * Note: `aggregateEngagement` is a SYNC pure-computation method included here
- * because the legacy AnalyticsRepository bundled it, and consumers depend on
- * calling it through the same interface object.
+ * so consumers can call it through the same interface object.
  */
 export interface AnalyticsReadRepositoryPort {
   /**

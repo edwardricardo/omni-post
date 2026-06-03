@@ -14,7 +14,7 @@ import { requireClientAuth } from "./customerAuthMiddleware.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { env } from "../config/env.js";
 
-// ✅ Zod schemas for validation with security enhancement
+// Zod schemas for validation with security enhancement
 const RegisterSchema = z.object({
   email: SecureSchemas.userEmail,
   password: PasswordSchema,
@@ -358,11 +358,11 @@ class AuthRouteHandler extends BaseRouteHandler {
   }
 }
 
-// ✅ PROPER Fastify v5.6.1 Plugin Implementation
+// Fastify v5.6.1 Plugin Implementation
 const authRoutes: FastifyPluginAsync = async (fastify) => {
   const authService = fastify.container!.resolve<AuthService>(TOKENS.AuthService);
   const authHandler = new AuthRouteHandler(authService);
-  // ✅ Register new admin user (rate limited: 10 per hour)
+  // Register new admin user (rate limited: 10 per hour)
   fastify.post(
     "/auth/register",
     {
@@ -374,7 +374,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  // ✅ Login (rate limited: 5 per 15 minutes)
+  // Login (rate limited: 5 per 15 minutes)
   fastify.post(
     "/auth/login",
     {
@@ -386,7 +386,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  // ✅ Refresh tokens (rate limited: 20 per 15 minutes)
+  // Refresh tokens (rate limited: 20 per 15 minutes)
   fastify.post(
     "/auth/refresh",
     {
@@ -398,7 +398,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  // ✅ Logout (rate limited: 20 per 15 minutes)
+  // Logout (rate limited: 20 per 15 minutes)
   fastify.post(
     "/auth/logout",
     {
@@ -410,7 +410,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  // ✅ Get current user (protected route)
+  // Get current user (protected route)
   fastify.get(
     "/auth/me",
     {
@@ -422,7 +422,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  // ✅ Get user sessions (protected route)
+  // Get user sessions (protected route)
   fastify.get(
     "/auth/sessions",
     {
@@ -434,7 +434,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  // ✅ Revoke all sessions (protected route)
+  // Revoke all sessions (protected route)
   fastify.post(
     "/auth/revoke-all",
     {

@@ -3,6 +3,7 @@
  * @description Interfaces, API response adapters, and pure helper functions for
  * the SmartContentOptimizer component. Kept in a separate module so the main
  * component file stays under the 800-line limit.
+ * @layer infrastructure
  */
 
 // ---------------------------------------------------------------------------

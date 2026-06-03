@@ -13,6 +13,13 @@ import type { HistoricalContext } from "./types.js";
 // Content scoring
 // ---------------------------------------------------------------------------
 
+/**
+ * @function calculateContentLengthScore
+ * @description Scores a content length against an optimal target on a 0.5-1.0 scale.
+ * @param length - Actual content length (chars)
+ * @param optimal - Optimal content length (chars)
+ * @returns Score between 0.5 (poor fit) and 1.0 (optimal range)
+ */
 export function calculateContentLengthScore(length: number, optimal: number): number {
   const ratio = length / optimal;
   if (ratio >= 0.8 && ratio <= 1.2) return 1.0; // Optimal range
@@ -21,6 +28,13 @@ export function calculateContentLengthScore(length: number, optimal: number): nu
   return 0.5; // Poor range
 }
 
+/**
+ * @function calculateHashtagScore
+ * @description Scores hashtag count against an optimal target.
+ * @param count - Actual number of hashtags in the post
+ * @param optimal - Optimal number of hashtags for the platform
+ * @returns Score between 0.4 (far off) and 1.0 (exact match)
+ */
 export function calculateHashtagScore(count: number, optimal: number): number {
   const diff = Math.abs(count - optimal);
   if (diff === 0) return 1.0;
@@ -34,6 +48,13 @@ export function calculateHashtagScore(count: number, optimal: number): number {
 // Timing scoring
 // ---------------------------------------------------------------------------
 
+/**
+ * @function calculateHourScore
+ * @description Scores how close the posting hour is to a platform peak hour.
+ * @param hour - Hour of day for the post (0-23)
+ * @param peakHours - Peak engagement hours for the platform
+ * @returns Score between 0.6 (far from peak) and 1.5 (exactly on peak)
+ */
 export function calculateHourScore(hour: number, peakHours: number[]): number {
   const distances = peakHours.map((peak) => Math.abs(hour - peak));
   const minDistance = Math.min(...distances);
@@ -45,12 +66,24 @@ export function calculateHourScore(hour: number, peakHours: number[]): number {
   return 0.6;
 }
 
+/**
+ * @function calculateDayScore
+ * @description Returns a weekday engagement multiplier.
+ * @param dayOfWeek - 0 = Sunday, 6 = Saturday
+ * @returns Multiplier between 0.8 and 1.2
+ */
 export function calculateDayScore(dayOfWeek: number): number {
   // 0 = Sunday, 1 = Monday, etc.
   const weekdayScores = [0.8, 1.0, 1.1, 1.2, 1.1, 0.9, 0.8]; // Sun-Sat
   return weekdayScores[dayOfWeek] ?? 1.0;
 }
 
+/**
+ * @function getSeasonalScore
+ * @description Returns a month-of-year engagement multiplier.
+ * @param month - 0 = January, 11 = December
+ * @returns Seasonal multiplier between 0.85 and 1.25
+ */
 export function getSeasonalScore(month: number): number {
   // Seasonal multipliers for social media engagement
   const seasonalScores = [
@@ -74,6 +107,12 @@ export function getSeasonalScore(month: number): number {
 // Sentiment analysis
 // ---------------------------------------------------------------------------
 
+/**
+ * @function analyzeSentiment
+ * @description Rule-based keyword-matching sentiment analysis (no NLP/ML).
+ * @param text - Content text to analyse
+ * @returns Sentiment score normalised to the range -1 (negative) to 1 (positive)
+ */
 export function analyzeSentiment(text: string): number {
   // Simple keyword-matching sentiment analysis (rule-based, not NLP/ML)
   const positiveWords = [
@@ -104,6 +143,13 @@ export function analyzeSentiment(text: string): number {
 // Trending topics detection
 // ---------------------------------------------------------------------------
 
+/**
+ * @function checkTrendingTopics
+ * @description Returns the first matching trending topic mentioned in the content.
+ * @param content - Content text to scan
+ * @param trendingTopics - Current list of trending topics with popularity scores
+ * @returns Matching topic + popularity, or null if no match
+ */
 export function checkTrendingTopics(
   content: string,
   trendingTopics: Array<{ topic: string; popularity: number; expectedLifespan: number }>
@@ -123,6 +169,13 @@ export function checkTrendingTopics(
 // Audience and confidence
 // ---------------------------------------------------------------------------
 
+/**
+ * @function calculateAudienceAlignment
+ * @description Scores how well a content type aligns with the account's top-performing types.
+ * @param contentType - Content type being evaluated
+ * @param context - Historical performance context for the account
+ * @returns Alignment multiplier (0.9 if not preferred, 1.2 if preferred)
+ */
 export function calculateAudienceAlignment(
   contentType: ContentType,
   context: HistoricalContext
@@ -134,6 +187,16 @@ export function calculateAudienceAlignment(
   return isPreferredType ? 1.2 : 0.9;
 }
 
+/**
+ * @function calculateViralPotential
+ * @description Estimates viral potential combining engagement rate, content type,
+ *              platform virality, and trending/sentiment factors.
+ * @param engagementRate - Baseline engagement rate
+ * @param contentType - Type of content being scored
+ * @param provider - Target platform
+ * @param factors - Prediction factors with impact scores
+ * @returns Viral potential score 0-100
+ */
 export function calculateViralPotential(
   engagementRate: number,
   contentType: ContentType,
@@ -190,6 +253,14 @@ export function calculateViralPotential(
   return Math.min(100, Math.max(0, viralScore));
 }
 
+/**
+ * @function calculatePredictionConfidence
+ * @description Computes overall prediction confidence from per-factor confidence
+ *              and the historical data sample size.
+ * @param factors - Prediction factors with individual confidence values
+ * @param context - Historical context (used to gauge data availability)
+ * @returns Confidence in [0, 0.95]
+ */
 export function calculatePredictionConfidence(
   factors: PredictionFactor[],
   context: HistoricalContext
@@ -208,6 +279,12 @@ export function calculatePredictionConfidence(
 // Date / label helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * @function calculateDateRange
+ * @description Converts a human-friendly time range token to absolute start/end dates.
+ * @param timeRange - Range token (7d, 30d, 90d, 1y)
+ * @returns Object with startDate and endDate
+ */
 export function calculateDateRange(timeRange: "7d" | "30d" | "90d" | "1y"): {
   startDate: Date;
   endDate: Date;
@@ -236,11 +313,23 @@ export function calculateDateRange(timeRange: "7d" | "30d" | "90d" | "1y"): {
   return { startDate, endDate };
 }
 
+/**
+ * @function getDayName
+ * @description Returns the English day name for a numeric day of week.
+ * @param dayOfWeek - 0 = Sunday, 6 = Saturday
+ * @returns Capitalised day name (or "Unknown" if out of range)
+ */
 export function getDayName(dayOfWeek: number): string {
   const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   return days[dayOfWeek] ?? "Unknown";
 }
 
+/**
+ * @function getMonthName
+ * @description Returns the English month name for a numeric month.
+ * @param month - 0 = January, 11 = December
+ * @returns Capitalised month name (or "Unknown" if out of range)
+ */
 export function getMonthName(month: number): string {
   const months = [
     "January",
@@ -263,6 +352,11 @@ export function getMonthName(month: number): string {
 // Platform benchmark data
 // ---------------------------------------------------------------------------
 
+/**
+ * @function buildPlatformBenchmarks
+ * @description Builds the static per-platform engagement benchmark lookup table.
+ * @returns Map of provider to baseline engagement rate, peak hours, and content multipliers
+ */
 export function buildPlatformBenchmarks(): HistoricalContext["platformBenchmarks"] {
   return {
     X: {

@@ -13,7 +13,10 @@
  * adapter backs these with Prometheus counters; tests inject a no-op or spy.
  */
 export interface BusinessMetricsPort {
+  /** Increment the post-created counter (one call per successful CreatePostUseCase). */
   incrementPostCreated(): void;
+  /** Increment the post-published counter (one call per provider publish receipt). */
   incrementPostPublished(): void;
+  /** Increment the post-deleted counter (soft + hard deletes). */
   incrementPostDeleted(): void;
 }

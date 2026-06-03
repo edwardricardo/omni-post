@@ -11,7 +11,7 @@ import { ProviderOAuthHandler } from "./providerOAuthFlow.js";
 import { OAuthFlowStore } from "./oauth/OAuthFlowStore.js";
 import { requireClientAuth } from "./customerAuthMiddleware.js";
 
-// Re-export for backward compatibility
+// Re-export provider OAuth config from the configs module.
 export { oauthProviders } from "./providerOAuthConfigs.js";
 export type { OAuthConfig, OAuthProvider } from "./providerOAuthConfigs.js";
 

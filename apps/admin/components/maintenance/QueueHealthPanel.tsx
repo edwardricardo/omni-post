@@ -31,6 +31,7 @@ const QUEUE_NAMES = [
 ] as const;
 
 interface QueueHealthPanelProps {
+  /** Aggregate queue statistics used to derive per-queue health colour. */
   stats: QueueStats | undefined;
 }
 

@@ -3,6 +3,7 @@
  * @description Facebook Marketing API type definitions — ad accounts, campaigns, ad sets,
  * ads, insights, recommendations, audience insights, and conversion events.
  * Extracted from marketing.ts to keep file sizes under 800 lines.
+ * @layer infrastructure
  */
 
 export interface FacebookAdAccount {

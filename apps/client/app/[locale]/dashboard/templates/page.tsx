@@ -1,7 +1,8 @@
 /**
  * @file page.tsx
- * @component TemplateManagementPage
  * @description Template management page with library, A/B testing, and version control features.
+ * @component TemplateManagementPage
+ * @layer infrastructure
  */
 
 import { Suspense } from "react";

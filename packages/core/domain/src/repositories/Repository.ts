@@ -40,7 +40,9 @@ export interface Repository<T, TId extends EntityId> {
  * Read-only repository interface for query operations
  */
 export interface ReadRepository<T, TId extends EntityId> {
+  /** Load an aggregate by id. `EntityNotFoundError` when absent. */
   findById(id: TId): Promise<Result<T, EntityNotFoundError>>;
+  /** Cheap existence probe — does not deserialize the aggregate. */
   exists(id: TId): Promise<boolean>;
 }
 
@@ -48,7 +50,9 @@ export interface ReadRepository<T, TId extends EntityId> {
  * Write-only repository interface for command operations (CQRS pattern)
  */
 export interface WriteRepository<T, TId extends EntityId> {
+  /** Persist an aggregate (insert or update). Implementations dispatch domain events after commit. */
   save(aggregate: T): Promise<Result<void, Error>>;
+  /** Delete an aggregate by id. `EntityNotFoundError` when nothing was removed. */
   delete(id: TId): Promise<Result<void, EntityNotFoundError>>;
 }
 

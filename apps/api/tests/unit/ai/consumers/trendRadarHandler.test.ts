@@ -33,23 +33,43 @@ describe("processTrendRadarJob", () => {
   it("runs detection for the account and resolves on success", async () => {
     const { detect, calls } = makeDetect(ok({ fetched: 5, scored: 3, persisted: 2, updated: 1 }));
 
-    await processTrendRadarJob({ detect, logger: silentLogger() }, { accountId: "acc-1" });
+    await processTrendRadarJob(
+      { detect, logger: silentLogger() },
+      { accountId: "acc-1", dayKey: "2026-05-31" }
+    );
 
-    assert.deepStrictEqual(calls[0], { accountId: "acc-1" });
+    assert.deepStrictEqual(calls[0], { accountId: "acc-1", dayKey: "2026-05-31" });
   });
 
   it("throws to signal a retry when detection fails", async () => {
     const { detect } = makeDetect(err({ name: "UseCaseError", message: "boom" }) as never);
 
     await expect(
-      processTrendRadarJob({ detect, logger: silentLogger() }, { accountId: "acc-1" })
+      processTrendRadarJob(
+        { detect, logger: silentLogger() },
+        { accountId: "acc-1", dayKey: "2026-05-31" }
+      )
     ).rejects.toThrow(/Trend radar detection failed for account acc-1/);
   });
 
   it("skips a payload without an accountId without calling the use case", async () => {
     const { detect, calls } = makeDetect(ok({ fetched: 0, scored: 0, persisted: 0, updated: 0 }));
 
-    await processTrendRadarJob({ detect, logger: silentLogger() }, { accountId: "" });
+    await processTrendRadarJob(
+      { detect, logger: silentLogger() },
+      { accountId: "", dayKey: "2026-05-31" }
+    );
+
+    assert.strictEqual(calls.length, 0);
+  });
+
+  it("skips a payload with a malformed dayKey without calling the use case", async () => {
+    const { detect, calls } = makeDetect(ok({ fetched: 0, scored: 0, persisted: 0, updated: 0 }));
+
+    await processTrendRadarJob(
+      { detect, logger: silentLogger() },
+      { accountId: "acc-1", dayKey: "not-a-date" }
+    );
 
     assert.strictEqual(calls.length, 0);
   });

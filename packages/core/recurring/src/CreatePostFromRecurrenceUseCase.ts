@@ -6,10 +6,9 @@
  *              SCHEDULED via SchedulePostUseCase using the recurrence's
  *              channels + dueAt as the scheduledFor.
  *
- *              Phase-1 scope: only `EXACT` content variation is wired.
- *              `ROTATED` (variant library) and `AI_GENERATED` (AI prompt)
- *              return a NotImplemented error and the caller logs it as
- *              a YELLOW finding for future iteration.
+ *              Only `EXACT` content variation is wired. `ROTATED` (variant
+ *              library) and `AI_GENERATED` (AI prompt) return a
+ *              NotImplemented error.
  * @layer application
  */
 

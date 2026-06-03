@@ -4,6 +4,8 @@
  * @file SmartContentOptimizerMetrics.tsx
  * @description Advanced metrics tab for the SmartContentOptimizer, showing platform
  * optimization scores and engagement predictions when enabled.
+ * @component SmartContentOptimizerMetrics
+ * @layer infrastructure
  */
 
 import React from "react";

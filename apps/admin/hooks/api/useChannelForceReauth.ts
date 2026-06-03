@@ -2,6 +2,7 @@
  * @file useChannelForceReauth.ts
  * @description TanStack Query mutation hook for the admin force-reauth action.
  *              Wraps the POST endpoint with mutation state + error parsing.
+ * @hook useChannelForceReauth
  * @layer infrastructure
  */
 

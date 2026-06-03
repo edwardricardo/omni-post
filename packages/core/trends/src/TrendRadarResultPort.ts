@@ -41,6 +41,12 @@ export interface TrendRadarRow {
 
 export interface TrendRadarUpsertInput {
   accountId: string;
+  /** Calendar day bucket (YYYY-MM-DD UTC) computed once upstream by
+   * `DispatchDetectTrendsUseCase` and propagated through the pipeline.
+   * Backs the `(accountId, dayKey, topic)` unique constraint and prevents
+   * jobs that cross midnight from inserting a second row in the next
+   * day's bucket. */
+  dayKey: string;
   fetchedAt: Date;
   trends: ReadonlyArray<TrendRadarRow>;
 }

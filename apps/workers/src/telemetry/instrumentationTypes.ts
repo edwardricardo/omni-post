@@ -3,7 +3,7 @@
  * @description Shared instrumentation/telemetry type contracts for the publish
  *              handler. Lives in a leaf module imported by both
  *              publishHandlerTypes.ts and telemetry/initialization.ts so neither
- *              depends on the other (breaks the prior import cycle).
+ *              depends on the other.
  * @layer infrastructure
  */
 

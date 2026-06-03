@@ -22,7 +22,7 @@ import type {
   SessionFingerprint,
 } from "./authTypes.js";
 
-// Re-export from extracted modules for backward compatibility
+// Re-export helpers from extracted modules.
 export { setRedisInstance } from "./redisSessionHelpers.js";
 
 // ---------------------------------------------------------------------------

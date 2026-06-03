@@ -16,7 +16,6 @@ const config: StorybookConfig = {
     "../stories/**/*.stories.mdx",
     // packages/ui stories are picked up here rather than running a separate
     // Storybook for the package, to avoid dual-maintenance of addons/preview.
-    // See CLAUDE.md §Documentation — "Storybook port convention".
     "../../../packages/ui/src/**/*.stories.@(ts|tsx)",
   ],
   addons: [getAbsolutePath("@storybook/addon-a11y"), getAbsolutePath("@storybook/addon-docs")],

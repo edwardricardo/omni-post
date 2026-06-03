@@ -4,6 +4,8 @@
  * @file WebhookMetrics.tsx
  * @description Webhook performance metrics dashboard displaying success rates, processing times,
  * queue depth, real-time connections, and per-provider breakdown statistics.
+ * @component WebhookMetrics
+ * @layer infrastructure
  */
 
 import { useTranslations } from "next-intl";
@@ -12,6 +14,7 @@ import { HorizontalBarChart } from "@/components/charts";
 import { TrendingUp, TrendingDown, Activity, Clock, Zap, AlertTriangle } from "lucide-react";
 
 interface WebhookMetricsProps {
+  /** Aggregate webhook performance metrics: totals, rates, queue depth, and per-provider breakdown. */
   metrics: {
     totalEvents: number;
     processedEvents: number;

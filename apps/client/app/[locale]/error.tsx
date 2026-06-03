@@ -5,6 +5,7 @@
  *              tree so the sink can be swapped (console → APM) centrally.
  *              Recovery uses `unstable_retry` (Next 16.2+ canonical — re-fetches
  *              data on retry, vs `reset` which only re-renders the boundary).
+ * @component LocaleError
  * @layer infrastructure
  */
 "use client";

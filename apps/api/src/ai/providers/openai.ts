@@ -18,8 +18,8 @@ import {
   ImageGenerationResult,
   StructuredOutputSpec,
 } from "../types.js";
-import { AppError } from "../../lib/errors/AppError.js";
 import { logger } from "../../lib/logger.js";
+import { toAIProviderError } from "./AIProviderError.js";
 import {
   analysisSpec,
   optimizationSpec,
@@ -73,7 +73,7 @@ export class OpenAIProvider implements AIProvider {
       return response.choices[0]?.message?.content || "";
     } catch (error: unknown) {
       aiLogger.error({ err: error }, "OpenAI generation failed");
-      throw AppError.externalService("OpenAI", `OpenAI generation failed: ${error}`);
+      throw toAIProviderError("openai", error, "OpenAI generation failed");
     }
   }
 
@@ -115,7 +115,7 @@ export class OpenAIProvider implements AIProvider {
       return spec.parse(JSON.parse(content));
     } catch (error: unknown) {
       aiLogger.error({ err: error }, "OpenAI structured generation failed");
-      throw AppError.externalService("OpenAI", `OpenAI structured generation failed: ${error}`);
+      throw toAIProviderError("openai", error, "OpenAI structured generation failed");
     }
   }
 
@@ -220,6 +220,7 @@ Content:
             message: "No image URL returned from OpenAI",
             provider: "openai",
             retryable: true,
+            category: "recoverable",
           },
           metadata: {
             provider: "openai",
@@ -254,6 +255,7 @@ Content:
           message: error instanceof Error ? error.message : String(error),
           provider: "openai",
           retryable: true,
+          category: "transient",
         },
         metadata: {
           provider: "openai",

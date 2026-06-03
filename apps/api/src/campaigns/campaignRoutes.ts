@@ -124,7 +124,7 @@ class CampaignRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request body");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -165,7 +165,7 @@ class CampaignRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request body");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -201,7 +201,7 @@ class CampaignRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid campaign ID format");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -229,7 +229,7 @@ class CampaignRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid campaign ID or post ID format");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -262,7 +262,7 @@ class CampaignRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid campaign ID or post ID format");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -299,7 +299,7 @@ class CampaignRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid query parameters");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -332,7 +332,7 @@ class CampaignRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid campaign ID format");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }
@@ -365,7 +365,7 @@ class CampaignRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid campaign ID format");
     }
 
-    const user = request.user;
+    const user = request.customerUser;
     if (!user) {
       return this.sendError(ctx, 401, "Authentication required");
     }

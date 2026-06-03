@@ -636,7 +636,15 @@ export class AuditLogger {
   }
 }
 
-// Factory function for creating audit logger
+/**
+ * @function createAuditLogger
+ * @description Factory for AuditLogger with explicit dependencies for DI composition.
+ * @param prisma - Prisma client
+ * @param redis - Redis client
+ * @param scheduler - Background task scheduler for retention sweeps
+ * @param config - Optional partial config overriding defaults
+ * @returns Configured AuditLogger instance
+ */
 export function createAuditLogger(
   prisma: PrismaClient,
   redis: Redis,

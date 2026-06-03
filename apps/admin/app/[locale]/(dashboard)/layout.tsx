@@ -2,6 +2,7 @@
  * @file layout.tsx
  * @description Dashboard layout with token verification, sidebar navigation,
  *   and QueryProvider for TanStack Query. Redirects to login on expired tokens.
+ * @component DashboardLayout
  * @layer infrastructure
  */
 import { cookies } from "next/headers";

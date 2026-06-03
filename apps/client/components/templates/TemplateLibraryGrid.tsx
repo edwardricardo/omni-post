@@ -2,9 +2,10 @@
 
 /**
  * @file TemplateLibraryGrid.tsx
- * @component TemplateLibraryGrid
  * @description Template card and list item rendering for the TemplateLibrary, supporting
  * both grid and virtual-scroll list view modes.
+ * @component TemplateLibraryGrid
+ * @layer infrastructure
  */
 
 import React, { memo } from "react";

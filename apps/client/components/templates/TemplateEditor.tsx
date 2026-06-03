@@ -2,10 +2,11 @@
 
 /**
  * @file TemplateEditor.tsx
- * @component TemplateEditor
  * @description Orchestrator component for the Handlebars template editor. Manages all state
  * (form data, editor mode, preview, compilation) and delegates rendering to
  * TemplateEditorToolbar, TemplateEditorSidebar, and TemplateEditorCanvas.
+ * @component TemplateEditor
+ * @layer infrastructure
  */
 
 import React, { useState, useCallback, useEffect, useMemo } from "react";

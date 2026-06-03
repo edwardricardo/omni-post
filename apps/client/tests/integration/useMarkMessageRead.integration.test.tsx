@@ -1,11 +1,9 @@
 /**
  * @file useMarkMessageRead.integration.test.tsx
- * @description Integration tests for the inbox `useMarkMessageRead` mutation —
- *              guards against the L-206 regression: silent fetch failure +
- *              missing cache invalidation. Verifies error propagation
- *              (mutation throws when fetch returns !ok) and TanStack cache
- *              invalidation (the `["inbox"]` query family is invalidated on
- *              success).
+ * @description Integration tests for the inbox `useMarkMessageRead` mutation.
+ *              Verifies error propagation (mutation throws when fetch returns
+ *              !ok) and TanStack cache invalidation (the `["inbox"]` query
+ *              family is invalidated on success).
  * @layer infrastructure
  */
 

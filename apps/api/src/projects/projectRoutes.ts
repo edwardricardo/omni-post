@@ -338,8 +338,7 @@ class ProjectRouteHandler extends BaseRouteHandler {
 /**
  * Project Routes Plugin
  * Registers project management endpoints.
- * Resolves PrismaClient from the DI container when available,
- * falling back to the singleton for backward compatibility during migration.
+ * Resolves PrismaClient from the DI container.
  */
 export const projectRoutes: FastifyPluginAsync = async (fastify) => {
   const prisma = fastify.container.resolve<PrismaClient>(TOKENS.PrismaClient);

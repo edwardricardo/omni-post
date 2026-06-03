@@ -2,6 +2,8 @@
  * @file PerformanceTab.tsx
  * @description Tab panel that renders a PerformancePredictionCard for each platform
  * prediction returned by the AI timing-prediction endpoint.
+ * @component PerformanceTab
+ * @layer infrastructure
  */
 
 import React from "react";

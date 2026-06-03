@@ -2,10 +2,11 @@
 
 /**
  * @file SchedulingDashboardPostModal.tsx
- * @component SchedulingDashboardPostModal
  * @description Modal overlay that displays detailed information about a selected scheduled
  * post, including status, priority, scheduled time, content preview, media grid, error
  * messages, tags, estimated reach, and action buttons (edit, reschedule, retry, cancel).
+ * @component SchedulingDashboardPostModal
+ * @layer infrastructure
  */
 
 import React from "react";

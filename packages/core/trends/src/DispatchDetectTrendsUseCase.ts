@@ -53,15 +53,20 @@ export class DispatchDetectTrendsUseCase {
     > => {
       const channels = await this.channelQuery.findActiveChannels(input.accountId);
       const accountIds = [...new Set(channels.map((c) => c.accountId))];
-      const day = new Date().toISOString().slice(0, 10);
+      // Snapshot the dayKey once at dispatch time and propagate it through
+      // the job payload. The downstream consumer (TREND_RADAR handler) and
+      // the persistence port use this string as the canonical bucket. The
+      // unique constraint `(accountId, dayKey, topic)` then deduplicates
+      // even when the consumer's wall clock crosses midnight during a run.
+      const dayKey = new Date().toISOString().slice(0, 10);
 
       let dispatched = 0;
       let skipped = 0;
 
       for (const accountId of accountIds) {
         const enqueueResult = await this.queue.enqueue({
-          payload: { accountId },
-          dedupeKey: `trend-radar-${accountId}-${day}`,
+          payload: { accountId, dayKey },
+          dedupeKey: `trend-radar-${accountId}-${dayKey}`,
         });
 
         if (enqueueResult.ok) {

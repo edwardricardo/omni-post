@@ -4,6 +4,8 @@
  * with an error ID (digest) and a retry button to attempt recovery. Uses `unstable_retry`
  * (Next 16.2+ canonical recovery — re-fetches data on retry, vs `reset` which only re-renders).
  * Routes caught errors through the BrowserLoggerPort for structured reporting.
+ * @component Error
+ * @layer infrastructure
  */
 "use client";
 

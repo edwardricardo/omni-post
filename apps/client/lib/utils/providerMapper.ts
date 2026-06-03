@@ -1,6 +1,7 @@
 /**
  * @file providerMapper.ts
  * @description Utility functions to map backend Provider objects to the ProviderMetadata shape expected by UI components, applying default limits, colors, and OAuth scopes.
+ * @layer infrastructure
  */
 
 import type { ProviderMetadata, ProviderCapabilities, ProviderLimits } from "@shared/types";

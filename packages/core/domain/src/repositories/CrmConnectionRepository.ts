@@ -23,8 +23,12 @@ export interface CrmConnectionData {
 }
 
 export interface CrmConnectionRepository {
+  /** Load a connection by id; null when absent. */
   findById(id: string): Promise<CrmConnectionData | null>;
+  /** Every CRM connection an account has configured (one per platform). */
   findByAccountId(accountId: string): Promise<CrmConnectionData[]>;
+  /** Look up a connection by `(accountId, platform)` — the natural unique key. */
   findByAccountAndPlatform(accountId: string, platform: string): Promise<CrmConnectionData | null>;
+  /** Persist a new connection. `id`, `createdAt`, `updatedAt` are assigned by the adapter. */
   save(data: Omit<CrmConnectionData, "id" | "createdAt" | "updatedAt">): Promise<CrmConnectionData>;
 }

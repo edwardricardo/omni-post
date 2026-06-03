@@ -1,7 +1,8 @@
 /**
  * @file ABTestResultsTab.tsx
- * @component ABTestResultsTab
  * @description Results tab content for the ABTestManager, showing completed test metrics and variant performance.
+ * @component ABTestResultsTab
+ * @layer infrastructure
  */
 
 "use client";

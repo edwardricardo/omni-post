@@ -1,8 +1,7 @@
 /**
  * @file HashtagText.tsx
  * @description Splits a string into spans, highlighting `#hashtag` runs with
- *              a configurable className. Originally inline in the TikTok
- *              preview only; now applied uniformly to TikTok, Twitter,
+ *              a configurable className. Applied uniformly to TikTok, Twitter,
  *              Bluesky, and Instagram previews so hashtags read consistently.
  * @component HashtagText
  * @layer infrastructure

@@ -2,6 +2,7 @@
  * @file videoProcessorTypes.ts
  * @description Type definitions for Facebook video processing.
  * Consumed by videoProcessor.ts and videoProcessorHelpers.ts.
+ * @layer infrastructure
  */
 
 export interface VideoProcessingOptions {

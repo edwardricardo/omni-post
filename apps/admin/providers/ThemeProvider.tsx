@@ -4,6 +4,7 @@
  * @file ThemeProvider.tsx
  * @description Theme context that toggles dark/light mode via class on <html>.
  *   Persists preference to localStorage. Default: dark.
+ * @component ThemeProvider
  * @layer infrastructure
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";

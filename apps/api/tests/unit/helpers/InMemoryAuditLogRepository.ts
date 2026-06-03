@@ -23,6 +23,7 @@ export class InMemoryAuditLogRepository implements AuditLogRepository {
     this.rows.push({
       id: `log-${++this.seq}`,
       userId: input.userId ?? null,
+      accountId: input.accountId ?? null,
       action: input.action,
       resource: input.resource ?? null,
       resourceId: input.resourceId ?? null,
@@ -60,6 +61,16 @@ export class InMemoryAuditLogRepository implements AuditLogRepository {
   ): Promise<AuditLogRecordDto[]> {
     return this.paginate(
       this.rows.filter((r) => r.resource === resource && r.resourceId === resourceId),
+      options
+    );
+  }
+
+  async findByAccount(
+    accountId: string,
+    options?: AuditLogQueryOptions
+  ): Promise<AuditLogRecordDto[]> {
+    return this.paginate(
+      this.rows.filter((r) => r.accountId === accountId),
       options
     );
   }

@@ -17,8 +17,11 @@ import { ConfirmDialog } from "@packages/ui";
 import type { FailedJob } from "@/hooks/api/useQueueManagement";
 
 interface FailedJobsTableProps {
+  /** Failed BullMQ jobs to render, one per row. */
   jobs: FailedJob[];
+  /** Fired with the job id once the user confirms the retry dialog. */
   onRetry: (jobId: string) => void;
+  /** When true, disables retry actions while a previous retry is in flight. */
   isRetrying: boolean;
 }
 

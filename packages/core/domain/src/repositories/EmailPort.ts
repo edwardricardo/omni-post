@@ -34,5 +34,9 @@ export interface SendEmailOptions {
  *   transient failures gracefully and return Result rather than throwing.
  */
 export interface EmailPort {
+  /**
+   * Send one email. Implementations MUST surface transient transport errors
+   * via the Result channel so callers can retry idempotently.
+   */
   send(options: SendEmailOptions): Promise<Result<void, Error>>;
 }

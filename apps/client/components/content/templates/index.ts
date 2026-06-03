@@ -2,6 +2,7 @@
  * @file index.ts
  * @description Barrel file exporting all content template sub-components, types, and
  * hooks for use in the ContentTemplates page component.
+ * @layer infrastructure
  */
 
 export { TemplatesHeader } from "./TemplatesHeader";

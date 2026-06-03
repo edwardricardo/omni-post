@@ -2,6 +2,7 @@
  * @file useAccounts.ts
  * @description TanStack Query hooks for admin account management: fetching account summaries
  * and mutating account properties such as name, role, and active status.
+ * @layer infrastructure
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { AdminRole } from "@shared/types";

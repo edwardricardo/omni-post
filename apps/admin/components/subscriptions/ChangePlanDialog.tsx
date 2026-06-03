@@ -55,13 +55,21 @@ interface TiersData {
 }
 
 interface ChangePlanDialogProps {
+  /** Account whose plan is being changed. Required. */
   accountId: string;
+  /** Display name rendered in the dialog header. */
   accountName: string;
+  /** Providers currently selected on a custom plan, used to seed the form. */
   currentProviders?: string[];
+  /** Active plan type used to determine the initial dialog mode (custom vs bundle). */
   currentPlanType?: PlanType;
+  /** Slug of the currently selected bundle, when `currentPlanType` is `bundle`. */
   currentBundleSlug?: string | null;
+  /** Whether the dialog is currently visible. */
   open: boolean;
+  /** Fired to toggle dialog visibility, mirroring the Radix Dialog API. */
   onOpenChange: (open: boolean) => void;
+  /** Fired after the plan change persists so callers can refetch billing data. */
   onSuccess: () => void;
 }
 

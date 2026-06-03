@@ -32,6 +32,12 @@ export interface UpsertCrmContactInput {
 }
 
 export interface CrmContactRepository {
+  /**
+   * Bulk upsert contacts from a CRM sync. Unique key is
+   * `(accountId, platform, externalId)`. Returns the number of rows actually
+   * written (insert + update).
+   */
   upsertMany(contacts: UpsertCrmContactInput[]): Promise<number>;
+  /** Every contact synced for an account, across all platforms. */
   findByAccountId(accountId: string): Promise<CrmContactData[]>;
 }

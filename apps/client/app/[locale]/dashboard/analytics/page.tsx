@@ -3,6 +3,8 @@
  * @description Customer analytics dashboard showing post performance, engagement metrics,
  * and per-platform breakdown. Fetches data via the useAnalytics hook which routes
  * through the Next.js proxy with customer authentication.
+ * @component AnalyticsPage
+ * @layer infrastructure
  */
 "use client";
 

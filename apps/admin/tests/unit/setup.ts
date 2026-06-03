@@ -5,7 +5,7 @@
  * `expect(element).toBeInTheDocument()` work in all unit test files.
  *
  * @file setup.ts
- * @description Test setup for setup
+ * @description Vitest unit-test setup; loads jest-dom matchers.
  * @layer infrastructure
  */
 import "@testing-library/jest-dom";

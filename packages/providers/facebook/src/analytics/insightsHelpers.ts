@@ -3,6 +3,7 @@
  * @description Helper/utility functions for processing Facebook Insights API data.
  * Extracted from FacebookInsightsApi to keep each file under 600 lines.
  * These are pure data-processing functions with no API calls.
+ * @layer infrastructure
  */
 
 /** Represents a single metric entry from Facebook Insights API. */

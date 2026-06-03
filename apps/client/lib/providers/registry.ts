@@ -1,6 +1,7 @@
 /**
  * @file registry.ts
  * @description Client-side provider registry that wraps the centralized provider configuration with content validation, threading logic, optimal posting times, and legacy backward-compatible interfaces.
+ * @layer infrastructure
  */
 
 import {

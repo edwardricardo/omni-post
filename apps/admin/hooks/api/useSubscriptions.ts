@@ -2,6 +2,7 @@
  * @file useSubscriptions.ts
  * @description TanStack Query hooks for fetching subscription summaries, plan distributions,
  * and billing data for the admin subscriptions management page.
+ * @layer infrastructure
  */
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../lib/apiClient";

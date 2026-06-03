@@ -30,6 +30,9 @@ import type { HttpClientPort } from "@core/domain/repositories/HttpClientPort.js
 import { FetchHttpClient } from "../adapters/FetchHttpClient.js";
 import { AiRequestService } from "@core/ai/AiRequestService.js";
 import { AIRequestExecutorAdapter } from "../../ai/AIRequestExecutorAdapter.js";
+import { AICircuitBreaker } from "../../ai/providers/AICircuitBreaker.js";
+import { RedisTokenBucketRateLimiter } from "../../ai/providers/RedisTokenBucketRateLimiter.js";
+import type { RateLimiterPort } from "@ports/core";
 import type { AIRequestExecutorPort } from "@core/domain/repositories/AIRequestExecutorPort.js";
 import { DashboardService } from "../../admin/dashboardService.js";
 import { AccountLifecycleService } from "../../admin/accountLifecycleService.js";
@@ -106,6 +109,9 @@ import { SettingsService } from "@core/settings/SettingsService.js";
 import { UpcasterChain } from "../integration-events/EventUpcaster.js";
 import { NotificationBroadcaster } from "../../services/NotificationBroadcaster.js";
 import { AnalyticsStreamBroadcaster } from "../../services/AnalyticsStreamBroadcaster.js";
+import { StreamConnectionTracker } from "../../services/StreamConnectionTracker.js";
+import { RedisBruteForceAdapter } from "../adapters/RedisBruteForceAdapter.js";
+import type { BruteForceProtectionPort } from "@ports/core";
 import { RealtimeAnalyticsService } from "../../analytics/realtimeAnalytics.js";
 import { GA4TrackingAdapter } from "../adapters/GA4TrackingAdapter.js";
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
@@ -196,7 +202,7 @@ export function setupServices(
       ),
     true
   );
-  // S4.4 — RoleManagementService (@core/application) + its two ports
+  // RoleManagementService (@core/application) + its two ports.
   container.register<RoleManagementRepository>(
     TOKENS.RoleManagementRepository,
     () => new PrismaRoleManagementRepository(container.resolve(TOKENS.PrismaClient)),
@@ -228,14 +234,46 @@ export function setupServices(
     () => new ActivityFeedService(container.resolve(TOKENS.PrismaClient)),
     true
   );
-  // S4.3 — AIRequestExecutor adapter (wraps AIProviderFactory + AIOrchestrator
-  // so AiRequestService can live in @core/application).
+  // Single per-process circuit breaker shared by every orchestrator instance
+  // (the per-request orchestrators built inside AIRequestExecutorAdapter and
+  // the admin orchestrator in AIService). Sharing it is the whole point:
+  // breaker state must outlive the ephemeral orchestrators so a tripped
+  // provider stays skipped across requests.
+  container.register<AICircuitBreaker>(TOKENS.AICircuitBreaker, () => new AICircuitBreaker(), true);
+  // Cross-pod token-bucket rate limiter for outbound provider calls. Its own
+  // Redis connection (independent failure domain from cache/queue); fail-open
+  // so a limiter outage never blocks AI traffic. Shared singleton so every
+  // ephemeral orchestrator throttles against the same buckets.
+  container.register<RateLimiterPort>(
+    TOKENS.RateLimiterPort,
+    () =>
+      new RedisTokenBucketRateLimiter(createRedisConnection(), {
+        capacity: env.AI_PROVIDER_REQUESTS_PER_MIN,
+      }),
+    true
+  );
+  // Cross-pod token-bucket limiter for INBOUND HTTP requests (same port +
+  // algorithm as the AI one — one rate-limiting canon — a distinct instance
+  // with its own key prefix + Redis connection). Per-path capacity/window come
+  // from the rule table passed per call by the HTTP preHandler.
+  container.register<RateLimiterPort>(
+    TOKENS.HttpRateLimiter,
+    () =>
+      new RedisTokenBucketRateLimiter(createRedisConnection(), {
+        keyPrefix: "http:ratelimit:",
+      }),
+    true
+  );
+  // AIRequestExecutor adapter wraps AIProviderFactory + AIOrchestrator so
+  // AiRequestService can live in @core/application.
   container.register<AIRequestExecutorPort>(
     TOKENS.AIRequestExecutorPort,
     () =>
       new AIRequestExecutorAdapter(
         container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
-        container.resolve<CachePort>(TOKENS.CachePort)
+        container.resolve<CachePort>(TOKENS.CachePort),
+        container.resolve<AICircuitBreaker>(TOKENS.AICircuitBreaker),
+        container.resolve<RateLimiterPort>(TOKENS.RateLimiterPort)
       ),
     true
   );
@@ -261,7 +299,9 @@ export function setupServices(
       new AIService(
         container.resolve<AiRequestService>(TOKENS.AiRequestService),
         container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
-        container.resolve<CachePort>(TOKENS.CachePort)
+        container.resolve<CachePort>(TOKENS.CachePort),
+        container.resolve<AICircuitBreaker>(TOKENS.AICircuitBreaker),
+        container.resolve<RateLimiterPort>(TOKENS.RateLimiterPort)
       ),
     true
   );
@@ -346,7 +386,11 @@ export function setupServices(
 
   container.register<AdminAuthService>(
     TOKENS.AdminAuthService,
-    () => new AdminAuthService(container.resolve(TOKENS.PrismaClient)),
+    () =>
+      new AdminAuthService(
+        container.resolve(TOKENS.PrismaClient),
+        container.resolve<BruteForceProtectionPort>(TOKENS.BruteForceProtectionPort)
+      ),
     true
   );
   container.register<AdminUserAdminService>(
@@ -447,7 +491,7 @@ export function setupServices(
     true
   );
 
-  // Compliance — S4.1 ports (GdprSettings, SecuritySettings, DsarRequest,
+  // Compliance ports (GdprSettings, SecuritySettings, DsarRequest,
   // DataBreachReport, AuditLogRetention, AccountNotification).
   container.register<GdprSettingsRepository>(
     TOKENS.GdprSettingsRepository,
@@ -684,7 +728,7 @@ export function setupServices(
     () =>
       new ThreadAnalytics(
         container.resolve<CachePort>(TOKENS.CachePort),
-        {} as ApiMetrics,
+        container.resolve<ApiMetrics>(TOKENS.ApiMetrics),
         container.resolve<AnalyticsReadRepositoryPort>(TOKENS.AnalyticsReadRepository),
         container.resolve<ThreadReadRepositoryPort>(TOKENS.ThreadReadRepository)
       ),
@@ -739,6 +783,34 @@ export function setupServices(
       );
       broadcaster.initialize();
       return broadcaster;
+    },
+    true
+  );
+
+  // Register StreamConnectionTracker (per-account SSE cap — DoS protection,
+  // shared by /analytics/stream and /notifications/stream).
+  container.register<StreamConnectionTracker>(
+    TOKENS.StreamConnectionTracker,
+    () => new StreamConnectionTracker(env.MAX_STREAMS_PER_ACCOUNT),
+    true
+  );
+
+  // Register BruteForceProtectionPort — single source of brute-force
+  // throttling for both customer and admin login. Uses a dedicated Redis
+  // connection (commandTimeout: 5s) to fail-open fast if Redis stalls,
+  // instead of stalling login. Singleton.
+  container.register<BruteForceProtectionPort>(
+    TOKENS.BruteForceProtectionPort,
+    () => {
+      const redis = createRedisConnection();
+      redis.on("error", () => {
+        // Errors surface via the adapter's fail-open path (logged + metric).
+      });
+      return new RedisBruteForceAdapter(
+        redis,
+        container.resolve<AuditService>(TOKENS.AuditService),
+        container.resolve<ApiMetrics>(TOKENS.ApiMetrics)
+      );
     },
     true
   );
@@ -886,14 +958,14 @@ export function setupServices(
     () => new PrismaAiTokenUsageRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
-  // Account billing adapter (S3.4 scaffolding) — implements AccountBillingRepository
-  // (raw read/write of billing-specific fields on the Account row).
+  // Account billing adapter — implements AccountBillingRepository (raw
+  // read/write of billing-specific fields on the Account row).
   container.register<AccountBillingRepository>(
     TOKENS.AccountBillingRepository,
     () => new PrismaAccountBillingRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
-  // Account-subscription billing adapter (S3.4 scaffolding).
+  // Account-subscription billing adapter.
   container.register<AccountSubscriptionBillingRepository>(
     TOKENS.AccountSubscriptionBillingRepository,
     () => new PrismaAccountSubscriptionBillingRepository(container.resolve(TOKENS.PrismaClient)),

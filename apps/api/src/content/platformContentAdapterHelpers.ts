@@ -18,6 +18,13 @@ import type {
 // Confidence & Scoring
 // ---------------------------------------------------------------------------
 
+/**
+ * @function calculateConfidence
+ * @description Computes adaptation confidence based on warning count vs applied rules.
+ * @param appliedRules - Rules that were applied during adaptation
+ * @param warnings - Warnings collected during adaptation
+ * @returns Confidence in [0.3, 1.0]
+ */
 export function calculateConfidence(appliedRules: AdaptationRule[], warnings: string[]): number {
   if (warnings.length > appliedRules.length) return 0.3;
   if (warnings.length > 0) return 0.7;
@@ -25,17 +32,34 @@ export function calculateConfidence(appliedRules: AdaptationRule[], warnings: st
   return 0.9;
 }
 
+/**
+ * @function calculateReversibilityScore
+ * @description Ratio of applied rules that are reversible.
+ * @param rules - Rules applied during adaptation
+ * @returns Reversibility ratio in [0, 1]
+ */
 export function calculateReversibilityScore(rules: AdaptationRule[]): number {
   if (rules.length === 0) return 1.0;
   const reversibleRules = rules.filter((rule) => isRuleReversible(rule));
   return reversibleRules.length / rules.length;
 }
 
+/**
+ * @function isRuleReversible
+ * @description Returns true if applying this rule type can be undone.
+ * @param rule - Adaptation rule to check
+ * @returns True if reversible
+ */
 export function isRuleReversible(rule: AdaptationRule): boolean {
   const reversibleTypes = ["hashtag_limit", "custom"];
   return reversibleTypes.includes(rule.type);
 }
 
+/**
+ * @function initializeMetrics
+ * @description Returns a zero-initialised adaptation metrics object.
+ * @returns Default AdaptationMetrics with all scores at 0
+ */
 export function initializeMetrics(): AdaptationMetrics {
   return {
     executionTime: 0,
@@ -51,6 +75,13 @@ export function initializeMetrics(): AdaptationMetrics {
 // Content Similarity & Completeness
 // ---------------------------------------------------------------------------
 
+/**
+ * @function calculateContentSimilarity
+ * @description Character-by-character similarity ratio between two posts' bodies.
+ * @param content1 - First post
+ * @param content2 - Second post
+ * @returns Similarity in [0, 1]
+ */
 export function calculateContentSimilarity(
   content1: CanonicalPost,
   content2: CanonicalPost
@@ -102,6 +133,13 @@ function calculateContentCompleteness(original: CanonicalPost, adapted: Canonica
   return factors > 0 ? completeness / factors : 1;
 }
 
+/**
+ * @function calculateQualityScore
+ * @description Aggregate quality score combining similarity and completeness.
+ * @param original - Original canonical post
+ * @param adapted - Adapted post
+ * @returns Quality score in [0, 1]
+ */
 export function calculateQualityScore(original: CanonicalPost, adapted: CanonicalPost): number {
   const similarity = calculateContentSimilarity(original, adapted);
   const completeness = calculateContentCompleteness(original, adapted);
@@ -112,6 +150,13 @@ export function calculateQualityScore(original: CanonicalPost, adapted: Canonica
 // Media Utilities
 // ---------------------------------------------------------------------------
 
+/**
+ * @function findUnsupportedMediaFormats
+ * @description Returns the distinct media types in the post that are not in the allowlist.
+ * @param media - Media items attached to the post
+ * @param allowedFormats - Allowed media type strings
+ * @returns Unique unsupported type strings
+ */
 export function findUnsupportedMediaFormats(
   media: Media[] | undefined,
   allowedFormats: string[]
@@ -171,6 +216,15 @@ async function optimizeHashtagsForAudience(
   return [...optimized, ...toAdd];
 }
 
+/**
+ * @function applyEngagementOptimizations
+ * @description Applies platform-specific engagement optimisations (hashtag preferences, etc.)
+ *              to an existing adaptation.
+ * @param adaptation - Base platform adaptation
+ * @param _providerId - Target provider id (reserved for future per-provider tuning)
+ * @param audienceData - Optional audience-derived hints
+ * @returns Adaptation with optimised content
+ */
 export async function applyEngagementOptimizations(
   adaptation: PlatformAdaptation,
   _providerId: ProviderId,
@@ -202,6 +256,13 @@ function getFieldValue(content: CanonicalPost, field: string): unknown {
   return (content as Record<string, unknown>)[field];
 }
 
+/**
+ * @function evaluateCondition
+ * @description Evaluates an adaptation condition against a post's field value.
+ * @param condition - Condition (field, operator, value)
+ * @param content - Canonical post providing the field value
+ * @returns True if the condition matches
+ */
 export async function evaluateCondition(
   condition: AdaptationCondition,
   content: CanonicalPost
@@ -232,6 +293,13 @@ export async function evaluateCondition(
 // Predictions
 // ---------------------------------------------------------------------------
 
+/**
+ * @function predictEngagement
+ * @description Placeholder rule-based engagement estimate (no ML).
+ * @param _content - Canonical post (reserved for future heuristics)
+ * @param _providerId - Target provider id (reserved)
+ * @returns Engagement estimate in [0, 1]
+ */
 export async function predictEngagement(
   _content: CanonicalPost,
   _providerId: ProviderId

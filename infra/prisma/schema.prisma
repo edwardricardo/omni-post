@@ -237,6 +237,7 @@ model AdminSession {
 model AuditLog {
   id         String   @id @default(uuid())
   userId     String? // Nullable for system actions
+  accountId  String? // Searchability column (NOT for RLS): customer-facing queries filter via findByAccount; AuditLog remains in tenant-guard denylist by canon — immutable evidence requires audit logs outside RLS (see MULTI_TENANT_GUARDS.md §Global-tables-denylist)
   action     String // e.g., "LOGIN", "CREATE_PROJECT", "DELETE_USER"
   resource   String? // e.g., "Project", "Account", "AdminUser"
   resourceId String? // ID of the affected resource
@@ -252,6 +253,7 @@ model AuditLog {
   // @@index([createdAt]) - REMOVED: Covered by composites above
 
   @@index([userId, createdAt])
+  @@index([accountId, createdAt])
   @@index([action, createdAt])
   @@index([resource, resourceId])
   @@index([success, createdAt])
@@ -3443,8 +3445,8 @@ model RepurposeProposal {
   sourcePost Post               @relation("RepurposeSource", fields: [sourcePostId], references: [id])
   variants   RepurposeVariant[]
 
+  @@unique([accountId, sourcePostId])
   @@index([accountId, status])
-  @@index([sourcePostId])
 }
 
 model RepurposeVariant {
@@ -3483,6 +3485,12 @@ enum MessagePriority {
 model TrendRadarResult {
   id             String       @id @default(cuid())
   accountId      String
+  /// Calendar day bucket the trend belongs to, formatted YYYY-MM-DD in UTC.
+  /// Computed once upstream (DispatchDetectTrendsUseCase) and propagated
+  /// through the pipeline so jobs crossing midnight don't generate a second
+  /// row in the next day's bucket. Backs the unique constraint that closes
+  /// the find-then-create TOCTOU window.
+  dayKey         String
   topic          String
   platform       Provider
   /// Provenance: which data source surfaced this trend (web search, own
@@ -3500,8 +3508,8 @@ model TrendRadarResult {
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
+  @@unique([accountId, dayKey, topic])
   @@index([accountId, expiresAt])
-  @@index([accountId, topic, fetchedAt])
 }
 
 enum TrendUrgency {

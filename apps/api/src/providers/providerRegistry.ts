@@ -31,9 +31,8 @@ import {
  *
  * This service manages provider metadata and adapters for the API backend.
  * It uses the centralized provider configuration from @shared/types and extends
- * it with runtime adapter instances for each provider.
- *
- * ✅ Updated to support class-based provider adapters
+ * it with runtime adapter instances for each provider. Supports class-based
+ * provider adapters.
  */
 class ProviderRegistryService {
   private adapters: Map<string, ProviderAdapter> = new Map();

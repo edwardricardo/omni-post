@@ -8,8 +8,6 @@
  *              shape is enforced by the SagaStep discriminated union and by the
  *              `defineSaga()` factory which requires explicit preCommit/pivot/
  *              postCommit segments — any saga that compiles is canon-by-construction.
- *
- *              See CLAUDE.md §Saga Pattern for the rules every new saga must follow.
  * @layer domain
  */
 

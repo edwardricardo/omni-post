@@ -20,6 +20,7 @@ import type {
 } from "@core/notifications/MarkNotificationReadUseCase.js";
 import type { GetUnreadCountQuery } from "@core/notifications/GetUnreadCountQuery.js";
 import type { NotificationBroadcaster } from "../services/NotificationBroadcaster.js";
+import type { StreamConnectionTracker } from "../services/StreamConnectionTracker.js";
 import type { NotificationPreferenceRepository } from "@core/domain/repositories/NotificationRepository.js";
 import { NOTIFICATION_TYPES } from "@core/domain/value-objects/NotificationType.js";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
@@ -78,7 +79,8 @@ class NotificationRouteHandler extends BaseRouteHandler {
     private readonly unreadCountQuery: GetUnreadCountQuery,
     private readonly preferenceRepo: NotificationPreferenceRepository,
     private readonly broadcaster: NotificationBroadcaster,
-    private readonly scheduler: BackgroundTaskScheduler
+    private readonly scheduler: BackgroundTaskScheduler,
+    private readonly streamTracker: StreamConnectionTracker
   ) {
     super();
   }
@@ -305,6 +307,17 @@ class NotificationRouteHandler extends BaseRouteHandler {
       return reply.code(401).send({ ok: false, error: "Authentication required" });
     }
 
+    // Reserve a per-account stream slot before allocating any per-connection state
+    // (subscription, heartbeat). Rejects when the cap is reached — DoS protection.
+    const subId = randomUUID();
+    if (!this.streamTracker.tryReserve(user.accountId, subId)) {
+      return reply.code(429).send({
+        ok: false,
+        error: "Too many concurrent streams for account",
+        maxConcurrent: this.streamTracker.getMaxPerAccount(),
+      });
+    }
+
     // Set SSE headers
     reply.raw.writeHead(200, {
       "Content-Type": "text/event-stream",
@@ -317,7 +330,6 @@ class NotificationRouteHandler extends BaseRouteHandler {
     reply.raw.write(`data: ${JSON.stringify({ type: "connected" })}\n\n`);
 
     // Subscribe to broadcaster
-    const subId = randomUUID();
     this.broadcaster.subscribe(subId, user.id, (event) => {
       try {
         reply.raw.write(`data: ${JSON.stringify(event)}\n\n`);
@@ -337,6 +349,7 @@ class NotificationRouteHandler extends BaseRouteHandler {
         } catch {
           this.scheduler.unregister(heartbeatTaskId);
           this.broadcaster.unsubscribe(subId);
+          this.streamTracker.release(user.accountId, subId);
         }
       },
       30_000
@@ -346,6 +359,7 @@ class NotificationRouteHandler extends BaseRouteHandler {
     request.raw.on("close", () => {
       this.scheduler.unregister(heartbeatTaskId);
       this.broadcaster.unsubscribe(subId);
+      this.streamTracker.release(user.accountId, subId);
     });
   }
 }
@@ -372,6 +386,9 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
     TOKENS.NotificationBroadcaster
   );
   const scheduler = app.container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler);
+  const streamTracker = app.container.resolve<StreamConnectionTracker>(
+    TOKENS.StreamConnectionTracker
+  );
 
   const handler = new NotificationRouteHandler(
     createUseCase,
@@ -381,7 +398,8 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
     unreadCountQuery,
     preferenceRepo,
     broadcaster,
-    scheduler
+    scheduler,
+    streamTracker
   );
 
   // List notifications with cursor pagination

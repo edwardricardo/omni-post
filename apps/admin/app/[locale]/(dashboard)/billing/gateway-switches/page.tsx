@@ -108,10 +108,15 @@ function GatewayChip({ gateway }: { gateway: string }) {
 // ---------------------------------------------------------------------------
 
 interface DetailDialogProps {
+  /** Gateway switch event whose details are loaded and displayed. */
   eventId: string;
+  /** Translator scoped to the gateway-switches namespace. */
   t: ReturnType<typeof useTranslations>;
+  /** Translator scoped to the common namespace (shared labels). */
   tc: ReturnType<typeof useTranslations>;
+  /** Fired when the user closes the dialog. */
   onClose: () => void;
+  /** Fired with the event id when the user requests an extension. */
   onExtend: (id: string) => void;
 }
 
@@ -282,10 +287,15 @@ function TimelineRow({
 // ---------------------------------------------------------------------------
 
 interface ExtendDialogProps {
+  /** Gateway switch event whose deadline is being extended. */
   eventId: string;
+  /** Current deadline ISO timestamp used to compute the new deadline preview. */
   currentDeadline: string;
+  /** Translator scoped to the gateway-switches namespace. */
   t: ReturnType<typeof useTranslations>;
+  /** Translator scoped to the common namespace (shared labels). */
   tc: ReturnType<typeof useTranslations>;
+  /** Fired when the dialog should close (cancel or successful extend). */
   onClose: () => void;
 }
 

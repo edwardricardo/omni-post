@@ -1,7 +1,8 @@
 /**
  * @file AdminAuthService.ts
  * @description Orchestrates all admin authentication operations by coordinating
- *              PasswordService, TokenService, SessionManager, BruteForceProtection, and MfaService.
+ *              PasswordService, TokenService, SessionManager, MfaService, and the
+ *              canon-aligned BruteForceProtectionPort (NIST SP 800-63B-4 + OWASP).
  * @layer infrastructure
  * This service provides the main public API for authentication operations
  * while delegating specific concerns to specialized services.
@@ -9,6 +10,7 @@
 
 import type { PrismaClient } from "@infra/prisma";
 import { ok, err, type Result } from "@shared/types";
+import type { BruteForceProtectionPort } from "@ports/core";
 import type {
   AdminUserProfile,
   LoginRequest,
@@ -26,7 +28,6 @@ import type {
 import { PasswordService } from "./PasswordService";
 import { TokenService } from "./TokenService";
 import { SessionManager } from "./SessionManager";
-import { BruteForceProtection } from "./BruteForceProtection";
 import { MfaService } from "./MfaService";
 import { hashRefreshToken } from "../../auth/refreshTokenHash.js";
 
@@ -34,14 +35,15 @@ export class AdminAuthService {
   private passwordService: PasswordService;
   private tokenService: TokenService;
   private sessionManager: SessionManager;
-  private bruteForceProtection: BruteForceProtection;
   private mfaService: MfaService;
 
-  constructor(private readonly prisma: PrismaClient) {
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly bruteForce: BruteForceProtectionPort
+  ) {
     this.passwordService = new PasswordService(this.prisma);
     this.tokenService = new TokenService();
     this.sessionManager = new SessionManager(this.prisma, this.tokenService);
-    this.bruteForceProtection = new BruteForceProtection(this.prisma);
     this.mfaService = new MfaService(this.prisma);
   }
 
@@ -57,6 +59,23 @@ export class AdminAuthService {
     device: DeviceFingerprint
   ): Promise<Result<LoginResponse, AuthErrorCode>> {
     const { email, password, mfaToken, rememberMe = false } = request;
+    const ip = device.ipAddress ?? "0.0.0.0";
+    const userAgent = device.userAgent ?? "";
+
+    // Brute-force gate (NIST SP 800-63B-4 §rate-limiting + OWASP Auth Cheat Sheet).
+    // Account-based primary — IP rotation does not bypass this counter.
+    const check = await this.bruteForce.checkLoginAttempt({
+      identifier: email,
+      ip,
+      userAgent,
+    });
+    if (!check.allowed) {
+      if (check.reason === "account_lockout") return err("ACCOUNT_LOCKED");
+      return err("RATE_LIMIT_EXCEEDED");
+    }
+    if (check.delaySeconds > 0) {
+      await new Promise((resolve) => setTimeout(resolve, check.delaySeconds * 1000));
+    }
 
     // Find user (include role relation for profile mapping)
     const user = await this.prisma.adminUser.findUnique({
@@ -65,37 +84,29 @@ export class AdminAuthService {
     });
 
     if (!user) {
-      await this.bruteForceProtection.recordLoginAttempt(
-        email,
-        false,
-        device,
-        undefined,
-        "USER_NOT_FOUND"
-      );
+      await this.bruteForce.recordFailedAttempt({
+        identifier: email,
+        ip,
+        userAgent,
+        failureReason: "USER_NOT_FOUND",
+      });
       return err("INVALID_CREDENTIALS");
     }
 
-    // Check if account is locked
+    // Admin manual lock (independent of BF gate — admin UI can lock a user
+    // outside the rate-limit flow; keep this check to honor that decision).
     if (user.lockedUntil && user.lockedUntil > new Date()) {
-      await this.bruteForceProtection.recordLoginAttempt(
-        email,
-        false,
-        device,
-        user.id,
-        "ACCOUNT_LOCKED"
-      );
       return err("ACCOUNT_LOCKED");
     }
 
     // Check if account is active
     if (!user.isActive) {
-      await this.bruteForceProtection.recordLoginAttempt(
-        email,
-        false,
-        device,
-        user.id,
-        "ACCOUNT_INACTIVE"
-      );
+      await this.bruteForce.recordFailedAttempt({
+        identifier: email,
+        ip,
+        userAgent,
+        failureReason: "ACCOUNT_INACTIVE",
+      });
       return err("ACCOUNT_INACTIVE");
     }
 
@@ -103,17 +114,12 @@ export class AdminAuthService {
     const { valid } = await this.passwordService.verifyPassword(password, user.passwordHash);
 
     if (!valid) {
-      await this.bruteForceProtection.checkAndLockAccount(
-        user.id,
-        this.logSecurityEvent.bind(this)
-      );
-      await this.bruteForceProtection.recordLoginAttempt(
-        email,
-        false,
-        device,
-        user.id,
-        "INVALID_PASSWORD"
-      );
+      await this.bruteForce.recordFailedAttempt({
+        identifier: email,
+        ip,
+        userAgent,
+        failureReason: "INVALID_PASSWORD",
+      });
       return err("INVALID_CREDENTIALS");
     }
 
@@ -125,19 +131,15 @@ export class AdminAuthService {
 
       const mfaValid = await this.mfaService.verifyMfaToken(user.id, mfaToken);
       if (!mfaValid) {
-        await this.bruteForceProtection.recordLoginAttempt(
-          email,
-          false,
-          device,
-          user.id,
-          "MFA_INVALID"
-        );
+        await this.bruteForce.recordFailedAttempt({
+          identifier: email,
+          ip,
+          userAgent,
+          failureReason: "MFA_INVALID",
+        });
         return err("MFA_INVALID");
       }
     }
-
-    // Reset failed attempts
-    await this.bruteForceProtection.resetFailedAttempts(user.id);
 
     // Cleanup expired sessions
     await this.sessionManager.cleanupExpiredSessions(user.id);
@@ -159,8 +161,12 @@ export class AdminAuthService {
       data: { lastLoginAt: new Date() },
     });
 
-    // Record successful login
-    await this.bruteForceProtection.recordLoginAttempt(email, true, device, user.id);
+    // Successful authentication — clear per-identifier counters.
+    await this.bruteForce.recordSuccessfulAttempt({
+      identifier: email,
+      ip,
+      userAgent,
+    });
 
     // Log security event - build event object conditionally
     const securityEvent: SecurityEvent = {

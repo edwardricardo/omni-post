@@ -2,6 +2,7 @@
  * @file useSecurity.ts
  * @description TanStack Query hook that aggregates security overview data: security statistics,
  * MFA adoption rates, and the RBAC hierarchy from the backend security endpoints.
+ * @layer infrastructure
  */
 import { useQuery } from "@tanstack/react-query";
 import { api, SecurityStats, RbacHierarchy } from "../../lib/apiClient";

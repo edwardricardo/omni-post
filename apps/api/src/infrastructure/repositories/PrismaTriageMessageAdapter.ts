@@ -7,6 +7,9 @@
 
 import type { PrismaClient } from "@infra/prisma";
 import type { TriageMessagePort } from "@core/inbox/TriageInboxMessageUseCase.js";
+import { createLogger } from "../../lib/logger.js";
+
+const logger = createLogger("triage-adapter");
 
 export class PrismaTriageMessageAdapter implements TriageMessagePort {
   constructor(private readonly prisma: PrismaClient) {}
@@ -51,7 +54,14 @@ export class PrismaTriageMessageAdapter implements TriageMessagePort {
 
   /**
    * @method updateMessageTriage
-   * @description Persists AI triage results on a social message.
+   * @description Persists AI triage results on a social message. Guarded by
+   *   `aiProcessedAt IS NULL` in the WHERE clause so a second concurrent
+   *   triage attempt for the same messageId silently no-ops instead of
+   *   overwriting the first triage's priority/sentiment/replies. The
+   *   guard is atomic at the SQL layer (single UPDATE with two predicates);
+   *   no read-then-write race. When the update affects zero rows, the
+   *   message was already triaged — log INFO and return success (caller
+   *   treats it as idempotent success).
    */
   async updateMessageTriage(
     messageId: string,
@@ -63,8 +73,8 @@ export class PrismaTriageMessageAdapter implements TriageMessagePort {
       aiProcessedAt: Date;
     }
   ): Promise<void> {
-    await this.prisma.socialMessage.update({
-      where: { id: messageId },
+    const result = await this.prisma.socialMessage.updateMany({
+      where: { id: messageId, aiProcessedAt: null },
       data: {
         priority: data.priority as "URGENT" | "HIGH" | "NORMAL" | "LOW",
         suggestedReplies: data.suggestedReplies,
@@ -73,5 +83,12 @@ export class PrismaTriageMessageAdapter implements TriageMessagePort {
         aiProcessedAt: data.aiProcessedAt,
       },
     });
+
+    if (result.count === 0) {
+      logger.info(
+        { messageId },
+        "Triage skipped — message was already triaged (aiProcessedAt set)"
+      );
+    }
   }
 }

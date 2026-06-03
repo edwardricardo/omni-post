@@ -1,6 +1,7 @@
 /**
  * @file templateVersionControlTypes.ts
  * @description TypeScript interfaces for template versions, branches, and the TemplateVersionControl component props.
+ * @layer infrastructure
  */
 
 import { Template } from "@/lib/templates/templateEngine";

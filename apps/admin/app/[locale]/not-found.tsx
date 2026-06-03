@@ -2,6 +2,8 @@
  * @file not-found.tsx
  * @description Next.js 404 not-found page displaying a centered error panel with a link back
  * to the dashboard home when users navigate to a non-existent route.
+ * @component NotFound
+ * @layer infrastructure
  */
 "use client";
 

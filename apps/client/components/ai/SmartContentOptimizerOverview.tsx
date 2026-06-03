@@ -4,6 +4,8 @@
  * @file SmartContentOptimizerOverview.tsx
  * @description Overview tab content for the SmartContentOptimizer, displaying engagement,
  * readability, virality, and SEO score cards alongside content statistics and sentiment analysis.
+ * @component SmartContentOptimizerOverview
+ * @layer infrastructure
  */
 
 import React from "react";

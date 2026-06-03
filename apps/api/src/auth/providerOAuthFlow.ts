@@ -232,11 +232,11 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
     const ctx: RouteContext = { request, reply };
 
     try {
-      if (!request.user) {
+      if (!request.customerUser) {
         return this.sendError(ctx, 401, "Authentication required");
       }
 
-      const accountId = request.user.accountId ?? request.user.id;
+      const accountId = request.customerUser.accountId;
 
       const validated = await this.validateRequest<z.infer<typeof InitiateOAuthSchema>>(ctx, {
         params: InitiateOAuthSchema.shape.params,
@@ -315,11 +315,11 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
     const ctx: RouteContext = { request, reply };
 
     try {
-      if (!request.user) {
+      if (!request.customerUser) {
         return this.sendError(ctx, 401, "Authentication required");
       }
 
-      const accountId = request.user.accountId ?? request.user.id;
+      const accountId = request.customerUser.accountId;
 
       const validated = await this.validateRequest<z.infer<typeof GetConnectionsSchema>>(ctx, {
         params: GetConnectionsSchema.shape.params,
@@ -371,11 +371,11 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
     const ctx: RouteContext = { request, reply };
 
     try {
-      if (!request.user) {
+      if (!request.customerUser) {
         return this.sendError(ctx, 401, "Authentication required");
       }
 
-      const accountId = request.user.accountId ?? request.user.id;
+      const accountId = request.customerUser.accountId;
 
       const validated = await this.validateRequest<z.infer<typeof DisconnectProviderSchema>>(ctx, {
         params: DisconnectProviderSchema.shape.params,

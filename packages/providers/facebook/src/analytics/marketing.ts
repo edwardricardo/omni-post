@@ -5,6 +5,7 @@
  * attribution analytics, and business insights.
  *
  * Type definitions live in ./marketingTypes.ts; helpers in ./marketingHelpers.ts.
+ * @layer infrastructure
  */
 import { FacebookApiClient, FacebookCredentials } from "../apiClient.js";
 import { createLogger } from "@observability/logger";

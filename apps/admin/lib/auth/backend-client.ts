@@ -3,6 +3,7 @@
  * @description Server-side API client for proxying authenticated requests from the admin
  * dashboard to the Fastify backend via httpOnly session cookies. Provides login, token
  * verification, token refresh, logout, and health-check functions.
+ * @layer infrastructure
  */
 
 import { cache } from "react";
@@ -224,8 +225,7 @@ export async function logoutFromBackend(
         body: body.slice(0, 200),
       });
       // Continue — frontend will clear session regardless. Log surfaces
-      // the failure so observability picks up CSRF / session-state regressions
-      // (vs the prior silent .catch(() => {}) that masked the bug for months).
+      // the failure so observability picks up CSRF / session-state regressions.
     }
   } catch (error) {
     log.error("Network error during logout", error);

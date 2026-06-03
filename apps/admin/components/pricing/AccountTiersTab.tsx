@@ -32,7 +32,9 @@ const INPUT_CLASS =
   "w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] px-2 py-1 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]";
 
 interface AccountTiersTabProps {
+  /** Account pricing tier records to display in the table. */
   tiers: AccountTier[];
+  /** When true, renders the table in its loading skeleton state. */
   isLoading: boolean;
 }
 

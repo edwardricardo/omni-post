@@ -1,11 +1,8 @@
 /**
  * @file ProjectProvider.integration.test.tsx
- * @description Integration tests for the refactored `ProjectProvider` —
- *              guards against the L-100 regression: silent fetch failures,
- *              `window.location.reload()` retry, and manual useEffect data
- *              fetching. Verifies TanStack Query integration (loading,
- *              error+refetch, empty state, localStorage persistence,
- *              account/project resolution).
+ * @description Integration tests for `ProjectProvider`. Verifies TanStack
+ *              Query integration (loading, error+refetch, empty state,
+ *              localStorage persistence, account/project resolution).
  * @layer infrastructure
  */
 

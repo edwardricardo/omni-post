@@ -83,7 +83,7 @@ const circuitBreaker = createExternalApiCircuitBreaker(registry, process.env.RED
 
 export class InstagramApiClient {
   private credentials: InstagramCredentials;
-  private baseUrl = "https://graph.facebook.com/v23.0"; // Latest stable version - critical upgrade from deprecated v22.0
+  private baseUrl = "https://graph.facebook.com/v23.0";
 
   constructor(credentials: InstagramCredentials) {
     this.credentials = credentials;

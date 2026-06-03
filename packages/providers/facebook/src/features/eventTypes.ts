@@ -2,6 +2,7 @@
  * @file eventTypes.ts
  * @description Type definitions for Facebook Events API.
  * Consumed by eventCrud.ts and eventAnalytics.ts.
+ * @layer infrastructure
  */
 
 export interface FacebookEventLocation {

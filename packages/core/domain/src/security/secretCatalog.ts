@@ -1,9 +1,8 @@
 /**
  * @file secretCatalog.ts
  * @description Domain-level catalog of every secret managed by omni-post plus
- *              its NIST cryptoperiod cadence. Source of truth derived from
- *              `docs/security/SECRETS.md`. Pure constants — no env access, no
- *              I/O. Used by the secret-rotation-status feature to enumerate
+ *              its NIST cryptoperiod cadence. Pure constants — no env access,
+ *              no I/O. Used by the secret-rotation-status feature to enumerate
  *              secrets and compute due/overdue status.
  * @layer domain
  */
@@ -53,7 +52,7 @@ export interface SecretEntry {
   readonly name: string;
   /** Category drives the cadence rule applied. */
   readonly category: SecretCategory;
-  /** Human-readable description sourced from SECRETS.md. */
+  /** Human-readable description of what the secret is used for. */
   readonly description: string;
 }
 

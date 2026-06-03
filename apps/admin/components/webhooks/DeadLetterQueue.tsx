@@ -4,6 +4,8 @@
  * @file DeadLetterQueue.tsx
  * @description Dead letter queue management component for failed webhook events, providing
  * filtering, inspection, retry, and bulk operations on events that exhausted delivery attempts.
+ * @component DeadLetterQueue
+ * @layer infrastructure
  */
 
 import { useState, useEffect } from "react";

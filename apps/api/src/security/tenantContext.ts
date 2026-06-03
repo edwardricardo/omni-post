@@ -2,8 +2,8 @@
  * @file tenantContext.ts
  * @description AsyncLocalStorage holder for request-scoped tenant context.
  *   The Fastify customer auth middleware sets this after the JWT is verified;
- *   the Prisma tenant guard extension (S2.1b) reads it on every query to
- *   enforce tenant isolation on the 51 tenant-scoped Prisma models.
+ *   the Prisma tenant guard extension reads it on every query to enforce
+ *   tenant isolation on the 51 tenant-scoped Prisma models.
  *
  *   Mirror of `decryptAuditContext.ts` — same ALS pattern, separate store.
  *   Independent of the UnitOfWork transaction ALS in
@@ -20,8 +20,8 @@
  *     enforcement and emits an audit event whenever a query runs under this
  *     context.
  *   - **No context**: any tenant-scoped query throws `TenantContextMissingError`.
- *     Fail-loud is canonical (Edward's decision, ADR-0014 will document).
- *     Global tables (denylist) bypass the guard regardless.
+ *     Fail-loud is canonical. Global tables (denylist) bypass the guard
+ *     regardless.
  *
  * @layer infrastructure
  */

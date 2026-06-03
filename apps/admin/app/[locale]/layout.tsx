@@ -4,6 +4,7 @@
  *   locale segment, enables static rendering via `setRequestLocale`, configures
  *   the Geist font family, and wraps children in the next-intl client provider,
  *   ThemeProvider, and AdminToaster.
+ * @component LocaleLayout
  * @layer infrastructure
  */
 import React from "react";

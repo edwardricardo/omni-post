@@ -23,7 +23,7 @@ declare module "fastify" {
   }
 }
 
-// ✅ Zod schemas for validation
+// Zod schemas for validation
 const MfaTokenSchema = z.object({
   body: z.object({
     token: z.string().regex(/^[0-9]{6}$/, { message: "Token must be 6 digits" }),
@@ -58,7 +58,7 @@ const AdminForceDisableMfaSchema = z.object({
   }),
 });
 
-// ✅ BaseRouteHandler implementation
+// BaseRouteHandler implementation
 class MfaRouteHandler extends BaseRouteHandler {
   protected routeName = "mfa";
 
@@ -393,13 +393,13 @@ class MfaRouteHandler extends BaseRouteHandler {
   }
 }
 
-// ✅ PROPER Fastify v5.6.1 Plugin Implementation
+// Fastify v5.6.1 Plugin Implementation
 const mfaRoutes: FastifyPluginAsync = async (fastify) => {
   const mfaService = fastify.container!.resolve<MfaService>(TOKENS.MfaService);
   const auditService = fastify.container!.resolve<AuditService>(TOKENS.AuditService);
   const handler = new MfaRouteHandler(mfaService, auditService);
 
-  // ✅ Get MFA status for current customer user
+  // Get MFA status for current customer user
   fastify.get(
     "/auth/mfa/status",
     {
@@ -409,7 +409,7 @@ const mfaRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.getMfaStatus(request, reply)
   );
 
-  // ✅ Setup MFA for current customer user
+  // Setup MFA for current customer user
   fastify.post(
     "/auth/mfa/setup",
     {
@@ -419,7 +419,7 @@ const mfaRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.setupMfa(request, reply)
   );
 
-  // ✅ Verify MFA setup
+  // Verify MFA setup
   fastify.post(
     "/auth/mfa/verify-setup",
     {
@@ -429,21 +429,21 @@ const mfaRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.verifyMfaSetup(request, reply)
   );
 
-  // ✅ Verify MFA token (used during login flow — no auth required)
+  // Verify MFA token (used during login flow — no auth required)
   fastify.post(
     "/auth/mfa/verify",
     { schema: { tags: ["MFA"], summary: "Verify MFA token during login" } },
     async (request, reply) => handler.verifyMfaToken(request, reply)
   );
 
-  // ✅ Disable MFA for current customer user
+  // Disable MFA for current customer user
   fastify.post(
     "/auth/mfa/disable",
     { preHandler: [requireClientAuth], schema: { tags: ["MFA"], summary: "Disable MFA" } },
     async (request, reply) => handler.disableMfa(request, reply)
   );
 
-  // ✅ Regenerate backup codes for current customer user
+  // Regenerate backup codes for current customer user
   fastify.post(
     "/auth/mfa/regenerate-backup-codes",
     {
@@ -453,7 +453,7 @@ const mfaRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.regenerateBackupCodes(request, reply)
   );
 
-  // ✅ Admin: Get MFA status for any user
+  // Admin: Get MFA status for any user
   fastify.get(
     "/admin/users/:userId/mfa/status",
     {
@@ -463,7 +463,7 @@ const mfaRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.getAdminMfaStatus(request, reply)
   );
 
-  // ✅ Admin: Force disable MFA for a user (emergency use)
+  // Admin: Force disable MFA for a user (emergency use)
   fastify.post(
     "/admin/users/:userId/mfa/force-disable",
     {

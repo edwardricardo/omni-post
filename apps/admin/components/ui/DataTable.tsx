@@ -16,11 +16,17 @@ interface Column<T> {
 }
 
 interface DataTableProps<T> {
+  /** Column definitions with header text and optional per-row render function. */
   columns: Column<T>[];
+  /** Row items to display in the table body. */
   data: T[];
+  /** When true, renders skeleton rows instead of `data`. Defaults to false. */
   isLoading?: boolean;
+  /** Message shown when `data` is empty. Defaults to "No data available". */
   emptyMessage?: string;
+  /** Fired when a row is clicked; row receives `cursor-pointer` styling when set. */
   onRowClick?: (item: T) => void;
+  /** Function returning a stable key for each row item. */
   rowKey: (item: T) => string;
 }
 

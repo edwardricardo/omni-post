@@ -16,10 +16,9 @@ PATTERNS BLOCKED:
 BYPASS PRIORITY (any of these silences a block):
   1. Línea canon-check válida en el último assistant message del transcript
      (regex: ^canon-check:\\s*\\S+\\.md\\s+§\\S+\\s+—\\s+.+)
-  2. Token .claude/.allowed/tripwire-override (15 min TTL, same protocol
-     as sensitive-edit). Created by omnipost-allow tripwire-override.
-  3. Env var EDWARD_AUTHORIZED_TRIPWIRE=yes (case-by-case, audited en
-     .claude/heuristic-overrides.log).
+  2. Token .claude/.allowed/sensitive-edit (15 min TTL). Created by
+     omnipost-allow sensitive-edit. Same token gates sensitive-path edits;
+     reused here to keep the authorization surface unified.
 
 Block via exit 2 + stderr — Claude Code lo interpreta como veto del tool.
 
@@ -281,17 +280,12 @@ def main() -> None:
         log_override(file_path, matches, "canon-check-signature")
         sys.exit(0)
 
-    # Bypass 2: env var (case-by-case authorization).
-    if os.environ.get("EDWARD_AUTHORIZED_TRIPWIRE") == "yes":
-        log(f"ALLOW: EDWARD_AUTHORIZED_TRIPWIRE=yes ({file_path})")
-        log_override(file_path, matches, "EDWARD_AUTHORIZED_TRIPWIRE")
-        sys.exit(0)
-
-    # Bypass 3: token tripwire-override (parallel to sensitive-edit).
-    token_status = check_grant_token("tripwire-override", log)
+    # Bypass 2: token sensitive-edit (unified token gate; same one used by
+    # the sensitive-path pre-edit hook).
+    token_status = check_grant_token("sensitive-edit", log)
     if token_status is None:
-        log(f"ALLOW: tripwire-override token valid ({file_path})")
-        log_override(file_path, matches, "token-tripwire-override")
+        log(f"ALLOW: sensitive-edit token valid ({file_path})")
+        log_override(file_path, matches, "token-sensitive-edit")
         sys.exit(0)
 
     # No bypass — block.
@@ -312,8 +306,7 @@ def main() -> None:
             "  canon-check: <canon-file>.md §<rule-id> — <decision> autorizada porque <razón>",
             "",
             "Invoke `/canon-check` to evaluate, OR",
-            "(emergency) ask Edward to run `omnipost-allow tripwire-override` (15 min TTL), OR",
-            "(case-by-case) set EDWARD_AUTHORIZED_TRIPWIRE=yes in the session.",
+            "(emergency) ask Edward to run `omnipost-allow sensitive-edit` (15 min TTL).",
         ]
     )
     block("\n".join(lines))

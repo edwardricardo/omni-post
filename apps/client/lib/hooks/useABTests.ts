@@ -70,8 +70,7 @@ function makeAbTestsApi(projectId: string) {
       return res.data;
     },
     // The backend route for AB-test UPDATE is not currently exposed;
-    // routing through the canonical client keeps the contract consistent
-    // for when it lands.
+    // routing through the canonical client keeps the contract consistent.
     async updateABTest(test: ABTest): Promise<ABTest> {
       const res = await request<{ data: ABTest }>(PROXY_BASE, `${base}/${test.id}`, {
         method: "PUT",

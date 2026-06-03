@@ -138,12 +138,27 @@ export interface ProviderAdapter {
   publish(input: PublishInput, credentials: unknown): Promise<Result<PublishReceipt, PublishError>>;
 
   // Threading-specific methods
+  /**
+   * Plan a thread split for a canonical post (e.g. X chunking by `maxChars`,
+   * Bluesky reply chains). Pure transformation, no I/O. Optional — only
+   * providers with `capabilities.threading === true` implement it.
+   */
   planThread?(canonical: CanonicalPost): Result<ThreadPlan, ThreadError>;
+  /**
+   * Publish a multi-post thread atomically (best effort). Caller passes
+   * resolved credentials; adapter does NOT fetch credentials internally.
+   * Optional — only providers with `capabilities.threading === true`.
+   */
   publishThread?(
     input: ThreadPublishInput,
     credentials: unknown
   ): Promise<Result<ThreadReceipt, PublishError>>;
 
+  /**
+   * Fetch raw provider analytics for a channel within an optional time window.
+   * Shape is provider-specific; the analytics worker normalizes downstream.
+   * Optional — only providers with `capabilities.analytics === true`.
+   */
   fetchAnalytics?(
     query: { channelId: string; since?: Date; until?: Date },
     credentials: unknown
@@ -157,6 +172,11 @@ export interface ProviderAdapter {
   handleWebhook?(payload: unknown): Promise<Result<unknown, "IGNORE" | "PARSE_ERROR">>;
 
   // Social Inbox methods (already credential-explicit)
+  /**
+   * Fetch comments for the social inbox. `since` + `cursor` drive incremental
+   * paging; `postExternalId` scopes to one of our published posts when set.
+   * Optional — only providers with `capabilities.comments === true`.
+   */
   getComments?(params: {
     channelCredentials: unknown;
     postExternalId?: string;
@@ -165,6 +185,10 @@ export interface ProviderAdapter {
     limit?: number;
   }): Promise<Result<{ comments: ProviderComment[]; nextCursor?: string }, "AUTH" | "NETWORK">>;
 
+  /**
+   * Post a reply to an existing provider message (inbox response).
+   * Optional — only providers with `capabilities.replies === true`.
+   */
   postReply?(params: {
     channelCredentials: unknown;
     inReplyToProviderMessageId: string;

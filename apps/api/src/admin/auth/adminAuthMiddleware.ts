@@ -10,10 +10,10 @@
  */
 
 import type { FastifyRequest, FastifyReply } from "fastify";
+import type { RateLimiterPort } from "@ports/core";
 import type { AdminAuthService } from "./AdminAuthService.js";
 import { TOKENS } from "../../infrastructure/container/types.js";
 import type { AuthContext, AuthErrorCode } from "./adminAuthTypes";
-// AdminRole is now a string type (DB-driven via Role table)
 
 // ============================================================================
 // Augment Fastify Request with auth context
@@ -207,52 +207,44 @@ export const requireAdmin = requireRole(["SUPER_ADMIN", "ADMIN"]);
 // ============================================================================
 
 /**
- * Check rate limit for admin operations
- *
- * Uses IP address and endpoint for rate limiting.
- * Returns 429 if rate limit is exceeded.
- *
- * Note: This is a simple in-memory implementation.
- * For production, use Redis-based rate limiting.
+ * @function rateLimit
+ * @description Builds a rate-limit middleware keyed by request IP + route,
+ *              backed by the cross-pod `RateLimiterPort` (token bucket) resolved
+ *              from the container. Replies HTTP 429 when the per-window limit is
+ *              exceeded. Fail-open when the limiter is unavailable (e.g. tests
+ *              without a wired container) so admin auth never hard-blocks on a
+ *              limiter outage.
+ * @param maxRequests - Maximum requests allowed inside the window.
+ * @param windowMs - Window size in milliseconds.
+ * @returns Fastify handler middleware.
  */
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-
 export function rateLimit(maxRequests: number, windowMs: number) {
   return async function (request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const key = `${request.ip}:${request.routeOptions.url}`;
-    const now = Date.now();
+    const limiter = request.server.container?.resolve<RateLimiterPort>(TOKENS.HttpRateLimiter);
+    if (!limiter) return;
 
-    const existing = rateLimitMap.get(key);
-
-    if (existing && existing.resetAt > now) {
-      if (existing.count >= maxRequests) {
-        const retryAfter = Math.ceil((existing.resetAt - now) / 1000);
-        reply.header("Retry-After", retryAfter.toString());
-        return reply.status(429).send({
-          ok: false,
-          error: {
-            code: "RATE_LIMIT_EXCEEDED",
-            message: `Too many requests. Please try again in ${retryAfter} seconds.`,
-          },
-        });
-      }
-
-      existing.count++;
-    } else {
-      rateLimitMap.set(key, {
-        count: 1,
-        resetAt: now + windowMs,
+    const key = `admin:${request.ip}:${request.routeOptions.url}`;
+    let decision;
+    try {
+      decision = await limiter.tryConsume(key, {
+        capacity: maxRequests,
+        refillWindowMs: windowMs,
       });
+    } catch {
+      // Fail-open: a limiter outage must not block admin auth.
+      return;
     }
 
-    // Cleanup old entries (run periodically)
-    if (Math.random() < 0.01) {
-      // 1% chance to cleanup
-      for (const [k, v] of rateLimitMap.entries()) {
-        if (v.resetAt < now) {
-          rateLimitMap.delete(k);
-        }
-      }
+    if (!decision.allowed) {
+      const retryAfter = Math.ceil((decision.retryAfterMs ?? 0) / 1000);
+      reply.header("Retry-After", retryAfter.toString());
+      return reply.status(429).send({
+        ok: false,
+        error: {
+          code: "RATE_LIMIT_EXCEEDED",
+          message: `Too many requests. Please try again in ${retryAfter} seconds.`,
+        },
+      });
     }
   };
 }

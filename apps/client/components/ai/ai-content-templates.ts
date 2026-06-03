@@ -5,6 +5,7 @@
  * target platforms, and estimated engagement metrics.
  *
  * Dynamic templates can be fetched from the /templates API endpoint when available.
+ * @layer infrastructure
  */
 
 import type { ContentTemplate } from "../../types/ai-content";

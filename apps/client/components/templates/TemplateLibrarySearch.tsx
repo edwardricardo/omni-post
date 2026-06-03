@@ -2,9 +2,10 @@
 
 /**
  * @file TemplateLibrarySearch.tsx
- * @component TemplateLibrarySearch
  * @description Search bar and filter controls for the TemplateLibrary, including category,
  * platform, sort, view mode selectors, and clear-filters button.
+ * @component TemplateLibrarySearch
+ * @layer infrastructure
  */
 
 import React from "react";

@@ -9,7 +9,9 @@
 import { AlertCircle } from "lucide-react";
 
 interface ChartEmptyStateProps {
+  /** Text displayed below the icon. */
   message: string;
+  /** Container height in pixels matching the empty chart slot. Defaults to 200. */
   height?: number;
 }
 

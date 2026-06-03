@@ -2,6 +2,7 @@
  * @file schedulingDashboardUtils.ts
  * @description Pure utility functions used exclusively by the SchedulingDashboard component
  * tree. These operate on the legacy DashboardScheduledPost type.
+ * @layer infrastructure
  */
 
 import type { DashboardScheduledPost } from "./schedulingDashboardTypes";

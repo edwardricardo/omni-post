@@ -10,7 +10,9 @@
 import { useState, type ReactNode } from "react";
 
 interface SkipLinkProps {
+  /** Target anchor for the skip action. Defaults to `#main-content`. */
   href?: string;
+  /** Visible link text rendered when focused. Defaults to `Skip to main content`. */
   children?: ReactNode;
 }
 

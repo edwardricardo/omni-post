@@ -1,3 +1,12 @@
+/**
+ * @file client.ts
+ * @description Production PrismaClient singleton wired to the PrismaPg adapter,
+ *              with lazy initialization, connection pool tuning, health checks,
+ *              and a boot-time auth-failure verifier. Re-exports every model
+ *              type, enum, and the `Prisma` namespace from the generated client
+ *              so downstream code imports from `@infra/prisma` uniformly.
+ * @layer infrastructure
+ */
 import { PrismaClient, Prisma } from "../generated/prisma/client/client.js";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { cpus } from "os";
@@ -78,7 +87,7 @@ export {
   AccountCredentialGroup,
 } from "../generated/prisma/client/client.js";
 
-// Also re-export the $Enums namespace for backward compatibility
+// Re-export the $Enums namespace.
 export { $Enums } from "../generated/prisma/client/client.js";
 
 const g = globalThis as unknown as {
@@ -181,7 +190,12 @@ export const prisma = new Proxy({} as InstanceType<typeof PrismaClient>, {
   },
 });
 
-// Connection pool monitoring utilities
+/**
+ * @function getConnectionPoolStats
+ * @description Returns the configured pool size + current open-connection count.
+ * @returns Snapshot with `configured_limit`, `connect_timeout`, `pool_timeout`,
+ *          `socket_timeout`, and `current_connections`.
+ */
 export const getConnectionPoolStats = () => {
   const poolConfig = getConnectionPoolConfig();
   return {
@@ -193,7 +207,12 @@ export const getConnectionPoolStats = () => {
   };
 };
 
-// Graceful shutdown helper — only disconnects if the client was ever initialized
+/**
+ * @function closeDatabaseConnections
+ * @description Disconnects the PrismaClient if it was ever initialized. Safe to
+ *              call during shutdown even when the singleton was never resolved.
+ * @returns Resolves after `$disconnect()` completes (or immediately if unused).
+ */
 export const closeDatabaseConnections = async () => {
   if (!g.prisma) return; // Never initialized, nothing to close
   try {
@@ -204,7 +223,12 @@ export const closeDatabaseConnections = async () => {
   }
 };
 
-// Health check helper
+/**
+ * @function checkDatabaseHealth
+ * @description Runs `SELECT 1` against the configured database and reports the
+ *              outcome. Used by `/health` endpoints to surface DB liveness.
+ * @returns `{ healthy, timestamp }` on success, `{ healthy: false, error, timestamp }` on failure.
+ */
 export const checkDatabaseHealth = async () => {
   try {
     await prisma.$queryRaw`SELECT 1 as health_check`;

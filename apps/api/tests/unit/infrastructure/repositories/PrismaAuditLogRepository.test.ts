@@ -61,6 +61,7 @@ describe("PrismaAuditLogRepository", () => {
       resource: "AdminUser",
       resourceId: "u-1",
       userId: "actor-1",
+      accountId: "acc-1",
       ipAddress: "1.2.3.4",
       userAgent: "agent",
       details: {},
@@ -70,8 +71,19 @@ describe("PrismaAuditLogRepository", () => {
     expect(data.resource).toBe("AdminUser");
     expect(data.resourceId).toBe("u-1");
     expect(data.userId).toBe("actor-1");
+    expect(data.accountId).toBe("acc-1");
     expect(data.ipAddress).toBe("1.2.3.4");
     expect(data.success).toBe(false);
+  });
+
+  it("create omits accountId when not provided (searchability is best-effort)", async () => {
+    await repo.create({
+      action: "SYSTEM_TICK",
+      details: {},
+      success: true,
+    });
+    const data = prisma.auditLog.create.mock.calls[0]?.[0]?.data;
+    expect("accountId" in data).toBe(false);
   });
 
   it("findByUser filters by userId with default pagination, newest first", async () => {
@@ -109,6 +121,41 @@ describe("PrismaAuditLogRepository", () => {
     await repo.findByResource("Account", "a-1");
     expect(prisma.auditLog.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { resource: "Account", resourceId: "a-1" } })
+    );
+  });
+
+  it("findByAccount scopes the query to accountId with default pagination", async () => {
+    await repo.findByAccount("acc-1");
+    expect(prisma.auditLog.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { accountId: "acc-1" },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+        skip: 0,
+      })
+    );
+  });
+
+  it("findByAccount applies action filter, date range, and limit/offset", async () => {
+    const startDate = new Date("2026-01-01T00:00:00Z");
+    const endDate = new Date("2026-02-01T00:00:00Z");
+    await repo.findByAccount("acc-1", {
+      action: "ACCOUNT_UPDATE",
+      startDate,
+      endDate,
+      limit: 25,
+      offset: 100,
+    });
+    expect(prisma.auditLog.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          accountId: "acc-1",
+          action: "ACCOUNT_UPDATE",
+          createdAt: { gte: startDate, lte: endDate },
+        },
+        take: 25,
+        skip: 100,
+      })
     );
   });
 

@@ -2,9 +2,10 @@
 
 /**
  * @file SchedulingDashboardSidebar.tsx
- * @component SchedulingDashboardSidebar
  * @description Left sidebar of the SchedulingDashboard containing filter controls and
  * a scrollable list of posts for the selected (or today's) date.
+ * @component SchedulingDashboardSidebar
+ * @layer infrastructure
  */
 
 import React, { useEffect } from "react";

@@ -22,6 +22,14 @@ import type { AccountProfile, AccountFilters, AccountStats } from "./accountLife
 // in sync without duplicating the logic.
 // ---------------------------------------------------------------------------
 
+/**
+ * @function mapAdminUserToProfile
+ * @description Maps a Prisma AdminUser row to the public AccountProfile DTO, joining the
+ *              required derived fields. Shared between AccountLifecycle services to avoid drift.
+ * @param prisma - Prisma client (for the derived fields)
+ * @param user - Raw AdminUser row
+ * @returns AccountProfile DTO
+ */
 export async function mapAdminUserToProfile(
   prisma: PrismaClient,
   user: {

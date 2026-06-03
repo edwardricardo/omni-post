@@ -16,8 +16,8 @@ import type {
   AIProviderConfig,
   StructuredOutputSpec,
 } from "../types.js";
-import { AppError } from "../../lib/errors/AppError.js";
 import { logger } from "../../lib/logger.js";
+import { AIProviderError, toAIProviderError } from "./AIProviderError.js";
 import {
   analysisSpec,
   optimizationSpec,
@@ -89,7 +89,7 @@ export class AnthropicProvider implements AIProvider {
       return textBlock?.text ?? "";
     } catch (error: unknown) {
       aiLogger.error({ err: error }, "Anthropic generation failed");
-      throw AppError.externalService("Anthropic", `Anthropic generation failed: ${error}`);
+      throw toAIProviderError("anthropic", error, "Anthropic generation failed");
     }
   }
 
@@ -133,18 +133,17 @@ export class AnthropicProvider implements AIProvider {
 
       const toolUse = response.content.find((b) => b.type === "tool_use");
       if (!toolUse || toolUse.type !== "tool_use") {
-        throw AppError.externalService(
-          "Anthropic",
-          "Anthropic returned no tool_use block for structured output"
+        throw new AIProviderError(
+          "anthropic",
+          "MALFORMED_RESPONSE",
+          "Anthropic returned no tool_use block for structured output",
+          { retryable: false, category: "recoverable" }
         );
       }
       return spec.parse(toolUse.input);
     } catch (error: unknown) {
       aiLogger.error({ err: error }, "Anthropic structured generation failed");
-      throw AppError.externalService(
-        "Anthropic",
-        `Anthropic structured generation failed: ${error}`
-      );
+      throw toAIProviderError("anthropic", error, "Anthropic structured generation failed");
     }
   }
 

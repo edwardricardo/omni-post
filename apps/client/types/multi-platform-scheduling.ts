@@ -2,6 +2,7 @@
  * @file multi-platform-scheduling.ts
  * @description TypeScript type definitions for multi-platform scheduling: available slots, optimal
  * posting times, scheduling rules, created slot responses, and input shapes for the scheduling API.
+ * @layer infrastructure
  */
 // Multi-Platform Scheduling Types
 // These types mirror the backend API response shapes.

@@ -2,6 +2,8 @@
  * @file AudienceTab.tsx
  * @description Tab panel that renders an AudienceInsightCard for each audience
  * segment returned by the predictive analytics API.
+ * @component AudienceTab
+ * @layer infrastructure
  */
 
 import React from "react";

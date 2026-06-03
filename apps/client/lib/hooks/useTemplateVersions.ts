@@ -52,7 +52,7 @@ function makeVersionsApi(projectId: string, templateId: string) {
     },
     // The backend route for version DELETE is not currently exposed;
     // the delete button receives 404. Routing through the canonical
-    // client keeps the contract consistent for when it lands.
+    // client keeps the contract consistent.
     async deleteVersion(versionId: string): Promise<void> {
       await request<void>(PROXY_BASE, `${base}/${versionId}`, {
         method: "DELETE",

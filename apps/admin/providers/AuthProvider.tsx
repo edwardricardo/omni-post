@@ -3,6 +3,7 @@
  * @description Client context that exposes the current admin user's name, role,
  * and permissions to all dashboard pages. Permissions are fetched from the API
  * on mount and cached. Provides hasPermission() for granular access control.
+ * @component AuthProvider
  * @layer infrastructure
  */
 "use client";
@@ -75,9 +76,7 @@ export function AuthProvider({
       })
       .catch((err) => {
         // Failure-closed: any error (network, non-2xx, malformed body) yields zero
-        // permissions. Previously SUPER_ADMIN silently received "*" on failure,
-        // which is a security antipattern (failure-open). The user must refresh
-        // the session to retry.
+        // permissions. The user must refresh the session to retry.
         log.error("Failed to load permissions; falling back to no access", err, {
           userId,
           userRole,

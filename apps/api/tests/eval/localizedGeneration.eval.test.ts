@@ -16,7 +16,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { ok } from "@shared/types";
+import { ok, err } from "@shared/types";
 import { GenerateLocalizedContentUseCase } from "@core/ai/GenerateLocalizedContentUseCase.js";
 import { EmbeddingService } from "@core/embeddings/EmbeddingService.js";
 import type { AIServicePort } from "@core/domain/repositories/AIServicePort.js";
@@ -195,5 +195,40 @@ describe("trajectory eval — localized generation", () => {
       expect(result.value.usedTerms).toEqual(["g-es-1"]);
       expect(result.value.usedRules).toEqual(["s-es-1"]);
     }
+  });
+
+  it("returns an error when the structured generation call fails", async () => {
+    const { ai, generateStructured } = makeAI();
+    generateStructured.mockResolvedValueOnce(err("AI_ERROR"));
+    const useCase = new GenerateLocalizedContentUseCase(
+      ai,
+      new EmbeddingService(ai),
+      makeRetrieval(),
+      makeBrandVoice(),
+      localizedContentSpec,
+      1536
+    );
+
+    const result = await useCase.execute({ accountId: "acc-1", locale: "es", brief: "Brief" });
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("degrades gracefully and still generates when embeddings are unavailable", async () => {
+    const { ai, generateEmbeddings, generateStructured } = makeAI();
+    generateEmbeddings.mockResolvedValueOnce(err("EMBEDDINGS_UNAVAILABLE"));
+    const useCase = new GenerateLocalizedContentUseCase(
+      ai,
+      new EmbeddingService(ai),
+      makeRetrieval(),
+      makeBrandVoice(),
+      localizedContentSpec,
+      1536
+    );
+
+    const result = await useCase.execute({ accountId: "acc-1", locale: "es", brief: "Brief" });
+
+    expect(result.ok).toBe(true);
+    expect(generateStructured).toHaveBeenCalledTimes(1);
   });
 });

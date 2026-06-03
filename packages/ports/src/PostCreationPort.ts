@@ -5,11 +5,6 @@
  *   PostCreationAdapter.ts`) wraps `CreatePostUseCase` + `SchedulePostUseCase`
  *   from `@core/posts` and is wired in the composition root.
  *
- *   Method signatures match the existing service call sites in
- *   `bulk-scheduling/ProcessBulkScheduleRowUseCase` and
- *   `recurring/CreatePostFromRecurrenceUseCase` to minimize call-site
- *   refactor — only the constructor parameter type changes.
- *
  * @layer domain
  */
 
@@ -40,6 +35,15 @@ export interface SchedulePostPortOutput {
 }
 
 export interface PostCreationPort {
+  /**
+   * Create a new draft post inside a project. Delegates to the posts bounded
+   * context use case; returns the persisted post id.
+   */
   createPost(input: CreatePostPortInput): Promise<Result<CreatePostPortOutput, UseCaseError>>;
+  /**
+   * Schedule an existing post for publication to one or more channels at
+   * `scheduledFor`. The adapter validates the timezone and enforces the
+   * provider's `schedulingAdvance` window.
+   */
   schedulePost(input: SchedulePostPortInput): Promise<Result<SchedulePostPortOutput, UseCaseError>>;
 }

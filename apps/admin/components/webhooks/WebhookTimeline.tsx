@@ -4,6 +4,8 @@
  * @file WebhookTimeline.tsx
  * @description Real-time webhook event timeline chart that visualizes event throughput, success
  * vs failure rates over time, with optional live-streaming via server-sent events.
+ * @component WebhookTimeline
+ * @layer infrastructure
  */
 
 import { useState, useEffect, useRef } from "react";
@@ -23,7 +25,9 @@ interface TimelineDataPoint {
 }
 
 interface WebhookTimelineProps {
+  /** Timeline data points with timestamp and per-bucket total/success/failed counts. */
   data: TimelineDataPoint[];
+  /** Selected time range label (e.g. `1h`, `24h`) shown in the chart legend. */
   timeRange: string;
 }
 

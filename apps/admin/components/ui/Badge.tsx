@@ -8,8 +8,11 @@
 import React from "react";
 
 interface BadgeProps {
+  /** Semantic color variant driving background and text tokens. */
   variant: "success" | "warning" | "error" | "info" | "neutral";
+  /** Label or icon content rendered inside the pill. */
   children: React.ReactNode;
+  /** Pill density: `sm` for compact rows, `md` for default headers. Defaults to `md`. */
   size?: "sm" | "md";
 }
 

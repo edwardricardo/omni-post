@@ -63,7 +63,7 @@ function makeBillingEventRepo(): BillingEventRepository {
   return {
     findByGatewayEventId: vi.fn().mockResolvedValue({ ok: true, value: null }),
     upsertNew: vi.fn().mockResolvedValue({ ok: true, value: { id: "be-new" } }),
-    markProcessed: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+    markProcessed: vi.fn().mockResolvedValue({ ok: true, value: { claimed: true } }),
     markError: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
   };
 }
@@ -237,11 +237,39 @@ describe("GatewayBillingService — webhook helpers", () => {
 
   // ─── markBillingEventProcessed ──────────────────────────────────────────
 
-  describe("markBillingEventProcessed", () => {
-    it("delegates to billingEventRepo.markProcessed", async () => {
-      await service.markBillingEventProcessed("be-1");
+  describe("markBillingEventProcessed (CAS claim)", () => {
+    it("returns true when the CAS claim succeeded (first concurrent webhook)", async () => {
+      (billingEventRepo.markProcessed as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: { claimed: true },
+      });
 
+      const claimed = await service.markBillingEventProcessed("be-1");
+
+      assert.equal(claimed, true);
       expect(billingEventRepo.markProcessed).toHaveBeenCalledWith("be-1");
+    });
+
+    it("returns false when another concurrent webhook already claimed the event", async () => {
+      (billingEventRepo.markProcessed as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        value: { claimed: false },
+      });
+
+      const claimed = await service.markBillingEventProcessed("be-1");
+
+      assert.equal(claimed, false);
+    });
+
+    it("returns false when the underlying repo errored (caller MUST skip handler)", async () => {
+      (billingEventRepo.markProcessed as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: false,
+        error: "DATABASE_ERROR",
+      });
+
+      const claimed = await service.markBillingEventProcessed("be-1");
+
+      assert.equal(claimed, false);
     });
   });
 

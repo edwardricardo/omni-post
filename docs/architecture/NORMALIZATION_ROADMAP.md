@@ -177,7 +177,7 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 **Coverage honesta (~80-90%)**: cubre patterns grep-ables (signatures de workaround en código). Gaps: decisions cognitivas puramente conversacionales antes de file changes, patterns no listados en `TRIPWIRE_PATTERNS`. Edward sigue como reviewer último para esos gaps; el hook reduce load porque los workaround signatures predecibles se bloquean automáticamente. Iteración: cada nuevo gap detectado → agregar pattern al hook + ADR si aplica.
 
-**Cómo Edward me activa** (manual de uso documentado en CLAUDE.md §Mandatory Pre-Action Triggers): hablar normal — el hook se dispara automático. Keywords para forzar revisión: `"qué canon aplica?"`, `"muéstrame el canon-check"`, `"verificá canon antes"`. Para emergencias: `omnipost-allow tripwire-override` o `EDWARD_AUTHORIZED_TRIPWIRE=yes`.
+**Cómo Edward me activa** (manual de uso documentado en CLAUDE.md §Mandatory Pre-Action Triggers): hablar normal — el hook se dispara automático. Keywords para forzar revisión: `"qué canon aplica?"`, `"muéstrame el canon-check"`, `"verificá canon antes"`. Para emergencias: `omnipost-allow sensitive-edit` (el mismo token gatea sensitive-paths y tripwire bypass).
 
 ⏭ **Phase-3 PENDING** (ramp-up): conforme detectemos nuevos patterns que se filtren por el hook actual, agregar a `TRIPWIRE_PATTERNS` + actualizar la tabla en CLAUDE.md §Mandatory Pre-Action Triggers (How-to-extend section).
 

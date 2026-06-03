@@ -17,6 +17,7 @@ import { setupBillingUseCases } from "./setupBillingUseCases.js";
 import { setupServices } from "./setupServices.js";
 import { setupAgentOrchestration } from "./setupAgentOrchestration.js";
 import { getTenantContext, getSystemContext } from "../../security/tenantContext.js";
+import type { ApiMetrics } from "../../metrics/apiMetrics.js";
 
 /**
  * Container setup options
@@ -24,6 +25,11 @@ import { getTenantContext, getSystemContext } from "../../security/tenantContext
 export interface ContainerSetupOptions {
   /** Prisma client instance */
   prisma: PrismaClient;
+  /** Prometheus-backed metrics collector (built in the bootstrap, owns
+   * `client.register` so consumers don't double-instantiate). Required —
+   * the BF adapter and any other infra wiring that emits metrics MUST
+   * resolve this instance from the container, not construct an empty stub. */
+  apiMetrics: ApiMetrics;
   /** Optional custom event dispatcher */
   eventDispatcher?: EventDispatcher;
   /** Optional integration event publisher for cross-process events */
@@ -46,17 +52,21 @@ export interface ContainerSetupOptions {
 export function setupContainer(options: ContainerSetupOptions): Container {
   const container = getContainer();
 
-  // Wrap the Prisma client with the tenant guard extension (S2.1b). Every
+  // Wrap the Prisma client with the tenant guard extension. Every
   // consumer that resolves PrismaClient from the container gets the
   // guarded instance; scripts/migrations that import `prisma` directly
   // from `@infra/prisma` get the unwrapped client. The extension reads
   // tenant + system context via the AsyncLocalStorage holders in
-  // `apps/api/src/security/tenantContext.ts` — see
-  // `docs/security/MULTI_TENANT_GUARDS.md`.
+  // `apps/api/src/security/tenantContext.ts`.
   const guardedPrisma = options.prisma.$extends(
     tenantGuardExtension({ getTenantContext, getSystemContext })
   ) as unknown as PrismaClient;
   container.registerInstance(TOKENS.PrismaClient, guardedPrisma);
+
+  // Register the Prometheus-backed ApiMetrics built in the bootstrap. Single
+  // instance, shared across every consumer that emits metrics (BF adapter,
+  // file upload validator, thread analytics, rate limiters, …).
+  container.registerInstance(TOKENS.ApiMetrics, options.apiMetrics);
 
   // Register Event Dispatcher
   container.register<EventDispatcher>(

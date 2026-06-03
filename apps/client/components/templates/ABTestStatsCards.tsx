@@ -1,7 +1,8 @@
 /**
  * @file ABTestStatsCards.tsx
- * @component ABTestStatsCards
  * @description Summary statistics cards for the A/B Test Manager: total tests, running, completed, and drafts.
+ * @component ABTestStatsCards
+ * @layer infrastructure
  */
 
 import { useTranslations } from "next-intl";

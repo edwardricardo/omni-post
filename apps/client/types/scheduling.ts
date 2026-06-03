@@ -2,6 +2,7 @@
  * @file scheduling.ts
  * @description Shared TypeScript type definitions for the scheduling feature: ScheduledPost,
  * CalendarDay, ScheduleFilters, and ViewMode used across scheduling components and hooks.
+ * @layer infrastructure
  */
 // Shared scheduling types — mirrors backend API response shapes.
 

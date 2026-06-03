@@ -17,11 +17,17 @@ interface HorizontalBarDatum {
 }
 
 interface HorizontalBarChartProps {
+  /** Bars to render; each entry has a name, numeric value, and optional color override. */
   data: HorizontalBarDatum[];
+  /** Chart pixel height. Defaults to 200. */
   height?: number;
+  /** Formatter applied to axis ticks and tooltip values. */
   formatValue?: (v: number) => string;
+  /** Thickness of each bar in pixels. Defaults to 20. */
   barSize?: number;
+  /** Message shown when `data` is empty. Defaults to "No data available". */
   emptyMessage?: string;
+  /** Additional CSS classes appended to the chart wrapper. */
   className?: string;
 }
 

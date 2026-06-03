@@ -26,8 +26,11 @@ import { getErrorMessage } from "@packages/api-errors";
 import { api } from "../../lib/apiClient";
 
 interface CreateRoleDialogProps {
+  /** Whether the dialog is currently visible. */
   open: boolean;
+  /** Fired to toggle dialog visibility, mirroring the Radix Dialog API. */
   onOpenChange: (open: boolean) => void;
+  /** Fired after a role is successfully created so callers can refresh lists. */
   onCreated: () => void;
 }
 

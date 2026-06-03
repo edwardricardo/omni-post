@@ -3,6 +3,7 @@
  * @description Facebook video processing service -- single/batch processing,
  * presets, analytics, and status tracking.
  * Types live in videoProcessorTypes.ts; helpers in videoProcessorHelpers.ts.
+ * @layer infrastructure
  */
 
 import { randomUUID } from "node:crypto";

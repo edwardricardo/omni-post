@@ -42,7 +42,7 @@ export class SubscriptionTrialHandler extends BaseRouteHandler {
 
     const { accountId } = validated.value.params;
     const trialRequest = validated.value.body;
-    const startedByUserId = request.user?.id;
+    const startedByUserId = request.auth?.user?.id;
 
     const result = await this.subscriptionService.startTrial(
       {
@@ -93,7 +93,7 @@ export class SubscriptionTrialHandler extends BaseRouteHandler {
 
     const { accountId } = validated.value.params;
     const { reason } = validated.value.body;
-    const endedByUserId = request.user?.id;
+    const endedByUserId = request.auth?.user?.id;
 
     const result = await this.subscriptionService.endTrial(accountId, reason, endedByUserId);
 
@@ -132,7 +132,7 @@ export class SubscriptionTrialHandler extends BaseRouteHandler {
 
     const { accountId } = validated.value.params;
     const { billingCycle } = validated.value.body;
-    const convertedByUserId = request.user?.id;
+    const convertedByUserId = request.auth?.user?.id;
 
     const result = await this.subscriptionService.convertTrialToPaid(
       accountId,

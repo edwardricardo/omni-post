@@ -4,6 +4,7 @@
  *              commands mutate state and generate events, queries read from
  *              optimized read models (projections), and event handlers update
  *              read models asynchronously.
+ * @layer domain
  */
 
 import { randomUUID } from "node:crypto";

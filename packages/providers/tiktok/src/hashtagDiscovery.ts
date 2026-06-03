@@ -2,6 +2,7 @@
  * @file hashtagDiscovery.ts
  * @description Hashtag strategy generation and discovery logic for TikTok.
  * Extracted from TikTokHashtagManager to keep files under 600 lines.
+ * @layer infrastructure
  */
 
 import type { HashtagPerformance, HashtagStrategy } from "./hashtagTypes.js";

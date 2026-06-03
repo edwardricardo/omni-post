@@ -2,6 +2,7 @@
  * @file hashtagTypes.ts
  * @description Shared type definitions for TikTok hashtag features.
  * Consumed by hashtagManager.ts, hashtagDiscovery.ts, and hashtagAnalytics.ts.
+ * @layer infrastructure
  */
 
 export interface HashtagStrategy {

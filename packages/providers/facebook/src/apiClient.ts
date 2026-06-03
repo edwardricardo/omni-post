@@ -3,6 +3,7 @@
  * @description Facebook Graph API client with circuit-breaker resilience,
  * rate limiting, token management, and media upload support.
  * Type definitions live in apiClientTypes.ts.
+ * @layer infrastructure
  */
 
 /// <reference path="./facebook-sdk.d.ts" />

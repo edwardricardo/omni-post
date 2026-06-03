@@ -2,7 +2,7 @@
  * @file PostsLoadingSkeleton.tsx
  * @description Six-tile pulse skeleton matching the posts grid layout.
  *              Shared between the Suspense fallback and the imperative
- *              `isLoading` branch (was duplicated inline previously).
+ *              `isLoading` branch.
  * @component PostsLoadingSkeleton
  * @layer infrastructure
  */

@@ -330,6 +330,12 @@ function MentionEmail(props: MentionProps) {
 // Public render API — used by SendEmailNotificationService
 // ---------------------------------------------------------------------------
 
+/**
+ * @function approvalRequestedEmail
+ * @description Renders the "approval requested" notification email.
+ * @param params - Template parameters (author, post, reviewers, etc.)
+ * @returns Subject line and rendered HTML body
+ */
 export async function approvalRequestedEmail(
   params: ApprovalRequestedProps
 ): Promise<{ subject: string; html: string }> {
@@ -339,6 +345,12 @@ export async function approvalRequestedEmail(
   };
 }
 
+/**
+ * @function approvalDecisionEmail
+ * @description Renders the "approval decision" notification email (approved or rejected).
+ * @param params - Template parameters (decision, reviewer, post, reason)
+ * @returns Subject line and rendered HTML body
+ */
 export async function approvalDecisionEmail(
   params: ApprovalDecisionProps
 ): Promise<{ subject: string; html: string }> {
@@ -351,6 +363,12 @@ export async function approvalDecisionEmail(
   };
 }
 
+/**
+ * @function taskAssignedEmail
+ * @description Renders the "task assigned" notification email.
+ * @param params - Template parameters (assigner, task, priority, due date)
+ * @returns Subject line and rendered HTML body
+ */
 export async function taskAssignedEmail(
   params: TaskAssignedProps
 ): Promise<{ subject: string; html: string }> {
@@ -360,6 +378,12 @@ export async function taskAssignedEmail(
   };
 }
 
+/**
+ * @function mentionEmail
+ * @description Renders the "you were mentioned" notification email.
+ * @param params - Template parameters (mentioner, context, preview)
+ * @returns Subject line and rendered HTML body
+ */
 export async function mentionEmail(
   params: MentionProps
 ): Promise<{ subject: string; html: string }> {
@@ -400,6 +424,12 @@ function PasswordResetEmail(props: PasswordResetProps) {
   );
 }
 
+/**
+ * @function passwordResetEmail
+ * @description Renders the admin-initiated password-reset email.
+ * @param params - Template parameters (user name, reset URL)
+ * @returns Subject line and rendered HTML body
+ */
 export async function passwordResetEmail(
   params: PasswordResetProps
 ): Promise<{ subject: string; html: string }> {
@@ -445,6 +475,12 @@ function DunningEmail(props: DunningProps) {
   );
 }
 
+/**
+ * @function dunningEmail
+ * @description Renders the dunning (payment-failed) email with copy that escalates with attempt count.
+ * @param params - Template parameters (amount, currency, attempt count, update URL)
+ * @returns Subject line and rendered HTML body
+ */
 export async function dunningEmail(
   params: DunningProps
 ): Promise<{ subject: string; html: string }> {
@@ -491,6 +527,12 @@ function SubscriptionCancelledEmail(props: SubscriptionCancelledProps) {
   );
 }
 
+/**
+ * @function subscriptionCancelledEmail
+ * @description Renders the subscription cancellation notification email.
+ * @param params - Template parameters (plan, access-until date, reactivate URL)
+ * @returns Subject line and rendered HTML body
+ */
 export async function subscriptionCancelledEmail(
   params: SubscriptionCancelledProps
 ): Promise<{ subject: string; html: string }> {
@@ -552,6 +594,12 @@ function WelcomeEmail(props: WelcomeProps) {
   );
 }
 
+/**
+ * @function welcomeEmail
+ * @description Renders the welcome email sent on client registration.
+ * @param params - Template parameters (account name, onboarding URL, support email)
+ * @returns Subject line and rendered HTML body
+ */
 export async function welcomeEmail(
   params: WelcomeProps
 ): Promise<{ subject: string; html: string }> {
@@ -594,6 +642,12 @@ function TeamInvitationEmail(props: TeamInvitationProps) {
   );
 }
 
+/**
+ * @function teamInvitationEmail
+ * @description Renders the team-invitation email.
+ * @param params - Template parameters (inviter, account, role, accept URL)
+ * @returns Subject line and rendered HTML body
+ */
 export async function teamInvitationEmail(
   params: TeamInvitationProps
 ): Promise<{ subject: string; html: string }> {

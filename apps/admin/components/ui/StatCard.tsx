@@ -8,9 +8,13 @@
 import React from "react";
 
 interface StatCardProps {
+  /** Metric name rendered as an uppercase caption. */
   label: string;
+  /** Primary metric value displayed prominently. */
   value: string | number;
+  /** Optional trend indicator with absolute percentage and direction. */
   trend?: { value: number; isPositive: boolean };
+  /** Optional icon rendered in the top-right corner of the card. */
   icon?: React.ReactNode;
 }
 

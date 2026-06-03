@@ -1,6 +1,8 @@
 /**
  * @file useABTestManager.ts
  * @description Custom hook encapsulating all state management and handlers for the ABTestManager component.
+ * @hook useABTestManager
+ * @layer infrastructure
  */
 
 "use client";

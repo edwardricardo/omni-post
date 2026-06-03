@@ -34,7 +34,10 @@ export interface CreateCrmActivityInput {
 }
 
 export interface CrmActivityRepository {
+  /** Persist a pending CRM activity. Sync to the external CRM happens later via a worker. */
   save(data: CreateCrmActivityInput): Promise<CrmActivityData>;
+  /** List activities for an account whose `syncedAt` is null — the worker's pending queue. */
   findUnsyncedByAccountId(accountId: string): Promise<CrmActivityData[]>;
+  /** Mark an activity as successfully synced, stamping the external id when available. */
   markSynced(id: string, externalId: string | null): Promise<void>;
 }

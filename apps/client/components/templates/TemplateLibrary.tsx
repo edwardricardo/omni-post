@@ -2,10 +2,11 @@
 
 /**
  * @file TemplateLibrary.tsx
- * @component TemplateLibrary
  * @description Orchestrator component for the template library. Manages search, filtering,
  * sorting, view mode, and dialog state, delegating rendering to TemplateLibrarySearch,
  * TemplateLibraryGrid, and TemplateLibraryDialogs.
+ * @component TemplateLibrary
+ * @layer infrastructure
  */
 
 import React, { useState, useMemo, useCallback } from "react";

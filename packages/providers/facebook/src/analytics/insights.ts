@@ -3,6 +3,7 @@
  * @description Facebook Insights API client for audience, content, video,
  * real-time, and competitor analytics. Data-processing helpers are
  * delegated to insightsHelpers.ts to keep this file focused on API calls.
+ * @layer infrastructure
  */
 
 import { FacebookApiClient, FacebookCredentials } from "../apiClient.js";

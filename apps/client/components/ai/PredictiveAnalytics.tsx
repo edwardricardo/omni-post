@@ -5,6 +5,8 @@
  * @description Orchestrator component for the Content Intelligence dashboard.
  * Delegates rendering to sub-components under analytics/ and data fetching to
  * the usePredictiveData TanStack Query hook.
+ * @component PredictiveAnalytics
+ * @layer infrastructure
  */
 
 import React, { useState } from "react";

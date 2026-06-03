@@ -122,7 +122,7 @@ export function setupRepositories(container: Container): void {
     true
   );
 
-  // Register Account Query Repository (R1-B -- billing read-model, CQRS read side)
+  // Register Account Query Repository (billing read-model, CQRS read side)
   container.register<AccountQueryRepositoryPort>(
     TOKENS.AccountQueryRepository,
     () => new PrismaAccountQueryRepository(container.resolve(TOKENS.PrismaClient)),
@@ -151,7 +151,7 @@ export function setupRepositories(container: Container): void {
     true
   );
 
-  // Register Read-model Repositories (R1-C -- analytics consumers)
+  // Register Read-model Repositories (analytics consumers)
   container.register<ProjectQueryRepositoryPort>(
     TOKENS.ProjectQueryRepository,
     () => new PrismaProjectQueryRepository(container.resolve(TOKENS.PrismaClient)),
@@ -183,7 +183,7 @@ export function setupRepositories(container: Container): void {
     true
   );
 
-  // Register AdminUser Repository (R1-A -- hexagonal port replacing legacy UserRepository)
+  // Register AdminUser Repository
   container.register<AdminUserRepositoryPort>(
     TOKENS.AdminUserRepository,
     () => new PrismaAdminUserRepository(container.resolve(TOKENS.PrismaClient)),

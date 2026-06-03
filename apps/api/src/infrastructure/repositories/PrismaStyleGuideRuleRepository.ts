@@ -176,8 +176,8 @@ export class PrismaStyleGuideRuleRepository implements StyleGuideRuleRepository 
     embeddingModel: string
   ): Promise<Result<void, StyleGuideRuleRepositoryError>> {
     try {
-      // S2.1d — raw UPDATEs bypass the Prisma $extends tenant guard (S2.1b),
-      // so they MUST carry an explicit accountId predicate against the bound
+      // Raw UPDATEs bypass the Prisma $extends tenant guard, so they MUST
+      // carry an explicit accountId predicate against the bound
       // TenantContext (CWE-639). Layer 2 (RLS) covers UoW-wrapped callers,
       // but background callers without a tx still rely on this filter.
       const { accountId } = requireTenantContext();

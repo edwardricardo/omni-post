@@ -147,38 +147,55 @@ export class PrismaRepurposeDetectionAdapter implements RepurposeDetectionPort {
   }
 
   /**
-   * @method proposalExistsForPost
-   * @description Checks if a repurpose proposal already exists for a given post.
+   * @method createProposalIdempotent
+   * @description Creates a repurpose proposal idempotently. If a proposal
+   *   already exists for the same (accountId, sourcePostId) pair, returns
+   *   the existing proposalId with `created: false`. The atomicity is
+   *   guaranteed by the unique constraint on `(accountId, sourcePostId)`,
+   *   not by a separate existence check (which would have a TOCTOU window
+   *   between read and write).
+   * @returns proposalId + `created` flag: `true` when a new row was
+   *   inserted, `false` when an existing row was returned.
    */
-  async proposalExistsForPost(postId: string): Promise<boolean> {
-    const count = await this.prisma.repurposeProposal.count({
-      where: { sourcePostId: postId },
-    });
-    return count > 0;
-  }
-
-  /**
-   * @method createProposal
-   * @description Creates a new repurpose proposal for a high-performing post.
-   */
-  async createProposal(params: {
+  async createProposalIdempotent(params: {
     accountId: string;
     sourcePostId: string;
     sourcePlatform: string;
     engagementRate: number;
     engagementMultiplier: number;
-  }): Promise<string> {
-    const proposal = await this.prisma.repurposeProposal.create({
-      data: {
-        accountId: params.accountId,
-        sourcePostId: params.sourcePostId,
-        sourcePlatform: params.sourcePlatform as never,
-        engagementRate: params.engagementRate,
-        engagementMultiplier: params.engagementMultiplier,
-        status: "PENDING",
-      },
-    });
-    return proposal.id;
+  }): Promise<{ proposalId: string; created: boolean }> {
+    try {
+      const proposal = await this.prisma.repurposeProposal.create({
+        data: {
+          accountId: params.accountId,
+          sourcePostId: params.sourcePostId,
+          sourcePlatform: params.sourcePlatform as never,
+          engagementRate: params.engagementRate,
+          engagementMultiplier: params.engagementMultiplier,
+          status: "PENDING",
+        },
+      });
+      return { proposalId: proposal.id, created: true };
+    } catch (error: unknown) {
+      if (
+        error !== null &&
+        typeof error === "object" &&
+        "code" in error &&
+        (error as { code: string }).code === "P2002"
+      ) {
+        const existing = await this.prisma.repurposeProposal.findUniqueOrThrow({
+          where: {
+            accountId_sourcePostId: {
+              accountId: params.accountId,
+              sourcePostId: params.sourcePostId,
+            },
+          },
+          select: { id: true },
+        });
+        return { proposalId: existing.id, created: false };
+      }
+      throw error;
+    }
   }
 
   private async getAccountPostIds(accountId: string): Promise<string[]> {

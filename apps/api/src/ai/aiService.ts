@@ -12,6 +12,8 @@ import { AppError } from "../lib/errors/AppError.js";
 import { type Result, ok, err } from "@shared/types";
 import { logger } from "../lib/logger.js";
 import { AIOrchestrator } from "./orchestrator.js";
+import type { AICircuitBreaker } from "./providers/AICircuitBreaker.js";
+import type { RateLimiterPort } from "@ports/core";
 import type {
   ImageGenerationOptions,
   ImageGenerationResult,
@@ -72,7 +74,9 @@ export class AIService extends BaseService {
   constructor(
     private readonly aiRequestService: AiRequestService,
     private readonly scheduler: BackgroundTaskScheduler,
-    private readonly cache: CachePort
+    private readonly cache: CachePort,
+    private readonly circuitBreaker?: AICircuitBreaker,
+    private readonly rateLimiter?: RateLimiterPort
   ) {
     super("AIService");
   }
@@ -84,7 +88,12 @@ export class AIService extends BaseService {
    */
   private getAdminOrchestrator(): AIOrchestrator {
     if (!this.adminOrchestrator) {
-      this.adminOrchestrator = AIOrchestrator.createFromEnv(this.scheduler, this.cache);
+      this.adminOrchestrator = AIOrchestrator.createFromEnv(
+        this.scheduler,
+        this.cache,
+        this.circuitBreaker,
+        this.rateLimiter
+      );
     }
     return this.adminOrchestrator;
   }
@@ -144,7 +153,7 @@ export class AIService extends BaseService {
           };
         }
 
-        // Fallback for requests without accountId (legacy)
+        // Fallback for requests without accountId.
         const orchestrator = this.getAdminOrchestrator();
         const result = await orchestrator.generateContent(messages, options);
         if (!result.ok) {

@@ -30,7 +30,15 @@ const aiLogger = logger.child({ module: "ai" });
 import { OpenAIProvider } from "./providers/openai.js";
 import { PerplexityProvider } from "./providers/perplexity.js";
 import { GeminiProvider } from "./providers/gemini.js";
+import { AIProviderError } from "./providers/AIProviderError.js";
+import { AICircuitBreaker } from "./providers/AICircuitBreaker.js";
+import type { AIProviderName } from "@core/domain/ai/AIContracts.js";
+import type { RateLimiterPort } from "@ports/core";
 import { env } from "../config/env.js";
+import { computeFullJitterDelayMs } from "../lib/retry/backoff.js";
+
+const AI_RETRY_BASE_MS = 1000;
+const AI_RETRY_CAP_MS = 30000;
 
 /** Callback invoked after each successful AI request with token usage */
 type TokenUsageCallback = (provider: string, tokens: number) => Promise<void>;
@@ -71,8 +79,6 @@ export class AIOrchestrator {
   private providers: Map<string, AIProvider> = new Map();
   private cacheHitStats: CacheHitStats = { hits: 0, misses: 0 };
   private usageMetrics: Map<string, AIUsageMetrics> = new Map();
-  private rateLimits: Map<string, { requests: number; tokens: number; resetTime: number }> =
-    new Map();
 
   /**
    * @constructor
@@ -86,7 +92,9 @@ export class AIOrchestrator {
     providers: Map<string, AIProvider>,
     private readonly scheduler: BackgroundTaskScheduler,
     private readonly cache: CachePort,
-    private readonly onTokensUsed?: TokenUsageCallback
+    private readonly onTokensUsed?: TokenUsageCallback,
+    private readonly circuitBreaker?: AICircuitBreaker,
+    private readonly rateLimiter?: RateLimiterPort
   ) {
     this.providers = providers;
     this.startMetricsCollection();
@@ -97,7 +105,12 @@ export class AIOrchestrator {
    * @description Creates an orchestrator from environment variables.
    * @deprecated Use AIProviderFactory + constructor injection instead.
    */
-  static createFromEnv(scheduler: BackgroundTaskScheduler, cache: CachePort): AIOrchestrator {
+  static createFromEnv(
+    scheduler: BackgroundTaskScheduler,
+    cache: CachePort,
+    circuitBreaker?: AICircuitBreaker,
+    rateLimiter?: RateLimiterPort
+  ): AIOrchestrator {
     const providers = new Map<string, AIProvider>();
 
     if (env.OPENAI_API_KEY) {
@@ -155,11 +168,13 @@ export class AIOrchestrator {
       );
     }
 
-    return new AIOrchestrator(providers, scheduler, cache);
+    return new AIOrchestrator(providers, scheduler, cache, undefined, circuitBreaker, rateLimiter);
   }
 
   private startMetricsCollection() {
-    // Initialize usage metrics for each provider
+    // Initialize usage metrics for each provider. Rate-limit state is owned by
+    // the injected RateLimiterPort (token bucket refills lazily by elapsed
+    // time), so no reset task is registered here.
     for (const [name] of this.providers) {
       this.usageMetrics.set(name, {
         provider: name,
@@ -171,25 +186,6 @@ export class AIOrchestrator {
         timestamp: new Date(),
       });
     }
-
-    // Reset rate limits every minute — registered via the scheduler so the
-    // interval is unref'd, error-wrapped, and cleared during graceful shutdown.
-    this.scheduler.register(
-      "ai-orchestrator-rate-limit-reset",
-      () => {
-        const now = Date.now();
-        for (const [provider, limits] of this.rateLimits) {
-          if (now >= limits.resetTime) {
-            this.rateLimits.set(provider, {
-              requests: 0,
-              tokens: 0,
-              resetTime: now + 60000, // Reset in 1 minute
-            });
-          }
-        }
-      },
-      60000
-    );
   }
 
   private getOptimalProvider(task: AITask): ("openai" | "perplexity" | "gemini")[] {
@@ -204,17 +200,12 @@ export class AIOrchestrator {
 
     const preferredOrder = providerStrengths[task.type] || ["openai", "gemini", "perplexity"];
 
-    // Filter by availability and rate limits
+    // Filter by configured availability. Rate-limit gating happens per-attempt
+    // in the execution loop via the RateLimiterPort, which can hint
+    // retry-after; pre-filtering here would lose that signal.
     return preferredOrder.filter(
-      (providerName): providerName is "openai" | "perplexity" | "gemini" => {
-        const provider = this.providers.get(providerName);
-        if (!provider) return false;
-
-        const limits = this.rateLimits.get(providerName);
-        if (limits && limits.requests >= 50) return false; // Basic rate limiting
-
-        return true;
-      }
+      (providerName): providerName is "openai" | "perplexity" | "gemini" =>
+        this.providers.has(providerName)
     );
   }
 
@@ -224,8 +215,7 @@ export class AIOrchestrator {
    * auto-orphans cached entries on prompt-template upgrade and tolerates
    * property-order/whitespace variations in the input.
    *
-   * Refs: amitkoth, AWS LLM caching, Brenndoerfer (canon_research_index.md
-   * §Caching · LLM / AI-specific).
+   * Refs: amitkoth, AWS LLM caching, Brenndoerfer.
    */
   private generateCacheKey(task: AITask): string {
     const normalized = stableStringify({
@@ -246,28 +236,6 @@ export class AIOrchestrator {
     const tags = ["ai", `ai:task:${task.type}`];
     if (modelId) tags.push(`ai:model:${modelId}`);
     return tags;
-  }
-
-  private async checkRateLimit(
-    providerName: string,
-    estimatedTokens: number = 1000
-  ): Promise<boolean> {
-    const limits = this.rateLimits.get(providerName) || {
-      requests: 0,
-      tokens: 0,
-      resetTime: Date.now() + 60000,
-    };
-
-    // Simple rate limiting - in production, you'd want more sophisticated limits
-    if (limits.requests >= 50 || limits.tokens + estimatedTokens >= 10000) {
-      return false;
-    }
-
-    limits.requests++;
-    limits.tokens += estimatedTokens;
-    this.rateLimits.set(providerName, limits);
-
-    return true;
   }
 
   private updateMetrics(
@@ -332,10 +300,30 @@ export class AIOrchestrator {
       const provider = this.providers.get(providerName);
       if (!provider) continue;
 
-      // Check rate limits
-      if (!(await this.checkRateLimit(providerName))) {
-        aiLogger.warn({ provider: providerName }, "Rate limit exceeded, trying next provider");
+      // Check circuit breaker (optional — production always injects it; unit
+      // tests that don't exercise breaker behaviour omit it).
+      if (this.circuitBreaker && !this.circuitBreaker.canExecute(providerName as AIProviderName)) {
+        aiLogger.warn(
+          {
+            provider: providerName,
+            circuitState: this.circuitBreaker.getState(providerName as AIProviderName),
+          },
+          "Circuit breaker open, skipping provider"
+        );
         continue;
+      }
+
+      // Check rate limits (optional — production always injects the limiter;
+      // unit tests that don't exercise throttling omit it).
+      if (this.rateLimiter) {
+        const decision = await this.rateLimiter.tryConsume(providerName);
+        if (!decision.allowed) {
+          aiLogger.warn(
+            { provider: providerName, retryAfterMs: decision.retryAfterMs },
+            "Rate limit exceeded, trying next provider"
+          );
+          continue;
+        }
       }
 
       // Check provider availability
@@ -395,8 +383,9 @@ export class AIOrchestrator {
           const latency = Date.now() - taskStartTime;
           const estimatedTokens = typeof result === "string" ? result.length / 4 : 1000;
 
-          // Update metrics
+          // Update metrics + circuit breaker
           this.updateMetrics(providerName, true, latency, estimatedTokens);
+          this.circuitBreaker?.recordSuccess(providerName as AIProviderName);
 
           // Cache the result. TTL canon: default 1h for stable LLM outputs;
           // override via cacheTTL only for time-sensitive tasks. Tags allow
@@ -431,22 +420,39 @@ export class AIOrchestrator {
           }
 
           return response;
-        } catch (_error: unknown) {
+        } catch (error: unknown) {
           const latency = Date.now() - startTime;
           this.updateMetrics(providerName, false, latency, 0);
+          this.circuitBreaker?.recordFailure(providerName as AIProviderName);
+
+          const isProviderError = error instanceof AIProviderError;
+          const retryAfterMs = isProviderError ? error.retryAfterMs : undefined;
+          const category = isProviderError ? error.category : "transient";
 
           aiLogger.error(
-            { err: _error, attempt: attempt + 1, provider: providerName },
+            {
+              err: error,
+              attempt: attempt + 1,
+              provider: providerName,
+              statusCode: isProviderError ? error.statusCode : undefined,
+              category,
+              retryAfterMs,
+            },
             "AI provider attempt failed"
           );
 
-          if (attempt === maxRetries - 1) {
-            // Last attempt for this provider failed, try next provider
+          if (category !== "transient" || attempt === maxRetries - 1) {
+            // Non-transient (user-fixable / recoverable / unexpected) or last
+            // attempt — fall through to next provider.
             break;
           }
 
-          // Wait before retrying (exponential backoff)
-          await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+          const jitterDelayMs = computeFullJitterDelayMs(attempt, {
+            baseMs: AI_RETRY_BASE_MS,
+            capMs: AI_RETRY_CAP_MS,
+          });
+          const delayMs = Math.max(retryAfterMs ?? 0, jitterDelayMs);
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
         }
       }
     }
@@ -459,6 +465,7 @@ export class AIOrchestrator {
         message: "All AI providers failed to complete the task",
         provider: "none",
         retryable: true,
+        category: "transient",
       },
       metadata: {
         provider: "none",
@@ -541,9 +548,15 @@ export class AIOrchestrator {
       const provider = this.providers.get(providerName);
       if (!provider) continue;
 
-      if (!(await this.checkRateLimit(providerName))) {
-        aiLogger.warn({ provider: providerName }, "Rate limit exceeded, trying next provider");
-        continue;
+      if (this.rateLimiter) {
+        const decision = await this.rateLimiter.tryConsume(providerName);
+        if (!decision.allowed) {
+          aiLogger.warn(
+            { provider: providerName, retryAfterMs: decision.retryAfterMs },
+            "Rate limit exceeded, trying next provider"
+          );
+          continue;
+        }
       }
 
       if (!(await provider.isAvailable())) {
@@ -606,6 +619,7 @@ export class AIOrchestrator {
         message: "All AI providers failed to complete the structured task",
         provider: "none",
         retryable: true,
+        category: "transient",
       },
       metadata: {
         provider: "none",
@@ -642,9 +656,15 @@ export class AIOrchestrator {
         continue;
       }
 
-      if (!(await this.checkRateLimit(providerName))) {
-        aiLogger.warn({ provider: providerName }, "Embeddings rate limit exceeded, trying next");
-        continue;
+      if (this.rateLimiter) {
+        const decision = await this.rateLimiter.tryConsume(providerName);
+        if (!decision.allowed) {
+          aiLogger.warn(
+            { provider: providerName, retryAfterMs: decision.retryAfterMs },
+            "Embeddings rate limit exceeded, trying next"
+          );
+          continue;
+        }
       }
 
       if (!(await provider.isAvailable())) {
@@ -686,6 +706,7 @@ export class AIOrchestrator {
           "All embeddings providers failed (no provider supports embeddings or all unavailable)",
         provider: "none",
         retryable: true,
+        category: "transient",
       },
       metadata: {
         provider: "none",
@@ -764,9 +785,15 @@ export class AIOrchestrator {
       const provider = this.providers.get(name);
       if (!provider || !provider.generateImage) continue;
 
-      if (!(await this.checkRateLimit(name))) {
-        aiLogger.warn({ provider: name }, "Rate limit exceeded for image generation");
-        continue;
+      if (this.rateLimiter) {
+        const decision = await this.rateLimiter.tryConsume(name);
+        if (!decision.allowed) {
+          aiLogger.warn(
+            { provider: name, retryAfterMs: decision.retryAfterMs },
+            "Rate limit exceeded for image generation"
+          );
+          continue;
+        }
       }
 
       const result = await provider.generateImage(options);
@@ -782,6 +809,7 @@ export class AIOrchestrator {
         message: "No AI provider available for image generation",
         provider: "none",
         retryable: false,
+        category: "unexpected",
       },
       metadata: {
         provider: "none",
@@ -803,10 +831,9 @@ export class AIOrchestrator {
   }
 
   /**
-   * Hit-rate metric for AI cache. Note: `size` field was dropped post
-   * CachePort migration — it represented per-instance Map size, which is
-   * misleading info in multi-pod deployments. Cluster-wide cache stats are
-   * available via Prometheus metrics emitted by `RedisCacheManager.getStats()`.
+   * Hit-rate metric for AI cache. Per-instance counter; cluster-wide cache
+   * stats are available via Prometheus metrics emitted by
+   * `RedisCacheManager.getStats()`.
    */
   getCacheStats(): { hitRate: number } {
     const total = this.cacheHitStats.hits + this.cacheHitStats.misses;

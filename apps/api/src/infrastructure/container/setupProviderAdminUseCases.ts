@@ -11,6 +11,11 @@ import { MassForceReauthByProviderUseCase } from "@core/providers/MassForceReaut
 import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 
+/**
+ * @function setupProviderAdminUseCases
+ * @description Registers provider-admin use cases (mass-reauth-by-provider) in the container.
+ * @param container - DI container
+ */
 export function setupProviderAdminUseCases(container: Container): void {
   container.register<MassForceReauthByProviderUseCase>(
     TOKENS.MassForceReauthByProviderUseCase,

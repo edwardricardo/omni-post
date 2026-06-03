@@ -8,8 +8,11 @@
 import React from "react";
 
 interface PageHeaderProps {
+  /** Main heading text rendered as an `h1`. Required. */
   title: string;
+  /** Optional subheading text shown beneath the title. */
   description?: string;
+  /** Optional React node rendered in the right-aligned action area (buttons/controls). */
   actions?: React.ReactNode;
 }
 

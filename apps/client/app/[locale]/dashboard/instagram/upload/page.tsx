@@ -2,6 +2,8 @@
  * @file page.tsx
  * @description Instagram media upload page for processing images and videos before publishing.
  * Handles file selection, validation, processing progress, and video segment extraction.
+ * @component InstagramUploadPage
+ * @layer infrastructure
  */
 "use client";
 

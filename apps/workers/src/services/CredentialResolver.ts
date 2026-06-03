@@ -4,14 +4,8 @@
  *   persisted (encrypted) envelope from the channel repository, decrypting it,
  *   and returning the plaintext credentials object. The repository is supplied
  *   at construction time with the decryption function it needs, so this class
- *   stays free of crypto concerns and is trivially testable with a fake repo.
- *
- *   Lives in `apps/workers` and carries `@layer infrastructure` per the
- *   workers-deployable convention. The composition algorithm (port +
- *   decryption function) is reusable application logic — a candidate for
- *   promotion to `@core/application` if a second deployable ever needs it.
- *   Provider adapters receive resolved credentials per-call rather than
- *   performing their own DB lookup.
+ *   stays free of crypto concerns. Provider adapters receive resolved
+ *   credentials per-call rather than performing their own DB lookup.
  * @layer infrastructure
  */
 

@@ -2,6 +2,7 @@
  * @file useDashboardStats.ts
  * @description TanStack Query hook for fetching admin dashboard statistics including account counts,
  * subscription distribution, revenue figures, and recent publish activity.
+ * @layer infrastructure
  */
 import { useQuery } from "@tanstack/react-query";
 import { api, type DashboardStats } from "../../lib/apiClient";

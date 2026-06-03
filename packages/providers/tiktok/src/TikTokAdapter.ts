@@ -496,7 +496,7 @@ export class TikTokAdapter implements ProviderAdapter {
   /**
    * @method createPromotedContent
    * @description NOT_IMPLEMENTED — TikTok Marketing API requires advertiser
-   *   account approval. See docs/providers/tiktok.md.
+   *   account approval, which omni-post does not currently hold.
    */
   private async createPromotedContent(
     _credentials: TikTokCredentials,

@@ -2,6 +2,7 @@
  * @file videoProcessorHelpers.ts
  * @description Pure helper functions for Facebook video processing calculations.
  * Extracted from FacebookVideoProcessor to keep files under 600 lines.
+ * @layer infrastructure
  */
 
 import type { VideoProcessingOptions, VideoProcessingResult } from "./videoProcessorTypes.js";

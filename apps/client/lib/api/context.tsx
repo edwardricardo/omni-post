@@ -3,6 +3,8 @@
 /**
  * @file context.tsx
  * @description React context and provider for the API client, exposing a shared ApiClient instance and centralized error handling to all descendant components.
+ * @component ApiProvider
+ * @layer infrastructure
  */
 
 import React, { createContext, useContext, useCallback, useMemo, ReactNode } from "react";

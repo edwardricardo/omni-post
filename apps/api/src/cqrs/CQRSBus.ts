@@ -397,7 +397,14 @@ export class CQRSBusImpl implements CQRSBus {
   }
 }
 
-// Middleware for automatic cache key generation
+/**
+ * @function withCacheKey
+ * @description Decorates a query with an explicit cache key (or a generated one) so the bus
+ *              can route through its query cache.
+ * @param query - Query to decorate
+ * @param customKey - Optional explicit cache key
+ * @returns The same query with metadata.cacheKey populated
+ */
 export function withCacheKey(query: Query, customKey?: string): Query {
   if (!query.metadata.cacheKey) {
     query.metadata.cacheKey = customKey || generateCacheKey(query);
@@ -405,7 +412,12 @@ export function withCacheKey(query: Query, customKey?: string): Query {
   return query;
 }
 
-// Cache invalidation helper
+/**
+ * @function invalidateQueryCache
+ * @description Deletes cached query results in Redis whose keys match any of the given patterns.
+ * @param redis - Redis client
+ * @param patterns - Substrings to match against cqrs:query:* keys
+ */
 export async function invalidateQueryCache(redis: Redis, patterns: string[]): Promise<void> {
   for (const pattern of patterns) {
     try {

@@ -29,7 +29,10 @@ export interface UpdateCrmSyncLogInput {
 }
 
 export interface CrmSyncLogRepository {
+  /** Open a new sync-log row when a CRM sync starts. */
   create(data: CreateCrmSyncLogInput): Promise<CrmSyncLogData>;
+  /** Close an existing sync-log row with counters and final status. */
   update(id: string, data: UpdateCrmSyncLogInput): Promise<CrmSyncLogData>;
+  /** Recent sync history for a connection (audit / debugging surface). */
   findByConnectionId(connectionId: string): Promise<CrmSyncLogData[]>;
 }

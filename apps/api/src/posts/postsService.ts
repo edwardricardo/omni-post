@@ -271,7 +271,13 @@ export class PostsService extends BaseService {
   }
 }
 
-// Export singleton instance factory
+/**
+ * @function createPostsService
+ * @description Factory for PostsService with explicit dependencies (preferred over module-singleton).
+ * @param dbOptimizer - DatabaseOptimizer instance
+ * @param cacheManager - RedisCacheManager instance
+ * @returns Configured PostsService
+ */
 export function createPostsService(
   dbOptimizer: DatabaseOptimizer,
   cacheManager: RedisCacheManager

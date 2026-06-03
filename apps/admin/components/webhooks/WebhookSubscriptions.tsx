@@ -4,6 +4,8 @@
  * @file WebhookSubscriptions.tsx
  * @description Webhook subscription management component for creating, editing, toggling,
  * and deleting webhook endpoints with provider, event type, and URL configuration.
+ * @component WebhookSubscriptions
+ * @layer infrastructure
  */
 
 import { useState } from "react";

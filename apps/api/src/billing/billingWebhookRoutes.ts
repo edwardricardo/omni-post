@@ -47,7 +47,8 @@ async function routeBillingEvent(
     return;
   }
 
-  // --- Idempotency check (delegated to service) ---
+  // --- Idempotency check (delegated to service) — happy-path short-circuit
+  // when the event was already fully processed in a previous delivery.
   const { skip, recordId } = await service.checkBillingEventIdempotency(
     eventId,
     provider,
@@ -59,6 +60,22 @@ async function routeBillingEvent(
   if (skip) {
     log.info({ gatewayEventId: eventId, provider }, "Duplicate billing webhook event — skipping");
     return;
+  }
+
+  // --- Atomic claim BEFORE running the handler. Closes the TOCTOU window
+  // between the idempotency check above and the side-effect handler below.
+  // If two concurrent webhook deliveries pass the idempotency check (the
+  // record exists with processed=false), only one wins the CAS and runs
+  // the handler. The other receives claimed=false and skips silently.
+  if (recordId) {
+    const claimed = await service.markBillingEventProcessed(recordId);
+    if (!claimed) {
+      log.info(
+        { gatewayEventId: eventId, provider },
+        "Billing webhook event claimed by a concurrent delivery — skipping handler"
+      );
+      return;
+    }
   }
 
   const customerId = extractCustomerId(data, provider);
@@ -134,13 +151,13 @@ async function routeBillingEvent(
       );
   }
 
-  // Mark as processed (or record error)
-  if (recordId) {
-    if (processingError) {
-      await service.markBillingEventError(recordId, processingError);
-    } else {
-      await service.markBillingEventProcessed(recordId);
-    }
+  // Persist the handler outcome on the already-claimed record. The claim
+  // is irreversible by design (closes double-charge); a crashed handler
+  // leaves the event processed=true with `error` set, requiring manual
+  // intervention to retry. A lease-based pattern (claimedAt with TTL)
+  // would permit auto-retry but needs a schema migration.
+  if (recordId && processingError) {
+    await service.markBillingEventError(recordId, processingError);
   }
 }
 

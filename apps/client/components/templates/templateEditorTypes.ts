@@ -2,6 +2,7 @@
  * @file templateEditorTypes.ts
  * @description Shared types and constants used by the TemplateEditor component and
  * its sub-components (toolbar, canvas, sidebar).
+ * @layer infrastructure
  */
 
 import type {

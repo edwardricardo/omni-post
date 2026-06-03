@@ -10,6 +10,7 @@ import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireClientAuth } from "./customerAuthMiddleware.js";
+import { withSystemContext } from "../security/tenantContext.js";
 import type {
   RegisterCustomerUseCase,
   LoginCustomerUseCase,
@@ -127,11 +128,21 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
       body: z.infer<typeof LoginSchema>;
     };
 
-    const result = await this.loginUseCase.execute({
-      email: body.email,
-      password: body.password,
-      ...(body.accountSlug !== undefined && { accountSlug: body.accountSlug }),
-    });
+    // Login is legitimately pre-identity: the request has no JWT yet, so no
+    // `TenantContext` is bound. The use case resolves the user across all
+    // accounts (`findByEmailAcrossAccounts`) and then operates on the
+    // resolved row. Run the whole flow under `withSystemContext()` so the
+    // Prisma tenant guard (`tenantGuardExtension`) bypasses enforcement on
+    // the cross-tenant lookup and audits the reason instead.
+    const result = await withSystemContext("customer-login", () =>
+      this.loginUseCase.execute({
+        email: body.email,
+        password: body.password,
+        ...(body.accountSlug !== undefined && { accountSlug: body.accountSlug }),
+        ip: request.ip,
+        userAgent: request.headers["user-agent"] ?? "",
+      })
+    );
 
     if (!result.ok) {
       const errorMap = {
@@ -140,6 +151,10 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
         MULTIPLE_ACCOUNTS: {
           code: 409,
           message: "Multiple accounts found. Please provide accountSlug.",
+        },
+        RATE_LIMITED: {
+          code: 429,
+          message: "Too many login attempts. Please try again later.",
         },
         INTERNAL_ERROR: { code: 500, message: "Internal server error" },
       };

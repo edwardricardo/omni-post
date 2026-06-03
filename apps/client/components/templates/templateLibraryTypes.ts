@@ -2,6 +2,7 @@
  * @file templateLibraryTypes.ts
  * @description Shared types and constants used by the TemplateLibrary component
  * and its sub-components (search/filters, grid, list, dialogs).
+ * @layer infrastructure
  */
 
 import type { Template } from "@/lib/templates/templateEngine";

@@ -32,7 +32,9 @@ const CATEGORY_KEYS: Record<PermissionCategory, string[]> = {
 };
 
 interface PermissionGridProps {
+  /** Role whose permissions are being edited; renders read-only for SUPER_ADMIN. */
   role: RoleInfo;
+  /** Fired after permissions are successfully saved so callers can refresh. */
   onPermissionsSaved: () => void;
 }
 

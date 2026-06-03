@@ -13,7 +13,9 @@ import type { CredentialGroup } from "./constants";
 import type { SettingsStatus } from "@/hooks/api/useSettings";
 
 interface OverviewTabProps {
+  /** Aggregate settings status with per-group health for each credential group. */
   status: SettingsStatus;
+  /** Fired with the target tab key when the user activates a navigation card. */
   onNavigate: (tab: string) => void;
 }
 

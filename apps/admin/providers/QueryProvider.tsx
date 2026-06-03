@@ -5,6 +5,7 @@
  * @description Provides a TanStack Query client to the admin dashboard tree. Built via the
  *              shared `@packages/query-client` factory so admin and client share defaults and
  *              global error handling (toast + logger) consistently.
+ * @component QueryProvider
  * @layer infrastructure
  */
 import { QueryClientProvider } from "@tanstack/react-query";

@@ -1,6 +1,7 @@
 /**
  * @file abTestTypes.ts
  * @description TypeScript interfaces and helper utilities for A/B tests, test results, and the ABTestManager component props.
+ * @layer infrastructure
  */
 
 import { ABTestConfig } from "@/lib/templates/templateEngine";

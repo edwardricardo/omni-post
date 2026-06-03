@@ -2,6 +2,7 @@
  * @file useAIContentGeneration.ts
  * @description TanStack Query mutation hook for generating AI-optimized social media content.
  * Calls the /ai/generate endpoint and falls back to client-side template rendering on failure.
+ * @layer infrastructure
  */
 import { useMutation } from "@tanstack/react-query";
 import type { GeneratedContent, ContentTemplate, GenerationSettings } from "../../types/ai-content";

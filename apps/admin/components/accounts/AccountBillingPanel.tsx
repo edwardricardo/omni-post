@@ -21,9 +21,13 @@ import { ActionButton } from "@/components/ui/ActionButton";
 import { ChangePlanDialog } from "@/components/subscriptions/ChangePlanDialog";
 
 interface AccountBillingPanelProps {
+  /** Account whose billing breakdown is rendered. Required. */
   accountId: string;
+  /** Display name used in the Change Plan dialog header; falls back to the API response. */
   accountName?: string;
+  /** ISO timestamp of the account's most recent login, displayed in the meta row. */
   lastLoginAt?: string | null;
+  /** When true, disables the Change Plan button to avoid concurrent edits. */
   editingAccount?: boolean;
 }
 

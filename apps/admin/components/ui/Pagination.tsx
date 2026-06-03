@@ -8,12 +8,19 @@
 import { useTranslations } from "next-intl";
 
 interface PaginationProps {
+  /** Current active page number (1-based). */
   page: number;
+  /** Total number of pages available. */
   totalPages: number;
+  /** Total item count used for the "Showing X-Y of Z" label. */
   totalItems: number;
+  /** Items rendered per page; mirrors the size selector. */
   perPage: number;
+  /** Fired when the user navigates to a different page. */
   onPageChange: (page: number) => void;
+  /** Fired when the user picks a different page size. */
   onPerPageChange: (perPage: number) => void;
+  /** Options shown in the per-page selector. Defaults to `[10, 25, 50, 100]`. */
   perPageOptions?: number[];
 }
 

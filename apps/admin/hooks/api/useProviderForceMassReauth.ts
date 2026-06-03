@@ -3,6 +3,7 @@
  * @description TanStack Query mutation hook for the cross-tenant mass
  *              force-reauth admin action. Returns the aggregated counts +
  *              affected ids for display.
+ * @hook useProviderForceMassReauth
  * @layer infrastructure
  */
 

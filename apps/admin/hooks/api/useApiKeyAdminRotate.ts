@@ -3,6 +3,7 @@
  * @description TanStack Query mutation hook for the admin cross-tenant
  *              ApiKey rotation. The new raw key surfaces in the success
  *              response — operator MUST copy it (never recoverable later).
+ * @hook useApiKeyAdminRotate
  * @layer infrastructure
  */
 

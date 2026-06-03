@@ -21,6 +21,8 @@ import type {
 } from "@core/domain/ai/AIContracts.js";
 import { AIOrchestrator } from "./orchestrator.js";
 import { AIProviderFactory } from "./AIProviderFactory.js";
+import type { AICircuitBreaker } from "./providers/AICircuitBreaker.js";
+import type { RateLimiterPort } from "@ports/core";
 
 const POOL_PROVIDER_ORDER: AIProviderName[] = ["openai", "anthropic", "gemini", "perplexity"];
 
@@ -41,7 +43,9 @@ const PROVIDER_MODEL_MAP: Record<AIProviderName, string> = {
 export class AIRequestExecutorAdapter implements AIRequestExecutorPort {
   constructor(
     private readonly scheduler: BackgroundTaskScheduler,
-    private readonly cache: CachePort
+    private readonly cache: CachePort,
+    private readonly circuitBreaker?: AICircuitBreaker,
+    private readonly rateLimiter?: RateLimiterPort
   ) {}
 
   async executeWithApiKey(
@@ -53,7 +57,14 @@ export class AIRequestExecutorAdapter implements AIRequestExecutorPort {
     const provider = AIProviderFactory.createProvider(providerName, apiKey);
     const providers = new Map<string, AIProvider>([[providerName, provider]]);
 
-    const orchestrator = new AIOrchestrator(providers, this.scheduler, this.cache, onUsage);
+    const orchestrator = new AIOrchestrator(
+      providers,
+      this.scheduler,
+      this.cache,
+      onUsage,
+      this.circuitBreaker,
+      this.rateLimiter
+    );
 
     return orchestrator.executeTask(task);
   }
@@ -85,12 +96,20 @@ export class AIRequestExecutorAdapter implements AIRequestExecutorPort {
           message: "No pool providers configured",
           provider: "pool",
           retryable: false,
+          category: "unexpected",
         },
         metadata: { provider: "pool", model: "n/a", tokensUsed: 0, latency: 0, cached: false },
       };
     }
 
-    const orchestrator = new AIOrchestrator(providers, this.scheduler, this.cache, onUsage);
+    const orchestrator = new AIOrchestrator(
+      providers,
+      this.scheduler,
+      this.cache,
+      onUsage,
+      this.circuitBreaker,
+      this.rateLimiter
+    );
 
     return orchestrator.executeTask(task);
   }

@@ -23,5 +23,10 @@ export interface NotifyMentionedUsersInput {
 }
 
 export interface MentionTrackingPort {
+  /**
+   * Parse `text` for @mentions, resolve them to users within `accountId`, and
+   * dispatch notifications attributing the mention to `mentionedById`. Returns
+   * the ids of the users that were notified (excluding self-mentions).
+   */
   notify(input: NotifyMentionedUsersInput): Promise<ReadonlyArray<string>>;
 }

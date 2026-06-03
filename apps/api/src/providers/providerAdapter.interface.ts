@@ -19,7 +19,7 @@ import type {
   ProviderId,
 } from "@shared/types";
 
-// Re-export ProviderId for backward compatibility
+// Re-export ProviderId from @shared/types.
 export type { ProviderId };
 
 export type ProviderAuthType = "oauth" | "api_key" | "username_password";
@@ -170,8 +170,7 @@ export interface ProviderPreview {
   };
 }
 
-// Enhanced Provider Adapter Interface (Consolidated)
-// This is now the single source of truth for all provider adapters
+// Provider Adapter Interface — single source of truth for all provider adapters.
 export interface ProviderAdapter {
   // Basic adapter properties
   readonly id: ProviderId;
@@ -357,6 +356,13 @@ export interface LegacyProviderAdapter {
 }
 
 // Type guards and utilities
+/**
+ * @function isFullProviderAdapter
+ * @description Type guard: returns true if the value implements the full ProviderAdapter contract
+ *              (metadata, validateContent, constraints).
+ * @param adapter - Candidate adapter
+ * @returns True if `adapter` is a full ProviderAdapter
+ */
 export function isFullProviderAdapter(adapter: unknown): adapter is ProviderAdapter {
   return (
     typeof adapter === "object" &&
@@ -367,6 +373,13 @@ export function isFullProviderAdapter(adapter: unknown): adapter is ProviderAdap
   );
 }
 
+/**
+ * @function upgradeAdapter
+ * @description Wraps a legacy adapter with default implementations to satisfy the full
+ *              ProviderAdapter contract.
+ * @param adapter - Legacy provider adapter
+ * @returns Adapter that implements the full ProviderAdapter interface
+ */
 export function upgradeAdapter(adapter: LegacyProviderAdapter): ProviderAdapter {
   // Upgrade legacy adapter to universal adapter with default implementations
   return {

@@ -42,6 +42,7 @@ export class PrismaAuditLogRepository implements AuditLogRepository {
         ...(input.resource !== undefined && { resource: input.resource }),
         ...(input.resourceId !== undefined && { resourceId: input.resourceId }),
         ...(input.userId !== undefined && { userId: input.userId }),
+        ...(input.accountId !== undefined && { accountId: input.accountId }),
         ...(input.ipAddress !== undefined && { ipAddress: input.ipAddress }),
         ...(input.userAgent !== undefined && { userAgent: input.userAgent }),
         ...(input.error !== undefined && { error: input.error }),
@@ -80,6 +81,29 @@ export class PrismaAuditLogRepository implements AuditLogRepository {
       where: {
         resource,
         resourceId,
+        ...(options?.action !== undefined && { action: options.action }),
+        ...(options?.startDate !== undefined &&
+          options?.endDate !== undefined && {
+            createdAt: { gte: options.startDate, lte: options.endDate },
+          }),
+      },
+      orderBy: { createdAt: "desc" },
+      take: options?.limit ?? 50,
+      skip: options?.offset ?? 0,
+    });
+  }
+
+  /**
+   * Return audit entries scoped to an account, newest first. Customer-facing
+   * query; the caller binds `accountId` from `TenantContext`.
+   */
+  async findByAccount(
+    accountId: string,
+    options?: AuditLogQueryOptions
+  ): Promise<AuditLogRecordDto[]> {
+    return this.getClient().auditLog.findMany({
+      where: {
+        accountId,
         ...(options?.action !== undefined && { action: options.action }),
         ...(options?.startDate !== undefined &&
           options?.endDate !== undefined && {

@@ -2,6 +2,7 @@
  * @file useScheduledPosts.ts
  * @description TanStack Query hooks for managing scheduled posts: fetching the scheduled post list
  * filtered by project/account and cancelling a scheduled post via mutation.
+ * @layer infrastructure
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ScheduledPost } from "../../types/scheduling";

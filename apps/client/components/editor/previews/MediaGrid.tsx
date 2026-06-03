@@ -1,9 +1,7 @@
 /**
  * @file MediaGrid.tsx
  * @description 1/2/3/4-image responsive grid used by both X (Twitter) and
- *              Bluesky previews. The two platforms render the same media
- *              layout; extracting the grid here removes the ~40 LOC of
- *              duplicated JSX that used to live in both inline previews.
+ *              Bluesky previews.
  * @component MediaGrid
  * @layer infrastructure
  */

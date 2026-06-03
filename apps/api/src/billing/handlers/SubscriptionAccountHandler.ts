@@ -197,7 +197,7 @@ export class SubscriptionAccountHandler extends BaseRouteHandler {
 
     const { accountId } = validated.value.params;
     const { reason } = validated.value.body;
-    const suspendedByUserId = request.user?.id;
+    const suspendedByUserId = request.auth?.user?.id;
 
     const result = await this.subscriptionService.suspendSubscription(
       accountId,
@@ -238,7 +238,7 @@ export class SubscriptionAccountHandler extends BaseRouteHandler {
       billingCycle: _billingCycle,
       reason: _reason,
     } = validated.value.body;
-    const _upgradedByUserId = request.user?.id;
+    const _upgradedByUserId = request.auth?.user?.id;
 
     const results = await Promise.allSettled(
       accountIds.map((accountId) =>

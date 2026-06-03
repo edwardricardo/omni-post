@@ -19,6 +19,15 @@ export interface AnalyticsDailySummaryInput {
 }
 
 export interface AnalyticsWriteRepository {
+  /**
+   * Upsert one daily analytics summary. Key is `(postId | channelId, provider, date)` —
+   * a duplicate ingestion for the same day overwrites the row.
+   */
   upsertDailySummary(input: AnalyticsDailySummaryInput): Promise<Result<void, Error>>;
+  /**
+   * Batch upsert variant for ingestion workers that pull many days in one
+   * call. Implementations SHOULD wrap the batch in a transaction so a partial
+   * provider response never leaves the summary table half-updated.
+   */
   upsertDailySummaries(inputs: AnalyticsDailySummaryInput[]): Promise<Result<void, Error>>;
 }

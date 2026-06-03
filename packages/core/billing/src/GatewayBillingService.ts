@@ -759,10 +759,16 @@ export class GatewayBillingService {
 
   /**
    * @method markBillingEventProcessed
-   * @description Marks a BillingEvent as successfully processed.
+   * @description Atomically claims the BillingEvent for side-effect
+   *   processing via CAS on `processed`. Returns `true` when this caller
+   *   wins the race (must run the handler). Returns `false` when another
+   *   concurrent webhook delivery already claimed it (caller MUST skip).
+   *   Closes the TOCTOU window between `checkBillingEventIdempotency` and
+   *   the handler invocation that previously allowed double side-effects.
    */
-  async markBillingEventProcessed(recordId: string): Promise<void> {
-    await this.billingEventRepo.markProcessed(recordId);
+  async markBillingEventProcessed(recordId: string): Promise<boolean> {
+    const result = await this.billingEventRepo.markProcessed(recordId);
+    return result.ok ? result.value.claimed : false;
   }
 
   /**

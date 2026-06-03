@@ -2,10 +2,11 @@
 
 /**
  * @file TemplateEditorCanvas.tsx
- * @component TemplateEditorCanvas
  * @description Main editing area for the TemplateEditor, handling the editor tabs (editor,
  * preview, variables, docs), editor mode switching, and content editing via textarea,
  * Monaco, or TipTap.
+ * @component TemplateEditorCanvas
+ * @layer infrastructure
  */
 
 import React from "react";

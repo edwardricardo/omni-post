@@ -28,7 +28,7 @@ if (env.TRACING_ENABLED) {
   otelLogger.info("Tracing disabled (TRACING_ENABLED != true)");
 }
 
-// ✅ CORRECT Fastify v5.6.1 Import Syntax
+// Fastify v5.6.1 Import Syntax
 import Fastify, { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import {
@@ -45,7 +45,13 @@ import type { RealtimeAnalyticsService } from "./analytics/realtimeAnalytics.js"
 import type { AnalyticsStreamBroadcaster } from "./services/AnalyticsStreamBroadcaster.js";
 import client from "prom-client";
 import { createStorageAdapter } from "./infrastructure/storage/createStorageAdapter.js";
-import { RateLimit, RateLimitConfigs, EXPENSIVE_ENDPOINT_RULES } from "./security/rateLimit.js";
+import {
+  createHttpRateLimitPreHandler,
+  RateLimitConfigs,
+  STANDARD_ROUTE_RULES,
+  EXPENSIVE_ENDPOINT_RULES,
+} from "./security/httpRateLimitPreHandler.js";
+import type { RateLimiterPort } from "@ports/core";
 import { createErrorHandler } from "./lib/errors/errorHandler.js";
 import { createRedisConnection, getRedisUrl } from "./lib/redis.js";
 import { logger } from "./lib/logger.js";
@@ -155,9 +161,9 @@ import aiRoutes from "./ai/routes.js";
 // Cache middleware
 import { autoCachePlugin } from "./middleware/autoCacheMiddleware.js";
 
-// ✅ PROPER Fastify v5.6.1 Application Creation
+// Fastify v5.6.1 Application Creation
 async function createApp(): Promise<FastifyInstance> {
-  // ✅ Correct constructor syntax - Fastify v5.6.1
+  // Fastify v5.6.1 constructor syntax
   const app = Fastify({
     logger: true,
     trustProxy: true,
@@ -169,19 +175,19 @@ async function createApp(): Promise<FastifyInstance> {
     requestTimeout: 30_000,
   });
 
-  // ✅ Apply ZodTypeProvider for type safety
+  // Apply ZodTypeProvider for type safety
   const typedApp = app.withTypeProvider<ZodTypeProvider>();
 
-  // ✅ Set up Zod validation compiler
+  // Set up Zod validation compiler
   typedApp.setValidatorCompiler(validatorCompiler);
   typedApp.setSerializerCompiler(serializerCompiler);
 
   // Register OpenAPI documentation (before routes so schemas are captured).
-  // `transform: jsonSchemaTransform` (§3.1 Normalization Roadmap) convierte
-  // los Zod schemas a JSON Schema OpenAPI 3.0 antes de que el swagger plugin
-  // los emita; sin esto el spec contiene el `{ def: ... }` raw de Zod 4 y
-  // los generadores downstream (hey-api, openapi-typescript) emiten
-  // `{[key:string]: unknown}` en vez de los tipos reales.
+  // `transform: jsonSchemaTransform` converts Zod schemas to OpenAPI 3.0
+  // JSON Schema before the swagger plugin emits them; without it the spec
+  // contains raw `{ def: ... }` from Zod 4 and downstream generators
+  // (hey-api, openapi-typescript) emit `{[key:string]: unknown}` instead of
+  // the real types.
   const fastifySwagger = await import("@fastify/swagger");
   await typedApp.register(fastifySwagger.default, {
     transform: jsonSchemaTransform,
@@ -236,9 +242,14 @@ async function createApp(): Promise<FastifyInstance> {
   // Initialize unified authentication service with Redis
   setRedisInstance(redis);
 
+  // Build the Prometheus-backed metrics collector BEFORE the container so it
+  // can be registered as a singleton and resolved by infra wiring that emits
+  // metrics (BF adapter, etc.) rather than receiving `{} as ApiMetrics`.
+  const apiMetrics = new ApiMetrics(client.register);
+
   // Initialize DI container and decorate Fastify instance (needed so scheduler is
   // available to downstream adapters/managers created below).
-  const container = setupContainer({ prisma });
+  const container = setupContainer({ prisma, apiMetrics });
   typedApp.decorate("container", container);
   const bootstrapScheduler = container.resolve<BackgroundTaskScheduler>(
     TOKENS.BackgroundTaskScheduler
@@ -280,8 +291,8 @@ async function createApp(): Promise<FastifyInstance> {
   // Initialize components
   const repoAdapter = createPrismaRepoAdapter({ scheduler: bootstrapScheduler });
   // Queue adapter resolved from the registry so this top-level wiring
-  // shares the same Redis connection and queue instances as the rest of the
-  // container. Targets the PUBLISH queue for legacy callers that expect a
+  // shares the same Redis connection and queue instances as the rest of
+  // the container. Targets the PUBLISH queue for callers that expect a
   // single QueuePort; per-queue routing happens through the registry.
   const queueRegistry = container.resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry);
   const queueAdapter = queueRegistry.forQueue(QUEUE_NAMES.PUBLISH);
@@ -296,9 +307,6 @@ async function createApp(): Promise<FastifyInstance> {
 
   // Initialize circuit breaker monitor
   const _circuitBreakerMonitor = createCircuitBreakerMonitor(client.register);
-
-  // Initialize API metrics
-  const apiMetrics = new ApiMetrics(client.register);
 
   // Initialize security manager
   const securityManager = new SecurityManager({
@@ -356,7 +364,7 @@ async function createApp(): Promise<FastifyInstance> {
     cacheManager
   );
 
-  // ✅ PROPER middleware registration using Fastify v5 patterns
+  // Middleware registration (Fastify v5 patterns)
 
   // Register audit middleware first (for all routes)
   await typedApp.register(async function auditPlugin(fastify) {
@@ -396,48 +404,25 @@ async function createApp(): Promise<FastifyInstance> {
   typedApp.setErrorHandler(errorHandler);
   typedApp.log.info("Centralized error handler enabled - all errors sanitized");
 
-  // Rate limiting setup
+  // Rate limiting setup. The token-bucket limiter is resolved from the
+  // composition root (RateLimiterPort, http-scoped instance); per-path
+  // capacity/window come from the rule table. Standard rules are applied
+  // before the expensive ones — first prefix match wins.
   if (env.ENABLE_RATE_LIMITING) {
-    const rateLimit = new RateLimit(redis, RateLimitConfigs.STANDARD);
-
-    // Configure rate limit rules for standard endpoints
-    rateLimit.addRule("/health", RateLimitConfigs.HEALTH);
-    rateLimit.addRule("/publish/", RateLimitConfigs.STRICT);
-    rateLimit.addRule("/media/", RateLimitConfigs.UPLOAD);
-    rateLimit.addRule("/accounts$", RateLimitConfigs.AUTH);
-
-    // 🔒 SECURITY: Add rate limiting for expensive endpoints (DoS prevention)
-    // These endpoints perform resource-intensive operations and need strict limits
-    for (const rule of EXPENSIVE_ENDPOINT_RULES) {
-      rateLimit.addRule(rule.path, rule.config);
-    }
+    const httpRateLimiter = container.resolve<RateLimiterPort>(TOKENS.HttpRateLimiter);
+    const rules = [...STANDARD_ROUTE_RULES, ...EXPENSIVE_ENDPOINT_RULES];
 
     typedApp.log.info(
       `Rate limiting enabled: ${EXPENSIVE_ENDPOINT_RULES.length} expensive endpoints protected`
     );
 
-    typedApp.addHook("preHandler", async (request: FastifyRequest, reply: FastifyReply) => {
-      try {
-        const result = await rateLimit.checkRateLimit(request);
-
-        // Always add rate limit headers
-        reply.header("X-RateLimit-Remaining", result.remaining.toString());
-        reply.header("X-RateLimit-Reset", result.resetTime.toString());
-
-        if (!result.allowed) {
-          reply.code(429);
-          return reply.send({
-            ok: false,
-            error: "RATE_LIMIT_EXCEEDED",
-            message: "Too many requests. Please try again later.",
-            retryAfter: new Date(result.resetTime).toISOString(),
-          });
-        }
-      } catch (error) {
-        logger.error({ err: error }, "Rate limiting error");
-        // On error, allow request to continue
-      }
-    });
+    typedApp.addHook(
+      "preHandler",
+      createHttpRateLimitPreHandler(httpRateLimiter, {
+        defaultConfig: RateLimitConfigs.STANDARD,
+        rules,
+      })
+    );
   }
 
   // Register security and performance middleware
@@ -489,7 +474,7 @@ async function createApp(): Promise<FastifyInstance> {
     }
   );
 
-  // ✅ PROPER route registration using Fastify v5 async plugin pattern
+  // Route registration (Fastify v5 async plugin pattern)
 
   // Register health routes first (no authentication required)
   const { healthRoutes } = await import("./health/healthRoutes.js");
@@ -723,7 +708,7 @@ async function createApp(): Promise<FastifyInstance> {
     }
   );
 
-  // ✅ Root endpoint
+  // Root endpoint
   typedApp.get("/", async (_request: FastifyRequest, reply: FastifyReply) => {
     return reply.send({
       name: "OmniPost API",
@@ -736,7 +721,7 @@ async function createApp(): Promise<FastifyInstance> {
   return typedApp;
 }
 
-// ✅ PROPER server startup
+// Server startup
 async function start() {
   try {
     // Fail fast if DATABASE_URL credentials don't authenticate. Catches the
@@ -1014,7 +999,7 @@ async function start() {
     await trendRadarConsumer.subscribe(async (job) => {
       await processTrendRadarJob(
         { detect: detectTrendsUseCase, logger },
-        job.payload as { accountId: string }
+        job.payload as { accountId: string; dayKey: string }
       );
     });
     logger.info("TREND_RADAR consumer started");

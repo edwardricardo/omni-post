@@ -2,6 +2,8 @@
  * @file loading.tsx
  * @description Next.js root loading UI rendered as a skeleton screen while dashboard pages
  * are streaming their data, providing animated placeholders for header, stats cards, and charts.
+ * @component Loading
+ * @layer infrastructure
  */
 export default function Loading() {
   return (

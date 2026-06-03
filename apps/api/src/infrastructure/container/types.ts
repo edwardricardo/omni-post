@@ -14,7 +14,7 @@ export const TOKENS = {
   // Repositories
   PostRepository: Symbol.for("PostRepository"),
 
-  // AdminUser Repository (R1-A — hexagonal port, replaces legacy UserRepository)
+  // AdminUser Repository
   AdminUserRepository: Symbol.for("AdminUserRepository"),
   AdminUserAdminService: Symbol.for("AdminUserAdminService"),
   CustomerAccountBillingService: Symbol.for("CustomerAccountBillingService"),
@@ -32,10 +32,10 @@ export const TOKENS = {
   AnalyticsQueryRepository: Symbol.for("AnalyticsQueryRepository"),
   ChannelRepository: Symbol.for("ChannelRepository"),
 
-  // Account query read-model repository (R1-B — billing services)
+  // Account query read-model repository (billing services)
   AccountQueryRepository: Symbol.for("AccountQueryRepository"),
 
-  // Read-model repositories (R1-C — analytics consumers)
+  // Read-model repositories (analytics consumers)
   ProjectQueryRepository: Symbol.for("ProjectQueryRepository"),
   AnalyticsReadRepository: Symbol.for("AnalyticsReadRepository"),
   ThreadReadRepository: Symbol.for("ThreadReadRepository"),
@@ -83,6 +83,9 @@ export const TOKENS = {
   OutboxClaimService: Symbol.for("OutboxClaimService"),
   OutboxBackoff: Symbol.for("OutboxBackoff"),
   OutboxInbox: Symbol.for("OutboxInbox"),
+  AICircuitBreaker: Symbol.for("AICircuitBreaker"),
+  RateLimiterPort: Symbol.for("RateLimiterPort"),
+  HttpRateLimiter: Symbol.for("HttpRateLimiter"),
 
   // Background task scheduler — centralised setInterval registry for all
   // recurring in-process work (cleanup jobs, health checks, metrics pushes).
@@ -160,14 +163,17 @@ export const TOKENS = {
   // Future: GeoAnalyticsService — deleted (100% fake geographic distribution)
   AnalyticsStreamBroadcaster: Symbol.for("AnalyticsStreamBroadcaster"),
   RealtimeAnalyticsService: Symbol.for("RealtimeAnalyticsService"),
+  StreamConnectionTracker: Symbol.for("StreamConnectionTracker"),
+  BruteForceProtectionPort: Symbol.for("BruteForceProtectionPort"),
+  ApiMetrics: Symbol.for("ApiMetrics"),
 
-  // ML Use Cases (B0-2 — DI violation fix in ai/routes.ts)
+  // ML Use Cases
   OptimizeContentUseCase: Symbol.for("OptimizeContentUseCase"),
   PredictOptimalTimingUseCase: Symbol.for("PredictOptimalTimingUseCase"),
-  // Posts Service (B0-4)
+  // Posts Service
   PostsService: Symbol.for("PostsService"),
 
-  // Provider Registry (H5 — DI route migration)
+  // Provider Registry
   ProviderRegistry: Symbol.for("ProviderRegistry"),
 
   // Saga Orchestration (publish flow integration)
@@ -448,9 +454,8 @@ export const TOKENS = {
 
   // Queue (shared)
   QueuePort: Symbol.for("QueuePort"),
-  // Multi-queue routing. Use this in preference to TOKENS.QueuePort — the
-  // legacy token resolves to the PUBLISH queue for backwards compat and
-  // will be removed once all callers migrate.
+  // Multi-queue routing. Use this in preference to TOKENS.QueuePort —
+  // the latter resolves to the PUBLISH queue only.
   QueuePortRegistry: Symbol.for("QueuePortRegistry"),
   // Producer-side DLQ port (archive only).
   DeadLetterQueuePort: Symbol.for("DeadLetterQueuePort"),
@@ -579,7 +584,7 @@ export const TOKENS = {
   PlatformEncryptionKeyRepository: Symbol.for("PlatformEncryptionKeyRepository"),
   AiTokenUsageReader: Symbol.for("AiTokenUsageReader"),
 
-  // Gateway billing (S3.4 ports — scaffolded for GatewayBillingService refactor)
+  // Gateway billing ports.
   AccountBillingRepository: Symbol.for("AccountBillingRepository"),
   AccountSubscriptionBillingRepository: Symbol.for("AccountSubscriptionBillingRepository"),
   GatewaySwitchEventRepository: Symbol.for("GatewaySwitchEventRepository"),

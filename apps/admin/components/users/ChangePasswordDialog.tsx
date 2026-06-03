@@ -26,7 +26,9 @@ const INPUT_CLASS =
   "w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
 
 interface ChangePasswordDialogProps {
+  /** Whether the dialog is currently visible. */
   open: boolean;
+  /** Fired to toggle dialog visibility, mirroring the Radix Dialog API. */
   onOpenChange: (open: boolean) => void;
 }
 

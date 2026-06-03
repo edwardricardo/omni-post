@@ -2,6 +2,9 @@
  * @file LoginCustomerUseCase.ts
  * @description Authenticates a customer user by email/password, issues JWT tokens.
  *   Handles the multi-account scenario where an email may exist across accounts.
+ *   Gated by BruteForceProtectionPort (NIST SP 800-63B-4 §rate-limiting + OWASP
+ *   Authentication Cheat Sheet): account-based throttling, exponential backoff,
+ *   CAPTCHA signalling, fail-open on adapter outage.
  * @layer application
  */
 
@@ -11,6 +14,7 @@ import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRep
 import { AccountId } from "@core/domain/value-objects/EntityId.js";
 import type { PasswordHasher } from "@core/domain/repositories/PasswordHasher.js";
 import type { CustomerTokenService } from "@core/domain/repositories/CustomerTokenService.js";
+import type { BruteForceProtectionPort } from "@ports/core";
 import { randomBytes } from "crypto";
 
 /** Error code union */
@@ -18,6 +22,7 @@ export type LoginCustomerError =
   | "INVALID_CREDENTIALS"
   | "USER_INACTIVE"
   | "MULTIPLE_ACCOUNTS"
+  | "RATE_LIMITED"
   | "INTERNAL_ERROR";
 
 /** Input DTO */
@@ -25,6 +30,10 @@ export interface LoginCustomerInput {
   readonly email: string;
   readonly password: string;
   readonly accountSlug?: string;
+  /** Source IP — forensic + IP throttle supletoria. */
+  readonly ip: string;
+  /** Source user-agent — forensic + anomaly signals. */
+  readonly userAgent: string;
 }
 
 /** Output DTO */
@@ -33,40 +42,80 @@ export interface LoginCustomerOutput {
   readonly account: Record<string, unknown>;
   readonly accessToken: string;
   readonly refreshToken: string;
+  /** Signals the client to challenge the next attempt with a CAPTCHA. Canon:
+   * defense-in-depth, not preventive on first attempt. */
+  readonly captchaRequired?: boolean;
 }
 
 /**
  * @class LoginCustomerUseCase
  * @description Verifies customer credentials and issues JWT tokens.
+ *   Brute-force gated: `checkLoginAttempt` before credential verification,
+ *   `recordFailedAttempt` on every failure path, `recordSuccessfulAttempt`
+ *   on success (clears the per-identifier counter).
  */
 export class LoginCustomerUseCase {
   constructor(
     private readonly customerUserRepo: CustomerUserRepository,
     private readonly accountRepo: AccountRepositoryPort,
     private readonly hasher: PasswordHasher,
-    private readonly tokenService: CustomerTokenService
+    private readonly tokenService: CustomerTokenService,
+    private readonly bruteForce: BruteForceProtectionPort
   ) {}
 
   /**
    * @method execute
    * @description Authenticates a customer user and returns access + refresh tokens.
+   *   Gates on `bruteForce.checkLoginAttempt` (account-based primary, NIST
+   *   800-63B-4 + OWASP). On every failure path emits `recordFailedAttempt`;
+   *   on success emits `recordSuccessfulAttempt` (resets per-identifier
+   *   counter). The exponential `delaySeconds` is honoured before answering
+   *   to throttle the attacker.
    */
   async execute(
     input: LoginCustomerInput
   ): Promise<Result<LoginCustomerOutput, LoginCustomerError>> {
+    const { ip, userAgent } = input;
+
     try {
       if (!input.email || !input.password) {
         return err("INVALID_CREDENTIALS");
+      }
+
+      // Brute-force gate (NIST 800-63B-4 §rate-limiting + OWASP Auth Cheat Sheet).
+      // Identifier is the account-primary key: an attacker rotating IPs cannot
+      // bypass this counter.
+      const check = await this.bruteForce.checkLoginAttempt({
+        identifier: input.email,
+        ip,
+        userAgent,
+      });
+
+      if (!check.allowed) {
+        return err("RATE_LIMITED");
+      }
+
+      // Honor exponential throttle delay (caps at 300s per port canon, DoS-conscious).
+      if (check.delaySeconds > 0) {
+        await new Promise((resolve) => setTimeout(resolve, check.delaySeconds * 1000));
       }
 
       // Find user(s) by email across accounts
       const users = await this.customerUserRepo.findByEmailAcrossAccounts(input.email);
 
       if (users.length === 0) {
+        await this.bruteForce.recordFailedAttempt({
+          identifier: input.email,
+          ip,
+          userAgent,
+          failureReason: "USER_NOT_FOUND",
+        });
         return err("INVALID_CREDENTIALS");
       }
 
-      // If multiple accounts and no slug hint, signal MULTIPLE_ACCOUNTS
+      // If multiple accounts and no slug hint, signal MULTIPLE_ACCOUNTS.
+      // NOT counted as a failed attempt — credentials weren't verified yet and
+      // requiring disambiguation is a UX hint, not an authentication failure.
       if (users.length > 1 && !input.accountSlug) {
         return err("MULTIPLE_ACCOUNTS");
       }
@@ -90,11 +139,23 @@ export class LoginCustomerUseCase {
       // Verify password
       const passwordValid = await this.hasher.verify(targetUser.passwordHash, input.password);
       if (!passwordValid) {
+        await this.bruteForce.recordFailedAttempt({
+          identifier: input.email,
+          ip,
+          userAgent,
+          failureReason: "INVALID_PASSWORD",
+        });
         return err("INVALID_CREDENTIALS");
       }
 
       // Check active
       if (!targetUser.isActive) {
+        await this.bruteForce.recordFailedAttempt({
+          identifier: input.email,
+          ip,
+          userAgent,
+          failureReason: "USER_INACTIVE",
+        });
         return err("USER_INACTIVE");
       }
 
@@ -113,6 +174,13 @@ export class LoginCustomerUseCase {
       // Record login
       targetUser.recordLogin();
       await this.customerUserRepo.save(targetUser);
+
+      // Successful authentication — clear per-identifier counters.
+      await this.bruteForce.recordSuccessfulAttempt({
+        identifier: input.email,
+        ip,
+        userAgent,
+      });
 
       // Fetch account for response
       const accountIdResult = AccountId.fromString(targetUser.accountId);
@@ -140,6 +208,7 @@ export class LoginCustomerUseCase {
         account: accountJson,
         accessToken,
         refreshToken,
+        ...(check.captchaRequired && { captchaRequired: true }),
       });
     } catch (_error: unknown) {
       return err("INTERNAL_ERROR");

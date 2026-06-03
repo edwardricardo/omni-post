@@ -32,17 +32,22 @@ export interface HttpRequestOptions {
 export type HttpPostOptions = HttpRequestOptions;
 
 export interface HttpClientPort {
+  /** Issue an HTTP GET. Returns the response, or a discrete error for timeout/network/bad-response. */
   get(url: string, options?: HttpRequestOptions): Promise<Result<HttpResponse, HttpError>>;
+  /** Issue an HTTP HEAD — headers only, no body. Same error contract as `get`. */
   head(url: string, options?: HttpRequestOptions): Promise<Result<HttpResponse, HttpError>>;
+  /** Issue an HTTP POST with a string body. Caller is responsible for serialising JSON beforehand. */
   post(
     url: string,
     body: string,
     options?: HttpRequestOptions
   ): Promise<Result<HttpResponse, HttpError>>;
+  /** Issue an HTTP PUT with a string body. */
   put(
     url: string,
     body: string,
     options?: HttpRequestOptions
   ): Promise<Result<HttpResponse, HttpError>>;
+  /** Issue an HTTP DELETE. */
   delete(url: string, options?: HttpRequestOptions): Promise<Result<HttpResponse, HttpError>>;
 }

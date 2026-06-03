@@ -2,6 +2,7 @@
  * @file useAuditLogs.ts
  * @description TanStack Query hook for fetching audit logs with filtering and auto-refresh.
  * Used by the /logs dashboard page to display system events and user activities.
+ * @layer infrastructure
  */
 import { useQuery } from "@tanstack/react-query";
 import { api, type AuditLog, type AuditLogFilters } from "../../lib/apiClient";

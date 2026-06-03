@@ -5,6 +5,8 @@
  * @description Orchestrator component for the Smart Content Optimizer. Manages analysis
  * state, delegates rendering to tab-specific sub-components, and coordinates with the
  * AI backend for content analysis and optimization.
+ * @component SmartContentOptimizer
+ * @layer infrastructure
  */
 
 import React, { useState, useEffect, useCallback } from "react";

@@ -240,7 +240,7 @@ class ProviderRouteHandler extends BaseRouteHandler {
 }
 
 /**
- * Fastify plugin using the refactored handler
+ * Fastify plugin wiring provider routes through ProviderRouteHandler.
  */
 const providerRoutes: FastifyPluginAsync = async (fastify) => {
   const svcProvider = fastify.container!.resolve<ProviderService>(TOKENS.ProviderService);

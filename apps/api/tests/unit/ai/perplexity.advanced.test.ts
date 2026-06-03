@@ -145,7 +145,7 @@ describe("PerplexityProvider - Content Analysis", () => {
     );
 
     await expect(provider.analyzeContent("Test", "sentiment")).rejects.toThrow(
-      /Perplexity structured generation failed/
+      /Perplexity API error: 400/
     );
   });
 });
@@ -197,7 +197,7 @@ describe("PerplexityProvider - Content Optimization", () => {
     );
 
     await expect(provider.optimizeContent("Test", "twitter")).rejects.toThrow(
-      /Perplexity structured generation failed/
+      /Perplexity API error: 400/
     );
   });
 });
@@ -252,7 +252,7 @@ describe("PerplexityProvider - Performance Prediction", () => {
     );
 
     await expect(provider.predictPerformance("Test", "twitter")).rejects.toThrow(
-      /Perplexity structured generation failed/
+      /Perplexity API error: 400/
     );
   });
 });
@@ -306,7 +306,7 @@ describe("PerplexityProvider - Content Variations", () => {
     );
 
     await expect(provider.generateVariations("Test", "tone", 3)).rejects.toThrow(
-      /Perplexity structured generation failed/
+      /Perplexity API error: 400/
     );
   });
 });

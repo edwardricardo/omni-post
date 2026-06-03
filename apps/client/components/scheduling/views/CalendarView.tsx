@@ -2,9 +2,10 @@
 
 /**
  * @file CalendarView.tsx
- * @component CalendarView
  * @description Calendar-based scheduling view for the multi-platform scheduler that displays
  * available slots and optimal times, and handles slot selection for scheduling new posts.
+ * @component CalendarView
+ * @layer infrastructure
  */
 
 import React, { useMemo, useCallback } from "react";

@@ -17,6 +17,12 @@ import {
   requireAdmin,
   rateLimit,
 } from "../../src/admin/auth/adminAuthMiddleware.js";
+import { TOKENS } from "../../src/infrastructure/container/types.js";
+import { InMemoryTokenBucketRateLimiter } from "../../src/ai/providers/InMemoryTokenBucketRateLimiter.js";
+
+// Shared limiter the mock container hands back for TOKENS.HttpRateLimiter, so
+// repeated calls in a single test accumulate against the same buckets.
+const httpRateLimiter = new InMemoryTokenBucketRateLimiter();
 
 // ---------------------------------------------------------------------------
 // AdminAuthService is resolved from request.server.container by the middleware,
@@ -81,7 +87,12 @@ function createMockRequest(overrides?: Partial<FastifyRequest>): FastifyRequest 
     ip: "127.0.0.1",
     routeOptions: { url: "/test" },
     server: {
-      container: { resolve: () => ({ verifyAccessToken: mockVerifyAccessToken }) },
+      container: {
+        resolve: (token: symbol) =>
+          token === TOKENS.HttpRateLimiter
+            ? httpRateLimiter
+            : { verifyAccessToken: mockVerifyAccessToken },
+      },
     },
     ...overrides,
   } as unknown as FastifyRequest;

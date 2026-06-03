@@ -39,19 +39,31 @@ export type StyleGuideRuleRepositoryError =
   | "INVALID_INPUT";
 
 export interface StyleGuideRuleRepository {
+  /**
+   * Insert or update a rule. Without `id` the adapter generates one; with
+   * `id` it updates in place. Embedding fields are managed by
+   * `updateEmbedding`, not this method.
+   */
   upsert(
     input: StyleGuideRuleUpsertInput
   ): Promise<Result<StyleGuideRule, StyleGuideRuleRepositoryError>>;
 
+  /** Load one rule by id. */
   findById(id: string): Promise<Result<StyleGuideRule, StyleGuideRuleRepositoryError>>;
 
+  /** Delete a rule. */
   delete(id: string): Promise<Result<void, StyleGuideRuleRepositoryError>>;
 
+  /** Every rule for one account + locale, used to compose the active style guide at evaluation time. */
   listByAccountLocale(
     accountId: string,
     locale: string
   ): Promise<Result<StyleGuideRule[], StyleGuideRuleRepositoryError>>;
 
+  /**
+   * Refresh the embedding vector + the auditable `embeddingModel` tag for a
+   * rule (called by the embedding worker after a textual change).
+   */
   updateEmbedding(
     id: string,
     embedding: number[],

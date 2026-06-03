@@ -4,6 +4,7 @@
  * Mirrors the factory-method API of apps/api AppError so that
  * upstream error handlers can inspect `code` and `statusCode`
  * without importing the API layer.
+ * @layer infrastructure
  */
 
 /**

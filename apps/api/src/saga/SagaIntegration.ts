@@ -277,10 +277,10 @@ export class SagaIntegration {
         if (!post.ok) return null;
         return post.value.status.value;
       }
-      // No cancelJob: SchedulePublishingJobsStep is now classified as PivotStep
-      // (point of no return per Azure §5). Once jobs are accepted by BullMQ,
-      // workers may dispatch to the provider before any saga-side cancel
-      // could fire — compensation has no canonically valid semantics here.
+      // No cancelJob: SchedulePublishingJobsStep is a PivotStep (point of
+      // no return per Azure §5). Once jobs are accepted by BullMQ, workers
+      // may dispatch to the provider before any saga-side cancel could
+      // fire — compensation has no canonically valid semantics here.
     );
 
     this.sagaManager.registerSaga(postPublishingSaga);

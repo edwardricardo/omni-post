@@ -126,9 +126,7 @@ export class TrialManagementService {
 
   /**
    * @method getTrialStatusFromSubscription
-   * @description Reads trial status from the new AccountSubscription model.
-   *   This is an additive method — legacy Account-based trial fields remain
-   *   untouched until the billing migration completes.
+   * @description Reads trial status from the AccountSubscription model.
    * @param accountId - The account ID to check
    * @returns Trial status object or null if no subscription exists
    */

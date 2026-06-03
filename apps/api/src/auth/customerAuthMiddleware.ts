@@ -65,8 +65,8 @@ export async function requireClientAuth(
     };
 
     // Bind tenant context for the rest of the async chain (handlers, hooks,
-    // Prisma queries). The tenant guard extension (S2.1b) reads this on
-    // every query to a tenant-scoped table.
+    // Prisma queries). The tenant guard extension reads this on every
+    // query to a tenant-scoped table.
     enterTenantContext({ accountId: payload.accountId });
   } catch (error: unknown) {
     authLogger.warn({ err: error }, "Customer authentication failed");

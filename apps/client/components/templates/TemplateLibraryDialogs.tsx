@@ -2,9 +2,10 @@
 
 /**
  * @file TemplateLibraryDialogs.tsx
- * @component TemplateLibraryDialogs
  * @description Dialog components for the TemplateLibrary: template preview dialog
  * and delete confirmation alert dialog.
+ * @component TemplateLibraryDialogs
+ * @layer infrastructure
  */
 
 import React from "react";
