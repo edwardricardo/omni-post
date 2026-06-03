@@ -18,71 +18,26 @@
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { ok, type Result } from "@shared/types";
 import { createTestPrismaClient } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
 import { InMemoryEventDispatcher } from "@core/domain/index.js";
-import type { QueuePort, QueueJob, QueueHealth, JobStatesAggregate } from "@ports/core";
 import { PrismaBulkScheduleBatchRepository } from "../../src/infrastructure/repositories/PrismaBulkScheduleBatchRepository.js";
 import { PrismaChannelRepository } from "../../src/infrastructure/repositories/PrismaChannelRepository.js";
 import { PrismaUnitOfWork } from "../../src/infrastructure/unitofwork/PrismaUnitOfWork.js";
 import { PrismaOutboxWriter } from "../../src/infrastructure/outbox/PrismaOutboxWriter.js";
-import { OutboxRelay } from "../../src/infrastructure/outbox/OutboxRelay.js";
-import { OutboxClaimService } from "../../src/infrastructure/outbox/OutboxClaimService.js";
-import { OutboxBackoff } from "../../src/infrastructure/outbox/OutboxBackoff.js";
-import { OutboxInbox } from "../../src/infrastructure/outbox/OutboxInbox.js";
-import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { ConfirmBulkScheduleUseCase } from "@core/bulk-scheduling/ConfirmBulkScheduleUseCase.js";
 import { BulkScheduleDispatchEventHandler } from "../../src/bulk-scheduling/BulkScheduleDispatchEventHandler.js";
 import type { SchedulingCsvRow } from "@core/bulk-scheduling/schedulingCsv.js";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+import {
+  makeStubQueue,
+  makeRelay,
+  seedTenant,
+  cleanupTenant,
+  type SeededTenant,
+} from "./helpers/bulkScheduleHarness.js";
 
 const future = (ms: number): string => new Date(Date.now() + ms).toISOString();
 const TWO_DAYS = 2 * 24 * 60 * 60 * 1000;
-
-/** Minimal stub QueuePort — records jobs without touching Redis. */
-function makeStubQueue(): { queue: QueuePort; jobs: QueueJob[] } {
-  const jobs: QueueJob[] = [];
-  const queue: QueuePort = {
-    enqueue: async (
-      job: QueueJob
-    ): Promise<Result<string, "CONNECTION_ERROR" | "VALIDATION_ERROR">> => {
-      jobs.push(job);
-      return ok(`job-${jobs.length}`);
-    },
-    enqueueBulk: async (
-      batch: QueueJob[]
-    ): Promise<Result<string[], "CONNECTION_ERROR" | "VALIDATION_ERROR">> => {
-      jobs.push(...batch);
-      return ok(batch.map((_, i) => `bulk-job-${i}`));
-    },
-    health: async (): Promise<Result<QueueHealth, "CONNECTION_ERROR">> =>
-      ok({ connected: true, waiting: 0, active: 0, completed: 0, failed: 0 }),
-    remove: async (): Promise<Result<boolean, "CONNECTION_ERROR" | "NOT_FOUND">> => ok(true),
-    getJobStates: async (): Promise<Result<JobStatesAggregate, "CONNECTION_ERROR">> =>
-      ok({ completed: 0, failed: 0, pending: 0 }),
-  };
-  return { queue, jobs };
-}
-
-/** Build a minimal OutboxRelay wired to a real DB and the given dispatcher. */
-function makeRelay(prisma: PrismaClient, dispatcher: InMemoryEventDispatcher): OutboxRelay {
-  return new OutboxRelay({
-    prisma,
-    eventDispatcher: dispatcher,
-    scheduler: new NoopBackgroundTaskScheduler(),
-    claimService: new OutboxClaimService({ prisma, workerId: "smoke-test-worker" }),
-    backoff: new OutboxBackoff(),
-    inbox: new OutboxInbox(prisma),
-    consumerId: "smoke-test-worker",
-    pollIntervalMs: 100_000,
-    batchSize: 50,
-    maxRetries: 3,
-  });
-}
 
 // ---------------------------------------------------------------------------
 // Suite
@@ -90,10 +45,10 @@ function makeRelay(prisma: PrismaClient, dispatcher: InMemoryEventDispatcher): O
 
 describe("BulkSchedule outbox path — smoke e2e", () => {
   let prisma: PrismaClient;
+  let tenant: SeededTenant;
   let accountId: string;
   let projectId: string;
   let channelId: string;
-  let foreignAccountId: string;
   let foreignProjectId: string;
   const tag = `bulk-smoke-${Date.now()}`;
 
@@ -102,76 +57,15 @@ describe("BulkSchedule outbox path — smoke e2e", () => {
 
   before(async () => {
     prisma = createTestPrismaClient();
-
-    // Seed: one account + project + channel (owned).
-    const account = await prisma.account.create({
-      data: { email: `${tag}@test.com`, name: `Smoke Account ${tag}` },
-    });
-    accountId = account.id;
-
-    const project = await prisma.project.create({
-      data: { accountId, name: `Smoke Project ${tag}` },
-    });
-    projectId = project.id;
-
-    const channel = await prisma.channel.create({
-      data: {
-        projectId,
-        provider: "INSTAGRAM",
-        providerAccountId: `ig-${tag}`,
-        handle: `handle-${tag}`,
-        credentialsCiphertext: "smoke-ciphertext",
-        credentialsIv: "smoke-iv",
-        credentialsAuthTag: "smoke-auth-tag",
-      },
-    });
-    channelId = channel.id;
-
-    // Seed: a second account with its own project (for foreign-channel tests).
-    const foreignAccount = await prisma.account.create({
-      data: { email: `${tag}-foreign@test.com`, name: `Smoke Foreign Account ${tag}` },
-    });
-    foreignAccountId = foreignAccount.id;
-    const foreignProject = await prisma.project.create({
-      data: { accountId: foreignAccountId, name: `Foreign Project ${tag}` },
-    });
-    foreignProjectId = foreignProject.id;
+    tenant = await seedTenant(prisma, tag);
+    accountId = tenant.accountId;
+    projectId = tenant.projectId;
+    channelId = tenant.channelId;
+    foreignProjectId = tenant.foreignProjectId;
   });
 
   after(async () => {
-    // Clean outbox rows written by this suite.
-    await prisma.outboxInbox.deleteMany({
-      where: {
-        messageId: {
-          in: (
-            await prisma.outboxEvent.findMany({
-              where: { aggregateType: "BulkScheduleItem" },
-              select: { id: true },
-            })
-          ).map((r) => r.id),
-        },
-      },
-    });
-    await prisma.outboxEvent.deleteMany({
-      where: { aggregateType: "BulkScheduleItem" },
-    });
-    if (batchIds.length > 0) {
-      await prisma.bulkScheduleItem.deleteMany({
-        where: { batch: { id: { in: batchIds } } },
-      });
-      await prisma.bulkScheduleBatch.deleteMany({
-        where: { id: { in: batchIds } },
-      });
-    }
-    await prisma.channel.deleteMany({
-      where: { projectId: { in: [projectId, foreignProjectId] } },
-    });
-    await prisma.project.deleteMany({
-      where: { id: { in: [projectId, foreignProjectId] } },
-    });
-    await prisma.account.deleteMany({
-      where: { id: { in: [accountId, foreignAccountId] } },
-    });
+    await cleanupTenant(prisma, tenant, batchIds);
     await prisma.$disconnect();
   });
 
