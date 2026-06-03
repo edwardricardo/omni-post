@@ -45,7 +45,6 @@ export class PrismaBulkScheduleBatchRepository implements BulkScheduleBatchRepos
           create: batch.items.map((item) => ({
             id: item.id,
             rowNumber: item.rowNumber,
-            provider: item.provider,
             status: item.status,
             ...(item.errorMessage !== undefined && { errorMessage: item.errorMessage }),
           })),

@@ -40,7 +40,6 @@ export class PrismaBulkScheduleQueryRepository implements BulkScheduleQueryRepos
     const items: BulkScheduleItemDTO[] = row.items.map((item) => ({
       id: item.id,
       rowNumber: item.rowNumber,
-      provider: item.provider,
       status: item.status as BulkScheduleItemStatus,
       postId: item.postId,
       errorMessage: item.errorMessage,

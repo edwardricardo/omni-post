@@ -2170,7 +2170,6 @@ model BulkScheduleItem {
   id           String                 @id @default(uuid())
   batchId      String
   rowNumber    Int
-  provider     String
   status       BulkScheduleItemStatus @default(PENDING)
   postId       String?
   errorMessage String?

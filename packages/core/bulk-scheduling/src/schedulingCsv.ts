@@ -1,32 +1,124 @@
 /**
  * @file schedulingCsv.ts
- * @description Parses a bulk-scheduling CSV and validates each row up front (Zod
- *              shape + domain value objects), reporting per-row errors without
- *              aborting the batch. Pure function — no DB, no queue, no HTTP. The
- *              enqueue/FlowProducer side (F1-API-3) consumes `validRows`.
+ * @description Content-pure bulk-scheduling CSV parser. Validates structural
+ *              requirements (required headers, row cap, per-row Zod shape) and
+ *              infers media type from URL file extension. Per-row validation is
+ *              independent — one bad row never aborts the rest.
  *
- *              Canonical server-side parser: `csv-parse` (Adaltas), same family
- *              as `csv-stringify`. Per-row validation via Zod `safeParse` +
- *              `Provider` / `ScheduledTime` value objects.
+ *              Provider/scheduling validation is intentionally absent here;
+ *              it moves to ConfirmBulkScheduleUseCase once channels are selected.
+ *
+ *              Server-side tokenizer: csv-parse (Adaltas). The pure Zod schema +
+ *              media-type table are importable by the client (PR3) without
+ *              importing csv-parse (server-only).
  * @layer application
  */
 
 import { parse } from "csv-parse/sync";
 import { z } from "zod";
-import { Provider } from "@core/domain/value-objects/Provider.js";
-import { ScheduledTime } from "@core/domain/value-objects/ScheduledTime.js";
+import type { MediaType } from "@core/domain/value-objects/MediaAttachment.js";
 
-/** A validated, normalized scheduling row ready for enqueue (F1-API-3). */
+// ---------------------------------------------------------------------------
+// Shared constants — importable by client without pulling in csv-parse
+// ---------------------------------------------------------------------------
+
+/** Required CSV headers — no provider column. */
+export const REQUIRED_HEADERS = ["content", "scheduledFor"] as const;
+
+/** Forbidden columns that must not appear in the upload. */
+const FORBIDDEN_HEADERS = ["provider", "platform"] as const;
+
+/** Maximum rows per upload (hard cap). */
+export const MAX_BULK_SCHEDULE_ROWS = 5000;
+
+// ---------------------------------------------------------------------------
+// Media-type extension table (single source of truth for client + server)
+// ---------------------------------------------------------------------------
+
+/**
+ * @description Extension → MediaType mapping table (case-insensitive).
+ *   Client may import this object directly without importing csv-parse.
+ *   Fallback for unrecognized extensions = per-row blocked error (no default).
+ */
+export const MEDIA_TYPE_BY_EXTENSION: Readonly<Record<string, MediaType>> = {
+  jpg: "image",
+  jpeg: "image",
+  png: "image",
+  webp: "image",
+  bmp: "image",
+  heic: "image",
+  heif: "image",
+  gif: "gif",
+  mp4: "video",
+  mov: "video",
+  m4v: "video",
+  webm: "video",
+  avi: "video",
+  mkv: "video",
+};
+
+/**
+ * @function inferMediaType
+ * @description Infer MediaType from a URL by extracting its path extension.
+ *   Strips query strings before extraction. Returns the MediaType or null when
+ *   the extension is absent or unrecognized.
+ * @param url - A URL string (already validated as a valid URL).
+ * @returns The MediaType or null for unrecognized/absent extensions.
+ */
+export function inferMediaType(url: string): MediaType | null {
+  let pathname: string;
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    return null;
+  }
+  const lastDot = pathname.lastIndexOf(".");
+  if (lastDot === -1) {
+    return null;
+  }
+  const ext = pathname.slice(lastDot + 1).toLowerCase();
+  return MEDIA_TYPE_BY_EXTENSION[ext] ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Shared Zod row schema (client-importable without csv-parse)
+// ---------------------------------------------------------------------------
+
+/**
+ * Raw row shape (csv-parse with `columns:true` yields string values).
+ * Provider-free. Structural validation only — semantic validation (char cap,
+ * scheduling constraints) happens at ConfirmBulkScheduleUseCase.
+ */
+export const schedulingCsvRowSchema = z.object({
+  content: z.string().min(1, "content is required"),
+  scheduledFor: z.string().min(1, "scheduledFor is required"),
+  timezone: z.string().optional(),
+  title: z.string().max(280, "title exceeds 280 characters").optional(),
+  mediaUrls: z.string().optional(),
+  tags: z.string().optional(),
+});
+
+// ---------------------------------------------------------------------------
+// Domain types
+// ---------------------------------------------------------------------------
+
+/** A single media item with resolved type. */
+export interface SchedulingCsvRowMedia {
+  readonly url: string;
+  readonly type: MediaType;
+}
+
+/** A validated, content-pure scheduling row ready for the confirm phase. */
 export interface SchedulingCsvRow {
   /** 1-based CSV data row number (header excluded) — maps to the batch manifest item. */
   row: number;
-  provider: string;
   content: string;
   /** ISO 8601 string (normalized from the parsed date). */
   scheduledFor: string;
   timezone: string;
   title?: string;
-  mediaUrls: string[];
+  /** Typed media items with resolved MediaType. */
+  media: SchedulingCsvRowMedia[];
   tags: string[];
 }
 
@@ -45,21 +137,9 @@ export interface ParseSchedulingCsvResult {
   totalDataRows: number;
 }
 
-const REQUIRED_HEADERS = ["provider", "content", "scheduledFor"] as const;
-
-/**
- * Raw row shape (csv-parse with `columns:true` yields string values). Semantic
- * validation (provider/schedule/length) happens in the pipeline, not here.
- */
-export const schedulingCsvRowSchema = z.object({
-  provider: z.string().min(1, "provider is required"),
-  content: z.string().min(1, "content is required"),
-  scheduledFor: z.string().min(1, "scheduledFor is required"),
-  timezone: z.string().optional(),
-  title: z.string().max(280, "title exceeds 280 characters").optional(),
-  mediaUrls: z.string().optional(),
-  tags: z.string().optional(),
-});
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
 
 const urlSchema = z.string().url();
 
@@ -74,11 +154,16 @@ function splitList(value: string | undefined): string[] {
     .filter((part) => part.length > 0);
 }
 
+// ---------------------------------------------------------------------------
+// Main parser
+// ---------------------------------------------------------------------------
+
 /**
  * @function parseSchedulingCsv
  * @description Parses the CSV and validates every row up front. A malformed CSV,
- *   missing required headers, or no data rows produce a single `row: 0` error.
- *   Each data row is validated independently — one bad row never aborts the rest.
+ *   missing required headers, forbidden columns (provider), or exceeding the row
+ *   cap produce a single `row: 0` error. Each data row is validated independently
+ *   — one bad row never aborts the rest.
  * @param csv - Raw CSV text (header row + data rows).
  * @returns `{ validRows, errors, totalDataRows }` — never throws.
  */
@@ -107,11 +192,41 @@ export function parseSchedulingCsv(csv: string): ParseSchedulingCsvResult {
   }
 
   const headerKeys = Object.keys(records[0] ?? {});
+
+  // Reject forbidden columns before checking required ones — better UX.
+  const forbidden = FORBIDDEN_HEADERS.filter((h) => headerKeys.includes(h));
+  if (forbidden.length > 0) {
+    return {
+      validRows,
+      errors: [
+        {
+          row: 0,
+          message: `Forbidden column(s) detected: ${forbidden.join(", ")}. The CSV must not include a provider or platform column — target channels are selected at confirm time.`,
+        },
+      ],
+      totalDataRows: records.length,
+    };
+  }
+
   const missing = REQUIRED_HEADERS.filter((header) => !headerKeys.includes(header));
   if (missing.length > 0) {
     return {
       validRows,
       errors: [{ row: 0, message: `Missing required column(s): ${missing.join(", ")}` }],
+      totalDataRows: records.length,
+    };
+  }
+
+  // Hard row cap.
+  if (records.length > MAX_BULK_SCHEDULE_ROWS) {
+    return {
+      validRows,
+      errors: [
+        {
+          row: 0,
+          message: `CSV exceeds the ${MAX_BULK_SCHEDULE_ROWS}-row limit (${records.length} rows)`,
+        },
+      ],
       totalDataRows: records.length,
     };
   }
@@ -130,54 +245,50 @@ export function parseSchedulingCsv(csv: string): ParseSchedulingCsvResult {
     }
     const data = parsed.data;
 
-    const providerResult = Provider.fromString(data.provider);
-    if (!providerResult.ok) {
-      errors.push({ row, field: "provider", message: providerResult.error.message });
-      continue;
-    }
-    const provider = providerResult.value;
-
-    if (!provider.supportsScheduling()) {
-      errors.push({
-        row,
-        field: "provider",
-        message: `Provider ${provider.type} does not support scheduling`,
-      });
+    // Validate scheduledFor is a parseable date (structural only).
+    const dateTime = new Date(data.scheduledFor);
+    if (isNaN(dateTime.getTime())) {
+      errors.push({ row, field: "scheduledFor", message: `Invalid date: ${data.scheduledFor}` });
       continue;
     }
 
-    if (data.content.length > provider.maxCharacters) {
-      errors.push({
-        row,
-        field: "content",
-        message: `content exceeds ${provider.maxCharacters} characters for ${provider.type}`,
-      });
+    // Resolve media items with type inference.
+    const rawMediaUrls = splitList(data.mediaUrls);
+    const media: SchedulingCsvRowMedia[] = [];
+    let mediaError = false;
+    for (const url of rawMediaUrls) {
+      if (!urlSchema.safeParse(url).success) {
+        errors.push({ row, field: "mediaUrls", message: `Invalid URL: ${url}` });
+        mediaError = true;
+        break;
+      }
+      const mediaType = inferMediaType(url);
+      if (mediaType === null) {
+        const lastDot = new URL(url).pathname.lastIndexOf(".");
+        const ext = lastDot !== -1 ? new URL(url).pathname.slice(lastDot) : "(none)";
+        errors.push({
+          row,
+          field: "mediaUrls",
+          message: `Cannot determine media type from URL: ${url} (unrecognized extension ${ext} — supported: jpg/jpeg/png/webp/bmp/heic/heif/gif/mp4/mov/m4v/webm/avi/mkv)`,
+        });
+        mediaError = true;
+        break;
+      }
+      media.push({ url, type: mediaType });
+    }
+    if (mediaError) {
       continue;
     }
 
     const timezone = data.timezone && data.timezone.length > 0 ? data.timezone : "UTC";
-    const dateTime = new Date(data.scheduledFor);
-    const scheduledResult = ScheduledTime.create({ dateTime, timezone });
-    if (!scheduledResult.ok) {
-      errors.push({ row, field: "scheduledFor", message: scheduledResult.error.message });
-      continue;
-    }
-
-    const mediaUrls = splitList(data.mediaUrls);
-    const invalidUrl = mediaUrls.find((url) => !urlSchema.safeParse(url).success);
-    if (invalidUrl !== undefined) {
-      errors.push({ row, field: "mediaUrls", message: `Invalid URL: ${invalidUrl}` });
-      continue;
-    }
 
     validRows.push({
       row,
-      provider: provider.type,
       content: data.content,
       scheduledFor: dateTime.toISOString(),
       timezone,
       ...(data.title !== undefined && data.title.length > 0 && { title: data.title }),
-      mediaUrls,
+      media,
       tags: splitList(data.tags),
     });
   }

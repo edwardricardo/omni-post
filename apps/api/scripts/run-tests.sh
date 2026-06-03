@@ -107,7 +107,9 @@ CONCURRENCY=1 run_batch "integration:routes" \
   tests/integration/security-endpoints.test.ts
 
 CONCURRENCY=1 run_batch "integration:outbox" \
-  tests/integration/outbox/OutboxRelay.integration.test.ts
+  tests/integration/outbox/OutboxRelay.integration.test.ts \
+  tests/integration/bulkScheduleOutboxSmoke.test.ts \
+  tests/integration/bulkScheduling.test.ts
 
 CONCURRENCY=1 run_batch "integration:flows" \
   tests/auth.test.ts tests/audit.test.ts tests/cache.test.ts \
