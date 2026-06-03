@@ -12,10 +12,7 @@
 
 import { ok, err, type Result } from "@shared/types";
 import { createLogger } from "@observability/logger";
-import type {
-  AccountBillingRepository,
-  AccountBillingFields,
-} from "@core/domain/repositories/AccountBillingRepository.js";
+import type { AccountBillingRepository } from "@core/domain/repositories/AccountBillingRepository.js";
 import type { AccountSubscriptionBillingRepository } from "@core/domain/repositories/AccountSubscriptionBillingRepository.js";
 import type {
   GatewaySwitchEventRepository,
