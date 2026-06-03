@@ -34,6 +34,7 @@ export class PostCreationAdapter implements PostCreationPort {
       body: input.body,
       ...(input.title !== undefined && { title: input.title }),
       ...(input.tags !== undefined && { tags: [...input.tags] }),
+      ...(input.media !== undefined && { media: [...input.media] }),
     });
     if (!result.ok) return result;
     return { ok: true, value: { id: result.value.id } };

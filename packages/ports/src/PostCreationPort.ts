@@ -10,12 +10,32 @@
 
 import type { Result } from "@shared/types";
 import type { UseCaseError } from "@core/application/UseCase.js";
+import type { MediaType } from "@core/domain/value-objects/MediaAttachment.js";
+
+/**
+ * A single media item to attach to a post at creation time.
+ * `type` MUST be derived from the URL extension before calling createPost —
+ * the domain aggregate validates it and rejects unknown types.
+ */
+export interface CreatePostMedia {
+  readonly url: string;
+  readonly type: MediaType;
+  readonly width?: number;
+  readonly height?: number;
+  readonly alt?: string;
+}
 
 export interface CreatePostPortInput {
   readonly projectId: string;
   readonly body: string;
   readonly title?: string;
   readonly tags?: ReadonlyArray<string>;
+  /**
+   * Optional media items to attach via `PostAggregate.addMedia()` immediately
+   * after creation (while the post is still DRAFT and editable). An empty array
+   * or an omitted field both result in a post with zero media attachments.
+   */
+  readonly media?: ReadonlyArray<CreatePostMedia>;
 }
 
 export interface CreatePostPortOutput {

@@ -486,6 +486,9 @@ export const TOKENS = {
   ProcessBulkScheduleRowUseCase: Symbol.for("ProcessBulkScheduleRowUseCase"),
   FailBulkScheduleRowUseCase: Symbol.for("FailBulkScheduleRowUseCase"),
   GetBulkScheduleBatchQuery: Symbol.for("GetBulkScheduleBatchQuery"),
+  // PR1: durability core — dispatch handler + reconciliation backstop
+  BulkScheduleDispatchEventHandler: Symbol.for("BulkScheduleDispatchEventHandler"),
+  BulkScheduleReconciliationService: Symbol.for("BulkScheduleReconciliationService"),
 
   // Payment Billing
   PaymentAdapter: Symbol.for("PaymentAdapter"),
