@@ -88,6 +88,7 @@
     "@core/crm": "workspace:*",
     "@core/custom-reports": "workspace:*",
     "@core/customer-auth": "workspace:*",
+    "@core/domain": "workspace:*",
     "@core/embeddings": "workspace:*",
     "@core/engine": "workspace:*",
     "@core/external-notifications": "workspace:*",
