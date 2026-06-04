@@ -24,6 +24,10 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./"),
       "@packages/api-errors": path.resolve(__dirname, "../../packages/api-errors/src/index.ts"),
+      // @packages/ui/* sub-path — mirrors client tsconfig.json `"@packages/ui/*"` -> src/*
+      // so deep imports like @packages/ui/components/business/ChannelMultiSelect resolve at
+      // test time. Must precede the exact `@packages/ui` alias so the longer prefix wins.
+      "@packages/ui/": path.resolve(__dirname, "../../packages/ui/src") + "/",
       "@packages/ui": path.resolve(__dirname, "../../packages/ui/src/index.ts"),
       // Sub-path alias for the runtime-free scheduling CSV schema module.
       // Points at the schema file directly (not the barrel index or the server parser)
