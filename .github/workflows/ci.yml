@@ -227,7 +227,7 @@ jobs:
         run: pnpm --filter @packages/api-common test
 
       - name: Run Core engine tests
-        run: node --import tsx --test --test-force-exit packages/core/tests/**/*.test.ts
+        run: pnpm --filter @core/engine test
 
   # ── Tier 0: Frontend unit tests (vitest + jsdom, no DB) ──
   test-frontend:
