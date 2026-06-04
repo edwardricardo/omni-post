@@ -17,11 +17,11 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./"),
       "@packages/api-errors": path.resolve(__dirname, "../../packages/api-errors/src/index.ts"),
+      // @shared/types/* sub-path — mirrors admin tsconfig.json `"@shared/types/*"` -> src/*
+      // (admin OVERRIDES the base paths and has NO bare `@shared/*`). Must precede the
+      // exact `@shared/types` alias below so the longer prefix wins in @rollup/plugin-alias.
+      "@shared/types/": path.resolve(__dirname, "../../packages/shared/src") + "/",
       "@shared/types": path.resolve(__dirname, "../../packages/shared/src/index.ts"),
-      // @shared/* wildcard — mirrors tsconfig.base.json `"@shared/*"` path mapping
-      // so sub-path imports like @shared/stores/notificationStore resolve at test time.
-      // Note: @shared/types alias above takes precedence for the exact key.
-      "@shared/": path.resolve(__dirname, "../../packages/shared/src") + "/",
     },
   },
   test: {

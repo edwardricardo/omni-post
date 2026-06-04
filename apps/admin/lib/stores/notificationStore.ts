@@ -4,4 +4,4 @@
  *   source of truth lives at `packages/shared/src/stores/notificationStore.ts`.
  * @layer infrastructure
  */
-export * from "@shared/stores/notificationStore";
+export * from "@shared/types/stores/notificationStore";
