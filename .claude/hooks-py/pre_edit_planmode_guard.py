@@ -19,12 +19,6 @@ EXCEPCIÓN — trivial edits passes:
   - Write to a file that already exists (read it first to know? complicated;
     we use Write as "create new file" semantic — always non-trivial).
 
-BYPASS:
-  1. Env var EDWARD_AUTHORIZED_NO_PLAN=yes (case-by-case, audited en
-     .claude/heuristic-overrides.log).
-  2. Token .claude/.allowed/no-plan-mode (15 min TTL, mismo contrato que
-     sensitive-edit). Created by omnipost-allow no-plan-mode.
-
 Block via exit 2 + stderr.
 
 Skip rules (no block):
@@ -32,17 +26,13 @@ Skip rules (no block):
   - Branches that don't match workstream/* (main, prototype/*, etc.).
 """
 
-import json
-import os
 import re
-import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import (  # noqa: E402
-    check_grant_token,
     current_branch,
     make_logger,
     read_hook_input,
@@ -52,21 +42,16 @@ HOOK_NAME = "pre-edit-planmode-guard"
 log, block, _allow = make_logger(HOOK_NAME)
 
 PLAN_BLOCKS_LOG = Path(".claude/planmode-blocks.log")
-HEURISTIC_OVERRIDES_LOG = Path(".claude/heuristic-overrides.log")
 
 WORKSTREAM_BRANCH_RE = re.compile(r"^workstream/")
-# STRICT: only an EnterPlanMode tool_use event counts as Plan Mode activity.
-# A Read/Edit/Write of a plan file (or a Bash command mentioning one) is NOT
-# the same as being IN Plan Mode — the assistant must explicitly invoke
-# EnterPlanMode to make the model + UI enter the plan-only mode that
-# guarantees no Write/Edit/Bash side-effects until ExitPlanMode is approved.
-#
-# Bug fix (2026-05-28): the previous design counted any plan-path mention
-# in the transcript (e.g., `tail -30 /root/.claude/plans/foo.md`) as plan
-# activity. That allowed phase work to start in workstream/* branches
-# without an actual Plan Mode entry — exactly the discipline gap this
-# hook was meant to prevent.
+# Plan Mode activity = EITHER an explicit EnterPlanMode tool_use, OR a
+# Read/Edit/Write of a plan file under /root/.claude/plans/*.md in the recent
+# transcript. The plan-file check matches the tool_use `file_path` field (not a
+# bare Bash mention), so referencing a real plan file authorizes non-trivial
+# work — sub-agents cannot invoke EnterPlanMode, so the plan-file path is how
+# delegated implementation work proves a plan exists before it edits.
 PLAN_MODE_ENTER_RE = re.compile(r'"name":\s*"EnterPlanMode"')
+PLAN_FILE_REF_RE = re.compile(r'"file_path"\s*:\s*"[^"]*\.claude/plans/[^"]*\.md"')
 
 TRIVIAL_LINE_THRESHOLD = 30
 
@@ -118,6 +103,9 @@ def has_recent_plan_activity(transcript_path: str | None) -> bool:
     if PLAN_MODE_ENTER_RE.search(tail):
         log("EnterPlanMode tool found in recent transcript — Plan Mode active")
         return True
+    if PLAN_FILE_REF_RE.search(tail):
+        log("Plan file reference found in recent transcript — plan referenced")
+        return True
     return False
 
 
@@ -129,16 +117,6 @@ def log_block(file_path: str, branch: str, suffix: str = "") -> None:
             f.write(f"{ts}\t{branch}\t{file_path}\t{suffix}\n")
     except OSError as e:
         log(f"WARN: cannot write planmode-blocks.log: {e}")
-
-
-def log_override(file_path: str, branch: str, source: str) -> None:
-    try:
-        HEURISTIC_OVERRIDES_LOG.parent.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now(timezone.utc).isoformat()
-        with HEURISTIC_OVERRIDES_LOG.open("a", encoding="utf-8") as f:
-            f.write(f"{ts}\t{branch}\t{file_path}\tPLANMODE_OVERRIDE:{source}\n")
-    except OSError as e:
-        log(f"WARN: cannot write heuristic-overrides.log: {e}")
 
 
 def main() -> None:
@@ -170,19 +148,6 @@ def main() -> None:
         log(f"ALLOW: recent plan activity detected ({file_path})")
         sys.exit(0)
 
-    # Bypass: env var
-    if os.environ.get("EDWARD_AUTHORIZED_NO_PLAN") == "yes":
-        log(f"ALLOW: EDWARD_AUTHORIZED_NO_PLAN=yes ({file_path})")
-        log_override(file_path, branch, "EDWARD_AUTHORIZED_NO_PLAN")
-        sys.exit(0)
-
-    # Bypass: token no-plan-mode
-    token_status = check_grant_token("no-plan-mode", log)
-    if token_status is None:
-        log(f"ALLOW: no-plan-mode token valid ({file_path})")
-        log_override(file_path, branch, "token-no-plan-mode")
-        sys.exit(0)
-
     log_block(file_path, branch)
     reason = (
         f"Branch '{branch}' matches workstream/* but no Plan Mode activity "
@@ -192,10 +157,7 @@ def main() -> None:
         f"in /root/.claude/plans/.\n\n"
         f"To proceed, do ONE of:\n"
         f"  1. Invoke EnterPlanMode to enter Plan Mode.\n"
-        f"  2. Read/Edit a plan file under /root/.claude/plans/.\n"
-        f"  3. (emergency) ask Edward to run "
-        f"`omnipost-allow no-plan-mode` (15 min TTL).\n"
-        f"  4. (case-by-case) set EDWARD_AUTHORIZED_NO_PLAN=yes in session.\n\n"
+        f"  2. Read/Edit a plan file under /root/.claude/plans/.\n\n"
         f"Trivial edits (< {TRIVIAL_LINE_THRESHOLD} lines diff on existing "
         f"file) auto-pass. Current edit exceeds threshold."
     )
