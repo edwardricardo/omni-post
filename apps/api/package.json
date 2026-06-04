@@ -20,7 +20,7 @@
     "test:media": "cross-env NODE_ENV=test node --import tsx --test --test-force-exit tests/media.flow.test.ts",
     "test:schedule": "cross-env NODE_ENV=test node --import tsx --test --test-force-exit tests/schedule.flow.test.ts",
     "test:analytics": "cross-env NODE_ENV=test node --import tsx --test --test-force-exit tests/analytics.flow.test.ts",
-    "test:ratelimit": "cross-env NODE_ENV=test node --import tsx --test --test-force-exit tests/rateLimit.smoke.test.ts",
+    "test:ratelimit": "vitest run tests/unit/security/httpRateLimitPreHandler.test.ts tests/unit/authRateLimit.test.ts",
     "test:threading-planner": "cross-env NODE_ENV=test node --import tsx --test --test-force-exit tests/threading.planner.test.ts",
     "test:threading-xprovider": "cross-env NODE_ENV=test node --import tsx --test --test-force-exit tests/threading.xprovider.test.ts",
     "test:threading-canonical": "cross-env NODE_ENV=test node --import tsx --test --test-force-exit tests/threading.canonical.test.ts",
