@@ -116,6 +116,23 @@ jobs:
           if-no-files-found: warn
 
       - name: Regenerate API types (OpenAPI drift gate)
+        # dump:openapi boots the Fastify app to extract the schema, so it runs
+        # the Zod env validation (fail-fast). The script loads .env (copied from
+        # .env.example, whose placeholders fail the >=32-char secret checks), so
+        # provide CI test values here — a process env var wins over --env-file.
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=test
+          SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=test
+          REDIS_URL: redis://localhost:6379
+          JWT_ACCESS_SECRET: ci-openapi-drift-gate-jwt-access-secret-0001
+          JWT_REFRESH_SECRET: ci-openapi-drift-gate-jwt-refresh-secret-001
+          CUSTOMER_JWT_SECRET: ci-openapi-drift-gate-customer-jwt-secret-01
+          ADMIN_JWT_ACCESS_SECRET: ci-openapi-drift-gate-admin-jwt-access-secret
+          ADMIN_JWT_REFRESH_SECRET: ci-openapi-drift-gate-admin-jwt-refresh-secret
+          COOKIE_SECRET: ci-openapi-drift-gate-cookie-secret-00000001
+          PLATFORM_ENCRYPTION_KEY: ci-openapi-drift-gate-platform-enc-key-001
+          OAUTH_ENCRYPTION_KEY: ci-openapi-drift-gate-oauth-enc-key-00000001
         run: pnpm generate:api-types
 
       - name: Verify no API-types drift

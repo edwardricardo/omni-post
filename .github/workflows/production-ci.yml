@@ -68,6 +68,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          # Full history so `turbo run test --filter='[HEAD^1]'` can resolve
+          # HEAD^1 (= main's tip on a PR merge commit = "changed vs main").
+          fetch-depth: 0
 
       - name: Setup Node.js with pnpm and cache
         uses: ./.github/actions/setup-node-pnpm-cache
