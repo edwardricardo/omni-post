@@ -12,7 +12,9 @@
       "@adapters/external-apis": ["../../adapters/external-apis/src"],
       "@adapters/fallback-strategies": ["../../adapters/fallback-strategies/src"],
       "@adapters/db-prisma": ["../../adapters/db-prisma/src"],
-      "@providers/shared": ["../shared/src"]
+      "@providers/shared": ["../shared/src"],
+      "@core/domain/*": ["../../core/domain/src/*"],
+      "@core/application/*": ["../../core/application/src/*"]
     }
   },
   "include": ["src/**/*"],

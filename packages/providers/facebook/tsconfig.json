@@ -12,7 +12,9 @@
       "@core/threading": ["../../core/threading/src"],
       "@adapters/external-apis": ["../../adapters/external-apis/src"],
       "@adapters/fallback-strategies": ["../../adapters/fallback-strategies/src"],
-      "@adapters/db-prisma": ["../../adapters/db-prisma/src"]
+      "@adapters/db-prisma": ["../../adapters/db-prisma/src"],
+      "@core/domain/*": ["../../core/domain/src/*"],
+      "@core/application/*": ["../../core/application/src/*"]
     }
   },
   "include": [
