@@ -238,6 +238,11 @@ export const env = createEnv({
 
     // ── Feature flags ───────────────────────────────────────────────────
     ENABLE_RATE_LIMITING: boolFromString.default(true),
+    // Headless schema-only boot for OpenAPI dump tooling. When true,
+    // createApp() skips the saga/EventService background block (Redis
+    // pub/sub subscriber, recovery checker) so the dump script can extract
+    // the full route schema without long-lived connections hanging the loop.
+    SCHEMA_ONLY: boolFromString.default(false),
 
     // ── SSE per-account cap (DoS protection) ────────────────────────────
     // Max concurrent SSE connections per account per process. Authenticated
