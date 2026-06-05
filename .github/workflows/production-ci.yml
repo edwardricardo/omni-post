@@ -38,7 +38,10 @@ jobs:
   test-and-build:
     name: Test and Build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 30m: once .env.test is synthesized, apps/api's full suite actually runs
+    # (it previously fail-fasted on env validation), so test + build legitimately
+    # exceed the old 15m budget. Tests pass; this is wall-clock, not a failure.
+    timeout-minutes: 30
     needs: security-audit
     services:
       postgres:
