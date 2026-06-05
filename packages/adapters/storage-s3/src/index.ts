@@ -138,6 +138,12 @@ export function createS3StorageAdapter(config: S3Config): StoragePort & {
             maxDelay: 10000,
             jitterEnabled: true,
             cacheEnabled: false, // Don't cache upload signatures
+            // Minting a presigned POST is a non-idempotent write: a failure has
+            // no meaningful default, so it MUST surface as SERVICE_ERROR rather
+            // than be masked by the breaker's analytics fallback. Fallbacks are
+            // for degradable reads only (Azure Circuit Breaker pattern; Polly /
+            // Resilience4j: don't mask non-idempotent failures).
+            fallbackEnabled: false,
           }
         );
 
@@ -193,6 +199,9 @@ export function createS3StorageAdapter(config: S3Config): StoragePort & {
           maxDelay: 5000,
           jitterEnabled: true,
           cacheEnabled: true, // Cache metadata for 5 minutes
+          // A failed metadata fetch must return NOT_FOUND/SERVICE_ERROR, never a
+          // fabricated analytics fallback value that masks the real outcome.
+          fallbackEnabled: false,
           cacheTtl: 300000,
         });
 
