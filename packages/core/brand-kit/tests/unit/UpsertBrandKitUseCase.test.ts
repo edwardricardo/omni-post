@@ -7,7 +7,6 @@
 
 import { describe, it, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { ok } from "@shared/types";
 import { UpsertBrandKitUseCase } from "../../src/UpsertBrandKitUseCase.js";
 import type { BrandKitData } from "@core/domain/repositories/BrandKitRepository.js";
 

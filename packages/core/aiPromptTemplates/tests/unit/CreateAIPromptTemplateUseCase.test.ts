@@ -8,7 +8,6 @@
 
 import { describe, it, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { ok, err } from "@shared/types";
 import { CreateAIPromptTemplateUseCase } from "../../src/CreateAIPromptTemplateUseCase.js";
 import type { AIPromptTemplateRepository } from "@core/domain/repositories/AIPromptTemplateRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";

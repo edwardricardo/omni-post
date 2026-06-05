@@ -6,7 +6,7 @@
  */
 import { describe, it, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
-import { ok, err } from "@shared/types";
+import { ok } from "@shared/types";
 
 // @observability/logger is not in this package's deps; mock it so the
 // source module can be imported without the pino transport.
@@ -16,7 +16,6 @@ vi.mock("@observability/logger", () => ({
 import { RoleManagementService } from "../../src/RoleManagementService.js";
 import type { RoleManagementRepository } from "@core/domain/repositories/RoleManagementRepository.js";
 import type { RbacCacheInvalidatorPort } from "@core/domain/repositories/RbacCacheInvalidatorPort.js";
-import { Permission } from "@core/domain/auth/Permission.js";
 
 const NOW = new Date("2024-01-01T00:00:00Z");
 

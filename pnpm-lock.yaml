@@ -2144,6 +2144,9 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
+      '@core/embeddings':
+        specifier: workspace:*
+        version: link:../embeddings
       '@ports/core':
         specifier: workspace:*
         version: link:../../ports
@@ -23867,7 +23870,7 @@ snapshots:
       obug: 2.1.1
       std-env: 4.0.0
       tinyrainbow: 3.1.0
-      vitest: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/coverage-v8@4.1.8)(@vitest/ui@4.1.8)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(vite@7.3.2(@types/node@24.5.2)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3))
+      vitest: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/coverage-v8@4.1.8)(@vitest/ui@4.1.8)(jsdom@25.0.1(bufferutil@4.1.0)(utf-8-validate@5.0.10))(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(vite@7.3.2(@types/node@24.5.2)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3))
 
   '@vitest/expect@3.2.4':
     dependencies:
@@ -23939,7 +23942,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.16
       tinyrainbow: 3.1.0
-      vitest: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/coverage-v8@4.1.8)(@vitest/ui@4.1.8)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(vite@7.3.2(@types/node@24.5.2)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3))
+      vitest: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/coverage-v8@4.1.8)(@vitest/ui@4.1.8)(jsdom@25.0.1(bufferutil@4.1.0)(utf-8-validate@5.0.10))(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(vite@7.3.2(@types/node@24.5.2)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3))
 
   '@vitest/utils@3.2.4':
     dependencies:
