@@ -87,6 +87,17 @@ jobs:
       - name: Format checking
         run: pnpm run format:check
 
+      - name: Setup test environment
+        run: |
+          cp .env.example .env
+          # Mirror the ci.yml Test Suite job: apps/api/src/config/env.ts loads
+          # `.env.test` when NODE_ENV=test. The tracked file was removed for
+          # credential hygiene, so CI synthesizes it with deterministic
+          # non-production secrets. DB/Redis match this job's service containers.
+          export DATABASE_URL="postgresql://test_user:test_pass@localhost:5432/test_db"
+          export REDIS_URL="redis://localhost:6379"
+          bash scripts/ci-setup-test-env.sh
+
       - name: Run tests
         env:
           DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/test_db
