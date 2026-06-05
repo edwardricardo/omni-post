@@ -52,19 +52,30 @@ const logger = createLogger("mention-ingest-worker");
 const MAX_SEARCH_PAGES = 5;
 const SEARCH_PAGE_SIZE = 100;
 
-const platformEncryptionKey = process.env.PLATFORM_ENCRYPTION_KEY;
-if (!platformEncryptionKey) {
-  throw new Error("PLATFORM_ENCRYPTION_KEY is required for the mention ingest worker");
+// Built lazily on first use (and eagerly at worker startup) rather than at
+// module import, so importing this module to unit-test its pure helpers does
+// not require PLATFORM_ENCRYPTION_KEY. The fail-fast on a missing key still
+// fires at worker startup (see startMentionIngestWorker) and on first job.
+let cachedCredentialResolver: CredentialResolver | undefined;
+function getCredentialResolver(): CredentialResolver {
+  if (cachedCredentialResolver) {
+    return cachedCredentialResolver;
+  }
+  const platformEncryptionKey = process.env.PLATFORM_ENCRYPTION_KEY;
+  if (!platformEncryptionKey) {
+    throw new Error("PLATFORM_ENCRYPTION_KEY is required for the mention ingest worker");
+  }
+  const repo = createPrismaRepoAdapter({
+    decryptChannelCredentials: (envelope: {
+      credentialsCiphertext: string;
+      credentialsIv: string;
+      credentialsAuthTag: string;
+      credentialsKeyVersion: number;
+    }) => decryptChannelCredentials(envelope, platformEncryptionKey),
+  });
+  cachedCredentialResolver = new CredentialResolver(repo);
+  return cachedCredentialResolver;
 }
-const decryptCredentialsForWorker = (envelope: {
-  credentialsCiphertext: string;
-  credentialsIv: string;
-  credentialsAuthTag: string;
-  credentialsKeyVersion: number;
-}) => decryptChannelCredentials(envelope, platformEncryptionKey);
-
-const repo = createPrismaRepoAdapter({ decryptChannelCredentials: decryptCredentialsForWorker });
-const credentialResolver = new CredentialResolver(repo);
 
 /** Per-job injected dependencies (from the workers composition root). */
 interface MentionJobDeps {
@@ -213,7 +224,7 @@ async function processSearchJob(job: SearchJob, deps: MentionJobDeps): Promise<v
     return;
   }
 
-  const credentialResult = await credentialResolver.resolve(channelId);
+  const credentialResult = await getCredentialResolver().resolve(channelId);
   if (!credentialResult.ok) {
     await handleProviderAuthError(
       deps.authFailureRecorder,
@@ -293,7 +304,7 @@ async function processFetchJob(job: FetchJob, deps: MentionJobDeps): Promise<voi
     return;
   }
 
-  const credentialResult = await credentialResolver.resolve(channelId);
+  const credentialResult = await getCredentialResolver().resolve(channelId);
   if (!credentialResult.ok) {
     await handleProviderAuthError(
       deps.authFailureRecorder,
@@ -368,6 +379,10 @@ export async function startMentionIngestWorker(
   options: StartMentionIngestWorkerOptions
 ): Promise<ShutdownTarget> {
   await verifyDatabaseAuth();
+
+  // Fail fast at startup if PLATFORM_ENCRYPTION_KEY is missing (and warm the
+  // resolver), instead of deferring the failure to the first processed job.
+  getCredentialResolver();
 
   const authFailureRecorder = new ChannelAuthFailureRecorder({ prisma: options.prisma });
   const ingestMention = new IngestMentionUseCase(new PrismaMentionRepository(options.prisma));
