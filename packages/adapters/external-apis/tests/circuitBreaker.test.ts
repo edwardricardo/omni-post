@@ -95,8 +95,8 @@ describe("DEFAULT_EXTERNAL_API_OPTIONS", { concurrent: false }, () => {
     expect(DEFAULT_EXTERNAL_API_OPTIONS.cacheTtl).toBe(300_000);
   });
 
-  it("has fallback enabled by default", () => {
-    expect(DEFAULT_EXTERNAL_API_OPTIONS.fallbackEnabled).toBe(true);
+  it("has fallback DISABLED by default (fail-fast policy, R1-B)", () => {
+    expect(DEFAULT_EXTERNAL_API_OPTIONS.fallbackEnabled).toBe(false);
   });
 
   it("has dead letter enabled by default", () => {
