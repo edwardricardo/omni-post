@@ -146,12 +146,16 @@ export default defineConfig({
     include: ["tests/unit/**/*.test.ts", "tests/eval/**/*.test.ts"],
     exclude: ["**/node_modules/**"],
     pool: "forks",
-    // Cap parallel workers. The default is one per CPU (8 here), and each fork
-    // loads the full module graph — running the whole suite that wide spikes
-    // memory and OOM-collapses the memory-constrained dev box. Two workers keeps
-    // peak memory bounded while retaining some parallelism. (vitest 4 dropped
-    // `poolOptions`; `maxWorkers` is the supported cap.)
-    maxWorkers: 2,
+    // Serialize to a single fork. Each fork loads the full monorepo module
+    // graph and, under v8 coverage, accumulates raw coverage for every file it
+    // runs — so two forks were two full base processes whose combined RSS
+    // intermittently tripped the OS OOM-killer on the CI runner (a fork got
+    // SIGKILLed mid-run: "Worker exited unexpectedly", with every test still
+    // passing). One fork removes a whole base process, keeping peak RSS to one
+    // fork plus the orchestrator: slower (serial) but stable. Fallback if a
+    // single fork still nears the ceiling: shard the run across CI jobs. (vitest
+    // 4 dropped `poolOptions`; `maxWorkers` is the supported knob.)
+    maxWorkers: 1,
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],
