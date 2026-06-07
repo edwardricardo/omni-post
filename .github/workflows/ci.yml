@@ -44,7 +44,10 @@ jobs:
   test:
     name: Test Suite
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 20m: maxWorkers:1 serializes the coverage run (one fork instead of two, to
+    # bound peak RSS and stop the OS OOM-kill of a fork), which roughly doubles
+    # wall-clock for this job. Tests pass; this is wall-clock, not a failure.
+    timeout-minutes: 20
 
     services:
       postgres:
@@ -104,6 +107,11 @@ jobs:
         run: pnpm --filter @infra/prisma db:migrate
 
       - name: Run API tests with coverage
+        env:
+          # Heap-ceiling backstop only — the actual RSS fix is maxWorkers:1 in
+          # apps/api/vitest.config.ts. This bounds V8 heap growth so a borderline
+          # run trends toward a graceful heap error instead of an OS SIGKILL.
+          NODE_OPTIONS: "--max-old-space-size=6144"
         run: pnpm --filter @apps/api test:unit:coverage
 
       - name: Upload coverage report
