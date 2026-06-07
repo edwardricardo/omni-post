@@ -9,6 +9,8 @@ export {
   type ExternalApiOptions,
   type CircuitBreakerStatus,
   DEFAULT_EXTERNAL_API_OPTIONS,
+  ANALYTICS_CB_OPTIONS,
+  METADATA_CB_OPTIONS,
 } from "./circuitBreaker.js";
 
 // Global circuit breaker instance

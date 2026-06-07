@@ -68,11 +68,37 @@ export const DEFAULT_EXTERNAL_API_OPTIONS: ExternalApiOptions = {
   backoffMultiplier: 2,
   jitterEnabled: true,
   cacheTtl: 300000, // 5 minutes
-  fallbackEnabled: true,
-  fallbackConfig: CommonFallbackStrategies.ANALYTICS_FALLBACK,
+  // Fail-fast by default (R1-B): non-idempotent writes MUST propagate errors,
+  // never resolve with a synthetic cached/static value. Genuinely-degradable
+  // reads opt in explicitly via ANALYTICS_CB_OPTIONS or METADATA_CB_OPTIONS.
+  fallbackEnabled: false,
   deadLetterEnabled: true,
   deadLetterPriority: "normal",
 };
+
+/**
+ * Opt-in preset for analytics / insights / trending reads.
+ * On provider failure, returns the most-recent Redis-cached response (30-min TTL).
+ * Rejects if the cache is empty (R3-B: no invented defaults).
+ * Call-site: `circuitBreaker.call(svc, op, fn, args, ANALYTICS_CB_OPTIONS)`.
+ */
+export const ANALYTICS_CB_OPTIONS = {
+  fallbackEnabled: true,
+  fallbackConfig: CommonFallbackStrategies.ANALYTICS_FALLBACK,
+  cacheTtl: 1_800_000, // 30 minutes
+} as const;
+
+/**
+ * Opt-in preset for pure metadata / list reads.
+ * On provider failure, returns the most-recent Redis-cached response (1-hr TTL).
+ * Rejects if the cache is empty.
+ * Call-site: `circuitBreaker.call(svc, op, fn, args, METADATA_CB_OPTIONS)`.
+ */
+export const METADATA_CB_OPTIONS = {
+  fallbackEnabled: true,
+  fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+  cacheTtl: 3_600_000, // 1 hour
+} as const;
 
 export interface ApiCallMetrics {
   // Circuit breaker metrics
