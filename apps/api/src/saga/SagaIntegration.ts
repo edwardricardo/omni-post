@@ -61,8 +61,11 @@ const SAGA_EVENTS_CHANNEL = "saga:events";
 interface SagaIntegrationConfig {
   fastify: FastifyInstance;
   prisma: PrismaClient;
-  eventService: EventService;
-  cqrsBus: CQRSBusImpl;
+  /** Required for full operation; omitted when schemaOnly=true (routes register
+   *  but no saga steps can execute). */
+  eventService?: EventService;
+  /** Required for full operation; omitted when schemaOnly=true. */
+  cqrsBus?: CQRSBusImpl;
   redis: Redis;
   queue: QueuePort;
   scheduler: BackgroundTaskScheduler;
@@ -78,6 +81,11 @@ interface SagaIntegrationConfig {
    * execution through this store. Omit in tests that do not exercise the
    * concurrency check. */
   lockStore?: SemanticLockPort;
+  /** When true: only register API routes (for OpenAPI schema generation) without
+   *  starting background services (EventService, Redis pub/sub, BullMQ). This
+   *  keeps all saga paths present in the generated OpenAPI schema while avoiding
+   *  long-lived connections that prevent process exit during schema dumps. */
+  schemaOnly?: boolean;
 }
 
 /**
@@ -174,10 +182,18 @@ export class SagaIntegration {
   private subscriber: Redis | null = null;
 
   constructor(private config: SagaIntegrationConfig) {
+    // SagaManagerImpl is constructed unconditionally so route handlers can
+    // reference it at registration time. Under schemaOnly=true the manager
+    // is never initialized (initialize() skips sagaManager.initialize() +
+    // service startup), so no DB/Redis connections are opened. Route handler
+    // closures that call sagaManager methods are only invoked at request-time
+    // (never during route registration), so SCHEMA_ONLY dumps work correctly.
     this.sagaManager = new SagaManagerImpl({
       prisma: config.prisma,
       redis: config.redis,
-      eventService: config.eventService,
+      // eventService is omitted in schemaOnly mode; SagaManagerImpl accepts
+      // it as optional for the same reason — no steps execute without it.
+      ...(config.eventService && { eventService: config.eventService }),
       scheduler: config.scheduler,
       enableMetrics: true,
       defaultTimeout: 30 * 60 * 1000, // 30 minutes
@@ -187,20 +203,34 @@ export class SagaIntegration {
   }
 
   /**
-   * Initialize saga integration:
-   * 1. Initialize saga manager (loads active sagas, starts timeout checker)
-   * 2. Register saga definitions (post-publishing workflow)
-   * 3. Register API routes for saga management
-   * 4. Set up Redis pub/sub event handling for worker notifications
+   * Initialize saga integration.
+   *
+   * When `schemaOnly=true` (SCHEMA_ONLY OpenAPI dump mode):
+   *   - Only registers API routes so all saga paths appear in the OpenAPI schema.
+   *   - Skips sagaManager.initialize(), saga definitions, and Redis pub/sub setup
+   *     so no long-lived connections are opened and `process.exit(0)` can fire.
+   *
+   * When `schemaOnly=false` (normal operation):
+   *   1. Initialize saga manager (loads active sagas, starts timeout checker)
+   *   2. Register saga definitions (post-publishing workflow)
+   *   3. Register API routes for saga management
+   *   4. Set up Redis pub/sub event handling for worker notifications
    */
   async initialize(): Promise<void> {
+    // Routes always register — required for a complete OpenAPI schema regardless
+    // of SCHEMA_ONLY mode.
+    await this.registerRoutes();
+
+    if (this.config.schemaOnly) {
+      logger.info("Saga Integration: routes registered (schema-only mode, services skipped)");
+      return;
+    }
+
+    // Full startup path (normal operation only).
     await this.sagaManager.initialize();
 
     // Register saga definitions
     this.registerSagaDefinitions();
-
-    // Register API routes
-    await this.registerRoutes();
 
     // Set up event handling via Redis pub/sub
     await this.setupEventHandling();
@@ -220,9 +250,10 @@ export class SagaIntegration {
 
     // Post Publishing Saga
     const postPublishingSaga = createPostPublishingSagaDefinition(
-      // Command executor
+      // Command executor — cqrsBus is guaranteed present in full (non-schemaOnly)
+      // operation; registerSagaDefinitions() is only called when schemaOnly=false.
       async (command: Command) => {
-        return await this.config.cqrsBus.executeCommand(command);
+        return await this.config.cqrsBus!.executeCommand(command);
       },
       // Job queue function - enqueues real BullMQ jobs
       async (job: Record<string, unknown>) => {

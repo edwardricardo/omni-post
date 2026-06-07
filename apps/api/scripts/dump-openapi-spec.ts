@@ -34,6 +34,7 @@ async function main() {
   const paths = Object.keys((spec as Record<string, unknown>).paths ?? {});
 
   console.log(`📋 OpenAPI spec dumped (${paths.length} paths) → ${SPEC_TMP_PATH}`);
+  process.exit(0);
 }
 
 main().catch((err) => {

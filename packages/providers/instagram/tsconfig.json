@@ -11,7 +11,9 @@
       "@core/threading": ["../../core/threading/src"],
       "@adapters/external-apis": ["../../adapters/external-apis/src"],
       "@adapters/fallback-strategies": ["../../adapters/fallback-strategies/src"],
-      "@providers/shared": ["../shared/src"]
+      "@providers/shared": ["../shared/src"],
+      "@core/domain/*": ["../../core/domain/src/*"],
+      "@core/application/*": ["../../core/application/src/*"]
     }
   },
   "include": ["src/**/*"],

@@ -44,7 +44,7 @@ describe("generateUploadSignature — with presigned post mock", () => {
   let adapter: ReturnType<typeof createS3StorageAdapter>;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     s3Mock.reset();
     adapter = createS3StorageAdapter(TEST_CONFIG);
   });
@@ -112,7 +112,11 @@ describe("generateUploadSignature — with presigned post mock", () => {
   });
 
   it("returns SERVICE_ERROR when createPresignedPost throws", async () => {
-    mockedCreatePresignedPost.mockRejectedValueOnce(new Error("Access Denied"));
+    // Persistent rejection (not `…Once`): the adapter wraps createPresignedPost
+    // in a circuit breaker with retries, so every attempt must reject for the
+    // operation to deterministically surface SERVICE_ERROR. A single-shot
+    // rejection let retries hit the exhausted mock and flake `result.ok` true.
+    mockedCreatePresignedPost.mockRejectedValue(new Error("Access Denied"));
 
     const result = await adapter.generateUploadSignature("file.jpg", "image/jpeg");
 
@@ -161,7 +165,7 @@ describe("getMediaMetadata — URL parsing logic", () => {
   let adapter: ReturnType<typeof createS3StorageAdapter>;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     s3Mock.reset();
     adapter = createS3StorageAdapter(TEST_CONFIG);
   });

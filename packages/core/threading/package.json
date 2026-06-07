@@ -9,11 +9,21 @@
     ".": "./src/index.ts",
     "./*": "./src/*"
   },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "clean": "tsc --build --clean",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:unit:coverage": "vitest run --coverage"
+  },
   "dependencies": {
     "@shared/types": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "24.5.2",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "4.0.18"
   }
 }

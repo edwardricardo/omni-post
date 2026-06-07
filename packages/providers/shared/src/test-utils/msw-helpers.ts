@@ -29,7 +29,7 @@
  *
  * @layer infrastructure
  */
-import { setupServer, type SetupServerApi } from "msw/node";
+import { setupServer, type SetupServer } from "msw/node";
 import { http, HttpResponse, type RequestHandler } from "msw";
 
 /**
@@ -38,10 +38,10 @@ import { http, HttpResponse, type RequestHandler } from "msw";
  * directamente cuando llegan requests.
  *
  * @param handlers - Lista de handlers `http.get/post/...` para registrar.
- * @returns El SetupServerApi listo para `.listen()` / `.resetHandlers()` /
+ * @returns El SetupServer listo para `.listen()` / `.resetHandlers()` /
  *   `.close()` en hooks de vitest.
  */
-export function createProviderMockServer(handlers: RequestHandler[]): SetupServerApi {
+export function createProviderMockServer(handlers: RequestHandler[]): SetupServer {
   return setupServer(...handlers);
 }
 

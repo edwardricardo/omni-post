@@ -85,6 +85,19 @@ async function main() {
   await runSubprocess("openapi-ts", ["exec", "openapi-ts"]);
   applyCanonHeader();
 
+  // Homologate formatting with the pre-commit hook: lint-staged runs
+  // `eslint --fix` then `prettier --write` on staged *.ts. Applying the SAME
+  // tools in the SAME order here writes the generated files in their final
+  // committed form, so committing them is a no-op AND a fresh regeneration is
+  // byte-identical to the committed copy — i.e. the CI drift gate is idempotent.
+  await runSubprocess("eslint", ["exec", "eslint", "--fix", "packages/shared/src/api-generated"]);
+  await runSubprocess("prettier", [
+    "exec",
+    "prettier",
+    "--write",
+    "packages/shared/src/api-generated",
+  ]);
+
   console.log("✓ Types generated at packages/shared/src/api-generated/");
 }
 

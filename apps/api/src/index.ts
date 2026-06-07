@@ -119,6 +119,9 @@ import { TOKENS } from "./infrastructure/container/types.js";
 import type { OutboxRelay } from "./infrastructure/outbox/OutboxRelay.js";
 import type { OutboxCleaner } from "./infrastructure/outbox/OutboxCleaner.js";
 import type { EventDispatcher } from "@core/domain/events/DomainEvent.js";
+import type { EventService } from "./events/EventService.js";
+import type { CQRSBusImpl } from "./cqrs/CQRSBus.js";
+import type { SemanticLockPort } from "@ports/core";
 import {
   IntegrationEventDeliveryHandler,
   HANDLED_EVENT_TYPES as INTEGRATION_HANDLED_EVENT_TYPES,
@@ -611,65 +614,80 @@ async function createApp(): Promise<FastifyInstance> {
   // Register customer authentication routes
   await typedApp.register(customerAuthRoutes);
 
-  // Initialize Saga Integration (orchestrates multi-step publishing workflows
-  // with real BullMQ job enqueuing and Redis pub/sub worker notifications)
+  // Saga Integration: route registration runs unconditionally so all
+  // /sagas/* paths are present in the OpenAPI schema (including SCHEMA_ONLY
+  // dumps). Heavy services (EventService, Redis pub/sub, BullMQ) are only
+  // started when SCHEMA_ONLY is false — they hold long-lived connections
+  // that prevent process.exit(0) in the dump script.
   const { SagaIntegration } = await import("./saga/SagaIntegration.js");
-  const { EventService } = await import("./events/EventService.js");
-  const { CQRSBusImpl } = await import("./cqrs/CQRSBus.js");
 
-  const sagaEventService = new EventService({
-    prisma,
-    redis,
-    scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
-  });
-  // EventService.publishEvents() throws "not initialized" until initialize() is
-  // called — without this, every saga step that publishes events (Create, Update)
-  // fails downstream and the saga either fails or stalls.
-  const sagaEventServiceInit = await sagaEventService.initialize();
-  if (!sagaEventServiceInit.ok) {
-    logger.error({ err: sagaEventServiceInit.error }, "Failed to initialize saga EventService");
+  // Prepare heavy-service dependencies (omitted in SCHEMA_ONLY mode).
+  let sagaEventService: EventService | undefined;
+  let sagaCQRSBus: CQRSBusImpl | undefined;
+  let sagaLockStore: SemanticLockPort | undefined;
+
+  if (!env.SCHEMA_ONLY) {
+    const { EventService } = await import("./events/EventService.js");
+    const { CQRSBusImpl } = await import("./cqrs/CQRSBus.js");
+
+    sagaEventService = new EventService({
+      prisma,
+      redis,
+      scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
+    });
+    // EventService.publishEvents() throws "not initialized" until initialize() is
+    // called — without this, every saga step that publishes events (Create, Update)
+    // fails downstream and the saga either fails or stalls.
+    const sagaEventServiceInit = await sagaEventService.initialize();
+    if (!sagaEventServiceInit.ok) {
+      logger.error({ err: sagaEventServiceInit.error }, "Failed to initialize saga EventService");
+    }
+
+    sagaCQRSBus = new CQRSBusImpl({
+      eventService: sagaEventService,
+      redis,
+      enableMetrics: true,
+      enableQueryCache: false,
+    });
+
+    // Register Post command handlers on the saga's CQRSBus. The saga emits
+    // commands like `post.create` / `post.update` / `post.delete` via
+    // `cqrsBus.executeCommand(...)`; without this wiring the bus throws
+    // "No handler registered for command type: post.create" and every saga
+    // step 1 (Create) fails silently into the FAILED terminal state.
+    const { createPostCommandHandlers } = await import("./cqrs/handlers/PostCommandHandlers.js");
+    createPostCommandHandlers({
+      createPostUseCase: container.resolve(TOKENS.CreatePostUseCase),
+      updatePostUseCase: container.resolve(TOKENS.UpdatePostUseCase),
+      deletePostUseCase: container.resolve(TOKENS.DeletePostUseCase),
+      postRepository: container.resolve(TOKENS.PostRepository),
+      channelRepository: container.resolve(TOKENS.ChannelRepository),
+      redis,
+    }).forEach((handler) => sagaCQRSBus!.registerCommandHandler(handler));
+
+    // Semantic lock backend (Azure saga §15-20). Reuses the saga's redis
+    // connection — lock ops are short, non-blocking SET NX / Lua release.
+    const { RedisSemanticLockStore } =
+      await import("./infrastructure/saga/RedisSemanticLockStore.js");
+    sagaLockStore = new RedisSemanticLockStore(redis);
   }
 
-  const sagaCQRSBus = new CQRSBusImpl({
-    eventService: sagaEventService,
-    redis,
-    enableMetrics: true,
-    enableQueryCache: false,
-  });
-
-  // Register Post command handlers on the saga's CQRSBus. The saga emits
-  // commands like `post.create` / `post.update` / `post.delete` via
-  // `cqrsBus.executeCommand(...)`; without this wiring the bus throws
-  // "No handler registered for command type: post.create" and every saga
-  // step 1 (Create) fails silently into the FAILED terminal state.
-  const { createPostCommandHandlers } = await import("./cqrs/handlers/PostCommandHandlers.js");
-  createPostCommandHandlers({
-    createPostUseCase: container.resolve(TOKENS.CreatePostUseCase),
-    updatePostUseCase: container.resolve(TOKENS.UpdatePostUseCase),
-    deletePostUseCase: container.resolve(TOKENS.DeletePostUseCase),
-    postRepository: container.resolve(TOKENS.PostRepository),
-    channelRepository: container.resolve(TOKENS.ChannelRepository),
-    redis,
-  }).forEach((handler) => sagaCQRSBus.registerCommandHandler(handler));
-
-  // Semantic lock backend (Azure saga §15-20). Reuses the saga's redis
-  // connection — lock ops are short, non-blocking SET NX / Lua release.
-  const { RedisSemanticLockStore } =
-    await import("./infrastructure/saga/RedisSemanticLockStore.js");
-  const sagaLockStore = new RedisSemanticLockStore(redis);
-
+  // Construct and initialize SagaIntegration. In schemaOnly mode initialize()
+  // registers routes only (no manager init, no pub/sub). In full mode all
+  // services start and routes register as before.
   const sagaIntegration = new SagaIntegration({
     fastify: typedApp,
     prisma,
-    eventService: sagaEventService,
-    cqrsBus: sagaCQRSBus,
+    ...(sagaEventService && { eventService: sagaEventService }),
+    ...(sagaCQRSBus && { cqrsBus: sagaCQRSBus }),
     redis,
     queue: queueAdapter,
     scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
     projectRepository: container.resolve(TOKENS.ProjectRepository),
     channelRepository: container.resolve(TOKENS.ChannelRepository),
     postRepository: container.resolve(TOKENS.PostRepository),
-    lockStore: sagaLockStore,
+    ...(sagaLockStore && { lockStore: sagaLockStore }),
+    schemaOnly: env.SCHEMA_ONLY,
   });
   await sagaIntegration.initialize();
   typedApp.decorate("sagaIntegration", sagaIntegration);

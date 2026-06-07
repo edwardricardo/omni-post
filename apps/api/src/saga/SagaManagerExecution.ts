@@ -541,7 +541,9 @@ export class SagaExecutionEngine {
         });
 
         for (const event of events) {
-          await this.config.eventService.appendEventInTx(tx, event);
+          // eventService is guaranteed present during saga execution (only
+          // reachable after initialize(), which requires a full config).
+          await this.config.eventService!.appendEventInTx(tx, event);
         }
       });
     } catch (err: unknown) {
@@ -562,7 +564,9 @@ export class SagaExecutionEngine {
       });
 
     for (const event of events) {
-      this.config.eventService.broadcastEvent(event).catch((broadcastErr: unknown) => {
+      // eventService is guaranteed present during saga execution (only
+      // reachable after initialize(), which requires a full config).
+      this.config.eventService!.broadcastEvent(event).catch((broadcastErr: unknown) => {
         logger.warn(
           { err: broadcastErr, eventType: event.type, sagaId: instance.id },
           "Failed to broadcast saga event (non-fatal)"

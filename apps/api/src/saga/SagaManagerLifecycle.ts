@@ -48,7 +48,9 @@ export class SagaManagerLifecycle implements SagaManager {
   async initialize(): Promise<void> {
     // Ensure the event service is ready before saga recovery.
     // This call is idempotent (guards on an internal isInitialized flag).
-    await this.config.eventService.initialize();
+    // eventService is guaranteed present when initialize() is called (only
+    // invoked during full startup, never in schema-only mode).
+    await this.config.eventService!.initialize();
 
     await this.loadActiveSagas();
 

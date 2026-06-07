@@ -116,7 +116,19 @@ jobs:
           if-no-files-found: warn
 
       - name: Regenerate API types (OpenAPI drift gate)
-        run: pnpm generate:api-types
+        # dump:openapi boots the FULL Fastify app (Zod env validation + DI
+        # construction, incl. base64-256-bit encryption keys), so it needs a
+        # complete valid env. Seed .env from the committed test template (which
+        # holds valid test secrets/keys) and override only the infra URLs at the
+        # job's postgres/redis services (a process env var wins over --env-file).
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=test
+          SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=test
+          REDIS_URL: redis://localhost:6379
+        run: |
+          cp .env.test.example .env
+          pnpm generate:api-types
 
       - name: Verify no API-types drift
         run: |
@@ -227,7 +239,7 @@ jobs:
         run: pnpm --filter @packages/api-common test
 
       - name: Run Core engine tests
-        run: node --import tsx --test --test-force-exit packages/core/tests/**/*.test.ts
+        run: pnpm --filter @core/engine test
 
   # ── Tier 0: Frontend unit tests (vitest + jsdom, no DB) ──
   test-frontend:

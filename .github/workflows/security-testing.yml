@@ -77,7 +77,7 @@ jobs:
     timeout-minutes: 25
     services:
       postgres:
-        image: postgres:16-alpine
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_DB: omnipost_test
           POSTGRES_USER: postgres
@@ -165,7 +165,7 @@ jobs:
     timeout-minutes: 45
     services:
       postgres:
-        image: postgres:16-alpine
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_DB: omnipost_dast
           POSTGRES_USER: postgres

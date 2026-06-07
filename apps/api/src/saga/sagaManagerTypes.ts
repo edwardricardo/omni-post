@@ -19,7 +19,12 @@ import type { EventService } from "../events/EventService";
 export interface SagaManagerConfig {
   prisma: PrismaClient;
   redis: Redis;
-  eventService: EventService;
+  /** Required for full saga execution. Omit only when the manager will never
+   *  be initialized (e.g. schemaOnly mode where routes register but no steps
+   *  execute). All runtime paths that call appendEventInTx / broadcastEvent
+   *  are guarded behind sagaManager.initialize(), which is skipped in
+   *  schema-only mode. */
+  eventService?: EventService;
   scheduler: BackgroundTaskScheduler;
   enableMetrics?: boolean;
   defaultTimeout?: number;

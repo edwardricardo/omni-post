@@ -7,7 +7,7 @@
     "typecheck": "tsc --noEmit",
     "dev": "node --env-file=../../.env --import tsx src/index.ts",
     "dev:test": "cross-env NODE_ENV=test tsx src/index.ts",
-    "dump:openapi": "node --env-file=../../.env --import tsx scripts/dump-openapi-spec.ts",
+    "dump:openapi": "SCHEMA_ONLY=true node --env-file=../../.env --import tsx scripts/dump-openapi-spec.ts",
     "test": "vitest run",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest watch",
@@ -20,7 +20,7 @@
     "test:media": "cross-env NODE_ENV=test node --import tsx --test --test-force-exit tests/media.flow.test.ts",
     "test:schedule": "cross-env NODE_ENV=test node --import tsx --test --test-force-exit tests/schedule.flow.test.ts",
     "test:analytics": "cross-env NODE_ENV=test node --import tsx --test --test-force-exit tests/analytics.flow.test.ts",
-    "test:ratelimit": "cross-env NODE_ENV=test node --import tsx --test --test-force-exit tests/rateLimit.smoke.test.ts",
+    "test:ratelimit": "vitest run tests/unit/security/httpRateLimitPreHandler.test.ts tests/unit/authRateLimit.test.ts",
     "test:threading-planner": "cross-env NODE_ENV=test node --import tsx --test --test-force-exit tests/threading.planner.test.ts",
     "test:threading-xprovider": "cross-env NODE_ENV=test node --import tsx --test --test-force-exit tests/threading.xprovider.test.ts",
     "test:threading-canonical": "cross-env NODE_ENV=test node --import tsx --test --test-force-exit tests/threading.canonical.test.ts",
@@ -88,6 +88,7 @@
     "@core/crm": "workspace:*",
     "@core/custom-reports": "workspace:*",
     "@core/customer-auth": "workspace:*",
+    "@core/domain": "workspace:*",
     "@core/embeddings": "workspace:*",
     "@core/engine": "workspace:*",
     "@core/external-notifications": "workspace:*",
@@ -172,7 +173,7 @@
     "stripe": "21.0.1",
     "uuid": "13.0.0",
     "validator": "13.15.15",
-    "ws": "8.18.3",
+    "ws": "8.21.0",
     "xml2js": "0.6.2",
     "zod": "4.4.3",
     "zod-to-json-schema": "3.25.2"
@@ -186,10 +187,10 @@
     "@types/validator": "13.15.3",
     "@types/ws": "8.18.1",
     "@types/xml2js": "0.4.14",
-    "@vitest/coverage-v8": "4.0.18",
+    "@vitest/coverage-v8": "4.1.8",
     "cross-env": "10.0.0",
     "msw": "2.14.3",
     "tsx": "4.21.0",
-    "vitest": "4.0.18"
+    "vitest": "4.1.8"
   }
 }

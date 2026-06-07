@@ -4083,6 +4083,50 @@ export type GetListeningMentionsResponses = {
   200: unknown;
 };
 
+export type PostBulkSchedulingParseData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/bulk-scheduling/parse";
+};
+
+export type PostBulkSchedulingParseResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown;
+};
+
+export type PostBulkSchedulingConfirmData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/bulk-scheduling/confirm";
+};
+
+export type PostBulkSchedulingConfirmResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown;
+};
+
+export type GetBulkSchedulingBatchesByBatchIdData = {
+  body?: never;
+  path: {
+    batchId: string;
+  };
+  query?: never;
+  url: "/bulk-scheduling/batches/{batchId}";
+};
+
+export type GetBulkSchedulingBatchesByBatchIdResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown;
+};
+
 export type PostBulkSchedulingImportsData = {
   body?: never;
   path?: never;
@@ -4091,22 +4135,6 @@ export type PostBulkSchedulingImportsData = {
 };
 
 export type PostBulkSchedulingImportsResponses = {
-  /**
-   * Default Response
-   */
-  200: unknown;
-};
-
-export type GetBulkSchedulingImportsByBatchIdData = {
-  body?: never;
-  path: {
-    batchId: string;
-  };
-  query?: never;
-  url: "/bulk-scheduling/imports/{batchId}";
-};
-
-export type GetBulkSchedulingImportsByBatchIdResponses = {
   /**
    * Default Response
    */
