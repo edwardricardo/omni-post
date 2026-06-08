@@ -6,8 +6,7 @@
  * @layer infrastructure
  */
 
-import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
-import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
+import { createExternalApiCircuitBreaker, METADATA_CB_OPTIONS } from "@adapters/external-apis";
 import client from "prom-client";
 // ============================================================
 // Types
@@ -195,8 +194,6 @@ export class TelegramApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       cacheTtl: 300000,
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
     });
   }
 
@@ -223,9 +220,7 @@ export class TelegramApiClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 300000,
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+      ...METADATA_CB_OPTIONS,
     });
   }
 
@@ -254,8 +249,6 @@ export class TelegramApiClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: false,
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.SOCIAL_POST_FALLBACK,
     });
   }
 
@@ -288,8 +281,6 @@ export class TelegramApiClient {
       maxDelay: 15000,
       jitterEnabled: true,
       cacheEnabled: false,
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.SOCIAL_POST_FALLBACK,
     });
   }
 
@@ -415,8 +406,6 @@ export class TelegramApiClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: false,
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.SOCIAL_POST_FALLBACK,
     });
   }
 
@@ -449,8 +438,6 @@ export class TelegramApiClient {
       maxDelay: 15000,
       jitterEnabled: true,
       cacheEnabled: false,
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.SOCIAL_POST_FALLBACK,
     });
   }
 
@@ -486,8 +473,6 @@ export class TelegramApiClient {
       maxDelay: 15000,
       jitterEnabled: true,
       cacheEnabled: false,
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.SOCIAL_POST_FALLBACK,
     });
   }
 
@@ -618,9 +603,7 @@ export class TelegramApiClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 300000,
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+      ...METADATA_CB_OPTIONS,
     });
   }
 

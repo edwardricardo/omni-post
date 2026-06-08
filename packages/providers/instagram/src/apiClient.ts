@@ -4,8 +4,12 @@
  *              creation, publishing, insights, and comment moderation with circuit breaker protection.
  * @layer infrastructure
  */
-import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
-import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
+import {
+  createExternalApiCircuitBreaker,
+  ANALYTICS_CB_OPTIONS,
+  METADATA_CB_OPTIONS,
+  type ExternalApiOptions,
+} from "@adapters/external-apis";
 import { isOk as _isOk, isErr, unwrap, AppError, type Result as _Result } from "@shared/types";
 import client from "prom-client";
 import { createLogger } from "@observability/logger";
@@ -146,22 +150,26 @@ export class InstagramApiClient {
         }
       : undefined;
 
-    // Select appropriate fallback strategy based on operation type
-    let fallbackConfig;
+    // Select opt-in fallback preset by operation classification.
+    // Writes (publish-media, create-container, create-*-container) inherit the
+    // fail-fast default — no fallback opts. validate-token is auth-gating so
+    // also fail-fast (Decision b). Reads get ANALYTICS or METADATA presets.
+    let fallbackOpts: Partial<ExternalApiOptions> = {};
     switch (operation) {
       case "get-insights":
       case "get-user-info":
-        fallbackConfig = CommonFallbackStrategies.ANALYTICS_FALLBACK;
+        fallbackOpts = ANALYTICS_CB_OPTIONS;
         break;
       case "publish-media":
       case "create-container":
-        fallbackConfig = CommonFallbackStrategies.SOCIAL_POST_FALLBACK;
-        break;
+      case "create-stories-container":
+      case "create-reels-container":
       case "validate-token":
-        fallbackConfig = CommonFallbackStrategies.METADATA_FALLBACK;
+        // Fail-fast: no fallback opts (default fallbackEnabled:false applies)
         break;
       default:
-        fallbackConfig = CommonFallbackStrategies.METADATA_FALLBACK;
+        // Pure metadata / list reads
+        fallbackOpts = METADATA_CB_OPTIONS;
     }
 
     return circuitBreaker.call("instagram-api", operation, apiCall, [], {
@@ -174,8 +182,7 @@ export class InstagramApiClient {
       jitterEnabled: true,
       cacheEnabled: operation === "validate-token", // Cache token validation
       cacheTtl: 300000, // 5 minutes cache for token validation
-      fallbackEnabled: true,
-      fallbackConfig,
+      ...fallbackOpts,
       ...(fallback ? { fallback } : {}),
     });
   }

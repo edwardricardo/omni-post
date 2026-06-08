@@ -223,7 +223,6 @@ describe("TikTokApiClient", () => {
           jitterEnabled: true,
           cacheEnabled: true,
           cacheTtl: 300000,
-          fallbackEnabled: true,
         })
       );
     });
@@ -566,7 +565,7 @@ describe("TikTokApiClient", () => {
           errorThresholdPercentage: 60,
           maxRetries: 3,
           cacheEnabled: true,
-          cacheTtl: 300000,
+          cacheTtl: 1_800_000,
           fallbackEnabled: true,
           fallback: expect.any(Function),
         })

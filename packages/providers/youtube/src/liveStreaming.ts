@@ -6,8 +6,11 @@
  */
 import { google, youtube_v3 } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
-import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
-import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
+import {
+  createExternalApiCircuitBreaker,
+  ANALYTICS_CB_OPTIONS,
+  METADATA_CB_OPTIONS,
+} from "@adapters/external-apis";
 import { ProviderError } from "@providers/shared";
 import client from "prom-client";
 
@@ -388,10 +391,7 @@ export class YouTubeLiveStreamingService {
       baseDelay: 1000,
       maxDelay: 10000,
       jitterEnabled: true,
-      cacheEnabled: true,
-      cacheTtl: 30000, // 30 seconds cache for live data
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+      cacheEnabled: false,
     });
   }
 
@@ -466,9 +466,7 @@ export class YouTubeLiveStreamingService {
       baseDelay: 1000,
       maxDelay: 10000,
       jitterEnabled: true,
-      cacheEnabled: false, // Real-time chat shouldn't be cached
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+      cacheEnabled: false,
     });
   }
 
@@ -580,9 +578,7 @@ export class YouTubeLiveStreamingService {
       maxDelay: 20000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 300000, // 5 minutes cache
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.ANALYTICS_FALLBACK,
+      ...ANALYTICS_CB_OPTIONS,
     });
   }
 
@@ -641,9 +637,7 @@ export class YouTubeLiveStreamingService {
       maxDelay: 20000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 60000, // 1 minute cache
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+      ...METADATA_CB_OPTIONS,
     });
   }
 

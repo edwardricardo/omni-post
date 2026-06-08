@@ -8,7 +8,7 @@
 
 import { google, youtube_v3 } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
-import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
+import { METADATA_CB_OPTIONS } from "@adapters/external-apis";
 import { ProviderError } from "@providers/shared";
 import {
   circuitBreaker,
@@ -231,9 +231,7 @@ export class YouTubePlaylistManager {
       maxDelay: 20000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 300000, // 5 minutes cache
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+      ...METADATA_CB_OPTIONS,
     });
   }
 
@@ -270,9 +268,7 @@ export class YouTubePlaylistManager {
       maxDelay: 20000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 300000, // 5 minutes cache
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+      ...METADATA_CB_OPTIONS,
     });
   }
 
@@ -438,9 +434,7 @@ export class YouTubePlaylistManager {
       maxDelay: 20000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 300000, // 5 minutes cache
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+      ...METADATA_CB_OPTIONS,
     });
   }
 
