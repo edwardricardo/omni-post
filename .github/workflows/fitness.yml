@@ -493,12 +493,38 @@ jobs:
             exit 1
           fi
 
+      - name: "#25 Circuit-breaker fail-fast for writes (two-part hard-zero)"
+        if: always()
+        run: |
+          set -uo pipefail
+          # Threat: a write-path fallback resolves provider failures with a
+          # synthetic receipt ({id:"queued",status:"pending"}) instead of
+          # surfacing an error — silently losing the post. Locks the two
+          # CB-fallback invariants: the breaker default stays fail-fast, and no
+          # write-verb operation opts in to a fallback. Mirrors CLAUDE.md #25.
+          A=$(grep -nA6 "DEFAULT_EXTERNAL_API_OPTIONS: ExternalApiOptions = {" \
+                packages/adapters/external-apis/src/circuitBreaker.ts | \
+                grep -E "fallbackEnabled:\s*true" | wc -l)
+          B=$(grep -rn "fallbackEnabled: true" \
+                packages/providers packages/adapters apps/api/src --include="*.ts" | \
+                grep -vE "/tests/|\.test\." | \
+                grep -E "(post-tweet|post-to-page|publish-media|create-container|create-stories|create-reels|send-message|send-photo|send-video|send-poll|send-document|send-audio|create-story|create-pin|create-post|upload-video|upload-short|upload-media|schedule|process-video|process-segment|optimize-reel|create-thumbnail|create-stream|start-stream|stop-stream)" | wc -l)
+          if [ "$A" -ne 0 ]; then
+            echo "::error title=Fitness #25 violation::DEFAULT_EXTERNAL_API_OPTIONS has fallbackEnabled:true (count=$A) — the breaker default must stay fail-fast"
+          fi
+          if [ "$B" -ne 0 ]; then
+            echo "::error title=Fitness #25 violation::$B write-verb call site(s) opt into a fallback — surfaces the synthetic-receipt anti-pattern"
+          fi
+          if [ "$A" -ne 0 ] || [ "$B" -ne 0 ]; then
+            exit 1
+          fi
+
       - name: Fitness summary
         if: always()
         run: |
           echo "## Fitness Functions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "24 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
+          echo "25 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
           echo "Hard-zero threshold: any new occurrence fails this workflow with an \`::error\` annotation." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "See individual step results above for any violations." >> $GITHUB_STEP_SUMMARY
