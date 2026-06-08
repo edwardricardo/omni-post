@@ -17,7 +17,6 @@
   "dependencies": {
     "@adapters/db-prisma": "workspace:*",
     "@adapters/external-apis": "workspace:*",
-    "@adapters/fallback-strategies": "workspace:*",
     "@adapters/queue-bullmq": "workspace:*",
     "@adapters/storage-s3": "workspace:*",
     "@observability/logger": "workspace:*",

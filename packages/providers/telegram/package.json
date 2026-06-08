@@ -11,7 +11,6 @@
   },
   "dependencies": {
     "@adapters/external-apis": "workspace:*",
-    "@adapters/fallback-strategies": "workspace:*",
     "@ports/core": "workspace:*",
     "@providers/shared": "workspace:*",
     "@shared/types": "workspace:*",

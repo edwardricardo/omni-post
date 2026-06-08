@@ -64,7 +64,6 @@
     "@adapters/db-prisma": "workspace:*",
     "@adapters/dead-letter-queue": "workspace:*",
     "@adapters/external-apis": "workspace:*",
-    "@adapters/fallback-strategies": "workspace:*",
     "@adapters/queue-bullmq": "workspace:*",
     "@adapters/storage-s3": "workspace:*",
     "@anthropic-ai/sdk": "0.91.1",
