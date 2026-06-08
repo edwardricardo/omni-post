@@ -113,7 +113,8 @@ CONCURRENCY=1 run_batch "integration:outbox" \
 
 CONCURRENCY=1 run_batch "integration:flows" \
   tests/auth.test.ts tests/audit.test.ts tests/cache.test.ts \
-  tests/rateLimit.smoke.test.ts tests/security.test.ts
+  tests/rateLimit.smoke.test.ts tests/security.test.ts \
+  tests/integration/publishing/failedWrite.smoke.test.ts
 
 CONCURRENCY=1 TIMEOUT=60000 run_batch "flow" \
   tests/publish.flow.test.ts tests/analytics.flow.test.ts tests/media.flow.test.ts tests/schedule.flow.test.ts

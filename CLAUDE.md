@@ -528,6 +528,30 @@ for f in docs/architecture/ARCHITECTURE_CANON.md \
   grep -q '^## How to extend' "$f" || { echo "MISSING §How to extend in $f"; exit 1; }
   grep -q '^\*\*Owner:' "$f" || { echo "MISSING **Owner:** in $f"; exit 1; }
 done
+
+# 25. Circuit-breaker fail-fast for writes. Two-part hard-zero.
+# Threat: a write-path fallback resolves provider failures with a synthetic
+# receipt ({id:"queued",status:"pending"}) instead of surfacing an error —
+# silently losing the post. Root cause: SOCIAL_POST_FALLBACK was removed in
+# PR1; DEFAULT_EXTERNAL_API_OPTIONS was flipped to fallbackEnabled:false;
+# this guard locks both invariants so they cannot regress.
+#
+# Part A: the DEFAULT_EXTERNAL_API_OPTIONS block must not contain
+# fallbackEnabled:true (fail-fast must remain the default).
+grep -nA6 "DEFAULT_EXTERNAL_API_OPTIONS: ExternalApiOptions = {" \
+  packages/adapters/external-apis/src/circuitBreaker.ts | \
+  grep -E "fallbackEnabled:\s*true" | wc -l        # expect 0
+#
+# Part B: no explicit fallbackEnabled:true paired with a write-verb operation
+# name in providers/adapters/apps/api/src (excluding tests). If a write-path
+# call ever opts in to fallback, the synthetic-receipt anti-pattern re-enters.
+grep -rn "fallbackEnabled: true" \
+  packages/providers packages/adapters apps/api/src --include="*.ts" | \
+  grep -vE "/tests/|\.test\." | \
+  grep -E "(post-tweet|post-to-page|publish-media|create-container|create-stories|create-reels|send-message|send-photo|send-video|send-poll|send-document|send-audio|create-story|create-pin|create-post|upload-video|upload-short|upload-media|schedule|process-video|process-segment|optimize-reel|create-thumbnail|create-stream|start-stream|stop-stream)" | wc -l  # expect 0
+# NOTE: .github/workflows/fitness.yml mirror step is pending the orchestrator
+# wiring with a sensitive-edit token (see PR3 plan). Run both commands locally
+# before merge to confirm baseline = 0.
 ```
 
 **Extending the suite.** Adding a new fitness check requires three coordinated edits, in order:
