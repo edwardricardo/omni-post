@@ -4,8 +4,7 @@
  *              exchange, token refresh, and signed-request verification.
  * @layer infrastructure
  */
-import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
-import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
+import { createExternalApiCircuitBreaker, METADATA_CB_OPTIONS } from "@adapters/external-apis";
 import { ProviderError } from "@providers/shared";
 import * as client from "prom-client";
 import axios from "axios";
@@ -342,9 +341,7 @@ export class TikTokAuthService {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 300000, // 5 minutes cache for profile data
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+      ...METADATA_CB_OPTIONS,
     });
   }
 

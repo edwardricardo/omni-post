@@ -4,8 +4,11 @@
  *              and promoted content analytics with circuit breaker protection.
  * @layer infrastructure
  */
-import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
-import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
+import {
+  createExternalApiCircuitBreaker,
+  ANALYTICS_CB_OPTIONS,
+  METADATA_CB_OPTIONS,
+} from "@adapters/external-apis";
 import { ProviderError } from "@providers/shared";
 import * as client from "prom-client";
 import axios from "axios";
@@ -199,9 +202,7 @@ export class TikTokMarketingApiClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 300000, // 5 minutes cache
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+      ...METADATA_CB_OPTIONS,
     });
   }
 
@@ -275,9 +276,7 @@ export class TikTokMarketingApiClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 300000, // 5 minutes cache
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.ANALYTICS_FALLBACK,
+      ...ANALYTICS_CB_OPTIONS,
     });
   }
 
@@ -385,9 +384,7 @@ export class TikTokMarketingApiClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 600000, // 10 minutes cache for insights
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.ANALYTICS_FALLBACK,
+      ...ANALYTICS_CB_OPTIONS,
     });
   }
 
@@ -506,9 +503,7 @@ export class TikTokMarketingApiClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 1800000, // 30 minutes cache for audience insights
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.ANALYTICS_FALLBACK,
+      ...ANALYTICS_CB_OPTIONS,
     });
   }
 
@@ -592,9 +587,7 @@ export class TikTokMarketingApiClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 900000, // 15 minutes cache for creative insights
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.ANALYTICS_FALLBACK,
+      ...ANALYTICS_CB_OPTIONS,
     });
   }
 

@@ -8,9 +8,9 @@
 
 import {
   createExternalApiCircuitBreaker,
+  ANALYTICS_CB_OPTIONS,
   type CircuitBreakerStatus,
 } from "@adapters/external-apis";
-import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
 import { ProviderError } from "@providers/shared";
 import * as client from "prom-client";
 import { createLogger } from "@observability/logger";
@@ -132,9 +132,7 @@ export class TikTokVideoProcessor {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 1800000,
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.ANALYTICS_FALLBACK,
+      ...ANALYTICS_CB_OPTIONS,
     });
   }
 

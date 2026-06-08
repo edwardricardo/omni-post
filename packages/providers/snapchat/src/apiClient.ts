@@ -6,8 +6,7 @@
  * @layer infrastructure
  */
 
-import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
-import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
+import { createExternalApiCircuitBreaker, ANALYTICS_CB_OPTIONS } from "@adapters/external-apis";
 import client from "prom-client";
 import { createLogger } from "@observability/logger";
 import type {
@@ -83,8 +82,6 @@ export class SnapchatApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       cacheTtl: 300000,
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
     });
   }
 
@@ -217,8 +214,6 @@ export class SnapchatApiClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: false,
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.SOCIAL_POST_FALLBACK,
     });
   }
 
@@ -259,9 +254,7 @@ export class SnapchatApiClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 300000,
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.ANALYTICS_FALLBACK,
+      ...ANALYTICS_CB_OPTIONS,
       fallback,
     });
   }

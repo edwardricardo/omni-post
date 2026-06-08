@@ -5,8 +5,11 @@
  * @layer infrastructure
  */
 
-import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
-import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
+import {
+  createExternalApiCircuitBreaker,
+  ANALYTICS_CB_OPTIONS,
+  METADATA_CB_OPTIONS,
+} from "@adapters/external-apis";
 import client from "prom-client";
 import { createLogger } from "@observability/logger";
 import type {
@@ -102,9 +105,7 @@ export class LinkedInApiClient {
       {
         ...READ_CB_OPTIONS,
         cacheEnabled: true,
-        cacheTtl: 300000,
-        fallbackEnabled: true,
-        fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+        ...METADATA_CB_OPTIONS,
       }
     );
   }
@@ -139,8 +140,6 @@ export class LinkedInApiClient {
     return circuitBreaker.call("linkedin-api", "create-post", apiCall, [], {
       ...READ_CB_OPTIONS,
       cacheEnabled: false,
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.SOCIAL_POST_FALLBACK,
     });
   }
 
@@ -244,9 +243,7 @@ export class LinkedInApiClient {
       {
         ...READ_CB_OPTIONS,
         cacheEnabled: true,
-        cacheTtl: 60000,
-        fallbackEnabled: true,
-        fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+        ...METADATA_CB_OPTIONS,
       }
     );
   }
@@ -322,9 +319,7 @@ export class LinkedInApiClient {
       {
         ...READ_CB_OPTIONS,
         cacheEnabled: true,
-        cacheTtl: 300000,
-        fallbackEnabled: true,
-        fallbackConfig: CommonFallbackStrategies.ANALYTICS_FALLBACK,
+        ...ANALYTICS_CB_OPTIONS,
         fallback,
       }
     );

@@ -6,8 +6,12 @@
  * @layer infrastructure
  */
 
-import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
-import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
+import {
+  createExternalApiCircuitBreaker,
+  ANALYTICS_CB_OPTIONS,
+  METADATA_CB_OPTIONS,
+  type ExternalApiOptions,
+} from "@adapters/external-apis";
 import client from "prom-client";
 import { createLogger } from "@observability/logger";
 
@@ -166,7 +170,7 @@ export class PinterestApiClient {
       return response.json() as Promise<T>;
     };
 
-    const fallbackConfig = this.selectFallbackConfig(operation);
+    const fallbackOpts = this.selectFallbackOpts(operation);
 
     const fallback = fallbackResponse
       ? async (): Promise<T> => {
@@ -185,23 +189,29 @@ export class PinterestApiClient {
       jitterEnabled: true,
       cacheEnabled: operation === "get-user-account",
       cacheTtl: 300000,
-      fallbackEnabled: true,
-      fallbackConfig,
+      ...fallbackOpts,
       ...(fallback ? { fallback } : {}),
     });
   }
 
-  private selectFallbackConfig(
-    operation: string
-  ): (typeof CommonFallbackStrategies)[keyof typeof CommonFallbackStrategies] {
+  /**
+   * Returns the opt-in fallback preset for read operations, or an empty object
+   * for writes and fail-fast ops so the default (fallbackEnabled:false) applies.
+   * create-pin: write — fail-fast.
+   * get-user-account: action-gating — fail-fast (Decision b/a).
+   * get-pin-analytics: analytics read — ANALYTICS_CB_OPTIONS.
+   * get-pin and other reads: metadata — METADATA_CB_OPTIONS.
+   */
+  private selectFallbackOpts(operation: string): Partial<ExternalApiOptions> {
     switch (operation) {
-      case "get-pin-analytics":
-      case "get-user-account":
-        return CommonFallbackStrategies.ANALYTICS_FALLBACK;
       case "create-pin":
-        return CommonFallbackStrategies.SOCIAL_POST_FALLBACK;
+      case "get-user-account":
+        // Fail-fast: write ops and auth-gating reads inherit default (fallbackEnabled:false)
+        return {};
+      case "get-pin-analytics":
+        return ANALYTICS_CB_OPTIONS;
       default:
-        return CommonFallbackStrategies.METADATA_FALLBACK;
+        return METADATA_CB_OPTIONS;
     }
   }
 

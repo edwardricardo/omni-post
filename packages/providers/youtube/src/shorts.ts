@@ -8,7 +8,7 @@
 import { google, youtube_v3 } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
 import { Readable } from "stream";
-import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
+import { ANALYTICS_CB_OPTIONS, METADATA_CB_OPTIONS } from "@adapters/external-apis";
 import { ProviderError } from "@providers/shared";
 
 // ─── Re-export types so existing consumers keep working ──────────────────────
@@ -226,9 +226,7 @@ export class YouTubeShortsService {
       maxDelay: 20000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 300000, // 5 minutes cache
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.ANALYTICS_FALLBACK,
+      ...ANALYTICS_CB_OPTIONS,
     });
   }
 
@@ -311,9 +309,7 @@ export class YouTubeShortsService {
       maxDelay: 10000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 1800000, // 30 minutes cache
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+      ...METADATA_CB_OPTIONS,
     });
   }
 
@@ -391,9 +387,7 @@ export class YouTubeShortsService {
       maxDelay: 10000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 3600000, // 1 hour cache for trending data
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+      ...METADATA_CB_OPTIONS,
     });
   }
 
@@ -462,9 +456,7 @@ export class YouTubeShortsService {
       maxDelay: 20000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 600000, // 10 minutes cache
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+      ...METADATA_CB_OPTIONS,
     });
   }
 

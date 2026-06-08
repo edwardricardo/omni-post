@@ -4,8 +4,11 @@
  *              fallback strategies, and metric instrumentation for tweets and media uploads.
  * @layer infrastructure
  */
-import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
-import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
+import {
+  createExternalApiCircuitBreaker,
+  ANALYTICS_CB_OPTIONS,
+  METADATA_CB_OPTIONS,
+} from "@adapters/external-apis";
 import client from "prom-client";
 import { TwitterApi, type SendTweetV2Params, type TweetV2, type UserV2 } from "twitter-api-v2";
 import { createLogger } from "@observability/logger";
@@ -138,8 +141,6 @@ export class XApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       cacheTtl: 300000, // 5 minutes cache
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
     });
   }
 
@@ -210,8 +211,6 @@ export class XApiClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: false,
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.SOCIAL_POST_FALLBACK,
     });
   }
 
@@ -305,9 +304,7 @@ export class XApiClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 300000, // 5 minutes cache for analytics
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.ANALYTICS_FALLBACK,
+      ...ANALYTICS_CB_OPTIONS,
       fallback,
     });
   }
@@ -393,9 +390,7 @@ export class XApiClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 60000,
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+      ...METADATA_CB_OPTIONS,
     });
   }
 
@@ -471,9 +466,7 @@ export class XApiClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 60000,
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+      ...METADATA_CB_OPTIONS,
     });
   }
 

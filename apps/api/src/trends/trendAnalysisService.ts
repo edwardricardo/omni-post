@@ -7,8 +7,7 @@
 
 import { FastifyLoggerInstance } from "fastify";
 import { PrismaClient } from "@infra/prisma";
-import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
-import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
+import { createExternalApiCircuitBreaker, ANALYTICS_CB_OPTIONS } from "@adapters/external-apis";
 import client from "prom-client";
 import {
   TikTokApiClient as _TikTokApiClient,
@@ -97,9 +96,7 @@ export class TrendAnalysisService extends BaseService {
             maxDelay: 30000,
             jitterEnabled: true,
             cacheEnabled: true,
-            cacheTtl: 1800000, // 30 minutes cache
-            fallbackEnabled: true,
-            fallbackConfig: CommonFallbackStrategies.ANALYTICS_FALLBACK,
+            ...ANALYTICS_CB_OPTIONS,
           }
         );
 
@@ -164,9 +161,7 @@ export class TrendAnalysisService extends BaseService {
             maxDelay: 45000,
             jitterEnabled: true,
             cacheEnabled: true,
-            cacheTtl: 3600000, // 1 hour cache for predictions
-            fallbackEnabled: true,
-            fallbackConfig: CommonFallbackStrategies.ANALYTICS_FALLBACK,
+            ...ANALYTICS_CB_OPTIONS,
           }
         );
       }
@@ -277,9 +272,7 @@ export class TrendAnalysisService extends BaseService {
           maxDelay: 30000,
           jitterEnabled: true,
           cacheEnabled: true,
-          cacheTtl: 7200000, // 2 hours cache for viral analysis
-          fallbackEnabled: true,
-          fallbackConfig: CommonFallbackStrategies.ANALYTICS_FALLBACK,
+          ...ANALYTICS_CB_OPTIONS,
         });
       }
     );
@@ -390,9 +383,7 @@ export class TrendAnalysisService extends BaseService {
             maxDelay: 45000,
             jitterEnabled: true,
             cacheEnabled: true,
-            cacheTtl: 3600000, // 1 hour cache
-            fallbackEnabled: true,
-            fallbackConfig: CommonFallbackStrategies.ANALYTICS_FALLBACK,
+            ...ANALYTICS_CB_OPTIONS,
           }
         );
       }

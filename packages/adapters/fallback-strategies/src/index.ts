@@ -396,15 +396,6 @@ export const CommonFallbackStrategies = {
     strategy: "DEGRADED_SERVICE" as FallbackStrategy,
   },
 
-  SOCIAL_POST_FALLBACK: {
-    strategy: "STATIC_RESPONSE" as FallbackStrategy,
-    staticResponse: {
-      data: { id: "queued", status: "pending" },
-      queued: true,
-      message: "Post queued for retry when service recovers",
-    },
-  },
-
   METADATA_FALLBACK: {
     strategy: "CACHED_RESPONSE" as FallbackStrategy,
     cacheTtl: 3600000, // 1 hour

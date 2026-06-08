@@ -489,31 +489,16 @@ describe("CommonFallbackStrategies", () => {
     expect(CommonFallbackStrategies.UPLOAD_FALLBACK.strategy).toBe("DEGRADED_SERVICE");
   });
 
-  it("has SOCIAL_POST_FALLBACK config", () => {
-    expect(CommonFallbackStrategies.SOCIAL_POST_FALLBACK).toBeTruthy();
-    expect(CommonFallbackStrategies.SOCIAL_POST_FALLBACK.strategy).toBe("STATIC_RESPONSE");
-    expect(CommonFallbackStrategies.SOCIAL_POST_FALLBACK.staticResponse).toBeTruthy();
-    const resp = CommonFallbackStrategies.SOCIAL_POST_FALLBACK.staticResponse as {
-      queued: boolean;
-    };
-    expect(resp.queued).toBe(true);
-  });
-
   it("has METADATA_FALLBACK config", () => {
     expect(CommonFallbackStrategies.METADATA_FALLBACK).toBeTruthy();
     expect(CommonFallbackStrategies.METADATA_FALLBACK.strategy).toBe("CACHED_RESPONSE");
     expect(CommonFallbackStrategies.METADATA_FALLBACK.cacheTtl).toBe(3600000); // 1 hour
   });
 
-  it("has exactly 4 pre-built strategies", () => {
+  it("has exactly 3 pre-built strategies", () => {
     const keys = Object.keys(CommonFallbackStrategies);
-    expect(keys.length).toBe(4);
-    expect(keys.sort()).toEqual([
-      "ANALYTICS_FALLBACK",
-      "METADATA_FALLBACK",
-      "SOCIAL_POST_FALLBACK",
-      "UPLOAD_FALLBACK",
-    ]);
+    expect(keys.length).toBe(3);
+    expect(keys.sort()).toEqual(["ANALYTICS_FALLBACK", "METADATA_FALLBACK", "UPLOAD_FALLBACK"]);
   });
 });
 

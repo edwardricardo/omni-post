@@ -4,8 +4,7 @@
  *              comments, shares, watch time) with circuit breaker protection.
  * @layer infrastructure
  */
-import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
-import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
+import { createExternalApiCircuitBreaker, ANALYTICS_CB_OPTIONS } from "@adapters/external-apis";
 import { ProviderError } from "@providers/shared";
 import * as client from "prom-client";
 import axios from "axios";
@@ -332,9 +331,7 @@ export class TikTokContentAnalyticsClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 1800000, // 30 minutes cache for video analytics
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.ANALYTICS_FALLBACK,
+      ...ANALYTICS_CB_OPTIONS,
     });
   }
 
@@ -449,9 +446,7 @@ export class TikTokContentAnalyticsClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 3600000, // 1 hour cache for profile analytics
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.ANALYTICS_FALLBACK,
+      ...ANALYTICS_CB_OPTIONS,
     });
   }
 
@@ -544,9 +539,7 @@ export class TikTokContentAnalyticsClient {
       maxDelay: 45000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 7200000, // 2 hours cache for competitor analysis
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.ANALYTICS_FALLBACK,
+      ...ANALYTICS_CB_OPTIONS,
     });
   }
 
@@ -635,9 +628,7 @@ export class TikTokContentAnalyticsClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 3600000, // 1 hour cache for hashtag analytics
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.ANALYTICS_FALLBACK,
+      ...ANALYTICS_CB_OPTIONS,
     });
   }
 

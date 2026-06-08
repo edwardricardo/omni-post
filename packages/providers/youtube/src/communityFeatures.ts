@@ -6,8 +6,11 @@
  */
 import { google, youtube_v3 } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
-import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
-import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
+import {
+  createExternalApiCircuitBreaker,
+  ANALYTICS_CB_OPTIONS,
+  METADATA_CB_OPTIONS,
+} from "@adapters/external-apis";
 import { ProviderError } from "@providers/shared";
 import client from "prom-client";
 
@@ -175,9 +178,7 @@ export class YouTubeCommunityService {
       maxDelay: 20000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 300000, // 5 minutes cache
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+      ...METADATA_CB_OPTIONS,
     });
   }
 
@@ -211,9 +212,7 @@ export class YouTubeCommunityService {
       maxDelay: 20000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 300000, // 5 minutes cache
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+      ...METADATA_CB_OPTIONS,
     });
   }
 
@@ -483,9 +482,7 @@ export class YouTubeCommunityService {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 1800000, // 30 minutes cache
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.ANALYTICS_FALLBACK,
+      ...ANALYTICS_CB_OPTIONS,
     });
   }
 
@@ -515,10 +512,7 @@ export class YouTubeCommunityService {
       baseDelay: 2000,
       maxDelay: 20000,
       jitterEnabled: true,
-      cacheEnabled: true,
-      cacheTtl: 60000, // 1 minute cache for moderation queue
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
+      cacheEnabled: false,
     });
   }
 

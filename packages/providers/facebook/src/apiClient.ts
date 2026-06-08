@@ -7,8 +7,7 @@
  */
 
 /// <reference path="./facebook-sdk.d.ts" />
-import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
-import { CommonFallbackStrategies } from "@adapters/fallback-strategies";
+import { createExternalApiCircuitBreaker, ANALYTICS_CB_OPTIONS } from "@adapters/external-apis";
 import { AppError } from "@shared/types";
 import { createLogger } from "@observability/logger";
 
@@ -288,8 +287,6 @@ export class FacebookApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       cacheTtl: 300000,
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.METADATA_FALLBACK,
     });
   }
 
@@ -447,8 +444,6 @@ export class FacebookApiClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: false,
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.SOCIAL_POST_FALLBACK,
     });
   }
 
@@ -535,9 +530,7 @@ export class FacebookApiClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: true,
-      cacheTtl: 300000,
-      fallbackEnabled: true,
-      fallbackConfig: CommonFallbackStrategies.ANALYTICS_FALLBACK,
+      ...ANALYTICS_CB_OPTIONS,
       fallback,
     });
   }
