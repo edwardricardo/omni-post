@@ -13,7 +13,7 @@
 
 import type { Worker, Queue } from "bullmq";
 
-interface ShutdownLogger {
+export interface ShutdownLogger {
   info(obj: Record<string, unknown>, msg?: string): void;
   warn(obj: Record<string, unknown>, msg?: string): void;
   error(obj: Record<string, unknown>, msg?: string): void;
@@ -39,6 +39,38 @@ export interface RegisterGracefulShutdownOptions {
 }
 
 /**
+ * @function drainTarget
+ * @description Execute the graceful drain sequence for a ShutdownTarget:
+ *              workers → queues → connections → prisma → afterTeardown.
+ *              Pure async — no `process.exit`, no idempotency guard. Exported
+ *              so tests can drive the REAL production sequence directly instead
+ *              of maintaining a local copy that can silently diverge.
+ * @param target - The shutdown target describing what to drain.
+ * @param logger - Logger sink for connection-close warnings.
+ */
+export async function drainTarget(target: ShutdownTarget, logger: ShutdownLogger): Promise<void> {
+  if (target.workers) {
+    await Promise.all(target.workers.map((w) => w.close()));
+  }
+  if (target.queues) {
+    await Promise.all(target.queues.map((q) => q.close()));
+  }
+  if (target.connections) {
+    await Promise.all(
+      target.connections.map((c) =>
+        c.quit().catch((err) => logger.warn({ err }, "Connection close warning"))
+      )
+    );
+  }
+  if (target.prisma) {
+    await target.prisma.$disconnect();
+  }
+  if (target.afterTeardown) {
+    await target.afterTeardown();
+  }
+}
+
+/**
  * @function registerGracefulShutdown
  * @description Register `SIGTERM` and `SIGINT` handlers that drain the worker
  *              cleanly. Safe to call once per worker process; duplicate
@@ -56,25 +88,7 @@ export function registerGracefulShutdown(options: RegisterGracefulShutdownOption
     shuttingDown = true;
     logger.info({ signal, worker: name }, "Worker shutting down");
     try {
-      if (target.workers) {
-        await Promise.all(target.workers.map((w) => w.close()));
-      }
-      if (target.queues) {
-        await Promise.all(target.queues.map((q) => q.close()));
-      }
-      if (target.connections) {
-        await Promise.all(
-          target.connections.map((c) =>
-            c.quit().catch((err) => logger.warn({ err }, "Connection close warning"))
-          )
-        );
-      }
-      if (target.prisma) {
-        await target.prisma.$disconnect();
-      }
-      if (target.afterTeardown) {
-        await target.afterTeardown();
-      }
+      await drainTarget(target, logger);
       logger.info({ worker: name }, "Worker shutdown complete");
     } catch (err) {
       logger.error({ err, worker: name }, "Worker shutdown error");
