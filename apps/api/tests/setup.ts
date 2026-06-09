@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
+import { prisma } from "@infra/prisma";
 import { createBullMQQueueAdapter } from "@adapters/queue-bullmq";
 
 // Load test environment variables
@@ -87,7 +88,7 @@ export async function setupTest(): Promise<TestContext> {
     // Create adapters if they don't exist
     if (!globalRepo) {
       console.log("Creating Prisma repo adapter...");
-      globalRepo = createPrismaRepoAdapter();
+      globalRepo = createPrismaRepoAdapter({ prisma });
       if (!globalRepo) {
         throw new Error("Failed to create Prisma repo adapter - returned null");
       }

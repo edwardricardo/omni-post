@@ -23,6 +23,7 @@ import { providerRegistry } from "../providers/providerRegistry.js";
 import type Redis from "ioredis";
 import type { RedisCacheManager } from "@adapters/cache-redis";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+import type { PrismaClient } from "@infra/prisma";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { env } from "../config/env.js";
 
@@ -64,7 +65,8 @@ export async function healthRoutes(
   );
 
   // Initialize adapters
-  const repoAdapter = createPrismaRepoAdapter({ scheduler });
+  const prismaClient = fastify.container!.resolve<PrismaClient>(TOKENS.PrismaClient);
+  const repoAdapter = createPrismaRepoAdapter({ prisma: prismaClient, scheduler });
   const queueAdapter = fastify
     .container!.resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
     .forQueue(QUEUE_NAMES.PUBLISH);

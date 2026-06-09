@@ -6,13 +6,13 @@
  */
 import { ok, err, type Result } from "@shared/types";
 import type { PublishLog, LogPublishInput, ListLogsQuery } from "@ports/core";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { mapProviderFromDB, mapProviderToDB } from "./mappers.js";
 import { createLogger } from "@observability/logger";
 
 const logger = createLogger("adapter:db-prisma:publish-log");
 
-export function createPublishLogRepository() {
+export function createPublishLogRepository(prisma: PrismaClient) {
   return {
     async logPublish(input: LogPublishInput): Promise<Result<PublishLog, "DATABASE_ERROR">> {
       try {

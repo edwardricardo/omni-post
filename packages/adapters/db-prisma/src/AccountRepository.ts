@@ -12,7 +12,7 @@ import {
   type CreateAccountInput,
   type UpdateAccountInput,
 } from "@shared/types";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 
 import { createLogger } from "@observability/logger";
 
@@ -20,7 +20,8 @@ const logger = createLogger("adapter:db-prisma:account");
 
 export function createAccountRepository(
   readBreaker: { fire: (fn: () => Promise<unknown>) => Promise<unknown> },
-  writeBreaker: { fire: (fn: () => Promise<unknown>) => Promise<unknown> }
+  writeBreaker: { fire: (fn: () => Promise<unknown>) => Promise<unknown> },
+  prisma: PrismaClient
 ) {
   return {
     async createAccount(

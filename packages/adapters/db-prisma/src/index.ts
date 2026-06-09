@@ -11,7 +11,7 @@ import {
   checkDatabaseConnection,
   type DatabaseHealthMetrics,
 } from "./resilience.js";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { createLogger } from "@observability/logger";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 
@@ -66,7 +66,8 @@ export {
   type PrismaTweetStatus,
 } from "./mappers.js";
 
-export function createPrismaRepoAdapter(options?: {
+export function createPrismaRepoAdapter(options: {
+  prisma: PrismaClient;
   scheduler?: BackgroundTaskScheduler;
   decryptChannelCredentials?: (envelope: {
     credentialsCiphertext: string;
@@ -122,7 +123,7 @@ export function createPrismaRepoAdapter(options?: {
 
   // Connection health monitoring
   const monitorConnection = async (): Promise<void> => {
-    const isHealthy = await checkDatabaseConnection(prisma);
+    const isHealthy = await checkDatabaseConnection(options.prisma);
     metricsCollector.updateConnectionHealth(isHealthy);
   };
 
@@ -136,18 +137,23 @@ export function createPrismaRepoAdapter(options?: {
     void monitorConnection();
   }
 
-  // Compose repositories from focused modules
-  const accountRepo = createAccountRepository(readOperationBreaker, writeOperationBreaker);
-  const projectRepo = createProjectRepository();
-  const postRepo = createPostRepository(transactionBreaker);
+  // Compose repositories from focused modules — each receives the injected client
+  const accountRepo = createAccountRepository(
+    readOperationBreaker,
+    writeOperationBreaker,
+    options.prisma
+  );
+  const projectRepo = createProjectRepository(options.prisma);
+  const postRepo = createPostRepository(transactionBreaker, options.prisma);
   const channelRepo = createChannelRepository(
     options?.decryptChannelCredentials
       ? { decryptCredentials: options.decryptChannelCredentials }
-      : {}
+      : {},
+    options.prisma
   );
-  const publishLogRepo = createPublishLogRepository();
-  const analyticsRepo = createAnalyticsRepository();
-  const threadRepo = createThreadRepository();
+  const publishLogRepo = createPublishLogRepository(options.prisma);
+  const analyticsRepo = createAnalyticsRepository(options.prisma);
+  const threadRepo = createThreadRepository(options.prisma);
 
   return {
     // Account methods
@@ -180,7 +186,7 @@ export function createPrismaRepoAdapter(options?: {
         if (options?.scheduler) {
           options.scheduler.unregister(connectionMonitorTaskId);
         }
-        await prisma.$disconnect();
+        await options.prisma.$disconnect();
         logger.info("Database connections closed");
       } catch (error) {
         logger.warn({ err: error }, "Database cleanup warning");

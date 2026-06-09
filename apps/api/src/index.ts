@@ -297,7 +297,7 @@ async function createApp(): Promise<FastifyInstance> {
   });
 
   // Initialize components
-  const repoAdapter = createPrismaRepoAdapter({ scheduler: bootstrapScheduler });
+  const repoAdapter = createPrismaRepoAdapter({ prisma, scheduler: bootstrapScheduler });
   // Queue adapter resolved from the registry so this top-level wiring
   // shares the same Redis connection and queue instances as the rest of
   // the container. Targets the PUBLISH queue for callers that expect a

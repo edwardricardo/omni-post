@@ -22,6 +22,7 @@ import type { RedisCacheManager } from "@adapters/cache-redis";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { createTestContainer } from "../../src/infrastructure/container/setup.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
+import type { PrismaClient } from "@infra/prisma";
 
 // ─── Mock Types ─────────────────────────────────────────────────────
 type MockRedis = Pick<Redis, "ping" | "get" | "set" | "del" | "keys">;
@@ -239,6 +240,8 @@ describe("healthRoutes - Unit Tests", () => {
 
     // Provide a DI container so healthRoutes can resolve BackgroundTaskScheduler.
     const container = createTestContainer();
+    // healthRoutes resolves PrismaClient from the container to build its repo adapter.
+    container.registerInstance(TOKENS.PrismaClient, {} as unknown as PrismaClient);
     container.registerInstance(TOKENS.BackgroundTaskScheduler, new NoopBackgroundTaskScheduler());
     // healthRoutes resolves a queue adapter via the registry. Provide a
     // stub that exercises the QueuePortRegistry contract without touching
