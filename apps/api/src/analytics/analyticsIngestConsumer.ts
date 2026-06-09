@@ -34,7 +34,12 @@ export interface StartAnalyticsIngestConsumerDeps {
   readonly ingest: IngestChannelAnalyticsUseCase;
   readonly markReauth: UpdateChannelAuthStateUseCase;
   readonly logger: AnalyticsIngestConsumerLogger;
-  /** Optional shared Redis connection; omit to let the consumer own one. */
+  /**
+   * Shared Redis connection (composition-root-owned). Optional only for the
+   * PR1→PR2 wiring window: when omitted the consumer adapter throws at
+   * construction (it never self-constructs from env). index.ts injects
+   * `TOKENS.BullMQWorkerConnection` here.
+   */
   readonly connection?: Redis;
 }
 

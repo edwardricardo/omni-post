@@ -7,7 +7,7 @@
  * @layer infrastructure
  */
 import { Worker } from "bullmq";
-import Redis from "ioredis";
+import type Redis from "ioredis";
 import { createLogger } from "@observability/logger";
 import type { QueueName } from "./constants.js";
 
@@ -19,9 +19,17 @@ export interface BullMQConsumerAdapterOptions {
   removeOnComplete?: { count: number };
   removeOnFail?: { count: number };
   /**
-   * Optional shared Redis connection. When omitted, the adapter creates a
-   * dedicated connection. Workers require `maxRetriesPerRequest: null`
-   * because BullMQ blocks on `BRPOPLPUSH` indefinitely.
+   * Shared Redis connection, owned and supplied by the composition root. The
+   * adapter never self-constructs a connection from `process.env`: it would
+   * reintroduce the CWE-798 insecure fallback (SECURITY_CANON §Secrets) and
+   * violate the DI canon (ARCHITECTURE_CANON §Dependency Injection — only a
+   * composition root may construct an adapter's transport). Worker connections
+   * require `maxRetriesPerRequest: null` because BullMQ blocks on `BRPOPLPUSH`
+   * indefinitely; the composition root's `createRedisConnection` encodes that.
+   *
+   * Typed optional for the PR1→PR2 wiring window; absence throws at
+   * construction so an un-wired caller fails loudly instead of silently
+   * connecting to localhost.
    */
   connection?: Redis;
 }
@@ -36,23 +44,15 @@ export interface BullMQConsumerAdapter {
 export function createBullMQConsumerAdapter(
   options: BullMQConsumerAdapterOptions
 ): BullMQConsumerAdapter {
-  const ownsConnection = options.connection === undefined;
-  const connection =
-    options.connection ??
-    new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
-      // BullMQ requirement: maxRetriesPerRequest MUST be null. The Worker
-      // throws on instantiation otherwise.
-      maxRetriesPerRequest: null,
-      lazyConnect: true,
-      // No commandTimeout: BullMQ Worker uses blocking commands (BZPOPMIN,
-      // XREAD BLOCK) that legitimately wait indefinitely for jobs. Any
-      // commandTimeout interrupts those polls mid-flight and surfaces as
-      // spurious "Command timed out" errors even when Redis is healthy —
-      // BullMQ issue #2619. Worker liveness is enforced via lockDuration +
-      // stalledInterval (BullMQ-side) and TCP keepAlive (transport-side).
-      connectTimeout: 10_000,
-      keepAlive: 30_000,
-    });
+  if (options.connection === undefined) {
+    throw new Error(
+      "BullMQ consumer adapter requires an injected Redis connection " +
+        "(composition-root-owned). Self-construction from process.env is " +
+        "forbidden — see ARCHITECTURE_CANON §Dependency Injection and " +
+        "SECURITY_CANON §Secrets."
+    );
+  }
+  const connection = options.connection;
 
   const concurrency = options.concurrency ?? 5;
   const removeOnComplete = options.removeOnComplete ?? { count: 100 };
@@ -97,9 +97,9 @@ export function createBullMQConsumerAdapter(
           await worker.close();
           worker = null;
         }
-        if (ownsConnection) {
-          await connection.quit();
-        }
+        // The injected connection is owned by the composition root, which
+        // quits it after all consumers drain (see apps/api shutdown order).
+        // The adapter never quits a connection it does not own.
         logger.info({ queueName: options.queueName }, "Consumer adapter closed");
       } catch (error) {
         logger.warn({ err: error, queueName: options.queueName }, "Consumer cleanup warning");

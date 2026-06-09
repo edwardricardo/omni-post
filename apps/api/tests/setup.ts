@@ -9,6 +9,7 @@ import { fileURLToPath } from "url";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import { prisma } from "@infra/prisma";
 import { createBullMQQueueAdapter } from "@adapters/queue-bullmq";
+import { createRedisConnection } from "../src/lib/redis.js";
 
 // Load test environment variables
 const __filename = fileURLToPath(import.meta.url);
@@ -97,7 +98,12 @@ export async function setupTest(): Promise<TestContext> {
 
     if (!globalQueue) {
       console.log("Creating BullMQ queue adapter...");
-      globalQueue = createBullMQQueueAdapter();
+      // The adapter no longer self-constructs a connection (composition-root-
+      // owned in production); the test owns and injects the socket.
+      globalQueue = createBullMQQueueAdapter({
+        queueName: "publish",
+        connection: createRedisConnection(),
+      });
       if (!globalQueue) {
         throw new Error("Failed to create BullMQ queue adapter - returned null");
       }

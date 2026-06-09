@@ -55,19 +55,45 @@ vi.mock("ioredis", () => {
 
 import { createBullMQQueueAdapter } from "../src/queue-adapter.js";
 
+/**
+ * A minimal Redis double — the adapter forwards it to the BullMQ Queue and
+ * only calls `ping()` on the health path. It never quits the injected socket.
+ */
+function makeConnectionDouble(): import("ioredis").default {
+  return {
+    ping: mockRedisPing,
+    quit: mockRedisQuit,
+  } as unknown as import("ioredis").default;
+}
+
 describe("createBullMQQueueAdapter", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
+  it("throws identifying the missing connection when none is injected", () => {
+    expect(() => createBullMQQueueAdapter({ queueName: "publish" })).toThrow(/connection/i);
+  });
+
+  it("never constructs its own Redis (no env/localhost fallback) when no connection is injected", () => {
+    expect(() => createBullMQQueueAdapter({ queueName: "publish" })).toThrow();
+    expect(redisConstructor).not.toHaveBeenCalled();
+  });
+
   it("creates the BullMQ Queue with the supplied queueName", async () => {
-    createBullMQQueueAdapter({ queueName: "analytics-aggregation" });
+    createBullMQQueueAdapter({
+      queueName: "analytics-aggregation",
+      connection: makeConnectionDouble(),
+    });
     expect(queueConstructor).toHaveBeenCalledTimes(1);
     expect(queueConstructor.mock.calls[0]?.[0]).toBe("analytics-aggregation");
   });
 
   it("calls queue.add with the supplied queueName when enqueueing", async () => {
-    const adapter = createBullMQQueueAdapter({ queueName: "inbox-sync" });
+    const adapter = createBullMQQueueAdapter({
+      queueName: "inbox-sync",
+      connection: makeConnectionDouble(),
+    });
     const result = await adapter.enqueue({
       dedupeKey: "dedupe-1",
       payload: { foo: "bar" },
@@ -78,22 +104,16 @@ describe("createBullMQQueueAdapter", () => {
     expect(mockQueueAdd.mock.calls[0]?.[1]).toEqual({ foo: "bar" });
   });
 
-  it("creates its own Redis connection when none is provided", async () => {
-    createBullMQQueueAdapter({ queueName: "publish" });
-    expect(redisConstructor).toHaveBeenCalledTimes(1);
-  });
-
-  it("reuses the supplied connection without constructing a new Redis", async () => {
-    const sharedConnection = {
-      ping: mockRedisPing,
-      quit: mockRedisQuit,
-    } as unknown as import("ioredis").default;
-    createBullMQQueueAdapter({ queueName: "publish", connection: sharedConnection });
+  it("uses the injected connection without constructing a new Redis", async () => {
+    createBullMQQueueAdapter({ queueName: "publish", connection: makeConnectionDouble() });
     expect(redisConstructor).not.toHaveBeenCalled();
   });
 
   it("computes delay from runAt when present", async () => {
-    const adapter = createBullMQQueueAdapter({ queueName: "publish" });
+    const adapter = createBullMQQueueAdapter({
+      queueName: "publish",
+      connection: makeConnectionDouble(),
+    });
     const future = new Date(Date.now() + 60_000);
     await adapter.enqueue({ dedupeKey: "d2", payload: {}, runAt: future });
     const opts = mockQueueAdd.mock.calls[0]?.[2] as { delay?: number };
@@ -103,7 +123,10 @@ describe("createBullMQQueueAdapter", () => {
 
   it("returns an error Result when the queue.add path fails after retries", async () => {
     mockQueueAdd.mockRejectedValue(new Error("validation error"));
-    const adapter = createBullMQQueueAdapter({ queueName: "publish" });
+    const adapter = createBullMQQueueAdapter({
+      queueName: "publish",
+      connection: makeConnectionDouble(),
+    });
     const result = await adapter.enqueue({ dedupeKey: "d3", payload: {} });
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -114,19 +137,12 @@ describe("createBullMQQueueAdapter", () => {
     }
   });
 
-  it("close() always closes the queue; closes the connection only when adapter owns it", async () => {
-    const owned = createBullMQQueueAdapter({ queueName: "publish" });
-    await owned.close();
-    expect(mockQueueClose).toHaveBeenCalledTimes(1);
-    expect(mockRedisQuit).toHaveBeenCalledTimes(1);
-
-    vi.clearAllMocks();
-    const sharedConnection = {
-      ping: mockRedisPing,
-      quit: mockRedisQuit,
-    } as unknown as import("ioredis").default;
-    const shared = createBullMQQueueAdapter({ queueName: "publish", connection: sharedConnection });
-    await shared.close();
+  it("close() closes the queue and never quits the injected connection (composition root owns it)", async () => {
+    const adapter = createBullMQQueueAdapter({
+      queueName: "publish",
+      connection: makeConnectionDouble(),
+    });
+    await adapter.close();
     expect(mockQueueClose).toHaveBeenCalledTimes(1);
     expect(mockRedisQuit).not.toHaveBeenCalled();
   });
@@ -136,7 +152,10 @@ describe("createBullMQQueueAdapter", () => {
     mockQueueGetActive.mockResolvedValueOnce([{}]);
     mockQueueGetCompleted.mockResolvedValueOnce([]);
     mockQueueGetFailed.mockResolvedValueOnce([{}, {}]);
-    const adapter = createBullMQQueueAdapter({ queueName: "publish" });
+    const adapter = createBullMQQueueAdapter({
+      queueName: "publish",
+      connection: makeConnectionDouble(),
+    });
     const result = await adapter.health();
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -150,6 +169,7 @@ describe("createBullMQQueueAdapter", () => {
   it("forwards defaultJobOptions to the BullMQ Queue constructor when provided", async () => {
     createBullMQQueueAdapter({
       queueName: "publish",
+      connection: makeConnectionDouble(),
       defaultJobOptions: {
         attempts: 3,
         backoff: { type: "exponential", delay: 5000 },
@@ -165,7 +185,7 @@ describe("createBullMQQueueAdapter", () => {
   });
 
   it("omits defaultJobOptions from the Queue constructor when not provided", async () => {
-    createBullMQQueueAdapter({ queueName: "publish" });
+    createBullMQQueueAdapter({ queueName: "publish", connection: makeConnectionDouble() });
     const opts = queueConstructor.mock.calls[0]?.[1] as { defaultJobOptions?: unknown };
     expect(opts.defaultJobOptions).toBeUndefined();
   });

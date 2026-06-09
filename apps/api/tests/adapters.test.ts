@@ -14,19 +14,28 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import type { QueuePort } from "@ports/core";
+import type Redis from "ioredis";
 import { prisma } from "@infra/prisma";
+import { createRedisConnection } from "../src/lib/redis.js";
 import { PrismaAdminUserRepository } from "../src/infrastructure/repositories/PrismaAdminUserRepository.js";
 
 const userRepository = new PrismaAdminUserRepository(prisma);
 
 describe("Infrastructure Adapters", () => {
   let queueAdapter: QueuePort | undefined;
+  let queueConnection: Redis | undefined;
 
   before(async () => {
-    // Initialize queue adapter with test configuration
+    // Initialize queue adapter with test configuration. The adapter no longer
+    // self-constructs a connection (composition-root-owned); the test owns the
+    // socket and injects it, mirroring production wiring.
     try {
       const { createBullMQQueueAdapter } = await import("@adapters/queue-bullmq");
-      queueAdapter = createBullMQQueueAdapter();
+      queueConnection = createRedisConnection();
+      queueAdapter = createBullMQQueueAdapter({
+        queueName: "publish",
+        connection: queueConnection,
+      });
     } catch (error) {
       console.warn("Queue adapter not available:", error);
     }

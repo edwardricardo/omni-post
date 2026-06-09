@@ -54,6 +54,7 @@ import {
 import type { RateLimiterPort } from "@ports/core";
 import { createErrorHandler } from "./lib/errors/errorHandler.js";
 import { createRedisConnection, getRedisUrl } from "./lib/redis.js";
+import type Redis from "ioredis";
 import { logger } from "./lib/logger.js";
 import { ApiMetrics } from "./metrics/apiMetrics.js";
 import { createMetricsMiddleware } from "./middleware/metricsMiddleware.js";
@@ -982,6 +983,7 @@ async function start() {
     );
     const repurposeConsumer = createBullMQConsumerAdapter({
       queueName: QUEUE_NAMES.GENERATE_REPURPOSE,
+      connection: app.container!.resolve<Redis>(TOKENS.BullMQWorkerConnection),
     });
     await repurposeConsumer.subscribe(async (job) => {
       await processRepurposeGenerateJob(
@@ -998,6 +1000,7 @@ async function start() {
     );
     const detectRepurposeConsumer = createBullMQConsumerAdapter({
       queueName: QUEUE_NAMES.DETECT_REPURPOSE,
+      connection: app.container!.resolve<Redis>(TOKENS.BullMQWorkerConnection),
     });
     await detectRepurposeConsumer.subscribe(async (job) => {
       await processRepurposeDetectJob(
@@ -1015,6 +1018,7 @@ async function start() {
     );
     const triageInboxConsumer = createBullMQConsumerAdapter({
       queueName: QUEUE_NAMES.TRIAGE_INBOX,
+      connection: app.container!.resolve<Redis>(TOKENS.BullMQWorkerConnection),
     });
     await triageInboxConsumer.subscribe(async (job) => {
       await processTriageInboxJob(
@@ -1032,6 +1036,7 @@ async function start() {
     );
     const trendRadarConsumer = createBullMQConsumerAdapter({
       queueName: QUEUE_NAMES.TREND_RADAR,
+      connection: app.container!.resolve<Redis>(TOKENS.BullMQWorkerConnection),
     });
     await trendRadarConsumer.subscribe(async (job) => {
       await processTrendRadarJob(
@@ -1054,6 +1059,7 @@ async function start() {
         .container!.resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry)
         .forQueue(QUEUE_NAMES.BULK_SCHEDULE_DEAD_LETTER),
       logger,
+      connection: app.container!.resolve<Redis>(TOKENS.BullMQWorkerConnection),
     });
     logger.info("BULK_SCHEDULE worker started");
 
@@ -1070,6 +1076,7 @@ async function start() {
         TOKENS.UpdateChannelAuthStateUseCase
       ),
       logger,
+      connection: app.container!.resolve<Redis>(TOKENS.BullMQWorkerConnection),
     });
     logger.info("ANALYTICS_AGGREGATION consumer started");
 
@@ -1079,6 +1086,7 @@ async function start() {
         TOKENS.UpdateChannelAuthStateUseCase
       ),
       logger,
+      connection: app.container!.resolve<Redis>(TOKENS.BullMQWorkerConnection),
     });
     logger.info("INBOX_SYNC consumer started");
 
@@ -1102,6 +1110,15 @@ async function start() {
       await bulkScheduleWorker.close();
       await analyticsIngestConsumer.close();
       await inboxSyncConsumer.close();
+
+      // Quit the shared BullMQ worker connection only AFTER every consumer's
+      // Worker has drained. The adapters no longer own this socket (the
+      // composition root does), so closing the Workers does not close it —
+      // an explicit quit here prevents a hanging Redis handle. In-flight jobs
+      // would error if the socket died before the Workers drained, hence the
+      // ordering: consumers.close() → workerConnection.quit().
+      const workerConnection = app.container!.resolve<Redis>(TOKENS.BullMQWorkerConnection);
+      await workerConnection.quit();
 
       // Shutdown saga integration (closes pub/sub subscriber and saga manager)
       const saga = (app as unknown as Record<string, unknown>).sagaIntegration as

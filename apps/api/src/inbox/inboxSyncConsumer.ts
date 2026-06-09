@@ -32,7 +32,12 @@ export interface StartInboxSyncConsumerDeps {
   readonly sync: SyncProviderCommentsUseCase;
   readonly markReauth: UpdateChannelAuthStateUseCase;
   readonly logger: InboxSyncConsumerLogger;
-  /** Optional shared Redis connection; omit to let the consumer own one. */
+  /**
+   * Shared Redis connection (composition-root-owned). Optional only for the
+   * PR1→PR2 wiring window: when omitted the consumer adapter throws at
+   * construction (it never self-constructs from env). index.ts injects
+   * `TOKENS.BullMQWorkerConnection` here.
+   */
   readonly connection?: Redis;
 }
 

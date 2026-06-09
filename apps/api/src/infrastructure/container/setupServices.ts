@@ -585,6 +585,31 @@ export function setupServices(
   );
   container.registerInstance(TOKENS.ProviderRegistry, providerRegistry);
 
+  // Role-separated Redis connections, owned by the composition root and
+  // injected into every consuming unit. BullMQ canon (docs.bullmq.io/guide/
+  // connections): worker and subscriber connections require
+  // maxRetriesPerRequest:null; producers/counters use finite retries; opposite
+  // retry strategies must not share one socket. Each is a singleton; lifecycle
+  // (quit) is owned here, sequenced in the apps/api shutdown handler.
+  //
+  // Shared by ALL in-process BullMQ consumers (Worker requirement: null +
+  // keepAlive, no commandTimeout — BullMQ blocks on BRPOPLPUSH indefinitely).
+  container.register<Redis>(
+    TOKENS.BullMQWorkerConnection,
+    () => createRedisConnection({ maxRetriesPerRequest: null }),
+    true
+  );
+  // Long-lived pub/sub subscriber for the saga event channel (subscriber mode
+  // blocks; same null-retry shape as a worker).
+  container.register<Redis>(
+    TOKENS.SagaSubscriberConnection,
+    () => createRedisConnection({ maxRetriesPerRequest: null }),
+    true
+  );
+  // Distributed-counter connection for ROICalculator (regular commands —
+  // finite retries + commandTimeout, the createRedisConnection default).
+  container.register<Redis>(TOKENS.AnalyticsRedisConnection, () => createRedisConnection(), true);
+
   // Queue infrastructure: single Redis connection shared across all queue
   // adapters via the registry. Per-queue retry policy wired here so
   // producers don't need to pass `attempts`/`backoff` on every enqueue
@@ -595,7 +620,7 @@ export function setupServices(
   container.register<QueuePortRegistry>(
     TOKENS.QueuePortRegistry,
     () => {
-      const connection = new Redis(env.REDIS_URL || "redis://localhost:6379", {
+      const connection = new Redis(getRedisUrl(), {
         enableReadyCheck: false,
         maxRetriesPerRequest: 3,
         lazyConnect: true,

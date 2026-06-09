@@ -9,7 +9,7 @@
 import { ok, err, type Result } from "@shared/types";
 import type { QueuePort, QueueJob, QueueHealth } from "@ports/core";
 import { Queue, type DefaultJobOptions } from "bullmq";
-import Redis from "ioredis";
+import type Redis from "ioredis";
 import { createLogger } from "@observability/logger";
 
 import {
@@ -25,10 +25,16 @@ const logger = createLogger("adapter:queue-bullmq");
 export interface BullMQQueueAdapterOptions {
   queueName: QueueName | string;
   /**
-   * Optional shared Redis connection. When omitted the adapter creates a
-   * dedicated connection — only intended for ad-hoc usage; production code
-   * should pass a connection from `BullMQQueuePortRegistry` so multiple
-   * adapters share the same socket.
+   * Shared Redis connection, owned and supplied by the composition root
+   * (typically via `BullMQQueuePortRegistry`, so multiple adapters share one
+   * socket). The adapter never self-constructs a connection from `process.env`:
+   * that would reintroduce the CWE-798 insecure fallback (SECURITY_CANON
+   * §Secrets) and violate the DI canon (ARCHITECTURE_CANON §Dependency
+   * Injection — only a composition root may construct an adapter's transport).
+   *
+   * Typed optional for the PR1→PR2 wiring window; absence throws at
+   * construction so an un-wired caller fails loudly instead of silently
+   * connecting to localhost.
    */
   connection?: Redis;
   /**
@@ -47,25 +53,21 @@ export interface BullMQQueueAdapterOptions {
 
 export type BullMQQueueAdapter = QueuePort & {
   getResilienceMetrics(): ResilienceMetrics;
-  /** Close the underlying queue. The connection is closed only if the
-   *  adapter created it (i.e. the caller did not pass one in). */
+  /** Close the underlying queue. The injected connection is owned by the
+   *  composition root and is never quit here. */
   close(): Promise<void>;
 };
 
 export function createBullMQQueueAdapter(options: BullMQQueueAdapterOptions): BullMQQueueAdapter {
-  const ownsConnection = options.connection === undefined;
-  const connection =
-    options.connection ??
-    new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
-      enableReadyCheck: false,
-      maxRetriesPerRequest: 3,
-      lazyConnect: true,
-      // ioredis defaults: commandTimeout = null (forever), connectTimeout = 10000.
-      // 5 s on each so a hung Redis fails fast instead of stalling enqueue
-      // calls from request handlers.
-      commandTimeout: 5_000,
-      connectTimeout: 5_000,
-    });
+  if (options.connection === undefined) {
+    throw new Error(
+      "BullMQ queue adapter requires an injected Redis connection " +
+        "(composition-root-owned). Self-construction from process.env is " +
+        "forbidden — see ARCHITECTURE_CANON §Dependency Injection and " +
+        "SECURITY_CANON §Secrets."
+    );
+  }
+  const connection = options.connection;
 
   const queue = new Queue(options.queueName, {
     connection,
@@ -247,9 +249,9 @@ export function createBullMQQueueAdapter(options: BullMQQueueAdapterOptions): Bu
     async close(): Promise<void> {
       try {
         await queue.close();
-        if (ownsConnection) {
-          await connection.quit();
-        }
+        // The injected connection is owned by the composition root, which
+        // quits it during shutdown. The adapter never quits a connection it
+        // does not own.
         logger.info({ queueName: options.queueName }, "Queue adapter closed");
       } catch (error) {
         logger.warn({ err: error, queueName: options.queueName }, "Queue cleanup warning");
