@@ -28,6 +28,7 @@ import { createThreadsAdapter } from "@providers/threads";
 import { createBullMQConsumerAdapter, QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { registerGracefulShutdown, type ShutdownTarget } from "./lib/gracefulShutdown.js";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
+import { workerPrisma } from "./container/workerContainer.js";
 import { verifyDatabaseAuth } from "@infra/prisma";
 import { decryptChannelCredentials } from "@shared/types";
 import { CredentialResolver } from "./services/CredentialResolver.js";
@@ -67,6 +68,7 @@ const scheduler = new DefaultBackgroundTaskScheduler({
  *   constructing a second adapter (avoids duplicating the decrypt closure).
  */
 export const publishRepo = createPrismaRepoAdapter({
+  prisma: workerPrisma,
   scheduler,
   decryptChannelCredentials: decryptCredentialsForWorker,
 });

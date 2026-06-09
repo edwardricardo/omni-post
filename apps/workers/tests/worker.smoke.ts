@@ -7,10 +7,11 @@
  */
 import { createBullMQQueueAdapter, QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
+import { workerPrisma } from "../src/container/workerContainer.js";
 
 async function main() {
   const queue = createBullMQQueueAdapter({ queueName: QUEUE_NAMES.PUBLISH });
-  const repo = createPrismaRepoAdapter();
+  const repo = createPrismaRepoAdapter({ prisma: workerPrisma });
 
   // Precondiciones ligeras
   const health = await queue.health();

@@ -1,5 +1,11 @@
+/**
+ * @file baseline-capture.ts
+ * @description Performance baseline capture script for regression detection.
+ * @layer infrastructure
+ */
 import { PerformanceRegressionDetector } from "../monitoring/regression-detector.js";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
+import { prisma } from "@infra/prisma";
 import { createBullMQQueueAdapter } from "@adapters/queue-bullmq";
 import Redis from "ioredis";
 import autocannon from "autocannon";
@@ -14,7 +20,7 @@ interface BaselineTestConfig {
 }
 
 class BaselineCapture {
-  private repo = createPrismaRepoAdapter();
+  private repo = createPrismaRepoAdapter({ prisma });
   private queue = createBullMQQueueAdapter();
   private redis = new Redis({
     host: process.env.REDIS_HOST || "localhost",

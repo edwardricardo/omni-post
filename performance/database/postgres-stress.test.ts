@@ -1,3 +1,8 @@
+/**
+ * @file postgres-stress.test.ts
+ * @description PostgreSQL stress test for connection pool and query performance.
+ * @layer infrastructure
+ */
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import { createBullMQQueueAdapter } from "@adapters/queue-bullmq";
 import { createTestPrismaClient } from "@infra/prisma";
@@ -35,7 +40,7 @@ class PostgresStressTest {
 
   constructor() {
     this.prisma = createTestPrismaClient();
-    this.repo = createPrismaRepoAdapter();
+    this.repo = createPrismaRepoAdapter({ prisma: this.prisma });
     this.queue = createBullMQQueueAdapter();
   }
 

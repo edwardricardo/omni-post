@@ -6,7 +6,7 @@
  */
 import { ok, err, type Result, type Thread, type Tweet } from "@shared/types";
 import type { CreateThreadInput, CreateTweetInput, UpdateTweetInput } from "@ports/core";
-import { prisma, type ThreadStrategy as PrismaThreadStrategy } from "@infra/prisma";
+import type { PrismaClient, ThreadStrategy as PrismaThreadStrategy } from "@infra/prisma";
 import {
   mapThreadStrategyFromDB,
   mapThreadStrategyToDB,
@@ -17,7 +17,7 @@ import { createLogger } from "@observability/logger";
 
 const logger = createLogger("adapter:db-prisma:thread");
 
-export function createThreadRepository() {
+export function createThreadRepository(prisma: PrismaClient) {
   return {
     async createThread(
       input: CreateThreadInput

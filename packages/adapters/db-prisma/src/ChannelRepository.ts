@@ -8,7 +8,7 @@
  */
 import { ok, err, type Result } from "@shared/types";
 import type { Channel } from "@ports/core";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { mapProviderFromDB } from "./mappers.js";
 import { createLogger } from "@observability/logger";
 
@@ -35,7 +35,10 @@ export interface CreateChannelRepositoryOptions {
   decryptCredentials?: (envelope: EncryptedChannelCredentialsEnvelope) => Record<string, unknown>;
 }
 
-export function createChannelRepository(options: CreateChannelRepositoryOptions = {}) {
+export function createChannelRepository(
+  options: CreateChannelRepositoryOptions = {},
+  prisma: PrismaClient
+) {
   const { decryptCredentials } = options;
   return {
     async getChannelsByIds(ids: string[]): Promise<Result<Channel[], "DATABASE_ERROR">> {

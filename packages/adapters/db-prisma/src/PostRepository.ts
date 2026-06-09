@@ -6,14 +6,17 @@
  */
 import { ok, err, type Result, type CanonicalPost, type Media } from "@shared/types";
 import type { CreatePostInput, ListPostsQuery, PostsPage } from "@ports/core";
-import { prisma, type MediaKind } from "@infra/prisma";
+import type { PrismaClient, MediaKind } from "@infra/prisma";
 import { createLogger } from "@observability/logger";
 
 const logger = createLogger("adapter:db-prisma:post");
 
-export function createPostRepository(transactionBreaker: {
-  fire: (fn: () => Promise<unknown>) => Promise<unknown>;
-}) {
+export function createPostRepository(
+  transactionBreaker: {
+    fire: (fn: () => Promise<unknown>) => Promise<unknown>;
+  },
+  prisma: PrismaClient
+) {
   return {
     async getPostById(id: string): Promise<Result<CanonicalPost, "NOT_FOUND" | "DATABASE_ERROR">> {
       try {

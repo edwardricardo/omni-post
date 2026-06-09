@@ -66,6 +66,7 @@ function getCredentialResolver(): CredentialResolver {
     throw new Error("PLATFORM_ENCRYPTION_KEY is required for the mention ingest worker");
   }
   const repo = createPrismaRepoAdapter({
+    prisma: workerPrisma,
     decryptChannelCredentials: (envelope: {
       credentialsCiphertext: string;
       credentialsIv: string;

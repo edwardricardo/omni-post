@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 import { ok, err, type Result } from "@shared/types";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { createLogger } from "@observability/logger";
 
 const logger = createLogger("adapter:db-prisma:project");
@@ -15,7 +15,7 @@ export interface CreateProjectInput {
   locale: "es" | "en";
 }
 
-export function createProjectRepository() {
+export function createProjectRepository(prisma: PrismaClient) {
   return {
     async createProject(
       accountId: string,

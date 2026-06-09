@@ -6,13 +6,13 @@
  */
 import { ok, err, type Result } from "@shared/types";
 import type { Analytics, AnalyticsQuery, AnalyticsInput } from "@ports/core";
-import { prisma } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import { mapProviderFromDB, mapProviderToDB } from "./mappers.js";
 import { createLogger } from "@observability/logger";
 
 const logger = createLogger("adapter:db-prisma:analytics");
 
-export function createAnalyticsRepository() {
+export function createAnalyticsRepository(prisma: PrismaClient) {
   return {
     async listAnalytics(query: AnalyticsQuery): Promise<Result<Analytics[], "DATABASE_ERROR">> {
       try {
