@@ -37,7 +37,8 @@ import { createPinterestAdapter } from "@providers/pinterest";
 import { createLinkedInAdapter } from "@providers/linkedin";
 import { createBlueskyAdapter } from "@providers/bluesky";
 import type { Provider, PrismaClient } from "@infra/prisma";
-import { workerPrisma, verifyDatabaseAuth } from "./container/workerContainer.js";
+import { verifyDatabaseAuth } from "./container/workerContainer.js";
+import { env } from "./config/env.js";
 import { createPrismaRepoAdapter, PrismaMentionRepository } from "@adapters/db-prisma";
 import { decryptChannelCredentials } from "@shared/types";
 import type { ProviderAdapter, ProviderMention } from "@ports/core";
@@ -55,18 +56,18 @@ const SEARCH_PAGE_SIZE = 100;
 // Built lazily on first use (and eagerly at worker startup) rather than at
 // module import, so importing this module to unit-test its pure helpers does
 // not require PLATFORM_ENCRYPTION_KEY. The fail-fast on a missing key still
-// fires at worker startup (see startMentionIngestWorker) and on first job.
+// fires at worker startup via startMentionIngestWorker's getCredentialResolver
+// call, not at module import time.
 let cachedCredentialResolver: CredentialResolver | undefined;
-function getCredentialResolver(): CredentialResolver {
+function getCredentialResolver(prisma: PrismaClient): CredentialResolver {
   if (cachedCredentialResolver) {
     return cachedCredentialResolver;
   }
-  const platformEncryptionKey = process.env.PLATFORM_ENCRYPTION_KEY;
-  if (!platformEncryptionKey) {
-    throw new Error("PLATFORM_ENCRYPTION_KEY is required for the mention ingest worker");
-  }
+  // env.PLATFORM_ENCRYPTION_KEY is validated fail-fast at module load by the
+  // workers env module (env.ts). No runtime guard needed here.
+  const platformEncryptionKey = env.PLATFORM_ENCRYPTION_KEY;
   const repo = createPrismaRepoAdapter({
-    prisma: workerPrisma,
+    prisma,
     decryptChannelCredentials: (envelope: {
       credentialsCiphertext: string;
       credentialsIv: string;
@@ -225,7 +226,7 @@ async function processSearchJob(job: SearchJob, deps: MentionJobDeps): Promise<v
     return;
   }
 
-  const credentialResult = await getCredentialResolver().resolve(channelId);
+  const credentialResult = await getCredentialResolver(deps.prisma).resolve(channelId);
   if (!credentialResult.ok) {
     await handleProviderAuthError(
       deps.authFailureRecorder,
@@ -305,7 +306,7 @@ async function processFetchJob(job: FetchJob, deps: MentionJobDeps): Promise<voi
     return;
   }
 
-  const credentialResult = await getCredentialResolver().resolve(channelId);
+  const credentialResult = await getCredentialResolver(deps.prisma).resolve(channelId);
   if (!credentialResult.ok) {
     await handleProviderAuthError(
       deps.authFailureRecorder,
@@ -383,13 +384,15 @@ export async function startMentionIngestWorker(
 
   // Fail fast at startup if PLATFORM_ENCRYPTION_KEY is missing (and warm the
   // resolver), instead of deferring the failure to the first processed job.
-  getCredentialResolver();
+  // Thread options.prisma through so the resolver uses the injected client.
+  getCredentialResolver(options.prisma);
 
   const authFailureRecorder = new ChannelAuthFailureRecorder({ prisma: options.prisma });
   const ingestMention = new IngestMentionUseCase(new PrismaMentionRepository(options.prisma));
   const deps: MentionJobDeps = { prisma: options.prisma, authFailureRecorder, ingestMention };
 
-  const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
+  // Uses env.REDIS_URL — no fallback (SECURITY_CANON §Secrets, CWE-798).
+  const connection = new Redis(env.REDIS_URL, {
     maxRetriesPerRequest: null,
     lazyConnect: true,
     // No commandTimeout: BullMQ Worker uses blocking commands (BZPOPMIN,
@@ -450,5 +453,7 @@ export async function startMentionIngestWorker(
 // rather than imported by `bootstrap.ts`, kick off the worker.
 const isMainModule = import.meta.url === `file://${process.argv[1]}`;
 if (isMainModule) {
-  void startMentionIngestWorker({ prisma: workerPrisma });
+  void startMentionIngestWorker({
+    prisma: (await import("./container/workerContainer.js")).workerPrisma,
+  });
 }

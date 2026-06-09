@@ -67,12 +67,14 @@ let publishingInstrumentation: PublishInstrumentation = mockPublishingInstrument
 let databaseInstrumentation: DatabaseInstrumentation = mockDatabaseInstrumentation;
 let businessKPITracker: BusinessKPITracker = mockBusinessKPITracker;
 
-const tracingEnabled = process.env.TRACING_ENABLED === "true";
+// Route through the workers typed env module — no raw process.env reads.
+const { env } = await import("../config/env.js");
+const tracingEnabled = env.TRACING_ENABLED;
 
 if (tracingEnabled) {
   try {
     const otel = await import("@observability/opentelemetry");
-    const environment = process.env.NODE_ENV || "development";
+    const environment = env.NODE_ENV;
     const telemetry = otel.createWorkerTelemetry(environment);
 
     await telemetry.start();

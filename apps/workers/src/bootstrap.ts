@@ -51,8 +51,9 @@ import {
   RedisHealthChecker,
 } from "@monitoring/health-checks";
 import { workerPrisma } from "./container/workerContainer.js";
-import { startPublishWorker, publishMetricsRegistry, publishRepo } from "./publishWorker.js";
+import { startPublishWorker } from "./publishWorker.js";
 import { startMentionIngestWorker } from "./mentionIngestWorker.js";
+import { env } from "./config/env.js";
 import { registerGracefulShutdown, type ShutdownTarget } from "./lib/gracefulShutdown.js";
 
 const logger = createLogger("workers-bootstrap");
@@ -60,10 +61,11 @@ const logger = createLogger("workers-bootstrap");
 async function main(): Promise<void> {
   logger.info("Bootstrapping workers process");
 
-  const targets = await Promise.all([
-    startPublishWorker({ registerShutdown: false }),
-    startMentionIngestWorker({ prisma: workerPrisma, registerShutdown: false }),
-  ]);
+  const publishHandle = await startPublishWorker({ prisma: workerPrisma, registerShutdown: false });
+  const mentionTarget = await startMentionIngestWorker({
+    prisma: workerPrisma,
+    registerShutdown: false,
+  });
 
   // --- Health check manager + scheduler ---
   // The HealthCheckManager runs registered checkers periodically (interval
@@ -79,7 +81,8 @@ async function main(): Promise<void> {
 
   // Dedicated Redis client for the RedisHealthChecker — does not share
   // the publish worker's saga notifyRedis (different connection lifecycle).
-  const healthRedis = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
+  // Uses env.REDIS_URL — no fallback (SECURITY_CANON §Secrets, CWE-798).
+  const healthRedis = new Redis(env.REDIS_URL, {
     lazyConnect: true,
     maxRetriesPerRequest: 1,
     enableReadyCheck: false,
@@ -94,7 +97,7 @@ async function main(): Promise<void> {
     { timeout: 5000, interval: 30000, retries: 3 },
     healthScheduler
   );
-  healthManager.register("database", new DatabaseHealthChecker(publishRepo), {
+  healthManager.register("database", new DatabaseHealthChecker(publishHandle.repo), {
     type: "database",
     critical: true,
   });
@@ -106,9 +109,9 @@ async function main(): Promise<void> {
   // Aggregate prom-client registries: publish worker's default+worker metrics
   // + the global registry used by `@monitoring/health-checks` for its own
   // gauges/histograms.
-  const metricsRegistry = client.Registry.merge([publishMetricsRegistry, client.register]);
+  const metricsRegistry = client.Registry.merge([publishHandle.metricsRegistry, client.register]);
 
-  const metricsPort = Number(process.env.METRICS_PORT ?? 3300);
+  const metricsPort = env.METRICS_PORT ?? 3300;
 
   const healthServer = http.createServer(async (req, res) => {
     try {
@@ -222,9 +225,10 @@ async function main(): Promise<void> {
 
   // Merge the per-worker shutdown targets into one. Order matters during drain:
   // workers first (drain in-flight jobs), then queues, then connections, then
-  // afterTeardown hooks (custom cleanup), then Prisma. The composed `afterTeardown`
+  // prisma, then afterTeardown hooks (custom cleanup). The composed `afterTeardown`
   // stops the health manager + closes the server, then runs every worker's hook
   // in sequence so each closes its own consumer / scheduler.
+  const targets = [publishHandle.target, mentionTarget];
   const composed: ShutdownTarget = {
     workers: targets.flatMap((t) => t.workers ?? []),
     queues: targets.flatMap((t) => t.queues ?? []),
