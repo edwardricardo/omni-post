@@ -24,6 +24,7 @@ after(() => {
 });
 
 import { SyncEngine } from "../../../src/content/SyncEngine";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { ProviderId } from "../../../src/providers/providerAdapter.interface";
 import {
   mockPrisma,
@@ -58,6 +59,7 @@ beforeEach(async () => {
     eventService: mockEventService,
     synchronizer,
     versionManager,
+    scheduler: new NoopBackgroundTaskScheduler(),
   });
 });
 
@@ -71,7 +73,7 @@ describe("SyncEngine - Conflict Resolution", () => {
     await syncEngine.initialize();
   });
 
-  it("should detect conflicts during sync", async (_t) => {
+  it("should detect conflicts during sync", async (t) => {
     if (skipIfUnavailable(t)) return;
     const channelResult = await syncEngine.createSyncChannel(
       "Conflict Detection",
@@ -103,7 +105,7 @@ describe("SyncEngine - Conflict Resolution", () => {
     }
   });
 
-  it("should reject resolution for non-existent transaction", async (_t) => {
+  it("should reject resolution for non-existent transaction", async (t) => {
     if (skipIfUnavailable(t)) return;
     const result = await syncEngine.resolveSyncConflicts("invalid-transaction-id", []);
 
@@ -114,7 +116,7 @@ describe("SyncEngine - Conflict Resolution", () => {
     }
   });
 
-  it("should apply source_wins resolution strategy", async (_t) => {
+  it("should apply source_wins resolution strategy", async (t) => {
     if (skipIfUnavailable(t)) return;
     const channelResult = await syncEngine.createSyncChannel(
       "Source Wins",
@@ -149,7 +151,7 @@ describe("SyncEngine - Conflict Resolution", () => {
     }
   });
 
-  it("should handle merge conflict resolution", async (_t) => {
+  it("should handle merge conflict resolution", async (t) => {
     if (skipIfUnavailable(t)) return;
     const channelResult = await syncEngine.createSyncChannel(
       "Merge Resolution",
@@ -189,7 +191,7 @@ describe("SyncEngine - Transaction Rollback", () => {
     await syncEngine.initialize();
   });
 
-  it("should reject rollback for non-existent transaction", async (_t) => {
+  it("should reject rollback for non-existent transaction", async (t) => {
     if (skipIfUnavailable(t)) return;
     const result = await syncEngine.rollbackTransaction("invalid-transaction-id");
 
@@ -200,7 +202,7 @@ describe("SyncEngine - Transaction Rollback", () => {
     }
   });
 
-  it("should reject rollback without rollback plan", async (_t) => {
+  it("should reject rollback without rollback plan", async (t) => {
     if (skipIfUnavailable(t)) return;
     const channelResult = await syncEngine.createSyncChannel(
       "No Rollback Plan",

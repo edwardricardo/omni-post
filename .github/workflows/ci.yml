@@ -56,7 +56,9 @@ jobs:
 
     services:
       postgres:
-        image: postgres:15
+        # pgvector-enabled image — the glossary/style-guide migrations CREATE
+        # EXTENSION vector, which plain postgres images don't ship.
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_PASSWORD: password123
           POSTGRES_USER: postgres
@@ -101,7 +103,7 @@ jobs:
           # env.ts loads `.env.test` when NODE_ENV=test; the tracked file was
           # removed for credential hygiene, so CI synthesizes it (deterministic
           # non-production secrets). DB/Redis are passed in, not hardcoded here.
-          export DATABASE_URL="postgresql://postgres:password123@localhost:5432/omnipostdb?schema=test"
+          export DATABASE_URL="postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public"
           export REDIS_URL="redis://localhost:6379"
           bash scripts/ci-setup-test-env.sh
 
@@ -109,7 +111,15 @@ jobs:
         run: pnpm --filter @infra/prisma exec prisma generate
 
       - name: Run database migrations
-        run: pnpm --filter @infra/prisma db:migrate
+        # See the Integration Tests job for the full rationale: `db:migrate`
+        # resolves no script under @infra/prisma (pnpm exits 0, migration
+        # silently skipped). Mocked unit shards don't touch a real DB so this
+        # latent bug never surfaced here — fixed for correctness. Explicit DB
+        # env pins the postgres service on the `public` schema.
+        env:
+          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
+        run: pnpm --filter @infra/prisma run migrate
 
       - name: Run API tests (shard, blob reporter)
         env:
@@ -146,8 +156,8 @@ jobs:
         # job's postgres/redis services (a process env var wins over --env-file).
         env:
           NODE_ENV: test
-          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=test
-          SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=test
+          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
           REDIS_URL: redis://localhost:6379
         run: |
           cp .env.test.example .env
@@ -200,6 +210,142 @@ jobs:
           path: apps/api/coverage/
           retention-days: 14
           if-no-files-found: warn
+
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    # PR tier (DB-only batches) targets <=10m; the main-push full tier boots the
+    # API and runs all batches, so it gets a wider budget.
+    timeout-minutes: ${{ github.event_name == 'push' && 25 || 12 }}
+
+    services:
+      postgres:
+        # pgvector-enabled image — the glossary/style-guide migrations CREATE
+        # EXTENSION vector, which plain postgres images don't ship.
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: password123
+          POSTGRES_USER: postgres
+          POSTGRES_DB: omnipostdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js with pnpm and cache
+        uses: ./.github/actions/setup-node-pnpm-cache
+
+      - name: Setup Turborepo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-
+            ${{ runner.os }}-turbo-
+
+      - name: Setup test environment
+        run: |
+          cp .env.example .env
+          # env.ts loads `.env.test` when NODE_ENV=test; the tracked file was
+          # removed for credential hygiene, so CI synthesizes it (deterministic
+          # non-production secrets). DB/Redis are passed in, not hardcoded here.
+          export DATABASE_URL="postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public"
+          export REDIS_URL="redis://localhost:6379"
+          bash scripts/ci-setup-test-env.sh
+
+      - name: Generate Prisma client
+        run: pnpm --filter @infra/prisma exec prisma generate
+
+      - name: Run database migrations
+        # `migrate` is the script defined on @infra/prisma (`prisma migrate
+        # deploy`); the `db:migrate` alias only exists in the ROOT package, so
+        # `--filter @infra/prisma db:migrate` matches no script and pnpm exits 0
+        # WITHOUT applying anything — the schema never lands. Explicit DB env so
+        # prisma.config.ts targets the postgres service on the `public` schema
+        # (the same schema the adapter-pg test client uses — see test env below).
+        env:
+          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
+        run: pnpm --filter @infra/prisma run migrate
+
+      # Both tiers need the seeded baseline (roles/permissions and reference
+      # rows the integration suites assume exist — the local dev DB always has
+      # them). The seed is idempotent, so running it on every tier is safe.
+      - name: Seed roles + permissions
+        # Explicit DB env: seed.ts loads via prisma.config.ts (root .env holds
+        # only placeholders in CI), so pin the postgres service + public schema.
+        env:
+          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
+        # seed.ts requires PLATFORM_ENCRYPTION_KEY (32 bytes, base64). Generate
+        # the same deterministic test-only key ci-setup-test-env.sh writes to
+        # .env.test (no secret-shaped literal stored in the workflow).
+        run: |
+          export PLATFORM_ENCRYPTION_KEY="$(head -c 32 /dev/zero | tr '\0' 'c' | base64 | tr -d '\n')"
+          pnpm --filter @infra/prisma run seed
+
+      # Pull-request tier: DB-only integration batches (repositories, sync,
+      # outbox). No live API server is needed — these exercise Prisma against
+      # the postgres service directly. The Vitest unit phase is owned by the
+      # Test Suite job and is skipped here via TIER.
+      - name: Run integration tests (PR tier, DB-only)
+        if: github.event_name != 'push'
+        env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
+          TIER: pr-integration
+          # Explicit DB/Redis env so run-tests.sh never falls back to sourcing
+          # the repo .env (dotenv files are not valid bash).
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
+          REDIS_URL: redis://localhost:6379
+        run: pnpm --filter @apps/api run test:integration
+
+      # Main-push tier: full integration suite, including live-API batches that
+      # call http://localhost:3000. Boot the API on port 3000 (process env wins
+      # over .env.test's PORT) and health-poll before running the batches.
+
+      - name: Start API in background
+        if: github.event_name == 'push'
+        env:
+          NODE_ENV: test
+          PORT: "3000"
+          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
+          REDIS_URL: redis://localhost:6379
+        run: |
+          pnpm --filter @apps/api dev:test &
+          echo "API_PID=$!" >> "$GITHUB_ENV"
+          timeout 90s bash -c 'until curl -fsS http://localhost:3000/health >/dev/null; do sleep 2; done'
+
+      - name: Run integration tests (full tier)
+        if: github.event_name == 'push'
+        env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
+          TIER: full-integration
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
+          REDIS_URL: redis://localhost:6379
+        run: pnpm --filter @apps/api run test:integration
 
   build:
     name: Build Check
@@ -304,8 +450,11 @@ jobs:
           bash scripts/ci-setup-test-env.sh
 
       - name: Run package tests (turbo)
+        # --continue: a single package failure must not abort the remaining
+        # ~59 packages — the job still fails, but with the FULL picture.
         run: >-
           pnpm exec turbo run test
+          --continue
           --filter=!@apps/api
           --filter=!@apps/admin
           --filter=!@apps/client

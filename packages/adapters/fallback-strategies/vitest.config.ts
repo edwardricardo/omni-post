@@ -12,5 +12,11 @@ export default defineConfig({
     globals: true,
     include: ["tests/**/*.test.ts"],
     pool: "forks",
+    // Single fork: multi-fork pools on Node 24 intermittently die with
+    // "Worker exited unexpectedly" (exit 1 with zero failed tests).
+    poolOptions: { forks: { singleFork: true } },
+    // The beforeAll dynamic-imports the source module; on a cold CI runner the
+    // on-the-fly transform of its dependency graph can exceed the 10s default.
+    hookTimeout: 30000,
   },
 });
