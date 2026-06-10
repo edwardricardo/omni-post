@@ -110,6 +110,7 @@
       "@types/react-dom": "19.2.3",
       "zod": "4.3.6",
       "pino": "10.3.1",
+      "shell-quote": "1.8.4",
       "form-data": "4.0.5",
       "fast-xml-parser": "5.7.0",
       "xmlhttprequest-ssl": "4.0.0",

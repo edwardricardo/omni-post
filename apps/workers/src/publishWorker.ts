@@ -176,7 +176,24 @@ export async function startPublishWorker(
     notifyRedis,
   });
 
-  const consumer = createBullMQConsumerAdapter({ queueName: QUEUE_NAMES.PUBLISH });
+  // Dedicated Redis connection for the BullMQ Worker. BullMQ requires
+  // `maxRetriesPerRequest: null` because the Worker blocks on `BRPOPLPUSH`
+  // indefinitely — the saga-notify `notifyRedis` above uses finite retries
+  // and therefore cannot be shared as the Worker transport. The workers
+  // executable owns its own composition root, so this connection is built
+  // here (never crossing from the apps/api container) from the validated
+  // `env.REDIS_URL` with no fallback (SECURITY_CANON §Secrets, CWE-798).
+  const workerConnection = new Redis(env.REDIS_URL, {
+    maxRetriesPerRequest: null,
+  });
+  workerConnection.on("error", (error) => {
+    logger.error({ err: error }, "Publish worker Redis connection error");
+  });
+
+  const consumer = createBullMQConsumerAdapter({
+    queueName: QUEUE_NAMES.PUBLISH,
+    connection: workerConnection,
+  });
 
   const worker = await consumer.subscribe(async (job) => {
     const payload = job.payload as {
@@ -208,15 +225,19 @@ export async function startPublishWorker(
   //
   // 1. worker.close()         — stops fetching, AWAITS active jobs (saga-notify
   //                             Redis commands run here, while notifyRedis OPEN).
-  // 2. notifyRedis.quit()     — only NOW; no job in flight → no command hits dead socket.
+  // 2. connections.quit()     — only NOW; no job in flight → no command hits a
+  //                             dead socket. Both the saga-notify connection and
+  //                             the BullMQ Worker transport connection are quit
+  //                             here, after the Worker has fully drained.
   // 3. options.prisma.$disconnect() — DB pool released.
   // 4. afterTeardown:
-  //    a. consumer.close()    — Worker already closed (idempotent); closes the
-  //                             consumer-owned BullMQ transport connection.
+  //    a. consumer.close()    — Worker already closed (idempotent); the adapter
+  //                             never quits the injected workerConnection (the
+  //                             composition root owns it — quit in step 2).
   //    b. scheduler.shutdownAll() — cancels recurring tasks.
   const target: ShutdownTarget = {
     workers: [worker],
-    connections: [notifyRedis],
+    connections: [notifyRedis, workerConnection],
     prisma: options.prisma,
     afterTeardown: async (): Promise<void> => {
       await consumer.close();

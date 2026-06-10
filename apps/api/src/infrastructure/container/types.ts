@@ -460,6 +460,19 @@ export const TOKENS = {
   // Producer-side DLQ port (archive only).
   DeadLetterQueuePort: Symbol.for("DeadLetterQueuePort"),
 
+  // Redis connections (role-separated — BullMQ canon: dedicate connections per
+  // role; worker/subscriber connections require maxRetriesPerRequest:null,
+  // producers/counters use finite retries; never share opposite retry
+  // strategies on one socket). All constructed in the composition root.
+  // Shared by every in-process BullMQ consumer (Worker requirement: null).
+  BullMQWorkerConnection: Symbol.for("BullMQWorkerConnection"),
+  // Long-lived pub/sub subscriber for the saga event channel (subscriber mode
+  // cannot run regular commands — needs its own socket).
+  SagaSubscriberConnection: Symbol.for("SagaSubscriberConnection"),
+  // Distributed-counter connection for ROICalculator (hgetall/hmset/expire —
+  // not BullMQ, not pub/sub; finite retries + commandTimeout).
+  AnalyticsRedisConnection: Symbol.for("AnalyticsRedisConnection"),
+
   // Analytics Aggregation
   AnalyticsAggregationQuery: Symbol.for("AnalyticsAggregationQuery"),
 

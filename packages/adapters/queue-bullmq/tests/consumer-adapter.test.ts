@@ -53,14 +53,42 @@ vi.mock("ioredis", () => {
 
 import { createBullMQConsumerAdapter } from "../src/consumer-adapter.js";
 
+/**
+ * A minimal Redis double — the adapter never calls methods on the injected
+ * connection at construction time; it only forwards it to the BullMQ Worker.
+ */
+function makeConnectionDouble(): import("ioredis").default {
+  return { quit: mockRedisQuit } as unknown as import("ioredis").default;
+}
+
 describe("createBullMQConsumerAdapter", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     workerInstances.length = 0;
   });
 
+  it("throws identifying the missing connection when none is injected", () => {
+    expect(() => createBullMQConsumerAdapter({ queueName: "publish" })).toThrow(/connection/i);
+  });
+
+  it("never constructs its own Redis (no env/localhost fallback) when no connection is injected", () => {
+    expect(() => createBullMQConsumerAdapter({ queueName: "publish" })).toThrow();
+    expect(redisConstructor).not.toHaveBeenCalled();
+  });
+
+  it("uses the injected connection without constructing a new Redis", async () => {
+    const connection = makeConnectionDouble();
+    const adapter = createBullMQConsumerAdapter({ queueName: "publish", connection });
+    await adapter.subscribe(async () => {});
+    expect(redisConstructor).not.toHaveBeenCalled();
+    expect(workerInstances).toHaveLength(1);
+  });
+
   it("creates a Worker bound to the supplied queueName", async () => {
-    const adapter = createBullMQConsumerAdapter({ queueName: "analytics-aggregation" });
+    const adapter = createBullMQConsumerAdapter({
+      queueName: "analytics-aggregation",
+      connection: makeConnectionDouble(),
+    });
     await adapter.subscribe(async () => {});
     expect(workerInstances).toHaveLength(1);
     expect(workerInstances[0]?.name).toBe("analytics-aggregation");
@@ -69,6 +97,7 @@ describe("createBullMQConsumerAdapter", () => {
   it("respects concurrency / removeOnComplete / removeOnFail when provided", async () => {
     const adapter = createBullMQConsumerAdapter({
       queueName: "publish",
+      connection: makeConnectionDouble(),
       concurrency: 12,
       removeOnComplete: { count: 200 },
       removeOnFail: { count: 75 },
@@ -80,7 +109,10 @@ describe("createBullMQConsumerAdapter", () => {
   });
 
   it("falls back to defaults (concurrency=5, complete=100, fail=50) when options are omitted", async () => {
-    const adapter = createBullMQConsumerAdapter({ queueName: "publish" });
+    const adapter = createBullMQConsumerAdapter({
+      queueName: "publish",
+      connection: makeConnectionDouble(),
+    });
     await adapter.subscribe(async () => {});
     expect(workerInstances[0]?.options.concurrency).toBe(5);
     expect(workerInstances[0]?.options.removeOnComplete).toEqual({ count: 100 });
@@ -88,27 +120,21 @@ describe("createBullMQConsumerAdapter", () => {
   });
 
   it("registers an error handler on the Worker", async () => {
-    const adapter = createBullMQConsumerAdapter({ queueName: "publish" });
+    const adapter = createBullMQConsumerAdapter({
+      queueName: "publish",
+      connection: makeConnectionDouble(),
+    });
     await adapter.subscribe(async () => {});
     expect(workerInstances[0]?.on).toHaveBeenCalledWith("error", expect.any(Function));
   });
 
-  it("close() closes the worker; closes the connection only when adapter owns it", async () => {
-    const owned = createBullMQConsumerAdapter({ queueName: "publish" });
-    await owned.subscribe(async () => {});
-    await owned.close();
-    expect(workerInstances[0]?.close).toHaveBeenCalledTimes(1);
-    expect(mockRedisQuit).toHaveBeenCalledTimes(1);
-
-    workerInstances.length = 0;
-    vi.clearAllMocks();
-    const sharedConnection = { quit: mockRedisQuit } as unknown as import("ioredis").default;
-    const shared = createBullMQConsumerAdapter({
+  it("close() closes the worker and never quits the injected connection (composition root owns it)", async () => {
+    const adapter = createBullMQConsumerAdapter({
       queueName: "publish",
-      connection: sharedConnection,
+      connection: makeConnectionDouble(),
     });
-    await shared.subscribe(async () => {});
-    await shared.close();
+    await adapter.subscribe(async () => {});
+    await adapter.close();
     expect(workerInstances[0]?.close).toHaveBeenCalledTimes(1);
     expect(mockRedisQuit).not.toHaveBeenCalled();
   });

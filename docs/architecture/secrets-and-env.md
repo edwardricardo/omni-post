@@ -26,14 +26,16 @@ Every backend module imports `env` from `apps/api/src/config/env.ts`. The schema
 
 ## Key categories
 
-| Category                  | Contract                                              | Examples                                                       |
-| ------------------------- | ----------------------------------------------------- | -------------------------------------------------------------- |
-| **Required**              | Schema enforces; boot fails if missing or `< 32` char | `DATABASE_URL`, `JWT_ACCESS_SECRET`, `PLATFORM_ENCRYPTION_KEY` |
-| **Optional with default** | Schema applies default if unset                       | `PORT=3000`, `NODE_ENV=development`, `LOG_LEVEL=info`          |
-| **Optional**              | `undefined` is fine; consumer handles it              | `OPENAI_API_KEY` (AI feature auto-disables)                    |
-| **Conditional**           | Required if a sibling toggle is set                   | `STRIPE_SECRET_KEY` required when `PAYMENT_PROVIDER=stripe`    |
+| Category                  | Contract                                              | Examples                                                                    |
+| ------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------- |
+| **Required**              | Schema enforces; boot fails if missing or `< 32` char | `DATABASE_URL`, `REDIS_URL`, `JWT_ACCESS_SECRET`, `PLATFORM_ENCRYPTION_KEY` |
+| **Optional with default** | Schema applies default if unset                       | `PORT=3000`, `NODE_ENV=development`, `LOG_LEVEL=info`                       |
+| **Optional**              | `undefined` is fine; consumer handles it              | `OPENAI_API_KEY` (AI feature auto-disables)                                 |
+| **Conditional**           | Required if a sibling toggle is set                   | `STRIPE_SECRET_KEY` required when `PAYMENT_PROVIDER=stripe`                 |
 
 Conditional validation is enforced at the point of use (e.g. `paymentAdapterFactory.ts` throws if Stripe is selected but its secrets are unset), not in the Zod schema, because the schema can't easily express cross-field constraints without losing the simple "all-fields-optional or required" mental model.
+
+> **`REDIS_URL` is required for `apps/api`.** It moved from optional to required: BullMQ queue/consumer adapters and Redis-backed services are composition-root-owned and never self-construct a connection, so a missing `REDIS_URL` now fails the boot rather than silently defaulting to `redis://localhost:6379` (CWE-798). The legacy `REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD` trio remains for compat (`getRedisUrl()` builds a URL from them for workers / docker-compose deploys) but is no longer a fallback that lets `apps/api` boot without `REDIS_URL`.
 
 ## What lives where
 
