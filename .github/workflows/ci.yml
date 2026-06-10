@@ -38,16 +38,21 @@ jobs:
       - name: Run ESLint
         run: pnpm lint
 
-      - name: TypeScript type check
-        run: pnpm --filter @apps/api run typecheck
+      - name: TypeScript type check (full monorepo)
+        run: pnpm exec turbo run typecheck
 
   test:
-    name: Test Suite
+    name: Test Suite (shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
-    # 20m: maxWorkers:1 serializes the coverage run (one fork instead of two, to
-    # bound peak RSS and stop the OS OOM-kill of a fork), which roughly doubles
-    # wall-clock for this job. Tests pass; this is wall-clock, not a failure.
+    # 20m per shard: maxWorkers:1 serializes the coverage run (one fork instead
+    # of two, to bound peak RSS and stop the OS OOM-kill of a fork). Each shard
+    # runs half the suite, so wall-clock drops versus the single-fork full run.
     timeout-minutes: 20
+
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
 
     services:
       postgres:
@@ -106,24 +111,34 @@ jobs:
       - name: Run database migrations
         run: pnpm --filter @infra/prisma db:migrate
 
-      - name: Run API tests with coverage
+      - name: Run API tests (shard, blob reporter)
         env:
           # Heap-ceiling backstop only — the actual RSS fix is maxWorkers:1 in
           # apps/api/vitest.config.ts. This bounds V8 heap growth so a borderline
           # run trends toward a graceful heap error instead of an OS SIGKILL.
           NODE_OPTIONS: "--max-old-space-size=6144"
-        run: pnpm --filter @apps/api test:unit:coverage
+          # Per-shard runs cover only half the suite, so coverage thresholds must
+          # not gate here — they are enforced once on merged blobs in coverage-merge.
+          # vitest.config.ts reads this flag to drop the thresholds for shard runs.
+          VITEST_SHARDED: "true"
+        run: pnpm --filter @apps/api exec vitest run --shard=${{ matrix.shard }}/2 --reporter=blob --coverage.enabled
 
-      - name: Upload coverage report
+      - name: Upload coverage blob
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report-${{ github.run_id }}
-          path: apps/api/coverage/
+          name: vitest-blob-${{ matrix.shard }}
+          path: apps/api/.vitest-reports/
+          # Dot-directories are excluded by default since upload-artifact v4.4;
+          # the blob lives in a hidden dir, so opt it back in explicitly.
+          include-hidden-files: true
           retention-days: 14
-          if-no-files-found: warn
+          if-no-files-found: error
 
       - name: Regenerate API types (OpenAPI drift gate)
+        # Runs on a single shard only; the gate is independent of test sharding
+        # and re-running it on every shard would duplicate the full Fastify boot.
+        if: matrix.shard == 1
         # dump:openapi boots the FULL Fastify app (Zod env validation + DI
         # construction, incl. base64-256-bit encryption keys), so it needs a
         # complete valid env. Seed .env from the committed test template (which
@@ -139,6 +154,7 @@ jobs:
           pnpm generate:api-types
 
       - name: Verify no API-types drift
+        if: matrix.shard == 1
         run: |
           if ! git diff --quiet -- packages/shared/src/api-generated/; then
             echo "::error title=API types out of sync::Generated OpenAPI types differ from committed copy."
@@ -147,6 +163,43 @@ jobs:
             exit 1
           fi
           echo "API types are in sync with the OpenAPI spec."
+
+  coverage-merge:
+    name: Coverage Merge
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js with pnpm and cache
+        uses: ./.github/actions/setup-node-pnpm-cache
+
+      - name: Download shard blobs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: vitest-blob-*
+          path: apps/api/.vitest-reports/
+          merge-multiple: true
+
+      - name: Merge blobs and enforce coverage thresholds
+        # No VITEST_SHARDED here: vitest.config.ts keeps the 55/45 thresholds, so
+        # coverage is gated once against the merged data from both shards.
+        # --mergeReports (camelCase) reconstructs the full run from the blobs.
+        env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
+        run: pnpm --filter @apps/api exec vitest run --mergeReports --coverage.enabled
+
+      - name: Upload merged coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-${{ github.run_id }}
+          path: apps/api/coverage/
+          retention-days: 14
+          if-no-files-found: warn
 
   build:
     name: Build Check
@@ -212,11 +265,16 @@ jobs:
       - name: Circular dependency check (madge)
         run: pnpm check:circular
 
-  # ── Tier 0: Provider adapter unit tests (no DB, no Redis) ──
-  test-providers:
-    name: Provider Tests
+  # ── Monorepo package tests (providers, adapters, core, observability) ──
+  # Deterministic turbo run over every package with a `test` script, excluding the
+  # apps covered elsewhere: @apps/api (Test Suite shards) and @apps/admin/@apps/client
+  # (Frontend Tests). @apps/client is excluded by necessity — its `test` script is
+  # watch-mode vitest, which would hang the job. These are Tier 0 unit tests:
+  # cache-redis uses a FakeRedis, db-prisma tests are unit/DI — no live DB or Redis.
+  test-packages:
+    name: Package Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
@@ -225,29 +283,32 @@ jobs:
       - name: Setup Node.js with pnpm and cache
         uses: ./.github/actions/setup-node-pnpm-cache
 
-      - name: Run X provider tests
-        run: pnpm --filter @providers/x test
+      - name: Setup Turborepo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-
+            ${{ runner.os }}-turbo-
 
-      - name: Run Facebook provider tests
-        run: pnpm --filter @providers/facebook test
+      - name: Setup test environment
+        # Some package suites (e.g. fallback-strategies) self-skip without env
+        # config and vitest exits 1 on a zero-test run. Mirror the FULL env
+        # synthesis production-ci performed before its turbo test run: .env from
+        # the example plus a synthesized .env.test (vitest setupFiles load it).
+        run: |
+          cp .env.example .env
+          export DATABASE_URL="postgresql://test_user:test_pass@localhost:5432/test_db"
+          export REDIS_URL="redis://localhost:6379"
+          bash scripts/ci-setup-test-env.sh
 
-      - name: Run Shared provider tests
-        run: pnpm --filter @providers/shared test
-
-      - name: Run TikTok provider tests
-        run: pnpm --filter @providers/tiktok test
-
-      - name: Run YouTube provider tests
-        run: pnpm --filter @providers/youtube test
-
-      - name: Run Instagram provider tests
-        run: pnpm --filter @providers/instagram test
-
-      - name: Run api-common tests
-        run: pnpm --filter @packages/api-common test
-
-      - name: Run Core engine tests
-        run: pnpm --filter @core/engine test
+      - name: Run package tests (turbo)
+        run: >-
+          pnpm exec turbo run test
+          --filter=!@apps/api
+          --filter=!@apps/admin
+          --filter=!@apps/client
 
   # ── Tier 0: Frontend unit tests (vitest + jsdom, no DB) ──
   test-frontend:
@@ -267,32 +328,3 @@ jobs:
 
       - name: Run Client unit tests (vitest)
         run: pnpm --filter @apps/client exec vitest run
-
-  # ── Tier 2: Cache adapter tests (needs Redis) ──
-  test-cache-redis:
-    name: Cache Redis Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    services:
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js with pnpm and cache
-        uses: ./.github/actions/setup-node-pnpm-cache
-
-      - name: Run Cache Redis tests
-        run: pnpm --filter @adapters/cache-redis test
-        env:
-          REDIS_URL: redis://localhost:6379

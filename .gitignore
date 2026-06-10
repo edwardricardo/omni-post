@@ -19,6 +19,8 @@ coverage/
 **/coverage/
 .nyc_output/
 **/__snapshots__/
+# Vitest sharded-run blob reports (merged in CI, never committed)
+**/.vitest-reports/
 # Playwright
 playwright-report/
 **/playwright-report/

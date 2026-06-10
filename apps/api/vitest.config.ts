@@ -8,6 +8,12 @@
 import { defineConfig } from "vitest/config";
 import path from "node:path";
 import { existsSync } from "node:fs";
+import { buildCoverageThresholds } from "./vitest.coverage-thresholds.js";
+
+// When CI shards the suite across jobs, each shard runs only part of the tests,
+// so coverage thresholds are skipped per shard and enforced once on the merged
+// blobs in the coverage-merge job. Local and merge runs keep the full thresholds.
+const sharded = process.env.VITEST_SHARDED === "true";
 
 // Find monorepo root by walking up to find pnpm-workspace.yaml.
 // This handles Stryker's sandbox (.stryker-tmp/sandbox-xxx/) where
@@ -162,26 +168,14 @@ export default defineConfig({
       exclude: ["src/**/*.test.ts", "src/**/*.spec.ts", "src/**/index.ts", "src/index.ts"],
       reporter: ["text", "html", "json-summary"],
       reportsDirectory: "./coverage",
-      // Coverage thresholds enforced in CI via the `test:coverage` script.
-      // Thresholds are for unit tests only
-      // (tests/unit/**); integration tests run via node:test and contribute
-      // additional coverage not captured here. Mutation score via Stryker
-      // is the primary quality gate.
-      thresholds: {
-        // Global floor — fails CI on any regression below current baseline.
-        lines: 55,
-        functions: 55,
-        branches: 45,
-        statements: 55,
-        // Per-scope OVERRIDES — Phase A keeps these at the global floor so
-        // CI passes today; §2.2.b ratchets each scope to its aspirational
-        // target after measurement: domain 90 / application 85 / infra 70.
-        // The glob keys put the per-scope structure in place ready for the
-        // ratchet without breaking CI today.
-        perFile: false,
-        "src/domain/**/*.ts": { lines: 55, functions: 55, branches: 45, statements: 55 },
-        "src/application/**/*.ts": { lines: 55, functions: 55, branches: 45, statements: 55 },
-      },
+      // Coverage thresholds enforced for unit tests only (tests/unit/**);
+      // integration tests run via node:test and contribute additional coverage
+      // not captured here. Mutation score via Stryker is the primary quality
+      // gate. Sharded runs skip thresholds (see buildCoverageThresholds); the
+      // merge step gates the merged data against the 55/45 floor.
+      ...(buildCoverageThresholds(sharded) !== undefined && {
+        thresholds: buildCoverageThresholds(sharded),
+      }),
     },
   },
 });

@@ -499,16 +499,16 @@ The CI pipeline uses a composite action (`.github/actions/setup-node-pnpm-cache`
 
 **CI Jobs** (8 parallel jobs):
 
-| Job                | Purpose                                                                       | Services               |
-| ------------------ | ----------------------------------------------------------------------------- | ---------------------- |
-| `lint-and-format`  | ESLint, Prettier, TypeScript type check                                       | None                   |
-| `test`             | API integration tests (node:test batch runner)                                | PostgreSQL 15, Redis 7 |
-| `build`            | Build all packages + admin app                                                | None                   |
-| `security`         | pnpm audit for vulnerabilities                                                | None                   |
-| `code-quality`     | knip (dead code) + jscpd (duplicates) + madge (circular deps)                 | None                   |
-| `test-providers`   | Provider adapter unit tests (X, Facebook, Instagram, TikTok, YouTube, Shared) | None                   |
-| `test-frontend`    | Admin + Client vitest unit tests                                              | None                   |
-| `test-cache-redis` | Cache Redis adapter tests                                                     | Redis 7                |
+| Job               | Purpose                                                                                                   | Services               |
+| ----------------- | --------------------------------------------------------------------------------------------------------- | ---------------------- |
+| `lint-and-format` | ESLint, Prettier, full-monorepo TypeScript type check (`turbo run typecheck`)                             | None                   |
+| `test`            | API unit tests + coverage, sharded 2-way (vitest `--shard` + blob reporter; thresholds skipped per shard) | PostgreSQL 15, Redis 7 |
+| `coverage-merge`  | Merges shard blobs (`vitest run --mergeReports`) and enforces coverage thresholds on the combined data    | None                   |
+| `test-packages`   | Deterministic monorepo package tests (`turbo run test` excluding @apps/api, @apps/admin, @apps/client)    | None                   |
+| `test-frontend`   | Admin + Client vitest unit tests                                                                          | None                   |
+| `build`           | Build all packages + admin app                                                                            | None                   |
+| `security`        | pnpm audit for vulnerabilities                                                                            | None                   |
+| `code-quality`    | knip (dead code) + jscpd (duplicates) + madge (circular deps)                                             | None                   |
 
 ### CI/CD Best Practices
 
