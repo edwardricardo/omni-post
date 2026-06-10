@@ -26,6 +26,7 @@ after(() => {
 });
 
 import { SyncEngine } from "../../../src/content/SyncEngine";
+import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { ProviderId } from "../../../src/providers/providerAdapter.interface";
 import {
   mockPrisma,
@@ -60,6 +61,7 @@ beforeEach(async () => {
     eventService: mockEventService,
     synchronizer,
     versionManager,
+    scheduler: new NoopBackgroundTaskScheduler(),
   });
 });
 
@@ -73,7 +75,7 @@ describe("SyncEngine - Real-time Synchronization", () => {
     await syncEngine.initialize();
   });
 
-  it("should start real-time sync for valid channels", async (_t) => {
+  it("should start real-time sync for valid channels", async (t) => {
     if (skipIfUnavailable(t)) return;
     const channelResult = await syncEngine.createSyncChannel(
       "Realtime Test",
@@ -97,7 +99,7 @@ describe("SyncEngine - Real-time Synchronization", () => {
     }
   });
 
-  it("should reject real-time sync with invalid channel IDs", async (_t) => {
+  it("should reject real-time sync with invalid channel IDs", async (t) => {
     if (skipIfUnavailable(t)) return;
     const result = await syncEngine.startRealtimeSync(testPostId, [
       "invalid-channel-1",
@@ -111,7 +113,7 @@ describe("SyncEngine - Real-time Synchronization", () => {
     }
   });
 
-  it("should filter out invalid channels but proceed with valid ones", async (_t) => {
+  it("should filter out invalid channels but proceed with valid ones", async (t) => {
     if (skipIfUnavailable(t)) return;
     const channelResult = await syncEngine.createSyncChannel(
       "Valid Channel",
@@ -140,7 +142,7 @@ describe("SyncEngine - Real-time Synchronization", () => {
     }
   });
 
-  it("should handle multiple channels for same post", async (_t) => {
+  it("should handle multiple channels for same post", async (t) => {
     if (skipIfUnavailable(t)) return;
     const channel1 = await syncEngine.createSyncChannel(
       "Channel 1",
@@ -196,7 +198,7 @@ describe("SyncEngine - Sync Transactions", () => {
     await syncEngine.initialize();
   });
 
-  it("should create and execute sync transaction", async (_t) => {
+  it("should create and execute sync transaction", async (t) => {
     if (skipIfUnavailable(t)) return;
     const channelResult = await syncEngine.createSyncChannel(
       "Transaction Test",
@@ -232,7 +234,7 @@ describe("SyncEngine - Sync Transactions", () => {
     }
   });
 
-  it("should reject sync with invalid channel ID", async (_t) => {
+  it("should reject sync with invalid channel ID", async (t) => {
     if (skipIfUnavailable(t)) return;
     const result = await syncEngine.syncPost(testPostId, "invalid-channel-id", "source_to_target");
 
@@ -243,7 +245,7 @@ describe("SyncEngine - Sync Transactions", () => {
     }
   });
 
-  it("should reject sync with disabled channel", async (_t) => {
+  it("should reject sync with disabled channel", async (t) => {
     if (skipIfUnavailable(t)) return;
     const channelResult = await syncEngine.createSyncChannel(
       "Disabled Channel",
@@ -281,6 +283,7 @@ describe("SyncEngine - Sync Transactions", () => {
         eventService: mockEventService,
         synchronizer,
         versionManager,
+        scheduler: new NoopBackgroundTaskScheduler(),
       });
       await newEngine.initialize();
 
@@ -299,7 +302,7 @@ describe("SyncEngine - Sync Transactions", () => {
     }
   });
 
-  it("should support bidirectional sync direction", async (_t) => {
+  it("should support bidirectional sync direction", async (t) => {
     if (skipIfUnavailable(t)) return;
     const channelResult = await syncEngine.createSyncChannel(
       "Bidirectional Transaction",
@@ -328,7 +331,7 @@ describe("SyncEngine - Sync Transactions", () => {
     }
   });
 
-  it("should track transaction status changes", async (_t) => {
+  it("should track transaction status changes", async (t) => {
     if (skipIfUnavailable(t)) return;
     const channelResult = await syncEngine.createSyncChannel(
       "Status Tracking",

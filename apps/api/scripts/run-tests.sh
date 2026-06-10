@@ -22,6 +22,37 @@ TOTAL_CANCEL=0
 TOTAL_SKIP=0
 FAILED_BATCHES=""
 
+# TIER selects which slice of the suite runs, so CI can split it across jobs:
+#   (unset)          local default — Vitest unit phase + every node:test batch.
+#   pr-integration   DB-only node:test batches (no live API server needed);
+#                    the Vitest unit phase is skipped (owned by another CI job).
+#   full-integration every node:test batch (DB-only + live-API); Vitest skipped.
+# DB-only batches talk to Postgres/Redis directly; live-API batches fetch
+# http://localhost:3000 and require a running API server.
+TIER="${TIER:-}"
+case "$TIER" in
+  "" | pr-integration | full-integration) ;;
+  *)
+    echo "Unknown TIER='$TIER' (expected: unset, pr-integration, full-integration)" >&2
+    exit 2
+    ;;
+esac
+
+# Returns success when the Vitest unit phase should run for the current TIER.
+run_vitest_phase() {
+  [ -z "$TIER" ]
+}
+
+# Returns success when DB-only node:test batches should run for the current TIER.
+run_db_batches() {
+  [ -z "$TIER" ] || [ "$TIER" = "pr-integration" ] || [ "$TIER" = "full-integration" ]
+}
+
+# Returns success when live-API node:test batches should run for the current TIER.
+run_live_api_batches() {
+  [ -z "$TIER" ] || [ "$TIER" = "full-integration" ]
+}
+
 run_batch() {
   local name="$1"
   shift
@@ -31,7 +62,10 @@ run_batch() {
   local extra_flags="${EXTRA_FLAGS:-}"
 
   local result
-  result=$(node --import tsx --test --test-force-exit --test-concurrency="$concurrency" --test-timeout="$timeout" $extra_flags "$@" 2>&1) || true
+  # Pin the TAP reporter: the summary parser below greps "# tests N" (TAP
+  # format). Node's default reporter is version/TTY-dependent (spec emits
+  # "ℹ tests N"), which silently parses as 0 tests.
+  result=$(node --import tsx --test --test-reporter=tap --test-reporter-destination=stdout --test-force-exit --test-concurrency="$concurrency" --test-timeout="$timeout" $extra_flags "$@" 2>&1) || true
 
   local tests=$(echo "$result" | grep "^# tests " | tail -1 | awk '{print $3}')
   local pass=$(echo "$result" | grep "^# pass " | tail -1 | awk '{print $3}')
@@ -54,6 +88,14 @@ run_batch() {
 
   printf "  %-25s %4s tests  %4s pass  %s fail  %s cancel  %s skip  [%s]\n" \
     "$name" "$tests" "$pass" "$fail" "$cancel" "$skip" "$status"
+
+  # A failing (or zero-collected) batch must never be silent — dump the runner
+  # output so CI logs show WHY, not just the count.
+  if [ "$fail" -gt 0 ] || [ "$tests" -eq 0 ]; then
+    echo "── output of failing batch '$name' (last 200 lines) ──"
+    echo "$result" | tail -200
+    echo "── end of '$name' output ──"
+  fi
 }
 
 echo "Running API tests..."
@@ -62,6 +104,7 @@ echo ""
 # ─────────────────────────────────────────────────────────────────────────────
 # Phase 1: Unit tests via Vitest (all tests/unit/**)
 # ─────────────────────────────────────────────────────────────────────────────
+if run_vitest_phase; then
 echo "── Unit tests (Vitest) ──"
 VITEST_RESULT=$(npx vitest run 2>&1) || true
 echo "$VITEST_RESULT" | tail -5
@@ -79,11 +122,15 @@ TOTAL_FAIL=$((TOTAL_FAIL + VITEST_FAILED))
 if [ "$VITEST_FAILED" -gt 0 ]; then
   FAILED_BATCHES="$FAILED_BATCHES vitest-unit"
 fi
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Phase 2: Integration tests via node:test (require real DB + Redis + API)
 # ─────────────────────────────────────────────────────────────────────────────
 echo "── Integration tests (node:test) ──"
+
+# DB-only batches: Prisma against the real DB, no live API server required.
+if run_db_batches; then
 
 # Repository integration tests (Prisma against real DB)
 CONCURRENCY=1 run_batch "integration:repositories" \
@@ -102,14 +149,20 @@ CONCURRENCY=1 run_batch "integration:sync" \
   tests/integration/syncEngine/syncEngine.conflicts.test.ts \
   tests/integration/syncEngine/syncEngine.monitoring.test.ts
 
-CONCURRENCY=1 run_batch "integration:routes" \
-  tests/integration/crisisRoutes.test.ts tests/integration/linkRoutes.test.ts \
-  tests/integration/security-endpoints.test.ts
-
 CONCURRENCY=1 run_batch "integration:outbox" \
   tests/integration/outbox/OutboxRelay.integration.test.ts \
   tests/integration/bulkScheduleOutboxSmoke.test.ts \
   tests/integration/bulkScheduling.test.ts
+
+fi # run_db_batches
+
+# Live-API batches: these fetch http://localhost:3000 (getBaseUrl) and require
+# a running API server alongside the DB/Redis services.
+if run_live_api_batches; then
+
+CONCURRENCY=1 run_batch "integration:routes" \
+  tests/integration/crisisRoutes.test.ts tests/integration/linkRoutes.test.ts \
+  tests/integration/security-endpoints.test.ts
 
 CONCURRENCY=1 run_batch "integration:flows" \
   tests/auth.test.ts tests/audit.test.ts tests/cache.test.ts \
@@ -147,6 +200,8 @@ CONCURRENCY=1 run_batch "production" \
   tests/production.integration.test.ts tests/multiproject.flow.test.ts \
   tests/phase4c-integration.test.ts tests/providerRegistry.test.ts
 
+fi # run_live_api_batches
+
 echo ""
 echo "========================================"
 printf "TOTAL: %d tests, %d pass, %d fail, %d cancel, %d skip\n" \
@@ -155,6 +210,14 @@ echo "========================================"
 
 if [ "$TOTAL_FAIL" -gt 0 ]; then
   echo "FAILED batches:$FAILED_BATCHES"
+  exit 1
+fi
+
+# A crashed node:test process yields a 0/0/0 summary that would otherwise pass
+# silently. In CI tiers this script is a load-bearing gate, so zero collected
+# tests is a failure, never a green.
+if [ -n "${TIER:-}" ] && [ "$TOTAL_TESTS" -eq 0 ]; then
+  echo "ERROR: TIER=$TIER collected 0 tests — refusing to pass a vacuous run."
   exit 1
 fi
 
