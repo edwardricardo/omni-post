@@ -87,8 +87,8 @@ describe("Provider Registry System", () => {
 
       assert.strictEqual(
         json.data.providers.length,
-        9,
-        `Expected 9 providers, got ${json.data.providers.length}`
+        11,
+        `Expected 11 providers, got ${json.data.providers.length}`
       );
     });
 
@@ -164,7 +164,7 @@ describe("Provider Registry System", () => {
       assert.ok(allActive, "All returned providers should have active status");
     });
 
-    it("should have exactly 9 active providers", async (t) => {
+    it("should have exactly 11 active providers", async (t) => {
       if (skipIfUnavailable(t)) return;
       const response = await fetch(`${BASE_URL}/providers/active`, {
         headers: { Authorization: authHeader },
@@ -173,8 +173,8 @@ describe("Provider Registry System", () => {
 
       assert.strictEqual(
         json.data.providers.length,
-        9,
-        `Expected 9 active providers, got ${json.data.providers.length}`
+        11,
+        `Expected 11 active providers, got ${json.data.providers.length}`
       );
     });
   });
@@ -328,8 +328,8 @@ describe("Provider Registry System", () => {
 
       assert.strictEqual(
         json.data.summary.total,
-        9,
-        "Should have 9 active providers in health check"
+        11,
+        "Should have 11 active providers in health check"
       );
     });
 

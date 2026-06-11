@@ -331,6 +331,11 @@ jobs:
           DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
           SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
           REDIS_URL: redis://localhost:6379
+          # The full tier includes rate-limiting tests (Advanced Rate Limiting in
+          # integration:flows) that assert the limiter actually blocks; the
+          # synthesized .env.test disables it for unit ergonomics, so the API
+          # boot re-enables it (process env wins over the dotenv file).
+          ENABLE_RATE_LIMITING: "true"
         run: |
           pnpm --filter @apps/api dev:test &
           echo "API_PID=$!" >> "$GITHUB_ENV"
