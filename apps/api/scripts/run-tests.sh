@@ -134,6 +134,7 @@ if run_db_batches; then
 
 # Repository integration tests (Prisma against real DB)
 CONCURRENCY=1 run_batch "integration:repositories" \
+  tests/integration/repositories/gateSmoke.deliberate-fail.test.ts \
   tests/integration/repositories/UserRepository.test.ts \
   tests/integration/repositories/AccountQueryRepository.test.ts \
   tests/integration/repositories/ProjectRepository.test.ts \
