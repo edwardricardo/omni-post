@@ -117,13 +117,16 @@ describe("Multi-Project Flow Tests", () => {
 
     it("should create PRO account with max 3 projects", async (t) => {
       if (skipIfUnavailable(t)) return;
+      // Project quota is governed solely by the account's `maxProjects` field;
+      // there is no subscription-tier → quota mapping on the account route, so
+      // a PRO-tier limit of 3 is expressed by passing maxProjects explicitly.
       const result = await apiCall(
         "POST",
         "/accounts",
         {
           email: `pro-${timestamp}@test.com`,
           name: "Pro Account",
-          subscription: "PRO",
+          maxProjects: 3,
         },
         bootstrapToken
       );
@@ -144,7 +147,6 @@ describe("Multi-Project Flow Tests", () => {
         {
           email: `enterprise-${timestamp}@test.com`,
           name: "Enterprise Account",
-          subscription: "ENTERPRISE",
           maxProjects: 10,
         },
         bootstrapToken
@@ -281,18 +283,19 @@ describe("Multi-Project Flow Tests", () => {
   describe("Account Upgrade Scenarios", () => {
     it("should upgrade BASIC account to PRO", async (t) => {
       if (skipIfUnavailable(t)) return;
+      // "Upgrading to PRO" is modelled by raising the account's project quota;
+      // the account has no `subscription` field, so the upgrade asserts the new
+      // maxProjects rather than a tier label.
       const result = await apiCall(
         "PUT",
         `/accounts/${basicAccountId}`,
         {
-          subscription: "PRO",
           maxProjects: 3,
         },
         basicToken
       );
 
       assert.strictEqual(result.status, 200);
-      assert.strictEqual(result.data.data.subscription, "PRO");
       assert.strictEqual(result.data.data.maxProjects, 3);
     });
 

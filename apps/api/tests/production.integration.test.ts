@@ -53,37 +53,50 @@ async function apiCall(method: string, path: string, body?: any, headers?: Recor
   return { status: response.status, data };
 }
 
+/**
+ * Polls a saga until it reaches a terminal state (COMPLETED / FAILED /
+ * COMPENSATED) or the attempt budget is exhausted. Post creation and
+ * scheduling are driven by the post-publishing saga, which executes
+ * asynchronously, so the test must wait for the saga to settle before
+ * reading the resulting post.
+ */
+async function pollSagaTerminal(sagaId: string, token: string, maxAttempts = 40): Promise<string> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const { data } = await apiCall("GET", `/sagas/${sagaId}`, undefined, authHeaders(token));
+    const status: string | undefined = data?.data?.status;
+    if (status === "COMPLETED" || status === "FAILED" || status === "COMPENSATED") {
+      return status;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  return "TIMEOUT";
+}
+
 // Generate test data
 function generateTestData() {
   const timestamp = Date.now();
+  // Text fields below feed routes guarded by `SecureSchemas` (account name,
+  // project name/description, post title/body). The security validator flags
+  // shell-injection tokens (`; & | $ ( ) { } [ ] < > /`) and bare command
+  // words (`id`, `cat`, `ls`, ...), which random faker prose intermittently
+  // produces — making the suite flaky. These strings are deterministic and
+  // free of every flagged token, and stay unique via the timestamp suffix.
   return {
     account: {
       email: faker.internet.email({ provider: `test${timestamp}.com` }),
-      name: faker.company.name(),
+      name: `Production Test Account ${timestamp}`,
       subscription: faker.helpers.arrayElement(["BASIC", "PRO", "ENTERPRISE"] as const),
     },
     project: {
-      name: `${faker.company.buzzPhrase()} Project`,
-      description: faker.company.catchPhrase(),
+      name: `Production Test Project ${timestamp}`,
+      description: `Project created by the production integration suite at ${timestamp}`,
     },
     post: {
-      title: faker.lorem.sentence(),
-      content: faker.lorem.paragraphs(3),
-      hashtags: faker.helpers.arrayElements(
-        [
-          "#tech",
-          "#innovation",
-          "#startup",
-          "#AI",
-          "#cloud",
-          "#development",
-          "#software",
-          "#business",
-          "#growth",
-          "#digital",
-        ],
-        5
-      ),
+      title: `Production Test Post ${timestamp}`,
+      content:
+        `Production integration test post body number ${timestamp}. ` +
+        "This is plain marketing copy used to exercise the publishing flow end to end.",
+      hashtags: ["#tech", "#innovation", "#startup", "#cloud", "#growth"],
       platforms: ["X", "INSTAGRAM", "FACEBOOK"],
     },
     channel: {
@@ -371,10 +384,15 @@ describe("Comprehensive Production Integration Test", () => {
       console.log("\nPHASE 4: Content Creation & Publishing");
       console.log("-".repeat(40));
 
-      const postResponse = await apiCall(
+      // Customer post creation flows through the post-publishing saga
+      // (mode="draft"). The saga runs asynchronously and returns a sagaId,
+      // not the post, so the test waits for the saga to complete and then
+      // recovers the created DRAFT post from the project's post list.
+      const draftResponse = await apiCall(
         "POST",
-        "/posts",
+        "/sagas/post-publishing/start",
         {
+          mode: "draft",
           projectId,
           locale: "en",
           body: testData.post.content,
@@ -383,11 +401,23 @@ describe("Comprehensive Production Integration Test", () => {
         },
         authHeaders(accountToken)
       );
-      assert.ok(
-        postResponse.status === 200 || postResponse.status === 201,
-        "Post created successfully"
+      assert.equal(draftResponse.status, 200, "Draft saga started successfully");
+      const sagaId = draftResponse.data.data.sagaId;
+      assert.ok(sagaId, `Saga ID received: ${sagaId}`);
+
+      const sagaStatus = await pollSagaTerminal(sagaId, accountToken);
+      assert.equal(sagaStatus, "COMPLETED", `Draft saga should complete (got ${sagaStatus})`);
+
+      const listResponse = await apiCall(
+        "GET",
+        `/posts?projectId=${projectId}`,
+        undefined,
+        authHeaders(accountToken)
       );
-      postId = postResponse.data.data.id;
+      assert.equal(listResponse.status, 200, "Posts listed for project");
+      const posts = listResponse.data.data.data;
+      assert.ok(Array.isArray(posts) && posts.length > 0, "Project should have at least one post");
+      postId = posts[0].id;
       assert.ok(postId, `Post ID received: ${postId}`);
       console.log(`Post created successfully: ${postId}`);
     });
@@ -407,17 +437,27 @@ describe("Comprehensive Production Integration Test", () => {
 
     it("should schedule publication", async (t) => {
       if (skipIfApiUnavailable(t)) return;
+      // Scheduling an existing draft also flows through the post-publishing
+      // saga (mode="schedule" with the existing postId + target channels).
       const scheduledDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // Tomorrow
       const scheduleResponse = await apiCall(
         "POST",
-        `/posts/${postId}/schedule`,
+        "/sagas/post-publishing/start",
         {
+          mode: "schedule",
+          projectId,
+          postId,
           channelIds,
-          scheduledFor: scheduledDate.toISOString(),
+          scheduledAt: scheduledDate.toISOString(),
         },
         authHeaders(accountToken)
       );
-      assert.equal(scheduleResponse.status, 200, "Post scheduled successfully");
+      assert.equal(scheduleResponse.status, 200, "Schedule saga started successfully");
+      const sagaId = scheduleResponse.data.data.sagaId;
+      assert.ok(sagaId, `Schedule saga ID received: ${sagaId}`);
+
+      const sagaStatus = await pollSagaTerminal(sagaId, accountToken);
+      assert.equal(sagaStatus, "COMPLETED", `Schedule saga should complete (got ${sagaStatus})`);
       console.log("Post scheduled successfully");
     });
 
