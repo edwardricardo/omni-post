@@ -17,11 +17,27 @@
 
 import { describe, it, before } from "node:test";
 import assert from "node:assert/strict";
+import { signCustomerAccessToken } from "../src/auth/customerJwt.js";
 
 const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
 
+/**
+ * Mints a customer Bearer token. The gated `/providers/*` endpoints sit behind
+ * `requireClientAuth`; these are global provider reads (not tenant-scoped to a
+ * specific resource), so any valid token authenticates them.
+ */
+const bearer = (accountId: string): string =>
+  `Bearer ${signCustomerAccessToken({
+    sub: `prod-test-${accountId}`,
+    accountId,
+    roleId: "role-test",
+    roleName: "OWNER",
+    permissions: [],
+  })}`;
+
 describe("Provider Registry System", () => {
   let apiAvailable = false;
+  let authHeader: string;
 
   before(async () => {
     // Check if API is available
@@ -37,6 +53,8 @@ describe("Provider Registry System", () => {
       console.warn("⚠️  API not available - integration tests will be skipped");
       apiAvailable = false;
     }
+
+    authHeader = bearer("prod-registry-account");
   });
 
   // Helper to skip if API unavailable
@@ -109,7 +127,9 @@ describe("Provider Registry System", () => {
   describe("Active Providers", () => {
     it("should return only active providers", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers/active`);
+      const response = await fetch(`${BASE_URL}/providers/active`, {
+        headers: { Authorization: authHeader },
+      });
 
       assert.strictEqual(response.ok, true, `HTTP ${response.status}`);
 
@@ -122,7 +142,9 @@ describe("Provider Registry System", () => {
 
     it("should have X as active provider", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers/active`);
+      const response = await fetch(`${BASE_URL}/providers/active`, {
+        headers: { Authorization: authHeader },
+      });
       const json = await response.json();
 
       const hasX = json.data.providers.some((p: any) => p.id === "x");
@@ -132,7 +154,9 @@ describe("Provider Registry System", () => {
 
     it("should only return active status providers", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers/active`);
+      const response = await fetch(`${BASE_URL}/providers/active`, {
+        headers: { Authorization: authHeader },
+      });
       const json = await response.json();
 
       const allActive = json.data.providers.every((p: any) => p.status === "active");
@@ -142,7 +166,9 @@ describe("Provider Registry System", () => {
 
     it("should have exactly 9 active providers", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers/active`);
+      const response = await fetch(`${BASE_URL}/providers/active`, {
+        headers: { Authorization: authHeader },
+      });
       const json = await response.json();
 
       assert.strictEqual(
@@ -156,7 +182,9 @@ describe("Provider Registry System", () => {
   describe("Provider Details", () => {
     it("should return X provider details", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers/x`);
+      const response = await fetch(`${BASE_URL}/providers/x`, {
+        headers: { Authorization: authHeader },
+      });
 
       assert.strictEqual(response.ok, true, `HTTP ${response.status}`);
 
@@ -168,7 +196,9 @@ describe("Provider Registry System", () => {
 
     it("should include correct display name", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers/x`);
+      const response = await fetch(`${BASE_URL}/providers/x`, {
+        headers: { Authorization: authHeader },
+      });
       const json = await response.json();
 
       assert.strictEqual(
@@ -180,7 +210,9 @@ describe("Provider Registry System", () => {
 
     it("should include character limits", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers/x`);
+      const response = await fetch(`${BASE_URL}/providers/x`, {
+        headers: { Authorization: authHeader },
+      });
       const json = await response.json();
 
       assert.ok(json.data.provider.limits, "Should have limits object");
@@ -193,14 +225,18 @@ describe("Provider Registry System", () => {
 
     it("should return 404 for non-existent provider", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers/non-existent`);
+      const response = await fetch(`${BASE_URL}/providers/non-existent`, {
+        headers: { Authorization: authHeader },
+      });
 
       assert.strictEqual(response.status, 404, "Should return 404 for non-existent provider");
     });
 
     it("should include provider capabilities", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers/x`);
+      const response = await fetch(`${BASE_URL}/providers/x`, {
+        headers: { Authorization: authHeader },
+      });
       const json = await response.json();
 
       assert.ok(json.ok, "Should have ok: true");
@@ -211,7 +247,9 @@ describe("Provider Registry System", () => {
   describe("Capability Filtering", () => {
     it("should filter providers by threading capability", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers/by-capability/threading`);
+      const response = await fetch(`${BASE_URL}/providers/by-capability/threading`, {
+        headers: { Authorization: authHeader },
+      });
 
       assert.strictEqual(response.ok, true, `HTTP ${response.status}`);
 
@@ -224,7 +262,9 @@ describe("Provider Registry System", () => {
 
     it("should include X in threading capability", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers/by-capability/threading`);
+      const response = await fetch(`${BASE_URL}/providers/by-capability/threading`, {
+        headers: { Authorization: authHeader },
+      });
       const json = await response.json();
 
       const hasX = json.data.providers.some((p: any) => p.id === "x");
@@ -234,7 +274,9 @@ describe("Provider Registry System", () => {
 
     it("should return providers count for threading", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers/by-capability/threading`);
+      const response = await fetch(`${BASE_URL}/providers/by-capability/threading`, {
+        headers: { Authorization: authHeader },
+      });
       const json = await response.json();
 
       assert.ok(json.data.providers.length > 0, "Should have at least one provider with threading");
@@ -242,7 +284,9 @@ describe("Provider Registry System", () => {
 
     it("should return 400 for invalid capability", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers/by-capability/invalid-capability`);
+      const response = await fetch(`${BASE_URL}/providers/by-capability/invalid-capability`, {
+        headers: { Authorization: authHeader },
+      });
 
       assert.strictEqual(response.status, 400, "Should return 400 for invalid capability");
     });
@@ -250,7 +294,9 @@ describe("Provider Registry System", () => {
     it("should handle capability filtering within timeout", async (t) => {
       if (skipIfUnavailable(t)) return;
       const startTime = Date.now();
-      await fetch(`${BASE_URL}/providers/by-capability/threading`);
+      await fetch(`${BASE_URL}/providers/by-capability/threading`, {
+        headers: { Authorization: authHeader },
+      });
       const duration = Date.now() - startTime;
 
       assert.ok(duration < 1000, `Request took ${duration}ms, should be under 1000ms`);
@@ -260,7 +306,9 @@ describe("Provider Registry System", () => {
   describe("Health Monitoring", () => {
     it("should return health status for all providers", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers/health/all`);
+      const response = await fetch(`${BASE_URL}/providers/health/all`, {
+        headers: { Authorization: authHeader },
+      });
 
       assert.strictEqual(response.ok, true, `HTTP ${response.status}`);
 
@@ -273,7 +321,9 @@ describe("Provider Registry System", () => {
 
     it("should have correct provider count in summary", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers/health/all`);
+      const response = await fetch(`${BASE_URL}/providers/health/all`, {
+        headers: { Authorization: authHeader },
+      });
       const json = await response.json();
 
       assert.strictEqual(
@@ -285,7 +335,9 @@ describe("Provider Registry System", () => {
 
     it("should show X as healthy", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers/health/all`);
+      const response = await fetch(`${BASE_URL}/providers/health/all`, {
+        headers: { Authorization: authHeader },
+      });
       const json = await response.json();
 
       const xProvider = json.data.providers.find((p: any) => p.id === "x");
@@ -296,7 +348,9 @@ describe("Provider Registry System", () => {
 
     it("should have at least one healthy provider", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers/health/all`);
+      const response = await fetch(`${BASE_URL}/providers/health/all`, {
+        headers: { Authorization: authHeader },
+      });
       const json = await response.json();
 
       assert.ok(
@@ -307,7 +361,9 @@ describe("Provider Registry System", () => {
 
     it("should include health check timestamp", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers/health/all`);
+      const response = await fetch(`${BASE_URL}/providers/health/all`, {
+        headers: { Authorization: authHeader },
+      });
       const json = await response.json();
 
       assert.ok(json.data.timestamp, "Should have health check timestamp");
@@ -317,7 +373,9 @@ describe("Provider Registry System", () => {
   describe("Provider Connections", () => {
     it("should return connections for test project", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers/connections/test-project`);
+      const response = await fetch(`${BASE_URL}/providers/connections/test-project`, {
+        headers: { Authorization: authHeader },
+      });
 
       assert.strictEqual(response.ok, true, `HTTP ${response.status}`);
 
@@ -330,7 +388,9 @@ describe("Provider Registry System", () => {
 
     it("should handle non-existent project gracefully", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers/connections/non-existent-project`);
+      const response = await fetch(`${BASE_URL}/providers/connections/non-existent-project`, {
+        headers: { Authorization: authHeader },
+      });
 
       // Should either return empty array or 404
       assert.ok(
@@ -347,7 +407,9 @@ describe("Provider Registry System", () => {
 
     it("should return connection count", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers/connections/test-project`);
+      const response = await fetch(`${BASE_URL}/providers/connections/test-project`, {
+        headers: { Authorization: authHeader },
+      });
 
       if (response.ok) {
         const json = await response.json();
@@ -360,21 +422,27 @@ describe("Provider Registry System", () => {
   describe("Error Handling", () => {
     it("should handle non-existent provider gracefully", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers/non-existent`);
+      const response = await fetch(`${BASE_URL}/providers/non-existent`, {
+        headers: { Authorization: authHeader },
+      });
 
       assert.strictEqual(response.status, 404, "Should return 404");
     });
 
     it("should validate capability parameters", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers/by-capability/invalid`);
+      const response = await fetch(`${BASE_URL}/providers/by-capability/invalid`, {
+        headers: { Authorization: authHeader },
+      });
 
       assert.strictEqual(response.status, 400, "Should validate capability parameter");
     });
 
     it("should handle malformed requests", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const response = await fetch(`${BASE_URL}/providers//`);
+      const response = await fetch(`${BASE_URL}/providers//`, {
+        headers: { Authorization: authHeader },
+      });
 
       // Should return either 404 or 400
       assert.ok(
@@ -429,7 +497,9 @@ describe("Provider Registry System", () => {
     it("should respond to health check within 1s", async (t) => {
       if (skipIfUnavailable(t)) return;
       const startTime = Date.now();
-      await fetch(`${BASE_URL}/providers/health/all`);
+      await fetch(`${BASE_URL}/providers/health/all`, {
+        headers: { Authorization: authHeader },
+      });
       const duration = Date.now() - startTime;
 
       assert.ok(duration < 1000, `Request took ${duration}ms, should be under 1000ms`);
@@ -439,8 +509,8 @@ describe("Provider Registry System", () => {
       if (skipIfUnavailable(t)) return;
       const requests = [
         fetch(`${BASE_URL}/providers`),
-        fetch(`${BASE_URL}/providers/active`),
-        fetch(`${BASE_URL}/providers/x`),
+        fetch(`${BASE_URL}/providers/active`, { headers: { Authorization: authHeader } }),
+        fetch(`${BASE_URL}/providers/x`, { headers: { Authorization: authHeader } }),
       ];
 
       const responses = await Promise.all(requests);

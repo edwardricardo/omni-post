@@ -77,6 +77,11 @@ function buildHandler(ctx: TestContext, provider: PublishProvider): PublishHandl
   return new PublishHandler({
     repo: createPublishRepoFromCtx(ctx),
     providerRegistry: { x: provider },
+    // PublishHandler resolves channel credentials before invoking the provider;
+    // the mock provider ignores them, so a static success resolver is enough.
+    credentialResolver: {
+      resolve: async () => ({ ok: true, value: { accessToken: "test-token" } }),
+    },
     workerMetrics: createTestWorkerMetrics(),
     logger: createSilentLogger(),
     instrumentation: createMockInstrumentation(),
@@ -160,13 +165,17 @@ describe("Publish Flow", { concurrency: 1 }, () => {
     assert.ok(project.ok, `Create project: ${project.ok ? "" : project.error}`);
     projectId = project.value.id;
 
-    // Create a real Channel in the DB (PublishLog has FK to Channel)
+    // Create a real Channel in the DB (PublishLog has FK to Channel).
+    // Credentials are stored as an AES-256-GCM envelope (ciphertext/iv/authTag),
+    // not a plaintext JSON blob — match the current Channel schema.
     const channel = await prisma.channel.create({
       data: {
         projectId,
         provider: "X",
         handle: `@publish-flow-${ts}`,
-        credentials: { accessToken: "test-token" },
+        credentialsCiphertext: "test-ciphertext",
+        credentialsIv: "test-iv",
+        credentialsAuthTag: "test-auth-tag",
       },
     });
     channelId = channel.id;
@@ -230,11 +239,14 @@ describe("Publish Flow", { concurrency: 1 }, () => {
 
     const handler = buildHandler(ctx, failingProvider);
 
-    // handleJob catches the error internally
-    await handler.handleJob({
-      payload: { postId: post.value.id, channelId, provider: "x" },
-      dedupeKey,
-    });
+    // handleJob writes the ERR PublishLog and then re-throws so BullMQ's retry
+    // policy can take effect (see publishHandler.handleJob catch block).
+    await assert.rejects(
+      handler.handleJob({
+        payload: { postId: post.value.id, channelId, provider: "x" },
+        dedupeKey,
+      })
+    );
 
     const logs = await prisma.publishLog.findMany({
       where: { dedupeKey },

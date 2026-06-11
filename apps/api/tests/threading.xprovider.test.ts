@@ -15,8 +15,10 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { xAdapter } from "@providers/x";
+import { createXAdapter } from "@providers/x";
 import type { CanonicalPost } from "@shared/types";
+
+const xAdapter = createXAdapter();
 
 describe("X/Twitter Provider Threading", () => {
   const longContent =

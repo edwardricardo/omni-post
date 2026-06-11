@@ -15,7 +15,9 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { planPublication } from "@core/engine";
-import { xAdapter } from "@providers/x";
+import { createXAdapter } from "@providers/x";
+
+const xAdapter = createXAdapter();
 
 describe("Publication Planning", () => {
   let canonicalPost: any;

@@ -15,9 +15,11 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { xAdapter } from "@providers/x";
+import { createXAdapter } from "@providers/x";
 import { planPublication } from "@core/engine";
 import type { CanonicalPost } from "@shared/types";
+
+const xAdapter = createXAdapter();
 
 describe("Threading Canonical Flow", () => {
   const longBody =
