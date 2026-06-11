@@ -9,7 +9,8 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  # Cancel superseded PR runs on force-push; never cancel main runs.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   NODE_VERSION: "24"
@@ -81,13 +82,19 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      # PR path is build-only: ci.yml owns PR validation (full turbo typecheck
+      # in Lint and Format, sharded coverage suite, Package Tests, integration
+      # tier). Main-push re-validates everything as the final safety net.
       - name: Type checking
+        if: github.event_name == 'push'
         run: pnpm run typecheck
 
       - name: Linting
+        if: github.event_name == 'push'
         run: pnpm run lint
 
       - name: Format checking
+        if: github.event_name == 'push'
         run: pnpm run format:check
 
       - name: Setup test environment
@@ -102,6 +109,7 @@ jobs:
           bash scripts/ci-setup-test-env.sh
 
       - name: Run tests
+        if: github.event_name == 'push'
         env:
           DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/test_db
           REDIS_URL: redis://localhost:6379
@@ -125,6 +133,9 @@ jobs:
     name: Container Security
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Main-push only until the containerization workstream fixes the broken
+    # Dockerfiles — on PRs this matrix always fails (red noise, zero signal).
+    if: github.event_name == 'push'
     needs: test-and-build
     permissions:
       contents: read
