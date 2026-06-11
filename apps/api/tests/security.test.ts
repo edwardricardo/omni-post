@@ -5,6 +5,7 @@
  */
 import { describe, it, before } from "node:test";
 import assert from "node:assert/strict";
+import { signCustomerAccessToken } from "../src/auth/customerJwt.js";
 
 /**
  * Security Features Test Suite
@@ -15,6 +16,20 @@ import assert from "node:assert/strict";
  */
 
 const BASE_URL = "http://localhost:3000";
+
+/**
+ * The `/accounts` endpoint sits behind `requireClientAuth`. The Account model
+ * is NOT tenant-scoped (see TENANT_SCOPED_MODELS in the tenant guard), so any
+ * valid customer token authorizes the request. `/health` and `/metrics` are
+ * public and intentionally sent without this header.
+ */
+const AUTH_HEADER = `Bearer ${signCustomerAccessToken({
+  sub: "security-features-user",
+  accountId: "security-features-account",
+  roleId: "role-test",
+  roleName: "OWNER",
+  permissions: [],
+})}`;
 
 // Enable test mode for rate limiting
 process.env.RATE_LIMIT_TEST_MODE = "true";
@@ -137,7 +152,7 @@ describe("Security Features", { concurrency: 1 }, () => {
 
       const response = await fetch(`${BASE_URL}/accounts`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
         body: JSON.stringify(sqlPayload),
       });
 
@@ -161,7 +176,7 @@ describe("Security Features", { concurrency: 1 }, () => {
 
       const response = await fetch(`${BASE_URL}/accounts`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
         body: JSON.stringify(xssPayload),
       });
 
@@ -184,7 +199,7 @@ describe("Security Features", { concurrency: 1 }, () => {
 
       const response = await fetch(`${BASE_URL}/accounts`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
         body: JSON.stringify(pathTraversalPayload),
       });
 
@@ -207,7 +222,7 @@ describe("Security Features", { concurrency: 1 }, () => {
 
       const response = await fetch(`${BASE_URL}/accounts`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
         body: JSON.stringify(cmdPayload),
       });
 
@@ -230,7 +245,7 @@ describe("Security Features", { concurrency: 1 }, () => {
 
       const response = await fetch(`${BASE_URL}/accounts`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
         body: JSON.stringify(longPayload),
       });
 
@@ -253,7 +268,7 @@ describe("Security Features", { concurrency: 1 }, () => {
 
       const response = await fetch(`${BASE_URL}/accounts`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
         body: JSON.stringify(validPayload),
       });
 
@@ -278,7 +293,7 @@ describe("Security Features", { concurrency: 1 }, () => {
 
       const response = await fetch(`${BASE_URL}/accounts`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
         body: JSON.stringify(badEmailPayload),
       });
 
@@ -299,7 +314,7 @@ describe("Security Features", { concurrency: 1 }, () => {
 
       const response = await fetch(`${BASE_URL}/accounts`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
         body: JSON.stringify(specialNamePayload),
       });
 
@@ -386,7 +401,7 @@ describe("Security Features", { concurrency: 1 }, () => {
       }
       const response = await fetch(`${BASE_URL}/accounts`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
         body: "{ invalid json }",
       });
 
@@ -403,7 +418,7 @@ describe("Security Features", { concurrency: 1 }, () => {
       }
       const response = await fetch(`${BASE_URL}/accounts`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
 

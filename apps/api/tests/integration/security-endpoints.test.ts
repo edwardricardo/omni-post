@@ -13,8 +13,23 @@
 import { describe, it, before } from "node:test";
 import assert from "node:assert/strict";
 import { checkApiAvailable, getBaseUrl } from "../testUtils.js";
+import { signCustomerAccessToken } from "../../src/auth/customerJwt.js";
 
 const API_URL = getBaseUrl();
+
+/**
+ * The `/accounts` endpoint sits behind `requireClientAuth`. The Account model
+ * is NOT tenant-scoped (see TENANT_SCOPED_MODELS in the tenant guard), so any
+ * valid customer token authorizes the request; the accountId carried here does
+ * not constrain which account gets created.
+ */
+const AUTH_HEADER = `Bearer ${signCustomerAccessToken({
+  sub: "security-endpoints-user",
+  accountId: "security-endpoints-account",
+  roleId: "role-test",
+  roleName: "OWNER",
+  permissions: [],
+})}`;
 
 describe("Security Endpoints Integration", { concurrency: 1 }, () => {
   let apiAvailable = false;
@@ -63,7 +78,7 @@ describe("Security Endpoints Integration", { concurrency: 1 }, () => {
 
       const response = await fetch(`${API_URL}/accounts`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
         body: JSON.stringify(validData),
       });
 
@@ -85,14 +100,14 @@ describe("Security Endpoints Integration", { concurrency: 1 }, () => {
       // Create first account
       await fetch(`${API_URL}/accounts`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
         body: JSON.stringify({ email: duplicateEmail, name: "First" }),
       });
 
       // Try to create duplicate
       const response = await fetch(`${API_URL}/accounts`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
         body: JSON.stringify({ email: duplicateEmail, name: "Second" }),
       });
 
@@ -163,7 +178,7 @@ describe("Security Endpoints Integration", { concurrency: 1 }, () => {
 
       const response = await fetch(`${API_URL}/accounts`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
         body: "{ this is not valid json }",
       });
 
@@ -192,7 +207,7 @@ describe("Security Endpoints Integration", { concurrency: 1 }, () => {
 
       const response = await fetch(`${API_URL}/accounts`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
         body: JSON.stringify(sqlInjectionData),
       });
 
@@ -222,7 +237,7 @@ describe("Security Endpoints Integration", { concurrency: 1 }, () => {
 
       const response = await fetch(`${API_URL}/accounts`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
         body: JSON.stringify(xssData),
       });
 
@@ -251,7 +266,7 @@ describe("Security Endpoints Integration", { concurrency: 1 }, () => {
 
       const response = await fetch(`${API_URL}/accounts`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
         body: JSON.stringify(largeData),
       });
 

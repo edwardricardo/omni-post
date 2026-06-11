@@ -16,14 +16,32 @@ import assert from "node:assert/strict";
 import { createTestPrismaClient } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
 import { checkApiAvailable, getBaseUrl } from "../testUtils.js";
+import { signCustomerAccessToken } from "../../src/auth/customerJwt.js";
 
 const API_URL = getBaseUrl();
+
+/**
+ * Mints a customer Bearer token bound to the seeded account. The
+ * `/projects/:projectId/crisis` endpoints sit behind `requireClientAuth`, and
+ * the project lookup is tenant-scoped by the token's accountId, so the token
+ * MUST carry the same accountId as the seeded project for the route to resolve
+ * it (otherwise the project is invisible and the route returns 404).
+ */
+const bearerFor = (accountId: string): string =>
+  `Bearer ${signCustomerAccessToken({
+    sub: `crisis-routes-user-${accountId}`,
+    accountId,
+    roleId: "role-test",
+    roleName: "OWNER",
+    permissions: [],
+  })}`;
 
 describe("Crisis Mode Routes Integration", () => {
   let apiAvailable = false;
   let prisma: PrismaClient;
   let testAccountId: string;
   let testProjectId: string;
+  let authHeader: string;
 
   before(async () => {
     apiAvailable = await checkApiAvailable();
@@ -42,6 +60,7 @@ describe("Crisis Mode Routes Integration", () => {
       },
     });
     testAccountId = account.id;
+    authHeader = bearerFor(account.id);
 
     const project = await prisma.project.create({
       data: {
@@ -85,7 +104,7 @@ describe("Crisis Mode Routes Integration", () => {
 
       const response = await fetch(`${API_URL}/projects/${testProjectId}/crisis`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({
           reason: "PR crisis - negative viral content",
         }),
@@ -108,14 +127,14 @@ describe("Crisis Mode Routes Integration", () => {
       // Enter crisis mode first
       await fetch(`${API_URL}/projects/${testProjectId}/crisis`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({ reason: "First crisis" }),
       });
 
       // Try to enter again
       const response = await fetch(`${API_URL}/projects/${testProjectId}/crisis`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({ reason: "Second crisis" }),
       });
 
@@ -132,7 +151,7 @@ describe("Crisis Mode Routes Integration", () => {
         `${API_URL}/projects/a0000000-0000-4000-8000-000000000000/crisis`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { Authorization: authHeader, "Content-Type": "application/json" },
           body: JSON.stringify({ reason: "Test" }),
         }
       );
@@ -148,7 +167,7 @@ describe("Crisis Mode Routes Integration", () => {
 
       const response = await fetch(`${API_URL}/projects/${testProjectId}/crisis`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({ reason: "" }),
       });
 
@@ -166,13 +185,14 @@ describe("Crisis Mode Routes Integration", () => {
       // Enter crisis mode first
       await fetch(`${API_URL}/projects/${testProjectId}/crisis`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({ reason: "Test crisis" }),
       });
 
       // Exit crisis mode
       const response = await fetch(`${API_URL}/projects/${testProjectId}/crisis`, {
         method: "DELETE",
+        headers: { Authorization: authHeader },
       });
 
       assert.equal(response.status, 200);
@@ -190,6 +210,7 @@ describe("Crisis Mode Routes Integration", () => {
 
       const response = await fetch(`${API_URL}/projects/${testProjectId}/crisis`, {
         method: "DELETE",
+        headers: { Authorization: authHeader },
       });
 
       assert.equal(response.status, 409);
@@ -206,12 +227,14 @@ describe("Crisis Mode Routes Integration", () => {
       // Enter crisis mode
       await fetch(`${API_URL}/projects/${testProjectId}/crisis`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({ reason: "Active crisis" }),
       });
 
       // Get status
-      const response = await fetch(`${API_URL}/projects/${testProjectId}/crisis`);
+      const response = await fetch(`${API_URL}/projects/${testProjectId}/crisis`, {
+        headers: { Authorization: authHeader },
+      });
 
       assert.equal(response.status, 200);
       const body = await response.json();
@@ -227,7 +250,9 @@ describe("Crisis Mode Routes Integration", () => {
         return;
       }
 
-      const response = await fetch(`${API_URL}/projects/${testProjectId}/crisis`);
+      const response = await fetch(`${API_URL}/projects/${testProjectId}/crisis`, {
+        headers: { Authorization: authHeader },
+      });
 
       assert.equal(response.status, 200);
       const body = await response.json();
@@ -244,21 +269,24 @@ describe("Crisis Mode Routes Integration", () => {
       // Enter and exit crisis mode twice
       await fetch(`${API_URL}/projects/${testProjectId}/crisis`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({ reason: "First crisis" }),
       });
       await fetch(`${API_URL}/projects/${testProjectId}/crisis`, {
         method: "DELETE",
+        headers: { Authorization: authHeader },
       });
 
       await fetch(`${API_URL}/projects/${testProjectId}/crisis`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({ reason: "Second crisis" }),
       });
 
       // Get status
-      const response = await fetch(`${API_URL}/projects/${testProjectId}/crisis`);
+      const response = await fetch(`${API_URL}/projects/${testProjectId}/crisis`, {
+        headers: { Authorization: authHeader },
+      });
 
       const body = await response.json();
       assert.ok(body.ok);
@@ -273,7 +301,8 @@ describe("Crisis Mode Routes Integration", () => {
       }
 
       const response = await fetch(
-        `${API_URL}/projects/a0000000-0000-4000-8000-000000000000/crisis`
+        `${API_URL}/projects/a0000000-0000-4000-8000-000000000000/crisis`,
+        { headers: { Authorization: authHeader } }
       );
 
       assert.equal(response.status, 404);
