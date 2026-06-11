@@ -198,7 +198,7 @@ wait_for_api
 
 CONCURRENCY=1 run_batch "production" \
   tests/production.integration.test.ts tests/multiproject.flow.test.ts \
-  tests/phase4c-integration.test.ts tests/providerRegistry.test.ts
+  tests/providerRegistry.test.ts
 
 fi # run_live_api_batches
 

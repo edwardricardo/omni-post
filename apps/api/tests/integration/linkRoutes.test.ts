@@ -16,14 +16,31 @@ import assert from "node:assert/strict";
 import { createTestPrismaClient } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
 import { checkApiAvailable, getBaseUrl } from "../testUtils.js";
+import { signCustomerAccessToken } from "../../src/auth/customerJwt.js";
 
 const API_URL = getBaseUrl();
+
+/**
+ * Mints a customer Bearer token bound to the seeded account. The `/links`
+ * endpoints sit behind `requireClientAuth`, and the project lookup is
+ * tenant-scoped by the token's accountId, so the token MUST carry the same
+ * accountId as the seeded project for the route to resolve it.
+ */
+const bearerFor = (accountId: string): string =>
+  `Bearer ${signCustomerAccessToken({
+    sub: `link-routes-user-${accountId}`,
+    accountId,
+    roleId: "role-test",
+    roleName: "OWNER",
+    permissions: [],
+  })}`;
 
 describe("Link Tracking Routes Integration", () => {
   let apiAvailable = false;
   let prisma: PrismaClient;
   let testAccountId: string;
   let testProjectId: string;
+  let authHeader: string;
 
   before(async () => {
     apiAvailable = await checkApiAvailable();
@@ -42,6 +59,7 @@ describe("Link Tracking Routes Integration", () => {
       },
     });
     testAccountId = account.id;
+    authHeader = bearerFor(account.id);
 
     const project = await prisma.project.create({
       data: {
@@ -80,7 +98,7 @@ describe("Link Tracking Routes Integration", () => {
 
       const response = await fetch(`${API_URL}/links`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId: testProjectId,
           originalUrl: "https://example.com/test-page",
@@ -105,7 +123,7 @@ describe("Link Tracking Routes Integration", () => {
 
       const response = await fetch(`${API_URL}/links`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId: testProjectId,
           originalUrl: "https://example.com/vanity-test",
@@ -127,7 +145,7 @@ describe("Link Tracking Routes Integration", () => {
 
       const response = await fetch(`${API_URL}/links`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId: testProjectId,
           originalUrl: "not-a-valid-url",
@@ -146,7 +164,7 @@ describe("Link Tracking Routes Integration", () => {
       // Create first link with vanity slug
       await fetch(`${API_URL}/links`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId: testProjectId,
           originalUrl: "https://example.com/first",
@@ -157,7 +175,7 @@ describe("Link Tracking Routes Integration", () => {
       // Try to create another with same vanity slug
       const response = await fetch(`${API_URL}/links`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId: testProjectId,
           originalUrl: "https://example.com/second",
@@ -179,7 +197,7 @@ describe("Link Tracking Routes Integration", () => {
       // Create a link first
       const createResponse = await fetch(`${API_URL}/links`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId: testProjectId,
           originalUrl: "https://example.com/get-test",
@@ -189,7 +207,9 @@ describe("Link Tracking Routes Integration", () => {
       const linkId = createBody.data.id;
 
       // Get the link
-      const response = await fetch(`${API_URL}/links/${linkId}`);
+      const response = await fetch(`${API_URL}/links/${linkId}`, {
+        headers: { Authorization: authHeader },
+      });
 
       assert.equal(response.status, 200);
       const body = await response.json();
@@ -204,7 +224,9 @@ describe("Link Tracking Routes Integration", () => {
         return;
       }
 
-      const response = await fetch(`${API_URL}/links/00000000-0000-0000-0000-000000000000`);
+      const response = await fetch(`${API_URL}/links/00000000-0000-0000-0000-000000000000`, {
+        headers: { Authorization: authHeader },
+      });
 
       assert.equal(response.status, 404);
     });
@@ -220,7 +242,7 @@ describe("Link Tracking Routes Integration", () => {
       // Create a link
       const createResponse = await fetch(`${API_URL}/links`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId: testProjectId,
           originalUrl: "https://example.com/stats-test",
@@ -230,7 +252,9 @@ describe("Link Tracking Routes Integration", () => {
       const linkId = createBody.data.id;
 
       // Get stats
-      const response = await fetch(`${API_URL}/links/${linkId}/stats`);
+      const response = await fetch(`${API_URL}/links/${linkId}/stats`, {
+        headers: { Authorization: authHeader },
+      });
 
       assert.equal(response.status, 200);
       const body = await response.json();
@@ -250,7 +274,7 @@ describe("Link Tracking Routes Integration", () => {
       // Create a link
       const createResponse = await fetch(`${API_URL}/links`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId: testProjectId,
           originalUrl: "https://example.com/delete-test",
@@ -262,12 +286,15 @@ describe("Link Tracking Routes Integration", () => {
       // Delete the link
       const deleteResponse = await fetch(`${API_URL}/links/${linkId}`, {
         method: "DELETE",
+        headers: { Authorization: authHeader },
       });
 
       assert.equal(deleteResponse.status, 200);
 
       // Verify it's deleted
-      const getResponse = await fetch(`${API_URL}/links/${linkId}`);
+      const getResponse = await fetch(`${API_URL}/links/${linkId}`, {
+        headers: { Authorization: authHeader },
+      });
 
       assert.equal(getResponse.status, 404);
     });
@@ -283,7 +310,7 @@ describe("Link Tracking Routes Integration", () => {
       // Create a link
       const createResponse = await fetch(`${API_URL}/links`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId: testProjectId,
           originalUrl: "https://example.com/redirect-test",
@@ -310,7 +337,7 @@ describe("Link Tracking Routes Integration", () => {
       // Create a link with vanity slug
       await fetch(`${API_URL}/links`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId: testProjectId,
           originalUrl: "https://example.com/vanity-redirect",
@@ -347,7 +374,7 @@ describe("Link Tracking Routes Integration", () => {
       // Create a link
       const createResponse = await fetch(`${API_URL}/links`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId: testProjectId,
           originalUrl: "https://example.com/click-count-test",
@@ -366,7 +393,9 @@ describe("Link Tracking Routes Integration", () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Check click count
-      const statsResponse = await fetch(`${API_URL}/links/${linkId}/stats`);
+      const statsResponse = await fetch(`${API_URL}/links/${linkId}/stats`, {
+        headers: { Authorization: authHeader },
+      });
       const statsBody = await statsResponse.json();
 
       assert.equal(statsBody.data.totalClicks, 3);
