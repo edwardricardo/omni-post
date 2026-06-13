@@ -11,6 +11,7 @@ export {
   type BullMQQueueAdapter,
   type BullMQQueueAdapterOptions,
 } from "./queue-adapter.js";
+export type { ResilienceMetrics } from "./resilience.js";
 export {
   createBullMQConsumerAdapter,
   type BullMQConsumerAdapter,

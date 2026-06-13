@@ -10,6 +10,7 @@
  * @layer infrastructure
  */
 
+import { vi } from "vitest";
 import { EventStoreEvent } from "@shared/events";
 import { Command } from "@shared/cqrs";
 import { ok } from "@shared/types";
@@ -60,6 +61,19 @@ export interface MockRedis {
   get: (key: string) => Promise<string | null>;
   keys: (pattern: string) => Promise<string[]>;
   ping: () => Promise<string>;
+}
+
+/**
+ * Subscriber-mode Redis double for the saga pub/sub connection injected via
+ * `sagaSubscriber`. Records subscribe/message wiring so tests can assert the
+ * INJECTED connection is the one used (not a self-constructed one).
+ */
+export interface MockSubscriber {
+  connect: ReturnType<typeof vi.fn>;
+  on: ReturnType<typeof vi.fn>;
+  subscribe: ReturnType<typeof vi.fn>;
+  unsubscribe: ReturnType<typeof vi.fn>;
+  disconnect: ReturnType<typeof vi.fn>;
 }
 
 /**
@@ -182,6 +196,21 @@ export function createMockRedis(): MockRedis {
   };
 }
 
+/**
+ * Build a subscriber-mode Redis double. `setupEventHandling()` calls
+ * `connect()`, `on()`, then `subscribe(channel)` on the INJECTED connection —
+ * recording these lets tests prove the injected subscriber is the one used.
+ */
+export function createMockSubscriber(): MockSubscriber {
+  return {
+    connect: vi.fn(async () => undefined),
+    on: vi.fn(),
+    subscribe: vi.fn(async () => undefined),
+    unsubscribe: vi.fn(async () => undefined),
+    disconnect: vi.fn(),
+  };
+}
+
 export function createMockQueue(): MockQueue {
   const enqueuedJobs: QueueJob[] = [];
   let jobCounter = 0;
@@ -288,11 +317,13 @@ export async function buildIntegration(): Promise<{
   mockEventService: MockEventService;
   mockCQRSBus: MockCQRSBus;
   mockRedis: MockRedis;
+  mockSubscriber: MockSubscriber;
 }> {
   const mockFastify = createMockFastify();
   const mockEventService = createMockEventService();
   const mockCQRSBus = createMockCQRSBus();
   const mockRedis = createMockRedis();
+  const mockSubscriber = createMockSubscriber();
   const mockPrisma = createMockPrisma();
   const mockQueue = createMockQueue();
 
@@ -302,6 +333,7 @@ export async function buildIntegration(): Promise<{
     eventService: mockEventService as any,
     cqrsBus: mockCQRSBus as any,
     redis: mockRedis as any,
+    sagaSubscriber: mockSubscriber as any,
     queue: mockQueue,
     scheduler: new NoopBackgroundTaskScheduler(),
     projectRepository: createMockProjectRepo() as any,
@@ -317,6 +349,7 @@ export async function buildIntegration(): Promise<{
     mockEventService,
     mockCQRSBus,
     mockRedis,
+    mockSubscriber,
   };
 }
 

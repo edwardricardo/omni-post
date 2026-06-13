@@ -23,12 +23,14 @@ import {
   createMockEventService,
   createMockCQRSBus,
   createMockRedis,
+  createMockSubscriber,
   createMockPrisma,
   createMockQueue,
   type MockFastifyInstance,
   type MockEventService,
   type MockCQRSBus,
   type MockRedis,
+  type MockSubscriber,
   type MockPrisma,
   type MockQueue,
 } from "./sagaIntegration.helpers";
@@ -48,6 +50,7 @@ describe("SagaIntegration - Initialization", () => {
   let mockEventService: MockEventService;
   let mockCQRSBus: MockCQRSBus;
   let mockRedis: MockRedis;
+  let mockSubscriber: MockSubscriber;
   let mockPrisma: MockPrisma;
   let mockQueue: MockQueue;
   let integration: SagaIntegration | undefined;
@@ -57,6 +60,7 @@ describe("SagaIntegration - Initialization", () => {
     mockEventService = createMockEventService();
     mockCQRSBus = createMockCQRSBus();
     mockRedis = createMockRedis();
+    mockSubscriber = createMockSubscriber();
     mockPrisma = createMockPrisma();
     mockQueue = createMockQueue();
   });
@@ -75,6 +79,7 @@ describe("SagaIntegration - Initialization", () => {
       eventService: mockEventService as any,
       cqrsBus: mockCQRSBus as any,
       redis: mockRedis as any,
+      sagaSubscriber: mockSubscriber as any,
       queue: mockQueue,
       scheduler,
     });
@@ -92,6 +97,7 @@ describe("SagaIntegration - Initialization", () => {
       eventService: mockEventService as any,
       cqrsBus: mockCQRSBus as any,
       redis: mockRedis as any,
+      sagaSubscriber: mockSubscriber as any,
       queue: mockQueue,
       scheduler,
     });
@@ -111,6 +117,7 @@ describe("SagaIntegration - Initialization", () => {
       eventService: mockEventService as any,
       cqrsBus: mockCQRSBus as any,
       redis: mockRedis as any,
+      sagaSubscriber: mockSubscriber as any,
       queue: mockQueue,
       scheduler,
     });
@@ -130,6 +137,7 @@ describe("SagaIntegration - Initialization", () => {
       eventService: mockEventService as any,
       cqrsBus: mockCQRSBus as any,
       redis: mockRedis as any,
+      sagaSubscriber: mockSubscriber as any,
       queue: mockQueue,
       scheduler,
     });
@@ -139,6 +147,28 @@ describe("SagaIntegration - Initialization", () => {
     expect(mockFastify.registeredRoutes.has("GET:/sagas")).toBeTruthy();
     expect(mockFastify.registeredRoutes.has("GET:/sagas/health")).toBeTruthy();
     expect(mockFastify.registeredRoutes.has("GET:/sagas/metrics")).toBeTruthy();
+  });
+
+  it("uses the injected sagaSubscriber for pub/sub (no self-constructed connection) (R11)", async () => {
+    integration = new SagaIntegration({
+      fastify: mockFastify as any,
+      prisma: mockPrisma as any,
+      eventService: mockEventService as any,
+      cqrsBus: mockCQRSBus as any,
+      redis: mockRedis as any,
+      sagaSubscriber: mockSubscriber as any,
+      queue: mockQueue,
+      scheduler,
+    });
+
+    await integration.initialize();
+
+    // The INJECTED subscriber is the one connected + subscribed to saga:events.
+    // If the service self-constructed its own Redis, the injected double would
+    // never be touched.
+    expect(mockSubscriber.connect).toHaveBeenCalledTimes(1);
+    expect(mockSubscriber.subscribe).toHaveBeenCalledTimes(1);
+    expect(mockSubscriber.subscribe.mock.calls[0]?.[0]).toBe("saga:events");
   });
 });
 
@@ -152,6 +182,7 @@ describe("SagaIntegration - Saga Definition Registration", () => {
   let mockEventService: MockEventService;
   let mockCQRSBus: MockCQRSBus;
   let mockRedis: MockRedis;
+  let mockSubscriber: MockSubscriber;
   let mockPrisma: MockPrisma;
   let mockQueue: MockQueue;
 
@@ -160,6 +191,7 @@ describe("SagaIntegration - Saga Definition Registration", () => {
     mockEventService = createMockEventService();
     mockCQRSBus = createMockCQRSBus();
     mockRedis = createMockRedis();
+    mockSubscriber = createMockSubscriber();
     mockPrisma = createMockPrisma();
     mockQueue = createMockQueue();
 
@@ -169,6 +201,7 @@ describe("SagaIntegration - Saga Definition Registration", () => {
       eventService: mockEventService as any,
       cqrsBus: mockCQRSBus as any,
       redis: mockRedis as any,
+      sagaSubscriber: mockSubscriber as any,
       queue: mockQueue,
       scheduler,
     });

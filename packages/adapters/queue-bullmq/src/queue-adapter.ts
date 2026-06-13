@@ -32,11 +32,12 @@ export interface BullMQQueueAdapterOptions {
    * §Secrets) and violate the DI canon (ARCHITECTURE_CANON §Dependency
    * Injection — only a composition root may construct an adapter's transport).
    *
-   * Typed optional for the PR1→PR2 wiring window; absence throws at
-   * construction so an un-wired caller fails loudly instead of silently
-   * connecting to localhost.
+   * REQUIRED: every caller now injects a composition-root-owned connection, so
+   * the TS compiler enforces injection at every call site. The runtime throw
+   * below is the belt-and-suspenders safety net for non-TS callers that pass
+   * `undefined` through a cast.
    */
-  connection?: Redis;
+  connection: Redis;
   /**
    * Default options applied to every job added to this queue.
    * `attempts` + `backoff` enable BullMQ's built-in retry policy without

@@ -22,14 +22,10 @@ import {
 } from "./schedulingService.test-helpers.js";
 
 // ── Hoist vi.mock() calls before module evaluation ──
-
-vi.mock("@adapters/queue-bullmq", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@adapters/queue-bullmq")>();
-  return {
-    ...actual,
-    createBullMQQueueAdapter: () => createMockQueueAdapter(),
-  };
-});
+//
+// The queue port is injected via the constructor (DI), so no module-level
+// vi.mock for "@adapters/queue-bullmq" is needed — the service never calls
+// createBullMQQueueAdapter() any more.
 
 vi.mock("@adapters/external-apis", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@adapters/external-apis")>();
@@ -113,8 +109,9 @@ describe("InstagramSchedulingService -- scheduling", { concurrent: false }, () =
     mockQueue = createMockQueueAdapter();
     mockMedia = createMockMediaProcessor();
 
-    service = new InstagramSchedulingService();
-    (service as any).queueAdapter = mockQueue;
+    // Queue port injected via constructor (DI). Media processor still patched
+    // post-construction since it is an internal collaborator, not an injected port.
+    service = new InstagramSchedulingService(mockQueue as any);
     (service as any).mediaProcessor = mockMedia;
   });
 

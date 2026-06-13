@@ -8,7 +8,6 @@
  */
 import type Redis from "ioredis";
 import type { CachePort } from "@ports/core";
-import { createRedisConnection } from "../lib/redis.js";
 import { createLogger } from "../lib/logger.js";
 
 const analyticsLogger = createLogger("analytics");
@@ -45,8 +44,9 @@ export type {
 
 export class ROICalculator {
   // Redis used for `updateRealTimeROI` hgetall/hmset pattern (distributed
-  // counters — distinct from cache-aside, which uses CachePort).
-  private redis: Redis;
+  // counters — distinct from cache-aside, which uses CachePort). Injected by the
+  // composition root (TOKENS.AnalyticsRedisConnection); never self-constructed.
+  private readonly redis: Redis;
   private readonly cachePrefix = "roi:";
   private readonly cacheTTL = 600; // 10 minutes
 
@@ -63,9 +63,10 @@ export class ROICalculator {
     private readonly projectRepository: ProjectQueryRepositoryPort,
     private readonly analyticsRepository: AnalyticsReadRepositoryPort,
     private readonly conversionRepository: ConversionRepositoryPort,
-    private readonly cache: CachePort
+    private readonly cache: CachePort,
+    redis: Redis
   ) {
-    this.redis = createRedisConnection();
+    this.redis = redis;
     this.costCalculator = new CostCalculator();
     this.revenueCalculator = new RevenueCalculator();
     this.roiMetrics = new ROIMetrics(this.revenueCalculator, this.costCalculator);

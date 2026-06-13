@@ -8,11 +8,30 @@ import { ok, err, AppError, type Result } from "@shared/types";
 import { type InstagramCredentials } from "./apiClient.js";
 import { InstagramMediaProcessor, type VideoSplitOptions } from "./mediaProcessor.js";
 import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
-import { createBullMQQueueAdapter, QUEUE_NAMES } from "@adapters/queue-bullmq";
+import type { QueuePort } from "@ports/core";
+import type { ResilienceMetrics } from "@adapters/queue-bullmq";
 import client from "prom-client";
 import { createLogger } from "@observability/logger";
 
 const logger = createLogger("provider:instagram:scheduling");
+
+/**
+ * Queue port consumed by the Instagram scheduling service. Extends the
+ * technology-free `QueuePort` with the two concrete-adapter members the
+ * service needs (`getResilienceMetrics`, `close`). The `BullMQQueueAdapter`
+ * returned by `createBullMQQueueAdapter` already satisfies this shape, so the
+ * composition root injects that instance (built with a composition-root-owned
+ * Redis connection). The service never self-constructs an adapter — DI canon:
+ * extend the port instead of bypassing it (ARCHITECTURE_CANON §Dependency
+ * Injection).
+ */
+export interface InstagramQueuePort extends QueuePort {
+  /** Resilience/circuit-breaker metrics surfaced by the BullMQ producer adapter. */
+  getResilienceMetrics(): ResilienceMetrics;
+  /** Close the underlying queue. The injected Redis connection is owned and
+   *  quit by the composition root, never by this service. */
+  close(): Promise<void>;
+}
 
 export interface InstagramScheduleJob {
   id: string;
@@ -57,13 +76,23 @@ export interface InstagramScheduleOptions {
 
 // Global registry for circuit breaker metrics
 const registry = new client.Registry();
-const circuitBreaker = createExternalApiCircuitBreaker(registry, process.env.REDIS_URL);
+// The circuit breaker's own Redis URL is NOT read from the environment here: a
+// provider module must not read environment variables directly (CWE-798). The
+// breaker falls back to its internal in-memory path when no URL is supplied;
+// its distributed Redis state is a separate out-of-scope sweep.
+const circuitBreaker = createExternalApiCircuitBreaker(registry);
 
 export class InstagramSchedulingService {
-  private queueAdapter = createBullMQQueueAdapter({ queueName: QUEUE_NAMES.PUBLISH });
+  private readonly queue: InstagramQueuePort;
   private mediaProcessor: InstagramMediaProcessor;
 
-  constructor() {
+  /**
+   * @param queue - Queue port injected by the composition root. Built from a
+   *   composition-root-owned Redis connection (a `BullMQQueueAdapter` bound to
+   *   the PUBLISH queue). The service never self-constructs a queue adapter.
+   */
+  constructor(queue: InstagramQueuePort) {
+    this.queue = queue;
     this.mediaProcessor = new InstagramMediaProcessor();
   }
 
@@ -104,7 +133,7 @@ export class InstagramSchedulingService {
       };
 
       // Enqueue the job
-      const queueResult = await this.queueAdapter.enqueue({
+      const queueResult = await this.queue.enqueue({
         dedupeKey: `instagram-${job.queueId}-${job.scheduledAt.getTime()}`,
         runAt: finalScheduleTime,
         payload: queuePayload,
@@ -272,7 +301,7 @@ export class InstagramSchedulingService {
     queueJobId: string
   ): Promise<Result<boolean, "NOT_FOUND" | "CONNECTION_ERROR" | "QUEUE_ERROR">> {
     try {
-      const result = await this.queueAdapter.remove(queueJobId);
+      const result = await this.queue.remove(queueJobId);
       return result;
     } catch (error: unknown) {
       logger.error({ err: error }, "Cancel scheduled post error");
@@ -285,7 +314,7 @@ export class InstagramSchedulingService {
    */
   async getSchedulingHealth(): Promise<Result<any, "QUEUE_ERROR">> {
     try {
-      const health = await this.queueAdapter.health();
+      const health = await this.queue.health();
       if (!health.ok) {
         return err("QUEUE_ERROR");
       }
@@ -293,7 +322,7 @@ export class InstagramSchedulingService {
       return ok({
         ...health.value,
         circuitBreakerStatus: circuitBreaker.getAllStatuses(),
-        resilienceMetrics: this.queueAdapter.getResilienceMetrics(),
+        resilienceMetrics: this.queue.getResilienceMetrics(),
       });
     } catch (error: unknown) {
       logger.error({ err: error }, "Get scheduling health error");
@@ -422,7 +451,7 @@ export class InstagramSchedulingService {
    */
   async close(): Promise<void> {
     try {
-      await this.queueAdapter.close();
+      await this.queue.close();
       logger.info("Instagram scheduling service closed");
     } catch (error) {
       logger.warn({ err: error }, "Instagram scheduling service cleanup warning");
@@ -430,7 +459,16 @@ export class InstagramSchedulingService {
   }
 }
 
-// Export convenience function for creating the service
-export function createInstagramSchedulingService(): InstagramSchedulingService {
-  return new InstagramSchedulingService();
+/**
+ * Convenience factory for the Instagram scheduling service.
+ *
+ * @param queue - Queue port injected by the composition root (a
+ *   `BullMQQueueAdapter` bound to the PUBLISH queue, built with a
+ *   composition-root-owned Redis connection). The service never constructs
+ *   its own queue adapter — DI canon (ARCHITECTURE_CANON §Dependency Injection).
+ */
+export function createInstagramSchedulingService(
+  queue: InstagramQueuePort
+): InstagramSchedulingService {
+  return new InstagramSchedulingService(queue);
 }

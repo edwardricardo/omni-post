@@ -93,25 +93,26 @@ interface FakeRedis {
   expire: ReturnType<typeof vi.fn>;
 }
 
-/** Construct a calculator with all ports mocked and Redis stubbed out. */
+/** Construct a calculator with all ports mocked and an injected Redis double.
+ *  Redis is the LAST constructor argument (DI) — no post-construction patching. */
 function makeCalculator(parts?: {
   projectRepo?: ProjectQueryRepositoryPort;
   analyticsRepo?: AnalyticsReadRepositoryPort;
   conversionRepo?: ConversionRepositoryPort;
   cache?: CachePort;
 }): { calc: ROICalculator; redis: FakeRedis } {
-  const calc = new ROICalculator(
-    parts?.projectRepo ?? makeProjectRepo(),
-    parts?.analyticsRepo ?? makeAnalyticsRepo(),
-    parts?.conversionRepo ?? makeConversionRepo(),
-    parts?.cache ?? makeCache()
-  );
   const redis: FakeRedis = {
     hgetall: vi.fn(async () => ({})),
     hmset: vi.fn(async () => "OK"),
     expire: vi.fn(async () => 1),
   };
-  (calc as unknown as { redis: FakeRedis }).redis = redis;
+  const calc = new ROICalculator(
+    parts?.projectRepo ?? makeProjectRepo(),
+    parts?.analyticsRepo ?? makeAnalyticsRepo(),
+    parts?.conversionRepo ?? makeConversionRepo(),
+    parts?.cache ?? makeCache(),
+    redis as unknown as import("ioredis").default
+  );
   return { calc, redis };
 }
 

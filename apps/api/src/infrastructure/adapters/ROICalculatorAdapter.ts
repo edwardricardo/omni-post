@@ -5,6 +5,7 @@
  *              infrastructure's full cost model.
  * @layer infrastructure
  */
+import type Redis from "ioredis";
 import type { CachePort } from "@ports/core";
 import type { ROICalculatorPort } from "@core/analytics/CalculateROIUseCase.js";
 import type { ChannelROI } from "@core/analytics/types.js";
@@ -31,13 +32,15 @@ export class ROICalculatorAdapter implements ROICalculatorPort {
     cache: CachePort,
     projectRepository: ProjectQueryRepositoryPort,
     analyticsRepository: AnalyticsReadRepositoryPort,
-    conversionRepository: ConversionRepositoryPort
+    conversionRepository: ConversionRepositoryPort,
+    redis: Redis
   ) {
     this.calculator = new ROICalculator(
       projectRepository,
       analyticsRepository,
       conversionRepository,
-      cache
+      cache,
+      redis
     );
   }
 
