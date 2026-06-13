@@ -154,6 +154,9 @@ CONCURRENCY=1 run_batch "integration:outbox" \
   tests/integration/bulkScheduleOutboxSmoke.test.ts \
   tests/integration/bulkScheduling.test.ts
 
+CONCURRENCY=1 run_batch "integration:consumers" \
+  tests/integration/consumers/workerConnection.integration.test.ts
+
 fi # run_db_batches
 
 # Live-API batches: these fetch http://localhost:3000 (getBaseUrl) and require

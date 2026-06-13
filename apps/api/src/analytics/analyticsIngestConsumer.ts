@@ -35,12 +35,11 @@ export interface StartAnalyticsIngestConsumerDeps {
   readonly markReauth: UpdateChannelAuthStateUseCase;
   readonly logger: AnalyticsIngestConsumerLogger;
   /**
-   * Shared Redis connection (composition-root-owned). Optional only for the
-   * PR1→PR2 wiring window: when omitted the consumer adapter throws at
-   * construction (it never self-constructs from env). index.ts injects
+   * Shared Redis connection (composition-root-owned). Required — the consumer
+   * adapter never self-constructs one from env; index.ts injects
    * `TOKENS.BullMQWorkerConnection` here.
    */
-  readonly connection?: Redis;
+  readonly connection: Redis;
 }
 
 interface AnalyticsIngestJob {
@@ -111,7 +110,7 @@ export async function processAnalyticsIngestJob(
 /**
  * @function startAnalyticsIngestConsumer
  * @description Subscribes the in-process analytics consumer to ANALYTICS_AGGREGATION.
- * @param deps - Use cases, logger, and an optional shared Redis connection.
+ * @param deps - Use cases, logger, and the shared Redis connection.
  * @returns A handle whose `close()` drains the consumer.
  */
 export async function startAnalyticsIngestConsumer(
@@ -119,7 +118,7 @@ export async function startAnalyticsIngestConsumer(
 ): Promise<AnalyticsIngestConsumerHandle> {
   const consumer = createBullMQConsumerAdapter({
     queueName: QUEUE_NAMES.ANALYTICS_AGGREGATION,
-    ...(deps.connection !== undefined && { connection: deps.connection }),
+    connection: deps.connection,
   });
 
   await consumer.subscribe((job) =>

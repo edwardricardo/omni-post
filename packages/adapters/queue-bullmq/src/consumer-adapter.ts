@@ -27,11 +27,13 @@ export interface BullMQConsumerAdapterOptions {
    * require `maxRetriesPerRequest: null` because BullMQ blocks on `BRPOPLPUSH`
    * indefinitely; the composition root's `createRedisConnection` encodes that.
    *
-   * Typed optional for the PR1→PR2 wiring window; absence throws at
-   * construction so an un-wired caller fails loudly instead of silently
-   * connecting to localhost.
+   * REQUIRED — every consumer caller (apps/api in-process consumers and the
+   * apps/workers publish worker) injects a composition-root-owned socket. The
+   * TS compiler now enforces injection at every call site; the runtime throw
+   * below is belt-and-suspenders for non-TS callers that pass `undefined`
+   * through a cast.
    */
-  connection?: Redis;
+  connection: Redis;
 }
 
 export interface BullMQConsumerAdapter {

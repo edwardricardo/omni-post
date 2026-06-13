@@ -112,6 +112,33 @@ export class Container {
   }
 
   /**
+   * Return a singleton's cached instance WITHOUT constructing it.
+   *
+   * Unlike `resolve`, this never invokes the factory: it returns the instance
+   * only if the singleton has already been resolved (or was registered eagerly
+   * via `registerInstance`), and `undefined` otherwise. Used by the shutdown
+   * sequence to quit composition-root-owned connections (e.g. the saga
+   * subscriber, analytics Redis) ONLY when they were actually constructed
+   * during the process lifetime — quitting an unresolved lazy singleton would
+   * otherwise force-create a brand-new socket at teardown just to close it.
+   *
+   * Transient registrations always return `undefined` (they are never cached).
+   *
+   * @param token - Service identifier token
+   * @returns The cached singleton instance, or `undefined` if not yet built
+   */
+  peekInstance<T>(token: Token): T | undefined {
+    const registration = this.services.get(token);
+    if (registration) {
+      if (registration.singleton && registration.instance !== undefined) {
+        return registration.instance as T;
+      }
+      return undefined;
+    }
+    return this.parent?.peekInstance<T>(token);
+  }
+
+  /**
    * Check if a service is registered
    *
    * @param token - Service identifier token

@@ -58,11 +58,21 @@ const fakeWorker = {
   }),
 };
 
+/**
+ * Records the options the consumer adapter was constructed with so a test can
+ * assert that the dedicated workerConnection (null retries) is the socket
+ * threaded into the BullMQ consumer — not the finite-retry notifyRedis.
+ */
+const consumerAdapterOptions: Array<{ connection?: unknown }> = [];
+
 vi.mock("@adapters/queue-bullmq", () => ({
-  createBullMQConsumerAdapter: () => ({
-    subscribe: vi.fn().mockImplementation(async () => fakeWorker),
-    close: vi.fn().mockResolvedValue(undefined),
-  }),
+  createBullMQConsumerAdapter: (options: { connection?: unknown }) => {
+    consumerAdapterOptions.push(options);
+    return {
+      subscribe: vi.fn().mockImplementation(async () => fakeWorker),
+      close: vi.fn().mockResolvedValue(undefined),
+    };
+  },
   QUEUE_NAMES: { PUBLISH: "publish" },
 }));
 
@@ -91,26 +101,51 @@ vi.mock("@infra/prisma", () => ({
 }));
 
 /**
- * ioredis mock that tracks the LAST Redis instance created so drain-order tests
- * can assert that `target.connections` references the real notifyRedis object
- * (pins REGRESSION B — moving notifyRedis out of connections[] breaks this).
+ * ioredis mock that records EVERY Redis instance constructed, with the options
+ * it was built with, so drain-order tests can distinguish the two sockets
+ * startPublishWorker() now creates:
+ *   1. notifyRedis      — saga pub/sub, finite `maxRetriesPerRequest: 1`
+ *   2. workerConnection — BullMQ Worker transport, `maxRetriesPerRequest: null`
+ *
+ * Tracking only the LAST instance (the previous approach) silently pointed at
+ * workerConnection after the PR1 fix-up added the second socket, weakening the
+ * REGRESSION-B pin (it no longer asserted notifyRedis specifically). Recording
+ * all instances + their options lets us pin BOTH connections and the
+ * null-retries Worker requirement.
  */
-let lastRedisInstance: {
+interface MockRedisInstance {
   on: ReturnType<typeof vi.fn>;
   quit: ReturnType<typeof vi.fn>;
   disconnect: ReturnType<typeof vi.fn>;
-} | null = null;
+  options: { maxRetriesPerRequest?: number | null } | undefined;
+}
+
+const redisInstances: MockRedisInstance[] = [];
+
+/** notifyRedis is the FIRST socket constructed (finite retries). */
+function notifyRedisInstance(): MockRedisInstance | undefined {
+  return redisInstances[0];
+}
+
+/** workerConnection is the SECOND socket constructed (null retries). */
+function workerConnectionInstance(): MockRedisInstance | undefined {
+  return redisInstances[1];
+}
 
 vi.mock("ioredis", () => {
-  function Redis() {
-    const instance = {
+  function Redis(_url: string, options?: { maxRetriesPerRequest?: number | null }) {
+    const ordinal = redisInstances.length;
+    const instance: MockRedisInstance = {
       on: vi.fn(),
       quit: vi.fn().mockImplementation(async () => {
-        callLog.push("notifyRedis.quit");
+        // Distinguish the two sockets in the ordered call log so drain-order
+        // assertions can target notifyRedis specifically.
+        callLog.push(ordinal === 0 ? "notifyRedis.quit" : "workerConnection.quit");
       }),
       disconnect: vi.fn().mockResolvedValue(undefined),
+      options,
     };
-    lastRedisInstance = instance;
+    redisInstances.push(instance);
     return instance;
   }
   return { default: Redis };
@@ -194,7 +229,8 @@ describe("startPublishWorker", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     callLog.length = 0;
-    lastRedisInstance = null;
+    redisInstances.length = 0;
+    consumerAdapterOptions.length = 0;
     // Restore callLog-pushing implementations that vi.clearAllMocks() wipes.
     fakeWorker.close.mockImplementation(async () => {
       callLog.push("worker.close");
@@ -321,12 +357,17 @@ describe("startPublishWorker", () => {
     });
 
     it("target.connections contains the notifyRedis instance (REGRESSION B pin)", async () => {
-      // WHAT THIS TESTS: notifyRedis is placed in target.connections[], NOT in
-      // afterTeardown. Moving notifyRedis to afterTeardown would pass the drain-order
-      // test above (afterTeardown runs last), but this test pins the structural
-      // invariant: notifyRedis MUST be in connections so gracefulShutdown.ts's
-      // fixed drain sequence (workers→connections→prisma→afterTeardown) is the
-      // enforcer, not just any ordering that happens to work.
+      // WHAT THIS TESTS: notifyRedis (the FIRST socket, finite retries) is placed
+      // in target.connections[], NOT in afterTeardown. Moving notifyRedis to
+      // afterTeardown would pass the drain-order test above (afterTeardown runs
+      // last), but this test pins the structural invariant: notifyRedis MUST be in
+      // connections so gracefulShutdown.ts's fixed drain sequence
+      // (workers→connections→prisma→afterTeardown) is the enforcer.
+      //
+      // startPublishWorker() now constructs TWO sockets; this assertion targets
+      // notifyRedis SPECIFICALLY (redisInstances[0]) rather than "the last
+      // constructed Redis", which after the second socket was added would have
+      // pointed at workerConnection and silently stopped pinning notifyRedis.
       const { startPublishWorker } = await import("../../src/publishWorker.js");
       const { workerPrisma } = await import("../../src/container/workerContainer.js");
 
@@ -335,21 +376,69 @@ describe("startPublishWorker", () => {
         registerShutdown: false,
       });
 
-      // lastRedisInstance is set by the ioredis mock constructor each time
-      // `new Redis(...)` is called inside startPublishWorker().
+      const notifyRedis = notifyRedisInstance();
       assert.ok(
-        lastRedisInstance !== null,
-        "ioredis Redis constructor must have been called — notifyRedis not created"
+        notifyRedis !== undefined,
+        "notifyRedis (first ioredis instance) must have been constructed"
       );
       assert.ok(Array.isArray(handle.target.connections), "target.connections must be an array");
       assert.ok(
-        handle.target.connections!.length > 0,
-        "target.connections must not be empty — notifyRedis must be registered there"
-      );
-      assert.ok(
-        handle.target.connections!.includes(lastRedisInstance as { quit(): Promise<unknown> }),
+        handle.target.connections!.includes(notifyRedis as { quit(): Promise<unknown> }),
         "target.connections must contain the notifyRedis instance — " +
           "moving notifyRedis to afterTeardown breaks the structural drain-order guarantee"
+      );
+    });
+
+    it("target.connections contains the dedicated workerConnection (null retries) and it reaches the consumer adapter", async () => {
+      // WHAT THIS TESTS (W5, re-verify #91): the BullMQ Worker transport is a
+      // DEDICATED socket built with `maxRetriesPerRequest: null` (BullMQ blocks
+      // on BRPOPLPUSH — finite retries would surface spurious timeouts), it is
+      // the socket injected into createBullMQConsumerAdapter (not the finite-retry
+      // notifyRedis), and it is registered in target.connections so the
+      // composition root quits it AFTER the Worker drains.
+      const { startPublishWorker } = await import("../../src/publishWorker.js");
+      const { workerPrisma } = await import("../../src/container/workerContainer.js");
+
+      const handle = await startPublishWorker({
+        prisma: workerPrisma,
+        registerShutdown: false,
+      });
+
+      const notifyRedis = notifyRedisInstance();
+      const workerConnection = workerConnectionInstance();
+
+      assert.ok(
+        workerConnection !== undefined,
+        "a dedicated workerConnection (second ioredis instance) must be constructed — " +
+          "the finite-retry notifyRedis cannot be reused as the BullMQ Worker transport"
+      );
+      assert.notStrictEqual(
+        workerConnection,
+        notifyRedis,
+        "workerConnection must be a DISTINCT socket from notifyRedis"
+      );
+      assert.strictEqual(
+        workerConnection!.options?.maxRetriesPerRequest,
+        null,
+        "workerConnection must be built with maxRetriesPerRequest: null (BullMQ Worker requirement)"
+      );
+
+      // The workerConnection is the socket threaded into the consumer adapter.
+      assert.strictEqual(
+        consumerAdapterOptions.length,
+        1,
+        "exactly one BullMQ consumer adapter must be constructed"
+      );
+      assert.strictEqual(
+        consumerAdapterOptions[0]?.connection,
+        workerConnection,
+        "createBullMQConsumerAdapter must receive the dedicated workerConnection, not notifyRedis"
+      );
+
+      // And it is registered for composition-root-owned teardown.
+      assert.ok(
+        handle.target.connections!.includes(workerConnection as { quit(): Promise<unknown> }),
+        "target.connections must contain the workerConnection so it quits after the Worker drains"
       );
     });
   });
