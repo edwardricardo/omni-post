@@ -169,7 +169,7 @@ CONCURRENCY=1 run_batch "integration:routes" \
 
 CONCURRENCY=1 run_batch "integration:flows" \
   tests/auth.test.ts tests/audit.test.ts tests/cache.test.ts \
-  tests/rateLimit.smoke.test.ts tests/security.test.ts \
+  tests/security.test.ts \
   tests/integration/publishing/failedWrite.smoke.test.ts
 
 CONCURRENCY=1 TIMEOUT=60000 run_batch "flow" \
@@ -183,7 +183,7 @@ CONCURRENCY=1 run_batch "remaining" \
   tests/schemaUtils.test.ts
 
 # Wait for API rate limiter to reset after integration:flows batch
-# (rateLimit.smoke.test.ts exhausts the rate limit window)
+# (security.test.ts's rate-limiting suite exhausts the rate limit window)
 wait_for_api() {
   local max_attempts=30
   local attempt=0

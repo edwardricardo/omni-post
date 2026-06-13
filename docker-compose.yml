@@ -1,6 +1,9 @@
 services:
   postgres:
-    image: postgres:16
+    # pgvector-enabled image — the glossary/style-guide migrations CREATE
+    # EXTENSION vector, which a plain postgres image cannot satisfy (local
+    # `pnpm db:up` + db:migrate would fail otherwise, as CI did before this).
+    image: pgvector/pgvector:pg16
     container_name: omnipost-postgres
     restart: always
     env_file:
