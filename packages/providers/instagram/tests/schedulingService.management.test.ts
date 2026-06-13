@@ -22,14 +22,10 @@ import {
 } from "./schedulingService.test-helpers.js";
 
 // ── Hoist vi.mock() calls before module evaluation ──
-
-vi.mock("@adapters/queue-bullmq", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@adapters/queue-bullmq")>();
-  return {
-    ...actual,
-    createBullMQQueueAdapter: () => createMockQueueAdapter(),
-  };
-});
+//
+// The queue port is injected via the constructor (DI), so no module-level
+// vi.mock for "@adapters/queue-bullmq" is needed — the service never calls
+// createBullMQQueueAdapter() any more.
 
 vi.mock("@adapters/external-apis", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@adapters/external-apis")>();
@@ -113,8 +109,9 @@ describe("InstagramSchedulingService -- management", { concurrent: false }, () =
     mockQueue = createMockQueueAdapter();
     mockMedia = createMockMediaProcessor();
 
-    service = new InstagramSchedulingService();
-    (service as any).queueAdapter = mockQueue;
+    // Queue port injected via constructor (DI). Media processor still patched
+    // post-construction since it is an internal collaborator, not an injected port.
+    service = new InstagramSchedulingService(mockQueue as any);
     (service as any).mediaProcessor = mockMedia;
   });
 
@@ -426,6 +423,26 @@ describe("InstagramSchedulingService -- management", { concurrent: false }, () =
     it("should provide metrics registry", () => {
       const registry = InstagramSchedulingService.getMetricsRegistry();
       assert.ok(registry !== undefined);
+    });
+  });
+
+  // =========================================================================
+  // dependency injection (R9) — the injected queue port is used, never self-built
+  // =========================================================================
+
+  describe("queue port injection", { concurrent: false }, () => {
+    it("uses the injected queue port for enqueue, not a self-constructed adapter", async () => {
+      // Fresh instance with a queue double we control; assert THIS instance is used.
+      const injectedQueue = createMockQueueAdapter();
+      const svc = new InstagramSchedulingService(injectedQueue as any);
+      (svc as any).mediaProcessor = createMockMediaProcessor();
+
+      const result = await svc.schedulePost(defaultCredentials(), baseJob());
+
+      assert.strictEqual(result.ok, true);
+      // If the service self-constructed its own BullMQ adapter, the injected
+      // double's enqueue would never be called.
+      assert.strictEqual(injectedQueue.enqueue.mock.calls.length, 1);
     });
   });
 });

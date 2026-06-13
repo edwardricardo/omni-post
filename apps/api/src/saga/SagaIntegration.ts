@@ -40,10 +40,9 @@ import type { EventService } from "../events/EventService";
 import type { CQRSBusImpl } from "../cqrs/CQRSBus";
 import { createPostPublishingSagaDefinition, createSagaContext } from "@shared/saga";
 import type { Command } from "@shared/cqrs";
-import Redis from "ioredis";
+import type Redis from "ioredis";
 import { AppError } from "../lib/errors/index.js";
 import { logger } from "../lib/logger.js";
-import { createRedisConnection } from "../lib/redis.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
@@ -67,6 +66,15 @@ interface SagaIntegrationConfig {
   /** Required for full operation; omitted when schemaOnly=true. */
   cqrsBus?: CQRSBusImpl;
   redis: Redis;
+  /**
+   * Dedicated pub/sub (subscriber-mode) Redis connection for the "saga:events"
+   * channel. MUST be constructed with `maxRetriesPerRequest: null` (long-lived
+   * blocking subscribe) and is distinct from `redis` (regular-command) because
+   * ioredis enters subscriber mode and cannot run regular commands on the same
+   * socket. Owned by the composition root (TOKENS.SagaSubscriberConnection);
+   * this integration disconnects it on shutdown but never self-constructs it.
+   */
+  sagaSubscriber: Redis;
   queue: QueuePort;
   scheduler: BackgroundTaskScheduler;
   /** Required for the customer-facing /start endpoint to verify project ownership */
@@ -669,11 +677,12 @@ export class SagaIntegration {
    */
   private async setupEventHandling(): Promise<void> {
     try {
-      // Dedicated Redis connection for subscribing. `maxRetriesPerRequest: null`
-      // signals a long-lived blocking connection — the factory omits
-      // commandTimeout for these (subscribe() blocks indefinitely waiting
-      // for messages, any commandTimeout fires spurious "Command timed out").
-      this.subscriber = createRedisConnection({ maxRetriesPerRequest: null });
+      // Dedicated subscriber-mode Redis connection, injected by the composition
+      // root (TOKENS.SagaSubscriberConnection, built with
+      // `maxRetriesPerRequest: null` — a long-lived blocking connection; the
+      // factory omits commandTimeout for these since subscribe() blocks waiting
+      // for messages). The integration never self-constructs this socket.
+      this.subscriber = this.config.sagaSubscriber;
       await this.subscriber.connect();
 
       this.subscriber.on("error", (err) => {

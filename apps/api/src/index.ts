@@ -682,6 +682,7 @@ async function createApp(): Promise<FastifyInstance> {
     ...(sagaEventService && { eventService: sagaEventService }),
     ...(sagaCQRSBus && { cqrsBus: sagaCQRSBus }),
     redis,
+    sagaSubscriber: container.resolve<Redis>(TOKENS.SagaSubscriberConnection),
     queue: queueAdapter,
     scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
     projectRepository: container.resolve(TOKENS.ProjectRepository),
@@ -1128,13 +1129,13 @@ async function start() {
         await saga.shutdown();
       }
 
-      // Defensive quit of the saga pub/sub subscriber connection. The saga
-      // integration owns runtime teardown (saga.shutdown() disconnects it), so
-      // this is belt-and-suspenders: peekInstance returns the socket ONLY if it
-      // was actually constructed during this process's lifetime (it is not
-      // consumed until the saga subscriber wiring lands), so an unresolved lazy
-      // singleton is a no-op rather than a force-constructed socket created just
-      // to close it. quit() is idempotent if saga.shutdown() already closed it.
+      // Quit the saga pub/sub subscriber connection. SagaIntegration receives
+      // it by injection (TOKENS.SagaSubscriberConnection) and disconnects it at
+      // runtime in saga.shutdown(); the composition root performs the final
+      // idempotent quit() here. peekInstance returns the socket only if it was
+      // actually resolved during boot (it is, once the saga integration is
+      // wired), so this stays a no-op in schema-only / saga-disabled boots
+      // rather than force-constructing a socket just to close it.
       const sagaSubscriber = app.container!.peekInstance<Redis>(TOKENS.SagaSubscriberConnection);
       if (sagaSubscriber) {
         await sagaSubscriber.quit();
@@ -1166,12 +1167,13 @@ async function start() {
       const registry = app.container!.resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry);
       await registry.close();
 
-      // Defensive quit of the analytics distributed-counter connection. No
-      // adapter owns this socket, so the composition root closes it here, after
-      // the registry. peekInstance returns it ONLY if it was actually
-      // constructed (the ROICalculator consumer that resolves it is not wired
-      // until a later slice), so this is a no-op for an unresolved singleton
-      // rather than a force-constructed socket created just to close it.
+      // Quit the analytics distributed-counter connection. The ROICalculator
+      // adapter receives it by injection (TOKENS.AnalyticsRedisConnection) but
+      // no adapter owns the socket, so the composition root closes it here,
+      // after the registry. peekInstance returns it only if it was actually
+      // resolved during boot, so this stays a no-op when the analytics use
+      // cases were never registered rather than force-constructing a socket
+      // just to close it.
       const analyticsRedis = app.container!.peekInstance<Redis>(TOKENS.AnalyticsRedisConnection);
       if (analyticsRedis) {
         await analyticsRedis.quit();

@@ -4,12 +4,14 @@
  *              Exported for use by schedulingService.scheduling.test.ts and
  *              schedulingService.management.test.ts.
  *
- * NOTE: The source `schedulingService.ts` creates adapters at the module level.
- * Tests must use `vi.mock()` BEFORE importing the service.
+ * NOTE: The queue port is now injected into `InstagramSchedulingService` via its
+ * constructor (DI canon — the service no longer self-constructs a BullMQ adapter).
+ * `createMockQueueAdapter()` returns a double that satisfies `InstagramQueuePort`
+ * and is passed straight into `new InstagramSchedulingService(queue)`.
  */
 
 import { vi } from "vitest";
-import type { InstagramScheduleJob } from "../src/schedulingService.js";
+import type { InstagramScheduleJob, InstagramQueuePort } from "../src/schedulingService.js";
 import type { InstagramCredentials } from "../src/apiClient.js";
 
 // ── Mock adapter factories ──
@@ -17,6 +19,7 @@ import type { InstagramCredentials } from "../src/apiClient.js";
 export function createMockQueueAdapter() {
   return {
     enqueue: vi.fn(async () => ({ ok: true as const, value: "queue-job-123" })),
+    enqueueBulk: vi.fn(async () => ({ ok: true as const, value: ["queue-job-123"] })),
     close: vi.fn(async () => undefined),
     remove: vi.fn(async () => ({ ok: true as const, value: true })),
     health: vi.fn(async () => ({
@@ -29,8 +32,20 @@ export function createMockQueueAdapter() {
         failed: 3,
       },
     })),
+    getJobStates: vi.fn(async () => ({
+      ok: true as const,
+      value: { completed: 0, failed: 0, pending: 0 },
+    })),
     getResilienceMetrics: vi.fn(() => ({})),
   };
+}
+
+/**
+ * Build a mock queue typed as the port the service expects. The constructor of
+ * `InstagramSchedulingService` accepts an `InstagramQueuePort`; tests pass this.
+ */
+export function makeQueuePortDouble(): InstagramQueuePort {
+  return createMockQueueAdapter() as unknown as InstagramQueuePort;
 }
 
 export function createPassthroughCB() {

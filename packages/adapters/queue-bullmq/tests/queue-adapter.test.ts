@@ -53,7 +53,7 @@ vi.mock("ioredis", () => {
   };
 });
 
-import { createBullMQQueueAdapter } from "../src/queue-adapter.js";
+import { createBullMQQueueAdapter, type BullMQQueueAdapterOptions } from "../src/queue-adapter.js";
 
 /**
  * A minimal Redis double — the adapter forwards it to the BullMQ Queue and
@@ -71,12 +71,30 @@ describe("createBullMQQueueAdapter", () => {
     vi.clearAllMocks();
   });
 
-  it("throws identifying the missing connection when none is injected", () => {
-    expect(() => createBullMQQueueAdapter({ queueName: "publish" })).toThrow(/connection/i);
+  it("requires `connection` at the type level (no caller can omit it)", () => {
+    // The options type makes `connection` REQUIRED — omitting it is a compile
+    // error. This @ts-expect-error is the RED-able assertion: when `connection`
+    // is optional, the directive is unused and tsc fails (TS2578); when it is
+    // required, the directive is satisfied. Drives the real type, not a copy.
+    const buildWithoutConnection = (): BullMQQueueAdapterOptions =>
+      // @ts-expect-error — connection is required; omitting it must not type-check.
+      ({ queueName: "publish" });
+    expect(typeof buildWithoutConnection).toBe("function");
+  });
+
+  it("throws identifying the missing connection when none is injected (runtime safety net)", () => {
+    // The runtime throw is belt-and-suspenders for non-TS callers passing an
+    // undefined connection through a cast. Coerce past the required type to
+    // exercise it. (test-fixture coercion — constructing invalid state.)
+    expect(() =>
+      createBullMQQueueAdapter({ queueName: "publish" } as BullMQQueueAdapterOptions)
+    ).toThrow(/connection/i);
   });
 
   it("never constructs its own Redis (no env/localhost fallback) when no connection is injected", () => {
-    expect(() => createBullMQQueueAdapter({ queueName: "publish" })).toThrow();
+    expect(() =>
+      createBullMQQueueAdapter({ queueName: "publish" } as BullMQQueueAdapterOptions)
+    ).toThrow();
     expect(redisConstructor).not.toHaveBeenCalled();
   });
 

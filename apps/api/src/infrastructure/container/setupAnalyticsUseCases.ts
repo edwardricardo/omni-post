@@ -5,6 +5,7 @@
  *              Extracted from setupUseCases.ts for domain-based modularization.
  * @layer infrastructure
  */
+import type Redis from "ioredis";
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import type { CachePort } from "@ports/core";
@@ -83,7 +84,8 @@ export function setupAnalyticsUseCases(container: Container): void {
         container.resolve<CachePort>(TOKENS.CachePort),
         container.resolve<ProjectQueryRepositoryPort>(TOKENS.ProjectQueryRepository),
         container.resolve<AnalyticsReadRepositoryPort>(TOKENS.AnalyticsReadRepository),
-        container.resolve<ConversionRepositoryPort>(TOKENS.ConversionRepository)
+        container.resolve<ConversionRepositoryPort>(TOKENS.ConversionRepository),
+        container.resolve<Redis>(TOKENS.AnalyticsRedisConnection)
       ),
     true
   );
