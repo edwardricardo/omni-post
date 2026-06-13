@@ -137,12 +137,11 @@ export interface StartBulkScheduleWorkerDeps {
   readonly deadLetter: QueuePort;
   readonly logger: BulkScheduleJobLogger;
   /**
-   * Shared Redis connection (composition-root-owned). Optional only for the
-   * PR1→PR2 wiring window: when omitted the consumer adapter throws at
-   * construction (it never self-constructs from env). index.ts injects
+   * Shared Redis connection (composition-root-owned). Required — the consumer
+   * adapter never self-constructs one from env; index.ts injects
    * `TOKENS.BullMQWorkerConnection` here.
    */
-  readonly connection?: Redis;
+  readonly connection: Redis;
 }
 
 /**
@@ -150,7 +149,7 @@ export interface StartBulkScheduleWorkerDeps {
  * @description Wires the in-process bulk-schedule consumer: subscribes the row
  *   handler and attaches the retry-exhaustion DLQ handler. Returns a handle that
  *   closes the consumer on shutdown.
- * @param deps - Use cases, DLQ port, logger, and an optional Redis connection.
+ * @param deps - Use cases, DLQ port, logger, and the shared Redis connection.
  * @returns A handle whose `close()` drains the consumer.
  */
 export async function startBulkScheduleWorker(
@@ -158,7 +157,7 @@ export async function startBulkScheduleWorker(
 ): Promise<BulkScheduleWorkerHandle> {
   const consumer = createBullMQConsumerAdapter({
     queueName: QUEUE_NAMES.BULK_SCHEDULE,
-    ...(deps.connection !== undefined && { connection: deps.connection }),
+    connection: deps.connection,
   });
 
   const worker = await consumer.subscribe((job) =>

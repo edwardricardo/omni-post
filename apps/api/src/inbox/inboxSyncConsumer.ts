@@ -33,12 +33,11 @@ export interface StartInboxSyncConsumerDeps {
   readonly markReauth: UpdateChannelAuthStateUseCase;
   readonly logger: InboxSyncConsumerLogger;
   /**
-   * Shared Redis connection (composition-root-owned). Optional only for the
-   * PR1→PR2 wiring window: when omitted the consumer adapter throws at
-   * construction (it never self-constructs from env). index.ts injects
+   * Shared Redis connection (composition-root-owned). Required — the consumer
+   * adapter never self-constructs one from env; index.ts injects
    * `TOKENS.BullMQWorkerConnection` here.
    */
-  readonly connection?: Redis;
+  readonly connection: Redis;
 }
 
 interface InboxSyncJob {
@@ -111,7 +110,7 @@ export async function processInboxSyncJob(
 /**
  * @function startInboxSyncConsumer
  * @description Subscribes the in-process inbox consumer to INBOX_SYNC.
- * @param deps - Use cases, logger, and an optional shared Redis connection.
+ * @param deps - Use cases, logger, and the shared Redis connection.
  * @returns A handle whose `close()` drains the consumer.
  */
 export async function startInboxSyncConsumer(
@@ -119,7 +118,7 @@ export async function startInboxSyncConsumer(
 ): Promise<InboxSyncConsumerHandle> {
   const consumer = createBullMQConsumerAdapter({
     queueName: QUEUE_NAMES.INBOX_SYNC,
-    ...(deps.connection !== undefined && { connection: deps.connection }),
+    connection: deps.connection,
   });
 
   await consumer.subscribe((job) =>

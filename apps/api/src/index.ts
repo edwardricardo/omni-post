@@ -1128,6 +1128,18 @@ async function start() {
         await saga.shutdown();
       }
 
+      // Defensive quit of the saga pub/sub subscriber connection. The saga
+      // integration owns runtime teardown (saga.shutdown() disconnects it), so
+      // this is belt-and-suspenders: peekInstance returns the socket ONLY if it
+      // was actually constructed during this process's lifetime (it is not
+      // consumed until the saga subscriber wiring lands), so an unresolved lazy
+      // singleton is a no-op rather than a force-constructed socket created just
+      // to close it. quit() is idempotent if saga.shutdown() already closed it.
+      const sagaSubscriber = app.container!.peekInstance<Redis>(TOKENS.SagaSubscriberConnection);
+      if (sagaSubscriber) {
+        await sagaSubscriber.quit();
+      }
+
       // Tear down the analytics realtime stream: stop the 30s poll and quit the
       // broadcaster's Redis subscriber (the scheduler teardown below won't close
       // the duplicated Redis connection).
@@ -1153,6 +1165,17 @@ async function start() {
       // Queue and the shared Redis connection in one shot.
       const registry = app.container!.resolve<QueuePortRegistry>(TOKENS.QueuePortRegistry);
       await registry.close();
+
+      // Defensive quit of the analytics distributed-counter connection. No
+      // adapter owns this socket, so the composition root closes it here, after
+      // the registry. peekInstance returns it ONLY if it was actually
+      // constructed (the ROICalculator consumer that resolves it is not wired
+      // until a later slice), so this is a no-op for an unresolved singleton
+      // rather than a force-constructed socket created just to close it.
+      const analyticsRedis = app.container!.peekInstance<Redis>(TOKENS.AnalyticsRedisConnection);
+      if (analyticsRedis) {
+        await analyticsRedis.quit();
+      }
 
       await app.close();
       await closeDatabaseConnections();

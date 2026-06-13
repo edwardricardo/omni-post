@@ -193,6 +193,53 @@ describe("Container", () => {
     });
   });
 
+  describe("peekInstance", () => {
+    it("returns undefined for a singleton that has never been resolved (no construction)", () => {
+      let callCount = 0;
+      container.register(TOKENS.PostRepository, () => {
+        callCount++;
+        return { id: callCount };
+      });
+
+      const peeked = container.peekInstance(TOKENS.PostRepository);
+
+      expect(peeked).toBe(undefined);
+      // Peeking MUST NOT invoke the factory — the connection/service stays
+      // unconstructed until something actually resolves it.
+      expect(callCount).toBe(0);
+    });
+
+    it("returns the cached instance after the singleton has been resolved", () => {
+      const service = { id: "resolved" };
+      container.register(TOKENS.PostRepository, () => service);
+
+      const resolved = container.resolve(TOKENS.PostRepository);
+      const peeked = container.peekInstance(TOKENS.PostRepository);
+
+      expect(peeked).toBe(resolved);
+      expect(peeked).toBe(service);
+    });
+
+    it("returns the registered instance for registerInstance even before resolve", () => {
+      const instance = { name: "eager" };
+      container.registerInstance(TOKENS.PostRepository, instance);
+
+      expect(container.peekInstance(TOKENS.PostRepository)).toBe(instance);
+    });
+
+    it("returns undefined for a transient registration (never cached)", () => {
+      container.register(TOKENS.PostRepository, () => ({ id: 1 }), false);
+
+      container.resolve(TOKENS.PostRepository);
+
+      expect(container.peekInstance(TOKENS.PostRepository)).toBe(undefined);
+    });
+
+    it("returns undefined for an unregistered token", () => {
+      expect(container.peekInstance(Symbol.for("UnknownPeek"))).toBe(undefined);
+    });
+  });
+
   describe("resetSingletons", () => {
     it("should clear singleton instances", () => {
       let callCount = 0;
