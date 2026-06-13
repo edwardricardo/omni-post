@@ -549,9 +549,6 @@ grep -rn "fallbackEnabled: true" \
   packages/providers packages/adapters apps/api/src --include="*.ts" | \
   grep -vE "/tests/|\.test\." | \
   grep -E "(post-tweet|post-to-page|publish-media|create-container|create-stories|create-reels|send-message|send-photo|send-video|send-poll|send-document|send-audio|create-story|create-pin|create-post|upload-video|upload-short|upload-media|schedule|process-video|process-segment|optimize-reel|create-thumbnail|create-stream|start-stream|stop-stream)" | wc -l  # expect 0
-# NOTE: .github/workflows/fitness.yml mirror step is pending the orchestrator
-# wiring with a sensitive-edit token (see PR3 plan). Run both commands locally
-# before merge to confirm baseline = 0.
 ```
 
 **Extending the suite.** Adding a new fitness check requires three coordinated edits, in order:
