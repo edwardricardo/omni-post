@@ -68,6 +68,12 @@ Upgraded the Node.js runtime from v22.19.0 to v24.14.1 LTS (Krypton) across all 
 | `apps/workers/Dockerfile`        | node:20-alpine → node:24-alpine, distroless nodejs20 → nodejs24 |
 | `apps/client/Dockerfile`         | node:20-alpine → node:24-alpine, distroless nodejs20 → nodejs24 |
 
+> Historical record as of this update. `apps/api/Dockerfile.production`,
+> `apps/api/Dockerfile.dev`, and `apps/api/Dockerfile.railway` were later
+> consolidated into a single self-contained `apps/api/Dockerfile` and removed
+> (see NORMALIZATION_ROADMAP §6.1). The per-app set is now exactly
+> `apps/{api,admin,client,workers}/Dockerfile`.
+
 ### Scripts Updated
 
 - `quality/scripts/setup-environment.sh`: REQUIRED_NODE_VERSION 20 → 24
