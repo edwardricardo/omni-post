@@ -62,7 +62,7 @@
     "@eslint/js": "9.36.0",
     "@hey-api/client-fetch": "0.13.1",
     "@hey-api/openapi-ts": "0.97.3",
-    "@secretlint/secretlint-rule-preset-recommend": "^12.3.1",
+    "@secretlint/secretlint-rule-preset-recommend": "12.3.1",
     "@size-limit/preset-small-lib": "12.1.0",
     "@stryker-mutator/core": "9.6.0",
     "@stryker-mutator/vitest-runner": "9.6.0",
@@ -77,13 +77,13 @@
     "dependency-cruiser": "17.4.0",
     "eslint": "9.36.0",
     "eslint-config-prettier": "10.1.8",
-    "eslint-plugin-boundaries": "^6.0.2",
-    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-boundaries": "6.0.2",
+    "eslint-plugin-jsx-a11y": "6.10.2",
     "eslint-plugin-react": "7.37.5",
     "eslint-plugin-react-hooks": "7.0.1",
     "fastify-type-provider-zod": "6.1.0",
     "husky": "9.1.7",
-    "jiti": "^2.6.1",
+    "jiti": "2.6.1",
     "jq": "1.7.2",
     "jscpd": "4.0.8",
     "knip": "6.12.2",
@@ -95,8 +95,8 @@
     "prettier": "3.8.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "secretlint": "^12.3.1",
-    "size-limit": "^12.1.0",
+    "secretlint": "12.3.1",
+    "size-limit": "12.1.0",
     "tsx": "4.22.4",
     "turbo": "2.9.16",
     "typescript": "5.9.3",
@@ -206,7 +206,7 @@
     }
   ],
   "dependencies": {
-    "@t3-oss/env-core": "^0.13.11",
-    "@t3-oss/env-nextjs": "^0.13.11"
+    "@t3-oss/env-core": "0.13.11",
+    "@t3-oss/env-nextjs": "0.13.11"
   }
 }
