@@ -20,6 +20,21 @@ export default defineConfig({
   clean: true,
   outDir: "dist",
   skipNodeModulesBundle: true,
+  // @infra/prisma is EXTERNAL (not bundled): the Prisma 7 generated client is raw
+  // TS with an `import * as Prisma` namespace re-export that esbuild cannot bundle
+  // (build-time "No matching export") and mangles at runtime (fileURLToPath/node:path
+  // — prisma/prisma#27324, #28126). Per Prisma 7's blessed path it is tsc-compiled
+  // to JS separately and externalized; only the first-party app + the rest of the
+  // workspace TS is bundled here. An onResolve plugin forces it external BEFORE the
+  // tsconfig-paths alias can redirect `@infra/prisma` to its raw `src/*.ts`.
+  esbuildPlugins: [
+    {
+      name: "external-infra-prisma",
+      setup(build) {
+        build.onResolve({ filter: /^@infra\// }, () => ({ external: true }));
+      },
+    },
+  ],
   noExternal: [
     /^@core\//,
     /^@ports\//,
@@ -27,7 +42,6 @@ export default defineConfig({
     /^@observability\//,
     /^@shared\//,
     /^@monitoring\//,
-    /^@infra\//,
     /^@providers\//,
     /^@packages\//,
   ],
