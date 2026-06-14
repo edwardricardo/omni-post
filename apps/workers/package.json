@@ -35,7 +35,7 @@
     "@providers/tiktok": "workspace:*",
     "@providers/x": "workspace:*",
     "@providers/youtube": "workspace:*",
-    "@sentry/node": "^10.48.0",
+    "@sentry/node": "10.48.0",
     "@shared/types": "workspace:*",
     "bullmq": "5.58.9",
     "dotenv": "17.2.2",
