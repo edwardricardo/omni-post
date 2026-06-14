@@ -72,6 +72,7 @@
     "@core/aiPromptTemplates": "workspace:*",
     "@core/analytics": "workspace:*",
     "@core/apiKeys": "workspace:*",
+    "@core/application": "workspace:*",
     "@core/approvals": "workspace:*",
     "@core/assets": "workspace:*",
     "@core/auth": "workspace:*",

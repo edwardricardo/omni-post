@@ -6,11 +6,10 @@
  * @layer infrastructure
  */
 
-import type { PaymentAdapter, GatewayProviderType } from "@ports/core";
+import type { PaymentAdapter, GatewayProviderType, GatewayAdapterRegistryPort } from "@ports/core";
 import { env } from "../../config/env.js";
 import { StripePaymentAdapter, type StripeConfig } from "./StripePaymentAdapter.js";
 import { PaddlePaymentAdapter, type PaddleConfig } from "./PaddlePaymentAdapter.js";
-import type { GatewayAdapterRegistryPort } from "@core/domain/repositories/GatewayAdapterRegistryPort.js";
 
 interface GatewayRegistryConfig {
   stripe: StripeConfig;

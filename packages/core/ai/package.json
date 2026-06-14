@@ -21,6 +21,8 @@
   "dependencies": {
     "@core/application": "workspace:*",
     "@core/domain": "workspace:*",
+    "@core/embeddings": "workspace:*",
+    "@observability/logger": "workspace:*",
     "@ports/core": "workspace:*",
     "@shared/types": "workspace:*"
   },
