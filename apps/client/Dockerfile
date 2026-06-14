@@ -6,7 +6,7 @@
 # ==============================================================================
 # Shared Base Stage - Node.js with pnpm
 # ==============================================================================
-FROM node:24-alpine AS base
+FROM node:24-bookworm-slim AS base
 RUN corepack enable
 WORKDIR /app
 
@@ -59,7 +59,11 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
 COPY apps/client ./apps/client
-RUN pnpm --filter @apps/client build
+
+# NEXT_BUILD_FLAGS lets CI fall back to the webpack builder (`--webpack`) if the
+# Turbopack standalone build hits the open monorepo root/distDirRoot bug (#86438).
+ARG NEXT_BUILD_FLAGS=""
+RUN pnpm --filter @apps/client exec next build ${NEXT_BUILD_FLAGS}
 
 # ==============================================================================
 # Production Runtime
