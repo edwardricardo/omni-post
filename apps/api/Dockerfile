@@ -1,82 +1,54 @@
 # syntax=docker/dockerfile:1.4
 # ==============================================================================
 # API Service Dockerfile (self-contained, production-only)
-# Multi-stage: node:24-alpine build chain -> distroless non-root runtime.
+# Multi-stage: node:24-bookworm-slim (glibc) build chain -> distroless
+# non-root runtime. glibc base is BLOCKING: the argon2 prebuilt must match the
+# distroless/nodejs24-debian12 (glibc) runtime ABI — never -alpine (musl).
 # Dev runs via local `pnpm dev` (no container). `production` is the LAST stage
 # so the CI build-push-action needs no `target:` override.
 # ==============================================================================
 
-# ==============================================================================
-# Base Stage - Node.js with pnpm
-# ==============================================================================
-FROM node:24-alpine AS base
+FROM node:24-bookworm-slim AS base
 RUN corepack enable
 WORKDIR /app
 
-# ==============================================================================
-# Dependencies Stage - production-only install for the runtime node_modules
-# ==============================================================================
+# ---- deps: FULL install (build needs tsup + prisma CLI) ----------------------
 FROM base AS deps
-ARG SERVICE_PATH=apps/api
 ENV CI=true
-
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
-COPY ${SERVICE_PATH}/package.json ./${SERVICE_PATH}/
 COPY patches/ ./patches/
 COPY packages/ ./packages/
 COPY infra/ ./infra/
-
-# --ignore-scripts: skip the @infra/prisma `postinstall: prisma generate` hook.
-# In a --prod install the `prisma` CLI (a devDependency) is absent, so the hook
-# would fail with `prisma: not found`. The runtime gets the generated client
-# from the build stage, never from this prod node_modules — so skipping the
-# generate hook here is correct, and the install must fail-fast (no masking).
-RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm fetch --frozen-lockfile && \
-    pnpm install --frozen-lockfile --prod --ignore-scripts
-
-# ==============================================================================
-# Build Stage - full install, prisma client generate, TypeScript compile
-# ==============================================================================
-FROM base AS build
-ARG SERVICE_PATH=apps/api
-ENV CI=true
-
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
-COPY ${SERVICE_PATH}/package.json ./${SERVICE_PATH}/
-COPY patches/ ./patches/
-COPY packages/ ./packages/
-COPY infra/ ./infra/
-
-# --ignore-scripts: the @infra/prisma `postinstall: prisma generate` runs during
-# install before the `prisma` bin is reliably linked into the package, causing
-# `prisma: not found`. We generate explicitly below via `pnpm exec` instead,
-# which resolves the prisma binary from node_modules/.bin deterministically.
+COPY apps/api/package.json ./apps/api/
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm fetch --frozen-lockfile && \
     pnpm install --frozen-lockfile --ignore-scripts
 
-RUN pnpm --filter @infra/prisma exec prisma generate
-
+# ---- build: prisma generate + tsup ESM bundle --------------------------------
+FROM deps AS build
+ENV CI=true
 COPY apps/api ./apps/api
+RUN pnpm --filter @infra/prisma exec prisma generate
+RUN pnpm --filter @apps/api build
 
-RUN pnpm add -D -w typescript && \
-    cd apps/api && \
-    pnpm exec tsc --outDir dist --skipLibCheck && \
-    cd /app && \
-    pnpm remove -D -w typescript
+# ---- prod-deps: runtime node_modules only ------------------------------------
+FROM base AS prod-deps
+ENV CI=true
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
+COPY patches/ ./patches/
+COPY packages/ ./packages/
+COPY infra/ ./infra/
+COPY apps/api/package.json ./apps/api/
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm fetch --frozen-lockfile && \
+    pnpm install --frozen-lockfile --prod --ignore-scripts
 
-# ==============================================================================
-# Production Runtime - distroless, non-root
-# ==============================================================================
+# ---- production: distroless, non-root ----------------------------------------
 FROM gcr.io/distroless/nodejs24-debian12 AS production
-
 WORKDIR /app
-
-COPY --from=deps --chown=nonroot:nonroot /app/node_modules ./node_modules
-COPY --from=deps --chown=nonroot:nonroot /app/packages ./packages
-COPY --from=build --chown=nonroot:nonroot /app/infra ./infra
+COPY --from=prod-deps --chown=nonroot:nonroot /app/node_modules ./node_modules
 COPY --from=build --chown=nonroot:nonroot /app/apps/api/dist ./dist
+COPY --from=build --chown=nonroot:nonroot /app/infra/prisma/generated ./infra/prisma/generated
 COPY --from=build --chown=nonroot:nonroot /app/package.json ./
 
 ENV NODE_ENV=production

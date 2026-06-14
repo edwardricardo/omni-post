@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit",
+    "build": "tsup",
     "typecheck": "tsc --noEmit",
     "dev": "node --env-file=../../.env --import tsx src/index.ts",
     "dev:test": "cross-env NODE_ENV=test tsx src/index.ts",
@@ -189,6 +189,7 @@
     "@vitest/coverage-v8": "4.1.8",
     "cross-env": "10.0.0",
     "msw": "2.14.3",
+    "tsup": "8.5.1",
     "tsx": "4.21.0",
     "vitest": "4.1.8"
   }
