@@ -24,11 +24,16 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm fetch --frozen-lockfile && \
     pnpm install --frozen-lockfile --ignore-scripts
 
-# ---- build: prisma generate + tsup ESM bundle --------------------------------
+# ---- build: prisma generate + tsc-compile @infra/prisma + tsup ESM bundle ----
 FROM deps AS build
 ENV CI=true
 COPY apps/api ./apps/api
-RUN pnpm --filter @infra/prisma exec prisma generate
+# @infra/prisma is tsc-compiled to ESM JS (dist/) and EXTERNALIZED from the app
+# bundle (the Prisma 7 generated client cannot be esbuild-bundled). The app's
+# tsup build emits a bare `import "@infra/prisma"`; at runtime node resolves it
+# via node_modules → infra/prisma/package.json `exports` → dist/. So the client
+# MUST be compiled here, BEFORE the app build, and shipped into the runtime.
+RUN pnpm --filter @infra/prisma build
 RUN pnpm --filter @apps/api build
 
 # ---- prod-deps: runtime node_modules only ------------------------------------
@@ -48,7 +53,14 @@ FROM gcr.io/distroless/nodejs24-debian12 AS production
 WORKDIR /app
 COPY --from=prod-deps --chown=nonroot:nonroot /app/node_modules ./node_modules
 COPY --from=build --chown=nonroot:nonroot /app/apps/api/dist ./dist
+# The externalized @infra/prisma resolves at runtime via the pnpm workspace
+# symlink (node_modules/.pnpm/node_modules/@infra/prisma -> ../../../../infra/prisma)
+# to /app/infra/prisma, whose package.json `exports` map points at ./dist (the
+# tsc-compiled client) and re-exports the generated client under ./generated.
+# Ship all three so the bare `import "@infra/prisma"` in the bundle resolves.
+COPY --from=build --chown=nonroot:nonroot /app/infra/prisma/dist ./infra/prisma/dist
 COPY --from=build --chown=nonroot:nonroot /app/infra/prisma/generated ./infra/prisma/generated
+COPY --from=build --chown=nonroot:nonroot /app/infra/prisma/package.json ./infra/prisma/package.json
 COPY --from=build --chown=nonroot:nonroot /app/package.json ./
 
 ENV NODE_ENV=production
