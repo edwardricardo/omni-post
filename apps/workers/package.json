@@ -16,6 +16,7 @@
     "zod": "4.4.3",
     "@core/application": "workspace:*",
     "@core/domain": "workspace:*",
+    "@core/listening": "workspace:*",
     "@infra/prisma": "workspace:*",
     "@monitoring/health-checks": "workspace:*",
     "@adapters/db-prisma": "workspace:*",
