@@ -1,4 +1,4 @@
-import os from "node:os";
+import path from "node:path";
 import { withSentryConfig } from "@sentry/nextjs";
 import createNextIntlPlugin from "next-intl/plugin";
 
@@ -11,12 +11,16 @@ const nextConfig = {
   // localhost. Next 16 blocks the HMR WebSocket and rejects Server Actions from
   // cross-origin dev requests unless the origin is allowlisted here.
   allowedDevOrigins: ["omnipost-dev"],
-  // pnpm strict places packages in ~/.local/share/pnpm/store/ (outside the
-  // project root); Turbopack follows realpath through symlinks and refuses to
-  // compile files outside `turbopack.root`. Set it to $HOME so the path
-  // encompasses BOTH the project AND the pnpm store, per the Next docs note
-  // on linked-dependency setups (npm/yarn/pnpm link, pnpm strict, etc.).
-  turbopack: { root: os.homedir() },
+  // Turbopack refuses to compile files outside `turbopack.root`, and Next
+  // standalone traces deps from `outputFileTracingRoot`. Both must point at the
+  // monorepo root — an ancestor of the project in dev, CI, AND Docker. The old
+  // `os.homedir()` broke in Docker (root user → `/root`, not an ancestor of
+  // `/app/apps/client` → "Invalid distDirRoot"). The env override lets CI/Docker
+  // pin it explicitly; default is the computed workspace root.
+  turbopack: {
+    root: process.env.NEXT_TURBOPACK_ROOT ?? path.resolve(import.meta.dirname, "../.."),
+  },
+  outputFileTracingRoot: process.env.NEXT_TURBOPACK_ROOT ?? path.resolve(import.meta.dirname, "../.."),
   reactStrictMode: true,
   images: {
     remotePatterns: [
