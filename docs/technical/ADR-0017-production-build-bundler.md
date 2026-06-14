@@ -1,6 +1,6 @@
 # ADR-0017: Production Build Model — Bundle First-Party TS Only, Externalize node_modules
 
-- **Status**: Proposed
+- **Status**: Accepted (revised 2026-06-14 post-CI — see §3 revision: `@infra/prisma` is externalized + tsc-compiled, not bundled)
 - **Date**: 2026-06-14
 - **Deciders**: Edward + Claude
 - **Supersedes**: —
@@ -61,8 +61,12 @@ Use **tsup (primary) / raw esbuild (fallback)** with:
 - `format: 'esm'`, `platform: 'node'`, `target: 'node24'`
 - Multi-entry: `apps/api/src/index.ts` + `apps/workers/src/bootstrap.ts`
 - Auto-externalize `dependencies` / `peerDependencies` (tsup-node behavior)
-- `noExternal: [/^@core\//, /^@ports\//, /^@adapters\//, /^@observability\//, /^@shared\//, /^@monitoring\//, /^@infra\//]`
+- `noExternal: [/^@core\//, /^@ports\//, /^@adapters\//, /^@observability\//, /^@shared\//, /^@monitoring\//, /^@providers\//, /^@packages\//]`
   to re-include (compile) the uncompiled workspace TS packages.
+- **`@infra/prisma` is the exception — it is EXTERNAL, not bundled** (see §3
+  revision). An `esbuildPlugins` `onResolve({ filter: /^@infra\// })` forces it
+  external _before_ the tsconfig-paths alias can redirect `@infra/prisma` to its
+  raw `src/*.ts` (a plain `external:` entry resolves too late — the alias wins).
 
 Per-app build output: `apps/api` → `dist/index.js`; `apps/workers` →
 `dist/bootstrap.js`.
@@ -85,6 +89,33 @@ the build stage and `COPY` that directory into the runtime image (the generated
 client is first-party generated code, and v7 no longer writes to
 `node_modules/.prisma`). Prisma v7 is Rust-free, so there is **no
 engine-binary copy step** — any legacy engine-copy logic must be removed.
+
+### 3b. `@infra/prisma` — externalized + tsc-compiled (revision 2026-06-14, post-CI)
+
+The original decision put `@infra/prisma` in `noExternal` (bundle it). The first
+real CI/local build proved that wrong: the Prisma 7 generated client is raw `.ts`
+with an `import * as Prisma` namespace re-exported through `export *` barrels,
+which esbuild **cannot bundle** — build-time `No matching export for "Prisma"`
+(its per-file transpile can't resolve a namespace re-export) plus documented
+runtime crashes when bundled (`fileURLToPath(undefined)` prisma#27324, dynamic
+`require("node:path")` #28126). Per the Prisma-7 canon (research, cited below) the
+generated client is **tsc-compiled**, not esbuild-bundled. So `@infra/prisma` is
+now: (a) **tsc-compiled separately** to ESM `.js`
+(`infra/prisma/tsconfig.build.json`; `build = "prisma generate && tsc"`;
+`package.json` `exports`/`main` → `./dist`), and (b) **externalized** from the
+app bundle via the `onResolve` plugin (§1). `tsc` handles the `export *` namespace
+re-export fine (only esbuild chokes); `Prisma.sql` (a runtime value) survives.
+Dev/test still resolve `@infra/prisma` → `src/*.ts` via tsconfig paths (which
+bypass `package.json`), so the `exports`→dist switch only affects the
+externalized production bundle. The Dockerfiles build `@infra/prisma` (tsc)
+before the app tsup build and ship `infra/prisma/dist` into the runtime.
+
+**Hoisted production node_modules (consequence).** The app bundle inlines
+workspace packages whose own transitive `node_modules` deps (e.g. `opossum` via
+`@adapters/circuit-breaker`) are externalized; pnpm's default isolated layout
+leaves those transitive deps unreachable from the flattened single-file bundle.
+The prod-deps stage therefore uses a **hoisted** node-linker so every externalized
+dep the bundle references sits at the top level.
 
 ### 4. admin / client (Next 16 standalone, separate toolchain)
 
@@ -134,6 +165,11 @@ the standalone output; never `pnpm install` inside `.next/standalone`.
   toolchain and source into the runtime image, defeats the distroless minimal
   runtime, and pays per-request transpilation cost. The whole point of this
   change is to have a real JS-emit production path.
+- **Bundle `@infra/prisma` / the Prisma 7 generated client (`noExternal`).** ❌
+  Rejected (post-CI revision, §3). esbuild cannot resolve the generated client's
+  `import * as Prisma` namespace re-export (build error `No matching export`) and
+  mangles its runtime internals (prisma#27324 `fileURLToPath`, #28126
+  `node:path`). The Prisma-7-canon path is tsc-compile + externalize.
 - **tsup vs raw esbuild.** tsup chosen as primary (ergonomic multi-entry,
   `tsup-node` auto-externalize of deps, ESM defaults); raw esbuild retained as
   the fallback because tsup is a thin wrapper over esbuild and the ecosystem is
