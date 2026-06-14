@@ -29,8 +29,7 @@ import type { GatewaySwitchJobPort } from "@core/domain/repositories/GatewaySwit
 import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPort.js";
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
-import type { GatewayAdapterRegistryPort } from "@core/domain/repositories/GatewayAdapterRegistryPort.js";
-import type { GatewayProviderType } from "@ports/core";
+import type { GatewayAdapterRegistryPort, GatewayProviderType } from "@ports/core";
 
 const logger = createLogger("gateway-billing");
 

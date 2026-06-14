@@ -19,7 +19,6 @@
     "test:unit:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@ports/core": "workspace:*",
     "@shared/types": "workspace:*"
   },
   "devDependencies": {

@@ -2,8 +2,8 @@
  * @file GatewayAdapterRegistryPort.ts
  * @description Port over the dual-gateway adapter registry that
  *   `GatewayBillingService` uses to call into the concrete payment SDKs
- *   (Stripe + Paddle). Lets the service stay in @core/application by not
- *   depending on the infra-side `GatewayAdapterRegistry` class.
+ *   (Stripe + Paddle). Lets the service depend on this abstraction instead
+ *   of the infra-side `GatewayAdapterRegistry` class.
  *
  *   The concrete implementation (`GatewayAdapterRegistry`) lives in
  *   `apps/api/src/infrastructure/billing/` and lazily instantiates the
@@ -11,7 +11,7 @@
  * @layer domain
  */
 
-import type { PaymentAdapter, GatewayProviderType } from "@ports/core";
+import type { PaymentAdapter, GatewayProviderType } from "./PaymentAdapter.js";
 
 export interface GatewayAdapterRegistryPort {
   /**

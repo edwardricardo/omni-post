@@ -30,6 +30,7 @@
     "chromatic": "npx chromatic --project-token=<project-token>"
   },
   "dependencies": {
+    "@core/bulk-scheduling": "workspace:*",
     "@monaco-editor/react": "4.6.0",
     "@observability/browser-logger": "workspace:*",
     "@packages/api-errors": "workspace:*",
