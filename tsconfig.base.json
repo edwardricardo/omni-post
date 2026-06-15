@@ -19,6 +19,7 @@
     "jsx": "react-jsx",
     "paths": {
       "@shared/types": ["./packages/shared/src/index.ts"],
+      "@shared/types/*": ["./packages/shared/src/*"],
       "@shared/*": ["./packages/shared/src/*"],
       "@ports/*": ["./packages/ports/src/*"],
       "@ports/core": ["./packages/ports/src/index.ts"],
@@ -108,6 +109,8 @@
       "@core/style-guide/*": ["./packages/core/style-guide/src/*"],
       "@core/tasks": ["./packages/core/tasks/src/index.ts"],
       "@core/tasks/*": ["./packages/core/tasks/src/*"],
+      "@core/threading": ["./packages/core/threading/src/index.ts"],
+      "@core/threading/*": ["./packages/core/threading/src/*"],
       "@core/team": ["./packages/core/team/src/index.ts"],
       "@core/team/*": ["./packages/core/team/src/*"],
       "@core/trends": ["./packages/core/trends/src/index.ts"],

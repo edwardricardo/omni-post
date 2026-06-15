@@ -1,7 +1,7 @@
-# ADR-0017: Production Build Model — Bundle First-Party TS Only, Externalize node_modules
+# ADR-0017: Production Build Model — Transpile-Only (Per-Package `tsc` Emit + Project References)
 
-- **Status**: Accepted (revised 2026-06-14 post-CI — see §3 revision: `@infra/prisma` is externalized + tsc-compiled, not bundled)
-- **Date**: 2026-06-14
+- **Status**: Accepted (revised 2026-06-15 — production build is now TRANSPILE-ONLY per-package `tsc` emit; the tsup bundle is rejected, see §1 + Alternatives)
+- **Date**: 2026-06-14 (transpile-only revision: 2026-06-15)
 - **Deciders**: Edward + Claude
 - **Supersedes**: —
 - **Superseded by**: —
@@ -33,7 +33,7 @@ establishes the canonical production build model that emits those artifacts so
 the images can build, and so the paused hardening tail
 (Trivy/pins/mirror/hadolint/promote) can resume on top of building images.
 
-Two properties make a naive "just bundle everything" approach wrong here:
+Three properties make a naive "just bundle everything" approach wrong here:
 
 1. **It is a Node server, not a browser bundle.** Bundling a Node server's
    `node_modules` breaks ESM runtime semantics (`import.meta.url`, `__dirname`,
@@ -42,34 +42,73 @@ Two properties make a naive "just bundle everything" approach wrong here:
 2. **There is exactly one native dependency (`argon2`) and Prisma v7.** Both
    are `node_modules` and must remain external; `argon2` additionally imposes a
    libc-match constraint on the build/runtime base images.
+3. **Bundling first-party TS flattens the ~88-package boundary graph.** A single
+   `dist/index.js` inlines workspace packages whose own transitive deps (e.g.
+   `opossum`) are externalized; under pnpm's default ISOLATED layout those
+   transitive deps are not reachable from the flattened artifact, forcing a
+   HOISTED prod `node_modules` (a second, lower-quality module layout). It also
+   carries esbuild's Prisma-7 namespace-bundle defect and tree-shaking risk
+   across ~50 dynamic imports. The boundary graph is an asset (it is what makes
+   the codebase hexagonal); the build should preserve it, not collapse it.
 
 ## Decision
 
-Adopt a production build model with one principle:
-**compile first-party TypeScript only; externalize 100% of `node_modules`.**
+Adopt a **TRANSPILE-ONLY** production build model with one principle:
+**each workspace package and app compiles to its OWN `dist/*.js` via `tsc`;
+`exports` point at `dist`; the prod `node_modules` is the pnpm ISOLATED layout
+(no hoisting); 100% of `node_modules` stays external.**
 
-This is **not** "bundle the dependencies." The only legitimate reason to run a
-bundler for a Node server in this repo is to collapse the uncompiled
-first-party workspace TypeScript that lives behind path aliases into emittable
-JS. Dependencies — including the native `argon2` and the Prisma client — stay
-external and are resolved from `node_modules` at runtime.
+There is **no bundler**. Each package preserves its boundary; the runtime
+resolves a bare `@core/X` import through the pnpm symlink farm
+(`node_modules/@core/X` → `packages/core/X`) → that package's `exports` → its
+`dist`. This eliminates the hoisting requirement, the esbuild-Prisma namespace
+defect, and tree-shaking risk for free, and is the standard monorepo
+convention. `@infra/prisma` is no longer a "special externalized case" — it is
+one of the compiled packages (it keeps `prisma generate` ahead of its `tsc`
+emit because it includes the generated client).
 
-### 1. Build tool and configuration (`apps/api`, `apps/workers`)
+### 1. Build tool and configuration (all workspace packages + `apps/api`, `apps/workers`)
 
-Use **tsup (primary) / raw esbuild (fallback)** with:
+Use **`tsc` project references** (`tsc -b`), driven by turbo:
 
-- `format: 'esm'`, `platform: 'node'`, `target: 'node24'`
-- Multi-entry: `apps/api/src/index.ts` + `apps/workers/src/bootstrap.ts`
-- Auto-externalize `dependencies` / `peerDependencies` (tsup-node behavior)
-- `noExternal: [/^@core\//, /^@ports\//, /^@adapters\//, /^@observability\//, /^@shared\//, /^@monitoring\//, /^@providers\//, /^@packages\//]`
-  to re-include (compile) the uncompiled workspace TS packages.
-- **`@infra/prisma` is the exception — it is EXTERNAL, not bundled** (see §3
-  revision). An `esbuildPlugins` `onResolve({ filter: /^@infra\// })` forces it
-  external _before_ the tsconfig-paths alias can redirect `@infra/prisma` to its
-  raw `src/*.ts` (a plain `external:` entry resolves too late — the alias wins).
+- Each package gets a `tsconfig.build.json`: `composite: true`, `outDir: ./dist`,
+  `rootDir: ./src`, `module`/`moduleResolution: NodeNext`, `target: ES2023`,
+  `declaration: true`, and `references: [...]` to the `tsconfig.build.json` of
+  each of its DECLARED workspace dependencies. The build config resets `paths`
+  to `{}` so cross-package types resolve via the emitted `.d.ts` (through the
+  package `exports`), not via the dev source aliases. The existing `tsconfig.json`
+  (dev, `noEmit`, `paths` → `src`) is kept untouched for the editor / `typecheck`
+  / `tsx` / `vitest` — dev still resolves to source.
+- A root solution-style `tsconfig.build.json` `references` every package + app;
+  `tsc -b` builds the whole graph in topological order (the package boundary
+  graph is ACYCLIC — see §1b — so the references form a valid DAG). The apps are
+  terminal (`composite: false`, `declaration: false`): nothing references their
+  `.d.ts`.
+- Per-package `package.json`: `build` → `tsc -b tsconfig.build.json`; keep
+  `typecheck` → `tsc --noEmit`; `main`/`types`/`exports` → `dist`.
+- NodeNext requires explicit file extensions on relative + bare-subpath
+  specifiers; a repo-wide codemod adds `.js` (non-breaking for dev — bundler-mode
+  `tsc`/`tsx` accept the explicit `.js` on `.ts` source). Two CJS/alias
+  NodeNext-strictness fixes are part of the same pivot: ioredis is imported as
+  the named `import { Redis } from "ioredis"` (the default import resolves to a
+  namespace under NodeNext), and the dev-only `@shared/<x>` path aliases are
+  rewritten to the canonical `@shared/types/<x>.js` (the package is named
+  `@shared/types`).
 
 Per-app build output: `apps/api` → `dist/index.js`; `apps/workers` →
-`dist/bootstrap.js`.
+`dist/bootstrap.js` (+ the standalone worker entries as separate emitted files).
+
+### 1b. Hexagonal cycle-break that made transpile-only viable (prerequisite)
+
+Per-package isolated compilation + project references require an ACYCLIC,
+fully-declared package graph. Achieving it required a hexagonal-canon cleanup,
+committed ahead of this build pivot: `GatewayAdapterRegistryPort` was moved out
+of `@core/domain` into `@ports/core` to break the `@ports/core ⇄ @core/domain`
+cycle, every undeclared cross-package import edge was declared as a
+`workspace:*` dependency, and one deep-relative cross-package import
+(`@providers/x` reaching into `../../../core/threading/src`) was converted to a
+proper `@core/threading` package import (CLAUDE.md tripwire #3). `scripts/depscan.mjs`
+gates "0 undeclared edges, ACYCLIC".
 
 ### 2. libc match (blocking correctness)
 
@@ -90,32 +129,27 @@ client is first-party generated code, and v7 no longer writes to
 `node_modules/.prisma`). Prisma v7 is Rust-free, so there is **no
 engine-binary copy step** — any legacy engine-copy logic must be removed.
 
-### 3b. `@infra/prisma` — externalized + tsc-compiled (revision 2026-06-14, post-CI)
+### 3b. `@infra/prisma` — one of the compiled packages (transpile-only)
 
-The original decision put `@infra/prisma` in `noExternal` (bundle it). The first
-real CI/local build proved that wrong: the Prisma 7 generated client is raw `.ts`
-with an `import * as Prisma` namespace re-exported through `export *` barrels,
-which esbuild **cannot bundle** — build-time `No matching export for "Prisma"`
-(its per-file transpile can't resolve a namespace re-export) plus documented
-runtime crashes when bundled (`fileURLToPath(undefined)` prisma#27324, dynamic
-`require("node:path")` #28126). Per the Prisma-7 canon (research, cited below) the
-generated client is **tsc-compiled**, not esbuild-bundled. So `@infra/prisma` is
-now: (a) **tsc-compiled separately** to ESM `.js`
-(`infra/prisma/tsconfig.build.json`; `build = "prisma generate && tsc"`;
-`package.json` `exports`/`main` → `./dist`), and (b) **externalized** from the
-app bundle via the `onResolve` plugin (§1). `tsc` handles the `export *` namespace
-re-export fine (only esbuild chokes); `Prisma.sql` (a runtime value) survives.
-Dev/test still resolve `@infra/prisma` → `src/*.ts` via tsconfig paths (which
-bypass `package.json`), so the `exports`→dist switch only affects the
-externalized production bundle. The Dockerfiles build `@infra/prisma` (tsc)
-before the app tsup build and ship `infra/prisma/dist` into the runtime.
+Under transpile-only `@infra/prisma` is no longer a special "externalized"
+case — it is a normal compiled package, with one wrinkle: it includes the Prisma
+7 generated client, so its build runs `prisma generate` ahead of `tsc`
+(`build = "prisma generate && tsc -p tsconfig.build.json"`), and its
+`tsconfig.build.json` uses `rootDir: "."` (it `include`s `generated/**` outside
+`src/`), emitting to `dist/src/index.js` with `exports`/`main` → `./dist/src/...`.
+`tsc` handles the generated client's `import * as Prisma` `export *` namespace
+re-export fine (the defect was esbuild-specific), and `Prisma.sql` (a runtime
+value) survives. It is a referenced project in the solution graph like every
+other package. Dev/test still resolve `@infra/prisma` → `src/*.ts` via tsconfig
+paths.
 
-**Hoisted production node_modules (consequence).** The app bundle inlines
-workspace packages whose own transitive `node_modules` deps (e.g. `opossum` via
-`@adapters/circuit-breaker`) are externalized; pnpm's default isolated layout
-leaves those transitive deps unreachable from the flattened single-file bundle.
-The prod-deps stage therefore uses a **hoisted** node-linker so every externalized
-dep the bundle references sits at the top level.
+**Isolated production node_modules (no hoisting).** Because nothing is bundled,
+the prod `node_modules` is the pnpm DEFAULT isolated layout — each consumer's
+`@scope/pkg` symlink is consumer-local (`apps/api/node_modules/@core/X`,
+`packages/<p>/node_modules/@core/X`) and links into the central `.pnpm` store.
+The image ships the whole built+pruned workspace tree (every package's `dist` +
+nested `node_modules` + the root store) from one stage so the symlink farm stays
+internally consistent. No `node-linker=hoisted`, no `pnpm deploy`.
 
 ### 4. admin / client (Next 16 standalone, separate toolchain)
 
@@ -133,10 +167,13 @@ the standalone output; never `pnpm install` inside `.next/standalone`.
 
 ## Rationale
 
-1. **The canon for a Node server is to externalize dependencies.** Both `tsup`
-   and `esbuild` documentation state that bundling a Node server's deps is
-   unnecessary and can break ESM. Internalizing only the uncompiled first-party
-   TS is the precise, minimal use of a bundler here.
+1. **The monorepo convention for a Node server is transpile-only with preserved
+   package boundaries.** Both `tsup` and `esbuild` documentation state that
+   bundling a Node server's deps is unnecessary and can break ESM; the
+   corollary here is that bundling first-party TS too (to collapse path aliases)
+   is also unnecessary once each package emits its own `dist` + `exports`. The
+   pnpm isolated layout + per-package `tsc` emit is the standard shape and
+   removes the hoisting/tree-shaking/esbuild-Prisma problems for free.
 2. **`argon2` is a category, not a special case.** It is `node_modules`, so it
    is external like everything else — but its native ABI imposes the
    build-base libc match, which is a hard correctness constraint, not a
@@ -151,29 +188,38 @@ the standalone output; never `pnpm install` inside `.next/standalone`.
 
 ## Alternatives Considered
 
+- **Bundle first-party TS with tsup/esbuild, externalize `node_modules`
+  (the prior decision).** ❌ Rejected (transpile-only revision). Collapsing the
+  ~88 workspace packages into one `dist/index.js` per app FLATTENS the boundary
+  graph and forces a HOISTED prod `node_modules`: the inlined packages'
+  externalized transitive deps (e.g. `opossum`) are unreachable under pnpm's
+  isolated layout from a flattened artifact, so the prod stage needed
+  `node-linker=hoisted` (a second, lower-quality module layout that diverges from
+  dev). It also requires an `onResolve` esbuild plugin to special-case
+  `@infra/prisma` out of the bundle (esbuild cannot bundle the Prisma 7
+  `import * as Prisma` namespace re-export — build error `No matching export`,
+  plus runtime crashes prisma#27324 `fileURLToPath`, #28126 `node:path`), and
+  carries tree-shaking risk across ~50 static-string dynamic imports + the Proxy
+  prisma singleton. The one-file-artifact win is modest for a server image. tsup
+  and esbuild maintainers both state bundling a Node server is usually
+  unnecessary. Transpile-only removes all of these problems at the cost of a
+  multi-file image (fine for a server). This is why the build is now
+  transpile-only; the hexagonal cycle-break (§1b) was the prerequisite that made
+  per-package isolated compilation possible.
 - **Bundle `node_modules` too (single self-contained file).** ❌ Rejected.
   Breaks ESM runtime semantics (`import.meta.url`, `__dirname`, native `.node`
   addons like `argon2`). Explicitly discouraged by tsup and esbuild
   maintainers for Node servers.
-- **Transpile-only with `tsc` (or `swc`), no bundler.** Considered. Would emit
-  JS per file but does not resolve the path-alias workspace graph into a
-  shippable tree without an additional alias-resolution + copy step across ~88
-  workspace packages; tsup's `noExternal` collapses that graph in one pass.
-  `tsc` also cannot externalize/internalize selectively the way the build model
-  requires. Kept as a conceptual fallback only.
 - **Keep running `tsx` in production.** ❌ Rejected. Ships the TypeScript
   toolchain and source into the runtime image, defeats the distroless minimal
   runtime, and pays per-request transpilation cost. The whole point of this
   change is to have a real JS-emit production path.
-- **Bundle `@infra/prisma` / the Prisma 7 generated client (`noExternal`).** ❌
-  Rejected (post-CI revision, §3). esbuild cannot resolve the generated client's
-  `import * as Prisma` namespace re-export (build error `No matching export`) and
-  mangles its runtime internals (prisma#27324 `fileURLToPath`, #28126
-  `node:path`). The Prisma-7-canon path is tsc-compile + externalize.
-- **tsup vs raw esbuild.** tsup chosen as primary (ergonomic multi-entry,
-  `tsup-node` auto-externalize of deps, ESM defaults); raw esbuild retained as
-  the fallback because tsup is a thin wrapper over esbuild and the ecosystem is
-  in flux (a successor `tsdown` exists). The escape to raw esbuild is cheap.
+- **Per-package independent `tsc` (no project references).** Considered.
+  Each package can build independently (cross-package types resolve via the
+  already-emitted `.d.ts` once deps are built). Project references (`tsc -b`)
+  were chosen instead because they give correct topological build ordering and
+  incremental rebuilds from a single root solution config, and the acyclic graph
+  makes the references valid by construction.
 
 ## Consequences
 
@@ -188,41 +234,50 @@ the standalone output; never `pnpm install` inside `.next/standalone`.
 
 **Negative / costs**
 
-- A new build toolchain (`tsup`/esbuild config) and per-app build wiring to
-  maintain.
+- A larger, multi-file image: every workspace package ships its `dist` + nested
+  `node_modules` symlinks (accepted — fine for a server image; the win is
+  preserved boundaries + isolated layout).
+- Per-package `tsconfig.build.json` + `package.json exports` to keep in sync
+  (generated by `scripts/migrations/gen-build-projects.mjs`, derived from the
+  acyclic dependency graph — regenerable).
 - The Next.js standalone path carries an open-bug workaround (webpack fallback
   - Next version pin) until upstream #86438 is fixed.
-- Build correctness for tree-shaking across the codebase's dynamic-import and
-  Proxy patterns is only confirmable by a real CI build + smoke boot (LXC
-  cannot build).
+- Real emit (the packages were `--noEmit` before) can surface latent type/emit
+  issues in code never previously typechecked (e.g. `@providers/facebook`'s
+  unreachable `analytics`/`media`/dead-`features` modules, excluded from the
+  build the same way the dev tsconfig excluded them). Fixed at the root, never
+  with `@ts-ignore`.
 
 ## Revisit if
 
 - Upstream Next.js fixes the turbopack-root/distDirRoot interaction (#86438)
   → drop the webpack fallback and re-evaluate the version pin.
-- `tsup` is superseded by `tsdown` (or stalls) → the build model is unchanged;
-  swap the wrapper, keep raw esbuild as the constant fallback.
-- A second native dependency is added → re-confirm the libc-match constraint
-  and the externalization list.
+- A second native dependency is added → re-confirm the libc-match constraint.
+- The package count or boundary graph changes materially → re-run
+  `gen-build-projects.mjs` + `depscan.mjs` (acyclic gate).
 
 ## Risks and Mitigations
 
-| Risk                                                                                           | Mitigation                                                                                       |
-| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Tree-shaking false negatives across ~50 static-string dynamic imports + Proxy prisma singleton | Verify with a real CI build + smoke boot of each artifact; do not trust local LXC (can't build). |
-| Next.js turbopack root/distDirRoot bug (#86438 OPEN, no fix)                                   | `next build --webpack` fallback + pinned Next patch version; env-aware `turbopack.root`.         |
-| musl/glibc ABI mismatch for `argon2`                                                           | Deps/builder stage on `node:24-bookworm-slim` (glibc) to match distroless-debian runtime.        |
-| Prisma v7 generated client not shipped                                                         | Generate to `infra/prisma/generated/` + explicit `COPY` into runtime; no engine-binary step.     |
-| `@t3-oss/env-core` fail-fast lost through bundling                                             | Smoke-boot each artifact in CI to confirm env validation still runs at module load.              |
-| tsup ecosystem churn (`tsdown` successor)                                                      | Confirm tsup version behavior at adoption; raw esbuild retained as fallback.                     |
+| Risk                                                                             | Mitigation                                                                                                                                     |
+| -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Project references require an acyclic, fully-declared graph                      | `scripts/depscan.mjs` gates "0 undeclared edges, ACYCLIC"; the hexagonal cycle-break (§1b) committed ahead.                                    |
+| Next.js turbopack root/distDirRoot bug (#86438 OPEN, no fix)                     | `next build --webpack` fallback + pinned Next patch version; env-aware `turbopack.root`.                                                       |
+| musl/glibc ABI mismatch for `argon2`                                             | Deps/builder stage on `node:24-bookworm-slim` (glibc) to match distroless-debian runtime.                                                      |
+| Prisma v7 generated client not shipped                                           | `@infra/prisma` compiles it (`prisma generate` before `tsc`); the whole `infra/` tree ships into runtime; no engine-binary step.               |
+| `@t3-oss/env-core` fail-fast still runs at module load                           | Smoke-boot each artifact (verified: `node apps/{api,workers}/dist/...` fail only on DB connect, env validated).                                |
+| Isolated symlink farm incomplete in the image (consumer-local node_modules lost) | Ship the whole built+pruned workspace tree (root + every nested `node_modules` + every `dist`) from one stage; smoke-boot confirms resolution. |
 
 ## References
 
-- esbuild — bundling for Node (externalize node_modules):
+- TypeScript — Project References (`tsc -b`):
+  https://www.typescriptlang.org/docs/handbook/project-references.html
+- TypeScript — ESM/NodeNext module resolution (explicit extensions):
+  https://www.typescriptlang.org/docs/handbook/modules/reference.html#node16-nodenext
+- pnpm — workspaces + isolated node-linker (no hoisting):
+  https://pnpm.io/workspaces
+- esbuild — bundling for Node (externalize node_modules), context for why a Node
+  server need not be bundled:
   https://esbuild.github.io/getting-started/#bundling-for-node
-- tsup — Node build tool: https://tsup.egoist.dev/
-- tsup #819 — ESM externalization of Node deps:
-  https://github.com/egoist/tsup/issues/819
 - node-argon2 (native dep, libc constraint): https://github.com/ranisalt/node-argon2
 - distroless base images: https://github.com/GoogleContainerTools/distroless
 - Prisma v7 upgrade guide: https://www.prisma.io/docs/guides/upgrade-prisma-orm/v7
