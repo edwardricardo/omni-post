@@ -9,7 +9,7 @@
 import { ok, err, type Result } from "@shared/types";
 import type { QueuePort, QueueJob, QueueHealth } from "@ports/core";
 import { Queue, type DefaultJobOptions } from "bullmq";
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import { createLogger } from "@observability/logger";
 
 import {

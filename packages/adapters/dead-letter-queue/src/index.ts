@@ -6,7 +6,7 @@
  */
 import { ok, err, type Result } from "@shared/types";
 import { Queue, Worker, Job, QueueEvents } from "bullmq";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import pino from "pino";
 import { v4 as uuidv4 } from "uuid";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";

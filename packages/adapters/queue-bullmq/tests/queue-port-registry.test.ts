@@ -33,7 +33,7 @@ vi.mock("ioredis", () => ({
 }));
 
 import { BullMQQueuePortRegistry } from "../src/queue-port-registry.js";
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 
 const fakeConnection = {
   ping: async () => "PONG",

@@ -37,7 +37,7 @@ import {
   type ProviderConstraints,
 } from "@providers/shared";
 import pino, { type Logger } from "pino";
-import { planThread } from "../../../core/threading/src/threadPlanner.js";
+import { planThread } from "@core/threading";
 import { XApiClient, type XCredentials, type XPollOptions } from "./apiClient.js";
 
 const REQUIRED_FIELDS: (keyof XCredentials)[] = ["apiKey", "apiSecret", "bearerToken"];

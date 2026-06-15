@@ -6,7 +6,7 @@
  */
 import { ok, err, type Result } from "@shared/types";
 import pino from "pino";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 
 const logger = pino({
   name: "fallback-strategies",

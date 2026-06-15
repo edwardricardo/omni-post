@@ -12,6 +12,7 @@
   "dependencies": {
     "@observability/logger": "workspace:*",
     "@adapters/external-apis": "workspace:*",
+    "@core/threading": "workspace:*",
     "@ports/core": "workspace:*",
     "@shared/types": "workspace:*",
     "prom-client": "15.1.3"
