@@ -549,6 +549,19 @@ grep -rn "fallbackEnabled: true" \
   packages/providers packages/adapters apps/api/src --include="*.ts" | \
   grep -vE "/tests/|\.test\." | \
   grep -E "(post-tweet|post-to-page|publish-media|create-container|create-stories|create-reels|send-message|send-photo|send-video|send-poll|send-document|send-audio|create-story|create-pin|create-post|upload-video|upload-short|upload-media|schedule|process-video|process-segment|optimize-reel|create-thumbnail|create-stream|start-stream|stop-stream)" | wc -l  # expect 0
+
+# 26. No `.js`-on-`.ts` relative imports in bundler-compiled FRONTEND dirs.
+# Next 16 Turbopack canNOT resolve a written `./x.js` back to its `./x.ts`
+# source (vercel/next.js #82945 OPEN); the NodeNext `.js` extension convention
+# is BACKEND-only (api/workers/@core/* run via NodeNext). The Next apps and the
+# frontend-only packages they compile from src use `moduleResolution: bundler`
+# = extensionless. A path-agnostic codemod that adds `.js` in these dirs
+# silently breaks `next dev` / `next build`. Hard-zero. See ADR-0017 §4.
+grep -rnE 'from "\.\.?/[^"]*\.js"' \
+  apps/admin apps/client packages/ui/src packages/api-errors/src \
+  packages/query-client/src packages/observability/browser-logger/src \
+  --include="*.ts" --include="*.tsx" \
+  --exclude-dir=.next --exclude-dir=node_modules --exclude-dir=dist | wc -l  # expect 0
 ```
 
 **Extending the suite.** Adding a new fitness check requires three coordinated edits, in order:
