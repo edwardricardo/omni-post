@@ -1,12 +1,13 @@
 /**
  * @file vitest.config.ts
- * @description Vitest configuration for the @packages/api-errors package — pure
- *              node, no DOM, no workspace alias resolution needed.
+ * @description Vitest config for @packages/api-errors. Delegates to the shared workspace factory so
+ *              `@core/*` and the other workspace specifiers resolve to TypeScript SOURCE (not the
+ *              production `dist/` `exports` target) when tests run against an unbuilt tree.
  * @layer infrastructure
  */
-import { defineConfig } from "vitest/config";
+import { defineWorkspaceVitestConfig } from "../../vitest.shared.js";
 
-export default defineConfig({
+export default defineWorkspaceVitestConfig(import.meta.dirname, {
   test: {
     environment: "node",
     globals: true,

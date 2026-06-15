@@ -1,42 +1,13 @@
 /**
  * @file vitest.config.ts
- * @description Vitest configuration for the Facebook provider — resolves workspace aliases
- *              relative to the monorepo root and runs tests in forked node processes.
+ * @description Vitest config for @providers/facebook. Delegates to the shared workspace factory so
+ *              `@core/*` and the other workspace specifiers resolve to TypeScript SOURCE (not the
+ *              production `dist/` `exports` target) when tests run against an unbuilt tree.
  * @layer infrastructure
  */
-import { defineConfig } from "vitest/config";
-import path from "node:path";
-import { existsSync } from "node:fs";
+import { defineWorkspaceVitestConfig } from "../../../vitest.shared.js";
 
-function findMonorepoRoot(startDir: string): string {
-  let dir = path.resolve(startDir);
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(path.join(dir, "pnpm-workspace.yaml"))) return dir;
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return path.resolve(startDir, "../../");
-}
-
-const root = findMonorepoRoot(__dirname);
-
-export default defineConfig({
-  resolve: {
-    alias: {
-      "@shared/types": path.join(root, "packages/shared/src/index.ts"),
-      "@shared": path.join(root, "packages/shared/src"),
-      "@ports/core": path.join(root, "packages/ports/src/index.ts"),
-      "@ports": path.join(root, "packages/ports/src"),
-      "@adapters/external-apis": path.join(root, "packages/adapters/external-apis/src/index.ts"),
-      "@adapters/fallback-strategies": path.join(
-        root,
-        "packages/adapters/fallback-strategies/src/index.ts"
-      ),
-      "@observability/logger": path.join(root, "packages/observability/logger/src/index.ts"),
-      "@providers/shared": path.join(root, "packages/providers/shared/src/index.ts"),
-    },
-  },
+export default defineWorkspaceVitestConfig(import.meta.dirname, {
   test: {
     environment: "node",
     globals: true,

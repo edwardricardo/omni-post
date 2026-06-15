@@ -1,11 +1,13 @@
 /**
  * @file vitest.config.ts
- * @description Vitest configuration for the storage-s3 adapter — node environment, forked pool,
- *              and local test file glob.
+ * @description Vitest config for @adapters/storage-s3. Delegates to the shared workspace factory so
+ *              `@core/*` and the other workspace specifiers resolve to TypeScript SOURCE (not the
+ *              production `dist/` `exports` target) when tests run against an unbuilt tree.
  * @layer infrastructure
  */
-import { defineConfig } from "vitest/config";
-export default defineConfig({
+import { defineWorkspaceVitestConfig } from "../../../vitest.shared.js";
+
+export default defineWorkspaceVitestConfig(import.meta.dirname, {
   test: {
     environment: "node",
     globals: true,
