@@ -16,7 +16,7 @@ import {
   fetchNotificationPreferences,
   fetchNotifications,
   fetchUnreadCount,
-} from "../clients/notificationsClient.js";
+} from "../clients/notificationsClient";
 
 const DEFAULT_LIST_LIMIT = 20;
 const UNREAD_COUNT_STALE_MS = 30_000;

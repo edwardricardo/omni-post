@@ -5,8 +5,8 @@
  * @layer infrastructure
  */
 
-import type { ApiResponse, Channel, PaginatedResponse } from "../types.js";
-import { request } from "./request.js";
+import type { ApiResponse, Channel, PaginatedResponse } from "../types";
+import { request } from "./request";
 
 export interface CreateChannelInput {
   providerId: string;

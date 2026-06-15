@@ -9,7 +9,7 @@
  */
 
 import { ApiError } from "@packages/api-errors";
-import type { ErrorResponse } from "../types.js";
+import type { ErrorResponse } from "../types";
 
 export const PROXY_BASE = "/api/backend";
 

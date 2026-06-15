@@ -7,8 +7,8 @@
  * @layer infrastructure
  */
 
-import type { ApiResponse } from "../types.js";
-import { request } from "./request.js";
+import type { ApiResponse } from "../types";
+import { request } from "./request";
 
 export type SagaPostMode = "draft" | "schedule" | "publish-now";
 

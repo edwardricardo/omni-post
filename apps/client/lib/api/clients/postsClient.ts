@@ -6,8 +6,8 @@
  * @layer infrastructure
  */
 
-import type { ApiResponse, PaginatedResponse, Post, UpdatePostRequest } from "../types.js";
-import { request } from "./request.js";
+import type { ApiResponse, PaginatedResponse, Post, UpdatePostRequest } from "../types";
+import { request } from "./request";
 
 export type PostStatus =
   | "DRAFT"

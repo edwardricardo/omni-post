@@ -9,8 +9,8 @@
  * @layer infrastructure
  */
 
-import { request, PROXY_BASE } from "./request.js";
-import type { ApiResponse } from "../types.js";
+import { request, PROXY_BASE } from "./request";
+import type { ApiResponse } from "../types";
 
 /**
  * Account usage + plan context DTO. Mirrors the backend `UsageDto` from

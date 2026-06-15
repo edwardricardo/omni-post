@@ -11,7 +11,7 @@
  * @layer infrastructure
  */
 
-import { PROXY_BASE, request } from "./request.js";
+import { PROXY_BASE, request } from "./request";
 
 export interface NotificationItemDto {
   id: string;

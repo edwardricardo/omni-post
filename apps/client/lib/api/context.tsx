@@ -8,7 +8,7 @@
  */
 
 import React, { createContext, useContext, useCallback, useMemo, ReactNode } from "react";
-import { apiClient } from "./client.js";
+import { apiClient } from "./client";
 import { ApiError } from "@packages/api-errors";
 
 interface ApiContextType {
