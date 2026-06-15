@@ -6,7 +6,7 @@
  */
 
 import { ApiError } from "@packages/api-errors";
-import type { GroupCredentials, SettingsStatus, TestResult } from "./types.js";
+import type { GroupCredentials, SettingsStatus, TestResult } from "./types";
 
 const BASE = "/api/backend/admin/settings";
 

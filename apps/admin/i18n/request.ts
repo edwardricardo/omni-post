@@ -7,6 +7,6 @@
  * @layer infrastructure
  */
 import { createRequestConfig } from "@shared/types/i18n/createRequestConfig";
-import { routing } from "./routing.js";
+import { routing } from "./routing";
 
 export default createRequestConfig(routing, (locale) => import(`../messages/${locale}.json`));

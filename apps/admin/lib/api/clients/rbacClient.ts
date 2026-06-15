@@ -13,8 +13,8 @@ import type {
   SecurityStats,
   UpdateRoleInput,
   UserPermissions,
-} from "../types.js";
-import { http } from "./http.js";
+} from "../types";
+import { http } from "./http";
 
 /**
  * @const rbacClient

@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-import { http } from "./http.js";
+import { http } from "./http";
 
 type SecretRotationStatus = "OK" | "DUE_SOON" | "OVERDUE" | "UNKNOWN";
 
