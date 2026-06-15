@@ -7,7 +7,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchPricingTiers } from "./api";
+import { fetchPricingTiers } from "./api.js";
 
 /**
  * @hook usePricingTiers

@@ -7,11 +7,11 @@
  */
 
 import { useMutation } from "@tanstack/react-query";
-import { api } from "../../lib/apiClient";
+import { api } from "../../lib/apiClient.js";
 import type {
   ChannelForceReauthInput,
   ChannelForceReauthResult,
-} from "../../lib/api/clients/channelsAdminClient";
+} from "../../lib/api/clients/channelsAdminClient.js";
 
 export type { ChannelForceReauthInput, ChannelForceReauthResult };
 

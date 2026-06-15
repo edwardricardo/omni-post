@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 import { useQuery } from "@tanstack/react-query";
-import { api, type AuditLog, type AuditLogFilters } from "../../lib/apiClient";
+import { api, type AuditLog, type AuditLogFilters } from "../../lib/apiClient.js";
 
 /**
  * @hook useAuditLogs
