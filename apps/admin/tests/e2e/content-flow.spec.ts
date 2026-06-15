@@ -14,7 +14,7 @@
  * @layer infrastructure
  */
 import { test, expect } from "@playwright/test";
-import { TEST_CREDENTIALS, loginAs, clearAuth } from "./helpers";
+import { TEST_CREDENTIALS, loginAs, clearAuth } from "./helpers.js";
 
 test.describe("Content Flow — Post Creation & Navigation", () => {
   test.beforeEach(async ({ page }) => {

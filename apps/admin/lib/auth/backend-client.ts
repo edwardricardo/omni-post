@@ -10,8 +10,8 @@ import { cache } from "react";
 
 import { ConsoleLoggerAdapter } from "@observability/browser-logger";
 
-import type { AdminUserProfile, AuthenticateAdminResult, TokenPair } from "./types";
-import { env } from "../../lib/env";
+import type { AdminUserProfile, AuthenticateAdminResult, TokenPair } from "./types.js";
+import { env } from "../../lib/env.js";
 
 const log = new ConsoleLoggerAdapter("admin.backend-client", { alwaysEmit: true });
 
