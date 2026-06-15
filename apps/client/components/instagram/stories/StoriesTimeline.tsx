@@ -8,7 +8,7 @@
 
 import React, { useRef } from "react";
 import { useTranslations } from "next-intl";
-import { StoryContent } from "./types.js";
+import { StoryContent } from "./types";
 
 interface StoriesTimelineProps {
   stories: StoryContent[];

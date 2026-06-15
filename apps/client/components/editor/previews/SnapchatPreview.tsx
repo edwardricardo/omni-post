@@ -8,7 +8,7 @@
 
 import { useTranslations } from "next-intl";
 import { Avatar, AvatarFallback } from "@packages/ui";
-import type { PreviewProps } from "./types.js";
+import type { PreviewProps } from "./types";
 
 const SNAPCHAT_LIMIT = 250;
 

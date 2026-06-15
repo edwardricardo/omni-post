@@ -14,15 +14,15 @@ import React, { useRef, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { ConfirmDialog } from "@packages/ui";
 import type { VideoSplitOptions } from "@providers/instagram/src/mediaProcessor";
-import type { StoriesProject, StoriesEditorProps, StoryContent } from "./stories/types.js";
-import { StoriesHeader } from "./stories/StoriesHeader.js";
-import { StoriesTimeline } from "./stories/StoriesTimeline.js";
-import { StoryPreview } from "./stories/StoryPreview.js";
-import { StoryEditorControls } from "./stories/StoryEditorControls.js";
-import { LoadingOverlay } from "./stories/LoadingOverlay.js";
-import { useFileUpload } from "./stories/hooks/useFileUpload.js";
-import { useStoryManagement } from "./stories/hooks/useStoryManagement.js";
-import { useKeyboardShortcuts } from "./stories/hooks/useKeyboardShortcuts.js";
+import type { StoriesProject, StoriesEditorProps, StoryContent } from "./stories/types";
+import { StoriesHeader } from "./stories/StoriesHeader";
+import { StoriesTimeline } from "./stories/StoriesTimeline";
+import { StoryPreview } from "./stories/StoryPreview";
+import { StoryEditorControls } from "./stories/StoryEditorControls";
+import { LoadingOverlay } from "./stories/LoadingOverlay";
+import { useFileUpload } from "./stories/hooks/useFileUpload";
+import { useStoryManagement } from "./stories/hooks/useStoryManagement";
+import { useKeyboardShortcuts } from "./stories/hooks/useKeyboardShortcuts";
 
 export function StoriesEditor({
   projectId: _projectId,
