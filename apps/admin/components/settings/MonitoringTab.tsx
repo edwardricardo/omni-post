@@ -6,8 +6,8 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { CredentialForm } from "./CredentialForm.js";
-import { buildFieldDefs } from "./constants.js";
+import { CredentialForm } from "./CredentialForm";
+import { buildFieldDefs } from "./constants";
 
 /**
  * @component MonitoringTab

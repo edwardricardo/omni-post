@@ -17,7 +17,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useChartColors } from "@/hooks/useChartColors";
-import { ChartEmptyState } from "./ChartEmptyState.js";
+import { ChartEmptyState } from "./ChartEmptyState";
 
 interface StackedBarDatum {
   label: string;

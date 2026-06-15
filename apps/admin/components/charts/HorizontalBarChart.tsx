@@ -8,7 +8,7 @@
 
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Cell, ResponsiveContainer } from "recharts";
 import { useChartColors } from "@/hooks/useChartColors";
-import { ChartEmptyState } from "./ChartEmptyState.js";
+import { ChartEmptyState } from "./ChartEmptyState";
 
 interface HorizontalBarDatum {
   name: string;

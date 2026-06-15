@@ -9,7 +9,7 @@
 
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { env } from "../../../../lib/env.js";
+import { env } from "../../../../lib/env";
 
 const API_URL = env.API_URL ?? env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 
