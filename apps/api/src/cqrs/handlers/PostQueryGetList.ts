@@ -23,7 +23,7 @@ import {
   validateQuery,
   GetPostQuerySchema,
   ListPostsQuerySchema,
-} from "@shared/cqrs";
+} from "@shared/types/cqrs.js";
 import type { PostSortField, SortParams } from "@core/domain/index.js";
 
 const log = createLogger("cqrs");

@@ -6,21 +6,21 @@
  */
 
 import { PrismaClient } from "@infra/prisma";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import {
   SyncConfiguration,
   VersionDiff,
   OrchestrationResult,
   ContentVersion as _ContentVersion,
-} from "@shared/orchestration";
+} from "@shared/types/orchestration.js";
 import type {
   ProviderId,
   ProviderAdapter as _ProviderAdapter,
-} from "../providers/providerAdapter.interface";
-import { EventService } from "../events/EventService";
-import { ContentSynchronizer } from "../orchestration/ContentSynchronizer";
-import { ContentVersionManager } from "./ContentVersionManager";
+} from "../providers/providerAdapter.interface.js";
+import { EventService } from "../events/EventService.js";
+import { ContentSynchronizer } from "../orchestration/ContentSynchronizer.js";
+import { ContentVersionManager } from "./ContentVersionManager.js";
 import { logger } from "../lib/logger.js";
 import type {
   SyncChannel,
@@ -28,7 +28,7 @@ import type {
   SyncRollbackPlan,
   SyncMetrics,
   RealtimeSyncEvent,
-} from "./syncEngineTypes";
+} from "./syncEngineTypes.js";
 
 export abstract class SyncEngineBase {
   protected prisma: PrismaClient;

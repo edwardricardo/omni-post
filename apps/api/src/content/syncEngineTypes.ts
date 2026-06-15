@@ -5,8 +5,8 @@
  * @layer infrastructure
  */
 
-import type { SyncConfiguration } from "@shared/orchestration";
-import type { ProviderId } from "../providers/providerAdapter.interface";
+import type { SyncConfiguration } from "@shared/types/orchestration.js";
+import type { ProviderId } from "../providers/providerAdapter.interface.js";
 
 export interface SyncChannel {
   id: string;

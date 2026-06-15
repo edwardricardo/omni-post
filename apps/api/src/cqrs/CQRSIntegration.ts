@@ -16,12 +16,12 @@ import {
   withCacheKey,
   POST_COMMANDS,
   POST_QUERIES,
-} from "@shared/cqrs";
-import { CQRSBusImpl } from "./CQRSBus";
-import { createPostCommandHandlers } from "./handlers/PostCommandHandlers";
-import { createPostQueryHandlers } from "./handlers/PostQueryHandlers";
-import { EventService } from "../events/EventService";
-import Redis from "ioredis";
+} from "@shared/types/cqrs.js";
+import { CQRSBusImpl } from "./CQRSBus.js";
+import { createPostCommandHandlers } from "./handlers/PostCommandHandlers.js";
+import { createPostQueryHandlers } from "./handlers/PostQueryHandlers.js";
+import { EventService } from "../events/EventService.js";
+import { Redis } from "ioredis";
 import { logger } from "../lib/logger.js";
 
 type PostStatus = "DRAFT" | "SCHEDULED" | "PUBLISHED" | "FAILED";

@@ -11,14 +11,14 @@
  */
 
 import { PrismaClient, Prisma } from "@infra/prisma";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import {
   EventStoreEvent,
   EventEnvelope,
   EventStore as IEventStore,
   serializeEvent,
   deserializeEvent,
-} from "@shared/events";
+} from "@shared/types/events.js";
 import { logger } from "../lib/logger.js";
 
 interface EventStoreConfig {

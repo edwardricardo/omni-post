@@ -21,7 +21,7 @@ import {
   POST_QUERIES,
   validateQuery,
   SearchPostsQuerySchema,
-} from "@shared/cqrs";
+} from "@shared/types/cqrs.js";
 
 const log = createLogger("cqrs");
 

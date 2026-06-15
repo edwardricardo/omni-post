@@ -7,7 +7,7 @@
 
 // The concrete class is what callers construct — re-export it as `SyncEngine`
 // so the public name is unchanged.
-export { SyncEngine } from "./SyncEngineImpl";
+export { SyncEngine } from "./SyncEngineImpl.js";
 
 // Re-export all types so that callers importing types from this module also work
 export type {
@@ -19,4 +19,4 @@ export type {
   SyncRollbackAction,
   SyncMetrics,
   RealtimeSyncEvent,
-} from "./syncEngineTypes";
+} from "./syncEngineTypes.js";
