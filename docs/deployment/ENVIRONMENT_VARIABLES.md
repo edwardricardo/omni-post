@@ -337,6 +337,17 @@ Quick reference for which `STORAGE_PROVIDER` and related vars to use per cloud:
 
 ---
 
+## Frontend Build (Next.js)
+
+Governs how Turbopack/Next resolves modules when building/serving `apps/admin` and
+`apps/client`. See [ADR-0017 §4](../technical/ADR-0017-production-build-bundler.md).
+
+| Variable              | Required | Default        | Description                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| --------------------- | -------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_TURBOPACK_ROOT` | No       | `os.homedir()` | Overrides `turbopack.root` / `outputFileTracingRoot` for the Next apps. Must be an ancestor of the app, the `packages/ui` source it imports, AND the pnpm store where `next` resolves. Dev/CI leave it UNSET (defaults to `os.homedir()`, which covers the repo + the `$HOME/.local/share/pnpm` store). The Docker build sets it to `/app` (container workspace root; home=`/root` is not an ancestor of `/app/apps/<svc>` → `Invalid distDirRoot`). |
+
+---
+
 ## Sample .env Files
 
 ### Minimal Local Development

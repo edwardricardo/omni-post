@@ -153,17 +153,47 @@ internally consistent. No `node-linker=hoisted`, no `pnpm deploy`.
 
 ### 4. admin / client (Next 16 standalone, separate toolchain)
 
-Next.js is a distinct toolchain (`output: "standalone"`), not part of the
-tsup build. The root cause of the `Invalid distDirRoot` failure is that
-`apps/admin/next.config.mjs` (and the client equivalent) set
-`turbopack: { root: os.homedir() }` — which works in CI (home is a project
-ancestor) but breaks in Docker (root user; `/root` is not an ancestor of
-`/app/apps/admin`). Approach: set `outputFileTracingRoot` to the workspace
-root, make `turbopack.root` environment-aware, **but treat the
-turbopack-root/distDirRoot interaction as known-buggy** (Next discussion #86438
-OPEN, path-doubling #88579) → carry a `next build --webpack` fallback and
-**pin the Next patch version**. `COPY` `public` + `.next/static` manually into
-the standalone output; never `pnpm install` inside `.next/standalone`.
+Next.js is a distinct toolchain (`output: "standalone"`), bundled by **Turbopack**
+(the Next 16 default) — NOT part of the transpile-only `tsc` build. Two cross-cutting
+constraints govern it; both were root-caused in the next-dev-resolution RCA
+(branch `workstream/next-dev-resolution`, 2026-06-15) and **revise the earlier
+framing of this section**.
+
+**(a) `turbopack.root` must be an ancestor of the app, the `packages/ui` source it
+imports, AND the pnpm store where `next` resolves.** Turbopack bounds module
+resolution to `turbopack.root` and follows realpaths. With `pnpm-workspace.yaml`
+`enableGlobalVirtualStore: true`, `next` symlinks out to `$HOME/.local/share/pnpm/store`
+— OUTSIDE the monorepo root — so a **monorepo-root** `turbopack.root` makes Turbopack
+unable to resolve `next` in DEV ("Next.js inferred your workspace root… couldn't find
+next/package.json"). Resolution: default `turbopack.root` / `outputFileTracingRoot` to
+**`os.homedir()`** (dev/CI: home is an ancestor of both the repo and the store), and set
+**`NEXT_TURBOPACK_ROOT=/app`** in the Docker build stage (container runs as root,
+home=/root is not an ancestor of `/app/apps/admin` → `Invalid distDirRoot`; `/app` is).
+So `os.homedir()` is CORRECT for dev/CI (the earlier "os.homedir breaks Docker" framing
+held only because Docker lacked the env override). `next build --webpack`
+(`NEXT_BUILD_FLAGS`) remains the fallback for the open turbopack-root/distDirRoot bug
+(#86438 / #88579); the Next patch version stays pinned.
+
+**(b) The NodeNext `.js`-extension convention is BACKEND-ONLY; bundler-compiled
+frontend code is extensionless.** The §1 `.js`-extension codemod is required for
+NodeNext production emit (api, workers, `@core/*`, NodeNext-built packages) but
+Turbopack CANNOT resolve a written `./x.js` back to its `./x.ts` source — no config
+does this (vercel/next.js #82945 OPEN). So `.js` on relative imports is WRONG for
+Turbopack-compiled frontend: `apps/admin`, `apps/client`, and the frontend-only
+packages they compile from src (`@packages/ui`, `@packages/api-errors`,
+`@packages/query-client`, `@observability/browser-logger`) use `moduleResolution:
+bundler` and stay extensionless. The Next apps REMAIN on Turbopack (the `.js` was
+stripped from frontend code, the apps were NOT switched to webpack). **A package
+consumed by BOTH halves (`@shared/types`: ~617 backend NodeNext consumers + the Next
+frontend) ships a build: the frontend resolves it via its prebuilt `dist`** (where
+`.js` points to real emitted `.js`), NOT its src — the apps' tsconfig `paths` map
+`@shared/types` → `packages/shared/dist`, and the Dockerfile / `predev` build
+`@shared/types` before `next build` / `next dev`. A fitness check forbids `.js`-on-`.ts`
+relative imports in the frontend dirs so a future path-agnostic codemod cannot re-break
+Turbopack.
+
+`COPY` `public` + `.next/static` manually into the standalone output; never
+`pnpm install` inside `.next/standalone`.
 
 ## Rationale
 
