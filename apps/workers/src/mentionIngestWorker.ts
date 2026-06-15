@@ -19,7 +19,7 @@ import dotenv from "dotenv";
 dotenv.config({ path: "../../.env" });
 
 import { Worker } from "bullmq";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import { createLogger } from "@observability/logger";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { registerGracefulShutdown, type ShutdownTarget } from "./lib/gracefulShutdown.js";

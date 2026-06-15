@@ -42,7 +42,7 @@ dotenv.config({ path: "../../.env" });
 
 import http from "http";
 import client from "prom-client";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import { createLogger } from "@observability/logger";
 import { DefaultBackgroundTaskScheduler } from "@observability/background-scheduler";
 import {
