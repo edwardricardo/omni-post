@@ -14,8 +14,8 @@ import {
   fetchDsarRequests,
   fetchGdprSettings,
   fetchSecuritySettings,
-} from "./api";
-import type { BreachFilters, DsarFilters } from "./types";
+} from "./api.js";
+import type { BreachFilters, DsarFilters } from "./types.js";
 
 /**
  * Deterministic, value-stable serialization of a flat primitive filter object

@@ -8,11 +8,11 @@
  */
 
 import { useMutation } from "@tanstack/react-query";
-import { api } from "../../lib/apiClient";
+import { api } from "../../lib/apiClient.js";
 import type {
   ForceMassReauthInput,
   MassReauthResult,
-} from "../../lib/api/clients/providersAdminClient";
+} from "../../lib/api/clients/providersAdminClient.js";
 
 export type { ForceMassReauthInput, MassReauthResult };
 

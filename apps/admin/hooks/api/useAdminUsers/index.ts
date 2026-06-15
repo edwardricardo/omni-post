@@ -5,13 +5,13 @@
  * @layer infrastructure
  */
 
-export type { AdminUser } from "./types";
+export type { AdminUser } from "./types.js";
 
-export { useAdminUsers } from "./queries";
+export { useAdminUsers } from "./queries.js";
 
 export {
   useActivateAdminUser,
   useCreateAdminUser,
   useDeactivateAdminUser,
   useUpdateAdminUser,
-} from "./mutations";
+} from "./mutations.js";
