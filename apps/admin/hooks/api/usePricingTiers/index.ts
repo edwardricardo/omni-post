@@ -5,9 +5,9 @@
  * @layer infrastructure
  */
 
-export type { AccountTier, PricingBundle, ProviderTier } from "./types";
+export type { AccountTier, PricingBundle, ProviderTier } from "./types.js";
 
-export { usePricingTiers } from "./queries";
+export { usePricingTiers } from "./queries.js";
 
 export {
   useCreateAccountTier,
@@ -18,4 +18,4 @@ export {
   useUpdateAccountTier,
   useUpdateBundle,
   useUpdateProviderTier,
-} from "./mutations";
+} from "./mutations.js";

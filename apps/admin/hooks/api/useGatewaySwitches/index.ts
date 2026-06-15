@@ -6,12 +6,12 @@
  * @layer infrastructure
  */
 
-export type { GatewaySwitchEvent } from "./types";
+export type { GatewaySwitchEvent } from "./types.js";
 
-export { useGatewaySwitchDetail, useGatewaySwitches } from "./queries";
+export { useGatewaySwitchDetail, useGatewaySwitches } from "./queries.js";
 
 export {
   useExtendSwitchDeadline,
   useForceCompleteSwitch,
   useForceSuspendSwitch,
-} from "./mutations";
+} from "./mutations.js";
