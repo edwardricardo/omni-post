@@ -21,9 +21,9 @@ import {
   type CharacterCountRenderProps,
   type ProviderConstraints,
   getMinCharLimit,
-} from "./ContentEditorCore.js";
-import { Button } from "../button.js";
-import { cn } from "../../lib/utils.js";
+} from "./ContentEditorCore";
+import { Button } from "../button";
+import { cn } from "../../lib/utils";
 
 export interface TipTapContentEditorProps extends Omit<
   ContentEditorCoreProps,
@@ -368,4 +368,4 @@ export function TipTapContentEditor({
 }
 
 // Re-export types
-export type { ProviderConstraints, ContentEditorContent } from "./ContentEditorCore.js";
+export type { ProviderConstraints, ContentEditorContent } from "./ContentEditorCore";

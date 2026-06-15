@@ -23,16 +23,16 @@ import {
   Diff,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { Card, CardContent, CardHeader } from "../card.js";
-import { Button } from "../button.js";
-import { Badge } from "../badge.js";
-import type { ContentVersion } from "./contentVersioningTypes.js";
+import { Card, CardContent, CardHeader } from "../card";
+import { Button } from "../button";
+import { Badge } from "../badge";
+import type { ContentVersion } from "./contentVersioningTypes";
 import {
   getTextContent,
   getAuthorName,
   getVersionMedia,
   getChangeTypeLabel,
-} from "./contentVersioningTypes.js";
+} from "./contentVersioningTypes";
 
 // ---------------------------------------------------------------------------
 // Icon resolver (JSX version — kept local to avoid circular dep)

@@ -9,10 +9,10 @@
 "use client";
 
 import { format } from "date-fns";
-import { Card, CardContent, CardHeader, CardTitle } from "../card.js";
-import { ScrollArea } from "../scroll-area.js";
-import type { ContentVersion } from "./contentVersioningTypes.js";
-import { getTextContent, getAuthorName, computeWordDiff } from "./contentVersioningTypes.js";
+import { Card, CardContent, CardHeader, CardTitle } from "../card";
+import { ScrollArea } from "../scroll-area";
+import type { ContentVersion } from "./contentVersioningTypes";
+import { getTextContent, getAuthorName, computeWordDiff } from "./contentVersioningTypes";
 
 // ---------------------------------------------------------------------------
 // Props

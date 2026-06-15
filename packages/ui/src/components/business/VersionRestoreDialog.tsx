@@ -17,8 +17,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "../alert-dialog.js";
-import type { ContentVersion } from "./contentVersioningTypes.js";
+} from "../alert-dialog";
+import type { ContentVersion } from "./contentVersioningTypes";
 
 // ---------------------------------------------------------------------------
 // Props

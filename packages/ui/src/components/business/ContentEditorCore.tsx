@@ -8,17 +8,17 @@
  * @layer infrastructure
  */
 import React from "react";
-import { cn } from "../../lib/utils.js";
+import { cn } from "../../lib/utils";
 import type {
   MediaFile,
   ContentEditorCoreProps,
   ContentEditorCoreFeatures,
-} from "./contentEditorTypes.js";
-import { useContentEditor } from "./useContentEditor.js";
-import { EmojiPickerButton } from "./EmojiPickerButton.js";
+} from "./contentEditorTypes";
+import { useContentEditor } from "./useContentEditor";
+import { EmojiPickerButton } from "./EmojiPickerButton";
 
 // Re-export all types and utilities from contentEditorTypes for backward compatibility.
-// Consumers importing from "./ContentEditorCore.js" will continue to work unchanged.
+// Consumers importing from "./ContentEditorCore" will continue to work unchanged.
 export type {
   MediaFile,
   ProviderConstraints,
@@ -32,18 +32,18 @@ export type {
   MediaPreviewRenderProps,
   CharacterCountRenderProps,
   ValidationPanelRenderProps,
-} from "./contentEditorTypes.js";
+} from "./contentEditorTypes";
 
 export {
   validateContentForProvider,
   getMinCharLimit,
   getMinMediaLimit,
   debounce,
-} from "./contentEditorTypes.js";
+} from "./contentEditorTypes";
 
 // Re-export the hook for direct consumers
-export { useContentEditor } from "./useContentEditor.js";
-export type { UseContentEditorOptions, UseContentEditorReturn } from "./useContentEditor.js";
+export { useContentEditor } from "./useContentEditor";
+export type { UseContentEditorOptions, UseContentEditorReturn } from "./useContentEditor";
 
 /**
  * ContentEditorCore Component

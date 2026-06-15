@@ -10,9 +10,9 @@
 
 import { useId } from "react";
 
-import type { ContentVersion } from "./contentVersioningTypes.js";
-import { getAuthorName } from "./contentVersioningTypes.js";
-import type { VersionFilter, SortMode } from "./useContentVersioning.js";
+import type { ContentVersion } from "./contentVersioningTypes";
+import { getAuthorName } from "./contentVersioningTypes";
+import type { VersionFilter, SortMode } from "./useContentVersioning";
 
 // ---------------------------------------------------------------------------
 // Props
