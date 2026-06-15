@@ -6,11 +6,11 @@
  */
 
 import { randomUUID } from "node:crypto";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import type { CachePort } from "@ports/core";
-import { OrchestrationResult, ContentVersion } from "@shared/orchestration";
-import { EventService } from "../events/EventService";
-import { VersionBranch } from "./contentVersionTypes";
+import { OrchestrationResult, ContentVersion } from "@shared/types/orchestration.js";
+import { EventService } from "../events/EventService.js";
+import { VersionBranch } from "./contentVersionTypes.js";
 
 // `branchCache` is intentionally write-only: entries are stored on
 // creation and the read path goes through Redis directly.

@@ -6,7 +6,7 @@
  */
 
 import { createHash } from "crypto";
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 
 // Redis key prefixes
 const TOKEN_BLACKLIST_PREFIX = "auth:blacklist:";

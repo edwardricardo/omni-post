@@ -13,7 +13,7 @@ import type {
   MetricType,
   CompetitorComparison,
   TrendDataPoint,
-} from "@shared/analytics";
+} from "@shared/types/analytics.js";
 import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
 import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
 import type {

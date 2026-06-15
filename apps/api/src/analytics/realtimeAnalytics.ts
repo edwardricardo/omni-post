@@ -16,7 +16,7 @@ import { createLogger } from "../lib/logger.js";
 const analyticsLogger = createLogger("analytics");
 import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
 import type { AnalyticsStreamBroadcaster } from "../services/AnalyticsStreamBroadcaster.js";
-import { BaseService } from "../services/BaseService";
+import { BaseService } from "../services/BaseService.js";
 
 /**
  * A single post's metrics for one provider at a point in time, with optional
