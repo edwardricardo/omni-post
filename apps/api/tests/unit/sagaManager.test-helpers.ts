@@ -3,9 +3,9 @@
  * @description Test helpers for saga manager test helpers
  * @layer infrastructure
  */
-import { SagaManagerImpl } from "../../src/saga/SagaManager";
-import { SagaDefinition, SagaStep, SagaContext, SagaStepResult } from "@shared/saga";
-import { EventStoreEvent } from "@shared/events";
+import { SagaManagerImpl } from "../../src/saga/SagaManager.js";
+import { SagaDefinition, SagaStep, SagaContext, SagaStepResult } from "@shared/types/saga.js";
+import { EventStoreEvent } from "@shared/types/events.js";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 
 export interface MockPrismaClient {
