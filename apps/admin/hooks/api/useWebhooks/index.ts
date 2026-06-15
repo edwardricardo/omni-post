@@ -6,7 +6,7 @@
  * @layer infrastructure
  */
 
-export type { DeadLetterEvent, WebhookEvent, WebhookSubscription } from "./types";
+export type { DeadLetterEvent, WebhookEvent, WebhookSubscription } from "./types.js";
 
 export {
   useDlqMetrics,
@@ -17,7 +17,7 @@ export {
   useWebhookEvents,
   useWebhookMetrics,
   useWebhookSubscriptions,
-} from "./queries";
+} from "./queries.js";
 
 export {
   useCreateWebhookSubscription,
@@ -28,4 +28,4 @@ export {
   useRetryOutboxDlq,
   useRetryWebhookDeadLetter,
   useUpdateWebhookSubscription,
-} from "./mutations";
+} from "./mutations.js";

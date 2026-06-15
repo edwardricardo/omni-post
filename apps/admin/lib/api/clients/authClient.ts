@@ -7,7 +7,7 @@
  * @layer infrastructure
  */
 
-import { http } from "./http";
+import { http } from "./http.js";
 
 export interface LoginCredentials {
   email: string;

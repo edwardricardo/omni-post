@@ -21,7 +21,7 @@ import type {
   WebhookEventsFilters,
   WebhookEventsPage,
   WebhookSubscription,
-} from "./types";
+} from "./types.js";
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { credentials: "include", ...init });

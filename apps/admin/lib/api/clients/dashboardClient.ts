@@ -13,8 +13,8 @@ import type {
   AccountSummary,
   DashboardStats,
   SubscriptionSummary,
-} from "../types";
-import { http } from "./http";
+} from "../types.js";
+import { http } from "./http.js";
 
 /**
  * @const dashboardClient
