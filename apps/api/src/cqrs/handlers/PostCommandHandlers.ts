@@ -16,8 +16,8 @@ import {
   CreatePostCommandSchema,
   UpdatePostCommandSchema,
   PublishPostCommandSchema,
-} from "@shared/cqrs";
-import { createPostEvent, createUserActionEvent, EVENT_TYPES } from "@shared/events";
+} from "@shared/types/cqrs.js";
+import { createPostEvent, createUserActionEvent, EVENT_TYPES } from "@shared/types/events.js";
 import type { CreatePostUseCase } from "@core/posts/CreatePostUseCase.js";
 import type { UpdatePostUseCase } from "@core/posts/UpdatePostUseCase.js";
 import type { DeletePostUseCase } from "@core/posts/DeletePostUseCase.js";
@@ -27,8 +27,8 @@ import {
   type PostRepository,
   type ChannelRepository,
 } from "@core/domain/index.js";
-import { invalidateQueryCache } from "../CQRSBus";
-import type Redis from "ioredis";
+import { invalidateQueryCache } from "../CQRSBus.js";
+import type { Redis } from "ioredis";
 import { createLogger } from "../../lib/logger.js";
 
 const log = createLogger("cqrs:post-commands");

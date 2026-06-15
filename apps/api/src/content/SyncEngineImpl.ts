@@ -6,10 +6,10 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { VersionDiff, SyncRule } from "@shared/orchestration";
+import { VersionDiff, SyncRule } from "@shared/types/orchestration.js";
 import type { CanonicalPost } from "@shared/types";
-import type { ProviderId } from "../providers/providerAdapter.interface";
-import { SyncEngineBase } from "./SyncEngineBase";
+import type { ProviderId } from "../providers/providerAdapter.interface.js";
+import { SyncEngineBase } from "./SyncEngineBase.js";
 import { logger } from "../lib/logger.js";
 import { AppError } from "../lib/errors/AppError.js";
 import type {
@@ -20,7 +20,7 @@ import type {
   SyncRollbackPlan,
   SyncMetrics,
   RealtimeSyncEvent,
-} from "./syncEngineTypes";
+} from "./syncEngineTypes.js";
 
 export class SyncEngine extends SyncEngineBase {
   /**

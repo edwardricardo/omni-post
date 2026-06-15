@@ -5,13 +5,17 @@
  * @layer infrastructure
  */
 
-import type { AdaptationRule, OrchestrationError, PlatformAdaptation } from "@shared/orchestration";
+import type {
+  AdaptationRule,
+  OrchestrationError,
+  PlatformAdaptation,
+} from "@shared/types/orchestration.js";
 import type { CanonicalPost } from "@shared/types";
 import type {
   ProviderId,
   ProviderLimits,
   ProviderCapabilities,
-} from "../providers/providerAdapter.interface";
+} from "../providers/providerAdapter.interface.js";
 
 export interface AdaptationStrategy {
   id: string;

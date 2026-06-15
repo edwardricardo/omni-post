@@ -5,11 +5,11 @@
  * @layer infrastructure
  */
 
-import Redis from "ioredis";
-import type { VersionDiff } from "@shared/orchestration";
+import { Redis } from "ioredis";
+import type { VersionDiff } from "@shared/types/orchestration.js";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
-import type { ProviderId } from "../providers/providerAdapter.interface";
-import { EventService } from "../events/EventService";
+import type { ProviderId } from "../providers/providerAdapter.interface.js";
+import { EventService } from "../events/EventService.js";
 import { logger } from "../lib/logger.js";
 
 export interface RealtimeSyncEvent {

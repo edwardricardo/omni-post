@@ -13,9 +13,9 @@ import {
   QueryResult,
   CQRSBus,
   generateCacheKey,
-} from "@shared/cqrs";
-import { EventService } from "../events/EventService";
-import Redis from "ioredis";
+} from "@shared/types/cqrs.js";
+import { EventService } from "../events/EventService.js";
+import { Redis } from "ioredis";
 import { logger } from "../lib/logger.js";
 
 interface CQRSBusConfig {

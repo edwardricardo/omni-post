@@ -20,7 +20,7 @@ import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import type { QueuePortRegistry } from "@ports/core";
 import { createS3StorageAdapter } from "@adapters/storage-s3";
 import { providerRegistry } from "../providers/providerRegistry.js";
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import type { RedisCacheManager } from "@adapters/cache-redis";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { PrismaClient } from "@infra/prisma";

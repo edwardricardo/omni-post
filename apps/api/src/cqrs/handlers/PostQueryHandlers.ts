@@ -5,7 +5,7 @@
  */
 
 import type { PostQueryRepository } from "@core/domain/index.js";
-import type { Query, QueryHandler } from "@shared/cqrs";
+import type { Query, QueryHandler } from "@shared/types/cqrs.js";
 
 // Re-export handler classes from sub-modules
 export { GetPostQueryHandler, ListPostsQueryHandler } from "./PostQueryGetList.js";

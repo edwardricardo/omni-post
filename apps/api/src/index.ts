@@ -54,7 +54,7 @@ import {
 import type { RateLimiterPort } from "@ports/core";
 import { createErrorHandler } from "./lib/errors/errorHandler.js";
 import { createRedisConnection, getRedisUrl } from "./lib/redis.js";
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import { logger } from "./lib/logger.js";
 import { ApiMetrics } from "./metrics/apiMetrics.js";
 import { createMetricsMiddleware } from "./middleware/metricsMiddleware.js";

@@ -6,16 +6,16 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import type {
   PlatformAdaptation,
   AdaptationRule,
   OrchestrationResult,
-} from "@shared/orchestration";
+} from "@shared/types/orchestration.js";
 import type { CanonicalPost, ProviderMetadata } from "@shared/types";
-import type { ProviderId, ProviderAdapter } from "../providers/providerAdapter.interface";
-import type { EventService } from "../events/EventService";
-import { providerRegistry } from "../providers/providerRegistry";
+import type { ProviderId, ProviderAdapter } from "../providers/providerAdapter.interface.js";
+import type { EventService } from "../events/EventService.js";
+import { providerRegistry } from "../providers/providerRegistry.js";
 import type {
   AdaptationStrategy,
   ContentTransformer,

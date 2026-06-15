@@ -6,7 +6,7 @@
  */
 
 import { PrismaClient, Prisma } from "@infra/prisma";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import {
   EventStoreEvent,
   EventHandler,
@@ -19,11 +19,11 @@ import {
   ChannelConnectedEvent as _ChannelConnectedEvent,
   AnalyticsCollectedEvent as _AnalyticsCollectedEvent,
   UserActionEvent,
-} from "@shared/events";
+} from "@shared/types/events.js";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
-import { PostgreSQLEventStore } from "./EventStore";
-import { RedisEventPublisher } from "./EventPublisher";
-import { BaseService } from "../services/BaseService";
+import { PostgreSQLEventStore } from "./EventStore.js";
+import { RedisEventPublisher } from "./EventPublisher.js";
+import { BaseService } from "../services/BaseService.js";
 import { Result } from "@shared/types";
 
 interface EventServiceConfig {

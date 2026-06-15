@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import {
   EventStoreEvent,
@@ -13,7 +13,7 @@ import {
   EventPublisher as IEventPublisher,
   serializeEvent,
   deserializeEvent,
-} from "@shared/events";
+} from "@shared/types/events.js";
 import { logger } from "../lib/logger.js";
 
 interface PublisherConfig {
