@@ -3,7 +3,7 @@
  * @description Test helpers for cqrsbus test helpers
  * @layer infrastructure
  */
-import type { EventStoreEvent } from "@shared/events";
+import type { EventStoreEvent } from "@shared/types/events.js";
 import type {
   Command,
   CommandHandler,
@@ -11,7 +11,7 @@ import type {
   Query,
   QueryHandler,
   QueryResult,
-} from "@shared/cqrs";
+} from "@shared/types/cqrs.js";
 
 export class MockRedis {
   private store = new Map<string, string>();

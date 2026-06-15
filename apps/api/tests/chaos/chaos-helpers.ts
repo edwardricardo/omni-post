@@ -15,7 +15,7 @@
  */
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { SagaManagerImpl } from "../../src/saga/SagaManager.js";
-import type { SagaStep, SagaStepResult, SagaContext } from "@shared/saga";
+import type { SagaStep, SagaStepResult, SagaContext } from "@shared/types/saga.js";
 import {
   createMockPrisma,
   createMockRedis,

@@ -9,7 +9,7 @@
 
 import { describe, it, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import { RedisTokenBucketRateLimiter } from "../../src/ai/providers/RedisTokenBucketRateLimiter.js";
 
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";

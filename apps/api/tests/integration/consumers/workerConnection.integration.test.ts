@@ -25,7 +25,7 @@
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import { createBullMQConsumerAdapter, QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { Container } from "../../../src/infrastructure/container/Container.js";
 import { TOKENS } from "../../../src/infrastructure/container/types.js";
