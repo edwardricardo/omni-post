@@ -7,7 +7,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchOidcConfig, fetchSamlConfig } from "./api";
+import { fetchOidcConfig, fetchSamlConfig } from "./api.js";
 
 /**
  * @hook useSamlConfig
