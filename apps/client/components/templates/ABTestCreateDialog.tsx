@@ -25,7 +25,7 @@ import {
 } from "@packages/ui";
 import { Plus, Trash2 } from "lucide-react";
 import type { Template } from "@/lib/templates/templateEngine";
-import type { CreateFormState } from "./useABTestManager.js";
+import type { CreateFormState } from "./useABTestManager";
 
 interface ABTestCreateDialogProps {
   open: boolean;

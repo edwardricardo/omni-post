@@ -8,8 +8,8 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { TeamMemberRow } from "./TeamMemberRow.js";
-import { IntlTestProvider } from "../../tests/intl-test-utils.js";
+import { TeamMemberRow } from "./TeamMemberRow";
+import { IntlTestProvider } from "../../tests/intl-test-utils";
 import type { TeamMemberDto } from "@/hooks/api/useTeam";
 
 vi.mock("@packages/ui", () => ({

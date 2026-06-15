@@ -25,7 +25,7 @@ import {
   AlertDialogTitle,
 } from "@packages/ui";
 import { Copy } from "lucide-react";
-import type { TemplateLibraryDialogsProps } from "./templateLibraryTypes.js";
+import type { TemplateLibraryDialogsProps } from "./templateLibraryTypes";
 
 export function TemplateLibraryDialogs({
   previewOpen,

@@ -20,7 +20,7 @@ import {
 } from "@packages/ui";
 import { GitBranch, GitCommit, GitMerge, Copy, Trash2, MoreVertical, Clock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import type { VersionBranch } from "./templateVersionControlTypes.js";
+import type { VersionBranch } from "./templateVersionControlTypes";
 
 interface BranchCardProps {
   branch: VersionBranch;
