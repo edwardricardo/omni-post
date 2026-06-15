@@ -12,7 +12,7 @@
 
 import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import { ApiMetrics } from "../../src/metrics/apiMetrics.js";
 import {
   RateLimitingDashboard,

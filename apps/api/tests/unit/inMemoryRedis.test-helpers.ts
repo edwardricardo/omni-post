@@ -11,7 +11,7 @@
  *   separately.
  * @layer infrastructure
  */
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 
 interface ZMember {
   score: number;

@@ -51,7 +51,7 @@ import { contentRoutes } from "../../src/content/contentRoutes.js";
 import { setupContainer } from "../../src/infrastructure/container/setup.js";
 import { createRedisConnection } from "../../src/lib/redis.js";
 import { prisma } from "@infra/prisma";
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 
 let redis: Redis;
 

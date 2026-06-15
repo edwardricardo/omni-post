@@ -13,8 +13,8 @@
  */
 
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
-import { SagaIntegration } from "../../src/saga/SagaIntegration";
-import { buildIntegration, passthroughReply } from "./sagaIntegration.helpers";
+import { SagaIntegration } from "../../src/saga/SagaIntegration.js";
+import { buildIntegration, passthroughReply } from "./sagaIntegration.helpers.js";
 
 // Suppress verbose background-execution logs so they don't corrupt the TAP
 // stream when this file runs as a subprocess in the full test suite.
