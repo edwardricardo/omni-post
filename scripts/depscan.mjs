@@ -153,7 +153,9 @@ for (const [importer, list] of [...byImporter.entries()].sort()) {
     if (isLib) undeclaredPkgCount++;
   }
 }
-console.log(`\nUndeclared edges total: ${undeclared.length} (lib-package undeclared: ${undeclaredPkgCount})`);
+console.log(
+  `\nUndeclared edges total: ${undeclared.length} (lib-package undeclared: ${undeclaredPkgCount})`
+);
 
 console.log("\n=== CYCLES (workspace package graph) ===");
 if (cycles.length === 0) console.log("none — ACYCLIC");
