@@ -7,9 +7,9 @@
  * @layer infrastructure
  */
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
-import { SagaIntegration } from "../../src/saga/SagaIntegration";
-import { CreatePostStep, createSagaContext } from "@shared/saga";
-import type { Command } from "@shared/cqrs";
+import { SagaIntegration } from "../../src/saga/SagaIntegration.js";
+import { CreatePostStep, createSagaContext } from "@shared/types/saga.js";
+import type { Command } from "@shared/types/cqrs.js";
 import {
   buildIntegration,
   makeStartRequest,
@@ -18,7 +18,7 @@ import {
   TEST_EXISTING_DRAFT_POST_ID,
   type MockCQRSBus,
   type MockRedis,
-} from "./sagaIntegration.helpers";
+} from "./sagaIntegration.helpers.js";
 
 describe("Saga — existing-post path (postId provided)", () => {
   let integration: SagaIntegration;

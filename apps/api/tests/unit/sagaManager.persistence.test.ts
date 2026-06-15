@@ -14,7 +14,7 @@
  */
 
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
-import { SagaManagerImpl } from "../../src/saga/SagaManager";
+import { SagaManagerImpl } from "../../src/saga/SagaManager.js";
 import {
   createMockPrisma,
   createMockRedis,
@@ -24,7 +24,7 @@ import {
   type MockPrismaClient,
   type MockRedis,
   type MockEventService,
-} from "./sagaManager.test-helpers";
+} from "./sagaManager.test-helpers.js";
 
 // Suppress verbose background-execution logs so they don't corrupt the TAP
 // stream when this file runs as a subprocess in the full test suite.
@@ -226,7 +226,7 @@ describe("SagaManager - Persistence on Status Transitions", () => {
   });
 
   it("should persist FAILED status when a step fails without retry", async () => {
-    const { createFailingSagaDefinition } = await import("./sagaManager.test-helpers");
+    const { createFailingSagaDefinition } = await import("./sagaManager.test-helpers.js");
     const definition = createFailingSagaDefinition();
     manager.registerSaga(definition);
 
@@ -244,7 +244,7 @@ describe("SagaManager - Persistence on Status Transitions", () => {
   });
 
   it("should persist COMPENSATED status after compensation completes", async () => {
-    const { createFailingSagaDefinition } = await import("./sagaManager.test-helpers");
+    const { createFailingSagaDefinition } = await import("./sagaManager.test-helpers.js");
     const definition = createFailingSagaDefinition();
     manager.registerSaga(definition);
 

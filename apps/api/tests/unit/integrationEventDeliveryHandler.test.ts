@@ -11,7 +11,7 @@ import {
   IntegrationEventDeliveryHandler,
   INTEGRATION_EVENT_NAMES,
   HANDLED_EVENT_TYPES,
-} from "../../src/integrations/IntegrationEventDeliveryHandler";
+} from "../../src/integrations/IntegrationEventDeliveryHandler.js";
 import type { TriggerIntegrationEventService } from "@core/integrations/TriggerIntegrationEventService";
 import type { DomainEvent } from "@core/domain/events/DomainEvent";
 

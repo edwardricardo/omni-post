@@ -4,7 +4,7 @@
  * @layer infrastructure
  */
 import { randomUUID } from "node:crypto";
-import type { EventStoreEvent } from "@shared/events";
+import type { EventStoreEvent } from "@shared/types/events.js";
 
 // ---------------------------------------------------------------------------
 // Stable test UUIDs
