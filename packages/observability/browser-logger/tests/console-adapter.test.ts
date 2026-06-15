@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { ConsoleLoggerAdapter } from "../src/console-adapter";
+import { ConsoleLoggerAdapter } from "../src/console-adapter.js";
 
 describe("ConsoleLoggerAdapter", () => {
   let debugSpy: ReturnType<typeof vi.spyOn>;

@@ -18,7 +18,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "./alert-dialog";
+} from "./alert-dialog.js";
 
 interface ConfirmDialogProps {
   open: boolean;

@@ -7,7 +7,7 @@
  * @layer infrastructure
  */
 
-import type { BackgroundTaskOptions, BackgroundTaskScheduler, ShutdownResult } from "./port";
+import type { BackgroundTaskOptions, BackgroundTaskScheduler, ShutdownResult } from "./port.js";
 
 interface NoopTask {
   readonly id: string;

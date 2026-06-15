@@ -10,7 +10,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { createHmac } from "crypto";
-import { verifyWebhookSignature, constantTimeCompare } from "../src/webhookSignature";
+import { verifyWebhookSignature, constantTimeCompare } from "../src/webhookSignature.js";
 
 function sign(payload: string, secret: string, encoding: "hex" | "base64" = "hex"): string {
   return createHmac("sha256", secret).update(payload, "utf8").digest(encoding);

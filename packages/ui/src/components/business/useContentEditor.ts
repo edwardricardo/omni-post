@@ -14,13 +14,13 @@ import type {
   ValidationResult,
   ContentEditorContent,
   ContentEditorCoreFeatures,
-} from "./contentEditorTypes";
+} from "./contentEditorTypes.js";
 import {
   validateContentForProvider,
   getMinCharLimit,
   getMinMediaLimit,
   debounce,
-} from "./contentEditorTypes";
+} from "./contentEditorTypes.js";
 
 // packages/ui is framework-agnostic and cannot assume a LoggerProvider is in
 // scope — instantiate the console adapter directly. Consumers that want richer

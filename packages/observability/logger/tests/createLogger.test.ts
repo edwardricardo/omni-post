@@ -8,7 +8,7 @@
  * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";
-import { createLogger } from "../src/index";
+import { createLogger } from "../src/index.js";
 
 describe("createLogger", () => {
   it("binds the given name onto the logger", () => {

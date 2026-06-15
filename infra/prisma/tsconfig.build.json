@@ -13,8 +13,14 @@
     "skipLibCheck": true,
     "isolatedModules": false,
     "verbatimModuleSyntax": false,
-    "paths": {}
+    "paths": {},
+    "composite": true
   },
   "include": ["src/**/*", "generated/**/*"],
-  "exclude": ["node_modules", "dist", "seed.ts", "**/*.test.ts"]
+  "exclude": ["node_modules", "dist", "seed.ts", "**/*.test.ts"],
+  "references": [
+    {
+      "path": "../../packages/observability/logger/tsconfig.build.json"
+    }
+  ]
 }

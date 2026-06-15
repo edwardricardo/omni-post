@@ -9,7 +9,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { Button } from "./button";
+import { Button } from "./button.js";
 import {
   Dialog,
   DialogContent,
@@ -17,9 +17,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "./dialog";
-import { Input } from "./input";
-import { Label } from "./label";
+} from "./dialog.js";
+import { Input } from "./input.js";
+import { Label } from "./label.js";
 
 interface InputDialogProps {
   open: boolean;

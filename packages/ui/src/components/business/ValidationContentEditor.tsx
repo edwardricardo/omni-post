@@ -16,8 +16,8 @@ import {
   type ValidationResult,
   type ContentEditorContent,
   validateContentForProvider,
-} from "./ContentEditorCore";
-import { cn } from "../../lib/utils";
+} from "./ContentEditorCore.js";
+import { cn } from "../../lib/utils.js";
 
 export interface ValidationContentEditorProps extends Omit<
   ContentEditorCoreProps,
@@ -267,4 +267,4 @@ export type {
   ProviderConstraints,
   ContentEditorContent,
   ValidationResult,
-} from "./ContentEditorCore";
+} from "./ContentEditorCore.js";

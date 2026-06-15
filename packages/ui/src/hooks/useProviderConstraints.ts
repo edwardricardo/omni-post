@@ -8,7 +8,7 @@
  */
 import { useState, useEffect, useMemo } from "react";
 import { getProviderConfig } from "@shared/types";
-import type { ProviderConstraints } from "../components/business/ContentEditorCore";
+import type { ProviderConstraints } from "../components/business/ContentEditorCore.js";
 
 /**
  * Options for useProviderConstraints hook
