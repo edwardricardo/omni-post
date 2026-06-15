@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 import { useQuery } from "@tanstack/react-query";
-import { api } from "../../lib/apiClient";
+import { api } from "../../lib/apiClient.js";
 
 /**
  * @hook useSubscriptions

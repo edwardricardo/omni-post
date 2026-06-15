@@ -5,13 +5,13 @@
  * @layer infrastructure
  */
 
-export type { SettingsStatus, TestResult } from "./types";
+export type { SettingsStatus, TestResult } from "./types.js";
 
-export { useGroupSettings, useSettingsStatus } from "./queries";
+export { useGroupSettings, useSettingsStatus } from "./queries.js";
 
 export {
   useDeleteCredential,
   useRotateEncryption,
   useTestConnection,
   useUpdateGroupSettings,
-} from "./mutations";
+} from "./mutations.js";
