@@ -8,20 +8,20 @@
  */
 import dynamic from "next/dynamic";
 
-export type { DonutChartDatum } from "./DonutChart.js";
+export type { DonutChartDatum } from "./DonutChart";
 
-export const DonutChart = dynamic(() => import("./DonutChart.js").then((m) => m.DonutChart), {
+export const DonutChart = dynamic(() => import("./DonutChart").then((m) => m.DonutChart), {
   ssr: false,
 });
 export const TrendAreaChart = dynamic(
-  () => import("./TrendAreaChart.js").then((m) => m.TrendAreaChart),
+  () => import("./TrendAreaChart").then((m) => m.TrendAreaChart),
   { ssr: false }
 );
 export const StackedBarChart = dynamic(
-  () => import("./StackedBarChart.js").then((m) => m.StackedBarChart),
+  () => import("./StackedBarChart").then((m) => m.StackedBarChart),
   { ssr: false }
 );
 export const HorizontalBarChart = dynamic(
-  () => import("./HorizontalBarChart.js").then((m) => m.HorizontalBarChart),
+  () => import("./HorizontalBarChart").then((m) => m.HorizontalBarChart),
   { ssr: false }
 );

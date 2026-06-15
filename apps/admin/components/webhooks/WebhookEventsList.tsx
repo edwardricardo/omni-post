@@ -17,7 +17,7 @@ import {
   useExportWebhookEvents,
   type WebhookEvent,
 } from "@/hooks/api/useWebhooks";
-import { LoadingSpinner } from "../shared/LoadingSpinner.js";
+import { LoadingSpinner } from "../shared/LoadingSpinner";
 import {
   Dialog,
   DialogContent,

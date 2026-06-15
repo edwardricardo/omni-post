@@ -11,7 +11,7 @@
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { getErrorMessage } from "@packages/api-errors";
-import { LoadingSpinner } from "../shared/LoadingSpinner.js";
+import { LoadingSpinner } from "../shared/LoadingSpinner";
 import {
   Dialog,
   DialogContent,

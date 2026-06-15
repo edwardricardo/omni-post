@@ -10,7 +10,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { ShieldCheck, ShieldOff } from "lucide-react";
 import { toast } from "@packages/ui";
-import { api } from "../../lib/apiClient.js";
+import { api } from "../../lib/apiClient";
 import { ApiError, getErrorMessage } from "@packages/api-errors";
 import { ActionButton } from "@/components/ui/ActionButton";
 import { Badge } from "@/components/ui/Badge";

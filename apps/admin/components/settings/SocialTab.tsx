@@ -10,8 +10,8 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { ChevronDown } from "lucide-react";
 
-import { CredentialForm } from "./CredentialForm.js";
-import { buildFieldDefs, SOCIAL_GROUPS } from "./constants.js";
+import { CredentialForm } from "./CredentialForm";
+import { buildFieldDefs, SOCIAL_GROUPS } from "./constants";
 
 // ---------------------------------------------------------------------------
 // Inline collapsible (not a shared UI component)

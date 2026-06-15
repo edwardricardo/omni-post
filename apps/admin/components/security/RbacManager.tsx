@@ -14,13 +14,13 @@ import { toast } from "@packages/ui";
 import { useCurrentUser } from "@/providers/AuthProvider";
 
 import { ApiError, getErrorMessage } from "@packages/api-errors";
-import { api, type RoleInfo } from "../../lib/apiClient.js";
-import { LoadingSpinner } from "../shared/LoadingSpinner.js";
+import { api, type RoleInfo } from "../../lib/apiClient";
+import { LoadingSpinner } from "../shared/LoadingSpinner";
 import { InputDialog, ConfirmDialog } from "@packages/ui";
-import { Badge } from "../ui/Badge.js";
-import { ActionButton } from "../ui/ActionButton.js";
-import { PermissionGrid } from "./PermissionGrid.js";
-import { CreateRoleDialog } from "./CreateRoleDialog.js";
+import { Badge } from "../ui/Badge";
+import { ActionButton } from "../ui/ActionButton";
+import { PermissionGrid } from "./PermissionGrid";
+import { CreateRoleDialog } from "./CreateRoleDialog";
 
 interface RbacUser {
   id: string;
