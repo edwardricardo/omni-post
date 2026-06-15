@@ -12,7 +12,7 @@ import { ShieldAlert } from "lucide-react";
 import { toast } from "@packages/ui";
 
 import { useRotateEncryption } from "@/hooks/api/useSettings";
-import { ActionButton } from "../ui/ActionButton";
+import { ActionButton } from "../ui/ActionButton.js";
 import { ConfirmDialog } from "@packages/ui";
 
 /**
