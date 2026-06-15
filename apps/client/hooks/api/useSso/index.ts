@@ -11,9 +11,9 @@ export type {
   OidcConfig,
   SamlConfig,
   SsoProvider,
-} from "./types.js";
+} from "./types";
 
-export { useOidcConfig, useSamlConfig } from "./queries.js";
+export { useOidcConfig, useSamlConfig } from "./queries";
 
 export {
   useConfigureOidc,
@@ -21,4 +21,4 @@ export {
   useDisableSso,
   useEnableOidc,
   useEnableSaml,
-} from "./mutations.js";
+} from "./mutations";

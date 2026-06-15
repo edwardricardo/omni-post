@@ -7,7 +7,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { archiveCampaign, createCampaign } from "./api.js";
+import { archiveCampaign, createCampaign } from "./api";
 
 /**
  * @hook useCreateCampaign

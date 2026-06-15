@@ -18,8 +18,8 @@ import {
   markNotificationRead,
   saveNotificationPreferences,
   type NotificationPreferenceDto,
-} from "../../../lib/api/clients/notificationsClient.js";
-import { notificationsQueries } from "../../../lib/api/queries/notificationsQueries.js";
+} from "../../../lib/api/clients/notificationsClient";
+import { notificationsQueries } from "../../../lib/api/queries/notificationsQueries";
 
 /**
  * @hook useMarkAllNotificationsRead

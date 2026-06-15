@@ -12,11 +12,11 @@
 "use client";
 
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { notificationsQueries } from "../../../lib/api/queries/notificationsQueries.js";
+import { notificationsQueries } from "../../../lib/api/queries/notificationsQueries";
 import type {
   NotificationItemDto,
   NotificationPreferenceDto,
-} from "../../../lib/api/clients/notificationsClient.js";
+} from "../../../lib/api/clients/notificationsClient";
 
 /**
  * @hook useNotificationsList

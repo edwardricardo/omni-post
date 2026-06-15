@@ -12,15 +12,15 @@ export {
   useNotificationsList,
   useNotificationsUnreadCount,
   useNotificationPreferences,
-} from "./queries.js";
+} from "./queries";
 
 export {
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useSaveNotificationPreferences,
-} from "./mutations.js";
+} from "./mutations";
 
 export type {
   NotificationItemDto,
   NotificationPreferenceDto,
-} from "../../../lib/api/clients/notificationsClient.js";
+} from "../../../lib/api/clients/notificationsClient";
