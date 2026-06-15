@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { ClientTemplateEngine } from "../ClientTemplateEngine.js";
+import { ClientTemplateEngine } from "../ClientTemplateEngine";
 
 // ============================================================================
 // Mock fetch

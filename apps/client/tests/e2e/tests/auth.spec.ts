@@ -3,7 +3,7 @@
  * @description Tests for Authentication Flows
  * @layer infrastructure
  */
-import { test, expect } from "../config/test-setup.js";
+import { test, expect } from "../config/test-setup";
 // Page type not used directly '../pages/AuthPage';
 // Page type not used directly '../pages/DashboardPage';
 

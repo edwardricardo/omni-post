@@ -7,7 +7,7 @@
  * @layer infrastructure
  */
 
-import type { ProjectChannel } from "./types.js";
+import type { ProjectChannel } from "./types";
 
 interface ChannelEnvelope {
   ok: boolean;

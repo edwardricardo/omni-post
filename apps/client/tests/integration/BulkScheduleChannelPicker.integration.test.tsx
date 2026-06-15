@@ -10,8 +10,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
-import type { ProjectChannel } from "../../lib/hooks/useProjectChannels/types.js";
-import { BulkScheduleChannelPicker } from "../../components/scheduling/BulkScheduleChannelPicker.js";
+import type { ProjectChannel } from "../../lib/hooks/useProjectChannels/types";
+import { BulkScheduleChannelPicker } from "../../components/scheduling/BulkScheduleChannelPicker";
 
 // ---------------------------------------------------------------------------
 // Fixtures

@@ -4,7 +4,7 @@
  * @layer infrastructure
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { ClientTemplateEngine } from "../ClientTemplateEngine.js";
+import { ClientTemplateEngine } from "../ClientTemplateEngine";
 import type { Template, TemplateContext } from "@shared/types";
 
 describe("ClientTemplateEngine", () => {

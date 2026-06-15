@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-export type { ChannelProvider, ChannelStatus, ProjectChannel } from "./types.js";
-export type { ConnectBlueskyInput, ConnectBlueskyResult } from "./api.js";
-export { useProjectChannels } from "./queries.js";
-export { useConnectBluesky, useDisconnectChannel, useSetPrimaryChannel } from "./mutations.js";
+export type { ChannelProvider, ChannelStatus, ProjectChannel } from "./types";
+export type { ConnectBlueskyInput, ConnectBlueskyResult } from "./api";
+export { useProjectChannels } from "./queries";
+export { useConnectBluesky, useDisconnectChannel, useSetPrimaryChannel } from "./mutations";

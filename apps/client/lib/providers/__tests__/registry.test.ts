@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { providerRegistry } from "../registry.js";
+import { providerRegistry } from "../registry";
 
 // ============================================================================
 // getProvider (legacy API)
