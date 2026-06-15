@@ -11,7 +11,7 @@ import { useState, useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { useTasks, useCompleteTask, useCancelTask } from "@/hooks/api/useTasks";
 import type { TaskDto } from "@/hooks/api/useTasks";
-import { TaskCard } from "./TaskCard";
+import { TaskCard } from "./TaskCard.js";
 
 interface TaskListProps {
   accountId: string;

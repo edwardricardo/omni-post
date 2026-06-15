@@ -12,13 +12,13 @@
 
 import React, { useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import type { SchedulingDashboardProps } from "./schedulingDashboardTypes";
-import { useSchedulingDashboard } from "./useSchedulingDashboard";
-import { SchedulingDashboardSidebar } from "./SchedulingDashboardSidebar";
-import { SchedulingDashboardCalendar } from "./SchedulingDashboardCalendar";
-import { SchedulingDashboardPostModal } from "./SchedulingDashboardPostModal";
-import { WeekCalendar } from "./WeekCalendar";
-import { DayCalendar } from "./DayCalendar";
+import type { SchedulingDashboardProps } from "./schedulingDashboardTypes.js";
+import { useSchedulingDashboard } from "./useSchedulingDashboard.js";
+import { SchedulingDashboardSidebar } from "./SchedulingDashboardSidebar.js";
+import { SchedulingDashboardCalendar } from "./SchedulingDashboardCalendar.js";
+import { SchedulingDashboardPostModal } from "./SchedulingDashboardPostModal.js";
+import { WeekCalendar } from "./WeekCalendar.js";
+import { DayCalendar } from "./DayCalendar.js";
 
 export function SchedulingDashboard({
   projectId,
