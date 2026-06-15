@@ -9,10 +9,10 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { InboxSidebar } from "./InboxSidebar";
-import type { InboxFilters } from "./InboxSidebar";
-import { ConversationList } from "./ConversationList";
-import { ConversationThread } from "./ConversationThread";
+import { InboxSidebar } from "./InboxSidebar.js";
+import type { InboxFilters } from "./InboxSidebar.js";
+import { ConversationList } from "./ConversationList.js";
+import { ConversationThread } from "./ConversationThread.js";
 
 interface InboxLayoutProps {
   projectId?: string;

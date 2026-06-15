@@ -8,7 +8,7 @@
 
 import { useTranslations } from "next-intl";
 import { Avatar, AvatarFallback, AvatarImage } from "@packages/ui";
-import type { PreviewProps } from "./types";
+import type { PreviewProps } from "./types.js";
 
 const TELEGRAM_CAPTION_LIMIT = 4096;
 
