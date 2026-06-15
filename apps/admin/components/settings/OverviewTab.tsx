@@ -7,9 +7,9 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Badge } from "../ui/Badge";
-import { SOCIAL_GROUPS, TAB_GROUP_MAP } from "./constants";
-import type { CredentialGroup } from "./constants";
+import { Badge } from "../ui/Badge.js";
+import { SOCIAL_GROUPS, TAB_GROUP_MAP } from "./constants.js";
+import type { CredentialGroup } from "./constants.js";
 import type { SettingsStatus } from "@/hooks/api/useSettings";
 
 interface OverviewTabProps {

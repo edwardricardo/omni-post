@@ -13,8 +13,8 @@ import { useTranslations, type Messages } from "next-intl";
 import { toast } from "@packages/ui";
 
 import { ApiError, getErrorMessage } from "@packages/api-errors";
-import { api, type RoleInfo } from "../../lib/apiClient";
-import { ActionButton } from "../ui/ActionButton";
+import { api, type RoleInfo } from "../../lib/apiClient.js";
+import { ActionButton } from "../ui/ActionButton.js";
 
 /** Union of every permission category key declared under `security.permissions.categories`. */
 type PermissionCategory = keyof Messages["security"]["permissions"]["categories"];
