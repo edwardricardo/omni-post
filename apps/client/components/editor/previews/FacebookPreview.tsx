@@ -9,7 +9,7 @@
 import { useTranslations } from "next-intl";
 import { Avatar, AvatarFallback, AvatarImage, Button } from "@packages/ui";
 import { MessageCircle, MoreHorizontal, Share } from "lucide-react";
-import type { PreviewProps } from "./types";
+import type { PreviewProps } from "./types.js";
 
 const FACEBOOK_PREVIEW_LIMIT = 400;
 

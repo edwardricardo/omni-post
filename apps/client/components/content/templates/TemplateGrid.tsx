@@ -11,8 +11,8 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { FileText } from "lucide-react";
-import { TemplateCard } from "./TemplateCard";
-import type { ContentTemplate, ViewMode } from "./types";
+import { TemplateCard } from "./TemplateCard.js";
+import type { ContentTemplate, ViewMode } from "./types.js";
 
 interface TemplateGridProps {
   templates: ContentTemplate[];

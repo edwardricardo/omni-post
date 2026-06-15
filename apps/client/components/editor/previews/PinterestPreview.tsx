@@ -7,7 +7,7 @@
  */
 
 import { useTranslations } from "next-intl";
-import type { PreviewProps } from "./types";
+import type { PreviewProps } from "./types.js";
 
 const PIN_DESCRIPTION_LIMIT = 200;
 
