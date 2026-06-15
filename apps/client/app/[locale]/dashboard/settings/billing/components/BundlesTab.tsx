@@ -11,7 +11,7 @@
 import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import type { BillingPlan, GatewayProvider } from "@/hooks/api/useBilling";
-import { calcBundle } from "../utils/pricing.js";
+import { calcBundle } from "../utils/pricing";
 
 interface BundlesTabProps {
   plans: BillingPlan[] | undefined;

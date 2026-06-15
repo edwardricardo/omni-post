@@ -16,7 +16,7 @@
  * @layer infrastructure
  */
 import { test, expect } from "@playwright/test";
-import { TEST_CREDENTIALS, loginAs, clearAuth } from "./helpers.js";
+import { TEST_CREDENTIALS, loginAs, clearAuth } from "./helpers";
 
 test.describe("Smoke Tests — Critical Pages", () => {
   test.beforeEach(async ({ page }) => {

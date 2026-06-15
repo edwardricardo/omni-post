@@ -4,7 +4,7 @@
  * @layer infrastructure
  */
 import { test } from "@playwright/test";
-import { expectPageToBeAccessible } from "./utils/a11y.js";
+import { expectPageToBeAccessible } from "./utils/a11y";
 
 test.describe("Admin a11y smoke", () => {
   test("login page has no critical/serious WCAG 2 AA violations", async ({ page }) => {

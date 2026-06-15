@@ -10,7 +10,7 @@
 import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import type { GatewayProvider } from "@/hooks/api/useBilling";
-import { GATEWAY_LABELS } from "../utils/pricing.js";
+import { GATEWAY_LABELS } from "../utils/pricing";
 
 interface ActiveGatewayBannerProps {
   currentGateway: GatewayProvider;

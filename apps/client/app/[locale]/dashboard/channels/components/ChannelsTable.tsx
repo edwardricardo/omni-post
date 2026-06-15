@@ -10,9 +10,9 @@
 
 import { useTranslations } from "next-intl";
 import type { ProjectChannel } from "@/lib/hooks/useProjectChannels";
-import { ChannelAvatar } from "./ChannelAvatar.js";
-import { ChannelStatusBadge } from "./ChannelStatusBadge.js";
-import { formatDate } from "./formatters.js";
+import { ChannelAvatar } from "./ChannelAvatar";
+import { ChannelStatusBadge } from "./ChannelStatusBadge";
+import { formatDate } from "./formatters";
 
 interface ChannelsTableProps {
   channels: ProjectChannel[];
