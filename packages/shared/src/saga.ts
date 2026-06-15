@@ -13,8 +13,8 @@
 
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { EventStoreEvent } from "./events";
-import { Command } from "./cqrs";
+import { EventStoreEvent } from "./events.js";
+import { Command } from "./cqrs.js";
 
 // ============================================================================
 // Saga state

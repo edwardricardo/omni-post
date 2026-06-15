@@ -7,7 +7,7 @@
  *              return the same `QueuePort` instance.
  * @layer domain
  */
-import type { QueuePort } from "./QueuePort";
+import type { QueuePort } from "./QueuePort.js";
 
 export interface QueuePortRegistry {
   /**

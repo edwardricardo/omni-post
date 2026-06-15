@@ -8,8 +8,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { DefaultBackgroundTaskScheduler } from "../src/default-scheduler";
-import type { SchedulerLogger } from "../src/port";
+import { DefaultBackgroundTaskScheduler } from "../src/default-scheduler.js";
+import type { SchedulerLogger } from "../src/port.js";
 
 function makeLogger(): SchedulerLogger & {
   errorCalls: Array<{ message: string; data?: unknown }>;

@@ -4,7 +4,7 @@
  *              and analytics shapes shared by admin and client analytics features.
  * @layer domain
  */
-import type { ProviderName } from "./types";
+import type { ProviderName } from "./types.js";
 
 // Advanced Analytics & ML Integration Types
 export type TimeRange = "7d" | "30d" | "90d" | "1y" | "custom";

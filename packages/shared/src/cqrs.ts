@@ -9,7 +9,7 @@
 
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { EventStoreEvent } from "./events";
+import { EventStoreEvent } from "./events.js";
 
 /**
  * Base Command interface - represents user intentions to change state

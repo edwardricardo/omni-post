@@ -14,7 +14,7 @@ import {
   getErrorMessage,
   isPermissionDenied,
   isNotFoundError,
-} from "../src";
+} from "../src/index.js";
 
 describe("ApiError class", () => {
   it("constructs with status, code, message, and optional details", () => {

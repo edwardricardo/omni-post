@@ -6,14 +6,14 @@
  */
 
 // Core types (safe for client)
-export * from "./types";
+export * from "./types.js";
 
 // Event system (safe for client)
-export * from "./events";
+export * from "./events.js";
 
 // Saga and CQRS patterns (safe for client)
-export * from "./saga";
-export * from "./cqrs";
+export * from "./saga.js";
+export * from "./cqrs.js";
 
 // Provider configuration (safe for client - no server dependencies)
 export type {
@@ -22,7 +22,7 @@ export type {
   ProviderLimits,
   ProviderMetadata,
   ValidationResult as ProviderValidationResult,
-} from "./providers/providerConfig";
+} from "./providers/providerConfig.js";
 
 export {
   PROVIDER_CONFIGS,
@@ -33,7 +33,7 @@ export {
   validateContentForProviders,
   getMostRestrictiveCharLimit,
   getMostRestrictiveMediaLimit,
-} from "./providers/providerConfig";
+} from "./providers/providerConfig.js";
 
 // Template types (safe for client - no server dependencies)
 export type {
@@ -43,6 +43,6 @@ export type {
   TemplateContext,
   TemplateCompilationResult,
   ValidationResult as TemplateValidationResult,
-} from "./templates/types";
+} from "./templates/types.js";
 
 // DO NOT export BaseTemplateEngine here - it uses handlebars which is server-only

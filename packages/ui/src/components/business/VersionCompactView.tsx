@@ -25,14 +25,14 @@ import {
   Calendar,
   Hash,
 } from "lucide-react";
-import type { ContentVersion } from "./contentVersioningTypes";
+import type { ContentVersion } from "./contentVersioningTypes.js";
 import {
   getTextContent,
   getAuthorName,
   getChangeTypeLabel,
   getChangeTypeColor,
   formatVersionDate,
-} from "./contentVersioningTypes";
+} from "./contentVersioningTypes.js";
 
 // ---------------------------------------------------------------------------
 // Icon resolver (JSX version — kept local to avoid circular dep)

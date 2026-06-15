@@ -5,59 +5,59 @@
  * @layer infrastructure
  */
 // UI Components
-export * from "./components/alert";
-export * from "./components/alert-dialog";
-export * from "./components/confirm-dialog";
-export * from "./components/input-dialog";
-export * from "./components/avatar";
-export * from "./components/badge";
-export * from "./components/button";
-export * from "./components/card";
-export * from "./components/checkbox";
-export * from "./components/dialog";
-export * from "./components/dropdown-menu";
-export * from "./components/input";
-export * from "./components/label";
-export * from "./components/popover";
-export * from "./components/progress";
-export * from "./components/scroll-area";
-export * from "./components/select";
-export * from "./components/separator";
-export * from "./components/slider";
-export * from "./components/submit-button";
-export * from "./components/switch";
-export * from "./components/table";
-export * from "./components/tabs";
-export * from "./components/textarea";
-export * from "./components/toast";
-export * from "./components/toaster";
-export * from "./components/tooltip";
-export * from "./components/use-toast";
+export * from "./components/alert.js";
+export * from "./components/alert-dialog.js";
+export * from "./components/confirm-dialog.js";
+export * from "./components/input-dialog.js";
+export * from "./components/avatar.js";
+export * from "./components/badge.js";
+export * from "./components/button.js";
+export * from "./components/card.js";
+export * from "./components/checkbox.js";
+export * from "./components/dialog.js";
+export * from "./components/dropdown-menu.js";
+export * from "./components/input.js";
+export * from "./components/label.js";
+export * from "./components/popover.js";
+export * from "./components/progress.js";
+export * from "./components/scroll-area.js";
+export * from "./components/select.js";
+export * from "./components/separator.js";
+export * from "./components/slider.js";
+export * from "./components/submit-button.js";
+export * from "./components/switch.js";
+export * from "./components/table.js";
+export * from "./components/tabs.js";
+export * from "./components/textarea.js";
+export * from "./components/toast.js";
+export * from "./components/toaster.js";
+export * from "./components/tooltip.js";
+export * from "./components/use-toast.js";
 export {
   VirtualScrollList,
   memoizeVirtualItem,
   useVirtualScroll,
-} from "./components/VirtualScrollList";
+} from "./components/VirtualScrollList.js";
 
 // Business Components
-export * from "./components/business/ChannelMultiSelect";
-export * from "./components/business/ContentVersioning";
-export * from "./components/business/ContentEditorCore";
-export { EmojiPickerButton } from "./components/business/EmojiPickerButton";
+export * from "./components/business/ChannelMultiSelect.js";
+export * from "./components/business/ContentVersioning.js";
+export * from "./components/business/ContentEditorCore.js";
+export { EmojiPickerButton } from "./components/business/EmojiPickerButton.js";
 // TipTapContentEditor NOT re-exported: pulls @tiptap/* into every consumer.
 // Import via subpath "@packages/ui/components/business/TipTapContentEditor" + next/dynamic.
-export * from "./components/business/ValidationContentEditor";
+export * from "./components/business/ValidationContentEditor.js";
 
 // Hooks
-export { usePublishingEngine } from "./hooks/usePublishingEngine";
+export { usePublishingEngine } from "./hooks/usePublishingEngine.js";
 export type {
   PublishResult,
   ValidationError,
   PublishingStats,
   PublishingEngineOptions,
   PublishingEngineState,
-} from "./hooks/usePublishingEngine";
-export { useProviderConstraints } from "./hooks/useProviderConstraints";
+} from "./hooks/usePublishingEngine.js";
+export { useProviderConstraints } from "./hooks/useProviderConstraints.js";
 
 // Utils
-export { cn } from "./lib/utils";
+export { cn } from "./lib/utils.js";
