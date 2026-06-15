@@ -24,11 +24,11 @@ import type {
   MfaStatusResponse,
   SessionInfo,
   PasswordValidation,
-} from "./adminAuthTypes";
-import { PasswordService } from "./PasswordService";
-import { TokenService } from "./TokenService";
-import { SessionManager } from "./SessionManager";
-import { MfaService } from "./MfaService";
+} from "./adminAuthTypes.js";
+import { PasswordService } from "./PasswordService.js";
+import { TokenService } from "./TokenService.js";
+import { SessionManager } from "./SessionManager.js";
+import { MfaService } from "./MfaService.js";
 import { hashRefreshToken } from "../../auth/refreshTokenHash.js";
 
 export class AdminAuthService {
@@ -323,7 +323,7 @@ export class AdminAuthService {
    */
   public verifyAccessToken(
     token: string
-  ): Result<import("./adminAuthTypes").AccessTokenPayload, AuthErrorCode> {
+  ): Result<import("./adminAuthTypes.js").AccessTokenPayload, AuthErrorCode> {
     return this.tokenService.verifyAccessToken(token);
   }
 

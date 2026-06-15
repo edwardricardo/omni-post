@@ -6,7 +6,7 @@
  */
 
 import type { DomainAnalytics } from "@shared/types";
-import type { CompetitorDataItem } from "./types";
+import type { CompetitorDataItem } from "./types.js";
 import type {
   CompetitiveAnalysis,
   BenchmarkMetric,
@@ -14,7 +14,7 @@ import type {
   MarketPosition,
   OpportunityAnalysis,
   ContentType,
-} from "@shared/analytics";
+} from "@shared/types/analytics.js";
 import { calculateOptimalTiming } from "./contentAnalyzer.js";
 
 /**
@@ -382,7 +382,7 @@ async function identifyOpportunities(
       : [];
 
   // Timing opportunities: use calculateOptimalTiming if analytics data is available
-  let timingOpportunities: import("@shared/analytics").OptimalTiming[] = [];
+  let timingOpportunities: import("@shared/types/analytics.js").OptimalTiming[] = [];
   if (analyticsData.length > 0) {
     try {
       const optimal = await calculateOptimalTiming(analyticsData);

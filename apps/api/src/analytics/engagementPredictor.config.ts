@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-import type { ContentType, ProviderType } from "@shared/analytics";
+import type { ContentType, ProviderType } from "@shared/types/analytics.js";
 
 // ---------------------------------------------------------------------------
 // Rule-based scoring weights

@@ -6,9 +6,9 @@
  */
 
 import type { DomainAnalytics } from "@shared/types";
-import type { AnalyticsSummary, ProviderMetrics } from "@shared/analytics";
-import type { PostDataItem, ChannelDataItem } from "./types";
-import { AnalyticsAggregator } from "../analyticsUtils";
+import type { AnalyticsSummary, ProviderMetrics } from "@shared/types/analytics.js";
+import type { PostDataItem, ChannelDataItem } from "./types.js";
+import { AnalyticsAggregator } from "../analyticsUtils.js";
 
 /**
  * Generate overall analytics summary

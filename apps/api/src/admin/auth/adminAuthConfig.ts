@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-import type { AdminAuthConfig } from "./adminAuthTypes";
+import type { AdminAuthConfig } from "./adminAuthTypes.js";
 import { env } from "../../config/env.js";
 
 /**

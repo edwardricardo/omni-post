@@ -1,0 +1,239 @@
+{
+  "extends": "../../tsconfig.build.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "tests", "**/*.test.ts", "**/*.test.tsx"],
+  "references": [
+    {
+      "path": "../../packages/adapters/cache-redis/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/adapters/db-prisma/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/adapters/dead-letter-queue/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/adapters/external-apis/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/adapters/queue-bullmq/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/adapters/storage-s3/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/ai/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/ai-image/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/aiPromptTemplates/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/analytics/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/apiKeys/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/application/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/approvals/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/assets/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/auth/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/billing/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/brand-kit/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/brand-voice/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/bulk-scheduling/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/campaigns/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/channels/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/comments/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/compliance/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/crisis/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/crm/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/custom-reports/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/customer-auth/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/domain/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/embeddings/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/external-notifications/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/first-comment/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/glossary/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/guardrails/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/inbox/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/integrations/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/links/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/listening/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/mentions/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/ml/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/notifications/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/posts/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/providers/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/recurring/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/referral/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/reports/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/security/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/settings/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/style-guide/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/tasks/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/team/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/trends/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/usage/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/utm/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/webhooks/tsconfig.build.json"
+    },
+    {
+      "path": "../../infra/prisma/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/monitoring/circuit-breaker/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/monitoring/health-checks/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/observability/background-scheduler/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/observability/opentelemetry/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/api-common/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/ports/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/providers/bluesky/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/providers/facebook/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/providers/instagram/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/providers/linkedin/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/providers/pinterest/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/providers/shared/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/providers/snapchat/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/providers/telegram/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/providers/threads/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/providers/tiktok/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/providers/x/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/providers/youtube/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/shared/tsconfig.build.json"
+    }
+  ]
+}

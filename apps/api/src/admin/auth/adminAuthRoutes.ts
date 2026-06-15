@@ -10,7 +10,7 @@ import { ZodError } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../../lib/route-handler/index.js";
 import type { AdminAuthService } from "./AdminAuthService.js";
 import type { PlatformCredentialService } from "@core/security/PlatformCredentialService.js";
-import { requireAdminAuth, rateLimit } from "./adminAuthMiddleware";
+import { requireAdminAuth, rateLimit } from "./adminAuthMiddleware.js";
 import { requirePermission } from "../../auth/rbacMiddleware.js";
 import { Permission } from "@core/domain/auth/Permission.js";
 import { TOKENS } from "../../infrastructure/container/types.js";
@@ -27,8 +27,8 @@ import {
   mfaDisableSchema,
   revokeSessionSchema,
   validatePasswordSchema,
-} from "./adminAuthSchemas";
-import type { DeviceFingerprint } from "./adminAuthTypes";
+} from "./adminAuthSchemas.js";
+import type { DeviceFingerprint } from "./adminAuthTypes.js";
 import { env } from "../../config/env.js";
 
 // ============================================================================
@@ -90,7 +90,7 @@ class AdminAuthRouteHandler extends BaseRouteHandler {
 
     const device = this.getDeviceFingerprint(request);
     const result = await this.adminAuthService.login(
-      validation.data as import("./adminAuthTypes").LoginRequest,
+      validation.data as import("./adminAuthTypes.js").LoginRequest,
       device
     );
 

@@ -16,9 +16,9 @@ import type {
   AuthErrorCode,
   AdminUserProfile,
   SecurityEventType,
-} from "./adminAuthTypes";
-import { adminAuthConfig } from "./adminAuthConfig";
-import { TokenService } from "./TokenService";
+} from "./adminAuthTypes.js";
+import { adminAuthConfig } from "./adminAuthConfig.js";
+import { TokenService } from "./TokenService.js";
 import { hashRefreshToken } from "../../auth/refreshTokenHash.js";
 
 export class SessionManager {
