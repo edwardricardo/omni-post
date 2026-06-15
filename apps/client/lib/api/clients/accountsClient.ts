@@ -8,8 +8,8 @@
  * @layer infrastructure
  */
 
-import type { Project } from "../types";
-import { request } from "./request";
+import type { Project } from "../types.js";
+import { request } from "./request.js";
 
 /**
  * @class AccountsClient

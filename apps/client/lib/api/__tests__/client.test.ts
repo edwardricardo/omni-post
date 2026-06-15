@@ -4,7 +4,7 @@
  * @layer infrastructure
  */
 import { describe, it, expect, beforeEach, vi, Mock } from "vitest";
-import { apiClient } from "../client";
+import { apiClient } from "../client.js";
 import { ApiError } from "@packages/api-errors";
 
 // Mock fetch globally

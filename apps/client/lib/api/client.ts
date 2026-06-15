@@ -21,16 +21,16 @@ import type {
   Post,
   Project,
   UpdatePostRequest,
-} from "./types";
+} from "./types.js";
 
-import { AccountsClient } from "./clients/accountsClient";
-import { AiClient } from "./clients/aiClient";
+import { AccountsClient } from "./clients/accountsClient.js";
+import { AiClient } from "./clients/aiClient.js";
 import {
   type ContentAnalysis,
   type GenerateContentOptions,
   type GeneratedContent,
   type OptimizedContent,
-} from "./clients/aiClient";
+} from "./clients/aiClient.js";
 import {
   AnalyticsClient,
   type BestPostingTimesParams,
@@ -38,13 +38,13 @@ import {
   type ContentPerformanceParams,
   type CrossPlatformAnalyticsParams,
   type PostAnalyticsParams,
-} from "./clients/analyticsClient";
+} from "./clients/analyticsClient.js";
 import {
   ChannelsClient,
   type CreateChannelInput,
   type UpdateChannelInput,
-} from "./clients/channelsClient";
-import { HealthClient } from "./clients/healthClient";
+} from "./clients/channelsClient.js";
+import { HealthClient } from "./clients/healthClient.js";
 import {
   type AddPostMediaInput,
   PostsClient,
@@ -53,23 +53,23 @@ import {
   type ArchiveBatchResponse,
   type DuplicateBatchResponse,
   type HardDeleteBatchResponse,
-} from "./clients/postsClient";
-import { ProjectsClient } from "./clients/projectsClient";
+} from "./clients/postsClient.js";
+import { ProjectsClient } from "./clients/projectsClient.js";
 import {
   ProvidersClient,
   type ProviderEnvelope,
   type ProviderHealthEnvelope,
   type ProvidersHealthResponse,
   type ProvidersListResponse,
-} from "./clients/providersClient";
-import { PROXY_BASE } from "./clients/request";
+} from "./clients/providersClient.js";
+import { PROXY_BASE } from "./clients/request.js";
 import {
   SagaClient,
   type StartPostPublishingSagaInput,
   type StartPostPublishingSagaResponse,
   type SagaStatusDetails,
-} from "./clients/sagaClient";
-import { UploadsClient, type UploadResult, type UploadType } from "./clients/uploadsClient";
+} from "./clients/sagaClient.js";
+import { UploadsClient, type UploadResult, type UploadType } from "./clients/uploadsClient.js";
 
 /**
  * @class ApiClient

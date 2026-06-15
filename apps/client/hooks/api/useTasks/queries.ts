@@ -7,7 +7,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchTask, fetchTasks } from "./api";
+import { fetchTask, fetchTasks } from "./api.js";
 
 /**
  * @hook useTasks
