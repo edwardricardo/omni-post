@@ -7,8 +7,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchGatewaySwitchDetail, fetchGatewaySwitches } from "./api.js";
-import type { GatewaySwitchFilters } from "./types.js";
+import { fetchGatewaySwitchDetail, fetchGatewaySwitches } from "./api";
+import type { GatewaySwitchFilters } from "./types";
 
 /**
  * @hook useGatewaySwitches

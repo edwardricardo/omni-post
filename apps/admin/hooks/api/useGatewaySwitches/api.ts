@@ -13,7 +13,7 @@ import type {
   GatewaySwitchEvent,
   GatewaySwitchListData,
   GatewaySwitchListResponse,
-} from "./types.js";
+} from "./types";
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { credentials: "include", ...init });

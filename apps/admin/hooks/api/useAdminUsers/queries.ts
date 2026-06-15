@@ -7,7 +7,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchAdminUsers } from "./api.js";
+import { fetchAdminUsers } from "./api";
 
 /**
  * @hook useAdminUsers

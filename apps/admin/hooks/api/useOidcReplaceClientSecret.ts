@@ -10,11 +10,11 @@
  */
 
 import { useMutation } from "@tanstack/react-query";
-import { api } from "../../lib/apiClient.js";
+import { api } from "../../lib/apiClient";
 import type {
   ReplaceOidcClientSecretInput,
   OidcClientSecretRotationResult,
-} from "../../lib/api/clients/oidcAdminClient.js";
+} from "../../lib/api/clients/oidcAdminClient";
 
 export type { ReplaceOidcClientSecretInput, OidcClientSecretRotationResult };
 

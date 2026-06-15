@@ -11,7 +11,7 @@ import type {
   CreateProviderTierInput,
   PricingData,
   TierType,
-} from "./types.js";
+} from "./types";
 
 export async function fetchPricingTiers(): Promise<PricingData> {
   const res = await fetch("/api/backend/admin/pricing/tiers", {

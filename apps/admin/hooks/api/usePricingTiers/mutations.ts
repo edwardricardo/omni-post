@@ -18,7 +18,7 @@ import {
   updateAccountTier,
   updateBundle,
   updateProviderTier,
-} from "./api.js";
+} from "./api";
 
 const PRICING_KEY = ["pricing", "tiers"] as const;
 

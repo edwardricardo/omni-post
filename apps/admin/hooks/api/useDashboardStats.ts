@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 import { useQuery } from "@tanstack/react-query";
-import { api, type DashboardStats } from "../../lib/apiClient.js";
+import { api, type DashboardStats } from "../../lib/apiClient";
 
 /**
  * @hook useDashboardStats

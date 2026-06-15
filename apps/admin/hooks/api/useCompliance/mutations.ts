@@ -16,7 +16,7 @@ import {
   sendBreachNotification,
   updateGdprSettings,
   updateSecuritySettings,
-} from "./api.js";
+} from "./api";
 
 /**
  * @hook useUpdateGdprSettings
