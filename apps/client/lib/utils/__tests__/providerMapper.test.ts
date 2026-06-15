@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { mapProvidersToMetadata } from "../providerMapper";
+import { mapProvidersToMetadata } from "../providerMapper.js";
 import type { Provider } from "@/lib/api/types";
 
 // ============================================================================

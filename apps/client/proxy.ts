@@ -12,7 +12,7 @@
 import createMiddleware from "next-intl/middleware";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { routing } from "./i18n/routing";
+import { routing } from "./i18n/routing.js";
 
 const handleI18nRouting = createMiddleware(routing);
 
