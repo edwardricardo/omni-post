@@ -9,7 +9,12 @@
 
 import { describe, it, afterEach, beforeEach, expect } from "vitest";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
-import { EventStoreEvent, EventHandler, createEventStoreEvent, EVENT_TYPES } from "@shared/events";
+import {
+  EventStoreEvent,
+  EventHandler,
+  createEventStoreEvent,
+  EVENT_TYPES,
+} from "@shared/types/events.js";
 
 const scheduler = new NoopBackgroundTaskScheduler();
 
@@ -123,7 +128,7 @@ class MockRedis {
 }
 
 // Import after mocking
-const { RedisEventPublisher } = await import("../../src/events/EventPublisher");
+const { RedisEventPublisher } = await import("../../src/events/EventPublisher.js");
 
 describe("EventPublisher - Event Publishing", () => {
   let publisher: any;

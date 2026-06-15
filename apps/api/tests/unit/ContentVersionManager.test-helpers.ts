@@ -4,10 +4,10 @@
  * @layer infrastructure
  */
 import type { PrismaClient } from "@infra/prisma";
-import type Redis from "ioredis";
-import type { EventService } from "../../src/events/EventService";
+import type { Redis } from "ioredis";
+import type { EventService } from "../../src/events/EventService.js";
 import type { CanonicalPost } from "@shared/types";
-import type { ProviderId } from "../../src/providers/providerAdapter.interface";
+import type { ProviderId } from "../../src/providers/providerAdapter.interface.js";
 
 export const testPostId = `post_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 export const testUserId = `user_${Date.now()}_${Math.random().toString(36).substring(7)}`;

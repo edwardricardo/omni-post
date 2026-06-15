@@ -9,8 +9,8 @@ import {
   createChannelEvent,
   createUserActionEvent,
   createAnalyticsEvent,
-} from "../../src/events/EventService";
-import { EVENT_TYPES, serializeEvent, deserializeEvent } from "@shared/events";
+} from "../../src/events/EventService.js";
+import { EVENT_TYPES, serializeEvent, deserializeEvent } from "@shared/types/events.js";
 
 // ============================================================================
 // Integration Tests - Cross-Helper Validation

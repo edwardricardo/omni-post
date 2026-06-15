@@ -8,7 +8,7 @@
  */
 
 import { describe, it, beforeEach, expect } from "vitest";
-import { EventStoreEvent, createEventStoreEvent, EVENT_TYPES } from "@shared/events";
+import { EventStoreEvent, createEventStoreEvent, EVENT_TYPES } from "@shared/types/events.js";
 
 interface MockStoredEventRow {
   id: string;
@@ -318,7 +318,7 @@ class MockRedis {
 }
 
 // Import after mocking
-const { PostgreSQLEventStore } = await import("../../src/events/EventStore");
+const { PostgreSQLEventStore } = await import("../../src/events/EventStore.js");
 
 describe("EventStore - Event Appending", () => {
   let eventStore: any;

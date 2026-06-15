@@ -6,7 +6,7 @@
 import "./ContentSynchronizer.test-helpers.js";
 import { describe, it, expect } from "vitest";
 import { ContentSynchronizer } from "../../src/orchestration/ContentSynchronizer.js";
-import type { ContentVersion } from "@shared/orchestration";
+import type { ContentVersion } from "@shared/types/orchestration.js";
 import {
   createMockPrisma,
   createMockRedis,

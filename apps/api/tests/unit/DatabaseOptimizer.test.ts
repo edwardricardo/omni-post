@@ -23,7 +23,7 @@
 
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
-import { DatabaseOptimizer } from "../../src/database/DatabaseOptimizer";
+import { DatabaseOptimizer } from "../../src/database/DatabaseOptimizer.js";
 
 const scheduler = new NoopBackgroundTaskScheduler();
 

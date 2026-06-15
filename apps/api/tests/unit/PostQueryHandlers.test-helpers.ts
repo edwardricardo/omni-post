@@ -3,8 +3,8 @@
  * @description Test helpers for post query handlers test helpers
  * @layer infrastructure
  */
-import type { Query } from "@shared/cqrs";
-import { POST_QUERIES } from "@shared/cqrs";
+import type { Query } from "@shared/types/cqrs.js";
+import { POST_QUERIES } from "@shared/types/cqrs.js";
 import type {
   PostQueryRepository,
   PostReadModel,
