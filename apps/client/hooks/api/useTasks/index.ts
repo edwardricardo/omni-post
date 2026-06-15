@@ -12,8 +12,8 @@ export type {
   TaskPriority,
   TaskStatus,
   UpdateTaskInput,
-} from "./types.js";
+} from "./types";
 
-export { useTask, useTasks } from "./queries.js";
+export { useTask, useTasks } from "./queries";
 
-export { useCancelTask, useCompleteTask, useCreateTask, useUpdateTask } from "./mutations.js";
+export { useCancelTask, useCompleteTask, useCreateTask, useUpdateTask } from "./mutations";

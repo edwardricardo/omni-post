@@ -12,7 +12,7 @@ import type {
   CreatedSlot,
   CreateScheduleInput,
   BulkCreateScheduleInput,
-} from "../../types/multi-platform-scheduling.js";
+} from "../../types/multi-platform-scheduling";
 
 interface UseSchedulingParams {
   projectId: string;

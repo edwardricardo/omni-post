@@ -10,7 +10,7 @@ import type {
   OidcConfig,
   SamlConfig,
   SsoProvider,
-} from "./types.js";
+} from "./types";
 
 export async function fetchSamlConfig(): Promise<SamlConfig | null> {
   const res = await fetch("/api/backend/saml/config", {

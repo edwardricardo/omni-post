@@ -18,7 +18,7 @@
 
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { AnalyticsDashboardData } from "./api/useAnalytics.js";
+import type { AnalyticsDashboardData } from "./api/useAnalytics";
 
 const RECONNECT_DELAY_MS = 3_000;
 

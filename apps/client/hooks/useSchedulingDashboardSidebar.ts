@@ -17,11 +17,11 @@
 "use client";
 
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { schedulingQueries } from "../lib/api/queries/schedulingQueries.js";
+import { schedulingQueries } from "../lib/api/queries/schedulingQueries";
 import type {
   SchedulingCampaignOption,
   SchedulingTeamMemberOption,
-} from "../lib/api/clients/schedulingClient.js";
+} from "../lib/api/clients/schedulingClient";
 
 export interface UseSchedulingDashboardSidebarResult {
   campaigns: UseQueryResult<SchedulingCampaignOption[], Error>;

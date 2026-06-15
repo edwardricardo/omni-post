@@ -8,7 +8,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { configureOidc, configureSaml, disableSso, enableOidc, enableSaml } from "./api.js";
+import { configureOidc, configureSaml, disableSso, enableOidc, enableSaml } from "./api";
 
 /**
  * @hook useConfigureSaml

@@ -15,8 +15,8 @@ import {
   fetchConversationMessages,
   fetchInboxMessages,
   fetchMentions,
-} from "./api.js";
-import type { InboxFilters } from "./types.js";
+} from "./api";
+import type { InboxFilters } from "./types";
 
 /**
  * @hook useInboxMessages

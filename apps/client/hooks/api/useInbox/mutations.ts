@@ -15,7 +15,7 @@ import {
   reopenConversation,
   resolveConversation,
   sendReply,
-} from "./api.js";
+} from "./api";
 
 /**
  * @hook useSendReply
