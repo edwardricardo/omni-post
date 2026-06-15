@@ -14,7 +14,7 @@ import type {
   PerformancePrediction,
   PredictionFactor,
   OptimizationSuggestion,
-} from "@shared/analytics";
+} from "@shared/types/analytics.js";
 import type { PredictionRequest, HistoricalContext } from "./types.js";
 import { MODEL_WEIGHTS, PLATFORM_MULTIPLIERS } from "./engagementPredictor.config.js";
 import {

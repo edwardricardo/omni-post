@@ -6,7 +6,7 @@
  * Extracted from engagementPredictor.ts to keep each file ≤ 800 lines.
  */
 
-import type { ContentType, ProviderType, PredictionFactor } from "@shared/analytics";
+import type { ContentType, ProviderType, PredictionFactor } from "@shared/types/analytics.js";
 import type { HistoricalContext } from "./types.js";
 
 // ---------------------------------------------------------------------------

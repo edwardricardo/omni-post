@@ -13,7 +13,7 @@ import type {
   PostDataItem,
   ChannelDataItem,
   CompetitorDataItem,
-} from "./types";
+} from "./types.js";
 
 /**
  * Resolve the set of post IDs in scope for the given options: a single project

@@ -13,7 +13,7 @@
  * @layer infrastructure
  */
 
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import type { RateLimiterPort, RateLimitDecision, RateLimitOptions } from "@ports/core";
 import { logger } from "../../lib/logger.js";
 

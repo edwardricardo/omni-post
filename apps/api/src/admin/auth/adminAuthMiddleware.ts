@@ -13,7 +13,7 @@ import type { FastifyRequest, FastifyReply } from "fastify";
 import type { RateLimiterPort } from "@ports/core";
 import type { AdminAuthService } from "./AdminAuthService.js";
 import { TOKENS } from "../../infrastructure/container/types.js";
-import type { AuthContext, AuthErrorCode } from "./adminAuthTypes";
+import type { AuthContext, AuthErrorCode } from "./adminAuthTypes.js";
 
 // ============================================================================
 // Augment Fastify Request with auth context

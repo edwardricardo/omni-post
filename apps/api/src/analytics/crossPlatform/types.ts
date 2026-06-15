@@ -5,7 +5,7 @@
  */
 
 import type { DomainAnalytics, ProviderName } from "@shared/types";
-import type { TimeRange, ProviderType, ContentType } from "@shared/analytics";
+import type { TimeRange, ProviderType, ContentType } from "@shared/types/analytics.js";
 
 // Re-export for convenience
 export type { DomainAnalytics, ProviderName };
