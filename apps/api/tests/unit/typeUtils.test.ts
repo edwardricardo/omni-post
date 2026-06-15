@@ -24,7 +24,7 @@ import {
   removeUndefinedProperties,
   conditionalProperty,
   extractDefinedProperties,
-} from "../../src/utils/typeUtils";
+} from "../../src/utils/typeUtils.js";
 
 describe("typeUtils", () => {
   describe("removeUndefinedProperties", () => {
