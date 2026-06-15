@@ -12,7 +12,7 @@
  */
 
 import { queryOptions } from "@tanstack/react-query";
-import { fetchAccountUsage } from "../clients/usageClient.js";
+import { fetchAccountUsage } from "../clients/usageClient";
 
 export const usageQueries = {
   /** Top-level key — partial-invalidate every usage query. */

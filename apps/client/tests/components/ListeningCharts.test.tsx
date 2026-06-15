@@ -8,9 +8,9 @@ import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
 import React from "react";
 
-import { ShareOfVoiceChart } from "../../app/[locale]/dashboard/listening/components/ShareOfVoiceChart.js";
-import { SentimentBreakdownChart } from "../../app/[locale]/dashboard/listening/components/SentimentBreakdownChart.js";
-import { IntlTestProvider } from "../intl-test-utils.js";
+import { ShareOfVoiceChart } from "../../app/[locale]/dashboard/listening/components/ShareOfVoiceChart";
+import { SentimentBreakdownChart } from "../../app/[locale]/dashboard/listening/components/SentimentBreakdownChart";
+import { IntlTestProvider } from "../intl-test-utils";
 
 describe("listening charts", () => {
   it("ShareOfVoiceChart mounts with per-provider data", () => {
