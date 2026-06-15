@@ -1,37 +1,13 @@
 /**
  * @file vitest.config.ts
- * @description Vitest configuration for @adapters/db-prisma unit tests.
- *              Tier 0: no DB, no Redis — pure logic tests for circuit breaker,
- *              retry logic, and metrics collector.
+ * @description Vitest config for @adapters/db-prisma. Delegates to the shared workspace factory so
+ *              `@core/*` and the other workspace specifiers resolve to TypeScript SOURCE (not the
+ *              production `dist/` `exports` target) when tests run against an unbuilt tree.
  * @layer infrastructure
  */
-import { defineConfig } from "vitest/config";
-import path from "node:path";
-import { existsSync } from "node:fs";
+import { defineWorkspaceVitestConfig } from "../../../vitest.shared.js";
 
-function findMonorepoRoot(startDir: string): string {
-  let dir = path.resolve(startDir);
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(path.join(dir, "pnpm-workspace.yaml"))) return dir;
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return path.resolve(startDir, "../../");
-}
-
-const root = findMonorepoRoot(__dirname);
-
-export default defineConfig({
-  resolve: {
-    alias: {
-      "@shared/types": path.join(root, "packages/shared/src/index.ts"),
-      "@ports/core": path.join(root, "packages/ports/src/index.ts"),
-      "@observability/logger": path.join(root, "packages/observability/logger/src/index.ts"),
-      "@infra/prisma": path.join(root, "infra/prisma/src/vitest-entry.ts"),
-    },
-    conditions: ["node"],
-  },
+export default defineWorkspaceVitestConfig(import.meta.dirname, {
   test: {
     environment: "node",
     globals: false,

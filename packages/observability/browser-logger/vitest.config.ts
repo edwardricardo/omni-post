@@ -1,14 +1,13 @@
 /**
  * @file vitest.config.ts
- * @description Vitest configuration for the browser-logger package — jsdom environment,
- *              React plugin, and forked pool for React component tests.
+ * @description Vitest config for @observability/browser-logger. Delegates to the shared workspace factory so
+ *              `@core/*` and the other workspace specifiers resolve to TypeScript SOURCE (not the
+ *              production `dist/` `exports` target) when tests run against an unbuilt tree.
  * @layer infrastructure
  */
-import { defineConfig } from "vitest/config";
-import react from "@vitejs/plugin-react";
+import { defineWorkspaceVitestConfig } from "../../../vitest.shared.js";
 
-export default defineConfig({
-  plugins: [react()],
+export default defineWorkspaceVitestConfig(import.meta.dirname, {
   test: {
     environment: "jsdom",
     globals: true,
