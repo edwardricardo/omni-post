@@ -20,19 +20,19 @@ import type {
   PerformancePrediction,
   ROIForecast,
   Timeframe,
-} from "../types";
+} from "../types.js";
 import type {
   ApiEnvelope,
   CrossPlatformApiValue,
   PredictAudienceApiValue,
   PredictTimingApiValue,
   ROIApiValue,
-} from "./usePredictiveData/apiTypes";
-import { mapToAudienceInsights } from "./usePredictiveData/mapAudienceInsights";
-import { mapToCompetitorAnalysis } from "./usePredictiveData/mapCompetitorAnalysis";
-import { mapToPerformancePredictions } from "./usePredictiveData/mapTimingPredictions";
-import { mapToROIForecasts } from "./usePredictiveData/mapROIForecasts";
-import { toMLProvider } from "./usePredictiveData/providerMap";
+} from "./usePredictiveData/apiTypes.js";
+import { mapToAudienceInsights } from "./usePredictiveData/mapAudienceInsights.js";
+import { mapToCompetitorAnalysis } from "./usePredictiveData/mapCompetitorAnalysis.js";
+import { mapToPerformancePredictions } from "./usePredictiveData/mapTimingPredictions.js";
+import { mapToROIForecasts } from "./usePredictiveData/mapROIForecasts.js";
+import { toMLProvider } from "./usePredictiveData/providerMap.js";
 
 const STALE_TIME_MS = 5 * 60 * 1000;
 

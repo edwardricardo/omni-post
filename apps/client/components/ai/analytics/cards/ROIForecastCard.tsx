@@ -8,8 +8,8 @@
 import React, { memo } from "react";
 import { DollarSign } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { ROIForecast } from "../types";
-import { formatNumber } from "../utils";
+import { ROIForecast } from "../types.js";
+import { formatNumber } from "../utils.js";
 
 interface ROIForecastCardProps {
   forecast: ROIForecast;

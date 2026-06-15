@@ -9,8 +9,8 @@
 import React, { memo } from "react";
 import { TrendingUp, Eye, Clock } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { PerformancePrediction } from "../types";
-import { getConfidenceColor, formatNumber, getViralPotentialColor } from "../utils";
+import { PerformancePrediction } from "../types.js";
+import { getConfidenceColor, formatNumber, getViralPotentialColor } from "../utils.js";
 
 interface PerformancePredictionCardProps {
   prediction: PerformancePrediction;
