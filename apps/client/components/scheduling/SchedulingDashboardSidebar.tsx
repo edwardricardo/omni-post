@@ -11,15 +11,15 @@
 import React, { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useLogger, extractErrorInfo } from "@observability/browser-logger";
-import type { DashboardScheduledPost, DashboardFilters } from "./schedulingDashboardTypes";
+import type { DashboardScheduledPost, DashboardFilters } from "./schedulingDashboardTypes.js";
 import {
   getStatusColor,
   getPriorityColor,
   getContentTypeIcon,
   formatTime,
   formatRelativeTime,
-} from "./schedulingDashboardUtils";
-import { useSchedulingDashboardSidebar } from "../../hooks/useSchedulingDashboardSidebar";
+} from "./schedulingDashboardUtils.js";
+import { useSchedulingDashboardSidebar } from "../../hooks/useSchedulingDashboardSidebar.js";
 
 // ---------------------------------------------------------------------------
 // Props
