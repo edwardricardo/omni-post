@@ -4,7 +4,7 @@
  * client-side video splitting, and story media validation helpers.
  */
 
-import { StoryMedia, VideoSegment, VideoSplitOptions } from "./types.js";
+import { StoryMedia, VideoSegment, VideoSplitOptions } from "./types";
 
 /**
  * Get video duration from a File object

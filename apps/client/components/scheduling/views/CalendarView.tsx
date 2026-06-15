@@ -15,7 +15,7 @@ import type {
   OptimalTime,
   CalendarDay,
   CreateScheduleInput,
-} from "../../../types/multi-platform-scheduling.js";
+} from "../../../types/multi-platform-scheduling";
 
 interface CalendarViewProps {
   currentWeek: Date;

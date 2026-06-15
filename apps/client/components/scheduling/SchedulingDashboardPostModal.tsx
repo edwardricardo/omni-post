@@ -11,13 +11,13 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import type { DashboardScheduledPost } from "./schedulingDashboardTypes.js";
+import type { DashboardScheduledPost } from "./schedulingDashboardTypes";
 import {
   getStatusColor,
   getPriorityColor,
   getContentTypeIcon,
   formatRelativeTime,
-} from "./schedulingDashboardUtils.js";
+} from "./schedulingDashboardUtils";
 
 // ---------------------------------------------------------------------------
 // Props

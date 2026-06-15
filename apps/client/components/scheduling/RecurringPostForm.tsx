@@ -13,7 +13,7 @@ import { useRouter } from "@/i18n/navigation";
 import { toast } from "@packages/ui";
 import { useProject } from "@/providers/ProjectProvider";
 import { useProjectChannels } from "@/lib/hooks/useProjectChannels";
-import { RecurrenceSelector } from "./RecurrenceSelector.js";
+import { RecurrenceSelector } from "./RecurrenceSelector";
 import {
   useCreateRecurringPost,
   useUpdateRecurringPost,

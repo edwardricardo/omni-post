@@ -12,9 +12,9 @@ import type {
   DashboardScheduledPost,
   DashboardCalendarDay,
   DashboardFilters,
-} from "./schedulingDashboardTypes.js";
-import { useScheduledPosts, useCancelScheduledPost } from "../../hooks/api/useScheduledPosts.js";
-import type { ScheduledPost } from "../../types/scheduling.js";
+} from "./schedulingDashboardTypes";
+import { useScheduledPosts, useCancelScheduledPost } from "../../hooks/api/useScheduledPosts";
+import type { ScheduledPost } from "../../types/scheduling";
 
 // ---------------------------------------------------------------------------
 // Hook params

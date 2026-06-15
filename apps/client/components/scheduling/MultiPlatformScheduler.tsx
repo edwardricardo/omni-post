@@ -15,7 +15,7 @@ import type {
   CreatedSlot,
   SchedulerView,
   CreateScheduleInput,
-} from "../../types/multi-platform-scheduling.js";
+} from "../../types/multi-platform-scheduling";
 import {
   useScheduleSlots,
   useOptimalTimes,
@@ -24,11 +24,11 @@ import {
   useCreateSchedulingRule,
   useUpdateSchedulingRule,
   useToggleSchedulingRule,
-} from "../../hooks/api/useMultiPlatformScheduling.js";
-import { CalendarView } from "./views/CalendarView.js";
-import { OptimalTimesView } from "./views/OptimalTimesView.js";
-import { RulesView } from "./views/RulesView.js";
-import { BulkScheduleView } from "./views/BulkScheduleView.js";
+} from "../../hooks/api/useMultiPlatformScheduling";
+import { CalendarView } from "./views/CalendarView";
+import { OptimalTimesView } from "./views/OptimalTimesView";
+import { RulesView } from "./views/RulesView";
+import { BulkScheduleView } from "./views/BulkScheduleView";
 
 interface MultiPlatformSchedulerProps {
   accountId: string;

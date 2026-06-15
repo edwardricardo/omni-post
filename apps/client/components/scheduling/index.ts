@@ -4,4 +4,4 @@
  * @layer infrastructure
  */
 
-export { SchedulingDashboard } from "./SchedulingDashboard.js";
+export { SchedulingDashboard } from "./SchedulingDashboard";

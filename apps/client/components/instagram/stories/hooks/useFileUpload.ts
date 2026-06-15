@@ -5,8 +5,8 @@
  */
 
 import { useState, useCallback } from "react";
-import { StoryMedia, StoryContent, VideoSplitOptions } from "../types.js";
-import { getVideoDuration, splitVideoIntoSegments } from "../utils.js";
+import { StoryMedia, StoryContent, VideoSplitOptions } from "../types";
+import { getVideoDuration, splitVideoIntoSegments } from "../utils";
 
 interface UseFileUploadProps {
   videoSplitOptions: VideoSplitOptions;

@@ -12,8 +12,8 @@
 import { useId } from "react";
 import { useTranslations } from "next-intl";
 import type { VideoMetadata, VideoSplitOptions } from "@providers/instagram/src/mediaProcessor";
-import { formatFileSize, formatTime } from "../utils/index.js";
-import type { PreviewSegment } from "./types.js";
+import { formatFileSize, formatTime } from "../utils";
+import type { PreviewSegment } from "./types";
 
 interface SplitSettingsPanelProps {
   videoFile: File;

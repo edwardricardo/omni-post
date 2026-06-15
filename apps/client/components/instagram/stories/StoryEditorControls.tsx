@@ -8,7 +8,7 @@
 
 import React, { useId } from "react";
 import { useTranslations } from "next-intl";
-import { StoryContent, VideoSplitOptions } from "./types.js";
+import { StoryContent, VideoSplitOptions } from "./types";
 
 interface StoryEditorControlsProps {
   story: StoryContent;

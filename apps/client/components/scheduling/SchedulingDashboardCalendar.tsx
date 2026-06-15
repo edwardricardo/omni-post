@@ -10,8 +10,8 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import type { DashboardScheduledPost, DashboardCalendarDay } from "./schedulingDashboardTypes.js";
-import { getStatusColor, getContentTypeIcon } from "./schedulingDashboardUtils.js";
+import type { DashboardScheduledPost, DashboardCalendarDay } from "./schedulingDashboardTypes";
+import { getStatusColor, getContentTypeIcon } from "./schedulingDashboardUtils";
 
 const DAY_KEYS = [
   "daysShort.sun",
