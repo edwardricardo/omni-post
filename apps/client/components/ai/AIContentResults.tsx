@@ -11,8 +11,8 @@
 import React from "react";
 import { Copy, Save, Camera, Video } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { GeneratedContent } from "../../types/ai-content";
-import { getCharacterLimitColor } from "../../lib/ai-content-utils";
+import type { GeneratedContent } from "../../types/ai-content.js";
+import { getCharacterLimitColor } from "../../lib/ai-content-utils.js";
 
 interface AIContentResultsProps {
   content: GeneratedContent[];

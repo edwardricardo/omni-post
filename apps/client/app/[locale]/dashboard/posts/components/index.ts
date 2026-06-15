@@ -4,10 +4,10 @@
  * @layer infrastructure
  */
 
-export { PostCard } from "./PostCard";
-export { PostsBulkActionsBar } from "./PostsBulkActionsBar";
-export { PostsEmptyState } from "./PostsEmptyState";
-export { PostsFilters, type PostStatusFilter, type PostViewMode } from "./PostsFilters";
-export { PostsLoadingSkeleton } from "./PostsLoadingSkeleton";
-export { PostsPagination } from "./PostsPagination";
-export { PostsViewSwitcher } from "./PostsViewSwitcher";
+export { PostCard } from "./PostCard.js";
+export { PostsBulkActionsBar } from "./PostsBulkActionsBar.js";
+export { PostsEmptyState } from "./PostsEmptyState.js";
+export { PostsFilters, type PostStatusFilter, type PostViewMode } from "./PostsFilters.js";
+export { PostsLoadingSkeleton } from "./PostsLoadingSkeleton.js";
+export { PostsPagination } from "./PostsPagination.js";
+export { PostsViewSwitcher } from "./PostsViewSwitcher.js";

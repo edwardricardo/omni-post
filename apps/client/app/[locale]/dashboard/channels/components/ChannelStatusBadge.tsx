@@ -10,7 +10,7 @@
  */
 
 import type { ProjectChannel } from "@/lib/hooks/useProjectChannels";
-import { formatDay } from "./formatters";
+import { formatDay } from "./formatters.js";
 
 export function ChannelStatusBadge({ channel }: { channel: ProjectChannel }) {
   if (channel.expiredAt && !channel.isConnected) {
