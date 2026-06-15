@@ -5,8 +5,8 @@
  * @layer infrastructure
  */
 
-import type { AuditLog, AuditLogFilters } from "../types";
-import { http } from "./http";
+import type { AuditLog, AuditLogFilters } from "../types.js";
+import { http } from "./http.js";
 
 /**
  * @const auditClient

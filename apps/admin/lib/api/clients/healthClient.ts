@@ -4,7 +4,7 @@
  * @layer infrastructure
  */
 
-import { http } from "./http";
+import { http } from "./http.js";
 
 /**
  * @function health
