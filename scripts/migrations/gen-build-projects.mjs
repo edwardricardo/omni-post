@@ -52,7 +52,7 @@ for (const r of PKG_ROOTS) {
     const wsDeps = new Set(
       Object.entries({ ...(json.dependencies || {}) })
         .filter(([, v]) => typeof v === "string" && v.startsWith("workspace:"))
-        .map(([k]) => k),
+        .map(([k]) => k)
     );
     meta.set(json.name, { dir, json, wsDeps, pjPath: pj });
   }
@@ -96,7 +96,13 @@ for (const name of closure) {
     // @providers/facebook excludes src/analytics|features|media, which are not
     // reachable from its barrel); re-compiling them would surface latent errors
     // in code the runtime artifact never imports.
-    const baseExcludes = ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx", "**/*.stories.tsx"];
+    const baseExcludes = [
+      "node_modules",
+      "dist",
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "**/*.stories.tsx",
+    ];
     let srcExcludes = [];
     // Preserve a hand-tuned source-exclude set from a prior tsconfig.build.json
     // (e.g. @providers/facebook's precise dead-code carve-out that keeps the
@@ -148,8 +154,11 @@ for (const name of closure) {
     // preserve subpath exports, repointed to dist
     if (j.exports && typeof j.exports === "object") {
       for (const [k, v] of Object.entries(j.exports)) {
-        if (k === "." ) continue;
-        if (k === "./*") { newExports["./*"] = "./dist/*"; continue; }
+        if (k === ".") continue;
+        if (k === "./*") {
+          newExports["./*"] = "./dist/*";
+          continue;
+        }
         // e.g. "./components/*" or "./test-utils/msw-helpers"
         if (typeof v === "string") {
           newExports[k] = v.replace(/^\.\/src\//, "./dist/").replace(/\.tsx?$/, ".js");
@@ -190,7 +199,13 @@ for (const app of APPS) {
     // they are NOT composite and do not emit declarations. This avoids the
     // declaration-portability strictness (TS2742/TS4055) that only matters for
     // libraries whose public types must be nameable by dependents.
-    compilerOptions: { outDir: "./dist", rootDir: "./src", composite: false, declaration: false, declarationMap: false },
+    compilerOptions: {
+      outDir: "./dist",
+      rootDir: "./src",
+      composite: false,
+      declaration: false,
+      declarationMap: false,
+    },
     include: ["src/**/*"],
     exclude: ["node_modules", "dist", "tests", "**/*.test.ts", "**/*.test.tsx"],
     ...(refs.length ? { references: refs } : {}),
@@ -203,7 +218,9 @@ for (const app of APPS) {
 const allRefs = [...closure]
   .map((n) => meta.get(n).dir)
   .sort()
-  .map((dir) => ({ path: "./" + relative(ROOT, join(dir, "tsconfig.build.json")).replace(/\\/g, "/") }));
+  .map((dir) => ({
+    path: "./" + relative(ROOT, join(dir, "tsconfig.build.json")).replace(/\\/g, "/"),
+  }));
 const rootSolution = {
   files: [],
   references: allRefs,

@@ -37,8 +37,15 @@ function collect(target, acc) {
     return acc;
   }
   for (const entry of readDir(target)) {
-    if (entry.name === "node_modules" || entry.name === "dist" || entry.name === ".next" ||
-        entry.name === ".turbo" || entry.name === ".stryker-tmp" || entry.name === "coverage") continue;
+    if (
+      entry.name === "node_modules" ||
+      entry.name === "dist" ||
+      entry.name === ".next" ||
+      entry.name === ".turbo" ||
+      entry.name === ".stryker-tmp" ||
+      entry.name === "coverage"
+    )
+      continue;
     collect(resolve(target, entry.name), acc);
   }
   return acc;
