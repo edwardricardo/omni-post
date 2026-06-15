@@ -11,15 +11,15 @@
 
 import React, { useState } from "react";
 import { useTranslations } from "next-intl";
-import { AnalyticsHeader } from "./analytics/AnalyticsHeader.js";
-import { LoadingState } from "./analytics/LoadingState.js";
-import { TabNavigation } from "./analytics/TabNavigation.js";
-import { PerformanceTab } from "./analytics/tabs/PerformanceTab.js";
-import { ROITab } from "./analytics/tabs/ROITab.js";
-import { AudienceTab } from "./analytics/tabs/AudienceTab.js";
-import { CompetitiveTab } from "./analytics/tabs/CompetitiveTab.js";
-import { usePredictiveData } from "./analytics/hooks/usePredictiveData.js";
-import type { PerformancePrediction, AnalysisTab, Timeframe } from "./analytics/types.js";
+import { AnalyticsHeader } from "./analytics/AnalyticsHeader";
+import { LoadingState } from "./analytics/LoadingState";
+import { TabNavigation } from "./analytics/TabNavigation";
+import { PerformanceTab } from "./analytics/tabs/PerformanceTab";
+import { ROITab } from "./analytics/tabs/ROITab";
+import { AudienceTab } from "./analytics/tabs/AudienceTab";
+import { CompetitiveTab } from "./analytics/tabs/CompetitiveTab";
+import { usePredictiveData } from "./analytics/hooks/usePredictiveData";
+import type { PerformancePrediction, AnalysisTab, Timeframe } from "./analytics/types";
 
 interface PredictiveAnalyticsProps {
   accountId?: string;

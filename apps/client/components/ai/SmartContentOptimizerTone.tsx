@@ -11,7 +11,7 @@
 import React from "react";
 import { MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { ToneAnalysis } from "./smartContentOptimizerUtils.js";
+import type { ToneAnalysis } from "./smartContentOptimizerUtils";
 
 interface SmartContentOptimizerToneProps {
   toneAnalysis: ToneAnalysis;

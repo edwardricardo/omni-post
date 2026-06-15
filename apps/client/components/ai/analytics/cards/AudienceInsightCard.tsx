@@ -7,8 +7,8 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { AudienceInsight } from "../types.js";
-import { formatNumber } from "../utils.js";
+import { AudienceInsight } from "../types";
+import { formatNumber } from "../utils";
 
 interface AudienceInsightCardProps {
   insight: AudienceInsight;

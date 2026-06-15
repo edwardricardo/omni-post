@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from "@packages/ui";
 import type { GatewayProvider } from "@/hooks/api/useBilling";
-import { GATEWAY_LABELS, getAlternativeGateway } from "../utils/pricing.js";
+import { GATEWAY_LABELS, getAlternativeGateway } from "../utils/pricing";
 
 interface SwitchConfirmDialogProps {
   open: boolean;
