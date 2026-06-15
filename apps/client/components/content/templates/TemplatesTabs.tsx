@@ -10,7 +10,7 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import type { TabOption } from "./types.js";
+import type { TabOption } from "./types";
 
 interface TemplatesTabsProps {
   activeTab: TabOption;

@@ -7,8 +7,8 @@
  */
 
 import React from "react";
-import { ROIForecast } from "../types.js";
-import { ROIForecastCard } from "../cards/ROIForecastCard.js";
+import { ROIForecast } from "../types";
+import { ROIForecastCard } from "../cards/ROIForecastCard";
 
 interface ROITabProps {
   roiForecasts: ROIForecast[];

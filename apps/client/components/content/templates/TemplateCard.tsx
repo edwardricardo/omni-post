@@ -11,7 +11,7 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { FileText, Play, Edit, Copy, Trash2, Star, Clock, Users, Wand2 } from "lucide-react";
-import type { ContentTemplate } from "./types.js";
+import type { ContentTemplate } from "./types";
 
 interface TemplateCardProps {
   template: ContentTemplate;

@@ -8,10 +8,10 @@
  * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";
-import { mapToROIForecasts } from "../mapROIForecasts.js";
-import { mapToCompetitorAnalysis } from "../mapCompetitorAnalysis.js";
-import { mapToPerformancePredictions } from "../mapTimingPredictions.js";
-import type { ROIApiValue, CrossPlatformApiValue, PredictTimingApiValue } from "../apiTypes.js";
+import { mapToROIForecasts } from "../mapROIForecasts";
+import { mapToCompetitorAnalysis } from "../mapCompetitorAnalysis";
+import { mapToPerformancePredictions } from "../mapTimingPredictions";
+import type { ROIApiValue, CrossPlatformApiValue, PredictTimingApiValue } from "../apiTypes";
 
 describe("mapToROIForecasts", () => {
   it("maps a real CalculateROIOutput payload into a single ROIForecast", () => {

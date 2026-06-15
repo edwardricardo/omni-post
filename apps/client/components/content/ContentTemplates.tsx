@@ -29,7 +29,7 @@ import {
   TemplateVariableModal,
   TemplatesLoadingSkeleton,
   useTemplateData,
-} from "./templates/index.js";
+} from "./templates";
 import type {
   ContentTemplate,
   AutomationTemplate,
@@ -37,7 +37,7 @@ import type {
   SortOption,
   ViewMode,
   TabOption,
-} from "./templates/index.js";
+} from "./templates";
 
 /**
  * @component ContentTemplates

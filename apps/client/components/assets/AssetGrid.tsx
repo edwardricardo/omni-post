@@ -12,7 +12,7 @@ import { Button } from "@packages/ui";
 import { Trash2 } from "lucide-react";
 import { useAssets, useDeleteAsset } from "@/hooks/api/useAssets";
 import type { MediaAssetDto } from "@/hooks/api/useAssets";
-import { AssetThumbnail } from "./AssetThumbnail.js";
+import { AssetThumbnail } from "./AssetThumbnail";
 
 interface AssetGridProps {
   folderId: string | undefined;

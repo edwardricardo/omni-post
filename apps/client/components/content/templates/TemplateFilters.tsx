@@ -11,7 +11,7 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { Search, Grid, List } from "lucide-react";
-import type { FilterOptions, SortOption, ViewMode } from "./types.js";
+import type { FilterOptions, SortOption, ViewMode } from "./types";
 
 interface TemplateFiltersProps {
   searchQuery: string;

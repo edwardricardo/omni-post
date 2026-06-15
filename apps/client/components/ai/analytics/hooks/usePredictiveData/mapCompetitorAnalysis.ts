@@ -7,9 +7,9 @@
  * @layer infrastructure
  */
 
-import type { CompetitorAnalysis } from "../../types.js";
-import type { CrossPlatformApiValue } from "./apiTypes.js";
-import { TOP_LIST_CAP } from "./providerMap.js";
+import type { CompetitorAnalysis } from "../../types";
+import type { CrossPlatformApiValue } from "./apiTypes";
+import { TOP_LIST_CAP } from "./providerMap";
 
 function classifyAgainstAverage(value: number, average: number): "above" | "below" | "similar" {
   if (value > average) return "above";

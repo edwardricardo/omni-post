@@ -11,8 +11,8 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { Wand2 } from "lucide-react";
-import { AutomationCard } from "./AutomationCard.js";
-import type { AutomationTemplate } from "./types.js";
+import { AutomationCard } from "./AutomationCard";
+import type { AutomationTemplate } from "./types";
 
 interface AutomationListProps {
   automations: AutomationTemplate[];
