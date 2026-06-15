@@ -18,7 +18,7 @@
 
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
-import { CQRSIntegration } from "../../src/cqrs/CQRSIntegration";
+import { CQRSIntegration } from "../../src/cqrs/CQRSIntegration.js";
 import {
   MockRedis,
   MockEventService,

@@ -4,8 +4,8 @@
  * @layer infrastructure
  */
 import { describe, it, beforeEach, expect } from "vitest";
-import { CQRSBusImpl } from "../../src/cqrs/CQRSBus";
-import type { CommandHandler, CommandResult } from "@shared/cqrs";
+import { CQRSBusImpl } from "../../src/cqrs/CQRSBus.js";
+import type { CommandHandler, CommandResult } from "@shared/types/cqrs.js";
 import {
   MockRedis,
   MockEventService,

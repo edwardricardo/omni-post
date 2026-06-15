@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 import crypto from "crypto";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import type { PrismaClient } from "@infra/prisma";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { logger } from "../lib/logger.js";
