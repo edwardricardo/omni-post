@@ -4,7 +4,7 @@
  * @layer infrastructure
  */
 
-import type { AIPromptTemplateDto, CreateTemplateInput, UpdateTemplateInput } from "./types";
+import type { AIPromptTemplateDto, CreateTemplateInput, UpdateTemplateInput } from "./types.js";
 
 const BASE = "/api/backend/ai-templates";
 

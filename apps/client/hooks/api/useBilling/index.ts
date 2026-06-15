@@ -14,13 +14,13 @@ export type {
   InvoicesPage,
   PendingSwitch,
   PendingSwitchStatus,
-} from "./types";
+} from "./types.js";
 
-export { useAvailablePlans, useGatewayStatus, useMyInvoices } from "./queries";
+export { useAvailablePlans, useGatewayStatus, useMyInvoices } from "./queries.js";
 
 export {
   useBillingPortal,
   useCancelGatewaySwitch,
   useCheckout,
   useInitiateGatewaySwitch,
-} from "./mutations";
+} from "./mutations.js";
