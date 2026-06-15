@@ -15,13 +15,13 @@
 import React from "react";
 import { Wand2, Sparkles, Target, Eye } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { GeneratedContent } from "../../types/ai-content";
-import type { BrandVoice, ContentGoal } from "../../types/ai-content";
-import { useAIContentGenerator } from "../../hooks/useAIContentGenerator";
-import { AITemplateSelector } from "./AITemplateSelector";
-import { AIPromptForm } from "./AIPromptForm";
-import { AIGenerationPreview } from "./AIGenerationPreview";
-import { AIContentResults } from "./AIContentResults";
+import type { GeneratedContent } from "../../types/ai-content.js";
+import type { BrandVoice, ContentGoal } from "../../types/ai-content.js";
+import { useAIContentGenerator } from "../../hooks/useAIContentGenerator.js";
+import { AITemplateSelector } from "./AITemplateSelector.js";
+import { AIPromptForm } from "./AIPromptForm.js";
+import { AIGenerationPreview } from "./AIGenerationPreview.js";
+import { AIContentResults } from "./AIContentResults.js";
 
 interface AIContentGeneratorProps {
   selectedTemplate?: string;

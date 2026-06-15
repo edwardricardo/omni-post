@@ -14,7 +14,7 @@ import { getLocale } from "next-intl/server";
 import { ConsoleLoggerAdapter } from "@observability/browser-logger";
 
 import { setSessionCookie, setRefreshCookie, readAuthTokens } from "@/lib/auth/sessionCookie";
-import { env } from "../../lib/env";
+import { env } from "../../lib/env.js";
 
 const log = new ConsoleLoggerAdapter("client.auth-actions", { alwaysEmit: true });
 

@@ -8,7 +8,7 @@
 "use client";
 
 import { useProject } from "@/providers/ProjectProvider";
-import { ListeningDashboard } from "./components/ListeningDashboard";
+import { ListeningDashboard } from "./components/ListeningDashboard.js";
 
 /**
  * @component ListeningPage
