@@ -10,8 +10,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import RepurposePage from "../../app/[locale]/dashboard/ai/repurpose/page.js";
-import { IntlTestProvider } from "../intl-test-utils.js";
+import RepurposePage from "../../app/[locale]/dashboard/ai/repurpose/page";
+import { IntlTestProvider } from "../intl-test-utils";
 
 const toastSpy = vi.fn();
 // Mock @packages/ui to the surface the page uses — the full barrel pulls

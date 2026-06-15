@@ -8,8 +8,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useProviders } from "../../lib/hooks/useProviders.js";
-import type { Provider } from "../../lib/api/types.js";
+import { useProviders } from "../../lib/hooks/useProviders";
+import type { Provider } from "../../lib/api/types";
 
 // Mock fetch
 const mockFetch = vi.fn();

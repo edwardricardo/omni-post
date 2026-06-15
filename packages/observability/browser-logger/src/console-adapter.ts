@@ -7,7 +7,7 @@
  * @layer infrastructure
  */
 
-import { BrowserLoggerPort, LogContext, LogLevel, LogLevelType, extractErrorInfo } from "./port.js";
+import { BrowserLoggerPort, LogContext, LogLevel, LogLevelType, extractErrorInfo } from "./port";
 
 /**
  * Format a log entry into a human-readable prefix line. Matches the backend

@@ -9,7 +9,7 @@
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useAutoSave, usePostDraft } from "../../lib/hooks/useAutoSave.js";
+import { useAutoSave, usePostDraft } from "../../lib/hooks/useAutoSave";
 
 const createMutateAsync = vi.fn();
 const updateMutateAsync = vi.fn();

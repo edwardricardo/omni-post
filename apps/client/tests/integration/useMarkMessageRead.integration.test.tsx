@@ -11,7 +11,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useMarkMessageRead } from "../../hooks/api/useInbox/index.js";
+import { useMarkMessageRead } from "../../hooks/api/useInbox";
 
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);

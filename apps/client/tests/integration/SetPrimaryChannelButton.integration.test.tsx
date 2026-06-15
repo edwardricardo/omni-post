@@ -11,8 +11,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { SetPrimaryChannelButton } from "../../components/channels/SetPrimaryChannelButton.js";
-import { IntlTestProvider } from "../intl-test-utils.js";
+import { SetPrimaryChannelButton } from "../../components/channels/SetPrimaryChannelButton";
+import { IntlTestProvider } from "../intl-test-utils";
 
 const toastSpy = vi.fn();
 // Fully mock @packages/ui to avoid pulling the whole barrel (which imports

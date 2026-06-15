@@ -16,7 +16,7 @@ import {
   useProjectChannels,
   useSetPrimaryChannel,
   type ProjectChannel,
-} from "../../lib/hooks/useProjectChannels/index.js";
+} from "../../lib/hooks/useProjectChannels";
 
 const mockFetch = vi.fn();
 

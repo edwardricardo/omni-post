@@ -14,9 +14,9 @@ import React from "react";
 import { http, HttpResponse } from "msw";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import { ListeningDashboard } from "../../app/[locale]/dashboard/listening/components/ListeningDashboard.js";
-import { server } from "../mocks/server.js";
-import { IntlTestProvider } from "../intl-test-utils.js";
+import { ListeningDashboard } from "../../app/[locale]/dashboard/listening/components/ListeningDashboard";
+import { server } from "../mocks/server";
+import { IntlTestProvider } from "../intl-test-utils";
 
 const PROXY = "/api/backend";
 
