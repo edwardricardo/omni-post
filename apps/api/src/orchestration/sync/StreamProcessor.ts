@@ -4,10 +4,10 @@
  * @layer infrastructure
  */
 
-import type Redis from "ioredis";
-import type { VersionDiff } from "@shared/orchestration";
+import type { Redis } from "ioredis";
+import type { VersionDiff } from "@shared/types/orchestration.js";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
-import type { EventService } from "../../events/EventService";
+import type { EventService } from "../../events/EventService.js";
 import { createLogger } from "../../lib/logger.js";
 
 const log = createLogger("orchestration");

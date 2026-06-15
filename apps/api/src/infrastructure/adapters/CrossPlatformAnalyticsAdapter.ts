@@ -9,7 +9,7 @@ import type { CachePort } from "@ports/core";
 import type { CrossPlatformAnalyticsPort } from "@core/analytics/GetCrossPlatformAnalyticsUseCase.js";
 import { CrossPlatformAnalyticsEngine } from "../../analytics/crossPlatform/index.js";
 import type { CrossPlatformAnalyticsOptions } from "../../analytics/crossPlatform/types.js";
-import type { TimeRange, ProviderType } from "@shared/analytics";
+import type { TimeRange, ProviderType } from "@shared/types/analytics.js";
 import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
 import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
 

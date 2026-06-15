@@ -7,7 +7,7 @@
  *              path and the integration test call THIS exact function.
  * @layer infrastructure
  */
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import { createRedisConnection } from "../../lib/redis.js";

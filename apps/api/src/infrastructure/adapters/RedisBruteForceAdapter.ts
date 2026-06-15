@@ -23,7 +23,7 @@
  * @layer infrastructure
  */
 
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import type {
   BruteForceProtectionPort,
   CheckLoginAttemptInput,

@@ -8,7 +8,7 @@
 
 import { randomUUID } from "node:crypto";
 import { PrismaClient } from "@infra/prisma";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import type {
   SyncConflictResolution,
   ContentVersion,
@@ -17,11 +17,11 @@ import type {
   SyncResponse,
   OrchestrationResult,
   SyncTransformation,
-} from "@shared/orchestration";
+} from "@shared/types/orchestration.js";
 import type { CanonicalPost } from "@shared/types";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
-import type { ProviderId } from "../providers/providerAdapter.interface";
-import { EventService } from "../events/EventService";
+import type { ProviderId } from "../providers/providerAdapter.interface.js";
+import { EventService } from "../events/EventService.js";
 import { createLogger } from "../lib/logger.js";
 import { SyncCoordinator } from "./sync/SyncCoordinator.js";
 
