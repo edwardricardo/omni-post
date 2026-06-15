@@ -5,9 +5,9 @@
  * @layer infrastructure
  */
 
-import type { AdaptationRule, PlatformAdaptation } from "@shared/orchestration";
+import type { AdaptationRule, PlatformAdaptation } from "@shared/types/orchestration.js";
 import type { CanonicalPost, Media } from "@shared/types";
-import type { ProviderId } from "../providers/providerAdapter.interface";
+import type { ProviderId } from "../providers/providerAdapter.interface.js";
 import type {
   AdaptationCondition,
   AdaptationMetrics,

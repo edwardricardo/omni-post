@@ -5,12 +5,12 @@
  * @layer infrastructure
  */
 
-import type Redis from "ioredis";
-import type { PlatformAdaptation, OrchestrationResult } from "@shared/orchestration";
+import type { Redis } from "ioredis";
+import type { PlatformAdaptation, OrchestrationResult } from "@shared/types/orchestration.js";
 import type { CanonicalPost } from "@shared/types";
-import type { ProviderId, ProviderAdapter } from "../providers/providerAdapter.interface";
-import type { EventService } from "../events/EventService";
-import { providerRegistry } from "../providers/providerRegistry";
+import type { ProviderId, ProviderAdapter } from "../providers/providerAdapter.interface.js";
+import type { EventService } from "../events/EventService.js";
+import { providerRegistry } from "../providers/providerRegistry.js";
 import { validateContentForLimits } from "@providers/shared";
 import type { AdaptationMetrics, AdaptationSession } from "./platformContentAdapterTypes.js";
 import {

@@ -6,7 +6,7 @@
  */
 
 import type { CanonicalPost } from "@shared/types";
-import type { ProviderId } from "../providers/providerAdapter.interface";
+import type { ProviderId } from "../providers/providerAdapter.interface.js";
 
 export interface VersionBranch {
   id: string;
