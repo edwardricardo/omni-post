@@ -10,7 +10,7 @@
 
 import React, { useState, useEffect, useId } from "react";
 import { useTranslations } from "next-intl";
-import type { ContentTemplate } from "./types.js";
+import type { ContentTemplate } from "./types";
 
 interface TemplateVariableModalProps {
   template: ContentTemplate | null;

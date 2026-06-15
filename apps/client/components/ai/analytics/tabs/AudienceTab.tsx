@@ -7,8 +7,8 @@
  */
 
 import React from "react";
-import { AudienceInsight } from "../types.js";
-import { AudienceInsightCard } from "../cards/AudienceInsightCard.js";
+import { AudienceInsight } from "../types";
+import { AudienceInsightCard } from "../cards/AudienceInsightCard";
 
 interface AudienceTabProps {
   audienceInsights: AudienceInsight[];

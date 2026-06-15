@@ -8,7 +8,7 @@
 
 import { useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { CampaignStatusBadge } from "./CampaignStatusBadge.js";
+import { CampaignStatusBadge } from "./CampaignStatusBadge";
 import { useCampaignAnalytics } from "@/hooks/api/useCampaigns";
 import type { CampaignAnalyticsDto, CampaignDto } from "@/hooks/api/useCampaigns";
 

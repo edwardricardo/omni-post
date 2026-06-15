@@ -5,6 +5,6 @@
  * @layer infrastructure
  */
 
-export { CreateTemplateForm } from "./CreateTemplateForm.js";
-export { TemplateCard } from "./TemplateCard.js";
-export { AVAILABLE_PLATFORMS, EMPTY_FORM, type CreateFormState } from "./types.js";
+export { CreateTemplateForm } from "./CreateTemplateForm";
+export { TemplateCard } from "./TemplateCard";
+export { AVAILABLE_PLATFORMS, EMPTY_FORM, type CreateFormState } from "./types";

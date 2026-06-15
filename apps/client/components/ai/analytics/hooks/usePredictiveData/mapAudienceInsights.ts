@@ -9,9 +9,9 @@
  * @layer infrastructure
  */
 
-import type { AudienceInsight } from "../../types.js";
-import type { PredictAudienceApiValue } from "./apiTypes.js";
-import { SCORE_TO_TEN_DIVISOR, TOP_LIST_CAP } from "./providerMap.js";
+import type { AudienceInsight } from "../../types";
+import type { PredictAudienceApiValue } from "./apiTypes";
+import { SCORE_TO_TEN_DIVISOR, TOP_LIST_CAP } from "./providerMap";
 
 const EMPTY_DEMOGRAPHICS = {
   ageGroup: "",
