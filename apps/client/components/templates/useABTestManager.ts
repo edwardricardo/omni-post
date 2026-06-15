@@ -11,7 +11,7 @@ import { useState, useCallback, useMemo } from "react";
 import { format, addDays } from "date-fns";
 import { type TemplateVariant, type ABTestConfig } from "@/lib/templates/templateEngine";
 import { useToast } from "@packages/ui";
-import { type ABTest, type ABTestManagerProps } from "./abTestTypes.js";
+import { type ABTest, type ABTestManagerProps } from "./abTestTypes";
 
 export interface CreateFormState {
   name: string;

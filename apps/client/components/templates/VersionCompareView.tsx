@@ -16,7 +16,7 @@ import { GitCompare } from "lucide-react";
 import { DiffView, DiffModeEnum } from "@git-diff-view/react";
 import { generateDiffFile } from "@git-diff-view/file";
 import "@git-diff-view/react/styles/diff-view.css";
-import type { TemplateVersion } from "./templateVersionControlTypes.js";
+import type { TemplateVersion } from "./templateVersionControlTypes";
 
 interface TemplateVersionDiffProps {
   left: TemplateVersion | undefined;

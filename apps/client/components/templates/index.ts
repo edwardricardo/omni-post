@@ -4,10 +4,10 @@
  * @layer infrastructure
  */
 // Enhanced Template System Components
-export { TemplateEditor } from "./TemplateEditor.js";
-export { TemplateLibrary } from "./TemplateLibrary.js";
-export { ABTestManager } from "./ABTestManager.js";
-export { TemplateVersionControl } from "./TemplateVersionControl.js";
+export { TemplateEditor } from "./TemplateEditor";
+export { TemplateLibrary } from "./TemplateLibrary";
+export { ABTestManager } from "./ABTestManager";
+export { TemplateVersionControl } from "./TemplateVersionControl";
 
 // Re-export template engine and types
 export {

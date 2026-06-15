@@ -10,7 +10,7 @@ import type {
   AssetsPage,
   CreateAssetInput,
   ListAssetsParams,
-} from "./types.js";
+} from "./types";
 
 export async function fetchAssets(params: ListAssetsParams): Promise<AssetsPage> {
   const searchParams = new URLSearchParams();

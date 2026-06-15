@@ -27,13 +27,13 @@ import {
   AlertDialogTitle,
 } from "@packages/ui";
 import { GitBranch, GitCompare, History } from "lucide-react";
-import type { TemplateVersionControlProps } from "./templateVersionControlTypes.js";
-import { useTemplateVersionControl } from "./useTemplateVersionControl.js";
-import { VersionCard } from "./VersionCard.js";
-import { BranchCard } from "./BranchCard.js";
-import { VersionCompareTab, VersionCompareDialog } from "./VersionCompareView.js";
-import { CreateVersionDialog } from "./CreateVersionDialog.js";
-import { CreateBranchDialog } from "./CreateBranchDialog.js";
+import type { TemplateVersionControlProps } from "./templateVersionControlTypes";
+import { useTemplateVersionControl } from "./useTemplateVersionControl";
+import { VersionCard } from "./VersionCard";
+import { BranchCard } from "./BranchCard";
+import { VersionCompareTab, VersionCompareDialog } from "./VersionCompareView";
+import { CreateVersionDialog } from "./CreateVersionDialog";
+import { CreateBranchDialog } from "./CreateBranchDialog";
 
 export function TemplateVersionControl({
   template,
