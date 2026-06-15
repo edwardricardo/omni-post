@@ -17,7 +17,7 @@ import {
   useTestWebhook,
 } from "@/hooks/api/useExternalNotifications";
 import type { CreateWebhookParams } from "@/hooks/api/useExternalNotifications";
-import { AddWebhookForm } from "./AddWebhookForm";
+import { AddWebhookForm } from "./AddWebhookForm.js";
 import { Plus, Trash2, TestTube2 } from "lucide-react";
 
 interface ExternalNotificationConfigsProps {
