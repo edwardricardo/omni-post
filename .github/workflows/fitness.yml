@@ -522,6 +522,26 @@ jobs:
             exit 1
           fi
 
+      - name: "#26 No .js-on-.ts relative imports in bundler-compiled frontend dirs"
+        if: always()
+        run: |
+          set -uo pipefail
+          # Next 16 Turbopack can't resolve a written ./x.js to its ./x.ts source
+          # (vercel/next.js #82945 OPEN); the NodeNext .js convention is backend-only.
+          # The Next apps + frontend-only packages use moduleResolution:bundler =
+          # extensionless. A .js here silently breaks next dev/build. Mirrors CLAUDE.md #26.
+          COUNT=$(grep -rnE 'from "\.\.?/[^"]*\.js"' \
+                    apps/admin apps/client packages/ui/src packages/api-errors/src \
+                    packages/query-client/src packages/observability/browser-logger/src \
+                    --include="*.ts" --include="*.tsx" \
+                    --exclude-dir=.next --exclude-dir=node_modules --exclude-dir=dist 2>/dev/null | wc -l || true)
+          COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #26 violation::$COUNT .js-on-.ts relative import(s) in bundler-compiled frontend dirs — Turbopack can't resolve them; use extensionless (backend keeps .js)"
+            grep -rnE 'from "\.\.?/[^"]*\.js"' apps/admin apps/client packages/ui/src packages/api-errors/src packages/query-client/src packages/observability/browser-logger/src --include="*.ts" --include="*.tsx" --exclude-dir=.next --exclude-dir=node_modules --exclude-dir=dist 2>/dev/null | head -20
+            exit 1
+          fi
+
       - name: Fitness summary
         if: always()
         run: |
