@@ -1,14 +1,13 @@
 /**
  * @file vitest.config.ts
- * @description Vitest configuration for @packages/query-client — jsdom environment for React,
- *              forked pool to keep TanStack Query state isolated per test.
+ * @description Vitest config for @packages/query-client. Delegates to the shared workspace factory so
+ *              `@core/*` and the other workspace specifiers resolve to TypeScript SOURCE (not the
+ *              production `dist/` `exports` target) when tests run against an unbuilt tree.
  * @layer infrastructure
  */
-import { defineConfig } from "vitest/config";
-import react from "@vitejs/plugin-react";
+import { defineWorkspaceVitestConfig } from "../../vitest.shared.js";
 
-export default defineConfig({
-  plugins: [react()],
+export default defineWorkspaceVitestConfig(import.meta.dirname, {
   test: {
     environment: "jsdom",
     globals: true,
