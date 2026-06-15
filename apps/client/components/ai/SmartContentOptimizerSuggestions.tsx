@@ -11,8 +11,8 @@
 import React from "react";
 import { CheckCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { OptimizationSuggestion } from "./smartContentOptimizerUtils";
-import { getPriorityColor } from "./smartContentOptimizerUtils";
+import type { OptimizationSuggestion } from "./smartContentOptimizerUtils.js";
+import { getPriorityColor } from "./smartContentOptimizerUtils.js";
 
 interface SmartContentOptimizerSuggestionsProps {
   suggestions: OptimizationSuggestion[];

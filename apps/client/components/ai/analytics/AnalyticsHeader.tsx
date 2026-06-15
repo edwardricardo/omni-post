@@ -8,7 +8,7 @@
 import React from "react";
 import { Brain, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Timeframe } from "./types";
+import { Timeframe } from "./types.js";
 
 interface AnalyticsHeaderProps {
   selectedTimeframe: Timeframe;

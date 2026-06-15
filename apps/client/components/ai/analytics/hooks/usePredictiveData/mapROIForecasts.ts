@@ -7,10 +7,10 @@
  * @layer infrastructure
  */
 
-import type { ROIForecast } from "../../types";
-import type { Timeframe } from "../../types";
-import type { ROIApiValue } from "./apiTypes";
-import { ROI_CONFIDENCE_CEILING, ROI_CONFIDENCE_FLOOR, ROI_FACTORS_CAP } from "./providerMap";
+import type { ROIForecast } from "../../types.js";
+import type { Timeframe } from "../../types.js";
+import type { ROIApiValue } from "./apiTypes.js";
+import { ROI_CONFIDENCE_CEILING, ROI_CONFIDENCE_FLOOR, ROI_FACTORS_CAP } from "./providerMap.js";
 
 export function mapToROIForecasts(
   roiData: ROIApiValue | undefined,

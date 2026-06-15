@@ -8,7 +8,7 @@
 import React from "react";
 import { TrendingUp, Eye, CheckCircle, AlertTriangle } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { CompetitorAnalysis } from "../types";
+import { CompetitorAnalysis } from "../types.js";
 
 interface CompetitorAnalysisCardProps {
   competitor: CompetitorAnalysis;
