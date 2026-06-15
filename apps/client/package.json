@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "pnpm --filter @shared/types... build",
     "dev": "next dev -p 3200",
     "build": "next build",
     "start": "next start -p 3200",
@@ -61,7 +62,7 @@
     "date-fns": "4.1.0",
     "fuse.js": "7.0.0",
     "lucide-react": "0.544.0",
-    "next": "16.2.4",
+    "next": "16.2.6",
     "next-intl": "4.9.2",
     "papaparse": "5.5.3",
     "react": "19.2.4",

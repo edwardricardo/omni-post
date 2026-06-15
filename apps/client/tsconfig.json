@@ -11,8 +11,8 @@
     "noUncheckedSideEffectImports": false,
     "paths": {
       "@/*": ["./*"],
-      "@shared/types": ["../../packages/shared/src/index.ts"],
-      "@shared/types/*": ["../../packages/shared/src/*"],
+      "@shared/types": ["../../packages/shared/dist/index.d.ts"],
+      "@shared/types/*": ["../../packages/shared/dist/*"],
       "@core/domain": ["../../packages/core/domain/src/index.ts"],
       "@core/domain/*": ["../../packages/core/domain/src/*"],
       "@core/application": ["../../packages/core/application/src/index.ts"],
