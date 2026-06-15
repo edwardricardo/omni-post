@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-import type { CostBreakdown, CostModel, ProviderType, PostDataPoint } from "./types";
+import type { CostBreakdown, CostModel, ProviderType, PostDataPoint } from "./types.js";
 
 export class CostCalculator {
   /**

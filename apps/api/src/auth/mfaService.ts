@@ -8,7 +8,7 @@ import { authenticator } from "otplib";
 import * as QRCode from "qrcode";
 import * as crypto from "crypto";
 import { ok, err, isErr, type Result } from "@shared/types";
-import { AuditableService } from "../services/AuditableService";
+import { AuditableService } from "../services/AuditableService.js";
 import type { AdminUserRepositoryPort } from "@core/domain/repositories/AdminUserRepository.js";
 import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 import { authLogger } from "../lib/logger.js";

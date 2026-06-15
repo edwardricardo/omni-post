@@ -15,7 +15,7 @@ import type {
   AnalyticsDataPoint,
   PostDataPoint,
   ConversionDataPoint,
-} from "./types";
+} from "./types.js";
 
 export class ROIForecasting {
   /**

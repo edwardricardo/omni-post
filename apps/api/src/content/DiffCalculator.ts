@@ -5,9 +5,9 @@
  * @layer infrastructure
  */
 
-import { ContentVersion, VersionDiff } from "@shared/orchestration";
+import { ContentVersion, VersionDiff } from "@shared/types/orchestration.js";
 import type { CanonicalPost } from "@shared/types";
-import type { ProviderId } from "../providers/providerAdapter.interface";
+import type { ProviderId } from "../providers/providerAdapter.interface.js";
 
 export class DiffCalculator {
   /**

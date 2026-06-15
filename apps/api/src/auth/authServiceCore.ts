@@ -13,7 +13,7 @@ import { ok, err, type Result } from "@shared/types";
 import { env } from "../config/env.js";
 import type { AdminRoleKind } from "@core/domain/repositories/ReadModelDtos.js";
 import type { AdminUserDto } from "@core/domain/repositories/ReadModelDtos.js";
-import { AuditableService } from "../services/AuditableService";
+import { AuditableService } from "../services/AuditableService.js";
 import type { MfaService } from "./mfaService.js";
 import type { AdminUserRepositoryPort } from "@core/domain/repositories/AdminUserRepository.js";
 import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";

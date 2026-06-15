@@ -10,8 +10,8 @@ import type {
   RevenueModel,
   AnalyticsDataPoint,
   ConversionDataPoint,
-} from "./types";
-import { AnalyticsAggregator } from "../analyticsUtils";
+} from "./types.js";
+import { AnalyticsAggregator } from "../analyticsUtils.js";
 
 export class RevenueCalculator {
   /**

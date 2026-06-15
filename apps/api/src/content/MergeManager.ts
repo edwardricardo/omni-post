@@ -6,12 +6,12 @@
  */
 
 import { randomUUID } from "node:crypto";
-import Redis from "ioredis";
-import { ContentVersion, OrchestrationResult } from "@shared/orchestration";
+import { Redis } from "ioredis";
+import { ContentVersion, OrchestrationResult } from "@shared/types/orchestration.js";
 import type { CanonicalPost } from "@shared/types";
-import type { ProviderId } from "../providers/providerAdapter.interface";
-import { EventService } from "../events/EventService";
-import { MergeRequest, VersionConflict, ConflictResolution } from "./contentVersionTypes";
+import type { ProviderId } from "../providers/providerAdapter.interface.js";
+import { EventService } from "../events/EventService.js";
+import { MergeRequest, VersionConflict, ConflictResolution } from "./contentVersionTypes.js";
 import { logger } from "../lib/logger.js";
 
 export class MergeManager {

@@ -323,7 +323,7 @@ export const env = parseApiEnv(process.env);
 
 /**
  * `Env` is the inferred shape of the `env` constant. Importers can do
- * `import { env, type Env } from "../config/env"` if they need the type
+ * `import { env, type Env } from "../config/env.js"` if they need the type
  * for parameter signatures.
  */
 export type Env = typeof env;
