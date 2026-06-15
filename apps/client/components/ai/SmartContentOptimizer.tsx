@@ -28,19 +28,19 @@ import type {
   HashtagAnalysis,
   ToneAnalysis,
   SmartContentOptimizerProps,
-} from "./smartContentOptimizerUtils";
+} from "./smartContentOptimizerUtils.js";
 import {
   getScoreColor,
   adaptAnalysisResponse,
   adaptOptimizationResponse,
   adaptToneResponse,
   PLATFORM_TO_API_PROVIDER,
-} from "./smartContentOptimizerUtils";
-import { SmartContentOptimizerOverview } from "./SmartContentOptimizerOverview";
-import { SmartContentOptimizerSuggestions } from "./SmartContentOptimizerSuggestions";
-import { SmartContentOptimizerHashtags } from "./SmartContentOptimizerHashtags";
-import { SmartContentOptimizerTone } from "./SmartContentOptimizerTone";
-import { SmartContentOptimizerMetrics } from "./SmartContentOptimizerMetrics";
+} from "./smartContentOptimizerUtils.js";
+import { SmartContentOptimizerOverview } from "./SmartContentOptimizerOverview.js";
+import { SmartContentOptimizerSuggestions } from "./SmartContentOptimizerSuggestions.js";
+import { SmartContentOptimizerHashtags } from "./SmartContentOptimizerHashtags.js";
+import { SmartContentOptimizerTone } from "./SmartContentOptimizerTone.js";
+import { SmartContentOptimizerMetrics } from "./SmartContentOptimizerMetrics.js";
 import { request, PROXY_BASE } from "@/lib/api/clients/request";
 import { ApiError } from "@packages/api-errors";
 
