@@ -1,4 +1,4 @@
-import path from "node:path";
+import os from "node:os";
 import { withSentryConfig } from "@sentry/nextjs";
 import createNextIntlPlugin from "next-intl/plugin";
 
@@ -11,16 +11,18 @@ const nextConfig = {
   // localhost. Next 16 blocks the HMR WebSocket and rejects Server Actions from
   // cross-origin dev requests unless the origin is allowlisted here.
   allowedDevOrigins: ["omnipost-dev"],
-  // Turbopack refuses to compile files outside `turbopack.root`, and Next
-  // standalone traces deps from `outputFileTracingRoot`. Both must point at the
-  // monorepo root — an ancestor of the project in dev, CI, AND Docker. The old
-  // `os.homedir()` broke in Docker (root user → `/root`, not an ancestor of
-  // `/app/apps/client` → "Invalid distDirRoot"). The env override lets CI/Docker
-  // pin it explicitly; default is the computed workspace root.
+  // `turbopack.root` / `outputFileTracingRoot` must be an ancestor of the app,
+  // the `packages/ui` source it imports, AND the pnpm store where `next` resolves.
+  // In dev/CI that ancestor is `os.homedir()`: the repo and pnpm's global virtual
+  // store (`$HOME/.local/share/pnpm`) both live under $HOME, whereas the monorepo
+  // root does NOT contain the store — so a monorepo-root value leaves Turbopack
+  // unable to resolve `next` ("inferred your workspace root" error). In Docker
+  // (root user, app at `/app`) $HOME is not an app ancestor, so the Dockerfile
+  // sets `NEXT_TURBOPACK_ROOT` to the container workspace root. See ADR-0017 §4.
   turbopack: {
-    root: process.env.NEXT_TURBOPACK_ROOT ?? path.resolve(import.meta.dirname, "../.."),
+    root: process.env.NEXT_TURBOPACK_ROOT ?? os.homedir(),
   },
-  outputFileTracingRoot: process.env.NEXT_TURBOPACK_ROOT ?? path.resolve(import.meta.dirname, "../.."),
+  outputFileTracingRoot: process.env.NEXT_TURBOPACK_ROOT ?? os.homedir(),
   reactStrictMode: true,
   images: {
     remotePatterns: [

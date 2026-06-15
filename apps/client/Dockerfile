@@ -57,8 +57,20 @@ RUN pnpm --filter @infra/prisma exec prisma generate
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+# Container workspace root: every member lives under /app (/app/node_modules,
+# /app/packages, /app/apps/client). The Next config defaults turbopack.root to
+# os.homedir() for dev/CI, but the build runs as root (home=/root, NOT an ancestor
+# of /app/apps/client → "Invalid distDirRoot"), so pin it to /app here — the same
+# value the monorepo-root default produced before. See ADR-0017 §4.
+ENV NEXT_TURBOPACK_ROOT=/app
 
 COPY apps/client ./apps/client
+
+# @shared/types is consumed by the app from its prebuilt NodeNext dist (the app's
+# tsconfig + the package `exports` map both resolve `@shared/types` -> dist), so
+# the dist must exist before `next build` compiles the app. Build it (and its
+# workspace deps via `...`) explicitly here.
+RUN pnpm --filter @shared/types... build
 
 # NEXT_BUILD_FLAGS lets CI fall back to the webpack builder (`--webpack`) if the
 # Turbopack standalone build hits the open monorepo root/distDirRoot bug (#86438).
