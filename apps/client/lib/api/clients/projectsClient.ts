@@ -5,8 +5,8 @@
  * @layer infrastructure
  */
 
-import type { ApiResponse, PaginatedResponse, Project } from "../types";
-import { request } from "./request";
+import type { ApiResponse, PaginatedResponse, Project } from "../types.js";
+import { request } from "./request.js";
 
 /**
  * @class ProjectsClient

@@ -6,8 +6,8 @@
  * @layer infrastructure
  */
 
-import type { ApiResponse } from "../types";
-import { uploadRequest } from "./request";
+import type { ApiResponse } from "../types.js";
+import { uploadRequest } from "./request.js";
 
 export type UploadType = "image" | "video" | "document";
 
