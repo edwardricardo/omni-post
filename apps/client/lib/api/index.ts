@@ -5,7 +5,7 @@
  */
 
 // API Client exports
-export { apiClient } from "./client";
+export { apiClient } from "./client.js";
 
 // Types
 export type {
@@ -25,10 +25,10 @@ export type {
   HealthResponse,
   ValidationError,
   ErrorResponse,
-} from "./types";
+} from "./types.js";
 
 // React Hooks
-export { useApiProviders, useAllProvidersHealth } from "./hooks";
+export { useApiProviders, useAllProvidersHealth } from "./hooks.js";
 
 // Context
-export { ApiProvider } from "./context";
+export { ApiProvider } from "./context.js";

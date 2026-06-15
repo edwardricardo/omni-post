@@ -13,14 +13,14 @@ import {
   UseQueryOptions,
   UseMutationOptions,
 } from "@tanstack/react-query";
-import { apiClient } from "./client";
+import { apiClient } from "./client.js";
 import type {
   ListPostsParams,
   ArchiveBatchResponse,
   DuplicateBatchResponse,
   HardDeleteBatchResponse,
-} from "./clients/postsClient";
-import { runSagaAndAwaitTerminal } from "./clients/sagaClient";
+} from "./clients/postsClient.js";
+import { runSagaAndAwaitTerminal } from "./clients/sagaClient.js";
 import {
   Post,
   Project,
@@ -30,7 +30,7 @@ import {
   UpdatePostRequest,
   PaginatedResponse,
   ApiResponse,
-} from "./types";
+} from "./types.js";
 import { ApiError } from "@packages/api-errors";
 
 // Query Keys

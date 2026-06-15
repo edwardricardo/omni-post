@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { authApi } from "../authApi";
+import { authApi } from "../authApi.js";
 
 // ============================================================================
 // Mock fetch
