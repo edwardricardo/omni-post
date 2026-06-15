@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsup",
+    "build": "tsc -b tsconfig.build.json",
     "dev": "tsx src/bootstrap.ts",
     "test": "vitest run",
     "test:unit": "vitest run",
@@ -48,7 +48,6 @@
   },
   "devDependencies": {
     "@types/node": "24.5.2",
-    "tsup": "8.5.1",
     "tsx": "4.21.0",
     "typescript": "5.9.3",
     "vitest": "4.1.8"
