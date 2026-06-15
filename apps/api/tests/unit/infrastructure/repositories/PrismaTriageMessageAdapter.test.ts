@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { PrismaTriageMessageAdapter } from "../../../../src/infrastructure/repositories/PrismaTriageMessageAdapter";
+import { PrismaTriageMessageAdapter } from "../../../../src/infrastructure/repositories/PrismaTriageMessageAdapter.js";
 
 function makePrismaMock(updateManyCount: number) {
   return {

@@ -3,7 +3,7 @@
  * @description Shared type definitions for analytics modules.
  * @layer infrastructure
  */
-import type { ContentType, ProviderType } from "@shared/analytics";
+import type { ContentType, ProviderType } from "@shared/types/analytics.js";
 
 export interface AnalyticsDataPoint {
   views?: number;

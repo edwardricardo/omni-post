@@ -24,13 +24,13 @@ vi.mock("../../lib/auth/authApi", () => ({
   },
 }));
 
-import { AuthProvider } from "../../lib/auth/authContext";
-import { authApi } from "../../lib/auth/authApi";
+import { AuthProvider } from "../../lib/auth/authContext.js";
+import { authApi } from "../../lib/auth/authApi.js";
 
 // Helper to get useAuthContext — import dynamically since it may not be exported
 let useAuthContext: () => any;
 try {
-  const mod = await import("../../lib/auth/authContext");
+  const mod = await import("../../lib/auth/authContext.js");
   useAuthContext = (mod as any).useAuthContext ?? (mod as any).useAuth;
 } catch {
   // Will be set in beforeEach

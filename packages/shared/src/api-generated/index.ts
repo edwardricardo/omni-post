@@ -1007,4 +1007,4 @@ export type {
   PutSamlConfigResponses,
   PutSettingsAiByokData,
   PutSettingsAiByokResponses,
-} from "./types.gen";
+} from "./types.gen.js";

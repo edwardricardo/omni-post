@@ -11,7 +11,7 @@ import { createLogger } from "../../lib/logger.js";
 
 const analyticsLogger = createLogger("analytics");
 
-import type { PostDataItem } from "./types";
+import type { PostDataItem } from "./types.js";
 import type {
   TopPerformingPost,
   ContentTypePerformance,
@@ -21,7 +21,7 @@ import type {
   OptimalTiming,
   ProviderType,
   ContentPerformanceInsights,
-} from "@shared/analytics";
+} from "@shared/types/analytics.js";
 
 // Import specialized analyzers
 import { ContentMetricsAnalyzer } from "./ContentMetricsAnalyzer.js";

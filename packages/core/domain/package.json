@@ -3,14 +3,17 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./*": "./src/*"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./*": "./dist/*"
   },
   "scripts": {
-    "build": "tsc --noEmit",
+    "build": "tsc -b tsconfig.build.json",
     "clean": "tsc --build --clean",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -19,7 +22,6 @@
     "test:unit:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@ports/core": "workspace:*",
     "@shared/types": "workspace:*"
   },
   "devDependencies": {

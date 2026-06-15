@@ -14,7 +14,7 @@ import type {
   ContentType,
   TimeRange,
   TrendDataPoint,
-} from "@shared/analytics";
+} from "@shared/types/analytics.js";
 import type { ProviderName } from "@shared/types";
 
 // Re-export shared types

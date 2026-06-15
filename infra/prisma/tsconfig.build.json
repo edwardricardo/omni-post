@@ -1,0 +1,26 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2023",
+    "declaration": true,
+    "declarationMap": false,
+    "sourceMap": true,
+    "skipLibCheck": true,
+    "isolatedModules": false,
+    "verbatimModuleSyntax": false,
+    "paths": {},
+    "composite": true
+  },
+  "include": ["src/**/*", "generated/**/*"],
+  "exclude": ["node_modules", "dist", "seed.ts", "**/*.test.ts"],
+  "references": [
+    {
+      "path": "../../packages/observability/logger/tsconfig.build.json"
+    }
+  ]
+}

@@ -5,8 +5,8 @@
  * @layer domain
  */
 
-import type { CanonicalPost, Result } from "./types";
-import type { ProviderId } from "./providers/providerConfig";
+import type { CanonicalPost, Result } from "./types.js";
+import type { ProviderId } from "./providers/providerConfig.js";
 
 // Core Orchestration Types
 export type OrchestrationStatus =

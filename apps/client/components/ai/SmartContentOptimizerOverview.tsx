@@ -11,7 +11,7 @@
 import React from "react";
 import { TrendingUp, Target, Eye, Zap } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { ContentAnalysis } from "./smartContentOptimizerUtils";
+import type { ContentAnalysis } from "./smartContentOptimizerUtils.js";
 
 interface SmartContentOptimizerOverviewProps {
   analysis: ContentAnalysis;

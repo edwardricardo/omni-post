@@ -2,10 +2,13 @@
   "name": "@providers/shared",
   "version": "1.0.0",
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
   "exports": {
-    ".": "./src/index.ts",
-    "./test-utils/msw-helpers": "./src/test-utils/msw-helpers.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./test-utils/msw-helpers": "./dist/test-utils/msw-helpers.js"
   },
   "dependencies": {
     "@ports/core": "workspace:*",
@@ -23,11 +26,13 @@
   "scripts": {
     "test": "vitest run",
     "test:unit": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -b tsconfig.build.json"
   },
   "devDependencies": {
     "@types/node": "22.13.3",
     "typescript": "5.9.3",
     "vitest": "4.1.8"
-  }
+  },
+  "types": "./dist/index.d.ts"
 }

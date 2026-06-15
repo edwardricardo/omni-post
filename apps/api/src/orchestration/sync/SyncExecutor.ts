@@ -4,8 +4,8 @@
  * @layer infrastructure
  */
 
-import type { SyncRule, VersionDiff } from "@shared/orchestration";
-import type { SyncJobResult, ContentConflict } from "./types";
+import type { SyncRule, VersionDiff } from "@shared/types/orchestration.js";
+import type { SyncJobResult, ContentConflict } from "./types.js";
 import { createLogger } from "../../lib/logger.js";
 
 const log = createLogger("orchestration");

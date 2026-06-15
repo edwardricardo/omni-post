@@ -11,7 +11,7 @@ import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import { Trash2 } from "lucide-react";
-import { RoleBadge } from "./RoleBadge";
+import { RoleBadge } from "./RoleBadge.js";
 import type { TeamMemberDto } from "@/hooks/api/useTeam";
 
 interface TeamMemberRowProps {

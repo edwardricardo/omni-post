@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-import type { ROIRecommendation, RecommendationInput } from "./types";
+import type { ROIRecommendation, RecommendationInput } from "./types.js";
 
 export class ROIRecommendations {
   /**

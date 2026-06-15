@@ -5,7 +5,7 @@
  */
 import type { ApiMetrics } from "../../src/metrics/apiMetrics.js";
 import type { FastifyRequest, FastifyReply } from "fastify";
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { PerformanceMonitor } from "../../src/monitoring/performanceMonitor.js";
 

@@ -10,8 +10,8 @@
  */
 
 import { useTranslations } from "next-intl";
-import { formatTime } from "../utils";
-import type { PreviewSegment } from "./types";
+import { formatTime } from "../utils/index.js";
+import type { PreviewSegment } from "./types.js";
 
 interface SegmentsGridProps {
   segments: PreviewSegment[];

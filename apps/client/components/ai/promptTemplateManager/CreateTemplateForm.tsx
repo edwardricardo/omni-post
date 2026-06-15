@@ -15,7 +15,7 @@ import {
   type CreateTemplateInput,
   type TemplateVariableDto,
 } from "@/hooks/api/useAIPromptTemplates";
-import { AVAILABLE_PLATFORMS, EMPTY_FORM, type CreateFormState } from "./types";
+import { AVAILABLE_PLATFORMS, EMPTY_FORM, type CreateFormState } from "./types.js";
 
 interface CreateTemplateFormProps {
   accountId: string;

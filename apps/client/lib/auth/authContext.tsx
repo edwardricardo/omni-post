@@ -24,7 +24,7 @@ import {
   type RegisterData,
   type MfaChallenge,
   type User,
-} from "./authApi";
+} from "./authApi.js";
 
 interface AuthContextType {
   user: User | null;

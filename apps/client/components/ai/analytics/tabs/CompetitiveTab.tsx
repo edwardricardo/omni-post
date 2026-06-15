@@ -7,8 +7,8 @@
  */
 
 import React from "react";
-import { CompetitorAnalysis } from "../types";
-import { CompetitorAnalysisCard } from "../cards/CompetitorAnalysisCard";
+import { CompetitorAnalysis } from "../types.js";
+import { CompetitorAnalysisCard } from "../cards/CompetitorAnalysisCard.js";
 
 interface CompetitiveTabProps {
   competitorData: CompetitorAnalysis[];

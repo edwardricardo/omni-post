@@ -9,8 +9,8 @@
  * @layer infrastructure
  */
 
-import type { PerformancePrediction } from "../../types";
-import type { PredictTimingApiValue } from "./apiTypes";
+import type { PerformancePrediction } from "../../types.js";
+import type { PredictTimingApiValue } from "./apiTypes.js";
 import {
   CONFIDENCE_CEILING,
   RANGE_MAX_FACTOR,
@@ -22,7 +22,7 @@ import {
   VIRAL_HIGH_COMPETITION_FACTOR,
   VIRAL_LOW_COMPETITION_FACTOR,
   dayName,
-} from "./providerMap";
+} from "./providerMap.js";
 
 function buildFallbackPrediction(platform: string): PerformancePrediction {
   return {

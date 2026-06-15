@@ -14,7 +14,7 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import type { QueuePort } from "@ports/core";
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import { prisma } from "@infra/prisma";
 import { createRedisConnection } from "../src/lib/redis.js";
 import { PrismaAdminUserRepository } from "../src/infrastructure/repositories/PrismaAdminUserRepository.js";

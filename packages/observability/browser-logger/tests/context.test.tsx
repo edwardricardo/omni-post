@@ -9,10 +9,10 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, renderHook } from "@testing-library/react";
-import { LoggerProvider, useLogger, useLoggerContext } from "../src/context";
-import { ConsoleLoggerAdapter } from "../src/console-adapter";
-import type { BrowserLoggerPort, LogContext, LogLevelType } from "../src/port";
-import { LogLevel } from "../src/port";
+import { LoggerProvider, useLogger, useLoggerContext } from "../src/context.js";
+import { ConsoleLoggerAdapter } from "../src/console-adapter.js";
+import type { BrowserLoggerPort, LogContext, LogLevelType } from "../src/port.js";
+import { LogLevel } from "../src/port.js";
 
 class MockLogger implements BrowserLoggerPort {
   readonly name: string;

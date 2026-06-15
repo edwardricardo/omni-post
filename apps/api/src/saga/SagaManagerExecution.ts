@@ -5,9 +5,9 @@
  * @layer infrastructure
  */
 
-import type { SagaDefinition, SagaInstance } from "@shared/saga";
-import { SAGA_EVENTS } from "@shared/saga";
-import { createEventStoreEvent, type EventStoreEvent } from "@shared/events";
+import type { SagaDefinition, SagaInstance } from "@shared/types/saga.js";
+import { SAGA_EVENTS } from "@shared/types/saga.js";
+import { createEventStoreEvent, type EventStoreEvent } from "@shared/types/events.js";
 import type { SagaManagerLifecycle } from "./SagaManagerLifecycle.js";
 import type { SagaManagerConfig } from "./sagaManagerTypes.js";
 import { logger } from "../lib/logger.js";

@@ -1,0 +1,26 @@
+{
+  "extends": "../../../tsconfig.build.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx", "**/*.stories.tsx"],
+  "references": [
+    {
+      "path": "../dead-letter-queue/tsconfig.build.json"
+    },
+    {
+      "path": "../fallback-strategies/tsconfig.build.json"
+    },
+    {
+      "path": "../queue-bullmq/tsconfig.build.json"
+    },
+    {
+      "path": "../../observability/logger/tsconfig.build.json"
+    },
+    {
+      "path": "../../ports/tsconfig.build.json"
+    }
+  ]
+}

@@ -10,7 +10,7 @@
  * @layer infrastructure
  */
 
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import { createBullMQConsumerAdapter, QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { SyncProviderCommentsUseCase } from "@core/inbox/SyncProviderCommentsUseCase.js";

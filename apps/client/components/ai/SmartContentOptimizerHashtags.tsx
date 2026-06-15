@@ -13,7 +13,7 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import type { HashtagAnalysis } from "./smartContentOptimizerUtils";
+import type { HashtagAnalysis } from "./smartContentOptimizerUtils.js";
 
 interface SmartContentOptimizerHashtagsProps {
   hashtagAnalysis: HashtagAnalysis[];

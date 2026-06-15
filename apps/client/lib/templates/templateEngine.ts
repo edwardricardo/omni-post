@@ -5,8 +5,8 @@
  * @layer infrastructure
  */
 
-export * from "./ClientTemplateEngine";
-export { clientTemplateEngine as templateEngine } from "./ClientTemplateEngine";
+export * from "./ClientTemplateEngine.js";
+export { clientTemplateEngine as templateEngine } from "./ClientTemplateEngine.js";
 
 // Re-export types from @shared/types for backward compatibility
 export type {

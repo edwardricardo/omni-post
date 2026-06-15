@@ -7,7 +7,7 @@
  */
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { deleteCredential, rotateEncryption, testConnection, updateGroupSettings } from "./api";
+import { deleteCredential, rotateEncryption, testConnection, updateGroupSettings } from "./api.js";
 
 const SETTINGS_KEY = ["settings"] as const;
 

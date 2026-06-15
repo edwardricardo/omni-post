@@ -4,10 +4,10 @@
  * @layer infrastructure
  */
 
-import type { SyncConflictResolution } from "@shared/orchestration";
+import type { SyncConflictResolution } from "@shared/types/orchestration.js";
 import type { CanonicalPost } from "@shared/types";
-import type { EventService } from "../../events/EventService";
-import type { ContentConflict, ConflictResolution } from "./types";
+import type { EventService } from "../../events/EventService.js";
+import type { ContentConflict, ConflictResolution } from "./types.js";
 
 export class ConflictResolver {
   private eventService: EventService;

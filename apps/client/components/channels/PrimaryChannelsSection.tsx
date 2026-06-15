@@ -16,7 +16,7 @@ import { useProject } from "@/providers/ProjectProvider";
 import { useProjectChannels, type ProjectChannel } from "@/lib/hooks/useProjectChannels";
 import { Badge } from "@packages/ui";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
-import { SetPrimaryChannelButton } from "./SetPrimaryChannelButton";
+import { SetPrimaryChannelButton } from "./SetPrimaryChannelButton.js";
 
 /**
  * @component PrimaryChannelsSection

@@ -6,7 +6,7 @@
 # ==============================================================================
 # Shared Base Stage - Node.js with pnpm
 # ==============================================================================
-FROM node:24-alpine AS base
+FROM node:24-bookworm-slim AS base
 RUN corepack enable
 WORKDIR /app
 
@@ -19,12 +19,18 @@ ENV CI=true
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY ${SERVICE_PATH}/package.json ./${SERVICE_PATH}/
+COPY patches/ ./patches/
 COPY packages/ ./packages/
 COPY infra/ ./infra/
 
+# --ignore-scripts: skip the @infra/prisma `postinstall: prisma generate` hook.
+# In a --prod install the `prisma` CLI (a devDependency) is absent, so the hook
+# would fail with `prisma: not found`. The runtime gets the generated client
+# from the build stage, never from this prod node_modules — so skipping the
+# generate hook here is correct, and the install must fail-fast (no masking).
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm fetch --frozen-lockfile && \
-    pnpm install --frozen-lockfile --prod || echo "Some prepare scripts may have failed (expected)"
+    pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # ==============================================================================
 # Build Stage
@@ -35,20 +41,29 @@ ENV CI=true
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY ${SERVICE_PATH}/package.json ./${SERVICE_PATH}/
+COPY patches/ ./patches/
 COPY packages/ ./packages/
 COPY infra/ ./infra/
 
+# --ignore-scripts: the @infra/prisma `postinstall: prisma generate` runs during
+# install before the `prisma` bin is reliably linked into the package, causing
+# `prisma: not found`. We generate explicitly below via `pnpm exec` instead,
+# which resolves the prisma binary from node_modules/.bin deterministically.
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm fetch --frozen-lockfile && \
-    pnpm install --frozen-lockfile || echo "Some prepare scripts may have failed (expected)"
+    pnpm install --frozen-lockfile --ignore-scripts
 
-RUN pnpm --filter @infra/prisma generate
+RUN pnpm --filter @infra/prisma exec prisma generate
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
 COPY apps/admin ./apps/admin
-RUN pnpm --filter @apps/admin build
+
+# NEXT_BUILD_FLAGS lets CI fall back to the webpack builder (`--webpack`) if the
+# Turbopack standalone build hits the open monorepo root/distDirRoot bug (#86438).
+ARG NEXT_BUILD_FLAGS=""
+RUN pnpm --filter @apps/admin exec next build ${NEXT_BUILD_FLAGS}
 
 # ==============================================================================
 # Production Runtime

@@ -6,9 +6,9 @@
  */
 
 import { randomUUID } from "node:crypto";
-import type { SyncConfiguration, OrchestrationResult } from "@shared/orchestration";
+import type { SyncConfiguration, OrchestrationResult } from "@shared/types/orchestration.js";
 import type { CanonicalPost } from "@shared/types";
-import type { ProviderId } from "../providers/providerAdapter.interface";
+import type { ProviderId } from "../providers/providerAdapter.interface.js";
 
 export interface SyncChange {
   id: string;

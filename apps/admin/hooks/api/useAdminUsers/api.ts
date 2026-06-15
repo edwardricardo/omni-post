@@ -11,7 +11,7 @@ import type {
   CreateAdminUserInput,
   CreateAdminUserResponse,
   UpdateAdminUserData,
-} from "./types";
+} from "./types.js";
 
 export async function fetchAdminUsers(): Promise<AdminUser[]> {
   const res = await fetch("/api/backend/admin/users", {

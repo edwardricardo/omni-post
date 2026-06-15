@@ -1,0 +1,35 @@
+{
+  "extends": "../../../tsconfig.build.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx", "**/*.stories.tsx"],
+  "references": [
+    {
+      "path": "../../adapters/db-prisma/tsconfig.build.json"
+    },
+    {
+      "path": "../../adapters/external-apis/tsconfig.build.json"
+    },
+    {
+      "path": "../../adapters/queue-bullmq/tsconfig.build.json"
+    },
+    {
+      "path": "../../adapters/storage-s3/tsconfig.build.json"
+    },
+    {
+      "path": "../../observability/logger/tsconfig.build.json"
+    },
+    {
+      "path": "../../ports/tsconfig.build.json"
+    },
+    {
+      "path": "../shared/tsconfig.build.json"
+    },
+    {
+      "path": "../../shared/tsconfig.build.json"
+    }
+  ]
+}

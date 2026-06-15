@@ -10,22 +10,27 @@ import { createLogger } from "../../lib/logger.js";
 
 const analyticsLogger = createLogger("analytics");
 
-import type { CrossPlatformMetrics, TimeRange } from "@shared/analytics";
+import type { CrossPlatformMetrics, TimeRange } from "@shared/types/analytics.js";
 import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
 import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
 
-import type { CrossPlatformAnalyticsOptions } from "./types";
-import { getAnalyticsData, getPostsData, getChannelsData, getCompetitorData } from "./dataFetcher";
-import { generateSummary, generateProviderMetrics } from "./summaryGenerator";
-import { generateContentInsights } from "./contentAnalyzer";
+import type { CrossPlatformAnalyticsOptions } from "./types.js";
+import {
+  getAnalyticsData,
+  getPostsData,
+  getChannelsData,
+  getCompetitorData,
+} from "./dataFetcher.js";
+import { generateSummary, generateProviderMetrics } from "./summaryGenerator.js";
+import { generateContentInsights } from "./contentAnalyzer.js";
 // Future: audienceAnalyzer — deleted (100% fake demographics data)
-import { generateTrendAnalysis } from "./trendAnalyzer";
-import { generateCompetitiveAnalysis, generateBasicBenchmarking } from "./competitiveAnalyzer";
-import { generateRecommendations } from "./recommendationEngine";
+import { generateTrendAnalysis } from "./trendAnalyzer.js";
+import { generateCompetitiveAnalysis, generateBasicBenchmarking } from "./competitiveAnalyzer.js";
+import { generateRecommendations } from "./recommendationEngine.js";
 
 // Re-export types and options for external use
-export type { CrossPlatformAnalyticsOptions } from "./types";
-export type { CrossPlatformMetrics } from "@shared/analytics";
+export type { CrossPlatformAnalyticsOptions } from "./types.js";
+export type { CrossPlatformMetrics } from "@shared/types/analytics.js";
 
 /**
  * Cross-Platform Analytics Engine

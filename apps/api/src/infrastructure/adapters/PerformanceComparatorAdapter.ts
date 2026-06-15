@@ -10,7 +10,7 @@ import type { PerformanceComparatorPort } from "@core/analytics/ComparePerforman
 import type { PerformanceSnapshot } from "@core/analytics/types.js";
 import { PerformanceComparator } from "../../analytics/performanceComparison/index.js";
 import type { PerformanceComparisonOptions } from "../../analytics/performanceComparison/types.js";
-import type { TimeRange, ProviderType, MetricType } from "@shared/analytics";
+import type { TimeRange, ProviderType, MetricType } from "@shared/types/analytics.js";
 import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
 import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
 

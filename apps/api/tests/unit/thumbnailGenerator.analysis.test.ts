@@ -13,9 +13,9 @@
  * @layer infrastructure
  */
 import { describe, it, beforeEach, vi, expect } from "vitest";
-import { ThumbnailGenerator } from "../../src/video/thumbnailGenerator";
+import { ThumbnailGenerator } from "../../src/video/thumbnailGenerator.js";
 import { promises as fs } from "fs";
-import { mockSpawnState, createMockSpawn } from "./thumbnailGenerator.test-helpers";
+import { mockSpawnState, createMockSpawn } from "./thumbnailGenerator.test-helpers.js";
 
 // Frame-aware size table: maps frame index -> size (set per test)
 const frameData = new Map<number, number>();

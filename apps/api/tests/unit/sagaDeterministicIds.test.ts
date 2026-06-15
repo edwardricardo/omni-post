@@ -12,8 +12,8 @@ import {
   UpdatePostStatusStep,
   createSagaContext,
   type SagaContext,
-} from "@shared/saga";
-import type { Command } from "@shared/cqrs";
+} from "@shared/types/saga.js";
+import type { Command } from "@shared/types/cqrs.js";
 
 function makeContext(): SagaContext {
   return createSagaContext("saga-fixed-id", "corr-1", "user-1", {

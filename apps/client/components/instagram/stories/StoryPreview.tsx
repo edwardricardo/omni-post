@@ -8,7 +8,7 @@
 
 import React, { useRef } from "react";
 import { useTranslations } from "next-intl";
-import { StoryContent } from "./types";
+import { StoryContent } from "./types.js";
 
 interface StoryPreviewProps {
   story: StoryContent;

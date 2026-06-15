@@ -3,11 +3,14 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./*": "./src/*"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./*": "./dist/*"
   },
   "dependencies": {
     "@observability/logger": "workspace:*",
@@ -19,9 +22,12 @@
   },
   "scripts": {
     "test": "vitest run",
-    "test:unit": "vitest run"
+    "test:unit": "vitest run",
+    "build": "tsc -b tsconfig.build.json",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/node": "24.5.2",
     "@types/opossum": "8.1.9",
     "vitest": "4.0.18"
   }

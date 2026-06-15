@@ -6,7 +6,7 @@
  */
 import type { FastifyRequest, FastifyReply } from "fastify";
 import type { ApiMetrics } from "../metrics/apiMetrics.js";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { createLogger } from "../lib/logger.js";
 

@@ -15,7 +15,7 @@ import type { CanonicalPost } from "@shared/types";
 import type { ProviderId } from "../providers/providerAdapter.interface.js";
 import { ConflictDetector } from "./ConflictDetector.js";
 import { DiffCalculator } from "./DiffCalculator.js";
-import type { SyncConfiguration } from "@shared/orchestration";
+import type { SyncConfiguration } from "@shared/types/orchestration.js";
 
 // ─── Validation Schemas ──────────────────────────────────────────────────────
 

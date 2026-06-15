@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 import { useQuery } from "@tanstack/react-query";
-import { api, SecurityStats, RbacHierarchy } from "../../lib/apiClient";
+import { api, SecurityStats, RbacHierarchy } from "../../lib/apiClient.js";
 
 interface SecurityOverviewData {
   securityStats: SecurityStats;

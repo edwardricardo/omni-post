@@ -19,7 +19,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { BarChart3 } from "lucide-react";
 
 const PlatformMetricsChart = dynamic(
-  () => import("./PlatformMetricsChart").then((m) => m.PlatformMetricsChart),
+  () => import("./PlatformMetricsChart.js").then((m) => m.PlatformMetricsChart),
   { ssr: false }
 );
 

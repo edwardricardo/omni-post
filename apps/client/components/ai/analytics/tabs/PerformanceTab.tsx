@@ -7,8 +7,8 @@
  */
 
 import React from "react";
-import { PerformancePrediction } from "../types";
-import { PerformancePredictionCard } from "../cards/PerformancePredictionCard";
+import { PerformancePrediction } from "../types.js";
+import { PerformancePredictionCard } from "../cards/PerformancePredictionCard.js";
 
 interface PerformanceTabProps {
   predictions: PerformancePrediction[];

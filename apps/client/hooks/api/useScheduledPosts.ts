@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { ScheduledPost } from "../../types/scheduling";
+import type { ScheduledPost } from "../../types/scheduling.js";
 
 interface UseScheduledPostsParams {
   projectId?: string;

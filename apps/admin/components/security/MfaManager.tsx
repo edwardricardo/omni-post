@@ -13,11 +13,11 @@ import { toast } from "@packages/ui";
 import { useCurrentUser } from "@/providers/AuthProvider";
 
 import { getErrorMessage } from "@packages/api-errors";
-import { api } from "../../lib/apiClient";
-import { LoadingSpinner } from "../shared/LoadingSpinner";
-import { ActionButton } from "../ui/ActionButton";
+import { api } from "../../lib/apiClient.js";
+import { LoadingSpinner } from "../shared/LoadingSpinner.js";
+import { ActionButton } from "../ui/ActionButton.js";
 import { InputDialog } from "@packages/ui";
-import { Badge } from "../ui/Badge";
+import { Badge } from "../ui/Badge.js";
 
 interface User {
   id: string;

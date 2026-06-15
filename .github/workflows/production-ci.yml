@@ -133,9 +133,8 @@ jobs:
     name: Container Security
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Main-push only until the containerization workstream fixes the broken
-    # Dockerfiles — on PRs this matrix always fails (red noise, zero signal).
-    if: github.event_name == 'push'
+    # Runs on PRs and main-push alike. The Dockerfiles build cleanly now, so the
+    # matrix produces real signal on PRs and can gate merges as a required check.
     needs: test-and-build
     permissions:
       contents: read
@@ -179,7 +178,9 @@ jobs:
           context: .
           file: apps/${{ matrix.service }}/Dockerfile
           push: false
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: |
+            ${{ steps.meta.outputs.tags }}
+            local/${{ matrix.service }}:scan
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -188,7 +189,7 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ steps.meta.outputs.tags }}
+          image-ref: local/${{ matrix.service }}:scan
           format: "sarif"
           output: "trivy-results-${{ matrix.service }}.sarif"
           severity: "CRITICAL,HIGH"
@@ -202,7 +203,7 @@ jobs:
 
       - name: Container image analysis
         run: |
-          IMAGE_TAG="${{ steps.meta.outputs.tags }}"
+          IMAGE_TAG="local/${{ matrix.service }}:scan"
           IMAGE_SIZE=$(docker image inspect ${IMAGE_TAG} --format='{{.Size}}' | numfmt --to=iec)
 
           echo "## Container Analysis: ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY

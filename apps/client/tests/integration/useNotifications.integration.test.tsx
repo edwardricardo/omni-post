@@ -23,9 +23,9 @@ import {
   useNotificationsList,
   useNotificationsUnreadCount,
   useSaveNotificationPreferences,
-} from "../../hooks/api/useNotificationsApi";
-import { notificationsQueries } from "../../lib/api/queries/notificationsQueries";
-import { server } from "../mocks/server";
+} from "../../hooks/api/useNotificationsApi/index.js";
+import { notificationsQueries } from "../../lib/api/queries/notificationsQueries.js";
+import { server } from "../mocks/server.js";
 
 const PROXY = "/api/backend";
 

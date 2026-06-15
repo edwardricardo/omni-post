@@ -22,11 +22,11 @@ export {
   PostStatusSchema,
   PasswordSchema,
   UserRoleSchema,
-} from "./schemas";
+} from "./schemas.js";
 
 // Framework-neutral webhook signature helpers (no Fastify dependency)
-export { verifyWebhookSignature, constantTimeCompare } from "./webhookSignature";
-export type { WebhookVerificationOptions } from "./webhookSignature";
+export { verifyWebhookSignature, constantTimeCompare } from "./webhookSignature.js";
+export type { WebhookVerificationOptions } from "./webhookSignature.js";
 
 // CSV Export utility — pure RFC 4180 serializer; canonical home is the shared
 // kernel (cross-cutting: API + workers + frontend). Re-exported here for the

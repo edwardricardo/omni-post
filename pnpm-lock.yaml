@@ -395,6 +395,9 @@ importers:
       '@core/apiKeys':
         specifier: workspace:*
         version: link:../../packages/core/apiKeys
+      '@core/application':
+        specifier: workspace:*
+        version: link:../../packages/core/application
       '@core/approvals':
         specifier: workspace:*
         version: link:../../packages/core/approvals
@@ -750,6 +753,9 @@ importers:
 
   apps/client:
     dependencies:
+      '@core/bulk-scheduling':
+        specifier: workspace:*
+        version: link:../../packages/core/bulk-scheduling
       '@git-diff-view/file':
         specifier: 0.1.4
         version: 0.1.4
@@ -970,6 +976,9 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../../packages/core/domain
+      '@core/listening':
+        specifier: workspace:*
+        version: link:../../packages/core/listening
       '@infra/prisma':
         specifier: workspace:*
         version: link:../../infra/prisma
@@ -1083,6 +1092,9 @@ importers:
         specifier: 17.2.2
         version: 17.2.2
     devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
       prisma:
         specifier: 7.6.0
         version: 7.6.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(magicast@0.3.5)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
@@ -1313,6 +1325,9 @@ importers:
         specifier: 9.0.0
         version: 9.0.0
     devDependencies:
+      '@types/node':
+        specifier: 24.5.2
+        version: 24.5.2
       '@types/opossum':
         specifier: 8.1.9
         version: 8.1.9
@@ -1527,6 +1542,12 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
+      '@core/embeddings':
+        specifier: workspace:*
+        version: link:../embeddings
+      '@observability/logger':
+        specifier: workspace:*
+        version: link:../../observability/logger
       '@ports/core':
         specifier: workspace:*
         version: link:../../ports
@@ -1646,12 +1667,6 @@ importers:
 
   packages/core/application:
     dependencies:
-      '@core/domain':
-        specifier: workspace:*
-        version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -1727,6 +1742,9 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
+      '@observability/logger':
+        specifier: workspace:*
+        version: link:../../observability/logger
       '@ports/core':
         specifier: workspace:*
         version: link:../../ports
@@ -1752,6 +1770,9 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
+      '@observability/logger':
+        specifier: workspace:*
+        version: link:../../observability/logger
       '@ports/core':
         specifier: workspace:*
         version: link:../../ports
@@ -1930,6 +1951,9 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
+      '@observability/logger':
+        specifier: workspace:*
+        version: link:../../observability/logger
       '@ports/core':
         specifier: workspace:*
         version: link:../../ports
@@ -2049,9 +2073,6 @@ importers:
 
   packages/core/domain:
     dependencies:
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -2552,6 +2573,9 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
+      '@core/embeddings':
+        specifier: workspace:*
+        version: link:../embeddings
       '@ports/core':
         specifier: workspace:*
         version: link:../../ports
@@ -2718,6 +2742,9 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
+      '@observability/logger':
+        specifier: workspace:*
+        version: link:../../observability/logger
       '@ports/core':
         specifier: workspace:*
         version: link:../../ports
@@ -2906,6 +2933,12 @@ importers:
 
   packages/ports:
     dependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../core/application
+      '@core/domain':
+        specifier: workspace:*
+        version: link:../core/domain
       '@shared/types':
         specifier: workspace:*
         version: link:../shared
@@ -2922,6 +2955,9 @@ importers:
       '@adapters/external-apis':
         specifier: workspace:*
         version: link:../../adapters/external-apis
+      '@core/threading':
+        specifier: workspace:*
+        version: link:../../core/threading
       '@observability/logger':
         specifier: workspace:*
         version: link:../../observability/logger
@@ -3290,6 +3326,9 @@ importers:
       '@adapters/external-apis':
         specifier: workspace:*
         version: link:../../adapters/external-apis
+      '@core/threading':
+        specifier: workspace:*
+        version: link:../../core/threading
       '@observability/logger':
         specifier: workspace:*
         version: link:../../observability/logger
@@ -23550,7 +23589,7 @@ snapshots:
       debug: 4.4.3
       minimatch: 7.4.8
       semver: 7.7.4
-      tinyglobby: 0.2.16
+      tinyglobby: 0.2.17
       ts-api-utils: 2.5.0(typescript@5.9.3)
       typescript: 5.9.3
     transitivePeerDependencies:
@@ -23670,7 +23709,7 @@ snapshots:
       obug: 2.1.1
       std-env: 4.0.0
       tinyrainbow: 3.1.0
-      vitest: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/coverage-v8@4.1.8)(@vitest/ui@4.1.8)(jsdom@25.0.1(bufferutil@4.1.0)(utf-8-validate@5.0.10))(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(vite@7.3.2(@types/node@24.5.2)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(tsx@4.22.4)(yaml@2.8.3))
+      vitest: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/coverage-v8@4.1.8)(@vitest/ui@4.1.8)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(vite@7.3.2(@types/node@24.5.2)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3))
 
   '@vitest/expect@3.2.4':
     dependencies:
@@ -23751,7 +23790,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.16
       tinyrainbow: 3.1.0
-      vitest: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/coverage-v8@4.1.8)(@vitest/ui@4.1.8)(jsdom@25.0.1(bufferutil@4.1.0)(utf-8-validate@5.0.10))(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(vite@7.3.2(@types/node@24.5.2)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(tsx@4.22.4)(yaml@2.8.3))
+      vitest: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/coverage-v8@4.1.8)(@vitest/ui@4.1.8)(jsdom@27.0.0(bufferutil@4.1.0)(postcss@8.5.14)(utf-8-validate@5.0.10))(msw@2.14.3(@types/node@24.5.2)(typescript@5.9.3))(vite@7.3.2(@types/node@24.5.2)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(tsx@4.21.0)(yaml@2.8.3))
 
   '@vitest/utils@3.2.4':
     dependencies:

@@ -61,7 +61,6 @@ export * from "./repositories/BillingEventRepository.js";
 export * from "./repositories/InvoiceRepository.js";
 export * from "./repositories/ProviderBundleReader.js";
 export * from "./repositories/GatewaySwitchJobPort.js";
-export * from "./repositories/GatewayAdapterRegistryPort.js";
 export * from "./repositories/GdprSettingsRepository.js";
 export * from "./repositories/SecuritySettingsRepository.js";
 export * from "./repositories/DsarRequestRepository.js";

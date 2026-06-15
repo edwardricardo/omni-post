@@ -21,7 +21,7 @@ import type {
   DsarResponse,
   GdprSettings,
   SecuritySettings,
-} from "./types";
+} from "./types.js";
 
 function scoreToStatus(score: number): "compliant" | "warning" | "non-compliant" {
   if (score >= 80) return "compliant";

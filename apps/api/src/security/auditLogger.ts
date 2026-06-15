@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 import type { PrismaClient } from "@infra/prisma";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import type { FastifyRequest } from "fastify";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { logger } from "../lib/logger.js";

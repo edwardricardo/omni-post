@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 import * as WebSocket from "ws";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import type { PrismaClient, Provider, WebhookEventType } from "@infra/prisma";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { webhookLogger } from "../lib/logger.js";

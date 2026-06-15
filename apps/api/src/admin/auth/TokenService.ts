@@ -12,8 +12,8 @@ import type {
   AccessTokenPayload,
   RefreshTokenPayload,
   AuthErrorCode,
-} from "./adminAuthTypes";
-import { adminAuthConfig } from "./adminAuthConfig";
+} from "./adminAuthTypes.js";
+import { adminAuthConfig } from "./adminAuthConfig.js";
 
 export class TokenService {
   /**

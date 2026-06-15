@@ -12,7 +12,7 @@ import type {
   ContentPerformanceInsights,
   AudienceInsights,
   TrendAnalysis,
-} from "@shared/analytics";
+} from "@shared/types/analytics.js";
 
 /**
  * Input data structure for recommendation generation

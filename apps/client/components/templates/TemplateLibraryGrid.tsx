@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import type { Template } from "@/lib/templates/templateEngine";
-import type { TemplateLibraryGridProps } from "./templateLibraryTypes";
+import type { TemplateLibraryGridProps } from "./templateLibraryTypes.js";
 
 const EMPTY_TEMPLATE_STATS = { views: 0, uses: 0, likes: 0 };
 

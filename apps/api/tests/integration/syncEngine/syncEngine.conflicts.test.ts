@@ -23,9 +23,9 @@ after(() => {
   console.log = _originalConsoleLog;
 });
 
-import { SyncEngine } from "../../../src/content/SyncEngine";
+import { SyncEngine } from "../../../src/content/SyncEngine.js";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
-import type { ProviderId } from "../../../src/providers/providerAdapter.interface";
+import type { ProviderId } from "../../../src/providers/providerAdapter.interface.js";
 import {
   mockPrisma,
   mockRedis,
@@ -38,7 +38,7 @@ import {
   teardownSyncEngineInfra,
   resetSyncEngineState,
   skipIfUnavailable,
-} from "./syncEngine.helpers";
+} from "./syncEngine.helpers.js";
 
 let syncEngine: SyncEngine;
 

@@ -11,7 +11,7 @@
  * @layer infrastructure
  */
 import { describe, it, expect, vi } from "vitest";
-import { SchedulePublishingJobsStep, createSagaContext } from "@shared/saga";
+import { SchedulePublishingJobsStep, createSagaContext } from "@shared/types/saga.js";
 
 interface ScheduleStepData {
   jobIds: string[];

@@ -10,13 +10,13 @@
 
 import { format } from "date-fns";
 import { RotateCcw } from "lucide-react";
-import { Button } from "../button";
-import { Badge } from "../badge";
-import { Label } from "../label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../dialog";
-import { ScrollArea } from "../scroll-area";
-import type { ContentVersion } from "./contentVersioningTypes";
-import { getTextContent, getAuthorName } from "./contentVersioningTypes";
+import { Button } from "../button.js";
+import { Badge } from "../badge.js";
+import { Label } from "../label.js";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../dialog.js";
+import { ScrollArea } from "../scroll-area.js";
+import type { ContentVersion } from "./contentVersioningTypes.js";
+import { getTextContent, getAuthorName } from "./contentVersioningTypes.js";
 
 // ---------------------------------------------------------------------------
 // Props

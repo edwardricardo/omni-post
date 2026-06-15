@@ -16,8 +16,8 @@ import {
   setPrimaryChannel,
   type ConnectBlueskyInput,
   type ConnectBlueskyResult,
-} from "./api";
-import type { ProjectChannel } from "./types";
+} from "./api.js";
+import type { ProjectChannel } from "./types.js";
 
 const SET_PRIMARY_MUTATION_KEY = ["channels", "set-primary"] as const;
 const DISCONNECT_MUTATION_KEY = ["channels", "disconnect"] as const;

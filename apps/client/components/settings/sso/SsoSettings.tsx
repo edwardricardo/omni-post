@@ -9,9 +9,9 @@
 
 import { useState } from "react";
 import { useSamlConfig, useOidcConfig } from "@/hooks/api/useSso";
-import { SsoStatusBanner } from "./SsoStatusBanner";
-import { SamlConfigForm } from "./SamlConfigForm";
-import { OidcConfigForm } from "./OidcConfigForm";
+import { SsoStatusBanner } from "./SsoStatusBanner.js";
+import { SamlConfigForm } from "./SamlConfigForm.js";
+import { OidcConfigForm } from "./OidcConfigForm.js";
 
 interface SsoSettingsProps {
   accountId: string;

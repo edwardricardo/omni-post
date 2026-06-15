@@ -17,7 +17,7 @@ import {
   validatorCompiler,
   type ZodTypeProvider,
 } from "fastify-type-provider-zod";
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import type { RedisCacheManager } from "@adapters/cache-redis";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { createTestContainer } from "../../src/infrastructure/container/setup.js";

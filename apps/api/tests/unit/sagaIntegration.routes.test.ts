@@ -13,7 +13,7 @@
  */
 
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
-import { SagaIntegration } from "../../src/saga/SagaIntegration";
+import { SagaIntegration } from "../../src/saga/SagaIntegration.js";
 import {
   buildIntegration,
   makeStartRequest,
@@ -22,7 +22,7 @@ import {
   TEST_CUSTOMER_ID,
   TEST_ACCOUNT_ID,
   type MockRedis,
-} from "./sagaIntegration.helpers";
+} from "./sagaIntegration.helpers.js";
 
 const makeAuthedStatusRequest = (sagaId: string) => ({
   params: { sagaId },

@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import { RedisTokenBucketRateLimiter } from "../../../../src/ai/providers/RedisTokenBucketRateLimiter.js";
 
 function fakeRedis(evalImpl: (...args: unknown[]) => Promise<unknown>): Redis {

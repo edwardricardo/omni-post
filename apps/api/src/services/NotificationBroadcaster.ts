@@ -6,7 +6,7 @@
  * @layer infrastructure
  */
 
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 
 const REDIS_CHANNEL_PREFIX = "notifications:";

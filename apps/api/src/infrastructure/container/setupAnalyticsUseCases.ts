@@ -5,7 +5,7 @@
  *              Extracted from setupUseCases.ts for domain-based modularization.
  * @layer infrastructure
  */
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import type { CachePort } from "@ports/core";

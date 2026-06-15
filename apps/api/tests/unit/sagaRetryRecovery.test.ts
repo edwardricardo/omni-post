@@ -17,8 +17,8 @@ import {
   type MockPrismaClient,
   type MockRedis,
   type MockEventService,
-} from "./sagaManager.test-helpers";
-import type { SagaManagerImpl } from "../../src/saga/SagaManager";
+} from "./sagaManager.test-helpers.js";
+import type { SagaManagerImpl } from "../../src/saga/SagaManager.js";
 
 describe("Saga retry recovery (persisted nextRetryAt)", () => {
   let mockPrisma: MockPrismaClient;

@@ -14,8 +14,8 @@
 
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
-import { SagaIntegration } from "../../src/saga/SagaIntegration";
-import { Command } from "@shared/cqrs";
+import { SagaIntegration } from "../../src/saga/SagaIntegration.js";
+import { Command } from "@shared/types/cqrs.js";
 
 const scheduler = new NoopBackgroundTaskScheduler();
 import {
@@ -33,7 +33,7 @@ import {
   type MockSubscriber,
   type MockPrisma,
   type MockQueue,
-} from "./sagaIntegration.helpers";
+} from "./sagaIntegration.helpers.js";
 
 // Suppress verbose background-execution logs so they don't corrupt the TAP
 // stream when this file runs as a subprocess in the full test suite.

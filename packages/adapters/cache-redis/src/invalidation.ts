@@ -6,7 +6,7 @@
  */
 
 import pino from "pino";
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import type { Result } from "@shared/types";
 import { ok, err } from "@shared/types";
 import type { CacheInvalidationStrategy } from "./types.js";

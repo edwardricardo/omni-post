@@ -5,26 +5,26 @@
  * @layer domain
  */
 // Core type definitions
-export * from "./types";
+export * from "./types.js";
 
 // Channel.credentials envelope encryption (api, workers, seed all use this)
-export * from "./channelCredentialsCrypto";
+export * from "./channelCredentialsCrypto.js";
 
 // CSV export (pure RFC 4180 serializer; api, workers, admin frontend all use this)
-export * from "./csv";
+export * from "./csv.js";
 
 // Error handling
-export * from "./errors";
+export * from "./errors.js";
 
 // Event system
-export * from "./events";
+export * from "./events.js";
 
 // Saga and CQRS patterns
-export * from "./saga";
-export * from "./cqrs";
+export * from "./saga.js";
+export * from "./cqrs.js";
 
 // Provider configuration (centralized)
-export * from "./providers/providerConfig";
+export * from "./providers/providerConfig.js";
 
 // Re-export provider types explicitly for better IDE support
 export type {
@@ -32,7 +32,7 @@ export type {
   ProviderLimits,
   ProviderMetadata,
   ValidationResult,
-} from "./providers/providerConfig";
+} from "./providers/providerConfig.js";
 
 export {
   PROVIDER_CONFIGS,
@@ -43,14 +43,14 @@ export {
   validateContentForProviders,
   getMostRestrictiveCharLimit,
   getMostRestrictiveMediaLimit,
-} from "./providers/providerConfig";
+} from "./providers/providerConfig.js";
 
 // Template engine
-export * from "./templates/BaseTemplateEngine";
+export * from "./templates/BaseTemplateEngine.js";
 export type {
   Template,
   TemplateVariable,
   TemplateVariant,
   TemplateContext,
   TemplateCompilationResult,
-} from "./templates/BaseTemplateEngine";
+} from "./templates/BaseTemplateEngine.js";

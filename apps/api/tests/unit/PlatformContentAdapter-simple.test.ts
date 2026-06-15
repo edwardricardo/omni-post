@@ -13,10 +13,10 @@ import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 import { prisma } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
 import promClient from "prom-client";
-import { PlatformContentAdapter } from "../../src/content/PlatformContentAdapter";
-import type { EventService } from "../../src/events/EventService";
+import { PlatformContentAdapter } from "../../src/content/PlatformContentAdapter.js";
+import type { EventService } from "../../src/events/EventService.js";
 import type { CanonicalPost } from "@shared/types";
-import type { ProviderId } from "../../src/providers/providerAdapter.interface";
+import type { ProviderId } from "../../src/providers/providerAdapter.interface.js";
 
 vi.mock("../../src/lib/logger.js", () => ({
   logger: {

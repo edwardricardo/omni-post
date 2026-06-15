@@ -7,17 +7,17 @@
 
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@infra/prisma";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import type { CachePort } from "@ports/core";
 import {
   ContentVersion,
   OrchestrationResult,
   PlatformAdaptation as _PlatformAdaptation,
-} from "@shared/orchestration";
+} from "@shared/types/orchestration.js";
 import type { CanonicalPost, Media as _Media } from "@shared/types";
-import type { ProviderId } from "../providers/providerAdapter.interface";
-import { EventService } from "../events/EventService";
-import type { VersionSnapshot } from "./contentVersionTypes";
+import type { ProviderId } from "../providers/providerAdapter.interface.js";
+import { EventService } from "../events/EventService.js";
+import type { VersionSnapshot } from "./contentVersionTypes.js";
 import { logger } from "../lib/logger.js";
 
 interface CreateVersionParams {

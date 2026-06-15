@@ -54,7 +54,7 @@ vi.mock("../../src/lib/logger.js", () => {
 });
 
 import { prisma } from "@infra/prisma";
-import { TemplateService } from "../../src/templates/templateService";
+import { TemplateService } from "../../src/templates/templateService.js";
 import { mockPrismaMethod, restoreMock } from "./templateService.test-helpers.js";
 
 describe("TemplateService - Get Templates", () => {

@@ -4,8 +4,8 @@
  * @layer infrastructure
  */
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
-import { SAGA_EVENTS } from "@shared/saga";
-import { EventStoreEvent } from "@shared/events";
+import { SAGA_EVENTS } from "@shared/types/saga.js";
+import { EventStoreEvent } from "@shared/types/events.js";
 import {
   MockPrismaClient,
   MockRedis,
@@ -18,7 +18,7 @@ import {
   createMultiStepSagaDefinition,
   createFailingSagaDefinition,
 } from "./sagaManager.test-helpers.js";
-import { SagaManagerImpl } from "../../src/saga/SagaManager";
+import { SagaManagerImpl } from "../../src/saga/SagaManager.js";
 
 describe("SagaManager - Saga Execution", () => {
   let manager: SagaManagerImpl;

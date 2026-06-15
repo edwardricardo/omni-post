@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 import { Worker, Job, Queue } from "bullmq";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import { UniversalWebhookHandler } from "./webhookHandler.js";
 import type { PrismaClient, WebhookEventType, Provider } from "@infra/prisma";
 import { webhookLogger } from "../lib/logger.js";

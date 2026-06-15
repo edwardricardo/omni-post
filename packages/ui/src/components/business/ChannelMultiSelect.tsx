@@ -14,9 +14,9 @@
  */
 
 import * as React from "react";
-import { Checkbox } from "../checkbox";
-import { Badge } from "../badge";
-import { cn } from "../../lib/utils";
+import { Checkbox } from "../checkbox.js";
+import { Badge } from "../badge.js";
+import { cn } from "../../lib/utils.js";
 
 /**
  * Minimal channel shape consumed by the selector — kept in sync with

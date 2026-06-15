@@ -8,14 +8,14 @@
  * @layer infrastructure
  */
 import { describe, it, beforeEach, expect } from "vitest";
-import { ThumbnailGenerator, type ThumbnailOptions } from "../../src/video/thumbnailGenerator";
+import { ThumbnailGenerator, type ThumbnailOptions } from "../../src/video/thumbnailGenerator.js";
 import { promises as fs } from "fs";
 import {
   mockSpawnState,
   createMockSpawn,
   mockFsData,
   setupFsMocks,
-} from "./thumbnailGenerator.test-helpers";
+} from "./thumbnailGenerator.test-helpers.js";
 
 describe("ThumbnailGenerator - Single Thumbnail Generation", () => {
   let generator: ThumbnailGenerator;

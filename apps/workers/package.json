@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "tsc -b tsconfig.build.json",
     "dev": "tsx src/bootstrap.ts",
     "test": "vitest run",
     "test:unit": "vitest run",
@@ -15,6 +16,7 @@
     "zod": "4.4.3",
     "@core/application": "workspace:*",
     "@core/domain": "workspace:*",
+    "@core/listening": "workspace:*",
     "@infra/prisma": "workspace:*",
     "@monitoring/health-checks": "workspace:*",
     "@adapters/db-prisma": "workspace:*",

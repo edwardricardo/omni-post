@@ -8,10 +8,13 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import type { ContentTemplate, GeneratedContent, GenerationSettings } from "../types/ai-content";
-import { DEFAULT_CONTENT_TEMPLATES } from "../components/ai/ai-content-templates";
-import { useAIContentGeneration } from "./api/useAIContentGeneration";
-import { useAIPromptTemplates, type AIPromptTemplateDto } from "./api/useAIPromptTemplates";
+import type { ContentTemplate, GeneratedContent, GenerationSettings } from "../types/ai-content.js";
+import { DEFAULT_CONTENT_TEMPLATES } from "../components/ai/ai-content-templates.js";
+import { useAIContentGeneration } from "./api/useAIContentGeneration.js";
+import {
+  useAIPromptTemplates,
+  type AIPromptTemplateDto,
+} from "./api/useAIPromptTemplates/index.js";
 
 /** Maps an API AIPromptTemplateDto to the legacy ContentTemplate shape. */
 function mapApiTemplate(dto: AIPromptTemplateDto): ContentTemplate {

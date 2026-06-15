@@ -8,7 +8,7 @@
 
 import { useTranslations } from "next-intl";
 import { cn } from "@packages/ui";
-import type { PreviewMedia } from "./types";
+import type { PreviewMedia } from "./types.js";
 
 interface MediaGridProps {
   /** Up to 4 visible items; remaining items are summarised as a "+N" badge. */

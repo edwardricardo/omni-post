@@ -14,9 +14,9 @@ import type {
   AnalyticsDataPoint,
   PostDataPoint,
   ConversionDataPoint,
-} from "./types";
-import { RevenueCalculator } from "./RevenueCalculator";
-import { CostCalculator } from "./CostCalculator";
+} from "./types.js";
+import { RevenueCalculator } from "./RevenueCalculator.js";
+import { CostCalculator } from "./CostCalculator.js";
 
 export class ROIMetrics {
   private revenueCalculator: RevenueCalculator;

@@ -23,7 +23,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@packages/ui";
-import type { HelperInfo } from "./data";
+import type { HelperInfo } from "./data.js";
 
 interface HelpersTabProps {
   helpers: HelperInfo[];

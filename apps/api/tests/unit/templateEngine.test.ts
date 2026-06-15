@@ -12,7 +12,7 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import type { PrismaClient } from "@infra/prisma";
-import { ServerTemplateEngine } from "../../src/lib/templates/templateEngine";
+import { ServerTemplateEngine } from "../../src/lib/templates/templateEngine.js";
 
 // Pure (BaseTemplateEngine) methods exercised here never hit the DB, so a stub
 // prisma is sufficient.

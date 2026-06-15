@@ -5,7 +5,7 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import type {
   SyncConfiguration,
   SyncContentRequest,
@@ -14,12 +14,12 @@ import type {
   OrchestrationResult,
   OrchestrationConflict,
   VersionDiff,
-} from "@shared/orchestration";
+} from "@shared/types/orchestration.js";
 import type { CanonicalPost } from "@shared/types";
-import type { ProviderId } from "../../providers/providerAdapter.interface";
-import type { SyncJob, SyncJobResult, ContentConflict } from "./types";
-import { providerRegistry } from "../../providers/providerRegistry";
-import { SyncExecutor } from "./SyncExecutor";
+import type { ProviderId } from "../../providers/providerAdapter.interface.js";
+import type { SyncJob, SyncJobResult, ContentConflict } from "./types.js";
+import { providerRegistry } from "../../providers/providerRegistry.js";
+import { SyncExecutor } from "./SyncExecutor.js";
 import { createLogger } from "../../lib/logger.js";
 
 const log = createLogger("orchestration");

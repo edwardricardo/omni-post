@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 import { addons } from "storybook/manager-api";
-import storybookTheme from "./theme";
+import storybookTheme from "./theme.js";
 
 addons.setConfig({
   theme: storybookTheme,

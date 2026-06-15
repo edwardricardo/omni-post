@@ -33,7 +33,7 @@ import type {
   PublishInput,
   PublishReceipt,
 } from "@ports/core";
-import { planThread } from "../../../core/threading/src/threadPlanner.js";
+import { planThread } from "@core/threading";
 import { ProviderApiClient, type ProviderCredentials } from "./apiClient.js";
 import { createLogger } from "@observability/logger";
 

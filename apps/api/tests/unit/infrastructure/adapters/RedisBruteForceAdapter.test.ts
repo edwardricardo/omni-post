@@ -19,7 +19,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { RedisBruteForceAdapter } from "../../../../src/infrastructure/adapters/RedisBruteForceAdapter.js";
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 
 // ────────────────────────────────────────────────────────────────────────────
 // FakeRedis — implements the ioredis subset the adapter calls

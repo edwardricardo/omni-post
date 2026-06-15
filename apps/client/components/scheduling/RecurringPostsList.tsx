@@ -9,7 +9,7 @@
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { useRecurringPosts, useDeactivateRecurringPost } from "@/hooks/api/useRecurringPosts";
-import { RecurringPostCard } from "./RecurringPostCard";
+import { RecurringPostCard } from "./RecurringPostCard.js";
 
 interface RecurringPostsListProps {
   projectId?: string;

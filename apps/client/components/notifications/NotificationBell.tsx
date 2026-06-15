@@ -16,7 +16,7 @@ import { Bell } from "lucide-react";
 import { useNotificationStore } from "@/lib/stores/notificationStore";
 import type { NotificationItem as NotificationItemType } from "@/lib/stores/notificationStore";
 import { useNotificationStream } from "@/hooks/useNotificationStream";
-import { NotificationItem } from "./NotificationItem";
+import { NotificationItem } from "./NotificationItem.js";
 import { Link } from "@/i18n/navigation";
 import {
   useMarkAllNotificationsRead,

@@ -11,12 +11,12 @@ export type {
   CreateTemplateInput,
   TemplateVariableDto,
   UpdateTemplateInput,
-} from "./types";
+} from "./types.js";
 
-export { useAIPromptTemplates } from "./queries";
+export { useAIPromptTemplates } from "./queries.js";
 
 export {
   useCreateAIPromptTemplate,
   useDeleteAIPromptTemplate,
   useUpdateAIPromptTemplate,
-} from "./mutations";
+} from "./mutations.js";

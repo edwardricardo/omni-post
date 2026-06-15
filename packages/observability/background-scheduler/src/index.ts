@@ -11,7 +11,7 @@ export type {
   BackgroundTaskOptions,
   SchedulerLogger,
   ShutdownResult,
-} from "./port";
+} from "./port.js";
 
-export { DefaultBackgroundTaskScheduler } from "./default-scheduler";
-export { NoopBackgroundTaskScheduler } from "./noop-scheduler";
+export { DefaultBackgroundTaskScheduler } from "./default-scheduler.js";
+export { NoopBackgroundTaskScheduler } from "./noop-scheduler.js";

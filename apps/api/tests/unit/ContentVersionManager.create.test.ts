@@ -11,11 +11,11 @@ console.log = () => {};
 console.warn = () => {};
 
 import { describe, it, beforeEach, afterEach, afterAll, expect } from "vitest";
-import { ContentVersionManager } from "../../src/content/ContentVersionManager";
+import { ContentVersionManager } from "../../src/content/ContentVersionManager.js";
 import { InMemoryCacheAdapter } from "../../../../packages/adapters/cache-redis/src/in-memory-cache-adapter.js";
 import type { PrismaClient } from "@infra/prisma";
-import type Redis from "ioredis";
-import type { EventService } from "../../src/events/EventService";
+import type { Redis } from "ioredis";
+import type { EventService } from "../../src/events/EventService.js";
 import {
   testPostId,
   testUserId,
@@ -26,7 +26,7 @@ import {
   createMockPrisma,
   type MockRedis,
   type MockEventService,
-} from "./ContentVersionManager.test-helpers";
+} from "./ContentVersionManager.test-helpers.js";
 
 let mockRedis: MockRedis;
 let mockEventService: MockEventService;

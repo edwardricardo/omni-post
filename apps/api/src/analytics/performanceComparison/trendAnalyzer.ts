@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-import type { MetricType, CompetitorComparison, TrendDataPoint } from "@shared/analytics";
+import type { MetricType, CompetitorComparison, TrendDataPoint } from "@shared/types/analytics.js";
 import type {
   PerformanceSnapshot,
   HistoricalComparison,

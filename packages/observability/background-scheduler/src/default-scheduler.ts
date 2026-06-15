@@ -12,7 +12,7 @@ import type {
   BackgroundTaskScheduler,
   SchedulerLogger,
   ShutdownResult,
-} from "./port";
+} from "./port.js";
 
 const DEFAULT_SHUTDOWN_TIMEOUT_MS = 10_000;
 

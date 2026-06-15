@@ -495,6 +495,50 @@ Hoy CLAUDE.md es 100% prescriptivo ("DEBE", "NUNCA", "MANDATORY"). Sin escape ha
 
 ---
 
+## Fase 6 — Deployment & orchestration readiness
+
+> Objetivo: pasar de "imágenes que buildean" a "config de orquestación production-grade". La capa de imagen (6.1) es **precondición** de la capa k8s (6.2). El runtime contract de la app (probes, graceful shutdown, statelessness, migraciones fuera de boot) ya es k8s-aligned — ver inventario en 6.2. Origen: pregunta de Edward (2026-06-14) "¿tras la containerización queda la config óptima para k8s?". Respuesta con evidencia: **no** — 6.1 desbloquea k8s, 6.2 lo entrega.
+
+### 6.1 Containerization image hardening — `P1` · `M` · `STATUS: IN-PROGRESS`
+
+**Qué:** Revisión **file-por-file de los 7 Dockerfiles** (`apps/{admin,api,client,workers}/Dockerfile` + `apps/api/Dockerfile.{dev,production,railway}`) — no por grep de `FROM`. Reconstruir el/los roto(s): confirmado al menos `apps/api/Dockerfile:8` con `FROM ../../docker/base/nodejs.Dockerfile` (path **inexistente** + sintaxis Docker inválida). Cerrar CVEs de Trivy que mantienen el check **Container Security** en rojo crónico. Endurecer el flake de pull de Docker Hub (retry/mirror). Eliminar Dockerfiles muertos con razón documentada (no borrar a ciegas).
+
+**Por qué importa:** Container Security es el único rojo crónico de `main` (excluido de required checks por eso). Cerrarlo desbloquea deploy y permite volver el check a **required**. Precondición dura de 6.2: sin imágenes deployables no hay k8s.
+
+**Dependencias:** ninguna técnica.
+
+**Definition of done:** los 7 Dockerfiles buildean (o se eliminan los muertos con razón documentada); Trivy 0 CVEs HIGH/CRITICAL no-ignorados; pull de Docker Hub con retry/mirror; Container Security verde y promovido a required check.
+
+### 6.2 Kubernetes deployment readiness — `P2` · `L` · `STATUS: PENDING` · depende de 6.1
+
+**Qué:** Producir la configuración de orquestación que hoy **NO existe** (cero manifests). Assessment hecho 2026-06-14 con evidencia en repo.
+
+**Ya k8s-aligned (la parte cara, hecha):**
+
+- Liveness/readiness probes separados — `apps/api/src/health/healthRoutes.ts` (`/health/live` + `/health/ready`).
+- Graceful SIGTERM drain — `apps/api/src/index.ts` + `apps/workers/src/lib/gracefulShutdown.ts` (drain en secuencia).
+- Migraciones **NO** en boot — script aparte → posición correcta para Job/initContainer (sin race de N réplicas).
+- Cache stateless cross-pod — `CachePort`, fitness #14.
+- Logs structured a stdout (pino); config 12-factor (env Zod tipado); split api/workers en procesos; runtime distroless non-root; publish a `ghcr.io`.
+
+**Gap real (lo que falta para "óptimo k8s"):**
+
+1. **Cero manifests**: Deployment/StatefulSet, Service, Ingress, HPA, PDB, ConfigMap/Secret. (el grueso del laburo)
+2. **`resources.requests/limits`** por contenedor — sin esto no hay HPA ni scheduling/OOM sano.
+3. **Entrega de secrets**: hoy `.env`; k8s → Secrets/ConfigMaps o external-secrets/sealed-secrets.
+4. **Migración como Job/initContainer** pre-rollout, orquestada (el script existe, nadie lo corre pre-deploy en k8s).
+5. **Deps stateful** (postgres/redis) como operators (CloudNativePG / Redis) o managed — el `docker-compose` es solo dev.
+6. **preStop hook + flip de readiness antes de drenar** — zero-downtime rollout (los huesos del shutdown están; falta el refinamiento).
+7. **GitOps/deploy** (Helm/Kustomize + ArgoCD/Flux) + `ServiceMonitor` (Prometheus Operator) en vez de scrape estático.
+
+**Por qué importa:** la containerización (6.1) desbloquea k8s pero no lo entrega. Sin estos 7 puntos no hay config de orquestación.
+
+**Dependencias:** 6.1 (imágenes deployables + scaneadas).
+
+**Definition of done (cuando se ejecute):** manifests/Helm versionados + requests/limits + HPA + secret delivery + migration Job + estrategia de deps stateful + deploy pipeline. Cada punto trackeable como sub-item §6.2.x.
+
+---
+
 ## Tracking + handoff
 
 ### Cómo trackear
@@ -528,7 +572,8 @@ Sprint 1 de este roadmap (multi-tenant guards + ADRs) se ejecuta **antes** del p
 
 ## Changelog del propio roadmap
 
-| Fecha      | Cambio                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-05-27 | Documento creado tras cierre del workstream application-services-to-core. Incorpora trade-offs reconocidos + recomendaciones operativas surgidas en sesiones S1'→S5.                                                                                                                                                                                                                                                                                                                                                   |
-| 2026-06-03 | Bulk-scheduling lost-jobs / dual-write gap (trackeado como **B.3** en el post-audit catch-up) **CERRADO** por el rediseño channel-canonical (**ADR-0016**): el confirm escribe, en una sola UoW TX, el manifest + un evento outbox `BulkScheduleRowConfirmed` por fila (single write, sin dual-write); el relay → dispatch handler encola un job por fila; reconciliation backstop re-drivea filas atascadas desde el payload del DLQ. Cobertura: smoke e2e + reconciliation/media-path/relay-retry integration tests. |
+| Fecha      | Cambio                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-05-27 | Documento creado tras cierre del workstream application-services-to-core. Incorpora trade-offs reconocidos + recomendaciones operativas surgidas en sesiones S1'→S5.                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 2026-06-03 | Bulk-scheduling lost-jobs / dual-write gap (trackeado como **B.3** en el post-audit catch-up) **CERRADO** por el rediseño channel-canonical (**ADR-0016**): el confirm escribe, en una sola UoW TX, el manifest + un evento outbox `BulkScheduleRowConfirmed` por fila (single write, sin dual-write); el relay → dispatch handler encola un job por fila; reconciliation backstop re-drivea filas atascadas desde el payload del DLQ. Cobertura: smoke e2e + reconciliation/media-path/relay-retry integration tests.                                                                |
+| 2026-06-14 | **Fase 6 (Deployment & orchestration readiness)** añadida tras pregunta de Edward "¿tras containerización queda config óptima para k8s?". **6.1** containerization image hardening (IN-PROGRESS, abre SDD `containerization-image-hardening`: revisión file-por-file de los 7 Dockerfiles + Trivy + Docker Hub flake). **6.2** k8s deployment readiness (PENDING, depende de 6.1): assessment con 7 gaps reales + inventario de lo ya k8s-aligned (probes, graceful shutdown, migraciones fuera de boot, cache stateless, distroless). Veredicto: 6.1 desbloquea k8s, 6.2 lo entrega. |

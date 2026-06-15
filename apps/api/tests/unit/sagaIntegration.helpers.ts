@@ -11,13 +11,13 @@
  */
 
 import { vi } from "vitest";
-import { EventStoreEvent } from "@shared/events";
-import { Command } from "@shared/cqrs";
+import { EventStoreEvent } from "@shared/types/events.js";
+import { Command } from "@shared/types/cqrs.js";
 import { ok } from "@shared/types";
 import type { QueuePort, QueueJob, QueueHealth } from "@ports/core";
 import type { Result } from "@shared/types";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
-import { SagaIntegration } from "../../src/saga/SagaIntegration";
+import { SagaIntegration } from "../../src/saga/SagaIntegration.js";
 
 export const TEST_CUSTOMER_ID = "11111111-1111-4111-8111-111111111111";
 export const TEST_ACCOUNT_ID = "22222222-2222-4222-8222-222222222222";

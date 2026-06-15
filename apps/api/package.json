@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit",
+    "build": "tsc -b tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "dev": "node --env-file=../../.env --import tsx src/index.ts",
     "dev:test": "cross-env NODE_ENV=test tsx src/index.ts",
@@ -72,6 +72,7 @@
     "@core/aiPromptTemplates": "workspace:*",
     "@core/analytics": "workspace:*",
     "@core/apiKeys": "workspace:*",
+    "@core/application": "workspace:*",
     "@core/approvals": "workspace:*",
     "@core/assets": "workspace:*",
     "@core/auth": "workspace:*",
