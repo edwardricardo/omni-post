@@ -12,9 +12,13 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { InboxLayout } from "../../components/inbox/InboxLayout";
-import { IntlTestProvider } from "../intl-test-utils";
-import type { InboxConversation, InboxMessage, InboxMessagesPage } from "../../hooks/api/useInbox";
+import { InboxLayout } from "../../components/inbox/InboxLayout.js";
+import { IntlTestProvider } from "../intl-test-utils.js";
+import type {
+  InboxConversation,
+  InboxMessage,
+  InboxMessagesPage,
+} from "../../hooks/api/useInbox/index.js";
 
 const mockFetch = vi.fn();
 

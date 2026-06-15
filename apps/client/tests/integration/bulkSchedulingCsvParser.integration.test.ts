@@ -14,7 +14,7 @@ import { describe, it, expect } from "vitest";
 import {
   parseClientSchedulingCsv,
   generateClientCsvTemplate,
-} from "../../lib/csv/bulkSchedulingCsvParser";
+} from "../../lib/csv/bulkSchedulingCsvParser.js";
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -4,7 +4,7 @@
  * @layer infrastructure
  */
 // Page type not used directly '@playwright/test';
-import { expectPageToBeAccessible, type A11yImpact, type A11yOptions } from "./a11y";
+import { expectPageToBeAccessible, type A11yImpact, type A11yOptions } from "./a11y.js";
 
 /**
  * Custom Assertions for E2E Tests
