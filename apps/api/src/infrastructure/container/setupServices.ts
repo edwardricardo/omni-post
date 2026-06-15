@@ -134,7 +134,7 @@ import {
   QUEUE_NAMES,
 } from "@adapters/queue-bullmq";
 import type { QueuePort, QueuePortRegistry, DeadLetterQueuePort } from "@ports/core";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import {
   DefaultBackgroundTaskScheduler,
   type BackgroundTaskScheduler,
