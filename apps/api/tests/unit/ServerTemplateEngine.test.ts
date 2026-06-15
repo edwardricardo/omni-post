@@ -56,7 +56,7 @@ vi.mock("../../src/lib/logger.js", () => {
 });
 
 import { prisma } from "@infra/prisma";
-import { ServerTemplateEngine } from "../../src/lib/templates/ServerTemplateEngine";
+import { ServerTemplateEngine } from "../../src/lib/templates/ServerTemplateEngine.js";
 import type { Template, TemplateContext } from "@shared/types";
 
 // Save original prisma methods for monkey-patching per test

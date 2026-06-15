@@ -7,8 +7,8 @@ import { describe, it, beforeEach, expect } from "vitest";
 import {
   GetPostQueryHandler,
   ListPostsQueryHandler,
-} from "../../src/cqrs/handlers/PostQueryHandlers";
-import type { Query } from "@shared/cqrs";
+} from "../../src/cqrs/handlers/PostQueryHandlers.js";
+import type { Query } from "@shared/types/cqrs.js";
 import {
   createMockPostQueryRepository,
   POST_QUERIES,
@@ -16,7 +16,7 @@ import {
   VALID_PROJECT_ID,
   NON_EXISTENT_POST_ID,
   type MockPostQueryRepository,
-} from "./PostQueryHandlers.test-helpers";
+} from "./PostQueryHandlers.test-helpers.js";
 
 describe("GetPostQueryHandler - Basic Functionality", () => {
   let handler: GetPostQueryHandler;
