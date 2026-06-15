@@ -13,8 +13,8 @@ import React from "react";
 import { http, HttpResponse } from "msw";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import { useABTests } from "../../lib/hooks/useABTests";
-import { server } from "../mocks/server";
+import { useABTests } from "../../lib/hooks/useABTests.js";
+import { server } from "../mocks/server.js";
 
 const PROXY = "/api/backend";
 const PROJECT = "proj-1";

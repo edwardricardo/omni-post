@@ -12,8 +12,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useAnalyticsRealtime } from "../../hooks/useAnalyticsRealtime";
-import type { AnalyticsDashboardData } from "../../hooks/api/useAnalytics";
+import { useAnalyticsRealtime } from "../../hooks/useAnalyticsRealtime.js";
+import type { AnalyticsDashboardData } from "../../hooks/api/useAnalytics.js";
 
 class FakeEventSource {
   static instances: FakeEventSource[] = [];

@@ -8,8 +8,8 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import React from "react";
 
-import { MentionsFeed } from "../../app/[locale]/dashboard/listening/components/MentionsFeed";
-import { IntlTestProvider } from "../intl-test-utils";
+import { MentionsFeed } from "../../app/[locale]/dashboard/listening/components/MentionsFeed.js";
+import { IntlTestProvider } from "../intl-test-utils.js";
 import type { Mention } from "@/hooks/api/useListening";
 
 function makeMention(overrides: Partial<Mention> = {}): Mention {

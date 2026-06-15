@@ -11,7 +11,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
-import { IntlTestProvider } from "../intl-test-utils";
+import { IntlTestProvider } from "../intl-test-utils.js";
 
 let mockPathname = "/dashboard";
 vi.mock("next/navigation", () => ({
@@ -69,7 +69,7 @@ vi.mock("@packages/ui", () => ({
   DropdownMenuSeparator: () => null,
 }));
 
-import DashboardLayout from "../../app/[locale]/dashboard/layout";
+import DashboardLayout from "../../app/[locale]/dashboard/layout.js";
 
 beforeEach(() => {
   mockPathname = "/dashboard";
