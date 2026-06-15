@@ -8,7 +8,7 @@
  * @layer infrastructure
  */
 
-import type { ContentTemplate } from "../../types/ai-content.js";
+import type { ContentTemplate } from "../../types/ai-content";
 
 export const DEFAULT_CONTENT_TEMPLATES: ContentTemplate[] = [
   {

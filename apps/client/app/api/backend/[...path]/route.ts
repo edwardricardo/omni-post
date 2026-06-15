@@ -38,7 +38,7 @@ import {
   clearAuthCookies,
   persistTokensFromAuthResponse,
 } from "@/lib/auth/sessionCookie";
-import { env } from "../../../../lib/env.js";
+import { env } from "../../../../lib/env";
 
 const API_URL = env.API_URL ?? "http://localhost:3000";
 

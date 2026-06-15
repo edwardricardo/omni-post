@@ -10,7 +10,7 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import type { ContentTemplate } from "../../types/ai-content.js";
+import type { ContentTemplate } from "../../types/ai-content";
 
 interface AITemplateSelectorProps {
   templates: ContentTemplate[];

@@ -17,7 +17,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ConfirmDialog } from "@packages/ui";
 import { useAIPromptTemplates, useDeleteAIPromptTemplate } from "@/hooks/api/useAIPromptTemplates";
-import { CreateTemplateForm, TemplateCard } from "./promptTemplateManager/index.js";
+import { CreateTemplateForm, TemplateCard } from "./promptTemplateManager";
 
 interface PromptTemplateManagerProps {
   accountId: string;

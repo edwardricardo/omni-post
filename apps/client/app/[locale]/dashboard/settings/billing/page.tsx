@@ -25,7 +25,7 @@ import {
 import type { GatewayProvider } from "@/hooks/api/useBilling";
 import { useAuth } from "@/lib/auth/authContext";
 import { InvoiceHistory } from "@/components/billing/InvoiceHistory";
-import { BundlesTab, CustomPlanTab, GatewaySection } from "./components/index.js";
+import { BundlesTab, CustomPlanTab, GatewaySection } from "./components";
 
 export default function BillingPage() {
   const tr = useTranslations("settings");

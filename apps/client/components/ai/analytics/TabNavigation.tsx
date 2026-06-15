@@ -8,7 +8,7 @@
 import React from "react";
 import { BarChart3, DollarSign, Users, Target, LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { AnalysisTab } from "./types.js";
+import { AnalysisTab } from "./types";
 
 interface TabConfig {
   id: AnalysisTab;
