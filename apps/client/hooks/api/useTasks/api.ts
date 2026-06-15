@@ -4,7 +4,7 @@
  * @layer infrastructure
  */
 
-import type { CreateTaskInput, ListTasksParams, TaskDto, UpdateTaskInput } from "./types";
+import type { CreateTaskInput, ListTasksParams, TaskDto, UpdateTaskInput } from "./types.js";
 
 export async function fetchTasks(params: ListTasksParams): Promise<TaskDto[]> {
   const searchParams = new URLSearchParams();

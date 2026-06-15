@@ -5,8 +5,8 @@
  * @layer infrastructure
  */
 
-import type { ApiResponse } from "../types";
-import { request } from "./request";
+import type { ApiResponse } from "../types.js";
+import { request } from "./request.js";
 
 export type AiContentType = "post" | "caption" | "hashtags";
 export type AiTone = "professional" | "casual" | "friendly" | "formal";

@@ -8,8 +8,8 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { cancelTask, completeTask, createTask, updateTask } from "./api";
-import type { UpdateTaskInput } from "./types";
+import { cancelTask, completeTask, createTask, updateTask } from "./api.js";
+import type { UpdateTaskInput } from "./types.js";
 
 /**
  * @hook useCreateTask
