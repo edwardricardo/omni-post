@@ -11,7 +11,7 @@ import type {
   MetricType,
   CompetitorComparison,
   TrendDataPoint,
-} from "@shared/analytics";
+} from "@shared/types/analytics.js";
 
 export interface PerformanceComparisonOptions {
   accountId: string;

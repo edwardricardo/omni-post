@@ -11,7 +11,7 @@
  */
 
 import type { Job } from "bullmq";
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import type { QueuePort } from "@ports/core";
 import { createBullMQConsumerAdapter, QUEUE_NAMES } from "@adapters/queue-bullmq";
 import type {

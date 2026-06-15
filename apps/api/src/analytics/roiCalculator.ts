@@ -6,7 +6,7 @@
  * All types are defined in ./roi/types.ts and re-exported from here for
  * backwards compatibility with existing consumers.
  */
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import type { CachePort } from "@ports/core";
 import { createLogger } from "../lib/logger.js";
 
@@ -32,7 +32,7 @@ import type {
   PostDataPoint,
   ConversionDataPoint,
 } from "./roi/types.js";
-import type { ROICalculation, TimeRange } from "../../../../packages/shared/src/analytics";
+import type { ROICalculation, TimeRange } from "../../../../packages/shared/src/analytics.js";
 
 // Re-export types consumed by external modules (e.g. ROICalculatorAdapter)
 export type {

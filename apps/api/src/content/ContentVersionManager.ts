@@ -7,17 +7,17 @@
 
 import { randomUUID } from "node:crypto";
 import { PrismaClient } from "@infra/prisma";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import type { CachePort } from "@ports/core";
-import { ContentVersion, VersionDiff, OrchestrationResult } from "@shared/orchestration";
+import { ContentVersion, VersionDiff, OrchestrationResult } from "@shared/types/orchestration.js";
 import type { CanonicalPost } from "@shared/types";
-import type { ProviderId } from "../providers/providerAdapter.interface";
-import { EventService } from "../events/EventService";
+import type { ProviderId } from "../providers/providerAdapter.interface.js";
+import { EventService } from "../events/EventService.js";
 
-import { VersionController } from "./VersionController";
-import { DiffCalculator } from "./DiffCalculator";
-import { BranchManager } from "./BranchManager";
-import { MergeManager } from "./MergeManager";
+import { VersionController } from "./VersionController.js";
+import { DiffCalculator } from "./DiffCalculator.js";
+import { BranchManager } from "./BranchManager.js";
+import { MergeManager } from "./MergeManager.js";
 
 // Re-export all shared types so existing imports continue to work
 export type {
@@ -27,7 +27,7 @@ export type {
   ConflictResolution,
   VersionMetadata,
   VersionSnapshot,
-} from "./contentVersionTypes";
+} from "./contentVersionTypes.js";
 
 export class ContentVersionManager {
   private versionController: VersionController;
@@ -126,7 +126,7 @@ export class ContentVersionManager {
     baseVersionId: string,
     createdBy: string,
     description?: string
-  ): Promise<OrchestrationResult<import("./contentVersionTypes").VersionBranch>> {
+  ): Promise<OrchestrationResult<import("./contentVersionTypes.js").VersionBranch>> {
     // Resolve the base version first so BranchManager receives a typed object
     const baseVersion = await this.versionController.getVersion(baseVersionId);
     if (!baseVersion || baseVersion.postId !== postId) {
@@ -198,7 +198,7 @@ export class ContentVersionManager {
     sourceBranch: string,
     targetBranch: string,
     requestedBy: string
-  ): Promise<OrchestrationResult<import("./contentVersionTypes").MergeRequest>> {
+  ): Promise<OrchestrationResult<import("./contentVersionTypes.js").MergeRequest>> {
     const source = await this.branchManager.getBranchByName(postId, sourceBranch);
     const target = await this.branchManager.getBranchByName(postId, targetBranch);
 
@@ -234,8 +234,8 @@ export class ContentVersionManager {
    */
   async resolveMergeConflicts(
     mergeRequestId: string,
-    resolutions: import("./contentVersionTypes").ConflictResolution[]
-  ): Promise<OrchestrationResult<import("./contentVersionTypes").MergeRequest>> {
+    resolutions: import("./contentVersionTypes.js").ConflictResolution[]
+  ): Promise<OrchestrationResult<import("./contentVersionTypes.js").MergeRequest>> {
     return this.mergeManager.resolveMergeConflicts(mergeRequestId, resolutions);
   }
 

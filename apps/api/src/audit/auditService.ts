@@ -6,7 +6,7 @@
  */
 import type { PrismaClient } from "@infra/prisma";
 import { type Result, type AdminRole } from "@shared/types";
-import { BaseService } from "../services/BaseService";
+import { BaseService } from "../services/BaseService.js";
 
 export interface AuditLogEntry {
   id: string;
