@@ -10,7 +10,7 @@
 import { useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { useTeamMembers, useUpdateTeamMemberRole, useRemoveTeamMember } from "@/hooks/api/useTeam";
-import { TeamMemberRow } from "./TeamMemberRow";
+import { TeamMemberRow } from "./TeamMemberRow.js";
 
 interface TeamPageProps {
   accountId: string;

@@ -30,7 +30,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { differenceInDays } from "date-fns";
-import { type ABTest, getStatusColor } from "./abTestTypes";
+import { type ABTest, getStatusColor } from "./abTestTypes.js";
 
 interface ABTestCardProps {
   test: ABTest;

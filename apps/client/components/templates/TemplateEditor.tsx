@@ -24,11 +24,11 @@ import type {
   TemplateFormData,
   EditorMode,
   EditorTab,
-} from "./templateEditorTypes";
-import { DEFAULT_CATEGORIES, DEFAULT_PLATFORMS } from "./templateEditorTypes";
-import { TemplateEditorToolbar } from "./TemplateEditorToolbar";
-import { TemplateEditorSidebar } from "./TemplateEditorSidebar";
-import { TemplateEditorCanvas } from "./TemplateEditorCanvas";
+} from "./templateEditorTypes.js";
+import { DEFAULT_CATEGORIES, DEFAULT_PLATFORMS } from "./templateEditorTypes.js";
+import { TemplateEditorToolbar } from "./TemplateEditorToolbar.js";
+import { TemplateEditorSidebar } from "./TemplateEditorSidebar.js";
+import { TemplateEditorCanvas } from "./TemplateEditorCanvas.js";
 
 export function TemplateEditor({
   template,
