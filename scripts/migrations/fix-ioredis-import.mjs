@@ -33,7 +33,8 @@ function collect(target, acc) {
     return acc;
   }
   for (const e of readdirSync(target, { withFileTypes: true })) {
-    if (["node_modules", "dist", ".next", ".turbo", ".stryker-tmp", "coverage"].includes(e.name)) continue;
+    if (["node_modules", "dist", ".next", ".turbo", ".stryker-tmp", "coverage"].includes(e.name))
+      continue;
     collect(resolve(target, e.name), acc);
   }
   return acc;
