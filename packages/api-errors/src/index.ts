@@ -12,4 +12,4 @@ export {
   getErrorMessage,
   isPermissionDenied,
   isNotFoundError,
-} from "./ApiError.js";
+} from "./ApiError";

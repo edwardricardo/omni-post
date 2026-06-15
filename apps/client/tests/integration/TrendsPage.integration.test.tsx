@@ -16,10 +16,10 @@ import React from "react";
 import { http, HttpResponse } from "msw";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import TrendsPage from "../../app/[locale]/dashboard/ai/trends/page.js";
-import { server } from "../mocks/server.js";
-import { IntlTestProvider } from "../intl-test-utils.js";
-import type { ScoredTrend } from "../../hooks/api/useTrendRadar.js";
+import TrendsPage from "../../app/[locale]/dashboard/ai/trends/page";
+import { server } from "../mocks/server";
+import { IntlTestProvider } from "../intl-test-utils";
+import type { ScoredTrend } from "../../hooks/api/useTrendRadar";
 
 const PROXY = "/api/backend";
 
