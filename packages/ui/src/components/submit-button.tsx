@@ -10,8 +10,8 @@
 import * as React from "react";
 import { useFormStatus } from "react-dom";
 import { Loader2 } from "lucide-react";
-import { Button, type ButtonProps } from "./button.js";
-import { cn } from "../lib/utils.js";
+import { Button, type ButtonProps } from "./button";
+import { cn } from "../lib/utils";
 
 export interface SubmitButtonProps extends Omit<ButtonProps, "type"> {
   /**
