@@ -10,8 +10,8 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { usePendingApprovals } from "@/hooks/api/useApprovals";
 import type { ApprovalRequest } from "@/hooks/api/useApprovals";
-import { ApprovalCard } from "./ApprovalCard";
-import { ReviewPanel } from "./ReviewPanel";
+import { ApprovalCard } from "./ApprovalCard.js";
+import { ReviewPanel } from "./ReviewPanel.js";
 import { CheckSquare } from "lucide-react";
 
 interface ApprovalQueueProps {

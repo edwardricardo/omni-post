@@ -10,7 +10,7 @@ import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { useCampaigns } from "@/hooks/api/useCampaigns";
 import type { CampaignDto } from "@/hooks/api/useCampaigns";
-import { CampaignCard } from "./CampaignCard";
+import { CampaignCard } from "./CampaignCard.js";
 
 interface CampaignListProps {
   projectId: string;

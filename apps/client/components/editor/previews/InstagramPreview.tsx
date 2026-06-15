@@ -9,8 +9,8 @@
 import { useTranslations } from "next-intl";
 import { Avatar, AvatarFallback, AvatarImage, Button } from "@packages/ui";
 import { Bookmark, Heart, MessageCircle, MoreHorizontal, Share } from "lucide-react";
-import { HashtagText } from "./HashtagText";
-import type { PreviewProps } from "./types";
+import { HashtagText } from "./HashtagText.js";
+import type { PreviewProps } from "./types.js";
 
 export function InstagramPreview({ content, media, userInfo }: PreviewProps) {
   const t = useTranslations("editor");
