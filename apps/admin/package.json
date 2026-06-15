@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "pnpm --filter @shared/types... build",
     "dev": "next dev -p 3100",
     "build": "next build",
     "start": "next start -p 3100",
@@ -28,7 +29,7 @@
     "date-fns": "4.1.0",
     "geist": "1.7.0",
     "lucide-react": "0.544.0",
-    "next": "16.2.4",
+    "next": "16.2.6",
     "next-intl": "4.9.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
