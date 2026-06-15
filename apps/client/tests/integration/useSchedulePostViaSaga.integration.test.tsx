@@ -12,8 +12,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useSchedulePostViaSaga } from "../../lib/hooks/useSchedulePostViaSaga";
-import type { Post } from "../../lib/api/types";
+import { useSchedulePostViaSaga } from "../../lib/hooks/useSchedulePostViaSaga.js";
+import type { Post } from "../../lib/api/types.js";
 
 const mockFetch = vi.fn();
 

@@ -9,10 +9,10 @@
  * @layer infrastructure
  */
 
-import { notificationsHandlers } from "./notifications";
-import { schedulingHandlers } from "./scheduling";
-import { trendRadarHandlers } from "./trendRadar";
-import { listeningHandlers } from "./listening";
+import { notificationsHandlers } from "./notifications.js";
+import { schedulingHandlers } from "./scheduling.js";
+import { trendRadarHandlers } from "./trendRadar.js";
+import { listeningHandlers } from "./listening.js";
 
 export const handlers = [
   ...schedulingHandlers,

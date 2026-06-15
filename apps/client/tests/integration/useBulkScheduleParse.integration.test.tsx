@@ -12,9 +12,9 @@ import { renderHook, waitFor, act } from "@testing-library/react";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
-import { server } from "../mocks/server";
-import { useBulkScheduleParse, useBulkScheduleConfirm } from "../../hooks/api/useBulkScheduling";
-import type { SchedulingCsvRow } from "../../lib/csv/bulkSchedulingCsvParser";
+import { server } from "../mocks/server.js";
+import { useBulkScheduleParse, useBulkScheduleConfirm } from "../../hooks/api/useBulkScheduling.js";
+import type { SchedulingCsvRow } from "../../lib/csv/bulkSchedulingCsvParser.js";
 
 // ---------------------------------------------------------------------------
 // Test helpers
