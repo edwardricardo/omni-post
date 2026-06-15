@@ -15,8 +15,8 @@ import React from "react";
 import { http, HttpResponse } from "msw";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import { useTrendRadar, type TrendRadarPage } from "../../hooks/api/useTrendRadar";
-import { server } from "../mocks/server";
+import { useTrendRadar, type TrendRadarPage } from "../../hooks/api/useTrendRadar.js";
+import { server } from "../mocks/server.js";
 
 const PROXY = "/api/backend";
 

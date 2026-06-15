@@ -18,9 +18,9 @@ import React from "react";
 import { http, HttpResponse } from "msw";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import { useSchedulingDashboardSidebar } from "../../hooks/useSchedulingDashboardSidebar";
-import { schedulingQueries } from "../../lib/api/queries/schedulingQueries";
-import { server } from "../mocks/server";
+import { useSchedulingDashboardSidebar } from "../../hooks/useSchedulingDashboardSidebar.js";
+import { schedulingQueries } from "../../lib/api/queries/schedulingQueries.js";
+import { server } from "../mocks/server.js";
 
 const PROXY = "/api/backend";
 
