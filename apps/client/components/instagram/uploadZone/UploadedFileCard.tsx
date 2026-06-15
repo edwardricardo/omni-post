@@ -9,8 +9,8 @@
  */
 
 import { useTranslations } from "next-intl";
-import { formatTime, formatFileSize } from "../utils/index.js";
-import type { MediaFile } from "./types.js";
+import { formatTime, formatFileSize } from "../utils";
+import type { MediaFile } from "./types";
 
 interface UploadedFileCardProps {
   file: MediaFile;

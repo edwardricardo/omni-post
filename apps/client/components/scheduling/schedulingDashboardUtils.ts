@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-import type { DashboardScheduledPost } from "./schedulingDashboardTypes.js";
+import type { DashboardScheduledPost } from "./schedulingDashboardTypes";
 
 // ---------------------------------------------------------------------------
 // Status badge color

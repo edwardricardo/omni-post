@@ -11,7 +11,7 @@ import { useMemo, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import type { DashboardScheduledPost } from "./schedulingDashboardTypes.js";
+import type { DashboardScheduledPost } from "./schedulingDashboardTypes";
 
 interface WeekCalendarProps {
   currentDate: Date;

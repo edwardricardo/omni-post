@@ -14,7 +14,7 @@ import {
   type VideoMetadata,
   type VideoSplitOptions,
 } from "@providers/instagram/src/mediaProcessor";
-import type { PreviewSegment } from "./types.js";
+import type { PreviewSegment } from "./types";
 
 interface UseVideoSegmentsOptions {
   videoFile: File;

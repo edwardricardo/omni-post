@@ -11,8 +11,8 @@
  */
 
 import { useCallback, useState } from "react";
-import { generateVideoThumbnail, readImageMetadata, readVideoMetadata } from "../utils/index.js";
-import type { MediaFile, MediaFileStatus } from "./types.js";
+import { generateVideoThumbnail, readImageMetadata, readVideoMetadata } from "../utils";
+import type { MediaFile, MediaFileStatus } from "./types";
 
 interface UseMediaUploadOptions {
   acceptedTypes: string[];
