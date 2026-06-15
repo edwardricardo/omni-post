@@ -5,5 +5,5 @@
  * @layer infrastructure
  */
 
-export { StoriesEditor } from "./StoriesEditor";
-export { MediaUploadZone } from "./MediaUploadZone";
+export { StoriesEditor } from "./StoriesEditor.js";
+export { MediaUploadZone } from "./MediaUploadZone.js";

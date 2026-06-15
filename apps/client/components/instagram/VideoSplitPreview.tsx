@@ -12,9 +12,9 @@
 
 import { useTranslations } from "next-intl";
 import { type VideoSegment, type VideoSplitOptions } from "@providers/instagram/src/mediaProcessor";
-import { SegmentsGrid } from "./videoSplit/SegmentsGrid";
-import { SplitSettingsPanel } from "./videoSplit/SplitSettingsPanel";
-import { useVideoSegments } from "./videoSplit/useVideoSegments";
+import { SegmentsGrid } from "./videoSplit/SegmentsGrid.js";
+import { SplitSettingsPanel } from "./videoSplit/SplitSettingsPanel.js";
+import { useVideoSegments } from "./videoSplit/useVideoSegments.js";
 
 interface VideoSplitPreviewProps {
   videoFile: File;

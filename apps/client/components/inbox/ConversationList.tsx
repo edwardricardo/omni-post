@@ -15,8 +15,8 @@ import {
   useMentions,
   type InboxFilters as ServerInboxFilters,
 } from "@/hooks/api/useInbox";
-import { ConversationCard } from "./ConversationCard";
-import type { InboxFilters as UiInboxFilters } from "./InboxSidebar";
+import { ConversationCard } from "./ConversationCard.js";
+import type { InboxFilters as UiInboxFilters } from "./InboxSidebar.js";
 
 interface ConversationListProps {
   filters: UiInboxFilters;
