@@ -10,7 +10,7 @@ import {
   type WebhookJobData,
 } from "./webhookJobProcessor.js";
 import type { PrismaClient, Provider, WebhookEventType } from "@infra/prisma";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import { webhookLogger } from "../lib/logger.js";
 import { AppError } from "../lib/errors/AppError.js";
 import { z } from "zod";

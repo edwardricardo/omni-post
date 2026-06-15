@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-import { BaseService, type ServiceContext } from "./BaseService";
+import { BaseService, type ServiceContext } from "./BaseService.js";
 import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 import { logger } from "../lib/logger.js";
 

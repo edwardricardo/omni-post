@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 import { type Prisma, type PrismaClient } from "@infra/prisma";
-import { BaseService } from "../services/BaseService";
+import { BaseService } from "../services/BaseService.js";
 import { ServerTemplateEngine } from "../lib/templates/ServerTemplateEngine.js";
 import { AppError } from "../lib/errors/AppError.js";
 import { Result } from "@shared/types";

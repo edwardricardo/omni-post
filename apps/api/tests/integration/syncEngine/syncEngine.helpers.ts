@@ -11,11 +11,11 @@
  */
 
 import { createTestPrismaClient } from "@infra/prisma";
-import Redis from "ioredis";
-import { ContentSynchronizer } from "../../../src/orchestration/ContentSynchronizer";
-import { ContentVersionManager } from "../../../src/content/ContentVersionManager";
-import { SyncScheduler } from "../../../src/content/SyncScheduler";
-import { SyncEngine } from "../../../src/content/SyncEngine";
+import { Redis } from "ioredis";
+import { ContentSynchronizer } from "../../../src/orchestration/ContentSynchronizer.js";
+import { ContentVersionManager } from "../../../src/content/ContentVersionManager.js";
+import { SyncScheduler } from "../../../src/content/SyncScheduler.js";
+import { SyncEngine } from "../../../src/content/SyncEngine.js";
 
 // ---------------------------------------------------------------------------
 // Prevent blocking xreadgroup BLOCK 1000 loop during tests.
