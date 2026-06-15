@@ -8,7 +8,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { activateAdminUser, createAdminUser, deactivateAdminUser, updateAdminUser } from "./api.js";
+import { activateAdminUser, createAdminUser, deactivateAdminUser, updateAdminUser } from "./api";
 
 const ADMIN_USERS_KEY = ["admin", "users"] as const;
 

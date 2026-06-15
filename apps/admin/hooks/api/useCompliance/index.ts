@@ -12,7 +12,7 @@ export type {
   DsarRequest,
   GdprSettings,
   SecuritySettings,
-} from "./types.js";
+} from "./types";
 
 export {
   useBreachReports,
@@ -21,7 +21,7 @@ export {
   useDsarRequests,
   useGdprSettings,
   useSecuritySettings,
-} from "./queries.js";
+} from "./queries";
 
 export {
   useAcknowledgeDsar,
@@ -31,4 +31,4 @@ export {
   useSendBreachNotification,
   useUpdateGdprSettings,
   useUpdateSecuritySettings,
-} from "./mutations.js";
+} from "./mutations";

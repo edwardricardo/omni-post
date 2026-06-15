@@ -7,10 +7,10 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { api } from "../../lib/apiClient.js";
-import type { SecretRotationStatusDTO } from "../../lib/api/clients/secretsClient.js";
+import { api } from "../../lib/apiClient";
+import type { SecretRotationStatusDTO } from "../../lib/api/clients/secretsClient";
 
-export type { SecretRotationStatusDTO } from "../../lib/api/clients/secretsClient.js";
+export type { SecretRotationStatusDTO } from "../../lib/api/clients/secretsClient";
 
 /**
  * @hook useSecretRotationStatus

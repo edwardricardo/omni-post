@@ -8,11 +8,11 @@
  */
 
 import { useMutation } from "@tanstack/react-query";
-import { api } from "../../lib/apiClient.js";
+import { api } from "../../lib/apiClient";
 import type {
   RotateApiKeyAdminInput,
   ApiKeyAdminRotationResult,
-} from "../../lib/api/clients/apiKeysAdminClient.js";
+} from "../../lib/api/clients/apiKeysAdminClient";
 
 export type { RotateApiKeyAdminInput, ApiKeyAdminRotationResult };
 

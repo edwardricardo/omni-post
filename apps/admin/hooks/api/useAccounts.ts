@@ -6,7 +6,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { AdminRole } from "@shared/types";
-import { api } from "../../lib/apiClient.js";
+import { api } from "../../lib/apiClient";
 import { ApiError } from "@packages/api-errors";
 
 /**

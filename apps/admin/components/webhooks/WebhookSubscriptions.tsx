@@ -19,7 +19,7 @@ import {
   useDeleteWebhookSubscription,
   type WebhookSubscription,
 } from "@/hooks/api/useWebhooks";
-import { LoadingSpinner } from "../shared/LoadingSpinner.js";
+import { LoadingSpinner } from "../shared/LoadingSpinner";
 import {
   Dialog,
   DialogContent,
