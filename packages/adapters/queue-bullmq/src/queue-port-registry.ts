@@ -7,7 +7,7 @@
  * @layer infrastructure
  */
 import type { QueuePort, QueuePortRegistry } from "@ports/core";
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import type { DefaultJobOptions } from "bullmq";
 import { createBullMQQueueAdapter, type BullMQQueueAdapter } from "./queue-adapter.js";
 

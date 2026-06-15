@@ -6,7 +6,7 @@
  */
 
 import { ok, err, type Result } from "@shared/types";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import pino from "pino";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import {

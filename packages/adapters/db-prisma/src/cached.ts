@@ -30,7 +30,7 @@ import type {
   Thread,
   Tweet,
 } from "@shared/types";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import type { DatabaseHealthMetrics } from "./resilience.js";
 import { createLogger } from "@observability/logger";
 
