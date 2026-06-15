@@ -5,10 +5,10 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import type Redis from "ioredis";
-import type { SyncConfiguration, OrchestrationError } from "@shared/orchestration";
-import type { ProviderId } from "../../providers/providerAdapter.interface";
-import type { EventService } from "../../events/EventService";
+import type { Redis } from "ioredis";
+import type { SyncConfiguration, OrchestrationError } from "@shared/types/orchestration.js";
+import type { ProviderId } from "../../providers/providerAdapter.interface.js";
+import type { EventService } from "../../events/EventService.js";
 
 export interface SyncDependencies {
   prisma: PrismaClient;

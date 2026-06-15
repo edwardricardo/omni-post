@@ -7,7 +7,7 @@
  *              cleanup (releaseAllForSaga) can drop them in one round trip.
  * @layer infrastructure
  */
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import type { Result } from "@shared/types";
 import { ok, err } from "@shared/types";
 import type { SemanticLockPort, SemanticLockError } from "@ports/core";

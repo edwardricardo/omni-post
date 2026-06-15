@@ -5,4 +5,4 @@
  * @layer infrastructure
  */
 
-export * from "./ServerTemplateEngine";
+export * from "./ServerTemplateEngine.js";

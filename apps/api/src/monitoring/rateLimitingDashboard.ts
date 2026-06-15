@@ -7,7 +7,7 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod/v4";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import { ApiMetrics } from "../metrics/apiMetrics.js";
 import { AppError } from "../lib/errors/index.js";
 import { createLogger } from "../lib/logger.js";

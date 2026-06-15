@@ -5,13 +5,13 @@
  *              infrastructure's full cost model.
  * @layer infrastructure
  */
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import type { CachePort } from "@ports/core";
 import type { ROICalculatorPort } from "@core/analytics/CalculateROIUseCase.js";
 import type { ChannelROI } from "@core/analytics/types.js";
 import { ROICalculator } from "../../analytics/roiCalculator.js";
 import type { ROICalculationOptions } from "../../analytics/roi/types.js";
-import type { TimeRange, ProviderType } from "@shared/analytics";
+import type { TimeRange, ProviderType } from "@shared/types/analytics.js";
 import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
 import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
 import type { ConversionRepositoryPort } from "@core/domain/repositories/ConversionRepository.js";

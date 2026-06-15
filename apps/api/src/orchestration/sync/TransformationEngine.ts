@@ -4,7 +4,7 @@
  * @layer infrastructure
  */
 
-import type { SyncTransformation } from "@shared/orchestration";
+import type { SyncTransformation } from "@shared/types/orchestration.js";
 import type { CanonicalPost } from "@shared/types";
 import { createLogger } from "../../lib/logger.js";
 

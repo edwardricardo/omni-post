@@ -9,12 +9,12 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
-import type Redis from "ioredis";
-import type { SagaInstance } from "@shared/saga";
-import type { EventStoreEvent } from "@shared/events";
+import type { Redis } from "ioredis";
+import type { SagaInstance } from "@shared/types/saga.js";
+import type { EventStoreEvent } from "@shared/types/events.js";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { SemanticLockPort } from "@ports/core";
-import type { EventService } from "../events/EventService";
+import type { EventService } from "../events/EventService.js";
 
 export interface SagaManagerConfig {
   prisma: PrismaClient;
