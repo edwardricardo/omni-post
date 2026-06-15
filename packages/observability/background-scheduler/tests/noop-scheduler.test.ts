@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { NoopBackgroundTaskScheduler } from "../src/noop-scheduler";
+import { NoopBackgroundTaskScheduler } from "../src/noop-scheduler.js";
 
 describe("NoopBackgroundTaskScheduler", () => {
   describe("register", () => {

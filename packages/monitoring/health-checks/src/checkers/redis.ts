@@ -6,7 +6,7 @@
  */
 import type { HealthChecker, HealthCheckResult } from "../types.js";
 import type { RedisCacheManager } from "@adapters/cache-redis";
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 
 export class RedisHealthChecker implements HealthChecker {
   constructor(private redis: Redis) {}

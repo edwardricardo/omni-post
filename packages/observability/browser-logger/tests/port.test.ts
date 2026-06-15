@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { LogLevel, extractErrorInfo } from "../src/port";
+import { LogLevel, extractErrorInfo } from "../src/port.js";
 
 describe("LogLevel", () => {
   it("exposes all four severity levels as string constants", () => {

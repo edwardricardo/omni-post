@@ -8,8 +8,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { ContentVersion, ContentVersioningProps } from "./contentVersioningTypes";
-import { getAuthorName } from "./contentVersioningTypes";
+import type { ContentVersion, ContentVersioningProps } from "./contentVersioningTypes.js";
+import { getAuthorName } from "./contentVersioningTypes.js";
 
 // ---------------------------------------------------------------------------
 // Filter / sort state types

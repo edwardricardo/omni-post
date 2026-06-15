@@ -7,9 +7,9 @@
  * @layer infrastructure
  */
 
-export type { BrowserLoggerPort, LogContext, ErrorInfo, LogLevelType } from "./port";
-export { LogLevel, extractErrorInfo } from "./port";
+export type { BrowserLoggerPort, LogContext, ErrorInfo, LogLevelType } from "./port.js";
+export { LogLevel, extractErrorInfo } from "./port.js";
 
-export { ConsoleLoggerAdapter } from "./console-adapter";
+export { ConsoleLoggerAdapter } from "./console-adapter.js";
 
-export { LoggerProvider, useLogger, useLoggerContext } from "./context";
+export { LoggerProvider, useLogger, useLoggerContext } from "./context.js";
