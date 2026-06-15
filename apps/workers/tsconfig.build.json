@@ -1,0 +1,86 @@
+{
+  "extends": "../../tsconfig.build.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "tests", "**/*.test.ts", "**/*.test.tsx"],
+  "references": [
+    {
+      "path": "../../packages/adapters/db-prisma/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/adapters/external-apis/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/adapters/queue-bullmq/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/application/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/domain/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/core/listening/tsconfig.build.json"
+    },
+    {
+      "path": "../../infra/prisma/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/monitoring/health-checks/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/observability/background-scheduler/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/observability/logger/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/observability/opentelemetry/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/ports/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/providers/bluesky/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/providers/facebook/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/providers/instagram/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/providers/linkedin/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/providers/pinterest/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/providers/snapchat/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/providers/telegram/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/providers/threads/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/providers/tiktok/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/providers/x/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/providers/youtube/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/shared/tsconfig.build.json"
+    }
+  ]
+}

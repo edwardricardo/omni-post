@@ -35,7 +35,7 @@ import { CredentialResolver } from "./services/CredentialResolver.js";
 import { DefaultBackgroundTaskScheduler } from "@observability/background-scheduler";
 import client from "prom-client";
 import { createLogger } from "@observability/logger";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import { WorkerMetrics } from "./metrics/workerMetrics.js";
 import { PublishHandler } from "./publishHandler.js";
 import type { PublishProvider } from "./publishHandler.js";

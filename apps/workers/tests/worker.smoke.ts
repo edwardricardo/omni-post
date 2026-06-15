@@ -5,7 +5,7 @@
  *              Exits cleanly when queue or repo are unavailable.
  * @layer infrastructure
  */
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import { createBullMQQueueAdapter, QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import { workerPrisma } from "../src/container/workerContainer.js";
