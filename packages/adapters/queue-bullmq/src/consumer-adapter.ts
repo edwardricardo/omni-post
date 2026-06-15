@@ -7,7 +7,7 @@
  * @layer infrastructure
  */
 import { Worker } from "bullmq";
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 import { createLogger } from "@observability/logger";
 import type { QueueName } from "./constants.js";
 

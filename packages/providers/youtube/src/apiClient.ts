@@ -19,11 +19,11 @@ const logger = createLogger("provider:youtube:api-client");
 import { google, youtube_v3, youtubeAnalytics_v2 } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
 import { Readable } from "stream";
-import { YouTubeAnalyticsService } from "./analytics";
-import { YouTubeLiveStreamingService } from "./liveStreaming";
-import { YouTubeCommunityService } from "./communityFeatures";
-import { YouTubeShortsService } from "./shorts";
-import { YouTubePlaylistManager } from "./playlistManager";
+import { YouTubeAnalyticsService } from "./analytics.js";
+import { YouTubeLiveStreamingService } from "./liveStreaming.js";
+import { YouTubeCommunityService } from "./communityFeatures.js";
+import { YouTubeShortsService } from "./shorts.js";
+import { YouTubePlaylistManager } from "./playlistManager.js";
 
 // Re-export all types so existing importers continue to work
 export type {

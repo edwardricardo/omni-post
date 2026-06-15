@@ -1,0 +1,29 @@
+{
+  "extends": "../../../tsconfig.build.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx", "**/*.stories.tsx"],
+  "references": [
+    {
+      "path": "../../core/domain/tsconfig.build.json"
+    },
+    {
+      "path": "../../../infra/prisma/tsconfig.build.json"
+    },
+    {
+      "path": "../../observability/background-scheduler/tsconfig.build.json"
+    },
+    {
+      "path": "../../observability/logger/tsconfig.build.json"
+    },
+    {
+      "path": "../../ports/tsconfig.build.json"
+    },
+    {
+      "path": "../../shared/tsconfig.build.json"
+    }
+  ]
+}

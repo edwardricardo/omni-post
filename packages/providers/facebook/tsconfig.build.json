@@ -1,0 +1,42 @@
+{
+  "extends": "../../../tsconfig.build.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.stories.tsx",
+    "src/analytics/**/*",
+    "src/media/**/*",
+    "src/features/community.ts",
+    "src/features/communityTypes.ts",
+    "src/features/eventTypes.ts",
+    "src/features/events.ts",
+    "src/features/shop.ts",
+    "src/features/shop.catalog.ts",
+    "src/features/shop.management.ts",
+    "src/features/shop.types.ts"
+  ],
+  "references": [
+    {
+      "path": "../../adapters/external-apis/tsconfig.build.json"
+    },
+    {
+      "path": "../../observability/logger/tsconfig.build.json"
+    },
+    {
+      "path": "../../ports/tsconfig.build.json"
+    },
+    {
+      "path": "../shared/tsconfig.build.json"
+    },
+    {
+      "path": "../../shared/tsconfig.build.json"
+    }
+  ]
+}
