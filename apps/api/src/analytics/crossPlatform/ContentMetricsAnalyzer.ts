@@ -10,13 +10,13 @@ import { createLogger } from "../../lib/logger.js";
 
 const analyticsLogger = createLogger("analytics");
 
-import type { PostDataItem, NormalizedAnalytics } from "./types";
+import type { PostDataItem, NormalizedAnalytics } from "./types.js";
 import type {
   TopPerformingPost,
   ContentTypePerformance,
   ProviderType,
   ContentType,
-} from "@shared/analytics";
+} from "@shared/types/analytics.js";
 
 /**
  * Internal interface for post performance data

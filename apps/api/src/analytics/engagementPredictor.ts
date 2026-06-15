@@ -15,7 +15,7 @@ import type {
   ProviderType,
   ContentType,
   TimeRange,
-} from "@shared/analytics";
+} from "@shared/types/analytics.js";
 import { BaseService } from "../services/BaseService.js";
 
 // Sub-module imports (split for ≤800-line rule)

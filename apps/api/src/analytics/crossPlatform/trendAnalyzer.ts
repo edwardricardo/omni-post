@@ -16,8 +16,8 @@ import type {
   SeasonalAnalysis,
   AnomalyDetection,
   MetricType,
-} from "@shared/analytics";
-import type { NormalizedAnalytics, DailyAggregatedData } from "./types";
+} from "@shared/types/analytics.js";
+import type { NormalizedAnalytics, DailyAggregatedData } from "./types.js";
 
 /**
  * Generate comprehensive trend analysis from analytics data

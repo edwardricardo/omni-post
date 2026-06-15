@@ -16,8 +16,8 @@ import type {
   MfaStatusResponse,
   AuthErrorCode,
   SecurityEventType,
-} from "./adminAuthTypes";
-import { adminAuthConfig } from "./adminAuthConfig";
+} from "./adminAuthTypes.js";
+import { adminAuthConfig } from "./adminAuthConfig.js";
 
 export class MfaService {
   constructor(private readonly prisma: PrismaClient) {}

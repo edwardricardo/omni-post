@@ -10,8 +10,8 @@ import { createLogger } from "../../lib/logger.js";
 
 const analyticsLogger = createLogger("analytics");
 
-import type { PostDataItem } from "./types";
-import type { HashtagAnalytics, OptimalTiming, ProviderType } from "@shared/analytics";
+import type { PostDataItem } from "./types.js";
+import type { HashtagAnalytics, OptimalTiming, ProviderType } from "@shared/types/analytics.js";
 
 /**
  * Internal interface for hashtag performance tracking

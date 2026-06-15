@@ -8,9 +8,9 @@
 import crypto from "crypto";
 import type { PrismaClient } from "@infra/prisma";
 import { ok, err, type Result } from "@shared/types";
-import type { AuthErrorCode, PasswordValidation, SecurityEventType } from "./adminAuthTypes";
-import { validatePasswordStrength } from "./adminAuthSchemas";
-import { adminAuthConfig } from "./adminAuthConfig";
+import type { AuthErrorCode, PasswordValidation, SecurityEventType } from "./adminAuthTypes.js";
+import { validatePasswordStrength } from "./adminAuthSchemas.js";
+import { adminAuthConfig } from "./adminAuthConfig.js";
 import {
   hashPassword as argonHashPassword,
   verifyPassword as argonVerifyPassword,
