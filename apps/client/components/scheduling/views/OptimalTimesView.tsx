@@ -10,7 +10,7 @@
 
 import React, { useMemo } from "react";
 import { useTranslations } from "next-intl";
-import type { OptimalTime } from "../../../types/multi-platform-scheduling.js";
+import type { OptimalTime } from "../../../types/multi-platform-scheduling";
 
 interface OptimalTimesViewProps {
   optimalTimes: OptimalTime[];

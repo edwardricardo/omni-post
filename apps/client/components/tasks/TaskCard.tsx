@@ -11,7 +11,7 @@ import { useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import { Check, X, Clock } from "lucide-react";
-import { PriorityBadge, StatusBadge } from "./TaskBadge.js";
+import { PriorityBadge, StatusBadge } from "./TaskBadge";
 import type { TaskDto } from "@/hooks/api/useTasks";
 
 interface TaskCardProps {

@@ -10,8 +10,8 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useCrmConnections } from "@/hooks/api/useCrm";
-import { CrmConnectionCard } from "./CrmConnectionCard.js";
-import { CrmSyncLog } from "./CrmSyncLog.js";
+import { CrmConnectionCard } from "./CrmConnectionCard";
+import { CrmSyncLog } from "./CrmSyncLog";
 
 export function CrmSettings() {
   const t = useTranslations("settings.components");

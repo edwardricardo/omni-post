@@ -10,7 +10,7 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import type { SchedulingRule } from "../../../types/multi-platform-scheduling.js";
+import type { SchedulingRule } from "../../../types/multi-platform-scheduling";
 
 interface RulesViewProps {
   rules: SchedulingRule[];

@@ -33,11 +33,11 @@ import {
   BookOpen,
   Zap,
 } from "lucide-react";
-import { VariableInserter } from "./VariableInserter.js";
+import { VariableInserter } from "./VariableInserter";
 
 const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
-const TipTapEditor = dynamic(() => import("./TipTapEditor.js"), { ssr: false });
-import type { EditorTab, TemplateEditorCanvasProps } from "./templateEditorTypes.js";
+const TipTapEditor = dynamic(() => import("./TipTapEditor"), { ssr: false });
+import type { EditorTab, TemplateEditorCanvasProps } from "./templateEditorTypes";
 
 export function TemplateEditorCanvas({
   formData,
