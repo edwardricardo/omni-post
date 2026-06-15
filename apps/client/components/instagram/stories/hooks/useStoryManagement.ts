@@ -5,7 +5,7 @@
  */
 
 import { useCallback } from "react";
-import { StoryContent } from "../types";
+import { StoryContent } from "../types.js";
 
 interface UseStoryManagementProps {
   onUpdate: (updater: (stories: StoryContent[]) => StoryContent[]) => void;

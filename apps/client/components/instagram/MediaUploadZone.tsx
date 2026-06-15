@@ -14,12 +14,12 @@
 import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "@packages/ui";
-import { VideoSplitPreview } from "./VideoSplitPreview";
+import { VideoSplitPreview } from "./VideoSplitPreview.js";
 import { VideoSplitOptions, VideoSegment } from "@providers/instagram/src/mediaProcessor";
-import { DropZone } from "./uploadZone/DropZone";
-import { UploadedFileCard } from "./uploadZone/UploadedFileCard";
-import { useMediaUpload } from "./uploadZone/useMediaUpload";
-import type { MediaFile } from "./uploadZone/types";
+import { DropZone } from "./uploadZone/DropZone.js";
+import { UploadedFileCard } from "./uploadZone/UploadedFileCard.js";
+import { useMediaUpload } from "./uploadZone/useMediaUpload.js";
+import type { MediaFile } from "./uploadZone/types.js";
 
 interface MediaUploadZoneProps {
   onFilesAdded: (files: MediaFile[]) => void;
@@ -152,4 +152,4 @@ export function MediaUploadZone({
   );
 }
 
-export type { MediaFile } from "./uploadZone/types";
+export type { MediaFile } from "./uploadZone/types.js";
