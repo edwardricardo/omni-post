@@ -9,7 +9,7 @@
 import { useState, useMemo, useCallback, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { ContentTemplate, AutomationTemplate, FilterOptions, SortOption } from "./types";
+import type { ContentTemplate, AutomationTemplate, FilterOptions, SortOption } from "./types.js";
 
 /**
  * Fetches templates for the default project from the real API and exposes

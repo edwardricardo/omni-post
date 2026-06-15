@@ -11,7 +11,7 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { Plus, Wand2 } from "lucide-react";
-import type { AutomationTemplate } from "./types";
+import type { AutomationTemplate } from "./types.js";
 
 interface TemplatesHeaderProps {
   onTemplateCreate?: () => void;

@@ -10,7 +10,7 @@
 import { useTranslations } from "next-intl";
 import { Avatar, AvatarFallback, AvatarImage, Button } from "@packages/ui";
 import { MessageCircle, MoreHorizontal, Repeat2, Share } from "lucide-react";
-import type { PreviewProps } from "./types";
+import type { PreviewProps } from "./types.js";
 
 export function LinkedInPreview({ content, media, userInfo }: PreviewProps) {
   const t = useTranslations("editor");

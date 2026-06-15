@@ -24,9 +24,9 @@ import { useToast } from "@packages/ui";
 import { usePostDraft } from "@/lib/hooks/useAutoSave";
 import { useProjectChannels } from "@/lib/hooks/useProjectChannels";
 import { useSchedulePostViaSaga } from "@/lib/hooks/useSchedulePostViaSaga";
-import { PlatformPreview } from "./PlatformPreview";
-import { TemplateSelector } from "./TemplateSelector";
-import { SchedulePicker } from "./SchedulePicker";
+import { PlatformPreview } from "./PlatformPreview.js";
+import { TemplateSelector } from "./TemplateSelector.js";
+import { SchedulePicker } from "./SchedulePicker.js";
 import { Button } from "@packages/ui";
 import { Calendar, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 
