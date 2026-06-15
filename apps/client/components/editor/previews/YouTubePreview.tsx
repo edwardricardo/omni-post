@@ -9,7 +9,7 @@
 
 import { useTranslations } from "next-intl";
 import { Avatar, AvatarFallback, AvatarImage } from "@packages/ui";
-import type { PreviewProps } from "./types.js";
+import type { PreviewProps } from "./types";
 
 const YOUTUBE_TITLE_LIMIT = 70;
 const YOUTUBE_DESCRIPTION_LIMIT = 200;

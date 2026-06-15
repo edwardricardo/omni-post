@@ -5,12 +5,12 @@
  * @layer infrastructure
  */
 
-export { TemplatesHeader } from "./TemplatesHeader.js";
-export { TemplatesTabs } from "./TemplatesTabs.js";
-export { TemplateFilters } from "./TemplateFilters.js";
-export { TemplateGrid } from "./TemplateGrid.js";
-export { AutomationList } from "./AutomationList.js";
-export { TemplateVariableModal } from "./TemplateVariableModal.js";
-export { TemplatesLoadingSkeleton } from "./TemplatesLoadingSkeleton.js";
-export { useTemplateData } from "./useTemplateData.js";
-export * from "./types.js";
+export { TemplatesHeader } from "./TemplatesHeader";
+export { TemplatesTabs } from "./TemplatesTabs";
+export { TemplateFilters } from "./TemplateFilters";
+export { TemplateGrid } from "./TemplateGrid";
+export { AutomationList } from "./AutomationList";
+export { TemplateVariableModal } from "./TemplateVariableModal";
+export { TemplatesLoadingSkeleton } from "./TemplatesLoadingSkeleton";
+export { useTemplateData } from "./useTemplateData";
+export * from "./types";

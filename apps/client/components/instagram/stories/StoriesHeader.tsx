@@ -8,7 +8,7 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { StoriesProject } from "./types.js";
+import { StoriesProject } from "./types";
 
 interface StoriesHeaderProps {
   project: StoriesProject;

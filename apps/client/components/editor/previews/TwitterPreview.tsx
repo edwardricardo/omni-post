@@ -11,9 +11,9 @@ import { useTranslations } from "next-intl";
 import { cn } from "@packages/ui";
 import { Avatar, AvatarFallback, AvatarImage, Button } from "@packages/ui";
 import { Bookmark, Heart, MessageCircle, Repeat2, Share } from "lucide-react";
-import { HashtagText } from "./HashtagText.js";
-import { MediaGrid } from "./MediaGrid.js";
-import type { ThreadedPreviewProps } from "./types.js";
+import { HashtagText } from "./HashtagText";
+import { MediaGrid } from "./MediaGrid";
+import type { ThreadedPreviewProps } from "./types";
 
 export function TwitterPreview({ media, userInfo, threadSegments }: ThreadedPreviewProps) {
   const t = useTranslations("editor");

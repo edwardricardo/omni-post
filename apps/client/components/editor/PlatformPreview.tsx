@@ -33,7 +33,7 @@ import {
   type PreviewProps,
   type ThreadedPreviewProps,
   type ThreadSegment,
-} from "./previews/index.js";
+} from "./previews";
 
 interface PlatformPreviewProps {
   content: string;

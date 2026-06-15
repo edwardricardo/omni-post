@@ -12,9 +12,9 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { useConversation, useConversationMessages, useMarkMessageRead } from "@/hooks/api/useInbox";
-import { MessageBubble } from "./MessageBubble.js";
-import { ConversationHeader } from "./ConversationHeader.js";
-import { ReplyComposer } from "./ReplyComposer.js";
+import { MessageBubble } from "./MessageBubble";
+import { ConversationHeader } from "./ConversationHeader";
+import { ReplyComposer } from "./ReplyComposer";
 
 interface ConversationThreadProps {
   conversationId: string;

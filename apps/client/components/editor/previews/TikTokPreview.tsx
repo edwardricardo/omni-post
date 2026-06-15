@@ -8,8 +8,8 @@
  */
 
 import { useTranslations } from "next-intl";
-import { HashtagText } from "./HashtagText.js";
-import type { PreviewProps } from "./types.js";
+import { HashtagText } from "./HashtagText";
+import type { PreviewProps } from "./types";
 
 const TIKTOK_CAPTION_LIMIT = 150;
 
