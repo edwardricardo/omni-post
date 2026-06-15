@@ -16,14 +16,14 @@ import { Radio } from "lucide-react";
 import { useShareOfVoice, useMentions } from "@/hooks/api/useListening";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { MentionsFeed } from "./MentionsFeed.js";
+import { MentionsFeed } from "./MentionsFeed";
 
 const ShareOfVoiceChart = dynamic(
-  () => import("./ShareOfVoiceChart.js").then((m) => m.ShareOfVoiceChart),
+  () => import("./ShareOfVoiceChart").then((m) => m.ShareOfVoiceChart),
   { ssr: false }
 );
 const SentimentBreakdownChart = dynamic(
-  () => import("./SentimentBreakdownChart.js").then((m) => m.SentimentBreakdownChart),
+  () => import("./SentimentBreakdownChart").then((m) => m.SentimentBreakdownChart),
   { ssr: false }
 );
 

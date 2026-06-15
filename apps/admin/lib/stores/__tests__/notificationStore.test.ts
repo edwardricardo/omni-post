@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { useNotificationStore } from "../notificationStore.js";
+import { useNotificationStore } from "../notificationStore";
 
 // Reset store between tests
 beforeEach(() => {
@@ -17,7 +17,7 @@ beforeEach(() => {
   });
 });
 
-const makeItem = (overrides: Partial<import("../notificationStore.js").NotificationItem> = {}) =>
+const makeItem = (overrides: Partial<import("../notificationStore").NotificationItem> = {}) =>
   ({
     id: "notif-001",
     type: "POST_APPROVED",
@@ -26,7 +26,7 @@ const makeItem = (overrides: Partial<import("../notificationStore.js").Notificat
     read: false,
     createdAt: "2026-03-10T10:00:00Z",
     ...overrides,
-  }) as import("../notificationStore.js").NotificationItem;
+  }) as import("../notificationStore").NotificationItem;
 
 describe("notificationStore", () => {
   describe("setNotifications", () => {

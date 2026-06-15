@@ -20,9 +20,9 @@ import { useProviders } from "@/lib/hooks/useProviders";
 import { mapProvidersToMetadata } from "@/lib/utils/providerMapper";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { PrimaryChannelsSection } from "@/components/channels/PrimaryChannelsSection";
-import { AvailableProvidersGrid } from "./components/AvailableProvidersGrid.js";
-import { ChannelsTable } from "./components/ChannelsTable.js";
-import { ConnectProviderDialog } from "./components/ConnectProviderDialog.js";
+import { AvailableProvidersGrid } from "./components/AvailableProvidersGrid";
+import { ChannelsTable } from "./components/ChannelsTable";
+import { ConnectProviderDialog } from "./components/ConnectProviderDialog";
 
 function ChannelsPageContent() {
   const t = useTranslations("channels");

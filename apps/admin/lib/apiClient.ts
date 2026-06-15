@@ -11,18 +11,18 @@
  * @layer infrastructure
  */
 
-import { auditClient } from "./api/clients/auditClient.js";
-import { authClient } from "./api/clients/authClient.js";
-import { dashboardClient } from "./api/clients/dashboardClient.js";
-import { healthClient } from "./api/clients/healthClient.js";
-import { mfaClient } from "./api/clients/mfaClient.js";
-import { rbacClient } from "./api/clients/rbacClient.js";
-import { secretsClient } from "./api/clients/secretsClient.js";
-import { channelsAdminClient } from "./api/clients/channelsAdminClient.js";
-import { webhooksAdminClient } from "./api/clients/webhooksAdminClient.js";
-import { oidcAdminClient } from "./api/clients/oidcAdminClient.js";
-import { apiKeysAdminClient } from "./api/clients/apiKeysAdminClient.js";
-import { providersAdminClient } from "./api/clients/providersAdminClient.js";
+import { auditClient } from "./api/clients/auditClient";
+import { authClient } from "./api/clients/authClient";
+import { dashboardClient } from "./api/clients/dashboardClient";
+import { healthClient } from "./api/clients/healthClient";
+import { mfaClient } from "./api/clients/mfaClient";
+import { rbacClient } from "./api/clients/rbacClient";
+import { secretsClient } from "./api/clients/secretsClient";
+import { channelsAdminClient } from "./api/clients/channelsAdminClient";
+import { webhooksAdminClient } from "./api/clients/webhooksAdminClient";
+import { oidcAdminClient } from "./api/clients/oidcAdminClient";
+import { apiKeysAdminClient } from "./api/clients/apiKeysAdminClient";
+import { providersAdminClient } from "./api/clients/providersAdminClient";
 
 // Re-export types so consumers can import them from "@/lib/apiClient".
 export type {
@@ -33,7 +33,7 @@ export type {
   RbacHierarchy,
   RoleInfo,
   SecurityStats,
-} from "./api/types.js";
+} from "./api/types";
 
 /**
  * @const api

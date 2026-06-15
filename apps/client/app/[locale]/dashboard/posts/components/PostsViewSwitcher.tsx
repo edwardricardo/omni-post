@@ -10,8 +10,8 @@
 
 import { VirtualScrollList } from "@packages/ui";
 import type { Post } from "@/lib/api";
-import { PostCard } from "./PostCard.js";
-import type { PostViewMode } from "./PostsFilters.js";
+import { PostCard } from "./PostCard";
+import type { PostViewMode } from "./PostsFilters";
 
 interface PostsViewSwitcherProps {
   posts: Post[];

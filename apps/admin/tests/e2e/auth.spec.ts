@@ -4,7 +4,7 @@
  * @layer infrastructure
  */
 import { test, expect } from "@playwright/test";
-import { LoginPage } from "./fixtures/LoginPage.js";
+import { LoginPage } from "./fixtures/LoginPage";
 import {
   TEST_CREDENTIALS,
   resetTestAdmin,
@@ -14,7 +14,7 @@ import {
   loginAs,
   getCurrentUserInfo,
   waitForNavigation,
-} from "./helpers.js";
+} from "./helpers";
 
 /**
  * E2E Authentication Tests for Next.js 15 Admin System

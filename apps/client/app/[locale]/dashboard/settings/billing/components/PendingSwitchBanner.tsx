@@ -13,7 +13,7 @@
 import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import type { GatewayProvider } from "@/hooks/api/useBilling";
-import { formatBillingDate, GATEWAY_LABELS } from "../utils/pricing.js";
+import { formatBillingDate, GATEWAY_LABELS } from "../utils/pricing";
 
 interface PendingSwitchBannerProps {
   status: "SCHEDULED" | "PENDING_CHECKOUT";

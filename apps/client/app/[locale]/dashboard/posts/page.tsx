@@ -33,7 +33,7 @@ import {
   PostsPagination,
   PostsViewSwitcher,
   type PostViewMode,
-} from "./components/index.js";
+} from "./components";
 
 const PAGE_SIZE = 10;
 
