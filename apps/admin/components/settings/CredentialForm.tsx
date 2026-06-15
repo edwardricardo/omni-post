@@ -19,10 +19,10 @@ import {
   useDeleteCredential,
 } from "@/hooks/api/useSettings";
 import type { TestResult } from "@/hooks/api/useSettings";
-import { LoadingSpinner } from "../shared/LoadingSpinner";
-import { ActionButton } from "../ui/ActionButton";
-import { Badge } from "../ui/Badge";
-import type { FieldDef } from "./constants";
+import { LoadingSpinner } from "../shared/LoadingSpinner.js";
+import { ActionButton } from "../ui/ActionButton.js";
+import { Badge } from "../ui/Badge.js";
+import type { FieldDef } from "./constants.js";
 
 interface CredentialFormProps {
   /** Credential group key (e.g. `STRIPE`, `AWS_S3`) being edited. */

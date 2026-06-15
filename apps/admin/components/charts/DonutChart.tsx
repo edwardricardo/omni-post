@@ -7,7 +7,7 @@
 "use client";
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
-import { ChartEmptyState } from "./ChartEmptyState";
+import { ChartEmptyState } from "./ChartEmptyState.js";
 
 export interface DonutChartDatum {
   name: string;

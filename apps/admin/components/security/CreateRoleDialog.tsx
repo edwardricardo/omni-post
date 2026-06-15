@@ -23,7 +23,7 @@ import { toast } from "@packages/ui";
 import { useTranslations } from "next-intl";
 
 import { getErrorMessage } from "@packages/api-errors";
-import { api } from "../../lib/apiClient";
+import { api } from "../../lib/apiClient.js";
 
 interface CreateRoleDialogProps {
   /** Whether the dialog is currently visible. */

@@ -16,7 +16,7 @@ import {
   clearAuthCookies,
   setSessionCookie,
 } from "@/lib/auth/sessionCookie";
-import { env } from "../../../../lib/env";
+import { env } from "../../../../lib/env.js";
 
 const API_URL = env.API_URL ?? env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 const APP_URL = env.NEXT_PUBLIC_URL ?? "http://localhost:3100";
