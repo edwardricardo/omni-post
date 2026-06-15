@@ -10,7 +10,7 @@ import type {
   GatewayStatusDto,
   InitiateGatewaySwitchResult,
   InvoicesPage,
-} from "./types";
+} from "./types.js";
 
 export async function fetchGatewayStatus(): Promise<GatewayStatusDto> {
   const res = await fetch("/api/backend/billing/gateway/status", {

@@ -7,7 +7,7 @@
  * @layer infrastructure
  */
 
-import type { InboxConversation, InboxFilters, InboxMessage, InboxMessagesPage } from "./types";
+import type { InboxConversation, InboxFilters, InboxMessage, InboxMessagesPage } from "./types.js";
 
 function buildInboxQueryString(filters: InboxFilters, cursor: string | null, limit = 20): string {
   const params = new URLSearchParams();

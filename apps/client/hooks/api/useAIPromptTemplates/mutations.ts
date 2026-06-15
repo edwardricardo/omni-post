@@ -7,7 +7,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createTemplate, deleteTemplate, updateTemplate } from "./api";
+import { createTemplate, deleteTemplate, updateTemplate } from "./api.js";
 
 /**
  * @hook useCreateAIPromptTemplate

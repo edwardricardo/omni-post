@@ -12,7 +12,7 @@ import { useMutation } from "@tanstack/react-query";
 import type {
   SchedulingCsvRow,
   ParseSchedulingCsvResult,
-} from "../../lib/csv/bulkSchedulingCsvParser";
+} from "../../lib/csv/bulkSchedulingCsvParser.js";
 
 // ---------------------------------------------------------------------------
 // Types
