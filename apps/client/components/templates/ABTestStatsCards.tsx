@@ -8,7 +8,7 @@
 import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@packages/ui";
 import { BarChart3, Play, CheckCircle, Clock } from "lucide-react";
-import { type ABTest } from "./abTestTypes";
+import { type ABTest } from "./abTestTypes.js";
 
 interface ABTestStatsCardsProps {
   tests: ABTest[];
