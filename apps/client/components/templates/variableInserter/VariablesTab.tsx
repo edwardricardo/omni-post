@@ -12,7 +12,7 @@ import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import { Badge, Button, Separator } from "@packages/ui";
 import type { TemplateVariable } from "@/lib/templates/templateEngine";
-import type { VariableGroup } from "./data";
+import type { VariableGroup } from "./data.js";
 
 interface VariablesTabProps {
   detectedVariables: TemplateVariable[];

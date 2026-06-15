@@ -4,7 +4,7 @@
  * @layer infrastructure
  */
 
-import type { CampaignAnalyticsDto, CampaignDto, CreateCampaignInput } from "./types";
+import type { CampaignAnalyticsDto, CampaignDto, CreateCampaignInput } from "./types.js";
 
 export async function fetchCampaigns(params: {
   projectId: string;

@@ -14,9 +14,14 @@ export type {
   InboxMessageStatus,
   InboxMessageWireType,
   InboxPriority,
-} from "./types";
+} from "./types.js";
 
-export { useConversation, useConversationMessages, useInboxMessages, useMentions } from "./queries";
+export {
+  useConversation,
+  useConversationMessages,
+  useInboxMessages,
+  useMentions,
+} from "./queries.js";
 
 export {
   useAssignMessage,
@@ -24,4 +29,4 @@ export {
   useReopenConversation,
   useResolveConversation,
   useSendReply,
-} from "./mutations";
+} from "./mutations.js";

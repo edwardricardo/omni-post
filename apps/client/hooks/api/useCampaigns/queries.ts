@@ -7,7 +7,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchCampaign, fetchCampaignAnalytics, fetchCampaigns } from "./api";
+import { fetchCampaign, fetchCampaignAnalytics, fetchCampaigns } from "./api.js";
 
 /**
  * @hook useCampaigns

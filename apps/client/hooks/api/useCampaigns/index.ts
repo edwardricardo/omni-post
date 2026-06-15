@@ -10,8 +10,8 @@ export type {
   CampaignDto,
   CampaignStatus,
   CreateCampaignInput,
-} from "./types";
+} from "./types.js";
 
-export { useCampaign, useCampaignAnalytics, useCampaigns } from "./queries";
+export { useCampaign, useCampaignAnalytics, useCampaigns } from "./queries.js";
 
-export { useArchiveCampaign, useCreateCampaign } from "./mutations";
+export { useArchiveCampaign, useCreateCampaign } from "./mutations.js";

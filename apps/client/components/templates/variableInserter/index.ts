@@ -5,13 +5,13 @@
  * @layer infrastructure
  */
 
-export { ContextTab } from "./ContextTab";
+export { ContextTab } from "./ContextTab.js";
 export {
   COMMON_VARIABLES,
   HANDLEBARS_HELPERS,
   HELPER_CATEGORIES,
   type HelperInfo,
   type VariableGroup,
-} from "./data";
-export { HelpersTab } from "./HelpersTab";
-export { VariablesTab } from "./VariablesTab";
+} from "./data.js";
+export { HelpersTab } from "./HelpersTab.js";
+export { VariablesTab } from "./VariablesTab.js";

@@ -8,8 +8,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchGatewayStatus, fetchInvoices } from "./api";
-import type { BillingPlan } from "./types";
+import { fetchGatewayStatus, fetchInvoices } from "./api.js";
+import type { BillingPlan } from "./types.js";
 
 /**
  * @hook useGatewayStatus
