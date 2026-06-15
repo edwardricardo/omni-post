@@ -14,8 +14,8 @@ import {
   initiateGatewaySwitch,
   openBillingPortal,
   startCheckout,
-} from "./api.js";
-import type { GatewayProvider } from "./types.js";
+} from "./api";
+import type { GatewayProvider } from "./types";
 
 /**
  * @hook useInitiateGatewaySwitch

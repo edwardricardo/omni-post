@@ -8,7 +8,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createAsset, createFolder, deleteAsset } from "./api.js";
+import { createAsset, createFolder, deleteAsset } from "./api";
 
 /**
  * @hook useCreateAsset

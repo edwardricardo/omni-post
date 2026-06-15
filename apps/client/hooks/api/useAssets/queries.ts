@@ -7,8 +7,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchAssets, fetchFolders, fetchTags } from "./api.js";
-import type { ListAssetsParams } from "./types.js";
+import { fetchAssets, fetchFolders, fetchTags } from "./api";
+import type { ListAssetsParams } from "./types";
 
 /**
  * @hook useAssets

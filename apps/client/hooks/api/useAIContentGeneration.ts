@@ -5,16 +5,12 @@
  * @layer infrastructure
  */
 import { useMutation } from "@tanstack/react-query";
-import type {
-  GeneratedContent,
-  ContentTemplate,
-  GenerationSettings,
-} from "../../types/ai-content.js";
+import type { GeneratedContent, ContentTemplate, GenerationSettings } from "../../types/ai-content";
 import {
   optimizeForPlatform,
   generateVariations,
   generateBrandSuggestions,
-} from "../../lib/ai-content-utils.js";
+} from "../../lib/ai-content-utils";
 
 const API_URL = "/api/backend";
 

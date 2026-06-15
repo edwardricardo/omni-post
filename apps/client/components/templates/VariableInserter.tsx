@@ -28,7 +28,7 @@ import {
   HelpersTab,
   VariablesTab,
   type HelperInfo,
-} from "./variableInserter/index.js";
+} from "./variableInserter";
 
 interface VariableInserterProps {
   onVariableInsert: (variable: string) => void;

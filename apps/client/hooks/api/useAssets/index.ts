@@ -12,8 +12,8 @@ export type {
   CreateAssetInput,
   ListAssetsParams,
   MediaAssetDto,
-} from "./types.js";
+} from "./types";
 
-export { useAssetFolders, useAssetTags, useAssets } from "./queries.js";
+export { useAssetFolders, useAssetTags, useAssets } from "./queries";
 
-export { useCreateAsset, useCreateFolder, useDeleteAsset } from "./mutations.js";
+export { useCreateAsset, useCreateFolder, useDeleteAsset } from "./mutations";

@@ -7,7 +7,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchTemplates } from "./api.js";
+import { fetchTemplates } from "./api";
 
 const QUERY_KEY = (accountId?: string) => ["ai-templates", accountId ?? "system"];
 
