@@ -6,7 +6,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchGroupSettings, fetchSettingsStatus } from "./api.js";
+import { fetchGroupSettings, fetchSettingsStatus } from "./api";
 
 /**
  * @hook useSettingsStatus

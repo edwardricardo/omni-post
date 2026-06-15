@@ -22,7 +22,7 @@ import {
   retryOutboxDeadLetter,
   retryWebhookDeadLetter,
   updateWebhookSubscription,
-} from "./api.js";
+} from "./api";
 
 const WEBHOOKS_KEY = ["webhooks"] as const;
 const OUTBOX_KEY = ["outbox"] as const;

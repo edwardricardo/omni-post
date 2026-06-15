@@ -21,8 +21,8 @@ import {
   fetchWebhookEvents,
   fetchWebhookMetrics,
   fetchWebhookSubscriptions,
-} from "./api.js";
-import type { DeadLetterFilters, WebhookEventsFilters } from "./types.js";
+} from "./api";
+import type { DeadLetterFilters, WebhookEventsFilters } from "./types";
 
 /**
  * @hook useWebhookMetrics

@@ -10,11 +10,11 @@
  */
 
 import { useMutation } from "@tanstack/react-query";
-import { api } from "../../lib/apiClient.js";
+import { api } from "../../lib/apiClient";
 import type {
   RotateWebhookSecretInput,
   WebhookSecretRotationResult,
-} from "../../lib/api/clients/webhooksAdminClient.js";
+} from "../../lib/api/clients/webhooksAdminClient";
 
 export type { RotateWebhookSecretInput, WebhookSecretRotationResult };
 

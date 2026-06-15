@@ -6,8 +6,8 @@
  * @layer infrastructure
  */
 
-import type { MfaStatus } from "../types.js";
-import { http } from "./http.js";
+import type { MfaStatus } from "../types";
+import { http } from "./http";
 
 interface BackupCodesResponse {
   ok: boolean;
