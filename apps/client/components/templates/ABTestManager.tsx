@@ -31,12 +31,12 @@ import {
   AlertDialogTitle,
 } from "@packages/ui";
 import { Target } from "lucide-react";
-import { type ABTestManagerProps } from "./abTestTypes";
-import { ABTestCard } from "./ABTestCard";
-import { ABTestStatsCards } from "./ABTestStatsCards";
-import { ABTestCreateDialog } from "./ABTestCreateDialog";
-import { ABTestResultsTab } from "./ABTestResultsTab";
-import { useABTestManager } from "./useABTestManager";
+import { type ABTestManagerProps } from "./abTestTypes.js";
+import { ABTestCard } from "./ABTestCard.js";
+import { ABTestStatsCards } from "./ABTestStatsCards.js";
+import { ABTestCreateDialog } from "./ABTestCreateDialog.js";
+import { ABTestResultsTab } from "./ABTestResultsTab.js";
+import { useABTestManager } from "./useABTestManager.js";
 
 export function ABTestManager({
   templates,

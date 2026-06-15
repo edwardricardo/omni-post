@@ -11,7 +11,7 @@ import type {
   TemplateVersion,
   VersionBranch,
   TemplateVersionControlProps,
-} from "./templateVersionControlTypes";
+} from "./templateVersionControlTypes.js";
 
 export interface CreateVersionForm {
   changeLog: string;

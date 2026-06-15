@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@pack
 import { Badge } from "@packages/ui";
 import { Alert, AlertDescription } from "@packages/ui";
 import { BarChart3, Info } from "lucide-react";
-import { type ABTest } from "./abTestTypes";
+import { type ABTest } from "./abTestTypes.js";
 
 interface ABTestResultsTabProps {
   completedTests: ABTest[];

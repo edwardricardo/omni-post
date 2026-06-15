@@ -12,7 +12,7 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import { CheckCircle, Save } from "lucide-react";
-import type { TemplateEditorToolbarProps } from "./templateEditorTypes";
+import type { TemplateEditorToolbarProps } from "./templateEditorTypes.js";
 
 export function TemplateEditorToolbar({
   template,

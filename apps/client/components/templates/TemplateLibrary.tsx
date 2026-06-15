@@ -22,11 +22,11 @@ import type {
   ViewMode,
   SortBy,
   TemplateCardActions,
-} from "./templateLibraryTypes";
-import { DEFAULT_FILTER_STATE } from "./templateLibraryTypes";
-import { TemplateLibrarySearch } from "./TemplateLibrarySearch";
-import { TemplateLibraryGrid } from "./TemplateLibraryGrid";
-import { TemplateLibraryDialogs } from "./TemplateLibraryDialogs";
+} from "./templateLibraryTypes.js";
+import { DEFAULT_FILTER_STATE } from "./templateLibraryTypes.js";
+import { TemplateLibrarySearch } from "./TemplateLibrarySearch.js";
+import { TemplateLibraryGrid } from "./TemplateLibraryGrid.js";
+import { TemplateLibraryDialogs } from "./TemplateLibraryDialogs.js";
 
 export function TemplateLibrary({
   templates,

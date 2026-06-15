@@ -20,8 +20,8 @@ import {
   DialogTrigger,
 } from "@packages/ui";
 import { GitCommit } from "lucide-react";
-import type { VersionBranch } from "./templateVersionControlTypes";
-import type { CreateVersionForm } from "./useTemplateVersionControl";
+import type { VersionBranch } from "./templateVersionControlTypes.js";
+import type { CreateVersionForm } from "./useTemplateVersionControl.js";
 
 interface CreateVersionDialogProps {
   open: boolean;

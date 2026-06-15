@@ -31,7 +31,7 @@ import {
   Clock,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
-import type { TemplateVersion } from "./templateVersionControlTypes";
+import type { TemplateVersion } from "./templateVersionControlTypes.js";
 
 interface VersionCardProps {
   version: TemplateVersion;

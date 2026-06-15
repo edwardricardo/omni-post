@@ -15,7 +15,7 @@ import { Button } from "@packages/ui";
 import { Input } from "@packages/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@packages/ui";
 import { Search, Grid, List } from "lucide-react";
-import type { TemplateLibrarySearchProps, SortBy } from "./templateLibraryTypes";
+import type { TemplateLibrarySearchProps, SortBy } from "./templateLibraryTypes.js";
 
 export function TemplateLibrarySearch({
   searchTerm,

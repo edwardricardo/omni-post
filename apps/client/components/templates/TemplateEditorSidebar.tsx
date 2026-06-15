@@ -15,7 +15,7 @@ import { Button } from "@packages/ui";
 import { Input } from "@packages/ui";
 import { Label } from "@packages/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@packages/ui";
-import type { TemplateEditorSidebarProps } from "./templateEditorTypes";
+import type { TemplateEditorSidebarProps } from "./templateEditorTypes.js";
 
 export function TemplateEditorSidebar({
   formData,
