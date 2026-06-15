@@ -15,7 +15,7 @@ import {
   TEST_CHANNEL_ID_2,
 } from "./PostCommandHandlers.test-helpers.js";
 import { PublishPostCommandHandler } from "../../src/cqrs/handlers/PostCommandHandlers.js";
-import { POST_COMMANDS } from "@shared/cqrs";
+import { POST_COMMANDS } from "@shared/types/cqrs.js";
 import { randomUUID } from "crypto";
 
 describe("PublishPostCommandHandler", () => {

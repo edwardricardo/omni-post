@@ -4,8 +4,8 @@
  * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";
-import { createUserActionEvent, createAnalyticsEvent } from "../../src/events/EventService";
-import { EVENT_TYPES, validateEvent } from "@shared/events";
+import { createUserActionEvent, createAnalyticsEvent } from "../../src/events/EventService.js";
+import { EVENT_TYPES, validateEvent } from "@shared/types/events.js";
 
 // ============================================================================
 // createUserActionEvent Tests

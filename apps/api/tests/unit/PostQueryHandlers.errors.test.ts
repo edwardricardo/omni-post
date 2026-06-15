@@ -9,15 +9,15 @@ import {
   ListPostsQueryHandler,
   SearchPostsQueryHandler,
   GetPostAnalyticsQueryHandler,
-} from "../../src/cqrs/handlers/PostQueryHandlers";
-import type { Query } from "@shared/cqrs";
+} from "../../src/cqrs/handlers/PostQueryHandlers.js";
+import type { Query } from "@shared/types/cqrs.js";
 import {
   createMockPostQueryRepository,
   POST_QUERIES,
   VALID_POST_ID,
   VALID_PROJECT_ID,
   type MockPostQueryRepository,
-} from "./PostQueryHandlers.test-helpers";
+} from "./PostQueryHandlers.test-helpers.js";
 
 describe("Query Handlers - Error Handling", () => {
   let getHandler: GetPostQueryHandler;

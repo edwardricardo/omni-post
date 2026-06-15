@@ -9,7 +9,11 @@ console.warn = () => {};
 
 import { vi } from "vitest";
 import { ContentSynchronizer } from "../../src/orchestration/ContentSynchronizer.js";
-import type { SyncContentRequest, OrchestrationResult, SyncResponse } from "@shared/orchestration";
+import type {
+  SyncContentRequest,
+  OrchestrationResult,
+  SyncResponse,
+} from "@shared/types/orchestration.js";
 import type { CanonicalPost } from "@shared/types";
 
 import { StreamProcessor } from "../../src/orchestration/sync/StreamProcessor.js";

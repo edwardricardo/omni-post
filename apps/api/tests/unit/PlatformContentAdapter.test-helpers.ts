@@ -5,7 +5,7 @@
  */
 import { createTestPrismaClient } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import promClient from "prom-client";
 import { PlatformContentAdapter } from "../../src/content/PlatformContentAdapter.js";
 import { EventService } from "../../src/events/EventService.js";

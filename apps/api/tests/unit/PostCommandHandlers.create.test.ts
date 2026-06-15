@@ -16,7 +16,7 @@ import {
   TEST_POST_ID,
 } from "./PostCommandHandlers.test-helpers.js";
 import { CreatePostCommandHandler } from "../../src/cqrs/handlers/PostCommandHandlers.js";
-import { POST_COMMANDS } from "@shared/cqrs";
+import { POST_COMMANDS } from "@shared/types/cqrs.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
 
 describe("CreatePostCommandHandler", () => {
