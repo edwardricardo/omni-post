@@ -8,7 +8,7 @@
 import { Suspense } from "react";
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { TemplateManagementDashboard } from "./TemplateManagementDashboard";
+import { TemplateManagementDashboard } from "./TemplateManagementDashboard.js";
 
 export const metadata: Metadata = {
   title: "Template Management - Social Media CMS",

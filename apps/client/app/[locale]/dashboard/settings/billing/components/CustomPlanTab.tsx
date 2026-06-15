@@ -12,7 +12,7 @@ import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import type { GatewayProvider } from "@/hooks/api/useBilling";
-import { calcCustom, getProviderPrice, PROVIDER_OPTIONS } from "../utils/pricing";
+import { calcCustom, getProviderPrice, PROVIDER_OPTIONS } from "../utils/pricing.js";
 
 interface CustomPlanTabProps {
   selectedProviders: Set<string>;

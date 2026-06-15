@@ -11,7 +11,7 @@
 import React, { useId } from "react";
 import { Sparkles, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { ContentTemplate, GenerationSettings } from "../../types/ai-content";
+import type { ContentTemplate, GenerationSettings } from "../../types/ai-content.js";
 
 interface AIPromptFormProps {
   template: ContentTemplate;

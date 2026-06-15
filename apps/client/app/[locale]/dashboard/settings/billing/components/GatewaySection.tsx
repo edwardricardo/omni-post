@@ -15,10 +15,10 @@ import {
   useInitiateGatewaySwitch,
 } from "@/hooks/api/useBilling";
 import type { GatewayProvider } from "@/hooks/api/useBilling";
-import { ActiveGatewayBanner } from "./ActiveGatewayBanner";
-import { GatewaySelector } from "./GatewaySelector";
-import { PendingSwitchBanner } from "./PendingSwitchBanner";
-import { SwitchConfirmDialog } from "./SwitchConfirmDialog";
+import { ActiveGatewayBanner } from "./ActiveGatewayBanner.js";
+import { GatewaySelector } from "./GatewaySelector.js";
+import { PendingSwitchBanner } from "./PendingSwitchBanner.js";
+import { SwitchConfirmDialog } from "./SwitchConfirmDialog.js";
 
 export function GatewaySection() {
   const { data: gatewayStatus, isLoading, isError } = useGatewayStatus();
