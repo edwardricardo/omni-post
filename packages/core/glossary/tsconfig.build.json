@@ -1,0 +1,26 @@
+{
+  "extends": "../../../tsconfig.build.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx", "**/*.stories.tsx"],
+  "references": [
+    {
+      "path": "../application/tsconfig.build.json"
+    },
+    {
+      "path": "../domain/tsconfig.build.json"
+    },
+    {
+      "path": "../embeddings/tsconfig.build.json"
+    },
+    {
+      "path": "../../ports/tsconfig.build.json"
+    },
+    {
+      "path": "../../shared/tsconfig.build.json"
+    }
+  ]
+}
