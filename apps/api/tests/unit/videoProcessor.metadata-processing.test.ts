@@ -8,7 +8,7 @@ import {
   VideoProcessor,
   type VideoProcessingOptions,
   type ProcessingProgress,
-} from "../../src/video/videoProcessor";
+} from "../../src/video/videoProcessor.js";
 import {
   spawnResponseQueue,
   mockSpawnState,
@@ -17,7 +17,7 @@ import {
   mockFsData,
   setupFsMocks,
   setStatSizeOverride,
-} from "./videoProcessor.test-helpers";
+} from "./videoProcessor.test-helpers.js";
 
 describe("VideoProcessor - Metadata Extraction", () => {
   let processor: VideoProcessor;

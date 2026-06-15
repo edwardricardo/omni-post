@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { templateAnalytics } from "../../src/templates/templateAnalytics";
+import { templateAnalytics } from "../../src/templates/templateAnalytics.js";
 import { AppError, ErrorCode } from "@shared/types";
 
 describe("Template Analytics - Stubs throw notImplemented", () => {

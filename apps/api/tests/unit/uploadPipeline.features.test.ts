@@ -12,8 +12,8 @@ import {
   VideoUploadPipeline,
   type UploadOptions,
   type UploadDestination,
-} from "../../src/video/uploadPipeline";
-import { mockFsData, setupFsMocks } from "./uploadPipeline.test-helpers";
+} from "../../src/video/uploadPipeline.js";
+import { mockFsData, setupFsMocks } from "./uploadPipeline.test-helpers.js";
 
 describe("VideoUploadPipeline - Progress Tracking", () => {
   let pipeline: VideoUploadPipeline;

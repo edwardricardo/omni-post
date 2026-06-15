@@ -19,8 +19,8 @@ import {
   type UploadOptions,
   type UploadDestination,
   type UploadProgress,
-} from "../../src/video/uploadPipeline";
-import { mockFsData, setupFsMocks } from "./uploadPipeline.test-helpers";
+} from "../../src/video/uploadPipeline.js";
+import { mockFsData, setupFsMocks } from "./uploadPipeline.test-helpers.js";
 
 // Apply fs mocks before any describe/it blocks run
 setupFsMocks();
