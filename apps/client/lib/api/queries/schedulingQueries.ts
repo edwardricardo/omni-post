@@ -12,7 +12,7 @@
  */
 
 import { queryOptions } from "@tanstack/react-query";
-import { fetchCampaignsForProject, fetchTeamForProject } from "../clients/schedulingClient.js";
+import { fetchCampaignsForProject, fetchTeamForProject } from "../clients/schedulingClient";
 
 /**
  * Marks a query as opting out of the global "Request failed" toast in the

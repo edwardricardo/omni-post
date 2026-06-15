@@ -6,7 +6,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import React from "react";
-import { ApiProvider, useApi, useApiErrorHandler } from "../context.js";
+import { ApiProvider, useApi, useApiErrorHandler } from "../context";
 import { ApiError } from "@packages/api-errors";
 
 // Test component that uses the API context

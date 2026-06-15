@@ -8,7 +8,7 @@
  * @layer infrastructure
  */
 
-import { request, PROXY_BASE } from "./request.js";
+import { request, PROXY_BASE } from "./request";
 
 /**
  * Filter-dropdown campaign option for the scheduling sidebar. Backend returns

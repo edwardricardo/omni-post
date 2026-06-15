@@ -21,16 +21,16 @@ import type {
   Post,
   Project,
   UpdatePostRequest,
-} from "./types.js";
+} from "./types";
 
-import { AccountsClient } from "./clients/accountsClient.js";
-import { AiClient } from "./clients/aiClient.js";
+import { AccountsClient } from "./clients/accountsClient";
+import { AiClient } from "./clients/aiClient";
 import {
   type ContentAnalysis,
   type GenerateContentOptions,
   type GeneratedContent,
   type OptimizedContent,
-} from "./clients/aiClient.js";
+} from "./clients/aiClient";
 import {
   AnalyticsClient,
   type BestPostingTimesParams,
@@ -38,13 +38,13 @@ import {
   type ContentPerformanceParams,
   type CrossPlatformAnalyticsParams,
   type PostAnalyticsParams,
-} from "./clients/analyticsClient.js";
+} from "./clients/analyticsClient";
 import {
   ChannelsClient,
   type CreateChannelInput,
   type UpdateChannelInput,
-} from "./clients/channelsClient.js";
-import { HealthClient } from "./clients/healthClient.js";
+} from "./clients/channelsClient";
+import { HealthClient } from "./clients/healthClient";
 import {
   type AddPostMediaInput,
   PostsClient,
@@ -53,23 +53,23 @@ import {
   type ArchiveBatchResponse,
   type DuplicateBatchResponse,
   type HardDeleteBatchResponse,
-} from "./clients/postsClient.js";
-import { ProjectsClient } from "./clients/projectsClient.js";
+} from "./clients/postsClient";
+import { ProjectsClient } from "./clients/projectsClient";
 import {
   ProvidersClient,
   type ProviderEnvelope,
   type ProviderHealthEnvelope,
   type ProvidersHealthResponse,
   type ProvidersListResponse,
-} from "./clients/providersClient.js";
-import { PROXY_BASE } from "./clients/request.js";
+} from "./clients/providersClient";
+import { PROXY_BASE } from "./clients/request";
 import {
   SagaClient,
   type StartPostPublishingSagaInput,
   type StartPostPublishingSagaResponse,
   type SagaStatusDetails,
-} from "./clients/sagaClient.js";
-import { UploadsClient, type UploadResult, type UploadType } from "./clients/uploadsClient.js";
+} from "./clients/sagaClient";
+import { UploadsClient, type UploadResult, type UploadType } from "./clients/uploadsClient";
 
 /**
  * @class ApiClient

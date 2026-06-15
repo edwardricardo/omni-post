@@ -5,8 +5,8 @@
  * @layer infrastructure
  */
 
-import type { Provider, ProviderHealth } from "../types.js";
-import { request } from "./request.js";
+import type { Provider, ProviderHealth } from "../types";
+import { request } from "./request";
 
 export interface ProvidersListResponse {
   ok: boolean;

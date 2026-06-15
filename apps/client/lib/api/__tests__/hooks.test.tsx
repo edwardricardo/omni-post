@@ -13,8 +13,8 @@ import {
   useAllProvidersHealth,
   usePost,
   useUploadFile,
-} from "../hooks.js";
-import { apiClient } from "../client.js";
+} from "../hooks";
+import { apiClient } from "../client";
 
 // Mock the API client
 vi.mock("../client", () => ({

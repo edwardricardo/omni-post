@@ -6,8 +6,8 @@
  * @layer infrastructure
  */
 
-import type { Analytics, ApiResponse, CrossPlatformAnalyticsData } from "../types.js";
-import { request } from "./request.js";
+import type { Analytics, ApiResponse, CrossPlatformAnalyticsData } from "../types";
+import { request } from "./request";
 
 export interface PostAnalyticsParams {
   start?: string;
