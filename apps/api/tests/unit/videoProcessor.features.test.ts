@@ -4,7 +4,7 @@
  * @layer infrastructure
  */
 import { describe, it, beforeEach, expect } from "vitest";
-import { VideoProcessor, type VideoProcessingOptions } from "../../src/video/videoProcessor";
+import { VideoProcessor, type VideoProcessingOptions } from "../../src/video/videoProcessor.js";
 import {
   spawnResponseQueue,
   mockSpawnState,
@@ -12,7 +12,7 @@ import {
   mockFsData,
   setupFsMocks,
   setStatSizeOverride,
-} from "./videoProcessor.test-helpers";
+} from "./videoProcessor.test-helpers.js";
 
 describe("VideoProcessor - Platform Optimizations", () => {
   let processor: VideoProcessor;

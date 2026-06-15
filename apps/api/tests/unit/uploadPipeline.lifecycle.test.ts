@@ -7,8 +7,8 @@
  * @layer infrastructure
  */
 import { describe, it, beforeAll, expect } from "vitest";
-import { VideoUploadPipeline, type UploadDestination } from "../../src/video/uploadPipeline";
-import { mockFsData, setupFsMocks } from "./uploadPipeline.test-helpers";
+import { VideoUploadPipeline, type UploadDestination } from "../../src/video/uploadPipeline.js";
+import { mockFsData, setupFsMocks } from "./uploadPipeline.test-helpers.js";
 
 // Apply fs mocks before any describe/it blocks run
 setupFsMocks();
