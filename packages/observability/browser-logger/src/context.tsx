@@ -10,8 +10,8 @@
 "use client";
 
 import React, { ReactNode, createContext, useContext, useMemo } from "react";
-import { ConsoleLoggerAdapter } from "./console-adapter.js";
-import type { BrowserLoggerPort, LogContext } from "./port.js";
+import { ConsoleLoggerAdapter } from "./console-adapter";
+import type { BrowserLoggerPort, LogContext } from "./port";
 
 interface LoggerContextValue {
   createLogger: (name: string) => BrowserLoggerPort;

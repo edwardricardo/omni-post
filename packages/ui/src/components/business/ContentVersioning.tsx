@@ -9,32 +9,32 @@
 "use client";
 
 import { History, Save, Diff, GitBranch } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../card.js";
-import { Button } from "../button.js";
-import { Label } from "../label.js";
-import { Textarea } from "../textarea.js";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../tabs.js";
-import { ScrollArea } from "../scroll-area.js";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../dialog.js";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../card";
+import { Button } from "../button";
+import { Label } from "../label";
+import { Textarea } from "../textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../tabs";
+import { ScrollArea } from "../scroll-area";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../dialog";
 
 // Sub-modules
-import { useContentVersioning } from "./useContentVersioning.js";
-import { VersionTimelineView } from "./VersionTimelineView.js";
-import { VersionCompactView } from "./VersionCompactView.js";
-import { VersionCompareView } from "./VersionCompareView.js";
-import { VersionDetailDialog } from "./VersionDetailDialog.js";
-import { VersionRestoreDialog } from "./VersionRestoreDialog.js";
-import { VersionFilterBar, VersionSelectionBar } from "./VersionFilterBar.js";
+import { useContentVersioning } from "./useContentVersioning";
+import { VersionTimelineView } from "./VersionTimelineView";
+import { VersionCompactView } from "./VersionCompactView";
+import { VersionCompareView } from "./VersionCompareView";
+import { VersionDetailDialog } from "./VersionDetailDialog";
+import { VersionRestoreDialog } from "./VersionRestoreDialog";
+import { VersionFilterBar, VersionSelectionBar } from "./VersionFilterBar";
 
-// Re-export types so existing `import { ContentVersion } from "./ContentVersioning.js"`
-// and `export * from "./ContentVersioning.js"` in index.ts continue to work.
-export type { ContentVersion, ContentVersioningProps } from "./contentVersioningTypes.js";
+// Re-export types so existing `import { ContentVersion } from "./ContentVersioning"`
+// and `export * from "./ContentVersioning"` in index.ts continue to work.
+export type { ContentVersion, ContentVersioningProps } from "./contentVersioningTypes";
 
 // ---------------------------------------------------------------------------
 // Props (re-imported locally for the function signature)
 // ---------------------------------------------------------------------------
 
-import type { ContentVersioningProps } from "./contentVersioningTypes.js";
+import type { ContentVersioningProps } from "./contentVersioningTypes";
 
 // ---------------------------------------------------------------------------
 // Loading skeleton
