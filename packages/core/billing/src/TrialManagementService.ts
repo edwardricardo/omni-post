@@ -14,9 +14,9 @@ import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { Account } from "@core/domain/entities/Account.js";
 import { AccountId } from "@core/domain/value-objects/EntityId.js";
 import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
-import type { SubscriptionPlanService } from "./SubscriptionPlanService";
-import type { BillingService } from "./BillingService";
-import { type AccountTrialResponse, type StartTrialRequest } from "./types";
+import type { SubscriptionPlanService } from "./SubscriptionPlanService.js";
+import type { BillingService } from "./BillingService.js";
+import { type AccountTrialResponse, type StartTrialRequest } from "./types.js";
 
 /**
  * Service responsible for trial period management operations:

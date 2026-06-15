@@ -4,4 +4,4 @@
  *              validateThreadPlan utilities.
  * @layer infrastructure
  */
-export { planThread, estimateThreadReach, validateThreadPlan } from "./threadPlanner";
+export { planThread, estimateThreadReach, validateThreadPlan } from "./threadPlanner.js";
