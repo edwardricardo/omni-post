@@ -12,7 +12,7 @@ import {
   fillTemplateVariables,
   templateCategories,
   type PostTemplate,
-} from "../postTemplates";
+} from "../postTemplates.js";
 
 // ============================================================================
 // postTemplates array

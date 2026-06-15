@@ -8,7 +8,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchProjectChannels } from "./api";
+import { fetchProjectChannels } from "./api.js";
 
 /**
  * @hook useProjectChannels

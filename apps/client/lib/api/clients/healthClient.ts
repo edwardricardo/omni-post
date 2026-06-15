@@ -4,8 +4,8 @@
  * @layer infrastructure
  */
 
-import type { HealthResponse } from "../types";
-import { request } from "./request";
+import type { HealthResponse } from "../types.js";
+import { request } from "./request.js";
 
 /**
  * @class HealthClient
