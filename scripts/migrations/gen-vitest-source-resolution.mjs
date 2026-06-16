@@ -16,7 +16,7 @@
  * @layer infrastructure
  */
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from "node:fs";
-import { join, relative, dirname } from "node:path";
+import { join, relative } from "node:path";
 
 const ROOT = process.cwd();
 
