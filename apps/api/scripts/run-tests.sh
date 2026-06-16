@@ -65,7 +65,11 @@ run_batch() {
   # Pin the TAP reporter: the summary parser below greps "# tests N" (TAP
   # format). Node's default reporter is version/TTY-dependent (spec emits
   # "ℹ tests N"), which silently parses as 0 tests.
-  result=$(node --import tsx --test --test-reporter=tap --test-reporter-destination=stdout --test-force-exit --test-concurrency="$concurrency" --test-timeout="$timeout" $extra_flags "$@" 2>&1) || true
+  # --conditions development: opt into the `development`->src export branch so
+  # bare workspace specifiers resolve from src against an unbuilt tree (the flag
+  # is on the command, NOT NODE_OPTIONS — GitHub Actions restricts NODE_OPTIONS
+  # from GITHUB_ENV). See change dev-prod-resolution-model.
+  result=$(node --conditions development --import tsx --test --test-reporter=tap --test-reporter-destination=stdout --test-force-exit --test-concurrency="$concurrency" --test-timeout="$timeout" $extra_flags "$@" 2>&1) || true
 
   local tests=$(echo "$result" | grep "^# tests " | tail -1 | awk '{print $3}')
   local pass=$(echo "$result" | grep "^# pass " | tail -1 | awk '{print $3}')
