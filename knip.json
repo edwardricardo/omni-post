@@ -3,6 +3,7 @@
   "workspaces": {
     ".": {
       "project": ["*.{ts,js,cjs,mjs}", "scripts/**/*.{ts,js,mjs}"],
+      "ignore": ["performance/**", "security/**", "scripts/migrations/**", "scripts/depscan.mjs"],
       "ignoreDependencies": [
         "loadtest",
         "jq",
@@ -20,8 +21,7 @@
         "msw",
         "@t3-oss/env-core",
         "@t3-oss/env-nextjs"
-      ],
-      "ignore": ["performance/**"]
+      ]
     },
     "apps/api": {
       "entry": ["src/index.ts"],
@@ -45,6 +45,7 @@
       "ignoreDependencies": ["@vitest/coverage-v8", "tailwindcss"]
     },
     "packages/shared": {
+      "entry": ["src/index.ts", "src/**/*.ts"],
       "project": ["src/**/*.ts"],
       "ignore": ["src/**/*.js", "src/**/*.d.ts"]
     },
