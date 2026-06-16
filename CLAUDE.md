@@ -562,6 +562,29 @@ grep -rnE 'from "\.\.?/[^"]*\.js"' \
   packages/query-client/src packages/observability/browser-logger/src \
   --include="*.ts" --include="*.tsx" \
   --exclude-dir=.next --exclude-dir=node_modules --exclude-dir=dist | wc -l  # expect 0
+
+# 27. Dev/test/CI source-resolution invariants (the dev-prod-resolution-model
+# contract — ADR-0017 §1c). Two parts, hard-zero. Prevents re-introducing the
+# exports->dist breakage: workspace `exports` point at dist (correct for the prod
+# image, which builds dist first), so dev/test/CI consumers must opt into the
+# `development`->src conditional export, and Next builds must build @shared/types
+# dist first.
+#
+# Part A: every source-mode `node --import tsx` test/seed invocation (which
+# resolves BARE workspace specifiers via Node `exports`, NOT tsconfig paths) MUST
+# pass `--conditions development`, else it lands on the unbuilt dist.
+grep -rnE "node ([^|&]*)--import tsx" \
+  apps/api/package.json apps/api/scripts/run-tests.sh infra/prisma/package.json | \
+  grep -E -- "--test|security/tests|seed\.ts" | \
+  grep -v -- "--conditions development" | \
+  grep -vE '"dev":|dump:openapi' | wc -l  # expect 0
+#
+# Part B: the size-limit job must build the Next apps via `turbo run build` (build
+# task dependsOn:["^build"] -> builds @shared/types#build first), never a bare
+# `pnpm --filter @apps/... build` (which skips the @shared/types dist the apps
+# consume via Option-B tsconfig paths -> Turbopack "Module not found").
+grep -nE "pnpm --filter @apps/(admin|client)( --filter @apps/(admin|client))* build" \
+  .github/workflows/audit.yml | wc -l  # expect 0
 ```
 
 **Extending the suite.** Adding a new fitness check requires three coordinated edits, in order:
