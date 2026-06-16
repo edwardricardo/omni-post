@@ -15,7 +15,7 @@
  * @layer infrastructure
  */
 import { readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 
 const roots = process.argv.slice(2);
 if (roots.length === 0) {
