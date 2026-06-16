@@ -5,10 +5,14 @@
   "main": "./dist/index.js",
   "exports": {
     ".": {
+      "development": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./test-utils/msw-helpers": "./dist/test-utils/msw-helpers.js"
+    "./test-utils/msw-helpers": {
+      "development": "./src/test-utils/msw-helpers.ts",
+      "default": "./dist/test-utils/msw-helpers.js"
+    }
   },
   "dependencies": {
     "@ports/core": "workspace:*",
