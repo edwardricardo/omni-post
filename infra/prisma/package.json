@@ -28,10 +28,17 @@
   "types": "./dist/src/index.d.ts",
   "exports": {
     ".": {
+      "development": "./src/index.ts",
       "types": "./dist/src/index.d.ts",
       "default": "./dist/src/index.js"
     },
-    "./extensions/*": "./dist/src/extensions/*",
-    "./*": "./dist/src/*"
+    "./extensions/*": {
+      "development": "./src/extensions/*",
+      "default": "./dist/src/extensions/*"
+    },
+    "./*": {
+      "development": "./src/*",
+      "default": "./dist/src/*"
+    }
   }
 }
