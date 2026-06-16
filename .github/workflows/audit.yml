@@ -227,8 +227,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node-pnpm-cache
+      # Use `turbo run build` (not `pnpm --filter`) so the build task's
+      # dependsOn:["^build"] expands @shared/types#build BEFORE the Next apps —
+      # admin/client consume @shared/types from its prebuilt dist (Option B,
+      # ADR-0017 §4b), so the dist must exist before `next build`. Fitness #27(b)
+      # guards against regressing to a bare `pnpm --filter @apps ... build` here.
       - name: Build apps
-        run: pnpm --filter @apps/admin --filter @apps/client build
+        run: pnpm exec turbo run build --filter=@apps/admin --filter=@apps/client
         env:
           NEXT_TELEMETRY_DISABLED: "1"
       - name: Run size-limit (fail on threshold exceed)

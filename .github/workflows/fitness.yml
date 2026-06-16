@@ -542,6 +542,36 @@ jobs:
             exit 1
           fi
 
+      - name: "#27 Dev/test source-resolution invariants (--conditions development + @shared/types build-first)"
+        if: always()
+        run: |
+          set -uo pipefail
+          # The dev-prod-resolution-model contract (ADR-0017 §1c). Part A: source-mode
+          # node:test/seed invocations must pass --conditions development (else they
+          # resolve workspace packages to the unbuilt dist via Node exports). Part B:
+          # the size-limit job must build the Next apps via turbo (^build -> @shared/types
+          # dist first), not a bare pnpm --filter. Mirrors CLAUDE.md #27.
+          A=$(grep -rnE "node ([^|&]*)--import tsx" \
+                apps/api/package.json apps/api/scripts/run-tests.sh infra/prisma/package.json 2>/dev/null | \
+                grep -E -- "--test|security/tests|seed\.ts" | \
+                grep -v -- "--conditions development" | \
+                grep -vE '"dev":|dump:openapi' || true)
+          ACOUNT=$(printf "%s" "$A" | grep -c . || true); ACOUNT=${ACOUNT:-0}
+          B=$(grep -nE "pnpm --filter @apps/(admin|client)( --filter @apps/(admin|client))* build" \
+                .github/workflows/audit.yml 2>/dev/null || true)
+          BCOUNT=$(printf "%s" "$B" | grep -c . || true); BCOUNT=${BCOUNT:-0}
+          if [ "$ACOUNT" -gt 0 ]; then
+            echo "::error title=Fitness #27 violation::$ACOUNT source-mode node:test/seed invocation(s) missing --conditions development — they resolve to the unbuilt dist (exports->dist regression)"
+            printf "%s\n" "$A" | head -20
+          fi
+          if [ "$BCOUNT" -gt 0 ]; then
+            echo "::error title=Fitness #27 violation::size-limit job uses a bare 'pnpm --filter @apps build' — must use 'turbo run build' so @shared/types dist is built before next build"
+            printf "%s\n" "$B" | head -20
+          fi
+          if [ "$ACOUNT" -gt 0 ] || [ "$BCOUNT" -gt 0 ]; then
+            exit 1
+          fi
+
       - name: Fitness summary
         if: always()
         run: |
