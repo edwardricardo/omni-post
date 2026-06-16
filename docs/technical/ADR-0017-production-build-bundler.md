@@ -1,7 +1,7 @@
 # ADR-0017: Production Build Model — Transpile-Only (Per-Package `tsc` Emit + Project References)
 
-- **Status**: Accepted (revised 2026-06-15 — production build is now TRANSPILE-ONLY per-package `tsc` emit; the tsup bundle is rejected, see §1 + Alternatives)
-- **Date**: 2026-06-14 (transpile-only revision: 2026-06-15)
+- **Status**: Accepted (revised 2026-06-16 — the dev/test/CI resolution model is now codified as a TWO-MECHANISM contract, see §1c; supersedes the binary "prod=dist / dev=paths" framing of §1/§3b. Prior revision 2026-06-15: production build is TRANSPILE-ONLY per-package `tsc` emit; the tsup bundle is rejected, see §1 + Alternatives)
+- **Date**: 2026-06-14 (transpile-only revision: 2026-06-15; resolution-model revision: 2026-06-16)
 - **Deciders**: Edward + Claude
 - **Supersedes**: —
 - **Superseded by**: —
@@ -77,8 +77,16 @@ Use **`tsc` project references** (`tsc -b`), driven by turbo:
   each of its DECLARED workspace dependencies. The build config resets `paths`
   to `{}` so cross-package types resolve via the emitted `.d.ts` (through the
   package `exports`), not via the dev source aliases. The existing `tsconfig.json`
-  (dev, `noEmit`, `paths` → `src`) is kept untouched for the editor / `typecheck`
-  / `tsx` / `vitest` — dev still resolves to source.
+  (dev, `noEmit`, `paths` → `src`) is kept untouched for the editor / `typecheck`.
+  **NOTE (revised 2026-06-16):** tsconfig `paths` alone does NOT make `tsx` /
+  `node --import tsx --test` / `vitest` resolve workspace packages to source for
+  BARE specifiers — `paths` is a type/bundler-time hint, and Node's own `exports`
+  resolver (which those runners use for bare specifiers) ignores it. The accurate
+  dev/test/CI resolution model is the two-mechanism contract in **§1c** below
+  (conditional `exports` `development`→src + `--conditions development` for the
+  Node runners; build-dist-first for the Turbopack boundary). The earlier
+  "dev still resolves to source via paths" wording was incomplete and is
+  superseded by §1c.
 - A root solution-style `tsconfig.build.json` `references` every package + app;
   `tsc -b` builds the whole graph in topological order (the package boundary
   graph is ACYCLIC — see §1b — so the references form a valid DAG). The apps are
@@ -110,6 +118,71 @@ cycle, every undeclared cross-package import edge was declared as a
 proper `@core/threading` package import (CLAUDE.md tripwire #3). `scripts/depscan.mjs`
 gates "0 undeclared edges, ACYCLIC".
 
+### 1c. The dev/test/CI resolution model — a TWO-MECHANISM contract (revised 2026-06-16)
+
+The transpile-only pivot pointed every package's `exports` UNCONDITIONALLY at
+`./dist`. That is correct for the production image (which builds `dist` first),
+but it leaks a production decision into dev/test/CI, where `dist` is NOT built.
+The earlier framing ("dev/test resolve to source via tsconfig `paths`") is FALSE
+for Node's own `exports` resolver: only `tsc` and `vitest` (via the bespoke
+`buildWorkspaceAliases` alias factory in `vitest.shared.ts`) read tsconfig
+`paths`; for BARE workspace specifiers, `tsx` and `node --import tsx --test`
+defer to Node ESM `exports` and land on `dist` → `ERR_MODULE_NOT_FOUND` against
+an unbuilt tree. Empirically reproduced on PR #91 (the Prisma seed →
+`@observability/logger`; the security `node:test` suites →
+`@infra/prisma/extensions/tenantGuard.js`; the Next size-limit job →
+`@shared/types/i18n/createRequestConfig`). No single mechanism fixes all
+consumers — Turbopack cannot honor custom export conditions (vercel/next.js
+Discussion #78912, OPEN). The resolution model is therefore TWO coordinated
+mechanisms plus one orthogonal config rule:
+
+**(B-CORE) Conditional `exports` `development`→src + `--conditions development`
+for the Node-family runners.** Every transpile-only package's `exports` carries
+a `development`→src branch ordered FIRST (Node key order is significant —
+most-specific first, `default` always LAST), mirrored on the root AND every
+subpath. The branch is STRICTLY ADDITIVE and INERT by default: the four core
+conditions (`node`/`default`/`import`/`require`) always apply, so production
+keeps resolving `default`→dist and the `development` branch is selected ONLY when
+a consumer opts in via `--conditions development`. Source consumers opt in by
+passing `--conditions development` **on the invocation** (NOT `NODE_OPTIONS` —
+GitHub Actions restricts it from `GITHUB_ENV`; NOT tsconfig `customConditions`
+alone — `tsx` does not auto-read it, tsx#574). Covered invocations: the
+`@infra/prisma` `seed` script, the `apps/api` `test:auth`/`test:rbac`/`test:security`
+(+ sibling `node --import tsx --test`) scripts, and the `node --import tsx --test`
+invocation in `apps/api/scripts/run-tests.sh`. Authored by the idempotent codemod
+`scripts/migrations/add-development-condition.mjs`. `@shared/types` is EXCLUDED
+from B-CORE (it is the Turbopack boundary — see B-NEXT). Node 24 honors
+`-C/--conditions` as a CLI flag (verified `process.allowedNodeEnvironmentFlags.has('--conditions')`).
+
+**(B-NEXT) Build-dist-first for the Turbopack boundary (`@shared/types`).**
+Turbopack ignores custom export conditions and cannot resolve `@shared/types`'s
+NodeNext `.js`-specifier'd source, so `@shared/types` is consumed as `dist` by
+the Next apps (the deliberate Option-B `@shared/types*`→dist tsconfig-paths
+mapping, §4(b)) and its `dist` MUST be built before EVERY `next build`. The
+Dockerfile build stages already do this (`pnpm --filter @shared/types... build`
+precedes `next build`); the CI `size-limit (bundles)` job (`.github/workflows/audit.yml`)
+must use `turbo run build --filter=@apps/admin --filter=@apps/client` so turbo's
+`build.dependsOn:["^build"]` expands `@shared/types#build` first. GOTCHA: `tsc -b`
+is incremental — a stale `tsconfig.build.tsbuildinfo` makes the rebuild a no-op;
+CI's clean checkout has none, so turbo's output tracking is safe, but a local
+prebuild must clean the cache.
+
+**(Cluster A) Config files are EXCLUDED from every package/app `tsc`/typecheck
+graph.** A package-root or app-root `vitest.config.ts` swept into a `tsc --noEmit`
+/ `next build` typecheck pass drags in `vitest/config` + the cross-rootDir
+`../../vitest.shared.ts` from the monorepo root (where `vitest` is not installed)
+→ TS2307 / TS6059 / TS6307. Rule: the Next apps MUST `exclude` `vitest.config.ts`
+from their tsconfig (both `apps/admin` and `apps/client` now do), and package
+build tsconfigs MUST scope `include: ["src/**/*"]`. Adding a `vitest` devDependency
+alone is NOT sufficient — exclusion from the build graph is the decisive part.
+
+**What MUST NOT regress** (additive change): the `vitest.shared.ts`
+`buildWorkspaceAliases` factory stays (vitest still resolves src via its alias —
+collapsing onto `ssr.resolve.conditions` is a separate, independently-verified
+follow-up); production `default`→dist is unchanged; fitness #26 stays at zero
+(the `development`→src mappings live in `package.json` `exports`, not import
+statements, and target backend/NodeNext packages).
+
 ### 2. libc match (blocking correctness)
 
 `argon2` is the only native dependency and is the ABI tripwire. Building deps
@@ -140,8 +213,11 @@ case — it is a normal compiled package, with one wrinkle: it includes the Pris
 `tsc` handles the generated client's `import * as Prisma` `export *` namespace
 re-export fine (the defect was esbuild-specific), and `Prisma.sql` (a runtime
 value) survives. It is a referenced project in the solution graph like every
-other package. Dev/test still resolve `@infra/prisma` → `src/*.ts` via tsconfig
-paths.
+other package. Dev/test/CI resolve `@infra/prisma` (incl. its `./extensions/*`
+and `./*` subpaths) → `src/*.ts` via the `development`→src conditional `exports`
+branch + `--conditions development` on the source-mode invocation, NOT via
+tsconfig `paths` (see §1c — the `extensions` subpath is the exact case the vitest
+alias factory had to special-case, and `node:test` had no equivalent until B-CORE).
 
 **Isolated production node_modules (no hoisting).** Because nothing is bundled,
 the prod `node_modules` is the pnpm DEFAULT isolated layout — each consumer's
@@ -285,6 +361,12 @@ Turbopack.
 - A second native dependency is added → re-confirm the libc-match constraint.
 - The package count or boundary graph changes materially → re-run
   `gen-build-projects.mjs` + `depscan.mjs` (acyclic gate).
+- The `development` `exports` condition (§1c, B-CORE) proves stable → collapse
+  vitest onto `ssr.resolve.conditions: ["development","import","default"]` and
+  retire `buildWorkspaceAliases` (separate, independently-verified change; keep
+  the alias as fallback until proven equivalent — Prisma 7 Node-vs-browser entry,
+  the `@infra/prisma/extensions` special-case, dual-package hazard each need their
+  own verification run).
 
 ## Risks and Mitigations
 
@@ -317,3 +399,14 @@ Turbopack.
 - Next.js Turbopack config: https://nextjs.org/docs/app/api-reference/turbopack
 - Next.js #86438 — turbopack root / `Invalid distDirRoot` (OPEN):
   https://github.com/vercel/next.js/discussions/86438
+- Node — Conditional exports + Conditions Definitions (`development` community
+  condition, key order, `-C`/`--conditions`): https://nodejs.org/api/packages.html
+- Node CLI — `-C, --conditions`: https://nodejs.org/api/cli.html
+- TypeScript — `customConditions` (resolve to source `.ts` in monorepos):
+  https://www.typescriptlang.org/docs/handbook/modules/reference.html
+- tsx #574 — `--conditions` CLI flag, does not auto-read tsconfig customConditions:
+  https://github.com/privatenumber/tsx/issues/574
+- vercel/next.js Discussion #78912 — Turbopack cannot enforce export conditions (OPEN):
+  https://github.com/vercel/next.js/discussions/78912
+- GitHub Actions — NODE_OPTIONS restricted from GITHUB_ENV:
+  https://github.blog/changelog/2023-10-05-github-actions-node_options-is-now-restricted-from-github_env/
