@@ -5,9 +5,9 @@
   "scripts": {
     "build": "tsc -b tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "dev": "node --env-file=../../.env --import tsx src/index.ts",
+    "dev": "node --conditions development --env-file=../../.env --import tsx src/index.ts",
     "dev:test": "cross-env NODE_ENV=test tsx src/index.ts",
-    "dump:openapi": "SCHEMA_ONLY=true node --env-file=../../.env --import tsx scripts/dump-openapi-spec.ts",
+    "dump:openapi": "SCHEMA_ONLY=true node --conditions development --env-file=../../.env --import tsx scripts/dump-openapi-spec.ts",
     "test": "vitest run",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest watch",
