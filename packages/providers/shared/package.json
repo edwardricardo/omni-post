@@ -36,7 +36,7 @@
   "devDependencies": {
     "@types/node": "22.13.3",
     "typescript": "5.9.3",
-    "vitest": "4.1.8"
+    "vitest": "4.1.9"
   },
   "types": "./dist/index.d.ts"
 }
