@@ -36,11 +36,13 @@
     },
     "apps/admin": {
       "project": ["**/*.{ts,tsx}"],
+      "paths": { "@/*": ["./*"] },
       "ignore": ["tests/**", "**/ui-safelist.ts", "**/useAuditStats.ts"],
       "ignoreDependencies": ["@vitest/coverage-v8", "tailwindcss", "@axe-core/playwright"]
     },
     "apps/client": {
       "project": ["**/*.{ts,tsx}"],
+      "paths": { "@/*": ["./*"] },
       "ignore": ["tests/**"],
       "ignoreDependencies": ["@vitest/coverage-v8", "tailwindcss"]
     },
