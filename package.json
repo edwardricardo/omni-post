@@ -72,7 +72,6 @@
     "@typescript-eslint/eslint-plugin": "8.59.2",
     "@typescript-eslint/parser": "8.59.2",
     "autocannon": "8.0.0",
-    "concurrently": "9.2.1",
     "depcheck": "1.4.7",
     "dependency-cruiser": "17.4.0",
     "eslint": "9.36.0",
