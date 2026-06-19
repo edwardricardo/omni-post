@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "predev": "pnpm --filter @shared/types... build",
-    "dev": "next dev -p 3100",
+    "dev": "next dev --webpack -p 3100",
     "build": "next build",
     "start": "next start -p 3100",
     "test": "vitest run",
