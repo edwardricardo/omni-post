@@ -33,6 +33,7 @@
       "cache": false
     },
     "dev": {
+      "dependsOn": ["@shared/types#build"],
       "cache": false,
       "persistent": true
     },
