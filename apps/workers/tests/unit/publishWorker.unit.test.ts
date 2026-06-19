@@ -148,7 +148,9 @@ vi.mock("ioredis", () => {
     redisInstances.push(instance);
     return instance;
   }
-  return { default: Redis };
+  // The source imports the named `{ Redis }` (ADR-0017 §1); expose it under
+  // that name in addition to `default`.
+  return { default: Redis, Redis };
 });
 
 vi.mock("prom-client", () => {

@@ -47,12 +47,18 @@ const mockRedisInstance = {
   },
 };
 
+// ioredis exposes Redis both as the default export and as a named export.
+// The source imports the named `{ Redis }` (ADR-0017 §1), so the mock MUST
+// return it under that name too — not only `default`.
+class MockRedis {
+  constructor() {
+    return mockRedisInstance as unknown as MockRedis;
+  }
+}
+
 vi.mock("ioredis", () => ({
-  default: class MockRedis {
-    constructor() {
-      return mockRedisInstance as unknown as MockRedis;
-    }
-  },
+  default: MockRedis,
+  Redis: MockRedis,
 }));
 
 vi.mock("pino", () => ({
