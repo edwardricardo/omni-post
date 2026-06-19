@@ -80,6 +80,28 @@ function applyCanonHeader(): void {
   }
 }
 
+/**
+ * Post-process: NodeNext requires an explicit `.js` extension on relative
+ * import/export specifiers. @hey-api emits extensionless paths, so add `.js`
+ * here to match the package's NodeNext tsc build, which resolves
+ * `./types.gen.js` (not `./types.gen`). Idempotent: paths that already carry an
+ * extension are left untouched, so a fresh regeneration is byte-identical to
+ * the committed copy and the CI drift gate stays green.
+ */
+function applyJsExtensions(): void {
+  const files = readdirSync(OUTPUT_DIR).filter((f) => f.endsWith(".ts"));
+  for (const file of files) {
+    const filePath = path.join(OUTPUT_DIR, file);
+    const body = readFileSync(filePath, "utf-8");
+    const fixed = body.replace(
+      /(\bfrom\s+")(\.\.?\/[^"]+?)(")/g,
+      (full, pre: string, spec: string, post: string) =>
+        /\.(js|json|css)$/.test(spec) ? full : `${pre}${spec}.js${post}`
+    );
+    if (fixed !== body) writeFileSync(filePath, fixed);
+  }
+}
+
 async function main() {
   await runSubprocess("dump:openapi", ["--filter", "@apps/api", "dump:openapi"]);
   await runSubprocess("openapi-ts", ["exec", "openapi-ts"]);
@@ -97,6 +119,10 @@ async function main() {
     "--write",
     "packages/shared/src/api-generated",
   ]);
+
+  // Re-apply .js extensions last so neither eslint --fix nor prettier --write
+  // can strip them; this is the form the NodeNext build + committed copy expect.
+  applyJsExtensions();
 
   console.log("✓ Types generated at packages/shared/src/api-generated/");
 }
