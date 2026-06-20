@@ -150,7 +150,7 @@
       "rollup": "4.62.0",
       "serialize-javascript": "7.0.5",
       "tough-cookie": "6.0.1",
-      "vite": "8.0.16",
+      "vite": "7.3.5",
       "xmlhttprequest": "1.8.0"
     },
     "onlyBuiltDependencies": [
