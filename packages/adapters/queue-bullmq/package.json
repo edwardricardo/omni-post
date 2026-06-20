@@ -22,7 +22,7 @@
     "@shared/types": "workspace:*",
     "bullmq": "5.58.9",
     "ioredis": "5.7.0",
-    "opossum": "9.0.0"
+    "opossum": "catalog:"
   },
   "scripts": {
     "test": "vitest run",
@@ -31,8 +31,8 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/node": "24.5.2",
+    "@types/node": "catalog:",
     "@types/opossum": "8.1.9",
-    "vitest": "4.0.18"
+    "vitest": "catalog:"
   }
 }

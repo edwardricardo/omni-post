@@ -1,0 +1,36 @@
+{
+  "$schema": "https://unpkg.com/syncpack@latest/dist/schema.json",
+  "dependencyTypes": ["prod", "dev", "peer", "overrides"],
+  "versionGroups": [
+    {
+      "label": "workspace protocol",
+      "dependencies": [
+        "@core/**",
+        "@adapters/**",
+        "@providers/**",
+        "@monitoring/**",
+        "@observability/**",
+        "@packages/**",
+        "@ports/**",
+        "@infra/**",
+        "@shared/**",
+        "@apps/**"
+      ],
+      "isIgnored": true
+    },
+    {
+      "label": "single version across the monorepo",
+      "dependencies": ["**"],
+      "packages": ["**"],
+      "preferVersion": "highestSemver"
+    }
+  ],
+  "semverGroups": [
+    {
+      "label": "exact ranges only",
+      "range": "",
+      "dependencies": ["**"],
+      "packages": ["**"]
+    }
+  ]
+}

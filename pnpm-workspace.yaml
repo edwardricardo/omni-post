@@ -12,3 +12,83 @@ enableGlobalVirtualStore: true
 
 ignoredBuiltDependencies:
   - bcrypt
+
+# Off-catalog `pnpm add` errors before reaching CI: a duplicate version becomes
+# structurally un-representable. savePrefix lives in .npmrc (save-prefix=""), not
+# here — pnpm reads it from npmrc.
+catalogMode: strict
+
+catalog:
+  # ── React family (move atomically: react + react-dom + @types) ──
+  react: 19.2.4
+  react-dom: 19.2.4
+  "@types/react": 19.2.14
+  "@types/react-dom": 19.2.3
+
+  # ── Tiptap + prosemirror family (atomic) ──
+  "@tiptap/core": 3.27.1
+  "@tiptap/react": 3.27.1
+  "@tiptap/pm": 3.27.1
+  "@tiptap/starter-kit": 3.27.1
+  "@tiptap/extension-character-count": 3.27.1
+  "@tiptap/extension-placeholder": 3.27.1
+
+  # ── LangChain family (atomic) ──
+  "@langchain/core": 1.2.0 # override forces newer than manifest 1.1.46
+  "@langchain/langgraph": 1.4.4 # override forces newer than manifest 1.3.1
+
+  # ── googleapis family (atomic; the @10 scoped override stays in pnpm.overrides) ──
+  google-auth-library: 9.14.1 # DIRECT 9.x (youtube); the @10 transitive is overrides-only
+  googleapis: 160.0.0
+
+  # ── Build/test toolchain ──
+  vitest: 4.1.8 # MAX of declared 4.0.18 / 4.1.8
+  typescript: 5.9.3
+  tsx: 4.22.4 # MAX of declared 4.21.0 / 4.22.4 (root)
+  "@types/node": 24.5.2 # MAX of declared 22.13.3 / 24.5.2
+  jsdom: 26.0.0 # MAX of declared 25.0.1 / 26.0.0
+  msw: 2.14.3 # wildcard 2.x fold → exact
+  next: 16.2.6
+  next-intl: 4.9.2 # wildcard * + 4.9.0/4.9.2 → fold at 4.9.2 (newer)
+  postcss: 8.5.15 # MAX: tree resolves 8.5.15 transitively (never pin lower)
+  zustand: 5.0.12 # wildcard * + 5.0.11/5.0.12 → fold at 5.0.12 (newer)
+  "@tanstack/react-query": 5.95.0 # MAX of declared 5.95.0 / ^5.0.0 peer
+
+  # ── Runtime-critical drifters (MAX of declared) ──
+  "@prisma/client": 7.6.0 # MAX of 7.4.1 / 7.6.0 (engine match)
+  opossum: 9.0.0 # MAX of 8.0.0 / 9.0.0 (fitness #25)
+  prom-client: 15.1.3 # MAX of 15.0.0 / 15.1.3
+
+  # ── App/server runtime (DIRECT) ──
+  fastify: 5.8.5 # override forces newer than manifest 5.6.1
+  pino: 10.3.1
+  zod: 4.4.3 # reconcile UP to apps' 4.4.3 (override 4.3.6 is stale)
+  "@anthropic-ai/sdk": 0.91.1
+  cloudinary: 2.7.0 # override forces newer than manifest 2.0.0
+  handlebars: 4.7.9 # override forces newer than manifest 4.7.8
+  axios: 1.17.0 # CVE floor (MAX over tiktok 1.7.7)
+  form-data: 4.0.6 # CVE floor (MAX over tiktok 4.0.0)
+  validator: 13.15.22 # CVE floor (MAX over api 13.15.15)
+  uuid: 13.0.1 # MAX of 13.0.0 / override 13.0.1
+  ws: 8.21.0 # CVE floor
+
+catalogs:
+  # OTel set: a named catalog documents the independent release train (the 0.NNN
+  # instrumentation line vs the 2.x core/SDK line) and that they bump together.
+  # Values adopt the override (newer) where the manifest is stale — removing the
+  # override must not downgrade.
+  otel:
+    "@opentelemetry/api": 1.9.1
+    "@opentelemetry/auto-instrumentations-node": 0.75.0 # override forces newer than manifest 0.72.0
+    "@opentelemetry/core": 2.8.0 # override forces newer than manifest 2.6.1
+    "@opentelemetry/exporter-prometheus": 0.217.0 # override forces newer than manifest 0.214.0
+    "@opentelemetry/sdk-node": 0.217.0 # override forces newer than manifest 0.214.0
+    "@opentelemetry/exporter-trace-otlp-http": 0.214.0
+    "@opentelemetry/instrumentation": 0.214.0
+    "@opentelemetry/instrumentation-fastify": 0.57.0
+    "@opentelemetry/instrumentation-fs": 0.33.0
+    "@opentelemetry/instrumentation-http": 0.214.0
+    "@opentelemetry/instrumentation-redis": 0.62.0
+    "@opentelemetry/propagation-utils": 0.31.17
+    "@opentelemetry/resources": 2.6.1
+    "@opentelemetry/semantic-conventions": 1.40.0

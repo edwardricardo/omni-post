@@ -14,18 +14,18 @@
     "clean": "rm -rf .tsbuildinfo dist"
   },
   "peerDependencies": {
-    "@tanstack/react-query": "^5.0.0",
-    "react": "^19.0.0"
+    "@tanstack/react-query": "catalog:",
+    "react": "catalog:"
   },
   "devDependencies": {
-    "@tanstack/react-query": "5.95.0",
+    "@tanstack/react-query": "catalog:",
     "@testing-library/react": "16.1.0",
-    "@types/node": "24.5.2",
-    "@types/react": "19.2.14",
-    "jsdom": "26.0.0",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "typescript": "5.9.3",
-    "vitest": "4.0.18"
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "jsdom": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

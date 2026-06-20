@@ -21,8 +21,8 @@
     "@ports/core": "workspace:*",
     "@shared/types": "workspace:*",
     "ioredis": "5.7.0",
-    "pino": "10.3.1",
-    "prom-client": "15.0.0"
+    "pino": "catalog:",
+    "prom-client": "catalog:"
   },
   "scripts": {
     "test": "vitest run",
@@ -31,8 +31,8 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/node": "24.5.2",
-    "typescript": "5.9.3",
-    "vitest": "4.1.8"
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

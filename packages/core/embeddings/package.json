@@ -32,8 +32,8 @@
     "@shared/types": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "24.5.2",
-    "typescript": "5.9.3",
-    "vitest": "4.0.18"
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

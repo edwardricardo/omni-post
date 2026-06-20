@@ -19,11 +19,11 @@
   },
   "dependencies": {
     "date-fns": "4.1.0",
-    "handlebars": "4.7.8"
+    "handlebars": "catalog:"
   },
   "peerDependencies": {
-    "next-intl": "*",
-    "zustand": "*"
+    "next-intl": "catalog:",
+    "zustand": "catalog:"
   },
   "peerDependenciesMeta": {
     "next-intl": {
@@ -34,7 +34,7 @@
     }
   },
   "devDependencies": {
-    "@types/node": "24.5.2",
-    "typescript": "5.9.3"
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
   }
 }
