@@ -77,18 +77,19 @@ catalogs:
   # instrumentation line vs the 2.x core/SDK line) and that they bump together.
   # Values adopt the override (newer) where the manifest is stale — removing the
   # override must not downgrade.
+  # All values at latest stable (taze -l --maturity-period 7) — moved atomically.
   otel:
-    "@opentelemetry/api": 1.9.1
-    "@opentelemetry/auto-instrumentations-node": 0.75.0 # override forces newer than manifest 0.72.0
-    "@opentelemetry/core": 2.8.0 # override forces newer than manifest 2.6.1
-    "@opentelemetry/exporter-prometheus": 0.217.0 # override forces newer than manifest 0.214.0
-    "@opentelemetry/sdk-node": 0.217.0 # override forces newer than manifest 0.214.0
-    "@opentelemetry/exporter-trace-otlp-http": 0.214.0
-    "@opentelemetry/instrumentation": 0.214.0
-    "@opentelemetry/instrumentation-fastify": 0.57.0
-    "@opentelemetry/instrumentation-fs": 0.33.0
-    "@opentelemetry/instrumentation-http": 0.214.0
-    "@opentelemetry/instrumentation-redis": 0.62.0
-    "@opentelemetry/propagation-utils": 0.31.17
-    "@opentelemetry/resources": 2.6.1
-    "@opentelemetry/semantic-conventions": 1.40.0
+    "@opentelemetry/api": 1.9.1 # already latest stable
+    "@opentelemetry/auto-instrumentations-node": 0.77.0 # latest stable; was 0.75.0
+    "@opentelemetry/core": 2.8.0 # already latest stable
+    "@opentelemetry/exporter-prometheus": 0.219.0 # latest stable; was 0.217.0
+    "@opentelemetry/sdk-node": 0.219.0 # latest stable; was 0.217.0
+    "@opentelemetry/exporter-trace-otlp-http": 0.219.0 # latest stable; was 0.214.0
+    "@opentelemetry/instrumentation": 0.219.0 # latest stable; was 0.214.0
+    "@opentelemetry/instrumentation-fastify": 0.57.0 # already latest stable
+    "@opentelemetry/instrumentation-fs": 0.38.0 # latest stable; was 0.33.0
+    "@opentelemetry/instrumentation-http": 0.219.0 # latest stable; was 0.214.0
+    "@opentelemetry/instrumentation-redis": 0.67.0 # latest stable; was 0.62.0
+    "@opentelemetry/propagation-utils": 0.31.22 # latest stable; was 0.31.17
+    "@opentelemetry/resources": 2.8.0 # latest stable; was 2.6.1
+    "@opentelemetry/semantic-conventions": 1.41.1 # latest stable; was 1.40.0
