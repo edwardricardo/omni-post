@@ -1,8 +1,8 @@
-# Apply Progress: dependency-baseline — Step 1 (`01-structure`)
+# Apply Progress: dependency-baseline — Steps 1 (`01-structure`) + 1b (`01b-override-catalog-refs`)
 
-> **Slice:** `dep-baseline/01-structure` (the first child PR of the feature-branch-chain).
+> **Slices:** `dep-baseline/01-structure` (first child PR) + `dep-baseline/01b-override-catalog-refs` (second; lands after 01-structure, before 02-wildcards).
 > **Mode:** Strict TDD active, but config/dependency-dominant — RED→GREEN bar = deterministic gates.
-> **Delivery:** feature-branch-chain; `size:exception` (the 90-manifest sweep + generated lockfile; mechanically uniform).
+> **Delivery:** feature-branch-chain; `size:exception` for 01-structure (90-manifest sweep + generated lockfile); 01b is tiny (10 override lines, lockfile no-change).
 > **Working tree left uncommitted** (orchestrator handles child-PR + token mechanics).
 
 ## Status: PARTIAL (structure complete; runtime gates deferred to CI per LXC-safety)
@@ -66,3 +66,73 @@ Step 2 (`02-wildcards`): wildcards already folded here → degenerates to verifi
 Step 3 (`03-reconcile`): drifters mostly folded UP here; T3.5 OTel `@opentelemetry/api-logs` override + T3.7 zod (already done) remain to confirm. **dedupe clean is achieved across Step 3 + Step 4.**
 Step 4 (`04a..04h`): per-family latest-stable bumps.
 Step 5 (`05-final-lint`): CI guard + Renovate + §7 + spec "24→27" fix + finalize `.syncpackrc.json`/syncpack dep.
+
+---
+
+# Step 1b — Dual-role overrides reference the catalog (`01b-override-catalog-refs`)
+
+## Status: DONE (config-only; all gates green; lockfile byte-identical)
+
+The 10 dual-role security packages were converted in root `pnpm.overrides` from
+literal versions to catalog references — the catalog is now the SINGLE source of
+truth and the override just extends that one value to the transitive subtree.
+pnpm resolves `catalog:` inside `pnpm.overrides` (pnpm.io/catalogs +
+pnpm.io/settings). Resolution-neutral by construction (the catalog pin already
+equals the literal it replaced) → the lockfile did not move.
+
+## Exact override lines changed (before → after)
+
+| Override                                    | Before (literal) | After (catalog ref) |
+| ------------------------------------------- | ---------------- | ------------------- |
+| `axios`                                     | `1.17.0`         | `catalog:`          |
+| `form-data`                                 | `4.0.6`          | `catalog:`          |
+| `validator`                                 | `13.15.22`       | `catalog:`          |
+| `uuid`                                      | `13.0.1`         | `catalog:`          |
+| `ws`                                        | `8.21.0`         | `catalog:`          |
+| `postcss`                                   | `8.5.15`         | `catalog:`          |
+| `@opentelemetry/auto-instrumentations-node` | `0.75.0`         | `catalog:otel`      |
+| `@opentelemetry/core`                       | `2.8.0`          | `catalog:otel`      |
+| `@opentelemetry/exporter-prometheus`        | `0.217.0`        | `catalog:otel`      |
+| `@opentelemetry/sdk-node`                   | `0.217.0`        | `catalog:otel`      |
+
+All other overrides (transitive-only literals + scoped/nested selectors
+`gaxios@7`, `google-auth-library@10`, `msw>path-to-regexp`, `dompurify`,
+`fast-xml-parser`, …) left UNCHANGED — no catalog entry to reference.
+
+## TDD Cycle Evidence (config-dominant — gates are the tests)
+
+| Task                          | RED (gate before)                                | GREEN (gate after)                                                      | Result |
+| ----------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------- | ------ |
+| T1b.1 6 default → `catalog:`  | overrides hold duplicate literals (drift hazard) | 6 overrides read `catalog:`; catalog pins unchanged                     | DONE   |
+| T1b.2 4 OTel → `catalog:otel` | OTel overrides hold duplicate literals           | 4 overrides read `catalog:otel`; `catalogs.otel` pins unchanged         | DONE   |
+| T1b.3 others unchanged        | —                                                | §2.2 + §2.3 entries byte-identical to HEAD                              | DONE   |
+| **T1b.4 lockfile no-change**  | —                                                | **`sha256sum` identical (`cf246d4b…`), `diff` NO_DIFF, git stat empty** | DONE   |
+| T1b.5 CLI gates               | —                                                | frozen exit 0; audit exit 0; syncpack exit 0; 27 fitness hard-zero      | DONE   |
+| T1b.6 docs                    | ADR/design duplicate-literal not codified        | ADR-0018 + design §2.1.a + step row 1b updated                          | DONE   |
+
+## Verify gate results (Step 1b)
+
+| Gate                                        | Result               | Note                                                                                       |
+| ------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------ |
+| `pnpm install`                              | PASS (exit 0)        | "Lockfile is up to date, resolution step is skipped" — no re-resolution                    |
+| **lockfile byte-identical (CRITICAL)**      | **PASS**             | sha256 `cf246d4b…` before == after; `diff` NO_DIFF; `git diff --stat pnpm-lock.yaml` empty |
+| `pnpm install --frozen-lockfile`            | PASS (exit 0)        | clean; manifest consistent with lockfile                                                   |
+| `pnpm audit --audit-level moderate`         | PASS (exit 0)        | 2 vulns, BOTH ignored (configured GHSAs); CVE floors preserved via catalog values          |
+| `syncpack list-mismatches` (single + exact) | PASS (exit 0)        | 603 valid, 427 ws-ignored, 0 mismatches                                                    |
+| `syncpack lint-semver-ranges`               | unchanged vs HEAD    | 419 `UnsupportedMismatch` (pre-existing: syncpack@12 doesn't parse `catalog:` protocol)    |
+| 27 CI fitness greps                         | PASS (all hard-zero) | config-only change, 0 TS impact                                                            |
+| full build / test suites                    | DEFERRED             | child-PR CI job (LXC-safety: not run on 9GB box)                                           |
+
+## Files changed (Step 1b)
+
+- `package.json` (root) — 10 `pnpm.overrides` entries converted from literal → `catalog:` (6) / `catalog:otel` (4). No other change. (`git diff --stat`: 10 insertions, 10 deletions.)
+- `docs/technical/ADR-0018-dependency-freshness-canon.md` — new Decision bullet: dual-role packages reference the catalog from the override; never duplicate the literal.
+- `openspec/changes/dependency-baseline/design.md` — new §2.1.a (dual-role handling + conversion table) + step-table row 1b.
+- `openspec/changes/dependency-baseline/tasks.md` — new Step 1b block (T1b.1–T1b.6, all `[x]`).
+- `pnpm-lock.yaml` — UNCHANGED (byte-identical; the whole point).
+
+## Key notes / non-obvious findings (Step 1b)
+
+1. **The conversion is a true no-op resolution-wise** because each catalog pin already equals the override literal it replaced (verified pre-edit: catalog `axios 1.17.0` == override `1.17.0`, … OTel set identical). This is WHY the lockfile stayed byte-identical and WHY it is safe — if any value had differed, the install would have moved a version and the slice would STOP-and-report.
+2. **syncpack `lint-semver-ranges` reports `UnsupportedMismatch` for `catalog:` specs** — this is a syncpack@12 limitation (it does not understand the catalog protocol), NOT a range violation. Count is identical with/without this slice (419 on HEAD too), so it is pre-existing from Step 1's catalog migration. The authoritative single-version gate is `list-mismatches` (exit 0). Step 5 T5.1 still owns tuning the CI syncpack step.
+3. **Audit floors preserved**: the catalog values ARE the CVE floors (axios 1.17.0, form-data 4.0.6, validator 13.15.22, ws 8.21.0), so referencing the catalog from the override preserves the security intent exactly while removing the duplication.

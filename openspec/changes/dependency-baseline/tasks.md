@@ -82,6 +82,27 @@
 
 ---
 
+## Step 1b — Dual-role overrides reference the catalog (child PR `dep-baseline/01b-override-catalog-refs`)
+
+> Lands AFTER `01-structure`, BEFORE `02-wildcards`. Best-practice fix (Edward):
+> the 10 dual-role security packages were re-added to `pnpm.overrides` as LITERAL
+> versions in `01-structure` (commit `98981d78`), duplicating the catalog value —
+> two sources of truth, a drift hazard. pnpm resolves `catalog:` inside
+> `pnpm.overrides` (pnpm.io/catalogs + pnpm.io/settings), so convert each literal
+> to a catalog reference. Resolution-neutral by construction (catalog value ==
+> the literal replaced) → lockfile MUST stay byte-identical. Maps spec scenarios
+> "catalog single source of truth [static]" + "transitive security pins stay in
+> overrides [static]" (now via `catalog:` ref, not a duplicated literal).
+
+- [x] **T1b.1** Convert the 6 default-catalog dual-role overrides in root `pnpm.overrides` from literals to `"catalog:"`: `axios`, `form-data`, `validator`, `uuid`, `ws`, `postcss`. **DoD:** each override reads `"catalog:"`; catalog pin unchanged. File: root `package.json`. _OOM-safe._ _DONE._
+- [x] **T1b.2** Convert the 4 OTel dual-role overrides to `"catalog:otel"`: `@opentelemetry/auto-instrumentations-node`, `@opentelemetry/core`, `@opentelemetry/exporter-prometheus`, `@opentelemetry/sdk-node`. **DoD:** each override reads `"catalog:otel"`; `catalogs.otel` pin unchanged. File: root `package.json`. _OOM-safe._ _DONE._
+- [x] **T1b.3** Leave ALL other overrides UNCHANGED — transitive-only literals (`shell-quote`, `esbuild`, `lodash`, `qs`, `dompurify`, `fast-xml-parser`, …) and scoped/nested selectors (`gaxios@7`, `google-auth-library@10`, `msw>path-to-regexp`) stay as literals (no catalog entry to reference). **DoD:** the §2.2 + §2.3 entries are byte-for-byte identical to HEAD. File: root `package.json`. _OOM-safe._ _DONE._
+- [x] **T1b.4 [PAUSE-STACK]** Run `pnpm install`; assert the lockfile is **byte-identical** to pre-edit (no version moved — any move is STOP-and-report). **DoD:** `sha256sum` + `diff` show no change; `git diff --stat pnpm-lock.yaml` empty. _DONE — hash identical (`cf246d4b…`), diff NO_DIFF; pnpm reported "Lockfile is up to date, resolution step is skipped"._
+- [x] **T1b.5 [PAUSE-STACK]** Run the CLI gates: `pnpm install --frozen-lockfile` (exit 0), `pnpm audit --audit-level moderate` (exit 0 — floors preserved via catalog, configured GHSAs ignored), `syncpack list-mismatches` (exit 0), 27 fitness greps (hard-zero). **DoD:** all gates green. _DONE — frozen exit 0; audit exit 0 (2 vulns both ignored); syncpack 603 valid exit 0; 27 fitness hard-zero. `lint-semver-ranges` UnsupportedMismatch count unchanged vs HEAD (pre-existing catalog-protocol tooling limitation, not introduced here)._
+- [x] **T1b.6** Codify the dual-role pattern in docs: ADR-0018 (override REFERENCES the catalog — single source of truth, never duplicate the literal) + design.md §2.1.a + step table row 1b. **DoD:** both docs updated. _DONE._
+
+---
+
 ## Step 2 — Kill the 3 wildcards + fold at resolved-exact (child PR `dep-baseline/02-wildcards`)
 
 > Maps spec scenarios "the three wildcards are eliminated [static]" + "no pre-release

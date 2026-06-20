@@ -26,13 +26,14 @@ Each step is one **per-family child PR** on the feature-branch-chain tracker
 `workstream/dep-baseline`. Child PRs target the tracker; only the tracker merges
 to main (atomic rollback).
 
-| Step | Child PR                             | What it does                                                                                            | Gate before next                                |
-| ---- | ------------------------------------ | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| 1    | `dep-baseline/01-structure`          | Catalogs at **CURRENT** versions + syncpack config + 90 manifests → `catalog:`. Upgrade-free.           | Full build + LXC-safe tests + 27 fitness green. |
-| 2    | `dep-baseline/02-wildcards`          | Kill the 3 wildcards (`next-intl`, `zustand`, `msw`); fold each at its resolved exact into the catalog. | `syncpack lint` + `--frozen-lockfile`.          |
-| 3    | `dep-baseline/03-reconcile`          | Reconcile the 13 drifters to single versions (runtime-critical first).                                  | Build + tests + `dedupe --check`.               |
-| 4    | `dep-baseline/04-fam-<name>` (N PRs) | Per-family latest-stable bump, **verify-after-each**, `--frozen-lockfile` between families.             | Full fitness/test gate per family.              |
-| 5    | `dep-baseline/05-final-lint`         | Wire the CI guard + Renovate; final `syncpack lint` + `dedupe --check` = the pinned baseline.           | All success criteria.                           |
+| Step | Child PR                                 | What it does                                                                                                                                                              | Gate before next                                                                   |
+| ---- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| 1    | `dep-baseline/01-structure`              | Catalogs at **CURRENT** versions + syncpack config + 90 manifests → `catalog:`. Upgrade-free.                                                                             | Full build + LXC-safe tests + 27 fitness green.                                    |
+| 1b   | `dep-baseline/01b-override-catalog-refs` | Convert the 10 dual-role overrides (6 default + 4 OTel) from literal versions to `catalog:` / `catalog:otel` references — single source of truth, zero resolution change. | Lockfile byte-identical + `--frozen-lockfile` + `audit` + `syncpack` + 27 fitness. |
+| 2    | `dep-baseline/02-wildcards`              | Kill the 3 wildcards (`next-intl`, `zustand`, `msw`); fold each at its resolved exact into the catalog.                                                                   | `syncpack lint` + `--frozen-lockfile`.                                             |
+| 3    | `dep-baseline/03-reconcile`              | Reconcile the 13 drifters to single versions (runtime-critical first).                                                                                                    | Build + tests + `dedupe --check`.                                                  |
+| 4    | `dep-baseline/04-fam-<name>` (N PRs)     | Per-family latest-stable bump, **verify-after-each**, `--frozen-lockfile` between families.                                                                               | Full fitness/test gate per family.                                                 |
+| 5    | `dep-baseline/05-final-lint`             | Wire the CI guard + Renovate; final `syncpack lint` + `dedupe --check` = the pinned baseline.                                                                             | All success criteria.                                                              |
 
 > **Why structure before version (ADR-0018 §Risks):** step 1 changes ZERO
 > resolved versions — it only relocates specs to `catalog:`. That isolates "did
@@ -238,6 +239,59 @@ ADR-0018 "no `^ ~ * >=`" rule at the tooling level even before syncpack lints it
 
 > `google-auth-library` (DIRECT, youtube 9.14.1) is handled in §2.3 (dual
 > identity vs the `@10` scoped override).
+
+#### 2.1.a Dual-role handling — the override REFERENCES the catalog (step 1b)
+
+A **dual-role** package is one that is BOTH a direct dependency (declared in ≥1
+manifest, so it earns a catalog entry) AND must force its pinned version onto
+transitive copies the tree pulls in (so it also needs a `pnpm.overrides` entry).
+In step 1 these packages were migrated to the catalog but their override was
+re-added as a **literal version** (a CVE/consistency floor must apply to the whole
+tree, which the catalog alone cannot reach). That produced **two literal copies of
+the same version** — the catalog entry and the override — which is exactly the
+drift hazard catalogs exist to eliminate.
+
+**Rule (codified in `01b-override-catalog-refs`):** a dual-role package keeps BOTH
+entries, but the `pnpm.overrides` entry **REFERENCES the catalog** via the
+`catalog:` protocol instead of duplicating the literal:
+
+```jsonc
+// pnpm.overrides — before (step 1: literal, drift hazard)
+"axios": "1.17.0",
+"@opentelemetry/core": "2.8.0",
+// after (step 1b: catalog reference, single source of truth)
+"axios": "catalog:",            // resolves to the default-catalog axios pin
+"@opentelemetry/core": "catalog:otel", // resolves to catalogs.otel core pin
+```
+
+pnpm resolves `catalog:` / `catalog:<name>` inside `pnpm.overrides` (pnpm.io/catalogs
+
+- pnpm.io/settings), so the catalog stays the **single source of truth** and the
+  override merely extends that one value to the transitive subtree. The relocation is
+  resolution-neutral by construction: it is only valid when the catalog value already
+  EQUALS the literal it replaces, so `pnpm install` leaves the lockfile **byte-identical**
+  (verified — any version move is a STOP-and-report condition).
+
+The 10 dual-role overrides converted in step 1b:
+
+| Override                                    | Catalog reference | Catalog pin (= the replaced literal) |
+| ------------------------------------------- | ----------------- | ------------------------------------ |
+| `axios`                                     | `catalog:`        | `1.17.0` (CVE floor)                 |
+| `form-data`                                 | `catalog:`        | `4.0.6` (CVE floor)                  |
+| `validator`                                 | `catalog:`        | `13.15.22` (CVE floor)               |
+| `uuid`                                      | `catalog:`        | `13.0.1`                             |
+| `ws`                                        | `catalog:`        | `8.21.0` (CVE floor)                 |
+| `postcss`                                   | `catalog:`        | `8.5.15`                             |
+| `@opentelemetry/auto-instrumentations-node` | `catalog:otel`    | `0.75.0`                             |
+| `@opentelemetry/core`                       | `catalog:otel`    | `2.8.0`                              |
+| `@opentelemetry/exporter-prometheus`        | `catalog:otel`    | `0.217.0`                            |
+| `@opentelemetry/sdk-node`                   | `catalog:otel`    | `0.217.0`                            |
+
+**NOT converted (stay literal):** a TRANSITIVE-only pin (no direct declaration
+anywhere → no catalog entry → see §2.2) and a scoped/nested selector
+(`gaxios@7`, `google-auth-library@10`, `msw>path-to-regexp`, …) which the catalog
+cannot express. `dompurify` and `fast-xml-parser` were reclassified TRANSITIVE at
+apply time (0 direct declarations) and therefore also stay literal.
 
 ### 2.2 TRANSITIVE-only → STAY in `pnpm.overrides`
 

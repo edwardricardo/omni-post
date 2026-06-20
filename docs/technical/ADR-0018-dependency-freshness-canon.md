@@ -31,6 +31,20 @@ version. Pinned. Fresh. Repo-wide.**
 - **Single source of truth**: shared versions live in `pnpm-workspace.yaml`
   **catalogs**; manifests reference `catalog:`. `catalogMode: strict` makes an
   off-catalog `pnpm add` error before CI. `workspace:*` for local packages stays.
+- **Dual-role packages reference the catalog from the override** — a package that
+  is BOTH a direct dependency (declared in ≥1 manifest, so it has a catalog entry)
+  AND must be force-pinned onto transitive copies (so it also needs a
+  `pnpm.overrides` entry) keeps **both** entries, but the override **REFERENCES the
+  catalog** via the `catalog:` protocol (`"catalog:"` for the default catalog,
+  `"catalog:<name>"` for a named one) instead of duplicating the literal version.
+  pnpm resolves `catalog:` inside `pnpm.overrides` (see pnpm.io/catalogs +
+  pnpm.io/settings), so the catalog stays the single source of truth and the
+  override merely extends that one value to the transitive subtree. **Never
+  duplicate the literal version across the catalog and the override** — two literal
+  copies are a drift hazard the catalog exists to eliminate. A transitive-only pin
+  (no direct declaration anywhere) has no catalog entry and stays a literal in
+  `pnpm.overrides`; a scoped/nested selector (`pkg@major`, `parent>child`) also
+  stays a literal because the catalog cannot express the selector.
 - **Latest stable** = the npm `latest` dist-tag (excludes pre-releases). Updater:
   **`taze -l --maturity-period 7`** (7-day buffer against yanked/broken releases);
   `newest`/`greatest`/`--pre` forbidden.
