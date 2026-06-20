@@ -47,7 +47,7 @@ catalog:
   tsx: 4.22.4 # MAX of declared 4.21.0 / 4.22.4 (root)
   "@types/node": 25.9.3 # latest stable (taze -l --maturity-period 7); was 24.5.2 (MAJOR 24->25)
   jsdom: 29.1.1 # latest stable; was 26.0.0 (MAJOR 26->29)
-  msw: 2.14.3 # wildcard 2.x fold → exact
+  msw: 2.14.6 # latest stable (taze -l --maturity-period 7); was 2.14.3
   next: 16.2.9 # latest stable (taze -l --maturity-period 7); was 16.2.6
   next-intl: 4.13.0 # latest stable; was 4.9.2
   postcss: 8.5.15 # MAX: tree resolves 8.5.15 transitively (never pin lower)
