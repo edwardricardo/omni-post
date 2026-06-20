@@ -43,7 +43,7 @@ catalog:
 
   # ── Build/test toolchain ──
   vitest: 4.1.8 # MAX of declared 4.0.18 / 4.1.8
-  typescript: 5.9.3
+  typescript: 6.0.3 # latest stable (taze -l --maturity-period 7); was 5.9.3
   tsx: 4.22.4 # MAX of declared 4.21.0 / 4.22.4 (root)
   "@types/node": 24.5.2 # MAX of declared 22.13.3 / 24.5.2
   jsdom: 26.0.0 # MAX of declared 25.0.1 / 26.0.0
