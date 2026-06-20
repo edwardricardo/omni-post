@@ -51,8 +51,8 @@ catalog:
   next: 16.2.9 # latest stable (taze -l --maturity-period 7); was 16.2.6
   next-intl: 4.13.0 # latest stable; was 4.9.2
   postcss: 8.5.15 # MAX: tree resolves 8.5.15 transitively (never pin lower)
-  zustand: 5.0.12 # wildcard * + 5.0.11/5.0.12 → fold at 5.0.12 (newer)
-  "@tanstack/react-query": 5.95.0 # MAX of declared 5.95.0 / ^5.0.0 peer
+  zustand: 5.0.14 # latest stable (taze -l --maturity-period 7); was 5.0.12
+  "@tanstack/react-query": 5.101.0 # latest stable; was 5.95.0
 
   # ── Runtime-critical drifters (MAX of declared) ──
   "@prisma/client": 7.8.0 # latest stable (taze -l --maturity-period 7); was 7.6.0
