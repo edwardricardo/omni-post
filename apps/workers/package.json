@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@t3-oss/env-core": "0.13.11",
+    "@t3-oss/env-core": "catalog:",
     "zod": "catalog:",
     "@core/application": "workspace:*",
     "@core/domain": "workspace:*",
@@ -37,11 +37,11 @@
     "@providers/tiktok": "workspace:*",
     "@providers/x": "workspace:*",
     "@providers/youtube": "workspace:*",
-    "@sentry/node": "10.48.0",
+    "@sentry/node": "catalog:",
     "@shared/types": "workspace:*",
-    "bullmq": "5.58.9",
-    "dotenv": "17.2.2",
-    "ioredis": "5.7.0",
+    "bullmq": "catalog:",
+    "dotenv": "catalog:",
+    "ioredis": "catalog:",
     "pino": "catalog:",
     "prom-client": "catalog:",
     "uuid": "catalog:"

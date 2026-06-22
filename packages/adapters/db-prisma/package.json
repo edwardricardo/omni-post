@@ -31,7 +31,7 @@
     "@ports/core": "workspace:*",
     "@prisma/client": "catalog:",
     "@shared/types": "workspace:*",
-    "ioredis": "5.7.0",
+    "ioredis": "catalog:",
     "opossum": "catalog:"
   },
   "devDependencies": {

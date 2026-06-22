@@ -16,8 +16,8 @@
     "@observability/logger": "workspace:*",
     "@prisma/adapter-pg": "7.6.0",
     "@prisma/client": "catalog:",
-    "argon2": "0.44.0",
-    "dotenv": "17.2.2"
+    "argon2": "catalog:",
+    "dotenv": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

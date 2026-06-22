@@ -20,7 +20,7 @@
     "@observability/background-scheduler": "workspace:*",
     "@ports/core": "workspace:*",
     "@shared/types": "workspace:*",
-    "ioredis": "5.7.0",
+    "ioredis": "catalog:",
     "pino": "catalog:",
     "prom-client": "catalog:"
   },

@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "@tanstack/react-query": "catalog:",
-    "@testing-library/react": "16.1.0",
+    "@testing-library/react": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "jsdom": "catalog:",

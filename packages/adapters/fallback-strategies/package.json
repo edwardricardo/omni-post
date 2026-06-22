@@ -19,7 +19,7 @@
   "dependencies": {
     "@ports/core": "workspace:*",
     "@shared/types": "workspace:*",
-    "ioredis": "5.7.0",
+    "ioredis": "catalog:",
     "pino": "catalog:"
   },
   "scripts": {

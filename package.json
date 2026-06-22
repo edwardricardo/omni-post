@@ -58,15 +58,15 @@
   },
   "devDependencies": {
     "@ast-grep/cli": "0.42.0",
-    "@axe-core/playwright": "4.10.2",
+    "@axe-core/playwright": "catalog:",
     "@eslint/js": "9.36.0",
     "@hey-api/client-fetch": "0.13.1",
     "@hey-api/openapi-ts": "0.97.3",
     "@secretlint/secretlint-rule-preset-recommend": "12.3.1",
     "@size-limit/preset-small-lib": "12.1.0",
-    "@stryker-mutator/core": "9.6.0",
-    "@stryker-mutator/vitest-runner": "9.6.0",
-    "@types/opossum": "8.1.9",
+    "@stryker-mutator/core": "catalog:",
+    "@stryker-mutator/vitest-runner": "catalog:",
+    "@types/opossum": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@typescript-eslint/eslint-plugin": "8.59.2",
@@ -74,13 +74,13 @@
     "autocannon": "8.0.0",
     "depcheck": "1.4.7",
     "dependency-cruiser": "17.4.0",
-    "eslint": "9.36.0",
+    "eslint": "catalog:",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-boundaries": "6.0.2",
     "eslint-plugin-jsx-a11y": "6.10.2",
     "eslint-plugin-react": "7.37.5",
     "eslint-plugin-react-hooks": "7.0.1",
-    "fastify-type-provider-zod": "6.1.0",
+    "fastify-type-provider-zod": "catalog:",
     "husky": "9.1.7",
     "jiti": "2.6.1",
     "jq": "1.7.2",
@@ -147,7 +147,6 @@
       "rollup": "4.62.0",
       "serialize-javascript": "7.0.5",
       "tough-cookie": "4.1.3",
-      "vite": "7.3.5",
       "xmlhttprequest": "1.8.0"
     },
     "onlyBuiltDependencies": [
@@ -197,7 +196,7 @@
     }
   ],
   "dependencies": {
-    "@t3-oss/env-core": "0.13.11",
-    "@t3-oss/env-nextjs": "0.13.11"
+    "@t3-oss/env-core": "catalog:",
+    "@t3-oss/env-nextjs": "catalog:"
   }
 }
