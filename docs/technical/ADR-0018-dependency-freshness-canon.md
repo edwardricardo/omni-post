@@ -24,9 +24,11 @@ transitives at once breaks version-locked families (google-auth/googleapis,
 
 ## Decision
 
-**Every registry dependency resolves to exactly ONE version, expressed as an EXACT
-pin (no `^ ~ * >= x`), at the LATEST STABLE release (no RC/beta/alpha/next). One
-version. Pinned. Fresh. Repo-wide.**
+**Every DIRECT registry dependency resolves to exactly ONE version, expressed as an
+EXACT pin (no `^ ~ * >= x`), at the LATEST STABLE release (no RC/beta/alpha/next).
+One version. Pinned. Fresh. — TRANSITIVE deps are consumer-governed (highest
+in-range; multiple versions may coexist), NOT force-pinned; see the transitive
+policy below.**
 
 - **Single source of truth**: shared versions live in `pnpm-workspace.yaml`
   **catalogs**; manifests reference `catalog:`. `catalogMode: strict` makes an
@@ -52,6 +54,30 @@ version. Pinned. Fresh. Repo-wide.**
   googleapis+google-auth+gaxios, `@langchain/*`, react+react-dom, the OTel set).
 - **Consistency enforced** by `syncpack` (exact-range + single-version groups);
   `syncpack lint` is a CI gate.
+- **Transitive deps are consumer-governed — never force-pinned to chase latest.**
+  The "one version / latest / repo-wide" rule above governs **direct** deps (the
+  ones we declare). A **transitive** dep (no direct declaration; pulled in by a
+  package we consume) is left to its consumers' declared ranges — pnpm resolves
+  each to the highest in-range version, and multiple versions may legitimately
+  coexist. **Do NOT add a `pnpm.overrides` entry to force the latest major of a
+  transitive:** forcing a major a consumer's range does not allow breaks consumers
+  that have not migrated to the new API — the **"drift-hydra"**. (Concrete: Step 4
+  forced `minimatch` 10 + `brace-expansion` 5, both of which removed the
+  callable-default export the eslint toolchain still uses —
+  `eslint-plugin-jsx-a11y@6.10.2` + `eslint-plugin-react@7.37.5`, both at latest,
+  both declaring `minimatch ^3.1.2` — crashing `pnpm lint` while build/test/typecheck
+  passed.) A transitive override is justified ONLY by a real **CVE floor** — a
+  vulnerability that `pnpm audit` confirms would otherwise resolve through a
+  consumer's range — and is set to the **minimal patched version** (lowest secure
+  version compatible with the consumers), never the absolute-latest major.
+  **Method (empirical):** remove the override → `pnpm install` → `pnpm audit`; if
+  no advisory surfaces it was de-dup-only → keep it removed; if an advisory
+  surfaces → re-add at the minimal patched floor. To keep in-range transitives
+  fresh, run **`pnpm update`** (bumps to highest-in-range; never out of range).
+  (Validated 2026-06-22: of 6 Step-4 transitive-major overrides, 4 — `diff`,
+  `fast-uri`, `@xmldom/xmldom`, `protobufjs` — surfaced no advisory and were
+  removed; 2 — `tough-cookie` and `@hono/node-server` — were real CVE floors and
+  kept at the minimal patch, 4.1.3 and 1.19.13.)
 
 ### Per-item dependency-freshness gate (re-validation walk)
 
