@@ -12,3 +12,127 @@ enableGlobalVirtualStore: true
 
 ignoredBuiltDependencies:
   - bcrypt
+
+# Off-catalog `pnpm add` errors before reaching CI: a duplicate version becomes
+# structurally un-representable. savePrefix lives in .npmrc (save-prefix=""), not
+# here — pnpm reads it from npmrc.
+catalogMode: strict
+
+catalog:
+  # ── React family (move atomically: react + react-dom + @types) ──
+  react: 19.2.7 # latest stable (taze -l --maturity-period 7); was 19.2.4
+  react-dom: 19.2.7 # latest stable; was 19.2.4
+  "@types/react": 19.2.17 # latest stable; was 19.2.14
+  "@types/react-dom": 19.2.3 # already latest stable
+
+  # ── Tiptap + prosemirror family (atomic) ──
+  # already latest stable (7d candidate 3.26.1 is older; never pin lower)
+  "@tiptap/core": 3.27.1
+  "@tiptap/react": 3.27.1
+  "@tiptap/pm": 3.27.1
+  "@tiptap/starter-kit": 3.27.1
+  "@tiptap/extension-character-count": 3.27.1
+  "@tiptap/extension-placeholder": 3.27.1
+
+  # ── LangChain family (atomic) ──
+  "@langchain/core": 1.2.0 # already latest stable (7d candidate 1.1.49 is older; never pin lower)
+  "@langchain/langgraph": 1.4.4 # already latest stable (7d candidate 1.4.2 is older; never pin lower)
+
+  # ── googleapis family (atomic; the @10 scoped override stays in pnpm.overrides) ──
+  google-auth-library: 10.7.0 # latest stable (taze -l --maturity-period 7); was 9.14.1 (MAJOR 9->10)
+  googleapis: 173.0.0 # latest stable; was 160.0.0
+
+  # ── Build/test toolchain ──
+  vitest: 4.1.8 # MAX of declared 4.0.18 / 4.1.8
+  typescript: 6.0.3 # latest stable (taze -l --maturity-period 7); was 5.9.3
+  tsx: 4.22.4 # MAX of declared 4.21.0 / 4.22.4 (root)
+  "@types/node": 25.9.3 # latest stable (taze -l --maturity-period 7); was 24.5.2 (MAJOR 24->25)
+  jsdom: 29.1.1 # latest stable; was 26.0.0 (MAJOR 26->29)
+  msw: 2.14.6 # latest stable (taze -l --maturity-period 7); was 2.14.3
+  next: 16.2.9 # latest stable (taze -l --maturity-period 7); was 16.2.6
+  next-intl: 4.13.0 # latest stable; was 4.9.2
+  postcss: 8.5.15 # MAX: tree resolves 8.5.15 transitively (never pin lower)
+  zustand: 5.0.14 # latest stable (taze -l --maturity-period 7); was 5.0.12
+  "@tanstack/react-query": 5.101.0 # latest stable; was 5.95.0
+
+  # ── Runtime-critical drifters (MAX of declared) ──
+  "@prisma/client": 7.8.0 # latest stable (taze -l --maturity-period 7); was 7.6.0
+  opossum: 9.0.0 # MAX of 8.0.0 / 9.0.0 (fitness #25)
+  prom-client: 15.1.3 # MAX of 15.0.0 / 15.1.3
+
+  # ── App/server runtime (DIRECT) ──
+  fastify: 5.8.5 # override forces newer than manifest 5.6.1
+  pino: 10.3.1
+  zod: 4.4.3 # reconcile UP to apps' 4.4.3 (override 4.3.6 is stale)
+  "@anthropic-ai/sdk": 0.104.1 # latest stable (taze -l --maturity-period 7); was 0.91.1
+  cloudinary: 2.10.0 # latest stable; was 2.7.0
+  handlebars: 4.7.9 # override forces newer than manifest 4.7.8
+  axios: 1.17.0 # CVE floor (MAX over tiktok 1.7.7)
+  form-data: 4.0.6 # CVE floor (MAX over tiktok 4.0.0)
+  validator: 13.15.35 # latest stable (taze -l --maturity-period 7), >= CVE floor; was 13.15.22
+  uuid: 14.0.0 # latest stable; was 13.0.1 (MAJOR 13->14)
+  ws: 8.21.0 # CVE floor
+
+  # ── Shared direct deps (T1.11 completion — declared in ≥2 manifests; reconcile-UP, structure-only) ──
+  "@sentry/node": 10.48.0
+  "@sentry/nextjs": 10.48.0
+  "@t3-oss/env-core": 0.13.11
+  "@t3-oss/env-nextjs": 0.13.11
+  argon2: 0.44.0
+  bullmq: 5.58.9
+  csv-parse: 6.2.1
+  dotenv: 17.2.2
+  fastify-type-provider-zod: 6.1.0
+  ioredis: 5.7.0
+  date-fns: 4.1.0
+  lucide-react: 0.544.0
+  recharts: 3.8.1
+  tw-animate-css: 1.4.0
+  tailwindcss: 4.3.0
+  "@tailwindcss/postcss": 4.3.0
+  postcss-load-config: 6.0.1
+  webpack: 5.106.2
+  vite: 7.3.5 # held at 7.x — vite 8 switched to the rolldown parser, which fails on JSX in vitest's SSR transform (frontend tests only); bump when upstream fixes it. Backend vitest (no JSX) auto-installs vite 8 fine.
+  eslint: 9.36.0 # held — eslint 10 has no peer in eslint-plugin-react/jsx-a11y (both already latest)
+  "@playwright/test": 1.55.1
+  "@axe-core/playwright": 4.10.2
+  "@formatjs/icu-messageformat-parser": 3.5.9
+  # @testing-library family (atomic)
+  "@testing-library/dom": 10.4.0
+  "@testing-library/jest-dom": 6.6.3
+  "@testing-library/react": 16.1.0
+  "@testing-library/user-event": 14.5.2
+  # @vitest/* family (peer = vitest 4.1.8)
+  "@vitest/coverage-v8": 4.1.8
+  "@vitest/ui": 4.1.8
+  # @stryker-mutator/* family (atomic)
+  "@stryker-mutator/core": 9.6.0
+  "@stryker-mutator/vitest-runner": 9.6.0
+  # Storybook family (atomic; 10.4.6 = vite 8 peer)
+  storybook: 10.4.6
+  "@storybook/addon-a11y": 10.4.6
+  "@storybook/addon-docs": 10.4.6
+  "@storybook/nextjs": 10.4.6
+  "@types/opossum": 8.1.9
+
+catalogs:
+  # OTel set: a named catalog documents the independent release train (the 0.NNN
+  # instrumentation line vs the 2.x core/SDK line) and that they bump together.
+  # Values adopt the override (newer) where the manifest is stale — removing the
+  # override must not downgrade.
+  # All values at latest stable (taze -l --maturity-period 7) — moved atomically.
+  otel:
+    "@opentelemetry/api": 1.9.1 # already latest stable
+    "@opentelemetry/auto-instrumentations-node": 0.77.0 # latest stable; was 0.75.0
+    "@opentelemetry/core": 2.8.0 # already latest stable
+    "@opentelemetry/exporter-prometheus": 0.219.0 # latest stable; was 0.217.0
+    "@opentelemetry/sdk-node": 0.219.0 # latest stable; was 0.217.0
+    "@opentelemetry/exporter-trace-otlp-http": 0.219.0 # latest stable; was 0.214.0
+    "@opentelemetry/instrumentation": 0.219.0 # latest stable; was 0.214.0
+    "@opentelemetry/instrumentation-fastify": 0.57.0 # already latest stable
+    "@opentelemetry/instrumentation-fs": 0.38.0 # latest stable; was 0.33.0
+    "@opentelemetry/instrumentation-http": 0.219.0 # latest stable; was 0.214.0
+    "@opentelemetry/instrumentation-redis": 0.67.0 # latest stable; was 0.62.0
+    "@opentelemetry/propagation-utils": 0.31.22 # latest stable; was 0.31.17
+    "@opentelemetry/resources": 2.8.0 # latest stable; was 2.6.1
+    "@opentelemetry/semantic-conventions": 1.41.1 # latest stable; was 1.40.0

@@ -20,9 +20,9 @@
     "@observability/logger": "workspace:*",
     "@ports/core": "workspace:*",
     "@shared/types": "workspace:*",
-    "bullmq": "5.58.9",
-    "ioredis": "5.7.0",
-    "opossum": "9.0.0"
+    "bullmq": "catalog:",
+    "ioredis": "catalog:",
+    "opossum": "catalog:"
   },
   "scripts": {
     "test": "vitest run",
@@ -31,8 +31,8 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/node": "24.5.2",
-    "@types/opossum": "8.1.9",
-    "vitest": "4.0.18"
+    "@types/node": "catalog:",
+    "@types/opossum": "catalog:",
+    "vitest": "catalog:"
   }
 }

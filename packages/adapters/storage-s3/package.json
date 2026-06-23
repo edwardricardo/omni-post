@@ -24,7 +24,7 @@
     "@observability/logger": "workspace:*",
     "@ports/core": "workspace:*",
     "@shared/types": "workspace:*",
-    "prom-client": "15.1.3"
+    "prom-client": "catalog:"
   },
   "scripts": {
     "test": "vitest run",
@@ -33,9 +33,9 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/node": "24.5.2",
+    "@types/node": "catalog:",
     "aws-sdk-client-mock": "4.1.0",
-    "typescript": "5.9.3",
-    "vitest": "4.0.18"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

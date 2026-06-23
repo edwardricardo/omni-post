@@ -19,8 +19,8 @@
   "dependencies": {
     "@ports/core": "workspace:*",
     "@shared/types": "workspace:*",
-    "ioredis": "5.7.0",
-    "pino": "10.3.1"
+    "ioredis": "catalog:",
+    "pino": "catalog:"
   },
   "scripts": {
     "test": "vitest run",
@@ -29,8 +29,8 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/node": "24.5.2",
-    "typescript": "5.9.3",
-    "vitest": "4.0.18"
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

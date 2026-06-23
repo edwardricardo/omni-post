@@ -12,8 +12,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@t3-oss/env-core": "0.13.11",
-    "zod": "4.4.3",
+    "@t3-oss/env-core": "catalog:",
+    "zod": "catalog:",
     "@core/application": "workspace:*",
     "@core/domain": "workspace:*",
     "@core/listening": "workspace:*",
@@ -37,19 +37,19 @@
     "@providers/tiktok": "workspace:*",
     "@providers/x": "workspace:*",
     "@providers/youtube": "workspace:*",
-    "@sentry/node": "10.48.0",
+    "@sentry/node": "catalog:",
     "@shared/types": "workspace:*",
-    "bullmq": "5.58.9",
-    "dotenv": "17.2.2",
-    "ioredis": "5.7.0",
-    "pino": "10.3.1",
-    "prom-client": "15.1.3",
-    "uuid": "13.0.0"
+    "bullmq": "catalog:",
+    "dotenv": "catalog:",
+    "ioredis": "catalog:",
+    "pino": "catalog:",
+    "prom-client": "catalog:",
+    "uuid": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "24.5.2",
-    "tsx": "4.21.0",
-    "typescript": "5.9.3",
-    "vitest": "4.1.8"
+    "@types/node": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

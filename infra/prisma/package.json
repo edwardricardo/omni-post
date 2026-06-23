@@ -15,14 +15,14 @@
   "dependencies": {
     "@observability/logger": "workspace:*",
     "@prisma/adapter-pg": "7.6.0",
-    "@prisma/client": "7.6.0",
-    "argon2": "0.44.0",
-    "dotenv": "17.2.2"
+    "@prisma/client": "catalog:",
+    "argon2": "catalog:",
+    "dotenv": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "24.5.2",
-    "prisma": "7.6.0",
-    "tsx": "4.21.0"
+    "@types/node": "catalog:",
+    "prisma": "7.8.0",
+    "tsx": "catalog:"
   },
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",

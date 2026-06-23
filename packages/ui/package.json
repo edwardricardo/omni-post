@@ -18,28 +18,28 @@
     "@emoji-mart/data": "1.2.1",
     "@emoji-mart/react": "1.1.1",
     "@observability/browser-logger": "workspace:*",
-    "@tiptap/core": "3.27.1",
-    "@tiptap/extension-character-count": "3.27.1",
-    "@tiptap/extension-placeholder": "3.27.1",
-    "@tiptap/pm": "3.27.1",
-    "@tiptap/react": "3.27.1",
-    "@tiptap/starter-kit": "3.27.1",
+    "@tiptap/core": "catalog:",
+    "@tiptap/extension-character-count": "catalog:",
+    "@tiptap/extension-placeholder": "catalog:",
+    "@tiptap/pm": "catalog:",
+    "@tiptap/react": "catalog:",
+    "@tiptap/starter-kit": "catalog:",
     "class-variance-authority": "0.7.0",
     "clsx": "2.1.1",
-    "date-fns": "4.1.0",
-    "lucide-react": "0.544.0",
+    "date-fns": "catalog:",
+    "lucide-react": "catalog:",
     "radix-ui": "1.4.3",
-    "react": "19.2.4",
+    "react": "catalog:",
     "tailwind-merge": "2.6.0"
   },
   "devDependencies": {
-    "@types/node": "24.5.2",
-    "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.3",
-    "react-dom": "19.2.4",
-    "typescript": "5.9.3"
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "react-dom": "catalog:",
+    "typescript": "catalog:"
   },
   "peerDependencies": {
-    "react": "19.2.4"
+    "react": "catalog:"
   }
 }

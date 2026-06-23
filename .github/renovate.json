@@ -1,0 +1,52 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":semanticCommits"],
+  "rangeStrategy": "pin",
+  "lockFileMaintenance": { "enabled": true },
+  "minimumReleaseAge": "7 days",
+  "ignorePresets": [":prHourlyLimit2"],
+  "packageRules": [
+    {
+      "matchManagers": ["pnpm-catalog"],
+      "rangeStrategy": "pin"
+    },
+    {
+      "groupName": "react",
+      "matchPackageNames": ["react", "react-dom", "@types/react", "@types/react-dom"]
+    },
+    {
+      "groupName": "tiptap",
+      "matchPackagePrefixes": ["@tiptap/", "prosemirror-"]
+    },
+    {
+      "groupName": "langchain",
+      "matchPackagePrefixes": ["@langchain/"]
+    },
+    {
+      "groupName": "googleapis",
+      "matchPackageNames": ["googleapis", "google-auth-library", "gaxios", "googleapis-common"]
+    },
+    {
+      "groupName": "opentelemetry",
+      "matchPackagePrefixes": ["@opentelemetry/"]
+    },
+    {
+      "groupName": "storybook",
+      "matchPackagePrefixes": ["@storybook/", "storybook"]
+    },
+    {
+      "groupName": "testing-library",
+      "matchPackagePrefixes": ["@testing-library/"]
+    },
+    {
+      "groupName": "stryker",
+      "matchPackagePrefixes": ["@stryker-mutator/"]
+    },
+    {
+      "matchPackageNames": ["@prisma/client", "prisma", "opossum", "prom-client"],
+      "labels": ["runtime-critical"],
+      "minimumReleaseAge": "14 days"
+    }
+  ],
+  "vulnerabilityAlerts": { "labels": ["security"], "rangeStrategy": "pin" }
+}

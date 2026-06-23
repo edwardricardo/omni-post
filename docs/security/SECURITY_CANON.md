@@ -52,6 +52,33 @@ When adding a new `accountId`-bearing model:
 
 ---
 
+## Audited audit-ignores
+
+> Authoritative record of every accepted security debt in the dependency baseline (ADR-0018). Two classes: **ignored GHSAs** (a `pnpm audit` advisory we accept on a transitive with no safe upstream) and **CVE-floor pins** (a catalog/override entry held AT or ABOVE the minimal patched version to keep a known vulnerability out of the tree). Each carries a remove-when so the debt is auditable, not silent. Mirrors `docs/product/PENDING_WORK_INVENTORY.md §7`.
+
+### Ignored GHSAs (`pnpm.auditConfig.ignoreGhsas`, root `package.json`)
+
+| GHSA                  | Package (chain)                                | Severity | Reason kept                                                                | Remove-when                                               |
+| --------------------- | ---------------------------------------------- | -------- | -------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `GHSA-q7cg-457f-vx79` | `request` (`wait-on` → `jest-process-manager`) | —        | transitive; no fixed upstream that satisfies the consumer's `wait-on ^7`   | `jest-process-manager` ships `wait-on ^8`                 |
+| `GHSA-p8p7-x288-28g6` | `request` SSRF                                 | medium   | transitive; ties to §2E SSRF-WEBHOOK — no direct exploit surface confirmed | the `request`-bearing dep is replaced or upstream patches |
+| `GHSA-848j-6mx2-7j84` | `elliptic` risky-curve                         | low      | transitive (crypto chain); no signing path uses the affected curve         | the consuming dep bumps `elliptic`                        |
+
+### CVE-floor pins (catalog + override, held at or above the minimal patched version)
+
+| Package             | Floor       | Where                         | Why (CVE floor)                                                                                                                                 |
+| ------------------- | ----------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `axios`             | `1.17.0`    | catalog (`catalog:` override) | DIRECT (providers/tiktok) + CVE floor; override extends the floor to transitive copies                                                          |
+| `form-data`         | `4.0.6`     | catalog (`catalog:` override) | DIRECT (providers/tiktok) + CVE floor                                                                                                           |
+| `validator`         | `13.15.22`+ | catalog (`catalog:` override) | DIRECT (apps/api) + CVE floor                                                                                                                   |
+| `ws`                | `8.21.0`+   | catalog (`catalog:` override) | DIRECT (apps/api) + CVE floor                                                                                                                   |
+| `tough-cookie`      | `4.1.3`     | `pnpm.overrides` (literal)    | TRANSITIVE CVE floor; validated 2026-06-22 — removing it surfaces an advisory, so kept at the minimal patch (NOT the latest major) per ADR-0018 |
+| `@hono/node-server` | `1.19.13`   | `pnpm.overrides` (literal)    | TRANSITIVE CVE floor; same validation — minimal patched version, not latest                                                                     |
+
+> Method (ADR-0018 §Transitive policy): a transitive override is justified ONLY by a real CVE floor confirmed empirically (`remove override → pnpm install → pnpm audit`; advisory surfaces → re-add at the minimal patched version). De-dup-only overrides are dropped. The CVE-floor catalog pins are exact (the catalog value IS ≥ the floor), so the security intent holds without a range.
+
+---
+
 ## How to extend
 
 Adding new security rules:

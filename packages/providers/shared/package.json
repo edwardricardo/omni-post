@@ -17,10 +17,10 @@
   "dependencies": {
     "@ports/core": "workspace:*",
     "@shared/types": "workspace:*",
-    "pino": "10.3.1"
+    "pino": "catalog:"
   },
   "peerDependencies": {
-    "msw": "2.x"
+    "msw": "catalog:"
   },
   "peerDependenciesMeta": {
     "msw": {
@@ -34,9 +34,9 @@
     "build": "tsc -b tsconfig.build.json"
   },
   "devDependencies": {
-    "@types/node": "22.13.3",
-    "typescript": "5.9.3",
-    "vitest": "4.1.8"
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "types": "./dist/index.d.ts"
 }

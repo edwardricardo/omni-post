@@ -22,8 +22,8 @@
     "@adapters/queue-bullmq": "workspace:*",
     "@observability/logger": "workspace:*",
     "@ports/core": "workspace:*",
-    "opossum": "8.0.0",
-    "prom-client": "15.1.3"
+    "opossum": "catalog:",
+    "prom-client": "catalog:"
   },
   "scripts": {
     "test": "vitest run",
@@ -32,8 +32,8 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/node": "24.5.2",
-    "typescript": "5.9.3",
-    "vitest": "4.0.18"
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

@@ -1,5 +1,8 @@
 # Automated Dependency Updates & Security Monitoring
 # Automated updates with testing and security validation
+# superseded-by-renovate (dep-baseline Step 5) — the update mechanism is replaced by
+# .github/renovate.json (rangeStrategy: pin, catalog-aware, family-grouped). The pnpm
+# audit analysis job below is retained as a daily security report.
 name: Dependency Updates
 
 on:

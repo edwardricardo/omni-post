@@ -1,0 +1,36 @@
+{
+  "$schema": "https://unpkg.com/syncpack@latest/dist/schema.json",
+  "dependencyTypes": ["prod", "dev", "peer", "overrides"],
+  "versionGroups": [
+    {
+      "label": "workspace protocol (local @core/@adapters/... packages keep workspace:* — not version-checked)",
+      "dependencies": [
+        "@core/**",
+        "@adapters/**",
+        "@providers/**",
+        "@monitoring/**",
+        "@observability/**",
+        "@packages/**",
+        "@ports/**",
+        "@infra/**",
+        "@shared/**",
+        "@apps/**"
+      ],
+      "isIgnored": true
+    },
+    {
+      "label": "single version across the monorepo (ADR-0018 single-version invariant for DIRECT/catalog deps; consumer-governed TRANSITIVES are not manifest-declared so they are invisible to this group and may legitimately coexist — vite 7.3.5/8.x, minimatch multi-versions, etc.)",
+      "dependencies": ["**"],
+      "packages": ["**"],
+      "preferVersion": "highestSemver"
+    }
+  ],
+  "semverGroups": [
+    {
+      "label": "exact ranges only — no ^ ~ * >= on literal specs (ADR-0018). catalog:/catalog:otel refs report UnsupportedMismatch in `syncpack lint` because syncpack@12 cannot evaluate the catalog protocol; that is tooling noise, not a range violation, so the CI gate runs `syncpack list-mismatches` (single-version + literal-range invariant, exit 0) instead of `lint`. Exactness for catalog-managed deps is structurally guaranteed by catalogMode:strict + save-prefix=\"\" + the catalog values being exact pins.",
+      "range": "",
+      "dependencies": ["**"],
+      "packages": ["**"]
+    }
+  ]
+}

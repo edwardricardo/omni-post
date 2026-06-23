@@ -11,25 +11,25 @@
   },
   "dependencies": {
     "@observability/background-scheduler": "workspace:*",
-    "@opentelemetry/api": "1.9.1",
-    "@opentelemetry/auto-instrumentations-node": "0.72.0",
-    "@opentelemetry/core": "2.6.1",
-    "@opentelemetry/exporter-prometheus": "0.214.0",
-    "@opentelemetry/exporter-trace-otlp-http": "0.214.0",
-    "@opentelemetry/instrumentation": "0.214.0",
-    "@opentelemetry/instrumentation-fastify": "0.57.0",
-    "@opentelemetry/instrumentation-fs": "0.33.0",
-    "@opentelemetry/instrumentation-http": "0.214.0",
-    "@opentelemetry/instrumentation-redis": "0.62.0",
-    "@opentelemetry/propagation-utils": "0.31.17",
-    "@opentelemetry/resources": "2.6.1",
-    "@opentelemetry/sdk-node": "0.214.0",
-    "@opentelemetry/semantic-conventions": "1.40.0",
-    "pino": "10.3.1"
+    "@opentelemetry/api": "catalog:otel",
+    "@opentelemetry/auto-instrumentations-node": "catalog:otel",
+    "@opentelemetry/core": "catalog:otel",
+    "@opentelemetry/exporter-prometheus": "catalog:otel",
+    "@opentelemetry/exporter-trace-otlp-http": "catalog:otel",
+    "@opentelemetry/instrumentation": "catalog:otel",
+    "@opentelemetry/instrumentation-fastify": "catalog:otel",
+    "@opentelemetry/instrumentation-fs": "catalog:otel",
+    "@opentelemetry/instrumentation-http": "catalog:otel",
+    "@opentelemetry/instrumentation-redis": "catalog:otel",
+    "@opentelemetry/propagation-utils": "catalog:otel",
+    "@opentelemetry/resources": "catalog:otel",
+    "@opentelemetry/sdk-node": "catalog:otel",
+    "@opentelemetry/semantic-conventions": "catalog:otel",
+    "pino": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "22.13.3",
-    "typescript": "5.9.3"
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
   },
   "exports": {
     ".": {
