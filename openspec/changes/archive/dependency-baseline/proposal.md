@@ -96,9 +96,9 @@ upgrade-free, so it can stand alone if a later family must be dropped.
 
 ## Success Criteria
 
-- [ ] Every registry dep resolves to exactly ONE version, exact-pinned, latest-stable.
-- [ ] 3 wildcards eliminated; 13 drifters reconciled.
-- [ ] `syncpack lint` + `pnpm dedupe --check` green on the tracker.
-- [ ] CI guard (`syncpack lint` + `--frozen-lockfile` + `pnpm dedupe --check`) wired + Renovate pin config landed.
-- [ ] All 27 fitness functions hard-zero; build + LXC-safe tests green.
-- [ ] §7 standing dep items absorbed or given a dated-debt/remove-when gate.
+- [x] Every DIRECT registry dep resolves to exactly ONE version, exact-pinned, latest-stable. (Transitives consumer-governed per ADR-0018.)
+- [x] 3 wildcards eliminated; 13 drifters reconciled.
+- [x] `syncpack list-mismatches` + `pnpm dedupe --check` green on the tracker.
+- [x] CI guard (`syncpack list-mismatches` + `--frozen-lockfile` + `pnpm dedupe --check`) wired + Renovate pin config landed.
+- [x] All 27 fitness functions hard-zero; build + LXC-safe tests green.
+- [x] §7 standing dep items absorbed or given a dated-debt/remove-when gate.

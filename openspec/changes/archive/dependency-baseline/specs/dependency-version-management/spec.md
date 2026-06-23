@@ -16,6 +16,11 @@
 > does NOT design the implementation — the exact catalog layout in
 > `pnpm-workspace.yaml`, the syncpack config shape, the Renovate config, and the
 > precise CI step wiring are the design phase's job.
+>
+> **ARCHIVE NOTE (2026-06-23):** this delta was folded into the living spec at
+> `openspec/specs/dependency-version-management/spec.md` at archive time, reflecting the
+> EVOLVED ADR-0018 model (consumer-governed transitives). Change merged via PR #95
+> (`552c63a9`).
 
 ---
 
