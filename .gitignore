@@ -1,3 +1,6 @@
+# Local skill artifact (.gga) — kept in tree, ignored for future churn
+.gga
+
 # Dependencies
 node_modules/
 **/node_modules/
