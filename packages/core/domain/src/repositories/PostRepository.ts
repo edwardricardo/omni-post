@@ -216,9 +216,19 @@ export interface GlobalPostFilter {
  */
 export interface PostQueryRepository {
   /**
-   * Get post read model by ID
+   * Get post read model by ID.
+   *
+   * `callerAccountId` is the cross-tenant isolation gate (CWE-639). Post is
+   * transitively tenant-scoped (FK -> Project.accountId), so the Prisma
+   * `$extends` guard cannot auto-inject; when set, the adapter adds a
+   * `project: { accountId }` joined filter and a post owned by another tenant
+   * resolves to EntityNotFoundError (anti-enumeration). Optional for
+   * admin/internal callers that legitimately read across tenants.
    */
-  getById(id: PostId): Promise<Result<PostReadModel, EntityNotFoundError>>;
+  getById(
+    id: PostId,
+    callerAccountId?: AccountId
+  ): Promise<Result<PostReadModel, EntityNotFoundError>>;
 
   /**
    * List posts for a project (optimized for listing).
@@ -226,12 +236,17 @@ export interface PostQueryRepository {
    * Optional `filter` narrows the result set with the same criteria shape used
    * by the command-side `findWithFilters`. `projectId` from the filter is
    * ignored — the explicit `projectId` parameter is authoritative for scope.
+   *
+   * `callerAccountId` is the cross-tenant isolation gate (CWE-639): when set,
+   * the adapter adds a `project: { accountId }` joined filter so a foreign
+   * `projectId` returns an empty page rather than another tenant's posts.
    */
   listByProject(
     projectId: ProjectId,
     pagination?: PaginationParams,
     sort?: SortParams<PostSortField>,
-    filter?: PostFilterCriteria
+    filter?: PostFilterCriteria,
+    callerAccountId?: AccountId
   ): Promise<PaginatedResult<PostReadModel>>;
 
   /**
@@ -256,15 +271,28 @@ export interface PostQueryRepository {
   /**
    * Get a post by ID enriched with thread data (tweets ordered by sequence).
    * Returns the same PostReadModel plus an optional thread property.
+   *
+   * `callerAccountId` is the cross-tenant isolation gate (CWE-639): when set,
+   * the adapter adds a `project: { accountId }` joined filter and a post owned
+   * by another tenant resolves to EntityNotFoundError (anti-enumeration).
    */
-  getByIdWithThread(id: PostId): Promise<Result<PostReadModelWithThread, EntityNotFoundError>>;
+  getByIdWithThread(
+    id: PostId,
+    callerAccountId?: AccountId
+  ): Promise<Result<PostReadModelWithThread, EntityNotFoundError>>;
 
   /**
    * List posts globally (across all projects) with optional status filter.
    * Used by admin dashboards and cross-project views.
+   *
+   * `callerAccountId` is the cross-tenant isolation gate (CWE-639): when set,
+   * the adapter adds a `project: { accountId }` joined filter so the listing
+   * returns only the caller's own tenant rows instead of enumerating every
+   * tenant's posts. Omit it ONLY for genuine admin/system cross-tenant views.
    */
   listGlobal(
     filter?: GlobalPostFilter,
-    pagination?: PaginationParams
+    pagination?: PaginationParams,
+    callerAccountId?: AccountId
   ): Promise<PaginatedResult<PostReadModel>>;
 }

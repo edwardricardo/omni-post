@@ -7,6 +7,7 @@
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import {
+  AccountId,
   PostId,
   type PostQueryRepository,
   type PostReadModelWithThread,
@@ -16,9 +17,15 @@ import {
  * Input DTO for getting a post with thread data.
  *
  * @property postId - UUID of the post to retrieve.
+ * @property callerAccountId - Cross-tenant isolation gate (CWE-639). Post is
+ *   transitively tenant-scoped (FK -> Project.accountId); when set, the query
+ *   repository adds a `project: { accountId }` joined filter and a post owned
+ *   by another tenant resolves to NOT_FOUND (anti-enumeration). Optional for
+ *   admin/internal callers that legitimately read across tenants.
  */
 export interface GetPostWithThreadInput {
   postId: string;
+  callerAccountId?: string;
 }
 
 /**
@@ -60,8 +67,19 @@ export class GetPostWithThreadQuery implements UseCase<
       );
     }
 
+    // Cross-tenant isolation gate (CWE-639). Pass the caller's accountId so the
+    // query repository scopes by Project.accountId — a foreign post resolves to
+    // not-found rather than leaking another tenant's data + thread.
+    const callerAccountId =
+      input.callerAccountId !== undefined
+        ? AccountId.fromStringUnsafe(input.callerAccountId)
+        : undefined;
+
     // Query the read model with thread enrichment
-    const findResult = await this.postQueryRepository.getByIdWithThread(postIdResult.value);
+    const findResult = await this.postQueryRepository.getByIdWithThread(
+      postIdResult.value,
+      callerAccountId
+    );
     if (!findResult.ok) {
       return err(
         new UseCaseError(

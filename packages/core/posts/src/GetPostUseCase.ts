@@ -6,13 +6,25 @@
 
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
-import { PostId, type PostQueryRepository, type PostReadModel } from "@core/domain/index.js";
+import {
+  AccountId,
+  PostId,
+  type PostQueryRepository,
+  type PostReadModel,
+} from "@core/domain/index.js";
 
 /**
- * Input DTO for getting a post
+ * Input DTO for getting a post.
+ *
+ * `callerAccountId` is the cross-tenant isolation gate (CWE-639). Post is
+ * transitively tenant-scoped (FK -> Project.accountId); when set, the query
+ * repository adds a `project: { accountId }` joined filter and a post owned by
+ * another tenant resolves to NOT_FOUND (anti-enumeration). Optional for
+ * admin/internal callers that legitimately read across tenants.
  */
 export interface GetPostInput {
   postId: string;
+  callerAccountId?: string;
 }
 
 /**
@@ -44,8 +56,16 @@ export class GetPostUseCase implements UseCase<GetPostInput, PostDTO, UseCaseErr
       );
     }
 
+    // Cross-tenant isolation gate (CWE-639). Pass the caller's accountId so the
+    // query repository scopes by Project.accountId — a foreign post resolves to
+    // not-found rather than leaking another tenant's data.
+    const callerAccountId =
+      input.callerAccountId !== undefined
+        ? AccountId.fromStringUnsafe(input.callerAccountId)
+        : undefined;
+
     // Query the read model directly — no aggregate loading overhead
-    const findResult = await this.postQueryRepository.getById(postIdResult.value);
+    const findResult = await this.postQueryRepository.getById(postIdResult.value, callerAccountId);
     if (!findResult.ok) {
       return err(
         new UseCaseError(

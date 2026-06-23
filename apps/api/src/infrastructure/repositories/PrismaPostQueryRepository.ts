@@ -20,7 +20,7 @@ import type {
   PaginatedResult,
   SortParams,
 } from "@core/domain/index.js";
-import { PostId, ProjectId } from "@core/domain/index.js";
+import { AccountId, PostId, ProjectId } from "@core/domain/index.js";
 import { EntityNotFoundError } from "@core/domain/index.js";
 import type { PublishStatusValue } from "@core/domain/value-objects/PublishStatus.js";
 
@@ -94,10 +94,22 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
   /**
    * Get a post read model by ID.
    * Returns EntityNotFoundError when the post does not exist or is soft-deleted.
+   *
+   * When `callerAccountId` is provided, a `project: { accountId }` joined filter
+   * is applied (CWE-639): Post is transitively tenant-scoped via Project, so the
+   * `$extends` guard cannot auto-inject. A post owned by another tenant resolves
+   * to EntityNotFoundError — same shape as a missing post (anti-enumeration).
    */
-  async getById(id: PostId): Promise<Result<PostReadModel, EntityNotFoundError>> {
+  async getById(
+    id: PostId,
+    callerAccountId?: AccountId
+  ): Promise<Result<PostReadModel, EntityNotFoundError>> {
     const post = await this.prisma.post.findFirst({
-      where: { id: id.value, deletedAt: null },
+      where: {
+        id: id.value,
+        deletedAt: null,
+        ...(callerAccountId && { project: { accountId: callerAccountId.value } }),
+      },
       include: {
         contents: { take: 1 },
         _count: { select: { media: true } },
@@ -125,18 +137,23 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
    *
    * The filter's own `projectId` is ignored — the explicit `projectId` arg is
    * authoritative for scope (prevents cross-project leakage).
+   *
+   * When `callerAccountId` is provided, a `project: { accountId }` joined filter
+   * is applied (CWE-639): a foreign `projectId` returns an empty page rather
+   * than another tenant's posts.
    */
   async listByProject(
     projectId: ProjectId,
     pagination?: PaginationParams,
     sort?: SortParams<PostSortField>,
-    filter?: PostFilterCriteria
+    filter?: PostFilterCriteria,
+    callerAccountId?: AccountId
   ): Promise<PaginatedResult<PostReadModel>> {
     const page = pagination?.page ?? DEFAULT_PAGE;
     const limit = Math.min(pagination?.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
     const skip = (page - 1) * limit;
 
-    const where = this.buildWhereClause(projectId, filter);
+    const where = this.buildWhereClause(projectId, filter, callerAccountId);
     const orderBy = sort ? { [sort.field]: sort.direction } : { createdAt: "desc" as const };
 
     const [posts, total] = await Promise.all([
@@ -170,15 +187,24 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
    * Build a Prisma `where` clause from a project scope and optional filter.
    * Always pins `projectId` and `deletedAt: null`. Filters `archivedAt: null`
    * by default unless `filter.includeArchived === true` (explicit Archive view).
+   *
+   * When `callerAccountId` is provided, a `project: { accountId }` joined filter
+   * is added (CWE-639) so a foreign `projectId` cannot leak another tenant's
+   * posts.
    */
   private buildWhereClause(
     projectId: ProjectId,
-    filter?: PostFilterCriteria
+    filter?: PostFilterCriteria,
+    callerAccountId?: AccountId
   ): Record<string, unknown> {
     const where: Record<string, unknown> = {
       projectId: projectId.value,
       deletedAt: null,
     };
+
+    if (callerAccountId) {
+      where["project"] = { accountId: callerAccountId.value };
+    }
 
     if (!filter?.includeArchived) {
       where["archivedAt"] = null;
@@ -329,12 +355,21 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
   /**
    * Get a post by ID enriched with thread data (tweets ordered by sequence).
    * Returns the standard PostReadModel plus an optional `thread` property.
+   *
+   * When `callerAccountId` is provided, a `project: { accountId }` joined filter
+   * is applied (CWE-639): a post owned by another tenant resolves to
+   * EntityNotFoundError (anti-enumeration).
    */
   async getByIdWithThread(
-    id: PostId
+    id: PostId,
+    callerAccountId?: AccountId
   ): Promise<Result<PostReadModelWithThread, EntityNotFoundError>> {
     const post = await this.prisma.post.findFirst({
-      where: { id: id.value, deletedAt: null },
+      where: {
+        id: id.value,
+        deletedAt: null,
+        ...(callerAccountId && { project: { accountId: callerAccountId.value } }),
+      },
       include: {
         contents: { take: 1 },
         _count: { select: { media: true } },
@@ -383,10 +418,16 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
   /**
    * List posts globally (across all projects) with optional status filter.
    * Defaults: page 1, limit 20, ordered by createdAt descending.
+   *
+   * When `callerAccountId` is provided, a `project: { accountId }` joined filter
+   * is applied (CWE-639) so the listing returns only the caller's own tenant
+   * rows instead of enumerating every tenant's posts. Omitted only for genuine
+   * admin/system cross-tenant views.
    */
   async listGlobal(
     filter?: GlobalPostFilter,
-    pagination?: PaginationParams
+    pagination?: PaginationParams,
+    callerAccountId?: AccountId
   ): Promise<PaginatedResult<PostReadModel>> {
     const page = pagination?.page ?? DEFAULT_PAGE;
     const limit = Math.min(pagination?.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
@@ -395,6 +436,9 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
     const where: Record<string, unknown> = { deletedAt: null };
     if (filter?.status) {
       where["status"] = filter.status;
+    }
+    if (callerAccountId) {
+      where["project"] = { accountId: callerAccountId.value };
     }
 
     const [posts, total] = await Promise.all([

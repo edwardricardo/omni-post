@@ -7,6 +7,7 @@
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import {
+  AccountId,
   ProjectId,
   type PostFilterCriteria,
   type PostQueryRepository,
@@ -39,6 +40,14 @@ export interface ListPostsInput {
   hasMedia?: boolean;
   /** When `true`, the standard `archivedAt: null` filter is dropped. */
   includeArchived?: boolean;
+  /**
+   * Cross-tenant isolation gate (CWE-639). Post is transitively tenant-scoped
+   * (FK -> Project.accountId); when set, the query repository adds a
+   * `project: { accountId }` joined filter so a foreign `projectId` returns an
+   * empty page rather than another tenant's posts. Optional for admin/internal
+   * callers that legitimately read across tenants.
+   */
+  callerAccountId?: string;
 }
 
 /**
@@ -101,13 +110,26 @@ export class ListPostsUseCase implements UseCase<ListPostsInput, ListPostsOutput
     // repository can short-circuit to the no-filter path for plain listings.
     const filter = buildFilter(input);
 
-    // Query the read model directly — no aggregate loading or manual DTO mapping
-    const result = await this.postQueryRepository.listByProject(
-      projectIdResult.value,
-      pagination,
-      sort,
-      filter
-    );
+    // Query the read model directly — no aggregate loading or manual DTO mapping.
+    // Cross-tenant isolation gate (CWE-639): when the caller's accountId is
+    // present, pass it so the repository scopes by Project.accountId. Omitted
+    // entirely (not passed as undefined) for admin/internal callers so the
+    // 4-arg call shape is preserved.
+    const result =
+      input.callerAccountId !== undefined
+        ? await this.postQueryRepository.listByProject(
+            projectIdResult.value,
+            pagination,
+            sort,
+            filter,
+            AccountId.fromStringUnsafe(input.callerAccountId)
+          )
+        : await this.postQueryRepository.listByProject(
+            projectIdResult.value,
+            pagination,
+            sort,
+            filter
+          );
 
     return ok(result);
   }

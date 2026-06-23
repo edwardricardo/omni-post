@@ -6,6 +6,7 @@
 
 import { type Result, ok } from "@shared/types";
 import { type UseCase, type UseCaseError } from "@core/application/UseCase.js";
+import { AccountId } from "@core/domain/index.js";
 import type { PostQueryRepository, PostReadModel, PaginatedResult } from "@core/domain/index.js";
 import type { PublishStatusValue } from "@core/domain/value-objects/PublishStatus.js";
 
@@ -15,11 +16,17 @@ import type { PublishStatusValue } from "@core/domain/value-objects/PublishStatu
  * @property status - Optional publish status filter (e.g. "DRAFT", "SCHEDULED").
  * @property page - Page number (1-based). Defaults to 1.
  * @property limit - Number of items per page (1-100). Defaults to 20.
+ * @property callerAccountId - Cross-tenant isolation gate (CWE-639). Post is
+ *   transitively tenant-scoped (FK -> Project.accountId); when set, the query
+ *   repository adds a `project: { accountId }` joined filter so the listing
+ *   returns only the caller's own tenant rows instead of enumerating every
+ *   tenant's posts. Omit ONLY for genuine admin/system cross-tenant views.
  */
 export interface ListPostsGlobalInput {
   status?: PublishStatusValue;
   page?: number;
   limit?: number;
+  callerAccountId?: string;
 }
 
 /**
@@ -63,7 +70,18 @@ export class ListPostsGlobalQuery implements UseCase<
 
     const filter = input.status !== undefined ? { status: input.status } : undefined;
 
-    const result = await this.postQueryRepository.listGlobal(filter, { page, limit });
+    // Cross-tenant isolation gate (CWE-639): when the caller's accountId is
+    // present, pass it so the repository scopes by Project.accountId and the
+    // listing never enumerates other tenants' posts. Omitted entirely (not
+    // passed as undefined) for admin/system cross-tenant views.
+    const result =
+      input.callerAccountId !== undefined
+        ? await this.postQueryRepository.listGlobal(
+            filter,
+            { page, limit },
+            AccountId.fromStringUnsafe(input.callerAccountId)
+          )
+        : await this.postQueryRepository.listGlobal(filter, { page, limit });
 
     return ok(result);
   }

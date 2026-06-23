@@ -12,7 +12,9 @@
 
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { PrismaPostQueryRepository } from "../../../src/infrastructure/repositories/PrismaPostQueryRepository.js";
-import { PostId, ProjectId } from "@core/domain/index.js";
+import { AccountId, PostId, ProjectId } from "@core/domain/index.js";
+
+const ACCOUNT_ID = "a0000000-0000-4000-8000-000000000001";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -481,6 +483,80 @@ describe("PrismaPostQueryRepository", () => {
 
       const findManyArgs = prisma.post.findMany.mock.calls[0]?.[0] as { take: number };
       expect(findManyArgs?.take).toBe(100);
+    });
+  });
+
+  // ── tenant isolation: joined project.accountId filter (CWE-639) ────────────────
+
+  describe("tenant isolation joined filter (CWE-639)", () => {
+    const accountId = () => AccountId.fromStringUnsafe(ACCOUNT_ID);
+
+    it("getById adds project.accountId filter when callerAccountId is passed", async () => {
+      const id = PostId.fromStringUnsafe(POST_ID);
+      await repo.getById(id, accountId());
+
+      const callArgs = prisma.post.findFirst.mock.calls[0]?.[0] as {
+        where: { project?: { accountId: string } };
+      };
+      expect(callArgs?.where?.project).toEqual({ accountId: ACCOUNT_ID });
+    });
+
+    it("getById omits the project filter when callerAccountId is absent", async () => {
+      const id = PostId.fromStringUnsafe(POST_ID);
+      await repo.getById(id);
+
+      const callArgs = prisma.post.findFirst.mock.calls[0]?.[0] as {
+        where: { project?: { accountId: string } };
+      };
+      expect(callArgs?.where?.project).toBeUndefined();
+    });
+
+    it("getByIdWithThread adds project.accountId filter when callerAccountId is passed", async () => {
+      const id = PostId.fromStringUnsafe(POST_ID);
+      await repo.getByIdWithThread(id, accountId());
+
+      const callArgs = prisma.post.findFirst.mock.calls[0]?.[0] as {
+        where: { project?: { accountId: string } };
+      };
+      expect(callArgs?.where?.project).toEqual({ accountId: ACCOUNT_ID });
+    });
+
+    it("listByProject adds project.accountId filter when callerAccountId is passed", async () => {
+      prisma.post.count.mockImplementation(async () => 0);
+      const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
+      await repo.listByProject(
+        projectId,
+        { page: 1, limit: 10 },
+        undefined,
+        undefined,
+        accountId()
+      );
+
+      const findManyArgs = prisma.post.findMany.mock.calls[0]?.[0] as {
+        where: { projectId: string; project?: { accountId: string } };
+      };
+      expect(findManyArgs?.where?.projectId).toBe(PROJECT_ID);
+      expect(findManyArgs?.where?.project).toEqual({ accountId: ACCOUNT_ID });
+    });
+
+    it("listGlobal adds project.accountId filter when callerAccountId is passed", async () => {
+      prisma.post.count.mockImplementation(async () => 0);
+      await repo.listGlobal(undefined, { page: 1, limit: 10 }, accountId());
+
+      const findManyArgs = prisma.post.findMany.mock.calls[0]?.[0] as {
+        where: { project?: { accountId: string } };
+      };
+      expect(findManyArgs?.where?.project).toEqual({ accountId: ACCOUNT_ID });
+    });
+
+    it("listGlobal omits the project filter when callerAccountId is absent (admin view)", async () => {
+      prisma.post.count.mockImplementation(async () => 0);
+      await repo.listGlobal(undefined, { page: 1, limit: 10 });
+
+      const findManyArgs = prisma.post.findMany.mock.calls[0]?.[0] as {
+        where: { project?: { accountId: string } };
+      };
+      expect(findManyArgs?.where?.project).toBeUndefined();
     });
   });
 });

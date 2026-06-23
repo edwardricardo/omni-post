@@ -176,6 +176,10 @@ class PostRouteHandler extends BaseRouteHandler {
           ...(sortBy !== undefined && { sortBy }),
           ...(sortDirection !== undefined && { sortDirection }),
           ...(includeArchived === true && { includeArchived: true }),
+          // Cross-tenant gate (CWE-639): a foreign projectId must not leak.
+          ...(ctx.request.customerUser && {
+            callerAccountId: ctx.request.customerUser.accountId,
+          }),
         });
 
         if (!result.ok) {
@@ -197,6 +201,11 @@ class PostRouteHandler extends BaseRouteHandler {
         ...(status !== undefined && { status: status as PublishStatusValue }),
         page,
         limit,
+        // Cross-tenant gate (CWE-639): customers list only their own tenant's
+        // posts. Without this the global query enumerates every tenant's posts.
+        ...(ctx.request.customerUser && {
+          callerAccountId: ctx.request.customerUser.accountId,
+        }),
       });
 
       if (!result.ok) {
@@ -232,8 +241,14 @@ class PostRouteHandler extends BaseRouteHandler {
     const { id } = validation.value;
 
     try {
-      // Delegate to query that includes thread data
-      const result = await this.getPostWithThreadQuery.execute({ postId: id });
+      // Delegate to query that includes thread data.
+      // Cross-tenant gate (CWE-639): a foreign post id resolves to not-found.
+      const result = await this.getPostWithThreadQuery.execute({
+        postId: id,
+        ...(ctx.request.customerUser && {
+          callerAccountId: ctx.request.customerUser.accountId,
+        }),
+      });
 
       if (!result.ok) {
         return this.mapUseCaseError(ctx, result.error);
@@ -355,7 +370,13 @@ class PostRouteHandler extends BaseRouteHandler {
     const { id } = validation.value;
 
     try {
-      const result = await this.deletePostUseCase.execute({ postId: id });
+      const result = await this.deletePostUseCase.execute({
+        postId: id,
+        // Cross-tenant gate (CWE-639): caller can only delete posts they own.
+        ...(ctx.request.customerUser && {
+          callerAccountId: ctx.request.customerUser.accountId,
+        }),
+      });
 
       if (!result.ok) {
         return this.mapUseCaseError(ctx, result.error);

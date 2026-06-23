@@ -11,10 +11,18 @@ import type { BusinessMetricsPort } from "@core/domain/repositories/BusinessMetr
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 
 /**
- * Input DTO for deleting a post
+ * Input DTO for deleting a post.
+ *
+ * `callerAccountId` is the cross-tenant ownership gate (CWE-639). Post is
+ * transitively tenant-scoped (FK -> Project.accountId), so the Prisma
+ * `$extends` guard cannot auto-inject; when set, the use case resolves the
+ * post's owner via `findOwnerAccountId` and rejects a foreign caller with
+ * NOT_FOUND (anti-enumeration — same shape as a missing post). Optional for
+ * backward compat with admin/internal callers that bypass the check.
  */
 export interface DeletePostInput {
   postId: string;
+  callerAccountId?: string;
 }
 
 /**
@@ -41,6 +49,18 @@ export class DeletePostUseCase implements CommandUseCase<DeletePostInput, UseCas
       return err(
         new UseCaseError(`Invalid post ID: ${input.postId}`, USE_CASE_ERRORS.VALIDATION_FAILED)
       );
+    }
+
+    // Cross-tenant ownership gate (CWE-639). Resolve the post's owner via
+    // Project.accountId before loading the aggregate. A caller asking to delete
+    // a post they do not own gets NOT_FOUND, not FORBIDDEN — return shape
+    // matches the anti-IDOR canon (no enumeration), consistent with
+    // UpdatePostUseCase.
+    if (input.callerAccountId !== undefined) {
+      const ownerAccountId = await this.postRepository.findOwnerAccountId(postIdResult.value);
+      if (!ownerAccountId || ownerAccountId.value !== input.callerAccountId) {
+        return err(new UseCaseError(`Post not found: ${input.postId}`, USE_CASE_ERRORS.NOT_FOUND));
+      }
     }
 
     // Find the post to check if it can be deleted
