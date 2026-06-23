@@ -55,7 +55,7 @@
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "@vitejs/plugin-react": "6.0.2",
+    "@vitejs/plugin-react": "5.1.4",
     "@vitest/coverage-v8": "catalog:",
     "jsdom": "catalog:",
     "postcss": "catalog:",
@@ -64,7 +64,7 @@
     "tailwindcss": "catalog:",
     "tw-animate-css": "catalog:",
     "typescript": "catalog:",
-    "vite": "8.0.16",
+    "vite": "catalog:",
     "vitest": "catalog:",
     "webpack": "catalog:"
   }
