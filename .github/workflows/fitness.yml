@@ -577,7 +577,39 @@ jobs:
         run: |
           echo "## Fitness Functions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "25 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
+          echo "27 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
           echo "Hard-zero threshold: any new occurrence fails this workflow with an \`::error\` annotation." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "See individual step results above for any violations." >> $GITHUB_STEP_SUMMARY
+
+  dependency-consistency:
+    name: Dependency Consistency (catalog single-version + lockfile)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - name: "Lockfile gate: pnpm install --frozen-lockfile"
+        run: pnpm install --frozen-lockfile
+
+      - name: "Single-version gate: syncpack (catalog-managed direct deps; transitives are consumer-governed)"
+        # syncpack@12 `lint` chokes on the catalog: protocol (reports every catalog ref
+        # as UnsupportedMismatch); `list-mismatches` is the real single-version + exact-range
+        # gate. Consumer-governed transitives are not manifest-declared, so they are
+        # structurally invisible to the single-version group. See ADR-0018 / Step 5 T5.1.
+        run: pnpm dlx syncpack@12 list-mismatches
+
+      - name: "Dedupe gate: pnpm dedupe --check (no flattenable duplicates)"
+        # pnpm 10.16 emits a false-positive exit 1 when dedupe --check runs right after
+        # --frozen-lockfile (empty change list; lockfile stays byte-identical). The second
+        # run is reliably exit 0. See ADR-0018 / dep-baseline Step 5 T5.2.
+        run: pnpm dedupe --check || pnpm dedupe --check

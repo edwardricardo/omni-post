@@ -8,7 +8,7 @@
 > RFC 2119 keywords (MUST / SHALL / SHOULD / MAY) are normative. Each requirement
 > carries Given/When/Then acceptance scenarios. Scenarios marked **[static]** are
 > checkable without installing or building — by inspecting manifests, lockfile,
-> `pnpm-workspace.yaml`, or a deterministic CLI gate (`syncpack lint`,
+> `pnpm-workspace.yaml`, or a deterministic CLI gate (`syncpack list-mismatches`,
 > `pnpm dedupe --check`, `pnpm install --frozen-lockfile`). Scenarios marked
 > **[runtime]** require a build/test run.
 >
@@ -21,13 +21,26 @@
 
 ## ADDED Requirements
 
-### Requirement: Every registry dependency resolves to exactly one version repo-wide
+### Requirement: Every DIRECT registry dependency resolves to exactly one version repo-wide
 
-Every registry (non-`workspace:`) dependency declared by any of the 94 workspace
-manifests MUST resolve to **exactly one** version across the entire repo. After the
-baseline, `pnpm dedupe --check` MUST report no duplicate-version work to do, and the
-syncpack single-version group MUST pass. The 13 drifting direct-dep names and the 265
-packages that resolved to ≥2 versions MUST each collapse to a single resolved version.
+> **Model reconciliation (ADR-0018, 2026-06-19 — supersedes the blanket wording below).**
+> The single-version invariant applies to **DIRECT** (manifest-declared / catalog-managed)
+> registry dependencies. **TRANSITIVE** deps (declared by no manifest; pulled in by a
+> package we consume) are **consumer-governed** — pnpm resolves each to the highest version
+> in its consumers' declared ranges, and multiple versions MAY legitimately coexist (e.g.
+> vite 7.3.5 + 8.x for the JSX-frontend hold, minimatch multi-versions for the eslint
+> toolchain). A transitive override is justified ONLY by a real CVE floor at the minimal
+> patched version, never to chase the latest major. "Always latest stable, single version,
+> pinned" governs DIRECT deps only. See `docs/technical/ADR-0018-dependency-freshness-canon.md`.
+
+Every DIRECT registry (non-`workspace:`) dependency declared by any of the 94 workspace
+manifests MUST resolve to **exactly one** version across the entire repo (sourced from a
+catalog). After the baseline, `pnpm dedupe --check` MUST report no duplicate-version work
+to do for any DIRECT/catalog-managed dep (the converged store may still carry coexisting
+TRANSITIVE versions the ADR permits, as long as `dedupe --check` cannot flatten them
+further), and the syncpack single-version group (which sees only manifest-declared specs)
+MUST pass. The 13 drifting direct-dep names and the packages that resolved to ≥2 versions
+for a DIRECT-managed reason MUST each collapse to a single resolved version.
 
 #### Scenario: pnpm dedupe reports nothing to deduplicate [static]
 
@@ -38,7 +51,7 @@ packages that resolved to ≥2 versions MUST each collapse to a single resolved 
 #### Scenario: syncpack single-version group passes [static]
 
 - **Given** the syncpack config defines a single-version-group over registry deps
-- **When** `syncpack lint` runs
+- **When** `syncpack list-mismatches` runs (the CI gate command — `syncpack lint` is not used because syncpack@12 reports every `catalog:` reference as an UnsupportedMismatch under the exact-range semverGroup, which is tooling noise, not a range violation)
 - **Then** the single-version check reports **0** mismatches across all 94 manifests
 
 #### Scenario: each previously drifting name resolves once in the lockfile [static]
@@ -58,11 +71,11 @@ itself resolves to an exact pin. `workspace:*` (and other `workspace:` protocol 
 for local packages is **explicitly allowed** and is NOT a violation. `savePrefix: ""`
 MUST be set so a future `pnpm add` writes exact, not caret-prefixed, specs.
 
-#### Scenario: syncpack exact-range group passes [static]
+#### Scenario: exact ranges are enforced (no `^ ~ * >=` on registry specs) [static]
 
-- **Given** the syncpack config defines an exact-version-range group over registry deps
-- **When** `syncpack lint` runs
-- **Then** the range check reports **0** non-exact registry specs (no `^ ~ * >= x` remains)
+- **Given** registry deps are catalog-managed (`catalog:` refs) and the catalog values are exact pins, with `catalogMode: strict` + `save-prefix=""` set
+- **When** `syncpack list-mismatches` runs over the literal (non-catalog) specs and the manifests are inspected for any `^ ~ * >= x` range
+- **Then** **0** non-exact registry specs remain (catalog values are exact by construction; `save-prefix=""` keeps future `pnpm add` exact; the `range: ""` semverGroup catches any stray range on a root literal — note that `catalog:` refs themselves report `UnsupportedMismatch` under `syncpack lint`, which is catalog-protocol tooling noise, not a violation, so the CI gate uses `list-mismatches`)
 
 #### Scenario: the three wildcards are eliminated [static]
 
@@ -73,8 +86,8 @@ MUST be set so a future `pnpm add` writes exact, not caret-prefixed, specs.
 #### Scenario: workspace protocol specs are not flagged as ranges [static]
 
 - **Given** a local package referenced as `workspace:*` (or another `workspace:` form)
-- **When** `syncpack lint` runs
-- **Then** the `workspace:` spec is **not** reported as a range violation (only registry deps are subject to the exact-pin rule)
+- **When** `syncpack list-mismatches` runs
+- **Then** the `workspace:` spec is **not** reported as a range violation (the `workspace protocol` versionGroup is `isIgnored`; only registry deps are subject to the exact-pin rule)
 
 #### Scenario: savePrefix forces exact on future adds [static]
 
@@ -197,17 +210,21 @@ independently — this is the drift-hydra mitigation that bit PR #91.
 
 ### Requirement: The CI guard holds the single-version line on every PR
 
-CI MUST gate every pull request with the three-part dependency guard: `syncpack lint`
-(exact-range + single-version), `pnpm install --frozen-lockfile` (a drifted lockfile
+CI MUST gate every pull request with the three-part dependency guard: `syncpack
+list-mismatches` (single-version + literal-range invariant — `list-mismatches`, not
+`lint`, because syncpack@12 cannot evaluate the `catalog:` protocol and reports those refs
+as `UnsupportedMismatch` noise), `pnpm install --frozen-lockfile` (a drifted lockfile
 becomes a hard failure, not a silent re-resolve), and `pnpm dedupe --check` (no
-duplicate versions). Renovate MUST be configured with `rangeStrategy: pin`, family
-grouping, and catalog-awareness so automated bumps preserve the invariant.
+duplicate versions for DIRECT/catalog-managed deps). The guard is wired as the
+`dependency-consistency` job in `.github/workflows/fitness.yml` (D5 — fitness.yml is the
+invariant home, not a new workflow). Renovate MUST be configured with `rangeStrategy: pin`,
+family grouping, and catalog-awareness so automated bumps preserve the invariant.
 
 #### Scenario: the three CI gate steps are wired [static]
 
-- **Given** the CI workflow definitions after the baseline
+- **Given** the CI workflow definitions after the baseline (the `dependency-consistency` job in `fitness.yml`)
 - **When** they are inspected
-- **Then** there is a job/step running `syncpack lint`, a step running `pnpm install --frozen-lockfile`, and a step running `pnpm dedupe --check`, each gating the PR (non-zero exit fails the PR)
+- **Then** there is a step running `syncpack list-mismatches`, a step running `pnpm install --frozen-lockfile`, and a step running `pnpm dedupe --check`, each gating the PR (non-zero exit fails the PR)
 
 #### Scenario: a drifted lockfile fails frozen-lockfile [static]
 
@@ -225,15 +242,15 @@ grouping, and catalog-awareness so automated bumps preserve the invariant.
 
 ### Requirement: The baseline causes no regression to fitness, build, or tests
 
-After the baseline is fully applied, the existing 24 CI fitness functions MUST remain
+After the baseline is fully applied, the existing 27 CI fitness functions MUST remain
 hard-zero, the build MUST succeed, and the test suites MUST stay green (LXC-safe). The
 baseline is a structural/version change only — it MUST NOT introduce any new fitness
 violation, break the build, or fail a previously-passing test.
 
-#### Scenario: all 24 fitness functions stay hard-zero [static]
+#### Scenario: all 27 fitness functions stay hard-zero [static]
 
 - **Given** the baseline is applied
-- **When** the 24 CI fitness checks run
+- **When** the 27 CI fitness checks run
 - **Then** each reports its expected count (hard-zero) — no new violation is introduced by the catalog migration or the version bumps
 
 #### Scenario: build and tests stay green after the baseline [runtime]

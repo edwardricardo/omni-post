@@ -405,19 +405,28 @@ reviews inbox, per-client dashboards).
 
 > **Provenance:** engram-standing (verified vs upstream where time-sensitive). P2 unless noted.
 
-### Actionable now
+### Closed-by-removal (dep-baseline Step 5)
 
-- **CONCURRENTLY-BUMP** — `concurrently` 9.2.1→10.0.3 (upstream ready). Coupled with shell-quote override removal. `verified`.
+- **CONCURRENTLY-BUMP** — CLOSED 2026-06-23 by removal. `concurrently` is no longer a dependency (Turbo replaced the concurrent dev orchestration — `pnpm dev` = `turbo run dev`). Verified: 0 presence in any manifest, the catalog, `pnpm.overrides`, or even transitively in `pnpm-lock.yaml`. The 9.2.1→10.0.3 bump is moot. (dep-baseline T5.5.)
 
-### Blocked — recheck periodically
+### Dated-debt overrides — remove-when gates (dep-baseline Step 5, dated 2026-06-23)
 
-- **ESBUILD-OVERRIDE** — remove when vite allows `esbuild>=0.28.1` (still blocked; vite pinned 7.3.5, latest 8.0.16). `verified`.
-- **JOI-GHSA-IGNORE** — remove `GHSA-q7cg-457f-vx79` when `jest-process-manager` ships `wait-on ^8` (still blocked; latest declares `^7.0.0`). `verified`.
+> Each surviving `pnpm.overrides` literal that is a temporary hold (not a permanent CVE floor) carries a documented remove-when so the audit grep has a removal trigger. The CVE-floor catalog pins (axios/form-data/validator/ws + tough-cookie + @hono/node-server) are recorded in `docs/security/SECURITY_CANON.md §Audited audit-ignores`.
 
-### Document-or-re-justify — **[SECURITY hygiene]**
+- **ESBUILD-OVERRIDE** — `esbuild:0.28.1` override (root `package.json` `pnpm.overrides`). **Remove-when:** vite's bundled esbuild peer allows `>=0.28.1` AND the 2 JSX frontends move off vite 7.3.5. Still blocked 2026-06-23: vite held at 7.3.5 for the JSX frontends (vite 8 rolldown breaks JSX in vitest SSR — vitejs/vite#21505), so the esbuild pin stays. `verified`.
+- **SHELL-QUOTE-OVERRIDE** — `shell-quote:1.8.4` override (CVE pin, transitive). **Remove-when:** every consumer pulling `shell-quote` declares a range that already resolves `>=1.8.4` on its own (i.e. the override becomes a no-op de-dup) — verify empirically by removing it, `pnpm install`, `pnpm audit`; if no advisory surfaces it was de-dup-only and can be dropped. Kept 2026-06-23 (CVE floor still load-bearing). `verified`.
+- **VITE-HELD-7.3.5** — `vite:7.3.5` override held below latest (8.x). **Remove-when:** vite 8's rolldown parser handles JSX in vitest's SSR transform (tracking vitejs/vite#21505) OR the frontend test stack migrates such that the JSX-in-SSR path is no longer exercised. The ~83 plain-TS backend packages already auto-install vite 8 fine; only the 2 JSX frontends (admin+client) and the `catalog` block force-hold 7.3.5. New 2026-06-23. `verified`.
+- **ESLINT-HELD-9.36.0** — `eslint:9.36.0` (root literal, NOT cataloged) held below eslint 10. **Remove-when:** `eslint-plugin-react` + `eslint-plugin-jsx-a11y` publish an eslint-10 peer range (both currently declare no eslint-10 peer). Bumping eslint to 10 ahead of the plugins crashes `pnpm lint`. New 2026-06-23. `verified`.
+- **MINIMATCH+BRACE-EXPANSION-NOT-FORCE-PINNED** — deliberately NOT force-pinned to their latest majors (minimatch 10 / brace-expansion 5). **Reason (drift-hydra, ADR-0018):** those majors dropped the callable-default export that the eslint toolchain (`eslint-plugin-jsx-a11y@6.10.2`, `eslint-plugin-react@7.37.5`, both declaring `minimatch ^3.1.2`) still uses; forcing the major crashed `pnpm lint` while build/test/typecheck passed. Left consumer-governed (multiple versions coexist). **Re-pin-when:** a real CVE floor surfaces under a consumer's range (`pnpm audit`), then pin to the minimal patched version, never the latest major. New 2026-06-23. `verified`.
+- **STORYBOOK-HELD-10.4.6** — Storybook kept at 10.4.6 paired with vite 7. **Remove-when:** Storybook's vite plugin (`@storybook/csf-plugin`) accepts vite 8 AND vite is unheld (see VITE-HELD-7.3.5). New 2026-06-23. `verified`.
 
-- **UNDOCUMENTED-GHSA-IGNORES** — `pnpm.auditConfig.ignoreGhsas` holds **3** entries with no backlog/remove-when gate: `GHSA-p8p7-x288-28g6` (`request` SSRF, medium — **ties to §2E SSRF-WEBHOOK**) + `GHSA-848j-6mx2-7j84` (`elliptic` risky crypto, low). Give each a dated-debt entry or re-justify. `verified — NEW flag`.
-- **SHELL-QUOTE-OVERRIDE** — `shell-quote:1.8.4` override present, no documented remove-when gate. Under-documented. `verified`.
+### Dated-debt GHSA ignores — remove-when gates (dep-baseline Step 5, dated 2026-06-19)
+
+> `pnpm.auditConfig.ignoreGhsas` keeps its 3 entries in root `package.json` (moving `auditConfig` to YAML is OUT OF SCOPE per the change). Each now carries a dated-debt remove-when; mirrored in `docs/security/SECURITY_CANON.md §Audited audit-ignores`. (dep-baseline T5.7.)
+
+- **GHSA-q7cg-457f-vx79** (`JOI-GHSA-IGNORE`) — `request` transitive via `wait-on` (`jest-process-manager` chain). Dated 2026-06-19. **Remove-when:** `jest-process-manager` ships `wait-on ^8` (latest still declares `^7.0.0`). `verified`.
+- **GHSA-p8p7-x288-28g6** — `request` SSRF (medium), transitive; **ties to §2E SSRF-WEBHOOK** — no direct exploit surface confirmed. Dated 2026-06-19. **Remove-when:** the `request`-bearing dep is replaced or upstream patches. `verified`.
+- **GHSA-848j-6mx2-7j84** — `elliptic` risky-crypto (low), transitive (crypto chain); no signing path uses the affected curve. Dated 2026-06-19. **Remove-when:** the consuming dep bumps `elliptic`. `verified`.
 
 ### Stale — re-audit before acting (> 2wk)
 
