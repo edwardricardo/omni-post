@@ -8,6 +8,7 @@
 import type { Result } from "@shared/types";
 import type { PostCommentAggregate } from "../aggregates/PostCommentAggregate.js";
 import type { EntityNotFoundError } from "../errors/index.js";
+import type { AccountId } from "../value-objects/EntityId.js";
 
 /**
  * @interface PostCommentFindOptions
@@ -46,11 +47,23 @@ export interface PostCommentRepository {
    * @method findByPost
    * @description Retrieves comments for a post with cursor-based pagination.
    *   When parentOnly is true, only top-level comments (no parentId) are returned.
+   *
+   *   `callerAccountId` is the cross-tenant isolation gate (CWE-639). Comments
+   *   are transitively tenant-scoped (comment -> post -> project -> accountId),
+   *   so the Prisma `$extends` guard cannot auto-inject. When set, the adapter
+   *   adds a `post: { project: { accountId } }` joined filter so a foreign
+   *   post's comments are never returned (an empty page instead of another
+   *   tenant's comments). Optional for admin/internal cross-tenant reads.
    * @param postId - The post ID to find comments for
    * @param options - Pagination and filter options
+   * @param callerAccountId - Caller's tenant; joined-filter gate when present
    * @returns Paginated result with comments and optional next cursor
    */
-  findByPost(postId: string, options: PostCommentFindOptions): Promise<PostCommentPaginatedResult>;
+  findByPost(
+    postId: string,
+    options: PostCommentFindOptions,
+    callerAccountId?: AccountId
+  ): Promise<PostCommentPaginatedResult>;
 
   /**
    * @method findReplies
@@ -78,8 +91,14 @@ export interface PostCommentRepository {
   /**
    * @method countByPost
    * @description Counts non-deleted comments for a given post.
+   *
+   *   `callerAccountId` is the same cross-tenant gate as `findByPost` (CWE-639):
+   *   when set, the count is scoped to the caller's tenant via the
+   *   `post: { project: { accountId } }` joined filter, so a foreign post
+   *   reports a total of 0 rather than another tenant's comment count.
    * @param postId - The post ID
+   * @param callerAccountId - Caller's tenant; joined-filter gate when present
    * @returns The count of active (non-deleted) comments
    */
-  countByPost(postId: string): Promise<number>;
+  countByPost(postId: string, callerAccountId?: AccountId): Promise<number>;
 }

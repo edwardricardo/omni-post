@@ -18,6 +18,7 @@ import type {
 import { NotificationEntity } from "@core/domain/entities/Notification.js";
 import { NotificationId } from "@core/domain/value-objects/NotificationId.js";
 import { NotificationType } from "@core/domain/value-objects/NotificationType.js";
+import { AccountId } from "@core/domain/index.js";
 import { EntityNotFoundError } from "@core/domain/errors/index.js";
 
 /**
@@ -251,6 +252,26 @@ export class PrismaNotificationRepository
     await this.prisma.notification.delete({
       where: { id },
     });
+  }
+
+  /**
+   * @method findRecipientAccountId
+   * @description Resolves the owning tenant of a notification recipient via the
+   *   recipient's CustomerUser.accountId. Returns `null` when the recipient
+   *   does not exist.
+   * @param recipientId - The recipient's CustomerUser ID
+   */
+  async findRecipientAccountId(recipientId: string): Promise<AccountId | null> {
+    const row = await this.prisma.customerUser.findUnique({
+      where: { id: recipientId },
+      select: { accountId: true },
+    });
+
+    if (!row) {
+      return null;
+    }
+
+    return AccountId.fromStringUnsafe(row.accountId);
   }
 
   // --- NotificationPreferenceRepository ---

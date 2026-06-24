@@ -302,4 +302,18 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
         createdAt: log.createdAt,
       }));
   }
+
+  /**
+   * Resolve the accountId that owns this project (CWE-639 ownership gate).
+   * Returns null when the project does not exist or is soft-deleted, so a
+   * non-owning caller cannot distinguish "not yours" from "gone".
+   */
+  async findOwnerAccountId(projectId: ProjectId): Promise<AccountId | null> {
+    const row = await this.prisma.project.findFirst({
+      where: { id: projectId.value, deletedAt: null },
+      select: { accountId: true },
+    });
+    if (!row) return null;
+    return AccountId.fromStringUnsafe(row.accountId);
+  }
 }

@@ -7,6 +7,7 @@
  */
 import type { Result } from "@shared/types";
 import type { DomainError } from "../errors/index.js";
+import type { AccountId } from "../value-objects/EntityId.js";
 
 /**
  * @interface RecurringPostData
@@ -54,8 +55,25 @@ export interface RecurringPostRepository {
   /**
    * @method findByProjectId
    * @description Finds all recurring posts belonging to a project.
+   *
+   * When `callerAccountId` is provided, a `project: { accountId }` joined filter
+   * is applied (CWE-639): RecurringPost is transitively tenant-scoped via
+   * Project, so the `$extends` guard cannot auto-inject. A foreign `projectId`
+   * returns an empty list rather than another tenant's schedules.
    */
-  findByProjectId(projectId: string): Promise<Result<RecurringPostData[], DomainError>>;
+  findByProjectId(
+    projectId: string,
+    callerAccountId?: AccountId
+  ): Promise<Result<RecurringPostData[], DomainError>>;
+
+  /**
+   * @method findOwnerAccountId
+   * @description Resolves the owning tenant of a recurring post via the
+   *   `recurringPost -> project -> accountId` chain. Returns `null` when the
+   *   schedule does not exist. Used by the use-case-level cross-tenant ownership
+   *   gate (CWE-639) — a non-owner is rejected with NOT_FOUND (anti-enumeration).
+   */
+  findOwnerAccountId(id: string): Promise<AccountId | null>;
 
   /**
    * @method findActiveByNextScheduled

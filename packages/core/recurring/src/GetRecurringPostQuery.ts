@@ -9,10 +9,18 @@ import { type UseCase, UseCaseError } from "@core/application/UseCase.js";
 import type { RecurringPostRepository } from "@core/domain/repositories/RecurringPostRepository.js";
 
 /**
- * Input parameters for the query
+ * Input parameters for the query.
+ *
+ * `callerAccountId` is the cross-tenant ownership gate (CWE-639). RecurringPost
+ * is transitively tenant-scoped (FK -> Project.accountId), so the Prisma
+ * `$extends` guard cannot auto-inject; when set, the query resolves the
+ * schedule's owner via `findOwnerAccountId` and returns `null` (same shape as a
+ * missing schedule, anti-enumeration) for a foreign caller. Optional for
+ * backward compat with admin/internal callers that bypass the check.
  */
 export interface GetRecurringPostParams {
   id: string;
+  callerAccountId?: string;
 }
 
 /**
@@ -58,6 +66,16 @@ export class GetRecurringPostQuery implements UseCase<
   async execute(
     params: GetRecurringPostParams
   ): Promise<Result<RecurringPostDetailDTO | null, UseCaseError>> {
+    // Cross-tenant ownership gate (CWE-639). Resolve the owner via
+    // Project.accountId before reading. A caller asking for a schedule they do
+    // not own gets `null` — same shape as a missing schedule (no enumeration).
+    if (params.callerAccountId !== undefined) {
+      const ownerAccountId = await this.recurringPostRepo.findOwnerAccountId(params.id);
+      if (!ownerAccountId || ownerAccountId.value !== params.callerAccountId) {
+        return ok(null);
+      }
+    }
+
     const findResult = await this.recurringPostRepo.findById(params.id);
 
     if (!findResult.ok) {

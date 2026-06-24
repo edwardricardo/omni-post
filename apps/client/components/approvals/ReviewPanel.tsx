@@ -182,7 +182,7 @@ export function ReviewPanel({ approval, reviewerId, onClose }: ReviewPanelProps)
           </div>
 
           {/* Comment thread */}
-          <CommentThread postId={approval.postId} authorId={reviewerId} />
+          <CommentThread postId={approval.postId} />
         </div>
       </div>
 

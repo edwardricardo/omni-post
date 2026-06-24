@@ -213,12 +213,21 @@ class NotificationRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request body");
     }
 
+    const user = request.customerUser;
+    if (!user) {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
+
     const body = validation.value.body;
     const result = await this.createUseCase.execute({
       recipientId: body.recipientId,
       type: body.type as import("@core/domain/value-objects/NotificationType.js").NotificationTypeValue,
       title: body.title,
       body: body.body,
+      // Cross-tenant recipient gate (CWE-639): a customer may only notify
+      // recipients within their own account; a foreign recipient resolves to
+      // not-found.
+      callerAccountId: user.accountId,
       ...(body.resourceType !== undefined && { resourceType: body.resourceType }),
       ...(body.resourceId !== undefined && { resourceId: body.resourceId }),
       ...(body.actorId !== undefined && { actorId: body.actorId }),

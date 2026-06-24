@@ -8,6 +8,7 @@ import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import type { RecurringPostRepository } from "@core/domain/repositories/RecurringPostRepository.js";
 import type { PostRepository, EventDispatcher } from "@core/domain/index.js";
+import type { ProjectRepositoryPort } from "@core/domain/repositories/ProjectRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { Logger } from "pino";
@@ -30,11 +31,14 @@ import { createLogger } from "../../lib/logger.js";
  */
 export function setupRecurringPostUseCases(container: Container): void {
   const repo = () => container.resolve<RecurringPostRepository>(TOKENS.RecurringPostRepository);
+  const projectRepo = () => container.resolve<ProjectRepositoryPort>(TOKENS.ProjectRepository);
   const uow = () => container.resolve<UnitOfWork>(TOKENS.UnitOfWork);
 
   container.register(
     TOKENS.CreateRecurringPostUseCase,
-    () => new CreateRecurringPostUseCase(repo(), uow()),
+    // ProjectRepository powers the create-in-foreign-project ownership gate
+    // (CWE-639) — the scheduler fans out posts into projectId on each tick.
+    () => new CreateRecurringPostUseCase(repo(), projectRepo(), uow()),
     true
   );
 

@@ -8,6 +8,7 @@
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { RecurringPostRepository } from "@core/domain/repositories/RecurringPostRepository.js";
+import type { ProjectRepositoryPort } from "@core/domain/repositories/ProjectRepository.js";
 import { RecurringPost, CronExpression } from "@core/domain/entities/RecurringPost.js";
 import { ProjectId } from "@core/domain/value-objects/EntityId.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
@@ -26,6 +27,15 @@ export interface CreateRecurringPostCommand {
   maxOccurrences?: number;
   channels: string[];
   contentVariation?: string;
+  /**
+   * Cross-tenant ownership gate (CWE-639 create-in-foreign-project). When set,
+   * the use case resolves the target project's owner via `ProjectRepository`
+   * and rejects a foreign caller with NOT_FOUND (anti-enumeration) before any
+   * write — closing the recurrence content-injection vector (a foreign
+   * `projectId` would otherwise have the scheduler fan out posts into another
+   * tenant's project). Optional for system/admin callers.
+   */
+  callerAccountId?: string;
 }
 
 /**
@@ -61,6 +71,7 @@ export class CreateRecurringPostUseCase implements UseCase<
 > {
   constructor(
     private readonly recurringPostRepo: RecurringPostRepository,
+    private readonly projectRepository?: ProjectRepositoryPort,
     private readonly unitOfWork?: UnitOfWork
   ) {}
 
@@ -85,6 +96,20 @@ export class CreateRecurringPostUseCase implements UseCase<
       return err(
         new UseCaseError(projectIdResult.error.message, USE_CASE_ERRORS.VALIDATION_FAILED)
       );
+    }
+
+    // Cross-tenant ownership gate (CWE-639 create-in-foreign-project). The
+    // recurrence scheduler fans out posts into `projectId` on every tick, so a
+    // foreign projectId here is an active cross-tenant content-injection vector.
+    // Reject a non-owning caller with NOT_FOUND (anti-enumeration) before any
+    // write.
+    if (command.callerAccountId !== undefined && this.projectRepository) {
+      const ownerAccountId = await this.projectRepository.findOwnerAccountId(projectIdResult.value);
+      if (!ownerAccountId || ownerAccountId.value !== command.callerAccountId) {
+        return err(
+          new UseCaseError(`Project not found: ${command.projectId}`, USE_CASE_ERRORS.NOT_FOUND)
+        );
+      }
     }
 
     // Create domain entity (validates all invariants)

@@ -14,6 +14,7 @@ import type {
 } from "@core/domain/index.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { BusinessMetricsPort } from "@core/domain/repositories/BusinessMetricsPort.js";
+import type { ProjectRepositoryPort } from "@core/domain/repositories/ProjectRepository.js";
 import type { QueuePortRegistry } from "@ports/core";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import type { BulkScheduleBatchRepository } from "@core/domain/repositories/BulkScheduleBatchRepository.js";
@@ -55,6 +56,9 @@ export function setupPostUseCases(container: Container): void {
         container.resolve<PostRepository>(TOKENS.PostRepository),
         container.resolve<EventDispatcher>(TOKENS.EventDispatcher),
         container.resolve<BusinessMetricsPort>(TOKENS.BusinessMetricsPort),
+        // ProjectRepository powers the create-in-foreign-project ownership gate
+        // (CWE-639) — resolves project.accountId for the caller's tenant check.
+        container.resolve<ProjectRepositoryPort>(TOKENS.ProjectRepository),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true

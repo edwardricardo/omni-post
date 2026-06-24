@@ -36,17 +36,15 @@ async function fetchComments(postId: string): Promise<Comment[]> {
   return envelope.ok && envelope.data ? envelope.data : [];
 }
 
-async function addComment(
-  postId: string,
-  authorId: string,
-  body: string,
-  parentId?: string
-): Promise<Comment> {
+async function addComment(postId: string, body: string, parentId?: string): Promise<Comment> {
+  // `authorId` is intentionally NOT sent: the server derives the author from the
+  // authenticated session token (identity gate, CWE-639) and ignores any
+  // body-supplied author. Sending it would be dead, misleading payload.
   const res = await fetch(`/api/backend/posts/${postId}/comments`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ authorId, body, ...(parentId ? { parentId } : {}) }),
+    body: JSON.stringify({ body, ...(parentId ? { parentId } : {}) }),
   });
   if (!res.ok) throw new Error("Failed to add comment");
   const envelope = (await res.json()) as { ok: boolean; data?: Comment };
@@ -82,15 +80,8 @@ export function useComments(postId: string | null) {
 export function useAddComment(postId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      authorId,
-      body,
-      parentId,
-    }: {
-      authorId: string;
-      body: string;
-      parentId?: string;
-    }) => addComment(postId, authorId, body, parentId),
+    mutationFn: ({ body, parentId }: { body: string; parentId?: string }) =>
+      addComment(postId, body, parentId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["comments", postId] });
     },

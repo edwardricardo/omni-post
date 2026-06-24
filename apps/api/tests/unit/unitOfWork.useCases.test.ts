@@ -77,7 +77,13 @@ describe("D3.3: CreatePostUseCase with UnitOfWork", () => {
     const repo = createMockPostRepo();
     const dispatcher = createMockEventDispatcher();
 
-    const useCase = new CreatePostUseCase(repo, dispatcher, createMockBusinessMetrics(), uow);
+    const useCase = new CreatePostUseCase(
+      repo,
+      dispatcher,
+      createMockBusinessMetrics(),
+      undefined,
+      uow
+    );
     const result = await useCase.execute(validInput);
 
     expect(result.ok).toBeTruthy();
@@ -101,7 +107,13 @@ describe("D3.3: CreatePostUseCase with UnitOfWork", () => {
     });
     const dispatcher = createMockEventDispatcher();
 
-    const useCase = new CreatePostUseCase(repo, dispatcher, createMockBusinessMetrics(), uow);
+    const useCase = new CreatePostUseCase(
+      repo,
+      dispatcher,
+      createMockBusinessMetrics(),
+      undefined,
+      uow
+    );
     const result = await useCase.execute(validInput);
 
     expect(result.ok).toBeFalsy();

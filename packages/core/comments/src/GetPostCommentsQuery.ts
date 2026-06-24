@@ -9,6 +9,7 @@ import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { PostCommentRepository } from "@core/domain/repositories/PostCommentRepository.js";
 import type { PostCommentAggregate } from "@core/domain/aggregates/PostCommentAggregate.js";
+import { AccountId } from "@core/domain/value-objects/EntityId.js";
 
 /**
  * Input parameters for the query
@@ -18,6 +19,14 @@ export interface GetPostCommentsQueryParams {
   cursor?: string;
   limit?: number;
   parentOnly?: boolean;
+  /**
+   * Cross-tenant isolation gate (CWE-639 read-foreign-post). When set, the
+   * query threads it into the repository, which applies a
+   * `post: { project: { accountId } }` joined filter so a foreign post's
+   * comments are never returned (empty page, zero count). Optional for
+   * admin/internal cross-tenant reads.
+   */
+  callerAccountId?: string;
 }
 
 /**
@@ -71,12 +80,25 @@ export class GetPostCommentsQuery implements UseCase<
       const limit = params.limit ?? 20;
       const parentOnly = params.parentOnly ?? true;
 
+      // Cross-tenant isolation gate (CWE-639): thread the caller's tenant into
+      // the repository so the joined `post: { project: { accountId } }` filter
+      // hides a foreign post's comments (empty page + zero count). Omitted for
+      // admin/internal callers that legitimately read across tenants.
+      const callerAccountId =
+        params.callerAccountId !== undefined
+          ? AccountId.fromStringUnsafe(params.callerAccountId)
+          : undefined;
+
       // Fetch top-level comments with pagination
-      const result = await this.commentRepo.findByPost(params.postId, {
-        limit,
-        ...(params.cursor !== undefined && { cursor: params.cursor }),
-        ...(parentOnly !== undefined && { parentOnly }),
-      });
+      const result = await this.commentRepo.findByPost(
+        params.postId,
+        {
+          limit,
+          ...(params.cursor !== undefined && { cursor: params.cursor }),
+          ...(parentOnly !== undefined && { parentOnly }),
+        },
+        callerAccountId
+      );
 
       // For each top-level comment, load replies
       const itemsWithReplies: CommentDTO[] = [];
@@ -95,8 +117,8 @@ export class GetPostCommentsQuery implements UseCase<
         itemsWithReplies.push(dto);
       }
 
-      // Get total count for the post
-      const totalCount = await this.commentRepo.countByPost(params.postId);
+      // Get total count for the post (same tenant gate as findByPost)
+      const totalCount = await this.commentRepo.countByPost(params.postId, callerAccountId);
 
       return ok({
         items: itemsWithReplies,

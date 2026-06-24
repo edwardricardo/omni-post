@@ -7,6 +7,7 @@
 import type { Result } from "@shared/types";
 import type { NotificationEntity } from "../entities/Notification.js";
 import type { EntityNotFoundError } from "../errors/index.js";
+import type { AccountId } from "../value-objects/EntityId.js";
 
 /**
  * @interface NotificationPreferenceDTO
@@ -99,6 +100,18 @@ export interface NotificationRepository {
    * @param id - The notification ID string
    */
   delete(id: string): Promise<void>;
+
+  /**
+   * @method findRecipientAccountId
+   * @description Resolves the owning tenant of a notification recipient via the
+   *   `recipient (CustomerUser) -> accountId` chain. Returns `null` when the
+   *   recipient does not exist. Used by the cross-tenant recipient gate
+   *   (CWE-639) on notification creation — a caller may only notify recipients
+   *   within their own account; a foreign/unknown recipient is rejected with
+   *   NOT_FOUND (anti-enumeration).
+   * @param recipientId - The recipient's CustomerUser ID
+   */
+  findRecipientAccountId(recipientId: string): Promise<AccountId | null>;
 }
 
 /**

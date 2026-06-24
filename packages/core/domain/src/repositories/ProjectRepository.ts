@@ -94,4 +94,14 @@ export interface ProjectRepositoryPort {
    * Ordered by creation date descending, limited to 100 entries.
    */
   findPublishLogsByProjectId(id: ProjectId): Promise<PublishLogView[]>;
+
+  /**
+   * Resolve the accountId that owns this project. Used by mutating use cases
+   * that accept a customer-supplied `projectId` to assert caller ownership
+   * before writing into it (CWE-639 create-in-foreign-project). A non-owning
+   * caller is rejected with NOT_FOUND (anti-enumeration — same shape as a
+   * missing project). Returns null when the project does not exist (or is
+   * soft-deleted), so the caller cannot distinguish "not yours" from "gone".
+   */
+  findOwnerAccountId(projectId: ProjectId): Promise<AccountId | null>;
 }

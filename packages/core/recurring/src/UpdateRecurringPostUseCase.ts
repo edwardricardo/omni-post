@@ -13,7 +13,14 @@ import { RecurringPostId, ProjectId } from "@core/domain/value-objects/EntityId.
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 
 /**
- * Input DTO for updating a recurring post
+ * Input DTO for updating a recurring post.
+ *
+ * `callerAccountId` is the cross-tenant ownership gate (CWE-639). RecurringPost
+ * is transitively tenant-scoped (FK -> Project.accountId), so the Prisma
+ * `$extends` guard cannot auto-inject; when set, the use case resolves the
+ * schedule's owner via `findOwnerAccountId` and rejects a foreign caller with
+ * NOT_FOUND (anti-enumeration — same shape as a missing schedule). Optional for
+ * backward compat with admin/internal callers that bypass the check.
  */
 export interface UpdateRecurringPostCommand {
   id: string;
@@ -25,6 +32,7 @@ export interface UpdateRecurringPostCommand {
   maxOccurrences?: number;
   channels?: string[];
   contentVariation?: string;
+  callerAccountId?: string;
 }
 
 /**
@@ -67,6 +75,18 @@ export class UpdateRecurringPostUseCase implements UseCase<
   async execute(
     command: UpdateRecurringPostCommand
   ): Promise<Result<UpdateRecurringPostOutput, UseCaseError>> {
+    // Cross-tenant ownership gate (CWE-639). Resolve the owner via
+    // Project.accountId before loading. A caller asking to update a schedule
+    // they do not own gets NOT_FOUND, not FORBIDDEN (no enumeration).
+    if (command.callerAccountId !== undefined) {
+      const ownerAccountId = await this.recurringPostRepo.findOwnerAccountId(command.id);
+      if (!ownerAccountId || ownerAccountId.value !== command.callerAccountId) {
+        return err(
+          new UseCaseError(`Recurring post not found: ${command.id}`, USE_CASE_ERRORS.NOT_FOUND)
+        );
+      }
+    }
+
     // Load existing entity
     const findResult = await this.recurringPostRepo.findById(command.id);
     if (!findResult.ok) {

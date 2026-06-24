@@ -14,7 +14,16 @@ import type { NotificationTypeValue } from "@core/domain/value-objects/Notificat
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 
 /**
- * Input DTO for creating a notification
+ * Input DTO for creating a notification.
+ *
+ * `callerAccountId` is the cross-tenant recipient gate (CWE-639). The
+ * POST /notifications route runs under customer auth, so a caller must only be
+ * able to notify recipients within their own account. When set, the use case
+ * resolves the recipient's owning account via `findRecipientAccountId` and
+ * rejects a foreign/unknown recipient with NOT_FOUND (anti-enumeration — same
+ * shape as a missing recipient). Optional for backward compat with
+ * admin/internal/system callers (e.g. event handlers) that legitimately notify
+ * across the recipient set.
  */
 export interface CreateNotificationInput {
   recipientId: string;
@@ -26,6 +35,7 @@ export interface CreateNotificationInput {
   actorId?: string;
   actorName?: string;
   metadata?: Record<string, unknown>;
+  callerAccountId?: string;
 }
 
 /**
@@ -60,6 +70,22 @@ export class CreateNotificationUseCase implements UseCase<
   async execute(
     input: CreateNotificationInput
   ): Promise<Result<CreateNotificationOutput, UseCaseError>> {
+    // Cross-tenant recipient gate (CWE-639). Resolve the recipient's owning
+    // account before doing any work. A caller targeting a recipient outside
+    // their own account (or a recipient that does not exist) gets NOT_FOUND,
+    // not FORBIDDEN — the return shape matches a missing recipient (no
+    // enumeration). Skipped for internal/admin callers that omit callerAccountId.
+    if (input.callerAccountId !== undefined) {
+      const recipientAccountId = await this.notificationRepo.findRecipientAccountId(
+        input.recipientId
+      );
+      if (!recipientAccountId || recipientAccountId.value !== input.callerAccountId) {
+        return err(
+          new UseCaseError(`Recipient not found: ${input.recipientId}`, USE_CASE_ERRORS.NOT_FOUND)
+        );
+      }
+    }
+
     const doWork = async (): Promise<Result<CreateNotificationOutput, UseCaseError>> => {
       // Check if recipient has disabled this notification type
       const preferences = await this.preferenceRepo.findByMember(input.recipientId);

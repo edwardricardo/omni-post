@@ -26,14 +26,16 @@ const CommentIdParamsSchema = z.object({
   id: z.string().uuid(),
 });
 
+// Identity gate (CWE-639): the author/editor are NOT accepted from the request
+// body — they are derived from the authenticated token (`customerUser.id`).
+// Accepting them from the body lets a caller forge authorship or bypass the
+// author-only edit invariant by claiming to be someone else.
 const CreateCommentBodySchema = z.object({
-  authorId: z.string().uuid(),
   body: z.string().min(1).max(2000),
   parentId: z.string().uuid().optional(),
 });
 
 const EditCommentBodySchema = z.object({
-  editorId: z.string().uuid(),
   body: z.string().min(1).max(2000),
 });
 
@@ -94,13 +96,20 @@ class CommentRouteHandler extends BaseRouteHandler {
     const body = bodyValidation.value.body;
     const result = await this.createUseCase.execute({
       postId: paramsValidation.value.params.postId,
-      authorId: body.authorId,
+      // Identity gate (CWE-639): author is the authenticated token user, never a
+      // body-supplied value — prevents author forgery.
+      authorId: user.id,
+      // Cross-tenant gate (CWE-639): the caller may only comment on a post their
+      // own account owns — a foreign postId resolves to not-found at the
+      // use-case boundary (post -> project -> accountId).
+      callerAccountId: user.accountId,
       body: body.body,
       ...(body.parentId !== undefined && { parentId: body.parentId }),
     });
 
     if (!result.ok) {
-      return this.sendError(ctx, 400, result.error.message);
+      const statusCode = result.error.code === "NOT_FOUND" ? 404 : 400;
+      return this.sendError(ctx, statusCode, result.error.message);
     }
 
     this.sendSuccess(ctx, result.value, 201);
@@ -137,6 +146,10 @@ class CommentRouteHandler extends BaseRouteHandler {
     const query = queryValidation.value.query;
     const result = await this.getCommentsQuery.execute({
       postId: paramsValidation.value.params.postId,
+      // Cross-tenant gate (CWE-639): a foreign post's comments must never be
+      // returned — the query applies a post -> project -> accountId joined
+      // filter so a non-owned postId yields an empty page.
+      callerAccountId: user.accountId,
       ...(query.cursor !== undefined && { cursor: query.cursor }),
       ...(query.limit !== undefined && { limit: query.limit }),
       ...(query.parentOnly !== undefined && { parentOnly: query.parentOnly }),
@@ -180,7 +193,10 @@ class CommentRouteHandler extends BaseRouteHandler {
     const editBody = bodyValidation.value.body;
     const result = await this.editUseCase.execute({
       commentId: paramsValidation.value.params.id,
-      editorId: editBody.editorId,
+      // Identity gate (CWE-639): editor is the authenticated token user, never a
+      // body-supplied value — the domain author-only invariant then rejects a
+      // non-author edit instead of being bypassed by a spoofed editorId.
+      editorId: user.id,
       body: editBody.body,
     });
 

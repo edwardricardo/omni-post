@@ -92,6 +92,10 @@ class RecurringPostRouteHandler extends BaseRouteHandler {
     const body = bodyValidation.value.body;
     const result = await this.createUseCase.execute({
       projectId: body.projectId,
+      // Cross-tenant gate (CWE-639): a recurring schedule may only target a
+      // project the caller's account owns — a foreign projectId resolves to
+      // not-found before the scheduler can fan out posts into another tenant.
+      callerAccountId: user.accountId,
       templatePostId: body.templatePostId,
       name: body.name,
       cronExpression: body.cronExpression,
@@ -104,7 +108,12 @@ class RecurringPostRouteHandler extends BaseRouteHandler {
     });
 
     if (!result.ok) {
-      const statusCode = result.error.code === "VALIDATION_FAILED" ? 400 : 500;
+      const statusCode =
+        result.error.code === "NOT_FOUND"
+          ? 404
+          : result.error.code === "VALIDATION_FAILED"
+            ? 400
+            : 500;
       return this.sendError(ctx, statusCode, result.error.message);
     }
 
@@ -133,6 +142,9 @@ class RecurringPostRouteHandler extends BaseRouteHandler {
 
     const result = await this.listQuery.execute({
       projectId: queryValidation.value.query.projectId,
+      // Cross-tenant gate (CWE-639): a foreign projectId must not leak another
+      // tenant's recurring schedules.
+      callerAccountId: user.accountId,
     });
 
     if (!result.ok) {
@@ -164,6 +176,8 @@ class RecurringPostRouteHandler extends BaseRouteHandler {
 
     const result = await this.getQuery.execute({
       id: paramsValidation.value.params.id,
+      // Cross-tenant gate (CWE-639): a foreign schedule id resolves to not-found.
+      callerAccountId: user.accountId,
     });
 
     if (!result.ok) {
@@ -208,6 +222,8 @@ class RecurringPostRouteHandler extends BaseRouteHandler {
     const updateBody = bodyValidation.value.body;
     const result = await this.updateUseCase.execute({
       id: paramsValidation.value.params.id,
+      // Cross-tenant gate (CWE-639): caller can only update schedules they own.
+      callerAccountId: user.accountId,
       ...(updateBody.name !== undefined && { name: updateBody.name }),
       ...(updateBody.cronExpression !== undefined && { cronExpression: updateBody.cronExpression }),
       ...(updateBody.timezone !== undefined && { timezone: updateBody.timezone }),
@@ -255,6 +271,8 @@ class RecurringPostRouteHandler extends BaseRouteHandler {
 
     const result = await this.deactivateUseCase.execute({
       id: paramsValidation.value.params.id,
+      // Cross-tenant gate (CWE-639): caller can only deactivate schedules they own.
+      callerAccountId: user.accountId,
     });
 
     if (!result.ok) {

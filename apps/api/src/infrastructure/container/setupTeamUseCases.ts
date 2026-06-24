@@ -198,6 +198,9 @@ export function setupTeamUseCases(container: Container): void {
     () =>
       new CreateCommentUseCase(
         container.resolve<PostCommentRepository>(TOKENS.PostCommentRepository),
+        // PostRepository powers the create-on-foreign-post ownership gate
+        // (CWE-639) — resolves post -> project -> accountId for the tenant check.
+        container.resolve<PostRepository>(TOKENS.PostRepository),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true

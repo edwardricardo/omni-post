@@ -66,7 +66,7 @@ describe("CreatePostUseCase — media extension", () => {
       const repo = makeMockRepo();
       const dispatcher = makeMockDispatcher();
       const metrics = makeMockMetrics();
-      const useCase = new CreatePostUseCase(repo, dispatcher, metrics, passthroughUow);
+      const useCase = new CreatePostUseCase(repo, dispatcher, metrics, undefined, passthroughUow);
 
       const result = await useCase.execute({ ...BASE_INPUT, media: [] });
 
@@ -77,7 +77,7 @@ describe("CreatePostUseCase — media extension", () => {
       const repo = makeMockRepo();
       const dispatcher = makeMockDispatcher();
       const metrics = makeMockMetrics();
-      const useCase = new CreatePostUseCase(repo, dispatcher, metrics, passthroughUow);
+      const useCase = new CreatePostUseCase(repo, dispatcher, metrics, undefined, passthroughUow);
 
       const result = await useCase.execute(BASE_INPUT);
 
@@ -88,7 +88,7 @@ describe("CreatePostUseCase — media extension", () => {
       const repo = makeMockRepo();
       const dispatcher = makeMockDispatcher();
       const metrics = makeMockMetrics();
-      const useCase = new CreatePostUseCase(repo, dispatcher, metrics, passthroughUow);
+      const useCase = new CreatePostUseCase(repo, dispatcher, metrics, undefined, passthroughUow);
 
       const result = await useCase.execute({
         ...BASE_INPUT,
@@ -102,7 +102,7 @@ describe("CreatePostUseCase — media extension", () => {
       const repo = makeMockRepo();
       const dispatcher = makeMockDispatcher();
       const metrics = makeMockMetrics();
-      const useCase = new CreatePostUseCase(repo, dispatcher, metrics, passthroughUow);
+      const useCase = new CreatePostUseCase(repo, dispatcher, metrics, undefined, passthroughUow);
 
       const result = await useCase.execute({
         ...BASE_INPUT,
@@ -116,7 +116,7 @@ describe("CreatePostUseCase — media extension", () => {
       const repo = makeMockRepo();
       const dispatcher = makeMockDispatcher();
       const metrics = makeMockMetrics();
-      const useCase = new CreatePostUseCase(repo, dispatcher, metrics, passthroughUow);
+      const useCase = new CreatePostUseCase(repo, dispatcher, metrics, undefined, passthroughUow);
 
       const result = await useCase.execute({
         ...BASE_INPUT,
@@ -131,7 +131,7 @@ describe("CreatePostUseCase — media extension", () => {
       const repo = makeMockRepo();
       const dispatcher = makeMockDispatcher();
       const metrics = makeMockMetrics();
-      const useCase = new CreatePostUseCase(repo, dispatcher, metrics, passthroughUow);
+      const useCase = new CreatePostUseCase(repo, dispatcher, metrics, undefined, passthroughUow);
 
       await useCase.execute({
         ...BASE_INPUT,

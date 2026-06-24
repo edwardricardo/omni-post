@@ -38,10 +38,24 @@ const commentDefaults = {
   parentId: null,
 };
 
+// Cross-tenant ownership gate (CWE-639) resolves a post's owner via
+// `post.findFirst({ select: { project: { select: { accountId } } } })`. The mock
+// post store denormalizes the owning accountId onto each post row and this
+// resolver surfaces it as the nested `project` relation the adapter selects.
+const resolvePostProject = (
+  record: Record<string, unknown>,
+  include: Record<string, boolean | Record<string, unknown>>
+): Record<string, unknown> => {
+  if (include.project) {
+    return { ...record, project: { accountId: record.accountId } };
+  }
+  return { ...record };
+};
+
 // Add extra models needed by comment routes and their repositories
 const extraModels = {
   postComment: buildModelMock(createStore(), commentDefaults),
-  post: buildModelMock(createStore(), postDefaults),
+  post: buildModelMock(createStore(), postDefaults, "id", resolvePostProject),
   teamMember: buildModelMock(createStore(), {
     isActive: true,
     role: "MEMBER",
@@ -105,11 +119,13 @@ setRedisInstance(null as never);
 // ---------------------------------------------------------------------------
 
 const timestamp = Date.now();
-const adminEmail = `comment-admin-${timestamp}@example.com`;
-const testPassword = "TestPassword123";
+// Stable account id shared by the test account, the test post (denormalized for
+// the ownership resolver), and every customer token — so the cross-tenant
+// create/read gate (CWE-639) sees the caller as the post's owner.
+const testAccountId = `acct-${timestamp}`;
 
 let app: import("fastify").FastifyInstance;
-let adminToken: string;
+let customerToken: string;
 let testPostId: string;
 let testMemberId: string;
 
@@ -140,23 +156,20 @@ async function createTestApp() {
 }
 
 describe("commentRoutes Integration Tests", () => {
-  let authSvc: InstanceType<typeof AuthService>;
-
   beforeAll(async () => {
     const result = await createTestApp();
     app = result.app;
-    authSvc = result.authSvc;
 
-    // Create account
-    const account = await (mockPrisma.prisma.account as { create: Function }).create({
+    // Create account with the stable id so customer tokens (accountId) match.
+    await (mockPrisma.prisma.account as { create: Function }).create({
       data: {
+        id: testAccountId,
         email: `comment-account-${timestamp}@example.com`,
         name: "Comment Test Account",
         subscription: "PRO",
         maxProjects: 5,
       },
     });
-    const testAccountId = account.id;
 
     // Create project
     const project = await (mockPrisma.prisma.project as { create: Function }).create({
@@ -166,10 +179,13 @@ describe("commentRoutes Integration Tests", () => {
       },
     });
 
-    // Create post
+    // Create post. `accountId` is denormalized onto the mock row so the
+    // post-ownership resolver (project -> accountId) can resolve the owner via
+    // the resolvePostProject include resolver.
     const post = await (mockPrisma.prisma as Record<string, { create: Function }>).post.create({
       data: {
         projectId: project.id,
+        accountId: testAccountId,
         status: "DRAFT",
         contents: [],
         media: [],
@@ -191,15 +207,17 @@ describe("commentRoutes Integration Tests", () => {
     });
     testMemberId = member.id;
 
-    // Register admin user and get token
-    await authSvc.registerAdmin(adminEmail, testPassword, "Comment Admin", "ADMIN");
-    const loginRes = await app.inject({
-      method: "POST",
-      url: "/auth/login",
-      payload: { email: adminEmail, password: testPassword },
+    // Customer token whose accountId owns the test post — used for the
+    // customer-facing comment create/list/edit endpoints so the cross-tenant
+    // gate (CWE-639) admits the caller as the owner. The comment routes use
+    // customer auth (requireClientAuth), not admin auth.
+    customerToken = signCustomerAccessToken({
+      sub: testMemberId,
+      accountId: testAccountId,
+      roleId: "role-member",
+      roleName: "MEMBER",
+      permissions: [],
     });
-    const loginBody = JSON.parse(loginRes.body);
-    adminToken = loginBody.data?.accessToken ?? "";
   });
 
   afterAll(async () => {
@@ -225,7 +243,7 @@ describe("commentRoutes Integration Tests", () => {
       const response = await app.inject({
         method: "POST",
         url: `/posts/${testPostId}/comments`,
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${customerToken}` },
         payload: {
           authorId: testMemberId,
           body: "This is a test comment",
@@ -243,7 +261,7 @@ describe("commentRoutes Integration Tests", () => {
       const parentResponse = await app.inject({
         method: "POST",
         url: `/posts/${testPostId}/comments`,
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${customerToken}` },
         payload: {
           authorId: testMemberId,
           body: "Parent comment for reply test",
@@ -259,7 +277,7 @@ describe("commentRoutes Integration Tests", () => {
       const replyResponse = await app.inject({
         method: "POST",
         url: `/posts/${testPostId}/comments`,
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${customerToken}` },
         payload: {
           authorId: testMemberId,
           body: "This is a reply",
@@ -277,7 +295,7 @@ describe("commentRoutes Integration Tests", () => {
       const response = await app.inject({
         method: "POST",
         url: `/posts/${testPostId}/comments`,
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${customerToken}` },
         payload: {
           authorId: testMemberId,
           body: "",
@@ -303,7 +321,7 @@ describe("commentRoutes Integration Tests", () => {
       const response = await app.inject({
         method: "GET",
         url: `/posts/${testPostId}/comments`,
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${customerToken}` },
       });
 
       const parsed = JSON.parse(response.body);
@@ -316,7 +334,7 @@ describe("commentRoutes Integration Tests", () => {
       const response = await app.inject({
         method: "GET",
         url: `/posts/${testPostId}/comments?parentOnly=true`,
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${customerToken}` },
       });
 
       const parsed = JSON.parse(response.body);
@@ -335,7 +353,7 @@ describe("commentRoutes Integration Tests", () => {
       const createResponse = await app.inject({
         method: "POST",
         url: `/posts/${testPostId}/comments`,
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${customerToken}` },
         payload: {
           authorId: testMemberId,
           body: "Comment to be edited",
@@ -363,7 +381,7 @@ describe("commentRoutes Integration Tests", () => {
       const response = await app.inject({
         method: "PATCH",
         url: `/comments/${editableCommentId}`,
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${customerToken}` },
         payload: {
           editorId: testMemberId,
           body: "Updated comment body",
@@ -380,7 +398,7 @@ describe("commentRoutes Integration Tests", () => {
       const response = await app.inject({
         method: "PATCH",
         url: `/comments/${editableCommentId}`,
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${customerToken}` },
         payload: {
           editorId: testMemberId,
           body: "",
@@ -404,33 +422,35 @@ describe("commentRoutes Integration Tests", () => {
       // Moderation does not exist yet: only the comment author can delete.
       authorToken = signCustomerAccessToken({
         sub: testMemberId,
-        accountId: "test-account",
+        accountId: testAccountId,
         roleId: "role-member",
         roleName: "MEMBER",
         permissions: [],
       });
       strangerToken = signCustomerAccessToken({
         sub: "stranger-user-id",
-        accountId: "test-account",
+        accountId: testAccountId,
         roleId: "role-owner",
         roleName: "OWNER",
         permissions: [],
       });
 
-      // Create two comments authored by testMemberId
+      // Create two comments authored by testMemberId. The author is derived
+      // from the authenticated token (identity gate, CWE-639), so we mint the
+      // comments with `authorToken` (sub === testMemberId), not the admin token.
       const createDeletable = await app.inject({
         method: "POST",
         url: `/posts/${testPostId}/comments`,
-        headers: { authorization: `Bearer ${adminToken}` },
-        payload: { authorId: testMemberId, body: "Comment to be deleted by author" },
+        headers: { authorization: `Bearer ${authorToken}` },
+        payload: { body: "Comment to be deleted by author" },
       });
       deletableCommentId = JSON.parse(createDeletable.body).data.id;
 
       const createForeign = await app.inject({
         method: "POST",
         url: `/posts/${testPostId}/comments`,
-        headers: { authorization: `Bearer ${adminToken}` },
-        payload: { authorId: testMemberId, body: "Comment a stranger cannot delete" },
+        headers: { authorization: `Bearer ${authorToken}` },
+        payload: { body: "Comment a stranger cannot delete" },
       });
       foreignCommentId = JSON.parse(createForeign.body).data.id;
     });

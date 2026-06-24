@@ -7,8 +7,30 @@
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 
+// Auth mock for the cross-tenant gate (CWE-639): sets `request.customerUser`
+// with an accountId derived from the URL `:accountId` (so :accountId routes act
+// as the owning tenant by default) or from an `x-test-account` header for
+// list/create routes that have no account param.
 vi.mock("../../src/auth/customerAuthMiddleware.js", () => ({
-  requireClientAuth: async () => {},
+  requireClientAuth: async (request: {
+    params?: Record<string, unknown>;
+    headers: Record<string, unknown>;
+    customerUser?: unknown;
+  }) => {
+    const fromParam = request.params?.["accountId"];
+    const fromHeader = request.headers["x-test-account"];
+    const accountId =
+      (typeof fromParam === "string" && fromParam) ||
+      (typeof fromHeader === "string" && fromHeader) ||
+      "self-account";
+    (request as Record<string, unknown>).customerUser = {
+      id: "caller-user",
+      accountId,
+      roleId: "role-owner",
+      roleName: "OWNER",
+      permissions: [],
+    };
+  },
 }));
 
 import { createMockPrismaModule } from "./helpers/mockPrisma.js";
@@ -163,7 +185,7 @@ describe("accountRoutes Unit Tests", () => {
       testAccountId = body.data?.id || "";
     });
 
-    it("should create account with custom maxProjects", async () => {
+    it("ignores a caller-supplied maxProjects and uses the plan default (CWE-639 quota tamper)", async () => {
       const customEmail = `custom-${testEmail}`;
       const response = await app.inject({
         method: "POST",
@@ -171,6 +193,7 @@ describe("accountRoutes Unit Tests", () => {
         payload: {
           email: customEmail,
           name: testName,
+          // Quota tamper attempt — must be ignored by the schema/handler.
           maxProjects: 5,
         },
       });
@@ -178,7 +201,8 @@ describe("accountRoutes Unit Tests", () => {
       const body = JSON.parse(response.body);
 
       expect(response.statusCode).toBe(200);
-      expect(body.data?.maxProjects).toBe(5);
+      // Quota is forced to the plan default regardless of the body value.
+      expect(body.data?.maxProjects).toBe(1);
     });
 
     it("should reject duplicate email", async () => {
@@ -250,7 +274,7 @@ describe("accountRoutes Unit Tests", () => {
       expect([200, 400].includes(response.statusCode)).toBeTruthy();
     });
 
-    it("should reject negative maxProjects", async () => {
+    it("ignores a negative maxProjects (field is not caller-settable) and uses the default", async () => {
       const response = await app.inject({
         method: "POST",
         url: "/accounts",
@@ -261,10 +285,14 @@ describe("accountRoutes Unit Tests", () => {
         },
       });
 
-      expect(response.statusCode).toBe(400);
+      // maxProjects is stripped (not accepted), so the request succeeds with
+      // the plan default rather than failing validation.
+      const body = JSON.parse(response.body);
+      expect(response.statusCode).toBe(200);
+      expect(body.data?.maxProjects).toBe(1);
     });
 
-    it("should reject zero maxProjects", async () => {
+    it("ignores a zero maxProjects (field is not caller-settable) and uses the default", async () => {
       const response = await app.inject({
         method: "POST",
         url: "/accounts",
@@ -275,7 +303,9 @@ describe("accountRoutes Unit Tests", () => {
         },
       });
 
-      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body);
+      expect(response.statusCode).toBe(200);
+      expect(body.data?.maxProjects).toBe(1);
     });
   });
 
@@ -319,10 +349,11 @@ describe("accountRoutes Unit Tests", () => {
   });
 
   describe("GET /accounts", () => {
-    it("should list all accounts successfully", async () => {
+    it("lists only the caller's own account (cross-tenant scope, CWE-639)", async () => {
       const response = await app.inject({
         method: "GET",
         url: "/accounts",
+        headers: { "x-test-account": testAccountId },
       });
 
       const body = JSON.parse(response.body);
@@ -330,31 +361,27 @@ describe("accountRoutes Unit Tests", () => {
       expect(response.statusCode).toBe(200);
       expect(body.ok).toBe(true);
       expect(Array.isArray(body.data)).toBeTruthy();
-      expect(body.data.length > 0).toBeTruthy();
 
+      // The listing is scoped to the caller — it returns the caller's account
+      // and never any other tenant's.
+      expect(body.data.every((a: Record<string, unknown>) => a.id === testAccountId)).toBe(true);
       const account = body.data.find((a: Record<string, unknown>) => a.id === testAccountId);
       expect(account).toBeTruthy();
       expect(account.email).toBe(testEmail);
       expect(typeof account.projectCount).toBe("number");
     });
 
-    it("should return accounts ordered by createdAt desc", async () => {
+    it("returns an empty list for a caller with no matching account", async () => {
       const response = await app.inject({
         method: "GET",
         url: "/accounts",
+        headers: { "x-test-account": "no-such-account" },
       });
 
       const body = JSON.parse(response.body);
-
       expect(response.statusCode).toBe(200);
-      expect(body.data.length >= 2).toBeTruthy();
-
-      // Verify descending order
-      for (let i = 0; i < body.data.length - 1; i++) {
-        const current = new Date(body.data[i].createdAt);
-        const next = new Date(body.data[i + 1].createdAt);
-        expect(current >= next).toBeTruthy();
-      }
+      expect(Array.isArray(body.data)).toBe(true);
+      expect(body.data.length).toBe(0);
     });
   });
 
@@ -377,7 +404,7 @@ describe("accountRoutes Unit Tests", () => {
       expect(body.data?.id).toBe(testAccountId);
     });
 
-    it("should update maxProjects explicitly", async () => {
+    it("does not let a caller change maxProjects (CWE-639 quota tamper)", async () => {
       const response = await app.inject({
         method: "PUT",
         url: `/accounts/${testAccountId}`,
@@ -388,8 +415,10 @@ describe("accountRoutes Unit Tests", () => {
 
       const body = JSON.parse(response.body);
 
+      // The field is stripped by the schema and ignored by the handler — the
+      // request succeeds but the quota is NOT raised to the caller's value.
       expect(response.statusCode).toBe(200);
-      expect(body.data?.maxProjects).toBe(7);
+      expect(body.data?.maxProjects).not.toBe(7);
     });
 
     it("should return 404 for non-existent account", async () => {
@@ -404,7 +433,7 @@ describe("accountRoutes Unit Tests", () => {
       expect(response.statusCode).toBe(404);
     });
 
-    it("should reject negative maxProjects", async () => {
+    it("ignores a negative maxProjects on update (field is not caller-settable)", async () => {
       const response = await app.inject({
         method: "PUT",
         url: `/accounts/${testAccountId}`,
@@ -413,7 +442,9 @@ describe("accountRoutes Unit Tests", () => {
         },
       });
 
-      expect(response.statusCode).toBe(400);
+      // maxProjects is stripped (not accepted), so the empty-effect update
+      // succeeds rather than failing validation.
+      expect(response.statusCode).toBe(200);
     });
 
     it("should handle empty update payload", async () => {

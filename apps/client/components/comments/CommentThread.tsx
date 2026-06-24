@@ -72,17 +72,17 @@ function CommentRow({ comment, onReply, isReply = false }: CommentRowProps) {
 
 interface CommentThreadProps {
   postId: string;
-  authorId: string;
 }
 
 /**
  * @component CommentThread
  * @description Threaded comment list for post review. Supports one level of nesting
- *              (replies), inline comment composition, and reply-to targeting.
+ *              (replies), inline comment composition, and reply-to targeting. The
+ *              comment author is derived server-side from the session token
+ *              (identity gate, CWE-639), so no author id is passed from the client.
  * @param props.postId - ID of the post whose comments to display
- * @param props.authorId - ID of the current user authoring new comments
  */
-export function CommentThread({ postId, authorId }: CommentThreadProps) {
+export function CommentThread({ postId }: CommentThreadProps) {
   const t = useTranslations("comments");
   const { data: comments = [], isLoading } = useComments(postId);
   const addCommentMutation = useAddComment(postId);
@@ -92,7 +92,7 @@ export function CommentThread({ postId, authorId }: CommentThreadProps) {
   const handleSubmit = () => {
     if (!newBody.trim()) return;
     addCommentMutation.mutate(
-      { authorId, body: newBody.trim(), ...(replyTo ? { parentId: replyTo } : {}) },
+      { body: newBody.trim(), ...(replyTo ? { parentId: replyTo } : {}) },
       {
         onSuccess: () => {
           setNewBody("");

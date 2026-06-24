@@ -41,6 +41,9 @@ const extraModels = {
     avatarUrl: null,
     invitedBy: null,
   }),
+  // Recipient resolution for the cross-tenant recipient gate (CWE-639) goes
+  // through CustomerUser.accountId.
+  customerUser: buildModelMock(createStore(), { isActive: true }),
   post: buildModelMock(createStore()),
   adminUserPermission: buildModelMock(createStore()),
 };
@@ -90,6 +93,7 @@ const { PrismaRoleRepository } =
   await import("../../../src/infrastructure/repositories/PrismaRoleRepository.js");
 const { PrismaAdminSessionRepository } =
   await import("../../../src/infrastructure/repositories/PrismaAdminSessionRepository.js");
+const { signCustomerAccessToken } = await import("../../../src/auth/customerJwt.js");
 
 setRedisInstance(null as never);
 
@@ -104,6 +108,8 @@ const testPassword = "TestPassword123";
 let app: import("fastify").FastifyInstance;
 let adminToken: string;
 let testMemberId: string;
+let recipientCustomerUserId: string;
+let customerToken: string;
 let createdNotificationIds: string[] = [];
 
 // Mock NotificationBroadcaster (avoids Redis dependency)
@@ -176,6 +182,30 @@ describe("notificationRoutes Integration Tests", () => {
     });
     testMemberId = member.id;
 
+    // Create a CustomerUser recipient in the same account. The cross-tenant
+    // recipient gate (CWE-639) resolves the recipient's owning account via
+    // CustomerUser.accountId, so a customer caller may notify them.
+    const recipient = await (
+      mockPrisma.prisma as Record<string, { create: Function }>
+    ).customerUser.create({
+      data: {
+        accountId: account.id,
+        email: `notif-recipient-${timestamp}@example.com`,
+        firstName: "Recipient",
+        lastName: "User",
+      },
+    });
+    recipientCustomerUserId = recipient.id;
+
+    // Customer token whose accountId owns the recipient.
+    customerToken = signCustomerAccessToken({
+      sub: `customer-caller-${timestamp}`,
+      accountId: account.id,
+      roleId: "role-owner",
+      roleName: "OWNER",
+      permissions: [],
+    });
+
     // Register admin user and get token
     await authSvc.registerAdmin(adminEmail, testPassword, "Notification Admin", "ADMIN");
     const loginRes = await app.inject({
@@ -216,9 +246,9 @@ describe("notificationRoutes Integration Tests", () => {
       const response = await app.inject({
         method: "POST",
         url: "/notifications",
-        headers: { authorization: `Bearer ${adminToken}` },
+        headers: { authorization: `Bearer ${customerToken}` },
         payload: {
-          recipientId: testMemberId,
+          recipientId: recipientCustomerUserId,
           type: "COMMENT_ADDED",
           title: "New Comment",
           body: "Someone commented on your post",
@@ -230,6 +260,33 @@ describe("notificationRoutes Integration Tests", () => {
       expect(body.ok).toBe(true);
       expect(body.data?.id).toBeTruthy();
       createdNotificationIds.push(body.data.id);
+    });
+
+    it("rejects a recipient outside the caller's account (cross-tenant gate, CWE-639)", async () => {
+      const foreignToken = signCustomerAccessToken({
+        sub: `foreign-caller-${timestamp}`,
+        accountId: `other-account-${timestamp}`,
+        roleId: "role-owner",
+        roleName: "OWNER",
+        permissions: [],
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/notifications",
+        headers: { authorization: `Bearer ${foreignToken}` },
+        payload: {
+          recipientId: recipientCustomerUserId,
+          type: "COMMENT_ADDED",
+          title: "Cross-tenant attempt",
+          body: "Should not be delivered",
+        },
+      });
+
+      // Not-found shape (anti-enumeration) — recipient belongs to another tenant.
+      expect(response.statusCode).not.toBe(201);
+      const body = JSON.parse(response.body);
+      expect(body.ok).toBe(false);
     });
 
     it("rejects invalid notification type", async () => {

@@ -11,6 +11,7 @@ import type {
   RecurringPostRepository,
   RecurringPostData,
 } from "@core/domain/repositories/RecurringPostRepository.js";
+import { AccountId } from "@core/domain/index.js";
 import { EntityNotFoundError, type DomainError } from "@core/domain/errors/index.js";
 
 /**
@@ -122,11 +123,21 @@ export class PrismaRecurringPostRepository implements RecurringPostRepository {
   /**
    * @method findByProjectId
    * @description Finds all recurring posts belonging to a project.
+   *
+   * When `callerAccountId` is provided, a `project: { accountId }` joined filter
+   * is applied (CWE-639): a foreign `projectId` returns an empty list rather
+   * than another tenant's schedules.
    */
-  async findByProjectId(projectId: string): Promise<Result<RecurringPostData[], DomainError>> {
+  async findByProjectId(
+    projectId: string,
+    callerAccountId?: AccountId
+  ): Promise<Result<RecurringPostData[], DomainError>> {
     try {
       const rows = await this.prisma.recurringPost.findMany({
-        where: { projectId },
+        where: {
+          projectId,
+          ...(callerAccountId && { project: { accountId: callerAccountId.value } }),
+        },
         orderBy: { createdAt: "desc" },
       });
 
@@ -139,6 +150,25 @@ export class PrismaRecurringPostRepository implements RecurringPostRepository {
         )
       );
     }
+  }
+
+  /**
+   * @method findOwnerAccountId
+   * @description Resolves the owning tenant of a recurring post via the
+   *   `recurringPost -> project -> accountId` chain. Returns `null` when the
+   *   schedule does not exist.
+   */
+  async findOwnerAccountId(id: string): Promise<AccountId | null> {
+    const row = await this.prisma.recurringPost.findUnique({
+      where: { id },
+      select: { project: { select: { accountId: true } } },
+    });
+
+    if (!row) {
+      return null;
+    }
+
+    return AccountId.fromStringUnsafe(row.project.accountId);
   }
 
   /**

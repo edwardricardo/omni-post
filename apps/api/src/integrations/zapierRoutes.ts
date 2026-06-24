@@ -274,9 +274,18 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
           .send({ error: "Invalid request body", details: parseResult.error.issues });
       }
 
+      const accountId = request.user?.accountId;
+      if (!accountId) {
+        return reply.code(401).send({ error: "Authentication required" });
+      }
+
       const result = await createPostUseCase.execute({
         projectId: parseResult.data.projectId,
         body: parseResult.data.body,
+        // Cross-tenant gate (CWE-639): the integration may only create posts in
+        // projects its own account owns — a foreign projectId resolves to
+        // not-found at the use-case boundary.
+        callerAccountId: accountId,
         ...(parseResult.data.title !== undefined && { title: parseResult.data.title }),
         ...(parseResult.data.tags !== undefined && { tags: parseResult.data.tags }),
       });
@@ -303,10 +312,18 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
           .send({ error: "Invalid request body", details: parseResult.error.issues });
       }
 
+      const accountId = request.user?.accountId;
+      if (!accountId) {
+        return reply.code(401).send({ error: "Authentication required" });
+      }
+
       // Step 1: Create the post as a draft
       const createResult = await createPostUseCase.execute({
         projectId: parseResult.data.projectId,
         body: parseResult.data.body,
+        // Cross-tenant gate (CWE-639): create only into the integration's own
+        // account's projects — a foreign projectId resolves to not-found.
+        callerAccountId: accountId,
         ...(parseResult.data.title !== undefined && { title: parseResult.data.title }),
         ...(parseResult.data.tags !== undefined && { tags: parseResult.data.tags }),
       });

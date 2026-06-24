@@ -13,6 +13,7 @@ import {
   type EventDispatcher,
   type ContentLocale,
 } from "@core/domain/index.js";
+import type { ProjectRepositoryPort } from "@core/domain/repositories/ProjectRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { BusinessMetricsPort } from "@core/domain/repositories/BusinessMetricsPort.js";
 import type { MediaType } from "@core/domain/value-objects/MediaAttachment.js";
@@ -47,6 +48,15 @@ export interface CreatePostInput {
    * domain aggregate — a failure returns `VALIDATION_FAILED` early.
    */
   media?: ReadonlyArray<CreatePostMediaItem>;
+  /**
+   * Cross-tenant ownership gate (CWE-639 create-in-foreign-project). When set,
+   * the use case resolves the target project's owner via `ProjectRepository`
+   * and rejects a foreign caller with NOT_FOUND (anti-enumeration) before any
+   * write. Optional for backward compat with system/admin paths (recurrence
+   * fan-out, bulk-scheduling) whose `projectId` is already owner-validated
+   * upstream and therefore legitimately omit it.
+   */
+  callerAccountId?: string;
 }
 
 /**
@@ -82,6 +92,7 @@ export class CreatePostUseCase implements UseCase<CreatePostInput, CreatePostOut
     private readonly postRepository: PostRepository,
     private readonly eventDispatcher: EventDispatcher,
     private readonly businessMetrics: BusinessMetricsPort,
+    private readonly projectRepository?: ProjectRepositoryPort,
     private readonly unitOfWork?: UnitOfWork
   ) {}
 
@@ -95,6 +106,19 @@ export class CreatePostUseCase implements UseCase<CreatePostInput, CreatePostOut
           USE_CASE_ERRORS.VALIDATION_FAILED
         )
       );
+    }
+
+    // Cross-tenant ownership gate (CWE-639 create-in-foreign-project). Resolve
+    // the target project's owning accountId and reject a caller who does not own
+    // it with NOT_FOUND, not FORBIDDEN — same anti-enumeration shape as a missing
+    // project, consistent with the read/delete gates added for IDOR-POSTS.
+    if (input.callerAccountId !== undefined && this.projectRepository) {
+      const ownerAccountId = await this.projectRepository.findOwnerAccountId(projectIdResult.value);
+      if (!ownerAccountId || ownerAccountId.value !== input.callerAccountId) {
+        return err(
+          new UseCaseError(`Project not found: ${input.projectId}`, USE_CASE_ERRORS.NOT_FOUND)
+        );
+      }
     }
 
     // Create the post aggregate

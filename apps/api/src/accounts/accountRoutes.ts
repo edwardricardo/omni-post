@@ -20,19 +20,28 @@ const SlugSchema = z
   .max(30)
   .regex(/^[a-z0-9][a-z0-9-]*[a-z0-9]$/, "Slug must be lowercase letters, numbers, and hyphens");
 
+// `maxProjects` is intentionally NOT accepted here (CWE-639 quota tamper): a
+// customer must not be able to mint an account with a self-chosen project quota.
+// On create the quota is fixed at the plan default (Account.maxProjects schema
+// default); it is changed only by an admin via PUT /admin/accounts/:id/settings
+// (apps/api/src/admin/AnalyticsAccountHandlers.ts, admin-auth gated). There is
+// no customer-facing override path, by design.
 const CreateAccountBodySchema = z.object({
   email: SecureSchemas.userEmail,
   name: SecureSchemas.userName,
-  maxProjects: z.number().int().min(1).optional(),
   timezone: z.string().min(1).max(64).optional(),
   locale: z.string().min(2).max(10).optional(),
   slug: SlugSchema.optional(),
   phone: z.string().min(5).max(20).optional(),
 });
 
+// `maxProjects` is intentionally NOT accepted here (CWE-639 quota tamper): it is
+// a billing/quota field and must not be self-service settable via the customer
+// account-update endpoint. The only write path is the admin endpoint
+// PUT /admin/accounts/:id/settings (AnalyticsAccountHandlers, admin-auth gated);
+// customers have no override path here.
 const UpdateAccountBodySchema = z.object({
   name: SecureSchemas.userName.optional(),
-  maxProjects: z.number().int().min(1).optional(),
   timezone: z.string().min(1).max(64).optional(),
   locale: z.string().min(2).max(10).optional(),
   slug: SlugSchema.optional(),
@@ -59,6 +68,23 @@ class AccountRouteHandler extends BaseRouteHandler {
   }
 
   /**
+   * @method assertOwnAccount
+   * @description Cross-tenant ownership gate (CWE-639). Account is the tenant
+   *   root, so a customer may only operate on their own account: the
+   *   authenticated token's `accountId` MUST equal the URL `:accountId`. A
+   *   mismatch (or a missing token) returns `false`; the caller surfaces this
+   *   as 404 — same shape as a missing account, so existence does not leak
+   *   (anti-enumeration). Returns `true` when the caller owns the account.
+   * @param ctx - The route context (request + reply)
+   * @param accountId - The target account ID from the URL
+   * @returns true when the token owns the account, false otherwise
+   */
+  private assertOwnAccount(ctx: RouteContext, accountId: string): boolean {
+    const caller = ctx.request.customerUser;
+    return caller !== undefined && caller.accountId === accountId;
+  }
+
+  /**
    * Create Account
    * POST /accounts
    */
@@ -78,7 +104,7 @@ class AccountRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid request body");
     }
 
-    const { email, name, maxProjects } = validated.value.body;
+    const { email, name } = validated.value.body;
 
     try {
       // Check if email already exists
@@ -90,7 +116,8 @@ class AccountRouteHandler extends BaseRouteHandler {
         return this.sendError(ctx, 409, "EMAIL_TAKEN", { error: "EMAIL_TAKEN" });
       }
 
-      const finalMaxProjects = maxProjects ?? 1;
+      // Quota is the plan default — never a caller-supplied value (CWE-639).
+      const finalMaxProjects = 1;
 
       // Create account
       const account = await this.prisma.account.create({
@@ -146,6 +173,12 @@ class AccountRouteHandler extends BaseRouteHandler {
 
     const { accountId } = validated.value.params;
 
+    // Cross-tenant gate (CWE-639): a caller may only read their own account.
+    // A foreign accountId resolves to not-found (anti-enumeration).
+    if (!this.assertOwnAccount(ctx, accountId)) {
+      return this.sendError(ctx, 404, "Account not found");
+    }
+
     try {
       const account = await this.prisma.account.findUnique({
         where: { id: accountId },
@@ -184,8 +217,17 @@ class AccountRouteHandler extends BaseRouteHandler {
 
     this.logInfo(ctx, "Listing accounts");
 
+    // Cross-tenant gate (CWE-639): a customer lists only their own account,
+    // never every tenant's. Without this scope the listing enumerates all
+    // accounts in the system.
+    const caller = ctx.request.customerUser;
+    if (!caller) {
+      return this.sendError(ctx, 401, "Authentication required");
+    }
+
     try {
       const accounts = await this.prisma.account.findMany({
+        where: { id: caller.accountId },
         orderBy: { createdAt: "desc" },
         include: {
           projects: true,
@@ -236,6 +278,12 @@ class AccountRouteHandler extends BaseRouteHandler {
     const { accountId } = validated.value.params;
     const updates = validated.value.body;
 
+    // Cross-tenant gate (CWE-639): a caller may only update their own account.
+    // A foreign accountId resolves to not-found (anti-enumeration).
+    if (!this.assertOwnAccount(ctx, accountId)) {
+      return this.sendError(ctx, 404, "Account not found");
+    }
+
     try {
       // Check if account exists
       const existingAccount = await this.prisma.account.findUnique({
@@ -246,12 +294,14 @@ class AccountRouteHandler extends BaseRouteHandler {
         return this.sendError(ctx, 404, "Account not found");
       }
 
-      // Build update data
-      const updateData: { name?: string; maxProjects?: number } = {};
+      // Build update data. `maxProjects` is a billing/quota field and is NOT
+      // self-service settable here (CWE-639 quota tamper): a customer raising
+      // their own quota via this endpoint would bypass plan limits. It is set
+      // only by an admin via PUT /admin/accounts/:id/settings
+      // (AnalyticsAccountHandlers, admin-auth gated) — there is no customer
+      // override path on this self-service endpoint.
+      const updateData: { name?: string } = {};
       if (updates.name !== undefined) updateData.name = updates.name;
-      if (updates.maxProjects !== undefined) {
-        updateData.maxProjects = updates.maxProjects;
-      }
 
       // Update account
       const account = await this.prisma.account.update({
@@ -296,6 +346,12 @@ class AccountRouteHandler extends BaseRouteHandler {
     }
 
     const { accountId } = validated.value.params;
+
+    // Cross-tenant gate (CWE-639): a caller may only delete their own account.
+    // A foreign accountId resolves to not-found (anti-enumeration).
+    if (!this.assertOwnAccount(ctx, accountId)) {
+      return this.sendError(ctx, 404, "Account not found");
+    }
 
     try {
       // Check if account exists

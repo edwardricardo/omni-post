@@ -15,6 +15,7 @@ import type {
 } from "@core/domain/repositories/PostCommentRepository.js";
 import { PostCommentAggregate } from "@core/domain/aggregates/PostCommentAggregate.js";
 import { CommentId } from "@core/domain/value-objects/CommentId.js";
+import type { AccountId } from "@core/domain/value-objects/EntityId.js";
 import { EntityNotFoundError } from "@core/domain/errors/index.js";
 
 /**
@@ -80,7 +81,8 @@ export class PrismaPostCommentRepository implements PostCommentRepository {
    */
   async findByPost(
     postId: string,
-    options: PostCommentFindOptions
+    options: PostCommentFindOptions,
+    callerAccountId?: AccountId
   ): Promise<PostCommentPaginatedResult> {
     const limit = Math.min(options.limit, 100);
 
@@ -89,6 +91,13 @@ export class PrismaPostCommentRepository implements PostCommentRepository {
       postId,
       deletedAt: null,
     };
+
+    // Cross-tenant gate (CWE-639): comments are transitively tenant-scoped
+    // (comment -> post -> project -> accountId), so the `$extends` guard cannot
+    // auto-inject. Add a joined filter so a foreign post yields no comments.
+    if (callerAccountId) {
+      where.post = { project: { accountId: callerAccountId.value } };
+    }
 
     if (options.parentOnly) {
       where.parentId = null;
@@ -218,11 +227,14 @@ export class PrismaPostCommentRepository implements PostCommentRepository {
    * @param postId - The post ID
    * @returns The count of active (non-deleted) comments
    */
-  async countByPost(postId: string): Promise<number> {
+  async countByPost(postId: string, callerAccountId?: AccountId): Promise<number> {
     return this.prisma.postComment.count({
       where: {
         postId,
         deletedAt: null,
+        // Cross-tenant gate (CWE-639): same joined filter as findByPost so a
+        // foreign post reports a count of 0 rather than another tenant's total.
+        ...(callerAccountId ? { post: { project: { accountId: callerAccountId.value } } } : {}),
       },
     });
   }

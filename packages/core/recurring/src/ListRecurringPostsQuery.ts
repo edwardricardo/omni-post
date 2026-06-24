@@ -7,12 +7,19 @@
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { RecurringPostRepository } from "@core/domain/repositories/RecurringPostRepository.js";
+import { AccountId } from "@core/domain/value-objects/EntityId.js";
 
 /**
- * Input parameters for the query
+ * Input parameters for the query.
+ *
+ * `callerAccountId` is the cross-tenant ownership gate (CWE-639). When set, a
+ * `project: { accountId }` joined filter is applied at the repository so a
+ * foreign `projectId` returns an empty list rather than another tenant's
+ * schedules. Optional for backward compat with admin/internal callers.
  */
 export interface ListRecurringPostsParams {
   projectId: string;
+  callerAccountId?: string;
 }
 
 /**
@@ -53,7 +60,12 @@ export class ListRecurringPostsQuery implements UseCase<
   async execute(
     params: ListRecurringPostsParams
   ): Promise<Result<RecurringPostListDTO[], UseCaseError>> {
-    const findResult = await this.recurringPostRepo.findByProjectId(params.projectId);
+    const findResult = await this.recurringPostRepo.findByProjectId(
+      params.projectId,
+      params.callerAccountId !== undefined
+        ? AccountId.fromStringUnsafe(params.callerAccountId)
+        : undefined
+    );
 
     if (!findResult.ok) {
       return err(

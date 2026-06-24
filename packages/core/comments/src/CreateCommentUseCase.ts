@@ -8,6 +8,8 @@
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { PostCommentRepository } from "@core/domain/repositories/PostCommentRepository.js";
+import type { PostRepository } from "@core/domain/index.js";
+import { PostId } from "@core/domain/value-objects/EntityId.js";
 import { PostCommentAggregate } from "@core/domain/aggregates/PostCommentAggregate.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 
@@ -19,6 +21,13 @@ export interface CreateCommentCommand {
   authorId: string;
   body: string;
   parentId?: string;
+  /**
+   * Cross-tenant ownership gate (CWE-639 create-on-foreign-post). When set, the
+   * use case resolves the target post's owner via `PostRepository` (post ->
+   * project -> accountId) and rejects a foreign caller with NOT_FOUND
+   * (anti-enumeration) before any save. Optional for system/admin callers.
+   */
+  callerAccountId?: string;
 }
 
 /**
@@ -41,6 +50,7 @@ export class CreateCommentUseCase implements UseCase<
 > {
   constructor(
     private readonly commentRepo: PostCommentRepository,
+    private readonly postRepository?: PostRepository,
     private readonly unitOfWork?: UnitOfWork
   ) {}
 
@@ -51,6 +61,25 @@ export class CreateCommentUseCase implements UseCase<
    * @returns Result<{ id, mentions }> on success, UseCaseError on failure
    */
   async execute(command: CreateCommentCommand): Promise<Result<CreateCommentOutput, UseCaseError>> {
+    // Cross-tenant ownership gate (CWE-639 create-on-foreign-post). Resolve the
+    // target post's owning accountId (post -> project -> accountId) and reject a
+    // caller who does not own it with NOT_FOUND (anti-enumeration), before any
+    // save. Reuses the PostRepository owner resolver added for IDOR-POSTS.
+    if (command.callerAccountId !== undefined && this.postRepository) {
+      const postIdResult = PostId.fromString(command.postId);
+      if (!postIdResult.ok) {
+        return err(
+          new UseCaseError(`Post not found: ${command.postId}`, USE_CASE_ERRORS.NOT_FOUND)
+        );
+      }
+      const ownerAccountId = await this.postRepository.findOwnerAccountId(postIdResult.value);
+      if (!ownerAccountId || ownerAccountId.value !== command.callerAccountId) {
+        return err(
+          new UseCaseError(`Post not found: ${command.postId}`, USE_CASE_ERRORS.NOT_FOUND)
+        );
+      }
+    }
+
     // Create the aggregate via the domain factory
     const createResult = PostCommentAggregate.create({
       postId: command.postId,
