@@ -6,7 +6,7 @@
 # ==============================================================================
 # Shared Base Stage - Node.js with pnpm
 # ==============================================================================
-FROM node:24-bookworm-slim AS base
+FROM node:26-bookworm-slim AS base
 RUN corepack enable
 WORKDIR /app
 
