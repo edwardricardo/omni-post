@@ -161,6 +161,26 @@ CONCURRENCY=1 run_batch "integration:outbox" \
 CONCURRENCY=1 run_batch "integration:consumers" \
   tests/integration/consumers/workerConnection.integration.test.ts
 
+# RLS tenant-isolation: asserts every tenant-scoped table carries the
+# tenant_isolation policy (pg_policies introspection count). DB-only.
+CONCURRENCY=1 run_batch "integration:rls" \
+  tests/integration/rls-tenant-isolation.test.ts
+
+# Bulk-schedule per-row outbox: media-path attach, reconciliation sweep,
+# relay enqueue-failure retry. Stub queue + real DB, no live API. DB-only.
+CONCURRENCY=1 run_batch "integration:bulk-schedule" \
+  tests/integration/bulkScheduleMediaPath.integration.test.ts \
+  tests/integration/bulkScheduleReconciliation.integration.test.ts \
+  tests/integration/bulkScheduleRelayRetry.integration.test.ts
+
+# Remaining DB/Redis-only coverage: data-retention sweep, mention ingest,
+# Redis token-bucket rate limiter, share-of-voice query. DB-only.
+CONCURRENCY=1 run_batch "integration:db-extra" \
+  tests/integration/data-retention.integration.test.ts \
+  tests/integration/mentionIngest.test.ts \
+  tests/integration/redisTokenBucketRateLimiter.test.ts \
+  tests/integration/shareOfVoice.test.ts
+
 fi # run_db_batches
 
 # Live-API batches: these fetch http://localhost:3000 (getBaseUrl) and require
