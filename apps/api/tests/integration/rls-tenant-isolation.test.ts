@@ -25,6 +25,7 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@infra/prisma";
+import { getTenantScopedModels } from "@infra/prisma/extensions/tenantGuard.js";
 
 const ACCOUNT_A = `rls-test-acc-A-${Date.now()}`;
 const ACCOUNT_B = `rls-test-acc-B-${Date.now()}`;
@@ -134,11 +135,19 @@ describe("Row Level Security — tenant_isolation policy", () => {
   }
 
   describe("policy installed", () => {
-    it("tenant_isolation policy exists on all 51 tenant-scoped tables", async () => {
+    it("tenant_isolation policy exists on every tenant-scoped table", async () => {
+      // Expected count is derived from TENANT_SCOPED_MODELS (the $extends
+      // guard's source of truth), not a magic number: the original hardcoded
+      // 51 went stale when PublishingQueue was dropped (migration
+      // 20260601044455) and its RLS policy went with the table, leaving 50.
+      // Deriving from the guard keeps this gate self-correcting on any future
+      // tenant-scoped table add/remove (update the guard + an RLS migration
+      // and the expected count follows automatically).
+      const expected = getTenantScopedModels().size;
       const rows = await prisma.$queryRawUnsafe<Array<{ count: bigint }>>(
         `SELECT count(*)::bigint AS count FROM pg_policies WHERE policyname = 'tenant_isolation'`
       );
-      assert.strictEqual(Number(rows[0]!.count), 51);
+      assert.strictEqual(Number(rows[0]!.count), expected);
     });
 
     it("Account (global) does NOT have RLS enabled", async () => {
