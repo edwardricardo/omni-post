@@ -2,18 +2,27 @@
  * @file httpRateLimitPreHandler.ts
  * @description Fastify preHandler that enforces inbound HTTP rate limiting
  *              through the technology-free `RateLimiterPort` (token bucket).
+ *              This is the SINGLE canonical HTTP rate-limit mechanism (see
+ *              ADR-0019 + SECURITY_CANON §Rate Limiting): the legacy
+ *              `@fastify/rate-limit` route-config path is dead and removed.
  *              Holds the per-path rule table, matches a request URL to its
  *              rule (first `startsWith` match wins, else the default), keys the
  *              bucket by client IP + URL, and translates the port decision into
  *              `X-RateLimit-*` headers + a 429 with `Retry-After`. The port
  *              stays framework-free; this module is the Fastify adapter.
- *              Fail-open: a limiter error lets the request through.
+ *              The IP used for the bucket key is derived from a TRUSTED proxy
+ *              hop (env `TRUSTED_PROXY_HOP_COUNT`) so a spoofed `X-Forwarded-For`
+ *              cannot evade the cap.
+ *              Fail-OPEN: a limiter error lets the request through and emits a
+ *              loud warning metric/log — a fail-closed limiter would be a DoS
+ *              amplifier, contradicting ADR-0015's fail-open + alerting posture.
  * @layer infrastructure
  */
 
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { RateLimiterPort } from "@ports/core";
 import { logger } from "../lib/logger.js";
+import { env } from "../config/env.js";
 
 export interface RateLimitConfig {
   readonly windowMs: number;
@@ -75,15 +84,54 @@ export const EXPENSIVE_ENDPOINT_RULES: readonly HttpRateLimitRule[] = [
   { path: "/audit/logs/search", config: RateLimitConfigs.MODERATE_EXPENSIVE },
 ] as const;
 
+/**
+ * Sensitive authentication endpoints carrying the AUTH preset (5 req / 15 min).
+ * These are listed FIRST so they win the first-`startsWith`-match. Each `path`
+ * is a literal request-URL prefix — `startsWith("/auth/customer/login")` matches
+ * `POST /auth/customer/login`. The longer customer paths are listed before the
+ * shorter core ones, but since every entry here uses the SAME AUTH config the
+ * ordering among them is moot; order only matters relative to the broader rules.
+ *
+ * Rationale (ADR-0019 + SECURITY_CANON §Rate Limiting): credential endpoints are
+ * the highest-value brute-force/credential-stuffing surface (NIST 800-63B-4
+ * §Rate Limiting, OWASP API4:2023, OWASP Auth Cheat Sheet). Customer login is
+ * additionally BruteForceProtectionPort-gated (ADR-0015, account-based); this
+ * HTTP IP-based cap is the defence-in-depth layer for the routes BF does not
+ * cover (register / refresh / password-reset / core admin login + refresh).
+ * `/auth/customer/register` is the public registration route; the privilege-
+ * escalating admin `/auth/register` route was removed in a prior slice and is
+ * intentionally NOT listed here.
+ */
+export const AUTH_ROUTE_RULES: readonly HttpRateLimitRule[] = [
+  { path: "/auth/customer/login", config: RateLimitConfigs.AUTH },
+  { path: "/auth/customer/register", config: RateLimitConfigs.AUTH },
+  { path: "/auth/customer/refresh", config: RateLimitConfigs.AUTH },
+  { path: "/auth/customer/request-password-reset", config: RateLimitConfigs.AUTH },
+  { path: "/auth/customer/reset-password", config: RateLimitConfigs.AUTH },
+  { path: "/auth/login", config: RateLimitConfigs.AUTH },
+  { path: "/auth/refresh", config: RateLimitConfigs.AUTH },
+  // MFA second-factor verification — a TOTP / backup-code guessing surface
+  // (the login-flow `/auth/mfa/verify` is unauthenticated, userId+token from
+  // the body, with no per-account counter). `startsWith` also covers
+  // `/auth/mfa/verify-setup`. Account-based MFA throttling is a separate gap.
+  { path: "/auth/mfa/verify", config: RateLimitConfigs.AUTH },
+];
+
 /** Standard route rules applied before the expensive ones (first match wins).
- *  `/accounts$` carries a literal `$`: with prefix matching it never matches a
- *  real URL, so account routes resolve to the default — this preserves the
- *  historical wiring exactly. Changing it would alter production caps. */
+ *  The AUTH rules above are concatenated FIRST so an auth URL never falls
+ *  through to a broader rule. NOTE: account routes (`/accounts*`) are
+ *  intentionally NOT listed — they resolve to the STANDARD default. The old
+ *  `/accounts$` rule was dead (literal `$` never matches under prefix matching);
+ *  promoting it to a real `/accounts` AUTH prefix was rejected because it caps
+ *  authenticated GET reads the client SPA polls (`/accounts/:id/projects`,
+ *  `/accounts/:id/usage`) at 5/15min — an availability regression. Rate-limiting
+ *  account CREATION (`POST /accounts`) is tracked separately (the limiter is
+ *  method-agnostic today). */
 export const STANDARD_ROUTE_RULES: readonly HttpRateLimitRule[] = [
+  ...AUTH_ROUTE_RULES,
   { path: "/health", config: RateLimitConfigs.HEALTH },
   { path: "/publish/", config: RateLimitConfigs.STRICT },
   { path: "/media/", config: RateLimitConfigs.UPLOAD },
-  { path: "/accounts$", config: RateLimitConfigs.AUTH },
 ];
 
 export interface HttpRateLimitOptions {
@@ -91,12 +139,58 @@ export interface HttpRateLimitOptions {
   readonly rules: readonly HttpRateLimitRule[];
 }
 
+/**
+ * @function resolveClientIp
+ * @description Derive the rate-limit key IP from a TRUSTED proxy hop instead of
+ *   blindly trusting the leftmost `X-Forwarded-For` entry (which any client can
+ *   spoof to evade an IP-keyed cap). `X-Forwarded-For` is built left-to-right:
+ *   the original client is leftmost and each proxy APPENDS the address it saw on
+ *   the right. With `trustedHops` reverse proxies in front of the app, the only
+ *   non-forgeable entries are the rightmost `trustedHops` ones; the real client
+ *   is the entry at index `len - trustedHops`. Entries to the left of that are
+ *   attacker-controlled and ignored. Falls back to `X-Real-IP`, then the raw
+ *   socket address.
+ * @param forwarded - Raw `x-forwarded-for` header value(s).
+ * @param realIp - Raw `x-real-ip` header value(s).
+ * @param socketAddress - `req.socket.remoteAddress` (the direct peer).
+ * @param trustedHops - Number of trusted reverse-proxy hops (env-configured).
+ * @returns The trusted client IP, or `"unknown"` when nothing resolves.
+ */
+export function resolveClientIp(
+  forwarded: string | string[] | undefined,
+  realIp: string | string[] | undefined,
+  socketAddress: string | undefined,
+  trustedHops: number
+): string {
+  const fwdHeader = Array.isArray(forwarded) ? forwarded.join(",") : forwarded;
+  if (fwdHeader) {
+    const chain = fwdHeader
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0);
+    if (chain.length > 0) {
+      // Clamp: never index left of the start (a request with fewer hops than
+      // configured means a direct/misconfigured caller — take the leftmost
+      // trusted entry available rather than throwing).
+      const index = Math.max(0, chain.length - trustedHops);
+      const trusted = chain[index];
+      if (trusted) return trusted;
+    }
+  }
+
+  const realHeader = Array.isArray(realIp) ? realIp[0] : realIp;
+  if (realHeader) return realHeader;
+
+  return socketAddress || "unknown";
+}
+
 function clientIp(req: FastifyRequest): string {
-  const forwarded = req.headers["x-forwarded-for"];
-  const fwd = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-  const real = req.headers["x-real-ip"];
-  const realIp = Array.isArray(real) ? real[0] : real;
-  return fwd?.split(",")[0]?.trim() || (realIp as string) || req.socket.remoteAddress || "unknown";
+  return resolveClientIp(
+    req.headers["x-forwarded-for"],
+    req.headers["x-real-ip"],
+    req.socket.remoteAddress,
+    env.TRUSTED_PROXY_HOP_COUNT
+  );
 }
 
 function findConfig(
@@ -128,8 +222,14 @@ export function createHttpRateLimitPreHandler(
   const { defaultConfig, rules } = options;
   return async (req: FastifyRequest, reply: FastifyReply): Promise<unknown> => {
     try {
-      const config = findConfig(req.url, rules, defaultConfig);
-      const key = `${clientIp(req)}:${req.url}`;
+      // Key + match on the PATH only (strip the query string). The query is
+      // attacker-controlled on a body-driven POST, so keying on the full URL
+      // would let `/auth/login?x=1`, `?x=2`, ... rotate buckets and evade the
+      // AUTH cap (CWE-307 brute-force). Stripping the query keeps per-resource
+      // granularity for param routes while making the cap unforgeable.
+      const path = req.url.split("?")[0] ?? req.url;
+      const config = findConfig(path, rules, defaultConfig);
+      const key = `${clientIp(req)}:${path}`;
       const decision = await rateLimiter.tryConsume(key, {
         capacity: config.maxRequests,
         refillWindowMs: config.windowMs,
@@ -150,8 +250,17 @@ export function createHttpRateLimitPreHandler(
       }
       return undefined;
     } catch (error: unknown) {
-      // Fail-open: a limiter outage must not block traffic.
-      logger.error({ err: error }, "Rate limiting error");
+      // Fail-OPEN: a limiter/store outage must not block traffic. A fail-closed
+      // limiter would turn one Redis blip into a full outage of every protected
+      // route — a worse DoS surface than the protection itself (ADR-0015 §7,
+      // OWASP/NIST anti-DoS canon). The trade-off is that this path is silent by
+      // design, so it MUST be alertable: emit a loud, structured WARN carrying a
+      // stable `threat_type` so operational alerting can fire on it. SECURITY_CANON
+      // §Rate Limiting makes alerting on this signal REQUIRED.
+      logger.warn(
+        { err: error, threat_type: "http_rate_limit_failopen", layer: "infrastructure" },
+        "HTTP rate limiter failed open — request allowed through; alert and investigate the limiter store"
+      );
       return undefined;
     }
   };

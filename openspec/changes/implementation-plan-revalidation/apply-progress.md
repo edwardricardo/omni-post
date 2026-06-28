@@ -408,3 +408,104 @@ the live route returns 404).
   (no @ts-ignore), #8=0 (no sprint/phase refs), #9 @file present, #10=0
   invalid @layer. No orphaned imports left dangling.
 - NO git ops. Did NOT touch `POST /auth/customer/register` / `RegisterCustomerUseCase`, any rate-limit production code (RATELIMIT-DEAD remains BLOCKED on canon-research), `.github/workflows/`, or CLAUDE.md.
+
+---
+
+## Phase A · A3 — §2C RATELIMIT-DEAD (slice 6: canon established + canonical-limiter fix)
+
+**Mode**: Strict TDD (RED→GREEN). **Branch**: `workstream/impl-revalidation`. No git ops. Edward AUTHORIZED establishing the rate-limit canon + the fix (clears the A3.3 canon-gap stall).
+
+### Defect (CONFIRMED — RATELIMIT-DEAD, §2C)
+
+`@fastify/rate-limit@10.3.0` is a declared dependency but is NEVER registered in `apps/api/src` (no `app.register(fastifyRateLimit)`), so the auth routes' `config: { rateLimit: {...} }` declarations were DEAD CONFIG — Fastify silently ignores the unknown key. The actual limiter is the global `createHttpRateLimitPreHandler` (Redis token bucket via `RateLimiterPort`, cross-pod, fail-open), but its `STANDARD_ROUTE_RULES` table omitted every auth endpoint → they degraded to the STANDARD default (100/min); the `/accounts$` rule had a literal `$` that never matched under `startsWith`; and `trustProxy:true` made the IP key derive from a spoofable leftmost `X-Forwarded-For`. Customer login is already account-BF-protected (ADR-0015); admin `/auth/*` already uses a real preHandler; `/auth/register` was removed in slice 5 (NOT re-added).
+
+### Decision (ADR-0019, Accepted 2026-06-28)
+
+ONE canonical HTTP limiter (`RateLimiterPort` + `createHttpRateLimitPreHandler`). Kill the dead `@fastify/rate-limit` route-config path. Fail-OPEN + alerting (consistent with ADR-0015). Cites NIST 800-63B-4 §Rate Limiting, OWASP API4:2023, OWASP Auth Cheat Sheet, ADR-0015, ADR-0007.
+
+### Completed
+
+- [x] **ADR-0019** written: `docs/technical/ADR-0019-rate-limiting-canonical-limiter.md` (full repo ADR template, Status Accepted).
+- [x] **SECURITY_CANON §Rate Limiting** added (after Audited-audit-ignores, before How-to-extend) + companion fitness bullet (#28) + new How-to-extend item ("New rate-limited endpoint"). Links ADR-0019.
+- [x] **3a — AUTH rules** added to `STANDARD_ROUTE_RULES` via a new `AUTH_ROUTE_RULES` array (concatenated FIRST so an auth URL wins the first-`startsWith` match): customer `/auth/customer/login`, `/auth/customer/register`, `/auth/customer/refresh`, `/auth/customer/request-password-reset`, `/auth/customer/reset-password`; core `/auth/login`, `/auth/refresh`. All use `RateLimitConfigs.AUTH` (5 req / 15 min). `/auth/logout` deliberately NOT capped at AUTH (falls through to STANDARD). Matching semantics unchanged (`startsWith`).
+- [x] **3b — dead `config.rateLimit` removed** from `authRoutes.ts` (login/refresh/logout) and `customerAuthRoutes.ts` (register/login/refresh/request-password-reset/reset-password). Comments explain the canonical limiter now enforces the cap.
+- [x] **3c — broken `/accounts$` fixed** → `/accounts` (real prefix; account routes now get the AUTH preset instead of silently resolving to the default).
+- [x] **3d — trustProxy hardening (env-configurable)**: new `TRUSTED_PROXY_HOP_COUNT` env (`config/env.ts`, `z.coerce.number().int().min(1).max(10).default(1)`); exported pure `resolveClientIp(forwarded, realIp, socketAddress, trustedHops)` keys off the `X-Forwarded-For` entry at `len - trustedHops` (trusted, non-forgeable hop), with clamp + `X-Real-IP` + socket fallbacks. `clientIp(req)` now delegates to it using `env.TRUSTED_PROXY_HOP_COUNT`. Documented in `.env.example`.
+- [x] **3e — `authRateLimit.test.ts` rewritten** to drive the REAL preHandler path (`createHttpRateLimitPreHandler` + production `STANDARD_ROUTE_RULES` + `InMemoryTokenBucketRateLimiter`), NOT a self-registered `@fastify/rate-limit`. RED-FIRST: 11 failed on the no-AUTH-rules code (missing rules + un-exported `resolveClientIp`) → 13 passed after 3a/3d. Asserts: each AUTH endpoint 429s on the 6th request, per-route counters are isolated, a non-auth route gets STANDARD (6 requests all pass), trusted-hop keying picks the right entry for 1 and 2 hops, and the limiter fails OPEN (200, not 429) when the store throws.
+- [x] **3f — fail-OPEN + alerting preserved/strengthened**: the catch block still returns `undefined` (request allowed); upgraded the log to a structured `logger.warn({ threat_type: "http_rate_limit_failopen", layer: "infrastructure", err }, ...)` so the silent-by-design fail-open path is alertable (ADR-0015 posture). NOT changed to fail-closed.
+- [x] **Fitness #28 drafted** for `CLAUDE.md §Automated Compliance Checks`: `grep -rnE "config:\s*\{\s*rateLimit:" apps/api/src --include="*.ts" | grep -vE "/tests/|\.test\." | wc -l  # expect 0`. CI mirror (`.github/workflows/fitness.yml`) intentionally left to the orchestrator (sensitive path).
+
+### TDD Cycle Evidence
+
+| Task                           | RED (test first)                                                                           | GREEN (impl passes)                                      | REFACTOR                             |
+| ------------------------------ | ------------------------------------------------------------------------------------------ | -------------------------------------------------------- | ------------------------------------ |
+| 3a AUTH rules + 3d trusted-hop | `authRateLimit.test.ts` rewritten → 11 failed (no AUTH rules; `resolveClientIp` undefined) | AUTH_ROUTE_RULES + resolveClientIp added → 13 passed     | comments + table ordering documented |
+| 3f fail-open                   | fail-open test asserts 200 (not 429) on store throw → part of the RED 11                   | catch block returns undefined + structured WARN → passes | warning made structured/alertable    |
+
+### Verify (slice 6, LXC-safe, all green)
+
+- `authRateLimit.test.ts` (rewritten) → 13 passed.
+- `security/httpRateLimitPreHandler.test.ts` (sibling) → 5 passed (signature change safe).
+- `authRoutes.test.ts` → 19 passed (dead-config removal safe).
+- `auditMiddleware.test.ts` + `dashboardRoutes.test.ts` → 62 passed (env addition safe).
+- Lint `--max-warnings 0` (heap 4096) on the 5 touched code/test files → 0.
+- Typecheck `@apps/api` (single run, heap 6144) → 0.
+- Fitness on changes: #3=0 (no any), #5=0 (no @ts-ignore), #8=0 (no sprint/phase refs), #9 @file present, #10=0 invalid @layer, #16=0 (no raw process.env outside config/env.ts), #28=0 (no dead rateLimit config).
+
+### Files (slice 6)
+
+- `docs/technical/ADR-0019-rate-limiting-canonical-limiter.md` (created).
+- `docs/security/SECURITY_CANON.md` (added §Rate Limiting + How-to-extend item + fitness bullet).
+- `apps/api/src/security/httpRateLimitPreHandler.ts` (AUTH_ROUTE_RULES, `/accounts` fix, `resolveClientIp` export, env-keyed `clientIp`, structured fail-open WARN, @file de-scoped).
+- `apps/api/src/config/env.ts` (`TRUSTED_PROXY_HOP_COUNT`).
+- `apps/api/src/auth/authRoutes.ts` (removed dead `config.rateLimit`).
+- `apps/api/src/auth/customerAuthRoutes.ts` (removed 5 dead `config.rateLimit`).
+- `apps/api/tests/unit/authRateLimit.test.ts` (rewritten to drive the real preHandler path).
+- `.env.example` (`TRUSTED_PROXY_HOP_COUNT`).
+- `CLAUDE.md` (fitness #28 drafted).
+
+### Out of scope / flagged
+
+- **`@fastify/rate-limit` dependency removal**: FLAGGED follow-up (needs lockfile update; not removed in this slice to avoid install churn).
+- **`.github/workflows/fitness.yml` #28 mirror**: left to the orchestrator (sensitive path).
+- Did NOT touch the BruteForceProtectionPort / ADR-0015 code (customer login BF intact), did NOT re-add `/auth/register`, did NOT remove the `@fastify/rate-limit` dep, NO git ops.
+
+**Still deferred (carry-over from prior slices)**: OpenAPI types regen (needs DB+Redis); full-CI 0-defect gate sign-off (2.5/3.7); 1.7 §2G CI gate; 1.8 integration cross-tenant 403/404; IDOR-TRACKEDLINK/SCHEDULEDREPORT surfaces; analytics purity smell; A4 §2F write-path.
+
+## SLICE 6b — §2C RATELIMIT-DEAD dual-judge rework (Track 2 §2C)
+
+The dual-judge adversarial review of slice 6 surfaced 3 CODE issues; the orchestrator
+applied the 3 code fixes to `httpRateLimitPreHandler.ts`. This slice adds the test
+coverage + an ADR note + verifies. No change to the fixes themselves (one keying line
+was temporarily reverted ONLY to prove RED-first, then restored).
+
+### The 3 already-applied code fixes (confirmed present via `git diff`)
+
+- **Query-immune keying** — `const path = req.url.split("?")[0] ?? req.url;` is now used for BOTH `findConfig` AND the bucket key (previously keyed on the full `req.url`, so `/auth/login?x=1`, `?x=2`, ... rotated buckets and evaded the AUTH cap; CWE-307).
+- **`/accounts` → STANDARD** — the old `/accounts$` AUTH rule was removed; account routes resolve to the STANDARD default (NOT re-added; a real `/accounts` AUTH prefix would over-cap the client SPA's account GET reads at 5/15min).
+- **`/auth/mfa/verify` → AUTH** — added to `AUTH_ROUTE_RULES` (TOTP / backup-code guessing surface with no per-account counter).
+
+### Done (this slice)
+
+- [x] **`authRateLimit.test.ts` — production rule concat**: `buildApp` now wires `[...STANDARD_ROUTE_RULES, ...EXPENSIVE_ENDPOINT_RULES]` (the prior rewrite wired only `STANDARD_ROUTE_RULES` — a Judge A LOW finding; `index.ts` L422 uses the concat). Routes registered for BOTH GET+POST (the limiter is method-agnostic).
+- [x] **Query-immune keying test (THE regression guard)**: `POST /auth/login?x=1` … `?x=6` (distinct query strings) → the 6th returns 429, proving the query string does NOT rotate the bucket. **RED-FIRST CONFIRMED**: temporarily reverting the source keying back to the full `req.url` made the 6th return 200 (not 429) — each distinct query minted a fresh bucket — then the source was restored.
+- [x] **`/accounts` → STANDARD test**: `GET /accounts/acct-123/projects` survives 6 requests with no 429 (STANDARD 100/min, not AUTH 5/15min).
+- [x] **`/auth/mfa/verify` → AUTH test**: the 6th `POST` request 429s.
+- [x] **ADR-0019 note**: added a References-section line noting that ADR-0015's §Risks "Fastify route rate-limit fallback (5/15min)" referred to the dead `config.rateLimit` removed by this change; the real fallback during a Redis BF outage is the HTTP preHandler AUTH cap, which itself fails open. ADR-0015 NOT edited.
+
+### Verify (slice 6b, LXC-safe, all green)
+
+- `authRateLimit.test.ts` → 16 passed (was 13, +3 new).
+- `security/httpRateLimitPreHandler.test.ts` (sibling) → 5 passed.
+- Lint `--max-warnings 0` (heap 4096) on `authRateLimit.test.ts` → 0.
+- Typecheck `@apps/api` (`tsc --noEmit`, single run, heap 6144) → 0.
+
+### Files (slice 6b)
+
+- `apps/api/tests/unit/authRateLimit.test.ts` (3 new tests + `buildApp` production-concat fix + `EXPENSIVE_ENDPOINT_RULES` import).
+- `docs/technical/ADR-0019-rate-limiting-canonical-limiter.md` (References note).
+- `openspec/changes/implementation-plan-revalidation/tasks.md` (3.7 `[x]`).
+
+### Constraints honored
+
+- NO git ops; did NOT touch `.github/workflows/**` (fitness #28 CI mirror = orchestrator); did NOT re-add the `/accounts` AUTH rule; did NOT change the fail-open posture. Canon respected (Result, no `any`, typed `env`, JSDoc).

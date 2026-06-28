@@ -326,36 +326,36 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   const authService = fastify.container!.resolve<AuthService>(TOKENS.AuthService);
   const authHandler = new AuthRouteHandler(authService);
 
-  // Login (rate limited: 5 per 15 minutes)
+  // Login. Rate limiting is enforced by the canonical HTTP limiter
+  // (createHttpRateLimitPreHandler + AUTH_ROUTE_RULES → 5 req / 15 min),
+  // NOT by a route-level `config.rateLimit` — the `@fastify/rate-limit`
+  // plugin is never registered, so that key was dead (ADR-0019).
   fastify.post(
     "/auth/login",
     {
       schema: { tags: ["Auth"], summary: "Login user" },
-      config: { rateLimit: { max: 5, timeWindow: "15 minutes" } },
     },
     async (request, reply) => {
       await authHandler.login(request, reply);
     }
   );
 
-  // Refresh tokens (rate limited: 20 per 15 minutes)
+  // Refresh tokens (rate limited by the canonical HTTP limiter — AUTH preset).
   fastify.post(
     "/auth/refresh",
     {
       schema: { tags: ["Auth"], summary: "Refresh access tokens" },
-      config: { rateLimit: { max: 20, timeWindow: "15 minutes" } },
     },
     async (request, reply) => {
       await authHandler.refresh(request, reply);
     }
   );
 
-  // Logout (rate limited: 20 per 15 minutes)
+  // Logout (no AUTH cap — non-credential endpoint; falls through to STANDARD).
   fastify.post(
     "/auth/logout",
     {
       schema: { tags: ["Auth"], summary: "Logout user" },
-      config: { rateLimit: { max: 20, timeWindow: "15 minutes" } },
     },
     async (request, reply) => {
       await authHandler.logout(request, reply);

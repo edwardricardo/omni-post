@@ -572,12 +572,31 @@ jobs:
             exit 1
           fi
 
+      - name: "#28 No dead config.rateLimit route-config (RATELIMIT-DEAD)"
+        if: always()
+        run: |
+          set -uo pipefail
+          # @fastify/rate-limit is a declared dep but NEVER registered in prod, so
+          # config: { rateLimit: {...} } on a route is DEAD config — Fastify ignores
+          # the key and the route enforces nothing while looking protected. The
+          # canonical HTTP limiter is the RateLimiterPort preHandler
+          # (createHttpRateLimitPreHandler + AUTH_ROUTE_RULES). Mirrors CLAUDE.md #28.
+          # See ADR-0019 + SECURITY_CANON §Rate Limiting.
+          C=$(grep -rnE "config:\s*\{\s*rateLimit:" apps/api/src --include="*.ts" 2>/dev/null | \
+                grep -vE "/tests/|\.test\." || true)
+          CCOUNT=$(printf "%s" "$C" | grep -c . || true); CCOUNT=${CCOUNT:-0}
+          if [ "$CCOUNT" -gt 0 ]; then
+            echo "::error title=Fitness #28 violation::$CCOUNT dead config.rateLimit route-config in apps/api/src — @fastify/rate-limit is unregistered; use the RateLimiterPort preHandler (AUTH_ROUTE_RULES). See ADR-0019."
+            printf "%s\n" "$C" | head -20
+            exit 1
+          fi
+
       - name: Fitness summary
         if: always()
         run: |
           echo "## Fitness Functions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "27 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
+          echo "28 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
           echo "Hard-zero threshold: any new occurrence fails this workflow with an \`::error\` annotation." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "See individual step results above for any violations." >> $GITHUB_STEP_SUMMARY

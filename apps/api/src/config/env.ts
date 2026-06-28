@@ -236,6 +236,18 @@ const serverSchema = {
 
   // ── Feature flags ───────────────────────────────────────────────────
   ENABLE_RATE_LIMITING: boolFromString.default(true),
+
+  // ── Rate limiting — trusted proxy hops (anti-spoof) ─────────────────
+  // Number of TRUSTED reverse-proxy hops directly in front of the API. The
+  // HTTP rate limiter derives its per-client key from the
+  // `X-Forwarded-For` entry at `len - TRUSTED_PROXY_HOP_COUNT`, ignoring the
+  // attacker-spoofable left side of the chain (see ADR-0019 +
+  // SECURITY_CANON §Rate Limiting). Default 1 = exactly one trusted proxy/LB
+  // appends the real client IP as the rightmost entry. Set to the actual
+  // number of proxies in your ingress path (e.g. 2 for CDN → LB). A value of
+  // 0 is rejected (it would key off the raw socket peer, which behind any
+  // proxy is the proxy itself — collapsing every client into one bucket).
+  TRUSTED_PROXY_HOP_COUNT: z.coerce.number().int().min(1).max(10).default(1),
   // Headless schema-only boot for OpenAPI dump tooling. When true,
   // createApp() skips the saga/EventService background block (Redis
   // pub/sub subscriber, recovery checker) so the dump script can extract

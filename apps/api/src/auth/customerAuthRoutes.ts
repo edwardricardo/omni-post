@@ -333,24 +333,28 @@ const customerAuthRoutes: FastifyPluginAsync = async (fastify) => {
     resetPasswordUC
   );
 
-  // POST /auth/customer/register — public
+  // POST /auth/customer/register — public.
+  // Rate limiting is enforced by the canonical HTTP limiter
+  // (createHttpRateLimitPreHandler + AUTH_ROUTE_RULES → 5 req / 15 min), NOT by
+  // a route-level `config.rateLimit` — the `@fastify/rate-limit` plugin is never
+  // registered, so that key was dead (ADR-0019).
   fastify.post(
     "/auth/customer/register",
     {
       schema: { tags: ["Customer Auth"], summary: "Register new customer account" },
-      config: { rateLimit: { max: 10, timeWindow: "1 hour" } },
     },
     async (request, reply) => {
       await handler.register(request, reply);
     }
   );
 
-  // POST /auth/customer/login — public
+  // POST /auth/customer/login — public. Defence-in-depth: the canonical HTTP
+  // limiter caps per-IP (AUTH preset) AND LoginCustomerUseCase is gated by the
+  // account-based BruteForceProtectionPort (ADR-0015).
   fastify.post(
     "/auth/customer/login",
     {
       schema: { tags: ["Customer Auth"], summary: "Customer login" },
-      config: { rateLimit: { max: 5, timeWindow: "15 minutes" } },
     },
     async (request, reply) => {
       await handler.login(request, reply);
@@ -369,19 +373,18 @@ const customerAuthRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  // POST /auth/customer/refresh — public
+  // POST /auth/customer/refresh — public (canonical HTTP limiter, AUTH preset).
   fastify.post(
     "/auth/customer/refresh",
     {
       schema: { tags: ["Customer Auth"], summary: "Refresh customer tokens" },
-      config: { rateLimit: { max: 20, timeWindow: "15 minutes" } },
     },
     async (request, reply) => {
       await handler.refresh(request, reply);
     }
   );
 
-  // POST /auth/customer/request-password-reset — public
+  // POST /auth/customer/request-password-reset — public (canonical limiter, AUTH preset).
   fastify.post(
     "/auth/customer/request-password-reset",
     {
@@ -389,19 +392,17 @@ const customerAuthRoutes: FastifyPluginAsync = async (fastify) => {
         tags: ["Customer Auth"],
         summary: "Request customer password reset",
       },
-      config: { rateLimit: { max: 5, timeWindow: "15 minutes" } },
     },
     async (request, reply) => {
       await handler.requestPasswordReset(request, reply);
     }
   );
 
-  // POST /auth/customer/reset-password — public
+  // POST /auth/customer/reset-password — public (canonical limiter, AUTH preset).
   fastify.post(
     "/auth/customer/reset-password",
     {
       schema: { tags: ["Customer Auth"], summary: "Reset customer password" },
-      config: { rateLimit: { max: 5, timeWindow: "15 minutes" } },
     },
     async (request, reply) => {
       await handler.resetPassword(request, reply);

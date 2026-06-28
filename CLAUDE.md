@@ -585,6 +585,21 @@ grep -rnE "node ([^|&]*)--import tsx" \
 # consume via Option-B tsconfig paths -> Turbopack "Module not found").
 grep -nE "pnpm --filter @apps/(admin|client)( --filter @apps/(admin|client))* build" \
   .github/workflows/audit.yml | wc -l  # expect 0
+
+# 28. No dead `config: { rateLimit: ... }` route-config in apps/api/src. Threat:
+# `@fastify/rate-limit` is a declared dependency but is NEVER registered in
+# production (no `app.register(fastifyRateLimit)` in apps/api/src), so any
+# `config: { rateLimit: {...} }` on a route is DEAD CONFIG — Fastify silently
+# ignores the unknown key and the route enforces NOTHING while LOOKING protected
+# in review (RATELIMIT-DEAD, §2C). The canonical HTTP limiter is the
+# RateLimiterPort token-bucket preHandler (createHttpRateLimitPreHandler +
+# AUTH_ROUTE_RULES / EXPENSIVE_ENDPOINT_RULES); new caps go in that rule table,
+# never via route config. See ADR-0019 + SECURITY_CANON §Rate Limiting.
+# Hard-zero. Scope: apps/api/src. Excludes tests (a test may legitimately
+# register the plugin in its own isolated app). If the project ever formally
+# adopts and REGISTERS @fastify/rate-limit, retire this guard via ADR.
+grep -rnE "config:\s*\{\s*rateLimit:" apps/api/src --include="*.ts" 2>/dev/null | \
+  grep -vE "/tests/|\.test\." | wc -l  # expect 0
 ```
 
 **Extending the suite.** Adding a new fitness check requires three coordinated edits, in order:

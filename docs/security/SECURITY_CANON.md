@@ -79,6 +79,26 @@ When adding a new `accountId`-bearing model:
 
 ---
 
+## Rate Limiting
+
+**There is ONE canonical HTTP rate-limit mechanism: the technology-free `RateLimiterPort` enforced by `createHttpRateLimitPreHandler` (`apps/api/src/security/httpRateLimitPreHandler.ts`), backed by `RedisTokenBucketRateLimiter` in production (cross-pod) and `InMemoryTokenBucketRateLimiter` in tests. Never reintroduce a second HTTP limiter — in particular, never rely on `@fastify/rate-limit`'s `config: { rateLimit: {...} }` route-config: that plugin is NOT registered, so the key is silently dead.** Full rationale: [ADR-0019](../technical/ADR-0019-rate-limiting-canonical-limiter.md).
+
+Rate limiting is the IP-based supplementary control. It is DISTINCT from account-based brute-force protection (`BruteForceProtectionPort`, ADR-0015): the BF gate is the per-account PRIMARY control on login; the HTTP cap is the per-IP defence-in-depth layer that also covers the non-login credential routes (register / refresh / password-reset). Both coexist by design (OWASP Authentication Cheat Sheet: rate-limiting and account-lockout are distinct controls).
+
+| Concern            | Where                                                                                                                                     | Rule                                                                                                                                                                                                                                                                                               |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HTTP per-path caps | `STANDARD_ROUTE_RULES` + `EXPENSIVE_ENDPOINT_RULES` (first `startsWith` match wins, else `RateLimitConfigs.STANDARD`)                     | One ordered table; auth rules (`AUTH_ROUTE_RULES`) are concatenated FIRST so a credential URL never falls through to a broader rule.                                                                                                                                                               |
+| Auth endpoints     | `AUTH_ROUTE_RULES` (customer `login`/`register`/`refresh`/`request-password-reset`/`reset-password`, core `/auth/login`, `/auth/refresh`) | `RateLimitConfigs.AUTH` = 5 requests / 15 min. Add new credential endpoints here, not via `config.rateLimit`.                                                                                                                                                                                      |
+| Client IP key      | `resolveClientIp(...)` keyed off the `X-Forwarded-For` entry at `len - TRUSTED_PROXY_HOP_COUNT`                                           | The leftmost `X-Forwarded-For` is client-spoofable. Derive the key from a TRUSTED hop. `TRUSTED_PROXY_HOP_COUNT` (env, `min(1)`, default 1) MUST equal the real number of reverse-proxy hops in the ingress path.                                                                                  |
+| Outage posture     | `createHttpRateLimitPreHandler` catch block                                                                                               | **Fail-OPEN**: a limiter/store outage lets traffic through (a fail-closed limiter is a DoS amplifier — ADR-0015 §7). Fail-open emits a structured `WARN` with `threat_type: "http_rate_limit_failopen"`; **operational alerting on that signal is REQUIRED**, since fail-open is silent by design. |
+
+- **Never reintroduce route-level `config: { rateLimit: {...} }`** in `apps/api/src` while `@fastify/rate-limit` stays unregistered — it is dead config that advertises protection that is not enforced. CI fitness grep #28 blocks the pattern (see CLAUDE.md §Automated Compliance Checks).
+- **Never change the limiter to fail-closed.** A fail-closed HTTP limiter turns one Redis blip into a full outage of every protected route. Anti-DoS canon (OWASP, NIST, Cloudflare/AWS WAF defaults) is fail-open + loud telemetry. Same posture as ADR-0015.
+- **Never key the bucket off the raw leftmost `X-Forwarded-For`** or the raw socket peer behind a proxy. Use `resolveClientIp` with the configured trusted hop count.
+- Reference: NIST SP 800-63B-4 §Rate Limiting; OWASP API4:2023 (Unrestricted Resource Consumption — 429 + Retry-After); OWASP Authentication Cheat Sheet.
+
+---
+
 ## How to extend
 
 Adding new security rules:
@@ -87,8 +107,9 @@ Adding new security rules:
 2. **New sensitive field for logger redaction** → extend `REDACT_PATHS` in `apps/api/src/lib/logger.ts` (case variations explicit — see ADR-0013). Document the threat in `docs/architecture/logging.md`.
 3. **New CWE control** → add fitness regex catalog entry in `CLAUDE.md §Automated Compliance Checks`; mirror in `.github/workflows/fitness.yml`.
 4. **New tenant-scoped model** → see §"Multi-Tenant Isolation" above (3-step checklist).
-5. **Amending a rule** → ADR required (see ADR-0001 template).
+5. **New rate-limited endpoint** → add the URL prefix to `AUTH_ROUTE_RULES` (credential endpoints, AUTH preset) or `EXPENSIVE_ENDPOINT_RULES` (expensive operations) in `apps/api/src/security/httpRateLimitPreHandler.ts`. NEVER add a route-level `config: { rateLimit: {...} }` (dead — the plugin is unregistered; see §Rate Limiting + ADR-0019). Keep the limiter fail-open.
+6. **Amending a rule** → ADR required (see ADR-0001 template).
 
 Companion fitness checks live in `CLAUDE.md §Automated Compliance Checks`:
 
-- `#13` no direct pino · `#14` no per-class cache Maps · `#15` no insecure secret fallbacks · `#16` no `process.env.*` outside `config/env.ts` (api) · `#17` no `process.env.*` outside `lib/env.ts` (Next.js) · `#18` Argon2 only via canonical helper · `#19` no env reads inside provider Adapter classes · `#23` no raw Prisma queries outside guard exceptions.
+- `#13` no direct pino · `#14` no per-class cache Maps · `#15` no insecure secret fallbacks · `#16` no `process.env.*` outside `config/env.ts` (api) · `#17` no `process.env.*` outside `lib/env.ts` (Next.js) · `#18` Argon2 only via canonical helper · `#19` no env reads inside provider Adapter classes · `#23` no raw Prisma queries outside guard exceptions · `#28` no dead `config: { rateLimit: ... }` route-config while `@fastify/rate-limit` is unregistered.
