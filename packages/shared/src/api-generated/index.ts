@@ -773,8 +773,6 @@ export type {
   PostAuthPermissionsCheckResponses,
   PostAuthRefreshData,
   PostAuthRefreshResponses,
-  PostAuthRegisterData,
-  PostAuthRegisterResponses,
   PostAuthRevokeAllData,
   PostAuthRevokeAllResponses,
   PostAuthSamlByAccountIdCallbackData,
