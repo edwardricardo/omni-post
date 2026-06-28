@@ -2,7 +2,7 @@
 /**
  * Integration Tests for auth endpoint rate limiting
  *
- * Verifies that POST /auth/login and POST /auth/register correctly enforce
+ * Verifies that the auth endpoints (login, refresh, logout) correctly enforce
  * per-route rate limits configured via config.rateLimit in authRoutes.ts.
  *
  * Design:
@@ -75,23 +75,6 @@ const MOCK_LOGIN_SUCCESS = {
       refreshToken: "mock-refresh-token",
       expiresAt: new Date(Date.now() + 3600000).toISOString(),
     },
-  },
-};
-
-/** Minimal success value returned by authService.registerAdmin mock */
-const MOCK_REGISTER_SUCCESS = {
-  ok: true as const,
-  value: {
-    id: "mock-user-id",
-    email: "new@example.com",
-    name: "New User",
-    role: "ADMIN" as const,
-    isActive: true,
-    emailVerified: true,
-    mfaEnabled: false,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    lastLoginAt: null,
   },
 };
 
@@ -176,16 +159,6 @@ async function postLogin(app: FastifyInstance, ip = "192.168.1.1") {
     method: "POST",
     url: "/auth/login",
     payload: { email: "test@example.com", password: "TestPassword1!" },
-    headers: { "x-forwarded-for": ip },
-  });
-}
-
-/** POST /auth/register with a fixed IP */
-async function postRegister(app: FastifyInstance, ip = "192.168.1.2") {
-  return app.inject({
-    method: "POST",
-    url: "/auth/register",
-    payload: { email: "new@example.com", password: "TestPassword1!", name: "New User" },
     headers: { "x-forwarded-for": ip },
   });
 }
@@ -287,59 +260,6 @@ describe("Auth endpoint rate limiting", () => {
       expect(reset !== undefined).toBeTruthy();
 
       expect(String(limit)).toBe("5");
-      expect(String(remaining)).toBe("0");
-    });
-  });
-
-  // ───────────────────────────────────────────────────────────────────────────
-  describe("POST /auth/register — max 10 per 1 hour", () => {
-    let app: FastifyInstance;
-    let authService: AuthService;
-
-    beforeAll(async () => {
-      ({ app, authService } = await createTestApp());
-    });
-
-    beforeEach(() => {
-      vi.spyOn(authService, "registerAdmin").mockImplementation(async () => MOCK_REGISTER_SUCCESS);
-    });
-
-    afterAll(async () => {
-      await app.close();
-    });
-
-    it("should allow the first 10 requests (under the limit)", async () => {
-      for (let i = 1; i <= 10; i++) {
-        const res = await postRegister(app);
-        expect(res.statusCode).not.toBe(429);
-      }
-    });
-
-    it("should return 429 on the 11th request", async () => {
-      const res = await postRegister(app);
-      expect(res.statusCode).toBe(429);
-    });
-
-    it("should return the correct error body shape on 429", async () => {
-      const res = await postRegister(app);
-      expect(res.statusCode).toBe(429);
-
-      const body = JSON.parse(res.body);
-      expect(body.ok).toBe(false);
-      expect(body.error?.code).toBe("RATE_LIMIT_EXCEEDED");
-      expect(typeof body.error?.message === "string" && body.error.message.length > 0).toBeTruthy();
-    });
-
-    it("should include rate-limit headers with limit=10 on a 429", async () => {
-      const res = await postRegister(app);
-      expect(res.statusCode).toBe(429);
-
-      const limit = res.headers["x-ratelimit-limit"];
-      const remaining = res.headers["x-ratelimit-remaining"];
-
-      expect(limit !== undefined).toBeTruthy();
-      expect(remaining !== undefined).toBeTruthy();
-      expect(String(limit)).toBe("10");
       expect(String(remaining)).toBe("0");
     });
   });
@@ -469,14 +389,14 @@ describe("Auth endpoint rate limiting", () => {
 
     beforeEach(() => {
       vi.spyOn(authService, "login").mockImplementation(async () => MOCK_LOGIN_SUCCESS);
-      vi.spyOn(authService, "registerAdmin").mockImplementation(async () => MOCK_REGISTER_SUCCESS);
+      vi.spyOn(authService, "refreshTokens").mockImplementation(async () => MOCK_REFRESH_SUCCESS);
     });
 
     afterAll(async () => {
       await app.close();
     });
 
-    it("exhausting /auth/login limit should NOT affect /auth/register limit", async () => {
+    it("exhausting /auth/login limit should NOT affect /auth/refresh limit", async () => {
       const sharedIp = "172.16.0.1";
 
       // Exhaust the login limit (5 requests)
@@ -488,9 +408,9 @@ describe("Auth endpoint rate limiting", () => {
       const loginBlocked = await postLogin(app, sharedIp);
       expect(loginBlocked.statusCode).toBe(429);
 
-      // Register from the same IP must still be allowed (separate per-route counter)
-      const registerAllowed = await postRegister(app, sharedIp);
-      expect(registerAllowed.statusCode).not.toBe(429);
+      // Refresh from the same IP must still be allowed (separate per-route counter)
+      const refreshAllowed = await postRefresh(app, sharedIp);
+      expect(refreshAllowed.statusCode).not.toBe(429);
     });
   });
 });

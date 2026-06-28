@@ -124,17 +124,15 @@ describe("dashboardRoutes Unit Tests", () => {
     const result = await createTestApp();
     app = result.app;
 
-    // Register + login admin user via authRoutes
-    await app.inject({
-      method: "POST",
-      url: "/auth/register",
-      payload: {
-        email: adminEmail,
-        password: "TestPassword123!",
-        name: "Admin Dashboard User",
-        role: "ADMIN",
-      },
-    });
+    // Seed admin user via AuthService, then log in through authRoutes.
+    // (The public POST /auth/register endpoint was removed — admin users are
+    // created only through the service seeding path.)
+    await result.authSvc.registerAdmin(
+      adminEmail,
+      "TestPassword123!",
+      "Admin Dashboard User",
+      "ADMIN"
+    );
     const adminLoginRes = await app.inject({
       method: "POST",
       url: "/auth/login",
@@ -143,7 +141,7 @@ describe("dashboardRoutes Unit Tests", () => {
     const adminBody = JSON.parse(adminLoginRes.body);
     adminToken = adminBody.data?.accessToken || "";
 
-    // Create support user via AuthService (SUPPORT role not accepted by register route)
+    // Create support user via AuthService
     await result.authSvc.registerAdmin(supportEmail, "TestPassword123!", "Support User", "SUPPORT");
     const supportLoginResult = await result.authSvc.login(
       { email: supportEmail, password: "TestPassword123!" },

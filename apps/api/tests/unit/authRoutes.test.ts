@@ -110,7 +110,6 @@ const testPassword = "TestPassword123!";
 const testName = "Test Routes User";
 
 let app: ReturnType<typeof Fastify>;
-let _testUserId: string;
 let accessToken: string;
 let refreshToken: string;
 
@@ -122,90 +121,33 @@ describe("authRoutes Integration Tests", () => {
     stores.auditLog.clear();
 
     app = await createTestApp();
+
+    // Seed the admin user the login/session suites depend on. The public
+    // POST /auth/register endpoint was removed (AUTH-REGISTER-PRIVESC,
+    // CWE-269); admin users are now created only through the kept service
+    // seeding path, never an unauthenticated HTTP route.
+    const seedResult = await authService.registerAdmin(testEmail, testPassword, testName, "ADMIN");
+    expect(seedResult.ok).toBe(true);
   });
 
   afterAll(async () => {
     await app.close();
   });
 
-  describe("POST /auth/register", () => {
-    it("should register successfully", async () => {
+  describe("POST /auth/register (removed endpoint)", () => {
+    it("returns 404 because the legacy public registration route is no longer registered", async () => {
       const response = await app.inject({
         method: "POST",
         url: "/auth/register",
         payload: {
-          email: testEmail,
+          email: `should-not-exist-${timestamp}@example.com`,
           password: testPassword,
           name: testName,
           role: "ADMIN",
         },
       });
 
-      const body = JSON.parse(response.body);
-
-      expect(response.statusCode).toBe(200);
-      expect(body.ok).toBe(true);
-      expect(body.data?.id).toBeTruthy();
-      expect(body.data?.email).toBe(testEmail.toLowerCase());
-      expect(body.data?.role).toBe("ADMIN");
-
-      _testUserId = body.data?.id || "";
-    });
-
-    it("should reject duplicate email", async () => {
-      const response = await app.inject({
-        method: "POST",
-        url: "/auth/register",
-        payload: {
-          email: testEmail,
-          password: testPassword,
-          name: testName,
-        },
-      });
-
-      expect(response.statusCode).toBe(409);
-
-      const body = JSON.parse(response.body);
-      expect(body.ok).toBe(false);
-      expect(body.error).toBe("Email already exists");
-    });
-
-    it("should reject invalid email format", async () => {
-      const response = await app.inject({
-        method: "POST",
-        url: "/auth/register",
-        payload: {
-          email: "invalid-email",
-          password: testPassword,
-          name: testName,
-        },
-      });
-
-      expect(response.statusCode).toBe(400);
-    });
-
-    it("should reject weak password", async () => {
-      const response = await app.inject({
-        method: "POST",
-        url: "/auth/register",
-        payload: {
-          email: `weak-pw-${timestamp}@example.com`,
-          password: "weak",
-          name: testName,
-        },
-      });
-
-      expect(response.statusCode).toBe(400);
-    });
-
-    it("should reject missing required fields", async () => {
-      const response = await app.inject({
-        method: "POST",
-        url: "/auth/register",
-        payload: { email: testEmail },
-      });
-
-      expect(response.statusCode).toBe(400);
+      expect(response.statusCode).toBe(404);
     });
   });
 

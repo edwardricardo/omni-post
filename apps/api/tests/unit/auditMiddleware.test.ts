@@ -193,19 +193,6 @@ describe("auditMiddleware Tests", () => {
       expect(request.auditLog).toBeTruthy();
     });
 
-    it("should detect USER_CREATED action from /auth/register POST", async () => {
-      const request = createMockRequest({
-        url: "/auth/register",
-        method: "POST",
-      });
-      const reply = createMockReply();
-
-      await auditMiddleware(request, reply);
-      reply.send({ success: true });
-
-      expect(request.auditLog).toBeTruthy();
-    });
-
     it("should detect PROJECT_CREATED action from /projects POST", async () => {
       const request = createMockRequest({
         url: "/projects",

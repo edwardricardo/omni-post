@@ -316,3 +316,95 @@ REFUTED — value is a deterministic transform of byte-identical task.data).
   (LXC-safe); reviewed correct under the fix (uses a valid customer token, same
   account, so MISS/HIT/invalidation unchanged).
 - NO git ops. Did NOT touch the AI cache, `.github/workflows/`, or CLAUDE.md.
+
+---
+
+## SLICE 5 — §2C task 3.1/3.2 AUTH-REGISTER-PRIVESC (CWE-269 public admin-registration privilege escalation) — uncommitted
+
+### Defect (CONFIRMED CRITICAL)
+
+The legacy `POST /auth/register` endpoint was **public/unauthenticated**, accepted
+`role` from the request body, and minted an **ADMIN** user by default
+(`registerAdmin(email, password, name, role || "ADMIN")`). Anyone reaching the
+API could self-provision an ADMIN account — CWE-269 (Improper Privilege
+Management).
+
+Verified **DEAD**: zero frontend/api-client callers (`rg '/auth/register'` over
+`apps/admin` + `apps/client` empty). The only references were the route def
+itself (comment: "legacy admin registration endpoint"), tests, the audit-path
+mapping, and the generated OpenAPI types. Edward authorized **REMOVAL** in
+preference to hardening a dead endpoint.
+
+### Fix approach — REMOVAL (not "strip role")
+
+Because the endpoint is verified dead and Edward authorized removal, the priv-esc
+surface is eliminated entirely rather than patched. Original task 3.2 ("strip
+`role`, default non-priv role") is **superseded** — there is no payload left to
+strip.
+
+### registerAdmin disposition — KEPT (used elsewhere: test seeding)
+
+`grep` of all production callers (`apps/` + `packages/`, excluding tests/reports)
+shows the ONLY non-test caller of `authService.registerAdmin` was
+`authRoutes.ts:71` — the removed route. However `registerAdmin` is the canonical
+**seeding primitive** used by 18 test files to create admin/super-admin/support
+users for RBAC, MFA, audit, dashboard, channel, notification, team, subscription,
+approval, trend suites. Per the task rule ("if used elsewhere — seeding, an admin
+tool — KEEP it, verify no other PUBLIC route exposes it, report every remaining
+caller"), `registerAdmin` is **kept** in both `authService.ts` and
+`authServiceCore.ts`. Verified: NO other route (public or gated) calls it after
+removal. Remaining production references = the method definitions only
+(`authServiceCore.ts:80`, `authService.ts:60/66`). All other callers are tests.
+
+### dashboardRoutes / trendRoutes incidental references
+
+Both used `POST /auth/register` only to SEED an admin/test user before logging in
+to get a token — register was NOT the subject. Repointed to the kept service
+seeding path `authSvc.registerAdmin(...)` (the pattern `dashboardRoutes.test.ts`
+already used for its support user). `trendRoutes.test.ts` `createTestApp()` now
+returns `{ app, authSvc }` so `beforeAll` can seed via the service. Both tests
+still test their real subject (dashboard stats / trend analysis endpoints).
+
+### 404 regression guard
+
+Added to `authRoutes.test.ts` a `POST /auth/register (removed endpoint)` describe
+asserting the route now returns **404** (route not registered) — the
+"removal is real" guard.
+
+### OpenAPI generated types — FLAGGED as required follow-up (NOT touched)
+
+`packages/shared/src/api-generated/types.gen.ts` still lists `/auth/register`.
+The file is AUTO-GENERATED ("NO editar a mano"). Regeneration
+(`pnpm generate:api-types`) boots `createApp()` against PostgreSQL + Redis
+(per the script's own precondition docstring) — heavy, NOT LXC-safe. Per the task
+constraint, the generated file is left untouched and this is flagged as a
+**required follow-up**: run `pnpm generate:api-types` (DB + Redis up) to drop the
+dead `/auth/register` path from the generated types. Until then the generated
+types transiently still list the dead route (harmless — it's a client type only;
+the live route returns 404).
+
+### Files
+
+| File                                          | Change                                                                                                                                                                                                                    |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/src/auth/authRoutes.ts`             | Removed `POST /auth/register` route registration + `register` handler method + `RegisterSchema` + now-orphaned `UserRoleSchema`/`PasswordSchema` import; `@file` header de-scoped (drop "registration")                   |
+| `apps/api/src/audit/auditMiddleware.ts`       | Removed the dead `/auth/register` → `USER_CREATED` path mapping (`AuditActions.USER_CREATED` enum kept — still used by `activityFeedService.ts`)                                                                          |
+| `apps/api/tests/unit/authRoutes.test.ts`      | Removed the `POST /auth/register` describe (5 cases); seed `testEmail` via `authService.registerAdmin` in `beforeAll`; added 404 removal-regression test; dropped unused `_testUserId`                                    |
+| `apps/api/tests/unit/authRateLimit.test.ts`   | Removed the `POST /auth/register — max 10 per 1 hour` describe + `postRegister` helper + `MOCK_REGISTER_SUCCESS`; repointed cross-route isolation case from register→refresh (still tests independent per-route counters) |
+| `apps/api/tests/unit/auditMiddleware.test.ts` | Removed the `USER_CREATED from /auth/register POST` case                                                                                                                                                                  |
+| `apps/api/tests/unit/dashboardRoutes.test.ts` | Admin user seeding repointed from `POST /auth/register` inject → `authSvc.registerAdmin`                                                                                                                                  |
+| `apps/api/tests/unit/trendRoutes.test.ts`     | `createTestApp()` returns `{ app, authSvc }`; user seeding repointed from `POST /auth/register` inject → `authSvc.registerAdmin`                                                                                          |
+
+### Verify (slice 5, LXC-safe, all green)
+
+- `authRoutes.test.ts` → 19 passed (incl. new 404 regression).
+- `auditMiddleware.test.ts` → 28 passed.
+- `authRateLimit.test.ts` → 12 passed (was 16; -4 register-suite cases).
+- `dashboardRoutes.test.ts` → 34 passed.
+- `trendRoutes.test.ts` → 18 passed (Tier-1, ran against omnipost-infra LXC over Tailscale; localhost DB not used).
+- Lint `--max-warnings 0` (heap 4096) on all 7 touched files → 0.
+- Typecheck `@apps/api` (single run, heap 6144) → 0.
+- Fitness on changes: #1=0 (no prisma in routes), #3=0 (no any), #5=0
+  (no @ts-ignore), #8=0 (no sprint/phase refs), #9 @file present, #10=0
+  invalid @layer. No orphaned imports left dangling.
+- NO git ops. Did NOT touch `POST /auth/customer/register` / `RegisterCustomerUseCase`, any rate-limit production code (RATELIMIT-DEAD remains BLOCKED on canon-research), `.github/workflows/`, or CLAUDE.md.

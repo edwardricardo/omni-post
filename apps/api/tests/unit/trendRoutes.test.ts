@@ -49,7 +49,7 @@ import { PrismaRoleRepository } from "../../src/infrastructure/repositories/Pris
 import { PrismaAdminSessionRepository } from "../../src/infrastructure/repositories/PrismaAdminSessionRepository.js";
 import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 
-async function createTestApp(): Promise<FastifyInstance> {
+async function createTestApp(): Promise<{ app: FastifyInstance; authSvc: AuthService }> {
   const app = Fastify({ logger: false });
   const container = setupContainer({ prisma });
   // Override AuthService with a locally-constructed instance (no global singleton)
@@ -57,23 +57,21 @@ async function createTestApp(): Promise<FastifyInstance> {
   const roleRepo = new PrismaRoleRepository(prisma);
   const sessionRepo = new PrismaAdminSessionRepository(prisma);
   const mfaSvc = new MfaService(adminUserRepo, new InMemoryAuditLogRepository());
-  container.registerInstance(
-    TOKENS.AuthService,
-    new AuthService(
-      prisma,
-      adminUserRepo,
-      mfaSvc,
-      roleRepo,
-      sessionRepo,
-      new InMemoryAuditLogRepository()
-    )
+  const authSvc = new AuthService(
+    prisma,
+    adminUserRepo,
+    mfaSvc,
+    roleRepo,
+    sessionRepo,
+    new InMemoryAuditLogRepository()
   );
+  container.registerInstance(TOKENS.AuthService, authSvc);
   app.decorate("container", container);
   await app.register(fastifyCookie);
   await app.register(authRoutes);
   await app.register(trendRoutes);
   await app.ready();
-  return app;
+  return { app, authSvc };
 }
 
 const timestamp = Date.now();
@@ -85,14 +83,13 @@ let authToken: string;
 
 describe("trendRoutes", () => {
   beforeAll(async () => {
-    app = await createTestApp();
+    const created = await createTestApp();
+    app = created.app;
 
-    // Register and log in a test user
-    await app.inject({
-      method: "POST",
-      url: "/auth/register",
-      payload: { email: testEmail, password: testPassword, name: "Trend Tester" },
-    });
+    // Seed a test user via AuthService, then log in. (The public
+    // POST /auth/register endpoint was removed — users are created only
+    // through the service seeding path.)
+    await created.authSvc.registerAdmin(testEmail, testPassword, "Trend Tester", "ADMIN");
 
     const loginRes = await app.inject({
       method: "POST",

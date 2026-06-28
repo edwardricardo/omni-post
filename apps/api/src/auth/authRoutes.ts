@@ -1,13 +1,12 @@
 /**
  * @file authRoutes.ts
  * @description Fastify route plugin for user authentication endpoints including
- *              registration, login, token refresh, logout, and session management.
+ *              login, token refresh, logout, and session management.
  * @layer infrastructure
  */
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
-import { PasswordSchema, UserRoleSchema } from "@packages/api-common";
 import { SecureSchemas } from "../security/inputValidation.js";
 import type { AuthService } from "./authService.js";
 import { requireClientAuth } from "./customerAuthMiddleware.js";
@@ -15,13 +14,6 @@ import { TOKENS } from "../infrastructure/container/types.js";
 import { env } from "../config/env.js";
 
 // Zod schemas for validation with security enhancement
-const RegisterSchema = z.object({
-  email: SecureSchemas.userEmail,
-  password: PasswordSchema,
-  name: SecureSchemas.userName,
-  role: UserRoleSchema.optional(),
-});
-
 const LoginSchema = z.object({
   email: SecureSchemas.userEmail,
   password: z.string().min(1),
@@ -47,35 +39,6 @@ class AuthRouteHandler extends BaseRouteHandler {
 
   constructor(private authService: AuthService) {
     super();
-  }
-
-  /**
-   * Register new user (legacy admin registration endpoint at /auth/register)
-   */
-  async register(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const ctx: RouteContext = { request, reply };
-
-    // Validate request body
-    const validationResult = await this.validateRequest(ctx, {
-      body: RegisterSchema,
-    });
-
-    if (!validationResult.ok) {
-      return this.sendError(ctx, 400, "Invalid input data");
-    }
-
-    const { body } = validationResult.value as { body: z.infer<typeof RegisterSchema> };
-    const { email, password, name, role } = body;
-
-    // Register user through auth service with role name (DB-driven)
-    const result = await this.authService.registerAdmin(email, password, name, role || "ADMIN");
-
-    // Handle result with error map
-    await this.handleResult(ctx, result, {
-      EMAIL_EXISTS: { code: 409, message: "Email already exists" },
-      VALIDATION_ERROR: { code: 400, message: "Invalid input data" },
-      DATABASE_ERROR: { code: 500, message: "Internal server error" },
-    });
   }
 
   /**
@@ -362,17 +325,6 @@ class AuthRouteHandler extends BaseRouteHandler {
 const authRoutes: FastifyPluginAsync = async (fastify) => {
   const authService = fastify.container!.resolve<AuthService>(TOKENS.AuthService);
   const authHandler = new AuthRouteHandler(authService);
-  // Register new admin user (rate limited: 10 per hour)
-  fastify.post(
-    "/auth/register",
-    {
-      schema: { tags: ["Auth"], summary: "Register new admin user" },
-      config: { rateLimit: { max: 10, timeWindow: "1 hour" } },
-    },
-    async (request, reply) => {
-      await authHandler.register(request, reply);
-    }
-  );
 
   // Login (rate limited: 5 per 15 minutes)
   fastify.post(
