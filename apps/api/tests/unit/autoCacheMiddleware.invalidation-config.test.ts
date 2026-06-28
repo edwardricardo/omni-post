@@ -7,7 +7,21 @@
 import { describe, it, expect } from "vitest";
 import Fastify from "fastify";
 import { autoCachePlugin } from "../../src/middleware/autoCacheMiddleware.js";
+import { signCustomerAccessToken } from "../../src/auth/customerJwt.js";
 import { InMemoryCacheAdapter } from "@adapters/cache-redis";
+
+// CACHE-XTENANT-HTTP: /posts is tenant-scoped, so caching requires a verified
+// customer bearer token (the cache hook fails closed without one). Tests that
+// exercise the tenant-scoped GET cache must therefore carry a valid token.
+const tenantAuth = (accountId: string): { authorization: string } => ({
+  authorization: `Bearer ${signCustomerAccessToken({
+    sub: `user-${accountId}`,
+    accountId,
+    roleId: "role-1",
+    roleName: "OWNER",
+    permissions: [],
+  })}`,
+});
 
 describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => {
   describe("Cache Invalidation", () => {
@@ -32,21 +46,23 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
 
       await app.ready();
 
-      const get1 = await app.inject({ method: "GET", url: "/posts" });
+      const auth = tenantAuth("acct-1");
+
+      const get1 = await app.inject({ method: "GET", url: "/posts", headers: auth });
       expect(JSON.parse(get1.payload).count).toBe(1);
 
       // Allow time for the onSend cache write to complete
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      const get2 = await app.inject({ method: "GET", url: "/posts" });
+      const get2 = await app.inject({ method: "GET", url: "/posts", headers: auth });
       expect(JSON.parse(get2.payload).count).toBe(1);
 
-      await app.inject({ method: "POST", url: "/posts", payload: {} });
+      await app.inject({ method: "POST", url: "/posts", payload: {}, headers: auth });
 
       // Wait for the onResponse hook to complete its async cache invalidation
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      const get3 = await app.inject({ method: "GET", url: "/posts" });
+      const get3 = await app.inject({ method: "GET", url: "/posts", headers: auth });
       expect(JSON.parse(get3.payload).count).toBe(2);
 
       await app.close();

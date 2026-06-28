@@ -237,3 +237,82 @@ kept on ReviewPanel (still used by approve/reject). Server already strips/ignore
 - Fitness on changes: #1=0, #3=0, #4=0, #6=N/A (no cqrs/handlers touched),
   #9=0 missing @file, #10=0 invalid @layer, #23=0 raw prisma.
 - NO git ops; HEAD stays acb25880. Did NOT touch `.github/workflows/` or CLAUDE.md.
+
+---
+
+## SLICE 4 — §2B task 2.3/2.4 CACHE-XTENANT-HTTP (cross-tenant HTTP response cache leak, CWE-639)
+
+Uncommitted in `workstream/impl-revalidation` (no git ops). Strict TDD RED→GREEN.
+
+### The defect (re-confirmed by code read)
+
+- `generateApiCacheKey` keyed only by `request.user?.id`. Client-portal routes
+  authenticate via `requireClientAuth` → populate `request.customerUser`
+  (.accountId), NEVER `request.user` (set only by the Zapier/Make
+  `integrationAuthMiddleware`). So for every client-portal request the tenant
+  segment was dropped and accountId never entered the key → cross-tenant
+  collision on `GET /posts`, `GET /posts/:id`, `GET /analytics/dashboard`, etc.
+- WORSE: the autoCache `onRequest` hook runs BEFORE the route `preHandler`
+  (`requireClientAuth`), so a cache HIT served the body before any tenant gate
+  ran (auth-bypass-on-hit; bypasses the §2A IDOR fixes).
+
+### Fix approach: (b) resolve+verify tenant inside the cache hook
+
+(a) was rejected: a Fastify GLOBAL `preHandler` hook runs BEFORE route-level
+`preHandler`s (verified empirically), and the auth IS a route-level preHandler,
+so a global cache plugin cannot cleanly run its serve AFTER per-route auth
+without rewriting every route. Approach (b) reuses the canonical
+`verifyCustomerToken` to resolve the VERIFIED accountId from the bearer token at
+key-build time — no header trust, no auth duplication/loosening — and closes
+BOTH halves: tenant collision AND auth-bypass-on-hit (a HIT now requires a
+verifiable customer token; an invalid/missing/revoked token fails closed).
+
+### Exact new cache-key composition
+
+`generateApiCacheKey(method, route, params, query, headers, userId?, accountId?)`
+builds `["api", method, route, (accountId ? "acct=<accountId>" : ∅), ...varyBy,
+(userId ? "user=<userId>" : ∅)].join(":")`. The `acct=<accountId>` tenant
+segment is injected by the middleware ONLY for tenant-scoped routes with a
+verified tenant. Tenant-neutral routes pass no accountId → shared key unchanged.
+
+### Fail-closed + scoping classification
+
+- `RouteCacheOptions.tenantScoped?` (default = scoped, fail-safe) + new
+  `isTenantScopedRoute(method, route)`.
+- Tenant-NEUTRAL (explicit `tenantScoped:false`, 7 entries): provider catalog
+  `GET:/providers`, `/providers/active`, `/providers/by-capability/:capability`,
+  `/providers/:id`, `/providers/health/all`; RBAC catalog `GET:/rbac/roles`,
+  `/rbac/permissions`. All other cached routes are tenant-scoped.
+- Middleware `onRequest`: if route is tenant-scoped AND no verified tenant →
+  BYPASS (no serve, no store). Never writes/reads a tenant-scoped key without
+  `acct=`.
+
+### AI cache untouched
+
+`apps/api/src/ai/orchestrator.ts generateCacheKey` NOT modified (task 2.2
+REFUTED — value is a deterministic transform of byte-identical task.data).
+
+### Files
+
+| File                                                                  | Change                                                                                                                                                                                 |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/src/lib/cache/cacheConfig.ts`                               | +`tenantScoped?` on RouteCacheOptions; 7 catalog entries marked `tenantScoped:false`; +`isTenantScopedRoute()`; `generateApiCacheKey` +`accountId?` 7th param → `acct=` segment        |
+| `apps/api/src/middleware/autoCacheMiddleware.ts`                      | +`resolveVerifiedTenant()` (reuses `verifyCustomerToken`); `onRequest` fail-closed bypass for tenant-scoped+no-tenant; key built with verified accountId only for tenant-scoped routes |
+| `apps/api/tests/unit/cacheConfig.tenant-isolation.test.ts`            | Created (RED→GREEN, 10)                                                                                                                                                                |
+| `apps/api/tests/unit/autoCacheMiddleware.tenant-isolation.test.ts`    | Created (RED→GREEN, 5) — real customer tokens via Fastify inject                                                                                                                       |
+| `apps/api/tests/unit/autoCacheMiddleware.invalidation-config.test.ts` | POST-invalidation test now carries a valid customer token (tenant-scoped `/posts` requires verified tenant to cache)                                                                   |
+| `apps/api/tests/cache.test.ts`                                        | stale AUTH_HEADER comment updated to reflect tenant-scoped keying                                                                                                                      |
+
+### Verify (slice 4, LXC-safe, all green)
+
+- New: cacheConfig.tenant-isolation 10 + autoCacheMiddleware.tenant-isolation 5
+  = 15 passed (RED first, then GREEN).
+- Regression (5 cache unit files together): 86 passed.
+- Lint `--max-warnings 0` (heap 4096) on all 6 touched files → 0.
+- Typecheck `@apps/api` (single run, heap 6144) → 0.
+- Fitness on changes: #14=0 (no per-class Map), #3=0 (no any), #5=0 (no
+  @ts-ignore), #9 both have @file, #10=0 invalid @layer.
+- `cache.test.ts` is a node:test INTEGRATION file (DB+Redis) — not run here
+  (LXC-safe); reviewed correct under the fix (uses a valid customer token, same
+  account, so MISS/HIT/invalidation unchanged).
+- NO git ops. Did NOT touch the AI cache, `.github/workflows/`, or CLAUDE.md.

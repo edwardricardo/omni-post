@@ -23,9 +23,11 @@ import {
 
 /**
  * Customer Bearer header for cache-behavior tests that hit auth-gated GET routes
- * (`/posts`). The `/posts` cache key does not vary by token (no
- * `header:authorization` in its `varyBy`), so a single static token is enough to
- * exercise MISS/HIT/invalidation while letting `requireClientAuth` return 200.
+ * (`/posts`). `/posts` is tenant-scoped (CACHE-XTENANT-HTTP): its cache key
+ * carries the verified `accountId` resolved from this token, and the auto-cache
+ * hook fails closed without a valid customer token. A single static token (one
+ * account) is enough to exercise MISS/HIT/invalidation while letting
+ * `requireClientAuth` return 200 and the tenant resolve consistently.
  */
 const AUTH_HEADER = `Bearer ${signCustomerAccessToken({
   sub: "cache-test-user",

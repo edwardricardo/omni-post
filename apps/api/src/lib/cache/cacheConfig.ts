@@ -17,42 +17,61 @@ export interface RouteCacheOptions extends CacheOptions {
   keyPattern?: string;
   varyBy?: string[];
   invalidateOn?: string[];
+  /**
+   * Whether the cached response is scoped to a single tenant (account).
+   *
+   * SECURITY (CWE-639): defaults to tenant-scoped. A tenant-scoped route's
+   * cache key MUST include the verified `accountId` (see
+   * `generateApiCacheKey`), and the auto-cache hook FAILS CLOSED — it bypasses
+   * the cache entirely when no tenant can be resolved, never serving or storing
+   * under a tenant-agnostic shared key. Set `tenantScoped: false` ONLY for
+   * genuinely global, tenant-neutral data (e.g. the provider catalog or the
+   * RBAC role/permission catalog) where every tenant receives identical bytes.
+   */
+  tenantScoped?: boolean;
 }
 
 /**
  * Cache configuration for specific API endpoints
  */
 export const CACHE_CONFIG: Record<string, RouteCacheOptions> = {
-  // Provider endpoints (rarely change, cache aggressively)
+  // Provider endpoints (rarely change, cache aggressively). The provider
+  // catalog is GLOBAL — identical bytes for every tenant — so it is explicitly
+  // tenant-neutral and cached under a shared key (no accountId segment).
   "GET:/providers": {
     enabled: true,
     ttl: CacheTTL.LONG, // 1 hour
     tags: ["providers", "static"],
     varyBy: [],
+    tenantScoped: false,
   },
   "GET:/providers/active": {
     enabled: true,
     ttl: CacheTTL.LONG, // 1 hour
     tags: ["providers", "static"],
     varyBy: [],
+    tenantScoped: false,
   },
   "GET:/providers/by-capability/:capability": {
     enabled: true,
     ttl: CacheTTL.LONG, // 1 hour
     tags: ["providers", "static"],
     varyBy: ["capability"],
+    tenantScoped: false,
   },
   "GET:/providers/:id": {
     enabled: true,
     ttl: CacheTTL.LONG, // 1 hour
     tags: ["providers", "static"],
     varyBy: ["id"],
+    tenantScoped: false,
   },
   "GET:/providers/health/all": {
     enabled: true,
     ttl: CacheTTL.SHORT, // 5 minutes (health status changes)
     tags: ["providers", "health"],
     varyBy: [],
+    tenantScoped: false,
   },
 
   // Template endpoints (moderate change frequency)
@@ -161,18 +180,22 @@ export const CACHE_CONFIG: Record<string, RouteCacheOptions> = {
     varyBy: ["header:authorization"],
   },
 
-  // RBAC endpoints (permissions change infrequently)
+  // RBAC endpoints (permissions change infrequently). The role/permission
+  // catalog is GLOBAL (the same definitions for every tenant), so it is
+  // explicitly tenant-neutral and cached under a shared key.
   "GET:/rbac/roles": {
     enabled: true,
     ttl: CacheTTL.MEDIUM, // 30 minutes
     tags: ["rbac", "roles"],
     varyBy: [],
+    tenantScoped: false,
   },
   "GET:/rbac/permissions": {
     enabled: true,
     ttl: CacheTTL.MEDIUM, // 30 minutes
     tags: ["rbac", "permissions"],
     varyBy: ["query:roleId"],
+    tenantScoped: false,
   },
 };
 
@@ -239,6 +262,22 @@ export function getInvalidationTags(method: string, route: string): string[] {
 }
 
 /**
+ * Whether a cached route is scoped to a single tenant (account).
+ *
+ * SECURITY (CWE-639): tenant-scoped is the FAIL-SAFE default — any route with a
+ * cache config that does not explicitly opt out (`tenantScoped: false`) is
+ * treated as tenant-scoped. Routes with no cache config return `false` (they
+ * are not cached at all, so the question is moot).
+ */
+export function isTenantScopedRoute(method: string, route: string): boolean {
+  const config = getCacheConfig(method, route);
+  if (!config) {
+    return false;
+  }
+  return config.tenantScoped !== false;
+}
+
+/**
  * Check if a route should be cached
  */
 export function shouldCacheRoute(method: string, route: string): boolean {
@@ -257,9 +296,18 @@ export function shouldCacheRoute(method: string, route: string): boolean {
  * Generates unique cache keys based on:
  * - HTTP method
  * - Route path
+ * - Tenant context (verified accountId) — ALWAYS for tenant-scoped responses (CWE-639)
  * - Query parameters (if specified in varyBy)
  * - Headers (if specified in varyBy)
- * - User context (always included for authenticated requests)
+ * - User context (included for authenticated requests, intra-tenant separation)
+ *
+ * SECURITY (CWE-639, cross-tenant cache collision): when `accountId` is
+ * supplied it is namespaced into the key as an `acct=<accountId>` segment so a
+ * tenant-scoped response can never be served to another tenant. The auto-cache
+ * hook resolves and verifies the tenant from the bearer token BEFORE calling
+ * this function for tenant-scoped routes, and fails closed (bypasses the cache)
+ * when no tenant can be resolved — so a tenant-scoped key without `acct=` is
+ * never written or read.
  */
 export function generateApiCacheKey(
   method: string,
@@ -267,7 +315,8 @@ export function generateApiCacheKey(
   params: Record<string, unknown> = {},
   query: Record<string, unknown> = {},
   headers: Record<string, string> = {},
-  userId?: string
+  userId?: string,
+  accountId?: string
 ): string {
   const config = getCacheConfig(method, route);
 
@@ -276,6 +325,14 @@ export function generateApiCacheKey(
   }
 
   const keyParts: string[] = [`api`, method, route];
+
+  // Tenant boundary segment FIRST — the verified accountId namespaces every
+  // tenant-scoped cached response so tenants cannot collide on identical
+  // route+params (CWE-639). Tenant-neutral routes pass no accountId, so the
+  // segment is omitted and the entry stays shared.
+  if (accountId) {
+    keyParts.push(`acct=${accountId}`);
+  }
 
   // Add vary-by parameters
   if (config.varyBy) {
@@ -299,7 +356,7 @@ export function generateApiCacheKey(
     }
   }
 
-  // Always include user ID for authenticated requests
+  // Include user ID for authenticated requests (intra-tenant user separation)
   if (userId) {
     keyParts.push(`user=${userId}`);
   }

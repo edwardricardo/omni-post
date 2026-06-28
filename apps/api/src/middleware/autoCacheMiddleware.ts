@@ -14,7 +14,9 @@ import {
   getCacheConfig,
   getInvalidationTags,
   generateApiCacheKey,
+  isTenantScopedRoute,
 } from "../lib/cache/cacheConfig.js";
+import { verifyCustomerToken } from "../auth/customerJwt.js";
 import { createLogger } from "../lib/logger.js";
 
 const logger = createLogger("auto-cache-middleware");
@@ -49,6 +51,40 @@ export interface AutoCacheOptions {
    * Log cache operations
    */
   logCacheOps?: boolean;
+}
+
+/**
+ * Resolve the VERIFIED tenant (accountId) for a cache key from the request's
+ * bearer token.
+ *
+ * SECURITY (CWE-639): the auto-cache `onRequest` hook runs BEFORE the route's
+ * `requireClientAuth` preHandler, so `request.customerUser` is not yet
+ * populated. To key (and serve) by the correct tenant we re-verify the customer
+ * bearer token here, reusing the canonical `verifyCustomerToken` — we do NOT
+ * trust a spoofable header and do NOT loosen or duplicate the auth checks. A
+ * missing, malformed, invalid, expired, or non-customer token yields `null`
+ * (caller fails closed). This also closes the auth-bypass-on-hit hole: a HIT
+ * can only be produced for a request that carries a verifiable customer token.
+ */
+function resolveVerifiedTenant(request: FastifyRequest): string | null {
+  const authHeader = request.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null;
+  }
+  const token = authHeader.substring(7);
+  if (!token) {
+    return null;
+  }
+  try {
+    const payload = verifyCustomerToken(token);
+    // Normalize an empty/missing accountId to null so this resolver's contract,
+    // the caller's fail-closed guard (accountId === null), and the key
+    // generator's truthiness check all agree — an empty tenant must never slip
+    // through and produce a tenant-agnostic cache key.
+    return payload.accountId || null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -100,6 +136,21 @@ const autoCachePluginImpl: FastifyPluginAsync<AutoCacheOptions> = async (fastify
         return;
       }
 
+      // SECURITY (CWE-639): for tenant-scoped routes, resolve and VERIFY the
+      // tenant from the bearer token BEFORE building/serving the key. Fail
+      // closed — if no tenant can be resolved, bypass the cache entirely so we
+      // never serve or store a tenant-scoped body under a tenant-agnostic key
+      // (and never serve a cached body to an unauthenticated request).
+      const tenantScoped = isTenantScopedRoute("GET", route);
+      const accountId = resolveVerifiedTenant(request);
+
+      if (tenantScoped && accountId === null) {
+        if (logCacheOps) {
+          logger.debug(`Cache BYPASS (no resolved tenant on tenant-scoped route): ${route}`);
+        }
+        return;
+      }
+
       try {
         // Generate cache key
         const params = request.params as Record<string, unknown>;
@@ -107,7 +158,19 @@ const autoCachePluginImpl: FastifyPluginAsync<AutoCacheOptions> = async (fastify
         const headers = request.headers as Record<string, string>;
         const userId = request.user?.id;
 
-        const cacheKey = generateApiCacheKey("GET", route, params, query, headers, userId);
+        // Tenant-neutral routes pass NO accountId (shared key across tenants);
+        // tenant-scoped routes always carry the verified accountId here
+        // (guaranteed non-null by the fail-closed guard above).
+        const keyAccountId = tenantScoped ? (accountId ?? undefined) : undefined;
+        const cacheKey = generateApiCacheKey(
+          "GET",
+          route,
+          params,
+          query,
+          headers,
+          userId,
+          keyAccountId
+        );
 
         // Try to get from cache. CachePort.get returns `T | null` — null is a miss.
         const cached = await cache.get<{
