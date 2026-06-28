@@ -936,9 +936,6 @@ importers:
       '@faker-js/faker':
         specifier: 10.0.0
         version: 10.0.0
-      '@fastify/rate-limit':
-        specifier: 10.3.0
-        version: 10.3.0
       '@types/jsonwebtoken':
         specifier: 9.0.10
         version: 9.0.10
@@ -5126,9 +5123,6 @@ packages:
 
   '@fastify/proxy-addr@5.1.0':
     resolution: {integrity: sha512-INS+6gh91cLUjB+PVHfu1UqcB76Sqtpyp7bnL+FYojhjygvOPA9ctiD/JDKsyD9Xgu4hUhCSJBPig/w7duNajw==}
-
-  '@fastify/rate-limit@10.3.0':
-    resolution: {integrity: sha512-eIGkG9XKQs0nyynatApA3EVrojHOuq4l6fhB4eeCk4PIOeadvOJz9/4w3vGI44Go17uaXOWEcPkaD8kuKm7g6Q==}
 
   '@fastify/swagger@9.7.0':
     resolution: {integrity: sha512-Vp1SC1GC2Hrkd3faFILv86BzUNyFz5N4/xdExqtCgkGASOzn/x+eMe4qXIGq7cdT6wif/P/oa6r1Ruqx19paZA==}
@@ -18361,12 +18355,6 @@ snapshots:
     dependencies:
       '@fastify/forwarded': 3.0.1
       ipaddr.js: 2.3.0
-
-  '@fastify/rate-limit@10.3.0':
-    dependencies:
-      '@lukeed/ms': 2.0.2
-      fastify-plugin: 5.0.1
-      toad-cache: 3.7.1
 
   '@fastify/swagger@9.7.0':
     dependencies:

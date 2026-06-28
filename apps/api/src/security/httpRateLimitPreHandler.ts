@@ -102,7 +102,7 @@ export const EXPENSIVE_ENDPOINT_RULES: readonly HttpRateLimitRule[] = [
  * escalating admin `/auth/register` route was removed in a prior slice and is
  * intentionally NOT listed here.
  */
-export const AUTH_ROUTE_RULES: readonly HttpRateLimitRule[] = [
+const AUTH_ROUTE_RULES: readonly HttpRateLimitRule[] = [
   { path: "/auth/customer/login", config: RateLimitConfigs.AUTH },
   { path: "/auth/customer/register", config: RateLimitConfigs.AUTH },
   { path: "/auth/customer/refresh", config: RateLimitConfigs.AUTH },
