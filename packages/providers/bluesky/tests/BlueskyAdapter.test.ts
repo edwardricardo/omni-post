@@ -22,14 +22,16 @@ import type {
 // Helpers
 // ============================================================================
 
+type ClientPublishError = "AUTH" | "RATE_LIMIT" | "PUBLISH" | "VALIDATION";
+
 interface FakeClient {
   login: () => Promise<Result<BlueskySession, "AUTH">>;
-  publishText: (text: string) => Promise<Result<BlueskyPostResult, "PUBLISH" | "VALIDATION">>;
+  publishText: (text: string) => Promise<Result<BlueskyPostResult, ClientPublishError>>;
   publishWithImages: (
     text: string,
     buffers: Uint8Array[],
     altTexts: string[]
-  ) => Promise<Result<BlueskyPostResult, "PUBLISH" | "VALIDATION">>;
+  ) => Promise<Result<BlueskyPostResult, ClientPublishError>>;
 }
 
 function makeFakeClient(overrides: Partial<FakeClient> = {}): FakeClient {
@@ -333,6 +335,28 @@ describe("BlueskyAdapter", { concurrent: false }, () => {
       const result = await adapter.publish(makeInput("hello"), VALID_CREDS);
       assert.ok(!result.ok);
       assert.equal(result.error, "NETWORK");
+    });
+
+    // §2F Slice 1: surface a definitive client AUTH (revoked app-password) as
+    // AUTH so reauth can fire; a transient RATE_LIMIT stays RATE_LIMIT.
+    it("returns AUTH when publishText returns AUTH error", async () => {
+      const client = makeFakeClient({
+        publishText: vi.fn(async () => err("AUTH")),
+      });
+      const adapter = makeAdapter(client);
+      const result = await adapter.publish(makeInput("hello"), VALID_CREDS);
+      assert.ok(!result.ok);
+      assert.equal(result.error, "AUTH");
+    });
+
+    it("returns RATE_LIMIT when publishText returns RATE_LIMIT error", async () => {
+      const client = makeFakeClient({
+        publishText: vi.fn(async () => err("RATE_LIMIT")),
+      });
+      const adapter = makeAdapter(client);
+      const result = await adapter.publish(makeInput("hello"), VALID_CREDS);
+      assert.ok(!result.ok);
+      assert.equal(result.error, "RATE_LIMIT");
     });
 
     it("includes profile URL in receipt", async () => {

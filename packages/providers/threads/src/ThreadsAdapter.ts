@@ -27,6 +27,7 @@ import type {
 import { ok, err } from "@shared/types";
 import {
   validateCredentialStructure,
+  mapErrorToPublishError,
   type ProviderMetadata,
   type ProviderConstraints,
 } from "@providers/shared";
@@ -194,7 +195,10 @@ export class ThreadsAdapter implements ProviderAdapter {
         channelId: input.channelId,
         error: error instanceof Error ? error.message : String(error),
       });
-      return err("NETWORK" as PublishError);
+      // Route the HTTP status carried by the container helpers through the shared
+      // classifier: 401/403 → AUTH, 429 → RATE_LIMIT, other 4xx → VALIDATION,
+      // 5xx → NETWORK. A blanket NETWORK would hide a revoked token from reauth.
+      return err(mapErrorToPublishError(error));
     }
   }
 
@@ -374,6 +378,19 @@ export class ThreadsAdapter implements ProviderAdapter {
   // Private helpers
   // ----------------------------------------------------------
 
+  /**
+   * @method httpError
+   * @description Builds an Error that carries the HTTP `status` so the publish
+   *   catch can classify the failure (AUTH / RATE_LIMIT / VALIDATION / NETWORK)
+   *   via the shared mapper, instead of collapsing every failure to NETWORK.
+   * @param status - The HTTP response status.
+   * @param message - The error message.
+   * @returns An Error decorated with a numeric `status` field.
+   */
+  private httpError(status: number, message: string): Error {
+    return Object.assign(new Error(message), { status });
+  }
+
   private async createContainer(
     creds: ThreadsCredentials,
     text: string,
@@ -420,7 +437,7 @@ export class ThreadsAdapter implements ProviderAdapter {
 
     const data = (await res.json()) as { id?: string; error?: { message: string } };
     if (!res.ok || !data.id) {
-      throw new Error(data.error?.message ?? "Failed to create Threads container");
+      throw this.httpError(res.status, data.error?.message ?? "Failed to create Threads container");
     }
     return data.id;
   }
@@ -440,7 +457,10 @@ export class ThreadsAdapter implements ProviderAdapter {
 
     const data = (await res.json()) as { id?: string; error?: { message: string } };
     if (!res.ok || !data.id) {
-      throw new Error(data.error?.message ?? "Failed to publish Threads container");
+      throw this.httpError(
+        res.status,
+        data.error?.message ?? "Failed to publish Threads container"
+      );
     }
     return { id: data.id };
   }

@@ -73,6 +73,23 @@ Chain strategy: feature-branch-chain
 
 ### A4 — §2F Write-path integrity (PR 4)
 
+#### A4-S1 — §2F Slice 1: adapter error classifiers (AUTH-signal PREREQUISITE) — DONE (clean HEAD f74e44b4, strict RED-first TDD, no git ops)
+
+> AUTH-signal prerequisite that gates A4 reauth. Today several provider adapters
+> mis-classify EVERY auth failure as NETWORK, so an expired/revoked token never
+> emits `err("AUTH")` and reauth can never fire (the slice-7 WRK-NO-REAUTH branch
+> is dead on arrival without this). This slice fixes the classifiers so a
+> DEFINITIVE auth failure → `err("AUTH")` and a TRANSIENT failure → NETWORK/RATE_LIMIT.
+
+- [x] S1.0 ROOT-CAUSE (verified vs code): shared `mapErrorToPublishError` (`packages/providers/shared/src/helpers.ts`) read ONLY `e.status`, but `ProviderError`/`AppError` expose `.statusCode` (ProviderError.externalService hard-codes 502). A thrown `AppError.unauthorized(401)` fell through to NETWORK.
+- [x] S1.1 SHARED MAPPER (RED→GREEN): reads `status ?? statusCode`, inspects provider error `code` (AUTH_INVALID_CREDENTIALS/TOKEN_EXPIRED/TOKEN_INVALID → AUTH; RATE_LIMIT_EXCEEDED → RATE_LIMIT) and googleapis `errors[].reason` (quotaExceeded/rateLimitExceeded → RATE_LIMIT, NOT AUTH). RED: 6 helpers.test cases failed (401/403/429/422/code/quota → NETWORK or AUTH). GREEN: 44/44.
+- [x] S1.2 facebook (`apiClient.ts`): extracted `classifyFacebookError` (code 190/102 → unauthorized 401; 4/17/341 → tooManyRequests 429; 100 → badRequest; bare HTTP 401/403/429 fallback) — `postToPage`/`uploadMedia` now dispatch the FB code instead of throwing externalService(502). RED: code-190 publish → NETWORK; GREEN: → AUTH. writeFailFast.test 3/3.
+- [x] S1.3 tiktok (`apiClient.ts`): added `classifyTikTokError` + `ProviderError.rateLimited` (429) factory + `RATE_LIMITED` enum; `error.code` access_token_invalid/scope_not_authorized → unauthorized, rate_limit_exceeded → rateLimited, at init/publish/API/video-list/photo-post sites. RED: 3 apiClient.test cases; GREEN: 51/51.
+- [x] S1.4 youtube (adapter): relies on the fixed mapper — 401 (statusCode/ProviderError) → AUTH; **403 quotaExceeded → RATE_LIMIT (NOT AUTH)** false-positive guard. RED at mapper level; GREEN: YouTubeAdapter.test 79/79.
+- [x] S1.5 threads (`ThreadsAdapter.ts`): private helpers throw a status-bearing error (`httpError`); `publish` routes through `mapErrorToPublishError` (was blanket `err("NETWORK")`). RED: 400/401/429 → NETWORK; GREEN: 400→VALIDATION, 401→AUTH, 429→RATE_LIMIT, 5xx→NETWORK. ThreadsAdapter.test 26/26.
+- [x] S1.6 bluesky (`BlueskyClient.ts`+`BlueskyAdapter.ts`): client publish methods surface `XRPCError.status` via `classifyBlueskyError` (401/403→AUTH, 429→RATE_LIMIT, else PUBLISH) instead of bare `catch{}`→PUBLISH; adapter maps client AUTH→AUTH, RATE_LIMIT→RATE_LIMIT. RED: 4 cases (client+adapter) → PUBLISH/NETWORK; GREEN: client 33, adapter 42.
+- [x] S1.7 0-DEFECT GATE (touched-file): all provider suites green (shared 57, facebook 66, tiktok 625, youtube 79, threads 26, bluesky 83). lint `--max-warnings 0` (heap 4096) = 0. typecheck single run (heap 6144) = 0 across all 6 pkgs. fitness #9/#10/#15/#19 = 0, no `any`. NO git ops. Closes the AUTH-signal gap so A4 reauth can actually fire.
+
 - [ ] 4.1 VERIFY each (`UNVERIFIED-prelim`): WRK-DOUBLE-POST (`known_smell`), OAUTH-REFRESH-UNWIRED, WRK-NO-REAUTH, SAGA-ACCOUNTID-AS-USERID. Confirm/refute with evidence.
 - [ ] 4.2 FIX (confirmed): idempotency guard on provider-OK→log gap (no re-post); wire `OAuthTokenRefresher` into publish + double-refresh guard; set `needsReauth` on cred failure; saga persists `accountId` AS `accountId` not `userId`.
 - [ ] 4.3 REGRESSION TESTS: crash-between-steps no re-post; needsReauth set on failure; saga tenant-id correct (node:test, LXC-safe).

@@ -263,6 +263,26 @@ describe("BlueskyClient", () => {
       assert.ok(!result.ok);
       assert.equal(result.error, "PUBLISH");
     });
+
+    // §2F Slice 1: a definitive XRPCError 401 (app-password revoked) must surface
+    // AUTH, not collapse to PUBLISH — the adapter needs it to classify AUTH.
+    it("returns AUTH error when agent.post throws an XRPCError 401", async () => {
+      const client = makeClient();
+      mockPost.mockRejectedValue(Object.assign(new Error("Unauthorized"), { status: 401 }));
+
+      const result = await client.publishText("Hello");
+      assert.ok(!result.ok);
+      assert.equal(result.error, "AUTH");
+    });
+
+    it("returns RATE_LIMIT error when agent.post throws an XRPCError 429", async () => {
+      const client = makeClient();
+      mockPost.mockRejectedValue(Object.assign(new Error("Too many"), { status: 429 }));
+
+      const result = await client.publishText("Hello");
+      assert.ok(!result.ok);
+      assert.equal(result.error, "RATE_LIMIT");
+    });
   });
 
   // =========================================================================

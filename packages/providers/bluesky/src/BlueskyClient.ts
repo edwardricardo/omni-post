@@ -29,6 +29,32 @@ export interface BlueskyPostResult {
   cid: string;
 }
 
+/**
+ * Discriminated publish-failure reason surfaced by the client. AUTH and
+ * RATE_LIMIT are derived from `XRPCError.status` so the adapter can classify a
+ * revoked app-password (AUTH) distinctly from a transient throttle/outage.
+ */
+export type BlueskyPublishError = "AUTH" | "RATE_LIMIT" | "PUBLISH" | "VALIDATION";
+
+/**
+ * Classifies a thrown AT Protocol error by its HTTP `status`: 401/403 → AUTH
+ * (definitive — app-password revoked/invalid), 429 → RATE_LIMIT (transient),
+ * anything else → PUBLISH (transient network/server). XRPCError carries `status`.
+ */
+function classifyBlueskyError(error: unknown): "AUTH" | "RATE_LIMIT" | "PUBLISH" {
+  const status =
+    error && typeof error === "object" && "status" in error
+      ? (error as { status?: unknown }).status
+      : undefined;
+  if (status === 401 || status === 403) {
+    return "AUTH";
+  }
+  if (status === 429) {
+    return "RATE_LIMIT";
+  }
+  return "PUBLISH";
+}
+
 export interface BlueskyMentionResult {
   uri: string;
   cid: string;
@@ -118,7 +144,7 @@ export class BlueskyClient {
    * @description Publishes a plain text post with auto-detected link facets.
    * Returns the AT-URI and CID of the created record.
    */
-  async publishText(text: string): Promise<Result<BlueskyPostResult, "PUBLISH" | "VALIDATION">> {
+  async publishText(text: string): Promise<Result<BlueskyPostResult, BlueskyPublishError>> {
     if (text.length > 300) {
       return err("VALIDATION");
     }
@@ -134,8 +160,8 @@ export class BlueskyClient {
       });
 
       return ok({ uri: response.uri, cid: response.cid });
-    } catch {
-      return err("PUBLISH");
+    } catch (error: unknown) {
+      return err(classifyBlueskyError(error));
     }
   }
 
@@ -149,7 +175,7 @@ export class BlueskyClient {
     text: string,
     imageBuffers: Uint8Array[],
     altTexts: string[]
-  ): Promise<Result<BlueskyPostResult, "PUBLISH" | "VALIDATION">> {
+  ): Promise<Result<BlueskyPostResult, BlueskyPublishError>> {
     if (text.length > 300) {
       return err("VALIDATION");
     }
@@ -201,8 +227,8 @@ export class BlueskyClient {
       });
 
       return ok({ uri: response.uri, cid: response.cid });
-    } catch {
-      return err("PUBLISH");
+    } catch (error: unknown) {
+      return err(classifyBlueskyError(error));
     }
   }
 

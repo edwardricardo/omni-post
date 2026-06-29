@@ -131,30 +131,97 @@ export class FacebookApiClient {
       }));
 
       const fbError: FacebookError = errorData.error || errorData;
-
-      if (fbError.code === 190 || fbError.code === 102) {
-        throw AppError.unauthorized(
-          `Facebook Auth Error: ${fbError.message} (Code: ${fbError.code})`
-        );
-      }
-      if (fbError.code === 4 || fbError.code === 17 || fbError.code === 341) {
-        throw AppError.tooManyRequests(
-          `Facebook Rate Limit Error: ${fbError.message} (Code: ${fbError.code})`
-        );
-      }
-      if (fbError.code === 100) {
-        throw AppError.badRequest(
-          `Facebook Invalid Parameter Error: ${fbError.message} (Code: ${fbError.code})`
-        );
-      }
-
-      throw AppError.externalService(
-        "facebook",
-        `Facebook API Error: ${fbError.message} (Code: ${fbError.code}, Type: ${fbError.type})`
-      );
+      throw this.classifyFacebookError(fbError);
     }
 
     return response;
+  }
+
+  /**
+   * @method toFacebookError
+   * @description Normalises an arbitrary parsed JSON error body into a
+   *   `FacebookError`, defaulting the FB `code` to the HTTP status when the body
+   *   carries none. This lets a bare HTTP 401/403 (no FB error code) still be
+   *   classified as a definitive auth failure by the HTTP-status fallback.
+   * @param body - The parsed (possibly empty) JSON error body.
+   * @param httpStatus - The HTTP response status.
+   * @param statusText - The HTTP response status text (used as fallback message).
+   * @returns A well-formed FacebookError.
+   */
+  private toFacebookError(body: unknown, httpStatus: number, statusText: string): FacebookError {
+    const raw =
+      body && typeof body === "object" && "error" in body
+        ? (body as { error?: Partial<FacebookError> }).error
+        : undefined;
+    return {
+      message: raw?.message ?? statusText ?? "Unknown error",
+      type: raw?.type ?? "HttpError",
+      code: raw?.code ?? httpStatus,
+    };
+  }
+
+  /**
+   * @method classifyFacebookError
+   * @description Maps a Facebook Graph API error object to the correct typed
+   *   AppError so the publish path preserves the AUTH / RATE_LIMIT signal.
+   *   Code 190/102 → auth (401); 4/17/341 → rate limit (429); 100 → bad request
+   *   (400); everything else → external-service (502). Centralised so every write
+   *   path (postToPage, uploadMedia) classifies identically — without it, a
+   *   definitive auth failure on the publish call surfaces as 502 and is
+   *   misclassified as NETWORK, so reauth never fires.
+   * @param fbError - The parsed Facebook error object (`{ code, message, type }`).
+   * @returns The typed AppError to throw.
+   */
+  private classifyFacebookError(fbError: FacebookError): AppError {
+    if (fbError.code === 190 || fbError.code === 102) {
+      return AppError.unauthorized(
+        `Facebook Auth Error: ${fbError.message} (Code: ${fbError.code})`
+      );
+    }
+    return this.classifyFacebookNonAuthError(fbError);
+  }
+
+  /**
+   * @method classifyFacebookNonAuthError
+   * @description Continuation of {@link classifyFacebookError} for non-auth codes:
+   *   4/17/341 → rate limit (429); 100 → bad request (400); else external (502).
+   * @param fbError - The parsed Facebook error object.
+   * @returns The typed AppError to throw.
+   */
+  private classifyFacebookNonAuthError(fbError: FacebookError): AppError {
+    if (fbError.code === 4 || fbError.code === 17 || fbError.code === 341) {
+      return AppError.tooManyRequests(
+        `Facebook Rate Limit Error: ${fbError.message} (Code: ${fbError.code})`
+      );
+    }
+    return this.classifyFacebookGenericError(fbError);
+  }
+
+  /**
+   * @method classifyFacebookGenericError
+   * @description Tail of the Facebook error classifier: 100 → bad request (400),
+   *   everything else → external-service (502).
+   * @param fbError - The parsed Facebook error object.
+   * @returns The typed AppError to throw.
+   */
+  private classifyFacebookGenericError(fbError: FacebookError): AppError {
+    if (fbError.code === 100) {
+      return AppError.badRequest(
+        `Facebook Invalid Parameter Error: ${fbError.message} (Code: ${fbError.code})`
+      );
+    }
+    // Bare HTTP status carried via `toFacebookError` (no FB error code present):
+    // 401/403 → auth, 429 → rate limit. Keeps a code-less auth failure AUTH.
+    if (fbError.code === 401 || fbError.code === 403) {
+      return AppError.unauthorized(`Facebook Auth Error: ${fbError.message}`);
+    }
+    if (fbError.code === 429) {
+      return AppError.tooManyRequests(`Facebook Rate Limit Error: ${fbError.message}`);
+    }
+    return AppError.externalService(
+      "facebook",
+      `Facebook API Error: ${fbError.message} (Code: ${fbError.code}, Type: ${fbError.type})`
+    );
   }
 
   getRateLimitStatus(): FacebookRateLimitInfo | null {
@@ -333,13 +400,9 @@ export class FacebookApiClient {
       this.updateRateLimitInfo(response.headers);
 
       if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ error: { message: "Unknown error" } }));
-        throw AppError.externalService(
-          "facebook",
-          `Facebook media upload error: ${response.status} - ${errorData.error?.message || response.statusText}`
-        );
+        const errorData = await response.json().catch(() => ({}));
+        const fbError = this.toFacebookError(errorData, response.status, response.statusText);
+        throw this.classifyFacebookError(fbError);
       }
 
       const data = await response.json();
@@ -409,13 +472,9 @@ export class FacebookApiClient {
       );
 
       if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ error: { message: "Unknown error" } }));
-        throw AppError.externalService(
-          "facebook",
-          `Facebook post error: ${response.status} - ${errorData.error?.message || response.statusText}`
-        );
+        const errorData = await response.json().catch(() => ({}));
+        const fbError = this.toFacebookError(errorData, response.status, response.statusText);
+        throw this.classifyFacebookError(fbError);
       }
 
       const data = await response.json();

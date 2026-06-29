@@ -253,6 +253,88 @@ describe("mapErrorToPublishError", () => {
   it("falls through to NETWORK when status is missing", () => {
     expect(mapErrorToPublishError(new Error("bare"))).toBe("NETWORK");
   });
+
+  // ── §2F Slice 1: statusCode + provider error code classification ───────────
+  it("maps statusCode 401/403 to AUTH (AppError/ProviderError use statusCode, not status)", () => {
+    const e401 = Object.assign(new Error("unauth"), { statusCode: 401 });
+    const e403 = Object.assign(new Error("forbid"), { statusCode: 403 });
+    expect(mapErrorToPublishError(e401)).toBe("AUTH");
+    expect(mapErrorToPublishError(e403)).toBe("AUTH");
+  });
+
+  it("maps statusCode 429 to RATE_LIMIT", () => {
+    const e = Object.assign(new Error("too many"), { statusCode: 429 });
+    expect(mapErrorToPublishError(e)).toBe("RATE_LIMIT");
+  });
+
+  it("maps other 4xx statusCode (e.g. 422) to VALIDATION", () => {
+    const e = Object.assign(new Error("unprocessable"), { statusCode: 422 });
+    expect(mapErrorToPublishError(e)).toBe("VALIDATION");
+  });
+
+  it("maps 5xx statusCode (e.g. ProviderError.externalService 502) to NETWORK", () => {
+    const e = Object.assign(new Error("ext service"), { statusCode: 502 });
+    expect(mapErrorToPublishError(e)).toBe("NETWORK");
+  });
+
+  it("maps the AUTH_INVALID_CREDENTIALS provider error code to AUTH even when statusCode is 502", () => {
+    // ProviderError.externalService hard-codes 502 but a definitive auth code
+    // can still be attached; the code wins so the failure is classified AUTH.
+    const e = Object.assign(new Error("token revoked"), {
+      statusCode: 502,
+      code: "AUTH_INVALID_CREDENTIALS",
+    });
+    expect(mapErrorToPublishError(e)).toBe("AUTH");
+  });
+
+  it("maps a 403 quotaExceeded reason to RATE_LIMIT (NOT AUTH — quota is transient)", () => {
+    // YouTube returns HTTP 403 for BOTH auth failures and quota exhaustion.
+    // Quota is a transient throttle; classifying it as AUTH falsely trips reauth.
+    const e = Object.assign(new Error("quota"), {
+      status: 403,
+      errors: [{ reason: "quotaExceeded" }],
+    });
+    expect(mapErrorToPublishError(e)).toBe("RATE_LIMIT");
+  });
+
+  it("maps a 403 rateLimitExceeded reason to RATE_LIMIT", () => {
+    const e = Object.assign(new Error("rate"), {
+      status: 403,
+      errors: [{ reason: "rateLimitExceeded" }],
+    });
+    expect(mapErrorToPublishError(e)).toBe("RATE_LIMIT");
+  });
+
+  // REAL Gaxios shape (gaxios 7 / googleapis-common 8 / googleapis 173): a quota
+  // 403 surfaces with `status` at the top level but the reason NESTED under
+  // `response.data.error.errors[].reason` — there is NO top-level `errors[]`.
+  // The naive top-level-only extractor finds nothing, falls through to 403->AUTH,
+  // and falsely trips reauth on a transient throttle. The mapper MUST read the
+  // nested googleapis location too.
+  it("maps a real Gaxios 403 quota (nested response.data.error.errors) to RATE_LIMIT", () => {
+    const e = Object.assign(new Error("exceeded your quota"), {
+      status: 403,
+      response: {
+        status: 403,
+        data: {
+          error: {
+            code: 403,
+            errors: [{ reason: "quotaExceeded", domain: "youtube.quota" }],
+            status: "PERMISSION_DENIED",
+          },
+        },
+      },
+    });
+    expect(mapErrorToPublishError(e)).toBe("RATE_LIMIT");
+  });
+
+  it("still maps a 403 authError reason to AUTH", () => {
+    const e = Object.assign(new Error("auth"), {
+      status: 403,
+      errors: [{ reason: "authError" }],
+    });
+    expect(mapErrorToPublishError(e)).toBe("AUTH");
+  });
 });
 
 // ─── validateApiResponse ────────────────────────────────────────────────────

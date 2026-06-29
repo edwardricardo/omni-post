@@ -124,26 +124,100 @@ export async function uploadMediaBatch(
 
 // ─── Error mapping ───────────────────────────────────────────────────────────
 
+/** Error codes that denote a DEFINITIVE auth failure (token revoked/expired/invalid). */
+const AUTH_ERROR_CODES = new Set<string>([
+  "AUTH_INVALID_CREDENTIALS",
+  "AUTH_TOKEN_EXPIRED",
+  "AUTH_TOKEN_INVALID",
+]);
+
+/** Error codes that denote a TRANSIENT throttle, not a credential problem. */
+const RATE_LIMIT_ERROR_CODES = new Set<string>(["RATE_LIMIT_EXCEEDED"]);
+
+/**
+ * googleapis (Gaxios) attaches a `reason` to each sub-error. YouTube returns
+ * HTTP 403 for BOTH auth failures and quota/rate exhaustion, so the reason is
+ * the only signal that distinguishes a transient throttle (RATE_LIMIT) from a
+ * credential failure (AUTH). Misclassifying quota as AUTH falsely trips reauth.
+ */
+const QUOTA_REASONS = new Set<string>([
+  "quotaExceeded",
+  "dailyLimitExceeded",
+  "rateLimitExceeded",
+  "userRateLimitExceeded",
+]);
+
+/**
+ * @function extractReasons
+ * @description Pulls the `reason` strings out of a googleapis-style
+ *   `errors: [{ reason }]` array. Reads BOTH the top-level `error.errors`
+ *   (some callers/SDKs hoist it) AND the location a REAL Gaxios error actually
+ *   carries it — nested at `error.response.data.error.errors[].reason` (gaxios 7
+ *   / googleapis-common 8 attach `status` at the top level but keep the reason
+ *   nested). Without the nested read, a real quota 403 yields no reason, falls
+ *   through to `403 -> AUTH`, and falsely trips reauth on a transient throttle.
+ *   Returns an empty array when neither location is present.
+ */
+function extractReasons(error: Error): string[] {
+  const topLevel = (error as Error & { errors?: unknown }).errors;
+  const nested = (error as Error & { response?: { data?: { error?: { errors?: unknown } } } })
+    .response?.data?.error?.errors;
+  const candidate = Array.isArray(topLevel) ? topLevel : Array.isArray(nested) ? nested : undefined;
+  if (!candidate) {
+    return [];
+  }
+  return candidate
+    .map((item) =>
+      item && typeof item === "object" && "reason" in item
+        ? (item as { reason?: unknown }).reason
+        : undefined
+    )
+    .filter((reason): reason is string => typeof reason === "string");
+}
+
 /**
  * @function mapErrorToPublishError
- * @description Maps HTTP status / error code to PublishError discriminant.
- *   429 → RATE_LIMIT, 401/403 → AUTH, 4xx → VALIDATION, 5xx → NETWORK.
+ * @description Maps an HTTP status, structured error class, or provider error
+ *   code to a PublishError discriminant. Reads BOTH `status` (raw HTTP / Gaxios)
+ *   AND `statusCode` (AppError / ProviderError), plus the provider error `code`
+ *   and any googleapis `errors[].reason`, so a DEFINITIVE auth failure surfaces
+ *   as AUTH (enabling reauth) and a TRANSIENT failure surfaces as NETWORK /
+ *   RATE_LIMIT. Explicit auth/rate codes and quota reasons take precedence over
+ *   the numeric status (a factory may hard-code 502 while carrying the real
+ *   signal). 429 → RATE_LIMIT, 401 → AUTH, 403 → RATE_LIMIT when quota/rate else
+ *   AUTH, other 4xx → VALIDATION, 5xx → NETWORK.
  */
 export function mapErrorToPublishError(error: unknown): PublishError {
   if (!(error instanceof Error)) {
     return "NETWORK";
   }
-  const e = error as Error & { status?: number; code?: string };
-  if (e.status === 429 || e.code === "RATE_LIMIT_EXCEEDED") {
+  const e = error as Error & { status?: number; statusCode?: number; code?: string };
+  const code = typeof e.code === "string" ? e.code : undefined;
+  const reasons = extractReasons(e);
+  const httpStatus = e.status ?? e.statusCode;
+
+  // 1. Explicit codes/reasons win over a (possibly generic) numeric status.
+  if (code && RATE_LIMIT_ERROR_CODES.has(code)) {
     return "RATE_LIMIT";
   }
-  if (e.status === 401 || e.status === 403) {
+  if (reasons.some((reason) => QUOTA_REASONS.has(reason))) {
+    return "RATE_LIMIT";
+  }
+  if (code && AUTH_ERROR_CODES.has(code)) {
     return "AUTH";
   }
-  if (e.status && e.status >= 400 && e.status < 500) {
+
+  // 2. Numeric HTTP status.
+  if (httpStatus === 429) {
+    return "RATE_LIMIT";
+  }
+  if (httpStatus === 401 || httpStatus === 403) {
+    return "AUTH";
+  }
+  if (httpStatus && httpStatus >= 400 && httpStatus < 500) {
     return "VALIDATION";
   }
-  if (e.status && e.status >= 500) {
+  if (httpStatus && httpStatus >= 500) {
     return "NETWORK";
   }
   return "NETWORK";

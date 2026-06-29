@@ -6,6 +6,7 @@
  * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import assert from "node:assert/strict";
 
 // Hoisted mocks
 const { mockCbInstance } = vi.hoisted(() => {
@@ -35,12 +36,21 @@ vi.mock("@adapters/fallback-strategies", async (importOriginal) => {
 });
 vi.mock("@providers/shared", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@providers/shared")>();
+  const real = actual.ProviderError;
+  // Spies DELEGATE to the REAL ProviderError factories so the thrown error
+  // carries the real `code`/`statusCode` (e.g. unauthorized -> 401 /
+  // AUTH_INVALID_CREDENTIALS). This lets the §2F classification tests assert
+  // the END-TO-END `mapErrorToPublishError(...)` discriminant (AUTH /
+  // RATE_LIMIT) — not just that a spy was called — matching the rigor of the
+  // facebook/threads/youtube/bluesky tests. The real `mapErrorToPublishError`
+  // is preserved via the `...actual` spread.
   return {
     ...actual,
     ProviderError: {
-      externalService: vi.fn((p: string, m: string) => new Error(`${p}: ${m}`)),
-      unauthorized: vi.fn((p: string, m: string) => new Error(`${p}: ${m}`)),
-      notFound: vi.fn((p: string, m: string) => new Error(`${p}: ${m}`)),
+      externalService: vi.fn((p: string, m: string) => real.externalService(p, m)),
+      unauthorized: vi.fn((p: string, m: string) => real.unauthorized(p, m)),
+      rateLimited: vi.fn((p: string, m: string) => real.rateLimited(p, m)),
+      notFound: vi.fn((p: string, r: string) => real.notFound(p, r)),
     },
   };
 });
@@ -59,6 +69,7 @@ vi.mock("form-data", () => ({
 }));
 
 import { TikTokApiClient } from "../src/apiClient.js";
+import { ProviderError, mapErrorToPublishError } from "@providers/shared";
 import axios from "axios";
 
 // Helpers
@@ -315,6 +326,52 @@ describe("TikTokApiClient", () => {
         data: { error: { code: "spam", message: "Spam" } },
       });
       await expect(client.uploadVideo(makeReq())).rejects.toThrow("TikTok init error: spam - Spam");
+    });
+    // §2F Slice 1: a definitive TikTok auth code must become an UNAUTHORIZED
+    // ProviderError (401) so the publish path classifies AUTH, not 502/NETWORK.
+    it("classifies access_token_invalid init error as AUTH (end-to-end)", async () => {
+      vi.mocked(axios.post).mockResolvedValueOnce({
+        data: { error: { code: "access_token_invalid", message: "token revoked" } },
+      });
+      let thrown: unknown;
+      try {
+        await client.uploadVideo(makeReq());
+      } catch (e) {
+        thrown = e;
+      }
+      assert.ok(thrown instanceof Error, "uploadVideo must throw on a definitive auth code");
+      expect(mapErrorToPublishError(thrown)).toBe("AUTH");
+      expect(ProviderError.unauthorized).toHaveBeenCalled();
+    });
+    it("classifies scope_not_authorized init error as AUTH (end-to-end)", async () => {
+      vi.mocked(axios.post).mockResolvedValueOnce({
+        data: { error: { code: "scope_not_authorized", message: "missing scope" } },
+      });
+      let thrown: unknown;
+      try {
+        await client.uploadVideo(makeReq());
+      } catch (e) {
+        thrown = e;
+      }
+      assert.ok(thrown instanceof Error, "uploadVideo must throw on a scope auth code");
+      expect(mapErrorToPublishError(thrown)).toBe("AUTH");
+      expect(ProviderError.unauthorized).toHaveBeenCalled();
+    });
+    it("classifies rate_limit_exceeded init error as RATE_LIMIT (end-to-end)", async () => {
+      vi.mocked(axios.post).mockResolvedValueOnce({
+        data: { error: { code: "rate_limit_exceeded", message: "slow down" } },
+      });
+      let thrown: unknown;
+      try {
+        await client.uploadVideo(makeReq());
+      } catch (e) {
+        thrown = e;
+      }
+      assert.ok(thrown instanceof Error, "uploadVideo must throw on a throttle code");
+      expect(mapErrorToPublishError(thrown)).toBe("RATE_LIMIT");
+      const rl = (ProviderError as unknown as { rateLimited: ReturnType<typeof vi.fn> })
+        .rateLimited;
+      expect(rl).toHaveBeenCalled();
     });
     it("throws when video fetch returns non-200", async () => {
       vi.mocked(axios.post).mockResolvedValueOnce({

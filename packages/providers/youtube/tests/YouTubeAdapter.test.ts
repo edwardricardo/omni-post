@@ -478,6 +478,66 @@ describe("YouTubeAdapter", { concurrent: false }, () => {
       assert.ok(!result.ok);
       assert.equal(result.error, "AUTH");
     });
+
+    // §2F Slice 1: a 403 quotaExceeded is a TRANSIENT throttle. Classifying it
+    // as AUTH (the naive `status===403` path) would falsely trip reauth.
+    it("maps a 403 quotaExceeded upload failure to RATE_LIMIT (NOT AUTH)", async () => {
+      const client = makeFakeApiClient({
+        uploadVideo: vi.fn(async () => {
+          const e = new Error("quota") as Error & { status: number; errors: unknown[] };
+          e.status = 403;
+          e.errors = [{ reason: "quotaExceeded" }];
+          throw e;
+        }),
+      });
+      const adapter = makeAdapter(client);
+      const result = await adapter.publish(makeInput(), VALID_CREDS);
+      assert.ok(!result.ok);
+      assert.equal(result.error, "RATE_LIMIT");
+    });
+
+    // §2F Slice 1 (real propagation): the REAL Gaxios error the apiClient +
+    // circuit breaker propagate carries the quota reason NESTED under
+    // `response.data.error.errors[].reason` (gaxios 7 / googleapis-common 8),
+    // NOT at top-level `errors[]`. Proves the adapter catch + mapper classify a
+    // genuine quota 403 as RATE_LIMIT (not the false AUTH/reauth).
+    it("maps a real Gaxios 403 quota (nested errors) upload failure to RATE_LIMIT", async () => {
+      const client = makeFakeApiClient({
+        uploadVideo: vi.fn(async () => {
+          const e = new Error("exceeded your quota") as Error & {
+            status: number;
+            response: { status: number; data: { error: { errors: { reason: string }[] } } };
+          };
+          e.status = 403;
+          e.response = {
+            status: 403,
+            data: { error: { errors: [{ reason: "quotaExceeded" }] } },
+          };
+          throw e;
+        }),
+      });
+      const adapter = makeAdapter(client);
+      const result = await adapter.publish(makeInput(), VALID_CREDS);
+      assert.ok(!result.ok);
+      assert.equal(result.error, "RATE_LIMIT");
+    });
+
+    // §2F Slice 1: a ProviderError carries `statusCode` (not `status`); the
+    // mapper must read it so a 401 ProviderError surfaces AUTH, not NETWORK.
+    it("maps a ProviderError-shaped 401 (statusCode, not status) to AUTH", async () => {
+      const client = makeFakeApiClient({
+        uploadVideo: vi.fn(async () => {
+          const e = new Error("token revoked") as Error & { statusCode: number; code: string };
+          e.statusCode = 401;
+          e.code = "AUTH_INVALID_CREDENTIALS";
+          throw e;
+        }),
+      });
+      const adapter = makeAdapter(client);
+      const result = await adapter.publish(makeInput(), VALID_CREDS);
+      assert.ok(!result.ok);
+      assert.equal(result.error, "AUTH");
+    });
   });
 
   // --------------------------------------------------------------------------

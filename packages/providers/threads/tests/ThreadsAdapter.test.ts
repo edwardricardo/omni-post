@@ -283,11 +283,49 @@ describe("ThreadsAdapter — publish", () => {
     expect(parentBody.children).toBe("item-1,item-2");
   });
 
-  it("returns NETWORK when the publish step rejects with !ok", async () => {
+  it("returns VALIDATION when the publish step rejects with a 400", async () => {
     const adapter = new ThreadsAdapter();
 
     queueResponse({ id: "container-x" });
     queueResponse({ error: { message: "Bad request" } }, false, 400);
+
+    const result = await adapter.publish(makePublishInput(), MOCK_CREDENTIALS);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toBe("VALIDATION");
+  });
+
+  // §2F Slice 1: a definitive 401/403 on the container endpoints must classify
+  // AUTH (not the blanket NETWORK the adapter used to return for every failure).
+  it("returns AUTH when the publish step rejects with a 401", async () => {
+    const adapter = new ThreadsAdapter();
+
+    queueResponse({ id: "container-x" });
+    queueResponse({ error: { message: "invalid token" } }, false, 401);
+
+    const result = await adapter.publish(makePublishInput(), MOCK_CREDENTIALS);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toBe("AUTH");
+  });
+
+  it("returns RATE_LIMIT when the publish step rejects with a 429", async () => {
+    const adapter = new ThreadsAdapter();
+
+    queueResponse({ id: "container-x" });
+    queueResponse({ error: { message: "slow down" } }, false, 429);
+
+    const result = await adapter.publish(makePublishInput(), MOCK_CREDENTIALS);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toBe("RATE_LIMIT");
+  });
+
+  it("returns NETWORK when the publish step rejects with a 5xx", async () => {
+    const adapter = new ThreadsAdapter();
+
+    queueResponse({ id: "container-x" });
+    queueResponse({ error: { message: "server error" } }, false, 503);
 
     const result = await adapter.publish(makePublishInput(), MOCK_CREDENTIALS);
     expect(result.ok).toBe(false);

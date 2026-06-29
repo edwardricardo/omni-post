@@ -237,6 +237,15 @@ export class BlueskyAdapter implements ProviderAdapter {
       }
 
       if (!result.ok) {
+        // Surface the client's classified failure: AUTH (revoked app-password)
+        // and RATE_LIMIT are definitive/transient signals the worker needs;
+        // VALIDATION stays VALIDATION; PUBLISH (transient) maps to NETWORK.
+        if (result.error === "AUTH") {
+          return err("AUTH");
+        }
+        if (result.error === "RATE_LIMIT") {
+          return err("RATE_LIMIT");
+        }
         if (result.error === "VALIDATION") {
           return err("VALIDATION");
         }

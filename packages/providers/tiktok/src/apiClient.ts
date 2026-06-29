@@ -42,6 +42,42 @@ const circuitBreaker = createExternalApiCircuitBreaker(registry, process.env.RED
 
 const TIKTOK_BASE_URL = "https://open.tiktokapis.com/v2";
 
+/** TikTok error codes that denote a DEFINITIVE auth failure (token/scope). */
+const TIKTOK_AUTH_ERROR_CODES = new Set<string>([
+  "access_token_invalid",
+  "access_token_expired",
+  "scope_not_authorized",
+  "scope_permission_missed",
+  "invalid_grant",
+  "unauthorized",
+]);
+
+/** TikTok error codes that denote a TRANSIENT throttle, not a credential problem. */
+const TIKTOK_RATE_LIMIT_ERROR_CODES = new Set<string>(["rate_limit_exceeded", "too_many_requests"]);
+
+/**
+ * @function classifyTikTokError
+ * @description Maps a TikTok API `error.code` to the correct typed ProviderError
+ *   so the publish path preserves the AUTH / RATE_LIMIT signal. Definitive auth
+ *   codes → unauthorized (401); throttle codes → rateLimited (429); everything
+ *   else → external-service (502). Without this, every TikTok error became a 502
+ *   and a revoked token was misclassified as NETWORK, so reauth never fired.
+ * @param stage - Stage label for the message (e.g. "init", "publish").
+ * @param code - The TikTok `error.code` string.
+ * @param message - The TikTok `error.message` string.
+ * @returns The typed ProviderError to throw.
+ */
+function classifyTikTokError(stage: string, code: string, message: string): ProviderError {
+  const detail = `TikTok ${stage} error: ${code} - ${message}`;
+  if (TIKTOK_AUTH_ERROR_CODES.has(code)) {
+    return ProviderError.unauthorized("tiktok", detail);
+  }
+  if (TIKTOK_RATE_LIMIT_ERROR_CODES.has(code)) {
+    return ProviderError.rateLimited("tiktok", detail);
+  }
+  return ProviderError.externalService("tiktok", detail);
+}
+
 export class TikTokApiClient {
   private credentials: TikTokCredentials;
   private marketingClient?: TikTokMarketingApiClient;
@@ -167,10 +203,7 @@ export class TikTokApiClient {
       );
 
       if (response.data.error?.code) {
-        throw ProviderError.externalService(
-          "tiktok",
-          `TikTok API error: ${response.data.error.code} - ${response.data.error.message}`
-        );
+        throw classifyTikTokError("API", response.data.error.code, response.data.error.message);
       }
 
       const user = response.data.data.user;
@@ -234,9 +267,10 @@ export class TikTokApiClient {
       );
 
       if (initResponse.data.error?.code) {
-        throw ProviderError.externalService(
-          "tiktok",
-          `TikTok init error: ${initResponse.data.error.code} - ${initResponse.data.error.message}`
+        throw classifyTikTokError(
+          "init",
+          initResponse.data.error.code,
+          initResponse.data.error.message
         );
       }
 
@@ -290,9 +324,10 @@ export class TikTokApiClient {
       );
 
       if (publishResponse.data.error?.code) {
-        throw ProviderError.externalService(
-          "tiktok",
-          `TikTok publish error: ${publishResponse.data.error.code} - ${publishResponse.data.error.message}`
+        throw classifyTikTokError(
+          "publish",
+          publishResponse.data.error.code,
+          publishResponse.data.error.message
         );
       }
 
@@ -357,9 +392,10 @@ export class TikTokApiClient {
       );
 
       if (response.data.error?.code) {
-        throw ProviderError.externalService(
-          "tiktok",
-          `TikTok video list error: ${response.data.error.code} - ${response.data.error.message}`
+        throw classifyTikTokError(
+          "video list",
+          response.data.error.code,
+          response.data.error.message
         );
       }
 
@@ -450,9 +486,10 @@ export class TikTokApiClient {
       );
 
       if (response.data.error?.code) {
-        throw ProviderError.externalService(
-          "tiktok",
-          `TikTok photo post error: ${response.data.error.code} - ${response.data.error.message}`
+        throw classifyTikTokError(
+          "photo post",
+          response.data.error.code,
+          response.data.error.message
         );
       }
 

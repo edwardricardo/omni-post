@@ -19,6 +19,8 @@ export enum ProviderErrorCode {
   NOT_FOUND = "RESOURCE_NOT_FOUND",
   /** The OAuth token is invalid, expired, or revoked. */
   UNAUTHORIZED = "AUTH_INVALID_CREDENTIALS",
+  /** The platform API throttled the request (transient). */
+  RATE_LIMITED = "RATE_LIMIT_EXCEEDED",
   /** A conflict occurred (duplicate, already exists, etc.). */
   CONFLICT = "RESOURCE_CONFLICT",
   /** Internal invariant violation -- should not reach the client. */
@@ -117,6 +119,15 @@ export class ProviderError extends Error {
     details?: Record<string, unknown>
   ): ProviderError {
     return new ProviderError(ProviderErrorCode.UNAUTHORIZED, 401, provider, message, true, details);
+  }
+
+  /** Rate-limit / throttle error (maps to HTTP 429). Transient — never AUTH. */
+  static rateLimited(
+    provider: string,
+    message: string,
+    details?: Record<string, unknown>
+  ): ProviderError {
+    return new ProviderError(ProviderErrorCode.RATE_LIMITED, 429, provider, message, true, details);
   }
 
   /** Conflict (maps to HTTP 409). */
