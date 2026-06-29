@@ -127,7 +127,11 @@ export function createMockRepo(): PublishRepo {
   return {
     logPublish: async () => ({ ok: true, value: {} }) as Result<unknown, string>,
     getLogByDedupeKey: async () =>
-      ({ ok: true, value: null }) as Result<{ status: string } | null, string>,
+      ({ ok: true, value: null }) as Result<
+        { status: string; providerPostId?: string | null } | null,
+        string
+      >,
+    recordReceipt: async () => ({ ok: true, value: undefined }) as Result<unknown, string>,
     getPostById: async () =>
       ({ ok: true, value: createTestPost() }) as Result<CanonicalPost, string>,
     createThread: async () => ({ ok: true, value: createTestThread() }) as Result<Thread, string>,

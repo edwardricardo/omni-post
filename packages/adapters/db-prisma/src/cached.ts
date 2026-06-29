@@ -451,6 +451,14 @@ export function createCachedRepositoryAdapter(
       return baseRepo.getLogByDedupeKey(dedupeKey);
     },
 
+    // Write-through, no caching — the receipt is a durable idempotency marker.
+    async recordReceipt(
+      dedupeKey: string,
+      providerPostId: string
+    ): Promise<Result<void, "DATABASE_ERROR">> {
+      return baseRepo.recordReceipt(dedupeKey, providerPostId);
+    },
+
     async listLogs(query: ListLogsQuery): Promise<Result<PublishLog[], "DATABASE_ERROR">> {
       return baseRepo.listLogs(query);
     },

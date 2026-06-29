@@ -48,7 +48,16 @@ function createPublishRepoFromCtx(ctx: TestContext): PublishRepo {
       return (await repo.logPublish(input)) as Result<unknown, string>;
     },
     getLogByDedupeKey: async (dedupeKey: string) => {
-      return (await repo.getLogByDedupeKey(dedupeKey)) as Result<{ status: string } | null, string>;
+      return (await repo.getLogByDedupeKey(dedupeKey)) as Result<
+        {
+          status: string;
+          providerPostId?: string | null;
+        } | null,
+        string
+      >;
+    },
+    recordReceipt: async (dedupeKey: string, providerPostId: string) => {
+      return (await repo.recordReceipt(dedupeKey, providerPostId)) as Result<unknown, string>;
     },
     getPostById: async (id: string) => {
       return (await repo.getPostById(id)) as Result<CanonicalPost, string>;

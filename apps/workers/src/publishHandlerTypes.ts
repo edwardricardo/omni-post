@@ -42,7 +42,17 @@ export interface PublishRepo {
     dedupeKey: string;
   }): Promise<Result<unknown, string>>;
 
-  getLogByDedupeKey(dedupeKey: string): Promise<Result<{ status: string } | null, string>>;
+  getLogByDedupeKey(
+    dedupeKey: string
+  ): Promise<Result<{ status: string; providerPostId?: string | null } | null, string>>;
+
+  /**
+   * Persist the provider's post id on the existing log row (keyed by dedupeKey)
+   * right after a successful provider publish, before the OK log. A crash-then-
+   * retry in the provider-success window then confirms the receipt instead of
+   * re-publishing. Narrows the double-post window; does NOT make it exactly-once.
+   */
+  recordReceipt(dedupeKey: string, providerPostId: string): Promise<Result<unknown, string>>;
 
   getPostById(id: string): Promise<Result<CanonicalPost, string>>;
 

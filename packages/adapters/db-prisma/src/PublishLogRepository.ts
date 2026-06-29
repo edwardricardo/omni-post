@@ -41,6 +41,7 @@ export function createPublishLogRepository(prisma: PrismaClient) {
           payload: log.payload as Record<string, unknown>,
           dedupeKey: log.dedupeKey,
           createdAt: log.createdAt,
+          providerPostId: log.providerPostId,
         };
 
         return ok(result);
@@ -71,11 +72,46 @@ export function createPublishLogRepository(prisma: PrismaClient) {
           payload: log.payload as Record<string, unknown>,
           dedupeKey: log.dedupeKey,
           createdAt: log.createdAt,
+          providerPostId: log.providerPostId,
         };
 
         return ok(result);
       } catch (error) {
         logger.error({ err: error }, "getLogByDedupeKey error");
+        return err("DATABASE_ERROR");
+      }
+    },
+
+    /**
+     * @method recordReceipt
+     * @description Persist the provider's post id on the existing publish-log row
+     *              (keyed by the deterministic `dedupeKey`) immediately after a
+     *              successful provider publish, BEFORE the OK log commits — so a
+     *              crash-then-retry in the provider-success -> OK-commit window
+     *              confirms the durable receipt instead of re-publishing.
+     *              Honest residual: the provider's own commit and this DB write
+     *              are NOT atomic. Without provider-native idempotency keys this
+     *              NARROWS the double-post window, it does not eliminate it
+     *              (at-least-once with a tighter window, not exactly-once).
+     *              Typed Prisma `update` (no raw query — fitness #23 safe);
+     *              `publishLog` is transitively tenant-scoped via its FK chain,
+     *              identical posture to `logPublish`.
+     * @param dedupeKey - Deterministic idempotency key identifying the log row.
+     * @param providerPostId - The provider's post id from the publish receipt.
+     * @returns ok(void) on success, err("DATABASE_ERROR") on failure.
+     */
+    async recordReceipt(
+      dedupeKey: string,
+      providerPostId: string
+    ): Promise<Result<void, "DATABASE_ERROR">> {
+      try {
+        await prisma.publishLog.update({
+          where: { dedupeKey },
+          data: { providerPostId },
+        });
+        return ok(undefined);
+      } catch (error) {
+        logger.error({ err: error }, "recordReceipt error");
         return err("DATABASE_ERROR");
       }
     },
@@ -105,6 +141,7 @@ export function createPublishLogRepository(prisma: PrismaClient) {
           payload: log.payload as Record<string, unknown>,
           dedupeKey: log.dedupeKey,
           createdAt: log.createdAt,
+          providerPostId: log.providerPostId,
         }));
 
         return ok(mapped);

@@ -27,6 +27,13 @@ export type PublishLog = {
   payload: Record<string, unknown>;
   dedupeKey: string;
   createdAt: Date;
+  /**
+   * Provider's post id, written immediately after a successful provider publish
+   * (before the OK log commits) so a crash-then-retry confirms the existing
+   * receipt instead of re-publishing. `null` until the provider returns success.
+   * Narrows — but does NOT eliminate — the double-post window (see `recordReceipt`).
+   */
+  providerPostId: string | null;
 };
 
 export type Channel = {
@@ -193,6 +200,23 @@ export interface RepoPort {
    * publishes before enqueueing.
    */
   getLogByDedupeKey(dedupeKey: string): Promise<Result<PublishLog | null, "DATABASE_ERROR">>;
+  /**
+   * Persist the provider's post id on an existing publish-log row, keyed by the
+   * deterministic `dedupeKey`. Called immediately after the provider returns
+   * success and BEFORE the OK log commits, so a worker crash in the
+   * provider-success → OK-commit window leaves a durable, queryable receipt: the
+   * retry confirms it instead of re-publishing the same post.
+   *
+   * Honest residual: the provider committing on THEIR side and this write
+   * committing on OURS is NOT one atomic step. Without provider-native
+   * idempotency keys (deferred work) this NARROWS the double-post window, it does
+   * NOT close it. This is at-least-once with a tighter window, not exactly-once.
+   *
+   * Typed Prisma `update` (not a raw query — fitness #23 safe); `publishLog` is
+   * transitively tenant-scoped via its channel/post FKs, the same posture as
+   * `logPublish`.
+   */
+  recordReceipt(dedupeKey: string, providerPostId: string): Promise<Result<void, "DATABASE_ERROR">>;
   /** Query publish logs by post/channel/provider/status with pagination. */
   listLogs(query: ListLogsQuery): Promise<Result<PublishLog[], "DATABASE_ERROR">>;
 

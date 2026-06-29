@@ -92,6 +92,17 @@ function makeTrackedMockClient() {
   });
   const publishLogFindUnique = vi.fn().mockResolvedValue(null);
   const publishLogFindMany = vi.fn().mockResolvedValue([]);
+  const publishLogUpdate = vi.fn().mockResolvedValue({
+    id: "pl-1",
+    postId: "post-1",
+    provider: "TWITTER",
+    channelId: "ch-1",
+    status: "RUNNING",
+    payload: {},
+    dedupeKey: "dk-1",
+    createdAt: new Date(),
+    providerPostId: "prov-1",
+  });
 
   const analyticsFindMany = vi.fn().mockResolvedValue([]);
   const analyticsCreate = vi.fn().mockResolvedValue({
@@ -172,6 +183,7 @@ function makeTrackedMockClient() {
       upsert: publishLogUpsert,
       findUnique: publishLogFindUnique,
       findMany: publishLogFindMany,
+      update: publishLogUpdate,
     },
     analytics: {
       findMany: analyticsFindMany,
@@ -209,6 +221,7 @@ function makeTrackedMockClient() {
       publishLogUpsert,
       publishLogFindUnique,
       publishLogFindMany,
+      publishLogUpdate,
       analyticsFindMany,
       analyticsCreate,
       threadFindUnique,
@@ -331,6 +344,20 @@ describe("sub-repo DI contract — injected client threading", () => {
       const repo = createPublishLogRepository(client);
       await repo.getLogByDedupeKey("dk-1");
       expect(spies.publishLogFindUnique).toHaveBeenCalledTimes(1);
+    });
+
+    it("recordReceipt — sets the providerPostId column on the existing row via a typed update keyed by dedupeKey", async () => {
+      const { client, spies } = makeTrackedMockClient();
+      const repo = createPublishLogRepository(client);
+
+      const result = await repo.recordReceipt("dk-1", "prov-post-42");
+
+      assert.ok(result.ok, "recordReceipt should succeed");
+      expect(spies.publishLogUpdate).toHaveBeenCalledTimes(1);
+      expect(spies.publishLogUpdate).toHaveBeenCalledWith({
+        where: { dedupeKey: "dk-1" },
+        data: { providerPostId: "prov-post-42" },
+      });
     });
   });
 

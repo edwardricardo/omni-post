@@ -305,6 +305,26 @@ export class PublishHandler {
 
           providerTimer({ status: "success" });
 
+          // WRK-DOUBLE-POST: persist the provider receipt the instant the provider
+          // accepts the post, BEFORE the OK log. If the worker crashes in this
+          // window, the retry finds the receipt and confirms it instead of
+          // re-publishing. Narrows — does not close — the double-post window.
+          const receiptResult = await this.repo.recordReceipt(dedupeKey, res.value.providerPostId);
+          if (!receiptResult.ok) {
+            // Honest-residual posture: a receipt-write miss only widens the
+            // documented re-publish window — it must NOT fail the publish. Emit a
+            // WARN so the un-narrowed window is observable, then continue to OK.
+            this.logger.warn(
+              {
+                dedupeKey,
+                channelId,
+                provider: providerName,
+                error: receiptResult.error,
+              },
+              "recordReceipt failed after single-post publish; double-post window not narrowed for this attempt"
+            );
+          }
+
           await this.databaseInstrumentation.instrumentQuery("insert", "publish_log", async () => {
             return await this.repo.logPublish({
               postId,
@@ -565,6 +585,31 @@ export class PublishHandler {
 
     providerTimer({ status: "success" });
 
+    // WRK-DOUBLE-POST: persist a durable thread receipt the instant the provider
+    // accepts the thread, BEFORE updating tweets / writing the OK log. The thread's
+    // root tweet id is the queryable receipt; a crash-then-retry confirms it
+    // instead of re-publishing the whole thread. (THREAD_EXISTS idempotency above
+    // already covers the fully-published case; this closes the post-provider,
+    // pre-OK-log gap.) Narrows — does not close — the double-post window.
+    const rootTweetId = publishResult.value.tweets[0]?.providerTweetId;
+    if (rootTweetId) {
+      const receiptResult = await this.repo.recordReceipt(dedupeKey, rootTweetId);
+      if (!receiptResult.ok) {
+        // Honest-residual posture: a receipt-write miss only widens the documented
+        // re-publish window — it must NOT fail the thread publish. Emit a WARN so
+        // the un-narrowed window is observable, then continue to OK.
+        this.logger.warn(
+          {
+            dedupeKey,
+            channelId,
+            provider: providerName,
+            error: receiptResult.error,
+          },
+          "recordReceipt failed after thread publish; double-post window not narrowed for this attempt"
+        );
+      }
+    }
+
     // Update tweet records with provider's tweet IDs and published status
     for (const publishedTweet of publishResult.value.tweets) {
       const dbTimer = this.workerMetrics.metrics.dbOperationDuration.startTimer({
@@ -675,6 +720,31 @@ export class PublishHandler {
       const existing = await this.repo.getLogByDedupeKey(dedupeKey);
       if (existing.ok && existing.value && existing.value.status === "OK") {
         this.logger.info({ dedupeKey, provider: providerName }, "Skip publish (already OK)");
+        this.workerMetrics.metrics.jobsSkipped.inc();
+        finishJob();
+        return;
+      }
+
+      // WRK-DOUBLE-POST guard: a NON-ERR row that already carries a provider
+      // receipt means a prior attempt's provider call SUCCEEDED but crashed
+      // before the OK log committed. Confirm the existing receipt instead of
+      // re-publishing — `recordReceipt` persisted it immediately after the
+      // provider returned success. ERR rows still re-publish (no receipt, the
+      // provider rejected the post). This NARROWS the provider-success ->
+      // OK-commit window; it does NOT eliminate it (the receipt write itself is
+      // not atomic with the provider commit — exactly-once needs provider-native
+      // idempotency, deferred). The pre-existing OK short-circuit above and the
+      // thread THREAD_EXISTS idempotency remain the other two guard layers.
+      if (
+        existing.ok &&
+        existing.value &&
+        existing.value.status !== "ERR" &&
+        existing.value.providerPostId
+      ) {
+        this.logger.info(
+          { dedupeKey, provider: providerName, providerPostId: existing.value.providerPostId },
+          "Skip publish (receipt already recorded — confirming, not re-publishing)"
+        );
         this.workerMetrics.metrics.jobsSkipped.inc();
         finishJob();
         return;

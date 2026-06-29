@@ -852,6 +852,9 @@ model PublishLog {
   dedupeKey String    @unique
   createdAt DateTime  @default(now()) @db.Timestamptz(6)
   status    LogStatus
+  // Provider's post id, written immediately after a successful publish so a crash-then-retry
+  // confirms the existing receipt instead of re-publishing (narrows the double-post window).
+  providerPostId String?
   post      Post?     @relation(fields: [postId], references: [id], onDelete: SetNull)
   channel   Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
   // @@index([createdAt]) - REMOVED: Covered by composite indexes above
