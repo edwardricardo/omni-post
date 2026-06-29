@@ -93,7 +93,7 @@ catalog:
   postcss-load-config: 6.0.1
   webpack: 5.106.2
   vite: 7.3.5 # held at 7.x — vite 8 switched to the rolldown parser, which fails on JSX in vitest's SSR transform (frontend tests only); bump when upstream fixes it. Backend vitest (no JSX) auto-installs vite 8 fine.
-  eslint: 9.36.0 # held — eslint 10 has no peer in eslint-plugin-react/jsx-a11y (both already latest)
+  eslint: 10.6.0 # held — eslint 10 has no peer in eslint-plugin-react/jsx-a11y (both already latest)
   "@playwright/test": 1.55.1
   "@axe-core/playwright": 4.10.2
   "@formatjs/icu-messageformat-parser": 3.5.9
