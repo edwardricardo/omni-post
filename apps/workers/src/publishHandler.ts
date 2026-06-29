@@ -41,6 +41,8 @@ import type {
   PublishHandlerDeps,
   PublishJobInput,
 } from "./publishHandlerTypes.js";
+import type { ChannelAuthFailureRecorder } from "./services/ChannelAuthFailureRecorder.js";
+import { handleProviderAuthError } from "./lib/handleProviderAuthError.js";
 
 /**
  * Core publishing orchestrator. Resolves the correct provider adapter from
@@ -56,6 +58,7 @@ export class PublishHandler {
   private readonly databaseInstrumentation: DatabaseInstrumentation;
   private readonly businessKPITracker: BusinessKPITracker;
   private readonly notifyRedis?: SagaNotifier;
+  private readonly authFailureRecorder?: ChannelAuthFailureRecorder;
 
   constructor(deps: PublishHandlerDeps) {
     this.repo = deps.repo;
@@ -69,6 +72,33 @@ export class PublishHandler {
     if (deps.notifyRedis) {
       this.notifyRedis = deps.notifyRedis;
     }
+    if (deps.authFailureRecorder) {
+      this.authFailureRecorder = deps.authFailureRecorder;
+    }
+  }
+
+  /**
+   * @method flagChannelReauth
+   * @description Single canonical entry point for ALL publish AUTH sites (single +
+   *              thread, credential + provider): routes through the shared
+   *              `handleProviderAuthError` primitive (same source mention-ingest
+   *              uses) so the channel is flagged `needsReauth` and a
+   *              `ChannelAuthFailed` event is emitted in one transaction. Falls
+   *              back to a plain throw when no recorder is injected.
+   * @param channelId - Channel whose publish returned AUTH.
+   * @param provider - Provider key for the failing channel.
+   * @param context - Short label explaining which AUTH site fired.
+   * @returns Never — the post-condition is always a throw.
+   */
+  private async flagChannelReauth(
+    channelId: string,
+    provider: string,
+    context: string
+  ): Promise<never> {
+    if (this.authFailureRecorder) {
+      return handleProviderAuthError(this.authFailureRecorder, channelId, provider, context);
+    }
+    throw new Error("AUTH");
   }
 
   /**
@@ -184,7 +214,14 @@ export class PublishHandler {
             this.workerMetrics.recordPostPublishFailed();
             this.workerMetrics.recordProviderPublishFailure(providerName);
             endTimer();
-            throw new Error("AUTH");
+            // Definitive credential failure → flag the channel for reauth via the
+            // single canonical primitive (records needsReauth + ChannelAuthFailed,
+            // then throws). Falls back to a plain throw when no recorder is wired.
+            return this.flagChannelReauth(
+              channelId,
+              providerName,
+              "Credential resolution failed during single-post publish"
+            );
           }
 
           const res = (await this.instrumentation.instrumentProviderAPI(
@@ -253,6 +290,16 @@ export class PublishHandler {
             }
 
             endTimer();
+            // Only a DEFINITIVE provider AUTH error flags reauth; transient errors
+            // (RATE_LIMIT / NETWORK / VALIDATION) must NOT. Route the AUTH case
+            // through the same canonical primitive as every other AUTH site.
+            if (res.error === "AUTH") {
+              return this.flagChannelReauth(
+                channelId,
+                providerName,
+                "Provider rejected credentials during single-post publish"
+              );
+            }
             throw new Error(String(res.error));
           }
 
@@ -448,7 +495,13 @@ export class PublishHandler {
     const credentialResult = await this.credentialResolver.resolve(channelId);
     if (!credentialResult.ok) {
       providerTimer({ status: "error" });
-      throw new Error("AUTH");
+      // Thread credential failure → flag reauth via the same canonical primitive
+      // the single-post path and mention-ingest worker use (no per-path drift).
+      return this.flagChannelReauth(
+        channelId,
+        providerName,
+        "Credential resolution failed during thread publish"
+      );
     }
 
     const publishResult = await provider.publishThread(
@@ -498,6 +551,15 @@ export class PublishHandler {
 
       threadEndTimer();
       endTimer();
+      // Only a DEFINITIVE provider AUTH error flags reauth; transient thread
+      // errors must NOT. Same canonical primitive as the other three AUTH sites.
+      if (publishResult.error === "AUTH") {
+        return this.flagChannelReauth(
+          channelId,
+          providerName,
+          "Provider rejected credentials during thread publish"
+        );
+      }
       throw new Error(String(publishResult.error));
     }
 

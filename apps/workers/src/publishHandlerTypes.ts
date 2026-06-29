@@ -21,6 +21,7 @@ import type {
 } from "@shared/types";
 import type { PublishReceipt } from "@ports/core";
 import type { WorkerMetrics } from "./metrics/workerMetrics.js";
+import type { ChannelAuthFailureRecorder } from "./services/ChannelAuthFailureRecorder.js";
 import type {
   PublishInstrumentation,
   DatabaseInstrumentation,
@@ -125,6 +126,15 @@ export interface PublishHandlerDeps {
   databaseInstrumentation: DatabaseInstrumentation;
   businessKPITracker: BusinessKPITracker;
   notifyRedis?: SagaNotifier;
+  /**
+   * Records a channel auth-failure (flips `Channel.needsReauth` + emits a
+   * `ChannelAuthFailed` outbox event) when a publish fails with `AUTH`. Optional
+   * for backward compatibility with unit tests that do not exercise the reauth
+   * path; the workers composition root always injects it so production publishes
+   * flag the channel for re-authentication. Same single-source primitive the
+   * mention-ingest worker uses, routed through `handleProviderAuthError`.
+   */
+  authFailureRecorder?: ChannelAuthFailureRecorder;
 }
 
 /**

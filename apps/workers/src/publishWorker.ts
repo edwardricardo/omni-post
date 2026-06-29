@@ -32,6 +32,7 @@ import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import { verifyDatabaseAuth } from "./container/workerContainer.js";
 import { decryptChannelCredentials } from "@shared/types";
 import { CredentialResolver } from "./services/CredentialResolver.js";
+import { ChannelAuthFailureRecorder } from "./services/ChannelAuthFailureRecorder.js";
 import { DefaultBackgroundTaskScheduler } from "@observability/background-scheduler";
 import client from "prom-client";
 import { createLogger } from "@observability/logger";
@@ -164,6 +165,12 @@ export async function startPublishWorker(
 
   const credentialResolver = new CredentialResolver(repo);
 
+  // Records channel auth failures (flips needsReauth + emits ChannelAuthFailed in
+  // one tx) so a definitive publish AUTH failure prompts the user to reauth. Built
+  // here in the composition root from the injected Prisma — the SAME single-source
+  // primitive the mention-ingest worker uses (no fork/drift).
+  const authFailureRecorder = new ChannelAuthFailureRecorder({ prisma: options.prisma });
+
   const handler = new PublishHandler({
     repo,
     providerRegistry,
@@ -174,6 +181,7 @@ export async function startPublishWorker(
     databaseInstrumentation,
     businessKPITracker,
     notifyRedis,
+    authFailureRecorder,
   });
 
   // Dedicated Redis connection for the BullMQ Worker. BullMQ requires
