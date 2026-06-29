@@ -91,6 +91,58 @@ export type SnapchatApiClientFactory = (credentials: SnapchatCredentials) => Sna
 const defaultApiClientFactory: SnapchatApiClientFactory = (credentials) =>
   new SnapchatApiClient(credentials);
 
+/**
+ * @function classifySnapchatError
+ * @description Snapchat-specific publish classification. A 401 is ambiguous:
+ *   per RFC 6750, `invalid_token` means the access token merely EXPIRED (a
+ *   refresh would fix it) — a TRANSIENT failure that must NOT flag reauth, so it
+ *   maps to NETWORK. Any other 401 (e.g. `invalid_grant` = refresh token
+ *   revoked, or an unrecognised 401) is a DEFINITIVE credential failure → AUTH,
+ *   so reauth fires. The OAuth error token is read from the error message body
+ *   (the API client embeds the response body / WWW-Authenticate error there).
+ *   Non-401 errors defer to the shared `mapErrorToPublishError`.
+ * @param error - The thrown value from the Snapchat API client.
+ * @returns The PublishError discriminant.
+ */
+function classifySnapchatError(error: unknown): PublishError {
+  const status = readSnapchatHttpStatus(error);
+  if (status === 401) {
+    const body = error instanceof Error ? error.message.toLowerCase() : "";
+    if (body.includes("invalid_token")) {
+      return "NETWORK";
+    }
+    return "AUTH";
+  }
+  return mapErrorToPublishError(error);
+}
+
+/**
+ * @function readSnapchatHttpStatus
+ * @description Extracts the HTTP status from a thrown Snapchat error. Prefers a
+ *   numeric `.status` (set by `apiClient` via `Object.assign`), and falls back to
+ *   parsing the status embedded in the error message (the api client formats
+ *   throws as `"... <status> - {body}"`). The fallback is defence-in-depth: it
+ *   keeps the 401 OAuth branch reachable even if a throw site omits `.status`, so
+ *   a revoked-token 401 during the upload step never silently degrades to NETWORK
+ *   (which would suppress reauth).
+ * @param error - The thrown value from the Snapchat API client.
+ * @returns The numeric HTTP status, or `undefined` when none can be derived.
+ */
+function readSnapchatHttpStatus(error: unknown): number | undefined {
+  if (!(error instanceof Error)) {
+    return undefined;
+  }
+  const attached = (error as Error & { status?: unknown }).status;
+  if (typeof attached === "number") {
+    return attached;
+  }
+  const match = /\b(\d{3})\b\s*-/.exec(error.message);
+  if (match && match[1]) {
+    return Number(match[1]);
+  }
+  return undefined;
+}
+
 export interface SnapchatAdapterDeps {
   /** Logger instance. Default: pino at level "info". */
   logger?: Logger;
@@ -284,7 +336,7 @@ export class SnapchatAdapter implements ProviderAdapter {
         return err("NETWORK");
       }
 
-      return err(mapErrorToPublishError(error));
+      return err(classifySnapchatError(error));
     }
   }
 

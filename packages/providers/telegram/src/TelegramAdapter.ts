@@ -90,6 +90,53 @@ export type TelegramApiClientFactory = (credentials: TelegramCredentials) => Tel
 const defaultClientFactory: TelegramApiClientFactory = (credentials) =>
   new TelegramApiClient(credentials);
 
+/**
+ * @function readTelegramErrorCode
+ * @description Reads the Telegram numeric error reason from a thrown error,
+ *   preferring `error_code` (the 200-wrapped Bot API code) and falling back to
+ *   `status` (raw HTTP). Returns `undefined` when neither is a number.
+ * @param error - The thrown value to inspect.
+ * @returns The numeric Telegram error code, or `undefined`.
+ */
+function readTelegramErrorCode(error: unknown): number | undefined {
+  if (!(error instanceof Error)) {
+    return undefined;
+  }
+  const e = error as Error & { error_code?: unknown; status?: unknown };
+  if (typeof e.error_code === "number") {
+    return e.error_code;
+  }
+  if (typeof e.status === "number") {
+    return e.status;
+  }
+  return undefined;
+}
+
+/**
+ * @function classifyTelegramError
+ * @description Telegram-specific publish classification. 401 → AUTH (token
+ *   revoked); 403 → VALIDATION (bot kicked from THIS chat — token still valid,
+ *   must NOT flag reauth); 429 → RATE_LIMIT; 5xx → NETWORK; else shared mapper.
+ * @param error - The thrown value from the Telegram API client.
+ * @returns The PublishError discriminant.
+ */
+function classifyTelegramError(error: unknown): PublishError {
+  const code = readTelegramErrorCode(error);
+  if (code === 401) {
+    return "AUTH";
+  }
+  if (code === 403) {
+    return "VALIDATION";
+  }
+  if (code === 429) {
+    return "RATE_LIMIT";
+  }
+  if (typeof code === "number" && code >= 500) {
+    return "NETWORK";
+  }
+  return mapErrorToPublishError(error);
+}
+
 export interface TelegramAdapterDeps {
   /** Logger instance. Default: pino at level "info". */
   logger?: Logger;
@@ -359,7 +406,7 @@ export class TelegramAdapter implements ProviderAdapter {
         return err("NETWORK");
       }
 
-      return err(mapErrorToPublishError(error));
+      return err(classifyTelegramError(error));
     }
   }
 

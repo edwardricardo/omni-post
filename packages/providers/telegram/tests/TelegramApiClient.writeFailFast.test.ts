@@ -38,6 +38,29 @@ const CREDS = {
   chatId: "@testchannel",
 };
 
+/**
+ * Asserts that `sendMessage` rejects with an Error carrying `error_code === 403`,
+ * proving the client surfaced the 200-wrapped `{ok:false, error_code}` structure.
+ */
+async function assertErrorCode(apiClient: TelegramApiClient): Promise<void> {
+  // The fail-fast describes above trip the shared send-message breaker OPEN via
+  // repeated rejections; force it CLOSED so this test deterministically exercises
+  // the real callApi ok:false path regardless of suite ordering.
+  apiClient.forceCircuitBreakerClose("send-message");
+  await assert.rejects(
+    () => apiClient.sendMessage("Hello"),
+    (thrown: unknown) => {
+      assert.ok(thrown instanceof Error, "must throw an Error");
+      assert.strictEqual(
+        (thrown as Error & { error_code?: number }).error_code,
+        403,
+        "the 200-wrapped error must surface error_code 403 for classification"
+      );
+      return true;
+    }
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // sendMessage — write must fail-fast
 // ─────────────────────────────────────────────────────────────────────────────
@@ -194,5 +217,36 @@ describe("TelegramApiClient.sendAudio — write fail-fast (R2-E)", { concurrent:
         return true;
       }
     );
+  });
+});
+
+// §2F Slice 2 — Telegram wraps API errors in an HTTP 200 body
+// `{ok:false, error_code, description}`. The client MUST surface a structured
+// error carrying `error_code` so the adapter can classify it (403 → VALIDATION,
+// 401 → AUTH). Before the fix, callApi threw a plain Error with no error_code,
+// so the 200-wrapped error fell through to NETWORK and was mis-handled.
+describe("TelegramApiClient.callApi — 200-wrapped {ok:false} surfaces error_code", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("throws an Error carrying error_code from a 200 response body {ok:false}", async () => {
+    // HTTP 200 (response.ok === true) but the Bot API body signals failure.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ok: false,
+          error_code: 403,
+          description: "Forbidden: bot was kicked",
+        }),
+        text: async () => "",
+      })
+    );
+    const apiClient = new TelegramApiClient(CREDS);
+    await assertErrorCode(apiClient);
   });
 });

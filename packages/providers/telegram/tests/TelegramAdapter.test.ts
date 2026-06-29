@@ -571,6 +571,69 @@ describe("TelegramAdapter - publish() error handling", { concurrent: false }, ()
     assert.strictEqual(result.ok, false);
     assert.strictEqual(result.error, "AUTH");
   });
+
+  // §2F Slice 2 — false-positive guard. A Telegram 403 means the bot was
+  // kicked/blocked/removed from THIS chat (per-chat) — the bot token is STILL
+  // VALID. It MUST NOT surface as AUTH; it is a per-chat → VALIDATION.
+  it("maps 403 status to VALIDATION (not AUTH) — bot kicked, token still valid", async () => {
+    const failingClient = createFailingApiClient("Forbidden: bot was kicked", 403);
+    const { adapter } = makeAdapter(failingClient);
+
+    const input = createTestPublishInput({ body: "Bot was kicked from chat" });
+    const result = await adapter.publish(input, VALID_CREDS);
+
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(
+      result.error,
+      "VALIDATION",
+      "Telegram 403 (bot kicked) must be VALIDATION, not AUTH (token still valid)"
+    );
+  });
+
+  // §2F Slice 2 — Telegram returns errors as HTTP 200 with `{ok:false, error_code}`.
+  // The structured error carries `error_code` (not `status`); the classifier must
+  // read it. error_code 403 → VALIDATION (per-chat), 401 → AUTH (definitive).
+  it("classifies an error carrying error_code 403 (200-wrapped) as VALIDATION", async () => {
+    const failingClient = createFailingApiClient("Telegram API error: bot was blocked");
+    const errWithCode = Object.assign(new Error("Telegram API error: bot was blocked"), {
+      error_code: 403,
+    });
+    failingClient.sendMessage = vi.fn(async () => {
+      throw errWithCode;
+    });
+    const { adapter } = makeAdapter(failingClient);
+
+    const input = createTestPublishInput({ body: "200-wrapped error_code 403" });
+    const result = await adapter.publish(input, VALID_CREDS);
+
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(
+      result.error,
+      "VALIDATION",
+      "error_code 403 (200-wrapped) must classify as VALIDATION, not AUTH"
+    );
+  });
+
+  it("classifies an error carrying error_code 401 (200-wrapped) as AUTH — definitive", async () => {
+    const failingClient = createFailingApiClient("Telegram API error: unauthorized");
+    const errWithCode = Object.assign(new Error("Telegram API error: unauthorized"), {
+      error_code: 401,
+    });
+    failingClient.sendMessage = vi.fn(async () => {
+      throw errWithCode;
+    });
+    const { adapter } = makeAdapter(failingClient);
+
+    const input = createTestPublishInput({ body: "200-wrapped error_code 401" });
+    const result = await adapter.publish(input, VALID_CREDS);
+
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(
+      result.error,
+      "AUTH",
+      "error_code 401 (revoked/malformed bot token) must classify as AUTH"
+    );
+  });
 });
 
 // ============================================================================

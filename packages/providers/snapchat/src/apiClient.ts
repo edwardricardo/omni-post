@@ -126,7 +126,11 @@ export class SnapchatApiClient {
 
       if (!createResponse.ok) {
         const errorBody = await createResponse.text().catch(() => "Unknown error");
-        throw new Error(`Failed to create media entity: ${createResponse.status} - ${errorBody}`);
+        const error = new Error(
+          `Failed to create media entity: ${createResponse.status} - ${errorBody}`
+        );
+        Object.assign(error, { status: createResponse.status });
+        throw error;
       }
 
       const createData: unknown = await createResponse.json();
@@ -143,7 +147,11 @@ export class SnapchatApiClient {
 
       if (!uploadResponse.ok) {
         const errorBody = await uploadResponse.text().catch(() => "Unknown error");
-        throw new Error(`Failed to upload media binary: ${uploadResponse.status} - ${errorBody}`);
+        const error = new Error(
+          `Failed to upload media binary: ${uploadResponse.status} - ${errorBody}`
+        );
+        Object.assign(error, { status: uploadResponse.status });
+        throw error;
       }
 
       return {

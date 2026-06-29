@@ -742,6 +742,113 @@ describe("SnapchatAdapter - publish error mapping", { concurrency: 1 }, () => {
 });
 
 // ============================================================================
+// 5b. §2F Slice 2 — OAuth-error-aware 401 classification
+// ============================================================================
+
+describe("SnapchatAdapter - publish 401 OAuth-error classification", { concurrency: 1 }, () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // A 401 `invalid_token` means the access token merely EXPIRED (refreshable) —
+  // NOT a revoked credential, so it MUST NOT flag needsReauth (transient NETWORK).
+  it("maps 401 invalid_token to NETWORK (transient, not AUTH) — refreshable", async () => {
+    const failingClient = makeFailingApiClient(
+      'Snapchat API error: 401 - {"error":"invalid_token","error_description":"expired"}',
+      401
+    );
+    const { adapter } = makeAdapter(failingClient);
+    const input = createTestPublishInput({
+      body: "Expired token snap",
+      media: [{ url: "https://example.com/photo.jpg", type: "image" }],
+    });
+    const result = await adapter.publish(input, VALID_CREDS);
+    assert.strictEqual(result.ok, false);
+    if (!result.ok) {
+      assert.strictEqual(
+        result.error,
+        "NETWORK",
+        "401 invalid_token is refreshable — must NOT flag reauth (AUTH)"
+      );
+    }
+  });
+
+  // A 401 `invalid_grant` (refresh token revoked) IS a definitive credential
+  // failure — it MUST surface as AUTH so reauth fires.
+  it("maps 401 invalid_grant to AUTH (definitive) — revoked credential", async () => {
+    const failingClient = makeFailingApiClient(
+      'Snapchat API error: 401 - {"error":"invalid_grant"}',
+      401
+    );
+    const { adapter } = makeAdapter(failingClient);
+    const input = createTestPublishInput({
+      body: "Revoked grant snap",
+      media: [{ url: "https://example.com/photo.jpg", type: "image" }],
+    });
+    const result = await adapter.publish(input, VALID_CREDS);
+    assert.strictEqual(result.ok, false);
+    if (!result.ok) {
+      assert.strictEqual(result.error, "AUTH", "401 invalid_grant must flag reauth (AUTH)");
+    }
+  });
+
+  // PRODUCTION-REALISTIC shape: the uploadMedia throws in apiClient.ts embed the
+  // HTTP status ONLY in the message string — they do NOT Object.assign a numeric
+  // `.status`. Since publish() runs uploadMedia FIRST, a revoked-token 401 during
+  // upload arrives as a STATUS-LESS Error. The classifier MUST parse the status
+  // from the message and surface invalid_grant as AUTH so reauth fires.
+  it("maps STATUS-LESS 401 invalid_grant from uploadMedia to AUTH — revoked, reauth fires", async () => {
+    const failingClient = makeFakeApiClient({
+      uploadMedia: vi.fn(async () => {
+        // No `.status` — mirrors the real apiClient.ts upload-path throw shape.
+        throw new Error('Failed to create media entity: 401 - {"error":"invalid_grant"}');
+      }),
+    });
+    const { adapter } = makeAdapter(failingClient);
+    const input = createTestPublishInput({
+      body: "Revoked grant upload snap",
+      media: [{ url: "https://example.com/photo.jpg", type: "image" }],
+    });
+    const result = await adapter.publish(input, VALID_CREDS);
+    assert.strictEqual(result.ok, false);
+    if (!result.ok) {
+      assert.strictEqual(
+        result.error,
+        "AUTH",
+        "status-less 401 invalid_grant during upload must flag reauth (AUTH), not NETWORK"
+      );
+    }
+  });
+
+  // Mirror of the transient branch on the same status-less upload-path shape: a
+  // 401 invalid_token (merely expired, refreshable) MUST stay NETWORK so reauth
+  // does NOT wrongly fire.
+  it("maps STATUS-LESS 401 invalid_token from uploadMedia to NETWORK — refreshable", async () => {
+    const failingClient = makeFakeApiClient({
+      uploadMedia: vi.fn(async () => {
+        throw new Error(
+          'Failed to create media entity: 401 - {"error":"invalid_token","error_description":"expired"}'
+        );
+      }),
+    });
+    const { adapter } = makeAdapter(failingClient);
+    const input = createTestPublishInput({
+      body: "Expired token upload snap",
+      media: [{ url: "https://example.com/photo.jpg", type: "image" }],
+    });
+    const result = await adapter.publish(input, VALID_CREDS);
+    assert.strictEqual(result.ok, false);
+    if (!result.ok) {
+      assert.strictEqual(
+        result.error,
+        "NETWORK",
+        "status-less 401 invalid_token during upload is refreshable — must stay NETWORK"
+      );
+    }
+  });
+});
+
+// ============================================================================
 // 6. Validate Credentials Tests
 // ============================================================================
 

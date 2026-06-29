@@ -164,10 +164,34 @@ export class TelegramApiClient {
     const json = (await response.json()) as TelegramApiResponse<T>;
 
     if (!json.ok) {
-      throw new Error(`Telegram API returned ok=false: ${json.description || "Unknown error"}`);
+      throw this.buildOkFalseError(json);
     }
 
     return json.result;
+  }
+
+  /**
+   * @method buildOkFalseError
+   * @description Builds a structured error from a 200-wrapped Telegram failure
+   *   body `{ok:false, error_code, description}`, surfacing `error_code` (mirrored
+   *   onto `status`) so the adapter can classify 401→AUTH / 403→VALIDATION /
+   *   429→RATE_LIMIT / 5xx→NETWORK instead of mis-handling it as NETWORK.
+   * @param json - The parsed `{ok:false}` Telegram API response.
+   * @returns The structured error to throw.
+   */
+  private buildOkFalseError<T>(
+    json: TelegramApiResponse<T>
+  ): Error & { error_code?: number; status?: number } {
+    const code = typeof json.error_code === "number" ? json.error_code : undefined;
+    const message = `Telegram API returned ok=false (${code ?? "no code"}): ${
+      json.description || "Unknown error"
+    }`;
+    const error = new Error(message) as Error & { error_code?: number; status?: number };
+    if (code !== undefined) {
+      error.error_code = code;
+      error.status = code;
+    }
+    return error;
   }
 
   // ----------------------------------------------------------

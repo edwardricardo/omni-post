@@ -119,6 +119,64 @@ describe("XAdapter - publish()", { concurrent: false }, () => {
     assert.strictEqual(result.ok, false);
     assert.strictEqual((result as { error: string }).error, "AUTH");
   });
+
+  // §2F Slice 2 — false-positive guard: a single-tweet 403 (duplicate-content /
+  // permission — often transient, the tweet may even have posted) MUST surface as
+  // VALIDATION, not AUTH, so it never wrongly flags the channel needsReauth.
+  it("should return VALIDATION (not AUTH) error on single-tweet 403 status", async () => {
+    const failingClient = createFailingApiClient("Forbidden", 403);
+    const { adapter } = makeAdapter(failingClient);
+
+    const input = createTestPublishInput();
+    const result = await adapter.publish(input, MOCK_CREDENTIALS);
+
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(
+      (result as { error: string }).error,
+      "VALIDATION",
+      "single-tweet 403 must be VALIDATION, not AUTH (no false reauth)"
+    );
+  });
+
+  // PRODUCTION-REALISTIC shape: twitter-api-v2 `ApiResponseError` carries the
+  // HTTP status in `.code` (NOT `.status`). Production hits this `.code` path, but
+  // the other Slice-2 X tests only mock `.status` via createFailingApiClient — so
+  // the production-critical branch is otherwise unguarded. These two lock it.
+  it("should return VALIDATION (not AUTH) on single-tweet 403 carried in .code", async () => {
+    const client = createMockApiClient();
+    client.postTweet = vi.fn(async () => {
+      throw Object.assign(new Error("Forbidden"), { code: 403 });
+    });
+    const { adapter } = makeAdapter(client);
+
+    const input = createTestPublishInput();
+    const result = await adapter.publish(input, MOCK_CREDENTIALS);
+
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(
+      (result as { error: string }).error,
+      "VALIDATION",
+      "403 in .code (twitter-api-v2 shape) must be VALIDATION, not AUTH"
+    );
+  });
+
+  it("should return AUTH on 401 carried in .code (twitter-api-v2 shape)", async () => {
+    const client = createMockApiClient();
+    client.postTweet = vi.fn(async () => {
+      throw Object.assign(new Error("Unauthorized"), { code: 401 });
+    });
+    const { adapter } = makeAdapter(client);
+
+    const input = createTestPublishInput();
+    const result = await adapter.publish(input, MOCK_CREDENTIALS);
+
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(
+      (result as { error: string }).error,
+      "AUTH",
+      "401 in .code (twitter-api-v2 shape) must flag reauth (AUTH)"
+    );
+  });
 });
 
 // ============================================================================

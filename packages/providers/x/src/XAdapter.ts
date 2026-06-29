@@ -86,6 +86,55 @@ export type XApiClientFactory = (credentials: XCredentials) => XApiClient;
 
 const defaultClientFactory: XApiClientFactory = (credentials) => new XApiClient(credentials);
 
+/**
+ * @function readHttpStatus
+ * @description Extracts an HTTP status from a thrown error, reading `status`
+ *   (raw fetch / twitter-api-v2 surface), `statusCode` (AppError-style), then
+ *   `code` (twitter-api-v2 `ApiResponseError` carries the HTTP status there).
+ *   Returns `undefined` when no numeric status is present.
+ * @param error - The thrown value to inspect.
+ * @returns The numeric HTTP status, or `undefined`.
+ */
+function readHttpStatus(error: unknown): number | undefined {
+  if (!(error instanceof Error)) {
+    return undefined;
+  }
+  const e = error as Error & { status?: unknown; statusCode?: unknown; code?: unknown };
+  if (typeof e.status === "number") {
+    return e.status;
+  }
+  if (typeof e.statusCode === "number") {
+    return e.statusCode;
+  }
+  if (typeof e.code === "number") {
+    return e.code;
+  }
+  return undefined;
+}
+
+/**
+ * @function classifyXPublishError
+ * @description X-specific classification for the single-tweet publish path.
+ *   Separates a DEFINITIVE auth failure (401 → AUTH, enabling reauth) from a
+ *   single-tweet 403 (duplicate-content / permission — often transient, the
+ *   tweet may even have posted) which MUST surface as VALIDATION so it never
+ *   wrongly flags the channel needsReauth. Every other shape (429, 5xx,
+ *   code-less, etc.) defers to the shared `mapErrorToPublishError`, so this
+ *   does NOT change the shared 401||403 → AUTH fallback for other providers.
+ * @param error - The thrown value from the X API client.
+ * @returns The PublishError discriminant.
+ */
+function classifyXPublishError(error: unknown): PublishError {
+  const status = readHttpStatus(error);
+  if (status === 401) {
+    return "AUTH";
+  }
+  if (status === 403) {
+    return "VALIDATION";
+  }
+  return mapErrorToPublishError(error);
+}
+
 export interface XAdapterDeps {
   /** Logger instance. Default: pino at level "info". */
   logger?: Logger;
@@ -289,7 +338,7 @@ export class XAdapter implements ProviderAdapter {
         return err("NETWORK");
       }
 
-      return err(mapErrorToPublishError(error));
+      return err(classifyXPublishError(error));
     }
   }
 
