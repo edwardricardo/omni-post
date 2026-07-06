@@ -210,7 +210,7 @@ Security tests run automatically on:
   - RBAC testing
   - Input validation testing
 
-#### 2. Container Security (`container-security.yml`)
+#### 2. Container Security — PLANNED (not yet implemented; `container-security.yml` does not exist — gated on the containerization workstream, ADR-0017)
 
 - Multi-service container scanning
 - Dockerfile security analysis
