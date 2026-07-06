@@ -27,7 +27,7 @@ External canon consulted (research 2026-05-30, after Edward's correction on "res
 - **NIST SP 800-63B-4** §rate-limiting (finalised 2025-07): verifier SHALL implement per-account rate-limiting; prefers progressive throttling over hard lockout (DoS-conscious).
 - **OWASP Authentication Cheat Sheet** §Account Lockout: counter per **account** (not IP — IP rotation evades IP-based counters); auto-expiry; CAPTCHA after few failures; MFA is the primary defence, BF protection is the secondary layer.
 - **OWASP A07:2021** Identification & Authentication Failures: unprotected credential-based auth is in the top 10.
-- Internal design doc `docs/security/BRUTE_FORCE_HOMOLOGATION_ES.md` (2026-05-24) had already captured the 6 alignment rules; this ADR records the decision to act on them.
+- The BF-HOMOLOG design pass (2026-05-24) captured the 6 alignment rules — account-primary counter (IP supplementary), DoS-conscious lockout/auto-expiry with forgot-password bypass, CAPTCHA after N, no O(N) `redis.keys()`, an explicit fail-open-vs-fail-closed decision, and audit via the injected `AuditService`; this ADR records, supersedes, and acts on all six (see §Decision for the canon-aligned behaviour).
 
 ## Decision
 
@@ -107,7 +107,5 @@ Redis owns the ephemeral state (counters, lockout flags, delay). The durable tra
 
 - NIST SP 800-63B-4 §Rate Limiting (finalised 2025-07): <https://pages.nist.gov/800-63-4/sp800-63b/authenticators/>
 - OWASP Authentication Cheat Sheet §Account Lockout: <https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html>
-- OWASP A07:2021 Identification & Authentication Failures: <https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/>
-- Internal design doc: [docs/security/BRUTE_FORCE_HOMOLOGATION_ES.md](../security/BRUTE_FORCE_HOMOLOGATION_ES.md)
-- Implementation commits: `fcf351f5` (Phase 1 — port), `598696e6` (Phase 2 — adapter), `d7c67ec0` (Phase 3 — DI), `3a11a013` (Phase 4 — customer wire), `649fe40f` (Phase 5 — admin refactor), `1ae514b4` (Phase 6 — legacy delete), `2705df66` (Phase 7 — tests).
+- OWASP A07:2021 Identification & Authentication Failures: <https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/>- Implementation commits: `fcf351f5` (Phase 1 — port), `598696e6` (Phase 2 — adapter), `d7c67ec0` (Phase 3 — DI), `3a11a013` (Phase 4 — customer wire), `649fe40f` (Phase 5 — admin refactor), `1ae514b4` (Phase 6 — legacy delete), `2705df66` (Phase 7 — tests).
 - Related ADRs: ADR-0007 (DI composition root) — port wiring follows the canon there. ADR-0013 (3-logger factory) — adapter uses `authLogger` from the factory. ADR-0014 (Multi-tenant isolation) — `AuditLog.accountId` persists per S4.3.
