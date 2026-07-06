@@ -57,7 +57,7 @@ Cada tarea de producto (§2-§4) referencia su **canon de implementación 2026**
 | P.C Docs RECLASIFICAR (1) + ACTUALIZAR (75, ref)     | 1+75    | 0           | ⬜     |
 | P.D Engram ARCHIVE (artefactos SDD + summaries)      | 72      | 0           | ⬜     |
 | P.E Engram UPDATE (8) + MERGE (1)                    | 9       | 0           | ⬜     |
-| P.F Ejecución post-adjudicación (2 VERIFY + 2 gates) | 4       | 0           | ⬜     |
+| P.F Ejecución post-adjudicación (2 VERIFY + 2 gates) | 4       | 4           | ✅     |
 | **Total Pre-Fase**                                   | **136** | **0**       | ⬜     |
 
 ### P.A — Docs a ELIMINAR (14) · requieren OK explícito (§0.3)
@@ -117,14 +117,14 @@ Cada tarea de producto (§2-§4) referencia su **canon de implementación 2026**
 
 > **Se ejecuta apenas cierra la adjudicación (P.A-P.E), ANTES de la Nivelación.** NO son backlog diferido de §5: son los rescates y gates que la propia adjudicación generó y que deben resolverse para poder borrar con seguridad los docs gateados. Bloquean el cierre de la Pre-Fase.
 
-- [ ] **P-VERIFY-1** `[S]` **VERIFY** (rescatado en P.A-11) — verificar si `apps/client` tiene un ciclo circular no-trackeado. El CI depcruise **no escanea `apps/client`**; el único ciclo trackeado (SMELL-42, workers) está resuelto. **DoD:** correr `madge --circular` (o depcruise) sobre `apps/client`; si hay ciclo real → nuevo SMELL + fix; si no → cerrar.
-- [ ] **P-VERIFY-2** `[M]` **VERIFY** (rescatado en P.A-19) — re-verificar contra HEAD el mapeo endpoint↔consumidor (el snapshot de mayo listaba 468 rutas · 10 llamadas frontend a rutas inexistentes · 300 endpoints sin consumidor UI, stale). **DoD:** análisis routes-vs-hooks fresco; (a) reverse-orphans nuevos más allá de los ya capturados (N-COR-3 `client-admin-endpoint-401`, §5.3 FN-029/030, `client-nav-dead-routes`) → fix/tarea; (b) huérfanos → clasificar `PLANNED/INFRASTRUCTURE_READY/LEGACY/DEAD_CODE` (§0.3) sin auto-delete.
-- [ ] **P-GATE-1** `[M]` **Gate de absorción** — verificar que los hallazgos de los grandes docs de auditoría gateados están absorbidos en §5 (vía `FN-*`/`SMELL-*`), sin dejar letra muerta. **Destino de todos: ELIMINAR (no archivar) al cerrar el gate.** Docs gateados (NO borrar hasta cerrar):
+- [x] **P-VERIFY-1** — **CERRADO 2026-06-29: 0 ciclos** en `apps/client` (madge 8.0.0 + dependency-cruiser; el ciclo del snapshot viejo era artefacto de resolución de paths). Gotcha → **CI-CLIENT-DEPCRUISE** (§5.2).
+- [x] **P-VERIFY-2** — **CERRADO 2026-06-29:** 14 reverse-orphans NUEVOS (FE→endpoint inexistente, 404 runtime) → capturados en §5.3 `FE-BE-CONTRACT-BREAKS`; ~195/495 endpoints huérfanos (baja de 300, clasificados); 3 route files inalcanzables (optimizedPostsRoutes=FN-009, rateLimitingDashboard=FN-010/027, CQRSIntegration=nuevo). Detalle: `assessment-work/pf-verify-results.md`.
+- [x] **P-GATE-1** — **CERRADO 2026-06-29:** absorción ~90% (12/14 críticos escalados resueltos en código); **7 gaps rescatados a §5.7** (L-1 MFA-duality el crítico-de-seguridad). Los 11 docs quedan borrables. Detalle: `assessment-work/pf-gate1-results.md`. Docs gateados (borrables tras el rescate):
   - (a) `LATERAL_FINDINGS.md` (647 hallazgos; audit lineage PLAN_MAESTRO/D0-v4).
   - (b) `ESTADO_REPO.md` (1253 líneas: duplicación/huérfanos/mismatches — 2026-05-29, NO en la provenance del inventory) + su plan acoplado `PLAN_REPARACION.md` (35 findings, Status PENDIENTE — registro reparado-vs-abierto, INPUT del gate).
   - (c) **Cluster F5 (audit 2026-05-11):** `INVENTORY_SUMMARY.md` + los 5 `inventory-{api,workers,admin,client,packages}.md` (datos crudos, 1477 archivos) + `_AUDIT_FINDINGS.md` + `AUDIT_REVIEW_TRACKING.md` (hallazgos — listados como provenance del inventory → asertados absorbidos en `FN-*`, **confirmar**).
   - **DoD:** cross-referencia de los tres grupos; usar `PLAN_REPARACION` para saber qué de `ESTADO_REPO` cerró Track 2 vs qué sigue abierto; los no-absorbidos entran a §5 con su ID; recién entonces **todos** son borrables.
-- [ ] **P-GATE-2** `[M]` **Rescue-check de decisiones de producto** — dos docs de marzo-2026 (predecesores del spine de producto): (a) `docs/reports/audits/feature-decisions.md` (746 líneas: un bloque IMPLEMENT/HOMOLOGATE por capacidad, predecesor de `FEATURE_TRACE_MATRIX §8.4`); (b) `docs/reports/planning/next-sprint-backlog.md` (155 líneas: capacidades diferidas del plan de marzo, trigger apunta a `MASTER_DEVELOPMENT_PLAN.md` inexistente). **DoD:** verificar que cada bloque de decisión / capacidad diferida esté reflejado en `FEATURE_TRACE_MATRIX` + el roadmap de este plan (§2-4) o ya ejecutado; los no-capturados → agregar a la fase que corresponda con su ID; recién entonces ambos son borrables (destino: eliminar).
+- [x] **P-GATE-2** — **CERRADO 2026-06-29:** 25/28 bloques ejecutados/capturados; **5 gaps rescatados** (§4: employee-advocacy F3-API-9 + full-ad-management en "Nunca"; §5.8: industry-benchmarks + marketplace + dropbox). `feature-decisions.md` + `next-sprint-backlog.md` quedan borrables. Detalle: `assessment-work/pf-gate2-results.md`.
 
 ---
 
@@ -201,11 +201,11 @@ Cada tarea de producto (§2-§4) referencia su **canon de implementación 2026**
 
 > 14 tareas. §8.5: no iniciar con Fase 1 abierta.
 
-F3-API-1 `[M]` triage multi-tono + self-correction (🔗F0-API-2) · F3-WRK-1 `[M]` video IA real text-to-video (async+webhook) + F3-API-2/F3-CLI-1 · F3-API-3 `[M]` content discovery + F3-WRK-2/F3-CLI-2 · F3-WRK-3 `[M]` RSS auto-posting (🔗B2) + F3-API-4/F3-CLI-3 · F3-API-5 `[S]` image-to-caption (🔗F0-API-1) · F3-API-6 `[S]` AI alt-text (🔗F0-API-1) · F3-API-7 `[M]` analytics ads pagados · F3-API-8 `[S]` audience targeting.
+F3-API-1 `[M]` triage multi-tono + self-correction (🔗F0-API-2) · F3-WRK-1 `[M]` video IA real text-to-video (async+webhook) + F3-API-2/F3-CLI-1 · F3-API-3 `[M]` content discovery + F3-WRK-2/F3-CLI-2 · F3-WRK-3 `[M]` RSS auto-posting (🔗B2) + F3-API-4/F3-CLI-3 · F3-API-5 `[S]` image-to-caption (🔗F0-API-1) · F3-API-6 `[S]` AI alt-text (🔗F0-API-1) · F3-API-7 `[M]` analytics ads pagados (nota P-GATE-2: F3-API-8 audience-targeting captura el boost pero NO la dependencia de Meta business-verification) · F3-API-8 `[S]` audience targeting · **F3-API-9** `[S]` employee advocacy — **DEFER, solo si el ICP incluye enterprise** (matrix ⛔ + §8.4 #16; rescatado P-GATE-2).
 
 **Canon §9.1/§9.4:** video con audio nativo + job async (NO Sora 2, API fin sep-2026); triage 1 llamada → array tono-etiquetado + self-correction; RSS con Job Scheduler + conditional GET (ETag) + dedupe por GUID; ads al mismo star schema que orgánico + persistir ventana de atribución.
 
-**Nunca (salvo pivot de ICP):** AI voiceover · meme generator · influencer marketing · blog→video · e-commerce product→post. Bloat confirmado — sin tareas.
+**Nunca (salvo pivot de ICP):** AI voiceover · meme generator · influencer marketing · blog→video · e-commerce product→post · **full ad management** (categoría de producto aparte, out-of-scope explícito per feature-decisions D11 — rescatado P-GATE-2). Bloat confirmado — sin tareas.
 
 ---
 
@@ -230,6 +230,8 @@ F3-API-1 `[M]` triage multi-tono + self-correction (🔗F0-API-2) · F3-WRK-1 `[
 
 §6.1 Containerización (P1, PAUSADO pending bundler ADR-0017) · §3.1.b OpenAPI Zod ~342 rutas (P1, bloquea UI tipada) · §3.2.b provider contract tests MSW (P1) · §4.1.b saga+outbox chaos (P1) · §4.2.b observability ops + alerts (P1) · §2.2.b coverage+mutation gates (P1) · §4.3 GDPR/retention (P2) · §6.2 Kubernetes (P2, 🔗§6.1) · §5.2 queue triada (DEFERRED).
 
+- **CI-CLIENT-DEPCRUISE** `[S]` **CI/P2** (P-VERIFY-1, 2026-06-29) — el CI depcruise NO escanea `apps/client`, y `apps/client/tsconfig.json` no tiene `baseUrl` → madge/tsconfig-paths skipea ~25% de módulos al resolver `@/*` (escaneo ciego). **DoD:** agregar `apps/client` al scope del depcruise de CI con el alias `@/*` resuelto (o `baseUrl` en el tsconfig), para gatear ciclos/orphans del client (hoy 0 ciclos verificado, pero sin gate).
+
 **Gates de GO-LIVE (producción):**
 
 - [ ] **SECRETS-ROTATION-GOLIVE** `[M]` **[SECURITY, P0-at-go-live]** — al ir a producción: (a) rotar **todos** los secrets reales (DB, API keys de providers/LLM, JWT, etc.); (b) purgar `.env` de la historia de git (`git filter-repo`/BFG) hasta que `git log --all -- .env` = 0 (hoy = 3 commits, incl. Genesis). **Contexto (decisión Edward):** los secrets actuales son **dev-only** creados para desarrollo; el `.env` estuvo trackeado en Genesis (finding L-591) y se destrackeó (`78b1055c`) pero sigue en la historia — **riesgo aceptado** mientras sean dev-only; la rotación definitiva + purga se hacen al pasar a producción. Guía: [`docs/security/T0A_SECRETS_ROTATION_RUNBOOK.md`](../security/T0A_SECRETS_ROTATION_RUNBOOK.md) (CONSERVADO). **DoD:** secrets rotados en todos los servicios externos + `git log --all -- .env` = 0 + apps redeployadas verde.
@@ -237,6 +239,9 @@ F3-API-1 `[M]` triage multi-tono + self-correction (🔗F0-API-2) · F3-WRK-1 `[
 ### 5.3 Forgotten-features — backend listo, UI/wire ausente (§4 inventario)
 
 Mapean a producto — valor barato: **WEBHOOK-INGEST** (SMELL-38, pipeline HMAC completo sin cablear, P1) · **FN-024** scheduled-reports cron · **SMELL-3** repurpose approve/reject · **SMELL-13/14** inbox priority/direction · **SMELL-30** admin SSE proxy buffering · **SMELL-45/46** threading/saga UI · **SMELL-9/27/41/51** (clasificar/wire) · **FN-022/023/025** video/predictive/AI-quality (NEEDS_EDWARD). **admin-logs-gitignored-01** (`confirmed-adversarial`, ALTA): la página `/logs` está tapada por `.gitignore:51` → 404 en build limpio; anclar la regla + `git add -f`.
+
+- **FE-BE-CONTRACT-BREAKS** `[M]` **P1** (P-VERIFY-2, 2026-06-29) — **14 reverse-orphans**: frontend llamando endpoints inexistentes/mis-prefijados → 404 en runtime. Detalle en `assessment-work/pf-verify-results.md`. Clusters: analytics-client (4: `/analytics/posts/:id`, `/analytics/channels/:id` inexistentes + `/analytics/posts/best-times` y `/analytics/content/media-performance` con **mismatch de prefijo** — el backend las expone SIN `/analytics`); posts-client media/thread (2); scheduling rules PATCH/toggle (2); referral page (use cases existen, ruta no); template item-level `/templates/:id`; admin mfa `regenerate-backup-codes`, rbac per-permission DELETE, y **todo el CRUD de webhook-subscriptions del admin** (POST/PUT/DELETE a rutas fantasma). **DoD:** por cada uno, o crear el endpoint faltante o corregir la llamada FE (los mismatch de prefijo son fix trivial); test que ejercite el contrato.
+- **CQRSIntegration dead-route** `[S]` (P-VERIFY-2 bonus) — `apps/api/src/cqrs/CQRSIntegration.ts` define rutas Fastify pero NO está cableado en ningún composition root (inalcanzable). Clasificar DEAD_CODE vs PLANNED (§0.3) — hermano de FN-009 (optimizedPostsRoutes) + FN-010/027 (rateLimitingDashboard).
 
 ### 5.4 Duplicación a consolidar (§5 inventario)
 
@@ -252,7 +257,26 @@ FN-031 sessionCookie · FN-032 LoadingSpinner · FN-033 notificationStore · FN-
 
 Overrides con remove-when datados (esbuild, shell-quote, vite-7.3.5, eslint-9.36, storybook-10.4.6) · GHSA ignores datados (joi, request SSRF, elliptic) · CLIENT-DECIMAL-FIX (`stale-verify`, mayoría falsos positivos) · STORAGE-PROVIDERS-DI (5 violaciones S3) · **prisma-invoice-money-float** (`verified`, MEDIA: `Invoice.amountDue/amountPaid` Float, migrar a Decimal(19,4)).
 
----
+### 5.7 Rescatados por el gate de absorción (P-GATE-1, 2026-06-29)
+
+> 7 hallazgos NO-absorbidos que el gate encontró en los docs de auditoría gateados (LATERAL_FINDINGS/ESTADO_REPO) antes de borrarlos — capturados acá con su ID original para no dejar letra muerta. Detalle: `assessment-work/pf-gate1-results.md`.
+
+- **L-1 MFA-DUALITY** `[M]` **[SECURITY, ALTA]** — el DI (`setupServices.ts`) registra el OLD `auth/mfaService.ts` que guarda los backup codes SHA-256 en el campo `passwordResetToken` (hack, :84-86/164); el NEW `admin/auth/MfaService.ts` (argon2) sigue FUERA de DI. El más importante del gate — sin rastro en ningún doc vivo (SMELL-37 es otra cosa). **DoD:** cablear el MfaService argon2 en DI, columna propia para backup codes, retirar el OLD service. _(Candidato a promover a Nivelación §1.A si Edward lo considera P0.)_
+- **L-546 ADMIN-PASSWORD-FALLBACK** `[S]` **[SECURITY, MEDIA]** — `seed.ts:731` `process.env.ADMIN_PASSWORD ?? "Admin123!"` (fallback débil, CWE-798); su plan de fix murió con `REMEDIATION_ROADMAP.md`. **DoD:** fail-fast sin fallback (patrón env.ts Zod); + fix ref muerta de `T0A_SECRETS_ROTATION_RUNBOOK.md`. Cross-ref: `SECRETS-ROTATION-GOLIVE`.
+- **L-616.4 ACTIONS-SHA-PIN** `[S]` **[SECURITY, MEDIA-ALTA]** — 27+ GitHub Actions en tag (`@v4`), 0 SHA-pinning (supply-chain). **DoD:** pinear las actions a SHA.
+- **L-621 CI-PAT-SCOPE** `[S]` **[SECURITY, MEDIA]** — `DEPENDENCY_UPDATE_TOKEN` (PAT scope-repo) usado 5x en `dependency-updates.yml`. **DoD:** reducir scope / GITHUB_TOKEN / app token.
+- **L-6 BILLING-EVENTID-FALLBACK** `[S]` **MEDIA** — `GatewayBillingService.ts:736` `eventId || ${provider}-${type}-${Date.now()}` rompe idempotency de webhooks sin ID nativo. **DoD:** requerir eventId nativo o dedupe determinista (cross-ref BILLING-DUNNING-DEAD N-COR-4).
+- **L-26 FAKE-ROLE-RATELIMIT** `[S]` **BAJA-MEDIA** — `rbacMiddleware.ts:201` `roleBasedRateLimit()` setea headers `X-RateLimit-*` pero NO enforcea nada; huérfano (0 consumers). Código de seguridad engañoso → clasificar DEAD_CODE vs wire (canon rate-limit = ADR-0019).
+- **F18-F21 DUPS-CROSS-PACKAGE** `[M]` **MEDIA** — 4 duplicaciones sin heredero en el plan fusionado: `templateEngine`×2, `businessMetrics`×2, `circuitBreaker`×2, `videoProcessor`×3. Consolidar (extiende §5.4 / `code-duplications.md`).
+- **Aceptado/menor:** L-623 remainder (`password123` en CI service-containers efímeros + fixtures = docker-compose dev de CLAUDE.md) → **accepted-dev-fixture** (documentado).
+
+### 5.8 Capacidades de producto diferidas (rescatadas P-GATE-2, 2026-06-29)
+
+> Decisiones DEFER de `feature-decisions.md` (marzo) sin heredero en el spine vivo. Detalle: `assessment-work/pf-gate2-results.md`.
+
+- **INDUSTRY-BENCHMARKS** (D7) — DEFER: benchmarking contra promedio de industria; requiere base >1000 cuentas O licencia de datos. Trigger de activación, no tarea inmediata. (Distinto de F2-API-6 competitor-benchmarking, que es per-tenant.)
+- **INTEGRATION-MARKETPLACE** (D13) — DEFER: marketplace de integraciones; prematuro hasta 10+ integraciones (hoy ~6). Trigger "10+ integraciones".
+- **DROPBOX-IMPORT** (D9, menor) — DEFER: hoy solo Google Drive (matrix Nivel 4 🟡). Bajo esfuerzo cuando se priorice.
 
 ## §6 — Dashboard de progreso unificado
 
