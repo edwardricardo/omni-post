@@ -54,7 +54,7 @@ When adding a new `accountId`-bearing model:
 
 ## Audited audit-ignores
 
-> Authoritative record of every accepted security debt in the dependency baseline (ADR-0018). Two classes: **ignored GHSAs** (a `pnpm audit` advisory we accept on a transitive with no safe upstream) and **CVE-floor pins** (a catalog/override entry held AT or ABOVE the minimal patched version to keep a known vulnerability out of the tree). Each carries a remove-when so the debt is auditable, not silent. Mirrors `docs/product/PENDING_WORK_INVENTORY.md §7`.
+> Authoritative record of every accepted security debt in the dependency baseline (ADR-0018). Two classes: **ignored GHSAs** (a `pnpm audit` advisory we accept on a transitive with no safe upstream) and **CVE-floor pins** (a catalog/override entry held AT or ABOVE the minimal patched version to keep a known vulnerability out of the tree). Each carries a remove-when so the debt is auditable, not silent. Mirrors `docs/product/MASTER_PLAN_ES.md §5.6`.
 
 ### Ignored GHSAs (`pnpm.auditConfig.ignoreGhsas`, root `package.json`)
 

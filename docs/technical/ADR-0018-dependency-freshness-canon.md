@@ -133,4 +133,4 @@ drifted lockfile becomes a hard failure, not a silent re-resolve).
 - Plan: `~/.claude/plans/revalidation-dep-baseline.md`
 - Inventory + design: workflow `wf_69bb9921`
 - Drift-hydra incident: engram obs 151 (PR #91)
-- Consolidated inventory: `docs/product/PENDING_WORK_INVENTORY.md`
+- Consolidated plan: `docs/product/MASTER_PLAN_ES.md` (§5.6 dependency-freshness)

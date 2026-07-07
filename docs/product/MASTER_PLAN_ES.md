@@ -1,6 +1,6 @@
 # OmniPost — Plan Maestro Consolidado
 
-> **Fuente única de verdad y de trabajo.** Fusiona el roadmap de producto (`IMPLEMENTATION_PLAN_ES.md`), el inventario consolidado (`PENDING_WORK_INVENTORY.md`), el canon 2026 por feature (`FEATURE_TRACE_MATRIX_ES.md §9`), la disciplina de auditoría (`PLAN_MAESTRO.md §5.8/§5.9`) y la valoración verificada del 2026-06-29 (`docs/audits/FULL_REPO_ASSESSMENT_2026-06-29.md`).
+> **Fuente única de verdad y de trabajo.** Reemplaza y fusiona `IMPLEMENTATION_PLAN_ES.md` (spine de features → §2-4) + `PENDING_WORK_INVENTORY.md` (consolidación → §1/§5) — **ambos retirados 2026-06-29**. Rescata como referencia viva: `FEATURE_TRACE_MATRIX_ES.md` (catálogo + canon 2026 §9 + orden §8.4, **CONSERVADO**) + la disciplina `PLAN_MAESTRO §5.8/§5.9` (→ §0.3, retirado). Absorbe la valoración verificada `docs/audits/FULL_REPO_ASSESSMENT_2026-06-29.md`.
 >
 > **Estado:** documento vivo. **Owner:** Platform engineering / Edward.
 > **Base de código:** `workstream/impl-revalidation @ 07c1faa5` (2026-06-29).
@@ -46,19 +46,18 @@ Cada tarea de producto (§2-§4) referencia su **canon de implementación 2026**
 
 ## §P — PRE-FASE · Adjudicación de veredictos (docs + engram)
 
-> **Se ejecuta ANTES de la Nivelación.** Revisamos uno a uno los veredictos de la valoración (WF1). Cada decisión puede **ajustar el resto del plan** (un doc rescatado en vez de borrado, una memoria que revela trabajo ya hecho, una reclasificación). Regla §0.3: **ningún DELETE sin OK explícito de Edward**; ARCHIVAR = mover a `docs/archive/` (reversible). Decisión por ítem: `A` aceptar · `R` rechazar/conservar · `M` modificar. Columna `Dec.` en blanco = pendiente.
+> **✅ CERRADA 2026-06-29.** Se adjudicó uno a uno cada veredicto de la valoración (WF1) — cada decisión ajustó el resto del plan. Regla §0.3 respetada (ningún DELETE sin OK de Edward). Las tablas P.A-P.E abajo son el **registro de adjudicación** (histórico). Commits: `76e92a9b` (P.A) · `0c5bc998` (P.B) · `cdfb0f78` (P.C) · P.D/P.E engram (sin `mem_delete` disponible → dejadas; #2 actualizada) · `3d481563`/`e7b712f1` (P.F + deleciones).
 
 ### Dashboard Pre-Fase
 
-| Bloque                                               | Ítems   | Adjudicados | Estado |
-| ---------------------------------------------------- | ------- | ----------- | ------ |
-| P.A Docs ELIMINAR (destructivo, requiere OK)         | 14      | 0           | ⬜     |
-| P.B Docs ARCHIVAR (reversible)                       | 36      | 0           | ⬜     |
-| P.C Docs RECLASIFICAR (1) + ACTUALIZAR (75, ref)     | 1+75    | 0           | ⬜     |
-| P.D Engram ARCHIVE (artefactos SDD + summaries)      | 72      | 0           | ⬜     |
-| P.E Engram UPDATE (8) + MERGE (1)                    | 9       | 0           | ⬜     |
-| P.F Ejecución post-adjudicación (2 VERIFY + 2 gates) | 4       | 4           | ✅     |
-| **Total Pre-Fase**                                   | **136** | **0**       | ⬜     |
+| Bloque                                               | Ítems          | Estado                                                                       |
+| ---------------------------------------------------- | -------------- | ---------------------------------------------------------------------------- |
+| P.A Docs ELIMINAR                                    | 14 (+5 `_raw`) | ✅ 18 borrados                                                               |
+| P.B Docs ARCHIVAR                                    | 36             | ✅ 18 borrados · 13 gateados→P.F · 2 conservados · 4 archivados · 1 keep     |
+| P.C Docs RECLASIFICAR (1) + ACTUALIZAR (75, ref)     | 1+75           | ✅ 1 (→SECURITY_TESTING_FRAMEWORK); 75 mecánico (DOCS-INDEX-REBUILD §5.5)    |
+| P.D Engram ARCHIVE                                   | 72             | ⚠️ sin `mem_delete` en el build → dejadas (CLI-only)                         |
+| P.E Engram UPDATE (8) + MERGE (1)                    | 9              | ✅ #2 actualizada; resto dejado (superado)                                   |
+| P.F Ejecución post-adjudicación (2 VERIFY + 2 gates) | 4              | ✅ 0 ciclos · 14 reverse-orphans · 12 gaps rescatados · 13 gateados borrados |
 
 ### P.A — Docs a ELIMINAR (14) · requieren OK explícito (§0.3)
 

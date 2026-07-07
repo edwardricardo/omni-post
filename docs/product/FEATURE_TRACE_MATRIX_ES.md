@@ -2,6 +2,8 @@
 
 > Cruce de las ~70 features del catálogo competitivo ([COMPETITIVE_ANALYSIS_ES.md §6](COMPETITIVE_ANALYSIS_ES.md)) contra el código y la documentación reales de OmniPost (`apps/`, `packages/`, `infra/prisma/schema.prisma`, `docs/`). Rastreo de mayo 2026 vía exploración paralela del repositorio.
 >
+> **⚠️ Estado (2026-06-29):** este doc se CONSERVA como **catálogo de features + fuente del canon 2026 (§9)** que el plan maestro referencia. Su **columna de estado (✅/🟡/📐/⛔) es un snapshot de mayo (pre-Fase-0) y quedó SUPERADA** — el estado real de implementación vive en [`MASTER_PLAN_ES.md`](MASTER_PLAN_ES.md) (fuente única). Usar §7 (diferenciadores), §8.4 (orden) y §9 (canon) como referencia; NO la columna de estado.
+>
 > **Orden:** ascendente por necesidad — de ⬛ _Pérdida de tiempo_ (menos necesaria) hacia 🟥 _Obligatoria_ (más necesaria). Dentro de cada nivel, agrupado por categoría.
 >
 > **Estado de rastreo:**
