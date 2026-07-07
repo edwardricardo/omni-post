@@ -1,6 +1,6 @@
 # OmniPost — Plan Maestro Consolidado
 
-> **Fuente única de verdad y de trabajo.** Reemplaza y fusiona `IMPLEMENTATION_PLAN_ES.md` (spine de features → §2-4) + `PENDING_WORK_INVENTORY.md` (consolidación → §1/§5) — **ambos retirados 2026-06-29**. Rescata como referencia viva: `FEATURE_TRACE_MATRIX_ES.md` (catálogo + canon 2026 §9 + orden §8.4, **CONSERVADO**) + la disciplina `PLAN_MAESTRO §5.8/§5.9` (→ §0.3, retirado). Absorbe la valoración verificada `docs/audits/FULL_REPO_ASSESSMENT_2026-06-29.md`.
+> **Fuente única de planificación y trabajo.** Reemplaza y fusiona `IMPLEMENTATION_PLAN_ES.md` (spine de features → §2-4) + `PENDING_WORK_INVENTORY.md` (consolidación → §1/§5) — **ambos retirados 2026-06-29**. Rescata como referencia viva: `FEATURE_TRACE_MATRIX_ES.md` (catálogo + canon 2026 §9 + orden §8.4, **CONSERVADO**) + la disciplina `PLAN_MAESTRO §5.8/§5.9` (→ §0.3, retirado). Su **base de evidencia** es la valoración verificada `docs/audits/FULL_REPO_ASSESSMENT_2026-06-29.md` (**CONSERVADA**, companion vigente) — juntas son la fuente de verdad: la valoración es el registro de hallazgos verificados, este plan el spine accionable derivado.
 >
 > **Estado:** documento vivo. **Owner:** Platform engineering / Edward.
 > **Base de código:** `workstream/impl-revalidation @ 07c1faa5` (2026-06-29).
@@ -296,6 +296,6 @@ Overrides con remove-when datados (esbuild, shell-quote, vite-7.3.5, eslint-9.36
 
 ## §7 — Trazabilidad (qué fusionó este documento)
 
-Este plan **reemplaza** como fuente única a: `IMPLEMENTATION_PLAN_ES.md` (spine de features → §2-4), `PENDING_WORK_INVENTORY.md` (consolidación → §1/§5), y absorbe la valoración `FULL_REPO_ASSESSMENT_2026-06-29.md` (→ §1/§5). Rescata como referencia viva: `FEATURE_TRACE_MATRIX §9` (canon 2026 → §0.4/§2-4), `PLAN_MAESTRO §5.8/§5.9` (disciplina → §0.3).
+Este plan **reemplaza** como fuente única de planificación a: `IMPLEMENTATION_PLAN_ES.md` (spine de features → §2-4), `PENDING_WORK_INVENTORY.md` (consolidación → §1/§5); y **se apoya en / deriva de** la valoración `FULL_REPO_ASSESSMENT_2026-06-29.md` (**CONSERVADA** como companion de evidencia → §1/§5). Rescata como referencia viva: `FEATURE_TRACE_MATRIX §9` (canon 2026 → §0.4/§2-4), `PLAN_MAESTRO §5.8/§5.9` (disciplina → §0.3).
 
 **Pendiente antes de archivar los originales** (gated en confirmación de Edward): verificar que los 647 hallazgos de `LATERAL_FINDINGS.md` + reportes `D0v4_*` están absorbidos en §5 (vía los `FN-*`/`SMELL-*`), sin dejar ninguno como letra muerta.
