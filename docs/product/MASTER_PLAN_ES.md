@@ -134,13 +134,13 @@ Cada tarea de producto (§2-§4) referencia su **canon de implementación 2026**
 
 ### Dashboard de Nivelación
 
-| Bloque                                | Tareas | Hechas | Estado |
-| ------------------------------------- | ------ | ------ | ------ |
-| N.A Seguridad P0 (cross-tenant / DoS) | 4      | 0      | ⬜     |
-| N.B Correctness del core-publishing   | 7      | 0      | ⬜     |
-| N.C Red de regresión (assurance)      | 3      | 0      | ⬜     |
-| N.D Docs P1                           | 2      | 0      | ⬜     |
-| **Total Nivelación**                  | **16** | **0**  | ⬜     |
+| Bloque                                      | Tareas | Hechas | Estado |
+| ------------------------------------------- | ------ | ------ | ------ |
+| N.A Seguridad P0 (cross-tenant / DoS + MFA) | 5      | 0      | ⬜     |
+| N.B Correctness del core-publishing         | 7      | 0      | ⬜     |
+| N.C Red de regresión (assurance)            | 3      | 0      | ⬜     |
+| N.D Docs P1                                 | 2      | 0      | ⬜     |
+| **Total Nivelación**                        | **17** | **0**  | ⬜     |
 
 ### N.A — Seguridad P0 (cross-tenant / DoS)
 
@@ -148,6 +148,7 @@ Cada tarea de producto (§2-§4) referencia su **canon de implementación 2026**
 - [ ] **N-SEC-2** `[M]` **CLI+ADM** — Proxies Next borran la IP real → rate-limit colapsado. `confirmed-adversarial` (CRÍTICO). Los proxies `[...path]/route.ts:69` (client y admin) + las server actions de auth no propagan `X-Forwarded-For`/`X-Real-IP` → el backend ve la IP del server Next para todos; 5 requests anónimos bloquean el login de todo el portal. **DoD:** append de la IP real del request entrante a `X-Forwarded-For` + ajustar `TRUSTED_PROXY_HOP_COUNT`; replicado en admin; test que verifica buckets per-IP distintos.
 - [ ] **N-SEC-3** `[M]` **API+INFRA** — IDOR-TRACKEDLINK + guard para modelos `projectId`-only. `confirmed-adversarial` (ALTA) + root-cause `ARCH-PROJECT-SCOPED-GUARD-GAP`. `apps/api/src/links/linkRoutes.ts` get/stats/**delete** por `:id` sin gate de accountId; `TrackedLink` no tiene columna `accountId` → fuera del guard. **DoD:** gate de ownership en las rutas de links; y un mecanismo (guard secundario o denormalización de `accountId`) para los ~9 modelos `projectId`-only (ProjectMember, Post, **Channel** [credenciales cifradas], TrackedLink, Campaign, ScheduledReport, ExternalNotificationConfig, GeneratedImage, RecurringPost) — priorizar Channel y ExternalNotificationConfig por contener secretos descifrables. Verificar el patrón compensatorio de join documentado en `MULTI_TENANT_GUARDS.md §Transitively-scoped` está presente en cada adapter (el audit S2.1d no lo evidenció).
 - [ ] **N-SEC-4** `[S]` **API** — Cache de respuestas AI omite accountId (`CACHE-XTENANT-AI`). `verified` (MEDIA). `ai/orchestrator.ts:220` key `ai:${type}:${sha256(...)}` sin accountId; mismo `CachePort` compartido BYOK y pool. **DoD:** segmento accountId (o scope byok-vs-pool) en ambas keys; corrige la contaminación + el skew de billing (`tokensUsed=0` en hits).
+- [ ] **N-SEC-5** `[M]` **[SECURITY, ALTA]** **API** — MFA-duality (L-1, rescatado P-GATE-1). El DI (`setupServices.ts`) registra el OLD `auth/mfaService.ts` que guarda los backup codes SHA-256 en el campo `passwordResetToken` (hack, :84-86/164); el NEW `admin/auth/MfaService.ts` (argon2) está FUERA de DI. **Decisión Edward: usar el MFA NUEVO (argon2) cableado por DI, retirar el viejo.** **DoD:** registrar el `MfaService` argon2 en el composition root (TOKENS + Container), migrar los backup codes a una columna propia (no `passwordResetToken`), actualizar los call sites al port, y eliminar `auth/mfaService.ts`. Cross-ref SMELL-37 (AdminAuthService inline).
 
 ### N.B — Correctness del core-publishing (pérdida de datos)
 
@@ -261,7 +262,7 @@ Overrides con remove-when datados (esbuild, shell-quote, vite-7.3.5, eslint-9.36
 
 > 7 hallazgos NO-absorbidos que el gate encontró en los docs de auditoría gateados (LATERAL_FINDINGS/ESTADO_REPO) antes de borrarlos — capturados acá con su ID original para no dejar letra muerta. Detalle: `assessment-work/pf-gate1-results.md`.
 
-- **L-1 MFA-DUALITY** `[M]` **[SECURITY, ALTA]** — el DI (`setupServices.ts`) registra el OLD `auth/mfaService.ts` que guarda los backup codes SHA-256 en el campo `passwordResetToken` (hack, :84-86/164); el NEW `admin/auth/MfaService.ts` (argon2) sigue FUERA de DI. El más importante del gate — sin rastro en ningún doc vivo (SMELL-37 es otra cosa). **DoD:** cablear el MfaService argon2 en DI, columna propia para backup codes, retirar el OLD service. _(Candidato a promover a Nivelación §1.A si Edward lo considera P0.)_
+- **L-1 MFA-DUALITY** → **PROMOVIDO a Nivelación `N-SEC-5` (§1.A)** por decisión de Edward (usar el MFA argon2 nuevo cableado por DI, retirar el viejo). Ver §1.A.
 - **L-546 ADMIN-PASSWORD-FALLBACK** `[S]` **[SECURITY, MEDIA]** — `seed.ts:731` `process.env.ADMIN_PASSWORD ?? "Admin123!"` (fallback débil, CWE-798); su plan de fix murió con `REMEDIATION_ROADMAP.md`. **DoD:** fail-fast sin fallback (patrón env.ts Zod); + fix ref muerta de `T0A_SECRETS_ROTATION_RUNBOOK.md`. Cross-ref: `SECRETS-ROTATION-GOLIVE`.
 - **L-616.4 ACTIONS-SHA-PIN** `[S]` **[SECURITY, MEDIA-ALTA]** — 27+ GitHub Actions en tag (`@v4`), 0 SHA-pinning (supply-chain). **DoD:** pinear las actions a SHA.
 - **L-621 CI-PAT-SCOPE** `[S]` **[SECURITY, MEDIA]** — `DEPENDENCY_UPDATE_TOKEN` (PAT scope-repo) usado 5x en `dependency-updates.yml`. **DoD:** reducir scope / GITHUB_TOKEN / app token.

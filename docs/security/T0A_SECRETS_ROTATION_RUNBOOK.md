@@ -18,9 +18,7 @@
 
 **L-591** — `.env` tracked en git con secrets reales. Documentado en:
 
-- [`docs/audits/LATERAL_FINDINGS.md`](../audits/LATERAL_FINDINGS.md) entry L-591
-- `docs/audits/D0v4_8_INFRASTRUCTURE_REPORT.md` §15.4 item 9 (CRITICAL)
-- `docs/audits/REMEDIATION_ROADMAP.md` §5.0 T0-A
+- Finding original L-591 (`.env` git-tracked con secrets). El trabajo pendiente (rotación real + purga de historia) vive en `docs/product/MASTER_PLAN_ES.md` → `SECRETS-ROTATION-GOLIVE` (§5.2). Los docs de auditoría de origen (LATERAL_FINDINGS, D0v4, REMEDIATION_ROADMAP) fueron retirados tras absorción en el plan consolidado.
 
 ### Corrección de scope (descubierta 2026-04-21 en exploración T0-A)
 
@@ -387,7 +385,7 @@ git status
 
 ### Observación final
 
-Si toda la checklist pasa: **L-591 CERRADO**. Actualizar `docs/audits/LATERAL_FINDINGS.md` entry L-591 con `→ RESUELTO en T0-A (2026-04-XX)` y fecha real.
+Si toda la checklist pasa: **L-591 CERRADO**. El tail (rotación real + purga de historia) queda trackeado en `docs/product/MASTER_PLAN_ES.md` → `SECRETS-ROTATION-GOLIVE` (§5.2); marcar cerrado ahí al completarlo.
 
 ---
 
@@ -572,8 +570,5 @@ Si durante la rotación algo falla catastróficamente (DB inaccesible, servicio 
 
 ## Anexo B — Cross-references
 
-- `docs/audits/REMEDIATION_ROADMAP.md` §5.0 — batch T0-A
-- `docs/audits/REMEDIATION_ROADMAP.md` §5.4 T4-V — RBAC + seeds split (incluye fix ADMIN_PASSWORD weak L-546)
-- `docs/audits/REMEDIATION_ROADMAP.md` §5.2 T2-F — CI workflows urgentes (incluye L-623 password123 en workflows)
-- [`docs/audits/LATERAL_FINDINGS.md`](../audits/LATERAL_FINDINGS.md) L-591, L-586, L-583, L-584
-- CLAUDE.md — "Automated Compliance Checks" (fitness functions pendientes wire en T4-P)
+- `docs/product/MASTER_PLAN_ES.md` → `SECRETS-ROTATION-GOLIVE` (§5.2, rotación + purga de historia a go-live) · `L-546` ADMIN_PASSWORD fallback (§5.7) · `L-623` password123 en CI = accepted-dev-fixture (§5.7). Los roadmaps de origen (REMEDIATION_ROADMAP, LATERAL_FINDINGS) fueron retirados tras absorción.
+- CLAUDE.md — "Automated Compliance Checks" (fitness functions ya wired en CI).
