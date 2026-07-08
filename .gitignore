@@ -164,3 +164,15 @@ graphify-out/
 
 # CLAUDE.local.md — per-dev personal Claude memory (§1.6 of Normalization Roadmap)
 CLAUDE.local.md
+
+# Agent / IDE tooling config installed locally (not project code). NOTE: some
+# .claude/agents/*.md domain agents are already tracked and stay tracked — git
+# ignores only the untracked SDD/review/judgment agent defs added locally.
+.config/
+.copilot/
+.atl/
+.claude/agents/
+.claude/commands/
+.claude/mcp/
+.claude/output-styles/
+.claude/CLAUDE.md
