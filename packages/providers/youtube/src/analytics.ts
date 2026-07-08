@@ -8,6 +8,7 @@ import { google, youtubeAnalytics_v2 } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
 import {
   createExternalApiCircuitBreaker,
+  hashCallScope,
   ANALYTICS_CB_OPTIONS,
   METADATA_CB_OPTIONS,
 } from "@adapters/external-apis";
@@ -195,6 +196,14 @@ export class YouTubeAnalyticsService {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // PII per-video: fold channel + videoId + the date window so video X never
+      // returns video Y's cached metrics and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(
+        this.channelId,
+        videoId,
+        startDate.getTime(),
+        endDate.getTime()
+      ),
     });
   }
 
@@ -269,6 +278,9 @@ export class YouTubeAnalyticsService {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // PII (channel audience): fold channel + the date window so channel B never
+      // receives channel A's cached insights and windows never collide.
+      cacheKeyDiscriminant: hashCallScope(this.channelId, startDate.getTime(), endDate.getTime()),
     });
   }
 
@@ -331,6 +343,9 @@ export class YouTubeAnalyticsService {
       jitterEnabled: true,
       cacheEnabled: true,
       ...METADATA_CB_OPTIONS,
+      // Content-derived read: fold channel + videoId + the analysed title/
+      // description/tags so distinct inputs never collide and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(this.channelId, videoId, title, description, tags),
     });
   }
 
@@ -387,6 +402,14 @@ export class YouTubeAnalyticsService {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // PII per-video: fold channel + videoId + the date window so video X never
+      // returns video Y's cached performance and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(
+        this.channelId,
+        videoId,
+        startDate.getTime(),
+        endDate.getTime()
+      ),
     });
   }
 

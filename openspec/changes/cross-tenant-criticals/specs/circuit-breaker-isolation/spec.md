@@ -55,6 +55,41 @@ them), regardless of whether the cached payload is classified secret, PII, or be
 
 ---
 
+### Requirement: The breaker runs the caller's own closure — no bound-closure cross-tenant disclosure **[MERGE-BLOCKING]**
+
+For every operation invoked through the shared external-API circuit breaker, the function
+executed MUST be the CURRENT caller's own function — never a function bound to the breaker by an
+earlier caller. When two tenants invoke the same `service:operation` (and therefore may resolve
+to the same process-shared breaker instance), each invocation MUST run its OWN closure and
+return a result derived from its OWN credentials and parameters. This guarantee is INDEPENDENT of
+`cacheEnabled` (it holds for uncached reads AND writes) and INDEPENDENT of whether a
+`cacheKeyDiscriminant` is supplied — a discriminant-less call MUST still run the caller's own
+closure. This closes the third cross-tenant disclosure vector (the breaker's bound closure), which
+is distinct from the L1 cache (above) and the L2 fallback store (below): the closure vector leaks
+even when both cache layers are skipped.
+
+A missing or blank discriminant MAY degrade the call to shared circuit STATE (an
+availability/noisy-neighbor concern) and to a cache skip (the fail-safe defaults below), but it
+MUST NOT cause the breaker to run another tenant's closure. The discriminant governs only cache
+keying (L1/L2) and STATE partitioning — it is NOT the disclosure boundary.
+
+#### Scenario: A discriminant-less, uncached op runs tenant B's own closure, never tenant A's **[anchor]**
+
+- **Given** an operation invoked through the breaker with `cacheEnabled: false` and NO `cacheKeyDiscriminant` (so tenant A and tenant B share the same `service:operation` breaker key)
+- **And** tenant A invokes it first with a closure that would return tenant A's data, creating the shared breaker
+- **When** tenant B invokes the same operation with tenant B's OWN closure (returning tenant B's data)
+- **Then** tenant B receives tenant B's own result (tenant B's closure is the one executed)
+- **And** tenant B never receives a value derived from tenant A's closure — the shared breaker does not re-run tenant A's bound function
+
+#### Scenario: A shared discriminant-less write op partitions no payload but still runs each caller's own closure
+
+- **Given** a write operation invoked with `cacheEnabled: false` and no discriminant by tenant A then tenant B (shared breaker key)
+- **When** each tenant's call is executed through the breaker
+- **Then** each tenant's own write closure runs against the provider (no cross-tenant closure execution)
+- **And** nothing is cached (the write stays uncached), and the only shared state is the circuit STATE (an availability concern, not disclosure)
+
+---
+
 ### Requirement: Cache is fail-safe when no discriminant is supplied **[MERGE-BLOCKING]**
 
 When an operation with `cacheEnabled: true` is invoked through the shared external-API
@@ -189,6 +224,64 @@ short-circuit a different, healthy tenant's calls to the same operation.
 - **When** account A calls operation `O` again while A's circuit is OPEN
 - **Then** account A's call is short-circuited (the breaker still protects the failing tenant against its own failing provider)
 
+#### Scenario: Write operations partition circuit STATE per account (W-1)
+
+- **Given** a WRITE operation `W` configured `cacheEnabled: false` that supplies a per-tenant discriminant
+- **And** account A's calls to `W` fail enough times to trip A's circuit for `W` OPEN
+- **When** account B calls the same write operation `W` with account B's own discriminant
+- **Then** account B's circuit for `W` is CLOSED and B's call is attempted against the provider
+- **And** no response payload is cached for `W` (it stays `cacheEnabled: false` — only the circuit STATE is partitioned, not a cache entry)
+
+---
+
+### Requirement: Breaker admin controls are partition-aware **[MERGE-BLOCKING]**
+
+Once circuit STATE is partitioned per account, the operator/admin controls that address a
+breaker by `service:operation` — `getStatus`, `forceOpen`, `forceClose`, and the provider
+`forceCircuitBreakerClose(operation)` wrappers that delegate to them — MUST continue to reach
+the now-partitioned breakers. `forceOpen` and `forceClose` MUST apply to every breaker
+partition whose key is `service:operation` OR `service:operation:<discriminant>`, and MUST
+report success when at least one partition matched. `getStatus` MUST aggregate across the same
+partition set (worst-of state) rather than resolving only the exact two-part key. A control
+addressed by the generic operation MUST NOT silently no-op against partitioned breakers.
+
+#### Scenario: forceClose reaches a partitioned breaker
+
+- **Given** operation `O` has a per-tenant breaker partition `service:operation:<disc>` that is OPEN
+- **When** an operator calls `forceCircuitBreakerClose("O")` (which delegates to `forceClose("service", "O")`)
+- **Then** the partitioned breaker for `O` is closed
+- **And** the call reports success (it did not silently no-op)
+
+#### Scenario: getStatus aggregates across partitions
+
+- **Given** operation `O` has one tenant partition OPEN and another CLOSED
+- **When** `getStatus("service", "O")` is called
+- **Then** it returns a non-null status reflecting that at least one partition is OPEN (worst-of aggregation), not null
+
+---
+
+### Requirement: An empty or whitespace discriminant is treated as absent (fail-safe) **[MERGE-BLOCKING]**
+
+A `cacheKeyDiscriminant` (L1/STATE) or `FallbackContext.discriminant` (L2) that is an empty
+string or whitespace-only MUST be treated exactly as if no discriminant were supplied: the L1
+cache is skipped (fail-safe miss), the STATE key is NOT partitioned by the blank value (it does
+not collapse to a shared `service:operation:` key that a blank-discriminant call from another
+tenant could also hit), and the L2 fallback store neither writes nor reads under it. A blank
+discriminant MUST NOT reopen the cross-tenant sharing that the fail-safe default closes.
+
+#### Scenario: Empty-string discriminant never shares a cache entry across tenants
+
+- **Given** a `cacheEnabled: true` operation invoked through the breaker with `cacheKeyDiscriminant: ""`
+- **And** tenant A invokes it, then tenant B invokes the same operation with `cacheKeyDiscriminant: ""`
+- **Then** tenant B fetches fresh (the empty discriminant is treated as absent — L1 is skipped)
+- **And** the breaker stores no shared cache entry that tenant B's later call could hit
+
+#### Scenario: Whitespace discriminant is a fail-safe miss on the fallback store
+
+- **Given** a `fallbackEnabled: true` operation whose `FallbackContext.discriminant` is `"   "`
+- **When** the successful-response write and the later fallback read run
+- **Then** nothing is written to the L2 store and the fallback read is a miss (fetch fresh)
+
 ---
 
 ### Requirement: Write-path fail-fast invariant (Fitness #25) is preserved
@@ -223,6 +316,15 @@ Drive each MERGE-BLOCKING scenario RED→GREEN:
   L1 (B fetches fresh), a discriminant-carrying call serves only its own tenant, and tenant B
   gets its own CLOSED circuit — all PASS, while the same-account cache-hit and same-account
   circuit-open scenarios still hold.
+
+For the **bound-closure vector (D8)** the RED→GREEN pair is: **RED** — the pre-D8
+`getOrCreateBreaker` binds the FIRST caller's `apiCall` and reuses that breaker, so a shared
+`service:operation` key (discriminant-less, `cacheEnabled:false`) fired by tenant A then tenant B
+returns tenant A's payload to tenant B (empirically reproduced with the raw opossum bind pattern).
+**GREEN** — after the generic dispatcher action (`(fn, ...a) => fn(...a)` with
+`breaker.fire(apiCall, ...args)`), the shared breaker runs tenant B's OWN closure and returns
+tenant B's payload; proven by `circuitBreakerTenantIsolation.test.ts` → "shared breaker runs the
+caller's own closure (D8)".
 
 LXC constraints apply to any executed scenario: run a single test file, heap-capped
 (`--max-old-space-size`), under a `timeout` wrapper; never run the full suite at once. Any

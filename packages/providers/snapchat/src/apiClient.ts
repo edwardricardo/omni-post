@@ -6,7 +6,11 @@
  * @layer infrastructure
  */
 
-import { createExternalApiCircuitBreaker, ANALYTICS_CB_OPTIONS } from "@adapters/external-apis";
+import {
+  createExternalApiCircuitBreaker,
+  ANALYTICS_CB_OPTIONS,
+  hashCallScope,
+} from "@adapters/external-apis";
 import client from "prom-client";
 import { createLogger } from "@observability/logger";
 import type {
@@ -82,6 +86,8 @@ export class SnapchatApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       cacheTtl: 300000,
+      // PII read (own account organizations): scope cache + STATE per credential.
+      cacheKeyDiscriminant: hashCallScope(this.credentials),
     });
   }
 
@@ -166,6 +172,8 @@ export class SnapchatApiClient {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op: uncached; STATE partitions per credential (W-1).
+      cacheKeyDiscriminant: hashCallScope(this.credentials),
     });
   }
 
@@ -214,6 +222,8 @@ export class SnapchatApiClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: false,
+      // Write op: uncached; STATE partitions per credential (W-1).
+      cacheKeyDiscriminant: hashCallScope(this.credentials),
     });
   }
 
@@ -255,6 +265,9 @@ export class SnapchatApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // PII analytics for a specific creative: fold the creative id so distinct
+      // creatives never share a cached payload; credential kept for tenant scope.
+      cacheKeyDiscriminant: hashCallScope(this.credentials, creativeId),
       fallback,
     });
   }
@@ -300,6 +313,9 @@ export class SnapchatApiClient {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Do-not-regress: refresh-token stays UNCACHED (secret); the discriminant
+      // only partitions STATE per credential (W-1), it does not enable caching.
+      cacheKeyDiscriminant: hashCallScope(this.credentials),
     });
   }
 

@@ -98,6 +98,38 @@ describe("circuit STATE partition per tenant", { concurrent: false }, () => {
 });
 
 /* ──────────────────────────────────────────────────────────────────────
+ * D8 (Fix B): a shared (discriminant-less) breaker runs the CALLER's own
+ * closure — the bound-closure cross-tenant disclosure vector is closed for
+ * EVERY call, independent of the discriminant.  [MERGE-BLOCKING]
+ * ────────────────────────────────────────────────────────────────────── */
+describe("shared breaker runs the caller's own closure (D8)", { concurrent: false }, () => {
+  it("serves tenant B its OWN result on a shared discriminant-less op, never tenant A's closure", async () => {
+    const cb = new ExternalApiCircuitBreaker(new client.Registry());
+    // Uncached (cacheEnabled:false), NO discriminant → both tenants share the
+    // legacy `svc:op` breaker key. This isolates the bound-closure vector from
+    // the L1/L2 cache vectors (which fail-safe-skip on a missing discriminant).
+    const op = "shared-closure-op";
+
+    const aCall = async (): Promise<{ tenant: string }> => ({ tenant: "A" });
+    const bCall = async (): Promise<{ tenant: string }> => ({ tenant: "B" });
+
+    // Tenant A fires first, creating the shared `svc:op` breaker.
+    const aResult = await cb.call(SVC, op, aCall, [], { ...LENIENT, cacheEnabled: false });
+    // Tenant B fires the SAME shared key with its OWN closure. Pre-D8 the breaker
+    // ignored the newly-passed apiCall and re-ran A's bound closure → B got A's
+    // payload (RED). With the generic dispatcher, B runs bCall (GREEN).
+    const bResult = await cb.call(SVC, op, bCall, [], { ...LENIENT, cacheEnabled: false });
+
+    assert.deepStrictEqual(aResult, { tenant: "A" });
+    assert.deepStrictEqual(
+      bResult,
+      { tenant: "B" },
+      "shared breaker must run tenant B's own closure (bound-closure disclosure closed)"
+    );
+  });
+});
+
+/* ──────────────────────────────────────────────────────────────────────
  * Cache is fail-safe when no discriminant is supplied  [MERGE-BLOCKING] (Spec C1-R1b)
  * ────────────────────────────────────────────────────────────────────── */
 describe("fail-safe cache default (no discriminant => cache skip)", { concurrent: false }, () => {

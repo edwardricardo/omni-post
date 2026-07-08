@@ -155,8 +155,55 @@ export interface ApiCallMetrics {
   cacheErrors: client.Counter<string>;
 }
 
+/**
+ * @function isPresentDiscriminant
+ * @description Boundary guard (S-2 hardening): a tenant/credential discriminant
+ *   counts as PRESENT only when it is a non-empty, non-whitespace string. An
+ *   `undefined`, `""`, or `"   "` value is treated as ABSENT everywhere the
+ *   discriminant is keyed (L1 cache decision, breaker STATE key, L2 fallback
+ *   read/write), so a degenerate blank value can never collapse the key back to a
+ *   shared `service:operation:` and reopen the cross-tenant sharing the fail-safe
+ *   default closes.
+ * @param discriminant - The candidate discriminant.
+ * @returns `true` when the discriminant is a usable non-blank string.
+ */
+export function isPresentDiscriminant(discriminant: string | undefined): discriminant is string {
+  return typeof discriminant === "string" && discriminant.trim().length > 0;
+}
+
+/**
+ * @typedef BreakerApiCall
+ * @description A caller's wrapped API call. Under the generic-dispatcher design
+ *   (D8) every breaker instance shares ONE action; the caller's own function is
+ *   passed per-invocation to `breaker.fire(fn, ...args)` and run by that shared
+ *   action. It is typed with `unknown[]` args / `Promise<unknown>` return because
+ *   a single stored breaker serves callers of every shape; the concrete generics
+ *   are recovered at the `call()` boundary.
+ */
+type BreakerApiCall = (...args: unknown[]) => Promise<unknown>;
+
+/**
+ * @typedef BreakerDispatchArgs
+ * @description The argument tuple the generic dispatcher — and therefore
+ *   `breaker.fire` — receives: the caller's own function first, then that call's
+ *   arguments. Making the caller's function a `fire` ARGUMENT instead of the
+ *   breaker's bound action is what closes the bound-closure cross-tenant
+ *   disclosure vector: a process-shared breaker no longer runs the FIRST caller's
+ *   closure for every later caller.
+ */
+type BreakerDispatchArgs = [apiCall: BreakerApiCall, ...callArgs: unknown[]];
+
+/**
+ * @typedef StoredBreaker
+ * @description A breaker as held in the `breakers` Map. Every instance wraps the
+ *   same generic dispatcher, so its argument tuple is always
+ *   {@link BreakerDispatchArgs} and its return type is erased to `unknown`
+ *   (recovered by the `call()` caller through a single boundary cast).
+ */
+type StoredBreaker = CircuitBreaker<BreakerDispatchArgs, unknown>;
+
 export class ExternalApiCircuitBreaker {
-  private breakers = new Map<string, CircuitBreaker<unknown[], unknown>>();
+  private breakers = new Map<string, StoredBreaker>();
   private cache = new Map<string, { data: unknown; expires: number }>();
   private metrics: ApiCallMetrics;
   private registry: client.Registry;
@@ -293,13 +340,32 @@ export class ExternalApiCircuitBreaker {
       : `${service}:${operation}`;
   }
 
-  private getOrCreateBreaker<T extends unknown[], R>(
+  /**
+   * @method dispatch
+   * @description The single generic action shared by EVERY breaker instance
+   *   (D8, Fix B). Opossum invokes a breaker's action with the arguments passed
+   *   to `breaker.fire(...)`; here those arguments are the caller's own function
+   *   followed by that call's arguments, so the dispatcher simply runs the
+   *   caller's closure. Because the action is caller-independent, a
+   *   process-shared breaker (same `service:operation[:discriminant]` key) always
+   *   executes the CURRENT caller's closure — never the first caller's — which
+   *   structurally closes the cross-tenant bound-closure disclosure vector for
+   *   every call, discriminant-carrying or not.
+   * @param apiCall - The caller's wrapped API call, supplied per `fire`.
+   * @param callArgs - The arguments to invoke `apiCall` with.
+   * @returns The caller's own promise.
+   */
+  private static readonly dispatch = (
+    apiCall: BreakerApiCall,
+    ...callArgs: unknown[]
+  ): Promise<unknown> => apiCall(...callArgs);
+
+  private getOrCreateBreaker(
     service: string,
     operation: string,
-    apiCall: (...args: T) => Promise<R>,
     options: Partial<ExternalApiOptions> = {},
     discriminant?: string
-  ): CircuitBreaker<T, R> {
+  ): StoredBreaker {
     const key = this.breakerKey(service, operation, discriminant);
 
     const existing = this.breakers.get(key);
@@ -308,19 +374,25 @@ export class ExternalApiCircuitBreaker {
       // tenant's breaker is never evicted ahead of idle tenants.
       this.breakers.delete(key);
       this.breakers.set(key, existing);
-      return existing as CircuitBreaker<T, R>;
+      return existing;
     }
 
     const opts = { ...DEFAULT_EXTERNAL_API_OPTIONS, ...options };
 
-    const breaker = new CircuitBreaker<T, R>(apiCall, {
-      timeout: opts.timeout,
-      errorThresholdPercentage: opts.errorThresholdPercentage,
-      resetTimeout: opts.resetTimeout,
-      rollingCountTimeout: opts.monitoringPeriod,
-      rollingCountBuckets: opts.halfOpenRetries,
-      name: key,
-    });
+    // Wrap the GENERIC dispatcher (D8), never a caller's closure: this breaker
+    // runs whatever function each `call()` passes to `fire`, so a shared key
+    // never binds — and re-runs — the first caller's closure for another tenant.
+    const breaker = new CircuitBreaker<BreakerDispatchArgs, unknown>(
+      ExternalApiCircuitBreaker.dispatch,
+      {
+        timeout: opts.timeout,
+        errorThresholdPercentage: opts.errorThresholdPercentage,
+        resetTimeout: opts.resetTimeout,
+        rollingCountTimeout: opts.monitoringPeriod,
+        rollingCountBuckets: opts.halfOpenRetries,
+        name: key,
+      }
+    );
 
     // Add event listeners for monitoring
     breaker.on("open", () => {
@@ -515,8 +587,15 @@ export class ExternalApiCircuitBreaker {
        * Opaque per-tenant/credential scope (typically `hashCallScope(creds)`).
        * PRESENT ⇒ folded into the cache AND breaker keys, so a cached payload
        * and circuit STATE are tenant-scoped. ABSENT ⇒ L1 caching is SKIPPED
-       * (fail-safe default): the read is a miss and nothing shared is stored,
-       * closing the cross-tenant disclosure leak for un-migrated call sites.
+       * (fail-safe default): the read is a miss and nothing shared is stored.
+       *
+       * Since D8 (the generic dispatcher), the discriminant no longer gates
+       * cross-tenant DISCLOSURE — the breaker always runs the caller's OWN
+       * closure regardless of key, so a missing discriminant degrades only to
+       * shared cache-skip + shared circuit STATE (an availability/noisy-neighbor
+       * concern), never to running another tenant's closure. The discriminant is
+       * retained purely to SCOPE the L1 cache key, the L2 fallback key, and the
+       * per-tenant STATE partition.
        */
       cacheKeyDiscriminant?: string;
       fallback?: (...args: T) => Promise<R>;
@@ -525,13 +604,22 @@ export class ExternalApiCircuitBreaker {
     const opts = { ...DEFAULT_EXTERNAL_API_OPTIONS, ...options };
     const startTime = Date.now();
 
-    // Check cache first if enabled AND a discriminant is supplied. Fail-safe
-    // default (D1b): a `cacheEnabled` call with no discriminant MUST NOT read or
-    // write a shared L1 entry — it is treated as a miss and fetched fresh, so no
-    // tenant's payload can be served to another under a constant key.
+    // Normalise the discriminant ONCE at the boundary (S-2): an empty or
+    // whitespace-only value is treated as absent so a blank string can never key
+    // a shared cache/STATE partition. Every downstream use (L1 decision, breaker
+    // STATE key, L2 write, L2 read) reads this normalised value, never the raw
+    // option, so the fail-safe behaviour is uniform across all three surfaces.
+    const discriminant = isPresentDiscriminant(options.cacheKeyDiscriminant)
+      ? options.cacheKeyDiscriminant
+      : undefined;
+
+    // Check cache first if enabled AND a discriminant is present. Fail-safe
+    // default (D1b): a `cacheEnabled` call with no (or a blank) discriminant MUST
+    // NOT read or write a shared L1 entry — it is treated as a miss and fetched
+    // fresh, so no tenant's payload can be served to another under a constant key.
     let cacheKey: string | null = null;
-    if (options.cacheEnabled && opts.cacheTtl && options.cacheKeyDiscriminant !== undefined) {
-      cacheKey = this.generateCacheKey(service, operation, options.cacheKeyDiscriminant);
+    if (options.cacheEnabled && opts.cacheTtl && discriminant !== undefined) {
+      cacheKey = this.generateCacheKey(service, operation, discriminant);
       const cached = await this.getFromCache(cacheKey, service, operation);
       if (cached) {
         return cached as R;
@@ -543,18 +631,23 @@ export class ExternalApiCircuitBreaker {
     this.metrics.circuitBreakerRequests.inc({ service, operation, state: "attempt" });
 
     try {
-      // Get or create circuit breaker (STATE partitioned by the same discriminant).
-      const breaker = this.getOrCreateBreaker(
-        service,
-        operation,
-        apiCall,
-        opts,
-        options.cacheKeyDiscriminant
-      );
+      // Get or create circuit breaker (STATE partitioned by the same normalised
+      // discriminant — including write ops, which stay cacheEnabled:false but get
+      // per-tenant STATE, W-1/D2b). The breaker wraps the generic dispatcher (D8),
+      // so THIS call's own closure is what runs below, regardless of which caller
+      // created the breaker.
+      const breaker = this.getOrCreateBreaker(service, operation, opts, discriminant);
 
-      // Add fallback if provided
+      // Add fallback if provided. The dispatcher prepends the caller's function
+      // as fire's first argument, so strip it here and forward only the caller's
+      // own args (plus the failure reason opossum appends) to the caller's
+      // fallback, preserving the pre-D8 fallback contract.
       if (options.fallback) {
-        breaker.fallback(options.fallback);
+        const callerFallback = options.fallback;
+        breaker.fallback(
+          (_apiCall: BreakerApiCall, ...rest: unknown[]): Promise<R> =>
+            callerFallback(...(rest as T))
+        );
       }
 
       let lastError: Error = new Error("Unknown error");
@@ -588,8 +681,12 @@ export class ExternalApiCircuitBreaker {
             await this.sleep(delay);
           }
 
-          // Make the API call through circuit breaker
-          const result = await breaker.fire(...args);
+          // Make the API call through the circuit breaker. Pass THIS call's own
+          // closure as fire's first argument so the generic dispatcher (D8) runs
+          // it — the breaker never binds another tenant's closure. The
+          // caller-shaped generics collapse to the dispatcher's erased tuple, so
+          // the function and return type are recovered by a single boundary cast.
+          const result = (await breaker.fire(apiCall as unknown as BreakerApiCall, ...args)) as R;
 
           // Cache successful result if caching is enabled
           if (cacheKey && opts.cacheTtl) {
@@ -606,7 +703,7 @@ export class ExternalApiCircuitBreaker {
               operation,
               result,
               opts.cacheTtl || 300000, // 5 minutes default
-              options.cacheKeyDiscriminant
+              discriminant
             );
           }
 
@@ -651,11 +748,12 @@ export class ExternalApiCircuitBreaker {
             operation,
             originalError: lastError,
             attempt: attempt,
-            // Scope the L2 fallback read by the same discriminant as the write, so
-            // a discriminant-carrying call reads only its own tenant's entry and a
-            // discriminant-less call is a fail-safe miss (never a shared-key read).
-            ...(options.cacheKeyDiscriminant !== undefined && {
-              discriminant: options.cacheKeyDiscriminant,
+            // Scope the L2 fallback read by the same normalised discriminant as
+            // the write, so a discriminant-carrying call reads only its own
+            // tenant's entry and a blank/absent discriminant is a fail-safe miss
+            // (never a shared-key read).
+            ...(discriminant !== undefined && {
+              discriminant,
             }),
           };
 
@@ -778,7 +876,7 @@ export class ExternalApiCircuitBreaker {
    * @param breaker - The opossum breaker to snapshot.
    * @returns The public status.
    */
-  private breakerStatus(breaker: CircuitBreaker<unknown[], unknown>): CircuitBreakerStatus {
+  private breakerStatus(breaker: StoredBreaker): CircuitBreakerStatus {
     return {
       state: breaker.opened ? "OPEN" : breaker.halfOpen ? "HALF_OPEN" : "CLOSED",
       failures: breaker.stats.failures,
@@ -797,14 +895,69 @@ export class ExternalApiCircuitBreaker {
   }
 
   /**
-   * Get circuit breaker status for a specific service/operation.
-   * Resolves the legacy `service:operation` (shared-STATE) breaker; tenant
-   * partitions live under `service:operation:<discriminant>` and are surfaced
-   * via `getAllStatuses`.
+   * @method matchingBreakers
+   * @description Returns every breaker whose key addresses `service:operation` —
+   *   the exact legacy (shared-STATE) key AND every per-tenant partition
+   *   `service:operation:<discriminant>`. The trailing colon on the partition
+   *   prefix prevents a sibling op (`get-post`) from matching a longer name
+   *   (`get-post-comments`). This is the W-2 partition-aware address resolution
+   *   shared by `getStatus`, `forceOpen`, and `forceClose` so an admin control
+   *   addressed by the generic operation reaches the partitioned breakers instead
+   *   of silently no-op'ing.
+   * @param service - Provider/service name.
+   * @param operation - Operation name.
+   * @returns The breakers addressed by that service/operation, across all partitions.
+   */
+  private matchingBreakers(service: string, operation: string): StoredBreaker[] {
+    const exact = `${service}:${operation}`;
+    const partitionPrefix = `${exact}:`;
+    const matches: StoredBreaker[] = [];
+    for (const [key, breaker] of this.breakers) {
+      if (key === exact || key.startsWith(partitionPrefix)) {
+        matches.push(breaker);
+      }
+    }
+    return matches;
+  }
+
+  /**
+   * Get circuit breaker status for a specific service/operation, aggregated
+   * across ALL partitions (W-2). Returns the worst-of state (OPEN ≻ HALF_OPEN ≻
+   * CLOSED) with failure/success counters summed across the exact
+   * `service:operation` breaker and every `service:operation:<discriminant>`
+   * partition, so an operator polling the generic operation sees "is ANY tenant's
+   * circuit for this op open?" instead of null. `null` only when no partition
+   * exists yet. Per-partition detail remains available via `getAllStatuses`.
    */
   getStatus(service: string, operation: string): CircuitBreakerStatus | null {
-    const breaker = this.breakers.get(`${service}:${operation}`);
-    return breaker ? this.breakerStatus(breaker) : null;
+    const matches = this.matchingBreakers(service, operation);
+    if (matches.length === 0) {
+      return null;
+    }
+
+    const rank = { CLOSED: 0, HALF_OPEN: 1, OPEN: 2 } as const;
+    let worst: CircuitBreakerStatus | null = null;
+    let failures = 0;
+    let successes = 0;
+    for (const breaker of matches) {
+      const snapshot = this.breakerStatus(breaker);
+      failures += snapshot.failures;
+      successes += snapshot.successes;
+      if (worst === null || rank[snapshot.state] > rank[worst.state]) {
+        worst = snapshot;
+      }
+    }
+
+    if (worst === null) {
+      return null;
+    }
+
+    return {
+      state: worst.state,
+      failures,
+      successes,
+      ...(worst.nextAttempt !== undefined && { nextAttempt: worst.nextAttempt }),
+    };
   }
 
   /**
@@ -822,33 +975,31 @@ export class ExternalApiCircuitBreaker {
   }
 
   /**
-   * Manually open a circuit breaker
+   * Manually open a circuit breaker across ALL partitions addressed by
+   * `service:operation` (W-2): the exact legacy key and every per-tenant
+   * `service:operation:<discriminant>` partition. Returns `true` when at least
+   * one breaker matched (so a control addressed by the generic operation is not
+   * a silent no-op against partitioned breakers).
    */
   forceOpen(service: string, operation: string): boolean {
-    const key = `${service}:${operation}`;
-    const breaker = this.breakers.get(key);
-
-    if (breaker) {
+    const matches = this.matchingBreakers(service, operation);
+    for (const breaker of matches) {
       breaker.open();
-      return true;
     }
-
-    return false;
+    return matches.length > 0;
   }
 
   /**
-   * Manually close a circuit breaker
+   * Manually close a circuit breaker across ALL partitions addressed by
+   * `service:operation` (W-2). Mirrors {@link forceOpen}: applies to the exact
+   * key and every per-tenant partition; returns `true` when at least one matched.
    */
   forceClose(service: string, operation: string): boolean {
-    const key = `${service}:${operation}`;
-    const breaker = this.breakers.get(key);
-
-    if (breaker) {
+    const matches = this.matchingBreakers(service, operation);
+    for (const breaker of matches) {
       breaker.close();
-      return true;
     }
-
-    return false;
+    return matches.length > 0;
   }
 
   /**

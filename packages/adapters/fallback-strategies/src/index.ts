@@ -22,7 +22,6 @@ export type FallbackStrategy =
 
 export interface FallbackConfig {
   strategy: FallbackStrategy;
-  cacheKey?: string;
   cacheTtl?: number; // milliseconds
   staticResponse?: unknown;
   alternativeEndpoint?: string;
@@ -43,6 +42,21 @@ export interface FallbackContext {
    * cache default in the circuit breaker.
    */
   discriminant?: string;
+}
+
+/**
+ * @function isPresentDiscriminant
+ * @description Boundary guard (S-2): a fallback-store discriminant counts as
+ *   PRESENT only when it is a non-empty, non-whitespace string. `undefined`,
+ *   `""`, and `"   "` are all treated as ABSENT so a blank value can never key a
+ *   shared `fallback:service:operation` entry. Mirrors the identical guard in the
+ *   circuit breaker; kept local here because `@adapters/external-apis` imports
+ *   this package (importing back would be circular).
+ * @param discriminant - The candidate discriminant.
+ * @returns `true` when the discriminant is a usable non-blank string.
+ */
+function isPresentDiscriminant(discriminant: string | undefined): discriminant is string {
+  return typeof discriminant === "string" && discriminant.trim().length > 0;
 }
 
 export class FallbackManager {
@@ -148,7 +162,9 @@ export class FallbackManager {
     discriminant?: string
   ): Promise<void> {
     if (!this.redis) return;
-    if (discriminant === undefined) return;
+    // Fail-safe (S-2): a blank/whitespace discriminant is treated as absent — no
+    // write, so nothing shared is ever stored under `fallback:service:operation`.
+    if (!isPresentDiscriminant(discriminant)) return;
 
     const key = this.getCacheKey(service, operation, discriminant);
     const data = {
@@ -175,15 +191,15 @@ export class FallbackManager {
       return err("FALLBACK_FAILED");
     }
 
-    // Fail-safe symmetry with the write path: with no explicit key and no tenant
+    // Fail-safe symmetry with the write path: with no (or a blank) tenant
     // discriminant, treat the read as a MISS rather than reading a shared
     // `fallback:service:operation` key — that legacy key could hold another
     // tenant's payload (cross-tenant disclosure). No discriminant ⇒ fetch fresh.
-    const key =
-      config.cacheKey ??
-      (context.discriminant !== undefined
-        ? this.getCacheKey(context.service, context.operation, context.discriminant)
-        : undefined);
+    // The former `config.cacheKey` override (S-3) is removed: it was dormant and a
+    // latent bypass that would read one shared, un-discriminated entry.
+    const key = isPresentDiscriminant(context.discriminant)
+      ? this.getCacheKey(context.service, context.operation, context.discriminant)
+      : undefined;
 
     if (key === undefined) {
       logger.warn(

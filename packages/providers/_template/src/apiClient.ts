@@ -4,7 +4,7 @@
  *              by every provider adapter's API client implementation.
  * @layer infrastructure
  */
-import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
+import { createExternalApiCircuitBreaker, hashCallScope } from "@adapters/external-apis";
 import client from "prom-client";
 import { createLogger } from "@observability/logger";
 
@@ -119,6 +119,13 @@ export class ProviderApiClient {
         jitterEnabled: true,
         cacheEnabled: operation === "validate-credentials", // Cache credential validation
         cacheTtl: 300000, // 5 minutes cache for credentials
+        // Always scope the cache + circuit STATE by credential + operation + URL
+        // so a cached payload and the circuit are per-tenant. Copy this pattern in
+        // every new provider's request wrapper: a discriminant-less breaker call
+        // shares circuit STATE across tenants (an availability/noisy-neighbor
+        // concern). Cross-tenant disclosure itself is closed structurally by the
+        // breaker's generic dispatcher (D8).
+        cacheKeyDiscriminant: hashCallScope(this.credentials, operation, url),
         ...(fallback !== undefined && { fallback }),
       }
     );
@@ -185,6 +192,8 @@ export class ProviderApiClient {
         maxRetries: 2,
         baseDelay: 1000,
         jitterEnabled: true,
+        // Scope circuit STATE by credential + source URL (D8 closes disclosure).
+        cacheKeyDiscriminant: hashCallScope(this.credentials, mediaUrl),
       }
     );
 

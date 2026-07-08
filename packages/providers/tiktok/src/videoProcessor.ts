@@ -8,6 +8,7 @@
 
 import {
   createExternalApiCircuitBreaker,
+  hashCallScope,
   ANALYTICS_CB_OPTIONS,
   type CircuitBreakerStatus,
 } from "@adapters/external-apis";
@@ -133,6 +134,9 @@ export class TikTokVideoProcessor {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // Resource-scoped read: fold the file path so analysing video X never
+      // returns video Y's cached analysis (the shared-closure/constant-key bug).
+      cacheKeyDiscriminant: hashCallScope(filePath),
     });
   }
 
@@ -199,6 +203,9 @@ export class TikTokVideoProcessor {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE + closure partition by input path +
+      // options so processing video B never runs video A's bound closure (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(inputPath, options),
     });
   }
 

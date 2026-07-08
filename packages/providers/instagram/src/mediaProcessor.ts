@@ -10,7 +10,7 @@ import os from "os";
 import path from "path";
 import { promisify } from "node:util";
 
-import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
+import { createExternalApiCircuitBreaker, hashCallScope } from "@adapters/external-apis";
 import { isOk as _isOk, isErr, unwrap, AppError, type Result as _Result } from "@shared/types";
 import client from "prom-client";
 
@@ -99,6 +99,10 @@ export class InstagramMediaProcessor {
       maxRetries: 2,
       baseDelay: 1000,
       jitterEnabled: true,
+      // Scope by the media resource so distinct videos get distinct cache/STATE
+      // partitions (mirrors the tiktok videoProcessor precedent). Disclosure is
+      // already closed by the generic dispatcher (D8); this keys per resource.
+      cacheKeyDiscriminant: hashCallScope(videoUrl),
     });
   }
 
@@ -174,6 +178,15 @@ export class InstagramMediaProcessor {
       maxRetries: 1, // Video processing is expensive, limit retries
       baseDelay: 5000,
       jitterEnabled: true,
+      // Scope by the source video + split parameters so distinct split jobs get
+      // distinct cache/STATE partitions (D8 already closes disclosure).
+      cacheKeyDiscriminant: hashCallScope(
+        videoUrl,
+        segmentLength,
+        maxSegments,
+        aspectRatio,
+        quality
+      ),
     });
   }
 
@@ -304,6 +317,9 @@ export class InstagramMediaProcessor {
       maxRetries: 1,
       baseDelay: 2000,
       jitterEnabled: true,
+      // Scope by the source video + segment identity so distinct segments get
+      // distinct cache/STATE partitions (D8 already closes disclosure).
+      cacheKeyDiscriminant: hashCallScope(originalVideoUrl, segmentId, startTime, duration),
     });
   }
 
@@ -421,6 +437,9 @@ export class InstagramMediaProcessor {
       maxRetries: 1,
       baseDelay: 3000,
       jitterEnabled: true,
+      // Scope by the source video so distinct reels get distinct cache/STATE
+      // partitions (D8 already closes disclosure).
+      cacheKeyDiscriminant: hashCallScope(videoUrl),
     });
   }
 
@@ -516,6 +535,9 @@ export class InstagramMediaProcessor {
       maxRetries: 2,
       baseDelay: 1000,
       jitterEnabled: true,
+      // Scope by the source video + frame offset so distinct thumbnails get
+      // distinct cache/STATE partitions (D8 already closes disclosure).
+      cacheKeyDiscriminant: hashCallScope(videoUrl, timeOffset),
     });
   }
 

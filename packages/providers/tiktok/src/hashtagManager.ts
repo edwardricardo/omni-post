@@ -9,6 +9,7 @@
 
 import {
   createExternalApiCircuitBreaker,
+  hashCallScope,
   ANALYTICS_CB_OPTIONS,
   type CircuitBreakerStatus,
 } from "@adapters/external-apis";
@@ -122,6 +123,9 @@ export class TikTokHashtagManager {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // Scope by the wrapped research client's credential AND the request options
+      // so tenant B never runs tenant A's bound closure or reads A's strategy.
+      cacheKeyDiscriminant: hashCallScope(this.researchClient.getCredentialScope(), options),
     });
   }
 
@@ -183,6 +187,9 @@ export class TikTokHashtagManager {
         jitterEnabled: true,
         cacheEnabled: true,
         ...ANALYTICS_CB_OPTIONS,
+        // Scope by the wrapped research client's credential AND the queried
+        // hashtag so tenant B never runs tenant A's bound closure.
+        cacheKeyDiscriminant: hashCallScope(this.researchClient.getCredentialScope(), hashtag),
       }
     );
   }
@@ -291,6 +298,9 @@ export class TikTokHashtagManager {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // Scope by the wrapped research client's credential AND the filter options
+      // so tenant B never runs tenant A's bound closure.
+      cacheKeyDiscriminant: hashCallScope(this.researchClient.getCredentialScope(), options),
     });
   }
 
@@ -321,6 +331,9 @@ export class TikTokHashtagManager {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE-only partition by the wrapped research
+      // client's credential so tenant B never runs tenant A's bound closure (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.researchClient.getCredentialScope()),
     });
   }
 
@@ -386,6 +399,9 @@ export class TikTokHashtagManager {
         jitterEnabled: true,
         cacheEnabled: true,
         ...ANALYTICS_CB_OPTIONS,
+        // Scope by the wrapped research client's credential AND the request options
+        // so tenant B never runs tenant A's bound closure or reads A's recommendations.
+        cacheKeyDiscriminant: hashCallScope(this.researchClient.getCredentialScope(), options),
       }
     );
   }

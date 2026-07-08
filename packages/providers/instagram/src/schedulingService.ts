@@ -7,7 +7,7 @@
 import { ok, err, AppError, type Result } from "@shared/types";
 import { type InstagramCredentials } from "./apiClient.js";
 import { InstagramMediaProcessor, type VideoSplitOptions } from "./mediaProcessor.js";
-import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
+import { createExternalApiCircuitBreaker, hashCallScope } from "@adapters/external-apis";
 import type { QueuePort } from "@ports/core";
 import type { ResilienceMetrics } from "@adapters/queue-bullmq";
 import client from "prom-client";
@@ -157,6 +157,11 @@ export class InstagramSchedulingService {
         maxRetries: 2,
         baseDelay: 1000,
         jitterEnabled: true,
+        // Uncached write-style op: partition circuit STATE per tenant+job so one
+        // account's scheduling failures never open the shared circuit for another
+        // account. Cross-tenant disclosure itself is already closed by the generic
+        // dispatcher (D8) — this discriminant scopes STATE only.
+        cacheKeyDiscriminant: hashCallScope(credentials, job.accountId, job.projectId, job.queueId),
       });
 
       return ok(result);

@@ -8,6 +8,7 @@ import { google, youtube_v3 } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
 import {
   createExternalApiCircuitBreaker,
+  hashCallScope,
   ANALYTICS_CB_OPTIONS,
   METADATA_CB_OPTIONS,
 } from "@adapters/external-apis";
@@ -179,6 +180,9 @@ export class YouTubeCommunityService {
       jitterEnabled: true,
       cacheEnabled: true,
       ...METADATA_CB_OPTIONS,
+      // Public-resource-by-id read: fold channel + videoId + query params so
+      // video X never returns video Y's cached comments and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(this.channelId, videoId, maxResults, order),
     });
   }
 
@@ -213,6 +217,9 @@ export class YouTubeCommunityService {
       jitterEnabled: true,
       cacheEnabled: true,
       ...METADATA_CB_OPTIONS,
+      // PII (channel comments): fold channel + query params so channel B never
+      // receives channel A's cached comments and pages never collide.
+      cacheKeyDiscriminant: hashCallScope(this.channelId, maxResults, order),
     });
   }
 
@@ -250,6 +257,9 @@ export class YouTubeCommunityService {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE + closure partition by channel + comment
+      // so acting on comment B never runs comment A's bound closure (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.channelId, commentId),
     });
   }
 
@@ -280,6 +290,8 @@ export class YouTubeCommunityService {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE + closure partition by channel + comment (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.channelId, commentId),
     });
   }
 
@@ -317,6 +329,8 @@ export class YouTubeCommunityService {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE + closure partition by channel + comment (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.channelId, commentId),
     });
   }
 
@@ -344,6 +358,8 @@ export class YouTubeCommunityService {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE + closure partition by channel + comment (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.channelId, commentId),
     });
   }
 
@@ -371,6 +387,8 @@ export class YouTubeCommunityService {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE + closure partition by channel + comment (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.channelId, commentId),
     });
   }
 
@@ -402,6 +420,8 @@ export class YouTubeCommunityService {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE + closure partition by channel + comment (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.channelId, commentId),
     });
   }
 
@@ -483,6 +503,9 @@ export class YouTubeCommunityService {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // PII (community metrics): fold channel + optional videoId + time range so
+      // distinct scopes never collide and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(this.channelId, videoId, _timeRange),
     });
   }
 
@@ -513,6 +536,9 @@ export class YouTubeCommunityService {
       maxDelay: 20000,
       jitterEnabled: true,
       cacheEnabled: false,
+      // Uncached channel read: STATE + closure partition by channel so channel B
+      // never runs channel A's bound closure for the moderation queue (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.channelId),
     });
   }
 

@@ -9,6 +9,7 @@ import { ok, err, type Result } from "@shared/types";
 import type { StoragePort, UploadSignature, MediaMetadata } from "@ports/core";
 import {
   createExternalApiCircuitBreaker,
+  hashCallScope,
   type CircuitBreakerStatus,
 } from "@adapters/external-apis";
 import { v2 as cloudinary } from "cloudinary";
@@ -133,6 +134,8 @@ export function createCloudinaryStorageAdapter(config: CloudinaryConfig): Storag
             maxDelay: 8000,
             jitterEnabled: true,
             cacheEnabled: false, // Don't cache upload signatures
+            // Write op: uncached; STATE partitions per storage credential (W-1).
+            cacheKeyDiscriminant: hashCallScope(config),
           }
         );
 
@@ -191,6 +194,9 @@ export function createCloudinaryStorageAdapter(config: CloudinaryConfig): Storag
             jitterEnabled: true,
             cacheEnabled: true, // Cache metadata for 10 minutes
             cacheTtl: 600000,
+            // Credential-scoped metadata read: fold the storage credentials AND
+            // the public id so distinct tenants/objects never share a cache entry.
+            cacheKeyDiscriminant: hashCallScope(config, publicId),
           }
         );
 

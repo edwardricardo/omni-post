@@ -6,7 +6,11 @@
  * @layer infrastructure
  */
 
-import { createExternalApiCircuitBreaker, METADATA_CB_OPTIONS } from "@adapters/external-apis";
+import {
+  createExternalApiCircuitBreaker,
+  hashCallScope,
+  METADATA_CB_OPTIONS,
+} from "@adapters/external-apis";
 import client from "prom-client";
 // ============================================================
 // Types
@@ -194,6 +198,9 @@ export class TelegramApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       cacheTtl: 300000,
+      // PII (bot identity): scope by the bot token so bot B never receives
+      // bot A's cached getMe payload or shares A's breaker instance.
+      cacheKeyDiscriminant: hashCallScope(this.botToken),
     });
   }
 
@@ -221,6 +228,9 @@ export class TelegramApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...METADATA_CB_OPTIONS,
+      // PII (chat membership): scope by bot token + chat + the queried bot user
+      // id so distinct chats/users never collide and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(this.botToken, this.chatId, botUserId),
     });
   }
 
@@ -249,6 +259,9 @@ export class TelegramApiClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: false,
+      // Write op (stays uncached): STATE-only partition so bot A's failures
+      // never open bot B's circuit for this operation (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.botToken, this.chatId),
     });
   }
 
@@ -281,6 +294,8 @@ export class TelegramApiClient {
       maxDelay: 15000,
       jitterEnabled: true,
       cacheEnabled: false,
+      // Write op (stays uncached): STATE-only partition (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.botToken, this.chatId),
     });
   }
 
@@ -314,6 +329,8 @@ export class TelegramApiClient {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE-only partition (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.botToken, this.chatId),
     });
   }
 
@@ -360,6 +377,8 @@ export class TelegramApiClient {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE-only partition (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.botToken, this.chatId),
     });
   }
 
@@ -406,6 +425,8 @@ export class TelegramApiClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: false,
+      // Write op (stays uncached): STATE-only partition (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.botToken, this.chatId),
     });
   }
 
@@ -438,6 +459,8 @@ export class TelegramApiClient {
       maxDelay: 15000,
       jitterEnabled: true,
       cacheEnabled: false,
+      // Write op (stays uncached): STATE-only partition (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.botToken, this.chatId),
     });
   }
 
@@ -473,6 +496,8 @@ export class TelegramApiClient {
       maxDelay: 15000,
       jitterEnabled: true,
       cacheEnabled: false,
+      // Write op (stays uncached): STATE-only partition (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.botToken, this.chatId),
     });
   }
 
@@ -516,6 +541,8 @@ export class TelegramApiClient {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE-only partition (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.botToken, this.chatId),
     });
   }
 
@@ -543,6 +570,8 @@ export class TelegramApiClient {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE-only partition (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.botToken, this.chatId),
     });
   }
 
@@ -575,6 +604,8 @@ export class TelegramApiClient {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE-only partition (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.botToken, this.chatId),
     });
   }
 
@@ -604,6 +635,9 @@ export class TelegramApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...METADATA_CB_OPTIONS,
+      // PII (member count): scope by bot token + chat so bot B never receives
+      // bot A's cached count or shares A's breaker instance.
+      cacheKeyDiscriminant: hashCallScope(this.botToken, this.chatId),
     });
   }
 
