@@ -238,15 +238,21 @@ const serverSchema = {
   ENABLE_RATE_LIMITING: boolFromString.default(true),
 
   // ── Rate limiting — trusted proxy hops (anti-spoof) ─────────────────
-  // Number of TRUSTED reverse-proxy hops directly in front of the API. The
-  // HTTP rate limiter derives its per-client key from the
-  // `X-Forwarded-For` entry at `len - TRUSTED_PROXY_HOP_COUNT`, ignoring the
-  // attacker-spoofable left side of the chain (see ADR-0019 +
-  // SECURITY_CANON §Rate Limiting). Default 1 = exactly one trusted proxy/LB
-  // appends the real client IP as the rightmost entry. Set to the actual
-  // number of proxies in your ingress path (e.g. 2 for CDN → LB). A value of
-  // 0 is rejected (it would key off the raw socket peer, which behind any
-  // proxy is the proxy itself — collapsing every client into one bucket).
+  // Number of TRUSTED reverse-proxy hops IN FRONT OF the Next server. The Next
+  // portals RELAY the inbound `X-Forwarded-For` / `X-Real-IP` to the backend —
+  // they COPY the header, they do NOT append their own hop (server-side `fetch`
+  // adds no entry) — so the backend sees exactly the chain the trusted edge
+  // produced and this count does NOT gain a `+1` for the Next tier. The HTTP
+  // rate limiter derives its per-client key from the `X-Forwarded-For` entry at
+  // `len - TRUSTED_PROXY_HOP_COUNT`, ignoring the attacker-spoofable left side of
+  // the chain (see ADR-0019 + SECURITY_CANON §Rate Limiting). Hop topology:
+  // direct dev (browser→Next→api) = 1 (spoofable — no trusted edge; dev only);
+  // single trusted edge (CDN/LB→Next→api, recommended prod) = 1 (the edge appends
+  // the real client IP as the rightmost entry; an attacker-controlled leftmost
+  // entry is ignored); a further LB between Next and api = 2. Set to the actual
+  // number of trusted proxies in front of Next. A value of 0 is rejected (it
+  // would key off the raw socket peer, which behind any proxy is the proxy
+  // itself — collapsing every client into one bucket).
   TRUSTED_PROXY_HOP_COUNT: z.coerce.number().int().min(1).max(10).default(1),
   // Headless schema-only boot for OpenAPI dump tooling. When true,
   // createApp() skips the saga/EventService background block (Redis

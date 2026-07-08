@@ -16,6 +16,7 @@ import {
   clearAuthCookies,
   setSessionCookie,
 } from "@/lib/auth/sessionCookie";
+import { forwardedForHeaders } from "@/lib/http/forwardedFor";
 import { env } from "../../../../lib/env";
 
 const API_URL = env.API_URL ?? env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
@@ -36,7 +37,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     const res = await fetch(`${API_URL}/admin/auth/refresh`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      // Relay the real inbound client IP so this session-refresh path is bucketed
+      // per user, not collapsed onto the Next server IP (N-SEC-2).
+      headers: { "Content-Type": "application/json", ...forwardedForHeaders(req.headers) },
       body: JSON.stringify({ refreshToken, csrfToken }),
       cache: "no-store",
     });

@@ -246,3 +246,172 @@ cluster is not complete.
   completeness guard (Fitness #29 idea) in cluster G / N-CI-1 to enforce this structurally.
 - **Rollback posture (unchanged):** rolling back C1a reverts to the constant-key LEAK — treat any
   C1 rollback as a security regression, roll forward instead.
+
+---
+
+---
+
+# Verify Report — cross-tenant-criticals · C2 (N-SEC-2) CERTIFICATION — client-IP forwarding & AUTH rate-limit DoS
+
+> Adversarial verification of the C2 slice (N-SEC-2): the Next portals were dropping the inbound
+> `X-Forwarded-For` / `X-Real-IP`, so `resolveClientIp` fell back to the Next server's
+> `socket.remoteAddress` and the per-IP AUTH limiter (5/15 min) collapsed to **5 requests total for
+> the whole portal**. Every claim below is re-derived from code + real test runs; the apply
+> self-report (#203) was NOT trusted. Branch `workstream/cluster-a-cross-tenant` @ `c1688d23`.
+
+## C2 Status: **PASS**
+
+## AUTH rate-limit DoS closed + spoof-resistant: **YES**
+
+- **DoS closed:** distinct real client IPs now occupy distinct AUTH buckets — one client exhausting
+  its 5/15 min allowance does NOT lock out another. Proven through the REAL production preHandler
+  (`createHttpRateLimitPreHandler` + `[...STANDARD_ROUTE_RULES, ...EXPENSIVE_ENDPOINT_RULES]`), not
+  a reimplementation.
+- **Spoof-resistant:** the key is taken at `chain[len - TRUSTED_PROXY_HOP_COUNT]`; a client-controlled
+  LEFTMOST `X-Forwarded-For` entry is ignored and rotating it cannot mint fresh buckets.
+  `resolveClientIp` was NOT weakened (byte-identical trusted-hop selection, clamped at 0).
+- **Precondition (documented, per design D3):** internet-facing deployments MUST place >=1 trusted
+  proxy in front of Next; dev-direct is spoofable and dev-only (accepted).
+
+---
+
+## C2 Verdicts (per MERGE-BLOCKING spec requirement)
+
+| Spec requirement                                                                                                     | Verdict  | Evidence                                                                                                                                                                                                                                                                                                                                                                                      |
+| -------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Bucket keyed by real client IP** (distinct clients -> distinct buckets; no portal-wide lockout) `[MERGE-BLOCKING]` | **PASS** | `authRateLimit.test.ts:308` "one client exhausting its AUTH allowance does NOT lock out a different client" — GREEN via real preHandler. Client A (`203.0.113.1`) 429s on 6th; client B (`203.0.113.2`) 1st passes.                                                                                                                                                                           |
+| **Spoof resistance** (leftmost XFF ignored; key at `len - hops`; rotation cannot mint buckets) `[MERGE-BLOCKING]`    | **PASS** | `authRateLimit.test.ts:329` "rotating the spoofable leftmost X-Forwarded-For entry cannot mint fresh AUTH buckets" — GREEN; + `resolveClientIp` unit contract tests (`:265`, `:275`). `resolveClientIp` (`httpRateLimitPreHandler.ts:159`) unchanged: `chain[Math.max(0, len - trustedHops)]`.                                                                                                |
+| **Real inbound IP forwarded from all 4 egress points**                                                               | **PASS** | All 5 files apply `forwardedForHeaders(...)` to the OUTBOUND fetch headers (not merely import): client proxy `route.ts:79-81`->`fetch:106`; admin proxy `buildHeaders:88-90`->main `fetch:123` + retry `:149`; admin `attemptTokenRefresh:33`; admin refresh `route.ts:42`; client actions `auth.ts:65,135,160`; admin `backend-client.ts:105`. RELAY (copies inbound), no Next hop appended. |
+| **Session-refresh path is per-user** (no cross-user de-auth)                                                         | **PASS** | Mechanism (relay + `resolveClientIp`) is identical to the login path proven at `authRateLimit.test.ts:308`; admin refresh (`route.ts` + `attemptTokenRefresh`) both relay the inbound IP.                                                                                                                                                                                                     |
+| **AUTH policy + fail-open do-not-regress**                                                                           | **PASS** | `RateLimitConfigs.AUTH = { windowMs: 900_000, maxRequests: 5 }` (`httpRateLimitPreHandler.ts:45`); fitness #28 = 0; fail-open test GREEN with `threat_type: "http_rate_limit_failopen"` WARN emitted; `TRUSTED_PROXY_HOP_COUNT` schema unchanged (`env.ts:256` `z.coerce.number().int().min(1).max(10).default(1)` — doc-only edit).                                                          |
+
+**Helper design (D3) confirmed:** `forwardedForHeaders(inbound: Headers): Record<string,string>` copies
+`x-forwarded-for` (else `x-real-ip`) verbatim, preserving the header NAME so the backend's two-tier
+trusted-hop logic runs unchanged; returns `{}` when neither header is present (no crash/regression —
+backend falls back to socket peer exactly as before). No trust decision in the helper (correct: the
+backend owns the trusted-hop selection). Route handlers read `NextRequest.headers`; server actions
+read `next/headers` `headers()` — both are `.get()`-compatible with `Headers`.
+
+---
+
+## C2 Findings
+
+### CRITICAL
+
+- **None.** No requirement is unmet; the DoS is closed and spoof-resistant.
+
+### WARNING
+
+- **W-C2-1 (security-relevant, PRE-EXISTING, OUT OF C2 SCOPE — does NOT block archive):** the admin
+  credential routes **`/admin/auth/login`** and **`/admin/auth/refresh`** do NOT `startsWith` any
+  `AUTH_ROUTE_RULES` entry (the table has `/auth/login`, `/auth/refresh`, `/auth/customer/*`), so
+  they resolve to **STANDARD (100/min)**, not **AUTH (5/15 min)** (`httpRateLimitPreHandler.ts:105-135`).
+  C2 correctly forwards the real IP for these routes (so they are now per-IP, DoS closed), but their
+  HTTP brute-force cap is 20x weaker than the customer routes. This is a rate-limit-**policy** gap,
+  distinct from C2's IP-forwarding fix — customer login is additionally `BruteForceProtectionPort`-gated
+  (ADR-0015); whether admin login has the equivalent account-based control was NOT verified here.
+  **Recommendation:** track adding `/admin/auth/login` + `/admin/auth/refresh` to `AUTH_ROUTE_RULES`
+  in the auth/MFA cluster (B) or a rate-limit-policy backlog item — NOT in C2.
+
+### SUGGESTION
+
+- **S-C2-1:** the two authenticated-only admin egress fetches — `verifyAccessToken` ->
+  `GET /admin/auth/me` (`backend-client.ts:161`) and `logoutFromBackend` -> `POST /admin/auth/logout`
+  (`backend-client.ts:219`) — do NOT relay the inbound IP. They are bearer-authenticated (low
+  brute-force value) and outside the spec's 4 enumerated egress points, so this is completeness, not
+  a defect. Consider relaying for uniform per-IP keying if these routes ever gain stricter caps.
+- **S-C2-2 (spec/design wording):** the spec scenario "resolveClientIp selects the real client IP
+  after the proxy **appends** it" and "the added proxy hop is accounted for"
+  (`specs/client-ip-rate-limit/spec.md:39-45`) describes an APPEND model, while the chosen design D3
+  is **RELAY** (no hop added, `TRUSTED_PROXY_HOP_COUNT` unchanged). The behavior-first requirement
+  (key at `len - hops`, never the Next socket) is satisfied either way, but the "appends" wording is
+  now stale vs the implementation — reconcile on a future spec touch-up.
+- **S-C2-3:** the client (`apps/client/lib/http/forwardedFor.ts`) and admin
+  (`apps/admin/lib/http/forwardedFor.ts`) helpers are byte-identical. Per design D3 this duplication
+  is deliberate (avoids reopening the `exports->dist` / `.js`-on-`.ts` resolution wound of a shared
+  `packages/*`); documented here so a future reviewer does not "DRY" it into a shared package.
+
+---
+
+## C2 Commands + results (LXC-safe: single file, `--max-old-space-size`, `timeout`)
+
+| Command                                                                                                                       | Result                                                                                |
+| ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `NODE_OPTIONS=--max-old-space-size=2048 timeout 180 pnpm --filter @apps/api exec vitest run tests/unit/authRateLimit.test.ts` | **21/21 PASS** (incl. both MERGE-BLOCKING describes + fail-open)                      |
+| `... pnpm --filter @apps/client exec vitest run lib/http/forwardedFor.test.ts`                                                | **5/5 PASS**                                                                          |
+| `... pnpm --filter @apps/admin exec vitest run lib/http/forwardedFor.test.ts`                                                 | **5/5 PASS**                                                                          |
+| `NODE_OPTIONS=--max-old-space-size=6144 timeout 420 pnpm --filter @apps/client typecheck` (tsc --noEmit)                      | **EXIT 0** (dist rebuilt — see dist-coherence assessment)                             |
+| Fitness #26 (`.js`-on-`.ts`, frontend helper dirs)                                                                            | **0**                                                                                 |
+| Fitness #17 (direct `process.env` in Next helpers/egress)                                                                     | **0** (`process.env.NODE_ENV` at `admin/.../route.ts:48` is the sanctioned exclusion) |
+| Fitness #28 (dead `config:{rateLimit}` in apps/api/src)                                                                       | **0**                                                                                 |
+| Fitness #9 (`@file` header on the 4 new C2 files)                                                                             | **all present**                                                                       |
+| Fitness #25 A/B (circuit-breaker fail-fast, do-not-regress)                                                                   | **A=0, B=0**                                                                          |
+
+Total C2-relevant tests re-run this phase: **31 GREEN, 0 failed** (21 backend + 5 client + 5 admin).
+
+---
+
+## Dist-coherence assessment (C1 build-hygiene gap surfaced by the C2 tsc gate)
+
+**Confirmed: this is the known ADR-0017 dev-resolution defect, NOT a C1 or C2 source defect.**
+
+- `apps/client/tsconfig.json` `paths` does **NOT** map `@adapters/external-apis` (verified). A Next
+  app tsconfig `paths` block fully REPLACES (does not merge) `tsconfig.base` paths, so
+  `instagram/src/mediaProcessor.ts`'s `@adapters/external-apis` import falls to Node package
+  `exports` -> `main: "./dist/index.js"` (the `development -> ./src/index.ts` condition is only hit
+  with `--conditions development`, which the Next tsc does not pass).
+- `packages/adapters/external-apis/dist/` is **gitignored**; C1 added `hashCallScope` to `src`
+  (`src/index.ts:17`) but the stale dist lacked it -> `@apps/client` tsc failed with 6 "no exported
+  member 'hashCallScope'" errors until the dist was rebuilt.
+- **The source is correct** (`src/index.ts` exports `hashCallScope`, `isPresentDiscriminant`). With
+  the C1-touched dist rebuilt (`pnpm --filter @adapters/fallback-strategies --filter
+@adapters/external-apis build`), the dist now exports `hashCallScope` (verified in both
+  `dist/index.js:7` and `dist/index.d.ts:7`) and **`@apps/client` tsc --noEmit re-confirmed EXIT 0**
+  this phase. Apply also reported admin + api EXIT 0.
+- **No real source problem.** This is purely a dev/CI source-resolution coherence gap.
+  **Recommendation — track in N-CI-1 / ADR-0017:** either add `@adapters/external-apis` (and
+  `@adapters/fallback-strategies`) to the Next apps' tsconfig `paths`, OR ensure CI builds adapter
+  dist (`turbo run build` with `^build`) before app typecheck, so a fresh checkout that skips the
+  dist rebuild cannot fail app tsc. This is C1/CI hygiene, not a C2 blocker.
+
+---
+
+## C2-6 deferred integration — low-risk assessment
+
+The only unchecked C2 task is **C2-6** (the live-DB `node:test` cross-egress / per-user-refresh
+integration). Deferring it is **LOW RISK**: the assertion it would make — "one user exhausting the
+limit does not de-authenticate another" — is already covered at unit level through the REAL
+production preHandler (`authRateLimit.test.ts:308`, per-IP isolation via `createHttpRateLimitPreHandler`
+
+- `resolveClientIp`), and the refresh path relies on the identical relay + trusted-hop mechanism that
+  is exercised there. The live integration adds only DB+Redis wiring around an already-proven path; it
+  is not MERGE-BLOCKING and was correctly deferred to avoid the LXC-heavy DB+Redis bring-up.
+
+---
+
+## C2 Tasks <-> code state
+
+`C2-1..C2-5, C2-7, C2-8, C2-9` are `[x]` and match the code (helper created + 5 egress files wired +
+env.ts doc + backend contract tests + fitness gates). `C2-6` is annotated as the deferred live-DB
+integration (non-MERGE-BLOCKING). No unchecked implementation task blocks archive.
+
+---
+
+## C2 next_recommended: **commit C2, then archive cluster A**
+
+C2 is code-complete, all MERGE-BLOCKING requirements PASS, all 0-defect gates green. Commit the C2
+working-tree changes (per the `stacked-to-main` PR#2 boundary), then `sdd-archive` cluster A.
+Recommend a `review-risk` / `review-resilience` fresh-context fan-out on the C2 diff before PR (auth/
+security path), per the trigger rules.
+
+## C2 Risks
+
+- **No unresolved CRITICAL — nothing blocks committing/archiving C2.**
+- **W-C2-1 (non-blocking):** admin credential routes are STANDARD-capped, not AUTH-capped — track in
+  cluster B / rate-limit-policy backlog (out of C2 scope).
+- **Deployment precondition (operational, not code):** the spoof-resistance guarantee holds only
+  when >=1 trusted proxy sits in front of Next in production (design D3). A dev-direct or
+  misconfigured (no-trusted-edge) deployment makes the leftmost XFF forgeable one tier up. Ensure
+  ops sets `TRUSTED_PROXY_HOP_COUNT` to the real hop count of the ingress path.
+- **Rollback posture:** C2 is header-only; rollback = drop the relay, which reverts to today's
+  collapsed single-bucket portal-wide AUTH DoS. Treat a C2 rollback as a security regression.

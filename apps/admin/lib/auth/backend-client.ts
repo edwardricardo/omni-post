@@ -8,9 +8,11 @@
 
 import { cache } from "react";
 
+import { headers } from "next/headers";
 import { ConsoleLoggerAdapter } from "@observability/browser-logger";
 
 import type { AdminUserProfile, AuthenticateAdminResult, TokenPair } from "./types";
+import { forwardedForHeaders } from "../http/forwardedFor";
 import { env } from "../../lib/env";
 
 const log = new ConsoleLoggerAdapter("admin.backend-client", { alwaysEmit: true });
@@ -93,10 +95,14 @@ export async function authenticateAdmin(
   credentials: LoginCredentials
 ): Promise<AuthenticateAdminResult> {
   try {
+    // Relay the real inbound client IP so the backend's per-IP rate limiter
+    // buckets this admin login by the real user, not the Next server IP (N-SEC-2).
+    const inbound = await headers();
     const response = await fetch(`${API_URL}/admin/auth/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...forwardedForHeaders(inbound),
       },
       body: JSON.stringify({
         email: credentials.email,

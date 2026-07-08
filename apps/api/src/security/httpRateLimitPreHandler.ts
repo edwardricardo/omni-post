@@ -97,7 +97,8 @@ export const EXPENSIVE_ENDPOINT_RULES: readonly HttpRateLimitRule[] = [
  * §Rate Limiting, OWASP API4:2023, OWASP Auth Cheat Sheet). Customer login is
  * additionally BruteForceProtectionPort-gated (ADR-0015, account-based); this
  * HTTP IP-based cap is the defence-in-depth layer for the routes BF does not
- * cover (register / refresh / password-reset / core admin login + refresh).
+ * cover (register / refresh / password-reset / core auth login + refresh /
+ * admin-plane login + refresh).
  * `/auth/customer/register` is the public registration route; the privilege-
  * escalating admin `/auth/register` route was removed in a prior slice and is
  * intentionally NOT listed here.
@@ -110,6 +111,14 @@ const AUTH_ROUTE_RULES: readonly HttpRateLimitRule[] = [
   { path: "/auth/customer/reset-password", config: RateLimitConfigs.AUTH },
   { path: "/auth/login", config: RateLimitConfigs.AUTH },
   { path: "/auth/refresh", config: RateLimitConfigs.AUTH },
+  // Admin-plane credential routes. These are LITERAL prefixes (not a broad
+  // `/admin/auth`) so the AUTH cap covers only login + token refresh — the
+  // highest-value admin brute-force/credential-stuffing surface — while the
+  // frequently-polled authenticated reads the admin SPA drives (`/admin/auth/me`,
+  // `/admin/auth/mfa/status`, `/admin/auth/sessions`) stay on STANDARD (100/min).
+  // Pre-fix these fell through to STANDARD, a 20x weaker cap on admin login.
+  { path: "/admin/auth/login", config: RateLimitConfigs.AUTH },
+  { path: "/admin/auth/refresh", config: RateLimitConfigs.AUTH },
   // MFA second-factor verification — a TOTP / backup-code guessing surface
   // (the login-flow `/auth/mfa/verify` is unauthenticated, userId+token from
   // the body, with no per-account counter). `startsWith` also covers

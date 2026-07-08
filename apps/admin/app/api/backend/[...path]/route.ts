@@ -9,6 +9,7 @@
 
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { forwardedForHeaders } from "../../../../lib/http/forwardedFor";
 import { env } from "../../../../lib/env";
 
 const API_URL = env.API_URL ?? env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
@@ -17,7 +18,7 @@ const API_URL = env.API_URL ?? env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000
 // Token Refresh
 // ---------------------------------------------------------------------------
 
-async function attemptTokenRefresh(): Promise<string | null> {
+async function attemptTokenRefresh(req: NextRequest): Promise<string | null> {
   const cookieStore = await cookies();
   const refreshToken = cookieStore.get("admin-refresh")?.value;
   const csrfToken = cookieStore.get("admin-csrf")?.value;
@@ -27,7 +28,9 @@ async function attemptTokenRefresh(): Promise<string | null> {
   try {
     const res = await fetch(`${API_URL}/admin/auth/refresh`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      // Relay the real inbound client IP so this session-refresh path is bucketed
+      // per user, not collapsed onto the Next server IP (N-SEC-2).
+      headers: { "Content-Type": "application/json", ...forwardedForHeaders(req.headers) },
       body: JSON.stringify({ refreshToken, csrfToken }),
       cache: "no-store",
     });
@@ -77,6 +80,13 @@ async function buildHeaders(req: NextRequest, token: string | undefined): Promis
   const csrfCookie = cookieStore.get("admin-csrf");
   if (csrfCookie?.value) {
     headers.set("X-CSRF-Token", csrfCookie.value);
+  }
+
+  // Relay the real inbound client IP (RELAY, not append) so the backend keys its
+  // per-IP AUTH rate limiter by the real client, not this Next server's socket
+  // address (N-SEC-2). Without this every user collapses onto one bucket.
+  for (const [name, value] of Object.entries(forwardedForHeaders(req.headers))) {
+    headers.set(name, value);
   }
 
   return headers;
@@ -129,7 +139,7 @@ async function proxy(req: NextRequest, segments: string[]): Promise<NextResponse
     }
 
     if (isTokenExpired) {
-      const newToken = await attemptTokenRefresh();
+      const newToken = await attemptTokenRefresh(req);
       if (newToken) {
         // Retry the original request with the fresh token (body was saved earlier)
         try {

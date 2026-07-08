@@ -9,11 +9,13 @@
  *              hand-rolled `cookies().set(SESSION_COOKIE, ...)` lives here.
  * @layer infrastructure
  */
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getLocale } from "next-intl/server";
 import { ConsoleLoggerAdapter } from "@observability/browser-logger";
 
 import { setSessionCookie, setRefreshCookie, readAuthTokens } from "@/lib/auth/sessionCookie";
+import { forwardedForHeaders } from "@/lib/http/forwardedFor";
 import { env } from "../../lib/env";
 
 const log = new ConsoleLoggerAdapter("client.auth-actions", { alwaysEmit: true });
@@ -55,9 +57,12 @@ export async function loginAction(
   }
 
   try {
+    // Relay the real inbound client IP so the backend's per-IP AUTH rate limiter
+    // buckets this login by the real user, not the Next server IP (N-SEC-2).
+    const inbound = await headers();
     const response = await fetch(`${API_URL}/auth/customer/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...forwardedForHeaders(inbound) },
       body: JSON.stringify({ email, password, rememberMe }),
     });
 
@@ -120,9 +125,14 @@ export async function registerAction(
     const firstName = name.split(" ")[0] || name;
     const lastName = name.split(" ").slice(1).join(" ") || name;
 
+    // Relay the real inbound client IP so both the register and the auto-login
+    // egress are bucketed per user, not collapsed onto the Next server IP (N-SEC-2).
+    const inbound = await headers();
+    const forwarded = forwardedForHeaders(inbound);
+
     const registerResponse = await fetch(`${API_URL}/auth/customer/register`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...forwarded },
       body: JSON.stringify({
         accountName: name,
         accountEmail: email,
@@ -147,7 +157,7 @@ export async function registerAction(
     // Auto-login after registration
     const loginResponse = await fetch(`${API_URL}/auth/customer/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...forwarded },
       body: JSON.stringify({ email, password, rememberMe: false }),
     });
 

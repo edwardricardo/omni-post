@@ -38,6 +38,7 @@ import {
   clearAuthCookies,
   persistTokensFromAuthResponse,
 } from "@/lib/auth/sessionCookie";
+import { forwardedForHeaders } from "@/lib/http/forwardedFor";
 import { env } from "../../../../lib/env";
 
 const API_URL = env.API_URL ?? "http://localhost:3000";
@@ -70,6 +71,14 @@ async function proxy(req: NextRequest, segments: string[]): Promise<NextResponse
   const contentType = req.headers.get("Content-Type");
   if (contentType) headers.set("Content-Type", contentType);
   if (session) headers.set("Authorization", `Bearer ${session.value}`);
+
+  // Relay the real inbound client IP (RELAY, not append) so the backend keys its
+  // per-IP AUTH rate limiter by the real client, not this Next server's socket
+  // address (N-SEC-2). Without this every user collapses onto one bucket and the
+  // 5/15min AUTH cap locks out the whole portal.
+  for (const [name, value] of Object.entries(forwardedForHeaders(req.headers))) {
+    headers.set(name, value);
+  }
 
   // Do not forward body for GET/HEAD -- use conditional spreading to satisfy
   // exactOptionalPropertyTypes (body must not be explicitly undefined)

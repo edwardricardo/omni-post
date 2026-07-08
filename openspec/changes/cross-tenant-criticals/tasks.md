@@ -304,7 +304,7 @@ C1-R1 scenario 3 + C1-R2). Grouped by provider so each group is a work-unit comm
 
 - [x] **C1b-12 [SEQ] — DONE** Enumeration recount: **60 `cacheEnabled:true` sites total, all 60 migrated**
       (12 in batch 1 + 48 in batch 2). `rg "cacheEnabled:\s*true" packages/providers packages/adapters
-    --type ts -g '!**/tests/**' | wc -l` → 60; every such block carries a `cacheKeyDiscriminant`
+  --type ts -g '!**/tests/**' | wc -l` → 60; every such block carries a `cacheKeyDiscriminant`
       (mechanically verified, zero misses). pinterest/instagram computed-`cacheEnabled` ops also migrated
       (outside the literal count). JSDoc/`@layer` intact + zero `any`/`@ts-ignore` on every edited file
       (eslint --max-warnings 0 = 0; fitness #9/#11/#25A/#25B = 0). Full C1b closure achieved.
@@ -367,7 +367,7 @@ cache/STATE scoping (not the disclosure boundary).
 
 Independent of C1 (header-only; no shared file). Ships after PR#1b in the stack (C1a → C1b → C2).
 
-- [ ] **C2-1 [MB]** RED — `resolveClientIp` distinct-bucket + spoof-resistance unit tests in
+- [x] **C2-1 [MB]** RED — `resolveClientIp` distinct-bucket + spoof-resistance unit tests in
       `apps/api/tests/unit/*.test.ts` (vitest) against crafted `X-Forwarded-For` chains:
       (a) two distinct real client IPs → two distinct bucket keys; (b) attacker-controlled
       leftmost XFF entry is IGNORED — key is taken from `chain[len − TRUSTED_PROXY_HOP_COUNT]`;
@@ -375,20 +375,20 @@ Independent of C1 (header-only; no shared file). Ships after PR#1b in the stack 
       assertions on the crafted chains must be RED where they encode the post-relay topology.
       _(Spec C2-R1 + C2-R2, `[MB]`.)_ LXC: single file, heap-capped, `timeout`.
 
-- [ ] **C2-2 [P]** RED — per-app `forwardedForHeaders` helper unit tests in
+- [x] **C2-2 [P]** RED — per-app `forwardedForHeaders` helper unit tests in
       `apps/client/lib/http/*.test.ts` and `apps/admin/lib/http/*.test.ts` (vitest): given inbound
       `Headers`, returns `{ 'x-forwarded-for': <value> }` from `x-forwarded-for`, else falls back
       to `x-real-ip`, else returns `{}` (no header → no regression). FAILS before the helper exists.
       _(Spec C2-R3, contract in Design Interfaces.)_
 
-- [ ] **C2-3 [SEQ after C2-2]** GREEN — create the identical pure helper at
+- [x] **C2-3 [SEQ after C2-2]** GREEN — create the identical pure helper at
       `apps/client/lib/http/forwardedFor.ts` and `apps/admin/lib/http/forwardedFor.ts`:
       `export function forwardedForHeaders(inbound: Headers): Record<string, string>`. RELAY (copy
       inbound `x-forwarded-for`/`x-real-ip`), do NOT append. Extensionless `bundler` imports only
       (Fitness #26 — NO `.js` on `.ts` in Next dirs). JSDoc `@file/@description/@layer infrastructure`.
       Zero `any`. Makes C2-2 pass. _(Spec C2-R3 + Design D3.)_
 
-- [ ] **C2-4 [SEQ after C2-3] [MB]** GREEN — wire the helper into the 4 egress surfaces (5 files),
+- [x] **C2-4 [SEQ after C2-3] [MB]** GREEN — wire the helper into the 4 egress surfaces (5 files),
       copying its result onto the outbound `fetch` headers:
       `apps/client/app/api/backend/[...path]/route.ts`,
       `apps/admin/app/api/backend/[...path]/route.ts`,
@@ -397,31 +397,53 @@ Independent of C1 (header-only; no shared file). Ships after PR#1b in the stack 
       `apps/admin/lib/auth/backend-client.ts`. Route handlers read `NextRequest.headers`; server
       actions read `next/headers` `headers()`. _(Spec C2-R1 + C2-R3.)_
 
-- [ ] **C2-5 [SEQ after C2-1]** GREEN — align keying/topology so
+- [x] **C2-5 [SEQ after C2-1]** GREEN — align keying/topology so
       `resolveClientIp` (`apps/api/src/security/httpRateLimitPreHandler.ts:159`) selects
       `chain[len − TRUSTED_PROXY_HOP_COUNT]` for the relayed chain and NOT the Next
       `socket.remoteAddress`. Because C2 RELAYS (does not append), the hop count does NOT increase —
       verify no code change to the selection is needed beyond the crafted-chain tests passing; if a
       fix is required, keep it within `resolveClientIp`. Makes C2-1 GREEN. _(Spec C2-R1 + C2-R2.)_
+      **VERIFIED (apply): NO code change needed** — `resolveClientIp` already selects
+      `chain[len - trustedHops]` (clamped at 0) and the new crafted-chain tests are GREEN against it
+      unchanged. The C2 fix is entirely the Next-egress RELAY (C2-4). The pre-relay collapse is
+      documented by a test asserting `resolveClientIp(undefined, undefined, nextSocket, 1)` returns
+      the Next socket IP for every client.
 
 - [ ] **C2-6 [SEQ after C2-4]** Cross-egress + per-user-refresh integration test in
       `apps/api/tests/integration/*.test.ts` (node:test): each of the 4 egress points forwards the
       inbound IP; >4 concurrent users through the admin refresh route are bucketed per-IP and one
       user exhausting the limit does NOT log another user out. _(Spec C2-R3 session-refresh scenario.)_
-      LXC: single file, `timeout`.
+      LXC: single file, `timeout`. **REMAINDER (apply): NOT run.** Non-MERGE-BLOCKING belt-and-
+      suspenders; needs live DB + Redis (LXC-heavy). The per-IP bucketing it would assert is ALREADY
+      proven at unit level through the REAL production preHandler in `authRateLimit.test.ts`
+      ("one client exhausting its AUTH allowance does NOT lock out a different client" +
+      spoof-rotation, 21/21 GREEN); the session-refresh case is structurally identical `ip:path`
+      keying. Deferred to the LXC-provisioned verify phase.
 
-- [ ] **C2-7 [P]** Doc-only clarification in `apps/api/src/config/env.ts` at
+- [x] **C2-7 [P]** Doc-only clarification in `apps/api/src/config/env.ts` at
       `TRUSTED_PROXY_HOP_COUNT` (L250): document = number of trusted proxies IN FRONT OF Next
       (relay model, no `+1`); reference the Design D3 hop-topology table (direct dev = 1,
       single trusted edge = 1, edge+LB = 2). No schema/value change (`min(1)`, default `1`). _(Spec C2-R2.)_
 
-- [ ] **C2-8 [P] [MB]** Do-not-regress assertions: `RateLimitConfigs.AUTH` stays 5 req / 15 min;
+- [x] **C2-8 [P] [MB]** Do-not-regress assertions: `RateLimitConfigs.AUTH` stays 5 req / 15 min;
       no second HTTP limiter / no `config:{rateLimit}` route-config introduced (Fitness #28 = 0);
       limiter stays fail-open with the `threat_type: "http_rate_limit_failopen"` WARN preserved.
       _(Spec C2-R4.)_
 
-- [ ] **C2-9 [P]** JSDoc/`@layer` pass on every C2 file (2 helpers + 5 egress + env doc + tests);
+- [x] **C2-9 [P]** JSDoc/`@layer` pass on every C2 file (2 helpers + 5 egress + env doc + tests);
       zero `any`; Fitness #26 clean (no `.js`-on-`.ts` in Next dirs).
+
+- [x] **W-C2-1 [verify-remediation]** CLOSED — admin-plane credential routes missing from the AUTH
+      preset. `AUTH_ROUTE_RULES` (`apps/api/src/security/httpRateLimitPreHandler.ts`) covered
+      `/auth/customer/*`, `/auth/login`, `/auth/refresh`, `/auth/mfa/verify` but NOT
+      `/admin/auth/login` + `/admin/auth/refresh`, so they fell through (first-`startsWith` match) to
+      `RateLimitConfigs.STANDARD` (100/min) instead of `AUTH` (5 req / 15 min) — a 20x weaker
+      brute-force cap on admin login/refresh. FIX: added the two LITERAL credential prefixes to
+      `AUTH_ROUTE_RULES` (NOT a broad `/admin/auth`, which would cap the SPA-polled `/admin/auth/me`,
+      `/mfa/status`, `/sessions` reads). Canon path per SECURITY_CANON §Rate Limiting. Strict TDD:
+      RED (2 admin routes 200 on the 6th req) → GREEN (429 on the 6th) + an over-broad-match guard
+      asserting `/admin/auth/me` stays STANDARD. `authRateLimit.test.ts` 24/24; tsc/eslint EXIT 0;
+      Fitness #28 = 0 (canonical rule table only, no `config:{rateLimit}`).
 
 ---
 
