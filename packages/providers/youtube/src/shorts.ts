@@ -8,7 +8,7 @@
 import { google, youtube_v3 } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
 import { Readable } from "stream";
-import { ANALYTICS_CB_OPTIONS, METADATA_CB_OPTIONS } from "@adapters/external-apis";
+import { hashCallScope, ANALYTICS_CB_OPTIONS, METADATA_CB_OPTIONS } from "@adapters/external-apis";
 import { ProviderError } from "@providers/shared";
 
 // ─── Re-export types so existing consumers keep working ──────────────────────
@@ -156,6 +156,9 @@ export class YouTubeShortsService {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE + closure partition by channel + the
+      // upload request so channel B never runs channel A's bound closure (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.channelId, request),
     });
   }
 
@@ -227,6 +230,9 @@ export class YouTubeShortsService {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // Public-resource-by-id read: fold channel + videoId + time range so short
+      // X never returns short Y's cached analytics and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(this.channelId, videoId, _timeRange),
     });
   }
 
@@ -310,6 +316,9 @@ export class YouTubeShortsService {
       jitterEnabled: true,
       cacheEnabled: true,
       ...METADATA_CB_OPTIONS,
+      // Content-derived read: fold channel + the analysed title/description/tags/
+      // category so distinct inputs never collide and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(this.channelId, title, description, tags, category),
     });
   }
 
@@ -388,6 +397,9 @@ export class YouTubeShortsService {
       jitterEnabled: true,
       cacheEnabled: true,
       ...METADATA_CB_OPTIONS,
+      // Public read: fold channel + the region/category filter so distinct
+      // filters never collide (region X never returns region Y's cached trends).
+      cacheKeyDiscriminant: hashCallScope(this.channelId, _region, _category),
     });
   }
 
@@ -457,6 +469,9 @@ export class YouTubeShortsService {
       jitterEnabled: true,
       cacheEnabled: true,
       ...METADATA_CB_OPTIONS,
+      // PII (channel shorts): fold channel + the page size so channel B never
+      // receives channel A's cached shorts and pages never collide.
+      cacheKeyDiscriminant: hashCallScope(this.channelId, maxResults),
     });
   }
 

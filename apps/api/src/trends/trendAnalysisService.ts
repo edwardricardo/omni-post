@@ -7,7 +7,7 @@
 
 import { FastifyLoggerInstance } from "fastify";
 import { PrismaClient } from "@infra/prisma";
-import { createExternalApiCircuitBreaker, ANALYTICS_CB_OPTIONS } from "@adapters/external-apis";
+import { createExternalApiCircuitBreaker } from "@adapters/external-apis";
 import client from "prom-client";
 import {
   TikTokApiClient as _TikTokApiClient,
@@ -95,8 +95,14 @@ export class TrendAnalysisService extends BaseService {
             baseDelay: 3000,
             maxDelay: 30000,
             jitterEnabled: true,
-            cacheEnabled: true,
-            ...ANALYTICS_CB_OPTIONS,
+            // This op has no real provider wired yet and returns empty data, so
+            // both L1 cache and L2 fallback stay OFF — no cross-tenant cache entry
+            // can ever be written or served. When it is connected to real
+            // per-tenant provider/prisma calls, re-enable caching together with a
+            // tenant-scoped cacheKeyDiscriminant as a pair; never cache without the
+            // tenant scope.
+            cacheEnabled: false,
+            fallbackEnabled: false,
           }
         );
 
@@ -160,8 +166,14 @@ export class TrendAnalysisService extends BaseService {
             baseDelay: 5000,
             maxDelay: 45000,
             jitterEnabled: true,
-            cacheEnabled: true,
-            ...ANALYTICS_CB_OPTIONS,
+            // This op has no real prediction provider wired yet and returns empty
+            // data, so both L1 cache and L2 fallback stay OFF — no cross-tenant
+            // cache entry can ever be written or served. When it is connected to
+            // real per-tenant calls, re-enable caching together with a
+            // tenant-scoped cacheKeyDiscriminant as a pair; never cache without the
+            // tenant scope.
+            cacheEnabled: false,
+            fallbackEnabled: false,
           }
         );
       }
@@ -271,8 +283,13 @@ export class TrendAnalysisService extends BaseService {
           baseDelay: 5000,
           maxDelay: 30000,
           jitterEnabled: true,
-          cacheEnabled: true,
-          ...ANALYTICS_CB_OPTIONS,
+          // This op returns static sample data — no real provider is wired yet —
+          // so both L1 cache and L2 fallback stay OFF; no cross-tenant cache entry
+          // can ever be written or served. When it is connected to real per-tenant
+          // calls, re-enable caching together with a tenant-scoped
+          // cacheKeyDiscriminant as a pair; never cache without the tenant scope.
+          cacheEnabled: false,
+          fallbackEnabled: false,
         });
       }
     );
@@ -382,8 +399,13 @@ export class TrendAnalysisService extends BaseService {
             baseDelay: 5000,
             maxDelay: 45000,
             jitterEnabled: true,
-            cacheEnabled: true,
-            ...ANALYTICS_CB_OPTIONS,
+            // This op returns static sample data — no real provider is wired yet —
+            // so both L1 cache and L2 fallback stay OFF; no cross-tenant cache
+            // entry can ever be written or served. When it is connected to real
+            // per-tenant calls, re-enable caching together with a tenant-scoped
+            // cacheKeyDiscriminant as a pair; never cache without the tenant scope.
+            cacheEnabled: false,
+            fallbackEnabled: false,
           }
         );
       }

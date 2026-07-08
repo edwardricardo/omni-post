@@ -8,6 +8,7 @@
 
 import {
   createExternalApiCircuitBreaker,
+  hashCallScope,
   ANALYTICS_CB_OPTIONS,
   METADATA_CB_OPTIONS,
 } from "@adapters/external-apis";
@@ -137,6 +138,9 @@ export class YouTubeApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       cacheTtl: 300000,
+      // PII (channel identity): scope by the credential so channel B never
+      // receives channel A's cached identity or shares A's breaker instance.
+      cacheKeyDiscriminant: hashCallScope(this.credentials),
     });
   }
 
@@ -201,6 +205,8 @@ export class YouTubeApiClient {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE-only partition (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.credentials),
     });
   }
 
@@ -255,6 +261,9 @@ export class YouTubeApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // PII (channel analytics): scope by credential + the time window so
+      // distinct ranges never collide and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(this.credentials, _since?.getTime(), _until?.getTime()),
       fallback,
     });
   }
@@ -276,6 +285,9 @@ export class YouTubeApiClient {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE + closure partition by credential + the
+      // target video so deleting video B never runs video A's bound closure (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.credentials, videoId),
     });
   }
 
@@ -316,6 +328,9 @@ export class YouTubeApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...METADATA_CB_OPTIONS,
+      // Public-resource-by-id read: fold credential AND videoId so video X never
+      // returns video Y's cached details (closes the constant-key correctness bug).
+      cacheKeyDiscriminant: hashCallScope(this.credentials, videoId),
     });
   }
 
@@ -382,6 +397,9 @@ export class YouTubeApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...METADATA_CB_OPTIONS,
+      // Public-resource read: fold credential AND the query + options so distinct
+      // searches never collide (query X never returns query Y's cached results).
+      cacheKeyDiscriminant: hashCallScope(this.credentials, query, options),
     });
   }
 
@@ -456,6 +474,9 @@ export class YouTubeApiClient {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE + closure partition by credential + the
+      // target video so updating video B never runs video A's bound closure (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.credentials, videoId),
     });
   }
 
@@ -487,6 +508,10 @@ export class YouTubeApiClient {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE + closure partition by credential + the
+      // target video so uploading a thumbnail for video B never runs video A's
+      // bound closure (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.credentials, videoId),
     });
   }
 
@@ -534,6 +559,9 @@ export class YouTubeApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...METADATA_CB_OPTIONS,
+      // PII (channel stats): scope by the credential so channel B never receives
+      // channel A's cached stats or shares A's breaker instance.
+      cacheKeyDiscriminant: hashCallScope(this.credentials),
     });
   }
 
@@ -631,6 +659,9 @@ export class YouTubeApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...METADATA_CB_OPTIONS,
+      // Public-resource-by-id read: fold credential AND videoId + pagination so
+      // video X never returns video Y's cached comments and pages never collide.
+      cacheKeyDiscriminant: hashCallScope(this.credentials, videoId, maxResults, pageToken),
     });
   }
 
@@ -700,6 +731,10 @@ export class YouTubeApiClient {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE + closure partition by credential + the
+      // target video/parent so commenting on video B never runs video A's bound
+      // closure (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.credentials, videoId, parentId),
     });
   }
 

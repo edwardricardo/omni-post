@@ -8,6 +8,7 @@ import {
   createExternalApiCircuitBreaker,
   ANALYTICS_CB_OPTIONS,
   METADATA_CB_OPTIONS,
+  hashCallScope,
 } from "@adapters/external-apis";
 import client from "prom-client";
 import { TwitterApi, type SendTweetV2Params, type TweetV2, type UserV2 } from "twitter-api-v2";
@@ -141,6 +142,8 @@ export class XApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       cacheTtl: 300000, // 5 minutes cache
+      // PII read (own account profile): scope the cache + STATE per credential.
+      cacheKeyDiscriminant: hashCallScope(this.credentials),
     });
   }
 
@@ -211,6 +214,9 @@ export class XApiClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: false,
+      // Write op: uncached, but STATE partitions per credential (W-1) so one
+      // account's failures never open another's post-tweet circuit.
+      cacheKeyDiscriminant: hashCallScope(this.credentials),
     });
   }
 
@@ -253,6 +259,8 @@ export class XApiClient {
       jitterEnabled: true,
       cacheEnabled: false, // Don't cache media uploads
       fallbackEnabled: false, // Media uploads shouldn't fallback
+      // Write op: uncached; STATE partitions per credential (W-1).
+      cacheKeyDiscriminant: hashCallScope(this.credentials),
     });
   }
 
@@ -305,6 +313,9 @@ export class XApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // PII analytics scoped to specific tweet ids: fold the resource ids so
+      // distinct id sets never collide, plus the credential for tenant scope.
+      cacheKeyDiscriminant: hashCallScope(this.credentials, tweetIds),
       fallback,
     });
   }
@@ -332,6 +343,8 @@ export class XApiClient {
       jitterEnabled: true,
       cacheEnabled: false, // Don't cache delete operations
       fallbackEnabled: false, // Delete operations shouldn't fallback
+      // Write op: uncached; STATE partitions per credential (W-1).
+      cacheKeyDiscriminant: hashCallScope(this.credentials),
     });
   }
 
@@ -391,6 +404,9 @@ export class XApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...METADATA_CB_OPTIONS,
+      // Replies to a specific tweet: fold the tweet id so distinct conversations
+      // never share a cache entry (today's constant key corrupts them).
+      cacheKeyDiscriminant: hashCallScope(this.credentials, tweetId),
     });
   }
 
@@ -467,6 +483,9 @@ export class XApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...METADATA_CB_OPTIONS,
+      // Market-wide search by terms: fold the query terms so distinct searches
+      // never share a cache entry; credential kept for tenant scope.
+      cacheKeyDiscriminant: hashCallScope(this.credentials, terms),
     });
   }
 

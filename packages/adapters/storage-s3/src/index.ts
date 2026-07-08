@@ -9,6 +9,7 @@ import { ok, err, type Result } from "@shared/types";
 import type { StoragePort, UploadSignature, MediaMetadata } from "@ports/core";
 import {
   createExternalApiCircuitBreaker,
+  hashCallScope,
   type CircuitBreakerStatus,
 } from "@adapters/external-apis";
 import { createLogger } from "@observability/logger";
@@ -144,6 +145,8 @@ export function createS3StorageAdapter(config: S3Config): StoragePort & {
             // for degradable reads only (Azure Circuit Breaker pattern; Polly /
             // Resilience4j: don't mask non-idempotent failures).
             fallbackEnabled: false,
+            // Write op: uncached; STATE partitions per storage credential (W-1).
+            cacheKeyDiscriminant: hashCallScope(config),
           }
         );
 
@@ -203,6 +206,9 @@ export function createS3StorageAdapter(config: S3Config): StoragePort & {
           // fabricated analytics fallback value that masks the real outcome.
           fallbackEnabled: false,
           cacheTtl: 300000,
+          // Credential-scoped metadata read: fold the storage credentials AND the
+          // object key so distinct tenants/objects never share a cached entry.
+          cacheKeyDiscriminant: hashCallScope(config, key),
         });
 
         return ok(result);

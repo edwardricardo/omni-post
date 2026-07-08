@@ -185,7 +185,35 @@ tenant, and produce the full audit table (Spec C1-R2). The per-provider isolatio
 belt-and-suspenders confirmation that the re-enabled per-site cache stays tenant-scoped (Spec
 C1-R1 scenario 3 + C1-R2). Grouped by provider so each group is a work-unit commit.
 
-- [ ] **C1b-1** Produce the **61-site audit classification table** deliverable (Spec C1-R2).
+> **C1b execution split (batch 1 done / batch 2 pending).** Batch 1 landed: the central hardening
+> (W-1/W-2/S-2/S-3, below), the audit table, and the discriminant migration for **facebook, x,
+> snapchat, linkedin, storage-s3, storage-cloudinary** (12/60 reads + their write-STATE). Batch 2:
+> **telegram, tiktok, youtube** reads + write-STATE, **pinterest/instagram** write-STATE, and the
+> remaining per-provider isolation anchors. Deferred sites fail SAFE (D1b) until migrated.
+
+#### C1b central hardening — close the deferred verify WARNINGS (W-1, W-2) + SUGGESTIONS (S-2, S-3)
+
+- [x] **C1b-H1 [W-1] [MB]** Write-STATE partition: `call()` threads the (normalised) discriminant
+      into `getOrCreateBreaker` for WRITE ops too (`cacheEnabled:false` unchanged). Design amended
+      with **D2b** (per-tenant write STATE + documented collective-protection tradeoff). Test:
+      `circuitBreakerC1bHardening.test.ts` "W-1 write ops partition circuit STATE per tenant".
+- [x] **C1b-H2 [W-2] [MB]** `getStatus`/`forceOpen`/`forceClose` are PREFIX-AWARE (`matchingBreakers`
+      over `service:operation` + `service:operation:*`); `getStatus` aggregates worst-of. Design **D5**;
+      spec ADDED "Breaker admin controls are partition-aware". Test: `circuitBreakerC1bHardening.test.ts`
+      W-2 block (reach-partition, null-when-absent, worst-of, prefix-no-bleed).
+- [x] **C1b-H3 [S-2]** Empty/whitespace discriminant treated as ABSENT on both layers via
+      `isPresentDiscriminant` (circuitBreaker + fallback-strategies). Design **D6**; spec ADDED
+      "An empty or whitespace discriminant is treated as absent". Tests: `circuitBreakerC1bHardening.test.ts`
+      S-2 block + `fallbackTenantIsolation.test.ts` S-2 block.
+- [x] **C1b-H4 [S-3]** Removed the dormant `FallbackConfig.cacheKey` field + `config.cacheKey ??`
+      read escape hatch (confirmed unused repo-wide first). Design **D7**. Existing `index.test.ts`
+      28/28 GREEN (contract-aligned).
+
+- [x] **C1b-1** Produce the **audit classification table** deliverable (Spec C1-R2) at
+      `openspec/changes/cross-tenant-criticals/audit-cache-sites.md`. Enumeration reconciled to
+      **N = 60** post-C1a (61 − 1: fb `validate-credentials` flipped to `cacheEnabled:false` in
+      C1a). All 60 read sites classified secret/PII/benign; write/secret do-not-regress sites
+      listed; D4 recorded. (Original 61-site skeleton preserved below for reference.)
       Confirm the enumeration below with
       `rg "cacheEnabled:\s*true" packages/providers packages/adapters --type ts -g '!**/tests/**'`
       (expected N = **61**: 59 provider + 2 adapter). Classify each into exactly one of
@@ -217,55 +245,121 @@ C1-R1 scenario 3 + C1-R2). Grouped by provider so each group is a work-unit comm
   | adapters/storage-s3/src/index.ts               | 201                     | object-metadata read                        | PII (credential-scoped)           |
   | adapters/storage-cloudinary/src/index.ts       | 192                     | asset-metadata read                         | PII (credential-scoped)           |
 
-- [ ] **C1b-2 [P]** facebook — add `cacheKeyDiscriminant` to the remaining `cacheEnabled:true`
-      site (591 page-insights, fold `hashCallScope(this.credentials)`; add resource id to
-      `publicParams` if the op is resource-scoped). _(Spec C1-R1.)_
+- [x] **C1b-2 [P]** facebook — `get-page-insights` migrated with
+      `hashCallScope(this.credentials, since?.getTime(), until?.getTime())` (folds the time
+      window); write-STATE added to `upload-media` + `post-to-page`. _(Spec C1-R1.)_
 
-- [ ] **C1b-3 [P]** x — 4 sites (142,306,392,468): each gets
-      `cacheKeyDiscriminant: hashCallScope(this.credentials, ...resourceIds)`. _(Spec C1-R1.)_
+- [x] **C1b-3 [P]** x — 4 reads migrated (validate-credentials, get-analytics+tweetIds,
+      search-replies+tweetId, search-mentions+terms) + write-STATE on post-tweet/upload-media/
+      delete-tweet. 7/7 sites carry a discriminant. _(Spec C1-R1.)_
 
-- [ ] **C1b-4 [P]** youtube — 22 sites across apiClient/communityFeatures/liveStreaming/
-      shorts/analytics/playlistManager. Public-metadata-by-id reads MUST pass the public
-      resource id in `...publicParams` (today's constant key corrupts them — video X served for
-      video Y); credential hash still folded by default so no site is accidentally tenant-shared.
+- [x] **C1b-4 [P] — BATCH 2 DONE** youtube — 22 read sites + all writes across apiClient/
+      communityFeatures/liveStreaming/shorts/analytics/playlistManager migrated. apiClient reads scope by
+      `this.credentials`; sub-services by `this.channelId`; public-by-id reads (get-video-details,
+      get-video-comments, get-playlist, get-playlist-items, per-video analytics/metrics, shorts get-analytics)
+      fold the resource id so video/playlist X never returns Y's cached payload. Anchor
+      `YouTubeApiClient.cacheIsolation.test.ts` proves X≠Y AND A≠B (3/3); YouTubeAdapter 80/80 GREEN; tsc 0.
       _(Spec C1-R1 + Design D1 public-reference note.)_
 
-- [ ] **C1b-5 [P]** tiktok — 23 sites across apiClient/researchApiClient/hashtagManager/
-      videoProcessor/authService/marketingApiClient/contentAnalyticsClient. **Verify
-      `authService.ts:343` is a user-info READ, not token/refresh** (token/refresh stay
-      `cacheEnabled:false` — do-not-regress). `videoProcessor` already uses the `createHash`
-      pattern — reuse it. _(Spec C1-R1 + C1-R3.)_
+- [x] **C1b-5 [P] — BATCH 2 DONE** tiktok — 23 read sites + all writes across apiClient/researchApiClient/
+      hashtagManager/videoProcessor/authService/marketingApiClient/contentAnalyticsClient migrated.
+      `get-user-profile` anchored (`TikTokAuthService.cacheIsolation.test.ts` 2/2). Token ops
+      `exchange-code-for-token`/`refresh-access-token`/`revoke-token` RE-CONFIRMED `cacheEnabled:false`
+      (STATE-only discriminant added). `videoProcessor.analyze-video` folds the file path (closes the
+      "video X analysed as Y" closure bug). `hashtagManager` gained a per-tenant scope via a new
+      `TikTokResearchApiClient.getCredentialScope()` accessor. tsc 0; 7 tiktok suites GREEN. _(Spec C1-R1 + C1-R3.)_
 
-- [ ] **C1b-6 [P]** telegram — 3 sites (219,246,629). _(Spec C1-R1.)_
+- [x] **C1b-6 [P] — BATCH 2 DONE** telegram — 3 read sites + write-STATE on the 10 send/edit/delete/pin
+      ops migrated. Reads scope `hashCallScope(this.botToken[, this.chatId, botUserId])`; writes STATE-only
+      `hashCallScope(this.botToken, this.chatId)`. Anchor `TelegramApiClient.cacheIsolation.test.ts` 3/3
+      (validate + get-chat-member); writeFailFast 6/6 GREEN; tsc 0. _(Spec C1-R1.)_
 
-- [ ] **C1b-7 [P]** snapchat — 2 sites (83,264). Do-not-regress: snapchat refresh-token op
-      stays `cacheEnabled:false`. _(Spec C1-R1 + C1-R3.)_
+- [x] **C1b-7 [P]** snapchat — 2 reads migrated (validate-credentials, get-analytics+creativeId) + write-STATE on upload-media/create-story/refresh-token. Do-not-regress: refresh-token
+      stays `cacheEnabled:false` (discriminant for STATE only). _(Spec C1-R1 + C1-R3.)_
 
-- [ ] **C1b-8 [P]** adapters — storage-s3 (201) + storage-cloudinary (192): fold the storage
-      credential + object/asset key into the discriminant (these are credential-scoped metadata
-      reads, not public). _(Spec C1-R1; resolves Design Open Question — 2 non-provider sites exist.)_
+- [x] **C1b-8 [P]** adapters — storage-s3 (`get-metadata`, `hashCallScope(config, key)`) +
+      storage-cloudinary (`get-metadata`, `hashCallScope(config, publicId)`); write-STATE on both
+      `generate-upload-signature`. Resolves Design Open Question — 2 non-provider sites exist. _(Spec C1-R1.)_
 
-- [ ] **C1b-9 [P]** linkedin — 3 sites (107,245,321). **Record the D4 decision in the audit
-      (Spec C1-R2 flag-and-decide scenario):** the proposal's "write-op caching at
-      107/245/321" is a MISCLASSIFICATION — they are reads (`getProfile` GET, `getComments` GET,
-      `getPostAnalytics` GET); the real write `postComment` (:258) is correctly
-      `cacheEnabled:false` (:282). Decision = fix-here-as-reads (no defer): apply the discriminant
-      (`getProfile` → identity/PII; `getComments`/`getPostAnalytics` → PII + fold `postUrn` into
-      `publicParams`). _(Spec C1-R2.)_
+- [x] **C1b-9 [P]** linkedin — 3 reads migrated + write-STATE on 6 writes. **D4 decision recorded**
+      in the audit: 107/245/321 are READS (`get-profile`, `get-comments`, `get-analytics`), not
+      writes; the real write `post-comment` stays `cacheEnabled:false`. `get-comments`/`get-analytics`
+      fold `postUrn`. _(Spec C1-R2.)_
 
-- [ ] **C1b-10 [P]** Representative per-provider cross-account isolation tests for the
-      `secret`/`PII` buckets not already anchored in C1a (Spec C1-R2 "secret and PII sites are
-      anchored"): at minimum one isolation test per provider proving tenant B never receives
-      tenant A's cached payload. vitest package tests, LXC single-file/heap-capped/`timeout`.
+- [x] **C1b-10 [P] — DONE** Per-provider cross-account isolation tests. Batch 1:
+      `SnapchatApiClient.cacheIsolation.test.ts` (2/2) + fb anchor (C1a). Batch 2 added the
+      highest-value PII anchors: `TelegramApiClient.cacheIsolation.test.ts` (3/3),
+      `TikTokAuthService.cacheIsolation.test.ts` (2/2), `YouTubeApiClient.cacheIsolation.test.ts` (3/3,
+      resource X≠Y AND tenant A≠B). The MERGE-BLOCKING invariant is also proven breaker-level for ALL
+      providers (`circuitBreakerTenantIsolation` + `circuitBreakerC1bHardening`, 14/14). x/linkedin were
+      covered breaker-level in batch 1; dedicated end-to-end anchors for them remain optional
+      belt-and-suspenders (not a requirement — the breaker-level proof holds for any provider).
 
-- [ ] **C1b-11 [P]** Do-not-regress assertions that the correctly-uncached ops STAY
-      `cacheEnabled:false`: tiktok authService token/refresh, snapchat refresh-token, facebook
-      `upload-media` (L425) and `post-to-page` (L505). _(Spec C1-R3.)_
+- [x] **C1b-11 [P] — DONE** Do-not-regress assertions. Batch 1: snapchat refresh-token `false`, fb
+      `upload-media`/`post-to-page` `false`. **Batch 2 re-confirmed tiktok token ops stay `cacheEnabled:false`
+      AFTER editing authService.ts** (exchange-code/refresh-access/revoke each stays `false` with a STATE-only
+      discriminant); tiktok authService.test.ts 124/124 GREEN. New writes (telegram/youtube/tiktok/instagram)
+      stay uncached — writeFailFast GREEN across the board (fb 3/3, x 2/2, linkedin 2/2, snapchat 2/2,
+      telegram 6/6, pinterest 42/42, instagram 25/25). _(Spec C1-R3.)_
 
-- [ ] **C1b-12 [SEQ after C1b-2..C1b-9]** Re-run the enumeration grep and confirm the final
-      count of `cacheEnabled:true` sites now each carry a `cacheKeyDiscriminant` (or are flipped
-      to `false`); zero site left on the constant key. JSDoc/`@layer` intact on every edited file;
-      zero `any`.
+- [x] **C1b-12 [SEQ] — DONE** Enumeration recount: **60 `cacheEnabled:true` sites total, all 60 migrated**
+      (12 in batch 1 + 48 in batch 2). `rg "cacheEnabled:\s*true" packages/providers packages/adapters
+    --type ts -g '!**/tests/**' | wc -l` → 60; every such block carries a `cacheKeyDiscriminant`
+      (mechanically verified, zero misses). pinterest/instagram computed-`cacheEnabled` ops also migrated
+      (outside the literal count). JSDoc/`@layer` intact + zero `any`/`@ts-ignore` on every edited file
+      (eslint --max-warnings 0 = 0; fitness #9/#11/#25A/#25B = 0). Full C1b closure achieved.
+
+#### C1b-v remediation — Fix B (generic dispatcher, D8) + the 10 missed breaker call sites
+
+Closes the full-C1b re-verify **FAIL** (verify-report): the bound-closure vector was OPEN at 10
+discriminant-less `circuitBreaker.call` sites (three files the `packages/`-scoped cache-audit grep
+never covered) plus the `_template`. Adopts **Fix B**: the breaker action is now a generic
+dispatcher, so disclosure is closed KEY-INDEPENDENTLY for every call; the discriminants below are
+cache/STATE scoping (not the disclosure boundary).
+
+- [x] **C1b-v1 [MB]** Amend the contract: design **D8** (generic dispatcher supersedes
+      disclosure-via-key; discriminant retained only for cache/STATE; missing/blank ⇒ shared STATE
+      availability, never closure disclosure) + spec ADDED requirement **"The breaker runs the
+      caller's own closure — no bound-closure cross-tenant disclosure" [MERGE-BLOCKING]** with the
+      discriminant-less-uncached-op scenarios. Data-flow + Technical-Approach updated to the 3-axis
+      model. _(design.md, specs/circuit-breaker-isolation/spec.md.)_
+
+- [x] **C1b-v2 [MB]** RED→GREEN — central refactor in `circuitBreaker.ts`: `getOrCreateBreaker`
+      constructs `new CircuitBreaker(dispatch, opts)` with a static generic dispatcher
+      `(fn, ...args) => fn(...args)`; `call()` fires `breaker.fire(apiCall, ...args)`; `breakers` Map + helpers retyped to `StoredBreaker`; the opossum-level `options.fallback` wrapped to strip the
+      dispatcher's leading fn arg (preserves the pre-D8 fallback contract); zero `any` (typed via
+      `BreakerApiCall`/`BreakerDispatchArgs`/`StoredBreaker` + boundary casts through `unknown`).
+      Retry loop, metrics, LRU, W-1/W-2, L1/L2 fail-safe all preserved. RED proof: raw-opossum bind
+      pattern returns A's payload to B; GREEN: `circuitBreakerTenantIsolation.test.ts` "shared breaker
+      runs the caller's own closure (D8)". tsc @adapters/external-apis exit 0.
+
+- [x] **C1b-v3** Migrate the 10 discriminant-less sites (cache/STATE scoping): C-2
+      `instagram/schedulingService.ts:155`; C-3 `instagram/mediaProcessor.ts` (:97/:172/:302/:419/:514,
+      fold `videoUrl`/segment/frame); C-4 `apps/api/src/trends/trendAnalysisService.ts`
+      (:85/:150/:266/:372, fold request scope — platform-global stubs, extend with tenant scope when
+      wired); plus `_template/apiClient.ts` (×2) so copies inherit the pattern. All typechecked
+      (instagram / \_template / apps/api tsc exit 0) + edited-file test suites GREEN.
+
+- [x] **C1b-v4** W-A decision recorded (audit + design D8): `instagram/apiClient.ts:547`
+      `media-upload:upload` keeps `hashCallScope(creds, mediaType, byteLength)` for STATE; NO
+      per-upload content digest folded — under D8 the byteLength collision is a benign shared-STATE
+      nuance (dispatcher runs each call's own closure), not wrong-media. Op stays uncached. Full
+      breaker call-site sweep (`rg circuitBreaker.call apps packages -g '!**/tests/**'`, 136 sites)
+      confirms every site now carries a discriminant. `apps/`-scoped completeness guard (Fitness #29
+      idea) documented as a recommended follow-up (design D8), NOT implemented in this slice.
+
+- [x] **C1b-v5 [WARNING-1]** Neutralize the latent trend cache landmine (re-verify report #204,
+      WARNING-1). The 4 `apps/api/src/trends/trendAnalysisService.ts` breaker sites were empty
+      stubs keyed by a CONSTANT discriminant (`"trend-analysis-global"`) with `cacheEnabled:true`
+      and — via `...ANALYTICS_CB_OPTIONS` — `fallbackEnabled:true`: a cross-tenant L1+L2 cache leak
+      that would arm the moment the stubs returned real per-tenant data. Fix: set
+      `cacheEnabled:false` + `fallbackEnabled:false` on all 4 sites; dropped the now-inert
+      `...ANALYTICS_CB_OPTIONS` spread + `cacheKeyDiscriminant`/`hashCallScope` import (unused). Each
+      site carries a WHY-comment recording that caching and a tenant-scoped discriminant must be
+      re-added TOGETHER when the op is wired to real per-tenant data. Gates: @apps/api tsc exit 0;
+      eslint --max-warnings 0 on the changed file; fitness #25A/#25B/#11/#9/#8 = 0. Tests GREEN
+      (single-file, LXC-safe): trendAnalysisService 45/45, init-trending 18/18, predictions-viral
+      14/14, opportunities-report 13/13.
 
 ---
 

@@ -64,7 +64,12 @@ vi.mock("fs/promises", () => ({
   mkdir: (...a: unknown[]) => mockMkdir(...a),
   unlink: (...a: unknown[]) => mockUnlink(...a),
 }));
-vi.mock("crypto", () => ({ randomUUID: vi.fn(() => "test-uuid-1234") }));
+// Keep the real `createHash` (used by hashCallScope for the C1b breaker
+// discriminant) while stubbing randomUUID for deterministic output filenames.
+vi.mock("crypto", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("crypto")>();
+  return { ...actual, randomUUID: vi.fn(() => "test-uuid-1234") };
+});
 vi.mock("../src/videoProcessorHelpers.js", () => ({
   TIKTOK_VIDEO_SPECS: {
     maxFileSize: 500 * 1024 * 1024,

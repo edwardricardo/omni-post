@@ -8,6 +8,7 @@ import { google, youtube_v3 } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
 import {
   createExternalApiCircuitBreaker,
+  hashCallScope,
   ANALYTICS_CB_OPTIONS,
   METADATA_CB_OPTIONS,
 } from "@adapters/external-apis";
@@ -249,6 +250,9 @@ export class YouTubeLiveStreamingService {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE + closure partition by channel + config
+      // so channel B never runs channel A's bound create closure (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.channelId, config),
     });
   }
 
@@ -283,6 +287,9 @@ export class YouTubeLiveStreamingService {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE + closure partition by channel + stream
+      // so acting on stream B never runs stream A's bound closure (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.channelId, streamId),
     });
   }
 
@@ -317,6 +324,8 @@ export class YouTubeLiveStreamingService {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE + closure partition by channel + stream (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.channelId, streamId),
     });
   }
 
@@ -392,6 +401,9 @@ export class YouTubeLiveStreamingService {
       maxDelay: 10000,
       jitterEnabled: true,
       cacheEnabled: false,
+      // Uncached read: STATE + closure partition by channel + stream so status
+      // of stream B never runs stream A's bound closure (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.channelId, streamId),
     });
   }
 
@@ -467,6 +479,9 @@ export class YouTubeLiveStreamingService {
       maxDelay: 10000,
       jitterEnabled: true,
       cacheEnabled: false,
+      // Uncached read: STATE + closure partition by channel + stream + page so
+      // chat of stream B never runs stream A's bound closure (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.channelId, streamId, pageToken),
     });
   }
 
@@ -526,6 +541,8 @@ export class YouTubeLiveStreamingService {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE + closure partition by channel + stream (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.channelId, streamId),
     });
   }
 
@@ -579,6 +596,9 @@ export class YouTubeLiveStreamingService {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // PII (per-stream analytics): fold channel + streamId so stream X never
+      // returns stream Y's cached analytics and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(this.channelId, streamId),
     });
   }
 
@@ -638,6 +658,9 @@ export class YouTubeLiveStreamingService {
       jitterEnabled: true,
       cacheEnabled: true,
       ...METADATA_CB_OPTIONS,
+      // PII (channel stream list): fold channel + status filter so channel B
+      // never receives channel A's cached list and filters never collide.
+      cacheKeyDiscriminant: hashCallScope(this.channelId, status),
     });
   }
 

@@ -4,7 +4,11 @@
  *              auth, video processing, and hashtag helpers with circuit breaker protection.
  * @layer infrastructure
  */
-import { createExternalApiCircuitBreaker, ANALYTICS_CB_OPTIONS } from "@adapters/external-apis";
+import {
+  createExternalApiCircuitBreaker,
+  hashCallScope,
+  ANALYTICS_CB_OPTIONS,
+} from "@adapters/external-apis";
 import { ProviderError } from "@providers/shared";
 import * as client from "prom-client";
 import axios from "axios";
@@ -231,6 +235,9 @@ export class TikTokApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       cacheTtl: 300000,
+      // PII (account profile): scope by the credential so account B never
+      // receives account A's cached profile or shares A's breaker instance.
+      cacheKeyDiscriminant: hashCallScope(this.credentials),
     });
   }
 
@@ -348,6 +355,8 @@ export class TikTokApiClient {
       jitterEnabled: true,
       cacheEnabled: false, // Don't cache video uploads
       fallbackEnabled: false, // Video uploads shouldn't fallback
+      // Write op (stays uncached): STATE-only partition (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.credentials),
     });
   }
 
@@ -441,6 +450,9 @@ export class TikTokApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // PII (account videos): scope by credential + pagination window so
+      // distinct pages never collide and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(this.credentials, cursor, maxCount),
       fallback,
     });
   }
@@ -510,6 +522,8 @@ export class TikTokApiClient {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE-only partition (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.credentials),
     });
   }
 

@@ -432,6 +432,8 @@ export class FacebookApiClient {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op: uncached; STATE partitions per credential (W-1).
+      cacheKeyDiscriminant: hashCallScope(this.credentials),
     });
   }
 
@@ -511,6 +513,8 @@ export class FacebookApiClient {
       maxDelay: 30000,
       jitterEnabled: true,
       cacheEnabled: false,
+      // Write op: uncached; STATE partitions per credential (W-1).
+      cacheKeyDiscriminant: hashCallScope(this.credentials),
     });
   }
 
@@ -598,6 +602,9 @@ export class FacebookApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // PII page analytics: fold the credential AND the time window so distinct
+      // since/until ranges never share a cached insights payload.
+      cacheKeyDiscriminant: hashCallScope(this.credentials, since?.getTime(), until?.getTime()),
       fallback,
     });
   }

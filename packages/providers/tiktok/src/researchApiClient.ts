@@ -4,7 +4,11 @@
  *              queries with circuit breaker protection.
  * @layer infrastructure
  */
-import { createExternalApiCircuitBreaker, ANALYTICS_CB_OPTIONS } from "@adapters/external-apis";
+import {
+  createExternalApiCircuitBreaker,
+  hashCallScope,
+  ANALYTICS_CB_OPTIONS,
+} from "@adapters/external-apis";
 import { ProviderError } from "@providers/shared";
 import * as client from "prom-client";
 import axios from "axios";
@@ -127,6 +131,18 @@ export class TikTokResearchApiClient {
   }
 
   /**
+   * @method getCredentialScope
+   * @description Returns an opaque, stable per-credential discriminant so a
+   *   collaborator (e.g. `TikTokHashtagManager`) that wraps this client can
+   *   partition its own circuit-breaker cache/STATE per tenant WITHOUT reaching
+   *   into the private credential. The raw research key is hashed, never exposed.
+   * @returns A stable opaque discriminant for this client's credential.
+   */
+  getCredentialScope(): string {
+    return hashCallScope(this.credentials);
+  }
+
+  /**
    * Get trending hashtags with detailed metrics
    */
   async getTrendingHashtags(
@@ -184,6 +200,9 @@ export class TikTokResearchApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // Credential-scoped read: fold the research key AND the query options so
+      // distinct queries never collide and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(this.credentials, options),
     });
   }
 
@@ -254,6 +273,9 @@ export class TikTokResearchApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // Credential-scoped read: fold the research key AND the query options so
+      // distinct queries never collide and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(this.credentials, options),
     });
   }
 
@@ -324,6 +346,9 @@ export class TikTokResearchApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // Credential-scoped read: fold the research key AND the query options so
+      // distinct queries never collide and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(this.credentials, options),
     });
   }
 
@@ -388,6 +413,9 @@ export class TikTokResearchApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // Credential-scoped read: fold the research key AND the queried keywords +
+      // options so distinct keyword sets never collide and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(this.credentials, keywords, options),
     });
   }
 
@@ -454,6 +482,9 @@ export class TikTokResearchApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // Credential-scoped read: fold the research key AND the query options so
+      // distinct queries never collide and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(this.credentials, options),
     });
   }
 
@@ -539,6 +570,9 @@ export class TikTokResearchApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // Credential-scoped read: fold the research key AND the query options
+      // (incl. contentIds) so distinct queries never collide and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(this.credentials, options),
     });
   }
 

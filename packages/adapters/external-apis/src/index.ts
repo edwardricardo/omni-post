@@ -15,6 +15,7 @@ export {
   CACHE_MAX_ENTRIES,
   BREAKERS_MAX_ENTRIES,
   hashCallScope,
+  isPresentDiscriminant,
 } from "./circuitBreaker.js";
 
 // Global circuit breaker instance

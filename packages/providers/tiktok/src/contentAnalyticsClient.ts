@@ -4,7 +4,11 @@
  *              comments, shares, watch time) with circuit breaker protection.
  * @layer infrastructure
  */
-import { createExternalApiCircuitBreaker, ANALYTICS_CB_OPTIONS } from "@adapters/external-apis";
+import {
+  createExternalApiCircuitBreaker,
+  hashCallScope,
+  ANALYTICS_CB_OPTIONS,
+} from "@adapters/external-apis";
 import { ProviderError } from "@providers/shared";
 import * as client from "prom-client";
 import axios from "axios";
@@ -332,6 +336,9 @@ export class TikTokContentAnalyticsClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // PII (per-video analytics): fold credential AND videoId + options so video
+      // X never returns video Y's cached analytics and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(this.credentials, videoId, options),
     });
   }
 
@@ -447,6 +454,9 @@ export class TikTokContentAnalyticsClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // PII (profile analytics): fold credential AND the report options (date
+      // range, flags) so distinct reports never collide and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(this.credentials, options),
     });
   }
 
@@ -540,6 +550,9 @@ export class TikTokContentAnalyticsClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // PII (competitor analysis): fold credential AND the queried usernames +
+      // options so distinct competitor sets never collide and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(this.credentials, competitorUsernames, options),
     });
   }
 
@@ -629,6 +642,9 @@ export class TikTokContentAnalyticsClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // Credential-scoped read: fold credential AND the queried hashtags + options
+      // so distinct hashtag sets never collide and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(this.credentials, hashtags, options),
     });
   }
 

@@ -229,6 +229,56 @@ describe(
 );
 
 /* ──────────────────────────────────────────────────────────────────────
+ * S-2: blank (empty / whitespace) discriminant treated as absent
+ * ────────────────────────────────────────────────────────────────────── */
+describe("L2 fallback store S-2 (blank discriminant => absent)", { concurrent: false }, () => {
+  it("writes nothing when the discriminant is an empty string", async () => {
+    const mgr = new FallbackManager("redis://localhost:6379");
+
+    await mgr.cacheSuccessfulResponse(SVC, OP, { tenant: "A", token: "A-token" }, 60_000, "");
+
+    assert.strictEqual(
+      redisStore.size,
+      0,
+      "an empty-string discriminant must be treated as absent — no write"
+    );
+  });
+
+  it("reads a miss when the discriminant is whitespace-only, even if a blank-keyed entry exists", async () => {
+    const mgr = new FallbackManager("redis://localhost:6379");
+
+    // A prior blank write stored nothing (proven above); simulate a stale un-scoped
+    // key anyway to prove the whitespace read never resolves it.
+    redisStore.set(`fallback:${SVC}:${OP}`, {
+      value: JSON.stringify({
+        response: { tenant: "A", token: "A-token" },
+        timestamp: Date.now(),
+        service: SVC,
+        operation: OP,
+      }),
+      expiresAt: Date.now() + 60_000,
+    });
+
+    const result = await mgr.executeFallback<AnalyticsPayload>(
+      { strategy: "CACHED_RESPONSE" },
+      {
+        service: SVC,
+        operation: OP,
+        originalError: new Error("provider down"),
+        attempt: 1,
+        discriminant: "   ",
+      }
+    );
+
+    assert.strictEqual(
+      result.ok,
+      false,
+      "a whitespace-only discriminant must be a fail-safe miss, never a shared-key hit"
+    );
+  });
+});
+
+/* ──────────────────────────────────────────────────────────────────────
  * Same-tenant hit + prefix retention (do-not-regress)
  * ────────────────────────────────────────────────────────────────────── */
 describe("L2 fallback store same-tenant hit and prefix retention", { concurrent: false }, () => {
