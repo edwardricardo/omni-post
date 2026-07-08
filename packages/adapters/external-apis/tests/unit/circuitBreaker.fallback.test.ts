@@ -454,3 +454,92 @@ describe(
     });
   }
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// C-1: the cacheKeyDiscriminant threads into the L2 fallback store (write + read)
+// so the fallback path is tenant-scoped, closing the second cross-tenant vector.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe(
+  "ExternalApiCircuitBreaker.call() — discriminant threads into the L2 fallback store (C-1)",
+  { concurrent: false },
+  () => {
+    afterEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it("passes cacheKeyDiscriminant as the 5th arg of cacheSuccessfulResponse on success (write path)", async () => {
+      const cb = new ExternalApiCircuitBreaker(freshRegistry());
+      const operation = async (): Promise<unknown> => ({ ok: true });
+
+      await cb.call("x-api", "get-analytics", operation, [], {
+        ...NO_FALLBACK_FAST,
+        fallbackEnabled: true,
+        fallbackConfig: { strategy: "CACHED_RESPONSE" as const, cacheTtl: 1_800_000 },
+        cacheKeyDiscriminant: "disc-A",
+      });
+
+      assert.strictEqual(
+        mockCacheSuccessfulResponse.mock.calls.length,
+        1,
+        "cacheSuccessfulResponse must be called once on a successful fallback-enabled read"
+      );
+      const args = mockCacheSuccessfulResponse.mock.calls[0] as unknown[];
+      assert.strictEqual(
+        args[4],
+        "disc-A",
+        "the tenant discriminant must be threaded as the 5th argument"
+      );
+    });
+
+    it("carries the discriminant on the executeFallback context on failure (read path)", async () => {
+      mockExecuteFallback.mockResolvedValueOnce({ ok: false, error: "FALLBACK_FAILED" });
+      const cb = new ExternalApiCircuitBreaker(freshRegistry());
+      const operation = async (): Promise<unknown> => {
+        const e = new Error("provider down");
+        (e as Record<string, unknown>).status = 500;
+        throw e;
+      };
+
+      await assert.rejects(() =>
+        cb.call("x-api", "get-analytics", operation, [], {
+          ...NO_FALLBACK_FAST,
+          fallbackEnabled: true,
+          fallbackConfig: { strategy: "CACHED_RESPONSE" as const, cacheTtl: 1_800_000 },
+          cacheKeyDiscriminant: "disc-B",
+        })
+      );
+
+      assert.strictEqual(
+        mockExecuteFallback.mock.calls.length,
+        1,
+        "executeFallback must be called once for the opted-in read"
+      );
+      const context = mockExecuteFallback.mock.calls[0][1] as { discriminant?: string };
+      assert.strictEqual(
+        context.discriminant,
+        "disc-B",
+        "the discriminant must be carried on the fallback context"
+      );
+    });
+
+    it("passes NO discriminant when none is supplied (fail-safe, un-migrated site)", async () => {
+      const cb = new ExternalApiCircuitBreaker(freshRegistry());
+      const operation = async (): Promise<unknown> => ({ ok: true });
+
+      await cb.call("x-api", "get-analytics", operation, [], {
+        ...NO_FALLBACK_FAST,
+        fallbackEnabled: true,
+        fallbackConfig: { strategy: "CACHED_RESPONSE" as const, cacheTtl: 1_800_000 },
+      });
+
+      assert.strictEqual(mockCacheSuccessfulResponse.mock.calls.length, 1);
+      const args = mockCacheSuccessfulResponse.mock.calls[0] as unknown[];
+      assert.strictEqual(
+        args[4],
+        undefined,
+        "no discriminant supplied => 5th arg is undefined; FallbackManager then stores nothing shared"
+      );
+    });
+  }
+);

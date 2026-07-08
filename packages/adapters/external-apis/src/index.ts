@@ -8,9 +8,13 @@ export {
   ExternalApiCircuitBreaker,
   type ExternalApiOptions,
   type CircuitBreakerStatus,
+  type CircuitBreakerLimits,
   DEFAULT_EXTERNAL_API_OPTIONS,
   ANALYTICS_CB_OPTIONS,
   METADATA_CB_OPTIONS,
+  CACHE_MAX_ENTRIES,
+  BREAKERS_MAX_ENTRIES,
+  hashCallScope,
 } from "./circuitBreaker.js";
 
 // Global circuit breaker instance

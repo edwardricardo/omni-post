@@ -4,6 +4,7 @@
  *              letter queue integration, and Prometheus metric emission.
  * @layer infrastructure
  */
+import { createHash } from "node:crypto";
 import CircuitBreaker from "opossum";
 import client from "prom-client";
 import { createLogger } from "@observability/logger";
@@ -36,6 +37,40 @@ export interface CircuitBreakerStatus {
   successes: number;
   /** Epoch ms — only present while the breaker is OPEN. */
   nextAttempt?: number;
+}
+
+/**
+ * Maximum number of L1 cache entries retained by the in-process circuit-breaker
+ * cache before least-recently-used eviction kicks in. Internal memory-safety
+ * bound, not an ops knob: entries are small/medium JSON payloads under a
+ * self-expiring TTL, so this caps the worst-case burst of distinct
+ * (operation, tenant) keys. Deliberately a `const` rather than an env var —
+ * promote to configuration via an ADR only if real multi-thousand-tenant scale
+ * demands tuning.
+ */
+export const CACHE_MAX_ENTRIES = 5000;
+
+/**
+ * Maximum number of per-(operation, tenant) opossum breaker instances retained
+ * before least-recently-used eviction. Lower than {@link CACHE_MAX_ENTRIES}
+ * because a breaker (event emitter + rolling-stats window) is heavier than a
+ * cache entry. An actively-failing tenant is continuously touched and stays
+ * resident via LRU recency; only idle tenants are evicted, and a re-created
+ * breaker starts CLOSED. Same rationale as above for keeping it a `const`.
+ */
+export const BREAKERS_MAX_ENTRIES = 2000;
+
+/**
+ * @interface CircuitBreakerLimits
+ * @description Optional overrides for the in-process growth bounds. Both fields
+ *              default to the module `CACHE_MAX_ENTRIES` / `BREAKERS_MAX_ENTRIES`
+ *              consts; overriding them exists so the LRU behaviour can be
+ *              exercised deterministically in tests without allocating thousands
+ *              of instances. These are memory-safety bounds, not ops knobs.
+ */
+export interface CircuitBreakerLimits {
+  maxCacheEntries?: number;
+  maxBreakerEntries?: number;
 }
 
 export interface ExternalApiOptions {
@@ -126,11 +161,15 @@ export class ExternalApiCircuitBreaker {
   private metrics: ApiCallMetrics;
   private registry: client.Registry;
   private fallbackManager: FallbackManager;
+  private readonly maxCacheEntries: number;
+  private readonly maxBreakerEntries: number;
 
-  constructor(registry: client.Registry, redisUrl?: string) {
+  constructor(registry: client.Registry, redisUrl?: string, limits: CircuitBreakerLimits = {}) {
     this.registry = registry;
     this.metrics = this.createMetrics();
     this.fallbackManager = createFallbackManager(redisUrl || process.env.REDIS_URL);
+    this.maxCacheEntries = limits.maxCacheEntries ?? CACHE_MAX_ENTRIES;
+    this.maxBreakerEntries = limits.maxBreakerEntries ?? BREAKERS_MAX_ENTRIES;
 
     // Initialize dead letter queue if Redis URL is available
     if (redisUrl || process.env.REDIS_URL) {
@@ -236,16 +275,40 @@ export class ExternalApiCircuitBreaker {
     };
   }
 
+  /**
+   * @method breakerKey
+   * @description Builds the `breakers` Map key. A tenant/credential discriminant,
+   *   when present, partitions circuit STATE so one tenant's failures never open
+   *   another tenant's circuit for the same operation. Discriminant-less calls
+   *   keep the legacy `service:operation` key (shared STATE) — used by the
+   *   process-wide, non-tenant-scoped write operations.
+   * @param service - Provider/service name.
+   * @param operation - Operation name.
+   * @param discriminant - Opaque per-tenant scope; omit for shared STATE.
+   * @returns The partitioned or legacy breaker key.
+   */
+  private breakerKey(service: string, operation: string, discriminant?: string): string {
+    return discriminant !== undefined
+      ? `${service}:${operation}:${discriminant}`
+      : `${service}:${operation}`;
+  }
+
   private getOrCreateBreaker<T extends unknown[], R>(
     service: string,
     operation: string,
     apiCall: (...args: T) => Promise<R>,
-    options: Partial<ExternalApiOptions> = {}
+    options: Partial<ExternalApiOptions> = {},
+    discriminant?: string
   ): CircuitBreaker<T, R> {
-    const key = `${service}:${operation}`;
+    const key = this.breakerKey(service, operation, discriminant);
 
-    if (this.breakers.has(key)) {
-      return this.breakers.get(key) as CircuitBreaker<T, R>;
+    const existing = this.breakers.get(key);
+    if (existing) {
+      // Refresh LRU recency so an actively-used (e.g. continuously failing)
+      // tenant's breaker is never evicted ahead of idle tenants.
+      this.breakers.delete(key);
+      this.breakers.set(key, existing);
+      return existing as CircuitBreaker<T, R>;
     }
 
     const opts = { ...DEFAULT_EXTERNAL_API_OPTIONS, ...options };
@@ -312,12 +375,60 @@ export class ExternalApiCircuitBreaker {
     });
 
     this.breakers.set(key, breaker);
+    this.evictBreakersIfNeeded();
     return breaker;
   }
 
-  private generateCacheKey(service: string, operation: string, args: unknown[]): string {
-    const argsHash = JSON.stringify(args);
-    return `${service}:${operation}:${Buffer.from(argsHash).toString("base64")}`;
+  /**
+   * @method evictBreakersIfNeeded
+   * @description Bounds the `breakers` Map with insertion-ordered LRU eviction.
+   *   Timer-free by design (Fitness #11 forbids raw `setInterval` in packages):
+   *   the least-recently-used breaker is the first key of the insertion-ordered
+   *   Map. Evicted breakers are `shutdown()` so their opossum rolling-stats
+   *   timers are cleared and no handle leaks.
+   */
+  private evictBreakersIfNeeded(): void {
+    while (this.breakers.size > this.maxBreakerEntries) {
+      const oldestKey = this.breakers.keys().next().value;
+      if (oldestKey === undefined) {
+        break;
+      }
+      const evicted = this.breakers.get(oldestKey);
+      this.breakers.delete(oldestKey);
+      evicted?.shutdown();
+    }
+  }
+
+  /**
+   * @method generateCacheKey
+   * @description Builds the L1 cache key from a caller-supplied opaque
+   *   discriminant. Keeping the `service:operation:` prefix preserves
+   *   `clearCache` prefix-purge and `getCacheStats` enumeration. The raw
+   *   credential is never the key input — the discriminant is a hash folded by
+   *   `hashCallScope` at the call site.
+   * @param service - Provider/service name.
+   * @param operation - Operation name.
+   * @param discriminant - Opaque per-tenant/credential scope.
+   * @returns The tenant-scoped cache key.
+   */
+  private generateCacheKey(service: string, operation: string, discriminant: string): string {
+    return `${service}:${operation}:${discriminant}`;
+  }
+
+  /**
+   * @method evictCacheIfNeeded
+   * @description Bounds the L1 `cache` Map with insertion-ordered LRU eviction.
+   *   Timer-free; the least-recently-used entry is the first key of the
+   *   insertion-ordered Map (recency is refreshed on both read-hit and write).
+   */
+  private evictCacheIfNeeded(): void {
+    while (this.cache.size > this.maxCacheEntries) {
+      const oldestKey = this.cache.keys().next().value;
+      if (oldestKey === undefined) {
+        break;
+      }
+      this.cache.delete(oldestKey);
+    }
   }
 
   private async getFromCache(
@@ -328,6 +439,9 @@ export class ExternalApiCircuitBreaker {
     try {
       const cached = this.cache.get(cacheKey);
       if (cached && cached.expires > Date.now()) {
+        // Refresh LRU recency on read so a hot entry outlives idle ones.
+        this.cache.delete(cacheKey);
+        this.cache.set(cacheKey, cached);
         this.metrics.cacheHits.inc({ service, operation });
         return cached.data;
       }
@@ -353,10 +467,14 @@ export class ExternalApiCircuitBreaker {
     operation: string
   ): Promise<void> {
     try {
+      // Delete-then-set moves the entry to the most-recent position so LRU
+      // eviction targets genuinely idle keys.
+      this.cache.delete(cacheKey);
       this.cache.set(cacheKey, {
         data,
         expires: Date.now() + ttl,
       });
+      this.evictCacheIfNeeded();
     } catch (error) {
       this.metrics.cacheErrors.inc({ service, operation });
       logger.warn({ err: error, cacheKey }, "Cache set error");
@@ -393,16 +511,27 @@ export class ExternalApiCircuitBreaker {
     args: T,
     options: Partial<ExternalApiOptions> & {
       cacheEnabled?: boolean;
+      /**
+       * Opaque per-tenant/credential scope (typically `hashCallScope(creds)`).
+       * PRESENT ⇒ folded into the cache AND breaker keys, so a cached payload
+       * and circuit STATE are tenant-scoped. ABSENT ⇒ L1 caching is SKIPPED
+       * (fail-safe default): the read is a miss and nothing shared is stored,
+       * closing the cross-tenant disclosure leak for un-migrated call sites.
+       */
+      cacheKeyDiscriminant?: string;
       fallback?: (...args: T) => Promise<R>;
     } = {}
   ): Promise<R> {
     const opts = { ...DEFAULT_EXTERNAL_API_OPTIONS, ...options };
     const startTime = Date.now();
 
-    // Check cache first if enabled
+    // Check cache first if enabled AND a discriminant is supplied. Fail-safe
+    // default (D1b): a `cacheEnabled` call with no discriminant MUST NOT read or
+    // write a shared L1 entry — it is treated as a miss and fetched fresh, so no
+    // tenant's payload can be served to another under a constant key.
     let cacheKey: string | null = null;
-    if (options.cacheEnabled && opts.cacheTtl) {
-      cacheKey = this.generateCacheKey(service, operation, args);
+    if (options.cacheEnabled && opts.cacheTtl && options.cacheKeyDiscriminant !== undefined) {
+      cacheKey = this.generateCacheKey(service, operation, options.cacheKeyDiscriminant);
       const cached = await this.getFromCache(cacheKey, service, operation);
       if (cached) {
         return cached as R;
@@ -414,8 +543,14 @@ export class ExternalApiCircuitBreaker {
     this.metrics.circuitBreakerRequests.inc({ service, operation, state: "attempt" });
 
     try {
-      // Get or create circuit breaker
-      const breaker = this.getOrCreateBreaker(service, operation, apiCall, opts);
+      // Get or create circuit breaker (STATE partitioned by the same discriminant).
+      const breaker = this.getOrCreateBreaker(
+        service,
+        operation,
+        apiCall,
+        opts,
+        options.cacheKeyDiscriminant
+      );
 
       // Add fallback if provided
       if (options.fallback) {
@@ -461,13 +596,17 @@ export class ExternalApiCircuitBreaker {
             await this.setCache(cacheKey, result, opts.cacheTtl, service, operation);
           }
 
-          // Cache successful response for fallback use
+          // Cache successful response for fallback use. Thread the SAME opaque
+          // discriminant used for the L1 cache and STATE keys so the L2 fallback
+          // store is tenant-scoped too. Fail-safe: with no discriminant the
+          // FallbackManager stores nothing (no shared cross-tenant entry).
           if (opts.fallbackEnabled) {
             await this.fallbackManager.cacheSuccessfulResponse(
               service,
               operation,
               result,
-              opts.cacheTtl || 300000 // 5 minutes default
+              opts.cacheTtl || 300000, // 5 minutes default
+              options.cacheKeyDiscriminant
             );
           }
 
@@ -512,6 +651,12 @@ export class ExternalApiCircuitBreaker {
             operation,
             originalError: lastError,
             attempt: attempt,
+            // Scope the L2 fallback read by the same discriminant as the write, so
+            // a discriminant-carrying call reads only its own tenant's entry and a
+            // discriminant-less call is a fail-safe miss (never a shared-key read).
+            ...(options.cacheKeyDiscriminant !== undefined && {
+              discriminant: options.cacheKeyDiscriminant,
+            }),
           };
 
           const fallbackResult = await this.fallbackManager.executeFallback<R>(
@@ -625,16 +770,15 @@ export class ExternalApiCircuitBreaker {
   }
 
   /**
-   * Get circuit breaker status for a specific service/operation
+   * @method breakerStatus
+   * @description Builds a public status snapshot from an opossum breaker. Shared
+   *   by `getStatus` and `getAllStatuses` so a STATE-partitioned breaker (keyed
+   *   `service:operation:<discriminant>`) reports correctly under its own key
+   *   instead of resolving to null via a legacy two-segment lookup.
+   * @param breaker - The opossum breaker to snapshot.
+   * @returns The public status.
    */
-  getStatus(service: string, operation: string): CircuitBreakerStatus | null {
-    const key = `${service}:${operation}`;
-    const breaker = this.breakers.get(key);
-
-    if (!breaker) {
-      return null;
-    }
-
+  private breakerStatus(breaker: CircuitBreaker<unknown[], unknown>): CircuitBreakerStatus {
     return {
       state: breaker.opened ? "OPEN" : breaker.halfOpen ? "HALF_OPEN" : "CLOSED",
       failures: breaker.stats.failures,
@@ -653,16 +797,25 @@ export class ExternalApiCircuitBreaker {
   }
 
   /**
-   * Get all circuit breaker statuses
+   * Get circuit breaker status for a specific service/operation.
+   * Resolves the legacy `service:operation` (shared-STATE) breaker; tenant
+   * partitions live under `service:operation:<discriminant>` and are surfaced
+   * via `getAllStatuses`.
+   */
+  getStatus(service: string, operation: string): CircuitBreakerStatus | null {
+    const breaker = this.breakers.get(`${service}:${operation}`);
+    return breaker ? this.breakerStatus(breaker) : null;
+  }
+
+  /**
+   * Get all circuit breaker statuses (each under its actual, possibly
+   * tenant-partitioned, key).
    */
   getAllStatuses(): Record<string, CircuitBreakerStatus | null> {
     const statuses: Record<string, CircuitBreakerStatus | null> = {};
 
-    for (const [key, _breaker] of this.breakers) {
-      const [service, operation] = key.split(":");
-      if (service && operation) {
-        statuses[key] = this.getStatus(service, operation);
-      }
+    for (const [key, breaker] of this.breakers) {
+      statuses[key] = this.breakerStatus(breaker);
     }
 
     return statuses;
@@ -728,4 +881,22 @@ export class ExternalApiCircuitBreaker {
       entries,
     };
   }
+}
+
+/**
+ * @function hashCallScope
+ * @description Folds a caller's credential and any public request parameters into
+ *   a short, opaque, deterministic discriminant for the circuit-breaker cache and
+ *   STATE keys. The raw credential is NEVER used directly as a key — it is hashed
+ *   through SHA-256 so enumerable keys (`getCacheStats`) can never expose a
+ *   secret. Call sites compute this from `this.credentials` (plus any public
+ *   resource id) and pass it as `cacheKeyDiscriminant`.
+ * @param credential - The caller's credential (opaque; hashed, never stored raw).
+ * @param publicParams - Additional public, non-secret parameters (e.g. a public
+ *   resource id) that must also scope the key so distinct resources never collide.
+ * @returns A 16-character hex discriminant, stable for identical inputs.
+ */
+export function hashCallScope(credential: unknown, ...publicParams: unknown[]): string {
+  const material = JSON.stringify([credential, ...publicParams]);
+  return createHash("sha256").update(material).digest("hex").slice(0, 16);
 }

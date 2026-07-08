@@ -1,0 +1,271 @@
+/**
+ * @file circuitBreakerTenantIsolation.test.ts
+ * @description Tenant-isolation tests for ExternalApiCircuitBreaker (C1 / N-SEC-1 + N-SEC-1b).
+ *              Drives the breaker directly with an isolated prom-client registry. Covers the
+ *              MERGE-BLOCKING invariants: per-tenant STATE partitioning, the fail-safe cache
+ *              default (no discriminant => cache skip), same-tenant cache reuse when a
+ *              discriminant is supplied, cross-tenant cache isolation, LRU growth-bounding, and
+ *              the write-path fail-fast do-not-regress.
+ *
+ *              Tier 0: no external services. Each test builds a fresh breaker with its own
+ *              registry so opossum rolling counters never leak between tests.
+ * @layer infrastructure
+ */
+
+import { describe, it, beforeEach, vi } from "vitest";
+import assert from "node:assert/strict";
+import client from "prom-client";
+import { ExternalApiCircuitBreaker, DEFAULT_EXTERNAL_API_OPTIONS } from "../src/circuitBreaker.js";
+
+/** Options that keep a breaker from opening on the happy path during a test. */
+const LENIENT = {
+  errorThresholdPercentage: 100,
+  monitoringPeriod: 60_000,
+  halfOpenRetries: 100,
+  resetTimeout: 60_000,
+  fallbackEnabled: false,
+  deadLetterEnabled: false,
+  maxRetries: 0,
+} as const;
+
+/** Options that open a breaker on the first failure (volumeThreshold 0, 100% > 1%). */
+const OPEN_FAST = {
+  errorThresholdPercentage: 1,
+  maxRetries: 0,
+  resetTimeout: 60_000,
+  monitoringPeriod: 60_000,
+  halfOpenRetries: 1,
+  fallbackEnabled: false,
+  deadLetterEnabled: false,
+  cacheEnabled: false,
+} as const;
+
+const SVC = "iso-svc";
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Circuit STATE is partitioned per tenant  [MERGE-BLOCKING] (Spec C1-R4)
+ * ────────────────────────────────────────────────────────────────────── */
+describe("circuit STATE partition per tenant", { concurrent: false }, () => {
+  it("does not short-circuit tenant B when tenant A's circuit is OPEN, but still short-circuits A", async () => {
+    const cb = new ExternalApiCircuitBreaker(new client.Registry());
+    const op = "state-op";
+    const failing = async (): Promise<{ tenant: string }> => {
+      throw new Error("provider down");
+    };
+
+    // 1. Trip tenant A's circuit OPEN (one failure suffices).
+    await assert.rejects(() =>
+      cb.call(SVC, op, failing, [], { ...OPEN_FAST, cacheKeyDiscriminant: "tenant-A" })
+    );
+
+    // 2. Do-not-regress: tenant A stays short-circuited by its own OPEN circuit.
+    let aProbeCalls = 0;
+    const aProbe = async (): Promise<{ tenant: string }> => {
+      aProbeCalls++;
+      return { tenant: "A" };
+    };
+    await assert.rejects(() =>
+      cb.call(SVC, op, aProbe, [], { ...OPEN_FAST, cacheKeyDiscriminant: "tenant-A" })
+    );
+    assert.strictEqual(
+      aProbeCalls,
+      0,
+      "tenant A must remain short-circuited by its own OPEN circuit"
+    );
+
+    // 3. Tenant B (distinct discriminant) must NOT be short-circuited by A's failures.
+    let bCalls = 0;
+    const bOk = async (): Promise<{ tenant: string }> => {
+      bCalls++;
+      return { tenant: "B" };
+    };
+    const bResult = await cb.call(SVC, op, bOk, [], {
+      ...OPEN_FAST,
+      cacheKeyDiscriminant: "tenant-B",
+    });
+
+    assert.strictEqual(
+      bCalls,
+      1,
+      "tenant B's provider call must be attempted (not short-circuited by A)"
+    );
+    assert.deepStrictEqual(bResult, { tenant: "B" });
+  });
+});
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Cache is fail-safe when no discriminant is supplied  [MERGE-BLOCKING] (Spec C1-R1b)
+ * ────────────────────────────────────────────────────────────────────── */
+describe("fail-safe cache default (no discriminant => cache skip)", { concurrent: false }, () => {
+  it("never serves a shared cache entry across tenants for a discriminant-less op", async () => {
+    const cb = new ExternalApiCircuitBreaker(new client.Registry());
+    const op = "fail-safe-op";
+    const payloads = [
+      { tenant: "A", secret: "A-token" },
+      { tenant: "B", secret: "B-token" },
+    ];
+    let calls = 0;
+    const fetchFresh = async (): Promise<{ tenant: string; secret: string }> => {
+      const payload = payloads[calls] ?? { tenant: "?", secret: "?" };
+      calls++;
+      return payload;
+    };
+
+    // No cacheKeyDiscriminant supplied — the breaker must treat both calls as misses.
+    const a = await cb.call(SVC, op, fetchFresh, [], {
+      cacheEnabled: true,
+      cacheTtl: 60_000,
+      ...LENIENT,
+    });
+    const b = await cb.call(SVC, op, fetchFresh, [], {
+      cacheEnabled: true,
+      cacheTtl: 60_000,
+      ...LENIENT,
+    });
+
+    assert.strictEqual(calls, 2, "tenant B must fetch fresh — a discriminant-less op must skip L1");
+    assert.deepStrictEqual(a, { tenant: "A", secret: "A-token" });
+    assert.deepStrictEqual(b, { tenant: "B", secret: "B-token" });
+    assert.notStrictEqual(b.secret, "A-token");
+
+    // The breaker must store nothing shared a later different-tenant call could hit.
+    const shared = cb.getCacheStats().entries.filter((e) => e.key.startsWith(`${SVC}:${op}:`));
+    assert.strictEqual(shared.length, 0, "fail-safe default must store no shared cache entry");
+  });
+});
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Same-tenant cache reuse + cross-tenant isolation when a discriminant IS supplied
+ * ────────────────────────────────────────────────────────────────────── */
+describe("discriminant-scoped caching", { concurrent: false }, () => {
+  it("serves the same-tenant cache hit within TTL when a discriminant is supplied (no perf regression)", async () => {
+    const cb = new ExternalApiCircuitBreaker(new client.Registry());
+    const op = "same-tenant-op";
+    let calls = 0;
+    const fetchFresh = async (): Promise<{ tenant: string; n: number }> => {
+      calls++;
+      return { tenant: "A", n: calls };
+    };
+
+    const opts = {
+      cacheEnabled: true,
+      cacheTtl: 60_000,
+      cacheKeyDiscriminant: "tenant-A-hash",
+      ...LENIENT,
+    };
+    const r1 = await cb.call(SVC, op, fetchFresh, [], opts);
+    const r2 = await cb.call(SVC, op, fetchFresh, [], opts);
+
+    assert.deepStrictEqual(r1, { tenant: "A", n: 1 });
+    assert.deepStrictEqual(
+      r2,
+      { tenant: "A", n: 1 },
+      "second same-tenant call must be served from cache"
+    );
+    assert.strictEqual(calls, 1, "same-tenant cache hit must not re-invoke the provider");
+  });
+
+  it("never serves tenant A's cached payload to tenant B when each carries its own discriminant", async () => {
+    const cb = new ExternalApiCircuitBreaker(new client.Registry());
+    const op = "cross-tenant-op";
+    const byTenant: Record<string, { tenant: string; secret: string }> = {
+      "disc-A": { tenant: "A", secret: "A-secret" },
+      "disc-B": { tenant: "B", secret: "B-secret" },
+    };
+    let calls = 0;
+    const makeFetch = (disc: string) => async (): Promise<{ tenant: string; secret: string }> => {
+      calls++;
+      return byTenant[disc] ?? { tenant: "?", secret: "?" };
+    };
+
+    const a = await cb.call(SVC, op, makeFetch("disc-A"), [], {
+      cacheEnabled: true,
+      cacheTtl: 60_000,
+      cacheKeyDiscriminant: "disc-A",
+      ...LENIENT,
+    });
+    const b = await cb.call(SVC, op, makeFetch("disc-B"), [], {
+      cacheEnabled: true,
+      cacheTtl: 60_000,
+      cacheKeyDiscriminant: "disc-B",
+      ...LENIENT,
+    });
+
+    assert.strictEqual(calls, 2, "distinct discriminants must not collapse to one cache entry");
+    assert.deepStrictEqual(a, { tenant: "A", secret: "A-secret" });
+    assert.deepStrictEqual(b, { tenant: "B", secret: "B-secret" });
+    assert.notStrictEqual(b.secret, "A-secret");
+  });
+});
+
+/* ──────────────────────────────────────────────────────────────────────
+ * LRU growth-bounding (Design D2) — timer-free eviction
+ * ────────────────────────────────────────────────────────────────────── */
+describe("LRU eviction bounds growth (timer-free)", { concurrent: false }, () => {
+  it("evicts the least-recently-used cache entry once the cap is exceeded", async () => {
+    const cb = new ExternalApiCircuitBreaker(new client.Registry(), undefined, {
+      maxCacheEntries: 3,
+    });
+    const op = "lru-cache-op";
+    const fetchFresh = async (): Promise<{ ok: true }> => ({ ok: true });
+    const call = (disc: string) =>
+      cb.call(SVC, op, fetchFresh, [], {
+        cacheEnabled: true,
+        cacheTtl: 60_000,
+        cacheKeyDiscriminant: disc,
+        ...LENIENT,
+      });
+
+    await call("disc-0");
+    await call("disc-1");
+    await call("disc-2");
+    // Touch disc-0 (cache hit) so it becomes most-recently-used.
+    await call("disc-0");
+    // Overflow: inserting disc-3 must evict the LRU entry (disc-1), not disc-0.
+    await call("disc-3");
+
+    const keys = cb.getCacheStats().entries.map((e) => e.key);
+    assert.ok(keys.includes(`${SVC}:${op}:disc-0`), "recently-touched disc-0 must survive");
+    assert.ok(!keys.includes(`${SVC}:${op}:disc-1`), "LRU disc-1 must be evicted");
+    assert.ok(keys.includes(`${SVC}:${op}:disc-2`), "disc-2 must survive");
+    assert.ok(keys.includes(`${SVC}:${op}:disc-3`), "newest disc-3 must survive");
+  });
+
+  it("does not evict an actively-touched breaker while idle breakers are evicted", async () => {
+    const cb = new ExternalApiCircuitBreaker(new client.Registry(), undefined, {
+      maxBreakerEntries: 3,
+    });
+    const ok = async (): Promise<string> => "ok";
+    const call = (op: string) => cb.call(SVC, op, ok, [], { ...LENIENT });
+
+    await call("op-0");
+    await call("op-1");
+    await call("op-2");
+    // Touch op-0 so it is most-recently-used among the resident breakers.
+    await call("op-0");
+    // Overflow: creating op-3 must evict the LRU breaker (op-1), not op-0.
+    await call("op-3");
+
+    assert.notStrictEqual(
+      cb.getStatus(SVC, "op-0"),
+      null,
+      "actively-touched op-0 breaker must survive"
+    );
+    assert.strictEqual(cb.getStatus(SVC, "op-1"), null, "idle LRU op-1 breaker must be evicted");
+    assert.notStrictEqual(cb.getStatus(SVC, "op-2"), null, "op-2 breaker must survive");
+    assert.notStrictEqual(cb.getStatus(SVC, "op-3"), null, "newest op-3 breaker must survive");
+  });
+});
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Write-path fail-fast invariant preserved  [MERGE-BLOCKING] (Spec C1-R5 / Fitness #25 Part A)
+ * ────────────────────────────────────────────────────────────────────── */
+describe("write-path fail-fast do-not-regress", { concurrent: false }, () => {
+  it("keeps DEFAULT_EXTERNAL_API_OPTIONS.fallbackEnabled false", () => {
+    assert.strictEqual(DEFAULT_EXTERNAL_API_OPTIONS.fallbackEnabled, false);
+  });
+});

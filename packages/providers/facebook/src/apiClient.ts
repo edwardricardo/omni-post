@@ -7,7 +7,11 @@
  */
 
 /// <reference path="./facebook-sdk.d.ts" />
-import { createExternalApiCircuitBreaker, ANALYTICS_CB_OPTIONS } from "@adapters/external-apis";
+import {
+  createExternalApiCircuitBreaker,
+  hashCallScope,
+  ANALYTICS_CB_OPTIONS,
+} from "@adapters/external-apis";
 import { AppError } from "@shared/types";
 import { createLogger } from "@observability/logger";
 
@@ -277,6 +281,10 @@ export class FacebookApiClient {
       };
     };
 
+    // Defense-in-depth (N-SEC-1): the response embeds the Page `access_token`, a
+    // secret. Caching it in process memory risks cross-tenant disclosure, so this
+    // op is NOT cached at all. The discriminant still scopes circuit STATE per
+    // credential so one account's auth failures never open another's circuit.
     return circuitBreaker.call("facebook-api", "validate-credentials", apiCall, [], {
       timeout: 15000,
       errorThresholdPercentage: 60,
@@ -285,8 +293,8 @@ export class FacebookApiClient {
       baseDelay: 2000,
       maxDelay: 30000,
       jitterEnabled: true,
-      cacheEnabled: true,
-      cacheTtl: 300000,
+      cacheEnabled: false,
+      cacheKeyDiscriminant: hashCallScope(this.credentials),
     });
   }
 

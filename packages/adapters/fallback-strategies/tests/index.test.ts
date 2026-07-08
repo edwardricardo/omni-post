@@ -239,9 +239,9 @@ describe("FallbackManager.executeFallback()", () => {
   });
 
   describe("CACHED_RESPONSE strategy", () => {
-    it("returns cached response when available", async () => {
-      // Pre-populate the mock Redis with a cached response
-      const cacheKey = "fallback:test-service:test-op";
+    it("returns cached response when available (tenant-scoped by discriminant)", async () => {
+      // Pre-populate the mock Redis with a tenant-scoped cached response.
+      const cacheKey = "fallback:test-service:test-op:disc-A";
       const cachedData = {
         response: { data: [1, 2, 3] },
         timestamp: Date.now(),
@@ -253,7 +253,10 @@ describe("FallbackManager.executeFallback()", () => {
         expiresAt: Date.now() + 300000,
       });
 
-      const result = await mgr.executeFallback({ strategy: "CACHED_RESPONSE" }, baseContext());
+      const result = await mgr.executeFallback(
+        { strategy: "CACHED_RESPONSE" },
+        { ...baseContext(), discriminant: "disc-A" }
+      );
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -523,10 +526,10 @@ describe("FallbackManager.cacheSuccessfulResponse()", () => {
   });
 
   it("caches a response that can be retrieved as fallback", async () => {
-    // Cache a successful response
-    await mgr.cacheSuccessfulResponse("analytics", "get-metrics", { views: 100 }, 60000);
+    // Cache a successful response (tenant-scoped by discriminant)
+    await mgr.cacheSuccessfulResponse("analytics", "get-metrics", { views: 100 }, 60000, "disc-A");
 
-    // Now use CACHED_RESPONSE to retrieve it
+    // Now use CACHED_RESPONSE to retrieve it with the same discriminant
     const result = await mgr.executeFallback(
       { strategy: "CACHED_RESPONSE" },
       {
@@ -534,6 +537,7 @@ describe("FallbackManager.cacheSuccessfulResponse()", () => {
         operation: "get-metrics",
         originalError: new Error("primary failed"),
         attempt: 1,
+        discriminant: "disc-A",
       }
     );
 
