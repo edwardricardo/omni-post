@@ -192,23 +192,23 @@ describe("ExternalApiCircuitBreaker -- successful calls", { concurrent: false },
       return { count: callCount };
     };
 
-    // First call -- cache miss
-    const result1 = await cb.call("suc-svc", "op-cached", operation, [], {
+    // A discriminant is required to participate in L1 caching (fail-safe default,
+    // N-SEC-1b): a discriminant-less call is always a miss. Same tenant here.
+    const cacheOpts = {
       maxRetries: 0,
       cacheEnabled: true,
       cacheTtl: 60_000,
+      cacheKeyDiscriminant: "tenant-a",
       ...LENIENT_BREAKER_OPTS,
-    });
+    };
+
+    // First call -- cache miss
+    const result1 = await cb.call("suc-svc", "op-cached", operation, [], cacheOpts);
 
     expect(result1).toEqual({ count: 1 });
 
     // Second call -- should be served from cache
-    const result2 = await cb.call("suc-svc", "op-cached", operation, [], {
-      maxRetries: 0,
-      cacheEnabled: true,
-      cacheTtl: 60_000,
-      ...LENIENT_BREAKER_OPTS,
-    });
+    const result2 = await cb.call("suc-svc", "op-cached", operation, [], cacheOpts);
 
     expect(result2).toEqual({ count: 1 });
     expect(callCount).toBe(1);
@@ -486,6 +486,7 @@ describe("ExternalApiCircuitBreaker -- cache management", { concurrent: false },
       maxRetries: 0,
       cacheEnabled: true,
       cacheTtl: 60_000,
+      cacheKeyDiscriminant: "tenant-a",
       ...LENIENT_BREAKER_OPTS,
     });
 
@@ -500,8 +501,11 @@ describe("ExternalApiCircuitBreaker -- cache management", { concurrent: false },
       maxRetries: 0,
       cacheEnabled: true,
       cacheTtl: 60_000,
+      cacheKeyDiscriminant: "tenant-a",
       ...LENIENT_BREAKER_OPTS,
     });
+
+    expect(cb.getCacheStats().size >= 1).toBeTruthy();
 
     cb.clearCache();
     const stats = cb.getCacheStats();
@@ -515,6 +519,7 @@ describe("ExternalApiCircuitBreaker -- cache management", { concurrent: false },
       maxRetries: 0,
       cacheEnabled: true,
       cacheTtl: 60_000,
+      cacheKeyDiscriminant: "tenant-a",
       ...LENIENT_BREAKER_OPTS,
     });
 
@@ -522,6 +527,7 @@ describe("ExternalApiCircuitBreaker -- cache management", { concurrent: false },
       maxRetries: 0,
       cacheEnabled: true,
       cacheTtl: 60_000,
+      cacheKeyDiscriminant: "tenant-a",
       ...LENIENT_BREAKER_OPTS,
     });
 
