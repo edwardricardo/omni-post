@@ -74,6 +74,7 @@ function makeFakeApiClient(overrides: Partial<FakeApiClient> = {}): FakeApiClien
 
 interface FakeResearchClient {
   getTrendingHashtags: ReturnType<typeof vi.fn>;
+  getCredentialScope: ReturnType<typeof vi.fn>;
 }
 
 function makeFakeResearchClient(shouldFail = false): FakeResearchClient {
@@ -82,6 +83,7 @@ function makeFakeResearchClient(shouldFail = false): FakeResearchClient {
       getTrendingHashtags: vi.fn(async () => {
         throw new Error("Research API unavailable");
       }),
+      getCredentialScope: vi.fn(() => "mock-research-scope"),
     };
   }
   return {
@@ -97,6 +99,7 @@ function makeFakeResearchClient(shouldFail = false): FakeResearchClient {
         trendingScore: 90,
       },
     ]),
+    getCredentialScope: vi.fn(() => "mock-research-scope"),
   };
 }
 
