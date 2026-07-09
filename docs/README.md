@@ -48,7 +48,6 @@
 | Document                          | Description                             |
 | --------------------------------- | --------------------------------------- |
 | [API Overview](api/README.md)     | Health checks, response format, metrics |
-| [CQRS Guide](api/cqrs.md)         | Commands, queries, bus patterns         |
 | [Saga Orchestration](api/saga.md) | Distributed transactions, UoW, outbox   |
 | [Caching](api/caching.md)         | Redis L1/L2, auto-cache middleware      |
 
@@ -56,7 +55,6 @@
 
 | Document                                 | Description                      |
 | ---------------------------------------- | -------------------------------- |
-| [Admin Dashboard](admin/dashboard.md)    | Admin app overview               |
 | [Admin Auth](admin/AUTH.md)              | Server Actions, httpOnly cookies |
 | [Admin E2E Tests](admin/e2e/README.md)   | Playwright test suite            |
 | [Client App](client/react-19.md)         | React 19 concurrent features     |
@@ -82,14 +80,10 @@
 
 ### Reports (Historical)
 
-| Directory                       | Content                                  |
-| ------------------------------- | ---------------------------------------- |
-| [Audits](reports/audits/)       | Deep audits, remediation reports         |
-| Sessions                        | Development session reports              |
-| [Mutations](reports/mutations/) | Stryker mutation testing reports         |
-| [Updates](reports/updates/)     | Dependency update session reports        |
-| [Testing](reports/testing/)     | Testing audit and infrastructure reports |
-| [Planning](reports/planning/)   | Master plan, sprint backlogs             |
+| Directory                   | Content                                  |
+| --------------------------- | ---------------------------------------- |
+| Sessions                    | Development session reports              |
+| [Testing](reports/testing/) | Testing audit and infrastructure reports |
 
 ## Technology Stack
 
