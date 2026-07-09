@@ -6,6 +6,7 @@
  */
 export * from "./BruteForceProtectionPort.js";
 export * from "./CachePort.js";
+export * from "./MfaUserRepositoryPort.js";
 export * from "./RateLimiterPort.js";
 export * from "./AgentOrchestrationPort.js";
 export * from "./OAuthFlowStorePort.js";

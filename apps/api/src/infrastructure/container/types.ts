@@ -16,6 +16,10 @@ export const TOKENS = {
 
   // AdminUser Repository
   AdminUserRepository: Symbol.for("AdminUserRepository"),
+  // MFA-user persistence ports (one adapter per subject table). The unified
+  // MfaService dispatches by subject type to the matching adapter.
+  AdminMfaUserRepository: Symbol.for("AdminMfaUserRepository"),
+  CustomerMfaUserRepository: Symbol.for("CustomerMfaUserRepository"),
   AdminUserAdminService: Symbol.for("AdminUserAdminService"),
   CustomerAccountBillingService: Symbol.for("CustomerAccountBillingService"),
   PricingAdminService: Symbol.for("PricingAdminService"),

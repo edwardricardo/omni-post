@@ -34,7 +34,10 @@ export const adminAuthConfig: AdminAuthConfig = {
   },
   mfa: {
     issuer: "OmniPost Admin",
-    backupCodesCount: 10,
+    // 8 codes of 8-char uppercase hex. The count is pinned to 8 (not 10) because
+    // route token schemas cap MFA tokens at 8 chars and backfilled admin backup
+    // hashes derive from 8-char codes users still hold.
+    backupCodesCount: 8,
   },
   security: {
     maxLoginAttempts: 5,
