@@ -8,7 +8,7 @@
 import type { Result } from "@shared/types";
 import type { AdminSession, PrismaClient } from "@infra/prisma";
 import type { AdminRoleKind } from "@core/domain/repositories/ReadModelDtos.js";
-import type { MfaService } from "./mfaService.js";
+import type { MfaService } from "../admin/auth/MfaService.js";
 import type { AdminUserRepositoryPort } from "@core/domain/repositories/AdminUserRepository.js";
 import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 import type { RoleRepository } from "@core/domain/repositories/RoleRepository.js";

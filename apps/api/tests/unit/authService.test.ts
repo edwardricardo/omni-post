@@ -7,6 +7,7 @@
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";
+import { MFA_SUBJECT_TYPE } from "@ports/core";
 import { createMockPrismaModule } from "./helpers/mockPrisma.js";
 import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 
@@ -44,7 +45,9 @@ vi.mock("../../src/lib/logger.js", () => {
 // ---------------------------------------------------------------------------
 
 const { AuthService, setRedisInstance } = await import("../../src/auth/authService.js");
-const { MfaService } = await import("../../src/auth/mfaService.js");
+const { MfaService } = await import("../../src/admin/auth/MfaService.js");
+const { PrismaAdminMfaUserRepository } =
+  await import("../../src/infrastructure/adapters/PrismaAdminMfaUserRepository.js");
 const { PrismaAdminUserRepository } =
   await import("../../src/infrastructure/repositories/PrismaAdminUserRepository.js");
 const { PrismaRoleRepository } =
@@ -90,7 +93,11 @@ describe("AuthService", () => {
     const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
     const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
     const sessionRepo = new PrismaAdminSessionRepository(mockPrisma.prisma as never);
-    mfaService = new MfaService(adminUserRepo, new InMemoryAuditLogRepository());
+    // Unified MFA service over the admin adapter. Both subject repos point at the
+    // same admin adapter (PR1 behavior-preserving), backed by the single mock
+    // Prisma store the rest of the suite reads from.
+    const adminMfaRepo = new PrismaAdminMfaUserRepository(mockPrisma.prisma as never);
+    mfaService = new MfaService(adminMfaRepo, adminMfaRepo, new InMemoryAuditLogRepository());
     authService = new AuthService(
       mockPrisma.prisma,
       adminUserRepo,
@@ -424,7 +431,10 @@ describe("AuthService", () => {
     });
 
     it("should setup MFA", async () => {
-      const result = await mfaService.setupMfa(testUserId, testEmail);
+      const result = await mfaService.setupMfa(
+        { type: MFA_SUBJECT_TYPE.ADMIN, id: testUserId },
+        testEmail
+      );
 
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -433,7 +443,10 @@ describe("AuthService", () => {
     });
 
     it("should verify and enable MFA", async () => {
-      const setupResult = await mfaService.setupMfa(testUserId, testEmail);
+      const setupResult = await mfaService.setupMfa(
+        { type: MFA_SUBJECT_TYPE.ADMIN, id: testUserId },
+        testEmail
+      );
       expect(setupResult.ok).toBe(true);
       if (!setupResult.ok) return;
       mfaSecret = setupResult.value.secret;
@@ -441,17 +454,26 @@ describe("AuthService", () => {
       const { authenticator } = await import("otplib");
       const validToken = authenticator.generate(mfaSecret);
 
-      const result = await mfaService.verifyMfaSetup(testUserId, validToken);
+      const result = await mfaService.verifyMfaSetup(
+        { type: MFA_SUBJECT_TYPE.ADMIN, id: testUserId },
+        validToken
+      );
       expect(result.ok).toBe(true);
     });
 
     it("should require MFA token on login", async () => {
       // Setup and enable MFA
-      const setupResult = await mfaService.setupMfa(testUserId, testEmail);
+      const setupResult = await mfaService.setupMfa(
+        { type: MFA_SUBJECT_TYPE.ADMIN, id: testUserId },
+        testEmail
+      );
       if (setupResult.ok) {
         mfaSecret = setupResult.value.secret;
         const { authenticator } = await import("otplib");
-        await mfaService.verifyMfaSetup(testUserId, authenticator.generate(mfaSecret));
+        await mfaService.verifyMfaSetup(
+          { type: MFA_SUBJECT_TYPE.ADMIN, id: testUserId },
+          authenticator.generate(mfaSecret)
+        );
       }
 
       const result = await authService.login(
@@ -468,11 +490,17 @@ describe("AuthService", () => {
 
     it("should reject invalid MFA token", async () => {
       // Setup and enable MFA
-      const setupResult = await mfaService.setupMfa(testUserId, testEmail);
+      const setupResult = await mfaService.setupMfa(
+        { type: MFA_SUBJECT_TYPE.ADMIN, id: testUserId },
+        testEmail
+      );
       if (setupResult.ok) {
         mfaSecret = setupResult.value.secret;
         const { authenticator } = await import("otplib");
-        await mfaService.verifyMfaSetup(testUserId, authenticator.generate(mfaSecret));
+        await mfaService.verifyMfaSetup(
+          { type: MFA_SUBJECT_TYPE.ADMIN, id: testUserId },
+          authenticator.generate(mfaSecret)
+        );
       }
 
       const result = await authService.login(
@@ -489,11 +517,17 @@ describe("AuthService", () => {
 
     it("should login successfully with valid MFA token", async () => {
       // Setup and enable MFA
-      const setupResult = await mfaService.setupMfa(testUserId, testEmail);
+      const setupResult = await mfaService.setupMfa(
+        { type: MFA_SUBJECT_TYPE.ADMIN, id: testUserId },
+        testEmail
+      );
       if (setupResult.ok) {
         mfaSecret = setupResult.value.secret;
         const { authenticator } = await import("otplib");
-        await mfaService.verifyMfaSetup(testUserId, authenticator.generate(mfaSecret));
+        await mfaService.verifyMfaSetup(
+          { type: MFA_SUBJECT_TYPE.ADMIN, id: testUserId },
+          authenticator.generate(mfaSecret)
+        );
       }
 
       const { authenticator } = await import("otplib");
@@ -513,17 +547,26 @@ describe("AuthService", () => {
 
     it("should disable MFA", async () => {
       // Setup and enable MFA first
-      const setupResult = await mfaService.setupMfa(testUserId, testEmail);
+      const setupResult = await mfaService.setupMfa(
+        { type: MFA_SUBJECT_TYPE.ADMIN, id: testUserId },
+        testEmail
+      );
       if (setupResult.ok) {
         mfaSecret = setupResult.value.secret;
         const { authenticator } = await import("otplib");
-        await mfaService.verifyMfaSetup(testUserId, authenticator.generate(mfaSecret));
+        await mfaService.verifyMfaSetup(
+          { type: MFA_SUBJECT_TYPE.ADMIN, id: testUserId },
+          authenticator.generate(mfaSecret)
+        );
       }
 
       const { authenticator } = await import("otplib");
       const validToken = authenticator.generate(mfaSecret);
 
-      const result = await mfaService.disableMfa(testUserId, validToken);
+      const result = await mfaService.disableMfa(
+        { type: MFA_SUBJECT_TYPE.ADMIN, id: testUserId },
+        validToken
+      );
       expect(result.ok).toBe(true);
     });
   });

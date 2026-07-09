@@ -10,7 +10,7 @@
 
 import type { PrismaClient } from "@infra/prisma";
 import { ok, err, type Result } from "@shared/types";
-import type { BruteForceProtectionPort } from "@ports/core";
+import { MFA_SUBJECT_TYPE, type BruteForceProtectionPort } from "@ports/core";
 import type {
   AdminUserProfile,
   LoginRequest,
@@ -35,16 +35,15 @@ export class AdminAuthService {
   private passwordService: PasswordService;
   private tokenService: TokenService;
   private sessionManager: SessionManager;
-  private mfaService: MfaService;
 
   constructor(
     private readonly prisma: PrismaClient,
-    private readonly bruteForce: BruteForceProtectionPort
+    private readonly bruteForce: BruteForceProtectionPort,
+    private readonly mfaService: MfaService
   ) {
     this.passwordService = new PasswordService(this.prisma);
     this.tokenService = new TokenService();
     this.sessionManager = new SessionManager(this.prisma, this.tokenService);
-    this.mfaService = new MfaService(this.prisma);
   }
 
   // ==========================================================================
@@ -129,8 +128,11 @@ export class AdminAuthService {
         return err("MFA_REQUIRED");
       }
 
-      const mfaValid = await this.mfaService.verifyMfaToken(user.id, mfaToken);
-      if (!mfaValid) {
+      const mfaResult = await this.mfaService.verifyMfaToken(
+        { type: MFA_SUBJECT_TYPE.ADMIN, id: user.id },
+        mfaToken
+      );
+      if (!mfaResult.ok) {
         await this.bruteForce.recordFailedAttempt({
           identifier: email,
           ip,
@@ -418,7 +420,28 @@ export class AdminAuthService {
    * Setup MFA for admin user (generates secret and QR code)
    */
   public async setupMfa(userId: string): Promise<Result<MfaSetupResponse, AuthErrorCode>> {
-    return this.mfaService.setupMfa(userId);
+    const user = await this.prisma.adminUser.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    });
+    if (!user) {
+      return err("USER_NOT_FOUND");
+    }
+    const result = await this.mfaService.setupMfa(
+      { type: MFA_SUBJECT_TYPE.ADMIN, id: userId },
+      user.email
+    );
+    if (!result.ok) {
+      if (result.error === "USER_NOT_FOUND") return err("USER_NOT_FOUND");
+      if (result.error === "MFA_ALREADY_ENABLED") return err("INVALID_REQUEST");
+      return err("INTERNAL_ERROR");
+    }
+    return ok({
+      secret: result.value.secret,
+      qrCodeUrl: result.value.qrCodeUrl,
+      backupCodes: result.value.backupCodes,
+      recoveryCodes: result.value.backupCodes,
+    });
   }
 
   /**
@@ -428,31 +451,78 @@ export class AdminAuthService {
     userId: string,
     token: string
   ): Promise<Result<boolean, AuthErrorCode>> {
-    return this.mfaService.verifyAndEnableMfa(userId, token, this.logSecurityEvent.bind(this));
+    const result = await this.mfaService.verifyMfaSetup(
+      { type: MFA_SUBJECT_TYPE.ADMIN, id: userId },
+      token
+    );
+    if (!result.ok) {
+      switch (result.error) {
+        case "INVALID_TOKEN":
+          return err("MFA_INVALID");
+        case "USER_NOT_FOUND":
+          return err("USER_NOT_FOUND");
+        default:
+          return err("INVALID_REQUEST");
+      }
+    }
+    return ok(true);
   }
 
   /**
-   * Disable MFA for a user
+   * Disable MFA for a user. The password re-check is an AdminAuthService concern
+   * (not an MFA concern) and stays here; the MFA-token check + state clearing is
+   * delegated to the unified MFA service.
    */
   public async disableMfa(
     userId: string,
     password: string,
     mfaToken: string
   ): Promise<Result<boolean, AuthErrorCode>> {
-    return this.mfaService.disableMfa(
-      userId,
-      password,
-      mfaToken,
-      this.passwordService.verifyPassword.bind(this.passwordService),
-      this.logSecurityEvent.bind(this)
+    const user = await this.prisma.adminUser.findUnique({
+      where: { id: userId },
+      select: { passwordHash: true, mfaEnabled: true },
+    });
+    if (!user) {
+      return err("USER_NOT_FOUND");
+    }
+    if (!user.mfaEnabled) {
+      return err("INVALID_REQUEST");
+    }
+    const { valid } = await this.passwordService.verifyPassword(password, user.passwordHash);
+    if (!valid) {
+      return err("INVALID_CREDENTIALS");
+    }
+    const result = await this.mfaService.disableMfa(
+      { type: MFA_SUBJECT_TYPE.ADMIN, id: userId },
+      mfaToken
     );
+    if (!result.ok) {
+      switch (result.error) {
+        case "INVALID_TOKEN":
+          return err("MFA_INVALID");
+        case "MFA_NOT_ENABLED":
+          return err("INVALID_REQUEST");
+        case "USER_NOT_FOUND":
+          return err("USER_NOT_FOUND");
+        default:
+          return err("INTERNAL_ERROR");
+      }
+    }
+    return ok(true);
   }
 
   /**
    * Get MFA status for a user
    */
   public async getMfaStatus(userId: string): Promise<Result<MfaStatusResponse, AuthErrorCode>> {
-    return this.mfaService.getMfaStatus(userId);
+    const result = await this.mfaService.getMfaStatus({ type: MFA_SUBJECT_TYPE.ADMIN, id: userId });
+    if (!result.ok) {
+      return err(result.error === "USER_NOT_FOUND" ? "USER_NOT_FOUND" : "INTERNAL_ERROR");
+    }
+    return ok({
+      enabled: result.value.enabled,
+      backupCodesRemaining: result.value.backupCodesCount,
+    });
   }
 
   // ==========================================================================

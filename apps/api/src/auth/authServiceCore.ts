@@ -14,7 +14,8 @@ import { env } from "../config/env.js";
 import type { AdminRoleKind } from "@core/domain/repositories/ReadModelDtos.js";
 import type { AdminUserDto } from "@core/domain/repositories/ReadModelDtos.js";
 import { AuditableService } from "../services/AuditableService.js";
-import type { MfaService } from "./mfaService.js";
+import type { MfaService } from "../admin/auth/MfaService.js";
+import { MFA_SUBJECT_TYPE } from "@ports/core";
 import type { AdminUserRepositoryPort } from "@core/domain/repositories/AdminUserRepository.js";
 import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 import type { RoleRepository } from "@core/domain/repositories/RoleRepository.js";
@@ -253,7 +254,10 @@ export class AuthServiceCore extends AuditableService {
           return ok({ mfaRequired: true as const, userId: user.id });
         }
 
-        const mfaResult = await this.mfaSvc.verifyMfaToken(user.id, credentials.mfaToken);
+        const mfaResult = await this.mfaSvc.verifyMfaToken(
+          { type: MFA_SUBJECT_TYPE.ADMIN, id: user.id },
+          credentials.mfaToken
+        );
         if (!mfaResult.ok) {
           await this.logSecurityEvent(user.id, user.id, {
             action: "USER_LOGIN",

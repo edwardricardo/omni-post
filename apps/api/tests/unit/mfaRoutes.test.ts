@@ -6,6 +6,7 @@
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { MFA_SUBJECT_TYPE } from "@ports/core";
 import { createMockPrismaModule } from "./helpers/mockPrisma.js";
 import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 
@@ -56,7 +57,9 @@ const Fastify = (await import("fastify")).default;
 const { serializerCompiler, validatorCompiler } = await import("fastify-type-provider-zod");
 const { mfaRoutes } = await import("../../src/auth/mfaRoutes.js");
 const { AuthService, setRedisInstance } = await import("../../src/auth/authService.js");
-const { MfaService } = await import("../../src/auth/mfaService.js");
+const { MfaService } = await import("../../src/admin/auth/MfaService.js");
+const { PrismaAdminMfaUserRepository } =
+  await import("../../src/infrastructure/adapters/PrismaAdminMfaUserRepository.js");
 const { AuditService } = await import("../../src/audit/auditService.js");
 const { PrismaAdminUserRepository } =
   await import("../../src/infrastructure/repositories/PrismaAdminUserRepository.js");
@@ -78,7 +81,10 @@ const auditService = new AuditService(mockPrisma.prisma as never);
 const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
 const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
 const sessionRepo = new PrismaAdminSessionRepository(mockPrisma.prisma as never);
-const mfaService = new MfaService(adminUserRepo, new InMemoryAuditLogRepository());
+// Unified MFA service over the admin adapter. Both subject repos point at the
+// same admin adapter (PR1 behavior-preserving) backed by the single mock store.
+const adminMfaRepo = new PrismaAdminMfaUserRepository(mockPrisma.prisma as never);
+const mfaService = new MfaService(adminMfaRepo, adminMfaRepo, new InMemoryAuditLogRepository());
 const authService = new AuthService(
   mockPrisma.prisma,
   adminUserRepo,
@@ -229,11 +235,14 @@ describe("mfaRoutes Unit Tests", () => {
 
     it("should reject duplicate setup", async () => {
       // First, enable MFA by verifying setup
-      const setupResult = await mfaService.setupMfa(userId, userEmail);
+      const setupResult = await mfaService.setupMfa(
+        { type: MFA_SUBJECT_TYPE.ADMIN, id: userId },
+        userEmail
+      );
       if (setupResult.ok) {
         const { authenticator } = await import("otplib");
         const token = authenticator.generate(setupResult.value.secret);
-        await mfaService.verifyMfaSetup(userId, token);
+        await mfaService.verifyMfaSetup({ type: MFA_SUBJECT_TYPE.ADMIN, id: userId }, token);
       }
 
       const response = await app.inject({
