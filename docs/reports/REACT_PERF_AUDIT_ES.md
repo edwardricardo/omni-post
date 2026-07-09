@@ -137,4 +137,4 @@ Tres correcciones de configuración/patrón eliminan más de la mitad de los hal
 
 ---
 
-_Auditoría generada por 5 agentes paralelos aplicando la skill vercel-react-best-practices sobre HEAD (mayo 2026). El detalle exhaustivo por archivo (tablas completas por área, ~135 filas) está en la salida de los agentes; este reporte consolida por leverage. Reverificar números de línea antes de cada PR (el código cambia). El backlog PERF-_ es independiente del roadmap de features ([IMPLEMENTATION_PLAN_ES.md](../product/IMPLEMENTATION_PLAN_ES.md)) — es deuda técnica de performance, no features.\*
+_Auditoría generada por 5 agentes paralelos aplicando la skill vercel-react-best-practices sobre HEAD (mayo 2026). El detalle exhaustivo por archivo (tablas completas por área, ~135 filas) está en la salida de los agentes; este reporte consolida por leverage. Reverificar números de línea antes de cada PR (el código cambia). El backlog PERF-_ es independiente del roadmap de features ([MASTER_PLAN_ES.md](../product/MASTER_PLAN_ES.md)) — es deuda técnica de performance, no features.\*

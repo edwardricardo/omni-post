@@ -1,7 +1,7 @@
 # Alcance Multi-idioma — Decisión de Producto
 
 > Estado: **DECIDIDO** · Fecha: 2026-05-19 · Decisor: Edward
-> Bloqueante **B4** del [IMPLEMENTATION_PLAN_ES.md](IMPLEMENTATION_PLAN_ES.md).
+> Bloqueante **B4** del [MASTER_PLAN_ES.md](MASTER_PLAN_ES.md).
 > Desbloquea Fase 1 — Multi-idioma (F1-API-1, F1-CLI-1, F1-CLI-2).
 
 ## Por qué esta decisión
