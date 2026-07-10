@@ -5,7 +5,12 @@
  * @layer infrastructure
  */
 
-import type { BruteForceProtectionPort, CachePort } from "@ports/core";
+import type {
+  BruteForceProtectionPort,
+  CachePort,
+  MfaChallengeStorePort,
+  MfaVerificationPort,
+} from "@ports/core";
 import type { PrismaClient } from "@infra/prisma";
 
 import type { Container } from "./Container.js";
@@ -26,6 +31,7 @@ import { PrismaCustomerRoleRepository } from "../repositories/PrismaCustomerRole
 import {
   RegisterCustomerUseCase,
   LoginCustomerUseCase,
+  CompleteCustomerMfaLoginUseCase,
   RefreshCustomerTokenUseCase,
   LogoutCustomerUseCase,
   RequestPasswordResetUseCase,
@@ -68,7 +74,8 @@ export function setupCustomerAuthUseCases(container: Container): void {
     true
   );
 
-  // Login
+  // Login (step 1). MFA-enabled customers receive a single-use challenge from
+  // TOKENS.MfaChallengeStore instead of a session.
   container.register<LoginCustomerUseCase>(
     TOKENS.LoginCustomerUseCase,
     () =>
@@ -77,7 +84,26 @@ export function setupCustomerAuthUseCases(container: Container): void {
         container.resolve<AccountRepositoryPort>(TOKENS.AccountRepository),
         container.resolve<PasswordHasher>(TOKENS.PasswordHasher),
         container.resolve<CustomerTokenService>(TOKENS.CustomerTokenService),
-        container.resolve<BruteForceProtectionPort>(TOKENS.BruteForceProtectionPort)
+        container.resolve<BruteForceProtectionPort>(TOKENS.BruteForceProtectionPort),
+        container.resolve<MfaChallengeStorePort>(TOKENS.MfaChallengeStore)
+      ),
+    true
+  );
+
+  // Login step 2 — verify the challenge + second factor and mint the session.
+  // MfaVerificationPort is the SAME unified MfaService instance (resolved and
+  // typed as the port) — no second token, keeping fitness #21 at one instance.
+  container.register<CompleteCustomerMfaLoginUseCase>(
+    TOKENS.CompleteCustomerMfaLoginUseCase,
+    () =>
+      new CompleteCustomerMfaLoginUseCase(
+        container.resolve<CustomerUserRepository>(TOKENS.CustomerUserRepository),
+        container.resolve<AccountRepositoryPort>(TOKENS.AccountRepository),
+        container.resolve<MfaVerificationPort>(TOKENS.MfaService),
+        container.resolve<CustomerTokenService>(TOKENS.CustomerTokenService),
+        container.resolve<MfaChallengeStorePort>(TOKENS.MfaChallengeStore),
+        container.resolve<BruteForceProtectionPort>(TOKENS.BruteForceProtectionPort),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );

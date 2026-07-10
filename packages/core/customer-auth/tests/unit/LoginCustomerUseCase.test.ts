@@ -2,18 +2,19 @@
  * @file LoginCustomerUseCase.test.ts
  * @description Unit tests for LoginCustomerUseCase.
  *   Tier 3 — mocks CustomerUserRepository, AccountRepositoryPort, PasswordHasher,
- *   CustomerTokenService, and BruteForceProtectionPort.
+ *   CustomerTokenService, BruteForceProtectionPort, and MfaChallengeStorePort.
  * @layer infrastructure
  */
 
-import { describe, it, vi, beforeEach } from "vitest";
+import { describe, it, vi, beforeEach, expect } from "vitest";
 import assert from "node:assert/strict";
+import { ok, err } from "@shared/types";
 import { LoginCustomerUseCase } from "../../src/LoginCustomerUseCase.js";
 import type { CustomerUserRepository } from "@core/domain/repositories/CustomerUserRepository.js";
 import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
 import type { PasswordHasher } from "@core/domain/repositories/PasswordHasher.js";
 import type { CustomerTokenService } from "@core/domain/repositories/CustomerTokenService.js";
-import type { BruteForceProtectionPort } from "@ports/core";
+import type { BruteForceProtectionPort, MfaChallengeStorePort } from "@ports/core";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -33,6 +34,7 @@ function makeUser(overrides?: Record<string, unknown>) {
     roleName: "admin",
     permissions: ["posts.read"],
     isActive: true,
+    mfaEnabled: false,
     recordLogin: vi.fn(),
     toJSON: vi.fn(() => ({ id: USER_ID, email: "user@example.com" })),
     ...overrides,
@@ -71,6 +73,8 @@ function makeTokenService(): CustomerTokenService {
   return {
     signAccessToken: vi.fn(() => "dummy-access-token"),
     signRefreshToken: vi.fn(() => "dummy-refresh-token"),
+    signMfaChallengeToken: vi.fn(() => "dummy-challenge-token"),
+    verifyMfaChallengeToken: vi.fn(),
   } as unknown as CustomerTokenService;
 }
 
@@ -80,6 +84,13 @@ function makeBruteForce(allowed = true): BruteForceProtectionPort {
     recordFailedAttempt: vi.fn(async () => undefined),
     recordSuccessfulAttempt: vi.fn(async () => undefined),
   } as unknown as BruteForceProtectionPort;
+}
+
+function makeChallengeStore(issueOk = true): MfaChallengeStorePort {
+  return {
+    issue: vi.fn(async () => (issueOk ? ok(undefined) : err("STORE_ERROR"))),
+    consume: vi.fn(async () => ok("CONSUMED")),
+  } as unknown as MfaChallengeStorePort;
 }
 
 const INPUT_BASE = {
@@ -99,6 +110,7 @@ describe("LoginCustomerUseCase", () => {
   let hasher: ReturnType<typeof makeHasher>;
   let tokenService: ReturnType<typeof makeTokenService>;
   let bruteForce: ReturnType<typeof makeBruteForce>;
+  let challengeStore: ReturnType<typeof makeChallengeStore>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -108,6 +120,7 @@ describe("LoginCustomerUseCase", () => {
     hasher = makeHasher(true);
     tokenService = makeTokenService();
     bruteForce = makeBruteForce(true);
+    challengeStore = makeChallengeStore(true);
   });
 
   describe("happy path — successful login", () => {
@@ -117,12 +130,14 @@ describe("LoginCustomerUseCase", () => {
         accountRepo,
         hasher,
         tokenService,
-        bruteForce
+        bruteForce,
+        challengeStore
       );
 
       const result = await useCase.execute(INPUT_BASE);
 
       assert.ok(result.ok, `Expected ok, got error: ${!result.ok ? result.error : ""}`);
+      assert.ok("accessToken" in result.value);
       assert.strictEqual(typeof result.value.accessToken, "string");
       assert.ok(result.value.accessToken.length > 0);
       assert.strictEqual(typeof result.value.refreshToken, "string");
@@ -137,7 +152,8 @@ describe("LoginCustomerUseCase", () => {
         accountRepo,
         wrongPassHasher,
         tokenService,
-        bruteForce
+        bruteForce,
+        challengeStore
       );
 
       const result = await useCase.execute(INPUT_BASE);
@@ -154,7 +170,8 @@ describe("LoginCustomerUseCase", () => {
         accountRepo,
         hasher,
         tokenService,
-        bruteForce
+        bruteForce,
+        challengeStore
       );
 
       const result = await useCase.execute({ ...INPUT_BASE, email: "" });
@@ -172,7 +189,8 @@ describe("LoginCustomerUseCase", () => {
         accountRepo,
         hasher,
         tokenService,
-        blockedBruteForce
+        blockedBruteForce,
+        challengeStore
       );
 
       const result = await useCase.execute(INPUT_BASE);
@@ -191,13 +209,101 @@ describe("LoginCustomerUseCase", () => {
         accountRepo,
         hasher,
         tokenService,
-        bruteForce
+        bruteForce,
+        challengeStore
       );
 
       const result = await useCase.execute(INPUT_BASE);
 
       assert.ok(!result.ok);
       assert.strictEqual(result.error, "USER_INACTIVE");
+    });
+  });
+
+  describe("MFA-enabled customer — challenge branch (no session pre-MFA)", () => {
+    it("returns a challenge (not tokens) when the user has MFA enabled", async () => {
+      const mfaUser = makeUser({ mfaEnabled: true });
+      const mfaRepo = makeUserRepo([mfaUser]);
+      const useCase = new LoginCustomerUseCase(
+        mfaRepo,
+        accountRepo,
+        hasher,
+        tokenService,
+        bruteForce,
+        challengeStore
+      );
+
+      const result = await useCase.execute(INPUT_BASE);
+
+      assert.ok(result.ok, `Expected ok, got error: ${!result.ok ? result.error : ""}`);
+      assert.ok("mfaRequired" in result.value, "expected a challenge output");
+      assert.strictEqual(result.value.mfaRequired, true);
+      assert.strictEqual(typeof result.value.challengeToken, "string");
+      assert.ok(result.value.challengeToken.length > 0);
+      assert.strictEqual(result.value.expiresInSeconds, 180);
+      assert.deepStrictEqual([...result.value.methods], ["totp", "backup_code"]);
+    });
+
+    it("performs NO recordLogin/save/recordSuccessfulAttempt/mint on the MFA branch", async () => {
+      const mfaUser = makeUser({ mfaEnabled: true });
+      const mfaRepo = makeUserRepo([mfaUser]);
+      const useCase = new LoginCustomerUseCase(
+        mfaRepo,
+        accountRepo,
+        hasher,
+        tokenService,
+        bruteForce,
+        challengeStore
+      );
+
+      await useCase.execute(INPUT_BASE);
+
+      expect(mfaUser.recordLogin).not.toHaveBeenCalled();
+      expect(mfaRepo.save).not.toHaveBeenCalled();
+      expect(bruteForce.recordSuccessfulAttempt).not.toHaveBeenCalled();
+      expect(tokenService.signAccessToken).not.toHaveBeenCalled();
+      expect(tokenService.signRefreshToken).not.toHaveBeenCalled();
+      // Challenge issued with the store TTL.
+      expect(challengeStore.issue).toHaveBeenCalledTimes(1);
+      expect(challengeStore.issue).toHaveBeenCalledWith(expect.any(String), 180);
+    });
+
+    it("returns MFA_UNAVAILABLE (fail-closed) when the challenge store issue fails", async () => {
+      const mfaUser = makeUser({ mfaEnabled: true });
+      const mfaRepo = makeUserRepo([mfaUser]);
+      const failingStore = makeChallengeStore(false);
+      const useCase = new LoginCustomerUseCase(
+        mfaRepo,
+        accountRepo,
+        hasher,
+        tokenService,
+        bruteForce,
+        failingStore
+      );
+
+      const result = await useCase.execute(INPUT_BASE);
+
+      assert.ok(!result.ok);
+      assert.strictEqual(result.error, "MFA_UNAVAILABLE");
+      expect(tokenService.signMfaChallengeToken).not.toHaveBeenCalled();
+    });
+
+    it("mints tokens unchanged for a customer WITHOUT MFA (never touches the store)", async () => {
+      const useCase = new LoginCustomerUseCase(
+        userRepo,
+        accountRepo,
+        hasher,
+        tokenService,
+        bruteForce,
+        challengeStore
+      );
+
+      const result = await useCase.execute(INPUT_BASE);
+
+      assert.ok(result.ok);
+      assert.ok("accessToken" in result.value);
+      expect(challengeStore.issue).not.toHaveBeenCalled();
+      expect(bruteForce.recordSuccessfulAttempt).toHaveBeenCalledTimes(1);
     });
   });
 });

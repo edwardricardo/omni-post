@@ -105,6 +105,13 @@ export const EXPENSIVE_ENDPOINT_RULES: readonly HttpRateLimitRule[] = [
  */
 const AUTH_ROUTE_RULES: readonly HttpRateLimitRule[] = [
   { path: "/auth/customer/login", config: RateLimitConfigs.AUTH },
+  // Customer login step 2 (MFA challenge completion). The `/auth/customer/login`
+  // prefix above already covers this URL, but it is listed EXPLICITLY because
+  // AUTH_ROUTE_RULES is the documented inventory of credential endpoints
+  // (SECURITY_CANON §How to extend #5) — implicit prefix coverage is exactly how
+  // an entry silently disappears in a refactor. The bucket key is `ip:path`, so
+  // step 1 and step 2 get independent 5/15min buckets.
+  { path: "/auth/customer/login/mfa", config: RateLimitConfigs.AUTH },
   { path: "/auth/customer/register", config: RateLimitConfigs.AUTH },
   { path: "/auth/customer/refresh", config: RateLimitConfigs.AUTH },
   { path: "/auth/customer/request-password-reset", config: RateLimitConfigs.AUTH },
@@ -119,10 +126,11 @@ const AUTH_ROUTE_RULES: readonly HttpRateLimitRule[] = [
   // Pre-fix these fell through to STANDARD, a 20x weaker cap on admin login.
   { path: "/admin/auth/login", config: RateLimitConfigs.AUTH },
   { path: "/admin/auth/refresh", config: RateLimitConfigs.AUTH },
-  // MFA second-factor verification — a TOTP / backup-code guessing surface
-  // (the login-flow `/auth/mfa/verify` is unauthenticated, userId+token from
-  // the body, with no per-account counter). `startsWith` also covers
-  // `/auth/mfa/verify-setup`. Account-based MFA throttling is a separate gap.
+  // MFA enrollment verification. The rule prefix-covers the LIVE authenticated
+  // `/auth/mfa/verify-setup` (a TOTP guessing surface at enrollment). The old
+  // unauthenticated login-flow `/auth/mfa/verify` orphan was retired — customer
+  // login MFA now runs through `/auth/customer/login/mfa` (listed above, with
+  // its own per-account BruteForceProtectionPort gate).
   { path: "/auth/mfa/verify", config: RateLimitConfigs.AUTH },
 ];
 

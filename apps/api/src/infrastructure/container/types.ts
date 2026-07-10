@@ -20,6 +20,11 @@ export const TOKENS = {
   // MfaService dispatches by subject type to the matching adapter.
   AdminMfaUserRepository: Symbol.for("AdminMfaUserRepository"),
   CustomerMfaUserRepository: Symbol.for("CustomerMfaUserRepository"),
+  // Single-use allowlist store backing the customer login MFA challenge
+  // (fail-closed; own Redis connection). The MFA verification port has NO
+  // token — CompleteCustomerMfaLoginUseCase resolves the existing
+  // TOKENS.MfaService typed as MfaVerificationPort (fitness #21: one instance).
+  MfaChallengeStore: Symbol.for("MfaChallengeStore"),
   AdminUserAdminService: Symbol.for("AdminUserAdminService"),
   CustomerAccountBillingService: Symbol.for("CustomerAccountBillingService"),
   PricingAdminService: Symbol.for("PricingAdminService"),
@@ -439,6 +444,7 @@ export const TOKENS = {
   CustomerRoleRepository: Symbol.for("CustomerRoleRepository"),
   RegisterCustomerUseCase: Symbol.for("RegisterCustomerUseCase"),
   LoginCustomerUseCase: Symbol.for("LoginCustomerUseCase"),
+  CompleteCustomerMfaLoginUseCase: Symbol.for("CompleteCustomerMfaLoginUseCase"),
   RefreshCustomerTokenUseCase: Symbol.for("RefreshCustomerTokenUseCase"),
   LogoutCustomerUseCase: Symbol.for("LogoutCustomerUseCase"),
   RequestPasswordResetUseCase: Symbol.for("RequestPasswordResetUseCase"),

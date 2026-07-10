@@ -41,6 +41,7 @@ const AUTH_ENDPOINTS = [
   "/auth/login",
   "/auth/refresh",
   "/auth/customer/login",
+  "/auth/customer/login/mfa",
   "/auth/customer/register",
   "/auth/customer/refresh",
   "/auth/customer/request-password-reset",
@@ -209,25 +210,26 @@ describe("Canonical HTTP rate limiter — /accounts resolves to STANDARD, not AU
   });
 });
 
-describe("Canonical HTTP rate limiter — /auth/mfa/verify carries the AUTH cap", () => {
+describe("Canonical HTTP rate limiter — /auth/mfa/verify-setup carries the AUTH cap", () => {
   let limiter: RateLimiterPort;
 
   beforeEach(() => {
     limiter = new InMemoryTokenBucketRateLimiter({ now: () => 1_700_000_000_000 });
   });
 
-  it("caps the unauthenticated MFA second-factor route at 5/15min — the 6th request 429s", async () => {
-    const app = buildApp(limiter, ["/auth/mfa/verify"]);
+  it("caps the MFA enrollment-verify route at 5/15min — the 6th request 429s", async () => {
+    const app = buildApp(limiter, ["/auth/mfa/verify-setup"]);
     const headers = { "x-forwarded-for": "203.0.113.60" };
 
-    // MFA verify is a TOTP / backup-code guessing surface with no per-account
-    // counter; it was ADDED to AUTH_ROUTE_RULES so the HTTP cap covers it.
+    // The `/auth/mfa/verify` rule prefix-covers the LIVE `/auth/mfa/verify-setup`
+    // (a TOTP guessing surface at enrollment); the old unauthenticated login-flow
+    // `/auth/mfa/verify` orphan was retired, so the rule now guards verify-setup.
     for (let i = 1; i <= AUTH_LIMIT; i++) {
-      const res = await app.inject({ method: "POST", url: "/auth/mfa/verify", headers });
+      const res = await app.inject({ method: "POST", url: "/auth/mfa/verify-setup", headers });
       expect(res.statusCode).not.toBe(429);
     }
 
-    const blocked = await app.inject({ method: "POST", url: "/auth/mfa/verify", headers });
+    const blocked = await app.inject({ method: "POST", url: "/auth/mfa/verify-setup", headers });
     expect(blocked.statusCode).toBe(429);
 
     const body = JSON.parse(blocked.body) as { error?: string };

@@ -13,9 +13,13 @@ import type { CustomerUserRepository } from "@core/domain/repositories/CustomerU
 import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
 import { AccountId } from "@core/domain/value-objects/EntityId.js";
 import type { PasswordHasher } from "@core/domain/repositories/PasswordHasher.js";
-import type { CustomerTokenService } from "@core/domain/repositories/CustomerTokenService.js";
-import type { BruteForceProtectionPort } from "@ports/core";
+import {
+  type CustomerTokenService,
+  CUSTOMER_MFA_CHALLENGE_TTL_SECONDS,
+} from "@core/domain/repositories/CustomerTokenService.js";
+import type { BruteForceProtectionPort, MfaChallengeStorePort } from "@ports/core";
 import { randomBytes } from "crypto";
+import { sha256Hex } from "./challengeBinding.js";
 
 /** Error code union */
 export type LoginCustomerError =
@@ -23,7 +27,11 @@ export type LoginCustomerError =
   | "USER_INACTIVE"
   | "MULTIPLE_ACCOUNTS"
   | "RATE_LIMITED"
+  | "MFA_UNAVAILABLE"
   | "INTERNAL_ERROR";
+
+/** The MFA methods a customer may present at step 2. Static — leaks nothing new. */
+const MFA_CHALLENGE_METHODS: readonly string[] = ["totp", "backup_code"];
 
 /** Input DTO */
 export interface LoginCustomerInput {
@@ -48,6 +56,19 @@ export interface LoginCustomerOutput {
 }
 
 /**
+ * Output DTO returned INSTEAD of a session when the authenticated customer has
+ * MFA enabled. No session is minted at this point — the caller must complete
+ * step 2 (`CompleteCustomerMfaLoginUseCase`) with the challenge token plus a
+ * valid TOTP or backup code.
+ */
+export interface CustomerMfaChallengeOutput {
+  readonly mfaRequired: true;
+  readonly challengeToken: string;
+  readonly expiresInSeconds: number;
+  readonly methods: readonly string[];
+}
+
+/**
  * @class LoginCustomerUseCase
  * @description Verifies customer credentials and issues JWT tokens.
  *   Brute-force gated: `checkLoginAttempt` before credential verification,
@@ -60,7 +81,8 @@ export class LoginCustomerUseCase {
     private readonly accountRepo: AccountRepositoryPort,
     private readonly hasher: PasswordHasher,
     private readonly tokenService: CustomerTokenService,
-    private readonly bruteForce: BruteForceProtectionPort
+    private readonly bruteForce: BruteForceProtectionPort,
+    private readonly challengeStore: MfaChallengeStorePort
   ) {}
 
   /**
@@ -74,7 +96,7 @@ export class LoginCustomerUseCase {
    */
   async execute(
     input: LoginCustomerInput
-  ): Promise<Result<LoginCustomerOutput, LoginCustomerError>> {
+  ): Promise<Result<LoginCustomerOutput | CustomerMfaChallengeOutput, LoginCustomerError>> {
     const { ip, userAgent } = input;
 
     try {
@@ -169,6 +191,34 @@ export class LoginCustomerUseCase {
       if (this.hasher.needsRehash(targetUser.passwordHash)) {
         const upgraded = await this.hasher.hash(input.password);
         await this.customerUserRepo.updatePasswordHash(targetUser.id, upgraded);
+      }
+
+      // MFA gate: a valid password is NOT terminal success for an MFA-enabled
+      // customer. Issue a short-lived, single-use challenge and STOP — no
+      // `recordLogin`/`save`, no `recordSuccessfulAttempt` (the BF counter is
+      // cleared only after the second factor completes), no session mint. This
+      // is what makes the BF ordering correct by construction.
+      if (targetUser.mfaEnabled) {
+        const jti = randomBytes(16).toString("hex");
+        const issued = await this.challengeStore.issue(jti, CUSTOMER_MFA_CHALLENGE_TTL_SECONDS);
+        if (!issued.ok) {
+          // Fail-closed: the store is the single-use source of truth; without it
+          // the gate cannot be enforced, so the login must not proceed.
+          return err("MFA_UNAVAILABLE");
+        }
+        const challengeToken = this.tokenService.signMfaChallengeToken({
+          sub: targetUser.id,
+          accountId: targetUser.accountId,
+          jti,
+          iph: sha256Hex(ip),
+          uah: sha256Hex(userAgent),
+        });
+        return ok({
+          mfaRequired: true,
+          challengeToken,
+          expiresInSeconds: CUSTOMER_MFA_CHALLENGE_TTL_SECONDS,
+          methods: MFA_CHALLENGE_METHODS,
+        });
       }
 
       // Record login
