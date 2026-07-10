@@ -46,6 +46,12 @@ export interface MfaUserRecord {
   readonly mfaBackupCodes: readonly string[];
   readonly mfaBackupUsedAt: Readonly<Record<string, string>>;
   readonly accountId?: string;
+  /**
+   * Highest TOTP time step already accepted for this user, or `null` when no
+   * TOTP has been consumed yet. Backs single-use enforcement: a code whose step
+   * is not strictly greater than this value is a replay.
+   */
+  readonly mfaLastUsedTotpStep: number | null;
 }
 
 /**
@@ -120,4 +126,23 @@ export interface MfaUserRepositoryPort {
    * @returns Ok(void) when applied, Err("NOT_FOUND") when the user is gone.
    */
   clearMfa(userId: string): Promise<Result<void, "NOT_FOUND">>;
+
+  /**
+   * Atomically claim a TOTP time step as consumed — the single-use control for
+   * time-based OTPs (NIST SP 800-63B 5.1.5.2). Compare-and-set: the claim
+   * succeeds only when the stored `mfaLastUsedTotpStep` is null OR strictly less
+   * than `step`, then advances it to `step`. The conditional single-statement
+   * update is the concurrency serializer, so two racing verifications of the
+   * same code yield exactly one `"CLAIMED"`.
+   *
+   * @param userId - Target user primary key.
+   * @param step - The accepted TOTP time step (floor(epochSeconds / period)).
+   * @returns Ok("CLAIMED") when THIS caller claimed the step; Err("ALREADY_USED")
+   *          when the step was already claimed (a replay or an older-window
+   *          token); Err("NOT_FOUND") when the user is gone.
+   */
+  claimTotpStep(
+    userId: string,
+    step: number
+  ): Promise<Result<"CLAIMED", "NOT_FOUND" | "ALREADY_USED">>;
 }

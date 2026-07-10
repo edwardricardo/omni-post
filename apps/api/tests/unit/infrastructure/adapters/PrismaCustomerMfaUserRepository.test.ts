@@ -27,6 +27,24 @@ interface FakeCustomerUserRow {
   mfaSecret: string | null;
   mfaBackupCodes: string[];
   mfaBackupUsedAt: unknown;
+  mfaLastUsedTotpStep: number | null;
+}
+
+/** Evaluate the conditional-claim `OR` predicate against a stored step. */
+function claimPredicateMatches(
+  storedStep: number | null,
+  or: Array<Record<string, unknown>> | undefined
+): boolean {
+  if (!or) return true;
+  return or.some((clause) => {
+    const cond = clause.mfaLastUsedTotpStep;
+    if (cond === null) return storedStep === null;
+    if (typeof cond === "object" && cond !== null && "lt" in cond) {
+      const lt = (cond as { lt: number }).lt;
+      return storedStep !== null && storedStep < lt;
+    }
+    return false;
+  });
 }
 
 class PrismaP2025Error extends Error {
@@ -64,6 +82,19 @@ function makeFakePrisma(seed: FakeCustomerUserRow[]): {
       rows.set(where.id, updated);
       return updated;
     },
+    updateMany: async ({
+      where,
+      data,
+    }: {
+      where: { id: string; OR?: Array<Record<string, unknown>> };
+      data: Record<string, unknown>;
+    }): Promise<{ count: number }> => {
+      const existing = rows.get(where.id);
+      if (!existing) return { count: 0 };
+      if (!claimPredicateMatches(existing.mfaLastUsedTotpStep, where.OR)) return { count: 0 };
+      rows.set(where.id, { ...existing, ...data } as FakeCustomerUserRow);
+      return { count: 1 };
+    },
   };
   return { prisma: { customerUser } as unknown as PrismaClient, rows };
 }
@@ -76,6 +107,7 @@ const makeRow = (overrides: Partial<FakeCustomerUserRow> = {}): FakeCustomerUser
   mfaSecret: null,
   mfaBackupCodes: [],
   mfaBackupUsedAt: {},
+  mfaLastUsedTotpStep: null,
   ...overrides,
 });
 
@@ -139,6 +171,70 @@ describe("PrismaCustomerMfaUserRepository", () => {
       expect(result.ok && result.value.mfaBackupUsedAt).toEqual({
         "0": "2026-01-01T00:00:00.000Z",
       });
+    });
+
+    it("surfaces mfaLastUsedTotpStep on the record", async () => {
+      const fake = makeFakePrisma([makeRow({ mfaLastUsedTotpStep: 42 })]);
+      const localRepo = new PrismaCustomerMfaUserRepository(fake.prisma);
+
+      const result = await localRepo.findById("customer-1");
+
+      expect(result.ok && result.value.mfaLastUsedTotpStep).toBe(42);
+    });
+
+    it("surfaces a null mfaLastUsedTotpStep when no TOTP has been consumed", async () => {
+      const result = await repo.findById("customer-1");
+
+      expect(result.ok).toBe(true);
+      expect(result.ok && result.value.mfaLastUsedTotpStep).toBeNull();
+    });
+  });
+
+  describe("claimTotpStep", () => {
+    it("claims a fresh step over a null stored value (updateMany count 1 → CLAIMED)", async () => {
+      const result = await repo.claimTotpStep("customer-1", 100);
+
+      expect(result.ok).toBe(true);
+      expect(result.ok && result.value).toBe("CLAIMED");
+      expect(rows.get("customer-1")?.mfaLastUsedTotpStep).toBe(100);
+    });
+
+    it("claims a strictly-greater step over an existing one", async () => {
+      const fake = makeFakePrisma([makeRow({ mfaLastUsedTotpStep: 100 })]);
+      const localRepo = new PrismaCustomerMfaUserRepository(fake.prisma);
+
+      const result = await localRepo.claimTotpStep("customer-1", 101);
+
+      expect(result.ok && result.value).toBe("CLAIMED");
+      expect(fake.rows.get("customer-1")?.mfaLastUsedTotpStep).toBe(101);
+    });
+
+    it("rejects a replayed step (count 0, row present → ALREADY_USED) without advancing", async () => {
+      const fake = makeFakePrisma([makeRow({ mfaLastUsedTotpStep: 100 })]);
+      const localRepo = new PrismaCustomerMfaUserRepository(fake.prisma);
+
+      const result = await localRepo.claimTotpStep("customer-1", 100);
+
+      expect(result.ok).toBe(false);
+      expect(!result.ok && result.error).toBe("ALREADY_USED");
+      expect(fake.rows.get("customer-1")?.mfaLastUsedTotpStep).toBe(100);
+    });
+
+    it("rejects an older-window step (count 0, row present → ALREADY_USED)", async () => {
+      const fake = makeFakePrisma([makeRow({ mfaLastUsedTotpStep: 100 })]);
+      const localRepo = new PrismaCustomerMfaUserRepository(fake.prisma);
+
+      const result = await localRepo.claimTotpStep("customer-1", 99);
+
+      expect(result.ok).toBe(false);
+      expect(!result.ok && result.error).toBe("ALREADY_USED");
+    });
+
+    it("returns NOT_FOUND when the user is gone (count 0, row missing)", async () => {
+      const result = await repo.claimTotpStep("ghost", 100);
+
+      expect(result.ok).toBe(false);
+      expect(!result.ok && result.error).toBe("NOT_FOUND");
     });
   });
 

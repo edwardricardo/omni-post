@@ -182,6 +182,10 @@ model AdminUser {
   mustChangePassword    Boolean   @default(false)
   mfaBackupCodes        String[]  @default([])
   mfaBackupUsedAt       Json?     @default("{}")
+  // Highest TOTP time-step already accepted for this user. Enforces single-use
+  // of time-based OTPs (NIST SP 800-63B 5.1.5.2): a given step is claimed once
+  // via compare-and-set, so the same code cannot be replayed within its window.
+  mfaLastUsedTotpStep   Int?
   failedLoginAttempts   Int       @default(0)
   lockedUntil           DateTime? @db.Timestamptz(6)
   lockReason            String?
@@ -345,6 +349,10 @@ model CustomerUser {
   mfaSecret         String?
   mfaBackupCodes    String[]  @default([])
   mfaBackupUsedAt   Json?     @default("{}")
+  // Highest TOTP time-step already accepted for this user. Enforces single-use
+  // of time-based OTPs (NIST SP 800-63B 5.1.5.2): a given step is claimed once
+  // via compare-and-set, so the same code cannot be replayed within its window.
+  mfaLastUsedTotpStep Int?
   lastLoginAt       DateTime? @db.Timestamptz(6)
   avatarUrl         String?
   invitedBy         String? // ID of the CustomerUser who sent the invitation

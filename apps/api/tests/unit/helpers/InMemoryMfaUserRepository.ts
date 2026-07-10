@@ -18,6 +18,7 @@ interface MutableMfaRecord {
   mfaSecret: string | null;
   mfaBackupCodes: string[];
   mfaBackupUsedAt: Record<string, string>;
+  mfaLastUsedTotpStep: number | null;
 }
 
 /**
@@ -36,6 +37,7 @@ export class InMemoryMfaUserRepository implements MfaUserRepositoryPort {
     mfaSecret?: string | null;
     mfaBackupCodes?: string[];
     mfaBackupUsedAt?: Record<string, string>;
+    mfaLastUsedTotpStep?: number | null;
   }): void {
     this.rows.set(record.id, {
       id: record.id,
@@ -45,6 +47,7 @@ export class InMemoryMfaUserRepository implements MfaUserRepositoryPort {
       mfaSecret: record.mfaSecret ?? null,
       mfaBackupCodes: record.mfaBackupCodes ?? [],
       mfaBackupUsedAt: record.mfaBackupUsedAt ?? {},
+      mfaLastUsedTotpStep: record.mfaLastUsedTotpStep ?? null,
     });
   }
 
@@ -69,6 +72,7 @@ export class InMemoryMfaUserRepository implements MfaUserRepositoryPort {
       mfaSecret: row.mfaSecret,
       mfaBackupCodes: [...row.mfaBackupCodes],
       mfaBackupUsedAt: { ...row.mfaBackupUsedAt },
+      mfaLastUsedTotpStep: row.mfaLastUsedTotpStep,
     });
   }
 
@@ -120,5 +124,21 @@ export class InMemoryMfaUserRepository implements MfaUserRepositoryPort {
     row.mfaBackupCodes = [];
     row.mfaBackupUsedAt = {};
     return ok(undefined);
+  }
+
+  async claimTotpStep(
+    userId: string,
+    step: number
+  ): Promise<Result<"CLAIMED", "NOT_FOUND" | "ALREADY_USED">> {
+    const row = this.rows.get(userId);
+    if (!row) return err("NOT_FOUND");
+    // Atomic by construction: Node's single-threaded event loop runs this
+    // check-then-set with no `await` in between, mirroring the Prisma adapter's
+    // conditional single-statement UPDATE.
+    if (row.mfaLastUsedTotpStep !== null && row.mfaLastUsedTotpStep >= step) {
+      return err("ALREADY_USED");
+    }
+    row.mfaLastUsedTotpStep = step;
+    return ok("CLAIMED");
   }
 }

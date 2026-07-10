@@ -103,7 +103,12 @@ describe("Unified MfaService", () => {
       const login = await h.service.verifyMfaToken(subject, regen.value[0] as string);
       expect(login.ok && login.value.verified).toBe(true);
 
-      const disable = await h.service.disableMfa(subject, authenticator.generate(secret));
+      // Disable with a DISTINCT unused backup code. The regenerate above already
+      // claimed the current TOTP time step, and TOTP single-use now rejects any
+      // reuse of that step within its window, so disabling with a fresh TOTP in
+      // the same window would (correctly) fail — a backup code keeps the
+      // lifecycle assertion focused on disable, not TOTP replay.
+      const disable = await h.service.disableMfa(subject, regen.value[1] as string);
       expect(disable.ok).toBe(true);
       const after = await h.service.getMfaStatus(subject);
       expect(after.ok && after.value.enabled).toBe(false);
