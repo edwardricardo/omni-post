@@ -18,6 +18,7 @@ import type { EventDispatcher as _EventDispatcher } from "@core/domain/index.js"
 import { AuthService } from "../../auth/authService.js";
 import { MfaService } from "../../admin/auth/MfaService.js";
 import { PrismaAdminMfaUserRepository } from "../adapters/PrismaAdminMfaUserRepository.js";
+import { PrismaCustomerMfaUserRepository } from "../adapters/PrismaCustomerMfaUserRepository.js";
 import type { MfaUserRepositoryPort } from "@ports/core";
 import { RbacService } from "../../auth/rbacService.js";
 import { RoleManagementService } from "@core/auth/RoleManagementService.js";
@@ -171,9 +172,8 @@ export function setupServices(
   );
   container.register<UpcasterChain>(TOKENS.UpcasterChain, () => new UpcasterChain(), true);
 
-  // MFA-user persistence adapters. The AdminUser adapter is wired now; the
-  // customer subject resolves to the same admin adapter until the CustomerUser
-  // columns and adapter land, keeping admin MFA behavior unchanged.
+  // MFA-user persistence adapters — one per subject table (mfa-consolidation
+  // PR2): AdminUser (global) and CustomerUser (tenant-scoped).
   container.register<MfaUserRepositoryPort>(
     TOKENS.AdminMfaUserRepository,
     () => new PrismaAdminMfaUserRepository(container.resolve(TOKENS.PrismaClient)),
@@ -181,7 +181,7 @@ export function setupServices(
   );
   container.register<MfaUserRepositoryPort>(
     TOKENS.CustomerMfaUserRepository,
-    () => container.resolve<MfaUserRepositoryPort>(TOKENS.AdminMfaUserRepository),
+    () => new PrismaCustomerMfaUserRepository(container.resolve(TOKENS.PrismaClient)),
     true
   );
 

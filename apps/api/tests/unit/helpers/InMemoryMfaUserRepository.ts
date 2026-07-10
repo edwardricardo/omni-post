@@ -13,6 +13,7 @@ import type { MfaUserRecord, MfaUserRepositoryPort } from "@ports/core";
 interface MutableMfaRecord {
   id: string;
   email: string;
+  accountId?: string;
   mfaEnabled: boolean;
   mfaSecret: string | null;
   mfaBackupCodes: string[];
@@ -30,6 +31,7 @@ export class InMemoryMfaUserRepository implements MfaUserRepositoryPort {
   seed(record: {
     id: string;
     email: string;
+    accountId?: string;
     mfaEnabled?: boolean;
     mfaSecret?: string | null;
     mfaBackupCodes?: string[];
@@ -38,6 +40,7 @@ export class InMemoryMfaUserRepository implements MfaUserRepositoryPort {
     this.rows.set(record.id, {
       id: record.id,
       email: record.email,
+      ...(record.accountId !== undefined && { accountId: record.accountId }),
       mfaEnabled: record.mfaEnabled ?? false,
       mfaSecret: record.mfaSecret ?? null,
       mfaBackupCodes: record.mfaBackupCodes ?? [],
@@ -61,6 +64,7 @@ export class InMemoryMfaUserRepository implements MfaUserRepositoryPort {
     return ok({
       id: row.id,
       email: row.email,
+      ...(row.accountId !== undefined && { accountId: row.accountId }),
       mfaEnabled: row.mfaEnabled,
       mfaSecret: row.mfaSecret,
       mfaBackupCodes: [...row.mfaBackupCodes],

@@ -17,6 +17,7 @@ import { requireClientAuth } from "./customerAuthMiddleware.js";
 import type { AuditService } from "../audit/auditService.js";
 import type { AuthenticatedUser } from "./authService.js";
 import { TOKENS } from "../infrastructure/container/types.js";
+import { withSystemContext } from "../security/tenantContext.js";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -78,7 +79,10 @@ class MfaRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 401, "User not authenticated");
     }
 
-    const result = await this.mfaService.getMfaStatus({ type: MFA_SUBJECT_TYPE.ADMIN, id: userId });
+    const result = await this.mfaService.getMfaStatus({
+      type: MFA_SUBJECT_TYPE.CUSTOMER,
+      id: userId,
+    });
 
     if (!result.ok) {
       const errorMap: Record<string, { status: number; message: string }> = {
@@ -96,16 +100,12 @@ class MfaRouteHandler extends BaseRouteHandler {
     const ctx: RouteContext = { request, reply };
 
     const userId = request.customerUser?.id;
-    const userEmail = request.customerUser?.id;
 
-    if (!userId || !userEmail) {
+    if (!userId) {
       return this.sendError(ctx, 401, "User not authenticated");
     }
 
-    const result = await this.mfaService.setupMfa(
-      { type: MFA_SUBJECT_TYPE.ADMIN, id: userId },
-      userEmail
-    );
+    const result = await this.mfaService.setupMfa({ type: MFA_SUBJECT_TYPE.CUSTOMER, id: userId });
 
     if (!result.ok) {
       const errorMap: Record<string, { status: number; message: string }> = {
@@ -154,7 +154,7 @@ class MfaRouteHandler extends BaseRouteHandler {
     const { token } = validated.value.body;
 
     const result = await this.mfaService.verifyMfaSetup(
-      { type: MFA_SUBJECT_TYPE.ADMIN, id: userId },
+      { type: MFA_SUBJECT_TYPE.CUSTOMER, id: userId },
       token
     );
 
@@ -251,7 +251,7 @@ class MfaRouteHandler extends BaseRouteHandler {
     const { token } = validated.value.body;
 
     const result = await this.mfaService.disableMfa(
-      { type: MFA_SUBJECT_TYPE.ADMIN, id: userId },
+      { type: MFA_SUBJECT_TYPE.CUSTOMER, id: userId },
       token
     );
 
@@ -295,7 +295,7 @@ class MfaRouteHandler extends BaseRouteHandler {
     const { token } = validated.value.body;
 
     const result = await this.mfaService.regenerateBackupCodes(
-      { type: MFA_SUBJECT_TYPE.ADMIN, id: userId },
+      { type: MFA_SUBJECT_TYPE.CUSTOMER, id: userId },
       token
     );
 
@@ -372,8 +372,9 @@ class MfaRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 401, "Admin user ID not found");
     }
 
-    // Delegate to MfaService (no direct Prisma access from routes). Admin subject
-    // only for now — the customer-subject route arrives with customer MFA persistence.
+    // Delegate to MfaService (no direct Prisma access from routes). Admin-over-admin
+    // force-disable; the customer-subject counterpart is a separate route below
+    // (adminForceDisableCustomerMfa), since each subject lives on its own table.
     const result = await this.mfaService.adminForceDisable(
       { type: MFA_SUBJECT_TYPE.ADMIN, id: userId },
       { id: adminUserId }
@@ -406,6 +407,76 @@ class MfaRouteHandler extends BaseRouteHandler {
     this.logInfo(ctx, "Admin force-disabled MFA", { adminUserId, targetUserId: userId, reason });
     return this.sendSuccess(ctx, {
       message: "MFA has been force-disabled for the user",
+      userId,
+      disabledBy: adminUserId,
+      reason,
+    });
+  }
+
+  /**
+   * @method adminForceDisableCustomerMfa
+   * @description Admin emergency recovery for a CUSTOMER subject (locked-out support
+   *              case). `customerUser` is tenant-scoped and the admin request carries
+   *              no TenantContext, so the disable + audit run under the sanctioned
+   *              `withSystemContext()` cross-tenant bypass rather than any invented one.
+   */
+  async adminForceDisableCustomerMfa(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+
+    const validated = await this.validateRequest<z.infer<typeof AdminForceDisableMfaSchema>>(ctx, {
+      params: AdminForceDisableMfaSchema.shape.params,
+      body: AdminForceDisableMfaSchema.shape.body,
+    });
+
+    if (!validated.ok) {
+      return this.sendError(ctx, 400, "Invalid request");
+    }
+
+    const { userId } = validated.value.params;
+    const { reason } = validated.value.body;
+    const adminUserId = request.auth?.user?.id;
+
+    if (!adminUserId) {
+      return this.sendError(ctx, 401, "Admin user ID not found");
+    }
+
+    const result = await withSystemContext(`admin-mfa-force-disable:customer:${userId}`, async () =>
+      this.mfaService.adminForceDisable(
+        { type: MFA_SUBJECT_TYPE.CUSTOMER, id: userId },
+        { id: adminUserId }
+      )
+    );
+
+    if (!result.ok) {
+      const errorMap: Record<string, { status: number; message: string }> = {
+        USER_NOT_FOUND: { status: 404, message: "User not found" },
+        DATABASE_ERROR: { status: 500, message: "Failed to disable MFA" },
+      };
+      const error = errorMap[result.error] || { status: 500, message: "Failed to disable MFA" };
+      return this.sendError(ctx, error.status, error.message);
+    }
+
+    await this.auditService.log({
+      userId: adminUserId,
+      action: "ADMIN_MFA_FORCE_DISABLED",
+      resource: "CustomerUser",
+      resourceId: userId,
+      details: {
+        targetUserId: userId,
+        reason,
+      },
+      ipAddress: request.ip,
+      ...(request.headers["user-agent"] ? { userAgent: request.headers["user-agent"] } : {}),
+      success: true,
+    });
+
+    this.logInfo(ctx, "Admin force-disabled customer MFA", {
+      adminUserId,
+      targetUserId: userId,
+      reason,
+    });
+    return this.sendSuccess(ctx, {
+      message: "MFA has been force-disabled for the customer",
       userId,
       disabledBy: adminUserId,
       reason,
@@ -491,6 +562,16 @@ const mfaRoutes: FastifyPluginAsync = async (fastify) => {
       schema: { tags: ["MFA"], summary: "Admin: Force disable MFA for a user" },
     },
     async (request, reply) => handler.adminForceDisableMfa(request, reply)
+  );
+
+  // Admin: Force disable MFA for a customer (emergency support use)
+  fastify.post(
+    "/admin/customers/:userId/mfa/force-disable",
+    {
+      preHandler: [requireAdminAuth, requirePermission(Permission.USER_MANAGE)],
+      schema: { tags: ["MFA"], summary: "Admin: Force disable MFA for a customer" },
+    },
+    async (request, reply) => handler.adminForceDisableCustomerMfa(request, reply)
   );
 };
 
