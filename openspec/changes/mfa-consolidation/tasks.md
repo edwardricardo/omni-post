@@ -68,8 +68,27 @@ PR1 and PR2 each likely exceed 400 lines; strict-TDD + work-unit rule keeps test
 
 ## PR3: Backfill + Legacy Retirement (base: main after PR2)
 
+> **CI-forced partial completion (2026-07-10):** `tests/mfa.test.ts` (`Custom Security Test Suite` /
+> `pnpm --filter @apps/api test:mfa`) broke CI on PR #108 — it built its OWN graph with the legacy
+> `auth/mfaService.ts` wired into `AuthService`, but `authServiceCore.login` (since PR1) calls the
+> unified subject-typed `verifyMfaToken({type,id}, token)`. The legacy service's `(userId: string,
+token)` signature silently received the subject object as a string id (TS didn't catch it — see
+> root-cause note below) → 2 of 21 tests failed for real in CI. Repointed to the unified `MfaService`
+> (mirrors `setupServices.ts` wiring) in THIS session, out of order relative to 3.4/3.5, because a live
+> CI failure cannot wait for PR3 — this is the S3 finding materializing early. Also caught and fixed
+> a genuine behavioral-assertion mismatch: the unified `verifyMfaSetup` does NOT re-issue backup codes
+> (issued once at setup, per spec) — the legacy quirk of re-issuing at verify-setup is dropped; the
+> test's assertion was updated to the unified spec, not reverted. 21/21 pass, 0 cancelled.
+> **Root-cause precision**: `apps/api/tsconfig.json`'s `include` is `src`/`packages/*/src`/etc — it
+> does NOT cover `tests/`, so `tsc --noEmit` never type-checked this file at all (not merely a
+> bivariance near-miss). `node --import tsx` also does not type-check (transpile-only). Both facts
+> together, not just bivariance, are why the mismatch shipped silently until CI ran the real test.
+> **Remaining PR3 scope** (unchanged): the other ~14 DI-bootstrap-only route smoke tests (which
+> import the legacy service for DI wiring only, never exercise MFA, per PR1/PR2 verify W1/S3) +
+> the backfill script + legacy file deletion + zero-reference gate below.
+
 - [ ] 3.1 RED (node:test): seed legacy admin rows; backfill moves codes exactly once; re-run is no-op; source `passwordResetToken` retained until verified; guard skips genuine reset tokens; assert fitness #23 count `0` (typed Prisma only).
 - [ ] 3.2 GREEN: create `scripts/migrations/backfill-admin-mfa-backup-codes.ts` — cursor-batched `findMany`, `$argon2id$`-JSON content guard, skip-migrated, per-row typed `update`, source retained; `// canon-exception: migration:<ts>`. JSDoc `@layer infrastructure`.
 - [ ] 3.3 Separate verify step (count source-matching vs migrated) and separate cleanup step (null `passwordResetToken` only where guard matches AND `mfaBackupCodes` non-empty).
-- [ ] 3.4 After backfill verify + parity tests pass: delete `apps/api/src/auth/mfaService.ts`; repoint imports (`setupServices.ts:19`, `authService.ts:11`, `authServiceCore.ts:17`, `mfaRoutes.ts:11`).
-- [ ] 3.5 Zero-reference gate: `rg "auth/mfaService"` → 0; file absent; TOTP behavior unchanged.
+- [ ] 3.4 After backfill verify + parity tests pass: delete `apps/api/src/auth/mfaService.ts`; repoint imports (`setupServices.ts:19`, `authService.ts:11`, `authServiceCore.ts:17`, `mfaRoutes.ts:11`). `tests/mfa.test.ts` is ALREADY repointed (done this session, CI-forced) — no longer part of this task's remaining work.
+- [ ] 3.5 Zero-reference gate: `rg "auth/mfaService"` → 0; file absent; TOTP behavior unchanged. Repoint/delete the ~14 remaining DI-bootstrap-only smoke tests that still import the legacy service alongside this.

@@ -6,17 +6,30 @@
 import { describe, it, before, after, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { AuthService } from "../src/auth/authService.js";
-import { MfaService } from "../src/auth/mfaService.js";
+import { MfaService } from "../src/admin/auth/MfaService.js";
+import { MFA_SUBJECT_TYPE, type MfaSubject } from "@ports/core";
 import { prisma } from "@infra/prisma";
 import { PrismaAdminUserRepository } from "../src/infrastructure/repositories/PrismaAdminUserRepository.js";
 import { PrismaRoleRepository } from "../src/infrastructure/repositories/PrismaRoleRepository.js";
 import { PrismaAdminSessionRepository } from "../src/infrastructure/repositories/PrismaAdminSessionRepository.js";
 import { PrismaAuditLogRepository } from "../src/infrastructure/repositories/PrismaAuditLogRepository.js";
+import { PrismaAdminMfaUserRepository } from "../src/infrastructure/adapters/PrismaAdminMfaUserRepository.js";
+import { PrismaCustomerMfaUserRepository } from "../src/infrastructure/adapters/PrismaCustomerMfaUserRepository.js";
 
 const adminUserRepo = new PrismaAdminUserRepository(prisma);
 const roleRepo = new PrismaRoleRepository(prisma);
 const sessionRepo = new PrismaAdminSessionRepository(prisma);
-const mfaService = new MfaService(adminUserRepo, new PrismaAuditLogRepository(prisma));
+// Unified, port-based MfaService (mfa-consolidation) — mirrors the composition
+// root wiring in setupServices.ts. `authServiceCore.login` calls the unified
+// subject-typed `verifyMfaToken` signature, so this file's AuthService must be
+// built with the SAME service production actually resolves via DI, not the
+// retired legacy `auth/mfaService.ts` (which took a bare userId string and
+// silently broke this file — bivariance let the mismatched type through).
+const mfaService = new MfaService(
+  new PrismaAdminMfaUserRepository(prisma),
+  new PrismaCustomerMfaUserRepository(prisma),
+  new PrismaAuditLogRepository(prisma)
+);
 const authService = new AuthService(
   prisma,
   adminUserRepo,
@@ -26,6 +39,11 @@ const authService = new AuthService(
   new PrismaAuditLogRepository(prisma)
 );
 import { authenticator } from "otplib";
+
+/** Build the ADMIN subject the unified MfaService expects for a given user id. */
+function adminSubject(id: string): MfaSubject {
+  return { type: MFA_SUBJECT_TYPE.ADMIN, id };
+}
 
 /**
  * MFA (Multi-Factor Authentication) System Tests
@@ -68,7 +86,7 @@ describe("MFA System", () => {
     });
 
     it("should return disabled status for user without MFA", async () => {
-      const result = await mfaService.getMfaStatus(testUserId);
+      const result = await mfaService.getMfaStatus(adminSubject(testUserId));
 
       assert.ok(result.ok, "Get MFA status should succeed");
       assert.equal(result.value.enabled, false, "MFA should be disabled");
@@ -77,7 +95,7 @@ describe("MFA System", () => {
 
     it("should return error for non-existent user", async () => {
       const fakeUserId = "00000000-0000-0000-0000-000000000000";
-      const result = await mfaService.getMfaStatus(fakeUserId);
+      const result = await mfaService.getMfaStatus(adminSubject(fakeUserId));
 
       assert.ok(!result.ok, "Should fail for non-existent user");
       assert.equal(result.error, "USER_NOT_FOUND");
@@ -108,7 +126,7 @@ describe("MFA System", () => {
     });
 
     it("should setup MFA successfully", async () => {
-      const result = await mfaService.setupMfa(testUserId, testEmail);
+      const result = await mfaService.setupMfa(adminSubject(testUserId));
 
       assert.ok(result.ok, "MFA setup should succeed");
       assert.ok(result.value.secret, "Should return secret");
@@ -119,17 +137,17 @@ describe("MFA System", () => {
 
     it("should prevent duplicate MFA setup", async () => {
       // First setup
-      const result1 = await mfaService.setupMfa(testUserId, testEmail);
+      const result1 = await mfaService.setupMfa(adminSubject(testUserId));
       assert.ok(result1.ok, "First setup should succeed");
 
       const token = authenticator.generate(result1.value.secret);
 
       // Verify setup
-      const verifyResult = await mfaService.verifyMfaSetup(testUserId, token);
+      const verifyResult = await mfaService.verifyMfaSetup(adminSubject(testUserId), token);
       assert.ok(verifyResult.ok, "MFA verification should succeed");
 
       // Try setup again
-      const result2 = await mfaService.setupMfa(testUserId, testEmail);
+      const result2 = await mfaService.setupMfa(adminSubject(testUserId));
       assert.ok(!result2.ok, "Duplicate setup should fail");
       assert.equal(result2.error, "MFA_ALREADY_ENABLED");
     });
@@ -139,6 +157,8 @@ describe("MFA System", () => {
     let testUserId: string;
     let testEmail: string;
     let testSecret: string;
+
+    let testSetupBackupCodesCount: number;
 
     beforeEach(async () => {
       testEmail = `mfa-verify-${Date.now()}@test.com`;
@@ -152,9 +172,10 @@ describe("MFA System", () => {
       testUserId = registerResult.value.id;
       testUsers.push(testUserId);
 
-      const setupResult = await mfaService.setupMfa(testUserId, testEmail);
+      const setupResult = await mfaService.setupMfa(adminSubject(testUserId));
       assert.ok(setupResult.ok);
       testSecret = setupResult.value.secret;
+      testSetupBackupCodesCount = setupResult.value.backupCodes.length;
     });
 
     afterEach(async () => {
@@ -164,16 +185,25 @@ describe("MFA System", () => {
     });
 
     it("should verify MFA setup with valid TOTP token", async () => {
+      // Unified-service behavior (spec, not the legacy quirk): backup codes
+      // are issued exactly once at setup and are NEVER re-derived/re-issued
+      // at verify-setup — the setup step already returned 8 above.
+      assert.equal(testSetupBackupCodesCount, 8, "setup should have issued 8 backup codes");
+
       const token = authenticator.generate(testSecret);
 
-      const result = await mfaService.verifyMfaSetup(testUserId, token);
+      const result = await mfaService.verifyMfaSetup(adminSubject(testUserId), token);
 
       assert.ok(result.ok, "MFA verification should succeed");
-      assert.equal(result.value.backupCodes.length, 8, "Should generate 8 backup codes");
+      assert.equal(
+        result.value.backupCodes.length,
+        0,
+        "verify-setup must not re-issue backup codes — they were returned once at setup"
+      );
     });
 
     it("should reject MFA setup with invalid token", async () => {
-      const result = await mfaService.verifyMfaSetup(testUserId, "000000");
+      const result = await mfaService.verifyMfaSetup(adminSubject(testUserId), "000000");
 
       assert.ok(!result.ok, "Invalid token should be rejected");
     });
@@ -195,13 +225,13 @@ describe("MFA System", () => {
       testUserId = registerResult.value.id;
       testUsers.push(testUserId);
 
-      const setupResult = await mfaService.setupMfa(testUserId, email);
+      const setupResult = await mfaService.setupMfa(adminSubject(testUserId));
       assert.ok(setupResult.ok);
       testSecret = setupResult.value.secret;
 
       // Verify setup to enable MFA
       const token = authenticator.generate(testSecret);
-      const verifyResult = await mfaService.verifyMfaSetup(testUserId, token);
+      const verifyResult = await mfaService.verifyMfaSetup(adminSubject(testUserId), token);
       assert.ok(verifyResult.ok);
     });
 
@@ -214,7 +244,7 @@ describe("MFA System", () => {
     it("should verify valid TOTP token", async () => {
       const token = authenticator.generate(testSecret);
 
-      const result = await mfaService.verifyMfaToken(testUserId, token);
+      const result = await mfaService.verifyMfaToken(adminSubject(testUserId), token);
 
       assert.ok(result.ok, "Valid token should verify successfully");
       assert.equal(result.value.verified, true);
@@ -222,7 +252,7 @@ describe("MFA System", () => {
     });
 
     it("should reject invalid TOTP token", async () => {
-      const result = await mfaService.verifyMfaToken(testUserId, "000000");
+      const result = await mfaService.verifyMfaToken(adminSubject(testUserId), "000000");
 
       assert.ok(!result.ok, "Invalid token should be rejected");
     });
@@ -239,7 +269,7 @@ describe("MFA System", () => {
       const userId = registerResult.value.id;
       testUsers.push(userId);
 
-      const result = await mfaService.verifyMfaToken(userId, "000000");
+      const result = await mfaService.verifyMfaToken(adminSubject(userId), "000000");
 
       assert.ok(!result.ok, "Should fail when MFA not enabled");
       assert.equal(result.error, "MFA_NOT_ENABLED");
@@ -264,13 +294,13 @@ describe("MFA System", () => {
       testUserId = registerResult.value.id;
       testUsers.push(testUserId);
 
-      const setupResult = await mfaService.setupMfa(testUserId, email);
+      const setupResult = await mfaService.setupMfa(adminSubject(testUserId));
       assert.ok(setupResult.ok);
       testSecret = setupResult.value.secret;
 
       // Verify setup to enable MFA
       const token = authenticator.generate(testSecret);
-      const verifyResult = await mfaService.verifyMfaSetup(testUserId, token);
+      const verifyResult = await mfaService.verifyMfaSetup(adminSubject(testUserId), token);
       assert.ok(verifyResult.ok);
     });
 
@@ -283,7 +313,7 @@ describe("MFA System", () => {
     it("should regenerate backup codes", async () => {
       const token = authenticator.generate(testSecret);
 
-      const result = await mfaService.regenerateBackupCodes(testUserId, token);
+      const result = await mfaService.regenerateBackupCodes(adminSubject(testUserId), token);
 
       assert.ok(result.ok, "Backup code regeneration should succeed");
       assert.equal(result.value.length, 8, "Should generate 8 backup codes");
@@ -297,12 +327,15 @@ describe("MFA System", () => {
       // Get fresh backup codes
       const token = authenticator.generate(testSecret);
 
-      const backupResult = await mfaService.regenerateBackupCodes(testUserId, token);
+      const backupResult = await mfaService.regenerateBackupCodes(adminSubject(testUserId), token);
       assert.ok(backupResult.ok);
       const backupCode = backupResult.value[0];
 
       // Use backup code
-      const result = await mfaService.verifyMfaToken(testUserId, backupCode);
+      const result = await mfaService.verifyMfaToken(
+        adminSubject(testUserId),
+        backupCode as string
+      );
 
       assert.ok(result.ok, "Backup code should verify successfully");
       assert.equal(result.value.verified, true);
@@ -313,16 +346,16 @@ describe("MFA System", () => {
       // Get fresh backup codes
       const token = authenticator.generate(testSecret);
 
-      const backupResult = await mfaService.regenerateBackupCodes(testUserId, token);
+      const backupResult = await mfaService.regenerateBackupCodes(adminSubject(testUserId), token);
       assert.ok(backupResult.ok);
-      const backupCode = backupResult.value[0];
+      const backupCode = backupResult.value[0] as string;
 
       // Use backup code first time
-      const result1 = await mfaService.verifyMfaToken(testUserId, backupCode);
+      const result1 = await mfaService.verifyMfaToken(adminSubject(testUserId), backupCode);
       assert.ok(result1.ok, "First use should succeed");
 
       // Try to use same backup code again
-      const result2 = await mfaService.verifyMfaToken(testUserId, backupCode);
+      const result2 = await mfaService.verifyMfaToken(adminSubject(testUserId), backupCode);
       assert.ok(!result2.ok, "Backup code reuse should fail");
     });
   });
@@ -345,12 +378,12 @@ describe("MFA System", () => {
       testUsers.push(testUserId);
 
       // Setup and verify MFA
-      const setupResult = await mfaService.setupMfa(testUserId, testEmail);
+      const setupResult = await mfaService.setupMfa(adminSubject(testUserId));
       assert.ok(setupResult.ok);
       testSecret = setupResult.value.secret;
 
       const token = authenticator.generate(testSecret);
-      const verifyResult = await mfaService.verifyMfaSetup(testUserId, token);
+      const verifyResult = await mfaService.verifyMfaSetup(adminSubject(testUserId), token);
       assert.ok(verifyResult.ok);
     });
 
@@ -399,7 +432,7 @@ describe("MFA System", () => {
       // Get fresh backup codes
       const token = authenticator.generate(testSecret);
 
-      const backupResult = await mfaService.regenerateBackupCodes(testUserId, token);
+      const backupResult = await mfaService.regenerateBackupCodes(adminSubject(testUserId), token);
       assert.ok(backupResult.ok);
       const backupCode = backupResult.value[0];
 
@@ -433,12 +466,12 @@ describe("MFA System", () => {
       testUsers.push(testUserId);
 
       // Setup and verify MFA
-      const setupResult = await mfaService.setupMfa(testUserId, testEmail);
+      const setupResult = await mfaService.setupMfa(adminSubject(testUserId));
       assert.ok(setupResult.ok);
       testSecret = setupResult.value.secret;
 
       const token = authenticator.generate(testSecret);
-      const verifyResult = await mfaService.verifyMfaSetup(testUserId, token);
+      const verifyResult = await mfaService.verifyMfaSetup(adminSubject(testUserId), token);
       assert.ok(verifyResult.ok);
     });
 
@@ -451,12 +484,12 @@ describe("MFA System", () => {
     it("should disable MFA successfully", async () => {
       const token = authenticator.generate(testSecret);
 
-      const result = await mfaService.disableMfa(testUserId, token);
+      const result = await mfaService.disableMfa(adminSubject(testUserId), token);
 
       assert.ok(result.ok, "MFA disable should succeed");
 
       // Verify MFA is disabled
-      const statusResult = await mfaService.getMfaStatus(testUserId);
+      const statusResult = await mfaService.getMfaStatus(adminSubject(testUserId));
       assert.ok(statusResult.ok);
       assert.equal(statusResult.value.enabled, false, "MFA should be disabled");
       assert.equal(statusResult.value.backupCodesCount, 0, "Should have no backup codes");
@@ -466,7 +499,7 @@ describe("MFA System", () => {
       const token = authenticator.generate(testSecret);
 
       // Disable MFA
-      const disableResult = await mfaService.disableMfa(testUserId, token);
+      const disableResult = await mfaService.disableMfa(adminSubject(testUserId), token);
       assert.ok(disableResult.ok);
 
       // Login without MFA
@@ -481,7 +514,7 @@ describe("MFA System", () => {
     });
 
     it("should reject MFA disable with invalid token", async () => {
-      const result = await mfaService.disableMfa(testUserId, "000000");
+      const result = await mfaService.disableMfa(adminSubject(testUserId), "000000");
 
       assert.ok(!result.ok, "Disable with invalid token should fail");
     });
@@ -491,11 +524,11 @@ describe("MFA System", () => {
     it("should handle non-existent user gracefully", async () => {
       const fakeUserId = "00000000-0000-0000-0000-000000000000";
 
-      const statusResult = await mfaService.getMfaStatus(fakeUserId);
+      const statusResult = await mfaService.getMfaStatus(adminSubject(fakeUserId));
       assert.ok(!statusResult.ok);
       assert.equal(statusResult.error, "USER_NOT_FOUND");
 
-      const setupResult = await mfaService.setupMfa(fakeUserId, "fake@example.com");
+      const setupResult = await mfaService.setupMfa(adminSubject(fakeUserId));
       assert.ok(!setupResult.ok);
       assert.equal(setupResult.error, "USER_NOT_FOUND");
     });
@@ -512,11 +545,11 @@ describe("MFA System", () => {
       const userId = registerResult.value.id;
       testUsers.push(userId);
 
-      const setupResult = await mfaService.setupMfa(userId, email);
+      const setupResult = await mfaService.setupMfa(adminSubject(userId));
       assert.ok(setupResult.ok);
 
       // Try to verify with invalid token format
-      const verifyResult = await mfaService.verifyMfaSetup(userId, "invalid");
+      const verifyResult = await mfaService.verifyMfaSetup(adminSubject(userId), "invalid");
       assert.ok(!verifyResult.ok, "Invalid token format should be rejected");
 
       await prisma.adminUser.delete({ where: { id: userId } }).catch(() => {});
