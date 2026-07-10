@@ -338,41 +338,18 @@ describe("mfaRoutes Unit Tests", () => {
     });
   });
 
-  describe("POST /auth/mfa/verify", () => {
-    it("should reject invalid request body", async () => {
+  describe("POST /auth/mfa/verify (retired orphan)", () => {
+    it("returns 404 — the orphan login-flow route was removed", async () => {
       const response = await app.inject({
         method: "POST",
         url: "/auth/mfa/verify",
         payload: {
-          userId: "invalid-id",
-        },
-      });
-
-      expect(response.statusCode).toBe(400);
-    });
-
-    it("should reject missing userId", async () => {
-      const response = await app.inject({
-        method: "POST",
-        url: "/auth/mfa/verify",
-        payload: {
+          userId,
           token: "123456",
         },
       });
 
-      expect(response.statusCode).toBe(400);
-    });
-
-    it("should reject missing token", async () => {
-      const response = await app.inject({
-        method: "POST",
-        url: "/auth/mfa/verify",
-        payload: {
-          userId: userId,
-        },
-      });
-
-      expect(response.statusCode).toBe(400);
+      expect(response.statusCode).toBe(404);
     });
   });
 
