@@ -52,6 +52,7 @@ export class PrismaCustomerMfaUserRepository implements MfaUserRepositoryPort {
         mfaSecret: true,
         mfaBackupCodes: true,
         mfaBackupUsedAt: true,
+        mfaLastUsedTotpStep: true,
       },
     });
     if (!row) return err("NOT_FOUND");
@@ -63,6 +64,7 @@ export class PrismaCustomerMfaUserRepository implements MfaUserRepositoryPort {
       mfaSecret: row.mfaSecret,
       mfaBackupCodes: row.mfaBackupCodes,
       mfaBackupUsedAt: normalizeUsedAt(row.mfaBackupUsedAt),
+      mfaLastUsedTotpStep: row.mfaLastUsedTotpStep,
     });
   }
 
@@ -110,6 +112,32 @@ export class PrismaCustomerMfaUserRepository implements MfaUserRepositoryPort {
       mfaBackupCodes: [],
       mfaBackupUsedAt: {},
     });
+  }
+
+  async claimTotpStep(
+    userId: string,
+    step: number
+  ): Promise<Result<"CLAIMED", "NOT_FOUND" | "ALREADY_USED">> {
+    const client = this.getClient();
+    // Conditional single-statement UPDATE — the concurrency serializer. Only a
+    // row whose stored step is null OR strictly less than `step` matches, so a
+    // replay (or an older-window token) never satisfies the WHERE. When an
+    // authenticated customer request is running, the tenant guard extension
+    // also scopes this update to the bound account.
+    const { count } = await client.customerUser.updateMany({
+      where: {
+        id: userId,
+        OR: [{ mfaLastUsedTotpStep: null }, { mfaLastUsedTotpStep: { lt: step } }],
+      },
+      data: { mfaLastUsedTotpStep: step },
+    });
+    if (count === 1) return ok("CLAIMED");
+    // Count 0 disambiguation: the user is gone, or the step was already claimed.
+    const existing = await client.customerUser.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+    return existing ? err("ALREADY_USED") : err("NOT_FOUND");
   }
 
   /**

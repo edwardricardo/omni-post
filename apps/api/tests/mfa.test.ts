@@ -282,7 +282,10 @@ describe("MFA System", () => {
     let testUserId: string;
     let testSecret: string;
 
-    before(async () => {
+    // A fresh enrolled user PER TEST: TOTP single-use claims a time step once, so
+    // each test needs its own unclaimed step rather than sharing one user whose
+    // step a sibling test already consumed within the same 30-second window.
+    beforeEach(async () => {
       const email = `mfa-backup-${Date.now()}@test.com`;
       const registerResult = await authService.registerAdmin(
         email,
@@ -304,7 +307,7 @@ describe("MFA System", () => {
       assert.ok(verifyResult.ok);
     });
 
-    after(async () => {
+    afterEach(async () => {
       if (testUserId) {
         await prisma.adminUser.delete({ where: { id: testUserId } }).catch(() => {});
       }
@@ -365,7 +368,10 @@ describe("MFA System", () => {
     let testEmail: string;
     let testSecret: string;
 
-    before(async () => {
+    // A fresh enrolled user PER TEST: TOTP single-use claims a time step once, so
+    // each test needs its own unclaimed step rather than sharing one user whose
+    // step a sibling test already consumed within the same 30-second window.
+    beforeEach(async () => {
       testEmail = `mfa-auth-${Date.now()}@test.com`;
       const registerResult = await authService.registerAdmin(
         testEmail,
@@ -387,7 +393,7 @@ describe("MFA System", () => {
       assert.ok(verifyResult.ok);
     });
 
-    after(async () => {
+    afterEach(async () => {
       if (testUserId) {
         await prisma.adminUser.delete({ where: { id: testUserId } }).catch(() => {});
       }
