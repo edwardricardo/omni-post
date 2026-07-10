@@ -182,7 +182,7 @@ export class AuthHelper {
    */
   setupMFA(token) {
     // Enable MFA
-    const enableResponse = http.post(`${this.baseUrl}/api/auth/mfa/enable`, null, {
+    const enableResponse = http.post(`${this.baseUrl}/auth/mfa/setup`, null, {
       headers: this.getAuthHeaders(token),
     });
 
@@ -198,7 +198,7 @@ export class AuthHelper {
       };
 
       const verifyResponse = http.post(
-        `${this.baseUrl}/api/auth/mfa/verify`,
+        `${this.baseUrl}/auth/mfa/verify-setup`,
         JSON.stringify(verifyPayload),
         {
           headers: this.getAuthHeaders(token),

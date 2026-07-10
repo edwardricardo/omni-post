@@ -121,7 +121,7 @@ OmniPost implements a dual-track authentication system: admin authentication (se
 | `GET`  | `/auth/mfa/status`                       | Client                | Get MFA status for current user                |
 | `POST` | `/auth/mfa/setup`                        | Client                | Initiate MFA setup (returns QR code)           |
 | `POST` | `/auth/mfa/verify-setup`                 | Client                | Verify MFA setup with 6-digit TOTP             |
-| `POST` | `/auth/mfa/verify`                       | None                  | Verify MFA token during login flow             |
+| `POST` | `/auth/customer/login/mfa`               | None                  | Complete customer login MFA challenge (step 2) |
 | `POST` | `/auth/mfa/disable`                      | Client                | Disable MFA (requires valid TOTP/backup code)  |
 | `POST` | `/auth/mfa/regenerate-backup-codes`      | Client                | Generate new backup codes                      |
 | `GET`  | `/admin/users/:userId/mfa/status`        | Admin + `USER_MANAGE` | Admin: check any user's MFA status             |

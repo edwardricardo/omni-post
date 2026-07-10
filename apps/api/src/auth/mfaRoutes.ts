@@ -38,13 +38,6 @@ const MfaTokenFlexibleSchema = z.object({
   }),
 });
 
-const MfaVerifySchema = z.object({
-  body: z.object({
-    userId: IdSchema,
-    token: z.string().min(6).max(8),
-  }),
-});
-
 const AdminUserIdSchema = z.object({
   params: z.object({
     userId: IdSchema,
@@ -185,50 +178,6 @@ class MfaRouteHandler extends BaseRouteHandler {
       backupCodes: result.value.backupCodes,
       warning:
         "Save these backup codes in a secure location. You will not be able to see them again.",
-    });
-  }
-
-  async verifyMfaToken(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const ctx: RouteContext = { request, reply };
-
-    const validated = await this.validateRequest<z.infer<typeof MfaVerifySchema>>(ctx, {
-      body: MfaVerifySchema.shape.body,
-    });
-
-    if (!validated.ok) {
-      return this.sendError(ctx, 400, "Invalid request body");
-    }
-
-    const { userId, token } = validated.value.body;
-
-    const result = await this.mfaService.verifyMfaToken(
-      { type: MFA_SUBJECT_TYPE.ADMIN, id: userId },
-      token
-    );
-
-    if (!result.ok) {
-      const errorMap: Record<string, { status: number; message: string }> = {
-        USER_NOT_FOUND: { status: 404, message: "User not found" },
-        MFA_NOT_ENABLED: { status: 400, message: "MFA is not enabled for this user" },
-        INVALID_TOKEN: { status: 400, message: "Invalid MFA token or backup code" },
-        DATABASE_ERROR: { status: 500, message: "Database error occurred" },
-      };
-      const error = errorMap[result.error] || { status: 400, message: "MFA verification failed" };
-      return this.sendError(ctx, error.status, error.message);
-    }
-
-    const verification = result.value;
-
-    this.logInfo(ctx, "MFA token verified", {
-      userId,
-      usedBackupCode: verification.usedBackupCode,
-    });
-    return this.sendSuccess(ctx, {
-      verified: verification.verified,
-      usedBackupCode: verification.usedBackupCode,
-      message: verification.usedBackupCode
-        ? "Verified with backup code. Consider regenerating backup codes."
-        : "MFA token verified successfully",
     });
   }
 
@@ -521,13 +470,6 @@ const mfaRoutes: FastifyPluginAsync = async (fastify) => {
       schema: { tags: ["MFA"], summary: "Verify MFA setup" },
     },
     async (request, reply) => handler.verifyMfaSetup(request, reply)
-  );
-
-  // Verify MFA token (used during login flow — no auth required)
-  fastify.post(
-    "/auth/mfa/verify",
-    { schema: { tags: ["MFA"], summary: "Verify MFA token during login" } },
-    async (request, reply) => handler.verifyMfaToken(request, reply)
   );
 
   // Disable MFA for current customer user
