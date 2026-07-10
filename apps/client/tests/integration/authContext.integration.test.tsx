@@ -18,6 +18,7 @@ vi.mock("../../lib/auth/authApi", () => ({
   authApi: {
     getCurrentUser: vi.fn(),
     login: vi.fn(),
+    completeMfaLogin: vi.fn(),
     register: vi.fn(),
     logout: vi.fn(),
     refreshToken: vi.fn(),
@@ -125,6 +126,76 @@ describe("AuthProvider + useAuthContext", () => {
 
       expect(result.current.isAuthenticated).toBe(false);
       expect(result.current.error).toBeTruthy();
+    });
+  });
+
+  describeIf("MFA challenge", () => {
+    it("returns the challenge (does not throw) when MFA is required", async () => {
+      vi.mocked(authApi.login).mockResolvedValueOnce({
+        requiresMfa: true,
+        message: "Enter your authenticator code",
+        methods: ["totp", "backup_code"],
+        challengeToken: "challenge-jwt-abc",
+        expiresInSeconds: 180,
+      });
+
+      const { result } = renderHook(() => useAuthContext(), { wrapper: createWrapper() });
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      let challenge: unknown;
+      await act(async () => {
+        challenge = await result.current.login({ email: "mfa@test.com", password: "pass" });
+      });
+
+      expect(challenge).toEqual({
+        requiresMfa: true,
+        message: "Enter your authenticator code",
+        methods: ["totp", "backup_code"],
+        challengeToken: "challenge-jwt-abc",
+        expiresInSeconds: 180,
+      });
+      expect(result.current.isAuthenticated).toBe(false);
+    });
+
+    it("returns null and authenticates on a non-MFA login", async () => {
+      vi.mocked(authApi.login).mockResolvedValueOnce({
+        user: { id: "u1", email: "user@test.com", name: "User", createdAt: "", updatedAt: "" },
+        expiresAt: "2025-12-31",
+      });
+
+      const { result } = renderHook(() => useAuthContext(), { wrapper: createWrapper() });
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      let outcome: unknown = "unset";
+      await act(async () => {
+        outcome = await result.current.login({ email: "user@test.com", password: "pass" });
+      });
+
+      expect(outcome).toBeNull();
+      expect(result.current.isAuthenticated).toBe(true);
+    });
+
+    it("completeMfaLogin sets the user on success", async () => {
+      vi.mocked(authApi.completeMfaLogin).mockResolvedValueOnce({
+        user: { id: "u1", email: "mfa@test.com", name: "MFA User", createdAt: "", updatedAt: "" },
+        expiresAt: "2025-12-31",
+      });
+
+      const { result } = renderHook(() => useAuthContext(), { wrapper: createWrapper() });
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      await act(async () => {
+        await result.current.completeMfaLogin({
+          challengeToken: "challenge-jwt-abc",
+          code: "123456",
+        });
+      });
+
+      expect(result.current.isAuthenticated).toBe(true);
+      expect(result.current.user?.email).toBe("mfa@test.com");
     });
   });
 

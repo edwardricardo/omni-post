@@ -59,7 +59,14 @@
     "termsAgreement": "Acepto los <termsLink>Términos del servicio</termsLink> y la <privacyLink>Política de privacidad</privacyLink>",
     "creatingAccount": "Creando cuenta...",
     "createAccount": "Crear cuenta",
-    "haveAccount": "¿Ya tienes una cuenta?"
+    "haveAccount": "¿Ya tienes una cuenta?",
+    "mfaTitle": "Autenticación de dos factores",
+    "mfaSubtitle": "Ingresa el código de tu aplicación de autenticación",
+    "mfaCodeLabel": "Código de verificación",
+    "mfaCodePlaceholder": "123456",
+    "mfaVerify": "Verificar",
+    "mfaVerifying": "Verificando...",
+    "mfaChallengeExpired": "Tu sesión de verificación expiró. Inicia sesión nuevamente."
   },
   "dashboard": {
     "welcomeBack": "¡Bienvenido de nuevo, {name}!",

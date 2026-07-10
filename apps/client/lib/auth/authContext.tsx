@@ -20,6 +20,7 @@ import React, {
 import { useRouter } from "next/navigation";
 import {
   authApi,
+  type CompleteMfaLoginParams,
   type LoginCredentials,
   type RegisterData,
   type MfaChallenge,
@@ -30,7 +31,14 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (credentials: LoginCredentials) => Promise<void>;
+  /**
+   * Authenticate with email/password. Resolves to `null` on a completed login
+   * (session cookie set, user populated) or to an `MfaChallenge` when the
+   * account requires a second factor — the caller then drives the step-2 flow.
+   */
+  login: (credentials: LoginCredentials) => Promise<MfaChallenge | null>;
+  /** Complete a login that returned an `MfaChallenge` by submitting the code. */
+  completeMfaLogin: (params: CompleteMfaLoginParams) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
   refreshSession: () => Promise<void>;
@@ -100,18 +108,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, refreshSession]);
 
   const login = useCallback(
-    async (credentials: LoginCredentials) => {
+    async (credentials: LoginCredentials): Promise<MfaChallenge | null> => {
       try {
         setError(null);
         setIsLoading(true);
 
         const response = await authApi.login(credentials);
 
-        // Check if MFA is required
+        // MFA required — return the challenge so the caller can drive step 2.
+        // This is NOT an error: the password was accepted, a second factor is
+        // pending. The step-2 flow (completeMfaLogin) finishes the login.
         if ("requiresMfa" in response) {
-          const mfaResponse = response as MfaChallenge;
-          setError(mfaResponse.message);
-          throw new Error(mfaResponse.message);
+          return response;
         }
 
         // Login successful -- the proxy already set the session cookie.
@@ -120,9 +128,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Redirect to dashboard
         router.push("/dashboard");
+        return null;
       } catch (loginError: unknown) {
         setError(loginError instanceof Error ? loginError.message : "Login failed");
         throw loginError;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [router]
+  );
+
+  const completeMfaLogin = useCallback(
+    async (params: CompleteMfaLoginParams): Promise<void> => {
+      try {
+        setError(null);
+        setIsLoading(true);
+
+        const response = await authApi.completeMfaLogin(params);
+
+        // Step 2 succeeded — the proxy set the session cookie. Populate context.
+        setUser(response.user);
+        router.push("/dashboard");
+      } catch (mfaError: unknown) {
+        setError(mfaError instanceof Error ? mfaError.message : "MFA verification failed");
+        throw mfaError;
       } finally {
         setIsLoading(false);
       }
@@ -159,12 +189,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLoading,
       isAuthenticated: !!user,
       login,
+      completeMfaLogin,
       register,
       logout,
       refreshSession,
       error,
     }),
-    [user, isLoading, login, register, logout, refreshSession, error]
+    [user, isLoading, login, completeMfaLogin, register, logout, refreshSession, error]
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

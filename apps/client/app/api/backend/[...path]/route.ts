@@ -49,6 +49,11 @@ export const dynamic = "force-dynamic";
 
 // Auth paths that require special cookie handling (CustomerUser endpoints)
 const AUTH_LOGIN_PATH = "auth/customer/login";
+// MFA step 2: the challenge-completion response carries the real session /
+// refresh tokens. It MUST go through the same strip-into-httpOnly-cookie branch
+// as login — an exact-path match on AUTH_LOGIN_PATH alone would let this fall
+// to the default pass-through and leak the tokens to the browser.
+const AUTH_LOGIN_MFA_PATH = "auth/customer/login/mfa";
 const AUTH_REFRESH_PATH = "auth/customer/refresh";
 const AUTH_LOGOUT_PATH = "auth/customer/logout";
 const AUTH_REGISTER_PATH = "auth/customer/register";
@@ -93,8 +98,9 @@ async function proxy(req: NextRequest, segments: string[]): Promise<NextResponse
       bodyText = injectRefreshToken(bodyText, refreshCookie?.value);
     }
 
-    // Detect rememberMe on login so the refresh cookie is extended
-    if (path === AUTH_LOGIN_PATH) {
+    // Detect rememberMe on login (step 1) and MFA completion (step 2) so the
+    // refresh cookie TTL is extended consistently across both login steps.
+    if (path === AUTH_LOGIN_PATH || path === AUTH_LOGIN_MFA_PATH) {
       rememberMe = parseRememberMe(bodyText);
     }
   }
@@ -130,7 +136,7 @@ async function proxy(req: NextRequest, segments: string[]): Promise<NextResponse
   const responseText = await upstream.text();
 
   // Route-specific cookie handling
-  if (path === AUTH_LOGIN_PATH || path === AUTH_REGISTER_PATH) {
+  if (path === AUTH_LOGIN_PATH || path === AUTH_LOGIN_MFA_PATH || path === AUTH_REGISTER_PATH) {
     const { body } = await persistTokensFromAuthResponse(responseText, upstream.ok, {
       rememberMe,
     });

@@ -89,6 +89,29 @@ describe("authApi.login", () => {
     });
   });
 
+  it("maps challengeToken and expiresInSeconds onto the MFA challenge", async () => {
+    mockFetch.mockResolvedValue(
+      mockJsonResponse({
+        data: {
+          mfaRequired: true,
+          message: "Enter OTP",
+          methods: ["totp", "backup_code"],
+          challengeToken: "challenge-jwt-abc",
+          expiresInSeconds: 180,
+        },
+      })
+    );
+
+    const result = await authApi.login({ email: "a@b.com", password: "pass" });
+    expect(result).toEqual({
+      requiresMfa: true,
+      message: "Enter OTP",
+      methods: ["totp", "backup_code"],
+      challengeToken: "challenge-jwt-abc",
+      expiresInSeconds: 180,
+    });
+  });
+
   it("uses default MFA message when message is missing", async () => {
     mockFetch.mockResolvedValue(
       mockJsonResponse({
@@ -157,6 +180,70 @@ describe("authApi.login", () => {
 
     const body = JSON.parse(mockFetch.mock.calls[0]?.[1]?.body as string);
     expect(body.rememberMe).toBe(true);
+  });
+});
+
+// ============================================================================
+// completeMfaLogin
+// ============================================================================
+
+describe("authApi.completeMfaLogin", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("POSTs the challenge token, code, and rememberMe to /login/mfa", async () => {
+    mockFetch.mockResolvedValue(
+      mockJsonResponse({ data: { user: { id: "u1" }, expiresAt: "2025-12-31" } })
+    );
+
+    await authApi.completeMfaLogin({
+      challengeToken: "challenge-jwt-abc",
+      code: "123456",
+      rememberMe: true,
+    });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/api/backend/auth/customer/login/mfa",
+      expect.objectContaining({
+        method: "POST",
+        credentials: "include",
+        body: JSON.stringify({
+          challengeToken: "challenge-jwt-abc",
+          code: "123456",
+          rememberMe: true,
+        }),
+      })
+    );
+  });
+
+  it("returns user and expiresAt on success", async () => {
+    const user = {
+      id: "u1",
+      email: "a@b.com",
+      name: "Alice",
+      createdAt: "2025-01-01",
+      updatedAt: "2025-01-01",
+    };
+    mockFetch.mockResolvedValue(mockJsonResponse({ data: { user, expiresAt: "2025-12-31" } }));
+
+    const result = await authApi.completeMfaLogin({
+      challengeToken: "challenge-jwt-abc",
+      code: "123456",
+    });
+    expect(result).toEqual({ user, expiresAt: "2025-12-31" });
+  });
+
+  it("throws error on non-ok response", async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: vi.fn().mockResolvedValue({ error: "Invalid MFA code." }),
+    });
+
+    await expect(
+      authApi.completeMfaLogin({ challengeToken: "challenge-jwt-abc", code: "000000" })
+    ).rejects.toThrow("Invalid MFA code.");
   });
 });
 
