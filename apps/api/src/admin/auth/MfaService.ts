@@ -18,7 +18,7 @@ import { ok, err, isErr, type Result } from "@shared/types";
 import { MFA_SUBJECT_TYPE, type MfaSubject, type MfaUserRepositoryPort } from "@ports/core";
 import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
-import { AuditableService, auditActor } from "../../services/AuditableService.js";
+import { AuditableService, auditActor, type AuditActor } from "../../services/AuditableService.js";
 import { authLogger } from "../../lib/logger.js";
 import { hashPassword, verifyPassword } from "../../auth/passwordHashing.js";
 import { adminAuthConfig } from "./adminAuthConfig.js";
@@ -99,12 +99,14 @@ export class MfaService extends AuditableService {
    * @method setupMfa
    * @description Issue a TOTP secret plus a fresh set of single-use backup codes
    *              for a subject with no MFA enrolled. Hashes are persisted; the
-   *              plaintext codes are returned exactly once.
+   *              plaintext codes are returned exactly once. The TOTP key URI
+   *              label is derived from the subject's own `MfaUserRecord.email`
+   *              (already loaded via `findById`) — never from a caller-supplied
+   *              value, since `CustomerRequestUser` carries no email field.
    * @param subject - The admin or customer subject to enroll.
-   * @param email - Label used for the TOTP key URI / QR code.
    * @returns Ok(setup) with the plaintext codes, or a typed setup error.
    */
-  async setupMfa(subject: MfaSubject, email: string): Promise<Result<MfaSetupData, SetupError>> {
+  async setupMfa(subject: MfaSubject): Promise<Result<MfaSetupData, SetupError>> {
     try {
       const repo = this.repoFor(subject);
       const found = await repo.findById(subject.id);
@@ -121,7 +123,7 @@ export class MfaService extends AuditableService {
       });
       if (isErr(saved)) return err("USER_NOT_FOUND");
 
-      const otpauthUrl = authenticator.keyuri(email, this.issuer, secret);
+      const otpauthUrl = authenticator.keyuri(found.value.email, this.issuer, secret);
       const qrCodeUrl = await QRCode.toDataURL(otpauthUrl);
 
       await this.audit(subject, "MFA_SETUP_INITIATED", "MEDIUM");
@@ -285,8 +287,10 @@ export class MfaService extends AuditableService {
   /**
    * @method adminForceDisable
    * @description Admin emergency recovery: disable a subject's MFA without a token
-   *              (invoked under admin privilege). Audits actor + subject, never any
-   *              secret material.
+   *              (invoked under admin privilege). The acting admin is the audit
+   *              ACTOR (`auditActor.admin(actor.id)`) — the subject is the resource
+   *              being acted on, recorded in `details.subjectId`, never as the
+   *              actor. Never logs any secret material.
    * @param subject - The subject whose MFA is being force-disabled.
    * @param actor - The admin performing the action (recorded in the audit trail).
    * @returns Ok(void) on success, or a typed force-disable error.
@@ -300,13 +304,24 @@ export class MfaService extends AuditableService {
       const found = await repo.findById(subject.id);
       if (isErr(found)) return err("USER_NOT_FOUND");
 
+      // The audit accountId is the affected account for searchability: the
+      // subject's own accountId for a customer, else the acting admin's id
+      // (admin convention — AdminUser is global, no real account scope).
+      const accountId =
+        subject.type === MFA_SUBJECT_TYPE.CUSTOMER && found.value.accountId
+          ? found.value.accountId
+          : actor.id;
+
       await this.runInTransaction(async () => {
         const cleared = await repo.clearMfa(subject.id);
         if (isErr(cleared)) throw new Error("USER_NOT_FOUND");
-        await this.audit(subject, "MFA_ADMIN_FORCE_DISABLED", "HIGH", {
-          actorId: actor.id,
-          subjectId: subject.id,
-        });
+        await this.audit(
+          subject,
+          "MFA_ADMIN_FORCE_DISABLED",
+          "HIGH",
+          { actorId: actor.id, subjectId: subject.id },
+          { actor: auditActor.admin(actor.id), accountId }
+        );
       });
 
       return ok(undefined);
@@ -383,20 +398,45 @@ export class MfaService extends AuditableService {
   /**
    * Write a SECURITY-category audit event for the subject. Details never carry
    * the TOTP secret or any backup-code value.
+   *
+   * By default the actor is DERIVED from the subject (`resolveAuditActor`) —
+   * correct for every self-service operation, where the subject IS the actor.
+   * `actorOverride` lets a caller supply a DIFFERENT actor (used by
+   * `adminForceDisable`, where the acting admin — not the disabled subject —
+   * is the actor) without threading an extra parameter through every other
+   * call site.
    */
   private async audit(
     subject: MfaSubject,
     action: string,
     severity: "MEDIUM" | "HIGH",
-    details?: Record<string, unknown>
+    details?: Record<string, unknown>,
+    actorOverride?: { actor: AuditActor; accountId: string }
   ): Promise<void> {
-    // Behavior-preserving: every live subject is admin until mfa-consolidation
-    // PR2 repoints customer subjects onto auditActor.customer(subject.id,
-    // accountId). This is the MFA PR2 handoff seam.
-    await this.logSecurityEvent(auditActor.admin(subject.id), subject.id, {
+    const { actor, accountId } = actorOverride ?? (await this.resolveAuditActor(subject));
+    await this.logSecurityEvent(actor, accountId, {
       action,
       severity,
       details: { subjectType: subject.type, ...(details ?? {}) },
     });
+  }
+
+  /**
+   * Resolve the audit actor + accountId for a subject. Admin maps straight to
+   * `auditActor.admin` — `AdminUser` is a global table, so the codebase
+   * convention (cf. `authServiceCore.ts`) uses the admin's own id as the audit
+   * `accountId`. Customer loads the record to read its real `accountId` (the
+   * customer adapter always returns it) and maps to `auditActor.customer` so
+   * the audit row is attributed via `customerUserId`, never `userId`.
+   */
+  private async resolveAuditActor(
+    subject: MfaSubject
+  ): Promise<{ actor: AuditActor; accountId: string }> {
+    if (subject.type !== MFA_SUBJECT_TYPE.CUSTOMER) {
+      return { actor: auditActor.admin(subject.id), accountId: subject.id };
+    }
+    const found = await this.customerRepo.findById(subject.id);
+    const accountId = found.ok && found.value.accountId ? found.value.accountId : subject.id;
+    return { actor: auditActor.customer(subject.id, accountId), accountId };
   }
 }

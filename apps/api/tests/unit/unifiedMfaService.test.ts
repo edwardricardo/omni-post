@@ -66,7 +66,7 @@ async function enroll(
   email: string
 ): Promise<{ secret: string; backupCodes: string[] }> {
   repoFor(h, subject).seed({ id: subject.id, email });
-  const setup = await h.service.setupMfa(subject, email);
+  const setup = await h.service.setupMfa(subject);
   if (!setup.ok) throw new Error(`setup failed: ${setup.error}`);
   const token = authenticator.generate(setup.value.secret);
   const verify = await h.service.verifyMfaSetup(subject, token);
@@ -111,7 +111,7 @@ describe("Unified MfaService", () => {
 
     it("setup issues a TOTP secret and hashed backup codes returned once", async () => {
       repoFor(h, subject).seed({ id: subject.id, email });
-      const setup = await h.service.setupMfa(subject, email);
+      const setup = await h.service.setupMfa(subject);
 
       expect(setup.ok).toBe(true);
       if (!setup.ok) return;
@@ -169,7 +169,7 @@ describe("Unified MfaService", () => {
       expect(newAttempt.ok && newAttempt.value.usedBackupCode).toBe(true);
     });
 
-    it("adminForceDisable clears MFA and audits actor+subject with no secret", async () => {
+    it("adminForceDisable clears MFA and audits the ACTING ADMIN as actor (subject is the resource), no secret", async () => {
       const { secret } = await enroll(h, subject, email);
 
       const result = await h.service.adminForceDisable(subject, { id: "actor-admin" });
@@ -182,6 +182,12 @@ describe("Unified MfaService", () => {
 
       const forceRow = h.audit.rows.find((r) => r.action === "MFA_ADMIN_FORCE_DISABLED");
       expect(forceRow).toBeDefined();
+      // The audit ACTOR is always the acting admin — regardless of the
+      // disabled subject's type. The subject is the resource, never the
+      // actor: it only appears in `details.subjectId`.
+      expect(forceRow?.actorType).toBe("ADMIN");
+      expect(forceRow?.userId).toBe("actor-admin");
+      expect(forceRow?.customerUserId).toBeNull();
       const payload = JSON.stringify(forceRow);
       expect(payload).toContain("actor-admin");
       expect(payload).toContain(subject.id);
@@ -231,5 +237,41 @@ describe("Unified MfaService", () => {
     for (const code of backupCodes) {
       expect(logged).not.toContain(code);
     }
+  });
+
+  it("a self-service customer operation still audits as the customer actor (not the admin)", async () => {
+    const { secret } = await enroll(h, CUSTOMER, "customer@example.com");
+
+    const result = await h.service.disableMfa(CUSTOMER, authenticator.generate(secret));
+    expect(result.ok).toBe(true);
+
+    const disableRow = h.audit.rows.find((r) => r.action === "MFA_DISABLED");
+    expect(disableRow).toBeDefined();
+    expect(disableRow?.actorType).toBe("CUSTOMER");
+    expect(disableRow?.customerUserId).toBe(CUSTOMER.id);
+    expect(disableRow?.userId).toBeNull();
+  });
+
+  it("logs no secret material on the error path when the repository write throws mid-operation", async () => {
+    const { secret, backupCodes } = await enroll(h, ADMIN, "admin@example.com");
+
+    // Force the mutating write to throw so the service's catch-block error
+    // log is exercised — the previously uncovered branch (PR1-S2 carryover).
+    const clearMfaSpy = vi
+      .spyOn(h.adminRepo, "clearMfa")
+      .mockRejectedValueOnce(new Error("DB write failed"));
+
+    const result = await h.service.disableMfa(ADMIN, authenticator.generate(secret));
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toBe("DATABASE_ERROR");
+
+    const logged = JSON.stringify(loggerCalls);
+    expect(logged).not.toContain(secret);
+    for (const code of backupCodes) {
+      expect(logged).not.toContain(code);
+    }
+
+    clearMfaSpy.mockRestore();
   });
 });

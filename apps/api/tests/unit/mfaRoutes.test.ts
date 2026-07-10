@@ -6,9 +6,12 @@
  */
 
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { randomUUID } from "crypto";
+import { authenticator } from "otplib";
 import { MFA_SUBJECT_TYPE } from "@ports/core";
 import { createMockPrismaModule } from "./helpers/mockPrisma.js";
 import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
+import { InMemoryMfaUserRepository } from "./helpers/InMemoryMfaUserRepository.js";
 
 // ---------------------------------------------------------------------------
 // Mock setup
@@ -70,6 +73,7 @@ const { PrismaAdminSessionRepository } =
 const { Container } = await import("../../src/infrastructure/container/Container.js");
 const { TOKENS } = await import("../../src/infrastructure/container/types.js");
 const { RbacService } = await import("../../src/auth/rbacService.js");
+const { signCustomerAccessToken } = await import("../../src/auth/customerJwt.js");
 
 // ---------------------------------------------------------------------------
 // Shared service instances
@@ -81,10 +85,12 @@ const auditService = new AuditService(mockPrisma.prisma as never);
 const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
 const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
 const sessionRepo = new PrismaAdminSessionRepository(mockPrisma.prisma as never);
-// Unified MFA service over the admin adapter. Both subject repos point at the
-// same admin adapter (PR1 behavior-preserving) backed by the single mock store.
+// Unified MFA service — admin subjects over the Prisma-backed AdminUser adapter
+// (mock store); customer subjects over an in-memory port double, since the
+// mockPrisma helper carries no `customerUser` store (mfa-consolidation PR2).
 const adminMfaRepo = new PrismaAdminMfaUserRepository(mockPrisma.prisma as never);
-const mfaService = new MfaService(adminMfaRepo, adminMfaRepo, new InMemoryAuditLogRepository());
+const customerMfaRepo = new InMemoryMfaUserRepository();
+const mfaService = new MfaService(adminMfaRepo, customerMfaRepo, new InMemoryAuditLogRepository());
 const authService = new AuthService(
   mockPrisma.prisma,
   adminUserRepo,
@@ -122,15 +128,23 @@ async function createTestApp() {
 const timestamp = Date.now();
 const userEmail = `user-mfa-${timestamp}@example.com`;
 const adminEmail = `admin-mfa-${timestamp}@example.com`;
+const customerEmail = `customer-mfa-${timestamp}@example.com`;
 const testPassword = "TestPassword123!";
 
 let app: ReturnType<typeof Fastify>;
-let userToken: string;
 let adminToken: string;
+let customerToken: string;
 let userId: string;
 let _adminUserId: string;
+let customerId: string;
+const customerAccountId = `account-mfa-${timestamp}`;
 let _mfaSecret: string;
 let _backupCodes: string[];
+
+/** Reset the seeded customer row to its unenrolled baseline. */
+function reseedCustomer(): void {
+  customerMfaRepo.seed({ id: customerId, email: customerEmail, accountId: customerAccountId });
+}
 
 describe("mfaRoutes Unit Tests", () => {
   beforeAll(async () => {
@@ -162,16 +176,9 @@ describe("mfaRoutes Unit Tests", () => {
       _adminUserId = adminResult.value.id;
     }
 
-    // Login to get tokens
-    const userLogin = await authService.login(
-      { email: userEmail, password: testPassword },
-      "127.0.0.1",
-      "test-agent"
-    );
-    if (userLogin.ok && "tokens" in userLogin.value) {
-      userToken = userLogin.value.tokens.accessToken;
-    }
-
+    // Login to get the admin token (the "regular user" registered above is
+    // only a target id for the admin-over-AdminUser routes now — the 5
+    // self-service routes run under the customer subject instead).
     const adminLogin = await authService.login(
       { email: adminEmail, password: testPassword },
       "127.0.0.1",
@@ -180,6 +187,20 @@ describe("mfaRoutes Unit Tests", () => {
     if (adminLogin.ok && "tokens" in adminLogin.value) {
       adminToken = adminLogin.value.tokens.accessToken;
     }
+
+    // Seed a customer subject (in-memory port double — mockPrisma has no
+    // customerUser store) and sign a real customer access token for it.
+    // customerId is a real UUID: the force-disable route validates its
+    // `:userId` param through the shared IdSchema (z.string().uuid()).
+    customerId = randomUUID();
+    reseedCustomer();
+    customerToken = signCustomerAccessToken({
+      sub: customerId,
+      accountId: customerAccountId,
+      roleId: "role-owner",
+      roleName: "OWNER",
+      permissions: [],
+    });
   });
 
   afterAll(async () => {
@@ -187,11 +208,11 @@ describe("mfaRoutes Unit Tests", () => {
   });
 
   describe("GET /auth/mfa/status", () => {
-    it("should get MFA status for authenticated user", async () => {
+    it("should get MFA status for authenticated customer", async () => {
       const response = await app.inject({
         method: "GET",
         url: "/auth/mfa/status",
-        headers: { authorization: `Bearer ${userToken}` },
+        headers: { authorization: `Bearer ${customerToken}` },
       });
 
       const body = JSON.parse(response.body);
@@ -213,11 +234,13 @@ describe("mfaRoutes Unit Tests", () => {
   });
 
   describe("POST /auth/mfa/setup", () => {
-    it("should setup MFA for authenticated user", async () => {
+    it("should setup MFA for authenticated customer", async () => {
+      const keyuriSpy = vi.spyOn(authenticator, "keyuri");
+
       const response = await app.inject({
         method: "POST",
         url: "/auth/mfa/setup",
-        headers: { authorization: `Bearer ${userToken}` },
+        headers: { authorization: `Bearer ${customerToken}` },
       });
 
       const body = JSON.parse(response.body);
@@ -229,26 +252,33 @@ describe("mfaRoutes Unit Tests", () => {
       expect(Array.isArray(body.data?.setup?.backupCodes)).toBeTruthy();
       expect(body.data?.setup?.backupCodes?.length).toBe(8);
 
+      // userEmail anchor: the TOTP key URI label is the customer's real email
+      // (derived from MfaUserRecord.email inside MfaService.setupMfa), never
+      // the customer id (the mfaRoutes.ts:99 bug this fixes).
+      expect(keyuriSpy).toHaveBeenCalledWith(customerEmail, expect.any(String), expect.any(String));
+      keyuriSpy.mockRestore();
+
       _mfaSecret = body.data?.setup?.manualEntryKey || "";
       _backupCodes = body.data?.setup?.backupCodes || [];
+
+      reseedCustomer();
     });
 
     it("should reject duplicate setup", async () => {
       // First, enable MFA by verifying setup
-      const setupResult = await mfaService.setupMfa(
-        { type: MFA_SUBJECT_TYPE.ADMIN, id: userId },
-        userEmail
-      );
+      const setupResult = await mfaService.setupMfa({
+        type: MFA_SUBJECT_TYPE.CUSTOMER,
+        id: customerId,
+      });
       if (setupResult.ok) {
-        const { authenticator } = await import("otplib");
         const token = authenticator.generate(setupResult.value.secret);
-        await mfaService.verifyMfaSetup({ type: MFA_SUBJECT_TYPE.ADMIN, id: userId }, token);
+        await mfaService.verifyMfaSetup({ type: MFA_SUBJECT_TYPE.CUSTOMER, id: customerId }, token);
       }
 
       const response = await app.inject({
         method: "POST",
         url: "/auth/mfa/setup",
-        headers: { authorization: `Bearer ${userToken}` },
+        headers: { authorization: `Bearer ${customerToken}` },
       });
 
       expect(response.statusCode).toBe(409);
@@ -256,11 +286,8 @@ describe("mfaRoutes Unit Tests", () => {
       const body = JSON.parse(response.body);
       expect(body.error).toBe("MFA is already enabled for this user");
 
-      // Cleanup - disable MFA for subsequent tests
-      const user = stores.adminUser.all().find((u) => u.id === userId);
-      if (user) {
-        stores.adminUser.update(userId, { mfaEnabled: false, mfaSecret: null });
-      }
+      // Cleanup - reset the customer row for subsequent tests
+      reseedCustomer();
     });
 
     it("should reject without authentication", async () => {
@@ -278,7 +305,7 @@ describe("mfaRoutes Unit Tests", () => {
       const response = await app.inject({
         method: "POST",
         url: "/auth/mfa/verify-setup",
-        headers: { authorization: `Bearer ${userToken}` },
+        headers: { authorization: `Bearer ${customerToken}` },
         payload: {
           token: "12345",
         },
@@ -291,7 +318,7 @@ describe("mfaRoutes Unit Tests", () => {
       const response = await app.inject({
         method: "POST",
         url: "/auth/mfa/verify-setup",
-        headers: { authorization: `Bearer ${userToken}` },
+        headers: { authorization: `Bearer ${customerToken}` },
         payload: {},
       });
 
@@ -354,7 +381,7 @@ describe("mfaRoutes Unit Tests", () => {
       const response = await app.inject({
         method: "POST",
         url: "/auth/mfa/disable",
-        headers: { authorization: `Bearer ${userToken}` },
+        headers: { authorization: `Bearer ${customerToken}` },
         payload: {
           token: "123456",
         },
@@ -370,7 +397,7 @@ describe("mfaRoutes Unit Tests", () => {
       const response = await app.inject({
         method: "POST",
         url: "/auth/mfa/disable",
-        headers: { authorization: `Bearer ${userToken}` },
+        headers: { authorization: `Bearer ${customerToken}` },
         payload: {
           token: "12",
         },
@@ -397,7 +424,7 @@ describe("mfaRoutes Unit Tests", () => {
       const response = await app.inject({
         method: "POST",
         url: "/auth/mfa/regenerate-backup-codes",
-        headers: { authorization: `Bearer ${userToken}` },
+        headers: { authorization: `Bearer ${customerToken}` },
         payload: {
           token: "123456",
         },
@@ -413,7 +440,7 @@ describe("mfaRoutes Unit Tests", () => {
       const response = await app.inject({
         method: "POST",
         url: "/auth/mfa/regenerate-backup-codes",
-        headers: { authorization: `Bearer ${userToken}` },
+        headers: { authorization: `Bearer ${customerToken}` },
         payload: {
           token: "12",
         },
@@ -541,6 +568,95 @@ describe("mfaRoutes Unit Tests", () => {
       const response = await app.inject({
         method: "POST",
         url: `/admin/users/${userId}/mfa/force-disable`,
+        payload: {
+          reason: "Valid reason for MFA reset",
+        },
+      });
+
+      expect(response.statusCode).toBe(401);
+    });
+  });
+
+  describe("POST /admin/customers/:userId/mfa/force-disable", () => {
+    it("should reject without reason", async () => {
+      const response = await app.inject({
+        method: "POST",
+        url: `/admin/customers/${customerId}/mfa/force-disable`,
+        headers: { authorization: `Bearer ${adminToken}` },
+        payload: {},
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it("should reject reason too short", async () => {
+      const response = await app.inject({
+        method: "POST",
+        url: `/admin/customers/${customerId}/mfa/force-disable`,
+        headers: { authorization: `Bearer ${adminToken}` },
+        payload: {
+          reason: "short",
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it("should force disable MFA for the customer and never touch AdminUser", async () => {
+      // Re-enroll the customer so there is real MFA state to clear.
+      const setupResult = await mfaService.setupMfa({
+        type: MFA_SUBJECT_TYPE.CUSTOMER,
+        id: customerId,
+      });
+      expect(setupResult.ok).toBe(true);
+      if (setupResult.ok) {
+        const token = authenticator.generate(setupResult.value.secret);
+        await mfaService.verifyMfaSetup({ type: MFA_SUBJECT_TYPE.CUSTOMER, id: customerId }, token);
+      }
+      const adminRowBefore = stores.adminUser.all().find((u) => u.id === userId);
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/admin/customers/${customerId}/mfa/force-disable`,
+        headers: { authorization: `Bearer ${adminToken}` },
+        payload: {
+          reason: "Customer requested MFA reset due to lost authenticator device",
+        },
+      });
+
+      const body = JSON.parse(response.body);
+
+      expect(response.statusCode).toBe(200);
+      expect(body.ok).toBe(true);
+      expect(body.data?.message).toBeTruthy();
+
+      // Customer subject cleared, via the customer adapter — never AdminUser.
+      const customerRow = customerMfaRepo.raw(customerId);
+      expect(customerRow?.mfaEnabled).toBe(false);
+      expect(customerRow?.mfaSecret).toBeNull();
+      const adminRowAfter = stores.adminUser.all().find((u) => u.id === userId);
+      expect(adminRowAfter).toEqual(adminRowBefore);
+
+      reseedCustomer();
+    });
+
+    it("should reject invalid userId format", async () => {
+      const response = await app.inject({
+        method: "POST",
+        url: "/admin/customers/invalid-id/mfa/force-disable",
+        headers: { authorization: `Bearer ${adminToken}` },
+        payload: {
+          reason: "Valid reason for MFA reset",
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it("should reject without authentication", async () => {
+      const response = await app.inject({
+        method: "POST",
+        url: `/admin/customers/${customerId}/mfa/force-disable`,
         payload: {
           reason: "Valid reason for MFA reset",
         },
