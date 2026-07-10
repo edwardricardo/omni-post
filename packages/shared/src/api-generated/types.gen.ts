@@ -424,20 +424,6 @@ export type PostAuthMfaVerifySetupResponses = {
   200: unknown;
 };
 
-export type PostAuthMfaVerifyData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: "/auth/mfa/verify";
-};
-
-export type PostAuthMfaVerifyResponses = {
-  /**
-   * Default Response
-   */
-  200: unknown;
-};
-
 export type PostAuthMfaDisableData = {
   body?: never;
   path?: never;
@@ -7247,6 +7233,20 @@ export type PostAuthCustomerLoginData = {
 };
 
 export type PostAuthCustomerLoginResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown;
+};
+
+export type PostAuthCustomerLoginMfaData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/auth/customer/login/mfa";
+};
+
+export type PostAuthCustomerLoginMfaResponses = {
   /**
    * Default Response
    */

@@ -19,6 +19,7 @@ import { AuthService } from "../../auth/authService.js";
 import { MfaService } from "../../admin/auth/MfaService.js";
 import { PrismaAdminMfaUserRepository } from "../adapters/PrismaAdminMfaUserRepository.js";
 import { PrismaCustomerMfaUserRepository } from "../adapters/PrismaCustomerMfaUserRepository.js";
+import { RedisMfaChallengeStoreAdapter } from "../adapters/RedisMfaChallengeStoreAdapter.js";
 import type { MfaUserRepositoryPort } from "@ports/core";
 import { RbacService } from "../../auth/rbacService.js";
 import { RoleManagementService } from "@core/auth/RoleManagementService.js";
@@ -115,7 +116,7 @@ import { NotificationBroadcaster } from "../../services/NotificationBroadcaster.
 import { AnalyticsStreamBroadcaster } from "../../services/AnalyticsStreamBroadcaster.js";
 import { StreamConnectionTracker } from "../../services/StreamConnectionTracker.js";
 import { RedisBruteForceAdapter } from "../adapters/RedisBruteForceAdapter.js";
-import type { BruteForceProtectionPort } from "@ports/core";
+import type { BruteForceProtectionPort, MfaChallengeStorePort } from "@ports/core";
 import { RealtimeAnalyticsService } from "../../analytics/realtimeAnalytics.js";
 import { GA4TrackingAdapter } from "../adapters/GA4TrackingAdapter.js";
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
@@ -848,6 +849,23 @@ export function setupServices(
         container.resolve<AuditService>(TOKENS.AuditService),
         container.resolve<ApiMetrics>(TOKENS.ApiMetrics)
       );
+    },
+    true
+  );
+
+  // Single-use MFA challenge store — the allowlist backing the customer login
+  // MFA gate. Dedicated Redis connection (own failure domain, same pattern as
+  // the BF adapter above) and FAIL-CLOSED: a store fault surfaces as a typed
+  // error the login gate translates to 503, in deliberate contrast to the
+  // rate-limiter's fail-open posture.
+  container.register<MfaChallengeStorePort>(
+    TOKENS.MfaChallengeStore,
+    () => {
+      const redis = createRedisConnection();
+      redis.on("error", () => {
+        // Faults surface via the adapter's typed err("STORE_ERROR") path.
+      });
+      return new RedisMfaChallengeStoreAdapter(redis);
     },
     true
   );

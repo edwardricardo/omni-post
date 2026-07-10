@@ -9,6 +9,7 @@
 import jwt from "jsonwebtoken";
 
 import { env } from "../config/env.js";
+import { CUSTOMER_MFA_CHALLENGE_TTL_SECONDS } from "@core/domain/repositories/CustomerTokenService.js";
 
 /**
  * Payload embedded in customer access tokens.
@@ -38,8 +39,36 @@ export interface CustomerRefreshPayload {
   type: "customer-refresh";
 }
 
+/**
+ * Payload embedded in a customer login MFA challenge token — the 4th customer
+ * token kind. Carries hash-only IP/UA binding (`iph`/`uah`) and the single-use
+ * `jti` consumed server-side at step 2.
+ */
+export interface CustomerMfaChallengePayload {
+  /** CustomerUser.id */
+  sub: string;
+  /** Account ID — keeps the step-2 lookup tenant-explicit */
+  accountId: string;
+  /** 128-bit single-use id, consumed from the challenge store at step 2 */
+  jti: string;
+  /** SHA-256 hex of the trusted client IP (hash-only: token reaches the browser) */
+  iph: string;
+  /** SHA-256 hex of the raw user-agent (hash-only: token reaches the browser) */
+  uah: string;
+  /** Discriminator to reject access/refresh tokens */
+  type: "customer-mfa-challenge";
+}
+
 const CUSTOMER_JWT_SECRET = env.CUSTOMER_JWT_SECRET;
 const CUSTOMER_JWT_EXPIRY = 15 * 60; // 15 minutes
+
+/**
+ * Dedicated audience for the login MFA challenge. Distinct from the access
+ * token's `omnipost-customer-api` so a challenge and an access token are
+ * cryptographically non-interchangeable: each verifier's `aud` check rejects
+ * the other kind before the payload `type` discriminator is even read.
+ */
+const CUSTOMER_MFA_CHALLENGE_AUDIENCE = "omnipost-customer-mfa";
 
 /**
  * @function signCustomerAccessToken
@@ -116,4 +145,43 @@ export function decodeCustomerRefreshToken(token: string): CustomerRefreshPayloa
     return null;
   }
   return { sub: decoded.sub, sessionId: decoded.sessionId, type: "customer-refresh" };
+}
+
+/**
+ * @function signCustomerMfaChallengeToken
+ * @description Creates a short-lived (180s) customer login MFA challenge token.
+ *   Pins issuer + a DEDICATED audience so it cannot be presented as an access or
+ *   refresh token. Same HS256 secret as the other customer kinds — the single
+ *   issuer IS the single verifier, so asymmetric keys buy nothing (design
+ *   Decision 4).
+ */
+export function signCustomerMfaChallengeToken(
+  payload: Omit<CustomerMfaChallengePayload, "type">
+): string {
+  return jwt.sign({ ...payload, type: "customer-mfa-challenge" }, CUSTOMER_JWT_SECRET, {
+    expiresIn: CUSTOMER_MFA_CHALLENGE_TTL_SECONDS,
+    issuer: "omnipost-customer",
+    audience: CUSTOMER_MFA_CHALLENGE_AUDIENCE,
+  });
+}
+
+/**
+ * @function verifyCustomerMfaChallengeToken
+ * @description Verifies and decodes a customer login MFA challenge token. Pins
+ *   the algorithm (HS256), issuer, and the dedicated audience, then re-checks the
+ *   payload `type` — an access/refresh token fails the `aud` check first, a
+ *   token of any other `type` is rejected explicitly.
+ */
+export function verifyCustomerMfaChallengeToken(token: string): CustomerMfaChallengePayload {
+  const decoded = jwt.verify(token, CUSTOMER_JWT_SECRET, {
+    algorithms: ["HS256"],
+    issuer: "omnipost-customer",
+    audience: CUSTOMER_MFA_CHALLENGE_AUDIENCE,
+  }) as CustomerMfaChallengePayload;
+
+  if (decoded.type !== "customer-mfa-challenge") {
+    throw new Error("Not a customer MFA challenge token");
+  }
+
+  return decoded;
 }

@@ -15,7 +15,14 @@ import crypto from "crypto";
 import { authenticator } from "otplib";
 import QRCode from "qrcode";
 import { ok, err, isErr, type Result } from "@shared/types";
-import { MFA_SUBJECT_TYPE, type MfaSubject, type MfaUserRepositoryPort } from "@ports/core";
+import {
+  MFA_SUBJECT_TYPE,
+  type MfaSubject,
+  type MfaUserRepositoryPort,
+  type MfaVerificationPort,
+  type MfaVerificationResult,
+  type MfaVerifyTokenError,
+} from "@ports/core";
 import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import { AuditableService, auditActor, type AuditActor } from "../../services/AuditableService.js";
@@ -49,15 +56,6 @@ export interface MfaSetupData {
 }
 
 /**
- * Outcome of a login-time MFA verification: whether it verified, and whether a
- * single-use backup code (rather than a TOTP) was consumed.
- */
-export interface MfaVerificationResult {
-  verified: boolean;
-  usedBackupCode: boolean;
-}
-
-/**
  * The admin actor performing a force-disable — recorded in the audit trail.
  */
 export interface MfaActor {
@@ -71,7 +69,8 @@ type VerifySetupError =
   | "MFA_ALREADY_ENABLED"
   | "NO_SETUP_IN_PROGRESS"
   | "DATABASE_ERROR";
-type VerifyTokenError = "USER_NOT_FOUND" | "MFA_NOT_ENABLED" | "INVALID_TOKEN" | "DATABASE_ERROR";
+// Login-time verification result + error union are the shared port contract
+// (@ports/core MfaVerificationPort): `MfaVerificationResult` + `MfaVerifyTokenError`.
 type ForceDisableError = "USER_NOT_FOUND" | "DATABASE_ERROR";
 type StatusError = "USER_NOT_FOUND" | "DATABASE_ERROR";
 
@@ -82,7 +81,7 @@ type StatusError = "USER_NOT_FOUND" | "DATABASE_ERROR";
  *              constructor injection — it never imports a Prisma singleton nor
  *              constructs an adapter inline.
  */
-export class MfaService extends AuditableService {
+export class MfaService extends AuditableService implements MfaVerificationPort {
   private readonly issuer = adminAuthConfig.mfa.issuer;
   private readonly backupCodesCount = adminAuthConfig.mfa.backupCodesCount;
 
@@ -194,7 +193,7 @@ export class MfaService extends AuditableService {
   async verifyMfaToken(
     subject: MfaSubject,
     token: string
-  ): Promise<Result<MfaVerificationResult, VerifyTokenError>> {
+  ): Promise<Result<MfaVerificationResult, MfaVerifyTokenError>> {
     try {
       const repo = this.repoFor(subject);
       const found = await repo.findById(subject.id);
@@ -265,7 +264,7 @@ export class MfaService extends AuditableService {
   async regenerateBackupCodes(
     subject: MfaSubject,
     token: string
-  ): Promise<Result<string[], VerifyTokenError>> {
+  ): Promise<Result<string[], MfaVerifyTokenError>> {
     try {
       const verification = await this.verifyMfaToken(subject, token);
       if (isErr(verification)) return err(verification.error);
@@ -306,7 +305,7 @@ export class MfaService extends AuditableService {
    * @param token - A valid TOTP or unused backup code.
    * @returns Ok(void) on success, or a typed verify error.
    */
-  async disableMfa(subject: MfaSubject, token: string): Promise<Result<void, VerifyTokenError>> {
+  async disableMfa(subject: MfaSubject, token: string): Promise<Result<void, MfaVerifyTokenError>> {
     try {
       const verification = await this.verifyMfaToken(subject, token);
       if (isErr(verification)) return err(verification.error);

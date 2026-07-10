@@ -11,9 +11,14 @@ import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireClientAuth } from "./customerAuthMiddleware.js";
 import { withSystemContext } from "../security/tenantContext.js";
+import { resolveClientIp } from "../security/resolveClientIp.js";
+import { env } from "../config/env.js";
+import { authLogger } from "../lib/logger.js";
 import type {
   RegisterCustomerUseCase,
   LoginCustomerUseCase,
+  CompleteCustomerMfaLoginUseCase,
+  CompleteCustomerMfaLoginError,
   RefreshCustomerTokenUseCase,
   LogoutCustomerUseCase,
   RequestPasswordResetUseCase,
@@ -51,6 +56,15 @@ const ResetPasswordSchema = z.object({
   newPassword: z.string().min(8).max(128),
 });
 
+const MfaLoginSchema = z.object({
+  challengeToken: z.string().min(1).max(2048),
+  // TOTP (6 digits) or backup code (8 hex chars) — mirrors the flexible token
+  // schema on the self-service MFA routes.
+  code: z.string().min(6).max(8),
+  // Consumed by the Next proxy/action cookie layer; the API ignores it.
+  rememberMe: z.boolean().optional(),
+});
+
 /**
  * @class CustomerAuthRouteHandler
  * @description Handles all customer authentication route logic.
@@ -61,12 +75,25 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
   constructor(
     private registerUseCase: RegisterCustomerUseCase,
     private loginUseCase: LoginCustomerUseCase,
+    private completeMfaUseCase: CompleteCustomerMfaLoginUseCase,
     private refreshUseCase: RefreshCustomerTokenUseCase,
     private logoutUseCase: LogoutCustomerUseCase,
     private requestResetUseCase: RequestPasswordResetUseCase,
     private resetPasswordUseCase: ResetPasswordUseCase
   ) {
     super();
+  }
+
+  /**
+   * @method resolveIp
+   * @description Derive the trusted client IP through the canonical
+   *   `resolveClientIp` resolver (trusted-hop counting from the right of
+   *   X-Forwarded-For, normalization, fail-closed to the socket peer). Used
+   *   for MFA challenge IP-binding and the brute-force forensic IP on both
+   *   login steps.
+   */
+  private resolveIp(request: FastifyRequest): string {
+    return resolveClientIp(request, env.TRUSTED_PROXY_HOP_COUNT);
   }
 
   /**
@@ -139,12 +166,26 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
         email: body.email,
         password: body.password,
         ...(body.accountSlug !== undefined && { accountSlug: body.accountSlug }),
-        ip: request.ip,
+        ip: this.resolveIp(request),
         userAgent: request.headers["user-agent"] ?? "",
       })
     );
 
     if (!result.ok) {
+      if (result.error === "MFA_UNAVAILABLE") {
+        // Fail-closed: the challenge store is down, so an MFA login cannot be
+        // safely issued. Distinct from an auth verdict — surface as 503 with a
+        // loud, alertable WARN (contrast the rate-limiter's fail-open).
+        authLogger.warn(
+          { threat_type: "mfa_challenge_store_unavailable", layer: "infrastructure" },
+          "MFA challenge store unavailable at login — failing closed"
+        );
+        return this.sendError(
+          ctx,
+          503,
+          "Unable to complete multi-factor login right now. Please try again."
+        );
+      }
       const errorMap = {
         INVALID_CREDENTIALS: { code: 401, message: "Invalid email or password" },
         USER_INACTIVE: { code: 403, message: "Account is inactive" },
@@ -162,7 +203,122 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, mapped.code, mapped.message);
     }
 
+    // Success is EITHER a session (non-MFA) OR a challenge (`mfaRequired`).
+    // The proxy passes a challenge body through untouched (no `accessToken`, no
+    // cookies); a session body has its tokens stripped into httpOnly cookies.
     return this.sendSuccess(ctx, result.value, 200);
+  }
+
+  /**
+   * @method completeMfaLogin
+   * @description POST /auth/customer/login/mfa — customer login step 2. Verifies
+   *   the challenge token + a TOTP or backup code and mints the session. Runs
+   *   under `withSystemContext` (pre-identity, like login). The error contract is
+   *   deliberately NOT the standard `sendError`: a wrong code MUST carry a
+   *   top-level `code: "INVALID_MFA_CODE"` so the portal can keep the user on the
+   *   challenge step (retry) instead of dropping them back to the password step.
+   *   Every challenge-invalid sub-case (and binding mismatch) returns a
+   *   BYTE-IDENTICAL 401 — no oracle.
+   */
+  async completeMfaLogin(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+
+    const validationResult = await this.validateRequest(ctx, {
+      body: MfaLoginSchema,
+    });
+    if (!validationResult.ok) {
+      return this.sendError(ctx, 400, "Invalid input data");
+    }
+
+    const { body } = validationResult.value as {
+      body: z.infer<typeof MfaLoginSchema>;
+    };
+
+    const result = await withSystemContext("customer-mfa-login", () =>
+      this.completeMfaUseCase.execute({
+        challengeToken: body.challengeToken,
+        code: body.code,
+        ip: this.resolveIp(request),
+        userAgent: request.headers["user-agent"] ?? "",
+      })
+    );
+
+    if (!result.ok) {
+      return this.sendMfaLoginError(ctx, result.error);
+    }
+
+    return this.sendSuccess(ctx, result.value, 200);
+  }
+
+  /**
+   * @method sendMfaLoginError
+   * @description Maps a step-2 use-case error to its HTTP response. Emits the
+   *   binding-mismatch / store-outage WARNs, and — crucially — collapses every
+   *   challenge-invalid sub-case AND the binding mismatch to a BYTE-IDENTICAL
+   *   401 body (no oracle). The response carries a top-level `code` so the portal
+   *   can discriminate retry (`INVALID_MFA_CODE`) from fallback.
+   * @param ctx - The route context.
+   * @param error - The step-2 use-case error code.
+   */
+  private sendMfaLoginError(ctx: RouteContext, error: CompleteCustomerMfaLoginError): void {
+    if (error === "CHALLENGE_BINDING_MISMATCH") {
+      authLogger.warn(
+        { threat_type: "mfa_challenge_binding_mismatch", layer: "infrastructure" },
+        "MFA challenge binding mismatch — rejecting"
+      );
+    } else if (error === "MFA_UNAVAILABLE") {
+      authLogger.warn(
+        { threat_type: "mfa_challenge_store_unavailable", layer: "infrastructure" },
+        "MFA challenge store unavailable at step 2 — failing closed"
+      );
+    }
+
+    // Byte-identical challenge-invalid body (expired / consumed / foreign /
+    // binding mismatch all collapse here).
+    const invalidChallenge = {
+      status: 401,
+      body: {
+        ok: false,
+        error: "MFA challenge is invalid or expired. Please sign in again.",
+        code: "INVALID_CHALLENGE",
+      },
+    };
+
+    const responseMap: Record<CompleteCustomerMfaLoginError, { status: number; body: object }> = {
+      INVALID_CHALLENGE: invalidChallenge,
+      CHALLENGE_BINDING_MISMATCH: invalidChallenge,
+      INVALID_MFA_CODE: {
+        status: 401,
+        body: { ok: false, error: "Invalid MFA code.", code: "INVALID_MFA_CODE" },
+      },
+      USER_INACTIVE: {
+        status: 403,
+        body: { ok: false, error: "Account is inactive", code: "USER_INACTIVE" },
+      },
+      RATE_LIMITED: {
+        status: 429,
+        body: {
+          ok: false,
+          error: "Too many attempts. Please try again later.",
+          code: "RATE_LIMITED",
+        },
+      },
+      MFA_UNAVAILABLE: {
+        status: 503,
+        body: {
+          ok: false,
+          error: "Unable to complete multi-factor login right now. Please try again.",
+          code: "MFA_UNAVAILABLE",
+        },
+      },
+      INTERNAL_ERROR: {
+        status: 500,
+        body: { ok: false, error: "Internal server error", code: "INTERNAL_ERROR" },
+      },
+    };
+
+    const mapped = responseMap[error];
+    ctx.reply.code(mapped.status).send(mapped.body);
   }
 
   /**
@@ -313,6 +469,9 @@ const customerAuthRoutes: FastifyPluginAsync = async (fastify) => {
     TOKENS.RegisterCustomerUseCase
   );
   const loginUC = fastify.container!.resolve<LoginCustomerUseCase>(TOKENS.LoginCustomerUseCase);
+  const completeMfaUC = fastify.container!.resolve<CompleteCustomerMfaLoginUseCase>(
+    TOKENS.CompleteCustomerMfaLoginUseCase
+  );
   const refreshUC = fastify.container!.resolve<RefreshCustomerTokenUseCase>(
     TOKENS.RefreshCustomerTokenUseCase
   );
@@ -327,6 +486,7 @@ const customerAuthRoutes: FastifyPluginAsync = async (fastify) => {
   const handler = new CustomerAuthRouteHandler(
     registerUC,
     loginUC,
+    completeMfaUC,
     refreshUC,
     logoutUC,
     requestResetUC,
@@ -357,6 +517,19 @@ const customerAuthRoutes: FastifyPluginAsync = async (fastify) => {
     },
     async (request, reply) => {
       await handler.login(request, reply);
+    }
+  );
+
+  // POST /auth/customer/login/mfa — public step 2 of the MFA login. Rate-limited
+  // by the canonical HTTP limiter (AUTH preset, own ip:path bucket) and gated by
+  // the per-account BruteForceProtectionPort inside the use case.
+  fastify.post(
+    "/auth/customer/login/mfa",
+    {
+      schema: { tags: ["Customer Auth"], summary: "Complete customer MFA login" },
+    },
+    async (request, reply) => {
+      await handler.completeMfaLogin(request, reply);
     }
   );
 

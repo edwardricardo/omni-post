@@ -15,8 +15,17 @@ export {
   LoginCustomerUseCase,
   type LoginCustomerInput,
   type LoginCustomerOutput,
+  type CustomerMfaChallengeOutput,
   type LoginCustomerError,
 } from "./LoginCustomerUseCase.js";
+
+export {
+  CompleteCustomerMfaLoginUseCase,
+  type CompleteCustomerMfaLoginInput,
+  type CompleteCustomerMfaLoginError,
+} from "./CompleteCustomerMfaLoginUseCase.js";
+
+export { sha256Hex } from "./challengeBinding.js";
 
 export {
   RefreshCustomerTokenUseCase,

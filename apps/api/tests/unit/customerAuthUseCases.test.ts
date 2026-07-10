@@ -13,7 +13,7 @@ import { RefreshCustomerTokenUseCase } from "@core/customer-auth/RefreshCustomer
 import { ResetPasswordUseCase } from "@core/customer-auth/ResetPasswordUseCase.js";
 import { RequestPasswordResetUseCase } from "@core/customer-auth/RequestPasswordResetUseCase.js";
 import { LogoutCustomerUseCase } from "@core/customer-auth/LogoutCustomerUseCase.js";
-import type { BruteForceProtectionPort } from "@ports/core";
+import type { BruteForceProtectionPort, MfaChallengeStorePort } from "@ports/core";
 
 /** Brute-force port mock that allows by default (the gate is exercised in its
  *  own adapter tests + the e2e smoke). */
@@ -27,6 +27,14 @@ function makeBruteForce(): BruteForceProtectionPort {
     recordFailedAttempt: vi.fn(async () => undefined),
     recordSuccessfulAttempt: vi.fn(async () => undefined),
   } as unknown as BruteForceProtectionPort;
+}
+
+/** Challenge store mock — never exercised by these non-MFA login fixtures. */
+function makeChallengeStore(): MfaChallengeStorePort {
+  return {
+    issue: vi.fn(async () => ok(undefined)),
+    consume: vi.fn(async () => ok("CONSUMED")),
+  } as unknown as MfaChallengeStorePort;
 }
 import { Argon2PasswordHasher } from "../../src/infrastructure/adapters/Argon2PasswordHasher.js";
 import { CustomerTokenServiceAdapter } from "../../src/infrastructure/adapters/CustomerTokenServiceAdapter.js";
@@ -222,7 +230,8 @@ describe("LoginCustomerUseCase", () => {
       accountRepo,
       hasher,
       tokenService,
-      makeBruteForce()
+      makeBruteForce(),
+      makeChallengeStore()
     );
 
     // Pre-hash a password for testing
