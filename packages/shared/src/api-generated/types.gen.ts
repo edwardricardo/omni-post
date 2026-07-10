@@ -498,6 +498,22 @@ export type PostAdminUsersByUserIdMfaForceDisableResponses = {
   200: unknown;
 };
 
+export type PostAdminCustomersByUserIdMfaForceDisableData = {
+  body?: never;
+  path: {
+    userId: string;
+  };
+  query?: never;
+  url: "/admin/customers/{userId}/mfa/force-disable";
+};
+
+export type PostAdminCustomersByUserIdMfaForceDisableResponses = {
+  /**
+   * Default Response
+   */
+  200: unknown;
+};
+
 export type GetAuthPermissionsData = {
   body?: never;
   path?: never;
