@@ -35,7 +35,7 @@ const mockRedisInstance = {
     return "OK";
   },
   keys: async (pattern: string) => {
-    const prefix = pattern.replace("*", "");
+    const prefix = pattern.replaceAll("*", "");
     return [...redisStore.keys()].filter((k) => k.startsWith(prefix));
   },
   del: async (...keys: string[]) => {

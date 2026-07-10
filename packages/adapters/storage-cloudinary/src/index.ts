@@ -149,13 +149,23 @@ export function createCloudinaryStorageAdapter(config: CloudinaryConfig): Storag
     async getMediaMetadata(
       url: string
     ): Promise<Result<MediaMetadata, "NOT_FOUND" | "SERVICE_ERROR">> {
-      // Extract public ID from Cloudinary URL
-      const urlMatch = url.match(/\/v\d+\/(.+?)(?:\.[^.]+)?$/);
-      if (!urlMatch) {
+      // Extract public ID from Cloudinary URL. Linear string parsing instead
+      // of a lazy-quantifier regex: the URL is external input, and
+      // /\/v\d+\/(.+?)(?:\.[^.]+)?$/ backtracks polynomially on long
+      // non-matching strings (CodeQL js/polynomial-redos).
+      const versionMatch = /\/v\d+\//.exec(url);
+      if (!versionMatch) {
         return err("NOT_FOUND");
       }
 
-      const publicId = urlMatch[1];
+      let publicId = url.slice(versionMatch.index + versionMatch[0].length);
+      const lastDot = publicId.lastIndexOf(".");
+      if (lastDot > publicId.lastIndexOf("/")) {
+        publicId = publicId.slice(0, lastDot);
+      }
+      if (!publicId) {
+        return err("NOT_FOUND");
+      }
 
       const operation = async (): Promise<MediaMetadata> => {
         // Try to get resource info from Cloudinary API

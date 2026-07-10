@@ -1049,5 +1049,10 @@ export class ExternalApiCircuitBreaker {
  */
 export function hashCallScope(credential: unknown, ...publicParams: unknown[]): string {
   const material = JSON.stringify([credential, ...publicParams]);
+  // SHA-256 is deliberate: this derives a per-call cache-scope key, not a stored
+  // password hash. A KDF (argon2/bcrypt) would add per-request latency for no
+  // security gain — the inputs are high-entropy provider credentials, and the
+  // digest is never used to authenticate anything. (CodeQL
+  // js/insufficient-password-hash is dismissed as a false positive here.)
   return createHash("sha256").update(material).digest("hex").slice(0, 16);
 }
