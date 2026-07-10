@@ -37,10 +37,10 @@ function claimPredicateMatches(
 ): boolean {
   if (!or) return true;
   return or.some((clause) => {
-    const cond = clause.mfaLastUsedTotpStep;
+    const cond = clause.mfaLastUsedTotpStep as null | { lt: number };
     if (cond === null) return storedStep === null;
-    if (typeof cond === "object" && cond !== null && "lt" in cond) {
-      const lt = (cond as { lt: number }).lt;
+    if (typeof cond === "object" && "lt" in cond) {
+      const lt = cond.lt;
       return storedStep !== null && storedStep < lt;
     }
     return false;
