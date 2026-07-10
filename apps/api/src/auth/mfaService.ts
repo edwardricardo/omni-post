@@ -8,7 +8,7 @@ import { authenticator } from "otplib";
 import * as QRCode from "qrcode";
 import * as crypto from "crypto";
 import { ok, err, isErr, type Result } from "@shared/types";
-import { AuditableService } from "../services/AuditableService.js";
+import { AuditableService, auditActor } from "../services/AuditableService.js";
 import type { AdminUserRepositoryPort } from "@core/domain/repositories/AdminUserRepository.js";
 import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 import { authLogger } from "../lib/logger.js";
@@ -87,7 +87,7 @@ export class MfaService extends AuditableService {
       });
 
       // Log MFA setup initiated
-      await this.logSecurityEvent(userId, user.id, {
+      await this.logSecurityEvent(auditActor.admin(userId), user.id, {
         action: "MFA_SETUP_INITIATED",
         severity: "MEDIUM",
         details: {
@@ -149,7 +149,7 @@ export class MfaService extends AuditableService {
 
       if (!verified) {
         // Log failed MFA verification
-        await this.logSecurityEvent(userId, user.id, {
+        await this.logSecurityEvent(auditActor.admin(userId), user.id, {
           action: "MFA_SETUP_FAILED",
           severity: "MEDIUM",
           details: {
@@ -193,7 +193,7 @@ export class MfaService extends AuditableService {
       }
 
       // Log successful MFA setup
-      await this.logSecurityEvent(userId, user.id, {
+      await this.logSecurityEvent(auditActor.admin(userId), user.id, {
         action: "MFA_ENABLED",
         severity: "HIGH",
         details: {
@@ -261,7 +261,7 @@ export class MfaService extends AuditableService {
               });
 
               // Log backup code usage
-              await this.logSecurityEvent(userId, user.id, {
+              await this.logSecurityEvent(auditActor.admin(userId), user.id, {
                 action: "MFA_BACKUP_CODE_USED",
                 severity: "MEDIUM",
                 details: {
@@ -278,7 +278,7 @@ export class MfaService extends AuditableService {
       }
 
       // Log failed MFA attempt
-      await this.logSecurityEvent(userId, user.id, {
+      await this.logSecurityEvent(auditActor.admin(userId), user.id, {
         action: "MFA_VERIFICATION_FAILED",
         severity: "MEDIUM",
         details: {
@@ -328,7 +328,7 @@ export class MfaService extends AuditableService {
       });
 
       // Log security event for audit trail
-      await this.logSecurityEvent(userId, user.id, {
+      await this.logSecurityEvent(auditActor.admin(userId), user.id, {
         action: "MFA_ADMIN_FORCE_DISABLED",
         severity: "HIGH",
         details: {},
@@ -370,7 +370,7 @@ export class MfaService extends AuditableService {
       // Log MFA disabled (fetch user for accountId)
       const userResult = await this.userRepo.findById(userId);
       if (userResult.ok) {
-        await this.logSecurityEvent(userId, userResult.value.id, {
+        await this.logSecurityEvent(auditActor.admin(userId), userResult.value.id, {
           action: "MFA_DISABLED",
           severity: "HIGH",
           details: {},
@@ -417,7 +417,7 @@ export class MfaService extends AuditableService {
       // Log backup codes regenerated (fetch user for accountId)
       const userResult = await this.userRepo.findById(userId);
       if (userResult.ok) {
-        await this.logSecurityEvent(userId, userResult.value.id, {
+        await this.logSecurityEvent(auditActor.admin(userId), userResult.value.id, {
           action: "MFA_BACKUP_CODES_REGENERATED",
           severity: "MEDIUM",
           details: {},

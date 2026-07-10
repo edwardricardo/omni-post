@@ -749,4 +749,71 @@ describe("AuditLogger Tests", () => {
       expect(logs[0]?.userId).toBe("explicit-id");
     });
   });
+
+  // =========================================================================
+  // Test Group 8: actorType derivation (audit-actor-polymorphism)
+  // =========================================================================
+
+  describe("actorType derivation", () => {
+    it("derives actorType ADMIN when userId is present", async () => {
+      await auditLogger.log({ action: "ACTOR_ADMIN", userId: "admin-1", success: true });
+      const log = stores.auditLog.all().find((l) => l.action === "ACTOR_ADMIN");
+      expect(log?.actorType).toBe("ADMIN");
+      expect(log?.userId).toBe("admin-1");
+    });
+
+    it("derives actorType CUSTOMER when customerUserId is present", async () => {
+      await auditLogger.log({ action: "ACTOR_CUSTOMER", customerUserId: "cust-1", success: true });
+      const log = stores.auditLog.all().find((l) => l.action === "ACTOR_CUSTOMER");
+      expect(log?.actorType).toBe("CUSTOMER");
+      expect(log?.customerUserId).toBe("cust-1");
+      expect(log?.userId).toBeFalsy();
+    });
+
+    it("derives actorType SYSTEM when no actor is present", async () => {
+      await auditLogger.log({ action: "ACTOR_SYSTEM", success: true });
+      const log = stores.auditLog.all().find((l) => l.action === "ACTOR_SYSTEM");
+      expect(log?.actorType).toBe("SYSTEM");
+    });
+
+    it("derivation-wins: an actor FK overrides a conflicting explicit actorType (ADMIN)", async () => {
+      // A future caller passing actorType:'SYSTEM' alongside a set userId must
+      // NOT produce a mislabeled SYSTEM row — the FK wins, making the invalid
+      // combination structurally impossible rather than merely detectable by
+      // the reconciliation query later (post-verify remediation S1).
+      await auditLogger.log({
+        action: "ACTOR_OVERRIDE_ADMIN",
+        userId: "admin-1",
+        actorType: "SYSTEM",
+        success: true,
+      });
+      const log = stores.auditLog.all().find((l) => l.action === "ACTOR_OVERRIDE_ADMIN");
+      expect(log?.actorType).toBe("ADMIN");
+      expect(log?.userId).toBe("admin-1");
+    });
+
+    it("derivation-wins: an actor FK overrides a conflicting explicit actorType (CUSTOMER)", async () => {
+      await auditLogger.log({
+        action: "ACTOR_OVERRIDE_CUSTOMER",
+        customerUserId: "cust-1",
+        actorType: "SYSTEM",
+        success: true,
+      });
+      const log = stores.auditLog.all().find((l) => l.action === "ACTOR_OVERRIDE_CUSTOMER");
+      expect(log?.actorType).toBe("CUSTOMER");
+      expect(log?.customerUserId).toBe("cust-1");
+    });
+
+    it("honors an explicit actorType only when neither FK is present", async () => {
+      await auditLogger.log({
+        action: "ACTOR_EXPLICIT_SYSTEM_NO_FK",
+        actorType: "SYSTEM",
+        success: true,
+      });
+      const log = stores.auditLog.all().find((l) => l.action === "ACTOR_EXPLICIT_SYSTEM_NO_FK");
+      expect(log?.actorType).toBe("SYSTEM");
+      expect(log?.userId).toBeFalsy();
+      expect(log?.customerUserId).toBeFalsy();
+    });
+  });
 });

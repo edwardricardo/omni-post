@@ -18,7 +18,11 @@
  *   no `extends`.
  * @layer infrastructure
  */
-import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
+import {
+  deriveActorType,
+  type AuditActorType,
+  type AuditLogRepository,
+} from "@core/domain/repositories/AuditLogRepository.js";
 import { logger } from "../lib/logger.js";
 
 /**
@@ -39,6 +43,10 @@ export interface AuditInput {
   category: string;
   severity?: string;
   userId?: string;
+  /** CUSTOMER actor FK; exclusive with `userId` (DB CHECK). */
+  customerUserId?: string;
+  /** Actor discriminator; when absent it is derived from the FKs (backfill rule). */
+  actorType?: AuditActorType;
   accountId?: string;
   resourceType?: string;
   resourceId?: string;
@@ -65,9 +73,11 @@ export async function emitAudit(repo: AuditLogRepository, input: AuditInput): Pr
   try {
     await repo.create({
       action: input.action,
+      actorType: deriveActorType(input),
       details: { category: input.category, severity, ...input.details },
       success: input.success ?? true,
       ...(input.userId !== undefined && { userId: input.userId }),
+      ...(input.customerUserId !== undefined && { customerUserId: input.customerUserId }),
       ...(input.accountId !== undefined && { accountId: input.accountId }),
       ...(input.resourceType !== undefined && { resource: input.resourceType }),
       ...(input.resourceId !== undefined && { resourceId: input.resourceId }),

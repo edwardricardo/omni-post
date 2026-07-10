@@ -23,6 +23,8 @@ export class InMemoryAuditLogRepository implements AuditLogRepository {
     this.rows.push({
       id: `log-${++this.seq}`,
       userId: input.userId ?? null,
+      customerUserId: input.customerUserId ?? null,
+      actorType: input.actorType,
       accountId: input.accountId ?? null,
       action: input.action,
       resource: input.resource ?? null,
@@ -80,6 +82,17 @@ export class InMemoryAuditLogRepository implements AuditLogRepository {
     for (const row of this.rows) {
       if (row.userId === userId) {
         row.userId = null;
+        count += 1;
+      }
+    }
+    return count;
+  }
+
+  async anonymizeCustomerUser(customerUserId: string): Promise<number> {
+    let count = 0;
+    for (const row of this.rows) {
+      if (row.customerUserId === customerUserId) {
+        row.customerUserId = null;
         count += 1;
       }
     }

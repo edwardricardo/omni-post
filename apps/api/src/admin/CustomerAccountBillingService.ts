@@ -11,7 +11,10 @@
 
 import type { PrismaClient } from "@infra/prisma";
 import { ok, err, type Result } from "@shared/types";
-import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
+import {
+  AUDIT_ACTOR_TYPE,
+  type AuditLogRepository,
+} from "@core/domain/repositories/AuditLogRepository.js";
 import {
   PricingCalculator,
   type ProviderTier,
@@ -118,6 +121,7 @@ export class CustomerAccountBillingService {
     if (adminUserId) {
       await this.auditLog.create({
         action: "ACCOUNT_UPDATE",
+        actorType: AUDIT_ACTOR_TYPE.ADMIN,
         resource: "Account",
         resourceId: accountId,
         userId: adminUserId,
