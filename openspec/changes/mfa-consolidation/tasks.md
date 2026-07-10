@@ -39,12 +39,36 @@ PR1 and PR2 each likely exceed 400 lines; strict-TDD + work-unit rule keeps test
 
 ## PR2: Customer Persistence + Route Correctness (base: main after PR1)
 
-- [ ] 2.1 `pnpm db:up`; add `CustomerUser.mfaBackupCodes String[] @default([])` + `mfaBackupUsedAt Json? @default("{}")` to `schema.prisma`; generate migration with down-migration dropping only those two columns.
-- [ ] 2.2 RED (node:test, needs DB+Redis): migration adds two columns; customer setup persists hashed codes to `mfaBackupCodes`/`mfaBackupUsedAt`; MFA setup never writes `passwordResetToken`; reset↔MFA no-clobber; down-migration data-safe.
-- [ ] 2.3 RED (node:test): customer route reads/writes CustomerUser never AdminUser (anchor); `userEmail` is email not id (anchor); admin route hits AdminUser; no cross-subject mutation.
-- [ ] 2.4 Validate apply-time ASSUMPTION: confirm pre-auth `/auth/mfa/verify` exposes the identified CustomerUser's `accountId` so tenant context binds before the MFA read/write; if not, flag as blocker before 2.6.
-- [ ] 2.5 GREEN: create `PrismaCustomerMfaUserRepository.ts` (tenant-scoped, `customerUser` in `TENANT_SCOPED_MODELS`). JSDoc `@layer infrastructure`.
-- [ ] 2.6 GREEN: repoint `mfaRoutes.ts` to customer subject `{type:"customer",id}`; fix `userEmail = email` (:98); add `/admin/customers/:userId/mfa/force-disable` (`requireAdminAuth`+`USER_MANAGE`, audit resource `CustomerUser`, `withSystemContext()`).
+> Scope note (apply-time, Edward): the design's Decision-4 pre-auth assumption was validated **PARTIAL**.
+> The 5 authenticated self-service routes satisfy it (`requireClientAuth` binds TenantContext + exposes
+> `accountId`), but login-time `POST /auth/mfa/verify` has no preHandler/TenantContext and the customer
+> login never challenges MFA. Building that challenge is a new auth flow → moved to **PR2b**. PR2 does
+> NOT touch `/auth/mfa/verify` (stays admin subject). See design §"Apply-time findings".
+
+> **BLOCKED (2026-07-09):** tasks 2.1–2.3, 2.5, 2.6 require editing `infra/prisma/schema.prisma` + creating a
+> migration under `infra/prisma/migrations/` — both are sensitive paths gated by `.claude/hooks-py/pre_edit.py`.
+> The `sensitive-edit` grant token is EXPIRED and `omnipost-allow sensitive-edit` (TTL 15 min) is a user-side
+> command unavailable to the agent. Per Security canon (wait for authorization, never skip the gate) NO
+> workaround was taken. The migration is the STRUCTURAL prerequisite for the whole slice: the customer adapter
+> cannot typecheck (references `customerUser.mfaBackupCodes`/`mfaBackupUsedAt`, absent from the generated client
+> until `prisma generate`), and repointing routes without the real adapter would dispatch to the aliased ADMIN
+> adapter → operate on `AdminUser` (a false fix). Resume: Edward runs `omnipost-allow sensitive-edit`, then a
+> fresh `sdd-apply` completes 2.1→2.6 atomically (RED→GREEN). STEP 0 (this scope amendment) is DONE.
+
+- [!] 2.1 BLOCKED (sensitive-edit token): `pnpm db:up` (DB is up); add `CustomerUser.mfaBackupCodes String[] @default([])` + `mfaBackupUsedAt Json? @default("{}")` to `schema.prisma`; generate migration with down-migration dropping only those two columns.
+- [!] 2.2 BLOCKED (needs 2.1 columns): RED (node:test, needs DB+Redis): migration adds two columns; customer setup persists hashed codes to `mfaBackupCodes`/`mfaBackupUsedAt`; MFA setup never writes `passwordResetToken`; reset↔MFA no-clobber; down-migration data-safe.
+- [!] 2.3 BLOCKED (needs 2.1 columns + 2.5/2.6): RED (node:test): customer route reads/writes CustomerUser never AdminUser (anchor); `userEmail` is email not id (anchor); admin route hits AdminUser; no cross-subject mutation.
+- [x] 2.4 Validate apply-time ASSUMPTION — **DONE, result PARTIAL**: the 5 self-service routes CUMPLEN (`requireClientAuth` binds `enterTenantContext({accountId})`, exposes `request.customerUser.accountId`); login-time `/auth/mfa/verify` NO CUMPLE (no preHandler, no TenantContext, body has no `accountId`) and customer login never challenges MFA. `/auth/mfa/verify` repoint moved to **PR2b**; PR2 leaves it on the admin subject.
+- [!] 2.5 BLOCKED (needs 2.1 regenerated client): GREEN: create `PrismaCustomerMfaUserRepository.ts` (tenant-scoped, `customerUser` in `TENANT_SCOPED_MODELS`); returns `accountId`. JSDoc `@layer infrastructure`. Wire in DI (`setupServices.ts`) replacing the placeholder alias.
+- [!] 2.6 BLOCKED (needs 2.5 adapter to avoid a false fix): GREEN: repoint the **5 self-service** routes in `mfaRoutes.ts` to customer subject `{type:"customer",id}` (`:81` status, `:106` setup, `:157` verify-setup, `:254` disable, `:298` regenerate); fix `userEmail` at source (drop `setupMfa`'s `email` param, derive from `MfaUserRecord.email`); fix audit `accountId` (`record.accountId ?? subject.id`); add `/admin/customers/:userId/mfa/force-disable` (`requireAdminAuth`+`USER_MANAGE`, audit resource `CustomerUser`, `withSystemContext()`). **`/auth/mfa/verify` (`:205`) untouched.**
+
+## PR2b: Customer Login MFA Challenge (base: main after PR2) — NEW SLICE
+
+> Own design (challenge token, expiry, anti-replay). Not started in PR2.
+
+- [ ] 2b.1 Design the customer login MFA challenge: `LoginCustomerUseCase` returns `mfaRequired` + a short-lived challenge token when `mfaEnabled`; anti-replay + expiry on the challenge.
+- [ ] 2b.2 Repoint login-time `POST /auth/mfa/verify` to the customer subject and resolve `accountId`/TenantContext from the identified CustomerUser (the challenge carries it) before the MFA read/write.
+- [ ] 2b.3 RED→GREEN tests: customer login returns `mfaRequired`; challenge verify succeeds/fails; expired/replayed challenge rejected; TOTP + backup-code parity on the login path.
 
 ## PR3: Backfill + Legacy Retirement (base: main after PR2)
 
