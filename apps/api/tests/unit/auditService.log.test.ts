@@ -279,6 +279,63 @@ describe("AuditService - log() - Create Audit Logs", () => {
     });
   });
 
+  describe("actorType derivation (audit-actor-polymorphism)", () => {
+    it("derives actorType ADMIN when userId is present and actorType is absent", async () => {
+      await auditService.log({ userId: TEST_USER_1.id, action: "ADMIN_ACTION" });
+      const data = mocks.auditLogCreate.mock.calls[0]?.[0]?.data;
+      expect(data.actorType).toBe("ADMIN");
+      expect(data.userId).toBe(TEST_USER_1.id);
+    });
+
+    it("derives actorType CUSTOMER when customerUserId is present", async () => {
+      await auditService.log({ customerUserId: "cust-1", action: "CUSTOMER_ACTION" });
+      const data = mocks.auditLogCreate.mock.calls[0]?.[0]?.data;
+      expect(data.actorType).toBe("CUSTOMER");
+      expect(data.customerUserId).toBe("cust-1");
+      expect("userId" in data).toBe(false);
+    });
+
+    it("derives actorType SYSTEM when no actor is present", async () => {
+      await auditService.log({ action: "SYSTEM_ACTION" });
+      const data = mocks.auditLogCreate.mock.calls[0]?.[0]?.data;
+      expect(data.actorType).toBe("SYSTEM");
+    });
+
+    it("derivation-wins: an actor FK overrides a conflicting explicit actorType (ADMIN)", async () => {
+      // A future caller passing actorType:'SYSTEM' alongside a set userId must
+      // NOT produce a mislabeled SYSTEM row — the FK wins, making the invalid
+      // combination structurally impossible rather than merely detectable by
+      // the reconciliation query later (post-verify remediation S1).
+      await auditService.log({
+        userId: TEST_USER_1.id,
+        actorType: "SYSTEM",
+        action: "OVERRIDE_ADMIN",
+      });
+      const data = mocks.auditLogCreate.mock.calls[0]?.[0]?.data;
+      expect(data.actorType).toBe("ADMIN");
+      expect(data.userId).toBe(TEST_USER_1.id);
+    });
+
+    it("derivation-wins: an actor FK overrides a conflicting explicit actorType (CUSTOMER)", async () => {
+      await auditService.log({
+        customerUserId: "cust-1",
+        actorType: "SYSTEM",
+        action: "OVERRIDE_CUSTOMER",
+      });
+      const data = mocks.auditLogCreate.mock.calls[0]?.[0]?.data;
+      expect(data.actorType).toBe("CUSTOMER");
+      expect(data.customerUserId).toBe("cust-1");
+    });
+
+    it("honors an explicit actorType only when neither FK is present", async () => {
+      await auditService.log({ actorType: "SYSTEM", action: "EXPLICIT_SYSTEM_NO_FK" });
+      const data = mocks.auditLogCreate.mock.calls[0]?.[0]?.data;
+      expect(data.actorType).toBe("SYSTEM");
+      expect("userId" in data).toBe(false);
+      expect("customerUserId" in data).toBe(false);
+    });
+  });
+
   describe("AuditActions Constants", () => {
     it("should have all expected action constants", () => {
       expect(AuditActions.LOGIN).toBe("LOGIN");

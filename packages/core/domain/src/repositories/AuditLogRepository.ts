@@ -5,6 +5,52 @@
  */
 
 /**
+ * Actor-type discriminator for an audit entry, modeled as a const-object union
+ * (single source of truth; fitness #3 — no raw string union, no `any`). The
+ * literal values are assignable to the generated Prisma `$Enums.AuditActorType`.
+ *
+ * - `SYSTEM`  — no actor FK (scheduled jobs, background processors)
+ * - `ADMIN`   — attributed via `userId` → `AdminUser`
+ * - `CUSTOMER`— attributed via `customerUserId` → `CustomerUser`
+ */
+export const AUDIT_ACTOR_TYPE = {
+  SYSTEM: "SYSTEM",
+  ADMIN: "ADMIN",
+  CUSTOMER: "CUSTOMER",
+} as const;
+
+/** Union of the three audit actor-type values. */
+export type AuditActorType = (typeof AUDIT_ACTOR_TYPE)[keyof typeof AUDIT_ACTOR_TYPE];
+
+/**
+ * Derive the actor discriminator from the actor FKs, ALWAYS winning over an
+ * explicit `actorType` when an FK is present: `userId` → `ADMIN`,
+ * `customerUserId` → `CUSTOMER`. An explicit `actorType` is honored ONLY when
+ * neither FK is set (e.g. an explicit `SYSTEM` on a system row — redundant
+ * but harmless). Derivation-wins makes a mislabeled row (an explicit
+ * `SYSTEM` passed alongside a set FK) structurally impossible instead of
+ * merely detectable by a reconciliation query — the same philosophy as the
+ * database exclusive-arc CHECK. Technology-free pure function: the single
+ * source of truth for every direct writer that bypasses the compiler-forced
+ * `actorType` on `AuditLogCreateInput` via an `as Parameters<>` cast
+ * (`AuditService.log`, `AuditLogger.log`, `emitAudit`).
+ *
+ * @method deriveActorType
+ * @param fields - Candidate actor FK(s) and/or an explicit `actorType`
+ * @returns The resolved `AuditActorType` per the FK-wins rule
+ */
+export function deriveActorType(fields: {
+  userId?: string;
+  customerUserId?: string;
+  actorType?: AuditActorType;
+}): AuditActorType {
+  if (fields.userId) return AUDIT_ACTOR_TYPE.ADMIN;
+  if (fields.customerUserId) return AUDIT_ACTOR_TYPE.CUSTOMER;
+  if (fields.actorType) return fields.actorType;
+  return AUDIT_ACTOR_TYPE.SYSTEM;
+}
+
+/**
  * Fields required to persist a single audit-trail entry.
  *
  * Optional keys are omitted (never set to `undefined`) so the adapter can
@@ -12,9 +58,18 @@
  */
 export interface AuditLogCreateInput {
   action: string;
+  /**
+   * Actor discriminator — REQUIRED so every port write explicitly claims its
+   * actor. Compiler-forces callers to declare SYSTEM / ADMIN / CUSTOMER rather
+   * than relying on the DB default, so a customer write can never silently
+   * degrade to a SYSTEM-labeled row.
+   */
+  actorType: AuditActorType;
   resource?: string;
   resourceId?: string;
   userId?: string;
+  /** CUSTOMER actor FK → `CustomerUser`; exclusive with `userId` (DB CHECK). */
+  customerUserId?: string;
   /**
    * Account scope for searchability — does NOT enforce isolation.
    *
@@ -49,6 +104,8 @@ export interface AuditLogQueryOptions {
 export interface AuditLogRecordDto {
   id: string;
   userId: string | null;
+  customerUserId: string | null;
+  actorType: AuditActorType;
   accountId: string | null;
   action: string;
   resource: string | null;
@@ -119,4 +176,17 @@ export interface AuditLogRepository {
    * @returns Count of audit entries updated
    */
   anonymizeUser(userId: string): Promise<number>;
+
+  /**
+   * Detach a customer from their audit entries by nulling the customerUserId,
+   * preserving the entries (and their `actorType = CUSTOMER` attribution) for
+   * compliance after a DSAR erasure. Mirrors `anonymizeUser` for the CUSTOMER
+   * actor dimension — one explicit method per actor FK, matching the port's
+   * one-method-per-dimension style (`findByUser` / `findByResource` /
+   * `findByAccount`).
+   *
+   * @param customerUserId - Acting customer's ID to anonymize
+   * @returns Count of audit entries updated
+   */
+  anonymizeCustomerUser(customerUserId: string): Promise<number>;
 }

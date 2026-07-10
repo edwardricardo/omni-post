@@ -43,6 +43,7 @@ describe("PrismaAuditLogRepository", () => {
   it("create writes action/details/success and omits absent optional columns", async () => {
     await repo.create({
       action: "USER_LOGIN",
+      actorType: "SYSTEM",
       details: { category: "AUTHENTICATION" },
       success: true,
     });
@@ -51,6 +52,7 @@ describe("PrismaAuditLogRepository", () => {
     expect(data.success).toBe(true);
     expect(data.details).toEqual({ category: "AUTHENTICATION" });
     expect("userId" in data).toBe(false);
+    expect("customerUserId" in data).toBe(false);
     expect("resource" in data).toBe(false);
     expect("ipAddress" in data).toBe(false);
   });
@@ -58,6 +60,7 @@ describe("PrismaAuditLogRepository", () => {
   it("create includes optional columns when provided", async () => {
     await repo.create({
       action: "RESOURCE_UPDATE",
+      actorType: "ADMIN",
       resource: "AdminUser",
       resourceId: "u-1",
       userId: "actor-1",
@@ -79,11 +82,37 @@ describe("PrismaAuditLogRepository", () => {
   it("create omits accountId when not provided (searchability is best-effort)", async () => {
     await repo.create({
       action: "SYSTEM_TICK",
+      actorType: "SYSTEM",
       details: {},
       success: true,
     });
     const data = prisma.auditLog.create.mock.calls[0]?.[0]?.data;
     expect("accountId" in data).toBe(false);
+  });
+
+  it("create always writes actorType and maps customerUserId for a customer actor", async () => {
+    await repo.create({
+      action: "CUSTOMER_MFA_ENABLED",
+      actorType: "CUSTOMER",
+      customerUserId: "cust-1",
+      accountId: "acc-1",
+      details: {},
+      success: true,
+    });
+    const data = prisma.auditLog.create.mock.calls[0]?.[0]?.data;
+    expect(data.actorType).toBe("CUSTOMER");
+    expect(data.customerUserId).toBe("cust-1");
+    expect("userId" in data).toBe(false);
+  });
+
+  it("anonymizeCustomerUser nulls only customerUserId via updateMany and returns the count", async () => {
+    prisma.auditLog.updateMany.mockResolvedValue({ count: 3 });
+    const count = await repo.anonymizeCustomerUser("cust-1");
+    expect(prisma.auditLog.updateMany).toHaveBeenCalledWith({
+      where: { customerUserId: "cust-1" },
+      data: { customerUserId: null },
+    });
+    expect(count).toBe(3);
   });
 
   it("findByUser filters by userId with default pagination, newest first", async () => {

@@ -8,6 +8,7 @@ import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.
 import type { PrismaClient } from "@infra/prisma";
 import type { AuthenticatedUser } from "../auth/authService.js";
 import { AccountIdParamsSchema, UpdateAccountBodySchema } from "./analyticsSchemas.js";
+import { AUDIT_ACTOR_TYPE } from "@core/domain/repositories/AuditLogRepository.js";
 
 // Extend Fastify request type to include user
 declare module "fastify" {
@@ -139,6 +140,7 @@ export class AnalyticsAccountHandler extends BaseRouteHandler {
         await this.prisma.auditLog.create({
           data: {
             userId: request.auth.user.id,
+            actorType: AUDIT_ACTOR_TYPE.ADMIN,
             action: "UPDATE_ACCOUNT",
             resource: "Account",
             resourceId: id,

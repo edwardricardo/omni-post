@@ -37,11 +37,13 @@ export class PrismaAuditLogRepository implements AuditLogRepository {
     await this.getClient().auditLog.create({
       data: {
         action: input.action,
+        actorType: input.actorType,
         details: input.details as Prisma.InputJsonValue,
         success: input.success,
         ...(input.resource !== undefined && { resource: input.resource }),
         ...(input.resourceId !== undefined && { resourceId: input.resourceId }),
         ...(input.userId !== undefined && { userId: input.userId }),
+        ...(input.customerUserId !== undefined && { customerUserId: input.customerUserId }),
         ...(input.accountId !== undefined && { accountId: input.accountId }),
         ...(input.ipAddress !== undefined && { ipAddress: input.ipAddress }),
         ...(input.userAgent !== undefined && { userAgent: input.userAgent }),
@@ -124,6 +126,19 @@ export class PrismaAuditLogRepository implements AuditLogRepository {
     const result = await this.getClient().auditLog.updateMany({
       where: { userId },
       data: { userId: null },
+    });
+    return result.count;
+  }
+
+  /**
+   * Detach a customer from their audit entries by nulling only the
+   * customerUserId column, preserving the rows and their `actorType = CUSTOMER`
+   * attribution for compliance after a DSAR erasure.
+   */
+  async anonymizeCustomerUser(customerUserId: string): Promise<number> {
+    const result = await this.getClient().auditLog.updateMany({
+      where: { customerUserId },
+      data: { customerUserId: null },
     });
     return result.count;
   }

@@ -233,11 +233,19 @@ model AdminSession {
   @@index([lastActivityAt])
 }
 
+enum AuditActorType {
+  SYSTEM
+  ADMIN
+  CUSTOMER
+}
+
 model AuditLog {
-  id         String   @id @default(uuid())
-  userId     String? // Nullable for system actions
-  accountId  String? // Searchability column (NOT for RLS): customer-facing queries filter via findByAccount; AuditLog remains in tenant-guard denylist by canon — immutable evidence requires audit logs outside RLS (see MULTI_TENANT_GUARDS.md §Global-tables-denylist)
-  action     String // e.g., "LOGIN", "CREATE_PROJECT", "DELETE_USER"
+  id             String         @id @default(uuid())
+  userId         String? // Nullable for system actions (ADMIN actor FK)
+  customerUserId String? // CUSTOMER actor FK; exclusive arc with userId (CHECK num_nonnulls <= 1)
+  actorType      AuditActorType @default(SYSTEM) // Discriminator: SYSTEM has no FK, ADMIN uses userId, CUSTOMER uses customerUserId
+  accountId      String? // Searchability column (NOT for RLS): customer-facing queries filter via findByAccount; AuditLog remains in tenant-guard denylist by canon — immutable evidence requires audit logs outside RLS (see MULTI_TENANT_GUARDS.md §Global-tables-denylist)
+  action         String // e.g., "LOGIN", "CREATE_PROJECT", "DELETE_USER"
   resource   String? // e.g., "Project", "Account", "AdminUser"
   resourceId String? // ID of the affected resource
   details    Json? // Additional context
@@ -248,10 +256,12 @@ model AuditLog {
   createdAt  DateTime @default(now()) @db.Timestamptz(6)
 
   // Relationships
-  user AdminUser? @relation("PerformedBy", fields: [userId], references: [id], onDelete: SetNull)
+  user         AdminUser?    @relation("PerformedBy", fields: [userId], references: [id], onDelete: SetNull)
+  customerUser CustomerUser? @relation("PerformedByCustomer", fields: [customerUserId], references: [id], onDelete: SetNull)
   // @@index([createdAt]) - REMOVED: Covered by composites above
 
   @@index([userId, createdAt])
+  @@index([customerUserId, createdAt])
   @@index([accountId, createdAt])
   @@index([action, createdAt])
   @@index([resource, resourceId])
@@ -353,6 +363,7 @@ model CustomerUser {
   conversationNotes        ConversationNote[]
   outboundReplies          SocialOutboundReply[]
   customReportsCreated     CustomReport[]
+  auditLogs                AuditLog[]               @relation("PerformedByCustomer")
 
   @@unique([accountId, email])
   @@index([accountId], where: { deletedAt: null })

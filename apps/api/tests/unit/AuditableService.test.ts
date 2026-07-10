@@ -1,14 +1,16 @@
 /**
  * @file AuditableService.test.ts
- * @description Unit tests for the AuditableService base class after the prisma→DI
- *              migration. It must persist audit entries through the injected
- *              AuditLogRepository port (never a Prisma singleton), fold
+ * @description Unit tests for the AuditableService base class after the audit
+ *              actor polymorphism change. The write seam is now a first-class
+ *              `AuditActor` discriminated union: wrappers are actor-first, and
+ *              `writeAuditLog` maps the union to port fields in ONE switch
+ *              (ADMIN→userId, CUSTOMER→customerUserId + accountId, SYSTEM→neither;
+ *              always actorType). It must persist audit entries through the
+ *              injected AuditLogRepository port (never a Prisma singleton), fold
  *              category/severity into details, record success/failure via
  *              executeWithAudit, delegate reads to the port, isolate write
- *              failures from the caller, and — via logSystemAction — write system
- *              actions with NO userId so the nullable AuditLog.userId FK is
- *              honoured (a sentinel "system" string would violate the FK and the
- *              write would be silently dropped).
+ *              failures from the caller, and keep the admin write byte-identical
+ *              to the pre-change behavior (plus the additive actorType).
  * @layer infrastructure
  */
 import { describe, it, beforeEach, expect, vi } from "vitest";
@@ -16,12 +18,17 @@ import { describe, it, beforeEach, expect, vi } from "vitest";
 import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 import {
   AuditableService,
+  auditActor,
+  type AuditActor,
   type AccountActionOptions,
   type ResourceActionOptions,
   type UserActionOptions,
   type AuditLogEntry,
 } from "../../src/services/AuditableService.js";
-import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
+import type {
+  AuditLogRepository,
+  AuditLogCreateInput,
+} from "@core/domain/repositories/AuditLogRepository.js";
 
 /**
  * Concrete subclass that surfaces the protected audit helpers for testing.
@@ -30,14 +37,21 @@ class TestAuditableService extends AuditableService {
   constructor(auditLog: AuditLogRepository) {
     super("TestAuditableService", auditLog);
   }
-  logUser(userId: string, options: UserActionOptions): Promise<void> {
-    return this.logUserAction(userId, options);
+  logUser(actor: AuditActor, options: UserActionOptions): Promise<void> {
+    return this.logUserAction(actor, options);
   }
-  logAccount(userId: string, options: AccountActionOptions): Promise<void> {
-    return this.logAccountAction(userId, options);
+  logAccount(actor: AuditActor, options: AccountActionOptions): Promise<void> {
+    return this.logAccountAction(actor, options);
   }
-  logResource(userId: string, options: ResourceActionOptions): Promise<void> {
-    return this.logResourceAction(userId, options);
+  logResource(actor: AuditActor, options: ResourceActionOptions): Promise<void> {
+    return this.logResourceAction(actor, options);
+  }
+  logSecurity(
+    actor: AuditActor,
+    accountId: string,
+    options: Omit<UserActionOptions, "category">
+  ): Promise<void> {
+    return this.logSecurityEvent(actor, accountId, options);
   }
   logSystem(options: AccountActionOptions): Promise<void> {
     return this.logSystemAction(options);
@@ -81,7 +95,7 @@ describe("AuditableService", () => {
 
   describe("logUserAction", () => {
     it("persists the entry through the port with category/severity folded into details", async () => {
-      await service.logUser("user-1", {
+      await service.logUser(auditActor.admin("user-1"), {
         action: "USER_LOGIN",
         category: "AUTHENTICATION",
         severity: "INFO",
@@ -94,6 +108,7 @@ describe("AuditableService", () => {
       const row = repo.rows[0]!;
       expect(row.action).toBe("USER_LOGIN");
       expect(row.userId).toBe("user-1");
+      expect(row.actorType).toBe("ADMIN");
       expect(row.ipAddress).toBe("192.168.1.1");
       expect(row.userAgent).toBe("Mozilla/5.0");
       expect(row.success).toBe(true);
@@ -104,8 +119,11 @@ describe("AuditableService", () => {
     });
 
     it("omits optional fields when undefined and includes them when provided", async () => {
-      await service.logUser("user-1", { action: "NO_OPTIONAL", category: "AUTHENTICATION" });
-      await service.logUser("user-1", {
+      await service.logUser(auditActor.admin("user-1"), {
+        action: "NO_OPTIONAL",
+        category: "AUTHENTICATION",
+      });
+      await service.logUser(auditActor.admin("user-1"), {
         action: "WITH_OPTIONAL",
         category: "AUTHENTICATION",
         ipAddress: "10.0.0.1",
@@ -121,7 +139,7 @@ describe("AuditableService", () => {
     });
 
     it("preserves complex nested details verbatim", async () => {
-      await service.logUser("user-1", {
+      await service.logUser(auditActor.admin("user-1"), {
         action: "COMPLEX",
         category: "AUTHENTICATION",
         details: { nested: { field: "value", array: [1, 2, 3] }, boolean: true, number: 42 },
@@ -138,7 +156,7 @@ describe("AuditableService", () => {
 
   describe("logAccountAction", () => {
     it("records the acting user for an account-level action", async () => {
-      await service.logAccount("admin-1", {
+      await service.logAccount(auditActor.admin("admin-1"), {
         accountId: "acc-1",
         action: "SUBSCRIPTION_UPGRADE",
         category: "ACCOUNT",
@@ -154,8 +172,8 @@ describe("AuditableService", () => {
       expect(details.from).toBe("BASIC");
     });
 
-    it("persists accountId on the row (SMELL-34 fix) for searchability", async () => {
-      await service.logAccount("admin-1", {
+    it("persists accountId on the row for searchability", async () => {
+      await service.logAccount(auditActor.admin("admin-1"), {
         accountId: "acc-1",
         action: "SUBSCRIPTION_UPGRADE",
         category: "ACCOUNT",
@@ -168,7 +186,7 @@ describe("AuditableService", () => {
 
   describe("logResourceAction", () => {
     it("maps resourceType to the resource column with resourceId", async () => {
-      await service.logResource("user-1", {
+      await service.logResource(auditActor.admin("user-1"), {
         accountId: "acc-1",
         action: "RESOURCE_CREATE",
         category: "DATA",
@@ -186,7 +204,7 @@ describe("AuditableService", () => {
   });
 
   describe("logSystemAction (FK fix)", () => {
-    it("writes a system action with a null userId instead of a sentinel string", async () => {
+    it("writes a system action with null actor FKs and actorType SYSTEM", async () => {
       await service.logSystem({
         accountId: "acc-1",
         action: "AUTO_RENEWAL",
@@ -199,13 +217,15 @@ describe("AuditableService", () => {
       const row = repo.rows[0]!;
       // The whole point: no "system" string that would violate the AdminUser FK.
       expect(row.userId).toBe(null);
+      expect(row.customerUserId).toBe(null);
+      expect(row.actorType).toBe("SYSTEM");
       expect(row.action).toBe("AUTO_RENEWAL");
       const details = row.details as Record<string, unknown>;
       expect(details.category).toBe("BILLING");
       expect(details.amount).toBe(199);
     });
 
-    it("persists accountId on system action rows (SMELL-34 fix)", async () => {
+    it("persists accountId on system action rows", async () => {
       await service.logSystem({
         accountId: "acc-7",
         action: "DATA_RETENTION_SWEEP",
@@ -215,6 +235,89 @@ describe("AuditableService", () => {
       const row = repo.rows[0]!;
       expect(row.userId).toBe(null);
       expect(row.accountId).toBe("acc-7");
+    });
+  });
+
+  describe("actor discriminated union mapping", () => {
+    it("ADMIN actor → userId set, customerUserId null, actorType ADMIN", async () => {
+      await service.logUser(auditActor.admin("admin-9"), {
+        action: "ADMIN_ACTION",
+        category: "SECURITY",
+      });
+      const row = repo.rows[0]!;
+      expect(row.userId).toBe("admin-9");
+      expect(row.customerUserId).toBe(null);
+      expect(row.actorType).toBe("ADMIN");
+    });
+
+    it("CUSTOMER actor → customerUserId set, userId null, actorType CUSTOMER, accountId carried", async () => {
+      await service.logSecurity(auditActor.customer("cust-9", "acc-9"), "acc-9", {
+        action: "CUSTOMER_MFA_ENABLED",
+        severity: "HIGH",
+        details: { method: "totp" },
+      });
+      const row = repo.rows[0]!;
+      expect(row.customerUserId).toBe("cust-9");
+      expect(row.userId).toBe(null);
+      expect(row.actorType).toBe("CUSTOMER");
+      expect(row.accountId).toBe("acc-9");
+    });
+
+    it("CUSTOMER actor without an explicit entry accountId falls back to the actor's accountId", async () => {
+      await service.logUser(auditActor.customer("cust-3", "acc-fallback"), {
+        action: "CUSTOMER_PROFILE_UPDATE",
+        category: "ACCOUNT",
+      });
+      const row = repo.rows[0]!;
+      expect(row.customerUserId).toBe("cust-3");
+      expect(row.accountId).toBe("acc-fallback");
+      expect(row.actorType).toBe("CUSTOMER");
+    });
+
+    it("SYSTEM actor → both FKs null, actorType SYSTEM", async () => {
+      await service.writeRaw({
+        action: "SYSTEM_TICK",
+        category: "SYSTEM",
+        severity: "LOW",
+        actor: auditActor.system(),
+      });
+      const row = repo.rows[0]!;
+      expect(row.userId).toBe(null);
+      expect(row.customerUserId).toBe(null);
+      expect(row.actorType).toBe("SYSTEM");
+    });
+
+    it("admin write produces a create-input byte-identical to pre-change plus additive actorType", async () => {
+      const captured: AuditLogCreateInput[] = [];
+      const capturingRepo: AuditLogRepository = {
+        create: async (input) => {
+          captured.push(input);
+        },
+        findByUser: async () => [],
+        findByResource: async () => [],
+        findByAccount: async () => [],
+        anonymizeUser: async () => 0,
+        anonymizeCustomerUser: async () => 0,
+      };
+      const svc = new TestAuditableService(capturingRepo);
+
+      await svc.logUser(auditActor.admin("admin-1"), {
+        action: "USER_LOGIN",
+        category: "AUTHENTICATION",
+        severity: "INFO",
+      });
+
+      expect(captured).toHaveLength(1);
+      const input = captured[0]!;
+      // Additive: the only new field vs pre-change is actorType.
+      expect(input.actorType).toBe("ADMIN");
+      // Pre-change fields, unchanged.
+      expect(input.action).toBe("USER_LOGIN");
+      expect(input.userId).toBe("admin-1");
+      expect(input.success).toBe(true);
+      expect(input.details).toStrictEqual({ category: "AUTHENTICATION", severity: "INFO" });
+      // No customer FK leaks onto an admin write.
+      expect("customerUserId" in input).toBe(false);
     });
   });
 
@@ -229,6 +332,8 @@ describe("AuditableService", () => {
       expect(result).toStrictEqual({ ok: true });
       const row = repo.rows.find((r) => r.action === "DATA_CREATE")!;
       expect(row).toBeTruthy();
+      expect(row.userId).toBe("user-1");
+      expect(row.actorType).toBe("ADMIN");
       expect(row.resource).toBe("Post");
       expect(row.resourceId).toBe("post-1");
       const details = row.details as Record<string, unknown>;
@@ -260,8 +365,8 @@ describe("AuditableService", () => {
 
   describe("read delegation", () => {
     it("delegates getUserAuditLogs to the port's findByUser", async () => {
-      await service.logUser("user-1", { action: "A", category: "DATA" });
-      await service.logUser("user-2", { action: "B", category: "DATA" });
+      await service.logUser(auditActor.admin("user-1"), { action: "A", category: "DATA" });
+      await service.logUser(auditActor.admin("user-2"), { action: "B", category: "DATA" });
 
       const rows = (await service.readByUser("user-1")) as Array<{ userId: string | null }>;
       expect(rows).toHaveLength(1);
@@ -269,13 +374,13 @@ describe("AuditableService", () => {
     });
 
     it("delegates getAccountAuditLogs to the port's findByAccount (customer-scoped query)", async () => {
-      await service.logAccount("user-1", {
+      await service.logAccount(auditActor.admin("user-1"), {
         accountId: "acc-A",
         action: "ACCOUNT_UPDATE",
         category: "ACCOUNT",
         details: {},
       });
-      await service.logAccount("user-2", {
+      await service.logAccount(auditActor.admin("user-2"), {
         accountId: "acc-B",
         action: "ACCOUNT_UPDATE",
         category: "ACCOUNT",
@@ -288,7 +393,7 @@ describe("AuditableService", () => {
     });
 
     it("delegates getResourceAuditLogs to the port's findByResource", async () => {
-      await service.logResource("user-1", {
+      await service.logResource(auditActor.admin("user-1"), {
         accountId: "acc-1",
         action: "RESOURCE_UPDATE",
         category: "DATA",
@@ -312,11 +417,15 @@ describe("AuditableService", () => {
         findByResource: async () => [],
         findByAccount: async () => [],
         anonymizeUser: async () => 0,
+        anonymizeCustomerUser: async () => 0,
       };
       const svc = new TestAuditableService(failing);
 
       await expect(
-        svc.logUser("user-1", { action: "USER_LOGIN", category: "AUTHENTICATION" })
+        svc.logUser(auditActor.admin("user-1"), {
+          action: "USER_LOGIN",
+          category: "AUTHENTICATION",
+        })
       ).resolves.toBeUndefined();
       // The write was attempted (and swallowed), so the caller is shielded.
       expect(create).toHaveBeenCalledTimes(1);
