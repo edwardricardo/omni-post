@@ -103,7 +103,11 @@ const { authRoutes } = await import("../../../src/auth/authRoutes.js");
 const { setupContainer } = await import("../../../src/infrastructure/container/setup.js");
 const { TOKENS } = await import("../../../src/infrastructure/container/types.js");
 const { AuthService, setRedisInstance } = await import("../../../src/auth/authService.js");
-const { MfaService } = await import("../../../src/auth/mfaService.js");
+const { MfaService } = await import("../../../src/admin/auth/MfaService.js");
+const { PrismaAdminMfaUserRepository } =
+  await import("../../../src/infrastructure/adapters/PrismaAdminMfaUserRepository.js");
+const { PrismaCustomerMfaUserRepository } =
+  await import("../../../src/infrastructure/adapters/PrismaCustomerMfaUserRepository.js");
 const { PrismaAdminUserRepository } =
   await import("../../../src/infrastructure/repositories/PrismaAdminUserRepository.js");
 const { PrismaRoleRepository } =
@@ -136,7 +140,11 @@ async function createTestApp() {
   const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
   const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
   const sessionRepo = new PrismaAdminSessionRepository(mockPrisma.prisma as never);
-  const mfaSvc = new MfaService(adminUserRepo, new InMemoryAuditLogRepository());
+  const mfaSvc = new MfaService(
+    new PrismaAdminMfaUserRepository(mockPrisma.prisma as never),
+    new PrismaCustomerMfaUserRepository(mockPrisma.prisma as never),
+    new InMemoryAuditLogRepository()
+  );
   const authSvc = new AuthService(
     mockPrisma.prisma,
     adminUserRepo,
