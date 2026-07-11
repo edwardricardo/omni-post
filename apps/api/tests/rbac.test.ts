@@ -6,7 +6,9 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { AuthService } from "../src/auth/authService.js";
-import { MfaService } from "../src/auth/mfaService.js";
+import { MfaService } from "../src/admin/auth/MfaService.js";
+import { PrismaAdminMfaUserRepository } from "../src/infrastructure/adapters/PrismaAdminMfaUserRepository.js";
+import { PrismaCustomerMfaUserRepository } from "../src/infrastructure/adapters/PrismaCustomerMfaUserRepository.js";
 import { RbacService } from "../src/auth/rbacService.js";
 import { Permission } from "@core/domain/auth/Permission.js";
 import { prisma } from "@infra/prisma";
@@ -18,7 +20,11 @@ import { PrismaAuditLogRepository } from "../src/infrastructure/repositories/Pri
 const adminUserRepo = new PrismaAdminUserRepository(prisma);
 const roleRepo = new PrismaRoleRepository(prisma);
 const sessionRepo = new PrismaAdminSessionRepository(prisma);
-const mfaService = new MfaService(adminUserRepo, new PrismaAuditLogRepository(prisma));
+const mfaService = new MfaService(
+  new PrismaAdminMfaUserRepository(prisma),
+  new PrismaCustomerMfaUserRepository(prisma),
+  new PrismaAuditLogRepository(prisma)
+);
 const authService = new AuthService(
   prisma,
   adminUserRepo,
