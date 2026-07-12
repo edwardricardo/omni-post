@@ -18,7 +18,7 @@ import { createMockPrismaModule, createStore, buildModelMock } from "./helpers/m
 // Mock setup
 // ---------------------------------------------------------------------------
 
-const { mockPrisma } = createMockPrismaModule();
+const { mockPrisma, stores } = createMockPrismaModule();
 
 // Add extra models that analyticsRoutes handlers use (post, channel, analytics,
 // adminUserPermission, publishLog, gdprSettings, securitySettings)
@@ -102,6 +102,10 @@ const { generateAdminToken } = await import("./admin/adminTestHelper.js");
 const timestamp = Date.now();
 const adminEmail = `analytics-test-${timestamp}@example.com`;
 
+const ADMIN_ACTOR_ID = "analytics-admin-actor";
+const CUSTOMER_ACTOR_ID = "analytics-customer-actor";
+const CUSTOMER_ACTOR_EMAIL = "analytics-customer@example.com";
+
 async function createTestApp() {
   const app = Fastify({ logger: false });
   const container = setupContainer({ prisma: mockPrisma.prisma as never });
@@ -126,6 +130,41 @@ describe("analyticsRoutes Unit Tests", () => {
       email: adminEmail,
       name: "Analytics Test Admin",
       role: "ADMIN",
+    });
+
+    // Actor fixtures for the compliance audit-log read path: one ADMIN row and
+    // one CUSTOMER row (written by the customer-facing flows).
+    stores.adminUser.add({
+      id: ADMIN_ACTOR_ID,
+      email: adminEmail,
+      name: "Analytics Test Admin",
+      role: { name: "ADMIN" },
+    });
+    stores.customerUser.add({
+      id: CUSTOMER_ACTOR_ID,
+      email: CUSTOMER_ACTOR_EMAIL,
+      firstName: "Analytics",
+      lastName: "Customer",
+    });
+    stores.auditLog.add({
+      id: "analytics-audit-admin",
+      userId: ADMIN_ACTOR_ID,
+      customerUserId: null,
+      actorType: "ADMIN",
+      action: "ADMIN_LOGIN",
+      resource: "Session",
+      success: true,
+      createdAt: new Date(),
+    });
+    stores.auditLog.add({
+      id: "analytics-audit-customer",
+      userId: null,
+      customerUserId: CUSTOMER_ACTOR_ID,
+      actorType: "CUSTOMER",
+      action: "CUSTOMER_MFA_ENABLED",
+      resource: "CustomerUser",
+      success: true,
+      createdAt: new Date(),
     });
   });
 
@@ -251,6 +290,46 @@ describe("analyticsRoutes Unit Tests", () => {
     expect(Array.isArray(body.data.data)).toBeTruthy();
     expect(typeof body.data.pagination.total === "number").toBeTruthy();
     expect(typeof body.data.pagination.page === "number").toBeTruthy();
+  });
+
+  it("should expose the customer actor on a compliance audit log row", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/admin/compliance/audit-logs",
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+
+    const customerRow = body.data.data.find(
+      (log: { id: string }) => log.id === "analytics-audit-customer"
+    );
+    expect(customerRow).toBeTruthy();
+    expect(customerRow.actorType).toBe("CUSTOMER");
+    expect(customerRow.customerUserId).toBe(CUSTOMER_ACTOR_ID);
+    expect(customerRow.customerUser.email).toBe(CUSTOMER_ACTOR_EMAIL);
+    expect(customerRow.user).toBeNull();
+  });
+
+  it("should keep the admin actor row shape unchanged on compliance audit logs", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/admin/compliance/audit-logs",
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+
+    const adminRow = body.data.data.find(
+      (log: { id: string }) => log.id === "analytics-audit-admin"
+    );
+    expect(adminRow).toBeTruthy();
+    expect(adminRow.actorType).toBe("ADMIN");
+    expect(adminRow.user.email).toBe(adminEmail);
+    expect(adminRow.user.role).toBe("ADMIN");
+    expect(adminRow.customerUser).toBeNull();
   });
 
   it("should respect page and limit pagination params", async () => {

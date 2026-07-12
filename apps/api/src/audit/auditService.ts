@@ -7,14 +7,31 @@
 import type { PrismaClient } from "@infra/prisma";
 import { type Result, type AdminRole } from "@shared/types";
 import {
+  AUDIT_ACTOR_TYPE,
   deriveActorType,
   type AuditActorType,
 } from "@core/domain/repositories/AuditLogRepository.js";
 import { BaseService } from "../services/BaseService.js";
 
+/**
+ * Identity of the CUSTOMER actor behind an audit row, resolved through the
+ * `customerUser` relation. Mirrors the shape of the ADMIN actor's `user`
+ * relation so every reader can render an actor without null-inference.
+ */
+export interface AuditCustomerActor {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+}
+
 export interface AuditLogEntry {
   id: string;
   userId?: string;
+  /** CUSTOMER actor FK; exclusive with `userId` (DB CHECK). */
+  customerUserId?: string | null;
+  /** Actor discriminator — readers switch on this, never on a null FK. */
+  actorType: AuditActorType;
   action: string;
   resource?: string;
   resourceId?: string;
@@ -30,7 +47,32 @@ export interface AuditLogEntry {
     name: string;
     role: AdminRole;
   };
+  /** Resolved CUSTOMER actor; null on ADMIN and SYSTEM rows. */
+  customerUser?: AuditCustomerActor | null;
 }
+
+/** Aggregated actor counts, one per `AuditActorType`. */
+export type AuditActorTypeCounts = Record<AuditActorType, number>;
+
+/** Actor-relation selection shared by `log` and `getLogs`. */
+const ACTOR_INCLUDE = {
+  user: {
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: { select: { name: true } },
+    },
+  },
+  customerUser: {
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+    },
+  },
+} as const;
 
 export interface CreateAuditLogParams {
   userId?: string;
@@ -95,16 +137,7 @@ export class AuditService extends BaseService {
 
         const auditLog = await this.prisma.auditLog.create({
           data: createData as Parameters<typeof this.prisma.auditLog.create>[0]["data"],
-          include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                name: true,
-                role: { select: { name: true } },
-              },
-            },
-          },
+          include: ACTOR_INCLUDE,
         });
 
         // Map role relation to string
@@ -161,16 +194,7 @@ export class AuditService extends BaseService {
 
         const logs = await this.prisma.auditLog.findMany({
           where: where as Record<string, unknown> & { createdAt?: Record<string, Date> },
-          include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                name: true,
-                role: { select: { name: true } },
-              },
-            },
-          },
+          include: ACTOR_INCLUDE,
           orderBy: { createdAt: "desc" },
           take: Math.min(limit, 1000), // Cap at 1000 for performance
           skip: offset,
@@ -197,6 +221,15 @@ export class AuditService extends BaseService {
         topActions: Array<{ action: string; count: number }>;
         topResources: Array<{ resource: string; count: number }>;
         topUsers: Array<{ user: string; email: string; count: number }>;
+        /**
+         * Top CUSTOMER actors, counted per customer identity. Additive: the
+         * ADMIN `topUsers` bucket above is untouched, so a customer action is
+         * no longer collapsed into the null-user bucket where it was
+         * indistinguishable from a system action.
+         */
+        topCustomerUsers: Array<{ user: string; email: string; count: number }>;
+        /** Row count per actor type — keeps SYSTEM rows distinguishable. */
+        byActorType: AuditActorTypeCounts;
       },
       string
     >
@@ -289,6 +322,50 @@ export class AuditService extends BaseService {
           };
         });
 
+        // Top customer actors — the second actor column. A typed groupBy per
+        // actor FK (rather than a COALESCE key) keeps this within the Prisma
+        // query API: raw SQL is barred outside the audited exceptions.
+        const topCustomerUsersRaw = await this.prisma.auditLog.groupBy({
+          by: ["customerUserId"],
+          where: { ...where, customerUserId: { not: null } },
+          _count: { customerUserId: true },
+          orderBy: { _count: { customerUserId: "desc" } },
+          take: 10,
+        });
+
+        const customerUserIds = topCustomerUsersRaw.map((item) => item.customerUserId!);
+        const customerUsers = await this.prisma.customerUser.findMany({
+          where: { id: { in: customerUserIds } },
+          select: { id: true, email: true, firstName: true, lastName: true },
+        });
+
+        const topCustomerUsers = topCustomerUsersRaw.map((item) => {
+          const customer = customerUsers.find((c) => c.id === item.customerUserId);
+          const fullName = customer ? `${customer.firstName} ${customer.lastName}`.trim() : "";
+          return {
+            user: fullName || "Unknown",
+            email: customer?.email || "Unknown",
+            count: item._count.customerUserId,
+          };
+        });
+
+        // Actor-type breakdown — SYSTEM rows stay distinguishable from customer
+        // rows even though both carry a null `userId`.
+        const actorTypeRaw = await this.prisma.auditLog.groupBy({
+          by: ["actorType"],
+          where,
+          _count: { actorType: true },
+        });
+
+        const byActorType: AuditActorTypeCounts = {
+          [AUDIT_ACTOR_TYPE.SYSTEM]: 0,
+          [AUDIT_ACTOR_TYPE.ADMIN]: 0,
+          [AUDIT_ACTOR_TYPE.CUSTOMER]: 0,
+        };
+        for (const item of actorTypeRaw) {
+          byActorType[item.actorType] = item._count.actorType;
+        }
+
         return {
           total,
           successful,
@@ -296,6 +373,8 @@ export class AuditService extends BaseService {
           topActions,
           topResources,
           topUsers,
+          topCustomerUsers,
+          byActorType,
         };
       }
     );

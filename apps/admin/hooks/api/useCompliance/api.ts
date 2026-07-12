@@ -29,6 +29,19 @@ function scoreToStatus(score: number): "compliant" | "warning" | "non-compliant"
   return "non-compliant";
 }
 
+/**
+ * Display name for a CUSTOMER actor, or `null` when the row has none. Prefers
+ * the full name and falls back to the email so a customer action is never
+ * rendered as an anonymous "Unknown" row in the compliance view.
+ */
+function customerDisplayName(
+  customer: { email: string; firstName: string; lastName: string } | null
+): string | null {
+  if (!customer) return null;
+  const fullName = `${customer.firstName} ${customer.lastName}`.trim();
+  return fullName || customer.email;
+}
+
 // ---------------------------------------------------------------------------
 // Compliance overview
 // ---------------------------------------------------------------------------
@@ -104,10 +117,14 @@ export async function fetchComplianceOverview(): Promise<ComplianceData> {
     id: log.id,
     timestamp: log.createdAt,
     action: log.action,
-    user: log.user?.name ?? log.userId ?? "Unknown",
+    // Admin rows keep resolving through `user.name` first (unchanged bytes);
+    // a customer actor — where `user` and `userId` are both null — now surfaces
+    // its own identity instead of collapsing into the "Unknown" null bucket.
+    user: log.user?.name ?? customerDisplayName(log.customerUser) ?? log.userId ?? "Unknown",
     resource: log.resource ?? "Unknown",
     result: log.success ? ("success" as const) : ("failure" as const),
     details: typeof log.details === "string" ? log.details : JSON.stringify(log.details ?? {}),
+    actorType: log.actorType,
   }));
 
   return { metrics, auditLogs };

@@ -460,6 +460,7 @@ export interface MockPrismaStores {
   adminUser: ModelStore<Record<string, unknown>>;
   adminSession: ModelStore<Record<string, unknown>>;
   auditLog: ModelStore<Record<string, unknown>>;
+  customerUser: ModelStore<Record<string, unknown>>;
   account: ModelStore<Record<string, unknown>>;
   project: ModelStore<Record<string, unknown>>;
   apiKey: ModelStore<Record<string, unknown>>;
@@ -480,6 +481,7 @@ export function createMockPrismaModule() {
     adminUser: createStore(),
     adminSession: createStore(),
     auditLog: createStore(),
+    customerUser: createStore(),
     account: createStore(),
     project: createStore(),
     apiKey: createStore(),
@@ -531,7 +533,8 @@ export function createMockPrismaModule() {
     return result;
   };
 
-  // AuditLog include resolver: resolves include/select: { user: ... }
+  // AuditLog include resolver: resolves include/select: { user: ... } (the
+  // ADMIN actor) and { customerUser: ... } (the CUSTOMER actor).
   const auditLogIncludeResolver: IncludeResolver = (record, include) => {
     const result = { ...record };
     if (include.user) {
@@ -549,6 +552,13 @@ export function createMockPrismaModule() {
       } else {
         result.user = null;
       }
+    }
+    if (include.customerUser) {
+      const customerUserId = record.customerUserId as string | undefined;
+      const rawCustomer = customerUserId
+        ? (stores.customerUser.all().find((c) => c.id === customerUserId) ?? null)
+        : null;
+      result.customerUser = rawCustomer ? { ...rawCustomer } : null;
     }
     return result;
   };
@@ -609,6 +619,10 @@ export function createMockPrismaModule() {
 
   const auditLogDefaults = {
     userId: null,
+    // Actor columns mirror the real schema: the CUSTOMER FK defaults to NULL
+    // and the discriminator defaults to SYSTEM.
+    customerUserId: null,
+    actorType: "SYSTEM",
     action: "",
     resource: null,
     resourceId: null,
@@ -629,6 +643,7 @@ export function createMockPrismaModule() {
       sessionIncludeResolver
     ),
     auditLog: buildModelMock(stores.auditLog, auditLogDefaults, "id", auditLogIncludeResolver),
+    customerUser: buildModelMock(stores.customerUser),
     account: buildModelMock(stores.account),
     project: buildModelMock(stores.project),
     apiKey: buildModelMock(stores.apiKey),

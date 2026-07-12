@@ -22,8 +22,51 @@ vi.mock("@/lib/apiClient", () => ({
 
 import { useAuditLogs } from "@/hooks/api/useAuditLogs";
 import { api } from "@/lib/apiClient";
+import type { AuditLog } from "@/lib/api/types";
 
 const mockGetLogs = vi.mocked(api.audit.getLogs);
+
+// Typed against `AuditLog` so the additive actor fields are compile-checked:
+// a fixture missing `actorType` / `customerUser` fails tsc, which is the RED
+// gate for the type representing a customer actor.
+const ADMIN_LOG: AuditLog = {
+  id: "log-admin",
+  userId: "admin-1",
+  action: "UPDATE_POST",
+  resource: "posts",
+  resourceId: "post-1",
+  success: true,
+  error: null,
+  details: null,
+  ipAddress: "127.0.0.1",
+  userAgent: "Mozilla/5.0",
+  createdAt: "2026-03-01T10:00:00.000Z",
+  actorType: "ADMIN",
+  customerUserId: null,
+  customerUser: null,
+};
+
+const CUSTOMER_LOG: AuditLog = {
+  id: "log-customer",
+  userId: null,
+  action: "UPDATE_BILLING",
+  resource: "billing",
+  resourceId: "sub-1",
+  success: true,
+  error: null,
+  details: null,
+  ipAddress: "10.0.0.1",
+  userAgent: "Mozilla/5.0",
+  createdAt: "2026-03-01T11:00:00.000Z",
+  actorType: "CUSTOMER",
+  customerUserId: "cust-1",
+  customerUser: {
+    id: "cust-1",
+    email: "jane@example.com",
+    firstName: "Jane",
+    lastName: "Doe",
+  },
+};
 
 const MOCK_LOGS = [
   {
@@ -147,5 +190,42 @@ describe("useAuditLogs", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(queryClient.getQueryData(["audit", "logs", undefined])).toEqual(MOCK_LOGS);
+  });
+
+  describe("customer actor visibility", () => {
+    it("surfaces a customer actor's identity without dropping the actor fields", async () => {
+      mockGetLogs.mockResolvedValueOnce({
+        ok: true,
+        logs: [CUSTOMER_LOG],
+        filters: {},
+      });
+
+      const { result } = renderHook(() => useAuditLogs(), {
+        wrapper: createWrapper(),
+      });
+
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+      const log = result.current.data?.[0];
+      expect(log?.actorType).toBe("CUSTOMER");
+      expect(log?.customerUserId).toBe("cust-1");
+      expect(log?.customerUser?.email).toBe("jane@example.com");
+    });
+
+    it("returns an admin actor row unchanged (do-not-regress)", async () => {
+      mockGetLogs.mockResolvedValueOnce({
+        ok: true,
+        logs: [ADMIN_LOG],
+        filters: {},
+      });
+
+      const { result } = renderHook(() => useAuditLogs(), {
+        wrapper: createWrapper(),
+      });
+
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+      expect(result.current.data?.[0]).toEqual(ADMIN_LOG);
+    });
   });
 });

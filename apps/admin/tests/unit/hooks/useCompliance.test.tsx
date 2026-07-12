@@ -48,6 +48,9 @@ const MOCK_AUDIT_LOGS_BODY = {
         id: "log-1",
         userId: "user-1",
         user: { id: "user-1", name: "Alice", email: "alice@example.com", role: "ADMIN" },
+        customerUserId: null,
+        customerUser: null,
+        actorType: "ADMIN",
         action: "UPDATE_POST",
         resource: "posts",
         resourceId: "post-1",
@@ -62,6 +65,9 @@ const MOCK_AUDIT_LOGS_BODY = {
         id: "log-2",
         userId: null,
         user: null,
+        customerUserId: null,
+        customerUser: null,
+        actorType: "SYSTEM",
         action: "DELETE_CHANNEL",
         resource: null,
         resourceId: null,
@@ -160,6 +166,61 @@ describe("useCompliance", () => {
     // Second log has no user — falls back to userId then 'Unknown'
     expect(logs[1]?.user).toBe("Unknown");
     expect(logs[1]?.result).toBe("failure");
+
+    // Admin and system rows carry their actor type unchanged (do-not-regress).
+    expect(logs[0]?.actorType).toBe("ADMIN");
+    expect(logs[1]?.actorType).toBe("SYSTEM");
+  });
+
+  it("resolves a customer-actor row to the customer identity, not the null bucket", async () => {
+    const customerAuditBody = {
+      ok: true,
+      data: {
+        ok: true,
+        data: [
+          {
+            id: "log-c1",
+            userId: null,
+            user: null,
+            customerUserId: "cust-1",
+            customerUser: {
+              id: "cust-1",
+              email: "jane@example.com",
+              firstName: "Jane",
+              lastName: "Doe",
+            },
+            actorType: "CUSTOMER",
+            action: "UPDATE_BILLING",
+            resource: "billing",
+            resourceId: "sub-1",
+            details: null,
+            ipAddress: "10.0.0.1",
+            userAgent: "Mozilla/5.0",
+            success: true,
+            error: null,
+            createdAt: "2026-02-23T12:00:00.000Z",
+          },
+        ],
+        pagination: { page: 1, limit: 50, total: 1, totalPages: 1, hasMore: false },
+      },
+    };
+
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: async () => MOCK_METRICS_BODY })
+      .mockResolvedValueOnce({ ok: true, json: async () => customerAuditBody });
+
+    const { result } = renderHook(() => useCompliance(), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    const logs = result.current.data?.auditLogs ?? [];
+    // The mapper used to join only the AdminUser relation, so a customer actor
+    // (user === null, userId === null) collapsed to "Unknown". It must now
+    // surface the customer's own identity.
+    expect(logs[0]?.user).toBe("Jane Doe");
+    expect(logs[0]?.actorType).toBe("CUSTOMER");
   });
 
   it("throws ApiError when metrics endpoint returns HTTP error", async () => {

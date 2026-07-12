@@ -197,30 +197,53 @@ Dependency diagram: `📍 A1 → A2` · `A1 ⛔ blocks mfa-consolidation PR2`.
 
 ### Phase A2.1 — Stats + getLogs
 
-- [ ] 8.1 [RED] Extend `apps/api/tests/unit/auditService.stats.test.ts` +
+- [x] 8.1 [RED] Extend `apps/api/tests/unit/auditService.stats.test.ts` +
       `apps/api/tests/unit/auditService.query.test.ts` + `apps/api/tests/unit/auditLogger.test.ts`:
       stats no longer collapse customers into the null bucket; second `groupBy(["customerUserId"])`
       yields additive `topCustomerUsers`; `getLogs` exposes `actorType` + `customerUser`; admin
       stats byte-identical. Verify RED.
-- [ ] 8.2 [GREEN] `apps/api/src/audit/auditService.ts` `getStats` (`:255-276`): keep the existing
+- [x] 8.2 [GREEN] `apps/api/src/audit/auditService.ts` `getStats` (`:255-276`): keep the existing
       `groupBy(["userId"])` + `adminUser.findMany` UNTOUCHED; add typed `groupBy(["customerUserId"], where:{customerUserId:{not:null}})`
   - `customerUser.findMany` → additive `topCustomerUsers` (`{user,email,count}`). `getLogs` adds
     `include:{customerUser:{select:{id,email,firstName,lastName}}}` + `actorType`. Verify GREEN.
-- [ ] 8.3 [SENSITIVE][GREEN] `apps/api/src/security/auditLogger.ts` `getStatistics` (`:356-365`):
+- [x] 8.3 [SENSITIVE][GREEN] `apps/api/src/security/auditLogger.ts` `getStatistics` (`:356-365`):
       same additive second `groupBy`. (A2's own token window.) Verify GREEN.
+      (Done: additive `topCustomerUsers` (`groupBy(["customerUserId"])` + `customerUser.findMany`
+      lookup) + `byActorType` (`groupBy(["actorType"])`), mirroring `auditService.ts`'s `getStats`.
+      Existing `topActions`/`topUsers`/`totalEvents`/`failedEvents`/`securityEvents` untouched.
+      RED→GREEN: new "getStatistics — actor visibility" describe block in `auditLogger.test.ts`
+      (3 cases: customer counted by identity, SYSTEM/CUSTOMER distinguishable via byActorType, admin
+      topUsers unchanged) — 46/46 green. No route/handler consumes `getStatistics` outside its own
+      test — change contained to the `AuditLogger` class.
+      Assertions pin the defect both ways: the customer actor resolves to its own identity
+      (`user: "Stats Customer"`) AND is absent from the ADMIN `topUsers` column, and `byActorType`
+      asserts SYSTEM >= 1 alongside CUSTOMER >= 1 so the two null-`userId` actor kinds stay
+      separable by discriminator, never by a null FK. RED-by-construction against HEAD, whose
+      `getStatistics` returns neither field.)
 
 ### Phase A2.2 — CSV + API shape
 
-- [ ] 9.1 [RED] Extend the CSV export test (integration for real store; vitest for shape): a
+- [x] 9.1 [RED] Extend the CSV export test (integration for real store; vitest for shape): a
       customer row exports a non-blank actor; admin CSV byte-identical to the pre-change `"User Email"`. Verify RED.
-- [ ] 9.2 [GREEN] `apps/api/src/audit/auditRoutes.ts` (`:369-383`): keep `"user.email"` column
+- [x] 9.2 [GREEN] `apps/api/src/audit/auditRoutes.ts` (`:369-383`): keep `"user.email"` column
       byte-identical; append `{key:"actorType",header:"Actor Type"}` + `{key:"customerUser.email",header:"Customer Email"}`. Verify GREEN.
 
 ### Phase A2.3 — Frontend type + compliance view
 
-- [ ] 10.1 [RED] vitest component (`@testing-library/react`) in `apps/admin/tests/unit/hooks/useAuditLogs.test.tsx`
+- [x] 10.1 [RED] vitest component (`@testing-library/react`) in `apps/admin/tests/unit/hooks/useAuditLogs.test.tsx`
       (+ compliance component test): customer actor representable; admin rows render unchanged. Verify RED.
-- [ ] 10.2 [GREEN] `apps/admin/lib/api/types.ts` (`AuditLog`, `:170-182`): additive `actorType`,
+      (Done: `useAuditLogs.test.tsx` +2 cases for customer representability/admin pass-through; mapper RED in
+      `useCompliance.test.tsx`; new page-render test `tests/unit/compliance/CompliancePage.test.tsx` — customer
+      identity + actor badge, admin row identical.)
+- [x] 10.2 [GREEN] `apps/admin/lib/api/types.ts` (`AuditLog`, `:170-182`): additive `actorType`,
       `customerUserId: string|null`, `customerUser?` fields. `apps/admin/app/[locale]/(dashboard)/compliance/page.tsx`:
       render the actor via `actorType` + customer identity; admin unchanged. Verify GREEN.
-- [ ] 10.3 A2 0-defect gate: `eslint --max-warnings 0`, `tsc` clean, fitness green, LXC-safe tests green.
+      (Done additively. The compliance view's real data path is `useCompliance` → `AuditEvent` mapper, so the
+      `useCompliance/{types.ts,api.ts}` path + i18n `compliance.audit.actorTypes.customer` (en/es) were extended
+      too; `AuditLog` type in `lib/api/types.ts` covers the API response shape. Backend already emits
+      `customerUser`/`actorType`/`customerUserId`.)
+- [x] 10.3 A2 0-defect gate: `eslint --max-warnings 0`, `tsc` clean, fitness green, LXC-safe tests green.
+      (Full A2 gate CLOSED: tsc @apps/admin=0, tsc @apps/api=0, eslint --max-warnings 0 on every
+      touched file (frontend + `security/auditLogger.ts`), fitness #3/#9/#10/#12/#17/#21=0, i18n
+      parity OK, all LXC-safe single-file test runs green (backend stats/CSV/auditLogger + frontend
+      hooks/page). A2 complete — every task 8.1 through 10.3 done.)

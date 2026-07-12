@@ -102,11 +102,22 @@ let superAdminToken: string;
 let adminUserId: string;
 let _testLogId: string;
 
+const CUSTOMER_USER_ID = "customer-audit-actor-001";
+const CUSTOMER_EMAIL = "customer-audit@example.com";
+
 describe("auditRoutes Unit Tests", () => {
   beforeAll(async () => {
     stores.adminUser.clear();
     stores.adminSession.clear();
     stores.auditLog.clear();
+    stores.customerUser.clear();
+
+    stores.customerUser.add({
+      id: CUSTOMER_USER_ID,
+      email: CUSTOMER_EMAIL,
+      firstName: "Customer",
+      lastName: "Actor",
+    });
 
     app = await createTestApp();
 
@@ -155,6 +166,17 @@ describe("auditRoutes Unit Tests", () => {
       resource: "TestResource",
       resourceId: "test-123",
       ipAddress: "127.0.0.1",
+      userAgent: "test-agent",
+      success: true,
+    });
+
+    // Customer-actor row — written by the customer-facing flows.
+    await auditService.log({
+      customerUserId: CUSTOMER_USER_ID,
+      action: "CUSTOMER_MFA_ENABLED",
+      resource: "CustomerUser",
+      resourceId: CUSTOMER_USER_ID,
+      ipAddress: "10.0.0.9",
       userAgent: "test-agent",
       success: true,
     });
@@ -576,6 +598,46 @@ describe("auditRoutes Unit Tests", () => {
         response.headers["content-disposition"]?.toString().includes("attachment")
       ).toBeTruthy();
       expect(response.body.includes("Timestamp")).toBeTruthy();
+    });
+
+    it("should export the customer actor identity in the CSV", async () => {
+      const response = await app.inject({
+        method: "GET",
+        url: "/admin/audit/export?format=csv",
+        headers: { authorization: `Bearer ${superAdminToken}` },
+      });
+
+      expect(response.statusCode).toBe(200);
+
+      const [header, ...rows] = response.body.split("\r\n");
+      expect(header).toContain("Actor Type");
+      expect(header).toContain("Customer Email");
+
+      const customerRow = rows.find((row) => row.includes("CUSTOMER_MFA_ENABLED"));
+      expect(customerRow).toBeTruthy();
+      expect(customerRow).toContain("CUSTOMER");
+      expect(customerRow).toContain(CUSTOMER_EMAIL);
+
+      const adminRow = rows.find((row) => row.includes("TEST_ACTION"));
+      expect(adminRow).toBeTruthy();
+      expect(adminRow).toContain(adminEmail);
+      expect(adminRow).toContain("ADMIN");
+    });
+
+    it("should report the customer actor in audit stats", async () => {
+      const response = await app.inject({
+        method: "GET",
+        url: "/admin/audit/stats",
+        headers: { authorization: `Bearer ${superAdminToken}` },
+      });
+
+      const body = JSON.parse(response.body);
+
+      expect(response.statusCode).toBe(200);
+      expect(body.data.stats.topCustomerUsers).toEqual([
+        { user: "Customer Actor", email: CUSTOMER_EMAIL, count: 1 },
+      ]);
+      expect(body.data.stats.byActorType.CUSTOMER).toBe(1);
     });
 
     it("should filter export by date range", async () => {

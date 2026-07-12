@@ -167,6 +167,28 @@ export interface SubscriptionSummary {
 // Audit
 // ---------------------------------------------------------------------------
 
+/**
+ * Actor discriminator carried by every audit row. Mirrors the backend
+ * `AuditActorType` enum: readers switch on this instead of inferring the actor
+ * from a null FK (a `SYSTEM` row and a `CUSTOMER` row both have a null admin
+ * `userId`, so the null user alone is ambiguous).
+ */
+export const AUDIT_ACTOR_TYPE = {
+  SYSTEM: "SYSTEM",
+  ADMIN: "ADMIN",
+  CUSTOMER: "CUSTOMER",
+} as const;
+
+export type AuditActorType = (typeof AUDIT_ACTOR_TYPE)[keyof typeof AUDIT_ACTOR_TYPE];
+
+/** Identity of the CUSTOMER actor behind an audit row (`customerUser` relation). */
+export interface AuditActorCustomer {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+}
+
 export interface AuditLog {
   id: string;
   userId: string | null;
@@ -179,6 +201,16 @@ export interface AuditLog {
   ipAddress: string | null;
   userAgent: string | null;
   createdAt: string;
+  /**
+   * Actor discriminator. Additive: admin rows carry `ADMIN`, so existing admin
+   * consumers read the same shape they always did while customer/system rows
+   * become distinguishable.
+   */
+  actorType: AuditActorType;
+  /** CUSTOMER actor FK; `null` on ADMIN and SYSTEM rows. Additive. */
+  customerUserId: string | null;
+  /** Resolved CUSTOMER actor; absent/`null` on ADMIN and SYSTEM rows. Additive. */
+  customerUser?: AuditActorCustomer | null;
 }
 
 export interface AuditLogFilters {

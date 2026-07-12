@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => {
   const auditLogDeleteMany = vi.fn();
   const auditLogGroupBy = vi.fn(async () => []);
   const adminUserFindMany = vi.fn();
+  const customerUserFindMany = vi.fn();
 
   const prismaClient: any = {
     auditLog: {
@@ -34,6 +35,9 @@ const mocks = vi.hoisted(() => {
     },
     adminUser: {
       findMany: adminUserFindMany,
+    },
+    customerUser: {
+      findMany: customerUserFindMany,
     },
     $connect: vi.fn(noopAsync),
     $disconnect: vi.fn(noopAsync),
@@ -54,6 +58,7 @@ const mocks = vi.hoisted(() => {
     auditLogCount,
     auditLogGroupBy,
     adminUserFindMany,
+    customerUserFindMany,
   };
 });
 
@@ -90,6 +95,23 @@ const TEST_USER_2 = {
   email: "audit-test-user2@example.com",
   name: "Audit Test User 2",
   role: "SUPPORT",
+};
+
+const TEST_CUSTOMER_1_ID = "audit-test-customer-001";
+const TEST_CUSTOMER_2_ID = "audit-test-customer-002";
+
+const TEST_CUSTOMER_1 = {
+  id: TEST_CUSTOMER_1_ID,
+  email: "audit-test-customer@example.com",
+  firstName: "Audit",
+  lastName: "Customer",
+};
+
+const TEST_CUSTOMER_2 = {
+  id: TEST_CUSTOMER_2_ID,
+  email: "audit-test-customer2@example.com",
+  firstName: "Second",
+  lastName: "Customer",
 };
 
 // ---------------------------------------------------------------------------
@@ -143,98 +165,117 @@ function filterEntries(
 describe("AuditService - getStats()", () => {
   const auditService = new AuditService(mocks.prismaClient);
 
+  /** Admin-actor row shape: `userId` FK + `actorType: ADMIN`. */
+  const adminRow = (
+    id: string,
+    userId: string,
+    fields: Record<string, unknown>
+  ): Record<string, unknown> => ({
+    id,
+    userId,
+    customerUserId: null,
+    actorType: "ADMIN",
+    error: null,
+    resourceId: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...fields,
+  });
+
+  /** Customer-actor row shape: `customerUserId` FK + `actorType: CUSTOMER`. */
+  const customerRow = (
+    id: string,
+    customerUserId: string,
+    fields: Record<string, unknown>
+  ): Record<string, unknown> => ({
+    id,
+    userId: null,
+    customerUserId,
+    actorType: "CUSTOMER",
+    error: null,
+    resourceId: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...fields,
+  });
+
+  /** System row shape (no actor FK; `actorType: SYSTEM`). */
+  const systemRow = (id: string, fields: Record<string, unknown>): Record<string, unknown> => ({
+    id,
+    userId: null,
+    customerUserId: null,
+    actorType: "SYSTEM",
+    error: null,
+    resourceId: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...fields,
+  });
+
   const seedRecords: Array<Record<string, unknown>> = [
-    {
-      id: "log-s-1",
-      userId: TEST_USER_1_ID,
+    adminRow("log-s-1", TEST_USER_1_ID, {
       action: "STATS_LOGIN",
       resource: "Session",
       success: true,
-      error: null,
-      resourceId: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      id: "log-s-2",
-      userId: TEST_USER_1_ID,
+    }),
+    adminRow("log-s-2", TEST_USER_1_ID, {
       action: "STATS_LOGIN",
       resource: "Session",
       success: true,
-      error: null,
-      resourceId: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      id: "log-s-3",
-      userId: TEST_USER_1_ID,
+    }),
+    adminRow("log-s-3", TEST_USER_1_ID, {
       action: "STATS_POST_CREATE",
       resource: "Post",
       resourceId: "stats-post-1",
       success: true,
-      error: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      id: "log-s-4",
-      userId: TEST_USER_2_ID,
+    }),
+    adminRow("log-s-4", TEST_USER_2_ID, {
       action: "STATS_LOGIN",
       resource: "Session",
       success: false,
-      error: null,
-      resourceId: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      id: "log-s-5",
-      userId: TEST_USER_2_ID,
+    }),
+    adminRow("log-s-5", TEST_USER_2_ID, {
       action: "STATS_POST_CREATE",
       resource: "Post",
       resourceId: "stats-post-2",
       success: true,
-      error: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      id: "log-s-6",
-      userId: TEST_USER_2_ID,
+    }),
+    adminRow("log-s-6", TEST_USER_2_ID, {
       action: "STATS_POST_CREATE",
       resource: "Post",
       resourceId: "stats-post-3",
       success: true,
-      error: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      id: "log-s-7",
-      userId: null,
+    }),
+    systemRow("log-s-7", {
       action: "STATS_SYSTEM_HEALTH",
       resource: "System",
       success: true,
-      error: null,
-      resourceId: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      id: "log-s-8",
-      userId: null,
+    }),
+    systemRow("log-s-8", {
       action: "STATS_CACHE_CLEAR",
       resource: "System",
       success: true,
-      error: null,
-      resourceId: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
+    }),
+    customerRow("log-s-9", TEST_CUSTOMER_1_ID, {
+      action: "STATS_LOGIN",
+      resource: "Session",
+      success: true,
+    }),
+    customerRow("log-s-10", TEST_CUSTOMER_1_ID, {
+      action: "STATS_POST_CREATE",
+      resource: "Post",
+      resourceId: "stats-post-4",
+      success: true,
+    }),
+    customerRow("log-s-11", TEST_CUSTOMER_2_ID, {
+      action: "STATS_LOGIN",
+      resource: "Session",
+      success: true,
+    }),
   ];
 
   const adminUsers = [TEST_USER_1, TEST_USER_2];
+  const customerUsers = [TEST_CUSTOMER_1, TEST_CUSTOMER_2];
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -288,6 +329,15 @@ describe("AuditService - getStats()", () => {
         return adminUsers.filter((u) => (where.id.in as string[]).includes(u.id));
       }
       return adminUsers;
+    });
+
+    // Mock customerUser.findMany — resolves the CUSTOMER actor identities
+    mocks.customerUserFindMany.mockImplementation(async ({ where }: any = {}) => {
+      if (!where) return customerUsers;
+      if (where.id?.in) {
+        return customerUsers.filter((c) => (where.id.in as string[]).includes(c.id));
+      }
+      return customerUsers;
     });
   });
 
@@ -426,6 +476,63 @@ describe("AuditService - getStats()", () => {
 
       expect(result.ok).toBeTruthy();
       expect(result.value.topUsers.length <= 10).toBeTruthy();
+    });
+  });
+
+  describe("getStats() - Customer Actor Visibility", () => {
+    it("counts customer actors per customer identity instead of one null-user bucket", async () => {
+      const result = await auditService.getStats({ action: "STATS_" });
+
+      expect(result.ok).toBeTruthy();
+      expect(result.value.topCustomerUsers).toHaveLength(2);
+
+      const first = result.value.topCustomerUsers.find(
+        (c) => c.email === "audit-test-customer@example.com"
+      );
+      expect(first).toBeTruthy();
+      expect(first!.user).toBe("Audit Customer");
+      expect(first!.count).toBe(2);
+
+      const second = result.value.topCustomerUsers.find(
+        (c) => c.email === "audit-test-customer2@example.com"
+      );
+      expect(second).toBeTruthy();
+      expect(second!.user).toBe("Second Customer");
+      expect(second!.count).toBe(1);
+    });
+
+    it("sorts top customer users by count descending", async () => {
+      const result = await auditService.getStats({ action: "STATS_" });
+
+      expect(result.ok).toBeTruthy();
+      expect(result.value.topCustomerUsers.map((c) => c.count)).toEqual([2, 1]);
+    });
+
+    it("keeps system rows distinguishable from customer rows via actorType", async () => {
+      const result = await auditService.getStats({ action: "STATS_" });
+
+      expect(result.ok).toBeTruthy();
+      expect(result.value.byActorType).toEqual({ SYSTEM: 2, ADMIN: 6, CUSTOMER: 3 });
+    });
+
+    it("does not leak customer actors into the admin topUsers bucket", async () => {
+      const result = await auditService.getStats({ action: "STATS_" });
+
+      expect(result.ok).toBeTruthy();
+      expect(result.value.topUsers).toHaveLength(2);
+      result.value.topUsers.forEach((u) => {
+        expect(u.email.startsWith("audit-test-user")).toBeTruthy();
+      });
+    });
+
+    it("keeps admin top-user counts byte-identical to the pre-change behavior", async () => {
+      const result = await auditService.getStats({ action: "STATS_" });
+
+      expect(result.ok).toBeTruthy();
+      expect(result.value.topUsers).toEqual([
+        { user: "Audit Test User", email: "audit-test-user@example.com", count: 3 },
+        { user: "Audit Test User 2", email: "audit-test-user2@example.com", count: 3 },
+      ]);
     });
   });
 

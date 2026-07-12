@@ -90,6 +90,15 @@ const TEST_USER_2 = {
   role: "SUPPORT",
 };
 
+const TEST_CUSTOMER_ID = "audit-test-customer-001";
+
+const TEST_CUSTOMER = {
+  id: TEST_CUSTOMER_ID,
+  email: "audit-test-customer@example.com",
+  firstName: "Audit",
+  lastName: "Customer",
+};
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -147,6 +156,30 @@ function resolveUsers(
   });
 }
 
+/** Resolve the CUSTOMER actor relation for each record (mirrors the Prisma include) */
+function resolveCustomerUsers(
+  records: Array<Record<string, unknown>>,
+  customers: Map<string, Record<string, unknown>>
+): Array<Record<string, unknown>> {
+  return records.map((entry) => {
+    if (entry.customerUserId) {
+      const customer = customers.get(entry.customerUserId as string);
+      if (customer) {
+        return {
+          ...entry,
+          customerUser: {
+            id: customer.id,
+            email: customer.email,
+            firstName: customer.firstName,
+            lastName: customer.lastName,
+          },
+        };
+      }
+    }
+    return { ...entry, customerUser: null };
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -159,6 +192,7 @@ describe("AuditService - getLogs() - Query and Filtering", () => {
   const twoDaysAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
 
   const adminUsers = new Map<string, Record<string, unknown>>();
+  const customerUsers = new Map<string, Record<string, unknown>>();
   let seedRecords: Array<Record<string, unknown>>;
 
   beforeEach(() => {
@@ -168,10 +202,15 @@ describe("AuditService - getLogs() - Query and Filtering", () => {
     adminUsers.set(TEST_USER_1_ID, TEST_USER_1);
     adminUsers.set(TEST_USER_2_ID, TEST_USER_2);
 
+    customerUsers.clear();
+    customerUsers.set(TEST_CUSTOMER_ID, TEST_CUSTOMER);
+
     seedRecords = [
       {
         id: "log-q-1",
         userId: TEST_USER_1_ID,
+        customerUserId: null,
+        actorType: "ADMIN",
         action: "TEST_FILTER_LOGIN",
         resource: "Session",
         success: true,
@@ -187,6 +226,8 @@ describe("AuditService - getLogs() - Query and Filtering", () => {
       {
         id: "log-q-2",
         userId: TEST_USER_1_ID,
+        customerUserId: null,
+        actorType: "ADMIN",
         action: "TEST_FILTER_LOGOUT",
         resource: "Session",
         success: true,
@@ -202,6 +243,8 @@ describe("AuditService - getLogs() - Query and Filtering", () => {
       {
         id: "log-q-3",
         userId: TEST_USER_2_ID,
+        customerUserId: null,
+        actorType: "ADMIN",
         action: "TEST_FILTER_LOGIN",
         resource: "Session",
         success: false,
@@ -217,6 +260,8 @@ describe("AuditService - getLogs() - Query and Filtering", () => {
       {
         id: "log-q-4",
         userId: TEST_USER_2_ID,
+        customerUserId: null,
+        actorType: "ADMIN",
         action: "TEST_FILTER_POST_CREATE",
         resource: "Post",
         resourceId: "post-test-1",
@@ -232,8 +277,27 @@ describe("AuditService - getLogs() - Query and Filtering", () => {
       {
         id: "log-q-5",
         userId: null,
+        customerUserId: null,
+        actorType: "SYSTEM",
         action: "TEST_FILTER_SYSTEM",
         resource: "System",
+        success: true,
+        error: null,
+        resourceId: null,
+        details: null,
+        ipAddress: null,
+        userAgent: null,
+        createdAt: now,
+        updatedAt: now,
+        user: null,
+      },
+      {
+        id: "log-q-6",
+        userId: null,
+        customerUserId: TEST_CUSTOMER_ID,
+        actorType: "CUSTOMER",
+        action: "TEST_FILTER_CUSTOMER_MFA_ENABLED",
+        resource: "CustomerUser",
         success: true,
         error: null,
         resourceId: null,
@@ -273,6 +337,11 @@ describe("AuditService - getLogs() - Query and Filtering", () => {
         // Resolve user relation
         if (include?.user) {
           results = resolveUsers(results, adminUsers);
+        }
+
+        // Resolve the CUSTOMER actor relation
+        if (include?.customerUser) {
+          results = resolveCustomerUsers(results, customerUsers);
         }
 
         return results;
@@ -348,6 +417,50 @@ describe("AuditService - getLogs() - Query and Filtering", () => {
       expect(failedLogin).toBeTruthy();
       expect(failedLogin.success).toBe(false);
       expect(failedLogin.error).toBe("Invalid credentials");
+    });
+  });
+
+  describe("Actor Exposure", () => {
+    it("exposes the customer actor identity for a customer-actor row", async () => {
+      const result = await auditService.getLogs({
+        action: "TEST_FILTER_CUSTOMER_MFA_ENABLED",
+      });
+
+      expect(result.ok).toBeTruthy();
+      const customerLog = result.value.find((log) => log.id === "log-q-6");
+      expect(customerLog).toBeTruthy();
+      expect(customerLog!.actorType).toBe("CUSTOMER");
+      expect(customerLog!.customerUserId).toBe(TEST_CUSTOMER_ID);
+      expect(customerLog!.customerUser).toEqual({
+        id: TEST_CUSTOMER_ID,
+        email: "audit-test-customer@example.com",
+        firstName: "Audit",
+        lastName: "Customer",
+      });
+      expect(customerLog!.user ?? null).toBeNull();
+    });
+
+    it("keeps the admin actor row unchanged and its customer relation null", async () => {
+      const result = await auditService.getLogs({ action: "TEST_FILTER_LOGOUT" });
+
+      expect(result.ok).toBeTruthy();
+      const adminLog = result.value.find((log) => log.id === "log-q-2");
+      expect(adminLog).toBeTruthy();
+      expect(adminLog!.actorType).toBe("ADMIN");
+      expect(adminLog!.userId).toBe(TEST_USER_1_ID);
+      expect(adminLog!.user?.email).toBe("audit-test-user@example.com");
+      expect(adminLog!.customerUser ?? null).toBeNull();
+    });
+
+    it("marks a system row as SYSTEM with no actor identity", async () => {
+      const result = await auditService.getLogs({ action: "TEST_FILTER_SYSTEM" });
+
+      expect(result.ok).toBeTruthy();
+      const systemLog = result.value.find((log) => log.id === "log-q-5");
+      expect(systemLog).toBeTruthy();
+      expect(systemLog!.actorType).toBe("SYSTEM");
+      expect(systemLog!.user ?? null).toBeNull();
+      expect(systemLog!.customerUser ?? null).toBeNull();
     });
   });
 

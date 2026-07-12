@@ -1,13 +1,13 @@
 /**
  * @file auditActorPolymorphism.integration.test.ts
  * @description Real-database integration coverage for the polymorphic audit
- *              actor (change `audit-actor-polymorphism`, PR A1). Proves the
- *              write path a mocked unit test cannot: a customer-actor row
- *              persists and its FK resolves, the exclusive-arc CHECK rejects a
- *              dual-FK insert, deleting a CustomerUser nulls the FK (SetNull)
- *              yet retains the immutable evidence row, a system row persists
- *              with both actor FKs null, an admin row is unchanged, and DSAR
- *              anonymization nulls the customer FK while `actorType` survives.
+ *              actor. Proves the write path a mocked unit test cannot: a
+ *              customer-actor row persists and its FK resolves, the
+ *              exclusive-arc CHECK rejects a dual-FK insert, deleting a
+ *              CustomerUser nulls the FK (SetNull) yet retains the immutable
+ *              evidence row, a system row persists with both actor FKs null, an
+ *              admin row is unchanged, and DSAR anonymization nulls the customer
+ *              FK while `actorType` survives.
  * @layer infrastructure
  */
 
@@ -15,6 +15,7 @@ import { describe, it, before, after, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { prisma } from "@infra/prisma";
 import { PrismaAuditLogRepository } from "../../src/infrastructure/repositories/PrismaAuditLogRepository.js";
+import { AuditService } from "../../src/audit/auditService.js";
 
 // Actor-type literals asserted against the DB. The production discriminator is
 // the const-object union AUDIT_ACTOR_TYPE (fitness #3); string literals here are
@@ -217,6 +218,66 @@ describe("AuditLog polymorphic actor — real database", () => {
     assert.equal(row?.userId, adminUserId);
     assert.equal(row?.customerUserId, null);
     assert.equal(row?.actorType, ADMIN);
+  });
+
+  it("getLogs resolves the CUSTOMER actor identity against the real relation", async () => {
+    const auditService = new AuditService(prisma);
+
+    await trackedAuditCreate({
+      action: "A2_READPATH_CUSTOMER_LOGIN",
+      actorType: CUSTOMER,
+      customerUserId,
+      accountId,
+    });
+
+    const result = await auditService.getLogs({ action: "A2_READPATH_CUSTOMER_LOGIN" });
+
+    assert.ok(result.ok, "getLogs must succeed");
+    const row = result.value.find((log) => log.customerUserId === customerUserId);
+    assert.ok(row, "the customer-actor row must be returned");
+    assert.equal(row?.actorType, CUSTOMER);
+    assert.equal(row?.customerUser?.id, customerUserId, "the customer relation resolves");
+    assert.ok(
+      row?.customerUser?.email.startsWith("audit-actor-customer-"),
+      "the customer actor exposes its identity, not a null user"
+    );
+    assert.equal(row?.user ?? null, null, "no AdminUser is attached to a customer row");
+  });
+
+  it("getStats counts a customer actor by identity and keeps SYSTEM rows distinguishable", async () => {
+    const auditService = new AuditService(prisma);
+
+    await trackedAuditCreate({
+      action: "A2_STATS_CUSTOMER_ONE",
+      actorType: CUSTOMER,
+      customerUserId,
+      accountId,
+    });
+    await trackedAuditCreate({
+      action: "A2_STATS_CUSTOMER_TWO",
+      actorType: CUSTOMER,
+      customerUserId,
+      accountId,
+    });
+    await trackedAuditCreate({ action: "A2_STATS_ADMIN", actorType: ADMIN, userId: adminUserId });
+    await trackedAuditCreate({ action: "A2_STATS_SYSTEM", actorType: SYSTEM, accountId });
+
+    const result = await auditService.getStats({ action: "A2_STATS_" });
+
+    assert.ok(result.ok, "getStats must succeed");
+    assert.deepEqual(
+      result.value.byActorType,
+      { SYSTEM: 1, ADMIN: 1, CUSTOMER: 2 },
+      "system rows stay distinguishable from customer rows via actorType"
+    );
+
+    assert.equal(result.value.topCustomerUsers.length, 1, "one customer identity is counted");
+    assert.equal(result.value.topCustomerUsers[0]?.count, 2);
+    assert.equal(result.value.topCustomerUsers[0]?.user, "Cust Actor");
+
+    assert.equal(result.value.topUsers.length, 1, "the admin bucket still counts only admins");
+    assert.equal(result.value.topUsers[0]?.user, "Audit Actor Admin");
+    assert.equal(result.value.topUsers[0]?.count, 1);
   });
 
   it("anonymizeCustomerUser nulls the customer FK while actorType stays CUSTOMER (DSAR)", async () => {

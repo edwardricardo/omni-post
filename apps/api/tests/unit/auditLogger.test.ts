@@ -748,7 +748,7 @@ describe("AuditLogger Tests", () => {
   });
 
   // =========================================================================
-  // Test Group 8: actorType derivation (audit-actor-polymorphism)
+  // Test Group 8: actorType derivation
   // =========================================================================
 
   describe("actorType derivation", () => {
@@ -811,6 +811,69 @@ describe("AuditLogger Tests", () => {
       expect(log?.actorType).toBe("SYSTEM");
       expect(log?.userId).toBeFalsy();
       expect(log?.customerUserId).toBeFalsy();
+    });
+  });
+
+  // =========================================================================
+  // Test Group 9: getStatistics actor visibility
+  // =========================================================================
+
+  describe("getStatistics — actor visibility", () => {
+    it("counts a customer actor per identity via topCustomerUsers, not the null bucket", async () => {
+      stores.customerUser.add({
+        id: "stats-cust-1",
+        email: "stats-customer@example.com",
+        firstName: "Stats",
+        lastName: "Customer",
+      });
+
+      await auditLogger.log({
+        action: "STATS_CUSTOMER_ACTION",
+        customerUserId: "stats-cust-1",
+        success: true,
+      });
+
+      const stats = await auditLogger.getStatistics("day");
+
+      expect(Array.isArray(stats.topCustomerUsers)).toBeTruthy();
+      const entry = stats.topCustomerUsers.find((u) => u.email === "stats-customer@example.com");
+      expect(entry).toBeTruthy();
+      expect(entry?.count).toBeGreaterThanOrEqual(1);
+      // The actor is resolved to its own identity, not left as an anonymous bucket.
+      expect(entry?.user).toBe("Stats Customer");
+      // And it is NOT smuggled into the ADMIN actor column, whose rows are keyed
+      // by a non-null `userId` — a customer row carries a null `userId`.
+      expect(stats.topUsers.some((u) => u.userId === "stats-cust-1")).toBe(false);
+    });
+
+    it("keeps SYSTEM rows distinguishable from CUSTOMER rows via byActorType", async () => {
+      await auditLogger.log({ action: "STATS_SYSTEM_ACTION", success: true });
+
+      const stats = await auditLogger.getStatistics("day");
+
+      expect(stats.byActorType).toBeTruthy();
+      expect(typeof stats.byActorType.SYSTEM).toBe("number");
+      expect(typeof stats.byActorType.ADMIN).toBe("number");
+      expect(typeof stats.byActorType.CUSTOMER).toBe("number");
+      // Both a SYSTEM row and a CUSTOMER row carry a null `userId`; the actor
+      // discriminator is what separates them, never the null FK.
+      expect(stats.byActorType.SYSTEM).toBeGreaterThanOrEqual(1);
+      expect(stats.byActorType.CUSTOMER).toBeGreaterThanOrEqual(1);
+    });
+
+    it("keeps admin topUsers counting unchanged (do-not-regress)", async () => {
+      await auditLogger.log({
+        action: "STATS_ADMIN_ACTION",
+        userId: "admin-priority",
+        success: true,
+      });
+
+      const stats = await auditLogger.getStatistics("day");
+
+      expect(Array.isArray(stats.topUsers)).toBeTruthy();
+      const entry = stats.topUsers.find((u) => u.userId === "admin-priority");
+      expect(entry).toBeTruthy();
+      expect(entry?.count).toBeGreaterThanOrEqual(1);
     });
   });
 });

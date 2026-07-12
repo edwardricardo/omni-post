@@ -98,6 +98,16 @@ export class AnalyticsComplianceHandler extends BaseRouteHandler {
               role: { select: { name: true } },
             },
           },
+          // CUSTOMER actor relation: without it a customer action reaches the
+          // compliance view as an actor-less row and renders as "Unknown".
+          customerUser: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
         },
         orderBy: orderByClause,
         skip: offset,
@@ -115,6 +125,16 @@ export class AnalyticsComplianceHandler extends BaseRouteHandler {
               role: log.user.role.name,
             }
           : null,
+        customerUserId: log.customerUserId,
+        customerUser: log.customerUser
+          ? {
+              id: log.customerUser.id,
+              email: log.customerUser.email,
+              firstName: log.customerUser.firstName,
+              lastName: log.customerUser.lastName,
+            }
+          : null,
+        actorType: log.actorType,
         action: log.action,
         resource: log.resource,
         resourceId: log.resourceId,

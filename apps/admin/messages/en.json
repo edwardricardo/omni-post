@@ -695,7 +695,10 @@
     },
     "audit": {
       "title": "Recent Audit Events",
-      "description": "Security and compliance related events"
+      "description": "Security and compliance related events",
+      "actorTypes": {
+        "customer": "Customer"
+      }
     },
     "gdprTitle": "GDPR/Privacy Compliance",
     "securityTitle": "Security Compliance",

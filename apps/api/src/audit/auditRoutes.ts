@@ -6,13 +6,9 @@
  */
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import {
-  IdSchema,
-  exportToCSV,
-  generateCSVFilename,
-  type ColumnDefinition,
-} from "@packages/api-common";
+import { IdSchema, exportToCSV, generateCSVFilename } from "@packages/api-common";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
+import { AUDIT_EXPORT_COLUMNS } from "./auditExportColumns.js";
 import type { AuditService } from "./auditService.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
@@ -366,23 +362,7 @@ class AuditRouteHandler extends BaseRouteHandler {
 
     if (format === "csv") {
       // Use RFC 4180 compliant CSV export utility
-      const columns: ColumnDefinition<(typeof logs)[0]>[] = [
-        {
-          key: "createdAt",
-          header: "Timestamp",
-          format: (date) => (date instanceof Date ? date.toISOString() : String(date)),
-        },
-        { key: "user.email", header: "User Email" },
-        { key: "action", header: "Action" },
-        { key: "resource", header: "Resource" },
-        { key: "resourceId", header: "Resource ID" },
-        { key: "success", header: "Success", format: (val) => String(val) },
-        { key: "ipAddress", header: "IP Address" },
-        { key: "userAgent", header: "User Agent" },
-        { key: "error", header: "Error" },
-      ];
-
-      const csv = exportToCSV(logs, columns, {
+      const csv = exportToCSV(logs, AUDIT_EXPORT_COLUMNS, {
         preventInjection: true,
         lineEnding: "CRLF",
       });

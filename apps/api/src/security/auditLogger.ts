@@ -9,10 +9,14 @@ import { Redis } from "ioredis";
 import type { FastifyRequest } from "fastify";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import {
+  AUDIT_ACTOR_TYPE,
   deriveActorType,
   type AuditActorType,
 } from "@core/domain/repositories/AuditLogRepository.js";
 import { logger } from "../lib/logger.js";
+
+/** Aggregated actor counts, one per `AuditActorType`. */
+type AuditActorTypeCounts = Record<AuditActorType, number>;
 
 interface AuditEvent {
   action: string;
@@ -327,6 +331,15 @@ export class AuditLogger {
     securityEvents: number;
     topActions: Array<{ action: string; count: number }>;
     topUsers: Array<{ userId: string; count: number }>;
+    /**
+     * Top CUSTOMER actors, counted per customer identity. Additive: `topUsers`
+     * above is untouched, so a customer action is no longer collapsed into
+     * the null-user bucket where it was indistinguishable from a system
+     * action.
+     */
+    topCustomerUsers: Array<{ user: string; email: string; count: number }>;
+    /** Row count per actor type — keeps SYSTEM rows distinguishable. */
+    byActorType: AuditActorTypeCounts;
   }> {
     try {
       const timeframeMappings = {
@@ -339,42 +352,94 @@ export class AuditLogger {
       const hoursBack = timeframeMappings[timeframe];
       const startDate = new Date(Date.now() - hoursBack * 60 * 60 * 1000);
 
-      const [totalEvents, failedEvents, securityEvents, actionStats, userStats] = await Promise.all(
-        [
-          this.prisma.auditLog.count({
-            where: { createdAt: { gte: startDate } },
-          }),
-          this.prisma.auditLog.count({
-            where: {
-              createdAt: { gte: startDate },
-              success: false,
-            },
-          }),
-          this.prisma.auditLog.count({
-            where: {
-              createdAt: { gte: startDate },
-              action: { contains: "SECURITY" },
-            },
-          }),
-          this.prisma.auditLog.groupBy({
-            by: ["action"],
-            where: { createdAt: { gte: startDate } },
-            _count: { action: true },
-            orderBy: { _count: { action: "desc" } },
-            take: 10,
-          }),
-          this.prisma.auditLog.groupBy({
-            by: ["userId"],
-            where: {
-              createdAt: { gte: startDate },
-              userId: { not: null },
-            },
-            _count: { userId: true },
-            orderBy: { _count: { userId: "desc" } },
-            take: 10,
-          }),
-        ]
-      );
+      const [
+        totalEvents,
+        failedEvents,
+        securityEvents,
+        actionStats,
+        userStats,
+        customerUserStats,
+        actorTypeStats,
+      ] = await Promise.all([
+        this.prisma.auditLog.count({
+          where: { createdAt: { gte: startDate } },
+        }),
+        this.prisma.auditLog.count({
+          where: {
+            createdAt: { gte: startDate },
+            success: false,
+          },
+        }),
+        this.prisma.auditLog.count({
+          where: {
+            createdAt: { gte: startDate },
+            action: { contains: "SECURITY" },
+          },
+        }),
+        this.prisma.auditLog.groupBy({
+          by: ["action"],
+          where: { createdAt: { gte: startDate } },
+          _count: { action: true },
+          orderBy: { _count: { action: "desc" } },
+          take: 10,
+        }),
+        this.prisma.auditLog.groupBy({
+          by: ["userId"],
+          where: {
+            createdAt: { gte: startDate },
+            userId: { not: null },
+          },
+          _count: { userId: true },
+          orderBy: { _count: { userId: "desc" } },
+          take: 10,
+        }),
+        // Top CUSTOMER actors — the second actor column (mirrors
+        // auditService.ts's getStats). A typed groupBy per actor FK keeps
+        // this within the Prisma query API; raw SQL is barred outside the
+        // audited exceptions.
+        this.prisma.auditLog.groupBy({
+          by: ["customerUserId"],
+          where: {
+            createdAt: { gte: startDate },
+            customerUserId: { not: null },
+          },
+          _count: { customerUserId: true },
+          orderBy: { _count: { customerUserId: "desc" } },
+          take: 10,
+        }),
+        // Actor-type breakdown — SYSTEM rows stay distinguishable from
+        // customer rows even though both carry a null `userId`.
+        this.prisma.auditLog.groupBy({
+          by: ["actorType"],
+          where: { createdAt: { gte: startDate } },
+          _count: { actorType: true },
+        }),
+      ]);
+
+      const customerUserIds = customerUserStats.map((stat) => stat.customerUserId!);
+      const customerUsers = await this.prisma.customerUser.findMany({
+        where: { id: { in: customerUserIds } },
+        select: { id: true, email: true, firstName: true, lastName: true },
+      });
+
+      const topCustomerUsers = customerUserStats.map((stat) => {
+        const customer = customerUsers.find((c) => c.id === stat.customerUserId);
+        const fullName = customer ? `${customer.firstName} ${customer.lastName}`.trim() : "";
+        return {
+          user: fullName || "Unknown",
+          email: customer?.email || "Unknown",
+          count: stat._count.customerUserId,
+        };
+      });
+
+      const byActorType: AuditActorTypeCounts = {
+        [AUDIT_ACTOR_TYPE.SYSTEM]: 0,
+        [AUDIT_ACTOR_TYPE.ADMIN]: 0,
+        [AUDIT_ACTOR_TYPE.CUSTOMER]: 0,
+      };
+      for (const stat of actorTypeStats) {
+        byActorType[stat.actorType] = stat._count.actorType;
+      }
 
       return {
         totalEvents,
@@ -388,6 +453,8 @@ export class AuditLogger {
           userId: stat.userId!,
           count: stat._count.userId,
         })),
+        topCustomerUsers,
+        byActorType,
       };
     } catch (_error: unknown) {
       logger.error({ err: _error }, "Failed to get audit statistics");
@@ -397,6 +464,12 @@ export class AuditLogger {
         securityEvents: 0,
         topActions: [],
         topUsers: [],
+        topCustomerUsers: [],
+        byActorType: {
+          [AUDIT_ACTOR_TYPE.SYSTEM]: 0,
+          [AUDIT_ACTOR_TYPE.ADMIN]: 0,
+          [AUDIT_ACTOR_TYPE.CUSTOMER]: 0,
+        },
       };
     }
   }

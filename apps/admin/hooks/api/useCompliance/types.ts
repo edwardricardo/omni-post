@@ -7,6 +7,8 @@
  * @layer infrastructure
  */
 
+import type { AuditActorType } from "../../../lib/api/types";
+
 // ---------------------------------------------------------------------------
 // Compliance overview
 // ---------------------------------------------------------------------------
@@ -33,6 +35,12 @@ interface AuditEvent {
   resource: string;
   result: "success" | "failure";
   details: string;
+  /**
+   * Actor discriminator. Lets the compliance view distinguish a customer actor
+   * from an admin/system row without inferring it from the resolved `user`
+   * string. Admin rows carry `ADMIN`.
+   */
+  actorType: AuditActorType;
 }
 
 export interface ComplianceData {
@@ -68,6 +76,12 @@ interface BackendAuditLog {
   id: string;
   userId: string | null;
   user: { id: string; name: string; email: string; role: string } | null;
+  /** CUSTOMER actor FK; `null` on ADMIN and SYSTEM rows. */
+  customerUserId: string | null;
+  /** Resolved CUSTOMER actor; `null` on ADMIN and SYSTEM rows. */
+  customerUser: { id: string; email: string; firstName: string; lastName: string } | null;
+  /** Actor discriminator emitted by the backend for every row. */
+  actorType: AuditActorType;
   action: string;
   resource: string | null;
   resourceId: string | null;

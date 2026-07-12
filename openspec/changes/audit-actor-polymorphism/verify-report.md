@@ -186,3 +186,406 @@ next to `AUDIT_ACTOR_TYPE`); the three local copies in `auditLogger.ts`, `audit/
 and `services/audit.ts` were removed in favor of importing it. The port contract test
 (`AuditLogRepository.test.ts`) is now the canonical home for the 6 derivation unit cases
 (21 pass, up from 15); the three writer test files keep their triangulation tests as consumers.
+
+---
+
+---
+
+# Verify Report — audit-actor-polymorphism / PR A2 (read-path visibility)
+
+- **Change**: `audit-actor-polymorphism` (PR **A2** — read-path visibility; base: main after A1)
+- **Branch**: `workstream/cluster-b-mfa` · A1 committed at `3242147a` (confirmed ancestor of `HEAD` `b97a4157`); uncommitted working tree = A2
+- **Mode**: openspec (files) + engram mirror · Strict TDD active · adversarial re-derivation at source + runtime
+- **Verdict**: **PASS WITH WARNINGS** — 0 CRITICAL · 2 WARNING · 4 SUGGESTION
+- **Date**: 2026-07-12
+- **Scope**: A2 (read path) + regression check that A1 still holds
+
+The MERGE-BLOCKING do-not-regress guarantee — **admin reads are byte-identical** — is
+**PROVEN**, not assumed: at source (line-by-line diff of all four read surfaces), at
+runtime (a CSV byte-parity test that replays the _pre-change_ column table as the
+baseline), and on a real database. No admin-visible count, column, order, or rendered
+value changed. Neither WARNING is an admin regression or a spec violation.
+
+---
+
+## A2.1 Completeness — tasks
+
+| Task                                               | Claim | Verified at source                                                                                 | Status |
+| -------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------- | ------ |
+| 8.1 [RED] stats/query/logger tests                 | `[x]` | New describes in `auditService.stats.test.ts`, `auditService.query.test.ts`, `auditLogger.test.ts` | OK     |
+| 8.2 [GREEN] `auditService.getStats` + `getLogs`    | `[x]` | `auditService.ts:325-368` (`topCustomerUsers` + `byActorType`), `:57-76` (`ACTOR_INCLUDE`)         | OK     |
+| 8.3 [SENSITIVE][GREEN] `auditLogger.getStatistics` | `[x]` | `auditLogger.ts:405-443` + error-path fallback `:464-472`                                          | OK     |
+| 9.1 [RED] CSV export test                          | `[x]` | `tests/unit/audit/auditExportColumns.test.ts` (new, exercises the real writer)                     | OK     |
+| 9.2 [GREEN] CSV columns                            | `[x]` | `auditExportColumns.ts` (new) + `auditRoutes.ts:365`                                               | OK     |
+| 10.1 [RED] frontend tests                          | `[x]` | `useAuditLogs.test.tsx`, `useCompliance.test.tsx`, `compliance/CompliancePage.test.tsx` (new)      | OK     |
+| 10.2 [GREEN] frontend type + view                  | `[x]` | `lib/api/types.ts:170-213`, `useCompliance/{types,api}.ts`, `compliance/page.tsx:305`              | OK     |
+| 10.3 A2 0-defect gate                              | `[x]` | Re-run independently below — all green                                                             | OK     |
+
+**9/9 tasks complete; every checkbox matches code state.** No unchecked implementation task.
+
+---
+
+## A2.2 The merge-blocking claim: admin reads are byte-identical
+
+Attacked hardest, across all four read surfaces. **Result: no regression on any.**
+
+| Surface                                    | What the diff actually does                                                                                                                                                                                                 | Admin impact                                    |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `auditService.ts` `getStats`               | Admin `groupBy(["userId"], where:{...where, userId:{not:null}})` + `adminUser.findMany` + the `topUsers` map (`:301-323`) are **outside every diff hunk** — untouched. `topCustomerUsers`/`byActorType` are appended after. | **None** — same filter, same counts, same shape |
+| `auditLogger.ts` `getStatistics`           | The 5 original queries are **re-indented only** (Promise.all array reflow); `userId:{not:null}`, `take:10`, `orderBy` all identical. Two queries appended to the same `Promise.all`.                                        | **None**                                        |
+| `auditRoutes.ts` + `auditExportColumns.ts` | Column table extracted verbatim into its own module; the 9 pre-change columns keep position **and** value; 2 columns appended at the end.                                                                                   | **None** (proven below)                         |
+| `apps/admin` compliance view               | ONE additive JSX block, guarded by `log.actorType === AUDIT_ACTOR_TYPE.CUSTOMER` (`page.tsx:305`). An admin row cannot enter it.                                                                                            | **None**                                        |
+
+**Runtime proof of CSV admin parity** — `auditExportColumns.test.ts` reconstructs the
+_pre-change_ column table as `LEGACY_COLUMNS` and asserts the new admin row is a
+byte-identical **prefix** of the old one:
+
+```
+expect(currentRow!.startsWith(`${legacyRow!},`)).toBe(true);   // 4/4 pass
+```
+
+Independent byte-probe (real `exportToCSV` + real `AUDIT_EXPORT_COLUMNS`, rows shaped as
+`getLogs` actually emits them):
+
+```
+HEADER  [UserEmail]="User Email"        [ActorType]="Actor Type"  [CustomerEmail]="Customer Email"
+ADMIN   [UserEmail]="admin@example.com" [ActorType]="ADMIN"       [CustomerEmail]=""
+CUSTMR  [UserEmail]="undefined"         [ActorType]="CUSTOMER"    [CustomerEmail]="jane@example.com"
+SYSTEM  [UserEmail]="undefined"         [ActorType]="SYSTEM"      [CustomerEmail]=""
+```
+
+Admin bytes unchanged. (The `"undefined"` on the non-admin rows is WARNING **A2-W1**.)
+
+---
+
+## A2.3 Spec compliance matrix (`specs/audit-actor-visibility/spec.md`)
+
+| Requirement / Scenario                                        | Evidence (source)                                                                                                                                               | Covering test (passed at runtime)                                                                                                                                                                                                                                                                  | Status    |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| **R1** Customer actors visible in logs and stats              | —                                                                                                                                                               | —                                                                                                                                                                                                                                                                                                  | COMPLIANT |
+| R1.S1 Stats no longer collapse customers into the null bucket | `auditService.ts:325-368`; `auditLogger.ts:405-443`                                                                                                             | `auditService.stats.test.ts` "counts customer actors per customer identity…" + `byActorType` `{SYSTEM:2,ADMIN:6,CUSTOMER:3}` (19/19); `auditLogger.test.ts` "getStatistics — actor visibility" (46/46); **integration** `byActorType` `deepEqual {SYSTEM:1,ADMIN:1,CUSTOMER:2}` on a real DB (8/8) | COMPLIANT |
+| R1.S2 `getLogs` returns the customer actor                    | `ACTOR_INCLUDE` `auditService.ts:57-76`, applied `:197`                                                                                                         | `auditService.query.test.ts` (17/17); **integration** "getLogs resolves the CUSTOMER actor identity against the real relation" — asserts `customerUser.id` + email, and `user === null` (8/8)                                                                                                      | COMPLIANT |
+| **R2** CSV export carries the customer actor identity         | —                                                                                                                                                               | —                                                                                                                                                                                                                                                                                                  | COMPLIANT |
+| R2.S1 Customer row exports a non-blank actor                  | `auditExportColumns.ts:39-49`                                                                                                                                   | `auditExportColumns.test.ts` `cells[10] === "customer@example.com"`, `cells[9] === "CUSTOMER"` (4/4) + byte-probe above                                                                                                                                                                            | COMPLIANT |
+| R2.S2 Admin row exports identically to today                  | `auditExportColumns.ts:25-38` (9 frozen columns)                                                                                                                | `auditExportColumns.test.ts` legacy-prefix byte assertion (4/4)                                                                                                                                                                                                                                    | COMPLIANT |
+| **R3** API response + admin frontend type expose the actor    | —                                                                                                                                                               | —                                                                                                                                                                                                                                                                                                  | COMPLIANT |
+| R3.S1 Frontend type represents a customer actor               | `lib/api/types.ts:170-213` (`AUDIT_ACTOR_TYPE` const-object union); `useCompliance/types.ts:39,76-84`; backend emitter `AnalyticsComplianceHandlers.ts:101-137` | `useCompliance.test.tsx` "resolves a customer-actor row to the customer identity" -> `"Jane Doe"` (7/7); `useAuditLogs.test.tsx` (7/7)                                                                                                                                                             | COMPLIANT |
+| R3.S2 Admin rows render unchanged                             | `compliance/page.tsx:305` (customer-only guard)                                                                                                                 | `CompliancePage.test.tsx` — admin row renders "Alice", asserts exactly ONE actor badge in the tab, i.e. the admin row gained none (2/2)                                                                                                                                                            | COMPLIANT |
+
+**No spec requirement is UNTESTED or FAILING.** Every scenario has a covering test that
+passed at runtime.
+
+### Frontend data-path verification (the apply's discovery — CONFIRMED TRUE)
+
+- `useAuditLogs` has **no page or component consumer** (`rg` over `apps/admin/app` + `components` -> 0 hits; only its own definition + test). Page-less: **true**.
+- The compliance view's real path is `useCompliance` -> `fetch("/api/backend/admin/compliance/audit-logs")` (`useCompliance/api.ts:52`) -> served by `AnalyticsComplianceHandlers` (`GET /api/admin/compliance/audit-logs`).
+- **Shape match verified field-for-field**: the handler emits `customerUserId`, `customerUser{id,email,firstName,lastName}|null`, `actorType` (`AnalyticsComplianceHandlers.ts:128-137`); `BackendAuditLog` (`useCompliance/types.ts:76-84`) declares exactly those. **No undefined-render risk.** Both paths extended.
+
+### SYSTEM vs CUSTOMER disambiguation (ADR-0020's core principle)
+
+Grepped every added line for actor identity inferred from a null FK. **No reader derives
+the actor TYPE from a null FK.** `actorType` is passed through end-to-end
+(`AnalyticsComplianceHandlers.ts:137` -> `useCompliance/api.ts:127` -> `page.tsx:305`), and
+the badge switches on it. The ambiguity ADR-0020 exists to kill is not reintroduced.
+(One display-name coalescing chain remains — SUGGESTION **A2-S1**, not a bug.)
+
+---
+
+## A2.4 Test honesty audit
+
+Every modified test file was diffed for weakened or deleted assertions:
+
+```
+git diff -U0 <file> | rg '^-[^-]'   ->  ZERO deleted assertions across ALL 8 modified test files
+```
+
+The only deleted lines in the entire test diff are one comment (`mockPrisma.ts`) and one
+destructuring statement (`analyticsRoutes.test.ts`). **No assertion was weakened, relaxed,
+or removed to make the suite pass.**
+
+Specifically checked, since the `auditService.stats.test.ts` seed grew by 3 customer rows:
+the pre-existing `Basic Counts` / `Top Actions` / `Top Users` assertions were **already**
+loose (`total >= 8`, `count >= 3`, ordering-only) and sit **outside every diff hunk** — they
+were not touched. A2 _strengthened_ the admin guarantee by ADDING an exact-equality assertion
+that did not exist before:
+
+```ts
+expect(result.value.topUsers).toEqual([
+  { user: "Audit Test User", email: "audit-test-user@example.com", count: 3 },
+  { user: "Audit Test User 2", email: "audit-test-user2@example.com", count: 3 },
+]);
+```
+
+**Blast-radius check on the shared helper**: `mockPrisma.ts` now injects
+`customerUserId: null` + `actorType: "SYSTEM"` into `auditLogDefaults`, which touches every
+mocked auditLog row across 32 consumer test files. All 6 consumers that actually reference
+the auditLog store were re-run: **all green** (below). No hidden fallout.
+
+---
+
+## A2.5 Runtime evidence (LXC-safe: one file per run, heap-capped, timeout-wrapped)
+
+Runner: `NODE_OPTIONS="--max-old-space-size=4096" timeout <n> pnpm --filter <pkg> exec vitest run <file> --pool=forks --maxWorkers=1 --no-file-parallelism`
+
+| Suite                                                                                                                               | Result                                 |
+| ----------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `apps/api` `tests/unit/auditService.stats.test.ts`                                                                                  | **19 passed**                          |
+| `apps/api` `tests/unit/audit/auditExportColumns.test.ts` (new)                                                                      | **4 passed**                           |
+| `apps/api` `tests/unit/auditLogger.test.ts`                                                                                         | **46 passed**                          |
+| `apps/api` `tests/unit/auditRoutes.test.ts`                                                                                         | **35 passed**                          |
+| `apps/api` `tests/unit/auditService.query.test.ts`                                                                                  | **17 passed**                          |
+| `apps/api` `tests/unit/analyticsRoutes.test.ts`                                                                                     | **19 passed**                          |
+| `apps/admin` `tests/unit/hooks/useCompliance.test.tsx`                                                                              | **7 passed**                           |
+| `apps/admin` `tests/unit/hooks/useAuditLogs.test.tsx`                                                                               | **7 passed**                           |
+| `apps/admin` `tests/unit/compliance/CompliancePage.test.tsx` (new)                                                                  | **2 passed**                           |
+| **mockPrisma blast radius** — `authService` / `accountLifecycleService` / `mfaRoutes` / `rbacService` / `authRoutes` / `rbacRoutes` | **24 / 14 / 29 / 17 / 19 / 38 passed** |
+
+**A1 regression (real DB; `pnpm db:up` -> `omnipost-infra` OK):**
+
+```
+node --conditions development --import tsx --test --test-force-exit --test-concurrency=1 \
+  tests/integration/auditActorPolymorphism.integration.test.ts
+# tests 8 · # pass 8 · # fail 0 · # cancelled 0 · # skipped 0
+```
+
+Covers A1's exclusive-arc CHECK, `SetNull`-on-delete, `deriveActorType` FK-wins, and
+`anonymizeCustomerUser` (DSAR) — **A1 still holds** — plus A2's real-relation `getLogs` and
+`getStats` actor counts. **0 cancelled** (canon requires it).
+
+**Total: 305 tests passed, 0 failed, 0 cancelled.**
+
+---
+
+## A2.6 0-defect gate
+
+| Gate                                | Command                                                                   | Result                                                          |
+| ----------------------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Typecheck API                       | `pnpm --filter @apps/api exec tsc --noEmit` (`--max-old-space-size=6144`) | **0 errors**                                                    |
+| Typecheck Admin                     | `pnpm --filter @apps/admin exec tsc --noEmit`                             | **0 errors**                                                    |
+| Lint (20 touched files)             | `eslint --max-warnings 0`                                                 | **0 errors / 0 warnings**                                       |
+| Fitness #3 (no `any`)               | exact grep                                                                | **0**                                                           |
+| Fitness #8 (sprint/phase refs)      | exact grep                                                                | **0** (see A2-W2 — the regex does not catch the bare `A2` form) |
+| Fitness #9 (`@file` header)         | exact grep                                                                | **0**                                                           |
+| Fitness #10 (`@layer` values)       | exact grep                                                                | **0**                                                           |
+| Fitness #12 (`@component`)          | exact loop                                                                | **0**                                                           |
+| Fitness #17 (`process.env` in Next) | exact grep                                                                | **0**                                                           |
+| Fitness #21 (prisma singleton)      | exact grep                                                                | **0**                                                           |
+| Tripwire vocabulary on the A2 diff  | added-lines scan                                                          | **0** blocking hits                                             |
+| i18n parity                         | `pnpm --filter @apps/admin i18n:lint`                                     | **OK — en:1312 es:1312**, valid ICU, key + arg parity           |
+
+New key `compliance.audit.actorTypes.customer` present in **both** `en` ("Customer") and
+`es` ("Cliente").
+
+**Scope**: A2 touched **no** schema, migration, or MFA file (`git status` -> none). No
+`mfa-consolidation` regression surface. A2 is read-only over A1's schema, as designed.
+
+---
+
+## A2.7 Issues
+
+### CRITICAL — none
+
+No admin-visible count, column, order, or rendered value changed. Nothing blocks archive.
+
+### WARNING
+
+**A2-W1 — The frozen `"User Email"` CSV column emits the literal string `undefined` for
+CUSTOMER and SYSTEM rows.**
+`apps/api/src/audit/auditExportColumns.ts:31` — `{ key: "user.email", header: "User Email" }`
+carries no `format`, and `exportToCSV` does `String(extractFieldValue(...))`
+(`packages/shared/src/csv.ts:131` + `:191-208`), so an unresolved nested path stringifies to
+`"undefined"`. Proven by byte-probe (section A2.2).
+_Not an admin regression_ (admin rows always resolve `user.email`; their bytes are unchanged)
+and _not a spec violation_ (the customer identity IS carried by the new `"Customer Email"`
+column, satisfying R2.S1). It is **pre-existing** for SYSTEM rows — the legacy column table
+had the identical unformatted column. But A2 makes customer rows exportable for the first
+time, so this garbage value now lands on the exact row class the change exists to surface,
+**inside a compliance artifact** that auditors read. The apply was aware of the behavior (it
+added a blanking `format` to the _new_ column, `:43-48`) and deliberately froze the legacy one.
+_Recommended follow-up_: add the same blanking `format` to `"User Email"`. It **cannot**
+regress admin bytes — an admin row always has a resolved `user`, so the formatter is a no-op
+there; only SYSTEM/CUSTOMER rows change (`"undefined"` -> `""`), which is the desired outcome.
+
+**A2-W2 — Development-slice references in production and test comments.**
+`apps/api/src/security/auditLogger.ts:338`, `apps/admin/lib/api/types.ts:205`,
+`apps/admin/hooks/api/useCompliance/types.ts:39`, `apps/api/tests/unit/auditLogger.test.ts:818`
+("…A2, 8.3" — a task number), `apps/admin/tests/unit/hooks/useAuditLogs.test.tsx:195`,
+`apps/admin/tests/unit/compliance/CompliancePage.test.tsx:4`.
+`CODING_STANDARDS.md` section "Comment Quality Rules": _"No references to sprint numbers,
+implementation phases, or development timeline — belong in git history, not source code."_
+`A2` and `8.3` are exactly that. **Fitness #8's regex does not match the bare `A2` form**
+(count = 0 -> CI stays green), so this is a canon violation CI cannot see. These comments rot
+the moment the change is archived and "A2" stops meaning anything. Strip the slice labels;
+keep the behavioral prose (which is genuinely good).
+
+### SUGGESTION
+
+**A2-S1** — `apps/admin/hooks/api/useCompliance/api.ts:120` resolves the display name with a
+coalescing chain (`log.user?.name ?? customerDisplayName(log.customerUser) ?? log.userId ?? "Unknown"`)
+rather than switching on `actorType`. It is correct **today** only because A1's exclusive-arc
+CHECK guarantees at most one actor FK is non-null (verified live in the integration test). The
+actor _type_ is never inferred from a null FK, so ADR-0020's ambiguity is not reintroduced — but
+an explicit `switch (log.actorType)` would make the reader's contract self-evident and immune
+to any future relaxation of the arc.
+
+**A2-S2** — The compliance view badges only `CUSTOMER` (`page.tsx:305`). A SYSTEM row and a
+DSAR-anonymized ADMIN row both render as `"Unknown"` with no badge, so they stay visually
+indistinguishable even though `actorType` is now on the DTO. Badging all three actor types is
+a cheap win and completes the "readers switch on actorType" story.
+
+**A2-S3** — Both `getStats` (`auditService.ts:336`) and `getStatistics` (`auditLogger.ts:428`)
+run `customerUser.findMany` **after** the `groupBy` resolves, adding a serial round-trip. It
+mirrors the existing `adminUser.findMany` shape (so it is internally consistent), but the
+lookup could join the `Promise.all`.
+
+**A2-S4** — `CompliancePage.test.tsx:21` uses the word "Stub" in a comment; `stub` is in the
+pre-edit tripwire vocabulary. Used in its legitimate testing sense (a `vi.mock` test double),
+not as a placeholder-implementation smell — no action needed, but a future edit to that file
+may trip the hook.
+
+---
+
+## A2.8 Verdict
+
+**PASS WITH WARNINGS** — 0 CRITICAL · 2 WARNING · 4 SUGGESTION.
+
+A2 delivers every spec requirement with runtime proof, and the merge-blocking do-not-regress
+guarantee holds under adversarial re-derivation: admin reads are byte-identical at source, in
+the emitted CSV bytes, and against a real database. Test honesty is clean — zero assertions
+were weakened, and the admin guarantee was actually _strengthened_ with a new exact-equality
+assertion. The 0-defect gate is green. Neither WARNING blocks archive; **A2-W1** (the
+`"undefined"` cell in the compliance CSV) should be fixed or logged as backlog before that
+export is trusted by an auditor.
+
+**Next**: `sdd-archive`.
+
+---
+
+## Post-verify remediation (A2)
+
+Owner policy: resolvable warnings are closed BEFORE commit, never carried. Both WARNINGs are
+resolved. The 4 SUGGESTIONs are each dispositioned explicitly below.
+
+### A2-W1 — RESOLVED: the `"User Email"` column no longer emits the literal `undefined`
+
+`apps/api/src/audit/auditExportColumns.ts` — the column now carries a `format`
+(`formatOptionalCell`) that renders an absent relation as an **empty cell**:
+
+```ts
+{ key: "user.email", header: "User Email", format: formatOptionalCell }
+```
+
+The same helper replaces the inline formatter that the `"Customer Email"` column already
+carried, so both relation columns share one blank-cell rule instead of duplicating it.
+
+**Admin bytes proven unchanged.** The formatter is a strict no-op when the value resolves
+(`value === null || value === undefined ? "" : String(value)`), and an ADMIN row always
+resolves `user.email`. This is now asserted, not asserted-by-argument — RED→GREEN in
+`apps/api/tests/unit/audit/auditExportColumns.test.ts` (4 → 8 tests):
+
+| Test                                                                          | Before fix                  | After fix           |
+| ----------------------------------------------------------------------------- | --------------------------- | ------------------- |
+| `renders an empty User Email cell for a customer row`                         | FAIL — cell was `undefined` | PASS — cell is `""` |
+| `renders an empty User Email cell for a system row`                           | FAIL — cell was `undefined` | PASS — cell is `""` |
+| `never fabricates a value in an actor column, for any actor type`             | FAIL                        | PASS                |
+| `keeps the admin User Email cell byte-identical once the column is formatted` | PASS (guard)                | PASS (guard)        |
+
+The pre-existing byte-freeze guard (`keeps the admin actor row byte-identical to the
+pre-change export`, asserting the `LEGACY_COLUMNS` prefix) was **not weakened** — it still
+compares the admin row emitted through the pre-change column table against the current one and
+still passes. The new byte test adds an exact cell-level equality on top of the prefix check.
+
+### A2-W2 — RESOLVED: development-slice references stripped, prose kept
+
+Every comment kept the behavioral prose (which explains WHY and is worth keeping); only the
+slice/task label was removed. Nine call sites across the change's file set:
+
+| File                                                          | Was                                                                 | Now                                      |
+| ------------------------------------------------------------- | ------------------------------------------------------------------- | ---------------------------------------- |
+| `apps/api/src/security/auditLogger.ts:338`                    | `…a system action (audit-actor-polymorphism A2).`                   | `…a system action.`                      |
+| `apps/admin/lib/api/types.ts:205`                             | `Additive (audit-actor-polymorphism A2): admin rows…`               | `Additive: admin rows…`                  |
+| `apps/admin/hooks/api/useCompliance/types.ts:39`              | `Actor discriminator (audit-actor-polymorphism A2).`                | `Actor discriminator.`                   |
+| `apps/admin/app/[locale]/(dashboard)/compliance/page.tsx:302` | `…invisible in this view before A2`                                 | `…used to be invisible in this view`     |
+| `apps/api/tests/unit/auditLogger.test.ts:751`                 | `actorType derivation (audit-actor-polymorphism)`                   | `actorType derivation`                   |
+| `apps/api/tests/unit/auditLogger.test.ts:818`                 | `getStatistics actor visibility (audit-actor-polymorphism A2, 8.3)` | `getStatistics actor visibility`         |
+| `apps/admin/tests/unit/hooks/useAuditLogs.test.tsx:195`       | `customer actor visibility (audit-actor-polymorphism A2)`           | `customer actor visibility`              |
+| `apps/admin/tests/unit/hooks/useCompliance.test.tsx:219`      | `Before A2 the mapper joined only…`                                 | `The mapper used to join only…`          |
+| `apps/admin/tests/unit/compliance/CompliancePage.test.tsx:4`  | `Proves the audit-actor-polymorphism A2 read-path`                  | `Proves the polymorphic-actor read path` |
+
+A repo-wide re-scan over the change's file set surfaced **four more** of the same class that
+the verify had not enumerated (`A1` / `post-A1` slice tags, carried in from the previous PR).
+They are fixed in the same pass:
+
+| File                                                                      | Was                                             | Now                                    |
+| ------------------------------------------------------------------------- | ----------------------------------------------- | -------------------------------------- |
+| `apps/api/tests/integration/auditActorPolymorphism.integration.test.ts:4` | `(change \`audit-actor-polymorphism\`, PR A1)`  | removed                                |
+| `apps/api/tests/unit/analyticsRoutes.test.ts:136`                         | `written by the customer flows since A1`        | `written by the customer-facing flows` |
+| `apps/api/tests/unit/auditRoutes.test.ts:173`                             | `written by the customer-facing flows since A1` | `written by the customer-facing flows` |
+| `apps/api/tests/unit/auditService.stats.test.ts:168,185`                  | `(post-A1: \`userId\` FK…)`                     | `: \`userId\` FK…`                     |
+
+Final scan over the change's file set: **zero** surviving phase/slice/task references. (The
+three `task` hits remaining in `auditLogger.ts` are the background-_task_ scheduler's own
+vocabulary — domain language, not a development timeline.)
+
+### Fitness #8 has a blind spot — BACKLOG
+
+Fitness **#8** (`CLAUDE.md` section "Automated Compliance Checks") matches `Sprint [0-9A-Z]`,
+`Phase [0-9]`, `T0A_`, `(P[0-9])` and similar — but **not** the bare slice form (`A1`, `A2`) nor
+the bare task-number form (`8.3`). Both were present in production source and CI stayed green
+(count = 0). The guard could not see the violation it exists to prevent. Widening that regex
+is a repo-wide change (it will surface pre-existing hits across other workstreams and needs a
+documented baseline per the "Extending the suite" protocol), so it is **not** done inside this
+change — routed to backlog.
+
+### Legacy CSV columns stringify absent optionals — BACKLOG (needs spec sign-off)
+
+Found while fixing A2-W1, and deliberately **not** fixed here. Five pre-change columns carry no
+`format` (`Resource`, `Resource ID`, `IP Address`, `User Agent`, `Error`), so `exportToCSV`'s
+`String(value)` renders an absent optional as the literal `"null"` / `"undefined"`. Same defect
+class as A2-W1, but the fix is **not** in scope: those columns are inside the nine-column
+pre-change set that the spec freezes byte-for-byte, and blanking them **would change ADMIN row
+bytes** — i.e. fixing them requires relaxing the merge-blocking do-not-regress guarantee, which
+is a spec decision, not a remediation. The new guard test is therefore scoped to the three
+actor columns A2 actually owns, and says so in a comment.
+
+### SUGGESTION dispositions
+
+| ID                                                                                       | Disposition                                                 | Reason                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ---------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **A2-S1** (`actorType` switch instead of the coalescing chain in `useCompliance/api.ts`) | **Accepted, deferred to backlog**                           | Behavior-identical readability refactor. The verify itself confirms correctness holds today (the exclusive-arc CHECK guarantees at most one non-null actor FK, proven live in the integration test) and that ADR-0020's ambiguity is _not_ reintroduced. Not a defect → not a pre-commit blocker, and widening the remediation diff to a no-op refactor is exactly the scope creep this policy avoids. |
+| **A2-S2** (badge all three actor types)                                                  | **Rejected for this change; backlog as a product decision** | Badging ADMIN rows would **change the ADMIN row's rendered markup** — a direct violation of the spec's merge-blocking guarantee that admin rows render identically. It cannot land here without a spec amendment. (Badging SYSTEM alone is admin-safe but is a product/UX call, not a defect.)                                                                                                         |
+| **A2-S3** (`customerUser.findMany` joins the `Promise.all`)                              | **Accepted, deferred to backlog**                           | Pure latency micro-optimization on one serial round-trip; no correctness impact. It mirrors the existing `adminUser.findMany` shape, so the current code is internally consistent. Not a defect.                                                                                                                                                                                                       |
+| **A2-S4** (the word "Stub" in a `CompliancePage.test.tsx` comment)                       | **FIXED**                                                   | Zero-risk one-word comment change (`Stub the app's navigation barrel` → `Mock the app's navigation barrel`). The usage was legitimate (a `vi.mock` test double), but the word is in the pre-edit tripwire vocabulary and would trap a future edit to that file for no benefit. Cheaper to remove than to explain forever.                                                                              |
+
+### Post-remediation gate — 0 defect
+
+All runs LXC-safe: one file per run, `--pool=forks --maxWorkers=1 --no-file-parallelism`,
+heap-capped, `timeout`-wrapped.
+
+| Suite                                                      | Tests     | Result |
+| ---------------------------------------------------------- | --------- | ------ |
+| `apps/api/tests/unit/audit/auditExportColumns.test.ts`     | 8 (was 4) | pass   |
+| `apps/api/tests/unit/auditRoutes.test.ts`                  | 35        | pass   |
+| `apps/api/tests/unit/auditLogger.test.ts`                  | 46        | pass   |
+| `apps/api/tests/unit/auditService.stats.test.ts`           | 19        | pass   |
+| `apps/api/tests/unit/auditService.query.test.ts`           | 17        | pass   |
+| `apps/api/tests/unit/analyticsRoutes.test.ts`              | 19        | pass   |
+| `apps/admin/tests/unit/hooks/useCompliance.test.tsx`       | 7         | pass   |
+| `apps/admin/tests/unit/hooks/useAuditLogs.test.tsx`        | 7         | pass   |
+| `apps/admin/tests/unit/compliance/CompliancePage.test.tsx` | 2         | pass   |
+
+0 failed · 0 cancelled · 0 skipped.
+
+| Gate                                          | Result                |
+| --------------------------------------------- | --------------------- |
+| `tsc --noEmit` @apps/api                      | 0 errors              |
+| `tsc --noEmit` @apps/admin                    | 0 errors              |
+| `eslint --max-warnings 0` (all touched files) | 0 errors · 0 warnings |
+| `prettier --check` (all touched files)        | clean                 |
+| Fitness #3 (no `any`)                         | 0                     |
+| Fitness #8 (sprint/phase refs)                | 0                     |
+| Fitness #9 (`@file` header)                   | 0                     |
+| Fitness #10 (`@layer` values)                 | 0                     |
+
+**Post-remediation verdict**: **PASS** — 0 CRITICAL · 0 WARNING · 4 SUGGESTION dispositioned
+(1 fixed, 2 backlog, 1 rejected with spec rationale). Ready for `sdd-archive`.

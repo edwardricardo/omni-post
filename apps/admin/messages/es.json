@@ -695,7 +695,10 @@
     },
     "audit": {
       "title": "Eventos de auditoria recientes",
-      "description": "Eventos relacionados con seguridad y cumplimiento"
+      "description": "Eventos relacionados con seguridad y cumplimiento",
+      "actorTypes": {
+        "customer": "Cliente"
+      }
     },
     "gdprTitle": "Cumplimiento GDPR/Privacidad",
     "securityTitle": "Cumplimiento de seguridad",

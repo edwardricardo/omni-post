@@ -21,6 +21,7 @@ import { GdprSettingsForm } from "@/components/compliance/GdprSettingsForm";
 import { DsarTable } from "@/components/compliance/DsarTable";
 import { SecuritySettingsForm } from "@/components/compliance/SecuritySettingsForm";
 import { BreachTable } from "@/components/compliance/BreachTable";
+import { AUDIT_ACTOR_TYPE } from "@/lib/api/types";
 
 const TAB_KEYS = ["overview", "gdpr", "security", "breaches", "audit"] as const;
 
@@ -297,6 +298,13 @@ function CompliancePageContent() {
                         <span className="font-medium text-[var(--text-primary)]">
                           {log.action.replace("_", " ")}
                         </span>
+                        {/* Customer actors used to be invisible in this view
+                            (they collapsed to "Unknown"); the badge marks the
+                            row's actor type. Admin/system rows are unchanged —
+                            the guard keeps their markup identical. */}
+                        {log.actorType === AUDIT_ACTOR_TYPE.CUSTOMER && (
+                          <Badge variant="info">{tco("audit.actorTypes.customer")}</Badge>
+                        )}
                       </div>
                       <div className="mt-1 text-sm text-[var(--text-secondary)]">
                         <span className="font-medium">{log.user}</span> → {log.resource}
