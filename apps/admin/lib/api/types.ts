@@ -182,7 +182,7 @@ export const AUDIT_ACTOR_TYPE = {
 export type AuditActorType = (typeof AUDIT_ACTOR_TYPE)[keyof typeof AUDIT_ACTOR_TYPE];
 
 /** Identity of the CUSTOMER actor behind an audit row (`customerUser` relation). */
-export interface AuditActorCustomer {
+interface AuditActorCustomer {
   id: string;
   email: string;
   firstName: string;

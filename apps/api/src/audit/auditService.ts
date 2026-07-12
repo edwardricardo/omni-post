@@ -18,7 +18,7 @@ import { BaseService } from "../services/BaseService.js";
  * `customerUser` relation. Mirrors the shape of the ADMIN actor's `user`
  * relation so every reader can render an actor without null-inference.
  */
-export interface AuditCustomerActor {
+interface AuditCustomerActor {
   id: string;
   email: string;
   firstName: string;
