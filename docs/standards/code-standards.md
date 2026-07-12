@@ -19,7 +19,7 @@ This rule is non-negotiable. It applies to every contributor (human or AI), ever
 
 The D0v4-1 backend audit (2026-04-20, `docs/audits/D0v4_1_BACKEND_SERVICES_REPORT.md`) found **6 duplications accumulated over time**, each representing unmaintainable parallel paths, asymmetric-sync bugs, and DRY violations:
 
-1. **MFA duality** — `auth/mfaService.ts` (OLD, 521 LOC, SHA-256, `passwordResetToken` field HACK) coexists with `admin/auth/MfaService.ts` (NEW, 244 LOC, argon2). **Both in production**; only OLD is wired in DI.
+1. **MFA duality** — ~~`auth/mfaService.ts` (OLD) coexists with `admin/auth/MfaService.ts` (NEW); only OLD is wired in DI.~~ **RESOLVED** (N-SEC-5, 2026-07-11): the legacy service is deleted, one port-based service serves both subjects via DI, and the backup codes were migrated off `passwordResetToken` into their own column. Two corrections to this original finding, verified against the pre-deletion source: the legacy hashed backup codes with the canonical **argon2id** helper, **not SHA-256** — the only hack was the storage _location_ (`passwordResetToken`), not the hasher; and the legacy was **not** in production (the DI registered the unified service). See `openspec/changes/archive/mfa-consolidation/`.
 2. **`reports/` vs `custom-reports/`** — two parallel scheduled-report systems with overlapping entities, repos, and UCs.
 3. **`content/SyncEngineImpl` stubs duplicating `content/ConflictDetector` + `content/SyncScheduler`** — identical method names, fully functional code in helpers, stubs in the main engine that never reference the helpers.
 4. **`providers/providerRegistry` + `providers/providerCapabilityManager`** — `getProvidersByCapability` implemented twice with near-identical logic; two module-level singletons.
