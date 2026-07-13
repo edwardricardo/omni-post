@@ -12,11 +12,16 @@
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { PrismaTrackedLinkRepository } from "../../../src/infrastructure/repositories/PrismaTrackedLinkRepository.js";
 import { TrackedLink, TrackedLinkId, ProjectId, LinkClick } from "@core/domain/index.js";
+import { withTenantContext } from "../../../src/security/tenantContext.js";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 const LINK_ID = "a0000000-0000-4000-8000-000000000050";
 const PROJECT_ID = "b0000000-0000-4000-8000-000000000001";
+// The account bound in TenantContext for the scoped read/delete/stats paths.
+// findById/delete/getClickStats now resolve through project.accountId, so these
+// unit tests must run inside a bound context (as a real request would).
+const ACCOUNT_ID = "c0000000-0000-4000-8000-000000000009";
 
 function baseRow() {
   return {
@@ -176,31 +181,37 @@ describe("PrismaTrackedLinkRepository", () => {
   describe("findById", () => {
     it("returns ok(TrackedLink) when link exists", async () => {
       const id = TrackedLinkId.fromStringUnsafe(LINK_ID);
-      const result = await repo.findById(id);
+      const result = await withTenantContext({ accountId: ACCOUNT_ID }, () => repo.findById(id));
 
       expect(result.ok).toBeTruthy();
       expect(result.value.originalUrl).toBe("https://example.com/page1");
       expect(result.value.isActive).toBe(true);
-      expect(prisma.trackedLink.findUnique.mock.calls.length).toBe(1);
+      expect(prisma.trackedLink.findFirst.mock.calls.length).toBe(1);
+      // The ownership filter derives the account from the bound context.
+      const callArgs = prisma.trackedLink.findFirst.mock.calls[0]?.[0] as
+        | { where: { id: string; project: { accountId: string } } }
+        | undefined;
+      expect(callArgs?.where.id).toBe(LINK_ID);
+      expect(callArgs?.where.project.accountId).toBe(ACCOUNT_ID);
     });
 
     it("returns err(EntityNotFoundError) when link does not exist", async () => {
-      prisma.trackedLink.findUnique.mockImplementation(async () => null);
+      prisma.trackedLink.findFirst.mockImplementation(async () => null);
       const id = TrackedLinkId.fromStringUnsafe(LINK_ID);
-      const result = await repo.findById(id);
+      const result = await withTenantContext({ accountId: ACCOUNT_ID }, () => repo.findById(id));
 
       expect(result.ok).toBeFalsy();
       expect(result.error.message).toMatch(/TrackedLink/);
     });
 
     it("maps vanitySlug when present", async () => {
-      prisma.trackedLink.findUnique.mockImplementation(async () => ({
+      prisma.trackedLink.findFirst.mockImplementation(async () => ({
         ...baseRow(),
         vanitySlug: "my-campaign",
       }));
 
       const id = TrackedLinkId.fromStringUnsafe(LINK_ID);
-      const result = await repo.findById(id);
+      const result = await withTenantContext({ accountId: ACCOUNT_ID }, () => repo.findById(id));
 
       expect(result.ok).toBeTruthy();
       expect(result.value.vanitySlug).toBe("my-campaign");
@@ -298,7 +309,7 @@ describe("PrismaTrackedLinkRepository", () => {
   describe("delete", () => {
     it("returns ok when link exists", async () => {
       const id = TrackedLinkId.fromStringUnsafe(LINK_ID);
-      const result = await repo.delete(id);
+      const result = await withTenantContext({ accountId: ACCOUNT_ID }, () => repo.delete(id));
 
       expect(result.ok).toBeTruthy();
       // Used $transaction to cascade-delete clicks first
@@ -306,9 +317,9 @@ describe("PrismaTrackedLinkRepository", () => {
     });
 
     it("returns err(EntityNotFoundError) when link does not exist", async () => {
-      prisma.trackedLink.findUnique.mockImplementation(async () => null);
+      prisma.trackedLink.findFirst.mockImplementation(async () => null);
       const id = TrackedLinkId.fromStringUnsafe(LINK_ID);
-      const result = await repo.delete(id);
+      const result = await withTenantContext({ accountId: ACCOUNT_ID }, () => repo.delete(id));
 
       expect(result.ok).toBeFalsy();
       expect(result.error.message).toMatch(/TrackedLink/);
@@ -354,7 +365,7 @@ describe("PrismaTrackedLinkRepository", () => {
 
   describe("getClickStats", () => {
     it("returns totalClicks and clicksByCountry breakdown", async () => {
-      prisma.trackedLink.findUnique.mockImplementation(async () => ({
+      prisma.trackedLink.findFirst.mockImplementation(async () => ({
         ...baseRow(),
         clicks: 3,
       }));
@@ -365,7 +376,9 @@ describe("PrismaTrackedLinkRepository", () => {
       ]);
 
       const linkId = TrackedLinkId.fromStringUnsafe(LINK_ID);
-      const stats = await repo.getClickStats(linkId);
+      const stats = await withTenantContext({ accountId: ACCOUNT_ID }, () =>
+        repo.getClickStats(linkId)
+      );
 
       expect(stats.totalClicks).toBe(3);
       expect(stats.clicksByCountry["US"]).toBe(2);
@@ -373,21 +386,23 @@ describe("PrismaTrackedLinkRepository", () => {
     });
 
     it("returns zero counts when link has no clicks", async () => {
-      prisma.trackedLink.findUnique.mockImplementation(async () => ({
+      prisma.trackedLink.findFirst.mockImplementation(async () => ({
         ...baseRow(),
         clicks: 0,
       }));
       prisma.linkClick.findMany.mockImplementation(async () => []);
 
       const linkId = TrackedLinkId.fromStringUnsafe(LINK_ID);
-      const stats = await repo.getClickStats(linkId);
+      const stats = await withTenantContext({ accountId: ACCOUNT_ID }, () =>
+        repo.getClickStats(linkId)
+      );
 
       expect(stats.totalClicks).toBe(0);
       expect(stats.clicksByCountry).toEqual({});
     });
 
     it("groups clicks with null country under Unknown", async () => {
-      prisma.trackedLink.findUnique.mockImplementation(async () => ({
+      prisma.trackedLink.findFirst.mockImplementation(async () => ({
         ...baseRow(),
         clicks: 1,
       }));
@@ -396,7 +411,9 @@ describe("PrismaTrackedLinkRepository", () => {
       ]);
 
       const linkId = TrackedLinkId.fromStringUnsafe(LINK_ID);
-      const stats = await repo.getClickStats(linkId);
+      const stats = await withTenantContext({ accountId: ACCOUNT_ID }, () =>
+        repo.getClickStats(linkId)
+      );
 
       expect(stats.totalClicks).toBe(1);
       expect(stats.clicksByCountry["Unknown"]).toBe(1);
