@@ -65,10 +65,10 @@ Single change, no migration, no schema change. Revert the commit(s): use-case/re
 
 ## Success Criteria
 
-- [ ] Integration test: tenant A gets 404 (not the link body, not a delete) for tenant B's link id on `GET /links/:id`, `GET /links/:id/stats`, and `DELETE /links/:id`.
-- [ ] Same-account owner still succeeds on all 3 routes.
-- [ ] Foreign `DELETE` does NOT trigger the `LinkClick` cascade (B's clicks intact).
-- [ ] `/api/cqrs/*` returns 404 (route gone; CQRSIntegration + its 3 tests removed; zero non-test wiring confirmed pre-apply).
-- [ ] `MULTI_TENANT_GUARDS.md` Layer 3 paragraph corrected (no longer claims #23 scans typed adapters).
-- [ ] Ownership filter uses `requireTenantContext()`, not a caller-suppliable accountId arg.
-- [ ] 0-defect gate: `tsc` clean, `eslint --max-warnings 0`, fitness #21 + #23 hard-zero, LXC-safe test runs.
+- [x] Integration test: tenant A gets 404 (not the link body, not a delete) for tenant B's link id on `GET /links/:id`, `GET /links/:id/stats`, and `DELETE /links/:id`.
+- [x] Same-account owner still succeeds on all 3 routes.
+- [x] Foreign `DELETE` does NOT trigger the `LinkClick` cascade (B's clicks intact).
+- [x] `/api/cqrs/*` returns 404 (route gone; CQRSIntegration + its 3 tests removed; zero non-test wiring confirmed pre-apply).
+- [x] `MULTI_TENANT_GUARDS.md` Layer 3 paragraph corrected (no longer claims #23 scans typed adapters).
+- [x] Ownership filter uses `requireTenantContext()`, not a caller-suppliable accountId arg.
+- [x] 0-defect gate: `tsc` clean, `eslint --max-warnings 0`, fitness #21 + #23 hard-zero, LXC-safe test runs.

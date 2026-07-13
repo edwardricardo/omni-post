@@ -59,6 +59,17 @@ All 18 tasks `[x]` and independently confirmed implemented (not merely checked).
 
 1. **design.md caller-safety table has stale route line-refs (documentation-only drift, non-blocking).** The use-case symbol refs are exact (`GetTrackedLinkUseCase.ts:34`, `GetLinkStatsUseCase.ts:30/44`, `DeleteTrackedLinkUseCase.ts:39/52`, `GenerateUTMLinksUseCase.ts:92` all verified). The route-registration refs are ~2–3 lines off: `linkRoutes.ts:243/251/259` vs actual `240-241/249/257`, and `utmRoutes.ts:174` vs actual `171-172`; the NOT_FOUND decision block cites `PrismaTrackedLinkRepository.ts:95,113` vs actual `105/123`. The harden pass (§5.4) fixed the UTM path/name, not the numeric route lines. No spec or behavior impact — the shipped code is correct and tested. Optional cleanup before archive.
 
+## Post-verify CI finding (not a verify-report issue, recorded for the audit trail)
+
+Independent of this report's scope, PR #109's CI (pull_request, Test Suite shard 2) caught a
+regression this report's LXC-safe single-file run did not exercise: the preexisting unit test
+`apps/api/tests/unit/infrastructure/TrackedLinkRepository.test.ts` called the newly-scoped
+repository methods without a bound TenantContext and mocked `findUnique` where the change moved
+to `findFirst` — 8 red tests. Fixed pre-merge (bind `withTenantContext` + update mocks + add a
+scoped-`where` assertion); 23/23 green, full shard 3921/3921 green. Tracked as process learning
+SMELL-53 (engram observation #255): a repository-method change must run every preexisting test
+that exercises that method, not just the new integration file, before declaring a change ready.
+
 ## Verdict
 
 **PASS.** All 3 MERGE-BLOCKING requirements are proven by a real-DB two-tenant integration test (8/8 green), the 3 non-blocking requirements (4/5/6) are confirmed at source, and the 0/0 gate holds (tsc 0, eslint 0, fitness #21/#23 = 0). The single SUGGESTION is documentation line-ref drift with no code impact and does not block archive.

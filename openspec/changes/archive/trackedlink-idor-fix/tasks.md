@@ -64,3 +64,13 @@ The adversarial gate PASSED (0 CRITICAL, 0 confirmed WARNING) and surfaced 4 sec
 - [x] 5.2 (harden §2) Extend the byte-identical anti-enumeration body assertion (not just statusCode) to `GET /links/:id/stats` and `GET /links/:id/utm-url` via `normalizeBody`.
 - [x] 5.3 (harden §3) Add the mutating UTM write-path regression guard: tenant A `POST /links/{B_id}/utm` → 404 AND tenant B's UTM fields unchanged (DB compared before/after; `updatedAt` excluded — the public redirect records clicks fire-and-forget).
 - [x] 5.4 (harden §4) Correct `design.md` caller-safety table: UTM route is `apps/api/src/utm/utmRoutes.ts`, use case `@core/utm/GenerateUTMLinksUseCase.js`; line refs verified against shipped files.
+
+## Post-merge: SMELL-53 regression fix (caught by CI, not a task phase)
+
+Not part of the original 18-task plan — a CI-caught regression fixed as part of PR #109 before
+merge (see Verification Report + archive-report `## Delivery` for full detail): the preexisting
+unit test `apps/api/tests/unit/infrastructure/TrackedLinkRepository.test.ts` called
+`findById`/`delete`/`getClickStats` without a bound TenantContext and mocked `findUnique` where
+the change moved to `findFirst`. CI (pull_request, shard 2) caught 8 red tests; fixed by binding
+`withTenantContext` in all 8 cases + updating the mocks to `findFirst` + adding a scoped-`where`
+assertion. 23/23 green after the fix; full shard 3921/3921 green.

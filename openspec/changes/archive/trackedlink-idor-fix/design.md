@@ -137,7 +137,7 @@ re-adds the dead route if ever needed.
 
 ## Open Questions
 
-- [ ] None blocking. (Resolved in the harden pass: `getClickStats` is now scoped by
+- [x] None blocking. (Resolved in the harden pass: `getClickStats` is now scoped by
       construction with the same transitive `project.accountId` join. Rather than relying on
       the preceding `findById` gate — safe-by-convention — the method refuses foreign ids
       directly, so a future direct caller cannot re-open the IDOR.)
