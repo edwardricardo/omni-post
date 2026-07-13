@@ -88,14 +88,17 @@ before deploying.
 **Files:** `CLAUDE.md §Automated Compliance Checks` + `.github/workflows/
 fitness.yml` step `#23`.
 
-Regex-based grep catches the antipattern of a Prisma adapter on a
-tenant-scoped table that doesn't include `accountId` in its `where`
-clause:
+Fitness **#23** blocks raw Prisma queries (`$queryRaw`, `$executeRaw`,
+`$queryRawUnsafe`, `$executeRawUnsafe`) outside the tenant-guard exceptions —
+raw SQL bypasses the Prisma `$extends` tenant guard because extensions only
+hook the typed query API. It does **NOT** scan typed-Prisma adapters for a
+missing `accountId` join: a typed `findFirst`/`findMany` that omits the tenant
+filter is invisible to this grep.
 
-```bash
-# Detects `prisma.<tenantTable>.findMany|findFirst|update|delete|count` without
-# `accountId` (or `account: {`) literal in the same statement.
-```
+Enforcement of the compensating join on transitively-scoped tables — e.g.
+`TrackedLink`, which carries no `accountId` column and must join through its
+`project` (`where: { id, project: { accountId } }`) — therefore rests on
+adapter code plus integration tests, not on a CI grep.
 
 Hard-zero in CI. Cannot regress.
 

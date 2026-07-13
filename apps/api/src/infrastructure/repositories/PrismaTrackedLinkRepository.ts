@@ -19,6 +19,7 @@ import {
   EntityNotFoundError,
 } from "@core/domain/index.js";
 import { ShortCode } from "@core/domain/value-objects/ShortCode.js";
+import { requireTenantContext } from "../../security/tenantContext.js";
 
 /**
  * PrismaTrackedLinkRepository - Implements TrackedLinkRepository using Prisma
@@ -84,11 +85,20 @@ export class PrismaTrackedLinkRepository implements TrackedLinkRepository {
   }
 
   /**
-   * Find a tracked link by ID
+   * Find a tracked link by ID, scoped to the caller's account.
+   *
+   * TrackedLink carries no `accountId` column, so ownership is enforced by a
+   * transitive join through its `project`. The account is taken from the bound
+   * tenant context — never from caller input — so a link owned by another
+   * account misses the filter and is indistinguishable from a nonexistent id
+   * (both return EntityNotFoundError → 404).
    */
   async findById(id: TrackedLinkId): Promise<Result<TrackedLink, EntityNotFoundError>> {
-    const link = await this.prisma.trackedLink.findUnique({
-      where: { id: id.value },
+    const link = await this.prisma.trackedLink.findFirst({
+      where: {
+        id: id.value,
+        project: { accountId: requireTenantContext().accountId },
+      },
     });
 
     if (!link) {
@@ -142,11 +152,19 @@ export class PrismaTrackedLinkRepository implements TrackedLinkRepository {
   }
 
   /**
-   * Delete a tracked link
+   * Delete a tracked link, scoped to the caller's account.
+   *
+   * The existence pre-check uses the SAME transitive `project.accountId` join as
+   * `findById`, so a foreign (or nonexistent) id returns NOT_FOUND BEFORE the
+   * destructive `$transaction` runs — the `linkClick` cascade never fires for a
+   * link the caller does not own.
    */
   async delete(id: TrackedLinkId): Promise<Result<void, EntityNotFoundError>> {
-    const exists = await this.prisma.trackedLink.findUnique({
-      where: { id: id.value },
+    const exists = await this.prisma.trackedLink.findFirst({
+      where: {
+        id: id.value,
+        project: { accountId: requireTenantContext().accountId },
+      },
     });
 
     if (!exists) {
@@ -202,20 +220,34 @@ export class PrismaTrackedLinkRepository implements TrackedLinkRepository {
   }
 
   /**
-   * Get click statistics for a link
+   * Get click statistics for a link, scoped to the caller's account.
+   *
+   * The link is resolved through the SAME transitive `project.accountId` join as
+   * `findById`/`delete`, so a foreign (or nonexistent) id yields the empty
+   * not-found stats result BEFORE any `linkClick` row is read. This makes the
+   * method scoped by construction: a future direct caller (e.g. a bulk-stats use
+   * case) cannot read another account's click data even without a preceding
+   * owner-gated `findById`.
    */
   async getClickStats(linkId: TrackedLinkId): Promise<ClickStats> {
-    // Get total clicks and click records
-    const [link, clicks] = await Promise.all([
-      this.prisma.trackedLink.findUnique({
-        where: { id: linkId.value },
-        select: { clicks: true },
-      }),
-      this.prisma.linkClick.findMany({
-        where: { trackedLinkId: linkId.value },
-        select: { country: true, timestamp: true },
-      }),
-    ]);
+    const link = await this.prisma.trackedLink.findFirst({
+      where: {
+        id: linkId.value,
+        project: { accountId: requireTenantContext().accountId },
+      },
+      select: { clicks: true },
+    });
+
+    // Foreign or nonexistent id: return the empty stats result without touching
+    // linkClick — identical to the shape returned for a missing link previously.
+    if (!link) {
+      return { totalClicks: 0, clicksByCountry: {} };
+    }
+
+    const clicks = await this.prisma.linkClick.findMany({
+      where: { trackedLinkId: linkId.value },
+      select: { country: true, timestamp: true },
+    });
 
     // Count clicks by country
     const clicksByCountry: Record<string, number> = {};
@@ -225,7 +257,7 @@ export class PrismaTrackedLinkRepository implements TrackedLinkRepository {
     }
 
     return {
-      totalClicks: link?.clicks ?? 0,
+      totalClicks: link.clicks,
       clicksByCountry,
     };
   }
