@@ -130,6 +130,7 @@ export type RecurringPostEvent = RecurringPostActivated | RecurringPostDeactivat
  */
 export interface RecurringPostProps extends EntityProps {
   id: RecurringPostId;
+  accountId: string;
   projectId: ProjectId;
   templatePostId: string;
   name: string;
@@ -150,6 +151,7 @@ export interface RecurringPostProps extends EntityProps {
  * Props for creating a new RecurringPost
  */
 export interface RecurringPostCreateProps {
+  accountId: string;
   projectId: ProjectId;
   templatePostId: string;
   name: string;
@@ -173,6 +175,7 @@ export interface RecurringPostCreateProps {
  *   occurrence tracking, and limit enforcement.
  */
 export class RecurringPost extends Entity<RecurringPostId> {
+  private readonly _accountId: string;
   private readonly _projectId: ProjectId;
   private readonly _templatePostId: string;
   private _name: string;
@@ -190,6 +193,7 @@ export class RecurringPost extends Entity<RecurringPostId> {
 
   private constructor(props: RecurringPostProps) {
     super(props.id, props.createdAt);
+    this._accountId = props.accountId;
     this._projectId = props.projectId;
     this._templatePostId = props.templatePostId;
     this._name = props.name;
@@ -274,6 +278,7 @@ export class RecurringPost extends Entity<RecurringPostId> {
     return ok(
       new RecurringPost({
         id: RecurringPostId.generate(),
+        accountId: props.accountId,
         projectId: props.projectId,
         templatePostId: props.templatePostId,
         name: props.name.trim(),
@@ -300,6 +305,14 @@ export class RecurringPost extends Entity<RecurringPostId> {
   }
 
   // -- Getters --
+
+  /**
+   * @description Owning account id, denormalized from the parent project.
+   *   Server-derived and tenant-scoping only — never exposed via `toJSON`.
+   */
+  get accountId(): string {
+    return this._accountId;
+  }
 
   get projectId(): ProjectId {
     return this._projectId;

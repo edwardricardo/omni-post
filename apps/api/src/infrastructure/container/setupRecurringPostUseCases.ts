@@ -8,6 +8,8 @@ import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import type { RecurringPostRepository } from "@core/domain/repositories/RecurringPostRepository.js";
 import type { PostRepository, EventDispatcher } from "@core/domain/index.js";
+import type { ProjectRepositoryPort } from "@core/domain/repositories/ProjectRepository.js";
+import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import type { Logger } from "pino";
@@ -32,15 +34,19 @@ export function setupRecurringPostUseCases(container: Container): void {
   const repo = () => container.resolve<RecurringPostRepository>(TOKENS.RecurringPostRepository);
   const uow = () => container.resolve<UnitOfWork>(TOKENS.UnitOfWork);
 
+  const projectRepo = () => container.resolve<ProjectRepositoryPort>(TOKENS.ProjectRepository);
+  const postRepo = () => container.resolve<PostRepository>(TOKENS.PostRepository);
+  const channelRepo = () => container.resolve<ChannelRepository>(TOKENS.ChannelRepository);
+
   container.register(
     TOKENS.CreateRecurringPostUseCase,
-    () => new CreateRecurringPostUseCase(repo(), uow()),
+    () => new CreateRecurringPostUseCase(repo(), projectRepo(), postRepo(), channelRepo(), uow()),
     true
   );
 
   container.register(
     TOKENS.UpdateRecurringPostUseCase,
-    () => new UpdateRecurringPostUseCase(repo(), uow()),
+    () => new UpdateRecurringPostUseCase(repo(), channelRepo(), uow()),
     true
   );
 

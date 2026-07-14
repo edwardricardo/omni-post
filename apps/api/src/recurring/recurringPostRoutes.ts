@@ -104,7 +104,16 @@ class RecurringPostRouteHandler extends BaseRouteHandler {
     });
 
     if (!result.ok) {
-      const statusCode = result.error.code === "VALIDATION_FAILED" ? 400 : 500;
+      // NOT_FOUND → 404 is the create-path ownership outcome (foreign
+      // projectId / templatePostId / channels[] resolve to NOT_FOUND before
+      // persist). It MUST map to 404, never 403 (anti-enumeration) and never
+      // 500, per the MERGE-BLOCKING two-tenant suite.
+      const statusCode =
+        result.error.code === "NOT_FOUND"
+          ? 404
+          : result.error.code === "VALIDATION_FAILED"
+            ? 400
+            : 500;
       return this.sendError(ctx, statusCode, result.error.message);
     }
 

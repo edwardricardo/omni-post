@@ -7,6 +7,7 @@
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import type { TrackedLinkRepository } from "@core/domain/repositories/TrackedLinkRepository.js";
+import type { ProjectRepositoryPort } from "@core/domain/repositories/ProjectRepository.js";
 import type { GA4TrackingPort } from "@core/domain/repositories/GA4TrackingPort.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import {
@@ -27,6 +28,7 @@ export function setupLinkUseCases(container: Container): void {
     () =>
       new CreateTrackedLinkUseCase(
         container.resolve<TrackedLinkRepository>(TOKENS.TrackedLinkRepository),
+        container.resolve<ProjectRepositoryPort>(TOKENS.ProjectRepository),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true

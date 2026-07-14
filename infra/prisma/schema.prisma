@@ -42,6 +42,8 @@ model Account {
   externalNotificationConfigs ExternalNotificationConfig[]
   campaigns                   Campaign[]
   scheduledReports            ScheduledReport[]
+  trackedLinks                TrackedLink[]
+  recurringPosts              RecurringPost[]
   webhookEvents               WebhookEvent[]
   webhookSubscriptions        WebhookSubscription[]
   templates                   Template[]
@@ -803,6 +805,7 @@ model Channel {
 
 model TrackedLink {
   id          String   @id @default(uuid())
+  accountId   String
   projectId   String
   originalUrl String
   shortCode   String   @unique
@@ -818,10 +821,12 @@ model TrackedLink {
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @db.Timestamptz(6)
 
+  account    Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
   project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   linkClicks LinkClick[]
   campaign   Campaign?   @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 
+  @@index([accountId, projectId])
   @@index([projectId, isActive])
   @@index([shortCode])
   @@index([vanitySlug])
@@ -2472,6 +2477,7 @@ model GeneratedImage {
 
 model RecurringPost {
   id               String    @id @default(uuid())
+  accountId        String
   projectId        String
   templatePostId   String
   name             String
@@ -2489,9 +2495,11 @@ model RecurringPost {
   createdAt        DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime  @updatedAt @db.Timestamptz(6)
 
+  account      Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
   project      Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   templatePost Post    @relation("RecurringTemplatePost", fields: [templatePostId], references: [id], onDelete: Restrict)
 
+  @@index([accountId, projectId])
   @@index([projectId, isActive])
   @@index([nextScheduledAt, isActive])
 }

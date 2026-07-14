@@ -12,6 +12,8 @@
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { ok, err } from "@shared/types";
 import { TrackedLink, ProjectId, TrackedLinkId, EntityNotFoundError } from "@core/domain/index.js";
+import { Project } from "@core/domain/entities/Project.js";
+import { AccountId } from "@core/domain/value-objects/EntityId.js";
 import {
   CreateTrackedLinkUseCase,
   GetTrackedLinkUseCase,
@@ -21,6 +23,8 @@ import {
   type CreateTrackedLinkInput,
   type RedirectInput,
 } from "@core/links/index.js";
+
+const ACCOUNT_ID = "55555555-5555-4555-8555-555555555555";
 
 // Mock repository factory
 function createMockRepository() {
@@ -39,13 +43,29 @@ function createMockRepository() {
   };
 }
 
+const makeProject = (): Project => {
+  const result = Project.create({
+    accountId: AccountId.fromStringUnsafe(ACCOUNT_ID),
+    name: "Test Project",
+  });
+  if (!result.ok) throw new Error("fixture: Project.create failed");
+  return result.value;
+};
+
+// Narrow ProjectRepositoryPort mock — the Create use case only calls findById.
+const makeProjectRepo = (found = true) => ({
+  findById: vi.fn(async () =>
+    found ? ok(makeProject()) : err(new EntityNotFoundError("Project", "missing"))
+  ),
+});
+
 describe("CreateTrackedLinkUseCase", () => {
   let useCase: CreateTrackedLinkUseCase;
   let mockRepo: ReturnType<typeof createMockRepository>;
 
   beforeEach(() => {
     mockRepo = createMockRepository();
-    useCase = new CreateTrackedLinkUseCase(mockRepo);
+    useCase = new CreateTrackedLinkUseCase(mockRepo as never, makeProjectRepo(true) as never);
   });
 
   it("should create a tracked link with valid input", async () => {
@@ -129,6 +149,7 @@ describe("GetTrackedLinkUseCase", () => {
   it("should return link when found by ID", async () => {
     const projectId = ProjectId.generate();
     const linkResult = TrackedLink.create({
+      accountId: ACCOUNT_ID,
       projectId,
       originalUrl: "https://example.com",
     });
@@ -164,6 +185,7 @@ describe("RedirectAndTrackClickUseCase", () => {
   it("should return original URL and record click", async () => {
     const projectId = ProjectId.generate();
     const linkResult = TrackedLink.create({
+      accountId: ACCOUNT_ID,
       projectId,
       originalUrl: "https://example.com/target",
     });
@@ -199,6 +221,7 @@ describe("RedirectAndTrackClickUseCase", () => {
   it("should return error for inactive link", async () => {
     const projectId = ProjectId.generate();
     const linkResult = TrackedLink.create({
+      accountId: ACCOUNT_ID,
       projectId,
       originalUrl: "https://example.com",
     });
@@ -226,6 +249,7 @@ describe("GetLinkStatsUseCase", () => {
   it("should return statistics for a link", async () => {
     const projectId = ProjectId.generate();
     const linkResult = TrackedLink.create({
+      accountId: ACCOUNT_ID,
       projectId,
       originalUrl: "https://example.com",
     });
@@ -266,6 +290,7 @@ describe("DeleteTrackedLinkUseCase", () => {
   it("should delete a tracked link", async () => {
     const projectId = ProjectId.generate();
     const linkResult = TrackedLink.create({
+      accountId: ACCOUNT_ID,
       projectId,
       originalUrl: "https://example.com",
     });

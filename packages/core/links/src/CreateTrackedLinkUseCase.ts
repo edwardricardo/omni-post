@@ -8,6 +8,7 @@
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { TrackedLink, ProjectId, type TrackedLinkRepository } from "@core/domain/index.js";
+import { type ProjectRepositoryPort } from "@core/domain/repositories/ProjectRepository.js";
 import { type CreateTrackedLinkInput, type TrackedLinkOutput } from "./types.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 
@@ -22,6 +23,7 @@ export class CreateTrackedLinkUseCase implements UseCase<
 > {
   constructor(
     private readonly repository: TrackedLinkRepository,
+    private readonly projectRepository: ProjectRepositoryPort,
     private readonly unitOfWork?: UnitOfWork
   ) {}
 
@@ -43,7 +45,18 @@ export class CreateTrackedLinkUseCase implements UseCase<
       );
     }
 
-    // 2. Check vanity slug availability if provided
+    // 2. Ownership check: resolve the project through the guard-scoped
+    //    repository. A foreign or nonexistent projectId resolves to NOT_FOUND
+    //    under the caller's tenant context. Return NOT_FOUND BEFORE the slug
+    //    probe / persist so the catch-all can never flatten it to
+    //    INTERNAL_ERROR (anti-enumeration: NOT_FOUND, never 403).
+    const projectResult = await this.projectRepository.findById(projectIdResult.value);
+    if (!projectResult.ok) {
+      return err(new UseCaseError(projectResult.error.message, USE_CASE_ERRORS.NOT_FOUND));
+    }
+    const accountId = projectResult.value.accountId.toString();
+
+    // 3. Check vanity slug availability if provided
     if (input.vanitySlug) {
       const isAvailable = await this.repository.isShortCodeAvailable(input.vanitySlug);
       if (!isAvailable) {
@@ -56,8 +69,9 @@ export class CreateTrackedLinkUseCase implements UseCase<
       }
     }
 
-    // 3. Create the tracked link entity
+    // 4. Create the tracked link entity (accountId threaded from the project)
     const createResult = TrackedLink.create({
+      accountId,
       projectId: projectIdResult.value,
       originalUrl: input.originalUrl,
       ...(input.vanitySlug && { vanitySlug: input.vanitySlug }),
@@ -75,7 +89,7 @@ export class CreateTrackedLinkUseCase implements UseCase<
 
     const link = createResult.value;
 
-    // 4. Persist via repository (atomically via UoW when available)
+    // 5. Persist via repository (atomically via UoW when available)
     const doWork = async (): Promise<Result<TrackedLinkOutput, UseCaseError>> => {
       const saveResult = await this.repository.save(link);
       if (!saveResult.ok) {

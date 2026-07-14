@@ -8,6 +8,7 @@
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import type { RecurringPostRepository } from "@core/domain/repositories/RecurringPostRepository.js";
+import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
 import { RecurringPost, CronExpression } from "@core/domain/entities/RecurringPost.js";
 import { RecurringPostId, ProjectId } from "@core/domain/value-objects/EntityId.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
@@ -55,6 +56,7 @@ export class UpdateRecurringPostUseCase implements UseCase<
 > {
   constructor(
     private readonly recurringPostRepo: RecurringPostRepository,
+    private readonly channelRepository: ChannelRepository,
     private readonly unitOfWork?: UnitOfWork
   ) {}
 
@@ -84,6 +86,7 @@ export class UpdateRecurringPostUseCase implements UseCase<
     // Reconstitute domain entity
     const entity = RecurringPost.fromPersistence({
       id: RecurringPostId.fromStringUnsafe(data.id),
+      accountId: data.accountId,
       projectId: ProjectId.fromStringUnsafe(data.projectId),
       templatePostId: data.templatePostId,
       name: data.name,
@@ -101,6 +104,26 @@ export class UpdateRecurringPostUseCase implements UseCase<
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
     });
+
+    // Channel-repoint consistency: if the caller repoints the recurrence to a
+    // new channel set, every new channel MUST belong to the recurrence's OWN
+    // project (the recurrence itself was already guard-validated by the enrolled
+    // `findById` above). Channel is UNENROLLED, so its findById is not
+    // tenant-filtered — this app-level project-consistency check closes the
+    // cross-tenant publish-targeting escalation on the PATCH path. A foreign or
+    // missing channel → NOT_FOUND before any persistence.
+    if (command.channels !== undefined) {
+      const ownedChannelIds = new Set(
+        (await this.channelRepository.findIdsByProjectId(entity.projectId)).map((c) => c.value)
+      );
+      for (const channelIdValue of command.channels) {
+        if (!ownedChannelIds.has(channelIdValue)) {
+          return err(
+            new UseCaseError(`Channel not found: ${channelIdValue}`, USE_CASE_ERRORS.NOT_FOUND)
+          );
+        }
+      }
+    }
 
     // Parse cron expression if provided
     let cronExpr: CronExpression | undefined;
@@ -134,6 +157,7 @@ export class UpdateRecurringPostUseCase implements UseCase<
     const doWork = async (): Promise<Result<UpdateRecurringPostOutput, UseCaseError>> => {
       const saveResult = await this.recurringPostRepo.save({
         id: entity.id.value,
+        accountId: entity.accountId,
         projectId: entity.projectId.value,
         templatePostId: entity.templatePostId,
         name: entity.name,

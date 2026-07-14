@@ -95,6 +95,7 @@ export class ProcessRecurrenceUseCase implements UseCase<
         // Reconstitute domain entity
         const entity = RecurringPost.fromPersistence({
           id: RecurringPostId.fromStringUnsafe(data.id),
+          accountId: data.accountId,
           projectId: ProjectId.fromStringUnsafe(data.projectId),
           templatePostId: data.templatePostId,
           name: data.name,
@@ -125,6 +126,7 @@ export class ProcessRecurrenceUseCase implements UseCase<
         // Re-persist the updated entity
         const saveResult = await this.recurringPostRepo.save({
           id: entity.id.value,
+          accountId: entity.accountId,
           projectId: entity.projectId.value,
           templatePostId: entity.templatePostId,
           name: entity.name,

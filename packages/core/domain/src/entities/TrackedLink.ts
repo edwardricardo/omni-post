@@ -24,6 +24,7 @@ class InvalidUrlError extends DomainError {
  * Props for creating a TrackedLink
  */
 export interface TrackedLinkCreateProps {
+  accountId: string;
   projectId: ProjectId;
   originalUrl: string;
   vanitySlug?: string;
@@ -34,6 +35,7 @@ export interface TrackedLinkCreateProps {
  */
 export interface TrackedLinkProps extends EntityProps {
   id: TrackedLinkId;
+  accountId: string;
   projectId: ProjectId;
   originalUrl: string;
   shortCode: ShortCode;
@@ -55,6 +57,7 @@ export interface TrackedLinkProps extends EntityProps {
  * Supports both auto-generated short codes and custom vanity slugs.
  */
 export class TrackedLink extends Entity<TrackedLinkId> {
+  private readonly _accountId: string;
   private readonly _projectId: ProjectId;
   private readonly _originalUrl: string;
   private readonly _shortCode: ShortCode;
@@ -70,6 +73,7 @@ export class TrackedLink extends Entity<TrackedLinkId> {
 
   private constructor(props: TrackedLinkProps) {
     super(props.id, props.createdAt);
+    this._accountId = props.accountId;
     this._projectId = props.projectId;
     this._originalUrl = props.originalUrl;
     this._shortCode = props.shortCode;
@@ -122,6 +126,7 @@ export class TrackedLink extends Entity<TrackedLinkId> {
     return ok(
       new TrackedLink({
         id: TrackedLinkId.generate(),
+        accountId: props.accountId,
         projectId: props.projectId,
         originalUrl: props.originalUrl,
         shortCode,
@@ -152,6 +157,14 @@ export class TrackedLink extends Entity<TrackedLinkId> {
   }
 
   // Getters
+
+  /**
+   * @description Owning account id, denormalized from the parent project.
+   *   Server-derived and tenant-scoping only — never exposed via `toJSON`.
+   */
+  get accountId(): string {
+    return this._accountId;
+  }
 
   get projectId(): ProjectId {
     return this._projectId;

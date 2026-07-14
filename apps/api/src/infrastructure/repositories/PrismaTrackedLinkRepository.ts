@@ -19,6 +19,7 @@ import {
   EntityNotFoundError,
 } from "@core/domain/index.js";
 import { ShortCode } from "@core/domain/value-objects/ShortCode.js";
+import { withSystemContext } from "../../security/tenantContext.js";
 
 /**
  * PrismaTrackedLinkRepository - Implements TrackedLinkRepository using Prisma
@@ -59,6 +60,7 @@ export class PrismaTrackedLinkRepository implements TrackedLinkRepository {
         await this.prisma.trackedLink.create({
           data: {
             id: link.id.value,
+            accountId: link.accountId,
             projectId: link.projectId.value,
             originalUrl: link.originalUrl,
             shortCode: link.shortCode.value,
@@ -231,16 +233,26 @@ export class PrismaTrackedLinkRepository implements TrackedLinkRepository {
   }
 
   /**
-   * Check if a short code is available
+   * Check if a short code is available.
+   *
+   * The short-code / vanity-slug namespace is GLOBAL (cross-tenant): the public
+   * redirect resolves it for anonymous visitors, so uniqueness must be checked
+   * across ALL accounts, not just the caller's. Under the caller's tenant
+   * context the guarded `findFirst` would inject `accountId` and MISS a foreign
+   * collision → a false "available" → a P2002 at insert time. Wrapping the probe
+   * in `withSystemContext` restores the global uniqueness semantics the public
+   * namespace requires. Returns a boolean only — zero data exposure.
    */
   async isShortCodeAvailable(code: string): Promise<boolean> {
-    const existing = await this.prisma.trackedLink.findFirst({
-      where: {
-        OR: [{ shortCode: code }, { vanitySlug: code }],
-      },
-    });
+    return withSystemContext("shortcode-uniqueness-probe", async () => {
+      const existing = await this.prisma.trackedLink.findFirst({
+        where: {
+          OR: [{ shortCode: code }, { vanitySlug: code }],
+        },
+      });
 
-    return existing === null;
+      return existing === null;
+    });
   }
 
   /**
@@ -248,6 +260,7 @@ export class PrismaTrackedLinkRepository implements TrackedLinkRepository {
    */
   private toDomain(link: {
     id: string;
+    accountId: string;
     projectId: string;
     originalUrl: string;
     shortCode: string;
@@ -270,6 +283,7 @@ export class PrismaTrackedLinkRepository implements TrackedLinkRepository {
 
     const props: TrackedLinkProps = {
       id: TrackedLinkId.fromStringUnsafe(link.id),
+      accountId: link.accountId,
       projectId: ProjectId.fromStringUnsafe(link.projectId),
       originalUrl: link.originalUrl,
       shortCode: shortCodeResult.value,

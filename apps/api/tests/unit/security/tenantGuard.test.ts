@@ -444,9 +444,118 @@ describe("tenantGuardExtension", () => {
     });
   });
 
+  describe("recurringPost + trackedLink enrollment (Slice 3 — tenant-guard rollout)", () => {
+    it("recurringPost is a member of getTenantScopedModels()", () => {
+      expect(getTenantScopedModels().has("recurringPost")).toBe(true);
+    });
+
+    it("trackedLink is a member of getTenantScopedModels()", () => {
+      expect(getTenantScopedModels().has("trackedLink")).toBe(true);
+    });
+
+    it("linkClick stays OUT of the guard list (no accountId; gated transitively)", () => {
+      expect(getTenantScopedModels().has("linkClick")).toBe(false);
+    });
+
+    it("injects accountId into where on RecurringPost findMany (list by projectId)", async () => {
+      const queryFn = vi.fn().mockResolvedValue([]);
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "RecurringPost",
+        operation: "findMany",
+        args: { where: { projectId: "proj-B" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; projectId: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.projectId).toBe("proj-B");
+    });
+
+    it("injects accountId into where on TrackedLink findUnique (get by id)", async () => {
+      const queryFn = vi.fn().mockResolvedValue(null);
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "TrackedLink",
+        operation: "findUnique",
+        args: { where: { id: "link-1" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; id: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.id).toBe("link-1");
+    });
+
+    it("injects accountId into TrackedLink create data", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "TrackedLink",
+        operation: "create",
+        args: { data: { id: "link-1", projectId: "proj-1", originalUrl: "https://x.test" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as { data: { accountId: string } };
+      expect(calledArgs.data.accountId).toBe("acc-A");
+    });
+
+    it("throws TenantContextMismatchError when RecurringPost create.accountId disagrees with context", async () => {
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await expect(
+        callGuard({
+          provider,
+          model: "RecurringPost",
+          operation: "create",
+          args: { data: { id: "rec-1", accountId: "acc-B", projectId: "proj-1", name: "R" } },
+        })
+      ).rejects.toThrow(TenantContextMismatchError);
+    });
+
+    it("throws TenantContextMissingError on TrackedLink findFirst when no context is bound", async () => {
+      await expect(
+        callGuard({
+          provider: makeProvider(),
+          model: "TrackedLink",
+          operation: "findFirst",
+          args: { where: { shortCode: "abc" } },
+        })
+      ).rejects.toThrow(TenantContextMissingError);
+    });
+
+    it("bypasses TrackedLink findFirst under SystemContext (public redirect / uniqueness probe)", async () => {
+      const queryFn = vi.fn().mockResolvedValue(null);
+      const provider = makeProvider({
+        getSystemContext: () => ({ reason: "public-link-redirect" }),
+      });
+      await callGuard({
+        provider,
+        model: "TrackedLink",
+        operation: "findFirst",
+        args: { where: { OR: [{ shortCode: "abc" }, { vanitySlug: "abc" }] } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as { where: { accountId?: string } };
+      expect(calledArgs.where.accountId).toBeUndefined();
+    });
+  });
+
   describe("model classification", () => {
-    it("getTenantScopedModels returns 53 entries", () => {
-      expect(getTenantScopedModels().size).toBe(53);
+    it("getTenantScopedModels returns 55 entries", () => {
+      expect(getTenantScopedModels().size).toBe(55);
     });
 
     it("includes well-known tenant tables (project, apiKey, mediaAsset)", () => {
@@ -457,14 +566,17 @@ describe("tenantGuardExtension", () => {
       expect(models.has("socialMessage")).toBe(true);
     });
 
-    it("excludes global tables (account, auditLog, providerBundle, post, channel)", () => {
+    it("excludes global tables (account, auditLog, providerBundle, post, channel, linkClick)", () => {
       const models = getTenantScopedModels();
-      // Post and Channel are transitively scoped (via project FK), not in this direct list
+      // Post and Channel are transitively scoped (via project FK), not in this direct list.
+      // LinkClick has no accountId column and is gated transitively via the guarded
+      // parent trackedLink lookup — same policy as campaignPost.
       expect(models.has("account")).toBe(false);
       expect(models.has("auditLog")).toBe(false);
       expect(models.has("providerBundle")).toBe(false);
       expect(models.has("post")).toBe(false);
       expect(models.has("channel")).toBe(false);
+      expect(models.has("linkClick")).toBe(false);
     });
   });
 });
