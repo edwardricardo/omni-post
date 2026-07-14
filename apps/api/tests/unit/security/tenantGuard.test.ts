@@ -303,9 +303,83 @@ describe("tenantGuardExtension", () => {
     });
   });
 
+  describe("externalNotificationConfig enrollment (Slice 1 — tenant-guard rollout)", () => {
+    it("is a member of getTenantScopedModels()", () => {
+      expect(getTenantScopedModels().has("externalNotificationConfig")).toBe(true);
+    });
+
+    it("injects accountId into where on findMany (list by projectId)", async () => {
+      const queryFn = vi.fn().mockResolvedValue([]);
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "ExternalNotificationConfig",
+        operation: "findMany",
+        args: { where: { projectId: "proj-B" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; projectId: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.projectId).toBe("proj-B");
+    });
+
+    it("injects accountId into upsert.create data", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "ExternalNotificationConfig",
+        operation: "upsert",
+        args: {
+          where: { id: "cfg-1" },
+          create: { id: "cfg-1", accountId: "acc-A", projectId: "proj-1", label: "L" },
+          update: { label: "L" },
+        },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        create: { accountId: string };
+        where: { accountId: string };
+      };
+      expect(calledArgs.create.accountId).toBe("acc-A");
+      expect(calledArgs.where.accountId).toBe("acc-A");
+    });
+
+    it("throws TenantContextMismatchError when create.accountId disagrees with context", async () => {
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await expect(
+        callGuard({
+          provider,
+          model: "ExternalNotificationConfig",
+          operation: "create",
+          args: { data: { id: "cfg-1", accountId: "acc-B", projectId: "proj-1", label: "L" } },
+        })
+      ).rejects.toThrow(TenantContextMismatchError);
+    });
+
+    it("throws TenantContextMissingError when no context is bound", async () => {
+      await expect(
+        callGuard({
+          provider: makeProvider(),
+          model: "ExternalNotificationConfig",
+          operation: "delete",
+          args: { where: { id: "cfg-1" } },
+        })
+      ).rejects.toThrow(TenantContextMissingError);
+    });
+  });
+
   describe("model classification", () => {
-    it("getTenantScopedModels returns 50 entries", () => {
-      expect(getTenantScopedModels().size).toBe(50);
+    it("getTenantScopedModels returns 51 entries", () => {
+      expect(getTenantScopedModels().size).toBe(51);
     });
 
     it("includes well-known tenant tables (project, apiKey, mediaAsset)", () => {

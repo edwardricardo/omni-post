@@ -2,7 +2,8 @@
  * @file PrismaExternalNotificationConfigRepository.test.ts
  * @description Verifies that webhook URLs (which often embed bearer tokens
  *   such as Slack incoming-webhook tokens or Teams connector tokens) are
- *   encrypted on write and decrypted on read.
+ *   encrypted on write and decrypted on read, and that the tenant `accountId`
+ *   is written on create and mapped back on read.
  * @layer infrastructure
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -12,6 +13,7 @@ import { EncryptionService } from "../../../src/security/EncryptionService.js";
 import type { ExternalNotificationConfigData } from "@core/domain/repositories/ExternalNotificationConfigRepository.js";
 
 const VALID_KEY = randomBytes(32).toString("base64");
+const ACCOUNT_ID = "acc-1";
 // Generic webhook URL with an embedded bearer token, structurally similar to
 // what Slack / Teams / Discord / etc. produce. Kept as `example.com` so the
 // test fixture does not match GitHub's secret-scanning pattern for any real
@@ -23,6 +25,7 @@ function makeConfig(
 ): ExternalNotificationConfigData {
   return {
     id: "ext-1",
+    accountId: ACCOUNT_ID,
     projectId: "proj-1",
     channel: "slack",
     webhookUrl: PLAINTEXT_URL,
@@ -67,6 +70,7 @@ describe("PrismaExternalNotificationConfigRepository", () => {
       });
       upsertMock.mockResolvedValueOnce({
         id: "ext-1",
+        accountId: ACCOUNT_ID,
         projectId: "proj-1",
         channel: "slack",
         webhookUrlCiphertext: enc.encryptedValue,
@@ -91,16 +95,49 @@ describe("PrismaExternalNotificationConfigRepository", () => {
       expect(args.create.webhookUrlCiphertext).toBeTruthy();
       expect(args.create.webhookUrlKeyVersion).toBe(1);
     });
+
+    it("writes accountId on create (guard validates it equals the bound context)", async () => {
+      const enc = encryption.encrypt(PLAINTEXT_URL, {
+        fieldName: "ExternalNotificationConfig.webhookUrl",
+        recordId: "ext-1",
+      });
+      upsertMock.mockResolvedValueOnce({
+        id: "ext-1",
+        accountId: ACCOUNT_ID,
+        projectId: "proj-1",
+        channel: "slack",
+        webhookUrlCiphertext: enc.encryptedValue,
+        webhookUrlIv: enc.iv,
+        webhookUrlAuthTag: enc.authTag,
+        webhookUrlKeyVersion: enc.keyVersion,
+        label: "Engineering channel",
+        events: ["post.published"],
+        isActive: true,
+        createdAt: new Date("2026-01-01T00:00:00Z"),
+        updatedAt: new Date("2026-01-01T00:00:00Z"),
+      });
+
+      await repo.save(makeConfig());
+      const args = upsertMock.mock.calls[0]?.[0] as {
+        create: Record<string, unknown>;
+        update: Record<string, unknown>;
+      };
+      expect(args.create.accountId).toBe(ACCOUNT_ID);
+      // The update branch MUST NOT touch accountId (invariant: accountId is
+      // set once at create and never repointed).
+      expect(args.update.accountId).toBeUndefined();
+    });
   });
 
   describe("findById", () => {
-    it("decrypts webhookUrl on read", async () => {
+    it("decrypts webhookUrl and maps accountId on read", async () => {
       const enc = encryption.encrypt(PLAINTEXT_URL, {
         fieldName: "ExternalNotificationConfig.webhookUrl",
         recordId: "ext-1",
       });
       findUniqueMock.mockResolvedValueOnce({
         id: "ext-1",
+        accountId: ACCOUNT_ID,
         projectId: "proj-1",
         channel: "slack",
         webhookUrlCiphertext: enc.encryptedValue,
@@ -118,6 +155,7 @@ describe("PrismaExternalNotificationConfigRepository", () => {
       expect(result.ok).toBe(true);
       if (result.ok) {
         expect(result.value.webhookUrl).toBe(PLAINTEXT_URL);
+        expect(result.value.accountId).toBe(ACCOUNT_ID);
       }
     });
   });
@@ -135,6 +173,7 @@ describe("PrismaExternalNotificationConfigRepository", () => {
       findManyMock.mockResolvedValueOnce([
         {
           id: "ext-1",
+          accountId: ACCOUNT_ID,
           projectId: "proj-1",
           channel: "slack",
           webhookUrlCiphertext: enc1.encryptedValue,
@@ -149,6 +188,7 @@ describe("PrismaExternalNotificationConfigRepository", () => {
         },
         {
           id: "ext-2",
+          accountId: ACCOUNT_ID,
           projectId: "proj-1",
           channel: "teams",
           webhookUrlCiphertext: enc2.encryptedValue,

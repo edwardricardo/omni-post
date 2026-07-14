@@ -1,7 +1,10 @@
 /**
  * @file ConfigureExternalNotificationUseCase.ts
  * @description Application use case for creating or updating an external
- *   notification configuration (Slack/Teams webhook).
+ *   notification configuration (Slack/Teams webhook). Resolves the parent
+ *   project through the guard-scoped ProjectRepository to (a) enforce
+ *   project-ownership before persisting (foreign project → NOT_FOUND) and
+ *   (b) thread the project's accountId into the row so it is tenant-scoped.
  * @layer application
  */
 
@@ -12,6 +15,8 @@ import {
   type ExternalNotificationConfigData,
   type NotificationChannel,
 } from "@core/domain/repositories/ExternalNotificationConfigRepository.js";
+import { type ProjectRepositoryPort } from "@core/domain/repositories/ProjectRepository.js";
+import { ProjectId } from "@core/domain/value-objects/EntityId.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import { randomUUID } from "node:crypto";
 
@@ -54,12 +59,14 @@ export class ConfigureExternalNotificationUseCase implements UseCase<
 > {
   constructor(
     private readonly repository: ExternalNotificationConfigRepository,
+    private readonly projectRepository: ProjectRepositoryPort,
     private readonly unitOfWork?: UnitOfWork
   ) {}
 
   /**
    * @method execute
-   * @description Validates input and persists the notification config.
+   * @description Validates input, verifies project ownership, and persists the
+   *   notification config with the parent project's accountId.
    */
   async execute(
     input: ConfigureExternalNotificationInput
@@ -76,10 +83,32 @@ export class ConfigureExternalNotificationUseCase implements UseCase<
       );
     }
 
+    // Parse the parent project id (invalid format → validation error).
+    const projectIdResult = ProjectId.fromString(input.projectId);
+    if (!projectIdResult.ok) {
+      return err(new UseCaseError("Invalid projectId", USE_CASE_ERRORS.VALIDATION_FAILED));
+    }
+
+    // Ownership check: resolve the project through the guard-scoped repository.
+    // A foreign or nonexistent projectId resolves to EntityNotFoundError under
+    // the caller's tenant context. Return NOT_FOUND BEFORE `doWork` so the
+    // catch-all below can never flatten it to INTERNAL_ERROR (anti-enumeration:
+    // NOT_FOUND, never 403). Mirrors TestExternalNotificationUseCase.
+    const projectResult = await this.projectRepository.findById(projectIdResult.value);
+    if (!projectResult.ok) {
+      return err(new UseCaseError(projectResult.error.message, USE_CASE_ERRORS.NOT_FOUND));
+    }
+
+    // Denormalize the parent project's accountId onto the row. This holds by
+    // construction: create threads from the guard-scoped parent, so the
+    // persisted row always satisfies `accountId === Project.accountId`.
+    const accountId = projectResult.value.accountId.toString();
+
     const doWork = async (): Promise<Result<ExternalNotificationConfigOutput, UseCaseError>> => {
       const now = new Date();
       const configData: ExternalNotificationConfigData = {
         id: input.id ?? randomUUID(),
+        accountId,
         projectId: input.projectId,
         channel: input.channel,
         webhookUrl: input.webhookUrl,
