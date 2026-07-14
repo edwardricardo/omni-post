@@ -22,7 +22,7 @@ name: Security Testing
 
 on:
   push:
-    branches: [main, omni-post-cc, "refactor/**"]
+    branches: [main, omni-post-cc, "refactor/**", "workstream/**"]
   pull_request:
     branches: [main, omni-post-cc]
   schedule:
