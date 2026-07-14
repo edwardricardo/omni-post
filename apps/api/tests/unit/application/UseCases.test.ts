@@ -438,7 +438,10 @@ describe("Post Use Cases", () => {
       (postRepo.findById as any).mockImplementation(async () => ok(post));
 
       const useCase = new DeletePostUseCase(postRepo, createMockBusinessMetrics());
-      const result = await useCase.execute({ postId: post.id.value });
+      const result = await useCase.execute({
+        postId: post.id.value,
+        caller: { type: "system", source: "unit-test" },
+      });
 
       expect(result.ok).toBeTruthy();
       // Verify delete was called on the repository
@@ -450,6 +453,7 @@ describe("Post Use Cases", () => {
 
       const result = await useCase.execute({
         postId: "a0000000-0000-4000-8000-000000000000",
+        caller: { type: "system", source: "unit-test" },
       });
 
       expect(result.ok).toBeFalsy();
@@ -459,7 +463,10 @@ describe("Post Use Cases", () => {
     it("should reject invalid post ID format", async () => {
       const useCase = new DeletePostUseCase(postRepo, createMockBusinessMetrics());
 
-      const result = await useCase.execute({ postId: "not-a-valid-uuid" });
+      const result = await useCase.execute({
+        postId: "not-a-valid-uuid",
+        caller: { type: "system", source: "unit-test" },
+      });
 
       expect(result.ok).toBeFalsy();
       expect(result.error.code).toBe(USE_CASE_ERRORS.VALIDATION_FAILED);
@@ -481,7 +488,10 @@ describe("Post Use Cases", () => {
       (postRepo.findById as any).mockImplementation(async () => ok(post));
 
       const useCase = new DeletePostUseCase(postRepo, createMockBusinessMetrics());
-      const result = await useCase.execute({ postId: post.id.value });
+      const result = await useCase.execute({
+        postId: post.id.value,
+        caller: { type: "system", source: "unit-test" },
+      });
 
       expect(result.ok).toBeFalsy();
       expect(result.error.code).toBe(USE_CASE_ERRORS.FORBIDDEN);

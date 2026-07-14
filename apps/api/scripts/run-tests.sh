@@ -167,6 +167,7 @@ CONCURRENCY=1 run_batch "integration:consumers" \
 # here because these MERGE-BLOCKING suites were previously unlisted in any
 # batch and therefore never executed under test:all / test:integration.
 CONCURRENCY=1 run_batch "integration:tenant-isolation" \
+  tests/integration/postDeleteOwnership.test.ts \
   tests/integration/externalNotificationTenantIsolation.test.ts \
   tests/integration/scheduledReportTenantIsolation.test.ts \
   tests/integration/campaignTenantIsolation.test.ts \

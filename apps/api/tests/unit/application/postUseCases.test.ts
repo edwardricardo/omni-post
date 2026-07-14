@@ -6,12 +6,19 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ok, err } from "@shared/types";
-import { PostAggregate, ProjectId, PostId, ChannelId, PUBLISH_STATUS } from "@core/domain/index.js";
+import {
+  PostAggregate,
+  ProjectId,
+  PostId,
+  ChannelId,
+  AccountId,
+  PUBLISH_STATUS,
+} from "@core/domain/index.js";
 import { EntityNotFoundError } from "@core/domain/errors/index.js";
 import { CreatePostUseCase } from "@core/posts/CreatePostUseCase.js";
 import { UpdatePostUseCase } from "@core/posts/UpdatePostUseCase.js";
 import { SchedulePostUseCase } from "@core/posts/SchedulePostUseCase.js";
-import { DeletePostUseCase } from "@core/posts/DeletePostUseCase.js";
+import { DeletePostUseCase, type DeletePostCaller } from "@core/posts/DeletePostUseCase.js";
 import { GetPostUseCase } from "@core/posts/GetPostUseCase.js";
 import { ListPostsUseCase } from "@core/posts/ListPostsUseCase.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
@@ -52,6 +59,7 @@ function createMockPostRepository() {
     getProjectStats: vi.fn(),
     bulkUpdateStatus: vi.fn(),
     hardDelete: vi.fn(),
+    findOwnerAccountId: vi.fn(async (_id: PostId): Promise<AccountId | null> => null),
   };
 }
 
@@ -444,6 +452,11 @@ describe("DeletePostUseCase", () => {
   let repo: ReturnType<typeof createMockPostRepository>;
   let draftPost: PostAggregate;
 
+  // These behavior tests exercise the caller-agnostic delete mechanics (status
+  // rules, validation, not-found). They use an explicit system caller so the
+  // ownership gate is skipped — the gate itself is covered separately below.
+  const SYSTEM_CALLER: DeletePostCaller = { type: "system", source: "unit-test" };
+
   beforeEach(() => {
     repo = createMockPostRepository();
     useCase = new DeletePostUseCase(repo as any, createMockBusinessMetrics());
@@ -460,7 +473,7 @@ describe("DeletePostUseCase", () => {
 
   describe("success", () => {
     it("deletes a draft post", async () => {
-      const result = await useCase.execute({ postId: draftPost.id.value });
+      const result = await useCase.execute({ postId: draftPost.id.value, caller: SYSTEM_CALLER });
       expect(result.ok).toBe(true);
       expect(repo.delete).toHaveBeenCalled();
     });
@@ -468,13 +481,13 @@ describe("DeletePostUseCase", () => {
     it("deletes a failed post", async () => {
       draftPost.startPublishing(["X"]);
       draftPost.markAsFailed("error", ["X"]);
-      const result = await useCase.execute({ postId: draftPost.id.value });
+      const result = await useCase.execute({ postId: draftPost.id.value, caller: SYSTEM_CALLER });
       expect(result.ok).toBe(true);
     });
 
     it("deletes a cancelled post", async () => {
       draftPost.cancel("no longer needed");
-      const result = await useCase.execute({ postId: draftPost.id.value });
+      const result = await useCase.execute({ postId: draftPost.id.value, caller: SYSTEM_CALLER });
       expect(result.ok).toBe(true);
     });
   });
@@ -482,7 +495,7 @@ describe("DeletePostUseCase", () => {
   describe("business rules", () => {
     it("rejects deleting a SCHEDULED post", async () => {
       draftPost.schedule(new Date(Date.now() + 3_600_000));
-      const result = await useCase.execute({ postId: draftPost.id.value });
+      const result = await useCase.execute({ postId: draftPost.id.value, caller: SYSTEM_CALLER });
       expect(result.ok).toBe(false);
       if (result.ok) return;
       expect(result.error.code).toBe(USE_CASE_ERRORS.FORBIDDEN);
@@ -491,7 +504,7 @@ describe("DeletePostUseCase", () => {
     it("rejects deleting a PUBLISHED post", async () => {
       draftPost.startPublishing(["X"]);
       draftPost.markAsPublished({ X: { success: true } });
-      const result = await useCase.execute({ postId: draftPost.id.value });
+      const result = await useCase.execute({ postId: draftPost.id.value, caller: SYSTEM_CALLER });
       expect(result.ok).toBe(false);
       if (result.ok) return;
       expect(result.error.code).toBe(USE_CASE_ERRORS.FORBIDDEN);
@@ -500,7 +513,7 @@ describe("DeletePostUseCase", () => {
 
   describe("validation", () => {
     it("rejects invalid postId", async () => {
-      const result = await useCase.execute({ postId: "not-uuid" });
+      const result = await useCase.execute({ postId: "not-uuid", caller: SYSTEM_CALLER });
       expect(result.ok).toBe(false);
       if (result.ok) return;
       expect(result.error.code).toBe(USE_CASE_ERRORS.VALIDATION_FAILED);
@@ -509,10 +522,80 @@ describe("DeletePostUseCase", () => {
 
   describe("error handling", () => {
     it("returns NOT_FOUND for non-existent post", async () => {
-      const result = await useCase.execute({ postId: PostId.generate().value });
+      const result = await useCase.execute({
+        postId: PostId.generate().value,
+        caller: SYSTEM_CALLER,
+      });
       expect(result.ok).toBe(false);
       if (result.ok) return;
       expect(result.error.code).toBe(USE_CASE_ERRORS.NOT_FOUND);
+    });
+  });
+
+  describe("ownership gate (CWE-639)", () => {
+    const ownerAccount = AccountId.generate();
+
+    it("returns NOT_FOUND and never deletes when the customer does not own the post", async () => {
+      repo.findOwnerAccountId.mockResolvedValueOnce(ownerAccount);
+
+      const result = await useCase.execute({
+        postId: draftPost.id.value,
+        caller: { type: "customer", accountId: AccountId.generate().value },
+      });
+
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error.code).toBe(USE_CASE_ERRORS.NOT_FOUND);
+      expect(repo.delete).not.toHaveBeenCalled();
+      // Gate runs before load — findById is never reached on a foreign id.
+      expect(repo.findById).not.toHaveBeenCalled();
+    });
+
+    it("returns NOT_FOUND when the post has no owner (findOwnerAccountId null)", async () => {
+      repo.findOwnerAccountId.mockResolvedValueOnce(null);
+
+      const result = await useCase.execute({
+        postId: draftPost.id.value,
+        caller: { type: "customer", accountId: ownerAccount.value },
+      });
+
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error.code).toBe(USE_CASE_ERRORS.NOT_FOUND);
+      expect(repo.delete).not.toHaveBeenCalled();
+    });
+
+    it("deletes when the customer owns the post", async () => {
+      repo.findOwnerAccountId.mockResolvedValueOnce(ownerAccount);
+
+      const result = await useCase.execute({
+        postId: draftPost.id.value,
+        caller: { type: "customer", accountId: ownerAccount.value },
+      });
+
+      expect(result.ok).toBe(true);
+      expect(repo.delete).toHaveBeenCalled();
+    });
+
+    it("skips the gate for a system caller (findOwnerAccountId never consulted)", async () => {
+      const result = await useCase.execute({
+        postId: draftPost.id.value,
+        caller: { type: "system", source: "PostPublishingSaga:Compensation" },
+      });
+
+      expect(result.ok).toBe(true);
+      expect(repo.findOwnerAccountId).not.toHaveBeenCalled();
+      expect(repo.delete).toHaveBeenCalled();
+    });
+
+    it("fails closed (throws) for an unknown caller variant", async () => {
+      await expect(
+        useCase.execute({
+          postId: draftPost.id.value,
+          caller: { type: "intruder" } as unknown as DeletePostCaller,
+        })
+      ).rejects.toThrow(/Unhandled delete caller type/);
+      expect(repo.delete).not.toHaveBeenCalled();
     });
   });
 });

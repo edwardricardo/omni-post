@@ -54,6 +54,23 @@ describe("DeletePostCommandHandler", () => {
     expect(input.postId).toBe(TEST_POST_ID);
   });
 
+  it("should forward an explicit system caller to the use case", async () => {
+    const command = buildDeletePostCommand({ aggregateId: TEST_POST_ID });
+    await handler.handle(command);
+
+    expect(ctx.deletePostUseCase.executeCalls.length).toBe(1);
+    const input = ctx.deletePostUseCase.executeCalls[0] as {
+      postId: string;
+      caller: { type: string; source?: string };
+    };
+    // The bus dispatcher is system-internal (saga compensation) and must pass
+    // an explicit, auditable system caller so the ownership gate is skipped.
+    expect(input.caller).toEqual({
+      type: "system",
+      source: "PostPublishingSaga:Compensation",
+    });
+  });
+
   it("should return error when post is not found in repository", async () => {
     ctx.postRepository.shouldFail = true;
 

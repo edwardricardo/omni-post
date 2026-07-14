@@ -501,8 +501,14 @@ export class DeletePostCommandHandler implements CommandHandler<Command, { delet
       const mediaCount = post.media.length;
       const hadSchedule = !!post.scheduledAt;
 
-      // 2. Delegate to use case
-      const result = await this.config.deletePostUseCase.execute({ postId: aggregateId });
+      // 2. Delegate to use case. This dispatcher is system-internal (the sole
+      // production caller is the PostPublishingSaga compensation deleting the
+      // post the saga itself created), so it passes an explicit, auditable
+      // system caller that skips the customer ownership gate (CWE-639).
+      const result = await this.config.deletePostUseCase.execute({
+        postId: aggregateId,
+        caller: { type: "system", source: "PostPublishingSaga:Compensation" },
+      });
 
       if (!result.ok) {
         return { success: false, error: result.error.message };
