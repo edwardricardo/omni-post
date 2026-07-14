@@ -82,8 +82,8 @@ Revert branch (no merge to main until green). Post-merge: down-migrations drop R
 
 ## Success Criteria
 
-- [ ] Both models: three legs present (accountId+index, `TENANT_SCOPED_MODELS`, RLS) — static.
-- [ ] Cross-tenant read/list/delete/update/generate resolve to empty/404; no analytics/data crosses — integration.
-- [ ] Foreign-`projectId` create → 404 (never 403/500); own-parent create consistent — integration.
-- [ ] Zero NULL `accountId`; row count preserved — integration.
-- [ ] 0-defect gate green (tsc, eslint, fitness #21/#23, full regression).
+- [x] Both models: three legs present (accountId+index, `TENANT_SCOPED_MODELS`, RLS) — static.
+- [x] Cross-tenant read/list/delete/update/generate resolve to empty/404; no analytics/data crosses — integration.
+- [x] Foreign-`projectId` create → 404 (never 403/500); own-parent create consistent — integration.
+- [x] Zero NULL `accountId`; row count preserved — integration.
+- [x] 0-defect gate green (tsc, eslint, fitness #21/#23, full regression).

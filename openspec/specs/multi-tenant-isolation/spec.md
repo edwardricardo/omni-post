@@ -8,6 +8,20 @@
 > (branch `workstream/cluster-c-extnotif-guard`).
 > Source of truth: `docs/security/MULTI_TENANT_GUARDS.md`.
 >
+> **Extended by Slice 2** — change `scheduled-report-campaign-tenant-guard`, archived
+> 2026-07-14, PR #114 (branch `workstream/cluster-c-schedreport-campaign-guard`).
+> Enrolled `ScheduledReport` and `Campaign`; added their Requirement-2-shaped
+> IDOR-closure blocks below. Slice 2 also generalized a SECOND systematic gap class
+> beyond the create-path check (Requirement 3): guard enrollment closes routes that
+> QUERY the enrolled model directly, but does NOT close a route that mutates or reads
+> a RELATED / JOIN / CHILD table (e.g. `campaignPost`) without first resolving the
+> parent through a guarded `findById`. Every future slice's MERGE-BLOCKING integration
+> suite MUST (a) audit both WRITE and READ routes for join/child-table traversal or a
+> bypassed parent lookup, (b) exercise ALL of the model's routes, not a subset, and
+> (c) copy the reference per-row `accountId == <parent>.accountId` consistency
+> invariant plus a positive control for every exfiltration sentinel — not just a
+> NULL check.
+>
 > Scope note: this capability covers isolation **by construction at the data layer**.
 > It is distinct from the per-model APP-LEVEL ownership specs archived separately
 > (`trackedlink-tenant-isolation`, `post-tenant-isolation`), which gate at the
@@ -103,6 +117,87 @@ in a response body, not in an error message, and not through an outbound webhook
 - **GIVEN** tenant A is authenticated and knows the id of B's config
 - **WHEN** A calls `POST /external-notifications/{B's configId}/test`
 - **THEN** the request resolves to NOT_FOUND, NO outbound send is performed against B's webhook, and B's decrypted secret is never materialized in the response or logs
+
+---
+
+### Requirement: ScheduledReport — the live IDOR routes are closed, and no analytics exfiltrates across the tenant boundary [MERGE-BLOCKING]
+
+An authenticated tenant A SHALL NOT read, update, delete, or generate tenant B's
+`ScheduledReport`. Each of B's id-only routes (get / update / delete / generate) SHALL
+resolve to NOT_FOUND for A. Critically, the **analytics-exfiltration escalation SHALL be
+closed**: A SHALL NOT be able to rewrite `recipients` on B's report and then trigger
+generation to have B's analytics emailed to an A-controlled address — because the guard
+makes B's report unresolvable for A, BOTH the update and the generate resolve to NOT_FOUND
+before any analytics is computed or any email is sent.
+
+#### Scenario: A cannot read B's report by id [integration]
+
+- **GIVEN** tenant A is authenticated and knows the id of B's `ScheduledReport`
+- **WHEN** A calls the get-by-id route with B's report id
+- **THEN** the request resolves to NOT_FOUND and none of B's report data appears in the payload
+
+#### Scenario: A cannot repoint recipients on B's report [integration]
+
+- **GIVEN** tenant A is authenticated and knows the id of B's report
+- **WHEN** A calls the update route to rewrite `recipients` to an A-controlled address
+- **THEN** the request resolves to NOT_FOUND and B's stored `recipients` are unchanged
+
+#### Scenario: A cannot generate B's report — the exfil vector is closed [integration]
+
+- **GIVEN** tenant A is authenticated and knows the id of B's report
+- **WHEN** A calls the generate route against B's report id
+- **THEN** the request resolves to NOT_FOUND, NO analytics is computed for B, and NO email carrying B's analytics is sent
+
+#### Scenario: A cannot delete B's report by id [integration]
+
+- **GIVEN** tenant A is authenticated and knows the id of B's report
+- **WHEN** A calls the delete route with B's report id
+- **THEN** the request resolves to NOT_FOUND and B's report still exists in the database
+
+---
+
+### Requirement: Campaign — the live IDOR routes are closed [MERGE-BLOCKING]
+
+An authenticated tenant A SHALL NOT read, patch, archive, tag, or untag tenant B's
+`Campaign`. Each of B's id-only routes SHALL resolve to NOT_FOUND for A, and a list request
+carrying a FOREIGN `projectId` SHALL return an EMPTY result — the guard scopes the list to
+A's account, so B's campaigns never appear regardless of the client-supplied `projectId`
+(guard-natural, no explicit ownership check required on the list path). The untag route is a
+join-table mutation (`campaignPost`, absent from `TENANT_SCOPED_MODELS`) that bypasses the
+guarded `Campaign` lookup entirely unless the use case resolves the parent `Campaign` first —
+enrollment alone does NOT close it; an explicit guarded `findById(campaignId)` before the
+join-row mutation is REQUIRED (see `docs/security/MULTI_TENANT_GUARDS.md` for the generalized
+join/child-table gap class).
+
+#### Scenario: A cannot read B's campaign by id [integration]
+
+- **GIVEN** tenant A is authenticated and knows the id of B's `Campaign`
+- **WHEN** A calls the get-by-id route with B's campaign id
+- **THEN** the request resolves to NOT_FOUND and none of B's campaign data appears in the payload
+
+#### Scenario: A cannot patch or archive B's campaign [integration]
+
+- **GIVEN** tenant A is authenticated and knows the id of B's campaign
+- **WHEN** A calls the patch or archive route against B's campaign id
+- **THEN** each resolves to NOT_FOUND and B's campaign is unchanged in the database
+
+#### Scenario: A cannot tag or untag B's campaign — including the join-row mutation [integration]
+
+- **GIVEN** tenant A is authenticated and knows the id of B's campaign
+- **WHEN** A calls the tag or untag route against B's campaign id
+- **THEN** each resolves to NOT_FOUND, B's tag set is unchanged, and B's underlying `campaignPost` join row survives untouched
+
+#### Scenario: A cannot read B's campaign analytics via the join-table traversal [integration]
+
+- **GIVEN** tenant A is authenticated and knows the id of B's campaign
+- **WHEN** A calls the analytics route (which traverses the `campaignPost` join table via `findPostIdsByCampaignId`) against B's campaign id
+- **THEN** the request resolves to NOT_FOUND before any join-table read or aggregation occurs, and none of B's analytics data appears in the payload
+
+#### Scenario: listing with a foreign projectId returns empty [integration]
+
+- **GIVEN** tenant A is authenticated and B owns campaigns under B's project
+- **WHEN** A calls the list route with `projectId={B's projectId}`
+- **THEN** the response contains ZERO of B's campaigns (empty result), with no per-route ownership check
 
 ---
 
