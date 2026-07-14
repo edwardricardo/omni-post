@@ -7,13 +7,29 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { CreateCampaignUseCase } from "@core/campaigns/CreateCampaignUseCase.js";
-import { ProjectId } from "@core/domain/value-objects/EntityId.js";
+import { ProjectId, AccountId } from "@core/domain/value-objects/EntityId.js";
+import { Project } from "@core/domain/entities/Project.js";
+
+const ACCOUNT_ID = "11111111-1111-4111-8111-111111111111";
 
 function makeRepo() {
   return {
     save: vi.fn(async () => ({ ok: true as const, value: undefined })),
     findById: vi.fn(async () => ({ ok: false as const, error: new Error("Not found") })),
     findByProjectId: vi.fn(async () => []),
+  };
+}
+
+function makeProjectRepo(found = true) {
+  const created = Project.create({
+    accountId: AccountId.fromStringUnsafe(ACCOUNT_ID),
+    name: "Owner Project",
+  });
+  const value = created.ok ? created.value : undefined;
+  return {
+    findById: vi.fn(async () =>
+      found ? { ok: true as const, value } : { ok: false as const, error: new Error("Not found") }
+    ),
   };
 }
 
@@ -32,7 +48,7 @@ describe("CreateCampaignUseCase", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     repo = makeRepo();
-    uc = new CreateCampaignUseCase(repo as any);
+    uc = new CreateCampaignUseCase(repo as any, makeProjectRepo() as any);
   });
 
   it("creates campaign and returns ID", async () => {

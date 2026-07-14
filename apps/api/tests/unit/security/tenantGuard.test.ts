@@ -377,9 +377,76 @@ describe("tenantGuardExtension", () => {
     });
   });
 
+  describe("campaign + scheduledReport enrollment (tenant-guard rollout)", () => {
+    it("campaign is a member of getTenantScopedModels()", () => {
+      expect(getTenantScopedModels().has("campaign")).toBe(true);
+    });
+
+    it("scheduledReport is a member of getTenantScopedModels()", () => {
+      expect(getTenantScopedModels().has("scheduledReport")).toBe(true);
+    });
+
+    it("injects accountId into where on Campaign findMany (list by projectId)", async () => {
+      const queryFn = vi.fn().mockResolvedValue([]);
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "Campaign",
+        operation: "findMany",
+        args: { where: { projectId: "proj-B" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; projectId: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.projectId).toBe("proj-B");
+    });
+
+    it("injects accountId into ScheduledReport upsert.create data", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "ScheduledReport",
+        operation: "upsert",
+        args: {
+          where: { id: "rep-1" },
+          create: { id: "rep-1", accountId: "acc-A", projectId: "proj-1", name: "R" },
+          update: { name: "R" },
+        },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        create: { accountId: string };
+        where: { accountId: string };
+      };
+      expect(calledArgs.create.accountId).toBe("acc-A");
+      expect(calledArgs.where.accountId).toBe("acc-A");
+    });
+
+    it("throws TenantContextMismatchError when Campaign create.accountId disagrees with context", async () => {
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await expect(
+        callGuard({
+          provider,
+          model: "Campaign",
+          operation: "create",
+          args: { data: { id: "cmp-1", accountId: "acc-B", projectId: "proj-1", name: "C" } },
+        })
+      ).rejects.toThrow(TenantContextMismatchError);
+    });
+  });
+
   describe("model classification", () => {
-    it("getTenantScopedModels returns 51 entries", () => {
-      expect(getTenantScopedModels().size).toBe(51);
+    it("getTenantScopedModels returns 53 entries", () => {
+      expect(getTenantScopedModels().size).toBe(53);
     });
 
     it("includes well-known tenant tables (project, apiKey, mediaAsset)", () => {

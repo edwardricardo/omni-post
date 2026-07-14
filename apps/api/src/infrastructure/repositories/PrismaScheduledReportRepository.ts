@@ -25,6 +25,7 @@ import { EntityNotFoundError } from "@core/domain/errors/index.js";
  */
 interface PrismaScheduledReportRow {
   id: string;
+  accountId: string;
   projectId: string;
   name: string;
   cronSchedule: string;
@@ -68,6 +69,9 @@ export class PrismaScheduledReportRepository implements ScheduledReportRepositor
         where: { id: report.id.value },
         create: {
           id: report.id.value,
+          // accountId is set on create only — it is immutable for the row's
+          // lifetime and denormalized from the parent project by the use case.
+          accountId: report.accountId,
           ...data,
         },
         update: {
@@ -163,6 +167,7 @@ export class PrismaScheduledReportRepository implements ScheduledReportRepositor
 
     const props: ScheduledReportProps = {
       id: ScheduledReportId.fromStringUnsafe(row.id),
+      accountId: row.accountId,
       projectId: ProjectId.fromStringUnsafe(row.projectId),
       name: row.name,
       cronSchedule: row.cronSchedule,

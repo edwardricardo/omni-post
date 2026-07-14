@@ -25,6 +25,7 @@ class InvalidScheduledReportError extends DomainError {
  */
 export interface ScheduledReportProps extends EntityProps {
   id: ScheduledReportId;
+  accountId: string;
   projectId: ProjectId;
   name: string;
   cronSchedule: string;
@@ -40,6 +41,7 @@ export interface ScheduledReportProps extends EntityProps {
  * Props for creating a new ScheduledReport
  */
 export interface ScheduledReportCreateProps {
+  accountId: string;
   projectId: ProjectId;
   name: string;
   cronSchedule: string;
@@ -58,6 +60,7 @@ const CRON_REGEX = /^(\S+\s+){4}\S+$/;
  * schedule and delivered to a list of recipients via email.
  */
 export class ScheduledReport extends Entity<ScheduledReportId> {
+  private readonly _accountId: string;
   private readonly _projectId: ProjectId;
   private readonly _name: string;
   private _cronSchedule: string;
@@ -70,6 +73,7 @@ export class ScheduledReport extends Entity<ScheduledReportId> {
 
   private constructor(props: ScheduledReportProps) {
     super(props.id, props.createdAt);
+    this._accountId = props.accountId;
     this._projectId = props.projectId;
     this._name = props.name;
     this._cronSchedule = props.cronSchedule;
@@ -127,6 +131,7 @@ export class ScheduledReport extends Entity<ScheduledReportId> {
     return ok(
       new ScheduledReport({
         id: ScheduledReportId.generate(),
+        accountId: props.accountId,
         projectId: props.projectId,
         name: props.name.trim(),
         cronSchedule: props.cronSchedule,
@@ -151,6 +156,13 @@ export class ScheduledReport extends Entity<ScheduledReportId> {
 
   // -- Getters --
 
+  /**
+   * @description Owning account id, denormalized from the parent project.
+   *   Server-derived and tenant-scoping only — never exposed via `toJSON`.
+   */
+  get accountId(): string {
+    return this._accountId;
+  }
   get projectId(): ProjectId {
     return this._projectId;
   }

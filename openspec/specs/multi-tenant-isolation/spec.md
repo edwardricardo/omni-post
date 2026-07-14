@@ -55,6 +55,8 @@ required for read, update, or delete paths.
 | Model                        | Slice | accountId | `TENANT_SCOPED_MODELS` | RLS policy |
 | ---------------------------- | ----- | --------- | ---------------------- | ---------- |
 | `ExternalNotificationConfig` | 1     | Required  | Required               | Required   |
+| `ScheduledReport`            | 2     | Required  | Required               | Required   |
+| `Campaign`                   | 2     | Required  | Required               | Required   |
 
 #### Scenario: the three legs are present for each enrolled model [static]
 
@@ -120,6 +122,8 @@ create path; the invariant is stated once here.
 | Model                        | Slice | Create path                                                             |
 | ---------------------------- | ----- | ----------------------------------------------------------------------- |
 | `ExternalNotificationConfig` | 1     | `POST /external-notifications` → `ConfigureExternalNotificationUseCase` |
+| `ScheduledReport`            | 2     | `POST /reports` → `CreateScheduledReportUseCase`                        |
+| `Campaign`                   | 2     | `POST /campaigns` → `CreateCampaignUseCase`                             |
 
 #### Scenario: create against a foreign parent is rejected [integration]
 

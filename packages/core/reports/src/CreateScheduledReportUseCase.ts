@@ -1,13 +1,16 @@
 /**
  * @file CreateScheduledReportUseCase.ts
  * @description Creates a new scheduled report entity for a project. Validates input,
- *   delegates creation to the ScheduledReport entity factory, and persists via repository.
+ *   resolves the parent project through the guard-scoped ProjectRepository to
+ *   enforce project-ownership (foreign project → NOT_FOUND) and thread the
+ *   project's accountId onto the row, then persists via repository.
  * @layer application
  */
 
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { type ScheduledReportRepository } from "@core/domain/repositories/ScheduledReportRepository.js";
+import { type ProjectRepositoryPort } from "@core/domain/repositories/ProjectRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import { ScheduledReport } from "@core/domain/entities/ScheduledReport.js";
 import { ProjectId } from "@core/domain/value-objects/EntityId.js";
@@ -25,6 +28,7 @@ export class CreateScheduledReportUseCase implements UseCase<
 > {
   constructor(
     private readonly reportRepository: ScheduledReportRepository,
+    private readonly projectRepository: ProjectRepositoryPort,
     private readonly unitOfWork?: UnitOfWork
   ) {}
 
@@ -48,7 +52,20 @@ export class CreateScheduledReportUseCase implements UseCase<
       );
     }
 
+    // Ownership check: resolve the project through the guard-scoped repository.
+    // A foreign or nonexistent projectId resolves to EntityNotFoundError under
+    // the caller's tenant context. Return NOT_FOUND BEFORE `doWork` so the
+    // catch-all below can never flatten it to INTERNAL_ERROR (anti-enumeration:
+    // NOT_FOUND, never 403).
+    const projectResult = await this.projectRepository.findById(projectIdResult.value);
+    if (!projectResult.ok) {
+      return err(new UseCaseError(projectResult.error.message, USE_CASE_ERRORS.NOT_FOUND));
+    }
+
+    const accountId = projectResult.value.accountId.toString();
+
     const reportResult = ScheduledReport.create({
+      accountId,
       projectId: projectIdResult.value,
       name: input.name,
       cronSchedule: input.cronSchedule,

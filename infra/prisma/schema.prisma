@@ -40,6 +40,8 @@ model Account {
   instagramAnalytics          InstagramAnalytics[]
   schedulingRules             SchedulingRule[]
   externalNotificationConfigs ExternalNotificationConfig[]
+  campaigns                   Campaign[]
+  scheduledReports            ScheduledReport[]
   webhookEvents               WebhookEvent[]
   webhookSubscriptions        WebhookSubscription[]
   templates                   Template[]
@@ -2301,6 +2303,7 @@ model SocialOutboundReply {
 
 model Campaign {
   id          String         @id @default(uuid())
+  accountId   String
   projectId   String
   name        String
   description String?
@@ -2312,10 +2315,12 @@ model Campaign {
   createdAt   DateTime       @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime       @updatedAt @db.Timestamptz(6)
 
+  account      Account        @relation(fields: [accountId], references: [id], onDelete: Cascade)
   project      Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   posts        CampaignPost[]
   trackedLinks TrackedLink[]
 
+  @@index([accountId])
   @@index([projectId, status])
   @@index([projectId, createdAt])
 }
@@ -2384,6 +2389,7 @@ model AnalyticsMonthlySummary {
 
 model ScheduledReport {
   id           String       @id @default(uuid())
+  accountId    String
   projectId    String
   name         String
   cronSchedule String
@@ -2396,8 +2402,10 @@ model ScheduledReport {
   createdAt    DateTime     @default(now()) @db.Timestamptz(6)
   updatedAt    DateTime     @updatedAt @db.Timestamptz(6)
 
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
+  @@index([accountId])
   @@index([projectId, isActive])
   @@index([nextRunAt, isActive])
 }

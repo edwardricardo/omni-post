@@ -23,6 +23,7 @@ import { EntityNotFoundError } from "@core/domain/errors/index.js";
  */
 interface PrismaCampaignRow {
   id: string;
+  accountId: string;
   projectId: string;
   name: string;
   description: string | null;
@@ -78,6 +79,9 @@ export class PrismaCampaignRepository implements CampaignRepository {
         where: { id: campaign.id.value },
         create: {
           id: campaign.id.value,
+          // accountId is set on create only — it is immutable for the row's
+          // lifetime and denormalized from the parent project by the use case.
+          accountId: campaign.accountId,
           ...data,
         },
         update: {
@@ -199,6 +203,7 @@ export class PrismaCampaignRepository implements CampaignRepository {
 
     const props: CampaignProps = {
       id: CampaignId.fromStringUnsafe(row.id),
+      accountId: row.accountId,
       projectId: ProjectId.fromStringUnsafe(row.projectId),
       name: row.name,
       status,

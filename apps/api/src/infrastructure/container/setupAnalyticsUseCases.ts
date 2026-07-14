@@ -11,6 +11,7 @@ import { TOKENS } from "./types.js";
 import type { CachePort } from "@ports/core";
 import type { CampaignRepository } from "@core/domain/repositories/CampaignRepository.js";
 import type { CampaignQueryRepository } from "@core/domain/repositories/CampaignQueryRepository.js";
+import type { ProjectRepositoryPort } from "@core/domain/repositories/ProjectRepository.js";
 import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
 import type { ProjectQueryRepositoryPort } from "@core/domain/repositories/ProjectQueryRepository.js";
 import type { ConversionRepositoryPort } from "@core/domain/repositories/ConversionRepository.js";
@@ -147,6 +148,7 @@ export function setupAnalyticsUseCases(container: Container): void {
     () =>
       new CreateCampaignUseCase(
         container.resolve<CampaignRepository>(TOKENS.CampaignRepository),
+        container.resolve<ProjectRepositoryPort>(TOKENS.ProjectRepository),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
