@@ -8,7 +8,7 @@ packages:
   - packages/observability/*
   - infra/*
 
-enableGlobalVirtualStore: true
+enableGlobalVirtualStore: false
 
 # Build-script approval. pnpm 11 unified `onlyBuiltDependencies` +
 # `ignoredBuiltDependencies` into `allowBuilds` (map of package -> boolean),

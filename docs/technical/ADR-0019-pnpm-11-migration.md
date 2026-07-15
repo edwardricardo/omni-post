@@ -96,6 +96,37 @@ its stricter dedupe surfaced. Concretely:
    tolerance, no split allowlist). This is the root-cause-over-workaround
    principle: the split was a symptom; the missing plugin was the disease.
 
+7. **`enableGlobalVirtualStore` set to `false` in `pnpm-workspace.yaml` — the
+   second root-cause fix (closes SMELL-52).** Migrating to pnpm 11 broke two CI
+   jobs with the SAME root cause: **size-limit** (Pre-merge Audit Toolkit —
+   `load-plugins.js`'s runtime `import('@size-limit/preset-small-lib')`) and
+   **Code Quality `knip`** (`check:dead-code`, resolving Storybook addons).
+   Both tools resolve packages at runtime, and under pnpm 11's store v11, with
+   `enableGlobalVirtualStore: true` those runtime lookups landed in pnpm's
+   **global** virtual store (`$HOME/.local/share/pnpm/store/v11/...`) instead
+   of the project's `node_modules`. Neither `public-hoist-pattern` (project
+   root) nor `hoist-pattern` (project `.pnpm`) reaches the global store — both
+   were tested and both failed. **Fix**: disable `enableGlobalVirtualStore`.
+   With it off, `next` and the runtime-resolving tools resolve from the
+   in-repo `node_modules` again: size-limit gets past plugin load, `knip`
+   resolves the Storybook addons (`pnpm check:dead-code` exits 0, 0
+   regressions), and audit/dedupe/frozen-lockfile stay green. The change is
+   **coupled** to `turbopack.root` in `apps/admin/next.config.mjs` and
+   `apps/client/next.config.mjs` (ADR-0017 §4(a)): that value existed ONLY
+   because GVS put `next` under `$HOME`, outside the monorepo root; with GVS
+   off, `turbopack.root` reverts from `os.homedir()` to
+   `path.resolve(import.meta.dirname, "../..")` (the monorepo root, now a
+   valid ancestor for `next` resolution again). Verified: `apps/client`'s
+   Next 16 Turbopack production build compiles 82/82 static pages, no
+   "inferred workspace root" error. This **organically closes SMELL-52**'s
+   deferred GVS/`turbopack.root` item
+   (`docs/reports/roadmap-detected-smells-backlog.md`) — a memory-scope
+   upside as a byproduct, not the primary motivation: a repo-scoped
+   `turbopack.root` narrows the PRODUCTION BUILD's Turbopack module-graph scan
+   versus the home-directory scope, the same runaway-OOM insurance SMELL-52 had
+   flagged as deferred. (Dev itself runs `next dev --webpack` per SMELL-52, so
+   the `turbopack.root` scope does not affect dev either way.)
+
 ## Rationale
 
 - **The break is upstream and total.** A 410 on the legacy endpoint is not a
@@ -231,3 +262,7 @@ ledger is untouched; only its **file location** moved from
 - vite 8 rolldown JSX-in-SSR tracking — vitejs/vite#21505
 - Audited audit-ignores ledger — `docs/security/SECURITY_CANON.md §Audited audit-ignores`
 - Standing backlog / config-location notes — `docs/product/PENDING_WORK_INVENTORY.md §7`
+- SMELL-52 (GVS/`turbopack.root` sub-item, closed by this ADR) —
+  `docs/reports/roadmap-detected-smells-backlog.md`
+- Production build model + `turbopack.root` history —
+  `docs/technical/ADR-0017-production-build-bundler.md §4(a)`
