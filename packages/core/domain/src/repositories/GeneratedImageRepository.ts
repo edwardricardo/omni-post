@@ -12,6 +12,7 @@ import { type Result } from "@shared/types";
  */
 export interface GeneratedImageData {
   id: string;
+  accountId: string;
   projectId: string;
   prompt: string;
   revisedPrompt: string;

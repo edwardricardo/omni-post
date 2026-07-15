@@ -44,6 +44,7 @@ model Account {
   scheduledReports            ScheduledReport[]
   trackedLinks                TrackedLink[]
   recurringPosts              RecurringPost[]
+  generatedImages             GeneratedImage[]
   webhookEvents               WebhookEvent[]
   webhookSubscriptions        WebhookSubscription[]
   templates                   Template[]
@@ -2461,6 +2462,7 @@ model FirstComment {
 
 model GeneratedImage {
   id            String   @id @default(uuid())
+  accountId     String
   projectId     String
   prompt        String
   revisedPrompt String?
@@ -2470,8 +2472,10 @@ model GeneratedImage {
   style         String
   createdAt     DateTime @default(now()) @db.Timestamptz(6)
 
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
+  @@index([accountId, projectId])
   @@index([projectId, createdAt])
 }
 

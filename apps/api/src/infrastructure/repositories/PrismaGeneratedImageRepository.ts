@@ -32,6 +32,7 @@ export class PrismaGeneratedImageRepository implements GeneratedImageRepository 
       const created = await this.prisma.generatedImage.create({
         data: {
           id: image.id,
+          accountId: image.accountId,
           projectId: image.projectId,
           prompt: image.prompt,
           revisedPrompt: image.revisedPrompt,
@@ -45,6 +46,7 @@ export class PrismaGeneratedImageRepository implements GeneratedImageRepository 
 
       return ok({
         id: created.id,
+        accountId: created.accountId,
         projectId: created.projectId,
         prompt: created.prompt,
         revisedPrompt: created.revisedPrompt ?? "",
@@ -80,6 +82,7 @@ export class PrismaGeneratedImageRepository implements GeneratedImageRepository 
       return ok(
         images.map((img) => ({
           id: img.id,
+          accountId: img.accountId,
           projectId: img.projectId,
           prompt: img.prompt,
           revisedPrompt: img.revisedPrompt ?? "",

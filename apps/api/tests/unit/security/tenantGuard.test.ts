@@ -553,9 +553,115 @@ describe("tenantGuardExtension", () => {
     });
   });
 
+  describe("generatedImage enrollment (Slice 4 — tenant-guard rollout)", () => {
+    it("generatedImage is a member of getTenantScopedModels()", () => {
+      expect(getTenantScopedModels().has("generatedImage")).toBe(true);
+    });
+
+    it("injects accountId into where on GeneratedImage findMany (list by projectId)", async () => {
+      const queryFn = vi.fn().mockResolvedValue([]);
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "GeneratedImage",
+        operation: "findMany",
+        args: { where: { projectId: "proj-B" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; projectId: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.projectId).toBe("proj-B");
+    });
+
+    it("injects accountId into where on GeneratedImage update", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "GeneratedImage",
+        operation: "update",
+        args: { where: { id: "img-1" }, data: { prompt: "x" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; id: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.id).toBe("img-1");
+    });
+
+    it("injects accountId into where on GeneratedImage delete", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "GeneratedImage",
+        operation: "delete",
+        args: { where: { id: "img-1" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; id: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.id).toBe("img-1");
+    });
+
+    it("injects accountId into GeneratedImage create data", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "GeneratedImage",
+        operation: "create",
+        args: {
+          data: { id: "img-1", projectId: "proj-1", prompt: "p", imageUrl: "https://x.test/i.png" },
+        },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as { data: { accountId: string } };
+      expect(calledArgs.data.accountId).toBe("acc-A");
+    });
+
+    it("throws TenantContextMismatchError when GeneratedImage create.accountId disagrees with context", async () => {
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await expect(
+        callGuard({
+          provider,
+          model: "GeneratedImage",
+          operation: "create",
+          args: { data: { id: "img-1", accountId: "acc-B", projectId: "proj-1", prompt: "p" } },
+        })
+      ).rejects.toThrow(TenantContextMismatchError);
+    });
+
+    it("throws TenantContextMissingError on GeneratedImage findFirst when no context is bound", async () => {
+      await expect(
+        callGuard({
+          provider: makeProvider(),
+          model: "GeneratedImage",
+          operation: "findFirst",
+          args: { where: { id: "img-1" } },
+        })
+      ).rejects.toThrow(TenantContextMissingError);
+    });
+  });
+
   describe("model classification", () => {
-    it("getTenantScopedModels returns 55 entries", () => {
-      expect(getTenantScopedModels().size).toBe(55);
+    it("getTenantScopedModels returns 56 entries", () => {
+      expect(getTenantScopedModels().size).toBe(56);
     });
 
     it("includes well-known tenant tables (project, apiKey, mediaAsset)", () => {

@@ -87,6 +87,7 @@ required for read, update, or delete paths.
 | `Campaign`                   | 2     | Required  | Required               | Required   |
 | `RecurringPost`              | 3     | Required  | Required               | Required   |
 | `TrackedLink`                | 3     | Required  | Required               | Required   |
+| `GeneratedImage`             | 4     | Required  | Required               | Required   |
 
 #### Scenario: the three legs are present for each enrolled model [static]
 
@@ -348,6 +349,7 @@ one of which SHALL belong to the caller's account before persist.
 | `Campaign`                   | 2     | `POST /campaigns` → `CreateCampaignUseCase`                                                            |
 | `TrackedLink`                | 3     | `POST /links` → `CreateTrackedLinkUseCase` (`projectId`)                                               |
 | `RecurringPost`              | 3     | `POST /recurring-posts` → `CreateRecurringPostUseCase` (`projectId` + `templatePostId` + `channels[]`) |
+| `GeneratedImage`             | 4     | `POST /ai/generate-image` → `GenerateImageUseCase` (`projectId`; check runs BEFORE the paid AI call)   |
 
 #### Scenario: create against a foreign parent is rejected [integration]
 

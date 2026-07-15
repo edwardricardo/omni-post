@@ -19,8 +19,6 @@ import type { IncrementUsageUseCase } from "@core/usage/IncrementUsageUseCase.js
 
 const GenerateImageBodySchema = z.object({
   projectId: z.string().uuid(),
-  /** Optional — when provided, aiCallsMade usage counter is incremented */
-  accountId: z.string().uuid().optional(),
   prompt: z.string().min(1).max(4000),
   size: z.enum(["1024x1024", "1024x1792", "1792x1024"]).optional(),
   quality: z.enum(["standard", "hd"]).optional(),
@@ -82,18 +80,25 @@ class AIImageRouteHandler extends BaseRouteHandler {
     });
 
     if (!result.ok) {
-      const statusCode = result.error.code === "VALIDATION_FAILED" ? 400 : 500;
+      const statusCode =
+        result.error.code === "VALIDATION_FAILED"
+          ? 400
+          : result.error.code === "NOT_FOUND"
+            ? 404
+            : 500;
       return this.sendError(ctx, statusCode, result.error.message);
     }
 
-    // Increment AI calls usage counter — best-effort, does not fail the request
-    if (body.accountId) {
-      void this.incrementUsageUseCase
-        .execute({ accountId: body.accountId, field: "aiCallsMade" })
-        .catch(() => void 0);
-    }
+    // Increment AI calls usage counter for the caller's OWN account, derived
+    // from the authenticated tenant context (never a client-supplied value).
+    // Best-effort — does not fail the request.
+    void this.incrementUsageUseCase
+      .execute({ accountId: user.accountId, field: "aiCallsMade" })
+      .catch(() => void 0);
 
-    this.sendSuccess(ctx, result.value, 201);
+    // Strip the server-only accountId before returning the single DTO.
+    const { accountId: _accountId, ...rest } = result.value;
+    this.sendSuccess(ctx, rest, 201);
   }
 
   /**
@@ -127,7 +132,13 @@ class AIImageRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 500, result.error.message);
     }
 
-    this.sendSuccess(ctx, result.value);
+    // Strip the server-only accountId from EVERY item — a literal object
+    // destructure on the array would strip nothing and re-leak accountId on
+    // every element, so map over the array.
+    this.sendSuccess(
+      ctx,
+      result.value.map(({ accountId: _accountId, ...rest }) => rest)
+    );
   }
 }
 

@@ -6,6 +6,7 @@
 import type { Container } from "./Container.js";
 import { TOKENS } from "./types.js";
 import type { GeneratedImageRepository } from "@core/domain/repositories/GeneratedImageRepository.js";
+import type { ProjectRepositoryPort } from "@core/domain/repositories/ProjectRepository.js";
 import type { ImageGenerationPort } from "@core/domain/repositories/ImageGenerationPort.js";
 import type { AIService } from "../../ai/aiService.js";
 import { PrismaGeneratedImageRepository } from "../repositories/PrismaGeneratedImageRepository.js";
@@ -34,12 +35,14 @@ export function setupAIImageUseCases(container: Container): void {
     true
   );
 
-  // Generate image use case (needs repo + image-generation port)
+  // Generate image use case (needs repo + guard-scoped project repo for the
+  // create-path ownership check + image-generation port)
   container.register(
     TOKENS.GenerateImageUseCase,
     () =>
       new GenerateImageUseCase(
         repo(),
+        container.resolve<ProjectRepositoryPort>(TOKENS.ProjectRepository),
         container.resolve<ImageGenerationPort>(TOKENS.ImageGenerationPort)
       ),
     true
