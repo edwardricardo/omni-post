@@ -22,6 +22,20 @@
 > invariant plus a positive control for every exfiltration sentinel — not just a
 > NULL check.
 >
+> **Extended by Slice 3** — change `recurring-post-tracked-link-tenant-guard`, archived
+> 2026-07-14, PR #116 (branch `workstream/cluster-c-recurringpost-trackedlink-guard`).
+> Enrolled `RecurringPost` and `TrackedLink`; added their Requirement-2-shaped
+> IDOR-closure blocks below. Slice 3 also establishes the rollout's FIRST
+> `withSystemContext()` wraps — for a recurrence-sweep scheduler tick, a public
+> unauthenticated link redirect, and a short-code uniqueness probe — and adds a THIRD
+> model-scoped requirement, "Public link redirect is a capability-URL exemption with
+> mandatory compensating controls", capturing the rollout's first deliberate, signed
+> guard bypass (W3C TAG Capability URLs + OWASP public-resource exemption, engram obs 297) together with its three normative compensating controls (leaks-nothing response,
+> namespace-keyed rate limiting, read-path-only scope). `RecurringPost`'s create path
+> additionally concretizes a NEW "create against multiple parent refs" scenario in
+> Requirement 3 — the first model with THREE client-supplied parent refs (`projectId`,
+> `templatePostId`, `channels[]`) that must each resolve to the caller's own account.
+>
 > Scope note: this capability covers isolation **by construction at the data layer**.
 > It is distinct from the per-model APP-LEVEL ownership specs archived separately
 > (`trackedlink-tenant-isolation`, `post-tenant-isolation`), which gate at the
@@ -203,16 +217,127 @@ join/child-table gap class).
 
 ---
 
+### Requirement: RecurringPost — the live IDOR routes are closed, and the template-clone content-exfil vector is closed [MERGE-BLOCKING]
+
+An authenticated tenant A SHALL NOT read, list, repoint, or deactivate tenant B's
+`RecurringPost`. Each of B's id-only routes (get / patch / deactivate) SHALL resolve to
+NOT_FOUND for A, and a list carrying a FOREIGN `projectId` SHALL return an EMPTY result
+(guard-natural). Critically, the **template-clone content-exfil escalation SHALL be closed**:
+A SHALL NOT create or repoint a recurrence that references a FOREIGN `templatePostId` or
+foreign `channels[]`, because the scheduler's system-context sweep would otherwise clone B's
+post CONTENT into A's account and publish to B's channels — the create/repoint ownership
+check makes each resolve to NOT_FOUND before persist.
+
+#### Scenario: A cannot read B's recurring post by id [integration]
+
+- **GIVEN** tenant A is authenticated and knows the id of B's `RecurringPost`
+- **WHEN** A calls the get-by-id route with B's id
+- **THEN** the request resolves to NOT_FOUND and none of B's recurrence data appears in the payload
+
+#### Scenario: A cannot patch or deactivate B's recurring post [integration]
+
+- **GIVEN** tenant A is authenticated and knows the id of B's recurring post
+- **WHEN** A calls the patch (incl. `channels[]` repoint) or delete/deactivate route against B's id
+- **THEN** each resolves to NOT_FOUND and B's recurrence is unchanged in the database
+
+#### Scenario: listing with a foreign projectId returns empty [integration]
+
+- **GIVEN** tenant A is authenticated and B owns recurring posts under B's project
+- **WHEN** A calls the list route with `projectId={B's projectId}`
+- **THEN** the response contains ZERO of B's recurring posts, with no per-route ownership check
+
+#### Scenario: A cannot seed a recurrence from B's template post — content-exfil closed [integration]
+
+- **GIVEN** tenant A is authenticated and `templatePostId`/`channels[]` belong to tenant B
+- **WHEN** A calls create (or patch-repoint) referencing B's template or channels
+- **THEN** the request resolves to **404 NOT_FOUND** before persist, NO recurrence is created, and the scheduler NEVER clones B's post content into A's account
+
+---
+
+### Requirement: TrackedLink — the live IDOR routes are closed, including the child-table stats traversal [MERGE-BLOCKING]
+
+An authenticated tenant A SHALL NOT read, delete, generate UTM variants for, or read stats
+of tenant B's `TrackedLink`. Each of B's id-only routes (get / delete / utm-generate /
+utm-url) SHALL resolve to NOT_FOUND for A. Critically, the **stats route traverses the
+`linkClick` CHILD table** (`getClickStats` → `linkClick.findMany`, absent from
+`TENANT_SCOPED_MODELS`), so enrollment closes it ONLY via the upstream guarded
+`findById(linkId)`; the suite MUST pin that a foreign stats request resolves to NOT_FOUND
+BEFORE any child-table read, so none of B's click analytics is aggregated or returned.
+
+#### Scenario: A cannot read B's tracked link by id [integration]
+
+- **GIVEN** tenant A is authenticated and knows the id of B's `TrackedLink`
+- **WHEN** A calls the get-by-id route with B's id
+- **THEN** the request resolves to NOT_FOUND and none of B's link data appears in the payload
+
+#### Scenario: A cannot delete B's tracked link — child click rows survive [integration]
+
+- **GIVEN** tenant A is authenticated and knows the id of B's link (with `linkClick` rows)
+- **WHEN** A calls the delete route against B's id
+- **THEN** the request resolves to NOT_FOUND, and B's link and its `linkClick` rows survive untouched
+
+#### Scenario: A cannot generate or read UTM variants for B's link [integration]
+
+- **GIVEN** tenant A is authenticated and knows the id of B's link
+- **WHEN** A calls the utm-generate or utm-url route against B's id
+- **THEN** each resolves to NOT_FOUND and B's link is unchanged
+
+#### Scenario: A cannot read B's link stats via the child-table traversal [integration]
+
+- **GIVEN** tenant A is authenticated and knows the id of B's link
+- **WHEN** A calls the stats route (which traverses `linkClick.findMany`) against B's id
+- **THEN** the request resolves to NOT_FOUND before any child-table read or aggregation occurs, and none of B's click analytics appears in the payload
+
+---
+
+### Requirement: Public link redirect is a capability-URL exemption with mandatory compensating controls [MERGE-BLOCKING]
+
+The public redirect `GET /r/:shortCode` SHALL resolve GLOBALLY via
+`withSystemContext("public-link-redirect")` — the `shortCode` is a capability token (W3C TAG
+Capability URLs) and public resources are exempt from deny-by-default (OWASP). **This
+capability-URL exemption is a FINAL, signed product/security decision (engram obs 297,
+2026-07-14) — the slice is NOT gated on further approval.** This exemption is admissible ONLY
+with the following compensating controls, which are NORMATIVE:
+
+1. the redirect SHALL leak NO tenant-identifying data — its only success output is a `302` to
+   the destination URL (no accountId, no analytics, no tenant metadata in body or headers);
+2. the `/r/:shortCode` namespace SHALL be rate-limited to resist enumeration;
+3. the exemption SHALL be read-path only — the exemption SHALL NOT extend to any management
+   surface.
+
+#### Scenario: the redirect leaks nothing [integration]
+
+- **GIVEN** tenant B owns a published short link
+- **WHEN** an anonymous visitor calls `GET /r/:shortCode` for that link
+- **THEN** the response is ONLY a `302` to the destination URL, with no accountId, analytics, or tenant-identifying data in the body or headers
+
+#### Scenario: the redirect namespace is rate-limited [integration]
+
+- **GIVEN** anonymous requests to `/r/:shortCode` exceed the configured threshold
+- **WHEN** the limit is crossed
+- **THEN** the rate limiter engages (e.g. HTTP 429) and further enumeration attempts are throttled
+
+#### Scenario: the management surface stays tenant-scoped [integration]
+
+- **GIVEN** tenant A is authenticated and B owns a `TrackedLink` and a `RecurringPost`
+- **WHEN** A calls any TrackedLink management route (create / get / update / delete / stats) or any RecurringPost route against B's ids
+- **THEN** each resolves to NOT_FOUND — the capability exemption applies to the redirect read path ONLY
+
+---
+
 ### Requirement: Create paths validate parent ownership per enrolled model [MERGE-BLOCKING]
 
 The guard injects `accountId` from the bound context but does NOT validate parent–child
 consistency. Therefore every create (or repoint) path of an enrolled model that accepts a
 client-supplied parent id SHALL verify that the parent belongs to the caller's account
 BEFORE persisting, and SHALL reject with **NOT_FOUND (404)** otherwise — never 403
-(anti-enumeration: a 403 confirms the resource exists). Without this check a tenant could
-persist a row carrying its OWN `accountId` and a FOREIGN parent id — an inconsistent row and
-a latent exfiltration channel. Each slice concretizes this requirement for its own model's
-create path; the invariant is stated once here.
+(anti-enumeration: a 403 confirms the resource exists) and never 500. Without this check a
+tenant could persist a row carrying its OWN `accountId` and a FOREIGN parent id — an
+inconsistent row and a latent exfiltration channel. Each slice concretizes this requirement
+for its own model's create path; the invariant is stated once here. `TrackedLink` create
+validates a client `projectId`; `RecurringPost` create/repoint validates THREE
+client-supplied refs — `projectId`, `templatePostId`, and each entry of `channels[]` — every
+one of which SHALL belong to the caller's account before persist.
 
 **Applied so far (extended by each slice):**
 
@@ -228,7 +353,13 @@ create path; the invariant is stated once here.
 
 - **GIVEN** tenant A is authenticated and the supplied parent id (e.g. `projectId`) belongs to tenant B
 - **WHEN** A calls the model's create endpoint with B's parent id
-- **THEN** the response is **404 NOT_FOUND** (never 403), and NO row is persisted
+- **THEN** the response is **404 NOT_FOUND** (never 403, never 500), and NO row is persisted
+
+#### Scenario: create against multiple parent refs rejects any foreign ref [integration]
+
+- **GIVEN** tenant A is authenticated and any of `projectId`, `templatePostId`, or a `channels[]` entry belongs to tenant B
+- **WHEN** A calls the `RecurringPost` create (or patch-repoint) endpoint
+- **THEN** the response is **404 NOT_FOUND** (never 403, never 500), and NO recurrence is persisted
 
 #### Scenario: create against an own parent succeeds and is consistent [integration]
 
@@ -271,3 +402,9 @@ workers, seeds, sagas, or scripts.
 - **GIVEN** the change is applied
 - **WHEN** every reference to the model is enumerated (api, workers, seeds, scripts, sagas)
 - **THEN** each call site runs behind `enterTenantContext` or an explicit `withSystemContext()` wrap
+
+#### Scenario: the three out-of-context callers declare their context explicitly [integration]
+
+- **GIVEN** the guard is flipped for both `RecurringPost` and `TrackedLink` (Slice 3)
+- **WHEN** the recurrence-scheduler tick runs, an anonymous visitor hits `GET /r/:shortCode`, and the create path runs its short-code uniqueness probe
+- **THEN** each executes inside an explicit `withSystemContext("recurrence-sweep")`, `withSystemContext("public-link-redirect")`, and a `withSystemContext(...)` short-code probe respectively, and none raises `TenantContextMissingError`
