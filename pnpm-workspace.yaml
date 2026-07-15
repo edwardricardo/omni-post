@@ -10,12 +10,55 @@ packages:
 
 enableGlobalVirtualStore: true
 
-ignoredBuiltDependencies:
-  - bcrypt
+# Build-script approval. pnpm 11 unified `onlyBuiltDependencies` +
+# `ignoredBuiltDependencies` into `allowBuilds` (map of package -> boolean),
+# migrated here from the package.json `pnpm` field (ADR-0019). true = run the
+# install script, false = skip it.
+allowBuilds:
+  prisma: true
+  "@prisma/engines": true
+  "@prisma/client": true
+  esbuild: true
+  bcrypt: false
+  # The following carry build scripts but were NOT in pnpm-10's exclusive
+  # `onlyBuiltDependencies` allowlist, so their scripts did NOT run under pnpm 10
+  # (they rely on prebuilt binaries). `false` preserves that exact behavior — pnpm 11's
+  # allowBuilds is exhaustive, so every build-script package must be listed (ADR-0019).
+  "@ast-grep/cli": false
+  "@parcel/watcher": false
+  "@sentry/cli": false
+  "@swc/core": false
+  argon2: false
+  bufferutil: false
+  contextify: false
+  core-js-pure: false
+  es5-ext: false
+  msgpackr-extract: false
+  msw: false
+  protobufjs: false
+  sharp: false
+  unrs-resolver: false
+  utf-8-validate: false
+
+# Moved out of .npmrc: pnpm 11 reads ONLY auth/registry keys from .npmrc, so the
+# non-auth settings live here now (ADR-0019). Hoist stryker packages to the
+# workspace root so all packages can run mutation tests without per-package
+# devDependency declarations.
+publicHoistPattern:
+  - "@stryker-mutator/*"
+
+# `pnpm add` writes an exact spec (no caret range), backing the ADR-0018
+# "no ^ ~ * >=" rule at the tooling level before syncpack lints it.
+savePrefix: ""
+
+# Install-time freshness gate (minutes). Held at 0 to preserve pnpm-10 behavior;
+# pnpm 11 would otherwise default to 1440 (1 day). ADR-0018 already governs
+# freshness at update time via `taze --maturity-period 7` — aligning this to the
+# 7-day window (10080) is a deliberate follow-up (ADR-0019 §Revisit if).
+minimumReleaseAge: 0
 
 # Off-catalog `pnpm add` errors before reaching CI: a duplicate version becomes
-# structurally un-representable. savePrefix lives in .npmrc (save-prefix=""), not
-# here — pnpm reads it from npmrc.
+# structurally un-representable.
 catalogMode: strict
 
 catalog:
@@ -92,7 +135,7 @@ catalog:
   "@tailwindcss/postcss": 4.3.0
   postcss-load-config: 6.0.1
   webpack: 5.106.2
-  vite: 7.3.5 # held at 7.x — vite 8 switched to the rolldown parser, which fails on JSX in vitest's SSR transform (frontend tests only); bump when upstream fixes it. Backend vitest (no JSX) auto-installs vite 8 fine.
+  vite: 8.0.16 # single version — the former vite-7 hold was a workaround for apps/client missing @vitejs/plugin-react (apps/admin had it). Adding the plugin to client (ADR-0019) lets it parse JSX under vite 8's rolldown SSR transform, collapsing the vite 7/8 split. Verified: client 510/510 + admin 106/106 on vite 8.
   eslint: 9.36.0 # held — eslint 10 has no peer in eslint-plugin-react/jsx-a11y (both already latest)
   "@playwright/test": 1.55.1
   "@axe-core/playwright": 4.10.2
@@ -102,6 +145,8 @@ catalog:
   "@testing-library/jest-dom": 6.6.3
   "@testing-library/react": 16.1.0
   "@testing-library/user-event": 14.5.2
+  # Vitest JSX transform (apps/admin + apps/client) — required for vite 8 (ADR-0019).
+  "@vitejs/plugin-react": 5.1.4
   # @vitest/* family (peer = vitest 4.1.8)
   "@vitest/coverage-v8": 4.1.8
   "@vitest/ui": 4.1.8
@@ -136,3 +181,66 @@ catalogs:
     "@opentelemetry/propagation-utils": 0.31.22 # latest stable; was 0.31.17
     "@opentelemetry/resources": 2.8.0 # latest stable; was 2.6.1
     "@opentelemetry/semantic-conventions": 1.41.1 # latest stable; was 1.40.0
+
+# Dependency resolution overrides. Migrated verbatim from the package.json `pnpm`
+# field (ADR-0019). `catalog:` / `catalog:otel` values resolve against the catalogs
+# above (dual-role direct deps, ADR-0018); the literal versions are CVE-floor pins
+# and dated-debt holds (SECURITY_CANON §Audited-audit-ignores, PENDING_WORK_INVENTORY §7).
+overrides:
+  axios: "catalog:"
+  form-data: "catalog:"
+  validator: "catalog:"
+  uuid: "catalog:"
+  ws: "catalog:"
+  postcss: "catalog:"
+  "@opentelemetry/auto-instrumentations-node": "catalog:otel"
+  "@opentelemetry/core": "catalog:otel"
+  "@opentelemetry/exporter-prometheus": "catalog:otel"
+  "@opentelemetry/sdk-node": "catalog:otel"
+  shell-quote: 1.8.4
+  esbuild: 0.28.1
+  xmlhttprequest-ssl: 4.0.0
+  "@babel/plugin-transform-modules-systemjs": 7.29.7
+  "@hono/node-server": 1.19.13
+  "@opentelemetry/instrumentation": "catalog:otel"
+  "@opentelemetry/resources": "catalog:otel"
+  "@opentelemetry/semantic-conventions": "catalog:otel"
+  "@protobufjs/utf8": 1.1.1
+  "@smithy/config-resolver": 4.5.7
+  "@tootallnate/once": 3.0.1
+  bn.js: 5.2.3
+  defu: 6.1.7
+  dompurify: 3.4.11
+  fast-xml-builder: 1.2.0
+  fast-xml-parser: 5.8.0
+  flatted: 3.4.2
+  follow-redirects: 1.16.0
+  "gaxios@7": 7.1.5
+  "google-auth-library@10": 10.7.0
+  googleapis-common: 8.0.2
+  hono: 4.12.26
+  icu-minify: 4.13.0
+  js-yaml: 4.2.0
+  jws: 4.0.1
+  lodash: 4.18.1
+  markdown-it: 14.2.0
+  "msw>path-to-regexp": 6.3.0
+  path-to-regexp: 8.4.2
+  qs: 6.15.2
+  rollup: 4.62.0
+  serialize-javascript: 7.0.5
+  tough-cookie: 4.1.3
+  xmlhttprequest: 1.8.0
+
+# Audited audit-ignores: GHSAs accepted as non-exploitable in our context, each with
+# a documented remove-when (SECURITY_CANON §Audited-audit-ignores). pnpm audit still
+# fails on any NEW advisory — the gate stays real. Migrated from package.json (ADR-0019).
+auditConfig:
+  ignoreGhsas:
+    - GHSA-p8p7-x288-28g6
+    - GHSA-848j-6mx2-7j84
+    - GHSA-q7cg-457f-vx79
+
+# Patched dependency (migrated from package.json `pnpm` field, ADR-0019).
+patchedDependencies:
+  "@secretlint/node@12.3.1": patches/@secretlint__node@12.3.1.patch

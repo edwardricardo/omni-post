@@ -148,7 +148,7 @@ generated: 2026-05-10
 | [docs/deployment/DIGITALOCEAN.md](deployment/DIGITALOCEAN.md)                   | runbook | ACTIVE | mtime: 2026-05-08 | ops       | Cost-effective DigitalOcean deploy (Droplet, Nginx, Spaces, recommended for early stage). | overlaps with: docs/deployment/AWS.md                                         | KEEP          |
 | [docs/deployment/ENVIRONMENT_VARIABLES.md](deployment/ENVIRONMENT_VARIABLES.md) | spec    | ACTIVE | mtime: 2026-03-27 | ops       | Complete reference of every env var (required, default, per target).                      | overlaps with: docs/architecture/secrets-and-env.md, docs/security/SECRETS.md | KEEP          |
 | [docs/deployment/GCP.md](deployment/GCP.md)                                     | runbook | ACTIVE | mtime: 2026-03-27 | ops       | GCP deploy (Cloud DNS, Cloud CDN, Cloud Run, Cloud Storage).                              | overlaps with: docs/deployment/AWS.md, docs/deployment/AZURE.md               | KEEP          |
-| [docs/deployment/LOCAL.md](deployment/LOCAL.md)                                 | runbook | ACTIVE | mtime: 2026-05-08 | dev       | Local dev setup (Docker, Node 24, pnpm 10.16, ffmpeg) with prerequisite versions.         | overlaps with: docs/development/getting-started.md                            | KEEP          |
+| [docs/deployment/LOCAL.md](deployment/LOCAL.md)                                 | runbook | ACTIVE | mtime: 2026-05-08 | dev       | Local dev setup (Docker, Node 24, pnpm 11.13, ffmpeg) with prerequisite versions.         | overlaps with: docs/development/getting-started.md                            | KEEP          |
 
 ### docs/development/
 
@@ -382,8 +382,8 @@ Empty subdirectory (no .md files); contains non-md artifacts (.txt, .png). Skipp
 
 | File                                                              | Tipo | Estado | Última señal      | Audiencia | Resumen                                                                                  | Solapamiento                                     | Recomendación |
 | ----------------------------------------------------------------- | ---- | ------ | ----------------- | --------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------ | ------------- |
-| [docs/technical/DEPENDENCIES_ES.md](technical/DEPENDENCIES_ES.md) | spec | ACTIVE | mtime: 2026-03-27 | dev       | Referencia stack tecnológico OmniPost (pnpm 10.16, Turbo 2.8, Node 24, TS 6.0, etc.).    | overlaps with: docs/technical/DEPENDENCIES.md    | KEEP          |
-| [docs/technical/DEPENDENCIES.md](technical/DEPENDENCIES.md)       | spec | ACTIVE | mtime: 2026-03-27 | dev       | Complete technical stack reference (pnpm 10.16, Turbo 2.8, Node 24, TS 6.0, workspaces). | overlaps with: docs/technical/DEPENDENCIES_ES.md | KEEP          |
+| [docs/technical/DEPENDENCIES_ES.md](technical/DEPENDENCIES_ES.md) | spec | ACTIVE | mtime: 2026-03-27 | dev       | Referencia stack tecnológico OmniPost (pnpm 11.13, Turbo 2.8, Node 24, TS 6.0, etc.).    | overlaps with: docs/technical/DEPENDENCIES.md    | KEEP          |
+| [docs/technical/DEPENDENCIES.md](technical/DEPENDENCIES.md)       | spec | ACTIVE | mtime: 2026-03-27 | dev       | Complete technical stack reference (pnpm 11.13, Turbo 2.8, Node 24, TS 6.0, workspaces). | overlaps with: docs/technical/DEPENDENCIES_ES.md | KEEP          |
 
 ## Detected overlaps (by topic)
 

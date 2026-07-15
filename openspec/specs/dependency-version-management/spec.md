@@ -163,8 +163,9 @@ highest version within its consumers' declared ranges, and multiple versions MAY
 **minimal patched version** — never the absolute-latest major. Forcing a major onto a
 consumer's range that has not migrated is the drift-hydra and is forbidden.
 
-Security pins that force a version on a transitive-only package MUST remain in the root
-`package.json` `pnpm.overrides` block — they MUST NOT be migrated into catalogs (catalogs cover
+Security pins that force a version on a transitive-only package MUST remain in the `overrides`
+block of `pnpm-workspace.yaml` (relocated from the root `package.json` `pnpm` field by ADR-0019,
+since pnpm 11 no longer reads that field) — they MUST NOT be migrated into catalogs (catalogs cover
 **declared** direct deps; overrides cover **undeclared transitives**). A **dual-role** package
 (declared in ≥1 manifest AND force-pinned onto transitive copies) keeps both entries, but the
 override **REFERENCES the catalog** via the `catalog:` protocol (`"catalog:"` /
@@ -176,20 +177,20 @@ a dated-debt / remove-when gate or removed only when upstream is ready.
 #### Scenario: transitive-only CVE pins live in overrides, not catalogs [static]
 
 - **Given** a CVE-forcing pin for a package not declared by any manifest's `dependencies`/`devDependencies`
-- **When** the root `package.json` and `pnpm-workspace.yaml` are inspected
-- **Then** the pin appears under `pnpm.overrides` and **not** under a catalog, set at the minimal patched version
+- **When** `pnpm-workspace.yaml` is inspected
+- **Then** the pin appears under the `overrides` block (in `pnpm-workspace.yaml`) and **not** under a catalog, set at the minimal patched version
 
 #### Scenario: dual-role overrides reference the catalog, never a duplicated literal [static]
 
 - **Given** a dual-role package (a direct dep with a catalog entry that also needs a transitive force)
-- **When** its `pnpm.overrides` entry is inspected
+- **When** its `overrides` entry (in `pnpm-workspace.yaml`) is inspected
 - **Then** the override reads `"catalog:"` / `"catalog:<name>"` (it references the single catalog value), not a duplicated literal version
 
 #### Scenario: a transitive major is NOT force-pinned to chase latest [static]
 
 - **Given** a transitive dep whose latest major removes API a non-migrated consumer still uses (e.g. `minimatch` 10 / `brace-expansion` 5 vs the eslint toolchain's `^3.1.2`)
-- **When** the override block is inspected
-- **Then** no `pnpm.overrides` entry forces that latest major absent a confirmed CVE floor (consumer-governed coexistence is preserved)
+- **When** the `overrides` block (in `pnpm-workspace.yaml`) is inspected
+- **Then** no `overrides` entry forces that latest major absent a confirmed CVE floor (consumer-governed coexistence is preserved)
 
 #### Scenario: absorbed standing items carry a gate or are removed [static]
 

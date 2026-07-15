@@ -30,6 +30,17 @@ One version. Pinned. Fresh. — TRANSITIVE deps are consumer-governed (highest
 in-range; multiple versions may coexist), NOT force-pinned; see the transitive
 policy below.**
 
+> **Config-location update (ADR-0019, 2026-07-15).** This ADR placed the
+> `pnpm.overrides` block, `pnpm.auditConfig.ignoreGhsas`, and
+> `patchedDependencies` in the root `package.json` `pnpm` field. As of the
+> **pnpm 10.16.0 → 11.13.0 migration**, pnpm 11 no longer reads the `pnpm` field
+> in `package.json`, so all three moved **verbatim** into `pnpm-workspace.yaml`
+> (alongside the catalogs). Every reference below to `pnpm.overrides` /
+> `auditConfig` "in root `package.json`" now resolves to `pnpm-workspace.yaml`.
+> The _content_ (single-version invariant, exact pins, CVE-floor policy) is
+> unchanged; only the file home moved. See
+> `docs/technical/ADR-0019-pnpm-11-migration.md`.
+
 - **Single source of truth**: shared versions live in `pnpm-workspace.yaml`
   **catalogs**; manifests reference `catalog:`. `catalogMode: strict` makes an
   off-catalog `pnpm add` error before CI. `workspace:*` for local packages stays.
@@ -134,3 +145,4 @@ drifted lockfile becomes a hard failure, not a silent re-resolve).
 - Inventory + design: workflow `wf_69bb9921`
 - Drift-hydra incident: engram obs 151 (PR #91)
 - Consolidated inventory: `docs/product/PENDING_WORK_INVENTORY.md`
+- Config-location reversal (pnpm 11): `docs/technical/ADR-0019-pnpm-11-migration.md`

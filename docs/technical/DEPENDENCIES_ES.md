@@ -10,7 +10,7 @@
 
 | Herramienta | Version | Proposito                                                |
 | ----------- | ------- | -------------------------------------------------------- |
-| pnpm        | 10.16.0 | Gestor de paquetes con soporte de workspaces             |
+| pnpm        | 11.13.0 | Gestor de paquetes con soporte de workspaces             |
 | Turbo       | 2.8.21  | Orquestacion de builds en monorepo con cache inteligente |
 | Node.js     | 24      | Runtime (ultima version LTS)                             |
 | TypeScript  | 6.0.2   | Lenguaje — modo estricto en toda la base de codigo       |
@@ -450,7 +450,7 @@ El trade-off es claro: mayor ceremonia inicial al modelar el dominio, pero acopl
 ### Prerrequisitos
 
 - Node.js 24
-- pnpm 10.16.0+
+- pnpm 11.13.0+
 - Docker (para PostgreSQL + Redis)
 
 ### Inicio Rapido

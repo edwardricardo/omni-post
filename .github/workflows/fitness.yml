@@ -609,7 +609,8 @@ jobs:
         run: pnpm dlx syncpack@12 list-mismatches
 
       - name: "Dedupe gate: pnpm dedupe --check (no flattenable duplicates)"
-        # pnpm 10.16 emits a false-positive exit 1 when dedupe --check runs right after
-        # --frozen-lockfile (empty change list; lockfile stays byte-identical). The second
-        # run is reliably exit 0. See ADR-0018 / dep-baseline Step 5 T5.2.
-        run: pnpm dedupe --check || pnpm dedupe --check
+        # pnpm 11 fixed the pnpm-10.16 false-positive (which needed a double invocation);
+        # a single `dedupe --check` is now reliably exit 0. The former vite 7/8 split that
+        # would otherwise surface here was resolved at the root (apps/client gained
+        # @vitejs/plugin-react, collapsing to a single vite 8). See ADR-0019.
+        run: pnpm dedupe --check

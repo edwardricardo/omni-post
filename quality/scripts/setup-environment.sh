@@ -15,7 +15,7 @@ NC='\033[0m' # No Color
 # Configuration
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 REQUIRED_NODE_VERSION="24"
-REQUIRED_PNPM_VERSION="10"
+REQUIRED_PNPM_VERSION="11"
 
 # Logging functions
 log_info() {

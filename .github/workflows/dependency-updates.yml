@@ -28,7 +28,6 @@ concurrency:
 
 env:
   NODE_VERSION: "24"
-  PNPM_VERSION: "10.33.0"
 
 jobs:
   # ===== DEPENDENCY ANALYSIS =====
