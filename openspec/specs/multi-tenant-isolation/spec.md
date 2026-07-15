@@ -36,6 +36,22 @@
 > Requirement 3 — the first model with THREE client-supplied parent refs (`projectId`,
 > `templatePostId`, `channels[]`) that must each resolve to the caller's own account.
 >
+> **Extended by Slice 4** — change `generated-image-tenant-guard`, archived
+> 2026-07-15, on branch `workstream/cluster-c-generatedimage-guard` (stacked
+> under the pnpm-11 migration commit `fd3bc746`, PR #118). Enrolled
+> `GeneratedImage`; added its Requirement-2-shaped IDOR-closure block below.
+> `GeneratedImage` is the FIRST model in the rollout with a structurally
+> EMPTY join/child-table gap class (no child or join tables exist) and the
+> FIRST whose create-path ownership check gates a PAID external call — the
+> guarded `projectRepository.findById` runs BEFORE the AI-provider call, so a
+> foreign `projectId` burns zero AI spend and persists nothing. Slice 4 also
+> adds a SECOND, capability-adjacent model-scoped requirement — "GeneratedImage
+> usage billing is attributed by server-derived accountId" — closing a
+> client-supplied-`accountId` billing-integrity smell (SIGNED decision, engram
+> obs 306) discovered while enrolling the model: the `aiCallsMade` usage
+> increment now derives its `accountId` from the authenticated `TenantContext`
+> only, never from the request body.
+>
 > Scope note: this capability covers isolation **by construction at the data layer**.
 > It is distinct from the per-model APP-LEVEL ownership specs archived separately
 > (`trackedlink-tenant-isolation`, `post-tenant-isolation`), which gate at the
@@ -323,6 +339,57 @@ with the following compensating controls, which are NORMATIVE:
 - **GIVEN** tenant A is authenticated and B owns a `TrackedLink` and a `RecurringPost`
 - **WHEN** A calls any TrackedLink management route (create / get / update / delete / stats) or any RecurringPost route against B's ids
 - **THEN** each resolves to NOT_FOUND — the capability exemption applies to the redirect read path ONLY
+
+---
+
+### Requirement: GeneratedImage — the live IDOR routes are closed, no prompt or image content exfiltrates, and no paid AI call is burned for a foreign project [MERGE-BLOCKING]
+
+An authenticated tenant A SHALL NOT list or generate into tenant B's `GeneratedImage`
+rows. A list request carrying a FOREIGN `projectId` SHALL return an EMPTY result — the
+guard scopes the list to A's account, so B's prompt text, revised prompts, and image
+URLs never appear regardless of the client-supplied `projectId` (guard-natural, no
+per-route ownership check required on the list path). Critically, the **paid-AI-spend
+escalation SHALL be closed**: A SHALL NOT generate an image into a FOREIGN project — the
+create path's guarded parent-ownership check SHALL resolve to **NOT_FOUND (404)** (never
+403, never 500) BEFORE the paid AI-provider call, so no AI call is burned and no row is
+planted in B's project. `GeneratedImage` has NO child or join tables, so no join/child
+traversal scenario applies (the obs-285 gap class is structurally absent for this model).
+
+#### Scenario: A cannot list B's generated images via a foreign projectId [integration]
+
+- **GIVEN** tenant A is authenticated and tenant B owns generated images under B's project
+- **WHEN** A calls `GET /ai/generated-images?projectId={B's projectId}`
+- **THEN** the response is HTTP 200 with ZERO of B's images (empty result), and no prompt text, revised prompt, or image URL of B appears in the payload
+
+#### Scenario: A cannot generate an image into B's project — no burned AI call [integration]
+
+- **GIVEN** tenant A is authenticated and the supplied `projectId` belongs to tenant B
+- **WHEN** A calls `POST /ai/generate-image` with B's `projectId`
+- **THEN** the request resolves to **404 NOT_FOUND** (never 403, never 500), the paid AI-provider call is NEVER invoked, and NO `GeneratedImage` row is persisted in B's project
+
+---
+
+### Requirement: GeneratedImage usage billing is attributed by server-derived accountId [MERGE-BLOCKING]
+
+The `aiCallsMade` usage increment on the generate path SHALL be attributed to the
+`accountId` derived from the authenticated `TenantContext`, NOT to any client-supplied
+`accountId` in the request body. A client-supplied `accountId` SHALL be IGNORED.
+Consequently a request SHALL NOT increment ANY other tenant's usage counter — if a
+counter is incremented, it is the caller's OWN account's counter. (SIGNED decision,
+engram obs 306; resolves the proposal's Open Question 1 in favor of server-derived
+attribution.)
+
+#### Scenario: a foreign accountId in the body does not increment another tenant's counter [integration]
+
+- **GIVEN** tenant A is authenticated and the generate body carries a FOREIGN `accountId` (tenant B's)
+- **WHEN** A calls `POST /ai/generate-image`
+- **THEN** tenant B's `aiCallsMade` counter is UNCHANGED, and any increment applies ONLY to A's own account
+
+#### Scenario: the usage increment is attributed to the caller's own tenant [integration]
+
+- **GIVEN** tenant A is authenticated on its own project and the AI call succeeds
+- **WHEN** A calls `POST /ai/generate-image` (with or without a body `accountId`)
+- **THEN** the `aiCallsMade` increment is attributed to A's context-derived account, and the body-supplied value has no effect
 
 ---
 
