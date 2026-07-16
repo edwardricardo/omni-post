@@ -25,6 +25,7 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@infra/prisma";
+import { getTenantScopedModels } from "@infra/prisma/extensions/tenantGuard.js";
 
 const ACCOUNT_A = `rls-test-acc-A-${Date.now()}`;
 const ACCOUNT_B = `rls-test-acc-B-${Date.now()}`;
@@ -134,11 +135,47 @@ describe("Row Level Security — tenant_isolation policy", () => {
   }
 
   describe("policy installed", () => {
-    it("tenant_isolation policy exists on all 51 tenant-scoped tables", async () => {
+    it("tenant_isolation policy count equals the guard's enrolled-model count", async () => {
       const rows = await prisma.$queryRawUnsafe<Array<{ count: bigint }>>(
         `SELECT count(*)::bigint AS count FROM pg_policies WHERE policyname = 'tenant_isolation'`
       );
-      assert.strictEqual(Number(rows[0]!.count), 51);
+      // Derived from the single source of truth (the guard's enrolled-model
+      // Set), never a literal — each enrollment adds one guard entry AND one
+      // RLS policy, so layers 1 and 2 MUST stay numerically 1:1.
+      const expected = getTenantScopedModels().size;
+      assert.ok(expected > 0, "guard must enroll at least one model");
+      assert.strictEqual(Number(rows[0]!.count), expected);
+    });
+
+    it("every tenant_isolation policy maps 1:1 to a guard-enrolled model", async () => {
+      const rows = await prisma.$queryRawUnsafe<Array<{ tablename: string }>>(
+        `SELECT tablename FROM pg_policies WHERE policyname = 'tenant_isolation'`
+      );
+      // pg_policies reports the PascalCase table name; the guard keys are the
+      // lowerCamel Prisma model accessors (only the first char is lowered).
+      const lowerFirst = (name: string): string =>
+        name.length === 0 ? name : `${name[0]!.toLowerCase()}${name.slice(1)}`;
+      const policyModels = new Set(rows.map((r) => lowerFirst(r.tablename)));
+      const guardModels = getTenantScopedModels();
+      assert.ok(policyModels.size > 0, "at least one RLS policy must exist");
+      assert.ok(guardModels.size > 0, "guard must enroll at least one model");
+
+      // (a) every RLS policy corresponds to a guard-enrolled model (no orphan
+      //     policy without a layer-1 guard entry).
+      for (const model of policyModels) {
+        assert.ok(
+          guardModels.has(model),
+          `RLS policy on "${model}" has no matching TENANT_SCOPED_MODELS entry`
+        );
+      }
+      // (b) every guard-enrolled model is protected by an RLS policy (no
+      //     enrolled model missing its layer-2 backstop).
+      for (const model of guardModels) {
+        assert.ok(
+          policyModels.has(model),
+          `guarded model "${model}" has no tenant_isolation RLS policy`
+        );
+      }
     });
 
     it("Account (global) does NOT have RLS enabled", async () => {

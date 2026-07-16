@@ -79,7 +79,7 @@ export class TenantContextMismatchError extends Error {
 }
 
 /**
- * The 56 Prisma models with `accountId` directly on the row. Names are
+ * The 57 Prisma models with `accountId` directly on the row. Names are
  * lowerCamelCase model accessors on the Prisma client
  * (`prisma.<name>.findMany`, etc.).
  *
@@ -124,6 +124,7 @@ const TENANT_SCOPED_MODELS = new Set<string>([
   "mention",
   "oidcConfiguration",
   "project",
+  "projectMember",
   "recurringPost",
   "referralCode",
   "repurposeProposal",

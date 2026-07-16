@@ -104,6 +104,7 @@ required for read, update, or delete paths.
 | `RecurringPost`              | 3     | Required  | Required               | Required   |
 | `TrackedLink`                | 3     | Required  | Required               | Required   |
 | `GeneratedImage`             | 4     | Required  | Required               | Required   |
+| `ProjectMember`              | 5     | Required  | Required               | Required   |
 
 #### Scenario: the three legs are present for each enrolled model [static]
 
@@ -409,14 +410,15 @@ one of which SHALL belong to the caller's account before persist.
 
 **Applied so far (extended by each slice):**
 
-| Model                        | Slice | Create path                                                                                            |
-| ---------------------------- | ----- | ------------------------------------------------------------------------------------------------------ |
-| `ExternalNotificationConfig` | 1     | `POST /external-notifications` → `ConfigureExternalNotificationUseCase`                                |
-| `ScheduledReport`            | 2     | `POST /reports` → `CreateScheduledReportUseCase`                                                       |
-| `Campaign`                   | 2     | `POST /campaigns` → `CreateCampaignUseCase`                                                            |
-| `TrackedLink`                | 3     | `POST /links` → `CreateTrackedLinkUseCase` (`projectId`)                                               |
-| `RecurringPost`              | 3     | `POST /recurring-posts` → `CreateRecurringPostUseCase` (`projectId` + `templatePostId` + `channels[]`) |
-| `GeneratedImage`             | 4     | `POST /ai/generate-image` → `GenerateImageUseCase` (`projectId`; check runs BEFORE the paid AI call)   |
+| Model                        | Slice | Create path                                                                                                                                                               |
+| ---------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ExternalNotificationConfig` | 1     | `POST /external-notifications` → `ConfigureExternalNotificationUseCase`                                                                                                   |
+| `ScheduledReport`            | 2     | `POST /reports` → `CreateScheduledReportUseCase`                                                                                                                          |
+| `Campaign`                   | 2     | `POST /campaigns` → `CreateCampaignUseCase`                                                                                                                               |
+| `TrackedLink`                | 3     | `POST /links` → `CreateTrackedLinkUseCase` (`projectId`)                                                                                                                  |
+| `RecurringPost`              | 3     | `POST /recurring-posts` → `CreateRecurringPostUseCase` (`projectId` + `templatePostId` + `channels[]`)                                                                    |
+| `GeneratedImage`             | 4     | `POST /ai/generate-image` → `GenerateImageUseCase` (`projectId`; check runs BEFORE the paid AI call)                                                                      |
+| `ProjectMember`              | 5     | **N/A — no production create path** (seed-only writer); check validating `projectId`→`Project` AND `memberId`→`CustomerUser` becomes MANDATORY when SMELL-59 wires writes |
 
 #### Scenario: create against a foreign parent is rejected [integration]
 

@@ -659,9 +659,113 @@ describe("tenantGuardExtension", () => {
     });
   });
 
+  describe("projectMember enrollment (Slice 5 — tenant-guard rollout)", () => {
+    it("projectMember is a member of getTenantScopedModels()", () => {
+      expect(getTenantScopedModels().has("projectMember")).toBe(true);
+    });
+
+    it("injects accountId into where on ProjectMember findMany (list by projectId)", async () => {
+      const queryFn = vi.fn().mockResolvedValue([]);
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "ProjectMember",
+        operation: "findMany",
+        args: { where: { projectId: "proj-B" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; projectId: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.projectId).toBe("proj-B");
+    });
+
+    it("injects accountId into where on ProjectMember update", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "ProjectMember",
+        operation: "update",
+        args: { where: { id: "pm-1" }, data: { permissions: ["READ"] } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; id: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.id).toBe("pm-1");
+    });
+
+    it("injects accountId into where on ProjectMember delete", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "ProjectMember",
+        operation: "delete",
+        args: { where: { id: "pm-1" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; id: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.id).toBe("pm-1");
+    });
+
+    it("injects accountId into ProjectMember create data", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "ProjectMember",
+        operation: "create",
+        args: { data: { id: "pm-1", projectId: "proj-1", memberId: "cu-1" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as { data: { accountId: string } };
+      expect(calledArgs.data.accountId).toBe("acc-A");
+    });
+
+    it("throws TenantContextMismatchError when ProjectMember create.accountId disagrees with context", async () => {
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await expect(
+        callGuard({
+          provider,
+          model: "ProjectMember",
+          operation: "create",
+          args: { data: { id: "pm-1", accountId: "acc-B", projectId: "proj-1", memberId: "cu-1" } },
+        })
+      ).rejects.toThrow(TenantContextMismatchError);
+    });
+
+    it("throws TenantContextMissingError on ProjectMember findFirst when no context is bound", async () => {
+      await expect(
+        callGuard({
+          provider: makeProvider(),
+          model: "ProjectMember",
+          operation: "findFirst",
+          args: { where: { projectId: "proj-1" } },
+        })
+      ).rejects.toThrow(TenantContextMissingError);
+    });
+  });
+
   describe("model classification", () => {
-    it("getTenantScopedModels returns 56 entries", () => {
-      expect(getTenantScopedModels().size).toBe(56);
+    it("getTenantScopedModels returns 57 entries", () => {
+      expect(getTenantScopedModels().size).toBe(57);
     });
 
     it("includes well-known tenant tables (project, apiKey, mediaAsset)", () => {
