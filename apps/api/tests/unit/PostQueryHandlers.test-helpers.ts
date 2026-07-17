@@ -15,7 +15,12 @@ import type {
   PostSortField,
   GlobalPostFilter,
 } from "@core/domain/index.js";
-import { type PostId, type ProjectId, EntityNotFoundError } from "@core/domain/index.js";
+import {
+  type PostId,
+  type ProjectId,
+  type AccountId,
+  EntityNotFoundError,
+} from "@core/domain/index.js";
 import { type Result, ok, err } from "@shared/types";
 
 // Valid UUID v4s for testing (PostId/ProjectId validate UUID v4 format)
@@ -75,7 +80,10 @@ function makeDomainPostList(): PostReadModel[] {
  * Methods can be overridden per-test for error scenarios.
  */
 export class MockPostQueryRepository implements PostQueryRepository {
-  async getById(id: PostId): Promise<Result<PostReadModel, EntityNotFoundError>> {
+  async getById(
+    id: PostId,
+    _accountId: AccountId
+  ): Promise<Result<PostReadModel, EntityNotFoundError>> {
     const idStr = id.toString();
     if (idStr === NON_EXISTENT_POST_ID) {
       return err(new EntityNotFoundError("Post", idStr));
@@ -85,6 +93,7 @@ export class MockPostQueryRepository implements PostQueryRepository {
 
   async listByProject(
     _projectId: ProjectId,
+    _accountId: AccountId,
     _pagination?: PaginationParams,
     _sort?: SortParams<PostSortField>
   ): Promise<PaginatedResult<PostReadModel>> {
@@ -126,14 +135,16 @@ export class MockPostQueryRepository implements PostQueryRepository {
   }
 
   async getByIdWithThread(
-    id: PostId
+    id: PostId,
+    accountId: AccountId
   ): Promise<Result<PostReadModelWithThread, EntityNotFoundError>> {
-    const result = await this.getById(id);
+    const result = await this.getById(id, accountId);
     if (!result.ok) return result;
     return ok({ ...result.value });
   }
 
   async listGlobal(
+    _accountId: AccountId,
     _filter?: GlobalPostFilter,
     _pagination?: PaginationParams
   ): Promise<PaginatedResult<PostReadModel>> {

@@ -23,13 +23,16 @@ import {
 
 /**
  * Customer Bearer header for cache-behavior tests that hit auth-gated GET routes
- * (`/posts`). The `/posts` cache key does not vary by token (no
- * `header:authorization` in its `varyBy`), so a single static token is enough to
- * exercise MISS/HIT/invalidation while letting `requireClientAuth` return 200.
+ * (`/posts`). The `/posts` cache key now varies by `header:authorization` (the
+ * CWE-639 account-isolation fix), so each account gets its own entry — but a
+ * single static token still exercises MISS/HIT/invalidation deterministically
+ * (same token → same key) while `requireClientAuth` returns 200. The `accountId`
+ * MUST be a valid UUID: the read use cases parse it via `AccountId.fromString`,
+ * which rejects a non-UUID with a 400 (Validation failed) before caching runs.
  */
 const AUTH_HEADER = `Bearer ${signCustomerAccessToken({
   sub: "cache-test-user",
-  accountId: "cache-test-account",
+  accountId: "00000000-0000-4000-8000-000000000001",
   roleId: "role-test",
   roleName: "OWNER",
   permissions: [],

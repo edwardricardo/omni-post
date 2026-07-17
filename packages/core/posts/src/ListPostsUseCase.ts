@@ -7,6 +7,7 @@
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import {
+  AccountId,
   ProjectId,
   type PostFilterCriteria,
   type PostQueryRepository,
@@ -20,6 +21,13 @@ import { type PostDTO } from "./GetPostUseCase.js";
  */
 export interface ListPostsInput {
   projectId: string;
+  /**
+   * Server-derived caller account (from `request.customerUser.accountId`, never
+   * client input). REQUIRED — the list is scoped to it so a client-supplied
+   * `projectId` owned by another account yields an empty page (CWE-639), never
+   * that account's posts.
+   */
+  callerAccountId: string;
   page?: number;
   limit?: number;
   sortBy?: PostSortField;
@@ -83,6 +91,12 @@ export class ListPostsUseCase implements UseCase<ListPostsInput, ListPostsOutput
       );
     }
 
+    // Validate the server-derived caller account (CWE-639 read scope).
+    const accountIdResult = AccountId.fromString(input.callerAccountId);
+    if (!accountIdResult.ok) {
+      return err(new UseCaseError("Invalid caller account", USE_CASE_ERRORS.VALIDATION_FAILED));
+    }
+
     // Build pagination
     const pagination = {
       page: input.page ?? 1,
@@ -101,9 +115,11 @@ export class ListPostsUseCase implements UseCase<ListPostsInput, ListPostsOutput
     // repository can short-circuit to the no-filter path for plain listings.
     const filter = buildFilter(input);
 
-    // Query the read model directly — no aggregate loading or manual DTO mapping
+    // Query the read model directly — no aggregate loading or manual DTO mapping.
+    // The account scope makes a foreign-owned project return an empty page.
     const result = await this.postQueryRepository.listByProject(
       projectIdResult.value,
+      accountIdResult.value,
       pagination,
       sort,
       filter

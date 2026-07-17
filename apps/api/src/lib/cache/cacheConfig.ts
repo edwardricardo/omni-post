@@ -103,18 +103,31 @@ export const CACHE_CONFIG: Record<string, RouteCacheOptions> = {
     varyBy: ["id"],
   },
 
-  // Post endpoints (frequently accessed, moderate changes)
+  // Post endpoints (frequently accessed, moderate changes).
+  // `header:authorization` is REQUIRED in varyBy (CWE-639): the cache-read hook
+  // runs on `onRequest`, before `requireClientAuth` parses the principal, so the
+  // only account-discriminating value available is the raw bearer token. Without
+  // it the cache key is account-agnostic and the owner's cached response leaks to
+  // (and is served without re-auth to) any caller requesting the same id — which
+  // would defeat the ownership gate enforced in the query layer.
   "GET:/posts": {
     enabled: true,
     ttl: CacheTTL.SHORT, // 5 minutes
     tags: ["posts"],
-    varyBy: ["query:projectId", "query:status", "query:limit", "query:offset", "query:sortBy"],
+    varyBy: [
+      "header:authorization",
+      "query:projectId",
+      "query:status",
+      "query:limit",
+      "query:offset",
+      "query:sortBy",
+    ],
   },
   "GET:/posts/:id": {
     enabled: true,
     ttl: CacheTTL.SHORT, // 5 minutes
     tags: ["posts"],
-    varyBy: ["id"],
+    varyBy: ["header:authorization", "id"],
   },
 
   // Project endpoints

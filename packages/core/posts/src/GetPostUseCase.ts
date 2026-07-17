@@ -6,13 +6,25 @@
 
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
-import { PostId, type PostQueryRepository, type PostReadModel } from "@core/domain/index.js";
+import {
+  AccountId,
+  PostId,
+  type PostQueryRepository,
+  type PostReadModel,
+} from "@core/domain/index.js";
 
 /**
  * Input DTO for getting a post
  */
 export interface GetPostInput {
   postId: string;
+  /**
+   * Server-derived caller account (from `request.customerUser.accountId`, never
+   * client input). REQUIRED — the read is scoped to it so a foreign-account post
+   * resolves to NOT_FOUND (CWE-639). Fail-closed by construction: no call site
+   * can obtain an unscoped read by omitting it.
+   */
+  callerAccountId: string;
 }
 
 /**
@@ -44,8 +56,18 @@ export class GetPostUseCase implements UseCase<GetPostInput, PostDTO, UseCaseErr
       );
     }
 
-    // Query the read model directly — no aggregate loading overhead
-    const findResult = await this.postQueryRepository.getById(postIdResult.value);
+    // Validate the server-derived caller account (CWE-639 read scope).
+    const accountIdResult = AccountId.fromString(input.callerAccountId);
+    if (!accountIdResult.ok) {
+      return err(new UseCaseError("Invalid caller account", USE_CASE_ERRORS.VALIDATION_FAILED));
+    }
+
+    // Query the read model directly — no aggregate loading overhead. The account
+    // scope makes a foreign-owned post resolve to NOT_FOUND (anti-enumeration).
+    const findResult = await this.postQueryRepository.getById(
+      postIdResult.value,
+      accountIdResult.value
+    );
     if (!findResult.ok) {
       return err(
         new UseCaseError(

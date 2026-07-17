@@ -168,6 +168,7 @@ CONCURRENCY=1 run_batch "integration:consumers" \
 # batch and therefore never executed under test:all / test:integration.
 CONCURRENCY=1 run_batch "integration:tenant-isolation" \
   tests/integration/postDeleteOwnership.test.ts \
+  tests/integration/postReadOwnership.test.ts \
   tests/integration/externalNotificationTenantIsolation.test.ts \
   tests/integration/scheduledReportTenantIsolation.test.ts \
   tests/integration/campaignTenantIsolation.test.ts \
