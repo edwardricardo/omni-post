@@ -347,6 +347,29 @@ the pre-existing, out-of-scope `vanitySlug` non-uniqueness issue.
 **S2.1d will audit every adapter touching these tables and add the
 joined-filter pattern where missing.**
 
+### Pre-authentication boundary seams (Class A)
+
+Context is established once at each pre-auth entry boundary, per ADR-0020
+(`tenant context at boundaries`). Where the tenant is derivable at the boundary
+the seam binds a `TenantContext` (which USES the guard — the read is physically
+scoped); where the operation is genuinely cross-tenant before attribution it
+binds a declared `SystemContext` (audited bypass).
+
+| Boundary                                                       | Seam                                                                                                                                  | Context                                              |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| SSO SAML/OIDC public routes (`/auth/{saml,oidc}/:accountId/*`) | `makeTenantParamPreHandler("accountId")` (`security/tenantParamPreHandler.ts`)                                                        | tenant — `accountId` from the URL path param         |
+| Tenant health route (`/health/tenant/:tenantId/...`)           | `makeTenantParamPreHandler("tenantId")` — `tenantId` IS the account id (health monitor resolves projects by `accountId`)              | tenant — inert until the bootstrap client is guarded |
+| Integration API-key auth (Zapier/Make)                         | `integrationAuthMiddleware`: key lookup + verify under `system:integration-key-auth`, then `enterTenantContext({accountId})` on match | system → tenant                                      |
+| Billing webhooks (Stripe/Paddle)                               | `billingWebhookRoutes`: handler body wrapped in `system:billing-webhook`                                                              | system (declared)                                    |
+| Inbound provider webhooks (BullMQ)                             | `webhookJobProcessor`: job fns + status listeners wrapped in `system:inbound-webhook`                                                 | system (declared)                                    |
+| OAuth callback (`/auth/callback/:provider`)                    | none — persists only via `channelRepository` (`Channel` not enrolled); no enrolled model reached                                      | n/a                                                  |
+
+The three new `withSystemContext()` reasons (`system:integration-key-auth`,
+`system:billing-webhook`, `system:inbound-webhook`) each survive because the
+account is unknown at that point (key-prefix lookup, gateway-customer→account
+mapping, webhook subscription resolution by provider). They are covered by the
+two-tenant `preAuth*TenantIsolation` integration suites.
+
 ## Global tables (denylist — guard bypasses)
 
 Tables without `accountId` (or with `accountId` for searchability only —

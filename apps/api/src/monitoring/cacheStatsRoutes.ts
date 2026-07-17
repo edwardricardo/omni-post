@@ -5,13 +5,23 @@
  *              from the DI container — `getStats`, `flush`, `warmCache`,
  *              `healthCheck`, and `invalidateByPattern` are ops-tier concerns that
  *              live outside the application `CachePort` surface.
+ *
+ *              The `RedisCacheManager` is a GLOBAL, cross-tenant, cross-pod
+ *              instance, so these routes are admin system-ops — not customer
+ *              endpoints. They are guarded by admin auth plus a system permission:
+ *              reads require `SYSTEM_MONITOR`, destructive operations (flush,
+ *              invalidate, warm) require `SYSTEM_CONFIGURE`. Guarding them with
+ *              customer auth would let any authenticated tenant flush or inspect
+ *              every other tenant's cache namespace.
  * @layer infrastructure
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import type { RedisCacheManager } from "@adapters/cache-redis";
 import { createLogger } from "../lib/logger.js";
-import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
+import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
+import { requirePermission } from "../auth/rbacMiddleware.js";
+import { Permission } from "@core/domain/auth/Permission.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 
 const logger = createLogger("cache-stats-routes");
@@ -34,7 +44,7 @@ export const cacheStatsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/cache/stats",
     {
-      preHandler: [requireClientAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_MONITOR)],
       schema: { tags: ["Cache"], summary: "Get comprehensive cache statistics" },
     },
     async (_request: FastifyRequest, reply: FastifyReply) => {
@@ -93,7 +103,7 @@ export const cacheStatsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/cache/health",
     {
-      preHandler: [requireClientAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_MONITOR)],
       schema: { tags: ["Cache"], summary: "Check cache health status" },
     },
     async (_request: FastifyRequest, reply: FastifyReply) => {
@@ -134,7 +144,7 @@ export const cacheStatsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/cache/flush",
     {
-      preHandler: [requireClientAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_CONFIGURE)],
       schema: { tags: ["Cache"], summary: "Flush all cache entries" },
     },
     async (_request: FastifyRequest, reply: FastifyReply) => {
@@ -173,7 +183,7 @@ export const cacheStatsRoutes: FastifyPluginAsync = async (fastify) => {
   }>(
     "/cache/invalidate",
     {
-      preHandler: [requireClientAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_CONFIGURE)],
       schema: { tags: ["Cache"], summary: "Invalidate cache by tags or patterns" },
     },
     async (request, reply) => {
@@ -232,7 +242,7 @@ export const cacheStatsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/cache/hot-keys",
     {
-      preHandler: [requireClientAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_MONITOR)],
       schema: { tags: ["Cache"], summary: "Get most frequently accessed cache keys" },
     },
     async (_request: FastifyRequest, reply: FastifyReply) => {
@@ -270,7 +280,7 @@ export const cacheStatsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
     "/cache/warm",
     {
-      preHandler: [requireClientAuth],
+      preHandler: [requireAdminAuth, requirePermission(Permission.SYSTEM_CONFIGURE)],
       schema: { tags: ["Cache"], summary: "Warm cache with frequently accessed data" },
     },
     async (_request: FastifyRequest, reply: FastifyReply) => {

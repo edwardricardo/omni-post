@@ -117,6 +117,14 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
    * factory. Tokens persist via the `ChannelCredentialsCrypto` envelope
    * inside the repository — plaintext never touches `prisma.channel.upsert`
    * directly.
+   *
+   * No tenant-context seam is bound here on purpose: this pre-auth callback
+   * persists only via `channelRepository` (the `Channel` model is NOT tenant-
+   * guard enrolled) and its OAuth-flow state lives in the cache port, not
+   * Prisma, so nothing reaches an enrolled model. Trigger to add a seam: if
+   * `Channel` is enrolled or token persistence moves to `accountCredential`,
+   * bind `withTenantContext({ accountId: record.accountId })` from the consumed
+   * OAuth state at this boundary.
    */
   private async handleOAuthCallback(
     ctx: RouteContext,

@@ -7,15 +7,15 @@
  *   POST   /api/zapier/keys     -> GenerateIntegrationApiKeyUseCase
  *   DELETE /api/zapier/keys/:id -> RevokeIntegrationApiKeyUseCase
  *
- *   Zapier REST Hooks (integrationAuthMiddleware):
+ *   Zapier REST Hooks (integration-key auth):
  *   POST   /api/zapier/subscribe      -> SubscribeIntegrationTriggerUseCase
  *   DELETE /api/zapier/subscribe/:id  -> UnsubscribeIntegrationTriggerUseCase
  *
- *   Zapier Actions (integrationAuthMiddleware):
+ *   Zapier Actions (integration-key auth):
  *   POST /api/zapier/actions/create-draft   -> CreatePostUseCase
  *   POST /api/zapier/actions/schedule-post  -> CreatePostUseCase + SchedulePostUseCase
  *
- *   Zapier Polling (integrationAuthMiddleware):
+ *   Zapier Polling (integration-key auth):
  *   GET /api/zapier/triggers/posts-published -> last 25 published posts
  *
  * @layer infrastructure
@@ -25,7 +25,7 @@ import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
-import { integrationAuthMiddleware } from "../auth/integrationAuthMiddleware.js";
+import { integrationAuthResolve, integrationAuthBind } from "../auth/integrationAuthMiddleware.js";
 import type { ListIntegrationApiKeysQuery } from "@core/integrations/ListIntegrationApiKeysQuery.js";
 import type { GenerateIntegrationApiKeyUseCase } from "@core/integrations/GenerateIntegrationApiKeyUseCase.js";
 import type { RevokeIntegrationApiKeyUseCase } from "@core/integrations/RevokeIntegrationApiKeyUseCase.js";
@@ -191,7 +191,8 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/zapier/subscribe",
     {
-      preHandler: [integrationAuthMiddleware],
+      onRequest: [integrationAuthResolve],
+      preHandler: [integrationAuthBind],
       schema: { tags: ["Zapier"], summary: "Subscribe to a Zapier trigger event" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -226,7 +227,8 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
   app.delete(
     "/zapier/subscribe/:id",
     {
-      preHandler: [integrationAuthMiddleware],
+      onRequest: [integrationAuthResolve],
+      preHandler: [integrationAuthBind],
       schema: { tags: ["Zapier"], summary: "Unsubscribe from a Zapier trigger event" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -263,7 +265,8 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/zapier/actions/create-draft",
     {
-      preHandler: [integrationAuthMiddleware],
+      onRequest: [integrationAuthResolve],
+      preHandler: [integrationAuthBind],
       schema: { tags: ["Zapier"], summary: "Create a draft post via Zapier" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -292,7 +295,8 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/zapier/actions/schedule-post",
     {
-      preHandler: [integrationAuthMiddleware],
+      onRequest: [integrationAuthResolve],
+      preHandler: [integrationAuthBind],
       schema: { tags: ["Zapier"], summary: "Create and schedule a post via Zapier" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -342,7 +346,8 @@ export const zapierRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/zapier/triggers/posts-published",
     {
-      preHandler: [integrationAuthMiddleware],
+      onRequest: [integrationAuthResolve],
+      preHandler: [integrationAuthBind],
       schema: { tags: ["Zapier"], summary: "Poll last 25 published posts" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {

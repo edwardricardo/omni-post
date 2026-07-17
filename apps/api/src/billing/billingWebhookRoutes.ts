@@ -10,6 +10,7 @@
 
 import type { FastifyPluginAsync, FastifyBaseLogger } from "fastify";
 import { TOKENS } from "../infrastructure/container/types.js";
+import { withSystemContext } from "../security/tenantContext.js";
 import type { GatewayBillingService } from "@core/billing/GatewayBillingService.js";
 import type {
   GatewayProviderType,
@@ -192,42 +193,48 @@ export const billingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request, reply) => {
-      const signature = request.headers["stripe-signature"] as string | undefined;
+      // Webhooks arrive with no session — the account is resolved later from the
+      // gateway customer id. The handler body reaches enrolled billing models
+      // (billingEvent, accountSubscription, invoice), so it runs under a declared
+      // system context; the tenant guard audits the reason and skips enforcement.
+      return withSystemContext("system:billing-webhook", async () => {
+        const signature = request.headers["stripe-signature"] as string | undefined;
 
-      if (!signature) {
-        return reply.code(400).send({ error: "Missing stripe-signature header" });
-      }
+        if (!signature) {
+          return reply.code(400).send({ error: "Missing stripe-signature header" });
+        }
 
-      const adapter = registry.getAdapter("stripe");
-      const rawBody = request.body as Buffer;
+        const adapter = registry.getAdapter("stripe");
+        const rawBody = request.body as Buffer;
 
-      try {
-        const event = await adapter.parseWebhookEvent({
-          payload: rawBody,
-          signature,
-        });
-        const domainEvent = adapter.mapEventType(event.type);
+        try {
+          const event = await adapter.parseWebhookEvent({
+            payload: rawBody,
+            signature,
+          });
+          const domainEvent = adapter.mapEventType(event.type);
 
-        request.log.info(
-          { provider: "stripe", eventType: event.type, domainEvent },
-          "Stripe billing webhook received"
-        );
+          request.log.info(
+            { provider: "stripe", eventType: event.type, domainEvent },
+            "Stripe billing webhook received"
+          );
 
-        await routeBillingEvent(
-          "stripe",
-          event.id,
-          event.type,
-          domainEvent,
-          event.data,
-          service,
-          request.log
-        );
-      } catch (err) {
-        request.log.warn({ err }, "Stripe webhook signature verification failed");
-        return reply.code(400).send({ error: "Invalid signature" });
-      }
+          await routeBillingEvent(
+            "stripe",
+            event.id,
+            event.type,
+            domainEvent,
+            event.data,
+            service,
+            request.log
+          );
+        } catch (err) {
+          request.log.warn({ err }, "Stripe webhook signature verification failed");
+          return reply.code(400).send({ error: "Invalid signature" });
+        }
 
-      return reply.code(200).send({ received: true });
+        return reply.code(200).send({ received: true });
+      });
     }
   );
 
@@ -241,42 +248,47 @@ export const billingWebhookRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request, reply) => {
-      const signature = request.headers["paddle-signature"] as string | undefined;
+      // See the Stripe handler: webhook bodies reach enrolled billing models
+      // before the account is attributed, so they run under a declared system
+      // context (audited bypass), never context-less on the guard.
+      return withSystemContext("system:billing-webhook", async () => {
+        const signature = request.headers["paddle-signature"] as string | undefined;
 
-      if (!signature) {
-        return reply.code(400).send({ error: "Missing paddle-signature header" });
-      }
+        if (!signature) {
+          return reply.code(400).send({ error: "Missing paddle-signature header" });
+        }
 
-      const adapter = registry.getAdapter("paddle");
-      const rawBody = request.body as Buffer;
+        const adapter = registry.getAdapter("paddle");
+        const rawBody = request.body as Buffer;
 
-      try {
-        const event = await adapter.parseWebhookEvent({
-          payload: rawBody,
-          signature,
-        });
-        const domainEvent = adapter.mapEventType(event.type);
+        try {
+          const event = await adapter.parseWebhookEvent({
+            payload: rawBody,
+            signature,
+          });
+          const domainEvent = adapter.mapEventType(event.type);
 
-        request.log.info(
-          { provider: "paddle", eventType: event.type, domainEvent },
-          "Paddle billing webhook received"
-        );
+          request.log.info(
+            { provider: "paddle", eventType: event.type, domainEvent },
+            "Paddle billing webhook received"
+          );
 
-        await routeBillingEvent(
-          "paddle",
-          event.id,
-          event.type,
-          domainEvent,
-          event.data,
-          service,
-          request.log
-        );
-      } catch (err) {
-        request.log.warn({ err }, "Paddle webhook signature verification failed");
-        return reply.code(400).send({ error: "Invalid signature" });
-      }
+          await routeBillingEvent(
+            "paddle",
+            event.id,
+            event.type,
+            domainEvent,
+            event.data,
+            service,
+            request.log
+          );
+        } catch (err) {
+          request.log.warn({ err }, "Paddle webhook signature verification failed");
+          return reply.code(400).send({ error: "Invalid signature" });
+        }
 
-      return reply.code(200).send({ received: true });
+        return reply.code(200).send({ received: true });
+      });
     }
   );
 };

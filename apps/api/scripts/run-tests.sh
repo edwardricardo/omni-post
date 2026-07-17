@@ -175,6 +175,10 @@ CONCURRENCY=1 run_batch "integration:tenant-isolation" \
   tests/integration/trackedLinkTenantIsolation.test.ts \
   tests/integration/generatedImageTenantIsolation.test.ts \
   tests/integration/projectMemberTenantIsolation.test.ts \
+  tests/integration/preAuthIntegrationTenantIsolation.test.ts \
+  tests/integration/preAuthSsoTenantIsolation.test.ts \
+  tests/integration/preAuthBillingTenantIsolation.test.ts \
+  tests/integration/preAuthInboundWebhookTenantIsolation.test.ts \
   tests/integration/rls-tenant-isolation.test.ts
 
 fi # run_db_batches

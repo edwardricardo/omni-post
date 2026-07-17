@@ -11,6 +11,16 @@ import type { PrismaClient, WebhookEventType, Provider } from "@infra/prisma";
 import { webhookLogger } from "../lib/logger.js";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import type { MentionFetchEnqueue, MentionFetchJob } from "./mentionFetchEnqueue.js";
+import { withSystemContext } from "../security/tenantContext.js";
+
+/**
+ * Declared system-context reason for inbound webhook processing. Webhook jobs
+ * and their status listeners write enrolled models (`webhookEvent`,
+ * `webhookDeadLetter`) after resolving the subscription globally by provider,
+ * i.e. before per-account attribution, so the guard runs under this audited
+ * bypass rather than context-less.
+ */
+export const INBOUND_WEBHOOK_SYSTEM_REASON = "system:inbound-webhook";
 
 export interface WebhookJobData {
   eventId: string;
@@ -140,40 +150,46 @@ export class WebhookJobProcessor {
    * Set up event listeners for job processing
    */
   private setupEventListeners(): void {
-    // Main worker events
+    // Main worker events. The listeners run outside the job fn, so they carry no
+    // ambient context; their bodies write enrolled models, so each is wrapped in
+    // the declared inbound-webhook system context.
     this.worker.on("completed", async (job, result) => {
-      webhookLogger.info(
-        { jobId: job.id, processingTimeMs: result.processingTimeMs },
-        "Webhook job completed successfully"
-      );
-      await this.updateWebhookEventStatus(job.data.eventId, "COMPLETED", result);
+      await withSystemContext(INBOUND_WEBHOOK_SYSTEM_REASON, async () => {
+        webhookLogger.info(
+          { jobId: job.id, processingTimeMs: result.processingTimeMs },
+          "Webhook job completed successfully"
+        );
+        await this.updateWebhookEventStatus(job.data.eventId, "COMPLETED", result);
+      });
     });
 
     this.worker.on("failed", async (job, error) => {
-      webhookLogger.error({ err: error, jobId: job?.id }, "Webhook job failed");
+      await withSystemContext(INBOUND_WEBHOOK_SYSTEM_REASON, async () => {
+        webhookLogger.error({ err: error, jobId: job?.id }, "Webhook job failed");
 
-      if (job) {
-        const shouldMoveToDeadLetter = job.attemptsMade >= (job.opts?.attempts || 3);
+        if (job) {
+          const shouldMoveToDeadLetter = job.attemptsMade >= (job.opts?.attempts || 3);
 
-        if (shouldMoveToDeadLetter) {
-          // Move to dead letter queue
-          await this.moveToDeadLetterQueue(job.data, error.message);
-          await this.updateWebhookEventStatus(job.data.eventId, "DEAD_LETTER", {
-            success: false,
-            processedAt: new Date().toISOString(),
-            processingTimeMs: 0,
-            error: error.message,
-          });
-        } else {
-          // Update retry status
-          await this.updateWebhookEventStatus(job.data.eventId, "RETRYING", {
-            success: false,
-            processedAt: new Date().toISOString(),
-            processingTimeMs: 0,
-            error: error.message,
-          });
+          if (shouldMoveToDeadLetter) {
+            // Move to dead letter queue
+            await this.moveToDeadLetterQueue(job.data, error.message);
+            await this.updateWebhookEventStatus(job.data.eventId, "DEAD_LETTER", {
+              success: false,
+              processedAt: new Date().toISOString(),
+              processingTimeMs: 0,
+              error: error.message,
+            });
+          } else {
+            // Update retry status
+            await this.updateWebhookEventStatus(job.data.eventId, "RETRYING", {
+              success: false,
+              processedAt: new Date().toISOString(),
+              processingTimeMs: 0,
+              error: error.message,
+            });
+          }
         }
-      }
+      });
     });
 
     this.worker.on("stalled", async (jobId, prev) => {
@@ -182,14 +198,19 @@ export class WebhookJobProcessor {
 
     // Dead letter worker events
     this.deadLetterWorker.on("completed", async (job, result) => {
-      webhookLogger.info({ jobId: job.id, recovered: result.success }, "Dead letter job processed");
+      await withSystemContext(INBOUND_WEBHOOK_SYSTEM_REASON, async () => {
+        webhookLogger.info(
+          { jobId: job.id, recovered: result.success },
+          "Dead letter job processed"
+        );
 
-      if (result.success) {
-        // Remove from dead letter database if recovered
-        await this.prisma.webhookDeadLetter.deleteMany({
-          where: { originalEventId: job.data.eventId },
-        });
-      }
+        if (result.success) {
+          // Remove from dead letter database if recovered
+          await this.prisma.webhookDeadLetter.deleteMany({
+            where: { originalEventId: job.data.eventId },
+          });
+        }
+      });
     });
 
     this.deadLetterWorker.on("failed", async (job, error) => {
@@ -219,45 +240,50 @@ export class WebhookJobProcessor {
   private async processWebhookJob(
     job: Job<WebhookJobData, WebhookJobResult>
   ): Promise<WebhookJobResult> {
-    const startTime = Date.now();
-    const { provider, signature, payload, headers, eventId: _eventId } = job.data;
+    // Wrap the body so every enrolled-model access reached through
+    // handleWebhook runs under the declared system context, covering every
+    // invocation path (worker dispatch AND dead-letter reprocess).
+    return withSystemContext(INBOUND_WEBHOOK_SYSTEM_REASON, async () => {
+      const startTime = Date.now();
+      const { provider, signature, payload, headers, eventId: _eventId } = job.data;
 
-    try {
-      // Update job status
-      await job.updateProgress(10);
+      try {
+        // Update job status
+        await job.updateProgress(10);
 
-      // Process the webhook using the universal handler
-      const result = await this.webhookHandler.handleWebhook(
-        provider,
-        signature,
-        JSON.stringify(payload),
-        headers
-      );
+        // Process the webhook using the universal handler
+        const result = await this.webhookHandler.handleWebhook(
+          provider,
+          signature,
+          JSON.stringify(payload),
+          headers
+        );
 
-      await job.updateProgress(90);
+        await job.updateProgress(90);
 
-      if (!result.success) {
-        throw new Error(result.error || "Webhook processing failed");
+        if (!result.success) {
+          throw new Error(result.error || "Webhook processing failed");
+        }
+
+        await job.updateProgress(100);
+
+        return {
+          success: true,
+          processedAt: new Date().toISOString(),
+          processingTimeMs: Date.now() - startTime,
+          ...(result.normalizedData !== undefined ? { normalizedData: result.normalizedData } : {}),
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        return {
+          success: false,
+          processedAt: new Date().toISOString(),
+          processingTimeMs: Date.now() - startTime,
+          error: errorMessage,
+        };
       }
-
-      await job.updateProgress(100);
-
-      return {
-        success: true,
-        processedAt: new Date().toISOString(),
-        processingTimeMs: Date.now() - startTime,
-        ...(result.normalizedData !== undefined ? { normalizedData: result.normalizedData } : {}),
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      return {
-        success: false,
-        processedAt: new Date().toISOString(),
-        processingTimeMs: Date.now() - startTime,
-        error: errorMessage,
-      };
-    }
+    });
   }
 
   /**
@@ -266,30 +292,34 @@ export class WebhookJobProcessor {
   private async processDeadLetterJob(
     job: Job<WebhookJobData, WebhookJobResult>
   ): Promise<WebhookJobResult> {
-    // Try to reprocess the failed webhook
-    try {
-      const result = await this.processWebhookJob(job);
+    // Recovery writes `webhookDeadLetter` (enrolled) directly, so the body runs
+    // under the declared inbound-webhook system context.
+    return withSystemContext(INBOUND_WEBHOOK_SYSTEM_REASON, async () => {
+      // Try to reprocess the failed webhook
+      try {
+        const result = await this.processWebhookJob(job);
 
-      if (result.success) {
-        // Mark as recovered in database
-        await this.prisma.webhookDeadLetter.updateMany({
-          where: { originalEventId: job.data.eventId },
-          data: {
-            resolvedAt: new Date(),
-            resolvedBy: "system_recovery",
-          },
-        });
+        if (result.success) {
+          // Mark as recovered in database
+          await this.prisma.webhookDeadLetter.updateMany({
+            where: { originalEventId: job.data.eventId },
+            data: {
+              resolvedAt: new Date(),
+              resolvedBy: "system_recovery",
+            },
+          });
+        }
+
+        return result;
+      } catch (error) {
+        return {
+          success: false,
+          processedAt: new Date().toISOString(),
+          processingTimeMs: 0,
+          error: error instanceof Error ? error.message : String(error),
+        };
       }
-
-      return result;
-    } catch (error) {
-      return {
-        success: false,
-        processedAt: new Date().toISOString(),
-        processingTimeMs: 0,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
+    });
   }
 
   /**

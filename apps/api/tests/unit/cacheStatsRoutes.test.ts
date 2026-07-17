@@ -1,9 +1,13 @@
 #!/usr/bin/env tsx
 /**
  * Unit Tests for cacheStatsRoutes
- * Testing cache statistics and monitoring endpoints
+ * Testing cache statistics and monitoring endpoints plus their authorization.
  *
- * Coverage Target: 95%+
+ * The cache routes drive the GLOBAL cross-tenant/cross-pod RedisCacheManager,
+ * so they are admin system-ops endpoints: read routes require SYSTEM_MONITOR,
+ * destructive routes (flush/invalidate/warm) require SYSTEM_CONFIGURE. These
+ * tests exercise both the behavior (authenticated as SUPER_ADMIN) and the
+ * authorization boundary (client rejected, ADMIN blocked from destructive ops).
  *
  * @file cacheStatsRoutes.test.ts
  * @description Tests for cacheStatsRoutes - Unit Tests
@@ -11,23 +15,72 @@
  */
 
 import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
+import { createMockPrismaModule } from "./helpers/mockPrisma.js";
+import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 
-vi.mock("../../src/auth/customerAuthMiddleware.js", () => ({
-  requireClientAuth: async () => {},
-}));
+// ─── Mock setup (must precede any import that touches @infra/prisma) ──────────
+const { mockPrisma } = createMockPrismaModule();
 
-import Fastify, { FastifyInstance } from "fastify";
-import type { RedisCacheManager } from "@adapters/cache-redis";
-import { Container } from "../../src/infrastructure/container/Container.js";
-import { TOKENS } from "../../src/infrastructure/container/types.js";
+vi.mock("@infra/prisma", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return { ...original, prisma: mockPrisma.prisma };
+});
 
-// ─── Mock Types ─────────────────────────────────────────────────────
+// Decode-only admin auth mock: a decodable Bearer token passes requireAdminAuth
+// and its `role` claim drives the REAL requirePermission check against the
+// seeded RbacService, so the authz boundary is exercised end-to-end.
+vi.mock("../../src/admin/auth/adminAuthMiddleware.js", async () => {
+  const { createAdminAuthMock } = await import("./helpers/mockAuthMiddleware.js");
+  return createAdminAuthMock();
+});
+
+// ─── Dynamic imports after mocks ─────────────────────────────────────────────
+const Fastify = (await import("fastify")).default;
+type FastifyInstance = import("fastify").FastifyInstance;
+type RedisCacheManager = import("@adapters/cache-redis").RedisCacheManager;
+const { Container } = await import("../../src/infrastructure/container/Container.js");
+const { TOKENS } = await import("../../src/infrastructure/container/types.js");
+const { RbacService } = await import("../../src/auth/rbacService.js");
+const { PrismaAdminUserRepository } =
+  await import("../../src/infrastructure/repositories/PrismaAdminUserRepository.js");
+const { PrismaRoleRepository } =
+  await import("../../src/infrastructure/repositories/PrismaRoleRepository.js");
+const { generateAdminToken } = await import("./admin/adminTestHelper.js");
+
+// ─── Tokens ──────────────────────────────────────────────────────────────────
+// SUPER_ADMIN → all permissions. ADMIN → SYSTEM_MONITOR only (no SYSTEM_CONFIGURE
+// in the seed). CLIENT → an unknown role that resolves to zero permissions,
+// standing in for any authenticated customer principal.
+const timestamp = Date.now();
+const superAdminToken = generateAdminToken({
+  id: "cache-super-admin",
+  email: `cache-super-${timestamp}@example.com`,
+  name: "Cache Super Admin",
+  role: "SUPER_ADMIN",
+});
+const adminToken = generateAdminToken({
+  id: "cache-admin",
+  email: `cache-admin-${timestamp}@example.com`,
+  name: "Cache Admin",
+  role: "ADMIN",
+});
+const clientToken = generateAdminToken({
+  id: "cache-client",
+  email: `cache-client-${timestamp}@example.com`,
+  name: "Cache Client",
+  role: "CLIENT",
+});
+
+function authHeaders(token: string): Record<string, string> {
+  return { authorization: `Bearer ${token}` };
+}
+
+// ─── Mock cache manager ──────────────────────────────────────────────────────
 type MockCacheManager = Pick<
   RedisCacheManager,
   "getStats" | "healthCheck" | "flush" | "invalidateByTag" | "invalidateByPattern" | "warmCache"
 >;
 
-// Mock cache manager factory
 function createMockCacheManager(
   config: {
     healthy?: boolean;
@@ -97,23 +150,35 @@ function createMockCacheManager(
   };
 }
 
+// ─── App factory (registers the cache manager + a real RbacService) ──────────
+async function buildApp(cacheManager: MockCacheManager): Promise<FastifyInstance> {
+  const app = Fastify({ logger: false });
+
+  const container = new Container();
+  container.registerInstance(TOKENS.RedisCacheManager, cacheManager as RedisCacheManager);
+
+  const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
+  const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
+  container.registerInstance(
+    TOKENS.RbacService,
+    new RbacService(adminUserRepo, roleRepo, new InMemoryAuditLogRepository())
+  );
+
+  app.decorate("container", container);
+
+  const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
+  await app.register(cacheStatsRoutes);
+  await app.ready();
+  return app;
+}
+
 describe("cacheStatsRoutes - Unit Tests", () => {
   let app: FastifyInstance;
   let mockCacheManager: MockCacheManager;
 
-  beforeEach(async (_t) => {
+  beforeEach(async () => {
     mockCacheManager = createMockCacheManager();
-
-    app = Fastify({ logger: false });
-
-    // Routes resolve TOKENS.RedisCacheManager from the DI container, not via
-    // a Fastify decoration. Mock the container with the manager registered.
-    const container = new Container();
-    container.registerInstance(TOKENS.RedisCacheManager, mockCacheManager as RedisCacheManager);
-    app.decorate("container", container);
-
-    const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
-    await app.register(cacheStatsRoutes);
+    app = await buildApp(mockCacheManager);
   });
 
   afterEach(async () => {
@@ -125,6 +190,7 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       const response = await app.inject({
         method: "GET",
         url: "/cache/stats",
+        headers: authHeaders(superAdminToken),
       });
 
       expect(response.statusCode).toBe(200);
@@ -139,6 +205,7 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       const response = await app.inject({
         method: "GET",
         url: "/cache/stats",
+        headers: authHeaders(superAdminToken),
       });
 
       const body = JSON.parse(response.body);
@@ -152,6 +219,7 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       const response = await app.inject({
         method: "GET",
         url: "/cache/stats",
+        headers: authHeaders(superAdminToken),
       });
 
       const body = JSON.parse(response.body);
@@ -164,6 +232,7 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       const response = await app.inject({
         method: "GET",
         url: "/cache/stats",
+        headers: authHeaders(superAdminToken),
       });
 
       const body = JSON.parse(response.body);
@@ -176,6 +245,7 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       const response = await app.inject({
         method: "GET",
         url: "/cache/stats",
+        headers: authHeaders(superAdminToken),
       });
 
       const body = JSON.parse(response.body);
@@ -183,22 +253,13 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       expect(body.stats.hotKeys.length <= 10).toBeTruthy();
     });
 
-    it("should handle cache manager errors gracefully", async (_t) => {
-      const appWithFailingCache = Fastify({ logger: false });
-      const failingCache = createMockCacheManager({ statsSuccess: false });
-      const containerFailingCache = new Container();
-      containerFailingCache.registerInstance(
-        TOKENS.RedisCacheManager,
-        failingCache as RedisCacheManager
-      );
-      appWithFailingCache.decorate("container", containerFailingCache);
-
-      const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
-      await appWithFailingCache.register(cacheStatsRoutes);
+    it("should handle cache manager errors gracefully", async () => {
+      const appWithFailingCache = await buildApp(createMockCacheManager({ statsSuccess: false }));
 
       const response = await appWithFailingCache.inject({
         method: "GET",
         url: "/cache/stats",
+        headers: authHeaders(superAdminToken),
       });
 
       expect(response.statusCode).toBe(500);
@@ -215,6 +276,7 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       const response = await app.inject({
         method: "GET",
         url: "/cache/health",
+        headers: authHeaders(superAdminToken),
       });
 
       expect(response.statusCode).toBe(200);
@@ -229,6 +291,7 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       const response = await app.inject({
         method: "GET",
         url: "/cache/health",
+        headers: authHeaders(superAdminToken),
       });
 
       const body = JSON.parse(response.body);
@@ -237,22 +300,13 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       expect(body.health.latencyMs).toBeTruthy();
     });
 
-    it("should handle health check failures", async (_t) => {
-      const appWithUnhealthyCache = Fastify({ logger: false });
-      const unhealthyCache = createMockCacheManager({ healthy: false });
-      const containerUnhealthy = new Container();
-      containerUnhealthy.registerInstance(
-        TOKENS.RedisCacheManager,
-        unhealthyCache as RedisCacheManager
-      );
-      appWithUnhealthyCache.decorate("container", containerUnhealthy);
-
-      const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
-      await appWithUnhealthyCache.register(cacheStatsRoutes);
+    it("should handle health check failures", async () => {
+      const appWithUnhealthyCache = await buildApp(createMockCacheManager({ healthy: false }));
 
       const response = await appWithUnhealthyCache.inject({
         method: "GET",
         url: "/cache/health",
+        headers: authHeaders(superAdminToken),
       });
 
       expect(response.statusCode).toBe(500);
@@ -265,6 +319,7 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       const response = await app.inject({
         method: "POST",
         url: "/cache/flush",
+        headers: authHeaders(superAdminToken),
       });
 
       expect(response.statusCode).toBe(200);
@@ -275,22 +330,13 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       expect(body.timestamp).toBeTruthy();
     });
 
-    it("should handle flush failures", async (_t) => {
-      const appWithFailingFlush = Fastify({ logger: false });
-      const failingCache = createMockCacheManager({ flushSuccess: false });
-      const containerFailingFlush = new Container();
-      containerFailingFlush.registerInstance(
-        TOKENS.RedisCacheManager,
-        failingCache as RedisCacheManager
-      );
-      appWithFailingFlush.decorate("container", containerFailingFlush);
-
-      const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
-      await appWithFailingFlush.register(cacheStatsRoutes);
+    it("should handle flush failures", async () => {
+      const appWithFailingFlush = await buildApp(createMockCacheManager({ flushSuccess: false }));
 
       const response = await appWithFailingFlush.inject({
         method: "POST",
         url: "/cache/flush",
+        headers: authHeaders(superAdminToken),
       });
 
       expect(response.statusCode).toBe(500);
@@ -303,6 +349,7 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       const response = await app.inject({
         method: "POST",
         url: "/cache/invalidate",
+        headers: authHeaders(superAdminToken),
         payload: {
           tags: ["users", "posts"],
         },
@@ -321,6 +368,7 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       const response = await app.inject({
         method: "POST",
         url: "/cache/invalidate",
+        headers: authHeaders(superAdminToken),
         payload: {
           patterns: ["user:*", "post:*"],
         },
@@ -338,6 +386,7 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       const response = await app.inject({
         method: "POST",
         url: "/cache/invalidate",
+        headers: authHeaders(superAdminToken),
         payload: {
           tags: ["users"],
           patterns: ["post:*"],
@@ -355,6 +404,7 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       const response = await app.inject({
         method: "POST",
         url: "/cache/invalidate",
+        headers: authHeaders(superAdminToken),
         payload: {},
       });
 
@@ -369,6 +419,7 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       const response = await app.inject({
         method: "POST",
         url: "/cache/invalidate",
+        headers: authHeaders(superAdminToken),
         payload: {
           tags: [],
           patterns: ["test:*"],
@@ -384,6 +435,7 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       const response = await app.inject({
         method: "GET",
         url: "/cache/hot-keys",
+        headers: authHeaders(superAdminToken),
       });
 
       expect(response.statusCode).toBe(200);
@@ -399,6 +451,7 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       const response = await app.inject({
         method: "GET",
         url: "/cache/hot-keys",
+        headers: authHeaders(superAdminToken),
       });
 
       const body = JSON.parse(response.body);
@@ -411,6 +464,7 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       const response = await app.inject({
         method: "POST",
         url: "/cache/warm",
+        headers: authHeaders(superAdminToken),
       });
 
       expect(response.statusCode).toBe(200);
@@ -425,32 +479,109 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       const response = await app.inject({
         method: "POST",
         url: "/cache/warm",
+        headers: authHeaders(superAdminToken),
       });
 
       const body = JSON.parse(response.body);
       expect(body.warmedCount >= 0).toBeTruthy();
     });
 
-    it("should handle warming failures", async (_t) => {
-      const appWithFailingWarm = Fastify({ logger: false });
-      const failingCache = createMockCacheManager({ warmSuccess: false });
-      const containerFailingWarm = new Container();
-      containerFailingWarm.registerInstance(
-        TOKENS.RedisCacheManager,
-        failingCache as RedisCacheManager
-      );
-      appWithFailingWarm.decorate("container", containerFailingWarm);
-
-      const { cacheStatsRoutes } = await import("../../src/monitoring/cacheStatsRoutes.js");
-      await appWithFailingWarm.register(cacheStatsRoutes);
+    it("should handle warming failures", async () => {
+      const appWithFailingWarm = await buildApp(createMockCacheManager({ warmSuccess: false }));
 
       const response = await appWithFailingWarm.inject({
         method: "POST",
         url: "/cache/warm",
+        headers: authHeaders(superAdminToken),
       });
 
       expect(response.statusCode).toBe(500);
       await appWithFailingWarm.close();
+    });
+  });
+
+  // ── Authorization boundary ────────────────────────────────────────────────
+  // The RedisCacheManager these routes drive is global and cross-tenant, so
+  // no customer principal may reach them. Reads need SYSTEM_MONITOR; destructive
+  // ops need SYSTEM_CONFIGURE.
+  describe("Authorization", () => {
+    const readRoutes = [
+      { method: "GET" as const, url: "/cache/stats" },
+      { method: "GET" as const, url: "/cache/health" },
+      { method: "GET" as const, url: "/cache/hot-keys" },
+    ];
+    const destructiveRoutes = [
+      { method: "POST" as const, url: "/cache/flush", payload: {} },
+      { method: "POST" as const, url: "/cache/invalidate", payload: { tags: ["users"] } },
+      { method: "POST" as const, url: "/cache/warm", payload: {} },
+    ];
+    const allRoutes = [...readRoutes, ...destructiveRoutes];
+
+    it("rejects unauthenticated requests with 401 on every route", async () => {
+      for (const route of allRoutes) {
+        const response = await app.inject({
+          method: route.method,
+          url: route.url,
+          ...("payload" in route ? { payload: route.payload } : {}),
+        });
+        expect(response.statusCode, `${route.method} ${route.url} must reject anonymous`).toBe(401);
+      }
+    });
+
+    it("rejects a customer/client token with 403 on every route", async () => {
+      for (const route of allRoutes) {
+        const response = await app.inject({
+          method: route.method,
+          url: route.url,
+          headers: authHeaders(clientToken),
+          ...("payload" in route ? { payload: route.payload } : {}),
+        });
+        expect(response.statusCode, `${route.method} ${route.url} must reject client`).toBe(403);
+        const body = JSON.parse(response.body);
+        expect(body.error).toBeTruthy();
+      }
+    });
+
+    it("allows an ADMIN token (SYSTEM_MONITOR) on read routes", async () => {
+      for (const route of readRoutes) {
+        const response = await app.inject({
+          method: route.method,
+          url: route.url,
+          headers: authHeaders(adminToken),
+        });
+        expect(response.statusCode, `${route.method} ${route.url} should allow ADMIN read`).toBe(
+          200
+        );
+      }
+    });
+
+    it("blocks an ADMIN token (no SYSTEM_CONFIGURE) on destructive routes with 403", async () => {
+      for (const route of destructiveRoutes) {
+        const response = await app.inject({
+          method: route.method,
+          url: route.url,
+          headers: authHeaders(adminToken),
+          payload: route.payload,
+        });
+        expect(
+          response.statusCode,
+          `${route.method} ${route.url} must require SYSTEM_CONFIGURE`
+        ).toBe(403);
+      }
+    });
+
+    it("allows a SUPER_ADMIN token on destructive routes", async () => {
+      for (const route of destructiveRoutes) {
+        const response = await app.inject({
+          method: route.method,
+          url: route.url,
+          headers: authHeaders(superAdminToken),
+          payload: route.payload,
+        });
+        expect(response.statusCode, `${route.method} ${route.url} should allow SUPER_ADMIN`).toBe(
+          200
+        );
+      }
     });
   });
 
