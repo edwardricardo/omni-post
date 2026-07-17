@@ -5,6 +5,7 @@
  */
 
 import {
+  AccountId,
   PostId,
   ProjectId,
   type PostQueryRepository,
@@ -94,7 +95,15 @@ export class GetPostQueryHandler implements QueryHandler<Query<unknown>, CQRSPos
         };
       }
 
-      const result = await this.config.postQueryRepository.getById(postIdResult.value);
+      // This CQRS query bus is not mounted on any route and carries no
+      // authenticated principal, so reads are scoped to an ephemeral account
+      // that owns nothing — the query fails closed (NOT_FOUND) rather than
+      // leaking cross-tenant rows (CWE-639). A real caller account must be
+      // threaded here before this bus is registered on any route.
+      const result = await this.config.postQueryRepository.getById(
+        postIdResult.value,
+        AccountId.generate()
+      );
 
       if (!result.ok) {
         return {
@@ -162,8 +171,13 @@ export class ListPostsQueryHandler implements QueryHandler<Query<unknown>, Posts
         direction: data.sortOrder.toLowerCase() as "asc" | "desc",
       };
 
+      // Fails closed: this unmounted CQRS bus has no authenticated principal, so
+      // the list is scoped to an ephemeral account that owns nothing (empty
+      // result) rather than leaking cross-tenant rows (CWE-639). A real caller
+      // account must be threaded here before this bus is registered on any route.
       const paginatedResult = await this.config.postQueryRepository.listByProject(
         projectIdResult.value,
+        AccountId.generate(),
         pagination,
         sort
       );

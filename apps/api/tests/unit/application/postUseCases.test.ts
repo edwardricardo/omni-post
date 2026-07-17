@@ -104,7 +104,13 @@ function createMockQueryRepository() {
       return ok(post);
     }),
     listByProject: vi.fn(
-      async (_projId: ProjectId, pagination?: any, _sort?: any, _filter?: any) => {
+      async (
+        _projId: ProjectId,
+        _accountId?: any,
+        pagination?: any,
+        _sort?: any,
+        _filter?: any
+      ) => {
         const items = Array.from(store.values());
         const page = pagination?.page ?? 1;
         const limit = Math.min(pagination?.limit ?? 20, 100);
@@ -131,6 +137,8 @@ function createMockQueryRepository() {
 }
 
 const TEST_PROJECT_ID = ProjectId.generate().value;
+// Server-derived caller account threaded into the read use cases (CWE-639 scope).
+const TEST_ACCOUNT_ID = AccountId.generate().value;
 
 function validCreateInput(overrides?: Record<string, unknown>) {
   return {
@@ -624,7 +632,7 @@ describe("GetPostUseCase", () => {
         updatedAt: new Date(),
       });
 
-      const result = await useCase.execute({ postId });
+      const result = await useCase.execute({ postId, callerAccountId: TEST_ACCOUNT_ID });
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       expect(result.value.id).toBe(postId);
@@ -634,7 +642,7 @@ describe("GetPostUseCase", () => {
 
   describe("validation", () => {
     it("rejects invalid postId", async () => {
-      const result = await useCase.execute({ postId: "bad-id" });
+      const result = await useCase.execute({ postId: "bad-id", callerAccountId: TEST_ACCOUNT_ID });
       expect(result.ok).toBe(false);
       if (result.ok) return;
       expect(result.error.code).toBe(USE_CASE_ERRORS.VALIDATION_FAILED);
@@ -643,7 +651,10 @@ describe("GetPostUseCase", () => {
 
   describe("error handling", () => {
     it("returns NOT_FOUND for unknown post", async () => {
-      const result = await useCase.execute({ postId: PostId.generate().value });
+      const result = await useCase.execute({
+        postId: PostId.generate().value,
+        callerAccountId: TEST_ACCOUNT_ID,
+      });
       expect(result.ok).toBe(false);
       if (result.ok) return;
       expect(result.error.code).toBe(USE_CASE_ERRORS.NOT_FOUND);
@@ -678,7 +689,10 @@ describe("ListPostsUseCase", () => {
         });
       }
 
-      const result = await useCase.execute({ projectId: TEST_PROJECT_ID });
+      const result = await useCase.execute({
+        projectId: TEST_PROJECT_ID,
+        callerAccountId: TEST_ACCOUNT_ID,
+      });
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       expect(result.value.items).toHaveLength(3);
@@ -703,6 +717,7 @@ describe("ListPostsUseCase", () => {
 
       const result = await useCase.execute({
         projectId: TEST_PROJECT_ID,
+        callerAccountId: TEST_ACCOUNT_ID,
         page: 1,
         limit: 10,
       });
@@ -716,11 +731,14 @@ describe("ListPostsUseCase", () => {
     it("caps limit at 100", async () => {
       const result = await useCase.execute({
         projectId: TEST_PROJECT_ID,
+        callerAccountId: TEST_ACCOUNT_ID,
         limit: 500,
       });
       expect(result.ok).toBe(true);
-      // The use case caps at 100, mock respects it
+      // The use case caps at 100, mock respects it. The caller account is the
+      // second argument (CWE-639 scope), so pagination is the third.
       expect(queryRepo.listByProject).toHaveBeenCalledWith(
+        expect.anything(),
         expect.anything(),
         expect.objectContaining({ limit: 100 }),
         undefined,
@@ -729,8 +747,9 @@ describe("ListPostsUseCase", () => {
     });
 
     it("defaults page to 1 and limit to 20", async () => {
-      await useCase.execute({ projectId: TEST_PROJECT_ID });
+      await useCase.execute({ projectId: TEST_PROJECT_ID, callerAccountId: TEST_ACCOUNT_ID });
       expect(queryRepo.listByProject).toHaveBeenCalledWith(
+        expect.anything(),
         expect.anything(),
         expect.objectContaining({ page: 1, limit: 20 }),
         undefined,
@@ -741,7 +760,10 @@ describe("ListPostsUseCase", () => {
 
   describe("validation", () => {
     it("rejects invalid projectId", async () => {
-      const result = await useCase.execute({ projectId: "bad-id" });
+      const result = await useCase.execute({
+        projectId: "bad-id",
+        callerAccountId: TEST_ACCOUNT_ID,
+      });
       expect(result.ok).toBe(false);
       if (result.ok) return;
       expect(result.error.code).toBe(USE_CASE_ERRORS.VALIDATION_FAILED);

@@ -26,6 +26,8 @@ import type { EventDispatcher } from "@core/domain/events/DomainEvent.js";
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const TEST_PROJECT_ID = "a0000000-0000-4000-8000-000000000001";
+// Server-derived caller account threaded into the read use cases (CWE-639 scope).
+const TEST_ACCOUNT_ID = "a0000000-0000-4000-8000-0000000000aa";
 
 function createMockPostRepository(): PostRepository {
   return {
@@ -230,7 +232,7 @@ describe("Post Use Cases", () => {
       (queryRepo.getById as any).mockImplementation(async () => ok(readModel));
 
       const useCase = new GetPostUseCase(queryRepo);
-      const result = await useCase.execute({ postId });
+      const result = await useCase.execute({ postId, callerAccountId: TEST_ACCOUNT_ID });
 
       expect(result.ok).toBeTruthy();
       expect(result.value.id).toBe(postId);
@@ -243,6 +245,7 @@ describe("Post Use Cases", () => {
 
       const result = await useCase.execute({
         postId: "a0000000-0000-4000-8000-000000000000",
+        callerAccountId: TEST_ACCOUNT_ID,
       });
 
       expect(result.ok).toBeFalsy();
@@ -252,7 +255,10 @@ describe("Post Use Cases", () => {
     it("should reject invalid post ID format", async () => {
       const useCase = new GetPostUseCase(queryRepo);
 
-      const result = await useCase.execute({ postId: "invalid-id" });
+      const result = await useCase.execute({
+        postId: "invalid-id",
+        callerAccountId: TEST_ACCOUNT_ID,
+      });
 
       expect(result.ok).toBeFalsy();
       expect(result.error.code).toBe(USE_CASE_ERRORS.VALIDATION_FAILED);
@@ -356,6 +362,7 @@ describe("Post Use Cases", () => {
       const useCase = new ListPostsUseCase(queryRepo);
       const result = await useCase.execute({
         projectId: TEST_PROJECT_ID,
+        callerAccountId: TEST_ACCOUNT_ID,
         page: 1,
         limit: 10,
       });
@@ -385,7 +392,11 @@ describe("Post Use Cases", () => {
       }));
 
       const useCase = new ListPostsUseCase(queryRepo);
-      const result = await useCase.execute({ projectId: TEST_PROJECT_ID, page: 2 });
+      const result = await useCase.execute({
+        projectId: TEST_PROJECT_ID,
+        callerAccountId: TEST_ACCOUNT_ID,
+        page: 2,
+      });
 
       expect(result.ok).toBeTruthy();
       expect(result.value.totalPages).toBe(3);
@@ -396,7 +407,10 @@ describe("Post Use Cases", () => {
     it("should reject invalid project ID format", async () => {
       const useCase = new ListPostsUseCase(queryRepo);
 
-      const result = await useCase.execute({ projectId: "invalid-id" });
+      const result = await useCase.execute({
+        projectId: "invalid-id",
+        callerAccountId: TEST_ACCOUNT_ID,
+      });
 
       expect(result.ok).toBeFalsy();
       expect(result.error.code).toBe(USE_CASE_ERRORS.VALIDATION_FAILED);
@@ -414,12 +428,17 @@ describe("Post Use Cases", () => {
       }));
 
       const useCase = new ListPostsUseCase(queryRepo);
-      const result = await useCase.execute({ projectId: TEST_PROJECT_ID, limit: 500 });
+      const result = await useCase.execute({
+        projectId: TEST_PROJECT_ID,
+        callerAccountId: TEST_ACCOUNT_ID,
+        limit: 500,
+      });
 
       expect(result.ok).toBeTruthy();
-      // The use case should have capped the limit to 100
+      // The use case should have capped the limit to 100. Pagination is the THIRD
+      // argument now that the caller account is threaded as the second (CWE-639).
       const callArgs = (queryRepo.listByProject as any).mock.calls[0];
-      const pagination = callArgs?.[1] as { page: number; limit: number } | undefined;
+      const pagination = callArgs?.[2] as { page: number; limit: number } | undefined;
       expect(pagination).toBeTruthy();
       expect(pagination.limit).toBe(100);
     });

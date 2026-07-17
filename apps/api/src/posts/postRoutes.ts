@@ -138,6 +138,14 @@ class PostRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 400, "Invalid query parameters");
     }
 
+    // Ownership gate (CWE-639) needs the authenticated principal. `requireClientAuth`
+    // guarantees it, so an absent principal is a defensive 401 rather than an
+    // unscoped list.
+    if (!request.customerUser) {
+      return this.sendError(ctx, 401, "Unauthorized");
+    }
+    const callerAccountId = request.customerUser.accountId;
+
     const {
       projectId,
       status,
@@ -161,6 +169,7 @@ class PostRouteHandler extends BaseRouteHandler {
         const page = Math.max(1, Math.floor(offset / limit) + 1);
         const result = await this.listPostsUseCase.execute({
           projectId,
+          callerAccountId,
           page,
           limit,
           ...(status !== undefined && {
@@ -191,9 +200,11 @@ class PostRouteHandler extends BaseRouteHandler {
         });
       }
 
-      // No projectId — delegate to global listing query
+      // No projectId — delegate to global listing query, scoped to the caller
+      // account (Option A): the customer only ever sees their own posts.
       const page = Math.max(1, Math.floor(offset / limit) + 1);
       const result = await this.listPostsGlobalQuery.execute({
+        callerAccountId,
         ...(status !== undefined && { status: status as PublishStatusValue }),
         page,
         limit,
@@ -231,9 +242,19 @@ class PostRouteHandler extends BaseRouteHandler {
 
     const { id } = validation.value;
 
+    // Ownership gate (CWE-639) needs the authenticated principal. `requireClientAuth`
+    // guarantees it, so an absent principal is a defensive 401 rather than an
+    // unscoped read.
+    if (!request.customerUser) {
+      return this.sendError(ctx, 401, "Unauthorized");
+    }
+
     try {
-      // Delegate to query that includes thread data
-      const result = await this.getPostWithThreadQuery.execute({ postId: id });
+      // Delegate to query that includes thread data, scoped to the caller account.
+      const result = await this.getPostWithThreadQuery.execute({
+        postId: id,
+        callerAccountId: request.customerUser.accountId,
+      });
 
       if (!result.ok) {
         return this.mapUseCaseError(ctx, result.error);

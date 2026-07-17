@@ -12,12 +12,15 @@
 
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { PrismaPostQueryRepository } from "../../../src/infrastructure/repositories/PrismaPostQueryRepository.js";
-import { PostId, ProjectId } from "@core/domain/index.js";
+import { AccountId, PostId, ProjectId } from "@core/domain/index.js";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 const POST_ID = "c0000000-0000-4000-8000-000000000001";
 const PROJECT_ID = "b0000000-0000-4000-8000-000000000001";
+const ACCOUNT_ID = "d0000000-0000-4000-8000-000000000001";
+// Server-derived caller account threaded into the scoped read methods (CWE-639).
+const accountId = AccountId.fromStringUnsafe(ACCOUNT_ID);
 
 function baseRow() {
   return {
@@ -99,7 +102,7 @@ describe("PrismaPostQueryRepository", () => {
   describe("getById", () => {
     it("returns ok(PostReadModel) for existing post", async () => {
       const id = PostId.fromStringUnsafe(POST_ID);
-      const result = await repo.getById(id);
+      const result = await repo.getById(id, accountId);
 
       expect(result.ok).toBeTruthy();
       expect(result.value.id).toBe(POST_ID);
@@ -111,7 +114,7 @@ describe("PrismaPostQueryRepository", () => {
     it("returns err(EntityNotFoundError) for missing post", async () => {
       prisma.post.findFirst.mockImplementation(async () => null);
       const id = PostId.fromStringUnsafe(POST_ID);
-      const result = await repo.getById(id);
+      const result = await repo.getById(id, accountId);
 
       expect(result.ok).toBeFalsy();
       expect(result.error.message).toMatch(/Post/);
@@ -121,7 +124,7 @@ describe("PrismaPostQueryRepository", () => {
       // Soft-deleted posts should be excluded — findFirst with deletedAt: null returns null
       prisma.post.findFirst.mockImplementation(async () => null);
       const id = PostId.fromStringUnsafe(POST_ID);
-      const result = await repo.getById(id);
+      const result = await repo.getById(id, accountId);
 
       expect(result.ok).toBeFalsy();
 
@@ -132,9 +135,19 @@ describe("PrismaPostQueryRepository", () => {
       expect(callArgs?.where?.deletedAt).toBe(null);
     });
 
+    it("scopes the query to the caller account via project.accountId (CWE-639)", async () => {
+      const id = PostId.fromStringUnsafe(POST_ID);
+      await repo.getById(id, accountId);
+
+      const callArgs = prisma.post.findFirst.mock.calls[0]?.[0] as {
+        where: { project?: { accountId?: string } };
+      };
+      expect(callArgs?.where?.project?.accountId).toBe(ACCOUNT_ID);
+    });
+
     it("maps content fields correctly (title, body, locale, tags)", async () => {
       const id = PostId.fromStringUnsafe(POST_ID);
-      const result = await repo.getById(id);
+      const result = await repo.getById(id, accountId);
 
       expect(result.ok).toBeTruthy();
       expect(result.value.title).toBe("Hello World");
@@ -145,7 +158,7 @@ describe("PrismaPostQueryRepository", () => {
 
     it("returns mediaCount from _count.media", async () => {
       const id = PostId.fromStringUnsafe(POST_ID);
-      const result = await repo.getById(id);
+      const result = await repo.getById(id, accountId);
 
       expect(result.ok).toBeTruthy();
       expect(result.value.mediaCount).toBe(3);
@@ -158,7 +171,7 @@ describe("PrismaPostQueryRepository", () => {
         _count: { media: 0 },
       }));
       const id = PostId.fromStringUnsafe(POST_ID);
-      const result = await repo.getById(id);
+      const result = await repo.getById(id, accountId);
 
       expect(result.ok).toBeTruthy();
       expect(result.value.body).toBe("");
@@ -172,7 +185,7 @@ describe("PrismaPostQueryRepository", () => {
     it("maps scheduledAt when present", async () => {
       prisma.post.findFirst.mockImplementation(async () => scheduledRow());
       const id = PostId.fromStringUnsafe(POST_ID);
-      const result = await repo.getById(id);
+      const result = await repo.getById(id, accountId);
 
       expect(result.ok).toBeTruthy();
       expect(result.value.scheduledAt instanceof Date).toBeTruthy();
@@ -180,7 +193,7 @@ describe("PrismaPostQueryRepository", () => {
 
     it("omits scheduledAt when null (exactOptionalPropertyTypes compliance)", async () => {
       const id = PostId.fromStringUnsafe(POST_ID);
-      const result = await repo.getById(id);
+      const result = await repo.getById(id, accountId);
 
       expect(result.ok).toBeTruthy();
       expect(Object.prototype.hasOwnProperty.call(result.value, "scheduledAt")).toBe(false);
@@ -189,7 +202,7 @@ describe("PrismaPostQueryRepository", () => {
     it("maps publishedAt when present", async () => {
       prisma.post.findFirst.mockImplementation(async () => publishedRow());
       const id = PostId.fromStringUnsafe(POST_ID);
-      const result = await repo.getById(id);
+      const result = await repo.getById(id, accountId);
 
       expect(result.ok).toBeTruthy();
       expect(result.value.publishedAt instanceof Date).toBeTruthy();
@@ -198,7 +211,7 @@ describe("PrismaPostQueryRepository", () => {
     it("maps summary field when present", async () => {
       prisma.post.findFirst.mockImplementation(async () => rowWithSummary());
       const id = PostId.fromStringUnsafe(POST_ID);
-      const result = await repo.getById(id);
+      const result = await repo.getById(id, accountId);
 
       expect(result.ok).toBeTruthy();
       expect(result.value.summary).toBe("A short summary");
@@ -207,7 +220,7 @@ describe("PrismaPostQueryRepository", () => {
     it("omits summary when null (exactOptionalPropertyTypes compliance)", async () => {
       // baseRow has summary: null — property must be absent, not undefined
       const id = PostId.fromStringUnsafe(POST_ID);
-      const result = await repo.getById(id);
+      const result = await repo.getById(id, accountId);
 
       expect(result.ok).toBeTruthy();
       expect(Object.prototype.hasOwnProperty.call(result.value, "summary")).toBe(false);
@@ -222,7 +235,7 @@ describe("PrismaPostQueryRepository", () => {
       prisma.post.findMany.mockImplementation(async () => [baseRow(), baseRow()]);
 
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      const result = await repo.listByProject(projectId, { page: 1, limit: 2 });
+      const result = await repo.listByProject(projectId, accountId, { page: 1, limit: 2 });
 
       expect(result.items.length).toBe(2);
       expect(result.total).toBe(5);
@@ -237,7 +250,7 @@ describe("PrismaPostQueryRepository", () => {
       prisma.post.count.mockImplementation(async () => 1);
 
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      await repo.listByProject(projectId);
+      await repo.listByProject(projectId, accountId);
 
       const findManyArgs = prisma.post.findMany.mock.calls[0]?.[0] as {
         skip: number;
@@ -251,7 +264,7 @@ describe("PrismaPostQueryRepository", () => {
       prisma.post.count.mockImplementation(async () => 0);
 
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      await repo.listByProject(projectId, { page: 1, limit: 9999 });
+      await repo.listByProject(projectId, accountId, { page: 1, limit: 9999 });
 
       const findManyArgs = prisma.post.findMany.mock.calls[0]?.[0] as { take: number };
       expect(findManyArgs?.take).toBe(100);
@@ -263,6 +276,7 @@ describe("PrismaPostQueryRepository", () => {
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
       await repo.listByProject(
         projectId,
+        accountId,
         { page: 1, limit: 10 },
         { field: "scheduledAt", direction: "asc" }
       );
@@ -278,7 +292,7 @@ describe("PrismaPostQueryRepository", () => {
       prisma.post.findMany.mockImplementation(async () => [baseRow()]);
 
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      const result = await repo.listByProject(projectId, { page: 2, limit: 10 });
+      const result = await repo.listByProject(projectId, accountId, { page: 2, limit: 10 });
 
       expect(result.hasNext).toBe(true);
       expect(result.hasPrevious).toBe(true);
@@ -290,7 +304,7 @@ describe("PrismaPostQueryRepository", () => {
       prisma.post.findMany.mockImplementation(async () => [baseRow()]);
 
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      const result = await repo.listByProject(projectId, { page: 1, limit: 10 });
+      const result = await repo.listByProject(projectId, accountId, { page: 1, limit: 10 });
 
       expect(result.hasNext).toBe(false);
       expect(result.hasPrevious).toBe(false);
@@ -301,11 +315,24 @@ describe("PrismaPostQueryRepository", () => {
       prisma.post.count.mockImplementation(async () => 1);
 
       const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
-      const result = await repo.listByProject(projectId);
+      const result = await repo.listByProject(projectId, accountId);
 
       expect(result.items.length).toBe(1);
       expect(result.items[0]?.id).toBe(POST_ID);
       expect(result.items[0]?.body).toBe("This is the post body");
+    });
+
+    it("scopes the query to the caller account via project.accountId (CWE-639)", async () => {
+      prisma.post.count.mockImplementation(async () => 0);
+
+      const projectId = ProjectId.fromStringUnsafe(PROJECT_ID);
+      await repo.listByProject(projectId, accountId, { page: 1, limit: 10 });
+
+      const findManyArgs = prisma.post.findMany.mock.calls[0]?.[0] as {
+        where: { projectId: string; project?: { accountId?: string } };
+      };
+      expect(findManyArgs?.where?.projectId).toBe(PROJECT_ID);
+      expect(findManyArgs?.where?.project?.accountId).toBe(ACCOUNT_ID);
     });
   });
 

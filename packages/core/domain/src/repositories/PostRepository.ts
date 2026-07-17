@@ -216,12 +216,22 @@ export interface GlobalPostFilter {
  */
 export interface PostQueryRepository {
   /**
-   * Get post read model by ID
+   * Get post read model by ID, scoped to the caller's account (CWE-639).
+   *
+   * `accountId` is the server-derived caller account; ownership is the stored
+   * transitive relation `post.project.accountId == accountId`. A post owned by
+   * another account (or a nonexistent id) resolves to EntityNotFoundError —
+   * indistinguishable, so the gate never reveals a foreign id exists.
    */
-  getById(id: PostId): Promise<Result<PostReadModel, EntityNotFoundError>>;
+  getById(id: PostId, accountId: AccountId): Promise<Result<PostReadModel, EntityNotFoundError>>;
 
   /**
-   * List posts for a project (optimized for listing).
+   * List posts for a project (optimized for listing), scoped to the caller's
+   * account (CWE-639).
+   *
+   * `accountId` is the server-derived caller account; the query only returns
+   * posts whose project belongs to it, so a client-supplied `projectId` owned by
+   * another account yields an empty page rather than that account's posts.
    *
    * Optional `filter` narrows the result set with the same criteria shape used
    * by the command-side `findWithFilters`. `projectId` from the filter is
@@ -229,6 +239,7 @@ export interface PostQueryRepository {
    */
   listByProject(
     projectId: ProjectId,
+    accountId: AccountId,
     pagination?: PaginationParams,
     sort?: SortParams<PostSortField>,
     filter?: PostFilterCriteria
@@ -254,16 +265,25 @@ export interface PostQueryRepository {
   getRecentlyPublished(projectId: ProjectId, limit?: number): Promise<PostReadModel[]>;
 
   /**
-   * Get a post by ID enriched with thread data (tweets ordered by sequence).
-   * Returns the same PostReadModel plus an optional thread property.
+   * Get a post by ID enriched with thread data (tweets ordered by sequence),
+   * scoped to the caller's account (CWE-639). Same NOT_FOUND semantics as
+   * {@link getById}: a foreign-account post is indistinguishable from a
+   * nonexistent one.
    */
-  getByIdWithThread(id: PostId): Promise<Result<PostReadModelWithThread, EntityNotFoundError>>;
+  getByIdWithThread(
+    id: PostId,
+    accountId: AccountId
+  ): Promise<Result<PostReadModelWithThread, EntityNotFoundError>>;
 
   /**
-   * List posts globally (across all projects) with optional status filter.
-   * Used by admin dashboards and cross-project views.
+   * List the caller account's posts across all its projects (CWE-639).
+   *
+   * `accountId` is the server-derived caller account; the query only returns
+   * posts whose project belongs to it, so a customer never receives another
+   * account's posts through the unfiltered global list.
    */
   listGlobal(
+    accountId: AccountId,
     filter?: GlobalPostFilter,
     pagination?: PaginationParams
   ): Promise<PaginatedResult<PostReadModel>>;

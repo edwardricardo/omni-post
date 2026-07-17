@@ -7,6 +7,7 @@
 import { type Result, ok, err } from "@shared/types";
 import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import {
+  AccountId,
   PostId,
   type PostQueryRepository,
   type PostReadModelWithThread,
@@ -16,9 +17,13 @@ import {
  * Input DTO for getting a post with thread data.
  *
  * @property postId - UUID of the post to retrieve.
+ * @property callerAccountId - Server-derived caller account (from
+ *   `request.customerUser.accountId`, never client input). REQUIRED — the read
+ *   is scoped to it so a foreign-account post resolves to NOT_FOUND (CWE-639).
  */
 export interface GetPostWithThreadInput {
   postId: string;
+  callerAccountId: string;
 }
 
 /**
@@ -60,8 +65,18 @@ export class GetPostWithThreadQuery implements UseCase<
       );
     }
 
-    // Query the read model with thread enrichment
-    const findResult = await this.postQueryRepository.getByIdWithThread(postIdResult.value);
+    // Validate the server-derived caller account (CWE-639 read scope).
+    const accountIdResult = AccountId.fromString(input.callerAccountId);
+    if (!accountIdResult.ok) {
+      return err(new UseCaseError("Invalid caller account", USE_CASE_ERRORS.VALIDATION_FAILED));
+    }
+
+    // Query the read model with thread enrichment, scoped to the caller account
+    // so a foreign-owned post resolves to NOT_FOUND (anti-enumeration).
+    const findResult = await this.postQueryRepository.getByIdWithThread(
+      postIdResult.value,
+      accountIdResult.value
+    );
     if (!findResult.ok) {
       return err(
         new UseCaseError(

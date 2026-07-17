@@ -5,6 +5,7 @@
  */
 
 import {
+  AccountId,
   PostId,
   ProjectId,
   type PostQueryRepository,
@@ -161,7 +162,14 @@ export class GetPostAnalyticsQueryHandler implements QueryHandler<Query, PostAna
         };
       }
 
-      const result = await this.config.postQueryRepository.getById(postIdResult.value);
+      // Fails closed: this unmounted CQRS bus has no authenticated principal, so
+      // the read is scoped to an ephemeral account that owns nothing (NOT_FOUND)
+      // rather than leaking cross-tenant rows (CWE-639). A real caller account
+      // must be threaded here before this bus is registered on any route.
+      const result = await this.config.postQueryRepository.getById(
+        postIdResult.value,
+        AccountId.generate()
+      );
 
       if (!result.ok) {
         return {

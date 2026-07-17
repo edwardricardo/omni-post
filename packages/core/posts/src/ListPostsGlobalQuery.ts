@@ -4,19 +4,29 @@
  * @layer application
  */
 
-import { type Result, ok } from "@shared/types";
-import { type UseCase, type UseCaseError } from "@core/application/UseCase.js";
-import type { PostQueryRepository, PostReadModel, PaginatedResult } from "@core/domain/index.js";
+import { type Result, ok, err } from "@shared/types";
+import { type UseCase, UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
+import {
+  AccountId,
+  type PostQueryRepository,
+  type PostReadModel,
+  type PaginatedResult,
+} from "@core/domain/index.js";
 import type { PublishStatusValue } from "@core/domain/value-objects/PublishStatus.js";
 
 /**
  * Input DTO for listing posts globally.
  *
+ * @property callerAccountId - Server-derived caller account (from
+ *   `request.customerUser.accountId`, never client input). REQUIRED — the
+ *   unfiltered list is scoped to it so a customer only ever sees their own
+ *   posts across their projects, never another account's (CWE-639, Option A).
  * @property status - Optional publish status filter (e.g. "DRAFT", "SCHEDULED").
  * @property page - Page number (1-based). Defaults to 1.
  * @property limit - Number of items per page (1-100). Defaults to 20.
  */
 export interface ListPostsGlobalInput {
+  callerAccountId: string;
   status?: PublishStatusValue;
   page?: number;
   limit?: number;
@@ -58,12 +68,23 @@ export class ListPostsGlobalQuery implements UseCase<
   constructor(private readonly postQueryRepository: PostQueryRepository) {}
 
   async execute(input: ListPostsGlobalInput): Promise<Result<ListPostsGlobalOutput, UseCaseError>> {
+    // Validate the server-derived caller account (CWE-639 read scope).
+    const accountIdResult = AccountId.fromString(input.callerAccountId);
+    if (!accountIdResult.ok) {
+      return err(new UseCaseError("Invalid caller account", USE_CASE_ERRORS.VALIDATION_FAILED));
+    }
+
     const page = Math.max(1, input.page ?? 1);
     const limit = Math.min(Math.max(1, input.limit ?? 20), 100);
 
     const filter = input.status !== undefined ? { status: input.status } : undefined;
 
-    const result = await this.postQueryRepository.listGlobal(filter, { page, limit });
+    // Scope the unfiltered global list to the caller account so a customer only
+    // ever receives their own posts across their projects (Option A).
+    const result = await this.postQueryRepository.listGlobal(accountIdResult.value, filter, {
+      page,
+      limit,
+    });
 
     return ok(result);
   }
