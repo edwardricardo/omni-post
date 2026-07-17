@@ -2,7 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, omni-post-cc, "workstream/**"]
+    # PR branches (workstream/**, refactor/**) validate via the pull_request
+    # trigger below; keeping them here too fired a redundant second run per push.
+    branches: [main, omni-post-cc]
   pull_request:
     branches: [main, omni-post-cc]
 

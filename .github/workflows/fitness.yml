@@ -21,7 +21,9 @@ name: Architectural Fitness Functions
 
 on:
   push:
-    branches: [main, omni-post-cc, "refactor/**", "workstream/**"]
+    # PR branches validate via the pull_request trigger; listing them here too
+    # fired a redundant second run per push.
+    branches: [main, omni-post-cc]
   pull_request:
     branches: [main, omni-post-cc]
 
