@@ -164,3 +164,6 @@ graphify-out/
 
 # CLAUDE.local.md — per-dev personal Claude memory (§1.6 of Normalization Roadmap)
 CLAUDE.local.md
+
+# CodeGraph local index (per-target, never committed)
+.codegraph/
