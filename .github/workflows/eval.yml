@@ -7,7 +7,9 @@ name: AI Trajectory Evals
 
 on:
   push:
-    branches: [main, "workstream/**"]
+    # PR branches validate via the pull_request trigger; listing them here too
+    # fired a redundant second run per push.
+    branches: [main]
   pull_request:
     branches: [main]
 
