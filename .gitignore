@@ -159,6 +159,20 @@ docker-compose.local.yml
 .claude/skills/
 skills-lock.json
 
+# gentle-ai / local agent tooling — regenerated per-machine, kept LOCAL only.
+# Produced/updated by gentle-ai; not project code. git ignores only UNTRACKED
+# files, so these dir rules ignore new gentle-ai artifacts WITHOUT untracking the
+# already-committed domain agents (.claude/agents/*.md) or .claude/commands/canon-check.md.
+.claude/agents/
+.claude/commands/
+.claude/mcp/
+.claude/output-styles/
+.claude/CLAUDE.md
+.atl/
+.config/
+.copilot/
+Gentleman-Skills/
+
 # graphify knowledge-graph outputs (regenerable)
 graphify-out/
 
