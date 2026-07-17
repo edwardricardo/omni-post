@@ -18,6 +18,12 @@ export type NotificationChannel = "slack" | "teams";
  */
 export interface ExternalNotificationConfigData {
   id: string;
+  /**
+   * Owning account. Denormalized from `Project.accountId` so the row is
+   * enrolled in the two-layer tenant guard (Prisma `$extends` + RLS). Set once
+   * at create time from the guard-resolved parent project; never repointed.
+   */
+  accountId: string;
   projectId: string;
   channel: NotificationChannel;
   webhookUrl: string;

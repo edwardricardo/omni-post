@@ -15,6 +15,11 @@ import type { DomainError } from "../errors/index.js";
  */
 export interface RecurringPostData {
   id: string;
+  /**
+   * Owning account id, denormalized from the parent project. Server-derived
+   * tenant-scoping key — never client-supplied or exposed via output DTOs.
+   */
+  accountId: string;
   projectId: string;
   templatePostId: string;
   name: string;

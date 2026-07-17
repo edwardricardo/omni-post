@@ -82,9 +82,11 @@ describe("Link Tracking Domain", () => {
 
   describe("TrackedLink Entity", () => {
     const projectId = ProjectId.generate();
+    const TL_ACCOUNT_ID = "c9000000-0000-4000-8000-000000000001";
 
     it("should create a tracked link with valid URL", () => {
       const result = TrackedLink.create({
+        accountId: TL_ACCOUNT_ID,
         projectId,
         originalUrl: "https://example.com/my-page",
       });
@@ -100,6 +102,7 @@ describe("Link Tracking Domain", () => {
 
     it("should reject invalid URL", () => {
       const result = TrackedLink.create({
+        accountId: TL_ACCOUNT_ID,
         projectId,
         originalUrl: "not-a-valid-url",
       });
@@ -109,6 +112,7 @@ describe("Link Tracking Domain", () => {
 
     it("should create tracked link with custom vanity slug", () => {
       const result = TrackedLink.create({
+        accountId: TL_ACCOUNT_ID,
         projectId,
         originalUrl: "https://example.com/campaign",
         vanitySlug: "summer-sale",
@@ -122,6 +126,7 @@ describe("Link Tracking Domain", () => {
 
     it("should increment click count", () => {
       const result = TrackedLink.create({
+        accountId: TL_ACCOUNT_ID,
         projectId,
         originalUrl: "https://example.com",
       });
@@ -141,6 +146,7 @@ describe("Link Tracking Domain", () => {
 
     it("should deactivate a link", () => {
       const result = TrackedLink.create({
+        accountId: TL_ACCOUNT_ID,
         projectId,
         originalUrl: "https://example.com",
       });
@@ -157,6 +163,7 @@ describe("Link Tracking Domain", () => {
 
     it("should reactivate a deactivated link", () => {
       const result = TrackedLink.create({
+        accountId: TL_ACCOUNT_ID,
         projectId,
         originalUrl: "https://example.com",
       });
@@ -172,6 +179,7 @@ describe("Link Tracking Domain", () => {
 
     it("should serialize to JSON", () => {
       const result = TrackedLink.create({
+        accountId: TL_ACCOUNT_ID,
         projectId,
         originalUrl: "https://example.com",
         vanitySlug: "my-link",

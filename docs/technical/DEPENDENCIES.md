@@ -10,7 +10,7 @@
 
 | Tool       | Version | Purpose                                   |
 | ---------- | ------- | ----------------------------------------- |
-| pnpm       | 10.16.0 | Package manager with workspace support    |
+| pnpm       | 11.13.0 | Package manager with workspace support    |
 | Turbo      | 2.8.21  | Monorepo build orchestration with caching |
 | Node.js    | 24      | Runtime (latest LTS)                      |
 | TypeScript | 6.0.2   | Language — strict mode throughout         |
@@ -438,7 +438,7 @@ Post publication across 10 providers with approvals, campaigns, recurring schedu
 ### Prerequisites
 
 - Node.js 24
-- pnpm 10.16.0+
+- pnpm 11.13.0+
 - Docker (for PostgreSQL + Redis)
 
 ### Quick Start

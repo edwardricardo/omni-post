@@ -1,7 +1,7 @@
 # ADR-0017: Production Build Model — Transpile-Only (Per-Package `tsc` Emit + Project References)
 
-- **Status**: Accepted (revised 2026-06-16 — the dev/test/CI resolution model is now codified as a TWO-MECHANISM contract, see §1c; supersedes the binary "prod=dist / dev=paths" framing of §1/§3b. Prior revision 2026-06-15: production build is TRANSPILE-ONLY per-package `tsc` emit; the tsup bundle is rejected, see §1 + Alternatives)
-- **Date**: 2026-06-14 (transpile-only revision: 2026-06-15; resolution-model revision: 2026-06-16)
+- **Status**: Accepted (revised 2026-07-15 — `turbopack.root` default changed from `os.homedir()` to the monorepo root following ADR-0019's `enableGlobalVirtualStore: false`, see §4(a) update note. Prior revision 2026-06-16: the dev/test/CI resolution model is now codified as a TWO-MECHANISM contract, see §1c; supersedes the binary "prod=dist / dev=paths" framing of §1/§3b. Prior revision 2026-06-15: production build is TRANSPILE-ONLY per-package `tsc` emit; the tsup bundle is rejected, see §1 + Alternatives)
+- **Date**: 2026-06-14 (transpile-only revision: 2026-06-15; resolution-model revision: 2026-06-16; turbopack-root revision: 2026-07-15)
 - **Deciders**: Edward + Claude
 - **Supersedes**: —
 - **Superseded by**: —
@@ -249,6 +249,20 @@ So `os.homedir()` is CORRECT for dev/CI (the earlier "os.homedir breaks Docker" 
 held only because Docker lacked the env override). `next build --webpack`
 (`NEXT_BUILD_FLAGS`) remains the fallback for the open turbopack-root/distDirRoot bug
 (#86438 / #88579); the Next patch version stays pinned.
+
+**UPDATE (2026-07-15, ADR-0019):** `enableGlobalVirtualStore` is now `false` —
+the pnpm 11 migration's fix for a size-limit + knip runtime-resolution
+breakage under pnpm 11's store v11 (see ADR-0019 §Decision item 7). With GVS
+disabled, `next` resolves from the in-repo `node_modules` again, so the
+`os.homedir()` requirement above no longer applies: `turbopack.root` /
+`outputFileTracingRoot` in both `apps/admin/next.config.mjs` and
+`apps/client/next.config.mjs` now default to
+**`path.resolve(import.meta.dirname, "../..")`** (the monorepo root), which is
+a valid ancestor of the app, `packages/ui`, and the pnpm store now that the
+store lives in-repo. The Docker `NEXT_TURBOPACK_ROOT=/app` override
+(container runs as root; the monorepo root inside the image is `/app`) is
+**unchanged and still required** — it does not depend on GVS. The
+`next build --webpack` fallback and the Next patch pin remain unchanged.
 
 **(b) The NodeNext `.js`-extension convention is BACKEND-ONLY; bundler-compiled
 frontend code is extensionless.** The §1 `.js`-extension codemod is required for

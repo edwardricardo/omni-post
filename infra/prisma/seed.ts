@@ -1109,7 +1109,9 @@ async function seedTestAccounts() {
       await prisma.projectMember.upsert({
         where: { projectId_memberId: { projectId: project.id, memberId: userId } },
         update: {},
-        create: { projectId: project.id, memberId: userId },
+        // The seed's raw client is unguarded (no accountId injection) and runs as
+        // superuser, so the NOT NULL column must be supplied explicitly here.
+        create: { projectId: project.id, memberId: userId, accountId: account.id },
       });
       totalProjectMembersCreated++;
     }

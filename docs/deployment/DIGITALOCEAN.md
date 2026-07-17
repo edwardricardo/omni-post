@@ -211,7 +211,7 @@ apt install -y nodejs
 
 # Install pnpm
 corepack enable
-corepack prepare pnpm@10.16.0 --activate
+corepack prepare pnpm@11.13.0 --activate
 
 # Install PM2 globally
 npm install -g pm2
@@ -227,7 +227,7 @@ apt install -y certbot python3-certbot-nginx
 
 # Verify installations
 node --version     # v24.x.x
-pnpm --version     # 10.16.0
+pnpm --version     # 11.13.0
 pm2 --version      # 5.x.x
 nginx -v           # nginx/1.24.x
 ffmpeg -version    # ffmpeg version 6.x

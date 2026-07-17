@@ -13,7 +13,7 @@
 
 ## 0. Resumen ejecutivo
 
-Repo monorepo `pnpm@10.16.0` con 4 apps (`api`, `admin`, `client`, `workers`),
+Repo monorepo `pnpm@11.13.0` con 4 apps (`api`, `admin`, `client`, `workers`),
 11 paquetes top-level en `packages/` y 49 sub-paquetes anidados bajo
 `packages/core/` (resultado de un split reciente). Stack backend Fastify
 5.8.5 + Prisma 7.6.0 + BullMQ; frontend Next.js 16.2.6 + React 19.2.4.
@@ -134,7 +134,7 @@ parcializado (cada bounded context y package tiene su alias).
 name: omni-post
 version: 1.0.0
 private: true
-packageManager: pnpm@10.16.0
+packageManager: pnpm@11.13.0
 dependencies: 2
 devDependencies: 44
 scripts: 46

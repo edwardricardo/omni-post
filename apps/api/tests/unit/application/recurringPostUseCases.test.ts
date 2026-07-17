@@ -1,30 +1,64 @@
 /**
  * @file recurringPostUseCases.test.ts
- * @description Tests for CreateRecurringPostUseCase — cron validation, ID validation, persistence.
+ * @description Tests for CreateRecurringPostUseCase — cron validation, ID
+ *   validation, triple parent-ownership (project guarded + template/channel
+ *   project-consistency), and persistence.
  * @layer infrastructure
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
+import { ok, err } from "@shared/types";
 import { CreateRecurringPostUseCase } from "@core/recurring/CreateRecurringPostUseCase.js";
-import { ProjectId } from "@core/domain/value-objects/EntityId.js";
+import { Project } from "@core/domain/entities/Project.js";
+import { AccountId, ChannelId } from "@core/domain/value-objects/EntityId.js";
+import { EntityNotFoundError } from "@core/domain/errors/index.js";
+
+const ACCOUNT_ID = "44444444-4444-4444-8444-444444444444";
+const PROJECT_ID = "b3000000-0000-4000-8000-000000000001";
 
 function makeRepo() {
   return {
-    save: vi.fn(async (data: any) => ({ ok: true as const, value: data })),
-    findById: vi.fn(async () => null),
-    findByProjectId: vi.fn(async () => []),
+    save: vi.fn(async (data: unknown) => ({ ok: true as const, value: data })),
+    findById: vi.fn(async () => err(new EntityNotFoundError("RecurringPost", "x"))),
+    findByProjectId: vi.fn(async () => ok([])),
+    findActiveByNextScheduled: vi.fn(async () => ok([])),
+    delete: vi.fn(async () => ok(undefined)),
   };
 }
 
+const makeProject = (): Project => {
+  const result = Project.create({
+    accountId: AccountId.fromStringUnsafe(ACCOUNT_ID),
+    name: "Test Project",
+  });
+  if (!result.ok) throw new Error("fixture: Project.create failed");
+  return result.value;
+};
+
+const CHANNEL_A = "e3000000-0000-4000-8000-000000000001";
+const CHANNEL_B = "e3000000-0000-4000-8000-000000000002";
+
+const makeProjectRepo = () => ({ findById: vi.fn(async () => ok(makeProject())) });
+const makePostRepo = () => ({
+  findById: vi.fn(async () => ok({ projectId: { value: PROJECT_ID } })),
+});
+// Decryption-free ownership lookup — returns the project's owned channel ids.
+const makeChannelRepo = () => ({
+  findIdsByProjectId: vi.fn(async () => [
+    ChannelId.fromStringUnsafe(CHANNEL_A),
+    ChannelId.fromStringUnsafe(CHANNEL_B),
+  ]),
+});
+
 function makeInput(overrides: Record<string, unknown> = {}) {
   return {
-    projectId: ProjectId.generate().value,
-    templatePostId: "template-post-1",
+    projectId: PROJECT_ID,
+    templatePostId: "d3000000-0000-4000-8000-000000000001",
     name: "Weekly Update",
     cronExpression: "0 9 * * MON",
     startDate: new Date("2025-04-01").toISOString(),
-    channels: ["channel-1"],
+    channels: [CHANNEL_A],
     ...overrides,
   };
 }
@@ -36,7 +70,12 @@ describe("CreateRecurringPostUseCase", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     repo = makeRepo();
-    uc = new CreateRecurringPostUseCase(repo as any);
+    uc = new CreateRecurringPostUseCase(
+      repo as never,
+      makeProjectRepo() as never,
+      makePostRepo() as never,
+      makeChannelRepo() as never
+    );
   });
 
   it("creates recurring post with valid cron and returns output", async () => {
@@ -80,9 +119,9 @@ describe("CreateRecurringPostUseCase", () => {
   });
 
   it("includes channels in output", async () => {
-    const r = await uc.execute(makeInput({ channels: ["ch-1", "ch-2"] }));
+    const r = await uc.execute(makeInput({ channels: [CHANNEL_A, CHANNEL_B] }));
     assert.ok(r.ok);
-    assert.deepEqual(r.value.channels, ["ch-1", "ch-2"]);
+    assert.deepEqual(r.value.channels, [CHANNEL_A, CHANNEL_B]);
   });
 
   it("includes createdAt timestamp in output", async () => {

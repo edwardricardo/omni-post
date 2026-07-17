@@ -17,10 +17,12 @@ import { TrackedLink, TrackedLinkId, ProjectId, LinkClick } from "@core/domain/i
 
 const LINK_ID = "a0000000-0000-4000-8000-000000000050";
 const PROJECT_ID = "b0000000-0000-4000-8000-000000000001";
+const ACCOUNT_ID = "c0000000-0000-4000-8000-000000000001";
 
 function baseRow() {
   return {
     id: LINK_ID,
+    accountId: ACCOUNT_ID,
     projectId: PROJECT_ID,
     originalUrl: "https://example.com/page1",
     shortCode: "abc123",
@@ -81,6 +83,7 @@ function makeMockPrisma() {
 /** Build a domain TrackedLink for use in tests without hitting the DB. */
 function buildTestLink(): TrackedLink {
   const result = TrackedLink.create({
+    accountId: ACCOUNT_ID,
     projectId: ProjectId.fromStringUnsafe(PROJECT_ID),
     originalUrl: "https://example.com/page1",
   });
@@ -123,6 +126,7 @@ describe("PrismaTrackedLinkRepository", () => {
       const callRecord = prisma.trackedLink.create.mock.calls[0];
       const args = callRecord?.[0] as { data: Record<string, unknown> } | undefined;
       expect(args?.data.id).toBe(link.id.value);
+      expect(args?.data.accountId).toBe(ACCOUNT_ID);
       expect(args?.data.projectId).toBe(PROJECT_ID);
       expect(args?.data.originalUrl).toBe("https://example.com/page1");
       expect(typeof args?.data.shortCode).toBe("string");

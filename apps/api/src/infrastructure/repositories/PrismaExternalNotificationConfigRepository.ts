@@ -44,6 +44,7 @@ export class PrismaExternalNotificationConfigRepository implements ExternalNotif
         where: { id: config.id },
         create: {
           id: config.id,
+          accountId: config.accountId,
           projectId: config.projectId,
           channel: config.channel,
           webhookUrlCiphertext: encrypted.encryptedValue,
@@ -149,6 +150,7 @@ export class PrismaExternalNotificationConfigRepository implements ExternalNotif
    */
   private toData(record: {
     id: string;
+    accountId: string;
     projectId: string;
     channel: string;
     webhookUrlCiphertext: string;
@@ -176,6 +178,7 @@ export class PrismaExternalNotificationConfigRepository implements ExternalNotif
     );
     return {
       id: record.id,
+      accountId: record.accountId,
       projectId: record.projectId,
       channel: record.channel as NotificationChannel,
       webhookUrl,

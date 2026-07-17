@@ -161,6 +161,21 @@ CONCURRENCY=1 run_batch "integration:outbox" \
 CONCURRENCY=1 run_batch "integration:consumers" \
   tests/integration/consumers/workerConnection.integration.test.ts
 
+# Two-tenant isolation proofs for the tenant-guard rollout. Each suite seeds
+# two tenants against the real DB and drives the guarded client / in-process
+# routes (app.inject — no live server), so this is a DB-only batch. Bundled
+# here because these MERGE-BLOCKING suites were previously unlisted in any
+# batch and therefore never executed under test:all / test:integration.
+CONCURRENCY=1 run_batch "integration:tenant-isolation" \
+  tests/integration/externalNotificationTenantIsolation.test.ts \
+  tests/integration/scheduledReportTenantIsolation.test.ts \
+  tests/integration/campaignTenantIsolation.test.ts \
+  tests/integration/recurringPostTenantIsolation.test.ts \
+  tests/integration/trackedLinkTenantIsolation.test.ts \
+  tests/integration/generatedImageTenantIsolation.test.ts \
+  tests/integration/projectMemberTenantIsolation.test.ts \
+  tests/integration/rls-tenant-isolation.test.ts
+
 fi # run_db_batches
 
 # Live-API batches: these fetch http://localhost:3000 (getBaseUrl) and require

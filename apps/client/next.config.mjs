@@ -1,4 +1,4 @@
-import os from "node:os";
+import path from "node:path";
 import { withSentryConfig } from "@sentry/nextjs";
 import createNextIntlPlugin from "next-intl/plugin";
 
@@ -12,17 +12,19 @@ const nextConfig = {
   // cross-origin dev requests unless the origin is allowlisted here.
   allowedDevOrigins: ["omnipost-dev"],
   // `turbopack.root` / `outputFileTracingRoot` must be an ancestor of the app,
-  // the `packages/ui` source it imports, AND the pnpm store where `next` resolves.
-  // In dev/CI that ancestor is `os.homedir()`: the repo and pnpm's global virtual
-  // store (`$HOME/.local/share/pnpm`) both live under $HOME, whereas the monorepo
-  // root does NOT contain the store — so a monorepo-root value leaves Turbopack
-  // unable to resolve `next` ("inferred your workspace root" error). In Docker
-  // (root user, app at `/app`) $HOME is not an app ancestor, so the Dockerfile
-  // sets `NEXT_TURBOPACK_ROOT` to the container workspace root. See ADR-0017 §4.
+  // the `packages/ui` source it imports, AND wherever `next` resolves from. With
+  // pnpm's global virtual store DISABLED (ADR-0019), `next` resolves from the
+  // in-repo `node_modules`, so the monorepo root is a valid ancestor — replacing the
+  // former `os.homedir()` (needed only while the store lived under $HOME). Repo-scoping
+  // also bounds the PRODUCTION BUILD's Turbopack scan (SMELL-52's deferred insurance);
+  // dev runs `next dev --webpack` (SMELL-52), so it is unaffected either way.
+  // In Docker (root user, app at `/app`) the Dockerfile still sets
+  // `NEXT_TURBOPACK_ROOT` to the container workspace root. See ADR-0017 §4 / ADR-0019.
   turbopack: {
-    root: process.env.NEXT_TURBOPACK_ROOT ?? os.homedir(),
+    root: process.env.NEXT_TURBOPACK_ROOT ?? path.resolve(import.meta.dirname, "../.."),
   },
-  outputFileTracingRoot: process.env.NEXT_TURBOPACK_ROOT ?? os.homedir(),
+  outputFileTracingRoot:
+    process.env.NEXT_TURBOPACK_ROOT ?? path.resolve(import.meta.dirname, "../.."),
   reactStrictMode: true,
   images: {
     remotePatterns: [

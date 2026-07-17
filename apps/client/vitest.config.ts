@@ -9,6 +9,7 @@
  * @layer infrastructure
  */
 import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { buildWorkspaceAliases, findMonorepoRoot } from "../../vitest.shared";
 
@@ -42,6 +43,11 @@ const appLocalAliases: { find: string; replacement: string }[] = [
 ];
 
 export default defineConfig({
+  // @vitejs/plugin-react handles the JSX transform explicitly (mirrors apps/admin).
+  // Without it, vite 8's default rolldown SSR parser fails to parse JSX in these test
+  // files ("Unexpected JSX expression"); with it, apps/client runs on vite 8 —
+  // eliminating the former vite 7/8 catalog split (ADR-0019).
+  plugins: [react()],
   test: {
     environment: "jsdom",
     setupFiles: ["./lib/api/__tests__/setup.ts"],

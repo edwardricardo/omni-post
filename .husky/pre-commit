@@ -19,6 +19,11 @@ case ":$PATH:" in
   *) export PATH="$HOME/.local/bin:$PATH" ;;
 esac
 
+# lint-staged (eslint --fix + prettier over the staged set) exceeds Node's
+# default old-space heap on memory-capped dev environments (LXC). Raise it
+# here unless the caller already set NODE_OPTIONS.
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=6144}"
+
 if command -v gitleaks >/dev/null 2>&1; then
   gitleaks protect --staged --redact --no-banner
 else

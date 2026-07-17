@@ -10,86 +10,93 @@ datasource db {
 }
 
 model Account {
-  id                       String                    @id @default(uuid())
-  email                    String                    @unique
-  name                     String
-  maxProjects              Int                       @default(1)
-  isOnTrial                Boolean                   @default(true)
-  trialStartDate           DateTime                  @default(now()) @db.Timestamptz(6)
-  trialEndDate             DateTime?                 @db.Timestamptz(6)
-  autoRenewal              Boolean                   @default(false)
-  billingCycle             String                    @default("monthly") // "monthly" or "yearly"
-  lastBillingDate          DateTime?                 @db.Timestamptz(6)
-  nextBillingDate          DateTime?                 @db.Timestamptz(6)
-  stripeCustomerId         String?
-  stripeSubscriptionId     String?
-  slug                     String?                   @unique
-  timezone                 String                    @default("UTC")
-  locale                   String                    @default("en")
-  phone                    String?
-  maxTeamMembers           Int                       @default(5)
-  maxStorageBytes          BigInt                    @default(5368709120)
-  maxRecurringPosts        Int                       @default(5)
-  createdAt                DateTime                  @default(now()) @db.Timestamptz(6)
-  updatedAt                DateTime                  @updatedAt @db.Timestamptz(6)
-  projects                 Project[]
-  apiKeys                  ApiKey[]
-  contentTemplates         ContentTemplate[]
-  instagramStoryProjects   InstagramStoryProject[]
-  videoProcessingJobs      VideoProcessingJob[]
-  instagramAnalytics       InstagramAnalytics[]
-  schedulingRules          SchedulingRule[]
-  webhookEvents            WebhookEvent[]
-  webhookSubscriptions     WebhookSubscription[]
-  templates                Template[]
-  deletedAt                DateTime?                 @db.Timestamptz(6)
-  socialMessages           SocialMessage[]
-  socialConversations      SocialConversation[]
-  mentions                 Mention[]
-  bulkScheduleBatches      BulkScheduleBatch[]
-  trackedTerms             TrackedTerm[]
-  aiPromptTemplates        AIPromptTemplate[]
-  usageMetrics             UsageMetric[]
-  brandVoice               BrandVoice?
-  brandKit                 BrandKit?
-  integrationApiKeys       IntegrationApiKey[]
-  approvalWorkflows        ApprovalWorkflow[]
-  tasks                    Task[]
-  integrationSubscriptions IntegrationSubscription[]
-  samlConfiguration        SamlConfiguration?
-  oidcConfiguration        OidcConfiguration?
-  isActive                 Boolean                   @default(true)
-  ssoEnabled               Boolean                   @default(false)
-  ssoProvider              SsoProvider               @default(NONE)
-  customReports            CustomReport[]
-  crmConnections           CrmConnection[]
-  crmContacts              CrmContact[]
-  crmActivities            CrmActivity[]
-  customerUsers            CustomerUser[]
-  mediaAssets              MediaAsset[]
-  assetFolders             AssetFolder[]
-  assetTags                AssetTag[]
-  accountSubscription      AccountSubscription?
-  referralCode             ReferralCode?
-  repurposeProposals       RepurposeProposal[]
-  trendRadarResults        TrendRadarResult[]
-  glossaryEntries          Glossary[]
-  styleGuideRules          StyleGuideRule[]
-  gatewayProvider          GatewayProvider           @default(STRIPE)
-  gatewayCustomerId        String?
-  pendingGatewayProvider   GatewayProvider?
-  pendingGatewaySwitch     Boolean                   @default(false)
-  gatewaySwitchAt          DateTime?                 @db.Timestamptz(6)
-  gatewaySwitchEvents      GatewaySwitchEvent[]
-  billingEvents            BillingEvent[]
-  invoices                 Invoice[]
-  dsarRequests             DsarRequest[]
-  accountCredentials       AccountCredential[]
-  aiTokenUsage             AiTokenUsage[]
-  onboarding               AccountOnboarding?
-  samlSessions             SamlSession[]
-  referralsReceived        Referral[]                @relation("ReferredAccount")
-  conversions              Conversion[]
+  id                          String                       @id @default(uuid())
+  email                       String                       @unique
+  name                        String
+  maxProjects                 Int                          @default(1)
+  isOnTrial                   Boolean                      @default(true)
+  trialStartDate              DateTime                     @default(now()) @db.Timestamptz(6)
+  trialEndDate                DateTime?                    @db.Timestamptz(6)
+  autoRenewal                 Boolean                      @default(false)
+  billingCycle                String                       @default("monthly") // "monthly" or "yearly"
+  lastBillingDate             DateTime?                    @db.Timestamptz(6)
+  nextBillingDate             DateTime?                    @db.Timestamptz(6)
+  stripeCustomerId            String?
+  stripeSubscriptionId        String?
+  slug                        String?                      @unique
+  timezone                    String                       @default("UTC")
+  locale                      String                       @default("en")
+  phone                       String?
+  maxTeamMembers              Int                          @default(5)
+  maxStorageBytes             BigInt                       @default(5368709120)
+  maxRecurringPosts           Int                          @default(5)
+  createdAt                   DateTime                     @default(now()) @db.Timestamptz(6)
+  updatedAt                   DateTime                     @updatedAt @db.Timestamptz(6)
+  projects                    Project[]
+  apiKeys                     ApiKey[]
+  contentTemplates            ContentTemplate[]
+  instagramStoryProjects      InstagramStoryProject[]
+  videoProcessingJobs         VideoProcessingJob[]
+  instagramAnalytics          InstagramAnalytics[]
+  schedulingRules             SchedulingRule[]
+  externalNotificationConfigs ExternalNotificationConfig[]
+  campaigns                   Campaign[]
+  scheduledReports            ScheduledReport[]
+  trackedLinks                TrackedLink[]
+  recurringPosts              RecurringPost[]
+  generatedImages             GeneratedImage[]
+  projectMembers              ProjectMember[]
+  webhookEvents               WebhookEvent[]
+  webhookSubscriptions        WebhookSubscription[]
+  templates                   Template[]
+  deletedAt                   DateTime?                    @db.Timestamptz(6)
+  socialMessages              SocialMessage[]
+  socialConversations         SocialConversation[]
+  mentions                    Mention[]
+  bulkScheduleBatches         BulkScheduleBatch[]
+  trackedTerms                TrackedTerm[]
+  aiPromptTemplates           AIPromptTemplate[]
+  usageMetrics                UsageMetric[]
+  brandVoice                  BrandVoice?
+  brandKit                    BrandKit?
+  integrationApiKeys          IntegrationApiKey[]
+  approvalWorkflows           ApprovalWorkflow[]
+  tasks                       Task[]
+  integrationSubscriptions    IntegrationSubscription[]
+  samlConfiguration           SamlConfiguration?
+  oidcConfiguration           OidcConfiguration?
+  isActive                    Boolean                      @default(true)
+  ssoEnabled                  Boolean                      @default(false)
+  ssoProvider                 SsoProvider                  @default(NONE)
+  customReports               CustomReport[]
+  crmConnections              CrmConnection[]
+  crmContacts                 CrmContact[]
+  crmActivities               CrmActivity[]
+  customerUsers               CustomerUser[]
+  mediaAssets                 MediaAsset[]
+  assetFolders                AssetFolder[]
+  assetTags                   AssetTag[]
+  accountSubscription         AccountSubscription?
+  referralCode                ReferralCode?
+  repurposeProposals          RepurposeProposal[]
+  trendRadarResults           TrendRadarResult[]
+  glossaryEntries             Glossary[]
+  styleGuideRules             StyleGuideRule[]
+  gatewayProvider             GatewayProvider              @default(STRIPE)
+  gatewayCustomerId           String?
+  pendingGatewayProvider      GatewayProvider?
+  pendingGatewaySwitch        Boolean                      @default(false)
+  gatewaySwitchAt             DateTime?                    @db.Timestamptz(6)
+  gatewaySwitchEvents         GatewaySwitchEvent[]
+  billingEvents               BillingEvent[]
+  invoices                    Invoice[]
+  dsarRequests                DsarRequest[]
+  accountCredentials          AccountCredential[]
+  aiTokenUsage                AiTokenUsage[]
+  onboarding                  AccountOnboarding?
+  samlSessions                SamlSession[]
+  referralsReceived           Referral[]                   @relation("ReferredAccount")
+  conversions                 Conversion[]
 
   @@index([isOnTrial, trialEndDate], where: { deletedAt: null })
   @@index([nextBillingDate], where: { deletedAt: null })
@@ -364,14 +371,17 @@ model ProjectMember {
   id          String   @id @default(uuid())
   projectId   String
   memberId    String
+  accountId   String
   permissions String[] @default(["READ", "WRITE"])
   assignedAt  DateTime @default(now()) @db.Timestamptz(6)
 
   project Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   member  CustomerUser @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  account Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, memberId])
   @@index([memberId])
+  @@index([accountId, projectId])
 }
 
 model Notification {
@@ -800,6 +810,7 @@ model Channel {
 
 model TrackedLink {
   id          String   @id @default(uuid())
+  accountId   String
   projectId   String
   originalUrl String
   shortCode   String   @unique
@@ -815,10 +826,12 @@ model TrackedLink {
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @db.Timestamptz(6)
 
+  account    Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
   project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   linkClicks LinkClick[]
   campaign   Campaign?   @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 
+  @@index([accountId, projectId])
   @@index([projectId, isActive])
   @@index([shortCode])
   @@index([vanitySlug])
@@ -1168,8 +1181,8 @@ model InstagramStoryProject {
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   // Relationships
-  account         Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  project         Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([accountId, status])
   @@index([projectId, status])
@@ -1275,9 +1288,9 @@ model VideoProcessingJob {
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   // Relationships
-  account         Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  project         Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  originalMedia   PostMedia         @relation(fields: [originalMediaId], references: [id], onDelete: Cascade)
+  account       Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  originalMedia PostMedia @relation(fields: [originalMediaId], references: [id], onDelete: Cascade)
 
   @@index([accountId, status])
   @@index([projectId, status])
@@ -2300,6 +2313,7 @@ model SocialOutboundReply {
 
 model Campaign {
   id          String         @id @default(uuid())
+  accountId   String
   projectId   String
   name        String
   description String?
@@ -2311,10 +2325,12 @@ model Campaign {
   createdAt   DateTime       @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime       @updatedAt @db.Timestamptz(6)
 
+  account      Account        @relation(fields: [accountId], references: [id], onDelete: Cascade)
   project      Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   posts        CampaignPost[]
   trackedLinks TrackedLink[]
 
+  @@index([accountId])
   @@index([projectId, status])
   @@index([projectId, createdAt])
 }
@@ -2383,6 +2399,7 @@ model AnalyticsMonthlySummary {
 
 model ScheduledReport {
   id           String       @id @default(uuid())
+  accountId    String
   projectId    String
   name         String
   cronSchedule String
@@ -2395,8 +2412,10 @@ model ScheduledReport {
   createdAt    DateTime     @default(now()) @db.Timestamptz(6)
   updatedAt    DateTime     @updatedAt @db.Timestamptz(6)
 
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
+  @@index([accountId])
   @@index([projectId, isActive])
   @@index([nextRunAt, isActive])
 }
@@ -2407,6 +2426,7 @@ model ScheduledReport {
 
 model ExternalNotificationConfig {
   id                   String   @id @default(uuid())
+  accountId            String
   projectId            String
   channel              String // "slack" | "teams"
   // Webhook URLs frequently embed bearer tokens (Slack incoming-webhook tokens,
@@ -2422,8 +2442,10 @@ model ExternalNotificationConfig {
   createdAt            DateTime @default(now()) @db.Timestamptz(6)
   updatedAt            DateTime @updatedAt @db.Timestamptz(6)
 
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
+  @@index([accountId])
   @@index([projectId, isActive])
   @@index([webhookUrlKeyVersion])
 }
@@ -2444,6 +2466,7 @@ model FirstComment {
 
 model GeneratedImage {
   id            String   @id @default(uuid())
+  accountId     String
   projectId     String
   prompt        String
   revisedPrompt String?
@@ -2453,13 +2476,16 @@ model GeneratedImage {
   style         String
   createdAt     DateTime @default(now()) @db.Timestamptz(6)
 
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
+  @@index([accountId, projectId])
   @@index([projectId, createdAt])
 }
 
 model RecurringPost {
   id               String    @id @default(uuid())
+  accountId        String
   projectId        String
   templatePostId   String
   name             String
@@ -2477,9 +2503,11 @@ model RecurringPost {
   createdAt        DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime  @updatedAt @db.Timestamptz(6)
 
+  account      Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
   project      Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   templatePost Post    @relation("RecurringTemplatePost", fields: [templatePostId], references: [id], onDelete: Restrict)
 
+  @@index([accountId, projectId])
   @@index([projectId, isActive])
   @@index([nextScheduledAt, isActive])
 }

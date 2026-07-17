@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, omni-post-cc]
+    branches: [main, omni-post-cc, "workstream/**"]
   pull_request:
     branches: [main, omni-post-cc]
 

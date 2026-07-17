@@ -12,7 +12,9 @@ import type {
   GeneratedImageRepository,
   GeneratedImageData,
 } from "@core/domain/repositories/GeneratedImageRepository.js";
+import type { ProjectRepositoryPort } from "@core/domain/repositories/ProjectRepository.js";
 import type { ImageGenerationPort } from "@core/domain/repositories/ImageGenerationPort.js";
+import { ProjectId } from "@core/domain/value-objects/EntityId.js";
 import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 
 /**
@@ -34,6 +36,7 @@ export interface GenerateImageInput {
 export class GenerateImageUseCase {
   constructor(
     private readonly repository: GeneratedImageRepository,
+    private readonly projectRepository: ProjectRepositoryPort,
     private readonly imageGenerator: ImageGenerationPort
   ) {}
 
@@ -51,6 +54,30 @@ export class GenerateImageUseCase {
     if (trimmedPrompt.length === 0) {
       return err(new UseCaseError("Prompt cannot be empty", USE_CASE_ERRORS.VALIDATION_FAILED));
     }
+
+    // Validate the project ID shape before resolving ownership.
+    const projectIdResult = ProjectId.fromString(projectId);
+    if (!projectIdResult.ok) {
+      return err(
+        new UseCaseError(
+          `Invalid projectId: ${projectId}`,
+          USE_CASE_ERRORS.VALIDATION_FAILED,
+          projectIdResult.error
+        )
+      );
+    }
+
+    // Ownership check BEFORE the paid AI call: resolve the project through the
+    // guard-scoped repository. A foreign or nonexistent projectId resolves to
+    // EntityNotFoundError under the caller's tenant context. Returning NOT_FOUND
+    // here (anti-enumeration: never 403) guarantees a foreign project burns
+    // ZERO AI spend and persists nothing.
+    const projectResult = await this.projectRepository.findById(projectIdResult.value);
+    if (!projectResult.ok) {
+      return err(new UseCaseError(projectResult.error.message, USE_CASE_ERRORS.NOT_FOUND));
+    }
+
+    const accountId = projectResult.value.accountId.toString();
 
     // Delegate to the image-generation port. `ok` guarantees a payload; any
     // provider/transport/empty-payload failure resolves to `err(message)`.
@@ -70,6 +97,7 @@ export class GenerateImageUseCase {
     // Persist the generated image record
     const imageData: GeneratedImageData = {
       id: randomUUID(),
+      accountId,
       projectId,
       prompt: trimmedPrompt,
       revisedPrompt: generatedValue.revisedPrompt,

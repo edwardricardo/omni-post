@@ -18,6 +18,7 @@ import { EntityNotFoundError, type DomainError } from "@core/domain/errors/index
  */
 interface PrismaRecurringPostRow {
   id: string;
+  accountId: string;
   projectId: string;
   templatePostId: string;
   name: string;
@@ -54,6 +55,7 @@ export class PrismaRecurringPostRepository implements RecurringPostRepository {
         where: { id: post.id },
         create: {
           id: post.id,
+          accountId: post.accountId,
           projectId: post.projectId,
           templatePostId: post.templatePostId,
           name: post.name,
@@ -198,6 +200,7 @@ export class PrismaRecurringPostRepository implements RecurringPostRepository {
   private toData(row: PrismaRecurringPostRow): RecurringPostData {
     return {
       id: row.id,
+      accountId: row.accountId,
       projectId: row.projectId,
       templatePostId: row.templatePostId,
       name: row.name,

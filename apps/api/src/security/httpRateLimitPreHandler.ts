@@ -38,6 +38,12 @@ export const RateLimitConfigs = {
   CRITICAL_EXPENSIVE: { windowMs: 60_000, maxRequests: 5 },
   HEAVY_EXPENSIVE: { windowMs: 60_000, maxRequests: 10 },
   MODERATE_EXPENSIVE: { windowMs: 60_000, maxRequests: 20 },
+  // Public short-link redirect. Sized to resist shortCode enumeration: the
+  // per-IP bucket is shared across ALL /r/* paths (see the namespaced
+  // pre-handler below), so a scanner cannot get a fresh 100/min budget per
+  // guessed code. Caps a single IP to REDIRECT.maxRequests redirect lookups
+  // per window regardless of how many distinct shortCodes it probes.
+  REDIRECT: { windowMs: 60_000, maxRequests: 60 },
 } as const;
 
 /**
@@ -121,6 +127,57 @@ type PreHandler = (req: FastifyRequest, reply: FastifyReply) => Promise<unknown>
  * @param options - Default config + ordered rule table.
  * @returns A Fastify preHandler hook.
  */
+/**
+ * @function createNamespacedRateLimitPreHandler
+ * @description Builds a Fastify preHandler that keys the bucket by a FIXED
+ *   namespace + client IP — deliberately IGNORING the request URL. Unlike the
+ *   per-path limiter (which keys by `ip:url`), this shares one bucket across
+ *   every URL under the namespace, so a path whose final segment is a
+ *   caller-controlled identifier (e.g. the public redirect `/r/:shortCode`)
+ *   cannot be enumerated one fresh bucket per guessed value. This is the
+ *   mandatory anti-enumeration control for the capability-URL redirect
+ *   (canon-verified: W3C TAG names rate limiting the code namespace as the
+ *   enumeration countermeasure). Fail-open, same as the per-path limiter.
+ * @param rateLimiter - The injected token-bucket port (HTTP-scoped instance).
+ * @param namespace - Stable bucket namespace (e.g. "redirect").
+ * @param config - Capacity + window for the shared per-IP bucket.
+ * @returns A Fastify preHandler hook.
+ */
+export function createNamespacedRateLimitPreHandler(
+  rateLimiter: RateLimiterPort,
+  namespace: string,
+  config: RateLimitConfig
+): PreHandler {
+  return async (req: FastifyRequest, reply: FastifyReply): Promise<unknown> => {
+    try {
+      const key = `${namespace}:${clientIp(req)}`;
+      const decision = await rateLimiter.tryConsume(key, {
+        capacity: config.maxRequests,
+        refillWindowMs: config.windowMs,
+      });
+
+      reply.header("X-RateLimit-Remaining", decision.remaining.toString());
+      reply.header("X-RateLimit-Reset", decision.resetAtMs.toString());
+
+      if (!decision.allowed) {
+        reply.header("Retry-After", Math.ceil((decision.retryAfterMs ?? 0) / 1000).toString());
+        reply.code(429);
+        return reply.send({
+          ok: false,
+          error: "RATE_LIMIT_EXCEEDED",
+          message: "Too many requests. Please try again later.",
+          retryAfter: new Date(decision.resetAtMs).toISOString(),
+        });
+      }
+      return undefined;
+    } catch (error: unknown) {
+      // Fail-open: a limiter outage must not block traffic.
+      logger.error({ err: error }, "Rate limiting error");
+      return undefined;
+    }
+  };
+}
+
 export function createHttpRateLimitPreHandler(
   rateLimiter: RateLimiterPort,
   options: HttpRateLimitOptions

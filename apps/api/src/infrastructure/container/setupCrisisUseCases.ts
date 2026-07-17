@@ -22,6 +22,7 @@ import {
   GetCrisisStatusUseCase,
 } from "@core/crisis/index.js";
 import type { ScheduledReportRepository } from "@core/domain/repositories/ScheduledReportRepository.js";
+import type { ProjectRepositoryPort } from "@core/domain/repositories/ProjectRepository.js";
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
 import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/AnalyticsReadRepository.js";
 import {
@@ -115,10 +116,11 @@ export function setupCrisisUseCases(container: Container): void {
   // Register Scheduled Report Use Cases
   const reportRepo = () =>
     container.resolve<ScheduledReportRepository>(TOKENS.ScheduledReportRepository);
+  const projectRepo = () => container.resolve<ProjectRepositoryPort>(TOKENS.ProjectRepository);
   const uow = () => container.resolve<UnitOfWork>(TOKENS.UnitOfWork);
   container.register(
     TOKENS.CreateScheduledReportUseCase,
-    () => new CreateScheduledReportUseCase(reportRepo(), uow()),
+    () => new CreateScheduledReportUseCase(reportRepo(), projectRepo(), uow()),
     true
   );
   container.register(

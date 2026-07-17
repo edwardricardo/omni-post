@@ -43,7 +43,8 @@ export interface CustomerUserRepository {
   /**
    * @method findByProjectId
    * @description Lists customer users assigned to a given project via the
-   *   ProjectMember table.
+   *   ProjectMember table. Tenant-scoped: the guarded client restricts results
+   *   to the bound tenant context; a foreign projectId yields an empty list.
    */
   findByProjectId(projectId: string): Promise<CustomerUser[]>;
 

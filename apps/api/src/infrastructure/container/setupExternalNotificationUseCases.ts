@@ -10,6 +10,7 @@ import { TOKENS } from "./types.js";
 import type { ExternalNotificationConfigRepository } from "@core/domain/repositories/ExternalNotificationConfigRepository.js";
 import type { ExternalNotifierPort } from "@core/domain/repositories/ExternalNotifierPort.js";
 import type { HttpClientPort } from "@core/domain/repositories/HttpClientPort.js";
+import type { ProjectRepositoryPort } from "@core/domain/repositories/ProjectRepository.js";
 import { PrismaExternalNotificationConfigRepository } from "../repositories/PrismaExternalNotificationConfigRepository.js";
 import { SlackNotifierAdapter } from "../adapters/SlackNotifierAdapter.js";
 import { TeamsNotifierAdapter } from "../adapters/TeamsNotifierAdapter.js";
@@ -69,6 +70,7 @@ export function setupExternalNotificationUseCases(container: Container): void {
         container.resolve<ExternalNotificationConfigRepository>(
           TOKENS.ExternalNotificationConfigRepository
         ),
+        container.resolve<ProjectRepositoryPort>(TOKENS.ProjectRepository),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true

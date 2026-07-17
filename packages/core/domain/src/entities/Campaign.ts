@@ -16,6 +16,7 @@ import { DomainError, InvalidValueError } from "../errors/index.js";
  * Props for creating a new Campaign
  */
 export interface CampaignCreateProps {
+  accountId: string;
   projectId: ProjectId;
   name: string;
   description?: string;
@@ -30,6 +31,7 @@ export interface CampaignCreateProps {
  */
 export interface CampaignProps extends EntityProps {
   id: CampaignId;
+  accountId: string;
   projectId: ProjectId;
   name: string;
   description?: string;
@@ -140,6 +142,7 @@ export type CampaignEvent =
  *   Manages lifecycle state transitions and optional UTM parameters.
  */
 export class Campaign extends Entity<CampaignId> {
+  private readonly _accountId: string;
   private readonly _projectId: ProjectId;
   private _name: string;
   private _description?: string;
@@ -151,6 +154,7 @@ export class Campaign extends Entity<CampaignId> {
 
   private constructor(props: CampaignProps) {
     super(props.id, props.createdAt);
+    this._accountId = props.accountId;
     this._projectId = props.projectId;
     this._name = props.name;
     if (props.description !== undefined) {
@@ -196,6 +200,7 @@ export class Campaign extends Entity<CampaignId> {
 
     const campaign = new Campaign({
       id: CampaignId.generate(),
+      accountId: props.accountId,
       projectId: props.projectId,
       name: props.name.trim(),
       ...(props.description !== undefined && { description: props.description }),
@@ -218,6 +223,14 @@ export class Campaign extends Entity<CampaignId> {
   }
 
   // Getters
+
+  /**
+   * @description Owning account id, denormalized from the parent project.
+   *   Server-derived and tenant-scoping only — never exposed via `toJSON`.
+   */
+  get accountId(): string {
+    return this._accountId;
+  }
 
   get projectId(): ProjectId {
     return this._projectId;

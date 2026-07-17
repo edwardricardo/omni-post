@@ -56,6 +56,7 @@ export class DeactivateRecurringPostUseCase implements CommandUseCase<
     // Reconstitute domain entity
     const entity = RecurringPost.fromPersistence({
       id: RecurringPostId.fromStringUnsafe(data.id),
+      accountId: data.accountId,
       projectId: ProjectId.fromStringUnsafe(data.projectId),
       templatePostId: data.templatePostId,
       name: data.name,
@@ -81,6 +82,7 @@ export class DeactivateRecurringPostUseCase implements CommandUseCase<
     const doWork = async (): Promise<Result<void, UseCaseError>> => {
       const saveResult = await this.recurringPostRepo.save({
         id: entity.id.value,
+        accountId: entity.accountId,
         projectId: entity.projectId.value,
         templatePostId: entity.templatePostId,
         name: entity.name,

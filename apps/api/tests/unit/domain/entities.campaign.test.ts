@@ -9,8 +9,11 @@ import assert from "node:assert/strict";
 import { Campaign } from "@core/domain/entities/Campaign.js";
 import { ProjectId } from "@core/domain/value-objects/EntityId.js";
 
+const ACCOUNT_ID = "11111111-1111-4111-8111-111111111111";
+
 function makeProps(overrides: Record<string, unknown> = {}) {
   return {
+    accountId: ACCOUNT_ID,
     projectId: ProjectId.generate(),
     name: "Q1 Launch Campaign",
     ...overrides,
@@ -101,6 +104,18 @@ describe("Campaign entity", () => {
       const r = Campaign.create(makeProps({ projectId: projId }));
       assert.ok(r.ok);
       assert.equal(r.value.projectId, projId);
+    });
+
+    it("stores accountId threaded from the parent project", () => {
+      const r = Campaign.create(makeProps({ accountId: ACCOUNT_ID }));
+      assert.ok(r.ok);
+      assert.equal(r.value.accountId, ACCOUNT_ID);
+    });
+
+    it("never exposes accountId via toJSON (DTO doctrine)", () => {
+      const r = Campaign.create(makeProps());
+      assert.ok(r.ok);
+      assert.ok(!("accountId" in r.value.toJSON()), "accountId must not leak into the DTO");
     });
 
     it("creates without dates when not provided", () => {

@@ -8,7 +8,10 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { CreateScheduledReportUseCase } from "@core/reports/CreateScheduledReportUseCase.js";
 import { GenerateReportUseCase } from "@core/reports/GenerateReportUseCase.js";
-import { ProjectId, ScheduledReportId } from "@core/domain/value-objects/EntityId.js";
+import { ProjectId, ScheduledReportId, AccountId } from "@core/domain/value-objects/EntityId.js";
+import { Project } from "@core/domain/entities/Project.js";
+
+const ACCOUNT_ID = "22222222-2222-4222-8222-222222222222";
 
 // ============================================================================
 // CreateScheduledReportUseCase
@@ -19,6 +22,19 @@ describe("CreateScheduledReportUseCase", () => {
     return {
       save: vi.fn(async () => ({ ok: true as const, value: undefined })),
       findById: vi.fn(async () => ({ ok: false as const, error: new Error("Not found") })),
+    };
+  }
+
+  function makeProjectRepo(found = true) {
+    const created = Project.create({
+      accountId: AccountId.fromStringUnsafe(ACCOUNT_ID),
+      name: "Owner Project",
+    });
+    const value = created.ok ? created.value : undefined;
+    return {
+      findById: vi.fn(async () =>
+        found ? { ok: true as const, value } : { ok: false as const, error: new Error("Not found") }
+      ),
     };
   }
 
@@ -38,7 +54,7 @@ describe("CreateScheduledReportUseCase", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     repo = makeRepo();
-    uc = new CreateScheduledReportUseCase(repo as any);
+    uc = new CreateScheduledReportUseCase(repo as any, makeProjectRepo() as any);
   });
 
   it("creates report and returns ID", async () => {

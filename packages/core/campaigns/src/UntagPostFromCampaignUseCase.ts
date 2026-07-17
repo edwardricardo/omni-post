@@ -1,6 +1,10 @@
 /**
  * @file UntagPostFromCampaignUseCase.ts
- * @description Removes a post's association with a campaign.
+ * @description Removes a post's association with a campaign. Resolves the parent
+ *   campaign through the guard-scoped repository BEFORE deleting the join row,
+ *   so a foreign or missing campaign resolves to NOT_FOUND and the owner's
+ *   `campaignPost` join row is never touched. The join table carries no
+ *   accountId column, so guard enrollment alone does not close this path.
  * @layer application
  */
 
@@ -45,6 +49,17 @@ export class UntagPostFromCampaignUseCase implements UseCase<
 
     if (!input.postId || input.postId.trim().length === 0) {
       return err(new UseCaseError("Post ID must not be empty", USE_CASE_ERRORS.VALIDATION_FAILED));
+    }
+
+    // Verify the campaign resolves under the caller's tenant context before
+    // touching the join table. The guard scopes this findById to the caller's
+    // account, so a foreign/missing campaign returns NOT_FOUND here and
+    // `removePost` never runs — the owner's join row survives.
+    const findResult = await this.campaignRepository.findById(campaignIdResult.value);
+    if (!findResult.ok) {
+      return err(
+        new UseCaseError(findResult.error.message, USE_CASE_ERRORS.NOT_FOUND, findResult.error)
+      );
     }
 
     // Remove post association (atomically via UoW when available)

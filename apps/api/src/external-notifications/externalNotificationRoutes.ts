@@ -84,7 +84,17 @@ class ExternalNotificationRouteHandler extends BaseRouteHandler {
     });
 
     if (!result.ok) {
-      const statusCode = result.error.code === "VALIDATION_FAILED" ? 400 : 500;
+      // NOT_FOUND covers the foreign-project ownership rejection (D3a): the
+      // create resolves the parent project through the guard-scoped repo, and
+      // a project outside the caller's tenant surfaces as NOT_FOUND. Map it to
+      // 404 (anti-enumeration — never 403) so the ownership probe does not
+      // flatten to a 500.
+      const statusCode =
+        result.error.code === "VALIDATION_FAILED"
+          ? 400
+          : result.error.code === "NOT_FOUND"
+            ? 404
+            : 500;
       return this.sendError(ctx, statusCode, result.error.message);
     }
 

@@ -7,10 +7,16 @@
 
 import { type FastifyPluginAsync, type FastifyRequest, type FastifyReply } from "fastify";
 import { z } from "zod";
+import type { RateLimiterPort } from "@ports/core";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { IdSchema } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
+import { withSystemContext } from "../security/tenantContext.js";
+import {
+  createNamespacedRateLimitPreHandler,
+  RateLimitConfigs,
+} from "../security/httpRateLimitPreHandler.js";
 import type { CreateTrackedLinkUseCase } from "@core/links/CreateTrackedLinkUseCase.js";
 import type { GetTrackedLinkUseCase } from "@core/links/GetTrackedLinkUseCase.js";
 import type { RedirectAndTrackClickUseCase } from "@core/links/RedirectAndTrackClickUseCase.js";
@@ -190,13 +196,27 @@ class LinkRouteHandler extends BaseRouteHandler {
       ? request.headers["user-agent"][0]
       : request.headers["user-agent"];
 
-    const result = await this.redirectAndTrackClickUseCase.execute({
-      shortCode: validated.value.params.shortCode,
-      ...(referer && { referrer: referer }),
-      ...(userAgent && { userAgent: userAgent }),
-      ...(request.ip && { ipAddress: request.ip }),
-      // Geo data would be added by middleware in production
-    });
+    // DELIBERATE, canon-verified guard bypass (engram obs 297): the public
+    // redirect is a capability-URL exemption (W3C TAG Capability URLs; OWASP
+    // exempts public resources from deny-by-default). The `shortCode` is a
+    // global-namespace capability token served to anonymous visitors — the
+    // guarded `findByShortCode` would otherwise throw TenantContextMissingError
+    // (no tenant context on an unauthenticated request). The system-context wrap
+    // covers BOTH `findByShortCode` AND the fire-and-forget `recordClick`'s
+    // guarded `trackedLink.update` (the ALS store is captured synchronously and
+    // propagates to the non-awaited continuation). The success output is a bare
+    // 302 → originalUrl only — zero tenant/accountId/analytics leakage — and the
+    // mandatory compensating control (namespace rate-limit) is attached at the
+    // route registration below. The management surface stays 100% tenant-scoped.
+    const result = await withSystemContext("public-link-redirect", () =>
+      this.redirectAndTrackClickUseCase.execute({
+        shortCode: validated.value.params.shortCode,
+        ...(referer && { referrer: referer }),
+        ...(userAgent && { userAgent: userAgent }),
+        ...(request.ip && { ipAddress: request.ip }),
+        // Geo data would be added by middleware in production
+      })
+    );
 
     if (!result.ok) {
       const statusCode =
@@ -262,10 +282,27 @@ export const linkRoutes: FastifyPluginAsync = async (fastify) => {
     handler.deleteLink.bind(handler)
   );
 
-  // Public redirect endpoint
+  // Public redirect endpoint.
+  //
+  // MANDATORY compensating control for the capability-URL guard bypass (D7):
+  // a dedicated NAMESPACE-keyed rate limiter (`redirect:{clientIp}`, NOT the
+  // global limiter's `ip:url` key). The global limiter keys by URL, so every
+  // guessed shortCode hits a fresh bucket → it does NOT throttle namespace
+  // enumeration. This per-IP namespace bucket makes ALL `/r/*` hits from one IP
+  // share one bucket → true anti-enumeration for both auto-generated shortCodes
+  // and user-chosen vanity slugs. The response leaks nothing (bare 302).
+  const httpRateLimiter = container.resolve<RateLimiterPort>(TOKENS.HttpRateLimiter);
+  const redirectRateLimit = createNamespacedRateLimitPreHandler(
+    httpRateLimiter,
+    "redirect",
+    RateLimitConfigs.REDIRECT
+  );
   fastify.get(
     "/r/:shortCode",
-    { schema: { tags: ["Links"], summary: "Redirect and track click" } },
+    {
+      preHandler: [redirectRateLimit],
+      schema: { tags: ["Links"], summary: "Redirect and track click" },
+    },
     handler.redirect.bind(handler)
   );
 };
