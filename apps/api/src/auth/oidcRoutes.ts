@@ -22,6 +22,7 @@ import { randomBytes } from "crypto";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
+import { makeTenantParamPreHandler } from "../security/tenantParamPreHandler.js";
 import type { ConfigureOidcUseCase } from "@core/auth/ConfigureOidcUseCase.js";
 import type { EnableOidcSsoUseCase } from "@core/auth/EnableOidcSsoUseCase.js";
 import type { DisableOidcSsoUseCase } from "@core/auth/DisableOidcSsoUseCase.js";
@@ -267,10 +268,15 @@ export const oidcRoutes: FastifyPluginAsync = async (app) => {
   );
 
   // ── Public OIDC flow endpoints ──────────────────────────────────────────
+  // Pre-auth boundary: the tenant is the `:accountId` path param, so the seam
+  // binds the tenant context before the handler reads `oidcConfiguration` (an
+  // enrolled model) on the guarded client. Without it the read fails closed.
+  const bindAccountFromParam = makeTenantParamPreHandler("accountId");
 
   app.get(
     "/auth/oidc/:accountId/login",
     {
+      preHandler: [bindAccountFromParam],
       schema: { tags: ["SSO"], summary: "Initiate OIDC login redirect with PKCE" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -329,6 +335,7 @@ export const oidcRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/auth/oidc/:accountId/callback",
     {
+      preHandler: [bindAccountFromParam],
       schema: { tags: ["SSO"], summary: "OIDC authorization code callback" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {

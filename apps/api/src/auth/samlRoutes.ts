@@ -22,6 +22,7 @@ import { SAML } from "@node-saml/node-saml";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
+import { makeTenantParamPreHandler } from "../security/tenantParamPreHandler.js";
 import type { ConfigureSamlUseCase } from "@core/auth/ConfigureSamlUseCase.js";
 import type { EnableSsoUseCase } from "@core/auth/EnableSsoUseCase.js";
 import type { DisableSsoUseCase } from "@core/auth/DisableSsoUseCase.js";
@@ -238,10 +239,15 @@ export const samlRoutes: FastifyPluginAsync = async (app) => {
   );
 
   // ── Public SAML flow endpoints ──────────────────────────────────────────
+  // Pre-auth boundary: the tenant is the `:accountId` path param, so the seam
+  // binds the tenant context before the handler reads `samlConfiguration` (an
+  // enrolled model) on the guarded client. Without it the read fails closed.
+  const bindAccountFromParam = makeTenantParamPreHandler("accountId");
 
   app.get(
     "/auth/saml/:accountId/metadata",
     {
+      preHandler: [bindAccountFromParam],
       schema: { tags: ["SSO"], summary: "SP metadata XML" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -265,6 +271,7 @@ export const samlRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/auth/saml/:accountId/login",
     {
+      preHandler: [bindAccountFromParam],
       schema: { tags: ["SSO"], summary: "Initiate SAML login redirect" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -288,6 +295,7 @@ export const samlRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/auth/saml/:accountId/callback",
     {
+      preHandler: [bindAccountFromParam],
       schema: { tags: ["SSO"], summary: "SAML Response callback" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {

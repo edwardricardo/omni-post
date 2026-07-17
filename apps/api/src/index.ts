@@ -163,6 +163,7 @@ import { crmRoutes } from "./crm/crmRoutes.js";
 import { customerAuthRoutes } from "./auth/customerAuthRoutes.js";
 
 import { SecurityManager } from "./security/securityHeaders.js";
+import { makeTenantParamPreHandler } from "./security/tenantParamPreHandler.js";
 import { PerformanceMonitor } from "./monitoring/performanceMonitor.js";
 import { analyticsRoutes } from "./analytics/analyticsRoutes.js";
 import aiRoutes from "./ai/routes.js";
@@ -700,9 +701,16 @@ async function createApp(): Promise<FastifyInstance> {
     return reply.send(await client.register.metrics());
   });
 
-  // Tenant health endpoint
+  // Tenant health endpoint. The `:tenantId` path param IS the account id — the
+  // health monitor resolves projects via `getProjectsByAccount(tenantId)` — so
+  // the seam binds it as the tenant context. The scoping is inert until the
+  // bootstrap adapter is swapped onto the guarded client; the seam lands now so
+  // the route is never context-less once that swap happens.
   typedApp.get(
     "/health/tenant/:tenantId/project/:projectId",
+    {
+      preHandler: [makeTenantParamPreHandler("tenantId")],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const paramsSchema = z.object({
         tenantId: z.string().uuid(),

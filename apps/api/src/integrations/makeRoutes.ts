@@ -7,15 +7,15 @@
  *   POST   /api/make/keys     -> GenerateIntegrationApiKeyUseCase (platform: MAKE)
  *   DELETE /api/make/keys/:id -> RevokeIntegrationApiKeyUseCase
  *
- *   Make REST Hooks (integrationAuthMiddleware):
+ *   Make REST Hooks (integration-key auth):
  *   POST   /api/make/subscribe      -> SubscribeIntegrationTriggerUseCase (platform: MAKE)
  *   DELETE /api/make/subscribe/:id  -> UnsubscribeIntegrationTriggerUseCase
  *
- *   Make Actions (integrationAuthMiddleware):
+ *   Make Actions (integration-key auth):
  *   POST /api/make/actions/create-draft   -> CreatePostUseCase
  *   POST /api/make/actions/schedule-post  -> CreatePostUseCase + SchedulePostUseCase
  *
- *   Make Polling (integrationAuthMiddleware):
+ *   Make Polling (integration-key auth):
  *   GET /api/make/triggers/posts-published -> last 25 published posts
  *
  * @layer infrastructure
@@ -25,7 +25,7 @@ import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
-import { integrationAuthMiddleware } from "../auth/integrationAuthMiddleware.js";
+import { integrationAuthResolve, integrationAuthBind } from "../auth/integrationAuthMiddleware.js";
 import type {
   ListIntegrationApiKeysQuery,
   IntegrationApiKeyDto,
@@ -196,7 +196,8 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/make/subscribe",
     {
-      preHandler: [integrationAuthMiddleware],
+      onRequest: [integrationAuthResolve],
+      preHandler: [integrationAuthBind],
       schema: { tags: ["Make"], summary: "Subscribe to a Make trigger event" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -231,7 +232,8 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
   app.delete(
     "/make/subscribe/:id",
     {
-      preHandler: [integrationAuthMiddleware],
+      onRequest: [integrationAuthResolve],
+      preHandler: [integrationAuthBind],
       schema: { tags: ["Make"], summary: "Unsubscribe from a Make trigger event" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -268,7 +270,8 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/make/actions/create-draft",
     {
-      preHandler: [integrationAuthMiddleware],
+      onRequest: [integrationAuthResolve],
+      preHandler: [integrationAuthBind],
       schema: { tags: ["Make"], summary: "Create a draft post via Make" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -297,7 +300,8 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/make/actions/schedule-post",
     {
-      preHandler: [integrationAuthMiddleware],
+      onRequest: [integrationAuthResolve],
+      preHandler: [integrationAuthBind],
       schema: { tags: ["Make"], summary: "Create and schedule a post via Make" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -347,7 +351,8 @@ export const makeRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     "/make/triggers/posts-published",
     {
-      preHandler: [integrationAuthMiddleware],
+      onRequest: [integrationAuthResolve],
+      preHandler: [integrationAuthBind],
       schema: { tags: ["Make"], summary: "Poll last 25 published posts" },
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
