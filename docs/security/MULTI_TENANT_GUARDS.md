@@ -396,6 +396,12 @@ SubscriptionPriceHistory Referral                 AssetTagOnAsset
 These are explicit in the guard's denylist; queries against them
 bypass tenant enforcement.
 
+> Note: `OutboxInbox` is retained here because its Prisma model still
+> exists in `schema.prisma`, but the outbox relay no longer reads or
+> writes it — the relay-side inbox was removed in favour of at-least-once
+> transport with idempotent consumers. The model is inert (dead) and its
+> table drop is a deferred follow-up migration.
+
 ---
 
 ## How to use `withSystemContext()`

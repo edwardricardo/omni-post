@@ -172,9 +172,11 @@ describe("BulkSchedule outbox path — smoke e2e", () => {
   });
 
   // --------------------------------------------------------------------------
-  // Scenario 2 (idempotency): polling a second time does NOT enqueue another job.
+  // Scenario 2 (no re-dispatch after publish): once relay A marks the event
+  // published, the `publishedAt IS NULL` claim predicate excludes the row from
+  // every future claim, so a second relay never re-dispatches it.
   // --------------------------------------------------------------------------
-  it("second relay poll produces no duplicate jobs (idempotent via OutboxInbox)", async () => {
+  it("second relay poll produces no duplicate jobs (excluded by the publishedAt claim predicate)", async () => {
     // Use a fresh batch so this test is independent of scenario 1.
     const { queue, jobs } = makeStubQueue();
     const dispatcher = new InMemoryEventDispatcher();
@@ -213,14 +215,15 @@ describe("BulkSchedule outbox path — smoke e2e", () => {
     assert.ok(confirmResult.ok, "confirm should succeed");
     batchIds.push(confirmResult.value.batchId);
 
-    // Simulating at-least-once delivery: two relays process the same event.
+    // Two relays sharing the same DB. The first dispatches and marks the event
+    // published; the second finds nothing claimable (publishedAt is now set).
     const relayA = makeRelay(prisma, dispatcher);
     const relayB = makeRelay(prisma, dispatcher);
 
-    await relayA.poll(); // dispatches
+    await relayA.poll(); // dispatches + marks published
     assert.strictEqual(jobs.length, 1, "first poll enqueues exactly one job");
 
-    await relayB.poll(); // event already claimed + inbox row exists — should not re-dispatch
+    await relayB.poll(); // row excluded by publishedAt IS NULL predicate — no re-dispatch
     assert.strictEqual(jobs.length, 1, "second poll must not produce a duplicate job");
   });
 

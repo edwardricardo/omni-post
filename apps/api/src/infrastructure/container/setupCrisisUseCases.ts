@@ -13,7 +13,6 @@ import { OutboxRelay } from "../outbox/OutboxRelay.js";
 import { OutboxCleaner } from "../outbox/OutboxCleaner.js";
 import { OutboxClaimService } from "../outbox/OutboxClaimService.js";
 import { OutboxBackoff } from "../outbox/OutboxBackoff.js";
-import { OutboxInbox } from "../outbox/OutboxInbox.js";
 import { hostname } from "os";
 import type { CrisisProjectRepository } from "@core/crisis/types.js";
 import {
@@ -52,11 +51,6 @@ export function setupCrisisUseCases(container: Container): void {
     true
   );
   container.register<OutboxBackoff>(TOKENS.OutboxBackoff, () => new OutboxBackoff(), true);
-  container.register<OutboxInbox>(
-    TOKENS.OutboxInbox,
-    () => new OutboxInbox(container.resolve(TOKENS.PrismaClient)),
-    true
-  );
 
   // Register Outbox Relay + Cleaner
   container.register<OutboxRelay>(
@@ -68,8 +62,6 @@ export function setupCrisisUseCases(container: Container): void {
         scheduler: container.resolve<BackgroundTaskScheduler>(TOKENS.BackgroundTaskScheduler),
         claimService: container.resolve<OutboxClaimService>(TOKENS.OutboxClaimService),
         backoff: container.resolve<OutboxBackoff>(TOKENS.OutboxBackoff),
-        inbox: container.resolve<OutboxInbox>(TOKENS.OutboxInbox),
-        consumerId: workerId,
       }),
     true
   );

@@ -79,10 +79,9 @@ export const TOKENS = {
   OutboxWriter: Symbol.for("OutboxWriter"),
   OutboxRelay: Symbol.for("OutboxRelay"),
   OutboxCleaner: Symbol.for("OutboxCleaner"),
-  // Outbox concurrent claim + idempotency
+  // Outbox concurrent claim + backoff
   OutboxClaimService: Symbol.for("OutboxClaimService"),
   OutboxBackoff: Symbol.for("OutboxBackoff"),
-  OutboxInbox: Symbol.for("OutboxInbox"),
   AICircuitBreaker: Symbol.for("AICircuitBreaker"),
   RateLimiterPort: Symbol.for("RateLimiterPort"),
   HttpRateLimiter: Symbol.for("HttpRateLimiter"),
