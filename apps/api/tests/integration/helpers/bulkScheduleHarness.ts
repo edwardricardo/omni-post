@@ -15,7 +15,6 @@ import type { QueuePort, QueueJob, QueueHealth, JobStatesAggregate } from "@port
 import { OutboxRelay } from "../../../src/infrastructure/outbox/OutboxRelay.js";
 import { OutboxClaimService } from "../../../src/infrastructure/outbox/OutboxClaimService.js";
 import { OutboxBackoff } from "../../../src/infrastructure/outbox/OutboxBackoff.js";
-import { OutboxInbox } from "../../../src/infrastructure/outbox/OutboxInbox.js";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 
 /** A queue error code the stub can be told to fail with. */
@@ -70,8 +69,6 @@ export function makeRelay(prisma: PrismaClient, dispatcher: InMemoryEventDispatc
     scheduler: new NoopBackgroundTaskScheduler(),
     claimService: new OutboxClaimService({ prisma, workerId: "harness-worker" }),
     backoff: new OutboxBackoff(),
-    inbox: new OutboxInbox(prisma),
-    consumerId: "harness-worker",
     pollIntervalMs: 100_000,
     batchSize: 50,
     maxRetries: 3,
@@ -130,7 +127,7 @@ export async function seedTenant(prisma: PrismaClient, tag: string): Promise<See
 
 /**
  * @function cleanupTenant
- * @description Removes all rows a suite created: BulkScheduleItem outbox events + inbox,
+ * @description Removes all rows a suite created: BulkScheduleItem outbox events,
  *   the given batches, and the seeded tenant. Safe to call in `after`.
  * @param prisma - Real test PrismaClient.
  * @param tenant - The seeded ids.
@@ -141,11 +138,6 @@ export async function cleanupTenant(
   tenant: SeededTenant,
   batchIds: string[]
 ): Promise<void> {
-  const events = await prisma.outboxEvent.findMany({
-    where: { aggregateType: "BulkScheduleItem" },
-    select: { id: true },
-  });
-  await prisma.outboxInbox.deleteMany({ where: { messageId: { in: events.map((e) => e.id) } } });
   await prisma.outboxEvent.deleteMany({ where: { aggregateType: "BulkScheduleItem" } });
   await prisma.outboxDeadLetter.deleteMany({ where: { aggregateType: "BulkScheduleItem" } });
   if (batchIds.length > 0) {

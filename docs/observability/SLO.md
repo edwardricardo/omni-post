@@ -46,13 +46,13 @@ Si algún target NO tiene los 4 ítems wireados, está incompleto.
 
 ## Outbox {#outbox}
 
-| SLI                   | Target                    | Métrica                           | Alert                                                                             | Runbook                                                |
-| --------------------- | ------------------------- | --------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| **Pending events**    | < 100 events steady-state | `outbox_pending_events`           | [OutboxLagHigh](../runbooks/alert-outbox-lag.md) (`prometheus/alerts/outbox.yml`) | [alert-outbox-lag.md](../runbooks/alert-outbox-lag.md) |
-| **Time-to-publish**   | p99 < 30s                 | `outbox_publish_duration_seconds` | TBD (§4.2.b) — needs `OutboxPublishLatencyHigh`                                   | TBD                                                    |
-| **Duplicate publish** | 0 (zero tolerance)        | `messageId` unique constraint     | DB constraint violation (auto)                                                    | Investigation manual                                   |
+| SLI                   | Target                                                              | Métrica                                                 | Alert                                                                             | Runbook                                                |
+| --------------------- | ------------------------------------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| **Pending events**    | < 100 events steady-state                                           | `outbox_pending_events`                                 | [OutboxLagHigh](../runbooks/alert-outbox-lag.md) (`prometheus/alerts/outbox.yml`) | [alert-outbox-lag.md](../runbooks/alert-outbox-lag.md) |
+| **Time-to-publish**   | p99 < 30s                                                           | `outbox_publish_duration_seconds`                       | TBD (§4.2.b) — needs `OutboxPublishLatencyHigh`                                   | TBD                                                    |
+| **Duplicate publish** | 0 en el camino sin fallos; raros sólo en crash-retry / lease-expiry | claim atómico + lease + predicado `publishedAt IS NULL` | — (absorbido por consumidores idempotentes)                                       | Investigación manual                                   |
 
-**Notas:** El zero-duplicate-publish lo garantiza el `messageId` UNIQUE constraint en `OutboxInbox` (consumer-side dedupe). Si una violation de constraint ocurre, indica retry mal-comportado en el publisher — bug.
+**Notas:** El relay de outbox es transporte **at-least-once**. El claim atómico (`UPDATE ... FOR UPDATE SKIP LOCKED`) + el lease + el predicado `publishedAt IS NULL` impiden el doble-claim de una fila con lease vivo, y `markPublished` fija `publishedAt` **sólo después** de que `dispatch()` resuelve (nunca publica sin despachar). Un crash entre el dispatch y la marca terminal, o una expiración de lease durante un dispatch lento, puede producir una entrega duplicada; los consumidores son idempotentes (canon: _"every consumer handler is idempotent"_), así que el duplicado se absorbe aguas abajo — a cambio de eliminar la pérdida silenciosa. Ya no hay dedupe relay-side vía `OutboxInbox` (mecanismo removido; el modelo Prisma queda inerte hasta la migración de drop diferida).
 
 ---
 

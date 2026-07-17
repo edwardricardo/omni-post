@@ -1,15 +1,16 @@
 /**
  * @file OutboxRelay.test.ts
- * @description Tests for `OutboxRelay`:
+ * @description Tests for `OutboxRelay` at-least-once delivery:
  *   - claim/markPublished/releaseForRetry/archiveToDeadLetter delegated to
  *     `OutboxClaimService`,
- *   - consumer-side dedupe via `OutboxInbox`,
+ *   - `markPublished` runs ONLY after `dispatch` resolves (no false publish),
+ *   - a failure after dispatch releases for retry (redelivery, never loss),
  *   - full-jitter backoff via `OutboxBackoff`.
  *
- *   Lifecycle (start/stop/isRunning) and the dispatch happy path are
- *   covered alongside the correctness invariants of the lease-based claim
- *   flow: dedupe-skip, DLQ atomicity, release-on-transient-failure, and
- *   lease-expired re-claim.
+ *   Lifecycle (start/stop/isRunning) and the dispatch happy path are covered
+ *   alongside the correctness invariants of the lease-based claim flow: DLQ
+ *   atomicity, release-on-transient-failure, terminal DLQ on exhausted
+ *   retries, and tolerance of a concurrent DLQ-race unique violation.
  * @layer infrastructure
  */
 
@@ -39,12 +40,6 @@ function createMockClaimService() {
   };
 }
 
-function createMockInbox() {
-  return {
-    tryClaimForProcessing: vi.fn(async (_id: string, _consumerId: string) => true),
-  };
-}
-
 function createMockBackoff() {
   return {
     computeDelayMs: vi.fn((_attempt: number) => 1000),
@@ -70,14 +65,12 @@ function makeRow(overrides: Partial<ClaimedOutboxEvent> = {}): ClaimedOutboxEven
 describe("OutboxRelay", () => {
   let mockDispatcher: ReturnType<typeof createMockDispatcher>;
   let mockClaim: ReturnType<typeof createMockClaimService>;
-  let mockInbox: ReturnType<typeof createMockInbox>;
   let mockBackoff: ReturnType<typeof createMockBackoff>;
   let relay: OutboxRelay;
 
   beforeEach(() => {
     mockDispatcher = createMockDispatcher();
     mockClaim = createMockClaimService();
-    mockInbox = createMockInbox();
     mockBackoff = createMockBackoff();
     relay = new OutboxRelay({
       prisma: {} as never,
@@ -85,8 +78,6 @@ describe("OutboxRelay", () => {
       scheduler,
       claimService: mockClaim as never,
       backoff: mockBackoff as never,
-      inbox: mockInbox as never,
-      consumerId: "test-consumer",
       pollIntervalMs: 100000,
       batchSize: 10,
     });
@@ -115,10 +106,54 @@ describe("OutboxRelay", () => {
     mockClaim.claim = vi.fn(async () => [makeRow()]);
     await relay.poll();
 
-    expect(mockInbox.tryClaimForProcessing.mock.calls.length).toBe(1);
     expect(mockDispatcher.dispatch.mock.calls.length).toBe(1);
     expect(mockClaim.markPublished.mock.calls.length).toBe(1);
     expect(mockClaim.markPublished.mock.calls[0]?.[0]).toBe("evt-1");
+  });
+
+  it("marks published ONLY after dispatch resolves (no publish before delivery)", async () => {
+    mockClaim.claim = vi.fn(async () => [makeRow()]);
+    await relay.poll();
+
+    // invocationCallOrder is a global monotonic counter across all vi mocks —
+    // dispatch must have been invoked strictly before markPublished.
+    const dispatchOrder = mockDispatcher.dispatch.mock.invocationCallOrder[0];
+    const markPublishedOrder = mockClaim.markPublished.mock.invocationCallOrder[0];
+    expect(dispatchOrder).toBeDefined();
+    expect(markPublishedOrder).toBeDefined();
+    expect(dispatchOrder as number).toBeLessThan(markPublishedOrder as number);
+  });
+
+  it("does not mark published when dispatch rejects — releases for retry instead", async () => {
+    mockClaim.claim = vi.fn(async () => [makeRow({ retryCount: 2 })]);
+    mockDispatcher.dispatch = vi.fn(async () => {
+      throw new Error("Dispatch failed");
+    });
+
+    await relay.poll();
+
+    expect(mockClaim.markPublished.mock.calls.length).toBe(0);
+    expect(mockClaim.releaseForRetry.mock.calls.length).toBe(1);
+    expect(mockClaim.releaseForRetry.mock.calls[0]?.[1]).toBe(3);
+    expect(mockClaim.archiveToDeadLetter.mock.calls.length).toBe(0);
+  });
+
+  it("releases for retry (redelivery, never loss) when markPublished fails after a successful dispatch", async () => {
+    mockClaim.claim = vi.fn(async () => [makeRow({ retryCount: 1 })]);
+    mockClaim.markPublished = vi.fn(async () => {
+      throw new Error("terminal UPDATE rolled back");
+    });
+
+    await relay.poll();
+
+    // Dispatch already happened, so the event is delivered; the terminal write
+    // failed, so the row stays unpublished and is released for redelivery —
+    // never silently lost, never dead-lettered while retries remain.
+    expect(mockDispatcher.dispatch.mock.calls.length).toBe(1);
+    expect(mockClaim.markPublished.mock.calls.length).toBe(1);
+    expect(mockClaim.releaseForRetry.mock.calls.length).toBe(1);
+    expect(mockClaim.releaseForRetry.mock.calls[0]?.[1]).toBe(2);
+    expect(mockClaim.archiveToDeadLetter.mock.calls.length).toBe(0);
   });
 
   it("does nothing when claim returns no rows", async () => {
@@ -159,6 +194,7 @@ describe("OutboxRelay", () => {
     expect(archiveArgs?.[1]).toBe("Boom");
     expect(archiveArgs?.[2]).toBe(5);
     expect(mockClaim.releaseForRetry.mock.calls.length).toBe(0);
+    expect(mockClaim.markPublished.mock.calls.length).toBe(0);
   });
 
   it("dispatches multiple events in claim order", async () => {
@@ -170,20 +206,34 @@ describe("OutboxRelay", () => {
     expect(mockClaim.markPublished.mock.calls[1]?.[0]).toBe("evt-2");
   });
 
-  // Concurrent-claim invariants
+  it("tolerates a concurrent DLQ-race unique violation (P2002) and continues the batch", async () => {
+    // Two rows are exhausted; the first row's DLQ archival loses a race with a
+    // concurrent relay that already dead-lettered it under lease expiry, so the
+    // create raises Prisma P2002. That is a benign already-terminal outcome —
+    // the relay must swallow it and keep processing the rest of the batch.
+    mockClaim.claim = vi.fn(async () => [
+      makeRow({ id: "evt-1", retryCount: 4 }),
+      makeRow({ id: "evt-2", retryCount: 4 }),
+    ]);
+    mockDispatcher.dispatch = vi.fn(async () => {
+      throw new Error("Boom");
+    });
+    let archiveCalls = 0;
+    mockClaim.archiveToDeadLetter = vi.fn(async () => {
+      archiveCalls += 1;
+      if (archiveCalls === 1) {
+        throw Object.assign(new Error("Unique constraint failed"), { code: "P2002" });
+      }
+    });
 
-  it("skips dispatch when inbox reports duplicate eventId, but releases the outbox row", async () => {
-    mockClaim.claim = vi.fn(async () => [makeRow()]);
-    mockInbox.tryClaimForProcessing = vi.fn(async () => false);
+    await expect(relay.poll()).resolves.toBeUndefined();
 
-    await relay.poll();
-
-    expect(mockDispatcher.dispatch.mock.calls.length).toBe(0);
-    expect(mockClaim.markPublished.mock.calls.length).toBe(1);
-    expect(mockClaim.markPublished.mock.calls[0]?.[0]).toBe("evt-1");
+    // Both rows attempted archival; the P2002 on the first did not abort the tick.
+    expect(mockClaim.archiveToDeadLetter.mock.calls.length).toBe(2);
+    expect(mockClaim.markPublished.mock.calls.length).toBe(0);
   });
 
-  it("DLQ archival errors propagate (the row stays in claimed state for the next lease cycle)", async () => {
+  it("propagates non-P2002 DLQ archival errors (row stays claimed for the next lease cycle)", async () => {
     mockClaim.claim = vi.fn(async () => [makeRow({ retryCount: 4 })]);
     mockDispatcher.dispatch = vi.fn(async () => {
       throw new Error("Dispatch failed");

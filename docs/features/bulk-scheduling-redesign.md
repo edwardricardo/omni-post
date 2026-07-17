@@ -181,7 +181,7 @@ the targets (provider fan-out to all same-provider channels); the redesign lets
 Canon (repo + industry): **transactional outbox** converts the dual write into a
 single write. The repo already runs this pattern end-to-end for inbox triage
 (`SocialMessageReceived` → outbox in the same tx → `OutboxRelay`
-(SELECT FOR UPDATE SKIP LOCKED + `OutboxBackoff` + `OutboxInbox` dedupe + DLQ) →
+(SELECT FOR UPDATE SKIP LOCKED + `OutboxBackoff` + DLQ; at-least-once delivery, consumer-side idempotency) →
 `TriageDispatchEventHandler` enqueues, throw-to-retry).
 
 Bulk-scheduling clones it:
