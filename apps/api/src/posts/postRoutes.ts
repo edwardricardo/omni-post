@@ -354,8 +354,18 @@ class PostRouteHandler extends BaseRouteHandler {
 
     const { id } = validation.value;
 
+    // Ownership gate (CWE-639) needs the authenticated principal. `requireClientAuth`
+    // guarantees it, so an absent principal is a defensive 401 rather than an
+    // ungated delete.
+    if (!request.customerUser) {
+      return this.sendError(ctx, 401, "Unauthorized");
+    }
+
     try {
-      const result = await this.deletePostUseCase.execute({ postId: id });
+      const result = await this.deletePostUseCase.execute({
+        postId: id,
+        caller: { type: "customer", accountId: request.customerUser.accountId },
+      });
 
       if (!result.ok) {
         return this.mapUseCaseError(ctx, result.error);
