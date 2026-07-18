@@ -304,7 +304,7 @@ C1-R1 scenario 3 + C1-R2). Grouped by provider so each group is a work-unit comm
 
 - [x] **C1b-12 [SEQ] — DONE** Enumeration recount: **60 `cacheEnabled:true` sites total, all 60 migrated**
       (12 in batch 1 + 48 in batch 2). `rg "cacheEnabled:\s*true" packages/providers packages/adapters
-    --type ts -g '!**/tests/**' | wc -l` → 60; every such block carries a `cacheKeyDiscriminant`
+--type ts -g '!**/tests/**' | wc -l` → 60; every such block carries a `cacheKeyDiscriminant`
       (mechanically verified, zero misses). pinterest/instagram computed-`cacheEnabled` ops also migrated
       (outside the literal count). JSDoc/`@layer` intact + zero `any`/`@ts-ignore` on every edited file
       (eslint --max-warnings 0 = 0; fitness #9/#11/#25A/#25B = 0). Full C1b closure achieved.
