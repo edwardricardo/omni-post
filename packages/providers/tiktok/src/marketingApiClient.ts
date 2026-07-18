@@ -6,6 +6,7 @@
  */
 import {
   createExternalApiCircuitBreaker,
+  hashCallScope,
   ANALYTICS_CB_OPTIONS,
   METADATA_CB_OPTIONS,
 } from "@adapters/external-apis";
@@ -203,6 +204,9 @@ export class TikTokMarketingApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...METADATA_CB_OPTIONS,
+      // PII (advertiser account): scope by credential so advertiser B never
+      // receives advertiser A's cached account or shares A's breaker instance.
+      cacheKeyDiscriminant: hashCallScope(this.credentials),
     });
   }
 
@@ -277,6 +281,9 @@ export class TikTokMarketingApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // PII (advertiser campaigns): scope by credential AND the filter so
+      // distinct filters never collide and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(this.credentials, filtering),
     });
   }
 
@@ -385,6 +392,9 @@ export class TikTokMarketingApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // PII (ad insights): scope by credential AND the report options (date
+      // range, campaigns, metrics) so distinct reports never collide.
+      cacheKeyDiscriminant: hashCallScope(this.credentials, options),
     });
   }
 
@@ -504,6 +514,9 @@ export class TikTokMarketingApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // PII (audience insights): scope by credential AND the report options so
+      // distinct reports never collide and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(this.credentials, options),
     });
   }
 
@@ -588,6 +601,9 @@ export class TikTokMarketingApiClient {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // PII (creative insights): scope by credential AND the report options so
+      // distinct reports never collide and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(this.credentials, options),
     });
   }
 

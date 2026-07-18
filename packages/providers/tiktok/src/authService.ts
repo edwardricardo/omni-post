@@ -4,7 +4,11 @@
  *              exchange, token refresh, and signed-request verification.
  * @layer infrastructure
  */
-import { createExternalApiCircuitBreaker, METADATA_CB_OPTIONS } from "@adapters/external-apis";
+import {
+  createExternalApiCircuitBreaker,
+  hashCallScope,
+  METADATA_CB_OPTIONS,
+} from "@adapters/external-apis";
 import { ProviderError } from "@providers/shared";
 import * as client from "prom-client";
 import axios from "axios";
@@ -184,6 +188,13 @@ export class TikTokAuthService {
       jitterEnabled: true,
       cacheEnabled: false, // Don't cache auth tokens
       fallbackEnabled: false, // No fallback for auth operations
+      // Token op (stays uncached): STATE-only partition by the OAuth app so one
+      // app's failures never open another app's exchange circuit. The breaker's
+      // generic dispatcher runs each call's OWN closure, so even on a shared breaker
+      // key app B runs its OWN exchange closure — never app A's — which is what makes
+      // the shared breaker isolation-safe; this discriminant only scopes the circuit
+      // STATE.
+      cacheKeyDiscriminant: hashCallScope(this.config.clientKey),
     });
   }
 
@@ -235,6 +246,9 @@ export class TikTokAuthService {
       jitterEnabled: true,
       cacheEnabled: false, // Don't cache auth tokens
       fallbackEnabled: false, // No fallback for auth operations
+      // Token op (stays uncached): STATE-only partition by app + refresh token so
+      // account B's refresh never runs account A's bound closure (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.config.clientKey, refreshToken),
     });
   }
 
@@ -342,6 +356,14 @@ export class TikTokAuthService {
       jitterEnabled: true,
       cacheEnabled: true,
       ...METADATA_CB_OPTIONS,
+      // PII (user-info READ, NOT a token op): scope by the per-call access token
+      // AND the requested field set so account B never receives account A's
+      // cached profile and a stats/business request never reads a lean payload.
+      cacheKeyDiscriminant: hashCallScope(
+        accessToken,
+        options.includeStats,
+        options.includeBusiness
+      ),
     });
   }
 
@@ -384,6 +406,9 @@ export class TikTokAuthService {
       jitterEnabled: true,
       cacheEnabled: false, // Don't cache revocation results
       fallbackEnabled: false, // No fallback for revocation
+      // Token op (stays uncached): STATE-only partition by app + token so account
+      // B's revoke never runs account A's bound closure (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.config.clientKey, accessToken),
     });
   }
 

@@ -8,6 +8,7 @@
 
 import {
   createExternalApiCircuitBreaker,
+  hashCallScope,
   ANALYTICS_CB_OPTIONS,
   METADATA_CB_OPTIONS,
   type ExternalApiOptions,
@@ -189,6 +190,14 @@ export class PinterestApiClient {
       jitterEnabled: true,
       cacheEnabled: operation === "get-user-account",
       cacheTtl: 300000,
+      // Fold the credential AND the operation + full request URL (which carries the
+      // target resource id) so account B never receives account A's cached
+      // get-user-account payload and distinct resources never collide. The breaker's
+      // generic dispatcher runs each call's OWN closure, so even when two accounts
+      // resolve to the same shared breaker key the CURRENT caller's closure — never
+      // an earlier caller's — is what executes; the discriminant only scopes the L1
+      // cache and the per-tenant circuit STATE. Reads stay per-tenant cached.
+      cacheKeyDiscriminant: hashCallScope(this.credentials, operation, url),
       ...fallbackOpts,
       ...(fallback ? { fallback } : {}),
     });

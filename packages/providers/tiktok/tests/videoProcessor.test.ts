@@ -64,7 +64,12 @@ vi.mock("fs/promises", () => ({
   mkdir: (...a: unknown[]) => mockMkdir(...a),
   unlink: (...a: unknown[]) => mockUnlink(...a),
 }));
-vi.mock("crypto", () => ({ randomUUID: vi.fn(() => "test-uuid-1234") }));
+// Keep the real `createHash` (used by hashCallScope for the C1b breaker
+// discriminant) while stubbing randomUUID for deterministic output filenames.
+vi.mock("crypto", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("crypto")>();
+  return { ...actual, randomUUID: vi.fn(() => "test-uuid-1234") };
+});
 vi.mock("../src/videoProcessorHelpers.js", () => ({
   TIKTOK_VIDEO_SPECS: {
     maxFileSize: 500 * 1024 * 1024,
@@ -384,9 +389,10 @@ describe("TikTokVideoProcessor", () => {
           timeout: 30000,
           errorThresholdPercentage: 70,
           maxRetries: 2,
-          cacheEnabled: true,
-          cacheTtl: 1800000,
-          fallbackEnabled: true,
+          // analyze-video is local ffprobe with no per-tenant credential, so it is
+          // intentionally uncached and fail-fast (N-SEC-1): no cacheTtl / discriminant.
+          cacheEnabled: false,
+          fallbackEnabled: false,
         })
       );
     });

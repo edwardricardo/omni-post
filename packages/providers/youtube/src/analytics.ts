@@ -8,6 +8,7 @@ import { google, youtubeAnalytics_v2 } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
 import {
   createExternalApiCircuitBreaker,
+  hashCallScope,
   ANALYTICS_CB_OPTIONS,
   METADATA_CB_OPTIONS,
 } from "@adapters/external-apis";
@@ -101,6 +102,12 @@ export class YouTubeAnalyticsService {
   private oauth2Client: OAuth2Client;
   private youtubeAnalytics: youtubeAnalytics_v2.Youtubeanalytics;
   private channelId: string;
+  // Per-tenant OAuth refresh token — a SECRET that uniquely identifies this
+  // tenant's grant (unlike channelId, which is PUBLIC and guessable). Folded as
+  // the leading segment of every cacheKeyDiscriminant below so the breaker's L1
+  // cache / STATE key is scoped by an unguessable per-tenant secret, not a public
+  // id. clientId/clientSecret are the shared OAuth APP credentials, not per-tenant.
+  private readonly refreshToken: string;
 
   constructor(credentials: {
     clientId: string;
@@ -110,6 +117,7 @@ export class YouTubeAnalyticsService {
     channelId: string;
   }) {
     this.channelId = credentials.channelId;
+    this.refreshToken = credentials.refreshToken;
 
     this.oauth2Client = new OAuth2Client(
       credentials.clientId,
@@ -195,6 +203,15 @@ export class YouTubeAnalyticsService {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // PII per-video: fold channel + videoId + the date window so video X never
+      // returns video Y's cached metrics and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(
+        this.refreshToken,
+        this.channelId,
+        videoId,
+        startDate.getTime(),
+        endDate.getTime()
+      ),
     });
   }
 
@@ -269,6 +286,14 @@ export class YouTubeAnalyticsService {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // PII (channel audience): fold channel + the date window so channel B never
+      // receives channel A's cached insights and windows never collide.
+      cacheKeyDiscriminant: hashCallScope(
+        this.refreshToken,
+        this.channelId,
+        startDate.getTime(),
+        endDate.getTime()
+      ),
     });
   }
 
@@ -331,6 +356,16 @@ export class YouTubeAnalyticsService {
       jitterEnabled: true,
       cacheEnabled: true,
       ...METADATA_CB_OPTIONS,
+      // Content-derived read: fold channel + videoId + the analysed title/
+      // description/tags so distinct inputs never collide and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(
+        this.refreshToken,
+        this.channelId,
+        videoId,
+        title,
+        description,
+        tags
+      ),
     });
   }
 
@@ -387,6 +422,15 @@ export class YouTubeAnalyticsService {
       jitterEnabled: true,
       cacheEnabled: true,
       ...ANALYTICS_CB_OPTIONS,
+      // PII per-video: fold channel + videoId + the date window so video X never
+      // returns video Y's cached performance and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(
+        this.refreshToken,
+        this.channelId,
+        videoId,
+        startDate.getTime(),
+        endDate.getTime()
+      ),
     });
   }
 

@@ -22,7 +22,6 @@ export type FallbackStrategy =
 
 export interface FallbackConfig {
   strategy: FallbackStrategy;
-  cacheKey?: string;
   cacheTtl?: number; // milliseconds
   staticResponse?: unknown;
   alternativeEndpoint?: string;
@@ -35,6 +34,29 @@ export interface FallbackContext {
   originalError: Error;
   attempt: number;
   lastSuccessfulResponse?: unknown;
+  /**
+   * Opaque per-tenant/credential discriminant that scopes the L2 fallback store
+   * key. PRESENT ⇒ the read is keyed `fallback:service:operation:<discriminant>`,
+   * so one tenant's cached fallback payload is never served to another. ABSENT ⇒
+   * the read is a fail-safe miss (no shared/legacy-key read), mirroring the L1
+   * cache default in the circuit breaker.
+   */
+  discriminant?: string;
+}
+
+/**
+ * @function isPresentDiscriminant
+ * @description Boundary guard (S-2): a fallback-store discriminant counts as
+ *   PRESENT only when it is a non-empty, non-whitespace string. `undefined`,
+ *   `""`, and `"   "` are all treated as ABSENT so a blank value can never key a
+ *   shared `fallback:service:operation` entry. Mirrors the identical guard in the
+ *   circuit breaker; kept local here because `@adapters/external-apis` imports
+ *   this package (importing back would be circular).
+ * @param discriminant - The candidate discriminant.
+ * @returns `true` when the discriminant is a usable non-blank string.
+ */
+function isPresentDiscriminant(discriminant: string | undefined): discriminant is string {
+  return typeof discriminant === "string" && discriminant.trim().length > 0;
 }
 
 export class FallbackManager {
@@ -118,17 +140,33 @@ export class FallbackManager {
   }
 
   /**
-   * Cache a successful response for future fallback use
+   * @method cacheSuccessfulResponse
+   * @description Persists a successful response to the L2 fallback store for later
+   *   fallback use, keyed by the caller's tenant/credential discriminant. Fail-safe
+   *   symmetry with the L1 breaker cache: a call WITHOUT a discriminant stores
+   *   NOTHING — writing a shared `fallback:service:operation` entry would let one
+   *   tenant's cached payload be served to another on the fallback path
+   *   (cross-tenant disclosure). No discriminant ⇒ no write.
+   * @param service - Provider/service name.
+   * @param operation - Operation name.
+   * @param response - The successful payload to cache.
+   * @param ttl - Time-to-live in milliseconds (default 5 minutes).
+   * @param discriminant - Opaque per-tenant/credential scope; omit ⇒ no write.
+   * @returns Nothing; a no-op when Redis is unavailable or no discriminant is given.
    */
   async cacheSuccessfulResponse(
     service: string,
     operation: string,
     response: unknown,
-    ttl: number = 300000 // 5 minutes default
+    ttl: number = 300000, // 5 minutes default
+    discriminant?: string
   ): Promise<void> {
     if (!this.redis) return;
+    // Fail-safe (S-2): a blank/whitespace discriminant is treated as absent — no
+    // write, so nothing shared is ever stored under `fallback:service:operation`.
+    if (!isPresentDiscriminant(discriminant)) return;
 
-    const key = this.getCacheKey(service, operation);
+    const key = this.getCacheKey(service, operation, discriminant);
     const data = {
       response,
       timestamp: Date.now(),
@@ -153,7 +191,22 @@ export class FallbackManager {
       return err("FALLBACK_FAILED");
     }
 
-    const key = config.cacheKey || this.getCacheKey(context.service, context.operation);
+    // Fail-safe symmetry with the write path: with no (or a blank) tenant
+    // discriminant, treat the read as a MISS rather than reading a shared
+    // `fallback:service:operation` key — that legacy key could hold another
+    // tenant's payload (cross-tenant disclosure). No discriminant ⇒ fetch fresh.
+    // The former `config.cacheKey` override (S-3) is removed: it was dormant and a
+    // latent bypass that would read one shared, un-discriminated entry.
+    const key = isPresentDiscriminant(context.discriminant)
+      ? this.getCacheKey(context.service, context.operation, context.discriminant)
+      : undefined;
+
+    if (key === undefined) {
+      logger.warn(
+        `No discriminant for cached fallback ${context.service}:${context.operation} — skipping (fail-safe)`
+      );
+      return err("FALLBACK_FAILED");
+    }
 
     try {
       const cached = await this.redis.get(key);
@@ -310,8 +363,19 @@ export class FallbackManager {
     }
   }
 
-  private getCacheKey(service: string, operation: string): string {
-    return `fallback:${service}:${operation}`;
+  /**
+   * @method getCacheKey
+   * @description Builds the tenant-scoped L2 fallback store key. The `fallback:`
+   *   prefix is retained so `redis.keys("fallback:*")` enumeration and clear keep
+   *   working; the trailing discriminant scopes the entry per tenant/credential so
+   *   distinct tenants never collide on a shared key.
+   * @param service - Provider/service name.
+   * @param operation - Operation name.
+   * @param discriminant - Opaque per-tenant/credential scope.
+   * @returns The tenant-scoped fallback cache key.
+   */
+  private getCacheKey(service: string, operation: string, discriminant: string): string {
+    return `fallback:${service}:${operation}:${discriminant}`;
   }
 
   /**

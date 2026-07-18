@@ -65,6 +65,7 @@ const createMockResearchClient = (overrides?: Partial<TikTokResearchApiClient>) 
     getTrendingSounds: vi.fn().mockResolvedValue([]),
     getContentGaps: vi.fn().mockResolvedValue([]),
     getViralContentAnalysis: vi.fn().mockResolvedValue([]),
+    getCredentialScope: vi.fn().mockReturnValue("mock-research-scope"),
     getCircuitBreakerStatus: vi.fn().mockReturnValue({}),
     clearCache: vi.fn(),
     ...overrides,

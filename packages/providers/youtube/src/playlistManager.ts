@@ -8,7 +8,7 @@
 
 import { google, youtube_v3 } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
-import { METADATA_CB_OPTIONS } from "@adapters/external-apis";
+import { hashCallScope, METADATA_CB_OPTIONS } from "@adapters/external-apis";
 import { ProviderError } from "@providers/shared";
 import {
   circuitBreaker,
@@ -29,6 +29,12 @@ export class YouTubePlaylistManager {
   private oauth2Client: OAuth2Client;
   private youtube: youtube_v3.Youtube;
   private channelId: string;
+  // Per-tenant OAuth refresh token — a SECRET that uniquely identifies this
+  // tenant's grant (unlike channelId, which is PUBLIC and guessable). Folded as
+  // the leading segment of every cacheKeyDiscriminant below so the breaker's L1
+  // cache / STATE key is scoped by an unguessable per-tenant secret, not a public
+  // id. clientId/clientSecret are the shared OAuth APP credentials, not per-tenant.
+  private readonly refreshToken: string;
 
   constructor(credentials: {
     clientId: string;
@@ -38,6 +44,7 @@ export class YouTubePlaylistManager {
     channelId: string;
   }) {
     this.channelId = credentials.channelId;
+    this.refreshToken = credentials.refreshToken;
 
     this.oauth2Client = new OAuth2Client(
       credentials.clientId,
@@ -113,6 +120,9 @@ export class YouTubePlaylistManager {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE + closure partition by channel + request
+      // so channel B never runs channel A's bound create closure (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, request),
     });
   }
 
@@ -176,6 +186,9 @@ export class YouTubePlaylistManager {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE + closure partition by channel + the
+      // target playlist so acting on playlist B never runs playlist A's closure (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, playlistId),
     });
   }
 
@@ -203,6 +216,9 @@ export class YouTubePlaylistManager {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE + closure partition by channel + the
+      // target playlist (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, playlistId),
     });
   }
 
@@ -232,6 +248,9 @@ export class YouTubePlaylistManager {
       jitterEnabled: true,
       cacheEnabled: true,
       ...METADATA_CB_OPTIONS,
+      // PII (channel playlists): fold channel + page size so channel B never
+      // receives channel A's cached playlists and pages never collide.
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, maxResults),
     });
   }
 
@@ -269,6 +288,9 @@ export class YouTubePlaylistManager {
       jitterEnabled: true,
       cacheEnabled: true,
       ...METADATA_CB_OPTIONS,
+      // Public-resource-by-id read: fold channel + playlistId so playlist X never
+      // returns playlist Y's cached details and no cross-tenant sharing.
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, playlistId),
     });
   }
 
@@ -332,6 +354,9 @@ export class YouTubePlaylistManager {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE + closure partition by channel + the
+      // playlist + video so adding to playlist B never runs playlist A's closure (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, playlistId, videoId),
     });
   }
 
@@ -359,6 +384,9 @@ export class YouTubePlaylistManager {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE + closure partition by channel + the
+      // playlist item so removing item B never runs item A's closure (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, playlistItemId),
     });
   }
 
@@ -406,6 +434,16 @@ export class YouTubePlaylistManager {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE + closure partition by channel + the
+      // playlist item/playlist/video so reordering item B never runs item A's
+      // closure (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(
+        this.refreshToken,
+        this.channelId,
+        playlistItemId,
+        playlistId,
+        videoId
+      ),
     });
   }
 
@@ -435,6 +473,14 @@ export class YouTubePlaylistManager {
       jitterEnabled: true,
       cacheEnabled: true,
       ...METADATA_CB_OPTIONS,
+      // Public-resource-by-id read: fold channel + playlistId + page size so
+      // playlist X never returns playlist Y's cached items and pages never collide.
+      cacheKeyDiscriminant: hashCallScope(
+        this.refreshToken,
+        this.channelId,
+        playlistId,
+        maxResults
+      ),
     });
   }
 

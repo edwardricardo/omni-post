@@ -8,7 +8,7 @@
 
 import {
   createExternalApiCircuitBreaker,
-  ANALYTICS_CB_OPTIONS,
+  hashCallScope,
   type CircuitBreakerStatus,
 } from "@adapters/external-apis";
 import { ProviderError } from "@providers/shared";
@@ -131,8 +131,14 @@ export class TikTokVideoProcessor {
       baseDelay: 3000,
       maxDelay: 30000,
       jitterEnabled: true,
-      cacheEnabled: true,
-      ...ANALYTICS_CB_OPTIONS,
+      // analyze-video runs local ffprobe and returns content-derived technical
+      // metadata. TikTokVideoProcessor holds no per-tenant credential, so the
+      // result cannot be scoped by a stable per-tenant key; caching it under a
+      // public file path would reopen the N-SEC-1 cross-tenant read on a path
+      // collision. Intentionally uncached -- ffprobe is cheap and deterministic;
+      // the breaker is kept for timeout/retry only.
+      cacheEnabled: false,
+      fallbackEnabled: false,
     });
   }
 
@@ -199,6 +205,9 @@ export class TikTokVideoProcessor {
       jitterEnabled: true,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (stays uncached): STATE + closure partition by input path +
+      // options so processing video B never runs video A's bound closure (W-1/D2b).
+      cacheKeyDiscriminant: hashCallScope(inputPath, options),
     });
   }
 

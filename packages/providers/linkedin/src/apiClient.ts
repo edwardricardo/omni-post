@@ -9,6 +9,7 @@ import {
   createExternalApiCircuitBreaker,
   ANALYTICS_CB_OPTIONS,
   METADATA_CB_OPTIONS,
+  hashCallScope,
 } from "@adapters/external-apis";
 import client from "prom-client";
 import { createLogger } from "@observability/logger";
@@ -106,6 +107,9 @@ export class LinkedInApiClient {
         ...READ_CB_OPTIONS,
         cacheEnabled: true,
         ...METADATA_CB_OPTIONS,
+        // D4: this is a READ (own-user profile), not a write — reclassified as
+        // PII/identity. Scope cache + STATE per credential.
+        cacheKeyDiscriminant: hashCallScope(this.credentials),
       }
     );
   }
@@ -140,6 +144,8 @@ export class LinkedInApiClient {
     return circuitBreaker.call("linkedin-api", "create-post", apiCall, [], {
       ...READ_CB_OPTIONS,
       cacheEnabled: false,
+      // Write op: uncached; STATE partitions per credential (W-1).
+      cacheKeyDiscriminant: hashCallScope(this.credentials),
     });
   }
 
@@ -157,7 +163,8 @@ export class LinkedInApiClient {
           initializeUploadRequest: { owner: ownerUrn },
         }),
       [],
-      UPLOAD_CB_OPTIONS
+      // Write op: uncached; STATE partitions per credential (W-1).
+      { ...UPLOAD_CB_OPTIONS, cacheKeyDiscriminant: hashCallScope(this.credentials) }
     );
   }
 
@@ -184,7 +191,8 @@ export class LinkedInApiClient {
           },
         }),
       [],
-      UPLOAD_CB_OPTIONS
+      // Write op: uncached; STATE partitions per credential (W-1).
+      { ...UPLOAD_CB_OPTIONS, cacheKeyDiscriminant: hashCallScope(this.credentials) }
     );
   }
 
@@ -218,6 +226,8 @@ export class LinkedInApiClient {
     return circuitBreaker.call("linkedin-api", "upload-media-binary", apiCall, [], {
       ...UPLOAD_CB_OPTIONS,
       timeout: 120000,
+      // Write op: uncached; STATE partitions per credential (W-1).
+      cacheKeyDiscriminant: hashCallScope(this.credentials),
     });
   }
 
@@ -244,6 +254,9 @@ export class LinkedInApiClient {
         ...READ_CB_OPTIONS,
         cacheEnabled: true,
         ...METADATA_CB_OPTIONS,
+        // D4: READ (comments on a post), not a write. PII + resource-scoped: fold
+        // the post URN so distinct posts never share a cached comments page.
+        cacheKeyDiscriminant: hashCallScope(this.credentials, postUrn),
       }
     );
   }
@@ -281,6 +294,9 @@ export class LinkedInApiClient {
       ...READ_CB_OPTIONS,
       cacheEnabled: false,
       fallbackEnabled: false,
+      // Write op (the real write among 107/245/321): uncached; STATE partitions
+      // per credential (W-1).
+      cacheKeyDiscriminant: hashCallScope(this.credentials),
     });
   }
 
@@ -320,6 +336,9 @@ export class LinkedInApiClient {
         ...READ_CB_OPTIONS,
         cacheEnabled: true,
         ...ANALYTICS_CB_OPTIONS,
+        // D4: READ (post analytics), not a write. PII + resource-scoped: fold the
+        // post URN so distinct posts never share a cached analytics payload.
+        cacheKeyDiscriminant: hashCallScope(this.credentials, postUrn),
         fallback,
       }
     );
@@ -341,7 +360,8 @@ export class LinkedInApiClient {
           { initializeUploadRequest: { owner: ownerUrn } }
         ),
       [],
-      UPLOAD_CB_OPTIONS
+      // Write op: uncached; STATE partitions per credential (W-1).
+      { ...UPLOAD_CB_OPTIONS, cacheKeyDiscriminant: hashCallScope(this.credentials) }
     );
   }
 
