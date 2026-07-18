@@ -345,12 +345,15 @@ const customerAuthRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  // POST /auth/customer/login — public
+  // POST /auth/customer/login — public. The real brute-force cap (AUTH preset,
+  // 5 / 15 min) is enforced by the global httpRateLimit preHandler via the
+  // `/auth/customer/login` rule in STANDARD_ROUTE_RULES. The route-level
+  // `config.rateLimit` was inert (@fastify/rate-limit is never registered in
+  // apps/api/src), so it is removed here to avoid overstating protection.
   fastify.post(
     "/auth/customer/login",
     {
       schema: { tags: ["Customer Auth"], summary: "Customer login" },
-      config: { rateLimit: { max: 5, timeWindow: "15 minutes" } },
     },
     async (request, reply) => {
       await handler.login(request, reply);

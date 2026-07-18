@@ -14,6 +14,7 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { RateLimiterPort } from "@ports/core";
 import { logger } from "../lib/logger.js";
+import { resolveClientIp } from "./resolveClientIp.js";
 
 export interface RateLimitConfig {
   readonly windowMs: number;
@@ -82,27 +83,32 @@ export const EXPENSIVE_ENDPOINT_RULES: readonly HttpRateLimitRule[] = [
 ] as const;
 
 /** Standard route rules applied before the expensive ones (first match wins).
- *  `/accounts$` carries a literal `$`: with prefix matching it never matches a
- *  real URL, so account routes resolve to the default — this preserves the
- *  historical wiring exactly. Changing it would alter production caps. */
+ *  The credential-verification endpoints carry the strict AUTH preset
+ *  (5 / 15 min) to blunt brute-force:
+ *   - `/auth/login`, `/auth/refresh` — admin/backend credential endpoints.
+ *   - `/auth/customer/login`, `/auth/customer/refresh` — client-portal
+ *     credential endpoints (the Next client relays browser calls here). These
+ *     do NOT prefix-match `/auth/login` / `/auth/refresh` under `startsWith`,
+ *     so they need their own rules or they fall through to the 100/min default
+ *     and client login stays brute-forceable. The route-level
+ *     `config.rateLimit` on those Fastify routes is inert (@fastify/rate-limit
+ *     is never registered), so this table is the only real cap.
+ *  The full-path prefixes replace the historical `/accounts$` rule, whose
+ *  literal `$` never prefix-matched a real URL — so the AUTH preset was DEAD.
+ *  Each prefix stays scoped to its own endpoint (no cross-shadowing). */
 export const STANDARD_ROUTE_RULES: readonly HttpRateLimitRule[] = [
   { path: "/health", config: RateLimitConfigs.HEALTH },
   { path: "/publish/", config: RateLimitConfigs.STRICT },
   { path: "/media/", config: RateLimitConfigs.UPLOAD },
-  { path: "/accounts$", config: RateLimitConfigs.AUTH },
+  { path: "/auth/login", config: RateLimitConfigs.AUTH },
+  { path: "/auth/refresh", config: RateLimitConfigs.AUTH },
+  { path: "/auth/customer/login", config: RateLimitConfigs.AUTH },
+  { path: "/auth/customer/refresh", config: RateLimitConfigs.AUTH },
 ];
 
 export interface HttpRateLimitOptions {
   readonly defaultConfig: RateLimitConfig;
   readonly rules: readonly HttpRateLimitRule[];
-}
-
-function clientIp(req: FastifyRequest): string {
-  const forwarded = req.headers["x-forwarded-for"];
-  const fwd = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-  const real = req.headers["x-real-ip"];
-  const realIp = Array.isArray(real) ? real[0] : real;
-  return fwd?.split(",")[0]?.trim() || (realIp as string) || req.socket.remoteAddress || "unknown";
 }
 
 function findConfig(
@@ -150,7 +156,7 @@ export function createNamespacedRateLimitPreHandler(
 ): PreHandler {
   return async (req: FastifyRequest, reply: FastifyReply): Promise<unknown> => {
     try {
-      const key = `${namespace}:${clientIp(req)}`;
+      const key = `${namespace}:${resolveClientIp(req)}`;
       const decision = await rateLimiter.tryConsume(key, {
         capacity: config.maxRequests,
         refillWindowMs: config.windowMs,
@@ -186,7 +192,7 @@ export function createHttpRateLimitPreHandler(
   return async (req: FastifyRequest, reply: FastifyReply): Promise<unknown> => {
     try {
       const config = findConfig(req.url, rules, defaultConfig);
-      const key = `${clientIp(req)}:${req.url}`;
+      const key = `${resolveClientIp(req)}:${req.url}`;
       const decision = await rateLimiter.tryConsume(key, {
         capacity: config.maxRequests,
         refillWindowMs: config.windowMs,

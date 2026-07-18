@@ -9,6 +9,7 @@ import { Redis } from "ioredis";
 import type { FastifyRequest } from "fastify";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { logger } from "../lib/logger.js";
+import { resolveClientIp } from "./resolveClientIp.js";
 
 interface AuditEvent {
   action: string;
@@ -434,19 +435,11 @@ export class AuditLogger {
   }
 
   private extractIP(req: FastifyRequest): string {
-    const forwarded = req.headers["x-forwarded-for"] as string;
-    if (forwarded) {
-      const firstIP = forwarded.split(",")[0];
-      return firstIP ? firstIP.trim() : req.ip || "unknown";
-    }
-
-    const realIP = req.headers["x-real-ip"] as string;
-    if (realIP) return realIP;
-
-    const cfConnectingIP = req.headers["cf-connecting-ip"] as string;
-    if (cfConnectingIP) return cfConnectingIP;
-
-    return req.socket?.remoteAddress || req.ip || "unknown";
+    // Canonical resolver: an audit trail must record the TRUSTED client IP, not
+    // a spoofable leftmost X-Forwarded-For / standalone X-Real-IP / CF-Connecting-IP
+    // (an attacker could otherwise frame another IP). See SECURITY_CANON.md
+    // §Rate Limiting.
+    return resolveClientIp(req);
   }
 
   /**
