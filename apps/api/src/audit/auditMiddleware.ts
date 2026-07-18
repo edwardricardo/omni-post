@@ -119,7 +119,6 @@ function getActionFromRequest(request: FastifyRequest): string | undefined {
   if (path.startsWith("/auth/")) {
     if (path === "/auth/login") return method === "POST" ? AuditActions.LOGIN : undefined;
     if (path === "/auth/logout") return method === "POST" ? AuditActions.LOGOUT : undefined;
-    if (path === "/auth/register") return method === "POST" ? AuditActions.USER_CREATED : undefined;
     if (path === "/auth/refresh") return method === "POST" ? AuditActions.TOKEN_REFRESH : undefined;
     if (path && path.includes("/revoke"))
       return method === "POST" ? AuditActions.SESSION_REVOKED : undefined;

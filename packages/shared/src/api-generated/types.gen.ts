@@ -168,20 +168,6 @@ export type PostWebhooksPaddleResponses = {
   200: unknown;
 };
 
-export type PostAuthRegisterData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: "/auth/register";
-};
-
-export type PostAuthRegisterResponses = {
-  /**
-   * Default Response
-   */
-  200: unknown;
-};
-
 export type PostAuthLoginData = {
   body?: never;
   path?: never;
