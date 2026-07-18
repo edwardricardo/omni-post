@@ -13,7 +13,11 @@
  * @layer infrastructure
  */
 
-import * as ipaddr from "ipaddr.js";
+// ipaddr.js is a CJS/UMD module whose exports cjs-module-lexer cannot statically
+// detect, so `import * as ipaddr` yields a namespace WITHOUT `isValid`/`process`
+// under Node's native ESM loader (tsx/prod) — a default import binds the whole
+// module.exports and works in both the Node runtime and the Vitest transform.
+import ipaddr from "ipaddr.js";
 import { env } from "../config/env.js";
 
 /** Sentinel returned when no valid IP can be derived from any source. */
