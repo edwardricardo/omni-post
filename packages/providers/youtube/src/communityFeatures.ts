@@ -121,6 +121,12 @@ export class YouTubeCommunityService {
   private oauth2Client: OAuth2Client;
   private youtube: youtube_v3.Youtube;
   private channelId: string;
+  // Per-tenant OAuth refresh token — a SECRET that uniquely identifies this
+  // tenant's grant (unlike channelId, which is PUBLIC and guessable). Folded as
+  // the leading segment of every cacheKeyDiscriminant below so the breaker's L1
+  // cache / STATE key is scoped by an unguessable per-tenant secret, not a public
+  // id. clientId/clientSecret are the shared OAuth APP credentials, not per-tenant.
+  private readonly refreshToken: string;
 
   constructor(credentials: {
     clientId: string;
@@ -130,6 +136,7 @@ export class YouTubeCommunityService {
     channelId: string;
   }) {
     this.channelId = credentials.channelId;
+    this.refreshToken = credentials.refreshToken;
 
     this.oauth2Client = new OAuth2Client(
       credentials.clientId,
@@ -182,7 +189,13 @@ export class YouTubeCommunityService {
       ...METADATA_CB_OPTIONS,
       // Public-resource-by-id read: fold channel + videoId + query params so
       // video X never returns video Y's cached comments and no cross-tenant sharing.
-      cacheKeyDiscriminant: hashCallScope(this.channelId, videoId, maxResults, order),
+      cacheKeyDiscriminant: hashCallScope(
+        this.refreshToken,
+        this.channelId,
+        videoId,
+        maxResults,
+        order
+      ),
     });
   }
 
@@ -219,7 +232,7 @@ export class YouTubeCommunityService {
       ...METADATA_CB_OPTIONS,
       // PII (channel comments): fold channel + query params so channel B never
       // receives channel A's cached comments and pages never collide.
-      cacheKeyDiscriminant: hashCallScope(this.channelId, maxResults, order),
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, maxResults, order),
     });
   }
 
@@ -259,7 +272,7 @@ export class YouTubeCommunityService {
       fallbackEnabled: false,
       // Write op (stays uncached): STATE + closure partition by channel + comment
       // so acting on comment B never runs comment A's bound closure (W-1/D2b).
-      cacheKeyDiscriminant: hashCallScope(this.channelId, commentId),
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, commentId),
     });
   }
 
@@ -291,7 +304,7 @@ export class YouTubeCommunityService {
       cacheEnabled: false,
       fallbackEnabled: false,
       // Write op (stays uncached): STATE + closure partition by channel + comment (W-1/D2b).
-      cacheKeyDiscriminant: hashCallScope(this.channelId, commentId),
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, commentId),
     });
   }
 
@@ -330,7 +343,7 @@ export class YouTubeCommunityService {
       cacheEnabled: false,
       fallbackEnabled: false,
       // Write op (stays uncached): STATE + closure partition by channel + comment (W-1/D2b).
-      cacheKeyDiscriminant: hashCallScope(this.channelId, commentId),
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, commentId),
     });
   }
 
@@ -359,7 +372,7 @@ export class YouTubeCommunityService {
       cacheEnabled: false,
       fallbackEnabled: false,
       // Write op (stays uncached): STATE + closure partition by channel + comment (W-1/D2b).
-      cacheKeyDiscriminant: hashCallScope(this.channelId, commentId),
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, commentId),
     });
   }
 
@@ -388,7 +401,7 @@ export class YouTubeCommunityService {
       cacheEnabled: false,
       fallbackEnabled: false,
       // Write op (stays uncached): STATE + closure partition by channel + comment (W-1/D2b).
-      cacheKeyDiscriminant: hashCallScope(this.channelId, commentId),
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, commentId),
     });
   }
 
@@ -421,7 +434,7 @@ export class YouTubeCommunityService {
       cacheEnabled: false,
       fallbackEnabled: false,
       // Write op (stays uncached): STATE + closure partition by channel + comment (W-1/D2b).
-      cacheKeyDiscriminant: hashCallScope(this.channelId, commentId),
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, commentId),
     });
   }
 
@@ -505,7 +518,7 @@ export class YouTubeCommunityService {
       ...ANALYTICS_CB_OPTIONS,
       // PII (community metrics): fold channel + optional videoId + time range so
       // distinct scopes never collide and no cross-tenant sharing.
-      cacheKeyDiscriminant: hashCallScope(this.channelId, videoId, _timeRange),
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, videoId, _timeRange),
     });
   }
 
@@ -538,7 +551,7 @@ export class YouTubeCommunityService {
       cacheEnabled: false,
       // Uncached channel read: STATE + closure partition by channel so channel B
       // never runs channel A's bound closure for the moderation queue (W-1/D2b).
-      cacheKeyDiscriminant: hashCallScope(this.channelId),
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId),
     });
   }
 

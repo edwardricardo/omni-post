@@ -389,9 +389,10 @@ describe("TikTokVideoProcessor", () => {
           timeout: 30000,
           errorThresholdPercentage: 70,
           maxRetries: 2,
-          cacheEnabled: true,
-          cacheTtl: 1800000,
-          fallbackEnabled: true,
+          // analyze-video is local ffprobe with no per-tenant credential, so it is
+          // intentionally uncached and fail-fast (N-SEC-1): no cacheTtl / discriminant.
+          cacheEnabled: false,
+          fallbackEnabled: false,
         })
       );
     });

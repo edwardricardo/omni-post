@@ -291,6 +291,130 @@ describe("LRU eviction bounds growth (timer-free)", { concurrent: false }, () =>
     assert.notStrictEqual(cb.getStatus(SVC, "op-2"), null, "op-2 breaker must survive");
     assert.notStrictEqual(cb.getStatus(SVC, "op-3"), null, "newest op-3 breaker must survive");
   });
+
+  it("never evicts an OPEN breaker under pressure — a downed provider stays tripped", async () => {
+    const cb = new ExternalApiCircuitBreaker(new client.Registry(), undefined, {
+      maxBreakerEntries: 2,
+    });
+    const failing = async (): Promise<never> => {
+      throw new Error("provider down");
+    };
+    const ok = async (): Promise<string> => "ok";
+
+    // 1. Create the OLDEST breaker and trip it OPEN (one failure opens under OPEN_FAST).
+    await assert.rejects(() => cb.call(SVC, "op-open", failing, [], { ...OPEN_FAST }));
+    assert.strictEqual(
+      cb.getStatus(SVC, "op-open")?.state,
+      "OPEN",
+      "precondition: op-open breaker is OPEN"
+    );
+
+    // 2. Create enough CLOSED breakers to exceed the cap. Under the old
+    //    unconditional oldest-first eviction, op-open (the oldest key) would be
+    //    deleted and a re-created breaker would start CLOSED — re-probing the
+    //    downed provider.
+    await cb.call(SVC, "op-closed-1", ok, [], { ...LENIENT });
+    await cb.call(SVC, "op-closed-2", ok, [], { ...LENIENT });
+
+    // 3. The OPEN breaker MUST survive the eviction pressure and stay OPEN; a
+    //    CLOSED breaker is evicted in its place.
+    assert.strictEqual(
+      cb.getStatus(SVC, "op-open")?.state,
+      "OPEN",
+      "OPEN breaker must survive LRU pressure and remain OPEN (never evicted + re-probed)"
+    );
+    assert.strictEqual(
+      cb.getStatus(SVC, "op-closed-1"),
+      null,
+      "the CLOSED LRU breaker must be evicted in place of the OPEN one"
+    );
+    assert.notStrictEqual(
+      cb.getStatus(SVC, "op-closed-2"),
+      null,
+      "the newest CLOSED breaker survives"
+    );
+  });
+
+  it("evicts a HALF_OPEN breaker (Tier 2) when over cap and no CLOSED candidate remains", async () => {
+    vi.useFakeTimers();
+    try {
+      const cb = new ExternalApiCircuitBreaker(new client.Registry(), undefined, {
+        maxBreakerEntries: 1,
+      });
+      const op = "half-open-op";
+      const failing = async (): Promise<never> => {
+        throw new Error("provider down");
+      };
+
+      // 1. Trip the OLDEST breaker OPEN, then advance opossum's resetTimeout so it
+      //    auto-transitions OPEN -> HALF_OPEN WITHOUT a successful probe (opossum 9.x:
+      //    the reset timer half-opens the breaker; it only re-closes on a probe SUCCESS,
+      //    which idle traffic never sends — so it stays HALF_OPEN indefinitely).
+      await assert.rejects(() =>
+        cb.call(SVC, op, failing, [], { ...OPEN_FAST, resetTimeout: 100 })
+      );
+      assert.strictEqual(cb.getStatus(SVC, op)?.state, "OPEN", "precondition: breaker is OPEN");
+
+      await vi.advanceTimersByTimeAsync(150);
+      assert.strictEqual(
+        cb.getStatus(SVC, op)?.state,
+        "HALF_OPEN",
+        "precondition: idle breaker auto-transitioned to HALF_OPEN (no successful probe)"
+      );
+
+      // 2. Insert a NEW breaker (distinct op). It is protected as the live call, and the
+      //    only other resident breaker is HALF_OPEN (no CLOSED candidate remains), so
+      //    Tier 1 finds nothing to evict and Tier 2 must evict the stale HALF_OPEN one —
+      //    the cap is enforced without dropping the fresh breaker.
+      const ok = async (): Promise<string> => "ok";
+      await cb.call(SVC, "fresh-op", ok, [], { ...LENIENT });
+
+      assert.strictEqual(
+        cb.getStatus(SVC, op),
+        null,
+        "the idle HALF_OPEN breaker must be evicted (Tier 2) once no CLOSED candidate remains"
+      );
+      assert.notStrictEqual(
+        cb.getStatus(SVC, "fresh-op"),
+        null,
+        "the just-inserted breaker (live call) must be retained"
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the pool absolutely bounded even when every breaker is OPEN (Tier 3 last resort)", async () => {
+    const cap = 2;
+    const cb = new ExternalApiCircuitBreaker(new client.Registry(), undefined, {
+      maxBreakerEntries: cap,
+    });
+    const failing = async (): Promise<never> => {
+      throw new Error("provider down");
+    };
+
+    // Fill well past the cap, tripping each distinct breaker OPEN. Under a policy that
+    // permanently exempts non-CLOSED breakers the pool would grow unbounded; Tier 3 evicts
+    // the oldest OPEN as a last resort so the cap is NEVER exceeded after any insertion.
+    for (let i = 0; i < cap + 5; i++) {
+      await assert.rejects(() => cb.call(SVC, `open-op-${i}`, failing, [], { ...OPEN_FAST }));
+      assert.ok(
+        Object.keys(cb.getAllStatuses()).length <= cap,
+        `pool must never exceed cap=${cap} after inserting open-op-${i}`
+      );
+    }
+
+    // Final state: exactly `cap` breakers resident, and they are the newest OPEN ones.
+    const statuses = cb.getAllStatuses();
+    assert.strictEqual(
+      Object.keys(statuses).length,
+      cap,
+      "pool settles at exactly the cap under sustained OPEN pressure"
+    );
+    for (const status of Object.values(statuses)) {
+      assert.strictEqual(status?.state, "OPEN", "the surviving breakers are the OPEN ones");
+    }
+  });
 });
 
 /* ──────────────────────────────────────────────────────────────────────

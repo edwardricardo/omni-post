@@ -26,11 +26,16 @@ import assert from "node:assert/strict";
 
 // Doubles must be defined via vi.hoisted so the hoisted vi.mock factories below
 // can reference them (vi.mock is lifted above ordinary top-level declarations).
-const { MockOAuth2Client, makeYoutube } = vi.hoisted(() => {
+const { MockOAuth2Client, makeYoutube, videosListCalls } = vi.hoisted(() => {
   interface MockCreds {
     refresh_token?: string;
     access_token?: string;
   }
+
+  // Shared counter for the underlying `videos.list` network round-trips, so the
+  // same-tenant test can prove a second identical read is served from L1 cache
+  // (the network is hit exactly once) rather than re-fetching.
+  const videosListCalls = { count: 0 };
 
   class HoistedOAuth2Client {
     creds: MockCreds = {};
@@ -46,6 +51,7 @@ const { MockOAuth2Client, makeYoutube } = vi.hoisted(() => {
   const build = (auth: HoistedOAuth2Client): Record<string, unknown> => ({
     videos: {
       list: async ({ id }: { id: string[] }): Promise<unknown> => {
+        videosListCalls.count++;
         const videoId = id[0] ?? "";
         const tenant = auth.creds.refresh_token ?? "none";
         return {
@@ -66,7 +72,7 @@ const { MockOAuth2Client, makeYoutube } = vi.hoisted(() => {
     commentThreads: { list: async (): Promise<unknown> => ({ data: { items: [] } }) },
   });
 
-  return { MockOAuth2Client: HoistedOAuth2Client, makeYoutube: build };
+  return { MockOAuth2Client: HoistedOAuth2Client, makeYoutube: build, videosListCalls };
 });
 
 vi.mock("google-auth-library", () => ({ OAuth2Client: MockOAuth2Client }));
@@ -134,12 +140,27 @@ describe("YouTubeApiClient.getVideoDetails — cross-resource + cross-tenant cac
     );
   });
 
-  it("serves the same channel+video from cache within TTL (no perf regression)", async () => {
+  it("serves the same channel+video from cache within TTL, hitting the network exactly once", async () => {
+    // Fresh videoId + reset counter: the process-singleton breaker's L1 cache
+    // persists across tests, so use a videoId no other test read to guarantee the
+    // first call is a genuine miss.
+    videosListCalls.count = 0;
     const client = new YouTubeApiClient(CREDS_A);
-    const first = await client.getVideoDetails("vidSame3");
-    const second = await client.getVideoDetails("vidSame3");
+    const first = await client.getVideoDetails("vidCacheOnce4");
+    const second = await client.getVideoDetails("vidCacheOnce4");
 
-    assert.strictEqual(first.snippet?.title, "title-rt-A-vidSame3");
-    assert.strictEqual(second.snippet?.title, "title-rt-A-vidSame3");
+    assert.strictEqual(first.snippet?.title, "title-rt-A-vidCacheOnce4");
+    assert.strictEqual(second.snippet?.title, "title-rt-A-vidCacheOnce4");
+    // Anchor (mirrors the snapchat/telegram/tiktok fetch-count anchors): the
+    // second identical same-tenant read MUST be served from L1 cache, so
+    // `videos.list` is invoked exactly ONCE across the two reads. This depends on
+    // the cache actually keying + hitting: if the `cacheKeyDiscriminant` were
+    // removed from `getVideoDetails`, the fail-safe default (D1b) skips L1, the
+    // second read re-fetches, the count becomes 2, and this assertion FAILS.
+    assert.strictEqual(
+      videosListCalls.count,
+      1,
+      "second identical same-tenant read must be served from L1 cache (videos.list invoked exactly once)"
+    );
   });
 });

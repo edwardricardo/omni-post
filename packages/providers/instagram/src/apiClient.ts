@@ -185,9 +185,11 @@ export class InstagramApiClient {
       cacheTtl: 300000, // 5 minutes cache for token validation
       // Fold the credential AND the operation + full request URL (which carries the
       // target resource id) so account B never receives account A's cached
-      // validate-token payload, distinct resources never collide, and — since the
-      // breaker binds the FIRST caller's closure — B never runs A's bound closure
-      // for shared write ops either (W-1/D2b). Reads stay per-tenant cached.
+      // validate-token payload and distinct resources never collide. The breaker's
+      // generic dispatcher runs each call's OWN closure, so even when two accounts
+      // resolve to the same shared breaker key the CURRENT caller's closure — never
+      // an earlier caller's — is what executes; the discriminant only scopes the L1
+      // cache and the per-tenant circuit STATE. Reads stay per-tenant cached.
       cacheKeyDiscriminant: hashCallScope(this.credentials, operation, url),
       ...fallbackOpts,
       ...(fallback ? { fallback } : {}),

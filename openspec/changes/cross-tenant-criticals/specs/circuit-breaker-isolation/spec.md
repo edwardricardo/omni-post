@@ -154,13 +154,35 @@ same `cacheEnabled: true` PII reads that opt into fallback.
 
 ---
 
-### Requirement: Every `cacheEnabled` site is audited, classified, and covered
+### Requirement: Every `cacheEnabled` site is audited, classified, and covered **[MERGE-BLOCKING]**
 
 The completeness of the isolation guarantee above MUST be evidenced by an audit that
 enumerates every operation configured `cacheEnabled: true` (approximately 64 sites),
 classifies each as `secret` / `PII` / `benign`, and confirms each is covered by the
-tenant-scoping guarantee. Every site classified `secret` or `PII` MUST have a
-cross-account isolation test anchoring it. The LinkedIn write-operation caching
+tenant-scoping guarantee. Coverage is proven by the shipped defense-in-depth strategy, NOT
+by a separate per-operation isolation test on every site:
+
+- **(a) Breaker-level mechanism proof is the primary disclosure proof.** The cross-tenant
+  disclosure invariant is proven once, for ANY operation, by the breaker-level tests: the
+  generic-dispatcher test (every call runs its OWN closure regardless of the breaker key) and
+  the fail-safe cache-skip test (a discriminant-less `cacheEnabled` call caches nothing). These
+  hold uniformly across all sites, so a per-site disclosure test is not required for coverage.
+- **(b) Representative same-tenant fetch-count anchors on secret/PII provider sites.** Each
+  highest-value secret/PII provider surface MUST additionally carry an end-to-end anchor that
+  includes a same-tenant fetch-count assertion — proving the underlying network call is made
+  exactly ONCE across two identical reads, i.e. the cache actually keys and hits — as
+  belt-and-suspenders over the breaker-level proof, NOT a per-operation obligation.
+- **(c) Every `cacheEnabled` discriminant MUST be scoped by a per-tenant SECRET, never a public
+  identifier.** A discriminant derived only from public data (e.g. a `channelId`) is forgeable
+  and is not a tenant boundary. The audit MUST confirm each `cacheEnabled` site folds a
+  per-tenant secret (credential / refresh token) into its discriminant. The YouTube submodule
+  reads that keyed on the public `channelId` were closed by folding the per-tenant OAuth refresh
+  token. The tiktok `videoProcessor.analyze-video` site holds NO per-tenant credential (the
+  processor only knows a local file path); rather than key its cache on a public file path, it
+  was set `cacheEnabled:false`/`fallbackEnabled:false` — local ffprobe metadata is cheap and
+  deterministic, so it is intentionally uncached and has no cross-tenant cache surface.
+
+The LinkedIn write-operation caching
 (`packages/providers/linkedin/src/apiClient.ts:107,245,321`) MUST be flagged in the
 audit as an additional correctness defect (caching a write op), with an explicit
 fix-here-or-defer decision recorded.
@@ -172,11 +194,13 @@ fix-here-or-defer decision recorded.
 - **Then** each such operation appears in a classification table with exactly one of `secret` / `PII` / `benign`
 - **And** no `cacheEnabled: true` operation is absent from the table (a missed site is a leak that escapes the guarantee)
 
-#### Scenario: Secret and PII sites are anchored by an isolation test
+#### Scenario: Disclosure is proven at the breaker level and anchored on representative secret/PII sites
 
-- **Given** an operation classified `secret` or `PII` in the audit table
+- **Given** the set of operations classified `secret` or `PII` in the audit table
 - **When** the isolation test suite runs
-- **Then** a cross-account test exists proving tenant B never receives tenant A's cached payload for that operation
+- **Then** the breaker-level generic-dispatcher and fail-safe cache-skip tests prove no cross-tenant disclosure for ANY operation, independent of per-site coverage
+- **And** each highest-value secret/PII provider surface carries a representative end-to-end anchor, including a same-tenant fetch-count assertion that the underlying network call is invoked exactly once across two identical reads (proving the cache actually keys and hits)
+- **And** every `cacheEnabled` discriminant is scoped by a per-tenant secret, never a public identifier
 
 #### Scenario: LinkedIn write-op caching is flagged with a recorded decision
 

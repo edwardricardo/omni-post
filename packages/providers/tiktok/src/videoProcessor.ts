@@ -9,7 +9,6 @@
 import {
   createExternalApiCircuitBreaker,
   hashCallScope,
-  ANALYTICS_CB_OPTIONS,
   type CircuitBreakerStatus,
 } from "@adapters/external-apis";
 import { ProviderError } from "@providers/shared";
@@ -132,11 +131,14 @@ export class TikTokVideoProcessor {
       baseDelay: 3000,
       maxDelay: 30000,
       jitterEnabled: true,
-      cacheEnabled: true,
-      ...ANALYTICS_CB_OPTIONS,
-      // Resource-scoped read: fold the file path so analysing video X never
-      // returns video Y's cached analysis (the shared-closure/constant-key bug).
-      cacheKeyDiscriminant: hashCallScope(filePath),
+      // analyze-video runs local ffprobe and returns content-derived technical
+      // metadata. TikTokVideoProcessor holds no per-tenant credential, so the
+      // result cannot be scoped by a stable per-tenant key; caching it under a
+      // public file path would reopen the N-SEC-1 cross-tenant read on a path
+      // collision. Intentionally uncached -- ffprobe is cheap and deterministic;
+      // the breaker is kept for timeout/retry only.
+      cacheEnabled: false,
+      fallbackEnabled: false,
     });
   }
 

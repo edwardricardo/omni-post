@@ -143,6 +143,8 @@ export interface ApiCallMetrics {
   circuitBreakerTimeouts: client.Counter<string>;
   circuitBreakerFallbacks: client.Counter<string>;
   circuitBreakerStateChanges: client.Counter<string>;
+  circuitBreakerEvictions: client.Counter<string>;
+  circuitBreakerPoolSize: client.Gauge<string>;
 
   // Request metrics
   apiRequestDuration: client.Histogram<string>;
@@ -274,6 +276,25 @@ export class ExternalApiCircuitBreaker {
         name: "circuit_breaker_state_changes_total",
         help: "Total circuit breaker state changes",
         labelNames: ["service", "operation", "from_state", "to_state"],
+        registers: [this.registry],
+      }),
+
+      circuitBreakerEvictions: new client.Counter({
+        name: "circuit_breaker_evictions_total",
+        help: "Total CLOSED circuit breakers evicted from the in-process pool by LRU bounding",
+        // Labelled by service/operation ONLY — the per-tenant discriminant is
+        // deliberately EXCLUDED to avoid unbounded metric cardinality and to keep
+        // any credential/tenant scope out of the metrics surface.
+        labelNames: ["service", "operation"],
+        registers: [this.registry],
+      }),
+
+      circuitBreakerPoolSize: new client.Gauge({
+        name: "circuit_breaker_pool_size",
+        help: "Resident circuit-breaker partitions per service/operation (sum across series = total pool size)",
+        // Same label discipline as evictions: service/operation ONLY, never the
+        // discriminant. Each series holds one operation's resident partition count.
+        labelNames: ["service", "operation"],
         registers: [this.registry],
       }),
 
@@ -447,27 +468,114 @@ export class ExternalApiCircuitBreaker {
     });
 
     this.breakers.set(key, breaker);
-    this.evictBreakersIfNeeded();
+    this.evictBreakersIfNeeded(key);
+    // Record the resident partition count for this operation AFTER any eviction so
+    // the gauge reflects the post-eviction pool. Sum across all series = total pool.
+    this.metrics.circuitBreakerPoolSize.set(
+      { service, operation },
+      this.matchingBreakers(service, operation).length
+    );
     return breaker;
   }
 
   /**
-   * @method evictBreakersIfNeeded
-   * @description Bounds the `breakers` Map with insertion-ordered LRU eviction.
-   *   Timer-free by design (Fitness #11 forbids raw `setInterval` in packages):
-   *   the least-recently-used breaker is the first key of the insertion-ordered
-   *   Map. Evicted breakers are `shutdown()` so their opossum rolling-stats
-   *   timers are cleared and no handle leaks.
+   * @method breakerLabels
+   * @description Extracts the `{service, operation}` metric labels from a breaker
+   *   Map key without leaking the per-tenant discriminant. A key is either
+   *   `service:operation` (legacy shared STATE) or `service:operation:<discriminant>`
+   *   (per-tenant partition); this reads only the first two colon-delimited segments,
+   *   so the discriminant is never observable on the metrics surface.
+   * @param key - The `breakers` Map key.
+   * @returns The service/operation label pair.
    */
-  private evictBreakersIfNeeded(): void {
-    while (this.breakers.size > this.maxBreakerEntries) {
-      const oldestKey = this.breakers.keys().next().value;
-      if (oldestKey === undefined) {
-        break;
+  private breakerLabels(key: string): { service: string; operation: string } {
+    const firstColon = key.indexOf(":");
+    if (firstColon === -1) {
+      return { service: key, operation: "" };
+    }
+    const secondColon = key.indexOf(":", firstColon + 1);
+    const operation =
+      secondColon === -1 ? key.slice(firstColon + 1) : key.slice(firstColon + 1, secondColon);
+    return { service: key.slice(0, firstColon), operation };
+  }
+
+  /**
+   * @method evictBreakersIfNeeded
+   * @description Bounds the `breakers` Map ABSOLUTELY with insertion-ordered (LRU),
+   *   priority-tiered eviction. The naive "permanently exempt every non-CLOSED breaker"
+   *   policy is UNSAFE under the real opossum 9.x lifecycle: after `resetTimeout` an OPEN
+   *   breaker auto-transitions to HALF_OPEN with NO `fire`, and only returns to CLOSED
+   *   when a LATER probe `fire()` SUCCEEDS. An idle-after-trip breaker therefore stays
+   *   HALF_OPEN indefinitely (an OPEN breaker does NOT self-close on its `resetTimeout` —
+   *   it self-HALF-opens and then waits for a successful probe that idle traffic never
+   *   sends). Exempting HALF_OPEN forever would let such stale partitions accumulate and
+   *   pin the pool at its cap, starving genuinely-new activity and defeating the memory
+   *   bound the cap promises (a leak under mass-outage / trip-then-idle churn).
+   *
+   *   Eviction walks oldest-first WITHIN a priority tier order, always protecting the
+   *   just-inserted breaker (the live call that grew the pool) and enforcing the cap
+   *   absolutely:
+   *     Tier 1 — evict CLOSED breakers (neither `opened` nor `halfOpen`): they carry no
+   *              tripped STATE, so dropping them is zero-harm.
+   *     Tier 2 — if still over cap, evict HALF_OPEN breakers: a re-created breaker starts
+   *              CLOSED and simply probes on its next call, behaviourally ~equivalent to
+   *              the HALF_OPEN breaker's own next probe (only rolling stats are lost).
+   *     Tier 3 — if still over cap (every remaining breaker is OPEN — an active mass
+   *              outage), evict the oldest OPEN as a LAST RESORT so the pool is ALWAYS
+   *              bounded (avoids OOM). Eviction only fires when a NEW breaker is inserted,
+   *              so the re-probe cost is amortised against genuinely-new activity.
+   *
+   *   Each eviction `shutdown()`s the breaker (clears its rolling-stats timers), increments
+   *   the eviction Counter, and refreshes the pool-size Gauge — all under
+   *   {service, operation}-only labels (never the per-tenant discriminant). Timer-free by
+   *   design (Fitness #11 forbids raw `setInterval` in packages). The `opened` / `halfOpen`
+   *   booleans are the same opossum API used by {@link breakerStatus}.
+   * @param protectedKey - The just-inserted breaker key; never evicted by this pass.
+   */
+  private evictBreakersIfNeeded(protectedKey: string): void {
+    if (this.breakers.size <= this.maxBreakerEntries) {
+      return;
+    }
+    // Tier 1: CLOSED breakers carry no tripped STATE — safe to drop first.
+    this.evictOldestUntilAtCap((breaker) => breaker.opened || breaker.halfOpen, protectedKey);
+    // Tier 2: HALF_OPEN breakers — re-created as CLOSED, they re-probe on the next call.
+    this.evictOldestUntilAtCap((breaker) => breaker.opened, protectedKey);
+    // Tier 3: last resort — every remaining breaker is OPEN (mass outage). Keep the pool
+    // bounded regardless; the re-probe is amortised against genuinely-new activity.
+    this.evictOldestUntilAtCap(() => false, protectedKey);
+  }
+
+  /**
+   * @method evictOldestUntilAtCap
+   * @description Walks the `breakers` Map oldest-first (insertion order = LRU) and evicts
+   *   every breaker that FAILS the `keep` predicate — deleting it, `shutdown()`-ing it to
+   *   clear its rolling-stats timers, incrementing the eviction Counter, and refreshing the
+   *   pool-size Gauge under {service, operation}-only labels — until the pool is back at
+   *   cap. The just-inserted `protectedKey` is always retained so a live call's own breaker
+   *   is never evicted out from under it. Returns as soon as
+   *   `breakers.size <= maxBreakerEntries`, so a later tier never over-evicts.
+   * @param keep - Predicate; a breaker is RETAINED when it returns `true`.
+   * @param protectedKey - Breaker key that is always retained regardless of `keep`.
+   */
+  private evictOldestUntilAtCap(
+    keep: (breaker: StoredBreaker) => boolean,
+    protectedKey: string
+  ): void {
+    for (const [key, breaker] of this.breakers) {
+      if (this.breakers.size <= this.maxBreakerEntries) {
+        return;
       }
-      const evicted = this.breakers.get(oldestKey);
-      this.breakers.delete(oldestKey);
-      evicted?.shutdown();
+      if (key === protectedKey || keep(breaker)) {
+        continue;
+      }
+      this.breakers.delete(key);
+      breaker.shutdown();
+      const { service, operation } = this.breakerLabels(key);
+      this.metrics.circuitBreakerEvictions.inc({ service, operation });
+      this.metrics.circuitBreakerPoolSize.set(
+        { service, operation },
+        this.matchingBreakers(service, operation).length
+      );
     }
   }
 

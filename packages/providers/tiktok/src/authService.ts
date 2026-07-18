@@ -189,9 +189,11 @@ export class TikTokAuthService {
       cacheEnabled: false, // Don't cache auth tokens
       fallbackEnabled: false, // No fallback for auth operations
       // Token op (stays uncached): STATE-only partition by the OAuth app so one
-      // app's failures never open another app's exchange circuit — and, since the
-      // breaker binds the FIRST caller's closure, so app B never runs app A's
-      // exchange closure (W-1/D2b shared-closure isolation).
+      // app's failures never open another app's exchange circuit. The breaker's
+      // generic dispatcher runs each call's OWN closure, so even on a shared breaker
+      // key app B runs its OWN exchange closure — never app A's — which is what makes
+      // the shared breaker isolation-safe; this discriminant only scopes the circuit
+      // STATE.
       cacheKeyDiscriminant: hashCallScope(this.config.clientKey),
     });
   }

@@ -102,6 +102,12 @@ export class YouTubeLiveStreamingService {
   private oauth2Client: OAuth2Client;
   private youtube: youtube_v3.Youtube;
   private channelId: string;
+  // Per-tenant OAuth refresh token — a SECRET that uniquely identifies this
+  // tenant's grant (unlike channelId, which is PUBLIC and guessable). Folded as
+  // the leading segment of every cacheKeyDiscriminant below so the breaker's L1
+  // cache / STATE key is scoped by an unguessable per-tenant secret, not a public
+  // id. clientId/clientSecret are the shared OAuth APP credentials, not per-tenant.
+  private readonly refreshToken: string;
 
   constructor(credentials: {
     clientId: string;
@@ -111,6 +117,7 @@ export class YouTubeLiveStreamingService {
     channelId: string;
   }) {
     this.channelId = credentials.channelId;
+    this.refreshToken = credentials.refreshToken;
 
     this.oauth2Client = new OAuth2Client(
       credentials.clientId,
@@ -252,7 +259,7 @@ export class YouTubeLiveStreamingService {
       fallbackEnabled: false,
       // Write op (stays uncached): STATE + closure partition by channel + config
       // so channel B never runs channel A's bound create closure (W-1/D2b).
-      cacheKeyDiscriminant: hashCallScope(this.channelId, config),
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, config),
     });
   }
 
@@ -289,7 +296,7 @@ export class YouTubeLiveStreamingService {
       fallbackEnabled: false,
       // Write op (stays uncached): STATE + closure partition by channel + stream
       // so acting on stream B never runs stream A's bound closure (W-1/D2b).
-      cacheKeyDiscriminant: hashCallScope(this.channelId, streamId),
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, streamId),
     });
   }
 
@@ -325,7 +332,7 @@ export class YouTubeLiveStreamingService {
       cacheEnabled: false,
       fallbackEnabled: false,
       // Write op (stays uncached): STATE + closure partition by channel + stream (W-1/D2b).
-      cacheKeyDiscriminant: hashCallScope(this.channelId, streamId),
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, streamId),
     });
   }
 
@@ -403,7 +410,7 @@ export class YouTubeLiveStreamingService {
       cacheEnabled: false,
       // Uncached read: STATE + closure partition by channel + stream so status
       // of stream B never runs stream A's bound closure (W-1/D2b).
-      cacheKeyDiscriminant: hashCallScope(this.channelId, streamId),
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, streamId),
     });
   }
 
@@ -481,7 +488,7 @@ export class YouTubeLiveStreamingService {
       cacheEnabled: false,
       // Uncached read: STATE + closure partition by channel + stream + page so
       // chat of stream B never runs stream A's bound closure (W-1/D2b).
-      cacheKeyDiscriminant: hashCallScope(this.channelId, streamId, pageToken),
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, streamId, pageToken),
     });
   }
 
@@ -542,7 +549,7 @@ export class YouTubeLiveStreamingService {
       cacheEnabled: false,
       fallbackEnabled: false,
       // Write op (stays uncached): STATE + closure partition by channel + stream (W-1/D2b).
-      cacheKeyDiscriminant: hashCallScope(this.channelId, streamId),
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, streamId),
     });
   }
 
@@ -598,7 +605,7 @@ export class YouTubeLiveStreamingService {
       ...ANALYTICS_CB_OPTIONS,
       // PII (per-stream analytics): fold channel + streamId so stream X never
       // returns stream Y's cached analytics and no cross-tenant sharing.
-      cacheKeyDiscriminant: hashCallScope(this.channelId, streamId),
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, streamId),
     });
   }
 
@@ -660,7 +667,7 @@ export class YouTubeLiveStreamingService {
       ...METADATA_CB_OPTIONS,
       // PII (channel stream list): fold channel + status filter so channel B
       // never receives channel A's cached list and filters never collide.
-      cacheKeyDiscriminant: hashCallScope(this.channelId, status),
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, status),
     });
   }
 

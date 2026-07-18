@@ -45,6 +45,12 @@ export class YouTubeShortsService {
   private oauth2Client: OAuth2Client;
   private youtube: youtube_v3.Youtube;
   private channelId: string;
+  // Per-tenant OAuth refresh token — a SECRET that uniquely identifies this
+  // tenant's grant (unlike channelId, which is PUBLIC and guessable). Folded as
+  // the leading segment of every cacheKeyDiscriminant below so the breaker's L1
+  // cache / STATE key is scoped by an unguessable per-tenant secret, not a public
+  // id. clientId/clientSecret are the shared OAuth APP credentials, not per-tenant.
+  private readonly refreshToken: string;
 
   constructor(credentials: {
     clientId: string;
@@ -54,6 +60,7 @@ export class YouTubeShortsService {
     channelId: string;
   }) {
     this.channelId = credentials.channelId;
+    this.refreshToken = credentials.refreshToken;
 
     this.oauth2Client = new OAuth2Client(
       credentials.clientId,
@@ -158,7 +165,7 @@ export class YouTubeShortsService {
       fallbackEnabled: false,
       // Write op (stays uncached): STATE + closure partition by channel + the
       // upload request so channel B never runs channel A's bound closure (W-1/D2b).
-      cacheKeyDiscriminant: hashCallScope(this.channelId, request),
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, request),
     });
   }
 
@@ -232,7 +239,7 @@ export class YouTubeShortsService {
       ...ANALYTICS_CB_OPTIONS,
       // Public-resource-by-id read: fold channel + videoId + time range so short
       // X never returns short Y's cached analytics and no cross-tenant sharing.
-      cacheKeyDiscriminant: hashCallScope(this.channelId, videoId, _timeRange),
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, videoId, _timeRange),
     });
   }
 
@@ -318,7 +325,14 @@ export class YouTubeShortsService {
       ...METADATA_CB_OPTIONS,
       // Content-derived read: fold channel + the analysed title/description/tags/
       // category so distinct inputs never collide and no cross-tenant sharing.
-      cacheKeyDiscriminant: hashCallScope(this.channelId, title, description, tags, category),
+      cacheKeyDiscriminant: hashCallScope(
+        this.refreshToken,
+        this.channelId,
+        title,
+        description,
+        tags,
+        category
+      ),
     });
   }
 
@@ -399,7 +413,7 @@ export class YouTubeShortsService {
       ...METADATA_CB_OPTIONS,
       // Public read: fold channel + the region/category filter so distinct
       // filters never collide (region X never returns region Y's cached trends).
-      cacheKeyDiscriminant: hashCallScope(this.channelId, _region, _category),
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, _region, _category),
     });
   }
 
@@ -471,7 +485,7 @@ export class YouTubeShortsService {
       ...METADATA_CB_OPTIONS,
       // PII (channel shorts): fold channel + the page size so channel B never
       // receives channel A's cached shorts and pages never collide.
-      cacheKeyDiscriminant: hashCallScope(this.channelId, maxResults),
+      cacheKeyDiscriminant: hashCallScope(this.refreshToken, this.channelId, maxResults),
     });
   }
 
