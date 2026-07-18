@@ -124,17 +124,14 @@ describe("dashboardRoutes Unit Tests", () => {
     const result = await createTestApp();
     app = result.app;
 
-    // Register + login admin user via authRoutes
-    await app.inject({
-      method: "POST",
-      url: "/auth/register",
-      payload: {
-        email: adminEmail,
-        password: "TestPassword123!",
-        name: "Admin Dashboard User",
-        role: "ADMIN",
-      },
-    });
+    // The public POST /auth/register route was removed (CWE-269). Create the
+    // admin user directly via the service, then log in to obtain a token.
+    await result.authSvc.registerAdmin(
+      adminEmail,
+      "TestPassword123!",
+      "Admin Dashboard User",
+      "ADMIN"
+    );
     const adminLoginRes = await app.inject({
       method: "POST",
       url: "/auth/login",
