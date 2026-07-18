@@ -10,6 +10,7 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "../../../../lib/env";
+import { forwardedForHeaders } from "../../../../lib/http/forwardedFor";
 
 const API_URL = env.API_URL ?? env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 
@@ -17,7 +18,7 @@ const API_URL = env.API_URL ?? env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000
 // Token Refresh
 // ---------------------------------------------------------------------------
 
-async function attemptTokenRefresh(): Promise<string | null> {
+async function attemptTokenRefresh(inbound: Headers): Promise<string | null> {
   const cookieStore = await cookies();
   const refreshToken = cookieStore.get("admin-refresh")?.value;
   const csrfToken = cookieStore.get("admin-csrf")?.value;
@@ -27,7 +28,9 @@ async function attemptTokenRefresh(): Promise<string | null> {
   try {
     const res = await fetch(`${API_URL}/admin/auth/refresh`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      // Relay the real client IP so the backend AUTH limiter keys the caller,
+      // not this portal's socket.
+      headers: { "Content-Type": "application/json", ...forwardedForHeaders(inbound) },
       body: JSON.stringify({ refreshToken, csrfToken }),
       cache: "no-store",
     });
@@ -77,6 +80,12 @@ async function buildHeaders(req: NextRequest, token: string | undefined): Promis
   const csrfCookie = cookieStore.get("admin-csrf");
   if (csrfCookie?.value) {
     headers.set("X-CSRF-Token", csrfCookie.value);
+  }
+
+  // Relay the real client IP verbatim so the backend resolver hop-counts the
+  // caller instead of collapsing every user to this portal's socket.
+  for (const [key, value] of Object.entries(forwardedForHeaders(req.headers))) {
+    headers.set(key, value);
   }
 
   return headers;
@@ -129,7 +138,7 @@ async function proxy(req: NextRequest, segments: string[]): Promise<NextResponse
     }
 
     if (isTokenExpired) {
-      const newToken = await attemptTokenRefresh();
+      const newToken = await attemptTokenRefresh(req.headers);
       if (newToken) {
         // Retry the original request with the fresh token (body was saved earlier)
         try {

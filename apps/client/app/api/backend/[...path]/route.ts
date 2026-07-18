@@ -39,6 +39,7 @@ import {
   persistTokensFromAuthResponse,
 } from "@/lib/auth/sessionCookie";
 import { env } from "../../../../lib/env";
+import { forwardedForHeaders } from "../../../../lib/http/forwardedFor";
 
 const API_URL = env.API_URL ?? "http://localhost:3000";
 
@@ -70,6 +71,12 @@ async function proxy(req: NextRequest, segments: string[]): Promise<NextResponse
   const contentType = req.headers.get("Content-Type");
   if (contentType) headers.set("Content-Type", contentType);
   if (session) headers.set("Authorization", `Bearer ${session.value}`);
+
+  // Relay the real client IP verbatim so the backend resolver hop-counts the
+  // caller instead of collapsing every user to this portal's socket.
+  for (const [key, value] of Object.entries(forwardedForHeaders(req.headers))) {
+    headers.set(key, value);
+  }
 
   // Do not forward body for GET/HEAD -- use conditional spreading to satisfy
   // exactOptionalPropertyTypes (body must not be explicitly undefined)

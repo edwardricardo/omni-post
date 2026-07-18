@@ -17,6 +17,7 @@ import {
   setSessionCookie,
 } from "@/lib/auth/sessionCookie";
 import { env } from "../../../../lib/env";
+import { forwardedForHeaders } from "../../../../lib/http/forwardedFor";
 
 const API_URL = env.API_URL ?? env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 const APP_URL = env.NEXT_PUBLIC_URL ?? "http://localhost:3100";
@@ -36,7 +37,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     const res = await fetch(`${API_URL}/admin/auth/refresh`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      // Relay the real client IP so the backend AUTH limiter keys the caller.
+      headers: { "Content-Type": "application/json", ...forwardedForHeaders(req.headers) },
       body: JSON.stringify({ refreshToken, csrfToken }),
       cache: "no-store",
     });

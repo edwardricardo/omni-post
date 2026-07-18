@@ -20,11 +20,16 @@ function makeMockPrisma(settings: { ipAllowlistEnabled: boolean; ipAllowlist: st
 }
 
 function makeMockRequest(overrides: Partial<FastifyRequest> = {}): FastifyRequest {
+  // Mirror the socket peer to `ip` by default: the resolver keys on the socket
+  // under the test's fail-closed hop count (TRUSTED_PROXY_HOP_COUNT=0), so the
+  // socket is the source of truth unless a test overrides it explicitly.
+  const ip = (overrides.ip as string | undefined) ?? "192.168.1.100";
   return {
     url: "/admin/users",
-    ip: "192.168.1.100",
+    ip,
     method: "GET",
     headers: {},
+    socket: { remoteAddress: ip },
     ...overrides,
   } as unknown as FastifyRequest;
 }
@@ -170,8 +175,30 @@ describe("ipAllowlistMiddleware", () => {
     });
   });
 
-  describe("IP extraction", () => {
-    it("uses X-Forwarded-For when present", async () => {
+  describe("IP derivation via resolveClientIp (spoof-resistance)", () => {
+    it("denies a spoofed allowlisted IP placed in X-Forwarded-For", async () => {
+      const prisma = makeMockPrisma({
+        ipAllowlistEnabled: true,
+        ipAllowlist: ["203.0.113.50"],
+      });
+      const hook = createIpAllowlistMiddleware(prisma);
+      const reply = makeMockReply();
+
+      // Attacker's socket (127.0.0.1) is NOT allowlisted; it forges the
+      // allowlisted 203.0.113.50 as the leftmost XFF entry. The old
+      // leftmost-extraction let this bypass; the resolver now denies it.
+      await hook(
+        makeMockRequest({
+          ip: "127.0.0.1",
+          headers: { "x-forwarded-for": "203.0.113.50, 70.41.3.18" },
+        }),
+        reply
+      );
+
+      expect(reply.status).toHaveBeenCalledWith(403);
+    });
+
+    it("allows when the socket peer is allowlisted regardless of X-Forwarded-For", async () => {
       const prisma = makeMockPrisma({
         ipAllowlistEnabled: true,
         ipAllowlist: ["203.0.113.50"],
@@ -181,33 +208,13 @@ describe("ipAllowlistMiddleware", () => {
 
       await hook(
         makeMockRequest({
-          ip: "127.0.0.1",
-          headers: { "x-forwarded-for": "203.0.113.50, 70.41.3.18" },
+          ip: "203.0.113.50",
+          headers: { "x-forwarded-for": "1.2.3.4, 5.6.7.8" },
         }),
         reply
       );
 
       expect(reply.status).not.toHaveBeenCalled();
-    });
-
-    it("uses first IP from X-Forwarded-For chain", async () => {
-      const prisma = makeMockPrisma({
-        ipAllowlistEnabled: true,
-        ipAllowlist: ["70.41.3.18"],
-      });
-      const hook = createIpAllowlistMiddleware(prisma);
-      const reply = makeMockReply();
-
-      await hook(
-        makeMockRequest({
-          ip: "127.0.0.1",
-          headers: { "x-forwarded-for": "203.0.113.50, 70.41.3.18" },
-        }),
-        reply
-      );
-
-      // First IP is 203.0.113.50, not 70.41.3.18 — should block
-      expect(reply.status).toHaveBeenCalledWith(403);
     });
   });
 });

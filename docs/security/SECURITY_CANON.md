@@ -52,6 +52,128 @@ When adding a new `accountId`-bearing model:
 
 ---
 
+## Rate Limiting — Client-IP Derivation Behind Proxies
+
+**The rate-limit / IP-allowlist bucket key MUST be derived from a TRUSTED
+segment of the proxy chain — never from a client-controlled header value.**
+`X-Forwarded-For` (XFF) is appended left-to-right: the **leftmost** entry is
+the originating client and is **attacker-controlled**; each proxy appends the
+address it saw on the **right**. Taking the leftmost entry (or `trust proxy:
+true`, or a standalone `X-Real-IP`) lets any client spoof its identity, rotate
+buckets per request, and defeat the limiter — a recognized, exploited threat
+class (CVE-2025-59152 Litestar, CVE-2023-49952 Mastodon, CVE-2026-55501
+9router; CWE-807 / CWE-290 / CWE-348).
+
+### The rule
+
+- **All client-IP derivation for security decisions (rate limiting, IP
+  allowlist, brute-force throttle) goes through ONE canonical resolver:
+  `resolveClientIp(request)` (`apps/api/src/security/resolveClientIp.ts`).** No
+  route, middleware, or pre-handler reads `x-forwarded-for` / `x-real-ip`
+  directly. Mirrors the env / logger / cache single-chokepoint pattern.
+- **Trust a fixed number of proxy hops, counted from the RIGHT (the trusted
+  edge), never from the left.** The number of trusted reverse proxies between
+  the internet and this app is `TRUSTED_PROXY_HOP_COUNT`.
+- **Fail toward the socket peer, never toward a client entry.** When XFF is
+  absent, shorter than expected, or the selected token is not a valid IP,
+  resolve to `request.socket.remoteAddress` — never `entries[0]`.
+- **Never `trust proxy: true` / Fastify `trustProxy: true`.** Set Fastify
+  `trustProxy` to the numeric `TRUSTED_PROXY_HOP_COUNT` so `request.ip` is
+  resolved by `@fastify/proxy-addr` (battle-tested; handles IPv6/ports/multi-header).
+  `resolveClientIp` is a thin normalizer over `request.ip` **plus** the
+  fail-closed guards below.
+- **Standalone `X-Real-IP` is NOT trusted** on the backend. It is a single
+  value with no chain, so hop-counting cannot validate it; a directly-connected
+  client can forge it. Ignore it unless the trusted edge is known to overwrite
+  it, and even then prefer XFF hop-counting.
+- **Prefer an authenticated principal over IP when one exists.** For
+  authenticated endpoints, key by user / account id; reserve IP-based keys for
+  unauthenticated traffic (OWASP).
+
+### `resolveClientIp` contract
+
+Selection (equivalent to MDN "rightmost minus (count-1)" and proxy-addr
+numeric-hop semantics):
+
+```
+resolveClientIp(request) -> string   // normalized IP, stable bucket key
+  hops   = TRUSTED_PROXY_HOP_COUNT
+  socket = normalize(request.socket.remoteAddress)   // fail-closed target
+  xff    = all "x-forwarded-for" header instances, joined in order,
+           split on ",", trimmed (OWS), empties dropped
+  if hops == 0            -> return socket           // no trusted proxy
+  if xff.length <  hops   -> return socket           // chain shorter than expected
+  candidate = normalize(request.ip)                  // proxy-addr already selected xff[len - hops]
+  return isValidIp(candidate) ? candidate : socket   // unknown/obfuscated -> socket
+```
+
+`normalize` MUST, via `ipaddr.js`: strip a port suffix (bracket-aware for
+`[2001:db8::1]:443`; also plain `1.2.3.4:5678` from Azure App Gateway et al.),
+canonicalize IPv6 (`::ffff:` IPv4-mapped, case, drop `%zone`), and return a
+single stable representation. Normalization is load-bearing: without it an
+attacker varies the port or IPv6 spelling to mint a fresh bucket — the same
+bypass class as the leftmost-entry bug.
+
+### `@fastify/proxy-addr` divergence — WHY the resolver adds its own guards
+
+Fastify's numeric `trustProxy` compiles to `(_addr, i) => i < hops`. For the
+happy path (`xff.length >= hops`) `request.ip` is exactly `xff[len - hops]`
+(the trusted-edge entry) — verified empirically. BUT when the chain is
+**shorter** than `hops`, `@fastify/proxy-addr` walks off the end of the chain
+and returns the **leftmost (client-controlled) XFF entry**, NOT the socket. A
+pure `normalize(request.ip)` would therefore inherit the exact spoof it aims to
+prevent. `resolveClientIp` closes this by explicitly counting the XFF entries
+and failing to the socket whenever `hops == 0` or `xff.length < hops`, using
+`request.ip` only on the proven-safe happy path. This guard is MERGE-BLOCKING;
+a parity test locks the equivalence and the divergence.
+
+### `TRUSTED_PROXY_HOP_COUNT` env convention
+
+- Lives in `apps/api/src/config/env.ts` (Zod, `z.coerce.number().int().min(0)`),
+  parsed once at boot. No silent default that assumes a topology.
+- **The value MUST equal the real number of trusted reverse proxies for THIS
+  deployment.** 1 = one edge proxy (e.g. nginx/CDN) in front; 2 = CDN → LB; etc.
+- **Fail-closed default is `0`** (socket-only): always spoof-safe, but behind a
+  proxy it degrades every user to the proxy's shared bucket (an availability
+  risk, never a bypass). Set the real value explicitly per environment; do not
+  ship a non-zero default, which bakes in an unverified topology assumption.
+  Homelab (client → Next portal direct, no trusted edge) correctly stays at
+  socket = shared bucket; production sets the real edge-hop count.
+
+### Frontend client-IP relay
+
+The Next portals (`apps/admin`, `apps/client`) proxy browser calls to the
+backend server-side, so from the backend's socket the peer is the portal — not
+the user. Each egress point relays the inbound client-IP header **verbatim**
+via `forwardedForHeaders(inbound)` (`apps/{admin,client}/lib/http/forwardedFor.ts`):
+inbound `x-forwarded-for` if present, else inbound `x-real-ip`, else nothing.
+It never appends the portal's own hop and never fabricates a value — the
+backend's hop-count math stays the sole authority. Server Actions read the
+inbound headers via `headers()` from `next/headers`.
+
+Because the relay is **pass-through** — `forwardedForHeaders` forwards inbound
+`X-Forwarded-For` VERBATIM and appends NO hop — the topology invariant below
+MUST ALSO hold at each portal's own ingress: the portal's front edge has to
+strip/overwrite inbound `X-Forwarded-For` before the portal relays it.
+Otherwise, if a portal is directly reachable (or its front edge does not strip
+inbound XFF) while the backend runs `TRUSTED_PROXY_HOP_COUNT >= 1`, an attacker
+forges XFF at the portal, the portal relays it verbatim, and the backend's
+rightmost-counted entry becomes attacker-controlled — the same leftmost-spoof
+bypass the resolver exists to prevent.
+
+### Topology invariant (network precondition — mandatory)
+
+Hop-counting is only sound if **the socket peer is ALWAYS a trusted proxy** —
+i.e. the app is not directly reachable from the internet and there is no
+shorter alternate path to it. If a client can reach the app with fewer hops
+than configured, NO `TRUSTED_PROXY_HOP_COUNT` value is safe (they spoof the
+missing hops). Enforce single-ingress-through-the-trusted-edge at the network
+layer (bind private / security groups) AND the trusted edge MUST
+strip/overwrite inbound `X-Forwarded-For`, `X-Real-IP`, `Forwarded`. Both, not
+either.
+
+---
+
 ## Audited audit-ignores
 
 > Authoritative record of every accepted security debt in the dependency baseline (ADR-0018). Two classes: **ignored GHSAs** (a `pnpm audit` advisory we accept on a transitive with no safe upstream) and **CVE-floor pins** (a catalog/override entry held AT or ABOVE the minimal patched version to keep a known vulnerability out of the tree). Each carries a remove-when so the debt is auditable, not silent. Mirrors `docs/product/PENDING_WORK_INVENTORY.md §7`.
@@ -90,7 +212,15 @@ Adding new security rules:
 3. **New CWE control** → add fitness regex catalog entry in `CLAUDE.md §Automated Compliance Checks`; mirror in `.github/workflows/fitness.yml`.
 4. **New tenant-scoped model** → see §"Multi-Tenant Isolation" above (3-step checklist).
 5. **Amending a rule** → ADR required (see ADR-0001 template).
+6. **New rate-limited / IP-gated surface** → derive the client IP ONLY via
+   `resolveClientIp(request)`; never read `x-forwarded-for` / `x-real-ip`
+   directly, never use `entries[0]`. Prefer an authenticated principal for the
+   bucket key when the endpoint is authenticated.
+7. **New deployment topology (extra proxy/CDN hop)** → update
+   `TRUSTED_PROXY_HOP_COUNT` for that environment to the new real hop count and
+   re-verify the topology invariant (app unreachable except through the trusted
+   edge; edge strips inbound forwarding headers). Never `trust proxy: true`.
 
 Companion fitness checks live in `CLAUDE.md §Automated Compliance Checks`:
 
-- `#13` no direct pino · `#14` no per-class cache Maps · `#15` no insecure secret fallbacks · `#16` no `process.env.*` outside `config/env.ts` (api) · `#17` no `process.env.*` outside `lib/env.ts` (Next.js) · `#18` Argon2 only via canonical helper · `#19` no env reads inside provider Adapter classes · `#23` no raw Prisma queries outside guard exceptions.
+- `#13` no direct pino · `#14` no per-class cache Maps · `#15` no insecure secret fallbacks · `#16` no `process.env.*` outside `config/env.ts` (api) · `#17` no `process.env.*` outside `lib/env.ts` (Next.js) · `#18` Argon2 only via canonical helper · `#19` no env reads inside provider Adapter classes · `#23` no raw Prisma queries outside guard exceptions · `#28` no permissive Fastify `trustProxy: true` · `#29` no raw `x-forwarded-for` / `x-real-ip` reads outside `resolveClientIp`.

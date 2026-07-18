@@ -248,6 +248,18 @@ const serverSchema = {
   // per-connection heartbeat. Default 10 covers typical multi-tab/multi-device
   // usage with headroom; raise for ops-heavy accounts after capacity review.
   MAX_STREAMS_PER_ACCOUNT: z.coerce.number().int().min(1).max(100).default(10),
+
+  // ── Trusted reverse-proxy hop count (rate-limit / IP-allowlist keying) ──
+  // The number of TRUSTED reverse proxies between the public internet and this
+  // app. `resolveClientIp` counts this many hops from the RIGHT of
+  // X-Forwarded-For (the trusted edge) to derive the bucket key, and Fastify's
+  // `trustProxy` is set to this exact number. Fail-closed default `0` =
+  // socket-only (always spoof-safe; behind a proxy it degrades every caller to
+  // a shared bucket — an availability risk, never a bypass). Set the REAL value
+  // per environment (1 = one edge proxy, 2 = CDN → LB, …). Never a non-zero
+  // default: that would bake in an unverified topology assumption. See
+  // SECURITY_CANON.md §Rate Limiting for the topology invariant.
+  TRUSTED_PROXY_HOP_COUNT: z.coerce.number().int().min(0).default(0),
 } as const;
 
 /**

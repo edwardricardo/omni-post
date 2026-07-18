@@ -173,7 +173,9 @@ describe("AuditLogger Tests", () => {
       expect(logs[0]?.userAgent).toBe("Test Browser/1.0");
     });
 
-    it("should extract IP from X-Forwarded-For header", async () => {
+    it("records the socket peer, not a spoofed X-Forwarded-For entry", async () => {
+      // Under the test's fail-closed hop count (TRUSTED_PROXY_HOP_COUNT=0) the
+      // resolver ignores the client-controlled XFF and records the socket peer.
       const request = createMockRequest({
         headers: {
           "x-forwarded-for": "198.51.100.1, 192.168.1.1",
@@ -186,10 +188,11 @@ describe("AuditLogger Tests", () => {
       const logs = stores.auditLog.all().filter((l) => l.action === "FORWARDED_IP_TEST");
 
       expect(logs.length).toBe(1);
-      expect(logs[0]?.ipAddress).toBe("198.51.100.1");
+      expect(logs[0]?.ipAddress).toBe("192.168.1.100");
+      expect(logs[0]?.ipAddress).not.toBe("198.51.100.1");
     });
 
-    it("should extract IP from X-Real-IP header", async () => {
+    it("ignores a standalone X-Real-IP header (untrusted)", async () => {
       const request = createMockRequest({
         headers: {
           "x-real-ip": "198.51.100.2",
@@ -202,10 +205,10 @@ describe("AuditLogger Tests", () => {
       const logs = stores.auditLog.all().filter((l) => l.action === "REAL_IP_TEST");
 
       expect(logs.length).toBe(1);
-      expect(logs[0]?.ipAddress).toBe("198.51.100.2");
+      expect(logs[0]?.ipAddress).toBe("192.168.1.100");
     });
 
-    it("should extract IP from CF-Connecting-IP header", async () => {
+    it("ignores a standalone CF-Connecting-IP header (untrusted)", async () => {
       const request = createMockRequest({
         headers: {
           "cf-connecting-ip": "198.51.100.3",
@@ -218,7 +221,7 @@ describe("AuditLogger Tests", () => {
       const logs = stores.auditLog.all().filter((l) => l.action === "CF_IP_TEST");
 
       expect(logs.length).toBe(1);
-      expect(logs[0]?.ipAddress).toBe("198.51.100.3");
+      expect(logs[0]?.ipAddress).toBe("192.168.1.100");
     });
   });
 

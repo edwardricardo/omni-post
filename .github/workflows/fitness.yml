@@ -574,12 +574,50 @@ jobs:
             exit 1
           fi
 
+      - name: "#28 No permissive Fastify trust-proxy (trustProxy: true)"
+        if: always()
+        run: |
+          set -uo pipefail
+          # `trustProxy: true` makes request.ip the leftmost (client-controlled)
+          # X-Forwarded-For entry, letting any client spoof its IP and rotate
+          # rate-limit / IP-allowlist buckets to defeat the limiter
+          # (ERR_ERL_PERMISSIVE_TRUST_PROXY; CVE-2025-59152 / CVE-2023-49952 /
+          # CVE-2026-55501 class; CWE-807/290/348). trustProxy MUST be the numeric
+          # TRUSTED_PROXY_HOP_COUNT. Mirrors CLAUDE.md #28.
+          V=$(grep -rnE "trustProxy:\s*true" apps/api/src apps/workers/src --include="*.ts" 2>/dev/null | \
+                grep -vE "/tests/|\.test\." || true)
+          COUNT=$(printf "%s" "$V" | grep -c . || true); COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #28 violation::$COUNT permissive 'trustProxy: true' occurrence(s) — use the numeric TRUSTED_PROXY_HOP_COUNT so request.ip is proxy-addr-resolved"
+            printf "%s\n" "$V" | head -20
+            exit 1
+          fi
+
+      - name: "#29 No raw client-IP header reads outside resolveClientIp"
+        if: always()
+        run: |
+          set -uo pipefail
+          # Every IP-keyed security decision (rate limit, IP allowlist, brute-force
+          # throttle, audit IP) MUST go through resolveClientIp(); a direct
+          # x-forwarded-for / x-real-ip read is the carrier for the leftmost-entry
+          # spoof (see SECURITY_CANON.md §Rate Limiting). Excludes the resolver file
+          # itself + tests. Mirrors CLAUDE.md #29.
+          V=$(grep -rniE '"x-forwarded-for"|"x-real-ip"|headers\[.x-forwarded-for|headers\[.x-real-ip' \
+                apps/api/src apps/workers/src --include="*.ts" 2>/dev/null | \
+                grep -vE "resolveClientIp|/tests/|\.test\." || true)
+          COUNT=$(printf "%s" "$V" | grep -c . || true); COUNT=${COUNT:-0}
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error title=Fitness #29 violation::$COUNT raw client-IP header read(s) outside resolveClientIp — route every IP-keyed decision through the canonical resolver"
+            printf "%s\n" "$V" | head -20
+            exit 1
+          fi
+
       - name: Fitness summary
         if: always()
         run: |
           echo "## Fitness Functions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "27 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
+          echo "29 architectural invariants defined in CLAUDE.md §Automated Compliance Checks." >> $GITHUB_STEP_SUMMARY
           echo "Hard-zero threshold: any new occurrence fails this workflow with an \`::error\` annotation." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "See individual step results above for any violations." >> $GITHUB_STEP_SUMMARY

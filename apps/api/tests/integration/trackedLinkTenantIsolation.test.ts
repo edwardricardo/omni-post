@@ -321,15 +321,19 @@ describe("TrackedLink — two-tenant isolation (MERGE-BLOCKING)", () => {
       assert.ok(recorded, "the click must be recorded on A's own link");
     });
 
-    it("the /r namespace is rate-limited: the (cap+1)th hit from one IP → 429", async () => {
+    it("the /r namespace is rate-limited by the trusted socket peer, not a spoofable header", async () => {
       const cap = RateLimitConfigs.REDIRECT.maxRequests;
-      const ip = "203.0.113.77"; // isolated bucket (distinct from the default-IP tests)
-      // Exhaust the bucket: `cap` allowed hits.
+      // A distinct SOCKET peer → an isolated bucket. `resolveClientIp` keys on the
+      // socket at TRUSTED_PROXY_HOP_COUNT=0 (the test default), never on a
+      // client-controlled `X-Forwarded-For` — so the bucket is driven by
+      // `remoteAddress`, not the header (that is the N-SEC-2 invariant).
+      const ip = "203.0.113.77";
+      // Exhaust the bucket: `cap` allowed hits from one socket peer.
       for (let i = 0; i < cap; i++) {
         const res = await app.inject({
           method: "GET",
           url: `/r/${tenantA.shortCode}`,
-          headers: { "x-forwarded-for": ip },
+          remoteAddress: ip,
         });
         assert.notStrictEqual(
           res.statusCode,
@@ -341,12 +345,25 @@ describe("TrackedLink — two-tenant isolation (MERGE-BLOCKING)", () => {
       const throttled = await app.inject({
         method: "GET",
         url: `/r/${tenantA.shortCode}`,
-        headers: { "x-forwarded-for": ip },
+        remoteAddress: ip,
       });
       assert.strictEqual(
         throttled.statusCode,
         429,
         "the namespace rate limit must engage after the cap"
+      );
+      // Spoof-resistance (N-SEC-2): rotating a client-controlled `X-Forwarded-For`
+      // must NOT mint a fresh bucket — the same socket peer stays throttled.
+      const spoofed = await app.inject({
+        method: "GET",
+        url: `/r/${tenantA.shortCode}`,
+        remoteAddress: ip,
+        headers: { "x-forwarded-for": "198.51.100.1, 10.0.0.9" },
+      });
+      assert.strictEqual(
+        spoofed.statusCode,
+        429,
+        "a spoofed X-Forwarded-For must not escape the socket-keyed bucket"
       );
     });
   });

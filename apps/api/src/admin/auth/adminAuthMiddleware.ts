@@ -13,6 +13,7 @@ import type { FastifyRequest, FastifyReply } from "fastify";
 import type { RateLimiterPort } from "@ports/core";
 import type { AdminAuthService } from "./AdminAuthService.js";
 import { TOKENS } from "../../infrastructure/container/types.js";
+import { resolveClientIp } from "../../security/resolveClientIp.js";
 import type { AuthContext, AuthErrorCode } from "./adminAuthTypes.js";
 
 // ============================================================================
@@ -223,7 +224,7 @@ export function rateLimit(maxRequests: number, windowMs: number) {
     const limiter = request.server.container?.resolve<RateLimiterPort>(TOKENS.HttpRateLimiter);
     if (!limiter) return;
 
-    const key = `admin:${request.ip}:${request.routeOptions.url}`;
+    const key = `admin:${resolveClientIp(request)}:${request.routeOptions.url}`;
     let decision;
     try {
       decision = await limiter.tryConsume(key, {

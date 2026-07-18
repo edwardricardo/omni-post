@@ -10,6 +10,7 @@ import validator from "validator";
 import type { FastifyRequest, FastifyReply, FastifyInstance } from "fastify";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { logger } from "../lib/logger.js";
+import { resolveClientIp } from "./resolveClientIp.js";
 
 type RiskLevel = "low" | "medium" | "high" | "critical";
 
@@ -484,12 +485,10 @@ export class EnhancedValidator {
   }
 
   private getClientIP(req: FastifyRequest): string {
-    return (
-      (req.headers["x-forwarded-for"] as string)?.split(",")[0] ||
-      (req.headers["x-real-ip"] as string) ||
-      req.socket.remoteAddress ||
-      "unknown"
-    );
+    // Canonical resolver: suspicious-attempt tracking is an IP-keyed security
+    // decision, so it MUST NOT trust the spoofable leftmost X-Forwarded-For /
+    // standalone X-Real-IP. See SECURITY_CANON.md §Rate Limiting.
+    return resolveClientIp(req);
   }
 
   private trackSuspiciousAttempt(clientIP: string, threats: string[]): void {

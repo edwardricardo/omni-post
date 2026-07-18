@@ -16,11 +16,14 @@ import {
   EXPENSIVE_ENDPOINT_RULES,
 } from "../../../src/security/httpRateLimitPreHandler.js";
 
-function fakeReq(url: string): FastifyRequest {
+function fakeReq(url: string, opts: { xff?: string; socket?: string } = {}): FastifyRequest {
+  const socket = opts.socket ?? "9.9.9.9";
+  const xff = opts.xff ?? "9.9.9.9";
   return {
     url,
-    headers: { "x-forwarded-for": "9.9.9.9" },
-    socket: { remoteAddress: "9.9.9.9" },
+    ip: socket,
+    headers: { "x-forwarded-for": xff },
+    socket: { remoteAddress: socket },
   } as unknown as FastifyRequest;
 }
 
@@ -97,6 +100,49 @@ describe("createHttpRateLimitPreHandler", () => {
     expect(calls[0]?.opts?.capacity).toBe(RateLimitConfigs.CRITICAL_EXPENSIVE.maxRequests);
   });
 
+  it("applies the AUTH preset (5 / 15 min) to /auth/login and /auth/refresh", async () => {
+    const { port, calls } = limiterReturning(ALLOW);
+    const handler = createHttpRateLimitPreHandler(port, {
+      defaultConfig: RateLimitConfigs.STANDARD,
+      rules: [...STANDARD_ROUTE_RULES, ...EXPENSIVE_ENDPOINT_RULES],
+    });
+
+    await handler(fakeReq("/auth/login"), fakeReply());
+    await handler(fakeReq("/auth/refresh"), fakeReply());
+
+    expect(calls[0]?.opts?.capacity).toBe(RateLimitConfigs.AUTH.maxRequests);
+    expect(calls[0]?.opts?.refillWindowMs).toBe(RateLimitConfigs.AUTH.windowMs);
+    expect(calls[1]?.opts?.capacity).toBe(RateLimitConfigs.AUTH.maxRequests);
+  });
+
+  it("applies the AUTH preset (5 / 15 min) to the client-portal credential paths, NOT the STANDARD 100/min", async () => {
+    const { port, calls } = limiterReturning(ALLOW);
+    const handler = createHttpRateLimitPreHandler(port, {
+      defaultConfig: RateLimitConfigs.STANDARD,
+      rules: [...STANDARD_ROUTE_RULES, ...EXPENSIVE_ENDPOINT_RULES],
+    });
+
+    // The Next client portal relays these two paths to the backend; without an
+    // explicit AUTH rule they fall through to STANDARD (100/min) and client
+    // login stays brute-forceable.
+    await handler(fakeReq("/auth/customer/login"), fakeReply());
+    await handler(fakeReq("/auth/customer/refresh"), fakeReply());
+
+    // /auth/customer/login → AUTH cap (5 / 900_000 ms), not STANDARD.
+    expect(calls[0]?.opts?.capacity).toBe(RateLimitConfigs.AUTH.maxRequests);
+    expect(calls[0]?.opts?.capacity).toBe(5);
+    expect(calls[0]?.opts?.refillWindowMs).toBe(RateLimitConfigs.AUTH.windowMs);
+    expect(calls[0]?.opts?.refillWindowMs).toBe(900_000);
+    expect(calls[0]?.opts?.capacity).not.toBe(RateLimitConfigs.STANDARD.maxRequests);
+    // /auth/customer/refresh → AUTH cap too (aligned with /auth/refresh).
+    expect(calls[1]?.opts?.capacity).toBe(RateLimitConfigs.AUTH.maxRequests);
+    expect(calls[1]?.opts?.refillWindowMs).toBe(RateLimitConfigs.AUTH.windowMs);
+  });
+
+  it("no longer carries the dead /accounts$ rule (would never prefix-match)", () => {
+    expect(STANDARD_ROUTE_RULES.some((r) => r.path.includes("$"))).toBe(false);
+  });
+
   it("sets rate-limit headers on an allowed request", async () => {
     const { port } = limiterReturning(ALLOW);
     const handler = createHttpRateLimitPreHandler(port, {
@@ -130,6 +176,34 @@ describe("createHttpRateLimitPreHandler", () => {
     expect(reply.statusCode).toBe(429);
     expect(reply.headers["Retry-After"]).toBe("30");
     expect((reply.body as { error: string }).error).toBe("RATE_LIMIT_EXCEEDED");
+  });
+
+  it("keys by the resolver's IP, not the leftmost X-Forwarded-For entry", async () => {
+    // Test env has TRUSTED_PROXY_HOP_COUNT=0 (default) so resolveClientIp returns
+    // the socket peer — proving the pre-handler no longer trusts the spoofable
+    // leftmost XFF entry that the old `clientIp()` used.
+    const { port, calls } = limiterReturning(ALLOW);
+    const handler = createHttpRateLimitPreHandler(port, {
+      defaultConfig: RateLimitConfigs.STANDARD,
+      rules: [],
+    });
+
+    await handler(fakeReq("/posts", { socket: "10.0.0.1", xff: "1.1.1.1" }), fakeReply());
+
+    expect(calls[0]?.key).toBe("10.0.0.1:/posts");
+  });
+
+  it("maps a rotating leftmost X-Forwarded-For to the SAME bucket (spoof-resistance)", async () => {
+    const { port, calls } = limiterReturning(ALLOW);
+    const handler = createHttpRateLimitPreHandler(port, {
+      defaultConfig: RateLimitConfigs.STANDARD,
+      rules: [],
+    });
+
+    await handler(fakeReq("/posts", { socket: "10.0.0.1", xff: "1.1.1.1, 8.8.8.8" }), fakeReply());
+    await handler(fakeReq("/posts", { socket: "10.0.0.1", xff: "2.2.2.2, 8.8.8.8" }), fakeReply());
+
+    expect(calls[0]?.key).toBe(calls[1]?.key);
   });
 
   it("fails open (no 429) when the limiter throws", async () => {

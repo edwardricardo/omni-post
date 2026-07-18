@@ -10,11 +10,13 @@
  * @layer infrastructure
  */
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { getLocale } from "next-intl/server";
 import { ConsoleLoggerAdapter } from "@observability/browser-logger";
 
 import { setSessionCookie, setRefreshCookie, readAuthTokens } from "@/lib/auth/sessionCookie";
 import { env } from "../../lib/env";
+import { forwardedForHeaders } from "@/lib/http/forwardedFor";
 
 const log = new ConsoleLoggerAdapter("client.auth-actions", { alwaysEmit: true });
 
@@ -55,9 +57,15 @@ export async function loginAction(
   }
 
   try {
+    // Relay the real client IP verbatim (inbound X-Forwarded-For, no appended
+    // hop) so the backend's resolveClientIp-keyed AUTH limiter buckets the true
+    // caller — not this Server Action's socket. The AUTH cap (5 / 15 min) is
+    // enforced by the `/auth/customer/login` rule in the backend
+    // STANDARD_ROUTE_RULES.
+    const inbound = await headers();
     const response = await fetch(`${API_URL}/auth/customer/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...forwardedForHeaders(inbound) },
       body: JSON.stringify({ email, password, rememberMe }),
     });
 
@@ -120,9 +128,11 @@ export async function registerAction(
     const firstName = name.split(" ")[0] || name;
     const lastName = name.split(" ").slice(1).join(" ") || name;
 
+    // Relay the real client IP so the backend keys the caller, not the socket.
+    const inbound = await headers();
     const registerResponse = await fetch(`${API_URL}/auth/customer/register`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...forwardedForHeaders(inbound) },
       body: JSON.stringify({
         accountName: name,
         accountEmail: email,
@@ -147,7 +157,7 @@ export async function registerAction(
     // Auto-login after registration
     const loginResponse = await fetch(`${API_URL}/auth/customer/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...forwardedForHeaders(inbound) },
       body: JSON.stringify({ email, password, rememberMe: false }),
     });
 

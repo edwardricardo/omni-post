@@ -10,6 +10,7 @@ import type { FastifyRequest, FastifyReply } from "fastify";
 import type { PrismaClient } from "@infra/prisma";
 import * as ipaddr from "ipaddr.js";
 import { createLogger } from "../lib/logger.js";
+import { resolveClientIp } from "./resolveClientIp.js";
 
 const allowlistLogger = createLogger("ip-allowlist");
 
@@ -55,19 +56,6 @@ async function getSettings(prisma: PrismaClient): Promise<{ enabled: boolean; li
 }
 
 /**
- * @description Extracts client IP from request, accounting for reverse proxies.
- */
-function extractClientIp(request: FastifyRequest): string {
-  const forwarded = request.headers["x-forwarded-for"];
-  if (forwarded) {
-    const raw = typeof forwarded === "string" ? forwarded : (forwarded[0] ?? "");
-    const first = (raw.split(",")[0] ?? "").trim();
-    if (first) return first;
-  }
-  return request.ip;
-}
-
-/**
  * @description Checks if an IP matches any entry in the allowlist (exact or CIDR).
  */
 function isIpAllowed(clientIp: string, allowlist: string[]): boolean {
@@ -110,7 +98,7 @@ export function createIpAllowlistMiddleware(prisma: PrismaClient) {
     const settings = await getSettings(prisma);
     if (!settings.enabled || settings.list.length === 0) return;
 
-    const clientIp = extractClientIp(request);
+    const clientIp = resolveClientIp(request);
 
     if (!isIpAllowed(clientIp, settings.list)) {
       allowlistLogger.warn({ clientIp }, "IP not in allowlist — access denied");

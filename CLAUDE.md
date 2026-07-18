@@ -585,6 +585,25 @@ grep -rnE "node ([^|&]*)--import tsx" \
 # consume via Option-B tsconfig paths -> Turbopack "Module not found").
 grep -nE "pnpm --filter @apps/(admin|client)( --filter @apps/(admin|client))* build" \
   .github/workflows/audit.yml | wc -l  # expect 0
+
+# 28. No permissive Fastify trust-proxy. `trustProxy: true` makes request.ip the
+# leftmost (client-controlled) X-Forwarded-For entry, letting any client spoof its
+# IP and rotate rate-limit / IP-allowlist buckets to defeat the limiter
+# (ERR_ERL_PERMISSIVE_TRUST_PROXY; CVE-2025-59152 / CVE-2023-49952 / CVE-2026-55501
+# class; CWE-807/290/348). `trustProxy` MUST be the numeric TRUSTED_PROXY_HOP_COUNT
+# so request.ip is proxy-addr-resolved and every IP-keyed decision goes through
+# resolveClientIp. Scope: apps/api/src + apps/workers/src. Excludes tests.
+grep -rnE "trustProxy:\s*true" apps/api/src apps/workers/src --include="*.ts" | \
+  grep -vE "/tests/|\.test\." | wc -l   # expect 0
+
+# 29. No raw client-IP header reads outside the canonical resolver. Every security
+# decision keyed by client IP MUST go through resolveClientIp(); a direct
+# x-forwarded-for / x-real-ip read is the carrier for the leftmost-entry spoof
+# (see SECURITY_CANON.md §Rate Limiting). Scope: apps/api/src + apps/workers/src.
+# Excludes the resolver file itself and tests.
+grep -rniE '"x-forwarded-for"|"x-real-ip"|headers\[.x-forwarded-for|headers\[.x-real-ip' \
+  apps/api/src apps/workers/src --include="*.ts" | \
+  grep -vE "resolveClientIp|/tests/|\.test\." | wc -l   # expect 0
 ```
 
 **Extending the suite.** Adding a new fitness check requires three coordinated edits, in order:
