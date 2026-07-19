@@ -16,7 +16,9 @@ import type { AnalyticsReadRepositoryPort } from "@core/domain/repositories/Anal
 import type { ThreadReadRepositoryPort } from "@core/domain/repositories/ThreadReadRepository.js";
 import type { EventDispatcher as _EventDispatcher } from "@core/domain/index.js";
 import { AuthService } from "../../auth/authService.js";
-import { MfaService } from "../../auth/mfaService.js";
+import { MfaService } from "../../admin/auth/MfaService.js";
+import { PrismaAdminMfaUserRepository } from "../adapters/PrismaAdminMfaUserRepository.js";
+import type { MfaUserRepositoryPort } from "@ports/core";
 import { RbacService } from "../../auth/rbacService.js";
 import { RoleManagementService } from "@core/auth/RoleManagementService.js";
 import { PrismaRoleManagementRepository } from "../repositories/PrismaRoleManagementRepository.js";
@@ -169,13 +171,33 @@ export function setupServices(
   );
   container.register<UpcasterChain>(TOKENS.UpcasterChain, () => new UpcasterChain(), true);
 
-  // Register Auth Services -- factory-based with injected deps
+  // MFA-user persistence adapters. The AdminUser adapter is wired now; the
+  // customer subject resolves to the same admin adapter until the CustomerUser
+  // columns and adapter land, keeping admin MFA behavior unchanged.
+  container.register<MfaUserRepositoryPort>(
+    TOKENS.AdminMfaUserRepository,
+    () => new PrismaAdminMfaUserRepository(container.resolve(TOKENS.PrismaClient)),
+    true
+  );
+  container.register<MfaUserRepositoryPort>(
+    TOKENS.CustomerMfaUserRepository,
+    () => container.resolve<MfaUserRepositoryPort>(TOKENS.AdminMfaUserRepository),
+    true
+  );
+
+  // Unified, port-based MFA service — the single MFA capability for both admin
+  // and customer subjects. SMELL-37 is closed: the legacy `auth/mfaService.ts`
+  // factory is gone and there is exactly ONE registration under
+  // TOKENS.MfaService, so every consumer (AuthService, AdminAuthService,
+  // mfaRoutes) resolves the same instance.
   container.register<MfaService>(
     TOKENS.MfaService,
     () =>
       new MfaService(
-        container.resolve<AdminUserRepositoryPort>(TOKENS.AdminUserRepository),
-        container.resolve<AuditLogRepository>(TOKENS.AuditLogRepository)
+        container.resolve<MfaUserRepositoryPort>(TOKENS.AdminMfaUserRepository),
+        container.resolve<MfaUserRepositoryPort>(TOKENS.CustomerMfaUserRepository),
+        container.resolve<AuditLogRepository>(TOKENS.AuditLogRepository),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );
@@ -390,7 +412,11 @@ export function setupServices(
     () =>
       new AdminAuthService(
         container.resolve(TOKENS.PrismaClient),
-        container.resolve<BruteForceProtectionPort>(TOKENS.BruteForceProtectionPort)
+        container.resolve<BruteForceProtectionPort>(TOKENS.BruteForceProtectionPort),
+        // Unified MFA service resolved from the single TOKENS.MfaService
+        // registration (SMELL-37: the inline `new MfaService(prisma)` inside
+        // AdminAuthService was deleted; one instance backs every consumer).
+        container.resolve<MfaService>(TOKENS.MfaService)
       ),
     true
   );

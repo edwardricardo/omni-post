@@ -8,7 +8,8 @@ import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { IdSchema } from "@packages/api-common";
-import type { MfaService } from "./mfaService.js";
+import type { MfaService } from "../admin/auth/MfaService.js";
+import { MFA_SUBJECT_TYPE } from "@ports/core";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requirePermission } from "./rbacMiddleware.js";
 import { Permission } from "@core/domain/auth/Permission.js";
@@ -77,7 +78,7 @@ class MfaRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 401, "User not authenticated");
     }
 
-    const result = await this.mfaService.getMfaStatus(userId);
+    const result = await this.mfaService.getMfaStatus({ type: MFA_SUBJECT_TYPE.ADMIN, id: userId });
 
     if (!result.ok) {
       const errorMap: Record<string, { status: number; message: string }> = {
@@ -101,7 +102,10 @@ class MfaRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 401, "User not authenticated");
     }
 
-    const result = await this.mfaService.setupMfa(userId, userEmail);
+    const result = await this.mfaService.setupMfa(
+      { type: MFA_SUBJECT_TYPE.ADMIN, id: userId },
+      userEmail
+    );
 
     if (!result.ok) {
       const errorMap: Record<string, { status: number; message: string }> = {
@@ -149,7 +153,10 @@ class MfaRouteHandler extends BaseRouteHandler {
 
     const { token } = validated.value.body;
 
-    const result = await this.mfaService.verifyMfaSetup(userId, token);
+    const result = await this.mfaService.verifyMfaSetup(
+      { type: MFA_SUBJECT_TYPE.ADMIN, id: userId },
+      token
+    );
 
     if (!result.ok) {
       const errorMap: Record<string, { status: number; message: string }> = {
@@ -194,7 +201,10 @@ class MfaRouteHandler extends BaseRouteHandler {
 
     const { userId, token } = validated.value.body;
 
-    const result = await this.mfaService.verifyMfaToken(userId, token);
+    const result = await this.mfaService.verifyMfaToken(
+      { type: MFA_SUBJECT_TYPE.ADMIN, id: userId },
+      token
+    );
 
     if (!result.ok) {
       const errorMap: Record<string, { status: number; message: string }> = {
@@ -240,7 +250,10 @@ class MfaRouteHandler extends BaseRouteHandler {
 
     const { token } = validated.value.body;
 
-    const result = await this.mfaService.disableMfa(userId, token);
+    const result = await this.mfaService.disableMfa(
+      { type: MFA_SUBJECT_TYPE.ADMIN, id: userId },
+      token
+    );
 
     if (!result.ok) {
       const errorMap: Record<string, { status: number; message: string }> = {
@@ -281,7 +294,10 @@ class MfaRouteHandler extends BaseRouteHandler {
 
     const { token } = validated.value.body;
 
-    const result = await this.mfaService.regenerateBackupCodes(userId, token);
+    const result = await this.mfaService.regenerateBackupCodes(
+      { type: MFA_SUBJECT_TYPE.ADMIN, id: userId },
+      token
+    );
 
     if (!result.ok) {
       const errorMap: Record<string, { status: number; message: string }> = {
@@ -319,7 +335,7 @@ class MfaRouteHandler extends BaseRouteHandler {
 
     const { userId } = validated.value.params;
 
-    const result = await this.mfaService.getMfaStatus(userId);
+    const result = await this.mfaService.getMfaStatus({ type: MFA_SUBJECT_TYPE.ADMIN, id: userId });
 
     if (!result.ok) {
       const errorMap: Record<string, { status: number; message: string }> = {
@@ -356,8 +372,12 @@ class MfaRouteHandler extends BaseRouteHandler {
       return this.sendError(ctx, 401, "Admin user ID not found");
     }
 
-    // Delegate to MfaService (no direct Prisma access from routes)
-    const result = await this.mfaService.adminForceDisable(userId);
+    // Delegate to MfaService (no direct Prisma access from routes). Admin subject
+    // only for now — the customer-subject route arrives with customer MFA persistence.
+    const result = await this.mfaService.adminForceDisable(
+      { type: MFA_SUBJECT_TYPE.ADMIN, id: userId },
+      { id: adminUserId }
+    );
 
     if (!result.ok) {
       const errorMap: Record<string, { status: number; message: string }> = {
