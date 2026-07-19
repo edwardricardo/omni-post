@@ -34,13 +34,12 @@ OmniPost implements a dual-track authentication system: admin authentication (se
 
 **File:** `apps/api/src/auth/authRoutes.ts`
 **Layer:** infrastructure
-**Description:** Fastify route plugin for admin authentication: registration, login, token refresh, logout, and session management. Rate-limited on sensitive endpoints.
+**Description:** Fastify route plugin for admin authentication: login, token refresh, logout, and session management. Rate-limited on sensitive endpoints. (The public `POST /auth/register` admin-creation endpoint was removed for CWE-269 — see note below.)
 
 #### Routes
 
 | Method | Path               | Auth   | Rate Limit | Description                          |
 | ------ | ------------------ | ------ | ---------- | ------------------------------------ |
-| `POST` | `/auth/register`   | None   | 10/hour    | Register new admin user              |
 | `POST` | `/auth/login`      | None   | 5/15min    | Admin login (supports MFA challenge) |
 | `POST` | `/auth/refresh`    | None   | 20/15min   | Refresh JWT access token             |
 | `POST` | `/auth/logout`     | None   | 20/15min   | Logout (clears refresh token cookie) |
@@ -49,6 +48,8 @@ OmniPost implements a dual-track authentication system: admin authentication (se
 | `POST` | `/auth/revoke-all` | Client | --         | Revoke all user sessions             |
 
 **Has JSDoc:** &#9989; (all handler methods)
+
+> **Removed (CWE-269, PR #126):** the public `POST /auth/register` endpoint — which allowed unauthenticated creation of admin users (privilege escalation via a client-supplied `role`) — was removed. Admin users are now provisioned only through `AuthService.registerAdmin` (invoked by the seed/bootstrap path), never via a public route.
 
 ---
 
