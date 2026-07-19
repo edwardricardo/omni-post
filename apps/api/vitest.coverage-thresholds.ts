@@ -5,7 +5,8 @@
  *              fraction of the tests, so applying thresholds per shard would fail
  *              on partial coverage. In that mode this returns `undefined` (no
  *              gating) and the merged run enforces the floor instead. The default
- *              (merge step + local runs) keeps the 55/45 global floor.
+ *              (merge step + local runs) keeps the global floor: lines/functions
+ *              55, statements 54, branches 45.
  * @layer infrastructure
  */
 
@@ -27,7 +28,11 @@ const GLOBAL_FLOOR: CoverageScopeThresholds = {
   lines: 55,
   functions: 55,
   branches: 45,
-  statements: 55,
+  // Re-baselined 55 -> 54: removing the never-wired CQRSIntegration scaffolding and
+  // its ~2160 lines of tests (PR #128) stripped artificial statement coverage that had
+  // padded this floor; 54.98% is the real live-code figure. Raise this back as
+  // live-code coverage improves (re-baseline authorized by Edward, 2026-07-19).
+  statements: 54,
 };
 
 /**
