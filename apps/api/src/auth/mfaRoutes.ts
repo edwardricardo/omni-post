@@ -373,7 +373,7 @@ class MfaRouteHandler extends BaseRouteHandler {
     }
 
     // Delegate to MfaService (no direct Prisma access from routes). Admin subject
-    // for PR1 (behavior-preserving); PR2 introduces the customer-subject route.
+    // only for now — the customer-subject route arrives with customer MFA persistence.
     const result = await this.mfaService.adminForceDisable(
       { type: MFA_SUBJECT_TYPE.ADMIN, id: userId },
       { id: adminUserId }

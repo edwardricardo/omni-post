@@ -94,8 +94,9 @@ describe("AuthService", () => {
     const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
     const sessionRepo = new PrismaAdminSessionRepository(mockPrisma.prisma as never);
     // Unified MFA service over the admin adapter. Both subject repos point at the
-    // same admin adapter (PR1 behavior-preserving), backed by the single mock
-    // Prisma store the rest of the suite reads from.
+    // same admin adapter (mirroring the composition root until the dedicated
+    // customer adapter lands), backed by the single mock Prisma store the rest
+    // of the suite reads from.
     const adminMfaRepo = new PrismaAdminMfaUserRepository(mockPrisma.prisma as never);
     mfaService = new MfaService(adminMfaRepo, adminMfaRepo, new InMemoryAuditLogRepository());
     authService = new AuthService(

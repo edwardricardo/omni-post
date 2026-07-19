@@ -82,7 +82,8 @@ const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
 const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
 const sessionRepo = new PrismaAdminSessionRepository(mockPrisma.prisma as never);
 // Unified MFA service over the admin adapter. Both subject repos point at the
-// same admin adapter (PR1 behavior-preserving) backed by the single mock store.
+// same admin adapter (mirroring the composition root until the dedicated
+// customer adapter lands), backed by the single mock store.
 const adminMfaRepo = new PrismaAdminMfaUserRepository(mockPrisma.prisma as never);
 const mfaService = new MfaService(adminMfaRepo, adminMfaRepo, new InMemoryAuditLogRepository());
 const authService = new AuthService(
