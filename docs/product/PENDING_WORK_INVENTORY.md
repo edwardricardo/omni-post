@@ -162,7 +162,7 @@ reviews inbox, per-client dashboards).
 > run** (= IDOR-POSTS in §2A) and the **validation run** (= AUTH-REGISTER-PRIVESC
 > here). They are DIFFERENT findings; the disambiguator is load-bearing.
 
-- **AUTH-REGISTER-PRIVESC** — public `POST /auth/register` accepts `role` → creates ADMIN users (priv-esc + mass-assignment). **Highest individual severity — confirm immediately.** **Provenance:** WF2 `api-sec-01` **(validation run)**. **Confidence:** `UNVERIFIED-prelim`.
+- **AUTH-REGISTER-PRIVESC** — **RESOLVED 2026-07-19 (PR #126)**: the public `POST /auth/register` endpoint (which accepted `role` → created ADMIN users; priv-esc + mass-assignment) was removed for CWE-269; admin users are now provisioned only via `AuthService.registerAdmin` (seed/bootstrap), never a public route. **Provenance:** WF2 `api-sec-01` **(validation run)**. **Confidence:** was `UNVERIFIED-prelim`, now CONFIRMED + FIXED.
 - **RATELIMIT-DEAD** — `@fastify/rate-limit` is NEVER registered → the auth `rateLimit` config is dead code; the key is spoofable via `X-Forwarded-For` with `trustProxy:true`. This is the **core rate-limit middleware being absent** — a DIFFERENT artifact from FN-010/FN-027 (the `rateLimitingDashboard` observability plugin, see §4A): different files, different fix. **Provenance:** WF2 `api-sec-02/03` **(validation run)** (ALTA). **Confidence:** `UNVERIFIED-prelim`.
 
 ### 2D. DoS / resource — P0/P1 **[SECURITY]**

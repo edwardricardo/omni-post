@@ -281,13 +281,15 @@ export default async function DashboardLayout() {
 
 ### Client Auth Endpoints
 
-| Endpoint         | Method | Purpose            | Request                            | Response                                     |
-| ---------------- | ------ | ------------------ | ---------------------------------- | -------------------------------------------- |
-| `/auth/register` | POST   | Register new user  | `{ email, password, name }`        | `{ ok: true, value: { user, tokens } }`      |
-| `/auth/login`    | POST   | Authenticate user  | `{ email, password, rememberMe? }` | `{ ok: true, value: { accessToken, user } }` |
-| `/auth/me`       | GET    | Get current user   | `Authorization: Bearer <token>`    | `{ ok: true, value: { user } }`              |
-| `/auth/logout`   | POST   | Invalidate session | `Authorization: Bearer <token>`    | `{ ok: true }`                               |
-| `/auth/refresh`  | POST   | Refresh tokens     | `{ refreshToken }`                 | `{ ok: true, value: { tokens } }`            |
+| Endpoint                  | Method | Purpose                 | Request                            | Response                                     |
+| ------------------------- | ------ | ----------------------- | ---------------------------------- | -------------------------------------------- |
+| `/auth/customer/register` | POST   | Register account + user | `{ email, password, name }`        | `{ ok: true, value: { user, tokens } }`      |
+| `/auth/login`             | POST   | Authenticate user       | `{ email, password, rememberMe? }` | `{ ok: true, value: { accessToken, user } }` |
+| `/auth/me`                | GET    | Get current user        | `Authorization: Bearer <token>`    | `{ ok: true, value: { user } }`              |
+| `/auth/logout`            | POST   | Invalidate session      | `Authorization: Bearer <token>`    | `{ ok: true }`                               |
+| `/auth/refresh`           | POST   | Refresh tokens          | `{ refreshToken }`                 | `{ ok: true, value: { tokens } }`            |
+
+> **Note:** the public `POST /auth/register` admin-creation endpoint was removed for CWE-269 (privilege escalation via a client-supplied `role`; PR #126). Client-app user registration uses `POST /auth/customer/register`; admin users are provisioned only via `AuthService.registerAdmin` (seed/bootstrap), never a public route.
 
 ### Admin Auth Endpoints
 
