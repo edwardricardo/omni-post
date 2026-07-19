@@ -267,164 +267,18 @@ export class EventStore {
 
 ## Fastify Integration
 
-### Route Integration
+**Location (removed)**: `apps/api/src/cqrs/CQRSIntegration.ts` — this Fastify-route-helper
+pattern (`createCommandRoute` / `createQueryRoute` generics) was removed as dead scaffolding.
+It was Genesis-era code that was never wired into any composition root: nothing imported,
+instantiated, DI-registered, or mounted it, and git history shows only mechanical-sweep
+commits touching the file — no route-mount or unwire commit exists. It never served live
+traffic.
 
-**Location**: `apps/api/src/cqrs/CQRSIntegration.ts`
-
-CQRS is seamlessly integrated with Fastify routes using TypeScript generics:
-
-```typescript
-// Command endpoint
-export const createCommandRoute = <TCommand extends Command, TResult>(
-  fastify: FastifyInstance,
-  opts: {
-    method: "POST" | "PUT" | "PATCH" | "DELETE";
-    url: string;
-    commandType: string;
-    schema?: FastifySchema;
-    preHandler?: preHandlerAsyncHookHandler[];
-  }
-) => {
-  fastify.route<{
-    Body: Omit<TCommand, "id" | "timestamp">;
-    Reply: CommandResult<TResult>;
-  }>({
-    method: opts.method,
-    url: opts.url,
-    schema: opts.schema,
-    preHandler: opts.preHandler,
-    handler: async (request, reply) => {
-      try {
-        const command: TCommand = {
-          id: generateCommandId(),
-          timestamp: new Date(),
-          ...request.body,
-        } as TCommand;
-
-        const result = await commandBus.execute(command);
-
-        if (result.success) {
-          reply.status(200).send(result);
-        } else {
-          reply.status(400).send(result);
-        }
-      } catch (error) {
-        fastify.log.error("Command route error", { error });
-        reply.status(500).send({
-          success: false,
-          error: "Internal server error",
-        });
-      }
-    },
-  });
-};
-
-// Query endpoint
-export const createQueryRoute = <TQuery extends Query, TResult>(
-  fastify: FastifyInstance,
-  opts: {
-    method: "GET";
-    url: string;
-    queryType: string;
-    schema?: FastifySchema;
-    preHandler?: preHandlerAsyncHookHandler[];
-  }
-) => {
-  fastify.route<{
-    Querystring: Omit<TQuery, "type">;
-    Reply: QueryResult<TResult>;
-  }>({
-    method: "GET",
-    url: opts.url,
-    schema: opts.schema,
-    preHandler: opts.preHandler,
-    handler: async (request, reply) => {
-      try {
-        const query: TQuery = {
-          type: opts.queryType,
-          ...request.query,
-        } as TQuery;
-
-        const result = await queryBus.execute(query);
-
-        if (result.success) {
-          reply.status(200).send(result);
-        } else {
-          reply.status(400).send(result);
-        }
-      } catch (error) {
-        fastify.log.error("Query route error", { error });
-        reply.status(500).send({
-          success: false,
-          error: "Internal server error",
-        });
-      }
-    },
-  });
-};
-```
-
-### Route Registration Example
-
-```typescript
-// Register post management routes
-export async function registerPostRoutes(fastify: FastifyInstance) {
-  // Create post command
-  createCommandRoute<CreatePostCommand, CreatePostResult>(fastify, {
-    method: "POST",
-    url: "/api/posts",
-    commandType: "post.create",
-    schema: {
-      body: {
-        type: "object",
-        required: ["aggregateId", "data"],
-        properties: {
-          aggregateId: { type: "string" },
-          data: {
-            type: "object",
-            required: ["title", "content", "channelIds"],
-            properties: {
-              title: { type: "string", maxLength: 200 },
-              content: { type: "string", maxLength: 10000 },
-              channelIds: {
-                type: "array",
-                items: { type: "string" },
-                minItems: 1,
-              },
-            },
-          },
-        },
-      },
-    },
-    preHandler: [authenticate, authorize(["post:create"])],
-  });
-
-  // Get posts query
-  createQueryRoute<GetPostsByProjectQuery, PostSummary[]>(fastify, {
-    method: "GET",
-    url: "/api/projects/:projectId/posts",
-    queryType: "posts.getByProject",
-    schema: {
-      params: {
-        type: "object",
-        required: ["projectId"],
-        properties: {
-          projectId: { type: "string" },
-        },
-      },
-      querystring: {
-        type: "object",
-        properties: {
-          status: { type: "string", enum: ["DRAFT", "SCHEDULED", "PUBLISHED"] },
-          page: { type: "integer", minimum: 1, default: 1 },
-          limit: { type: "integer", minimum: 1, maximum: 100, default: 20 },
-        },
-      },
-    },
-    preHandler: [authenticate, authorize(["post:read"])],
-  });
-}
-```
+The live CQRS mechanism is `CQRSBus` (`CQRSBusImpl`, `apps/api/src/cqrs/CQRSBus.ts`),
+instantiated in `apps/api/src/index.ts`. Routes register handlers through `CQRSBus` directly
+(see the Command Bus / Query Bus / Command Handlers / Query Handlers sections above) plus
+the read-side Query Repositories — there is no generic Fastify-route-generator layer in the
+live implementation.
 
 ## Read Model Projections
 

@@ -112,7 +112,7 @@ Every backend PR introducing a new artifact includes the `Discovery:` line speci
 
 Backend routes register **without** the `/api/` prefix. This is enforced in `CODE_STANDARDS.md` §3.1.
 
-**Historical context (2026-04-18):** inicialmente el codebase tenía un split ~60/40 (sin/con prefix) derivado de drift histórico — la cifra previamente declarada "461 de 471" era incorrecta (real: ~284 sin vs ~187 con prefix, confirmado por PRE-D2 §4.4 y D0-v4 Piloto §8). Sprint D0v4-0 (Opción α, 2026-04-18) estandarizó ~141 endpoints a convención sin prefix. Los 9 endpoints CQRS (`CQRSIntegration.ts`) que aún usan prefix están marcados como DEAD_CODE y pendientes de decisión §5.9 en Sprint D0v4-2.
+**Historical context (2026-04-18):** inicialmente el codebase tenía un split ~60/40 (sin/con prefix) derivado de drift histórico — la cifra previamente declarada "461 de 471" era incorrecta (real: ~284 sin vs ~187 con prefix, confirmado por PRE-D2 §4.4 y D0-v4 Piloto §8). Sprint D0v4-0 (Opción α, 2026-04-18) estandarizó ~141 endpoints a convención sin prefix. Los 9 endpoints CQRS que aún usaban prefix (`CQRSIntegration.ts`) quedaron resueltos por eliminación: el módulo se confirmó como dead code (nunca instanciado en ningún composition root) y se removió del repo, cerrando la decisión pendiente §5.9.
 
 ```ts
 // Correct
@@ -398,7 +398,7 @@ See `CODE_STANDARDS.md` §6 for transversal minimums. Backend-specific:
 
 See `CODE_STANDARDS.md` §7 for general policy. Backend-specific cases:
 
-- **DEAD_CODE integration classes** (e.g., `CQRSIntegration` — never instantiated) — keep pending client refactor decision, or delete in dedicated cleanup sprint
+- **DEAD_CODE integration classes** — keep pending client refactor decision, or delete in dedicated cleanup sprint. _Resolved precedent: `CQRSIntegration.ts` (never instantiated in any composition root) was confirmed dead and deleted; the live CQRS mechanism is `CQRSBus` (`CQRSBusImpl`, wired in `apps/api/src/index.ts`)._
 - **PLANNED modules** (e.g., `content/` — built but not wired) — DO NOT DELETE. See PLAN_MAESTRO §5 PLANNED category and LATERAL_FINDINGS entries
 - **ORPHAN endpoints** (registered but no consumer) — triaged in D1 (ENDPOINT_AUDIT and D1_DECISIONS)
 
