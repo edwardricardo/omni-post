@@ -212,7 +212,13 @@ export class MfaService extends AuditableService implements MfaVerificationPort 
         // it as an invalid token — never fall through to the backup-code path —
         // and record the replay attempt as a HIGH-severity attack indicator.
         if (claim.error === "ALREADY_USED") {
-          await this.audit(subject, "MFA_TOTP_REPLAY_REJECTED", "HIGH");
+          await this.audit(
+            subject,
+            "MFA_TOTP_REPLAY_REJECTED",
+            "HIGH",
+            undefined,
+            record.accountId
+          );
         }
         return err("INVALID_TOKEN");
       }

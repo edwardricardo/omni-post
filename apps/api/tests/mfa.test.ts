@@ -14,6 +14,7 @@ import { PrismaRoleRepository } from "../src/infrastructure/repositories/PrismaR
 import { PrismaAdminSessionRepository } from "../src/infrastructure/repositories/PrismaAdminSessionRepository.js";
 import { PrismaAuditLogRepository } from "../src/infrastructure/repositories/PrismaAuditLogRepository.js";
 import { PrismaAdminMfaUserRepository } from "../src/infrastructure/adapters/PrismaAdminMfaUserRepository.js";
+import { PrismaCustomerMfaUserRepository } from "../src/infrastructure/adapters/PrismaCustomerMfaUserRepository.js";
 
 const adminUserRepo = new PrismaAdminUserRepository(prisma);
 const roleRepo = new PrismaRoleRepository(prisma);
@@ -23,11 +24,14 @@ const sessionRepo = new PrismaAdminSessionRepository(prisma);
 // subject-typed `verifyMfaToken` signature, so this file's AuthService must be
 // built with the SAME service production actually resolves via DI, not the
 // legacy `auth/mfaService.ts` (which takes a bare userId string and silently
-// breaks this file — bivariance lets the mismatched type through). The admin
-// adapter doubles as the customer repository, exactly like the composition
-// root does until the dedicated customer adapter lands.
+// breaks this file — bivariance lets the mismatched type through). Each
+// subject type gets its real adapter, mirroring the composition root.
 const adminMfaRepo = new PrismaAdminMfaUserRepository(prisma);
-const mfaService = new MfaService(adminMfaRepo, adminMfaRepo, new PrismaAuditLogRepository(prisma));
+const mfaService = new MfaService(
+  adminMfaRepo,
+  new PrismaCustomerMfaUserRepository(prisma),
+  new PrismaAuditLogRepository(prisma)
+);
 const authService = new AuthService(
   prisma,
   adminUserRepo,
