@@ -55,7 +55,7 @@ export interface CustomerActor {
 
 /**
  * The audit actor discriminated union. `writeAuditLog` maps it to port fields in
- * one switch — the single choke point where an actor becomes columns. Because the
+ * one mapping — the single choke point where an actor becomes columns. Because the
  * invalid dual-FK combination cannot be constructed, the type layer enforces the
  * same exclusive arc the database CHECK enforces.
  */
@@ -319,7 +319,7 @@ export abstract class AuditableService extends BaseService {
 
   /**
    * Write audit log entry to database. The single choke point that maps the
-   * `AuditActor` union to port columns in ONE switch: ADMIN → userId, CUSTOMER →
+   * `AuditActor` union to port columns in ONE mapping: ADMIN → userId, CUSTOMER →
    * customerUserId (+ accountId from the actor when the entry has none), SYSTEM →
    * neither; always `actorType`. Can be overridden for custom storage.
    *

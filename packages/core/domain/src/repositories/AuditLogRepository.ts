@@ -32,8 +32,8 @@ export type AuditActorType = (typeof AUDIT_ACTOR_TYPE)[keyof typeof AUDIT_ACTOR_
  * merely detectable by a reconciliation query — the same philosophy as the
  * database exclusive-arc CHECK. Technology-free pure function: the single
  * source of truth for every direct writer that bypasses the compiler-forced
- * `actorType` on `AuditLogCreateInput` via an `as Parameters<>` cast
- * (`AuditService.log`, `AuditLogger.log`, `emitAudit`).
+ * `actorType` on `AuditLogCreateInput` — via an `as Parameters<>` cast
+ * (`AuditService.log`, `AuditLogger.log`) or a raw create payload (`emitAudit`).
  *
  * @method deriveActorType
  * @param fields - Candidate actor FK(s) and/or an explicit `actorType`

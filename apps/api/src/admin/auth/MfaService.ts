@@ -390,9 +390,11 @@ export class MfaService extends AuditableService {
     severity: "MEDIUM" | "HIGH",
     details?: Record<string, unknown>
   ): Promise<void> {
-    // Behavior-preserving: every live subject is admin until mfa-consolidation
-    // PR2 repoints customer subjects onto auditActor.customer(subject.id,
-    // accountId). This is the MFA PR2 handoff seam.
+    // Behavior-preserving: every live subject resolves to the admin adapter
+    // today, so attribution is admin. When customer subjects gain real
+    // persistence, this call site must switch on subject.type and attribute
+    // customers via auditActor.customer(subject.id, accountId) — tracked as
+    // SMELL-62 (acceptance criterion of the customer-wiring slice).
     await this.logSecurityEvent(auditActor.admin(subject.id), subject.id, {
       action,
       severity,

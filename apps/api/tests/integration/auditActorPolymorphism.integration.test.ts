@@ -1,7 +1,7 @@
 /**
  * @file auditActorPolymorphism.integration.test.ts
  * @description Real-database integration coverage for the polymorphic audit
- *              actor (change `audit-actor-polymorphism`, PR A1). Proves the
+ *              actor (change `audit-actor-polymorphism`). Proves the
  *              write path a mocked unit test cannot: a customer-actor row
  *              persists and its FK resolves, the exclusive-arc CHECK rejects a
  *              dual-FK insert, deleting a CustomerUser nulls the FK (SetNull)
