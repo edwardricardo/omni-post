@@ -7,7 +7,7 @@
 import type { PrismaClient } from "@infra/prisma";
 import { type Result, type AdminRole } from "@shared/types";
 import {
-  deriveActorType,
+  normalizeAuditActorInput,
   type AuditActorType,
 } from "@core/domain/repositories/AuditLogRepository.js";
 import { BaseService } from "../services/BaseService.js";
@@ -79,13 +79,27 @@ export class AuditService extends BaseService {
         metadata: { action: params.action, resource: params.resource },
       },
       async () => {
+        // Normalize the actor FKs first so a dual-FK caller bug never reaches
+        // the DB exclusive-arc CHECK: userId wins (ADMIN) and the customer FK
+        // is dropped, with a warning so the bug is diagnosable.
+        const actor = normalizeAuditActorInput(params);
+        if (actor.droppedFk !== undefined) {
+          this.logWarning(
+            {
+              operation: "log",
+              ...(actor.userId !== undefined && { userId: actor.userId }),
+              metadata: { userId: params.userId, customerUserId: params.customerUserId },
+            },
+            "Audit actor received both userId and customerUserId; kept userId (ADMIN) and dropped customerUserId — caller bug"
+          );
+        }
         const createData: Record<string, unknown> = {
           action: params.action,
           success: params.success ?? true,
-          actorType: deriveActorType(params),
+          actorType: actor.actorType,
         };
-        if (params.userId) createData.userId = params.userId;
-        if (params.customerUserId) createData.customerUserId = params.customerUserId;
+        if (actor.userId) createData.userId = actor.userId;
+        if (actor.customerUserId) createData.customerUserId = actor.customerUserId;
         if (params.resource) createData.resource = params.resource;
         if (params.resourceId) createData.resourceId = params.resourceId;
         if (params.details) createData.details = params.details;

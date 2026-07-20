@@ -9,7 +9,11 @@
 import { describe, it, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { InMemoryAuditLogRepository } from "../../helpers/InMemoryAuditLogRepository.js";
-import { AUDIT_ACTOR_TYPE, deriveActorType } from "@core/domain/repositories/AuditLogRepository.js";
+import {
+  AUDIT_ACTOR_TYPE,
+  deriveActorType,
+  normalizeAuditActorInput,
+} from "@core/domain/repositories/AuditLogRepository.js";
 import type { AuditLogCreateInput } from "@core/domain/repositories/AuditLogRepository.js";
 
 const entry = (overrides?: Partial<AuditLogCreateInput>): AuditLogCreateInput => ({
@@ -178,6 +182,16 @@ describe("AuditLogRepository contract", () => {
       assert.strictEqual(repo.rows[0]?.userId, null);
       assert.strictEqual(repo.rows[0]?.actorType, "ADMIN");
     });
+
+    it("create rejects a dual-FK row, mimicking the DB exclusive-arc CHECK", async () => {
+      // The in-memory helper stands in for the DB CHECK so a dual-FK escape
+      // that bypasses normalization fails loudly in unit tests instead of
+      // silently persisting an invalid row.
+      await assert.rejects(
+        repo.create(entry({ userId: "admin-1", customerUserId: "cust-1" })),
+        /AuditLog_actor_exclusive_arc_check/
+      );
+    });
   });
 
   describe("deriveActorType — canonical FK-wins derivation (single-sourced for direct writers)", () => {
@@ -209,6 +223,48 @@ describe("AuditLogRepository contract", () => {
 
     it("honors an explicit actorType only when neither FK is present", () => {
       assert.strictEqual(deriveActorType({ actorType: AUDIT_ACTOR_TYPE.SYSTEM }), "SYSTEM");
+    });
+  });
+
+  describe("normalizeAuditActorInput — single-source dual-FK normalization for direct writers", () => {
+    it("drops customerUserId and flags droppedFk when both FKs are set (userId wins → ADMIN)", () => {
+      const result = normalizeAuditActorInput({ userId: "admin-1", customerUserId: "cust-1" });
+      assert.strictEqual(result.actorType, "ADMIN");
+      assert.strictEqual(result.userId, "admin-1");
+      assert.strictEqual(result.customerUserId, undefined);
+      assert.strictEqual(result.droppedFk, "customerUserId");
+    });
+
+    it("passes a lone userId through as ADMIN with no droppedFk", () => {
+      const result = normalizeAuditActorInput({ userId: "admin-1" });
+      assert.strictEqual(result.actorType, "ADMIN");
+      assert.strictEqual(result.userId, "admin-1");
+      assert.strictEqual(result.customerUserId, undefined);
+      assert.strictEqual(result.droppedFk, undefined);
+    });
+
+    it("passes a lone customerUserId through as CUSTOMER with no droppedFk", () => {
+      const result = normalizeAuditActorInput({ customerUserId: "cust-1" });
+      assert.strictEqual(result.actorType, "CUSTOMER");
+      assert.strictEqual(result.customerUserId, "cust-1");
+      assert.strictEqual(result.userId, undefined);
+      assert.strictEqual(result.droppedFk, undefined);
+    });
+
+    it("returns SYSTEM with no FKs when neither FK nor actorType is present", () => {
+      const result = normalizeAuditActorInput({});
+      assert.strictEqual(result.actorType, "SYSTEM");
+      assert.strictEqual(result.userId, undefined);
+      assert.strictEqual(result.customerUserId, undefined);
+      assert.strictEqual(result.droppedFk, undefined);
+    });
+
+    it("honors an explicit actorType when no FK contradicts it", () => {
+      const result = normalizeAuditActorInput({ actorType: AUDIT_ACTOR_TYPE.SYSTEM });
+      assert.strictEqual(result.actorType, "SYSTEM");
+      assert.strictEqual(result.userId, undefined);
+      assert.strictEqual(result.customerUserId, undefined);
+      assert.strictEqual(result.droppedFk, undefined);
     });
   });
 });

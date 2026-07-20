@@ -334,6 +334,29 @@ describe("AuditService - log() - Create Audit Logs", () => {
       expect("userId" in data).toBe(false);
       expect("customerUserId" in data).toBe(false);
     });
+
+    it("drops customerUserId, keeps the ADMIN userId, and warns when both actor FKs are supplied", async () => {
+      // A dual-FK caller bug must not reach the DB exclusive-arc CHECK: the row
+      // is written as an ADMIN entry (userId wins) and the drop is logged.
+      await auditService.log({
+        userId: TEST_USER_1.id,
+        customerUserId: "cust-1",
+        action: "DUAL_FK_ACTION",
+      });
+      const data = mocks.auditLogCreate.mock.calls[0]?.[0]?.data;
+      expect(data.actorType).toBe("ADMIN");
+      expect(data.userId).toBe(TEST_USER_1.id);
+      expect("customerUserId" in data).toBe(false);
+      expect(mocks.logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            userId: TEST_USER_1.id,
+            customerUserId: "cust-1",
+          }),
+        }),
+        expect.stringContaining("customerUserId")
+      );
+    });
   });
 
   describe("AuditActions Constants", () => {

@@ -19,7 +19,7 @@
  * @layer infrastructure
  */
 import {
-  deriveActorType,
+  normalizeAuditActorInput,
   type AuditActorType,
   type AuditLogRepository,
 } from "@core/domain/repositories/AuditLogRepository.js";
@@ -70,14 +70,21 @@ export interface AuditInput {
  */
 export async function emitAudit(repo: AuditLogRepository, input: AuditInput): Promise<void> {
   const severity = input.severity ?? DEFAULT_SEVERITY[input.category] ?? "MEDIUM";
+  const actor = normalizeAuditActorInput(input);
+  if (actor.droppedFk !== undefined) {
+    logger.warn(
+      { userId: input.userId, customerUserId: input.customerUserId, action: input.action },
+      "Audit actor received both userId and customerUserId; kept userId (ADMIN) and dropped customerUserId — caller bug"
+    );
+  }
   try {
     await repo.create({
       action: input.action,
-      actorType: deriveActorType(input),
+      actorType: actor.actorType,
       details: { category: input.category, severity, ...input.details },
       success: input.success ?? true,
-      ...(input.userId !== undefined && { userId: input.userId }),
-      ...(input.customerUserId !== undefined && { customerUserId: input.customerUserId }),
+      ...(actor.userId !== undefined && { userId: actor.userId }),
+      ...(actor.customerUserId !== undefined && { customerUserId: actor.customerUserId }),
       ...(input.accountId !== undefined && { accountId: input.accountId }),
       ...(input.resourceType !== undefined && { resource: input.resourceType }),
       ...(input.resourceId !== undefined && { resourceId: input.resourceId }),

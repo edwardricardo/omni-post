@@ -5,6 +5,11 @@
  *              port contract) without a real database. Stores rows in insert
  *              order and honours newest-first reads, action filtering, and
  *              pagination, mirroring the Prisma adapter's observable semantics.
+ *              `create` also enforces the exclusive-arc invariant the real
+ *              database CHECK (`num_nonnulls(userId, customerUserId) <= 1`)
+ *              guarantees, throwing on a dual-FK row so a normalization escape
+ *              fails loudly in unit tests instead of silently persisting an
+ *              invalid actor.
  * @layer infrastructure
  */
 
@@ -20,6 +25,12 @@ export class InMemoryAuditLogRepository implements AuditLogRepository {
   private seq = 0;
 
   async create(input: AuditLogCreateInput): Promise<void> {
+    if (input.userId !== undefined && input.customerUserId !== undefined) {
+      // Mirror the DB exclusive-arc CHECK so a dual-FK escape is caught here.
+      throw new Error(
+        'new row for relation "AuditLog" violates check constraint "AuditLog_actor_exclusive_arc_check"'
+      );
+    }
     this.rows.push({
       id: `log-${++this.seq}`,
       userId: input.userId ?? null,

@@ -9,7 +9,7 @@ import { Redis } from "ioredis";
 import type { FastifyRequest } from "fastify";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import {
-  deriveActorType,
+  normalizeAuditActorInput,
   type AuditActorType,
 } from "@core/domain/repositories/AuditLogRepository.js";
 import { logger } from "../lib/logger.js";
@@ -104,17 +104,30 @@ export class AuditLogger {
       // Sanitize sensitive data
       const sanitizedEvent = this.sanitizeEvent(enrichedEvent);
 
-      // Store in database
+      // Store in database. Normalize the actor FKs first so a caller that
+      // forwards both never reaches the DB exclusive-arc CHECK (which would be
+      // swallowed by the catch below, losing the row).
+      const actor = normalizeAuditActorInput(sanitizedEvent);
+      if (actor.droppedFk !== undefined) {
+        logger.warn(
+          {
+            userId: sanitizedEvent.userId,
+            customerUserId: sanitizedEvent.customerUserId,
+            action: sanitizedEvent.action,
+          },
+          "Audit actor received both userId and customerUserId; kept userId (ADMIN) and dropped customerUserId — caller bug"
+        );
+      }
       const createData: Record<string, unknown> = {
         action: sanitizedEvent.action,
         success: sanitizedEvent.success ?? true,
-        actorType: deriveActorType(sanitizedEvent),
+        actorType: actor.actorType,
       };
       if (sanitizedEvent.resource) createData.resource = sanitizedEvent.resource;
       if (sanitizedEvent.resourceId) createData.resourceId = sanitizedEvent.resourceId;
       if (sanitizedEvent.details) createData.details = sanitizedEvent.details;
-      if (sanitizedEvent.userId) createData.userId = sanitizedEvent.userId;
-      if (sanitizedEvent.customerUserId) createData.customerUserId = sanitizedEvent.customerUserId;
+      if (actor.userId !== undefined) createData.userId = actor.userId;
+      if (actor.customerUserId !== undefined) createData.customerUserId = actor.customerUserId;
       if (sanitizedEvent.ipAddress) createData.ipAddress = sanitizedEvent.ipAddress;
       if (sanitizedEvent.userAgent) createData.userAgent = sanitizedEvent.userAgent;
       if (sanitizedEvent.error) createData.error = sanitizedEvent.error;

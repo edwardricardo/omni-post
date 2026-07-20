@@ -8,9 +8,24 @@
  *              `actorType` is honored only when neither FK is set.
  * @layer infrastructure
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { InMemoryAuditLogRepository } from "../helpers/InMemoryAuditLogRepository.js";
-import { emitAudit } from "../../../src/services/audit.js";
+
+// The dual-FK guard warns through the module logger; capture it so the caller
+// bug is asserted as diagnosable rather than silent.
+const loggerMock = vi.hoisted(() => ({
+  warn: vi.fn(),
+  error: vi.fn(),
+  info: vi.fn(),
+  debug: vi.fn(),
+}));
+
+vi.mock("../../../src/lib/logger.js", () => {
+  const instance = { ...loggerMock, trace: vi.fn(), fatal: vi.fn(), child: () => instance };
+  return { logger: instance, authLogger: instance, createLogger: () => instance };
+});
+
+const { emitAudit } = await import("../../../src/services/audit.js");
 
 describe("emitAudit — actorType derivation", () => {
   let repo: InMemoryAuditLogRepository;
@@ -83,6 +98,28 @@ describe("emitAudit — actorType derivation", () => {
     expect(row.actorType).toBe("SYSTEM");
     expect(row.userId).toBe(null);
     expect(row.customerUserId).toBe(null);
+  });
+
+  it("keeps only the ADMIN userId, drops customerUserId, and warns when both actor FKs are supplied", async () => {
+    // A caller bug that forwards both FKs must NOT hit the DB exclusive-arc
+    // CHECK and lose the row to the non-rethrowing catch — the row persists as
+    // an ADMIN entry (userId wins) and the drop is logged so the bug surfaces.
+    await emitAudit(repo, {
+      action: "ADMIN_OVER_CUSTOMER",
+      category: "SECURITY",
+      userId: "admin-dual",
+      customerUserId: "cust-dual",
+    });
+
+    expect(repo.rows).toHaveLength(1);
+    const row = repo.rows[0]!;
+    expect(row.actorType).toBe("ADMIN");
+    expect(row.userId).toBe("admin-dual");
+    expect(row.customerUserId).toBe(null);
+    expect(loggerMock.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "admin-dual", customerUserId: "cust-dual" }),
+      expect.stringContaining("customerUserId")
+    );
   });
 
   it("swallows a persistence error without throwing (audit failures must not break the caller)", async () => {

@@ -51,6 +51,62 @@ export function deriveActorType(fields: {
 }
 
 /**
+ * Normalize a direct writer's actor input into a single, arc-safe shape that can
+ * never carry both FKs at once. This is the write-side complement to the database
+ * exclusive-arc CHECK (`num_nonnulls(userId, customerUserId) <= 1`): rather than
+ * let a caller that mistakenly forwards both FKs reach the constraint — where each
+ * writer's non-rethrowing catch would silently DROP the audit row — the invalid
+ * dual-FK state is made unrepresentable in the value returned here, so the row
+ * always persists.
+ *
+ * `actorType` is resolved by {@link deriveActorType} (reused, never duplicated).
+ * When BOTH FKs are present the derived type is `ADMIN` (userId wins), so the
+ * customer FK is dropped and `droppedFk` is set to `"customerUserId"`, giving the
+ * caller a signal to warn about its own bug. Otherwise whichever single FK is
+ * present passes through untouched. The result never contains both FKs.
+ *
+ * A pure, technology-free function: no logging, no I/O — the warning is the
+ * caller's responsibility so the domain stays free of infrastructure concerns.
+ * FK presence follows the same truthiness rule as {@link deriveActorType}, so a
+ * `null` or empty-string FK is treated as absent.
+ *
+ * @method normalizeAuditActorInput
+ * @param input - Candidate actor FK(s) (possibly `null`) and/or an explicit `actorType`
+ * @returns The resolved `actorType`, at most one FK, and `droppedFk` when a
+ *   conflicting customer FK was discarded in favor of the admin FK
+ */
+export function normalizeAuditActorInput(input: {
+  userId?: string | null;
+  customerUserId?: string | null;
+  actorType?: AuditActorType;
+}): {
+  actorType: AuditActorType;
+  userId?: string;
+  customerUserId?: string;
+  droppedFk?: "customerUserId";
+} {
+  const userId = input.userId ? input.userId : undefined;
+  const customerUserId = input.customerUserId ? input.customerUserId : undefined;
+  const actorType = deriveActorType({
+    ...(userId !== undefined && { userId }),
+    ...(customerUserId !== undefined && { customerUserId }),
+    ...(input.actorType !== undefined && { actorType: input.actorType }),
+  });
+
+  if (userId !== undefined && customerUserId !== undefined) {
+    // userId wins (ADMIN); the customer FK is discarded so the exclusive arc
+    // holds by construction and the caller can be warned about its bug.
+    return { actorType, userId, droppedFk: "customerUserId" };
+  }
+
+  return {
+    actorType,
+    ...(userId !== undefined && { userId }),
+    ...(customerUserId !== undefined && { customerUserId }),
+  };
+}
+
+/**
  * Fields required to persist a single audit-trail entry.
  *
  * Optional keys are omitted (never set to `undefined`) so the adapter can
