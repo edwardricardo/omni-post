@@ -47,7 +47,7 @@ Port and adapters: `AuditLogCreateInput` / `AuditLogRecordDto` (`packages/core/d
 - `MfaService.audit()` (`apps/api/src/admin/auth/MfaService.ts:387-398`) calls `logSecurityEvent(subject.id, subject.id, { details: { subjectType, ... } })` — passing `subject.id` as BOTH `userId` and `accountId`, with no `resource` / `resourceId`.
 - With a customer subject, `userId = customerUser.id` violates the AdminUser FK → the row is dropped. Confirmed loss path.
 - `MfaSubject = { type: 'admin' | 'customer', id }`, `MFA_SUBJECT_TYPE = { admin, customer }` (`packages/ports/src/MfaUserRepositoryPort.ts:18-32`). `MfaUserRecord` (`:39-46`) carries `id` and `email` but NO `accountId`.
-- Coordination (verified in `openspec/changes/mfa-consolidation/design.md:65,72-73` and `tasks.md:26`): `MfaUserRecord.accountId?` and the customer route repoint are PENDING in **mfa-consolidation PR2** → this change MUST land BEFORE PR2.
+- Coordination (verified in `openspec/changes/archive/mfa-consolidation/design.md:65,72-73` and `tasks.md:26`): `MfaUserRecord.accountId?` and the customer route repoint are PENDING in **mfa-consolidation PR2** → this change MUST land BEFORE PR2.
 - `AuthServiceCore` (`apps/api/src/auth/authServiceCore.ts:48`) is admin-scoped (`AdminUserRepositoryPort`), so its audits carry AdminUser ids and satisfy the FK. The MFA customer path is the FIRST customer-actor writer in the system.
 
 ### Constraint feasibility

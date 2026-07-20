@@ -457,3 +457,197 @@ Owner policy: resolvable warnings get fixed now, not carried. No `sensitive-edit
 W-PR2b-3-1 RESOLVED (tenant-binding invariant now enforced, byte-identical anti-oracle preserved, RED→GREEN proven). W-PR2b-3-2 remains an explicit reviewer/merge-checklist item (manual e2e spot-check), not a code defect — unchanged disposition from the original report. Adapter-test relocation confirmed green at its new canonical path. **0 CRITICAL, 0 resolvable WARNING open, 1 deferred WARNING (manual checklist item, non-blocking), 1 SUGGESTION (S-PR2b-3-2, pre-existing, out of scope) unchanged.**
 
 **next_recommended: sdd-archive** (after the manual e2e spot-check on the merge/reviewer checklist).
+
+---
+
+## PR3 — Admin Backfill + Legacy Service Retirement
+
+**Verdict: PASS WITH WARNINGS** (0 CRITICAL, 2 WARNING, 2 SUGGESTION).
+
+Adversarial re-derivation at source + full runtime execution on the UNCOMMITTED
+working tree (`workstream/cluster-b-mfa`; nothing committed for PR3). This is a
+data-migration that mutates a security-dual column (`AdminUser.passwordResetToken`
+holds both legacy MFA backup-code JSON _and_ genuine reset tokens) plus the deletion
+of a service — a mis-classifying guard would corrupt reset tokens or silently lose
+backup codes. Every such path was hunted and PROVEN safe (code + runtime).
+
+### Data-corruption paths — ALL PROVEN SAFE (headline)
+
+- **Guard cannot misclassify a non-MFA value.** `parseLegacyBackupBlob`
+  (`infra/prisma/scripts/backfill-admin-mfa-backup-codes.ts:35-53`) migrates a row
+  IFF the value is a non-empty JSON array whose every element `startsWith("$argon2id$")`.
+  Verified at runtime against a 14-case adversarial matrix (throwaway probe importing
+  the exported guard) — **0 throws, 0 misclassifications**: null, genuine UUID reset
+  token, `CHANGE_REQUIRED` sentinel, empty array `[]`, malformed JSON starting with
+  `[`, array of non-argon2 strings, mixed `[valid, non-hash]`, non-string element,
+  nested array, JSON object, `[CHANGE]`-shaped non-array, and a bcrypt-hash array ALL
+  return `null` (skip); only genuine single/double argon2id arrays migrate. Ordering
+  is correct: `parsed.length === 0` is checked BEFORE `.every(...)`, so the JS
+  `[].every()===true` foot-gun cannot mis-fire on an empty array. `JSON.parse` is in
+  try/catch → malformed input is skipped, never thrown.
+- **Cleanup cannot null a pending genuine reset token.** `runCleanup`
+  (`:167-206`) is triple-gated: the query requires `passwordResetToken startsWith "["`
+  AND `mfaBackupCodes isEmpty:false`, and the in-loop `parseLegacyBackupBlob(...) === null`
+  re-check skips anything that isn't a genuine argon2id array. A UUID reset token does
+  not start with `[` (never fetched) and fails the guard (defense-in-depth). Integration
+  test 7 asserts on REAL Postgres that a pending `randomUUID()` token and the
+  `CHANGE_REQUIRED` sentinel are NEVER nulled while the migrated legacy source IS nulled.
+- **Cleanup cannot run before codes are safely persisted.** The `mfaBackupCodes isEmpty:false`
+  query filter means a legacy row whose codes have NOT been copied yet is never fetched
+  by cleanup → the source is preserved until the codes exist in the canonical column.
+  Even a premature operator `--cleanup` cannot lose codes. `main()` runs
+  backfill→verify→(cleanup only behind `--cleanup`) in that order (`:231-257`), so a
+  single `--cleanup` invocation populates `mfaBackupCodes` first.
+
+### Behavioral compliance matrix — integration test, real Postgres
+
+`cd apps/api && (source /root/omni-post/.env) node --conditions development --import tsx --test --test-force-exit tests/integration/backfillAdminMfaBackupCodes.integration.test.ts`
+→ **7/7 pass, 0 fail, 0 cancelled, 0 skipped.** Every `it()` asserts BEHAVIOR against a
+real DB (no mocks); none weakened:
+
+| #   | Scenario (spec/contract)                                                         | Evidence                                                                     | Status |
+| --- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------ |
+| 1   | Legacy blob → hashes copied into `mfaBackupCodes`, source RETAINED               | `deepStrictEqual(mfaBackupCodes,[A,B])` + `passwordResetToken===LEGACY_BLOB` | PASS   |
+| 2   | Idempotent — re-run does not re-migrate                                          | before/after `mfaBackupCodes` equal; query filters `isEmpty:true` (`:75`)    | PASS   |
+| 3   | Genuine UUID reset token SKIPPED, untouched                                      | `mfaBackupCodes===[]` + token intact                                         | PASS   |
+| 4   | `CHANGE_REQUIRED` sentinel SKIPPED, untouched                                    | `mfaBackupCodes===[]` + sentinel intact                                      | PASS   |
+| 5   | Row with pre-existing codes SKIPPED, never overwritten                           | `mfaBackupCodes===[EXISTING]` unchanged                                      | PASS   |
+| 6   | `verifyIntegrity` counts `migrated <= sourceMatching`, source retained           | numeric invariant asserted                                                   | PASS   |
+| 7   | Cleanup nulls only guard-matched+codes-present; pending reset token never nulled | migrated→null, UUID+sentinel intact                                          | PASS   |
+
+### Idempotency + source retention — CONFIRMED
+
+`runBackfill` (`:64-108`) selects `mfaBackupCodes:{isEmpty:true}` at query level and only
+sets `mfaBackupCodes` (never touches `passwordResetToken`). Re-run migrates nothing;
+pre-existing codes never overwritten. Keyset batching (`id:{gt:lastId}`, `orderBy id asc`,
+`take 200`, `lastId` advanced first-in-loop) is robust to the filter-mutation the update
+causes and cannot loop infinitely on skipped rows. Test 2 proves the re-run no-op.
+
+### Import-safety — CONFIRMED
+
+`isDirectRun()` (`:216-222`, `import.meta.url === pathToFileURL(process.argv[1]).href`)
+gates the CLI `main()`. Proof: the adversarial guard probe imported the module with
+`DATABASE_URL` UNSET and ran to completion WITHOUT throwing `"DATABASE_URL is required"`
+— i.e. `main()` did not self-execute on import; and the integration test statically imports
+the three exports and drives them without the module connecting/exiting.
+
+### Legacy deletion — COMPLETE & SAFE
+
+- `apps/api/src/auth/mfaService.ts` (498 lines) is ABSENT (`git status`: unstaged `D`).
+- `tsc --noEmit` @apps/api (heap 6144) = **0** — nothing dangles on the deleted file.
+- Zero real imports of `auth/mfaService` repo-wide. Every `MfaService` import in `src/` and
+  `tests/` resolves to the unified `src/admin/auth/MfaService.js` (verified by import-line grep,
+  27 sites). The only 3 residual textual mentions of `auth/mfaService.ts` are genuine `why`
+  comments, NOT code: `setupServices.ts:190` (documents the closed single-registration
+  invariant — accurate post-deletion, valuable, no edit needed), `tests/mfa.test.ts:26`
+  (historical note in the repointed suite), and the backfill test's own JSDoc `:9`.
+- `tests/unit/mfaService.test.ts` (590 lines, legacy-only `passwordResetToken`-storage
+  assertions) deleted; those assertions describe a storage mechanism the unified service no
+  longer uses, so their removal is correct, not lost coverage.
+
+### Parity preserved — runtime verified
+
+- `vitest run tests/unit/unifiedMfaService.test.ts` → **19/19** (setup, TOTP+backup-code verify,
+  regenerate, admin-force-disable both subjects, status — no secret leakage).
+- `vitest run tests/unit/mfaTotpSingleUse.test.ts` → **14/14** — PR2b-1 TOTP single-use/replay
+  rejection INTACT after the deletion.
+- Backup codes are argon2id-hashed and 8-char-derived per the unified service
+  (`MfaService.ts:8,42-43`), which matches the guard's `$argon2id$` prefix check — the
+  migrated hashes are exactly what the legacy service stored.
+
+### Repointed tests (15 DI-bootstrap-only) — mechanical, sound
+
+Diffs are a pure constructor-signature migration: `new MfaService(adminUserRepo, audit)` →
+`new MfaService(new PrismaAdminMfaUserRepository(p), new PrismaCustomerMfaUserRepository(p), audit)`
+
+- import path `auth/mfaService.js` → `admin/auth/MfaService.js`. NO MFA assertion touched (these
+  suites never exercise MFA; the service is a DI dependency of `AuthService`). Representative runtime
+  check: `vitest run tests/unit/rbacRoutes.test.ts` → **38/38**.
+
+### Canon + fitness gate — all green
+
+- `eslint --max-warnings 0` on the new script + new test → **0**.
+- New script: **0** raw queries (fitness #23 — also out of #23 scope, in `infra/prisma/scripts/`),
+  **0** `any`, **0** time-bomb words. `@file`/`@description`/`@layer infrastructure` tags FIRST,
+  then `// canon-exception: migration:2026-07-11` — a valid Pragmatic-Exceptions scenario
+  (`migration:<ts>`) for a one-off migration script using injected/direct Prisma.
+- Fitness #9 (@file) present on both new files; #10 (@layer) valid on both.
+- Typed Prisma only (`findMany`/`update`); no `$queryRaw`/`$executeRaw`.
+
+### Scope — CLEAN
+
+`git status` shows exactly PR3 surface: deleted `auth/mfaService.ts` + `tests/unit/mfaService.test.ts`,
+15 test repoints, new `infra/prisma/scripts/backfill-admin-mfa-backup-codes.ts` (untracked), new
+integration test, `tasks.md`. No PR2b file touched, no frontend, no unrelated src change.
+
+### Issues
+
+| Sev        | ID      | Finding                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ---------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| WARNING    | W-PR3-1 | **The guard's safety-critical rejection branches have NO committed test.** `runBackfill`'s query pre-filters on `startsWith("[")` and every seeded blob-shaped fixture is VALID, so the in-loop guard-reject path (`skipped++`, `:88`) and the guard's try/catch/mixed-array/empty-array branches are never exercised by the committed suite. I proved them safe out-of-band (14-case probe, 0 throw/0 misclassify), but that probe is not committed — a future regression that weakened the guard (e.g. dropped the `.every($argon2id$)` check) would still pass 7/7. Highest-risk code path in the change with zero committed negative-path coverage. Non-blocking because the code is correct today. |
+| WARNING    | W-PR3-2 | **5 node:test ROOT repoints not executed in this verify.** `auth/audit/rbac/trialPeriod/accountLifecycle.test.ts` are live-API batches (fetch `localhost:3000`) and were NOT re-run here (no booted API in the LXC single-file harness); they are also NOT covered by `tsc --noEmit` (apps/api tsconfig excludes `tests/`). Validated instead by mechanical-diff (pure ctor widening, no assertion change) + tsx-compile + the identical vitest sibling pattern passing (rbacRoutes 38/38). Low risk; reviewer/CI should run the live-API batch before merge.                                                                                                                                           |
+| SUGGESTION | S-PR3-1 | Commit a unit test for the already-exported `parseLegacyBackupBlob` covering the adversarial matrix (UUID, sentinel, empty/malformed/mixed/non-argon2 arrays) — closes W-PR3-1 cheaply, no DB needed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| SUGGESTION | S-PR3-2 | `backfillAdminMfaBackupCodes.integration.test.ts` carries a duplicate `@layer infrastructure` tag (lines 4 and 41). Cosmetic; remove one.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+
+### Operational note (not a finding)
+
+For a row where `mfaBackupCodes` is already non-empty AND `passwordResetToken` holds a
+DIFFERENT legacy blob, `runCleanup` nulls that legacy blob. This is CORRECT: a re-enrolled admin's
+canonical codes live in `mfaBackupCodes`; the stale legacy blob should be discarded. No meaningful
+data loss. Operator guidance already embedded in `main()`: run without `--cleanup` first, reconcile
+`verifyIntegrity` counts, then `--cleanup`.
+
+### Result
+
+No data-corruption path exists: the guard cannot misclassify a reset token or sentinel, cleanup
+cannot null a pending reset token or run before codes are persisted, and the module is import-safe —
+all proven by source inspection AND runtime. Legacy deletion is complete with a clean zero-reference
+gate and `tsc` = 0; parity and PR2b-1 replay protection are intact. **0 CRITICAL, 2 WARNING
+(both non-blocking; W-PR3-1 is a test-coverage gap on already-correct code, W-PR3-2 is deferred
+live-API execution), 2 SUGGESTION.**
+
+**next_recommended: sdd-archive.** Neither WARNING blocks archive; both go on the reviewer/merge
+checklist. Merge to main stays gated (per apply) by the manual e2e smoke (W-PR2b-3-2) and the operator
+running the backfill against prod (COUNT the guard population first; migrate → verify → `--cleanup`
+only if > 0).
+
+---
+
+## Post-verify remediation (PR3)
+
+Owner policy: findings we can close cheaply get closed now, not carried. No `sensitive-edit`
+token needed — the only change is a new DB-free unit test under `apps/api/tests/unit/`.
+
+| Finding                                                                                       | Disposition                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **S1 (W-PR3-1 / S-PR3-1) — guard's safety-critical rejection branches had no committed test** | **RESOLVED.** New pure unit test `apps/api/tests/unit/backfillAdminMfaBackupCodesGuard.test.ts` (vitest, `node:assert/strict`, mirrors the integration test's import style: `../../../../infra/prisma/scripts/backfill-admin-mfa-backup-codes.js`). Exercises the already-exported `parseLegacyBackupBlob` DB-free against the full adversarial matrix: valid 2-hash array (the only migrate case); empty array `[]`; mixed valid+non-hash array (all-or-nothing); array of non-Argon2id strings; a genuine `randomUUID()` reset token; the `CHANGE_REQUIRED` sentinel; a JSON object (not an array); malformed JSON starting with `[` (asserts it returns `null` WITHOUT throwing); `null` and empty-string input. **9/9 pass** — every non-MFA case confirmed `null` (no misclassification); this is a characterization/regression lock on already-correct behavior, not a bug fix. Closes W-PR3-1's coverage gap: a future regression that weakened the guard (e.g. dropping the `.every($argon2id$)` check) now fails this suite without needing `pnpm db:up`.                                                                                                                                                                                                                                                                                                                               |
+| **S2 — `verifyIntegrity.migrated` naming (cosmetic)**                                         | **RESOLVED (2026-07-11, second remediation pass, sensitive-edit token — `infra/prisma/**`).** Renamed `verifyIntegrity`'s returned field `migrated`→`verifiedMigrated`in`infra/prisma/scripts/backfill-admin-mfa-backup-codes.ts` — **no logic change**: the counting conditions (`sourceMatching`= guard-matching retained legacy rows;`verifiedMigrated`= the subset of those whose`mfaBackupCodes`is already non-empty) are byte-for-byte identical, only the field key + JSDoc +`logger.info`payload key changed.`runBackfill`'s own `migrated`(a per-invocation delta) is UNCHANGED. New JSDoc explicitly distinguishes the two:`verifiedMigrated` is an END-STATE SNAPSHOT (`verifiedMigrated === sourceMatching`⇒ safe to run`runCleanup`), never a per-run delta — `verifyIntegrity`structurally cannot report a delta since it is a separate step that only observes the end state. Updated the one consumer that read the old field name:`backfillAdminMfaBackupCodes.integration.test.ts`'s `verifyIntegrity`test now asserts`verify.verifiedMigrated`(both the`typeof`check and the`<= sourceMatching`invariant); the OTHER test asserting`result.migrated`(from`runBackfill`) was left untouched, as required. Grepped repo-wide for any other consumer of `verifyIntegrity(...).migrated`— none found (the CLI`main()`only logs the whole`verify` object, never a specific field). |
+| **S3 — SMELL-53 (tests without a `tsc` type-gate)**                                           | **ACCEPTED, deferred to backlog.** Already tracked in the approved PR3 plan's own Backlog section (`openspec/changes/mfa-consolidation/tasks.md`, "Backlog (registrado, fuera de scope de PR3)"): `apps/api/tsconfig.json`'s `include` does not cover `tests/`, so `tsc --noEmit` never type-checks test files (only transpiles via `tsx`). Fixing it means widening the `include` repo-wide — a type-gate change well beyond PR3's scope, confirmed staying deferred.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| **STALE-DOC (new finding, backlog, not PR3 scope)**                                           | `docs/product/MASTER_PLAN_ES.md:150` and `docs/standards/code-standards.md:22` both describe the (now-deleted) legacy `auth/mfaService.ts` as storing MFA backup codes with **"SHA-256"**. Verified against the actual legacy source captured before deletion this session: the legacy `hashBackupCode` method called the SAME canonical `hashPassword` (Argon2id) helper the unified service uses, with an inline comment explicitly REJECTING SHA-256 ("SHA-256 alone is vulnerable to brute-force given the small alphabet... Argon2id makes the search space computationally infeasible"). The docs' "SHA-256" claim was already factually wrong even before the deletion, not merely made stale by it. Correcting these two doc lines is docs-only (no code/spec impact) — a separate slice, not PR3; flagged here for the docs backlog.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+
+### Remediation gate (LXC-safe, single-file re-runs)
+
+- `vitest run tests/unit/backfillAdminMfaBackupCodesGuard.test.ts --pool=forks --maxWorkers=1 --no-file-parallelism` → **9/9** (new)
+- `node --env-file=/root/omni-post/.env.test --conditions development --import tsx --test --test-force-exit tests/integration/backfillAdminMfaBackupCodes.integration.test.ts` → **7/7, 0 cancelled** (no regression from exporting/using the guard in a second consumer)
+- `NODE_OPTIONS=--max-old-space-size=6144 pnpm --filter @apps/api exec tsc --noEmit` → **0**
+- `eslint --max-warnings 0` on the new test + the script → **0**
+- Fitness **#9** (@file) = 0, **#10** (@layer infrastructure) = 0 on the new file
+
+### S2 remediation gate (second pass, sensitive-edit token, field rename only)
+
+- `node --env-file=/root/omni-post/.env.test --conditions development --import tsx --test --test-force-exit tests/integration/backfillAdminMfaBackupCodes.integration.test.ts` → **7/7, 0 cancelled** (with `verify.verifiedMigrated`)
+- `vitest run tests/unit/backfillAdminMfaBackupCodesGuard.test.ts --pool=forks --maxWorkers=1 --no-file-parallelism` → **9/9** (untouched, confirmed unaffected by the rename)
+- `NODE_OPTIONS=--max-old-space-size=6144 pnpm --filter @apps/api exec tsc --noEmit` → **0**
+- `eslint --max-warnings 0` on the script + the integration test → **0**
+- Fitness **#23** (raw queries, apps/api/src + apps/workers/src) = **0** (still typed-Prisma only)
+- Repo-wide grep for any other `verifyIntegrity(...).migrated` consumer → **0** (the CLI `main()` only logs the whole `verify` object)
+
+### Result (post-remediation, both S1 and S2 batches)
+
+S1 and S2 resolved; S3 accepted/deferred with reason (backlog, no functional impact, no test/spec
+regression). STALE-DOC finding logged for a future docs-only slice. **0 CRITICAL, 2 WARNING unchanged
+from the original verify (W-PR3-1 is now closed by the new test — downgrade to resolved; W-PR3-2
+live-API execution remains a reviewer/merge-checklist item, unaffected by either remediation batch),
+1 SUGGESTION remaining (S-PR3-2, duplicate `@layer` tag, cosmetic, unchanged).**
+
+**next_recommended: sdd-archive.**

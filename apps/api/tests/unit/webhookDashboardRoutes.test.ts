@@ -36,7 +36,9 @@ import { ZodTypeProvider, serializerCompiler, validatorCompiler } from "fastify-
 import { registerWebhookDashboardRoutes } from "../../src/webhooks/webhookDashboardRoutes.js";
 import { WebhookDashboardService } from "../../src/webhooks/webhookDashboardService.js";
 import { AuthService } from "../../src/auth/authService.js";
-import { MfaService } from "../../src/auth/mfaService.js";
+import { MfaService } from "../../src/admin/auth/MfaService.js";
+import { PrismaAdminMfaUserRepository } from "../../src/infrastructure/adapters/PrismaAdminMfaUserRepository.js";
+import { PrismaCustomerMfaUserRepository } from "../../src/infrastructure/adapters/PrismaCustomerMfaUserRepository.js";
 import { PrismaAdminUserRepository } from "../../src/infrastructure/repositories/PrismaAdminUserRepository.js";
 import { PrismaRoleRepository } from "../../src/infrastructure/repositories/PrismaRoleRepository.js";
 import { PrismaAdminSessionRepository } from "../../src/infrastructure/repositories/PrismaAdminSessionRepository.js";
@@ -65,7 +67,11 @@ const webhookDashboardService = new WebhookDashboardService(prisma);
 const adminUserRepo = new PrismaAdminUserRepository(prisma);
 const roleRepo = new PrismaRoleRepository(prisma);
 const sessionRepo = new PrismaAdminSessionRepository(prisma);
-const mfaSvc = new MfaService(adminUserRepo, new InMemoryAuditLogRepository());
+const mfaSvc = new MfaService(
+  new PrismaAdminMfaUserRepository(prisma),
+  new PrismaCustomerMfaUserRepository(prisma),
+  new InMemoryAuditLogRepository()
+);
 const authService = new AuthService(
   prisma,
   adminUserRepo,

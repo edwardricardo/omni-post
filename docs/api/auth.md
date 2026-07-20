@@ -88,21 +88,21 @@ OmniPost implements a dual-track authentication system: admin authentication (se
 
 ### MfaService
 
-**File:** `apps/api/src/auth/mfaService.ts`
+**File:** `apps/api/src/admin/auth/MfaService.ts`
 **Layer:** infrastructure
-**Description:** Multi-factor authentication service using TOTP (via `otplib`) with QR code generation, backup code management (SHA-256 hashed, 8 codes), and security audit logging. Extends `AuditableService`.
+**Description:** Unified, port-based multi-factor authentication service. One instance serves both admin and customer subjects: every method takes an `MfaSubject` (`{ type: 'admin' | 'customer', id }`) and dispatches by `type` to the matching `MfaUserRepositoryPort` adapter. TOTP is verified via `otplib` with the window pinned per call (no mutation of global otplib state) and a single-use step claim that rejects replays. Backup codes are hashed only through the canonical Argon2id helper (`apps/api/src/auth/passwordHashing.ts`) — never SHA-256 — and each backup code is single-use (claimed by array index). MFA state and its security audit trail are written together under the Unit of Work. Extends `AuditableService`.
 
 #### Methods
 
-| Method                  | Signature                                                       | Returns                                                           | Description                                                    |
-| ----------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------- |
-| `setupMfa`              | `(userId, userEmail): Promise<Result<MfaSetupData, ...>>`       | `Result<{ secret, backupCodes, qrCodeUrl, manualEntryKey }, ...>` | Generates TOTP secret, QR code, and 8 backup codes             |
-| `verifyMfaSetup`        | `(userId, token): Promise<Result<{ backupCodes }, ...>>`        | `Result<{ backupCodes: string[] }, ...>`                          | Validates TOTP token and enables MFA for the user              |
-| `verifyMfaToken`        | `(userId, token): Promise<Result<MfaVerificationResult, ...>>`  | `Result<{ verified, usedBackupCode? }, ...>`                      | Verifies TOTP or backup code during login (2-window tolerance) |
-| `disableMfa`            | `(userId, token): Promise<Result<void, ...>>`                   | `Result<void, ...>`                                               | Requires valid TOTP to disable MFA                             |
-| `adminForceDisable`     | `(userId): Promise<Result<void, ...>>`                          | `Result<void, "USER_NOT_FOUND" \| "DATABASE_ERROR">`              | Emergency admin override -- no TOTP required                   |
-| `regenerateBackupCodes` | `(userId, token): Promise<Result<string[], ...>>`               | `Result<string[], ...>`                                           | Generates 8 new backup codes (invalidates old ones)            |
-| `getMfaStatus`          | `(userId): Promise<Result<{ enabled, backupCodesCount }, ...>>` | `Result<{ enabled: boolean; backupCodesCount: number }, ...>`     | Returns MFA status and remaining backup codes                  |
+| Method                  | Signature                                                        | Returns                                                               | Description                                                                     |
+| ----------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `setupMfa`              | `(subject): Promise<Result<MfaSetupData, ...>>`                  | `Result<{ secret, backupCodes, qrCodeUrl, manualEntryKey }, ...>`     | Generates a TOTP secret, QR code, and fresh backup codes (returned once)        |
+| `verifyMfaSetup`        | `(subject, token): Promise<Result<{ backupCodes }, ...>>`        | `Result<{ backupCodes: string[] }, ...>`                              | Validates the first TOTP and enables MFA for the subject                        |
+| `verifyMfaToken`        | `(subject, token): Promise<Result<MfaVerificationResult, ...>>`  | `Result<{ verified, usedBackupCode }, ...>`                           | Login-time verify: single-use TOTP step claim, else an unused backup code       |
+| `regenerateBackupCodes` | `(subject, token): Promise<Result<string[], ...>>`               | `Result<string[], ...>`                                               | Issues fresh backup codes (requires a valid current token)                      |
+| `disableMfa`            | `(subject, token): Promise<Result<void, ...>>`                   | `Result<void, ...>`                                                   | Self-service disable; requires a valid TOTP or unused backup code               |
+| `adminForceDisable`     | `(subject, actor): Promise<Result<{ accountId }, ...>>`          | `Result<{ accountId: string }, "USER_NOT_FOUND" \| "DATABASE_ERROR">` | Admin override -- clears MFA with no subject token, audited to the acting admin |
+| `getMfaStatus`          | `(subject): Promise<Result<{ enabled, backupCodesCount }, ...>>` | `Result<{ enabled: boolean; backupCodesCount: number }, ...>`         | Returns MFA status and remaining (unused) backup codes                          |
 
 **Has JSDoc:** &#9989; (all public methods)
 

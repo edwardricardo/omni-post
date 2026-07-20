@@ -51,7 +51,11 @@ const Fastify = (await import("fastify")).default;
 const { serializerCompiler, validatorCompiler } = await import("fastify-type-provider-zod");
 const { rbacRoutes } = await import("../../src/auth/rbacRoutes.js");
 const { AuthService, setRedisInstance } = await import("../../src/auth/authService.js");
-const { MfaService } = await import("../../src/auth/mfaService.js");
+const { MfaService } = await import("../../src/admin/auth/MfaService.js");
+const { PrismaAdminMfaUserRepository } =
+  await import("../../src/infrastructure/adapters/PrismaAdminMfaUserRepository.js");
+const { PrismaCustomerMfaUserRepository } =
+  await import("../../src/infrastructure/adapters/PrismaCustomerMfaUserRepository.js");
 const { RbacService } = await import("../../src/auth/rbacService.js");
 const { PrismaAdminUserRepository } =
   await import("../../src/infrastructure/repositories/PrismaAdminUserRepository.js");
@@ -71,7 +75,11 @@ setRedisInstance(null as unknown as import("ioredis").default);
 const adminUserRepo = new PrismaAdminUserRepository(mockPrisma.prisma as never);
 const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
 const sessionRepo = new PrismaAdminSessionRepository(mockPrisma.prisma as never);
-const mfaService = new MfaService(adminUserRepo, new InMemoryAuditLogRepository());
+const mfaService = new MfaService(
+  new PrismaAdminMfaUserRepository(mockPrisma.prisma as never),
+  new PrismaCustomerMfaUserRepository(mockPrisma.prisma as never),
+  new InMemoryAuditLogRepository()
+);
 const authService = new AuthService(
   mockPrisma.prisma,
   adminUserRepo,

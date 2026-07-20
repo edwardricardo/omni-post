@@ -122,7 +122,7 @@ All new files carry `@file/@description/@layer infrastructure`; ADR-0020 conform
 ### WARNING
 
 1. **Commit-boundary hygiene (non-code).** The working tree also carries `.claude/settings.json`
-   (pre-existing M) and `openspec/changes/mfa-consolidation/{design,tasks}.md` (sibling change).
+   (pre-existing M) and `openspec/changes/archive/mfa-consolidation/{design,tasks}.md` (sibling change).
    A1 code has ZERO dependency on them (markdown docs / IDE config). They MUST be EXCLUDED from the
    A1 commit or they pollute the PR. Apply already flagged this; the orchestrator (git owner) must honor it.
    Does NOT affect A1 implementation correctness.

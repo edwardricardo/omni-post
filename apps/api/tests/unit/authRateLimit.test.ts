@@ -37,7 +37,9 @@ import { prisma } from "@infra/prisma";
 import { Container } from "../../src/infrastructure/container/Container.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
 import { AuthService } from "../../src/auth/authService.js";
-import { MfaService } from "../../src/auth/mfaService.js";
+import { MfaService } from "../../src/admin/auth/MfaService.js";
+import { PrismaAdminMfaUserRepository } from "../../src/infrastructure/adapters/PrismaAdminMfaUserRepository.js";
+import { PrismaCustomerMfaUserRepository } from "../../src/infrastructure/adapters/PrismaCustomerMfaUserRepository.js";
 import { PrismaAdminUserRepository } from "../../src/infrastructure/repositories/PrismaAdminUserRepository.js";
 import { PrismaRoleRepository } from "../../src/infrastructure/repositories/PrismaRoleRepository.js";
 import { PrismaAdminSessionRepository } from "../../src/infrastructure/repositories/PrismaAdminSessionRepository.js";
@@ -113,7 +115,11 @@ async function createTestApp(): Promise<{ app: FastifyInstance; authService: Aut
   const adminUserRepo = new PrismaAdminUserRepository(prisma);
   const roleRepo = new PrismaRoleRepository(prisma);
   const sessionRepo = new PrismaAdminSessionRepository(prisma);
-  const mfaService = new MfaService(adminUserRepo, new InMemoryAuditLogRepository());
+  const mfaService = new MfaService(
+    new PrismaAdminMfaUserRepository(prisma),
+    new PrismaCustomerMfaUserRepository(prisma),
+    new InMemoryAuditLogRepository()
+  );
   const authService = new AuthService(
     prisma,
     adminUserRepo,

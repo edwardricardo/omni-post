@@ -34,6 +34,9 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
+    // A committed `.only()` silently skips the rest of the suite. Fail the run
+    // instead of shipping a partial suite (canon: "Zero .only() committed").
+    forbidOnly: true,
     // Load `.env.test` BEFORE any test file's transitive import reaches
     // `apps/api/src/config/env.ts` and triggers Zod validation. Replaces the
     // prior `test.env = { DATABASE_URL: dummy }` workaround, which fired too
