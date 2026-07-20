@@ -33,12 +33,25 @@ vi.mock("../../src/lib/logger.js", () => {
 });
 
 import { authenticator } from "otplib";
+import { err, type Result } from "@shared/types";
 import { MFA_SUBJECT_TYPE, type MfaSubject } from "@ports/core";
 import { MfaService } from "../../src/admin/auth/MfaService.js";
 import { InMemoryMfaUserRepository } from "./helpers/InMemoryMfaUserRepository.js";
 import { InMemoryAuditLogRepository } from "./helpers/InMemoryAuditLogRepository.js";
 
 const ARGON2_PREFIX = "$argon2id$";
+
+/**
+ * Repository double whose `markBackupCodeUsed` always loses the compare-and-swap
+ * race — the code verified, but a concurrent verification of the SAME code
+ * committed first, so the single-use mark reports ALREADY_USED. Everything else
+ * behaves like the in-memory fake, so setup + enable still work.
+ */
+class RaceLosingMfaUserRepository extends InMemoryMfaUserRepository {
+  override async markBackupCodeUsed(): Promise<Result<void, "NOT_FOUND" | "ALREADY_USED">> {
+    return err("ALREADY_USED");
+  }
+}
 
 interface Harness {
   service: MfaService;
@@ -103,7 +116,12 @@ describe("Unified MfaService", () => {
       const login = await h.service.verifyMfaToken(subject, regen.value[0] as string);
       expect(login.ok && login.value.verified).toBe(true);
 
-      const disable = await h.service.disableMfa(subject, authenticator.generate(secret));
+      // Disable with a DISTINCT unused backup code. The regenerate above already
+      // claimed the current TOTP time step, and TOTP single-use now rejects any
+      // reuse of that step within its window, so disabling with a fresh TOTP in
+      // the same window would (correctly) fail — a backup code keeps the
+      // lifecycle assertion focused on disable, not TOTP replay.
+      const disable = await h.service.disableMfa(subject, regen.value[1] as string);
       expect(disable.ok).toBe(true);
       const after = await h.service.getMfaStatus(subject);
       expect(after.ok && after.value.enabled).toBe(false);
@@ -218,6 +236,34 @@ describe("Unified MfaService", () => {
 
     const bad = await h.service.verifyMfaToken(ADMIN, "000000");
     expect(bad.ok).toBe(false);
+  });
+
+  it("rejects a backup code as INVALID_TOKEN (never success) when the single-use mark loses the CAS race", async () => {
+    // Two step-1 logins (two challenge jtis) submit the SAME backup code
+    // concurrently: both read it unused, both verify the hash, but the atomic
+    // single-use mark lets exactly one win. The loser MUST be rejected as an
+    // invalid token — a lost race can never mint a session from an already-used
+    // code (nor surface as an opaque DATABASE_ERROR that the login step would
+    // still turn into a hard failure with the wrong signal).
+    const adminRepo = new InMemoryMfaUserRepository();
+    const raceCustomerRepo = new RaceLosingMfaUserRepository();
+    const audit = new InMemoryAuditLogRepository();
+    const service = new MfaService(adminRepo, raceCustomerRepo, audit);
+    raceCustomerRepo.seed({ id: CUSTOMER.id, email: "race@example.com" });
+
+    const setup = await service.setupMfa(CUSTOMER);
+    expect(setup.ok).toBe(true);
+    if (!setup.ok) return;
+    const enabled = await service.verifyMfaSetup(
+      CUSTOMER,
+      authenticator.generate(setup.value.secret)
+    );
+    expect(enabled.ok).toBe(true);
+
+    const result = await service.verifyMfaToken(CUSTOMER, setup.value.backupCodes[0] as string);
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toBe("INVALID_TOKEN");
   });
 
   it("returns USER_NOT_FOUND for an unknown subject", async () => {

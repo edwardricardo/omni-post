@@ -87,7 +87,10 @@ export const EXPENSIVE_ENDPOINT_RULES: readonly HttpRateLimitRule[] = [
  *  (5 / 15 min) to blunt brute-force:
  *   - `/auth/login`, `/auth/refresh` — admin/backend credential endpoints.
  *   - `/auth/customer/login`, `/auth/customer/refresh` — client-portal
- *     credential endpoints (the Next client relays browser calls here). These
+ *     credential endpoints (the Next client relays browser calls here). The
+ *     MFA step-2 route `/auth/customer/login/mfa` is covered by the
+ *     `/auth/customer/login` rule via `startsWith` prefix matching — do not
+ *     add a separate (redundant) rule for it. These
  *     do NOT prefix-match `/auth/login` / `/auth/refresh` under `startsWith`,
  *     so they need their own rules or they fall through to the 100/min default
  *     and client login stays brute-forceable. The route-level

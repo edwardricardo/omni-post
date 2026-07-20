@@ -22,9 +22,34 @@ const log = new ConsoleLoggerAdapter("client.auth-actions", { alwaysEmit: true }
 
 const API_URL = env.API_URL || "http://localhost:3000";
 
+/** Fallback challenge TTL (seconds) if the backend omits `expiresInSeconds`. */
+const DEFAULT_MFA_CHALLENGE_TTL_SECONDS = 180;
+
+/** Backend error code that means "code was wrong, retry" (challenge stays alive). */
+const MFA_INVALID_CODE = "INVALID_MFA_CODE";
+
+/**
+ * Inert MFA challenge carried in the login action state. Populated only when the
+ * backend answers step 1 with `mfaRequired`; drives the step-2 challenge form.
+ * The token lives in React state / a hidden input — never browser storage.
+ */
+export interface MfaChallengeState {
+  challengeToken: string;
+  expiresInSeconds: number;
+  rememberMe: boolean;
+}
+
 // Action state type
 export interface AuthActionState {
   error?: string;
+  /** Present when step 1 requires a second factor — renders the challenge step. */
+  mfaChallenge?: MfaChallengeState;
+  /**
+   * Set by `completeMfaLoginAction` when the challenge can no longer be
+   * completed (expired / consumed / store outage) so the UI returns to the
+   * password step. A wrong code does NOT set this (the challenge is retried).
+   */
+  mfaChallengeExpired?: boolean;
 }
 
 interface AuthResponseBody {
@@ -34,9 +59,38 @@ interface AuthResponseBody {
     refreshToken?: string;
     error?: string;
     message?: string;
+    code?: string;
+    mfaRequired?: boolean;
+    challengeToken?: string;
+    expiresInSeconds?: number;
   };
   error?: string;
   message?: string;
+  code?: string;
+  mfaRequired?: boolean;
+  challengeToken?: string;
+  expiresInSeconds?: number;
+}
+
+/**
+ * Extract an MFA challenge from a backend login response body. The backend may
+ * wrap payloads under `data` or return them flat — read both. Returns `null`
+ * when the response is not an MFA challenge.
+ */
+function readMfaChallenge(
+  body: AuthResponseBody
+): { challengeToken: string; expiresInSeconds: number } | null {
+  const src = body.data ?? body;
+  if (src.mfaRequired === true && typeof src.challengeToken === "string") {
+    return {
+      challengeToken: src.challengeToken,
+      expiresInSeconds:
+        typeof src.expiresInSeconds === "number"
+          ? src.expiresInSeconds
+          : DEFAULT_MFA_CHALLENGE_TTL_SECONDS,
+    };
+  }
+  return null;
 }
 
 /**
@@ -78,6 +132,21 @@ export async function loginAction(
     }
 
     const data = (await response.json()) as AuthResponseBody;
+
+    // MFA required — return the inert challenge state (no cookies). The UI
+    // switches to the challenge step; nothing is user-visible until the backend
+    // actually emits `mfaRequired`.
+    const challenge = readMfaChallenge(data);
+    if (challenge) {
+      return {
+        mfaChallenge: {
+          challengeToken: challenge.challengeToken,
+          expiresInSeconds: challenge.expiresInSeconds,
+          rememberMe,
+        },
+      };
+    }
+
     const tokens = readAuthTokens(data);
 
     if (!tokens?.accessToken) {
@@ -90,6 +159,84 @@ export async function loginAction(
     }
   } catch (error) {
     log.error("Login failed", error);
+    return {
+      error: error instanceof Error ? error.message : "An unexpected error occurred",
+    };
+  }
+
+  // Redirect OUTSIDE try/catch — redirect() throws internally (NEXT_REDIRECT)
+  redirect(`/${await getLocale()}/dashboard`);
+}
+
+/**
+ * Server Action for step 2 of a customer login that required MFA.
+ * POSTs the opaque challenge token plus the user's TOTP / backup code to the
+ * backend WITH the client-IP relay (N-SEC-2 — else the backend IP-binds and
+ * rate-limits against the Next server), persists the returned tokens as
+ * httpOnly cookies, and redirects to the dashboard.
+ *
+ * A wrong code keeps the challenge (retry); an invalid/expired challenge or a
+ * store outage returns `mfaChallengeExpired` so the UI falls back to step 1.
+ */
+export async function completeMfaLoginAction(
+  prevState: AuthActionState | null,
+  formData: FormData
+): Promise<AuthActionState> {
+  const challengeToken = formData.get("challengeToken") as string;
+  const code = formData.get("code") as string;
+  const rememberMe = formData.get("rememberMe") === "on";
+
+  if (!challengeToken) {
+    return { mfaChallengeExpired: true, error: "MFA challenge is missing. Please sign in again." };
+  }
+  if (!code) {
+    return { error: "MFA code is required" };
+  }
+
+  try {
+    // Relay the real inbound client IP so the backend's per-IP AUTH rate limiter
+    // and IP binding key off the real user, not the Next server IP (N-SEC-2).
+    const inbound = await headers();
+    const response = await fetch(`${API_URL}/auth/customer/login/mfa`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...forwardedForHeaders(inbound) },
+      body: JSON.stringify({ challengeToken, code, rememberMe }),
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json().catch(() => ({}))) as AuthResponseBody;
+      const errorCode = errorData.code ?? errorData.data?.code;
+      const message =
+        errorData.error ??
+        errorData.message ??
+        errorData.data?.error ??
+        "Unable to complete multi-factor login";
+
+      // Keep the challenge only for a wrong code (retry). Any other failure —
+      // an invalid/expired/consumed challenge (401) or a store outage (503) —
+      // drops back to the password step.
+      const challengeGone =
+        response.status === 503 || (response.status === 401 && errorCode !== MFA_INVALID_CODE);
+
+      if (challengeGone) {
+        return { mfaChallengeExpired: true, error: message };
+      }
+      return { error: message };
+    }
+
+    const data = (await response.json()) as AuthResponseBody;
+    const tokens = readAuthTokens(data);
+
+    if (!tokens?.accessToken) {
+      return { mfaChallengeExpired: true, error: "MFA login failed. Please sign in again." };
+    }
+
+    await setSessionCookie(tokens.accessToken);
+    if (tokens.refreshToken) {
+      await setRefreshCookie(tokens.refreshToken, { rememberMe });
+    }
+  } catch (error) {
+    log.error("MFA login failed", error);
     return {
       error: error instanceof Error ? error.message : "An unexpected error occurred",
     };

@@ -15,7 +15,14 @@ import crypto from "crypto";
 import { authenticator } from "otplib";
 import QRCode from "qrcode";
 import { ok, err, isErr, type Result } from "@shared/types";
-import { MFA_SUBJECT_TYPE, type MfaSubject, type MfaUserRepositoryPort } from "@ports/core";
+import {
+  MFA_SUBJECT_TYPE,
+  type MfaSubject,
+  type MfaUserRepositoryPort,
+  type MfaVerificationPort,
+  type MfaVerificationResult,
+  type MfaVerifyTokenError,
+} from "@ports/core";
 import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import { AuditableService, auditActor, type AuditActor } from "../../services/AuditableService.js";
@@ -49,15 +56,6 @@ export interface MfaSetupData {
 }
 
 /**
- * Outcome of a login-time MFA verification: whether it verified, and whether a
- * single-use backup code (rather than a TOTP) was consumed.
- */
-export interface MfaVerificationResult {
-  verified: boolean;
-  usedBackupCode: boolean;
-}
-
-/**
  * The admin actor performing a force-disable — recorded in the audit trail.
  */
 export interface MfaActor {
@@ -71,7 +69,8 @@ type VerifySetupError =
   | "MFA_ALREADY_ENABLED"
   | "NO_SETUP_IN_PROGRESS"
   | "DATABASE_ERROR";
-type VerifyTokenError = "USER_NOT_FOUND" | "MFA_NOT_ENABLED" | "INVALID_TOKEN" | "DATABASE_ERROR";
+// Login-time verification result + error union are the shared port contract
+// (@ports/core MfaVerificationPort): `MfaVerificationResult` + `MfaVerifyTokenError`.
 type ForceDisableError = "USER_NOT_FOUND" | "DATABASE_ERROR";
 type StatusError = "USER_NOT_FOUND" | "DATABASE_ERROR";
 
@@ -82,7 +81,7 @@ type StatusError = "USER_NOT_FOUND" | "DATABASE_ERROR";
  *              constructor injection — it never imports a Prisma singleton nor
  *              constructs an adapter inline.
  */
-export class MfaService extends AuditableService {
+export class MfaService extends AuditableService implements MfaVerificationPort {
   private readonly issuer = adminAuthConfig.mfa.issuer;
   private readonly backupCodesCount = adminAuthConfig.mfa.backupCodesCount;
 
@@ -194,7 +193,7 @@ export class MfaService extends AuditableService {
   async verifyMfaToken(
     subject: MfaSubject,
     token: string
-  ): Promise<Result<MfaVerificationResult, VerifyTokenError>> {
+  ): Promise<Result<MfaVerificationResult, MfaVerifyTokenError>> {
     try {
       const repo = this.repoFor(subject);
       const found = await repo.findById(subject.id);
@@ -202,8 +201,26 @@ export class MfaService extends AuditableService {
       const record = found.value;
       if (!record.mfaEnabled || !record.mfaSecret) return err("MFA_NOT_ENABLED");
 
-      if (this.verifyTotp(token, record.mfaSecret)) {
-        return ok({ verified: true, usedBackupCode: false });
+      const acceptedStep = this.computeTotpStep(token, record.mfaSecret);
+      if (acceptedStep !== null) {
+        const claim = await repo.claimTotpStep(subject.id, acceptedStep);
+        if (claim.ok) {
+          return ok({ verified: true, usedBackupCode: false });
+        }
+        // A validly-formed TOTP whose step was already consumed is a replay (or
+        // an older-window token that never verifies after a newer one). Reject
+        // it as an invalid token — never fall through to the backup-code path —
+        // and record the replay attempt as a HIGH-severity attack indicator.
+        if (claim.error === "ALREADY_USED") {
+          await this.audit(
+            subject,
+            "MFA_TOTP_REPLAY_REJECTED",
+            "HIGH",
+            undefined,
+            record.accountId
+          );
+        }
+        return err("INVALID_TOKEN");
       }
 
       const usedIndexes = new Set(Object.keys(record.mfaBackupUsedAt));
@@ -213,9 +230,19 @@ export class MfaService extends AuditableService {
         if (!hash) continue;
         if (await verifyPassword(hash, token)) {
           const remaining = record.mfaBackupCodes.length - usedIndexes.size - 1;
+          // Atomic single-use mark. A concurrent verification of the SAME code
+          // may have committed first (compare-and-swap lost → ALREADY_USED); the
+          // per-challenge `jti` gate does NOT close that cross-challenge race, so
+          // this mark is the control that makes one backup code mint at most one
+          // session.
+          let markResult: Result<void, "NOT_FOUND" | "ALREADY_USED"> = err("NOT_FOUND");
           await this.runInTransaction(async () => {
-            const marked = await repo.markBackupCodeUsed(subject.id, index, new Date());
-            if (isErr(marked)) throw new Error("USER_NOT_FOUND");
+            markResult = await repo.markBackupCodeUsed(subject.id, index, new Date());
+            // On a lost CAS the update wrote nothing — commit the empty
+            // transaction WITHOUT the audit rather than record a code this
+            // caller never actually consumed. A genuine fault still throws and
+            // is mapped to DATABASE_ERROR by the outer catch.
+            if (isErr(markResult)) return;
             await this.audit(
               subject,
               "MFA_BACKUP_CODE_USED",
@@ -224,7 +251,23 @@ export class MfaService extends AuditableService {
               record.accountId
             );
           });
-          return ok({ verified: true, usedBackupCode: true });
+          if (markResult.ok) {
+            return ok({ verified: true, usedBackupCode: true });
+          }
+          // Lost the race (or the row vanished mid-flight): reject as an invalid
+          // token — NEVER success, NEVER an opaque DATABASE_ERROR. Record a
+          // concurrent-reuse loss as a HIGH-severity attack indicator (symmetric
+          // with the TOTP replay signal above).
+          if (markResult.error === "ALREADY_USED") {
+            await this.audit(
+              subject,
+              "MFA_BACKUP_CODE_REUSE_REJECTED",
+              "HIGH",
+              undefined,
+              record.accountId
+            );
+          }
+          return err("INVALID_TOKEN");
         }
       }
 
@@ -253,7 +296,7 @@ export class MfaService extends AuditableService {
   async regenerateBackupCodes(
     subject: MfaSubject,
     token: string
-  ): Promise<Result<string[], VerifyTokenError>> {
+  ): Promise<Result<string[], MfaVerifyTokenError>> {
     try {
       const verification = await this.verifyMfaToken(subject, token);
       if (isErr(verification)) return err(verification.error);
@@ -294,7 +337,7 @@ export class MfaService extends AuditableService {
    * @param token - A valid TOTP or unused backup code.
    * @returns Ok(void) on success, or a typed verify error.
    */
-  async disableMfa(subject: MfaSubject, token: string): Promise<Result<void, VerifyTokenError>> {
+  async disableMfa(subject: MfaSubject, token: string): Promise<Result<void, MfaVerifyTokenError>> {
     try {
       const verification = await this.verifyMfaToken(subject, token);
       if (isErr(verification)) return err(verification.error);
@@ -411,16 +454,45 @@ export class MfaService extends AuditableService {
   }
 
   /**
-   * Verify a TOTP with the window pinned per call. `clone` yields a fresh
-   * instance with merged options, leaving the shared `authenticator.options`
-   * untouched. Malformed input verifies as `false` rather than throwing.
+   * Verify a TOTP with the window pinned per call. Delegates to
+   * `computeTotpStep` so the clone/window logic lives in one place; a token is
+   * valid exactly when it maps to an accepted time step.
    */
   private verifyTotp(token: string, secret: string): boolean {
-    try {
-      return authenticator.clone({ window: TOTP_WINDOW }).verify({ token, secret });
-    } catch {
-      return false;
-    }
+    return this.computeTotpStep(token, secret) !== null;
+  }
+
+  /**
+   * Resolve the TOTP time step a token belongs to, or `null` when it does not
+   * verify within the window. `clone` yields a fresh instance with merged
+   * options (window pinned, epoch pinned to a single instant so `checkDelta`
+   * and the current-counter derivation share the same reference time — no
+   * 30-second-boundary race), leaving the shared `authenticator.options`
+   * untouched.
+   *
+   * Deliberately does NOT catch: a well-formed-but-wrong token resolves to
+   * `null` via `checkDelta` returning `null` — that is the only legitimate
+   * rejection this method reports. A genuine fault (e.g. a corrupted,
+   * non-base32 `mfaSecret` making otplib's decoder throw) is NOT swallowed
+   * here — it propagates to the caller's own try/catch (`verifyMfaToken`,
+   * `verifyMfaSetup`), which already logs it and returns the honest
+   * `DATABASE_ERROR`. Swallowing it into `null` would make an infrastructure
+   * fault indistinguishable from "the user typed a wrong code": the caller
+   * would fall through to the backup-code path and lock the user out with no
+   * operator-visible signal — the fail-closed answer is a real error, not a
+   * silent rejection.
+   *
+   * @param token - The candidate TOTP.
+   * @param secret - The subject's TOTP secret.
+   * @returns The accepted step (`currentCounter + delta`) or `null`.
+   */
+  private computeTotpStep(token: string, secret: string): number | null {
+    const auth = authenticator.clone({ window: TOTP_WINDOW, epoch: Date.now() });
+    const delta = auth.checkDelta(token, secret);
+    if (delta === null) return null;
+    const { epoch, step } = auth.allOptions();
+    const currentCounter = Math.floor(epoch / 1000 / step);
+    return currentCounter + delta;
   }
 
   /** Run a mutation inside the Unit of Work when one is injected. */

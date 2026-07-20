@@ -7,7 +7,7 @@
  * @layer infrastructure
  */
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import {
@@ -23,11 +23,35 @@ import {
 } from "@packages/ui";
 import { Alert, AlertDescription } from "@packages/ui";
 import { Mail, Lock } from "lucide-react";
-import { loginAction } from "@/app/actions/auth";
+import { loginAction, type MfaChallengeState } from "@/app/actions/auth";
+import { MfaChallengeForm } from "@/components/auth/MfaChallengeForm";
 
 export default function LoginPage() {
   const t = useTranslations("auth");
   const [state, formAction] = useActionState(loginAction, null);
+  const [challenge, setChallenge] = useState<MfaChallengeState | null>(null);
+  const [fallbackError, setFallbackError] = useState<string | null>(null);
+
+  function handleChallengeExpired(message: string) {
+    setChallenge(null);
+    setFallbackError(message);
+  }
+
+  // Enter the challenge step when step 1 returns an MFA challenge. Inert until
+  // the backend actually emits `mfaRequired` — this branch is never taken on
+  // the current password-only login path.
+  useEffect(() => {
+    if (state?.mfaChallenge) {
+      setChallenge(state.mfaChallenge);
+      setFallbackError(null);
+    }
+  }, [state]);
+
+  if (challenge) {
+    return <MfaChallengeForm challenge={challenge} onChallengeExpired={handleChallengeExpired} />;
+  }
+
+  const errorMessage = state?.error ?? fallbackError;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -39,9 +63,9 @@ export default function LoginPage() {
 
         <form action={formAction}>
           <CardContent className="space-y-4">
-            {state?.error && (
+            {errorMessage && (
               <Alert variant="destructive">
-                <AlertDescription>{state.error}</AlertDescription>
+                <AlertDescription>{errorMessage}</AlertDescription>
               </Alert>
             )}
 

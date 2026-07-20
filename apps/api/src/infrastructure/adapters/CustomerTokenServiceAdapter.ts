@@ -14,6 +14,7 @@ import type {
   CustomerTokenService,
   CustomerAccessClaims,
   CustomerRefreshClaims,
+  CustomerMfaChallengeClaims,
   TokenVerifyError,
 } from "@core/domain/repositories/CustomerTokenService.js";
 import {
@@ -21,6 +22,8 @@ import {
   signCustomerRefreshToken,
   verifyCustomerRefreshToken,
   decodeCustomerRefreshToken,
+  signCustomerMfaChallengeToken,
+  verifyCustomerMfaChallengeToken,
 } from "../../auth/customerJwt.js";
 
 /**
@@ -58,5 +61,30 @@ export class CustomerTokenServiceAdapter implements CustomerTokenService {
       return null;
     }
     return { sub: payload.sub, sessionId: payload.sessionId };
+  }
+
+  signMfaChallengeToken(claims: CustomerMfaChallengeClaims): string {
+    return signCustomerMfaChallengeToken({
+      sub: claims.sub,
+      accountId: claims.accountId,
+      jti: claims.jti,
+      iph: claims.iph,
+      uah: claims.uah,
+    });
+  }
+
+  verifyMfaChallengeToken(token: string): Result<CustomerMfaChallengeClaims, TokenVerifyError> {
+    try {
+      const payload = verifyCustomerMfaChallengeToken(token);
+      return ok({
+        sub: payload.sub,
+        accountId: payload.accountId,
+        jti: payload.jti,
+        iph: payload.iph,
+        uah: payload.uah,
+      });
+    } catch {
+      return err("INVALID_TOKEN");
+    }
   }
 }

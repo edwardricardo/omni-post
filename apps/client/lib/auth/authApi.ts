@@ -67,6 +67,20 @@ export interface MfaChallenge {
   requiresMfa: true;
   message: string;
   methods: string[];
+  /**
+   * Opaque step-2 challenge JWT issued by the backend on `mfaRequired`. Sent
+   * back verbatim to `POST /auth/customer/login/mfa` to complete the login.
+   * Lives in memory/DOM only — never persisted to browser storage.
+   */
+  challengeToken: string;
+  /** Seconds until the challenge token expires (backend-controlled TTL). */
+  expiresInSeconds: number;
+}
+
+export interface CompleteMfaLoginParams {
+  challengeToken: string;
+  code: string;
+  rememberMe?: boolean;
 }
 
 export interface RegisterResponse {
@@ -131,8 +145,40 @@ class AuthAPI {
         requiresMfa: true,
         message: data.message || "MFA token required",
         methods: data.methods || [],
+        challengeToken: data.challengeToken,
+        expiresInSeconds: data.expiresInSeconds,
       };
     }
+
+    return {
+      user: data.user,
+      expiresAt: data.expiresAt,
+    };
+  }
+
+  /**
+   * Complete a customer login that required MFA (step 2).
+   * POSTs the opaque challenge token plus the user's TOTP or backup code to the
+   * proxy. On success the proxy strips the tokens into httpOnly cookies and
+   * returns user data only — the browser never sees the JWTs.
+   */
+  async completeMfaLogin(params: CompleteMfaLoginParams): Promise<AuthResponse> {
+    const response = await fetch(`${PROXY_BASE}/login/mfa`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(params),
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      const body = await readErrorBody(response);
+      throw buildApiError(response.status, body, "MFA verification failed");
+    }
+
+    const result = await response.json();
+    const data = result.data ?? result;
 
     return {
       user: data.user,

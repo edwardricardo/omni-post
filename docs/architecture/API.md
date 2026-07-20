@@ -155,19 +155,19 @@ Authorization: Bearer <jwt-token>
 }
 ```
 
-#### Verify MFA Token
+#### Complete Customer Login MFA Challenge
 
 ```http
-POST /auth/mfa/verify
+POST /auth/customer/login/mfa
 Content-Type: application/json
 
 {
-  "userId": "uuid",
-  "token": "123456"
+  "challengeToken": "<challenge-jwt-from-step-1>",
+  "code": "123456"
 }
 ```
 
-**Response**: `{ ok: true, verified: true }`
+**Response**: `{ ok: true, data: { accessToken, refreshToken, user, account } }`
 
 #### Disable MFA
 

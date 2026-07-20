@@ -59,7 +59,14 @@
     "termsAgreement": "I agree to the <termsLink>Terms of Service</termsLink> and <privacyLink>Privacy Policy</privacyLink>",
     "creatingAccount": "Creating account...",
     "createAccount": "Create account",
-    "haveAccount": "Already have an account?"
+    "haveAccount": "Already have an account?",
+    "mfaTitle": "Two-factor authentication",
+    "mfaSubtitle": "Enter the code from your authenticator app",
+    "mfaCodeLabel": "Verification code",
+    "mfaCodePlaceholder": "123456",
+    "mfaVerify": "Verify",
+    "mfaVerifying": "Verifying...",
+    "mfaChallengeExpired": "Your verification session expired. Please sign in again."
   },
   "dashboard": {
     "welcomeBack": "Welcome back, {name}!",

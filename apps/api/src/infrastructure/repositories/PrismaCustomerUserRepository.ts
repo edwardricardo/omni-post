@@ -170,17 +170,18 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
   async save(user: CustomerUser, passwordHash?: string): Promise<Result<void, DomainError>> {
     try {
       const hash = passwordHash ?? user.passwordHash;
-      // The `role` enum column mirrors customerRole.name (same string set).
-      // Both are populated from the entity's roleName.
-      const enumRole = user.roleName as "OWNER" | "MANAGER" | "MEMBER" | "VIEWER";
 
       const baseData = {
         email: user.email,
         passwordHash: hash,
         firstName: user.firstName,
         lastName: user.lastName,
-        role: enumRole,
-        roleId: user.roleId,
+        // The role is persisted solely via the `roleId` FK to CustomerRole —
+        // there is no scalar `role` column on CustomerUser. An empty roleId is
+        // the `toDomain` fallback for a role-less row (the "VIEWER-like"
+        // snapshot); it must be written as NULL, never "", which would violate
+        // the optional FK.
+        roleId: user.roleId === "" ? null : user.roleId,
         isActive: user.isActive,
         isEmailVerified: user.isEmailVerified,
         emailVerifyToken: user.emailVerifyToken ?? null,

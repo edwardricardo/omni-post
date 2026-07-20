@@ -190,3 +190,270 @@ Owner policy: warnings get resolved now, not carried. All 4 findings (2 WARNING 
 - Fitness **#18** (argon2 outside canonical helper) = **0**; **#21** (Prisma singleton outside composition root, touched files) = **0**
 
 **Verdict after remediation: PASS, 0 CRITICAL, 0 WARNING, 1 SUGGESTION remaining (S3, intentionally deferred to PR3).**
+
+---
+
+## PR2b-1 — Companion TOTP single-use fix (protects ADMIN + CUSTOMER)
+
+**Verdict: PASS WITH WARNINGS** (0 CRITICAL, 1 WARNING, 2 SUGGESTION).
+
+- **The replay hole is genuinely closed** (NIST SP 800-63B 5.1.5.2 / OWASP MFA): a given TOTP verifies exactly once for BOTH subjects — proven at runtime (unit both-subject + real-DB integration incl. the concurrency serializer).
+- **No admin-login regression** (merge-blocking): both admin call sites green (`authServiceCore`/`AdminAuthService` via `mfaRoutes` 31/31, `authService` 24/24, `test:mfa` 21/21).
+- **Scope clean**: zero PR2b-2/PR2b-3 leakage; orphan `POST /auth/mfa/verify` still present; legacy `apps/api/src/auth/mfaService.ts` git-untouched (zero replay coverage — expected, PR3's job).
+
+Implementation is the uncommitted working tree at HEAD `ece795e6` (git untouched, read-only verify). Every claim re-derived at source PLUS runtime evidence (LXC-safe: one file/run, heap-capped, `timeout`).
+
+### Task completeness (PR2b-1 tasks 2b1.1–2b1.11)
+
+All 11 checked and matched to code state:
+
+| Task                                                                         | Evidence                                                                                                                                                                       |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2b1.1 `pnpm db:up` / no P3015                                                | Migration applied; DB reachable `omnipost-infra:5432`; no orphan dir in migrations/                                                                                            |
+| 2b1.2 [RED] integration adapter contract                                     | `mfaTotpSingleUse.integration.test.ts` 4/4 (real Postgres)                                                                                                                     |
+| 2b1.3 schema + migration (2 nullable INT cols)                               | `schema.prisma` diff = only `mfaLastUsedTotpStep Int?` on AdminUser + CustomerUser; `migration.sql` = 2 `ADD COLUMN … INTEGER`; `down.sql` drops exactly those 2 (`IF EXISTS`) |
+| 2b1.4 [RED] adapter unit tests                                               | both adapter suites 19/19                                                                                                                                                      |
+| 2b1.5 port `mfaLastUsedTotpStep` + `claimTotpStep`                           | `MfaUserRepositoryPort.ts` @layer domain; typed `Result<"CLAIMED","NOT_FOUND"\|"ALREADY_USED">`                                                                                |
+| 2b1.6 both Prisma adapters conditional `updateMany` + count-0 disambiguation | source-verified identical predicate in both adapters; constructor-injected Prisma (#21=0)                                                                                      |
+| 2b1.7 in-memory double                                                       | `InMemoryMfaUserRepository.claimTotpStep` atomic (no await between check/set), mirrors CAS                                                                                     |
+| 2b1.8 [RED] both-subject replay unit spec                                    | `mfaTotpSingleUse.test.ts` 10/10                                                                                                                                               |
+| 2b1.9 `MfaService` TOTP path claim + HIGH replay audit                       | source-verified `:197-210`; signature UNCHANGED; legacy untouched                                                                                                              |
+| 2b1.10 admin regression                                                      | unifiedMfaService 19/19, mfaRoutes 31/31, authService 24/24, test:mfa 21/21                                                                                                    |
+| 2b1.11 0-defect gate                                                         | tsc 0/0, eslint 0, fitness #3/#9/#10/#18/#21/#23=0                                                                                                                             |
+
+### Spec compliance matrix (design-pr2b Decision 2 — MERGE-BLOCKING)
+
+| Requirement                                                                                             | Covering test (passed at runtime)                                                             | Status |
+| ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------ |
+| Same TOTP accepted once, then replay rejected — BOTH subjects                                           | `mfaTotpSingleUse` "accepts a TOTP once and rejects the same TOTP on replay" (admin+customer) | PASS   |
+| Replay → `err("INVALID_TOKEN")` + HIGH `MFA_TOTP_REPLAY_REJECTED` audit                                 | `mfaTotpSingleUse` "audits a HIGH MFA_TOTP_REPLAY_REJECTED event on replay" (x2)              | PASS   |
+| Next 30s step still accepted (no lockout)                                                               | `mfaTotpSingleUse` "still accepts the NEXT 30-second step after a claim" (x2, fake timers)    | PASS   |
+| Same-TOTP login-then-regenerate/disable rejected in-window                                              | `mfaTotpSingleUse` "rejects reusing a consumed TOTP for … regenerate/disable" (x2x2)          | PASS   |
+| CAS contract: fresh CLAIMED / replay ALREADY_USED / older ALREADY_USED / step+1 CLAIMED — both adapters | integration admin + customer cases; adapter unit suites (5 `claimTotpStep` cases x2)          | PASS   |
+| Count-0 disambiguation: missing→NOT_FOUND                                                               | integration "unknown id"; adapter unit "user is gone"                                         | PASS   |
+| Concurrent claims of same step → exactly ONE CLAIMED                                                    | integration "two concurrent claims … exactly one CLAIMED" (real Postgres)                     | PASS   |
+
+### Adversarial checks (each re-derived at source and/or by test)
+
+1. **CAS predicate soundness (`MfaService.ts:197-210`, both adapters + in-memory) — PASS.** `where:{ id, OR:[{mfaLastUsedTotpStep:null},{mfaLastUsedTotpStep:{lt:step}}] }`, `data:{mfaLastUsedTotpStep:step}`. Monotonic: a claim succeeds ONLY for `null` or `stored < step`. Replay (equal) rejected; older-in-window (`<` newer) rejected. **Key robustness proof (re-derived from otplib):** a physical TOTP code C maps to a TIME-INVARIANT step — `checkDelta` returns `delta = S − currentCounter`, so `computeTotpStep = currentCounter + delta = S` for every presentation of C within the window. The claim is keyed on C's intrinsic step S, not on when C is presented → the same code can NEVER be re-claimed. Replay is provably closed, not merely window-narrowed.
+2. **`computeTotpStep` (`:409-420`) — PASS, verified against otplib 12.0.1 source.** (a) `authenticator.clone({window,epoch:Date.now()})` pins epoch into `_defaultOptions`; `Authenticator.allOptions()`=`authenticatorOptions(this.options)` spreads the fresh `Date.now()` DEFAULT then OVERRIDES with the pinned `epoch` — both `checkDelta` and the explicit `allOptions()` read the SAME pinned instant (no 30s-boundary race), confirmed at `@otplib/core/index.js:388-448`. `step`=30s, `epoch` in ms. (b) `currentCounter+delta` correct for negative delta (past step) — matches otplib's internal `totpCounter(epoch,step)=floor(epoch/step/1000)`. (c) `checkDelta` signature `(token,secret): number|null` confirmed (`authenticator.d.ts:132`). (d) `verifyTotp` now delegates to `computeTotpStep(…)!==null` — semantically identical to prior `check()` (`check`=`checkDelta!==null`); its only other caller `verifyMfaSetup:158` unaffected.
+3. **No fall-through to backup on a replayed TOTP (`:198-210`) — PASS.** The `return err("INVALID_TOKEN")` sits INSIDE `if (acceptedStep !== null)`, so a replay never reaches the backup loop. Reverse also holds: a legit backup code (8-hex uppercase) yields `computeTotpStep=null` (not a 6-digit TOTP) → falls through and still works — format non-collision is structural (8-hex vs 6-digit; `BACKUP_CODE_BYTES=4`), unifiedMfaService backup-code path 19/19.
+4. **Both adapters + in-memory + count-0 disambiguation — PASS.** Both `updateMany` predicates identical; count-0 → `findUnique({select:{id}})`: existing→ALREADY_USED, missing→NOT_FOUND. A real DB error on `updateMany`/`findUnique` is NOT masked — `claimTotpStep` has no try/catch, so it throws up to `verifyMfaToken`'s catch → `DATABASE_ERROR`. Integration + adapter suites green (19/19 x2).
+5. **Atomicity genuinely serialized — PASS (runtime-proven).** Integration "two concurrent claims … exactly one CLAIMED" green against real Postgres. Reasoning: the conditional single-statement `updateMany` row-locks under READ COMMITTED; the loser re-evaluates the WHERE against the committed row (`stored = step`, `step<step` false) → count 0. No UoW widening: `claimTotpStep` runs OUTSIDE `runInTransaction` (autocommit), so no ambient tx holds a lock.
+6. **Admin regression (merge-blocking) — PASS.** Both admin login paths pass ADMIN subject through the unchanged `verifyMfaToken` signature; admin TOTP is now single-use too (intended). mfaRoutes 31/31, authService 24/24, unifiedMfaService 19/19, test:mfa 21/21 (0 cancelled).
+7. **Test honesty — PASS (no bent tests).** Two existing-test edits, both LEGITIMATE spec adaptations with UNCHANGED assertions: (a) `unifiedMfaService.test.ts` swaps `disableMfa(…, authenticator.generate(secret))` → `disableMfa(…, regen.value[1])` — the prior regenerate already claimed the current step, so disabling with a same-window TOTP would now (correctly) fail; the test uses a DISTINCT unused backup code, `expect(disable.ok).toBe(true)` intact. (b) `tests/mfa.test.ts` two blocks `before/after` → `beforeEach/afterEach` — per-test fresh enrolled user so each gets its own unclaimed step (fixture isolation, zero assertion change). No weakened/deleted behavior assertions. Adapter/in-memory diffs are purely additive.
+8. **Audit event — PASS.** `MFA_TOTP_REPLAY_REJECTED` HIGH (`:208`), no `details` arg → carries only `{subjectType, severity}`, zero token/secret/hash. Rides the A1 seam: `audit()`→`resolveAuditActor(subject)`→customer→`auditActor.customer(id, accountId)`. Runtime-asserted HIGH (unit x2).
+9. **Migration — PASS.** `git diff schema.prisma` = exactly the 2 nullable `Int?` columns (+JSDoc comment, NIST citation). `migration.sql` = 2 `ADD COLUMN … INTEGER`. `down.sql` (operator-driven) drops exactly those 2 (`IF EXISTS`), nothing else. Migration dir holds only `migration.sql`+`down.sql`.
+10. **Scope — PASS.** No challenge store / JWT kind / step-2 route / use case / BF reorder (all PR2b-2/2b-3 files ABSENT; PR2b-3 sensitive files git-clean). Orphan `POST /auth/mfa/verify` still registered (`mfaRoutes.ts:525`, handler `:191-233`, `MfaVerifySchema:41`, ADMIN subject `:205`). Legacy `apps/api/src/auth/mfaService.ts` git-untouched, still has NO `claimTotpStep`/replay protection (expected — deletion is PR3).
+11. **0-defect gate — PASS.** tsc `@ports/core`=0, `@apps/api`=0 (heap 6144); eslint `--max-warnings 0` on all 11 touched files=0; fitness #3/#9/#10/#18/#21/#23=0; tripwire vocabulary + #8 sprint refs CLEAN; `@file`/`@layer infrastructure` first in both new files.
+
+### Build / test / gate evidence (commands + results)
+
+- `pnpm --filter @apps/api exec vitest run tests/unit/mfaTotpSingleUse.test.ts --pool=forks --maxWorkers=1 --no-file-parallelism` → **10/10**
+- `… tests/unit/infrastructure/adapters/PrismaAdminMfaUserRepository.test.ts` → **19/19**
+- `… tests/unit/infrastructure/adapters/PrismaCustomerMfaUserRepository.test.ts` → **19/19**
+- `… tests/unit/unifiedMfaService.test.ts` → **19/19**
+- `… tests/unit/mfaRoutes.test.ts` → **31/31** · `… tests/unit/authService.test.ts` → **24/24**
+- `pnpm --filter @apps/api test:mfa` (node:test, real Postgres) → **21 pass / 0 fail / 0 cancelled**
+- `pnpm --filter @apps/api exec node --import tsx --conditions development --env-file=/root/omni-post/.env --test --test-force-exit tests/integration/mfaTotpSingleUse.integration.test.ts` → **4 pass / 0 cancelled** (incl. concurrency)
+- `pnpm --filter @ports/core exec tsc --noEmit` → **0** · `NODE_OPTIONS=--max-old-space-size=6144 pnpm --filter @apps/api exec tsc --noEmit` → **0**
+- `eslint --max-warnings 0` (2 heap-capped batches, 11 files) → **0**
+- Fitness **#3=0 #9=0 #10=0 #18=0 #21=0 #23=0**; tripwire + #8 CLEAN
+
+### Issues
+
+**CRITICAL: none.** The ~150s TOTP replay window (`TOTP_WINDOW=2`) is closed for both subjects; the fix is fail-closed and replay is provably impossible (time-invariant step mapping).
+
+**WARNING**
+
+- **W1 — Future-edge claim can lock a correct-clock device out for up to 60s; design-accepted but UNTESTED.** The monotonic invariant means claiming a future-edge step (delta up to +2 ≈ +60s) advances `mfaLastUsedTotpStep` ahead of real time; any subsequent token for a step ≤ the claimed one is then `ALREADY_USED`. Reaching this needs an abnormal precondition (a clock-ahead device / precomputed token claims N+2, then the SAME account presents a correct-time lower-step token within ≤60s — e.g. clock corrected mid-session, or a second correct-time device). This is **design-acknowledged and accepted** (design-pr2b Decision 2 "Known edge … accepted, conservative direction, NIST-permitted") and is the CORRECT invariant — accepting older in-window steps would REOPEN replay. It is **fail-closed** (worst case = a ≤60s self-inflicted login delay, never a bypass). The finding is the **coverage gap**: the "no-lockout" test only proves the happy path (delta-0 claim → strictly-greater next step); no test exercises the future-edge (+1/+2) claim → lower-token-rejected path. Non-blocking. Recommend one documenting test so the accepted tradeoff is auditable in code.
+
+**SUGGESTION**
+
+- **S1 — `computeTotpStep` `catch { return null }` (`:417`) maps an infra fault to a silent "invalid token".** A genuinely corrupt stored secret (base32 decode throw) resolves to `null` → falls through to backup → `INVALID_TOKEN`, not `DATABASE_ERROR`. Fail-closed and near-impossible (secrets are otplib-generated), but it muddies diagnostics for a real infra fault. Consider narrowing the catch or logging at WARN before returning null.
+- **S2 — Integration concurrency test fidelity note.** `Promise.all` of two claims on one pooled Prisma client proves the invariant (exactly one CLAIMED) and is sufficient, but does not guarantee the two statements landed on distinct connections. The DB-level WHERE re-evaluation guarantees correctness regardless; no action required — recorded for completeness.
+
+### Deviations from design/tasks
+
+None. PR2b-1 implements exactly design-pr2b Decision 2 (DB column + CAS `claimTotpStep` both subjects + `checkDelta`-derived step + HIGH replay audit); the open question (otplib `checkDelta` signature) is resolved and confirmed at source. The intended behavior change (same-window TOTP reuse for login-then-regenerate/disable now rejected) is documented and tested. Challenge store / JWT / step-2 endpoint / BF reorder / orphan retirement / frontend correctly deferred to PR2b-2/PR2b-3; legacy deletion to PR3.
+
+## Post-verify remediation (PR2b-1)
+
+Owner policy: warnings resolved now, not carried. Fresh `sensitive-edit` token used for the `MfaService.ts` edit (Window). RED→GREEN strict TDD for both fixes.
+
+- **S1 — RESOLVED.** `computeTotpStep`'s `try { … } catch { return null }` swallowed genuine infra faults (e.g. a corrupted/non-base32 `mfaSecret` making otplib's `checkDelta` throw) into the same `null` as a legitimate wrong-token rejection, so the caller fell through to the backup-code path and returned `INVALID_TOKEN` with no operator-visible signal. Fix: removed the catch entirely — `checkDelta` returning `null` (the ONLY legitimate rejection) still resolves to `null` with no throw; a genuine throw now propagates to `verifyMfaToken`'s (and `verifyTotp`'s only other caller, `verifyMfaSetup`'s) own outer `try/catch`, which already logs via `authLogger.error` and returns the honest `err("DATABASE_ERROR")`. Verified empirically that a secret containing a byte ≥128 (outside the base32-decodable ASCII range, e.g. `` `SECRET${String.fromCharCode(200)}X` ``) makes `@otplib/plugin-thirty-two`'s `thirty-two.decode` throw `Error: Invalid input - it is not base32 encoded string` synchronously inside `checkDelta` — this is the realistic on-disk-corruption trigger used for the RED test. RED (both subjects) confirmed 2 failures before the fix (`INVALID_TOKEN` received, `DATABASE_ERROR` expected); GREEN after removing the catch, 14/14. No caller regressed: `verifyMfaSetup`'s legitimate-wrong-token path (checkDelta→null, no throw) is unaffected — confirmed by `tests/mfa.test.ts` "should reject setup verification with invalid token" staying green (21/21 overall).
+- **W1 — RESOLVED (documentation-by-test).** Added a parameterized (admin+customer) test proving the accepted future-edge tradeoff end to end: a clock-ahead device claims a future-edge step (`currentCounter+2`, `TOTP_WINDOW` boundary) → CLAIMED; a subsequently presented token for the TRUE current (lower) step is rejected as `ALREADY_USED`→`INVALID_TOKEN` (monotonicity is the invariant that prevents replay — accepting an older in-window step would reopen the hole this slice closes); once the wall clock advances strictly past the claimed step, a fresh token is accepted again (bounded ≤60s self-inflicted delay, never a bypass). Test + inline comment make the tradeoff auditable in code, not a "fix" — the underlying `MfaService.ts` CAS logic is unchanged.
+- **S2 — NO ACTION.** Confirmed as recorded in the original report: the DB-level conditional `updateMany` WHERE re-evaluation under READ COMMITTED is what proves the invariant, independent of whether the two racing claims land on distinct pooled connections. No code or test change needed.
+
+### Remediation gate (single-file re-runs, LXC-safe)
+
+- `vitest run tests/unit/mfaTotpSingleUse.test.ts --pool=forks --maxWorkers=1 --no-file-parallelism` → **14/14** (was 10; +2 new: S1 fail-closed, W1 future-edge documentation)
+- `… tests/unit/unifiedMfaService.test.ts` → **19/19**
+- `… tests/unit/mfaRoutes.test.ts` → **31/31**
+- `pnpm --filter @apps/api test:mfa` (node:test, real Postgres) → **21 pass / 0 fail / 0 cancelled**
+- `node --env-file=../../.env --conditions development --import tsx --test --test-force-exit tests/integration/mfaTotpSingleUse.integration.test.ts` → **4 pass / 0 cancelled**
+- `pnpm --filter @ports/core exec tsc --noEmit` → **0** · `NODE_OPTIONS=--max-old-space-size=6144 pnpm --filter @apps/api exec tsc --noEmit` → **0**
+- `eslint --max-warnings 0` (`MfaService.ts`, `mfaTotpSingleUse.test.ts`) → **0**
+- Fitness **#3=0**
+
+### Result
+
+0 CRITICAL, 0 WARNING, 0 SUGGESTION open. PR2b-1 is clean for merge.
+
+**next_recommended: commit PR2b-1** (`size:exception` ~665 lines, rationale in PR body) → sdd-apply PR2b-2. The single WARNING is non-blocking (design-accepted, fail-closed, no failing/untested MERGE-BLOCKING scenario) and does NOT block archive of this slice.
+
+---
+
+## PR2b-2 — Client-portal MFA challenge UI (INERT until PR2b-3)
+
+**Mode**: openspec (mirrored to engram). **Verdict: PASS WITH WARNINGS** (0 CRITICAL, 1 WARNING, 2 SUGGESTION). Adversarial re-derivation at source + full test execution.
+
+### Scope (fitness #6-style) — CLEAN
+
+`git diff --name-only` + untracked = entirely under `apps/client/**` plus `openspec/changes/mfa-consolidation/tasks.md`. Zero `apps/api/**`, `infra/**`, `packages/**`. Backend confirmed still inert: `LoginCustomerUseCase.ts` has NO `mfaRequired`/`mfaEnabled` branch; orphan `POST /auth/mfa/verify` still registered (`mfaRoutes.ts:525`, hardcoded `MFA_SUBJECT_TYPE.ADMIN` at `:205`) — PR2b-3's job.
+
+### Completeness — tasks 2b2.1–2b2.10 all `[x]`, each mapped to code
+
+Verified in source: authApi fields+`completeMfaLogin` (2b2.1/2b2.2), authContext return-type change + `completeMfaLogin` (2b2.3), proxy `AUTH_LOGIN_MFA_PATH` (2b2.4/2b2.5), split action/RTL tests (2b2.6), `MfaChallengeForm.tsx`+two-step page (2b2.7), `loginAction`/`completeMfaLoginAction` (2b2.8), i18n en+es (2b2.9), 0-defect gate (2b2.10).
+
+### Tests executed (LXC-safe: `vitest run <file> --pool=forks --maxWorkers=1 --no-file-parallelism`, `NODE_OPTIONS=--max-old-space-size=3072`, `timeout 300`)
+
+| File                                                 | Result                                                      |
+| ---------------------------------------------------- | ----------------------------------------------------------- |
+| `app/api/backend/[...path]/route.test.ts`            | **4/4**                                                     |
+| `app/actions/auth.test.ts`                           | **7/7**                                                     |
+| `components/auth/MfaChallengeForm.test.tsx`          | **5/5**                                                     |
+| `lib/auth/__tests__/authApi.test.ts`                 | **30/30**                                                   |
+| `tests/integration/authContext.integration.test.tsx` | **11/11** (0 skipped — `describeIf` resolved to `describe`) |
+
+**Total 57/57, 0 fail, 0 skipped, 0 cancelled.** Counts match the self-report exactly.
+
+### 0-defect gate (re-run at source)
+
+- `tsc --noEmit` @apps/client (`--max-old-space-size=6144`) → **0**
+- `eslint --max-warnings 0` on all 11 touched files → **0**
+- Fitness **#9** @file (11/11 present) · **#10** @layer (all `infrastructure`, no forbidden values) · **#12** @component (`MfaChallengeForm`, `LoginPage`, `AuthProvider`) · **#17** client `process.env` exact grep → **0**
+- No tripwire vocabulary, no sprint/phase refs in touched source.
+
+### LOAD-BEARING security check — PASS (verified in code AND by the test's real assertions)
+
+- `route.ts`: diff is purely additive — `AUTH_LOGIN_MFA_PATH="auth/customer/login/mfa"` added to (a) the `parseRememberMe` branch (`:105`) and (b) the cookie-persist branch (`:141-155`). The non-MFA `AUTH_LOGIN_PATH`/`AUTH_REGISTER_PATH`/`refresh`/`logout` branches are **byte-for-byte unchanged**.
+- Step-2 body strip verified through the REAL helper: `persistTokensFromAuthResponse` → `stripTokensFromResponse` (`sessionCookie.ts:113-118`) removes `accessToken`+`refreshToken` from `data` and returns the sanitized JSON; cookies set httpOnly via `setSessionCookie`/`setRefreshCookie`.
+- `route.test.ts` genuinely asserts NO leak, not merely cookie-persistence: test 2 (`:100-121`) reads `res.text()` and asserts `not.toContain("ACCESS-TOKEN")`, `not.toContain("REFRESH-TOKEN")`, `toContain("u1")` — a true no-leak assertion, NOT a false pass. Step-1 challenge passes through with **0 cookies** (test 4, `:145-161`). rememberMe TTL (30d) honored on step-2 (test 3).
+
+### Behavioral verification per spec
+
+- **INERT guarantee — HOLDS.** `loginAction` only enters the challenge branch when `readMfaChallenge(data)` returns non-null, i.e. backend sends `mfaRequired===true`+`challengeToken` — which the backend never does yet. `page.tsx` challenge render is gated on `state.mfaChallenge`. `authContext.login` return-type change `throw → Promise<MfaChallenge|null>` breaks NO production consumer: grep of `apps/client` shows every `useAuth()` call destructures only `{ user }` / `{ user, logout }` — none reads `login`/`completeMfaLogin`. Register auto-login `null` path preserved (`authContext.tsx:172`, return value ignored; a just-registered user has `mfaEnabled=false`).
+- **authApi/authContext** — `MfaChallenge` gains `challengeToken`+`expiresInSeconds` (`authApi.ts:75-77`); `completeMfaLogin` POSTs proxy `/login/mfa` (`:165-187`); `login` maps `data.mfaRequired` (`:143-151`). Integration test asserts challenge-return-not-throw (`:133`), null path (`:161`), completeMfaLogin sets user (`:180`) — behavioral, not tautological.
+- **completeMfaLoginAction** — forwards XFF via `forwardedForHeaders` (`auth.ts:197`), persists via `setSessionCookie`/`setRefreshCookie({rememberMe})` (`:229-231`), redirects `/{locale}/dashboard` (`:241`); wrong-code (401+`INVALID_MFA_CODE`) keeps challenge, 401-other/503 fall back (`:213-219`). Unknown error → `challengeGone=true` → safe fallback to password step (never strands, never bypasses MFA).
+- **MfaChallengeForm.tsx** — `@file`/`@component`/`@layer infrastructure` tags first (within first ~370 bytes, well under the 1500-byte stop-hook window); prop docs on `MfaChallengeFormProps` interface not the function; challenge in `useActionState`+hidden input. **Whole slice grep: ZERO `localStorage`/`sessionStorage`** (only a prohibiting comment at `MfaChallengeForm.tsx:9`). RTL covers password⇄challenge transition (tests 4-5), wrong-code-keeps-challenge (test 2), expired-falls-back (test 3).
+- **i18n** — 7 `auth.mfa*` keys present in BOTH `en.json` and `es.json` (no missing-key mismatch); es is neutral professional Spanish (tuteo "Ingresa"/"Inicia", NOT voseo).
+- **Test honesty** — the moved request-shape assertion genuinely lives in its new home: `auth.test.ts:124-141` asserts the `POST /auth/customer/login/mfa` URL + `x-forwarded-for` relay + exact body; `authApi.test.ts:195-218` asserts the proxy-path shape. Nothing dropped.
+
+### Issues
+
+**CRITICAL** — none.
+
+**WARNING — [W-PR2b-2-1] Cross-slice error-code contract is not satisfiable by the design's stated backend approach; current tests paper over it.**
+`completeMfaLoginAction` (`apps/client/app/actions/auth.ts:203-214`) discriminates wrong-code (retry, keep challenge) from invalid-challenge (fall back to password) via `errorData.code === "INVALID_MFA_CODE"` — a machine STRING expected in the response body. But the existing customer-auth error path that Design Decision 6 says to "mirror" (`customerAuthRoutes.ts:148-162`) routes through `sendError` (`BaseRouteHandler.ts:281-285`), which emits `{ ok:false, error:<message> }` with **no machine `code` string** — the `code` in each errorMap is the HTTP status NUMBER, consumed as transport status, never placed in the body. If PR2b-3 mirrors that pattern verbatim, a wrong TOTP code returns 401 with body `{ ok:false, error:"Invalid MFA code." }`; the frontend then computes `errorCode=undefined`, `undefined !== "INVALID_MFA_CODE"` → `challengeGone=true` → the UI drops the user back to the PASSWORD step on every typo — breaking Decision 6's core goal ("a TOTP typo must not force password re-entry", the weakness the hybrid exists to avoid). `auth.test.ts:143-150` is GREEN only because it mocks a `code:"INVALID_MFA_CODE"` field the current backend shape does not produce — false confidence. Not CRITICAL because this slice is INERT and the fallback direction is SAFE (no strand, no MFA bypass), but PR2b-3 MUST emit a machine `code:"INVALID_MFA_CODE"` string in the step-2 401 body (a deliberate deviation from `sendError`'s current shape) OR realign the frontend discriminator (e.g. match the design's distinct client-facing MESSAGE). Documented as a contract in apply-progress; recorded here as the concrete PR2b-3 acceptance condition.
+
+**SUGGESTION — [S-PR2b-2-1] (pre-existing, out of scope)** `stripTokensFromResponse` (`sessionCookie.ts:113-118`) strips tokens only from `parsed.data`, while `readAuthTokens` (`:98-107`) also reads top-level `accessToken`/`refreshToken`. Not reachable with the current `{ data:{...} }` success shape (proven by route.test.ts test 2), but a top-level-token response would leak. Defense-in-depth: strip both levels. Predates PR2b-2.
+
+**SUGGESTION — [S-PR2b-2-2] (pre-existing)** `authContext.integration.test.tsx:32-38,54` keeps a `describe.skip` fallback that would SILENTLY skip all 11 tests if the `useAuth` export ever moved. All 11 ran here, but a hard import would fail loudly instead (CODING_STANDARDS "Zero Cancelled/Skipped" spirit).
+
+### Result
+
+Load-bearing token-leak fix verified in code and by a real no-leak assertion. Scope, INERT guarantee, 0-defect gate, i18n parity, and 57/57 tests all confirmed at source. One non-blocking cross-slice WARNING (safe fallback, inert today) to hand to PR2b-3, plus two pre-existing SUGGESTIONs. **PR2b-2 is clean for commit/merge (`size:exception`, stacked-to-main, after PR2b-1, before PR2b-3).** The WARNING does NOT block this slice's archive; it is an acceptance condition for PR2b-3.
+
+---
+
+## PR2b-3 — Backend login MFA gate + orphan retirement — VERDICT: PASS WITH WARNINGS (0 CRITICAL, 2 WARNING, 2 SUGGESTION)
+
+**Mode**: openspec (mirrored to engram). Adversarial re-derivation at source + full test execution against the UNCOMMITTED working tree on `workstream/cluster-b-mfa` (nothing committed for PR2b-3; PR2b-1 `da8ef686` + PR2b-2 landed). THE authentication gate of the chain — verified hardest-first.
+
+### Merge-blocking security invariants — ALL PROVEN (code + runtime)
+
+1. **Fail-CLOSED end-to-end — NO fail-open path exists.** `RedisMfaChallengeStoreAdapter.consume` returns typed `err("STORE_ERROR")` on any Redis fault (`RedisMfaChallengeStoreAdapter.ts:57-59`); the use case maps it to `MFA_UNAVAILABLE` (`CompleteCustomerMfaLoginUseCase.ts:162-165`) → route 503 + WARN `mfa_challenge_store_unavailable` (`customerAuthRoutes.ts:273-277,310-317`). Traced the full chain: a store error CANNOT become a 200/session. At step 1, `issue` failure → `MFA_UNAVAILABLE` BEFORE any `recordLogin`/mint, and the `mfaEnabled` branch returns without falling through to the non-MFA session path (`LoginCustomerUseCase.ts:201-222`). Outer `try/catch` returns `INTERNAL_ERROR` (500) on any throw — never success. Runtime: `LoginCustomerUseCase.test.ts` (MFA_UNAVAILABLE, signMfaChallengeToken NOT called), `CompleteCustomerMfaLoginUseCase.test.ts` (consume STORE_ERROR → MFA_UNAVAILABLE, `save` NOT called), `customerLoginMfaRoutes.test.ts` (503 + WARN both steps).
+2. **Single-use is genuinely atomic on real Redis.** `issue` = `SET key "1" EX ttl NX`; `consume` = `DEL` with `removed === 1 ? "CONSUMED" : "NOT_FOUND"` (`RedisMfaChallengeStoreAdapter.ts:35-61`) — single-command atomicity, no Lua, no GETDEL. **Integration test against REAL Redis (`omnipost-infra`, `pnpm db:up`) 3/3**: two/three concurrent `consume` of one jti → EXACTLY ONE `CONSUMED`, the rest `NOT_FOUND` (`customerLoginMfa.integration.test.ts:65-79`); sequential second consume `NOT_FOUND`; TTL expiry drops the jti. Real-infra atomicity anchor, not a mock.
+3. **Step-2 error contract — top-level `code`, cross-slice CONTRACT SATISFIED (prior W-PR2b-2-1 RESOLVED).** A wrong code returns 401 with a TOP-LEVEL `code: "INVALID_MFA_CODE"` via `ctx.reply.code(...).send(...)` — NOT `sendError` (`customerAuthRoutes.ts:294-297`). The LIVE portal path (`completeMfaLoginAction`) `fetch`es the backend DIRECTLY (`apps/client/app/actions/auth.ts:197`, bypassing the proxy) and reads `errorData.code ?? errorData.data?.code` (`:205`) → gets the top-level string → `challengeGone = status===503 || (status===401 && code!=="INVALID_MFA_CODE")` (`:216`). Wrong code keeps the challenge (retry); invalid/expired/consumed challenge (401 `INVALID_CHALLENGE`) and store outage (503) fall back. Runtime: `customerLoginMfaRoutes.test.ts` asserts the REAL top-level `body.code`.
+4. **Anti-oracle — byte-identical `INVALID_CHALLENGE`.** Expired / consumed / foreign / user-vanished / mfa-since-disabled and `CHALLENGE_BINDING_MISMATCH` all collapse to the SAME 401 body `{ok:false, error:"MFA challenge is invalid or expired. Please sign in again.", code:"INVALID_CHALLENGE"}` (`customerAuthRoutes.ts:282-293`). Binding-mismatch + store-outage WARNs are server-side `authLogger` only — NOT in the response. Runtime: `customerLoginMfaRoutes.test.ts:105-127` asserts `binding.body === invalid.body` byte-identical + WARN fires. Timing considered: attacker-controllable branches (expired, binding mismatch) both return pre-DB/pre-BF; the slower branches (consumed jti, vanished user) require a valid, correctly-bound, non-expired token that already passed verify — unreachable without the legitimate credential. Not a practical oracle.
+5. **No session minted pre-MFA.** `LoginCustomerUseCase` `mfaEnabled` branch performs ZERO of `recordLogin`/`save`/`recordSuccessfulAttempt`/`signAccessToken`/`signRefreshToken` — only `issue` + `signMfaChallengeToken` (`LoginCustomerUseCase.ts:201-222`). Runtime: `LoginCustomerUseCase.test.ts:247-269` asserts `not.toHaveBeenCalled()` on every mint/record path.
+6. **BF ordering.** Success recorded ONLY after `verifyMfaToken` ok AND `consume` === `CONSUMED` AND `save` ok (`CompleteCustomerMfaLoginUseCase.ts:137-196`); a wrong code → `recordFailedAttempt({failureReason:"MFA_FAILED"})` and does NOT consume the challenge (consume is strictly after verify). Same BF identifier (email) as step 1. Non-MFA login records success exactly once, never touches the store. Runtime: `CompleteCustomerMfaLoginUseCase.test.ts`, `LoginCustomerUseCase.test.ts`.
+7. **JWT kind isolation, both directions.** Challenge sign+verify pin `algorithms:["HS256"]`, `issuer:"omnipost-customer"`, dedicated `audience:"omnipost-customer-mfa"` + payload `type:"customer-mfa-challenge"` (`customerJwt.ts:158-191`). Challenge fails `verifyCustomerToken`/`verifyCustomerRefreshToken`; access/refresh fails `verifyCustomerMfaChallengeToken` (aud+type). Runtime: `customerJwt.test.ts` 5/5 both directions throw.
+8. **Tenant context.** Step-2 handler runs `withSystemContext("customer-mfa-login", ...)` (`customerAuthRoutes.ts:241`); the CustomerUser read/write is inside it. `resolveClientIp` on BOTH handlers, never `request.ip` (`customerAuthRoutes.ts:94-101,173,245`); route test asserts the trusted XFF entry reaches the use case. See W-PR2b-3-1 for the `accountId`-claim gap.
+9. **Orphan retirement clean + complete.** `POST /auth/mfa/verify` (registration + handler + `MfaVerifySchema`) DELETED from `mfaRoutes.ts`; LIVE `/auth/mfa/verify-setup` remains (`mfaRoutes.ts:463-470`). Repo-wide grep: residual `/auth/mfa/verify` refs are only the intentionally-kept rate-limit rule (prefix-covers `verify-setup`, comment refreshed, `httpRateLimitPreHandler.ts:129-134`), the 404 test, and the DISTINCT live admin route `/admin/auth/mfa/verify`. `api-generated/types.gen.ts` regenerated (orphan `url:"/auth/mfa/verify"` removed, `url:"/auth/customer/login/mfa"` added — verified). 3 docs + k6 helper updated. Runtime: `mfaRoutes.test.ts` 29/29 (orphan → 404), `authRateLimit.test.ts` 25/25.
+10. **Admin regression — NONE.** `MfaService` diff is ADDITIVE only (`implements MfaVerificationPort`; types from `@ports/core`; local `MfaVerificationResult`/`VerifyTokenError` dropped) — PR2b-1's TOTP single-use claim logic (`MfaService.ts:196-210`) is UNTOUCHED (not in the diff; committed `da8ef686`). Runtime: `test:mfa` 21/21, `unifiedMfaService` 19/19, `mfaTotpSingleUse` 14/14, `adminAuthService` 15/15, `authService` 24/24.
+
+### DI / hexagonal — CLEAN
+
+2 new tokens only: `TOKENS.MfaChallengeStore` + `TOKENS.CompleteCustomerMfaLoginUseCase` (`types.ts:27,447`). `MfaVerificationPort` resolves the EXISTING `TOKENS.MfaService` typed as the port (`setupCustomerAuthUseCases.ts:102`) — no 3rd token, fitness #21 at one instance. `RedisMfaChallengeStoreAdapter` constructed only in the composition root on its own `createRedisConnection()` (`setupServices.ts:861-871`). The `@core/customer-auth` use case imports only `@core/domain`/`@ports/core`/`@shared/types`/node crypto — no infra import. UoW wraps `recordLogin`+`save`; `recordSuccessfulAttempt` runs OUTSIDE the tx (`CompleteCustomerMfaLoginUseCase.ts:170-196`).
+
+### Tests executed (LXC-safe: vitest `--pool=forks --maxWorkers=1 --no-file-parallelism`, `NODE_OPTIONS=--max-old-space-size=3072`, `timeout`; node:test `--import tsx --conditions development --test --test-force-exit`, `pnpm db:up` first)
+
+| File                                                                                | Result    |
+| ----------------------------------------------------------------------------------- | --------- |
+| `packages/core/customer-auth/.../CompleteCustomerMfaLoginUseCase.test.ts`           | **12/12** |
+| `packages/core/customer-auth/.../LoginCustomerUseCase.test.ts`                      | **9/9**   |
+| `packages/core/customer-auth/.../challengeBinding.test.ts`                          | **3/3**   |
+| `apps/api/tests/unit/customerJwt.test.ts`                                           | **5/5**   |
+| `apps/api/tests/unit/infrastructure/adapters/RedisMfaChallengeStoreAdapter.test.ts` | **7/7**   |
+| `apps/api/tests/unit/customerLoginMfaRoutes.test.ts`                                | **8/8**   |
+| `apps/api/tests/integration/customerLoginMfa.integration.test.ts` (REAL Redis)      | **3/3**   |
+| `apps/api/tests/unit/mfaRoutes.test.ts` (orphan → 404)                              | **29/29** |
+| `apps/api/tests/unit/authRateLimit.test.ts`                                         | **25/25** |
+| `apps/api/tests/unit/customerAuthUseCases.test.ts`                                  | **25/25** |
+| `apps/api/tests/unit/unifiedMfaService.test.ts`                                     | **19/19** |
+| `apps/api/tests/unit/mfaTotpSingleUse.test.ts`                                      | **14/14** |
+| `apps/api/tests/unit/admin/adminAuthService.test.ts`                                | **15/15** |
+| `apps/api/tests/unit/authService.test.ts`                                           | **24/24** |
+| `apps/api/tests/mfa.test.ts` (`test:mfa`, node:test)                                | **21/21** |
+
+**Total 219/219, 0 fail, 0 skipped, 0 cancelled.** Every count matches the self-report. Modified tests contain no `.skip`/`.only`/`xit`; the orphan test change (3× 400 → 1× 404) is a STRENGTHENING; new tests assert BEHAVIOR (real error codes, real Redis atomicity, byte-identical bodies), not tautological mocks.
+
+### 0-defect gate (re-run at source)
+
+- `tsc --noEmit`: @ports/core **0** · @core/domain **0** · @core/customer-auth **0** · @shared/types **0** · @apps/api (`--max-old-space-size=6144`) **0**.
+- `eslint --max-warnings 0`: 10 touched `apps/api/src` files **0** · 8 touched package files **0**.
+- Fitness **#3 0** · **#9 0** · **#10 0** · **#16 0** · **#18 0** · **#21 0** · **#28 0** · **#8 0** (no sprint/phase refs on added lines). Tripwire vocabulary sweep on the diff **0**. `any` in new src **0**. `@file`/`@layer` first in every new file.
+
+### Issues
+
+**CRITICAL** — none. No fail-open path, no distinguishable anti-oracle response, no pre-MFA token leak.
+
+**WARNING — [W-PR2b-3-1] The challenge's `accountId` claim is carried but NEVER cross-checked; the step-2 lookup loads by `sub` alone.** `CompleteCustomerMfaLoginUseCase.execute` reads `claims.iph/uah/sub/jti` but never `claims.accountId` — the user is loaded via `customerUserRepo.findById(claims.sub)` under `withSystemContext` with no `user.accountId === claims.accountId` guard (`CompleteCustomerMfaLoginUseCase.ts:104-109`). DEVIATES from Design Decision 7 and the domain doc-comment (`CustomerTokenService.ts:53` "keeps the step-2 lookup tenant-explicit"); the claim is now dead on the auth gate. **NOT exploitable today**: the challenge JWT is HMAC-signed (no forge/tamper), `sub` is a globally-unique PK, and step 1 always sets `sub`+`accountId` from the same row (consistent by construction). Recommendation (defense-in-depth + honor design intent): add `if (user.accountId !== claims.accountId) return err("INVALID_CHALLENGE");` after the load, OR downgrade the design/comment to informational-only. Non-blocking.
+
+**WARNING — [W-PR2b-3-2] Full wired-stack HTTP flow (task 2b3.21) + Playwright e2e NOT executed.** Every merge-blocking invariant is proven at the appropriate layer (unit + real-Redis integration + route-level), but the end-to-end composition — DI-resolved live route → real `RedisMfaChallengeStoreAdapter` + real `MfaService` + real JWT → proxy/cookie persistence, in ONE booted API(:3000)+Next pass — was not run (needs a running dev server the executor does not boot; same constraint as `mfaCustomer.integration.test.ts` + `auth.spec.ts:231-254`). DI wiring is verified by source inspection + a clean `@apps/api` tsc. **Recommendation**: a reviewer should run the manual enroll→login→challenge→complete→cookie flow against a booted stack (and/or the Playwright MFA spec) before merge to close the composition-level assurance. Matches the apply's honest disclosure. Non-blocking given per-link coverage.
+
+**SUGGESTION — [S-PR2b-3-1]** The domain comment `CustomerTokenService.ts:53` ("keeps the step-2 lookup tenant-explicit") is now inaccurate — align with W-PR2b-3-1's resolution.
+
+**SUGGESTION — [S-PR2b-3-2] (carried from PR2b-2 S-PR2b-2-1, still open)** `stripTokensFromResponse` strips only `parsed.data`; the LIVE server-action path uses direct `fetch` + `setSessionCookie` (tokens never reach the browser) and the proxy path is dead on the live flow — no leak today. Defense-in-depth: strip both levels. Out of PR2b-3 scope.
+
+### Result
+
+The highest-stakes slice holds. Fail-closed store, atomic single-use on real Redis, byte-identical anti-oracle, no pre-MFA session, correct BF ordering, bidirectional JWT-kind isolation, clean orphan retirement, and zero admin regression are all proven in code AND at runtime (219/219, 0 cancelled). 0-defect gate green (tsc 0 across 5 packages, eslint 0, fitness #3/#8/#9/#10/#16/#18/#21/#28 = 0). Two non-blocking WARNINGs: a dead `accountId` claim (design-vs-impl deviation, not exploitable) and the un-run full HTTP/e2e composition (each link individually proven). **PR2b-3 is clean for commit/merge (`size:exception`, stacked-to-main, merges LAST after PR2b-1 + PR2b-2).** Neither WARNING blocks archive; both belong on the reviewer/merge checklist. next_recommended: **sdd-archive** (after the manual e2e spot-check).
+
+---
+
+## Post-verify remediation (PR2b-3)
+
+Owner policy: resolvable warnings get fixed now, not carried. No `sensitive-edit` token needed — the fix is entirely inside `packages/core/customer-auth` (non-sensitive). Strict TDD RED→GREEN, RED confirmed by temporarily removing the check and re-running the new test before reapplying.
+
+| Finding                                                  | Resolution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **W-PR2b-3-1 — dead `accountId` tenant-binding claim**   | **RESOLVED.** `CompleteCustomerMfaLoginUseCase.execute` now cross-checks `user.accountId !== claims.accountId` immediately after loading the user by `sub` (`CompleteCustomerMfaLoginUseCase.ts:111-120`, step "3b"), returning byte-identical `err("INVALID_CHALLENGE")` — same as expired/consumed/foreign — and does NOT consume the `jti` (a mismatch is not a legitimate burn attempt; consuming it would let an attacker exhaust a victim's pending challenge without the real code). Placed BEFORE the `mfaEnabled`/`isActive` re-check and BEFORE the BF gate/second-factor verify, so a tenant mismatch fails as early as the binding check. RED confirmed: with the check temporarily removed, the new test failed (`assert.ok(!mismatched.ok)` — got `true` instead of the expected falsy `ok`); reapplying the check turned it GREEN, 13/13 (was 12). The domain doc-comment (`CustomerTokenService.ts:53`, S-PR2b-3-1) was realigned to describe the now-enforced invariant instead of the dead one. |
+| **W-PR2b-3-2 — full wired-stack HTTP flow not executed** | **DEFERRED (recorded, not fixed in this batch).** Confirmed as a manual merge-readiness step: a reviewer runs the enroll→login→challenge→complete→cookie flow against a booted API(:3000)+Next stack (and/or the Playwright `auth.spec.ts:231-254` MFA spec) before merge. Every individual link (challenge store atomicity on real Redis, route-level error contract, JWT kind isolation, DI wiring via clean `tsc`) is already proven at its own layer; only the full-stack composition is un-run, and the apply/verify executor does not boot a dev server. Tracked on the reviewer/merge checklist, same disposition as the original report.                                                                                                                                                                                                                                                                                                                                                                  |
+| **Adapter-test relocation**                              | **CONFIRMED.** `RedisMfaChallengeStoreAdapter.test.ts` was moved from the flat `apps/api/tests/unit/` path to the canonical `apps/api/tests/unit/infrastructure/adapters/` directory (mirroring the Prisma adapter tests' location); its `../../src/` imports were rewritten to `../../../../src/`. Re-run at the new path: **7/7**, and the old flat path no longer exists (`git status` shows the file only under the new path).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+
+### Gate (post-remediation, all green, LXC-safe)
+
+- `pnpm --filter @core/customer-auth exec vitest run tests/unit/CompleteCustomerMfaLoginUseCase.test.ts --pool=forks --maxWorkers=1 --no-file-parallelism` → **13/13** (was 12; +1 tenant-binding anti-oracle test)
+- `pnpm --filter @apps/api exec vitest run tests/unit/infrastructure/adapters/RedisMfaChallengeStoreAdapter.test.ts --pool=forks --maxWorkers=1 --no-file-parallelism` → **7/7** (relocation confirmed)
+- `pnpm --filter @core/customer-auth exec tsc --noEmit` → **0** · `pnpm --filter @core/domain exec tsc --noEmit` → **0** · `NODE_OPTIONS=--max-old-space-size=6144 pnpm --filter @apps/api exec tsc --noEmit` → **0**
+- `eslint --max-warnings 0` on `CompleteCustomerMfaLoginUseCase.ts`, `CompleteCustomerMfaLoginUseCase.test.ts`, `CustomerTokenService.ts`, `RedisMfaChallengeStoreAdapter.test.ts` → **0**
+- Fitness **#3** (no `any` in `apps/api/src/{domain,application,infrastructure}`) = **0**
+
+### Result
+
+W-PR2b-3-1 RESOLVED (tenant-binding invariant now enforced, byte-identical anti-oracle preserved, RED→GREEN proven). W-PR2b-3-2 remains an explicit reviewer/merge-checklist item (manual e2e spot-check), not a code defect — unchanged disposition from the original report. Adapter-test relocation confirmed green at its new canonical path. **0 CRITICAL, 0 resolvable WARNING open, 1 deferred WARNING (manual checklist item, non-blocking), 1 SUGGESTION (S-PR2b-3-2, pre-existing, out of scope) unchanged.**
+
+**next_recommended: sdd-archive** (after the manual e2e spot-check on the merge/reviewer checklist).
