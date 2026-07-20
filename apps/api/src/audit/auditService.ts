@@ -50,6 +50,9 @@ export interface CreateAuditLogParams {
   userAgent?: string;
   success?: boolean;
   error?: string;
+  /** Tenant account this event belongs to; makes the row visible to
+   *  account-scoped audit queries (`findByAccount`). */
+  accountId?: string;
 }
 
 export interface AuditLogFilters {
@@ -100,6 +103,7 @@ export class AuditService extends BaseService {
         };
         if (actor.userId) createData.userId = actor.userId;
         if (actor.customerUserId) createData.customerUserId = actor.customerUserId;
+        if (params.accountId) createData.accountId = params.accountId;
         if (params.resource) createData.resource = params.resource;
         if (params.resourceId) createData.resourceId = params.resourceId;
         if (params.details) createData.details = params.details;

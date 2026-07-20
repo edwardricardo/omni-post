@@ -256,7 +256,7 @@ describe("Unified MfaService", () => {
     const { secret, backupCodes } = await enroll(h, ADMIN, "admin@example.com");
 
     // Force the mutating write to throw so the service's catch-block error
-    // log is exercised — the previously uncovered branch (PR1-S2 carryover).
+    // log is exercised — covering the previously untested error branch.
     const clearMfaSpy = vi
       .spyOn(h.adminRepo, "clearMfa")
       .mockRejectedValueOnce(new Error("DB write failed"));

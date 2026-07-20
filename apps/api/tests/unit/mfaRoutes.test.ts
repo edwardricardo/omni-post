@@ -87,7 +87,7 @@ const roleRepo = new PrismaRoleRepository(mockPrisma.prisma as never);
 const sessionRepo = new PrismaAdminSessionRepository(mockPrisma.prisma as never);
 // Unified MFA service — admin subjects over the Prisma-backed AdminUser adapter
 // (mock store); customer subjects over an in-memory port double, since the
-// mockPrisma helper carries no `customerUser` store (mfa-consolidation PR2).
+// mockPrisma helper carries no `customerUser` store.
 const adminMfaRepo = new PrismaAdminMfaUserRepository(mockPrisma.prisma as never);
 const customerMfaRepo = new InMemoryMfaUserRepository();
 const mfaService = new MfaService(adminMfaRepo, customerMfaRepo, new InMemoryAuditLogRepository());
@@ -636,6 +636,15 @@ describe("mfaRoutes Unit Tests", () => {
       expect(customerRow?.mfaSecret).toBeNull();
       const adminRowAfter = stores.adminUser.all().find((u) => u.id === userId);
       expect(adminRowAfter).toEqual(adminRowBefore);
+
+      // The route-level audit row (the only one carrying ip/userAgent/reason)
+      // must carry the customer's tenant accountId so account-scoped audit
+      // queries (findByAccount) surface the admin force-disable.
+      const routeAuditRow = stores.auditLog
+        .all()
+        .find((r) => r.action === "ADMIN_MFA_FORCE_DISABLED" && r.resourceId === customerId);
+      expect(routeAuditRow).toBeTruthy();
+      expect(routeAuditRow?.accountId).toBe(customerAccountId);
 
       reseedCustomer();
     });

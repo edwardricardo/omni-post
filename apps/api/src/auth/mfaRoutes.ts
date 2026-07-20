@@ -461,6 +461,9 @@ class MfaRouteHandler extends BaseRouteHandler {
       action: "ADMIN_MFA_FORCE_DISABLED",
       resource: "CustomerUser",
       resourceId: userId,
+      // Scope the row to the customer's tenant account so account-scoped audit
+      // queries (`findByAccount`) surface this admin force-disable.
+      accountId: result.value.accountId,
       details: {
         targetUserId: userId,
         reason,

@@ -172,8 +172,8 @@ export function setupServices(
   );
   container.register<UpcasterChain>(TOKENS.UpcasterChain, () => new UpcasterChain(), true);
 
-  // MFA-user persistence adapters — one per subject table (mfa-consolidation
-  // PR2): AdminUser (global) and CustomerUser (tenant-scoped).
+  // MFA-user persistence adapters — one per subject table: AdminUser (global)
+  // and CustomerUser (tenant-scoped).
   container.register<MfaUserRepositoryPort>(
     TOKENS.AdminMfaUserRepository,
     () => new PrismaAdminMfaUserRepository(container.resolve(TOKENS.PrismaClient)),

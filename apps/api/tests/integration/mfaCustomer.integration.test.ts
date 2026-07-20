@@ -1,14 +1,11 @@
 /**
  * @file mfaCustomer.integration.test.ts
- * @description Integration tests — customer MFA persistence and route correctness
- *              (mfa-consolidation PR2).
- * @layer infrastructure
- *
- *              Exercises the full HTTP request/response
- *              cycle for the 5 customer self-service MFA routes against a real API
- *              + Postgres, using the production composition root (real
- *              tenant-guarded Prisma client, real `MfaService`/DI wiring registered
- *              in `setupServices.ts`). Coverage:
+ * @description Integration tests — customer MFA persistence and route correctness.
+ *              Exercises the full HTTP request/response cycle for the 5 customer
+ *              self-service MFA routes against a real API + Postgres, using the
+ *              production composition root (real tenant-guarded Prisma client,
+ *              real `MfaService`/DI wiring registered in `setupServices.ts`).
+ *              Coverage:
  *                - customer setup persists hashed backup codes to the new
  *                  `mfaBackupCodes` column, and the TOTP key URI label is the
  *                  subject's real email (the `userEmail` bug fix), never the id
@@ -34,6 +31,7 @@
  *              The dev environment (`pnpm dev`) MUST be up — API on 3000. Tests
  *              fail loud if the API is unreachable, per the repo canon ("never
  *              skip tests because services are down — start them").
+ * @layer infrastructure
  */
 
 import { describe, it, before, after } from "node:test";
