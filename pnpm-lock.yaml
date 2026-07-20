@@ -76,8 +76,8 @@ catalogs:
       specifier: 3.27.1
       version: 3.27.1
     '@tiptap/extension-character-count':
-      specifier: 3.27.1
-      version: 3.27.1
+      specifier: 3.28.0
+      version: 3.28.0
     '@tiptap/extension-placeholder':
       specifier: 3.27.1
       version: 3.27.1
@@ -1032,7 +1032,7 @@ importers:
         version: 3.27.1(@tiptap/pm@3.27.1)
       '@tiptap/extension-character-count':
         specifier: 'catalog:'
-        version: 3.27.1(@tiptap/extensions@3.27.1(@tiptap/core@3.27.1(@tiptap/pm@3.27.1))(@tiptap/pm@3.27.1))
+        version: 3.28.0(@tiptap/extensions@3.27.1(@tiptap/core@3.27.1(@tiptap/pm@3.27.1))(@tiptap/pm@3.27.1))
       '@tiptap/extension-color':
         specifier: 3.27.1
         version: 3.27.1(@tiptap/extension-text-style@3.27.1(@tiptap/core@3.27.1(@tiptap/pm@3.27.1)))
@@ -3701,7 +3701,7 @@ importers:
         version: 3.27.1(@tiptap/pm@3.27.1)
       '@tiptap/extension-character-count':
         specifier: 'catalog:'
-        version: 3.27.1(@tiptap/extensions@3.27.1(@tiptap/core@3.27.1(@tiptap/pm@3.27.1))(@tiptap/pm@3.27.1))
+        version: 3.28.0(@tiptap/extensions@3.27.1(@tiptap/core@3.27.1(@tiptap/pm@3.27.1))(@tiptap/pm@3.27.1))
       '@tiptap/extension-placeholder':
         specifier: 'catalog:'
         version: 3.27.1(@tiptap/extensions@3.27.1(@tiptap/core@3.27.1(@tiptap/pm@3.27.1))(@tiptap/pm@3.27.1))
@@ -9229,10 +9229,10 @@ packages:
     peerDependencies:
       '@tiptap/extension-list': 3.27.1
 
-  '@tiptap/extension-character-count@3.27.1':
-    resolution: {integrity: sha512-rzZUyAh+fCVIYRB2ZXsLGweevUGZ/Xsi6snGCXbsFAX71+BZJ2rr0hKOoIKqSiW8q20+AY73rTbTT/G7bZqdGg==}
+  '@tiptap/extension-character-count@3.28.0':
+    resolution: {integrity: sha512-eKo/6e16ZiACrK/lbuj6BAqXb6IboG3RKQ9Z+2SPCV6KTpPGsFdIeqvBuYJsHPNeCtGufz1T9vpJbmgm+fcjqQ==}
     peerDependencies:
-      '@tiptap/extensions': 3.27.1
+      '@tiptap/extensions': 3.28.0
 
   '@tiptap/extension-code-block@3.27.1':
     resolution: {integrity: sha512-pHlzmZx2OlHfyQ0yRlT5UL4mGokz947DthZuYefN1OleVqOkHpWBG+2JQwqoNq6bmzMne92zbH32rhcJUEYSjA==}
@@ -23250,7 +23250,7 @@ snapshots:
     dependencies:
       '@tiptap/extension-list': 3.27.1(@tiptap/core@3.27.1(@tiptap/pm@3.27.1))(@tiptap/pm@3.27.1)
 
-  '@tiptap/extension-character-count@3.27.1(@tiptap/extensions@3.27.1(@tiptap/core@3.27.1(@tiptap/pm@3.27.1))(@tiptap/pm@3.27.1))':
+  '@tiptap/extension-character-count@3.28.0(@tiptap/extensions@3.27.1(@tiptap/core@3.27.1(@tiptap/pm@3.27.1))(@tiptap/pm@3.27.1))':
     dependencies:
       '@tiptap/extensions': 3.27.1(@tiptap/core@3.27.1(@tiptap/pm@3.27.1))(@tiptap/pm@3.27.1)
 

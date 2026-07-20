@@ -74,7 +74,7 @@ catalog:
   "@tiptap/react": 3.27.1
   "@tiptap/pm": 3.27.1
   "@tiptap/starter-kit": 3.27.1
-  "@tiptap/extension-character-count": 3.27.1
+  "@tiptap/extension-character-count": 3.28.0
   "@tiptap/extension-placeholder": 3.27.1
 
   # ── LangChain family (atomic) ──
