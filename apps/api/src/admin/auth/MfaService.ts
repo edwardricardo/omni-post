@@ -18,7 +18,7 @@ import { ok, err, isErr, type Result } from "@shared/types";
 import { MFA_SUBJECT_TYPE, type MfaSubject, type MfaUserRepositoryPort } from "@ports/core";
 import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
-import { AuditableService } from "../../services/AuditableService.js";
+import { AuditableService, auditActor } from "../../services/AuditableService.js";
 import { authLogger } from "../../lib/logger.js";
 import { hashPassword, verifyPassword } from "../../auth/passwordHashing.js";
 import { adminAuthConfig } from "./adminAuthConfig.js";
@@ -390,7 +390,12 @@ export class MfaService extends AuditableService {
     severity: "MEDIUM" | "HIGH",
     details?: Record<string, unknown>
   ): Promise<void> {
-    await this.logSecurityEvent(subject.id, subject.id, {
+    // Behavior-preserving: every live subject resolves to the admin adapter
+    // today, so attribution is admin. When customer subjects gain real
+    // persistence, this call site must switch on subject.type and attribute
+    // customers via auditActor.customer(subject.id, accountId) — tracked as
+    // SMELL-62 (acceptance criterion of the customer-wiring slice).
+    await this.logSecurityEvent(auditActor.admin(subject.id), subject.id, {
       action,
       severity,
       details: { subjectType: subject.type, ...(details ?? {}) },

@@ -11,7 +11,7 @@ import { ok, err, type Result } from "@shared/types";
 import { logger } from "../lib/logger.js";
 
 const adminLogger = logger.child({ module: "admin" });
-import { AuditableService } from "../services/AuditableService.js";
+import { AuditableService, auditActor } from "../services/AuditableService.js";
 import { hashPassword } from "../auth/passwordHashing.js";
 import type { AdminUserRepositoryPort } from "@core/domain/repositories/AdminUserRepository.js";
 import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
@@ -86,7 +86,7 @@ export class AccountSessionService extends AuditableService {
 
       // Log security event for password reset
       if (resetByUserId) {
-        await this.logSecurityEvent(resetByUserId, accountId, {
+        await this.logSecurityEvent(auditActor.admin(resetByUserId), accountId, {
           action: "RESOURCE_UPDATE",
           severity: "HIGH",
           details: {
@@ -168,7 +168,7 @@ export class AccountSessionService extends AuditableService {
 
       // Log security event for session revocation
       if (revokedByUserId) {
-        await this.logSecurityEvent(revokedByUserId, accountId, {
+        await this.logSecurityEvent(auditActor.admin(revokedByUserId), accountId, {
           action: "RESOURCE_UPDATE",
           severity: "HIGH",
           details: {

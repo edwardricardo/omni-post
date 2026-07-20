@@ -13,7 +13,7 @@ import { ok, err, type Result } from "@shared/types";
 import { env } from "../config/env.js";
 import type { AdminRoleKind } from "@core/domain/repositories/ReadModelDtos.js";
 import type { AdminUserDto } from "@core/domain/repositories/ReadModelDtos.js";
-import { AuditableService } from "../services/AuditableService.js";
+import { AuditableService, auditActor } from "../services/AuditableService.js";
 import type { MfaService } from "../admin/auth/MfaService.js";
 import { MFA_SUBJECT_TYPE } from "@ports/core";
 import type { AdminUserRepositoryPort } from "@core/domain/repositories/AdminUserRepository.js";
@@ -104,7 +104,7 @@ export class AuthServiceCore extends AuditableService {
         emailVerified: true,
       });
 
-      await this.logResourceAction(user.id, {
+      await this.logResourceAction(auditActor.admin(user.id), {
         accountId: user.id,
         action: "RESOURCE_CREATE",
         category: "ACCOUNT",
@@ -168,6 +168,9 @@ export class AuthServiceCore extends AuditableService {
           action: "USER_LOGIN",
           category: "AUTHENTICATION",
           severity: "HIGH",
+          // No verified user (login attempt for a non-existent account) — a
+          // SYSTEM actor keeps both FKs null, preserving the prior behavior.
+          actor: auditActor.system(),
           details: {
             email: credentials.email,
             reason: "USER_NOT_FOUND",
@@ -197,7 +200,7 @@ export class AuthServiceCore extends AuditableService {
       }
 
       if (!isPasswordValid) {
-        await this.logUserAction(user.id, {
+        await this.logUserAction(auditActor.admin(user.id), {
           action: "USER_LOGIN",
           category: "AUTHENTICATION",
           severity: "HIGH",
@@ -214,7 +217,7 @@ export class AuthServiceCore extends AuditableService {
 
       const activeCheck = this.userRepo.validateActive(user);
       if (!activeCheck.ok) {
-        await this.logUserAction(user.id, {
+        await this.logUserAction(auditActor.admin(user.id), {
           action: "USER_LOGIN",
           category: "AUTHENTICATION",
           severity: "HIGH",
@@ -232,7 +235,7 @@ export class AuthServiceCore extends AuditableService {
       if (this.hasRedis) {
         const activeSessions = await getActiveSessionCount(user.id);
         if (activeSessions >= this.maxConcurrentSessions) {
-          await this.logSecurityEvent(user.id, user.id, {
+          await this.logSecurityEvent(auditActor.admin(user.id), user.id, {
             action: "SESSION_CREATED",
             severity: "HIGH",
             details: {
@@ -259,7 +262,7 @@ export class AuthServiceCore extends AuditableService {
           credentials.mfaToken
         );
         if (!mfaResult.ok) {
-          await this.logSecurityEvent(user.id, user.id, {
+          await this.logSecurityEvent(auditActor.admin(user.id), user.id, {
             action: "USER_LOGIN",
             severity: "HIGH",
             details: {
@@ -274,7 +277,7 @@ export class AuthServiceCore extends AuditableService {
         }
 
         if (mfaResult.value.usedBackupCode) {
-          await this.logSecurityEvent(user.id, user.id, {
+          await this.logSecurityEvent(auditActor.admin(user.id), user.id, {
             action: "USER_LOGIN",
             severity: "MEDIUM",
             details: {
@@ -302,7 +305,7 @@ export class AuthServiceCore extends AuditableService {
 
       await this.userRepo.update(user.id, { lastLoginAt: new Date() });
 
-      await this.logUserAction(user.id, {
+      await this.logUserAction(auditActor.admin(user.id), {
         action: "USER_LOGIN",
         category: "AUTHENTICATION",
         severity: "INFO",

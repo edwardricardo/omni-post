@@ -27,6 +27,7 @@ import {
 import { hashFingerprint } from "./deviceFingerprint.js";
 import { hashRefreshToken } from "./refreshTokenHash.js";
 import type { AuthServiceCore } from "./authServiceCore.js";
+import { auditActor } from "../services/AuditableService.js";
 import { authLogger } from "../lib/logger.js";
 
 /**
@@ -59,6 +60,7 @@ export class AuthServiceSession {
             action: "SESSION_CREATED",
             category: "SECURITY",
             severity: "HIGH",
+            actor: auditActor.system(),
             details: {
               tokenHash: createHash("sha256").update(refreshToken).digest("hex").substring(0, 16),
               ...(fingerprint && { fingerprint: hashFingerprint(fingerprint) }),
@@ -95,7 +97,7 @@ export class AuthServiceSession {
         const currentFingerprintHash = hashFingerprint(fingerprint);
 
         if (storedFp && storedFp !== currentFingerprintHash) {
-          await this.core.logSecurityEventPublic(decoded.userId, decoded.userId, {
+          await this.core.logSecurityEventPublic(auditActor.admin(decoded.userId), decoded.userId, {
             action: "SESSION_CREATED",
             severity: "HIGH",
             details: {
@@ -137,7 +139,7 @@ export class AuthServiceSession {
         },
       });
 
-      await this.core.logUserActionPublic(decoded.userId, {
+      await this.core.logUserActionPublic(auditActor.admin(decoded.userId), {
         action: "SESSION_CREATED",
         category: "AUTHENTICATION",
         severity: "LOW",
@@ -251,7 +253,7 @@ export class AuthServiceSession {
         await removeSessionFingerprint(session.id);
       }
 
-      await this.core.logUserActionPublic(session.userId, {
+      await this.core.logUserActionPublic(auditActor.admin(session.userId), {
         action: "USER_LOGOUT",
         category: "AUTHENTICATION",
         severity: "INFO",
@@ -281,7 +283,7 @@ export class AuthServiceSession {
         await deleteActiveSessionsKey(userId);
       }
 
-      await this.core.logSecurityEventPublic(userId, userId, {
+      await this.core.logSecurityEventPublic(auditActor.admin(userId), userId, {
         action: "SESSION_CREATED",
         severity: "HIGH",
         details: {

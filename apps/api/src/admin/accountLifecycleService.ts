@@ -18,7 +18,7 @@ import { logger } from "../lib/logger.js";
 
 const adminLogger = logger.child({ module: "admin" });
 import type { AdminUserDto } from "@core/domain/repositories/ReadModelDtos.js";
-import { AuditableService } from "../services/AuditableService.js";
+import { AuditableService, auditActor } from "../services/AuditableService.js";
 import { hashPassword } from "../auth/passwordHashing.js";
 import type {
   AdminUserRepositoryPort,
@@ -114,7 +114,7 @@ export class AccountLifecycleService extends AuditableService {
 
       // Log account creation with details
       if (createdByUserId) {
-        await this.logAccountAction(createdByUserId, {
+        await this.logAccountAction(auditActor.admin(createdByUserId), {
           accountId: user.id,
           action: "RESOURCE_CREATE",
           category: "ACCOUNT",
@@ -250,7 +250,7 @@ export class AccountLifecycleService extends AuditableService {
 
       // Log detailed account changes
       if (Object.keys(changes).length > 0 && updatedByUserId) {
-        await this.logAccountAction(updatedByUserId, {
+        await this.logAccountAction(auditActor.admin(updatedByUserId), {
           accountId,
           action: "RESOURCE_UPDATE",
           category: "ACCOUNT",
@@ -322,7 +322,7 @@ export class AccountLifecycleService extends AuditableService {
 
       // Log compliance event for account suspension
       if (suspendedByUserId) {
-        await this.logComplianceEvent(suspendedByUserId, accountId, {
+        await this.logComplianceEvent(auditActor.admin(suspendedByUserId), accountId, {
           action: "RESOURCE_UPDATE",
           severity: "CRITICAL",
           details: {
@@ -384,7 +384,7 @@ export class AccountLifecycleService extends AuditableService {
 
       // Log account reactivation
       if (reactivatedByUserId) {
-        await this.logAccountAction(reactivatedByUserId, {
+        await this.logAccountAction(auditActor.admin(reactivatedByUserId), {
           accountId,
           action: "RESOURCE_UPDATE",
           category: "ACCOUNT",
@@ -457,7 +457,7 @@ export class AccountLifecycleService extends AuditableService {
 
       // Log compliance event for account deletion
       if (deletedByUserId) {
-        await this.logComplianceEvent(deletedByUserId, accountId, {
+        await this.logComplianceEvent(auditActor.admin(deletedByUserId), accountId, {
           action: "RESOURCE_DELETE",
           severity: "CRITICAL",
           details: {

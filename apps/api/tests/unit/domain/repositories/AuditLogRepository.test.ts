@@ -9,10 +9,12 @@
 import { describe, it, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { InMemoryAuditLogRepository } from "../../helpers/InMemoryAuditLogRepository.js";
+import { AUDIT_ACTOR_TYPE, deriveActorType } from "@core/domain/repositories/AuditLogRepository.js";
 import type { AuditLogCreateInput } from "@core/domain/repositories/AuditLogRepository.js";
 
 const entry = (overrides?: Partial<AuditLogCreateInput>): AuditLogCreateInput => ({
   action: "USER_LOGIN",
+  actorType: AUDIT_ACTOR_TYPE.SYSTEM,
   details: { category: "AUTHENTICATION" },
   success: true,
   ...overrides,
@@ -104,5 +106,109 @@ describe("AuditLogRepository contract", () => {
     assert.strictEqual((await repo.findByUser("u-1")).length, 0);
     assert.strictEqual(repo.rows.length, 3);
     assert.strictEqual((await repo.findByUser("u-2")).length, 1);
+  });
+
+  describe("polymorphic actor", () => {
+    it("exposes exactly the SYSTEM/ADMIN/CUSTOMER discriminator values", () => {
+      assert.deepStrictEqual(Object.values(AUDIT_ACTOR_TYPE).sort(), [
+        "ADMIN",
+        "CUSTOMER",
+        "SYSTEM",
+      ]);
+    });
+
+    it("stores a customer actor with customerUserId and actorType CUSTOMER, null userId", async () => {
+      await repo.create(
+        entry({
+          actorType: AUDIT_ACTOR_TYPE.CUSTOMER,
+          customerUserId: "cust-1",
+          accountId: "acc-A",
+          action: "CUSTOMER_MFA_ENABLED",
+        })
+      );
+      const row = repo.rows[0];
+      assert.strictEqual(row?.actorType, "CUSTOMER");
+      assert.strictEqual(row?.customerUserId, "cust-1");
+      assert.strictEqual(row?.userId, null);
+    });
+
+    it("stores an admin actor with actorType ADMIN and null customerUserId", async () => {
+      await repo.create(
+        entry({ actorType: AUDIT_ACTOR_TYPE.ADMIN, userId: "admin-1", action: "ADMIN_LOGIN" })
+      );
+      const row = repo.rows[0];
+      assert.strictEqual(row?.actorType, "ADMIN");
+      assert.strictEqual(row?.userId, "admin-1");
+      assert.strictEqual(row?.customerUserId, null);
+    });
+
+    it("anonymizeCustomerUser nulls customerUserId, keeps actorType CUSTOMER, and returns the count", async () => {
+      await repo.create(
+        entry({ actorType: AUDIT_ACTOR_TYPE.CUSTOMER, customerUserId: "cust-1", action: "A" })
+      );
+      await repo.create(
+        entry({ actorType: AUDIT_ACTOR_TYPE.CUSTOMER, customerUserId: "cust-1", action: "B" })
+      );
+      await repo.create(
+        entry({ actorType: AUDIT_ACTOR_TYPE.CUSTOMER, customerUserId: "cust-2", action: "C" })
+      );
+      const count = await repo.anonymizeCustomerUser("cust-1");
+      assert.strictEqual(count, 2);
+      assert.strictEqual(repo.rows.length, 3);
+      const anonymized = repo.rows.filter((r) => r.action === "A" || r.action === "B");
+      for (const row of anonymized) {
+        assert.strictEqual(row.customerUserId, null);
+        assert.strictEqual(row.actorType, "CUSTOMER");
+      }
+      const untouched = repo.rows.find((r) => r.action === "C");
+      assert.strictEqual(untouched?.customerUserId, "cust-2");
+    });
+
+    it("anonymizeCustomerUser does not touch admin (userId) rows", async () => {
+      await repo.create(entry({ actorType: AUDIT_ACTOR_TYPE.ADMIN, userId: "admin-1" }));
+      const count = await repo.anonymizeCustomerUser("admin-1");
+      assert.strictEqual(count, 0);
+      assert.strictEqual(repo.rows[0]?.userId, "admin-1");
+    });
+
+    it("anonymizeUser nulls userId but keeps actorType ADMIN (attribution survives DSAR)", async () => {
+      await repo.create(entry({ actorType: AUDIT_ACTOR_TYPE.ADMIN, userId: "admin-1" }));
+      const count = await repo.anonymizeUser("admin-1");
+      assert.strictEqual(count, 1);
+      assert.strictEqual(repo.rows[0]?.userId, null);
+      assert.strictEqual(repo.rows[0]?.actorType, "ADMIN");
+    });
+  });
+
+  describe("deriveActorType — canonical FK-wins derivation (single-sourced for direct writers)", () => {
+    it("derives ADMIN when userId is present and actorType is absent", () => {
+      assert.strictEqual(deriveActorType({ userId: "admin-1" }), "ADMIN");
+    });
+
+    it("derives CUSTOMER when customerUserId is present and actorType is absent", () => {
+      assert.strictEqual(deriveActorType({ customerUserId: "cust-1" }), "CUSTOMER");
+    });
+
+    it("derives SYSTEM when neither FK nor actorType is present", () => {
+      assert.strictEqual(deriveActorType({}), "SYSTEM");
+    });
+
+    it("derivation-wins: userId overrides a conflicting explicit actorType", () => {
+      assert.strictEqual(
+        deriveActorType({ userId: "admin-1", actorType: AUDIT_ACTOR_TYPE.SYSTEM }),
+        "ADMIN"
+      );
+    });
+
+    it("derivation-wins: customerUserId overrides a conflicting explicit actorType", () => {
+      assert.strictEqual(
+        deriveActorType({ customerUserId: "cust-1", actorType: AUDIT_ACTOR_TYPE.SYSTEM }),
+        "CUSTOMER"
+      );
+    });
+
+    it("honors an explicit actorType only when neither FK is present", () => {
+      assert.strictEqual(deriveActorType({ actorType: AUDIT_ACTOR_TYPE.SYSTEM }), "SYSTEM");
+    });
   });
 });

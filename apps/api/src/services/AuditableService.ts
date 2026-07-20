@@ -1,12 +1,18 @@
 /**
  * @file AuditableService.ts
  * @description Base service class extending BaseService with compliance-ready audit logging
- *              for user actions, account changes, and resource modifications.
+ *              for user actions, account changes, and resource modifications. The write seam
+ *              is a first-class `AuditActor` discriminated union so an invalid actor
+ *              combination is unrepresentable at the type level — the compile-time mirror of
+ *              the database exclusive-arc CHECK.
  * @layer infrastructure
  */
 
 import { BaseService, type ServiceContext } from "./BaseService.js";
-import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
+import {
+  AUDIT_ACTOR_TYPE,
+  type AuditLogRepository,
+} from "@core/domain/repositories/AuditLogRepository.js";
 import { logger } from "../lib/logger.js";
 
 // Audit action types (matching database schema - uses strings, not enums)
@@ -22,11 +28,59 @@ export type AuditCategory =
   | "BILLING";
 export type AuditSeverity = "LOW" | "INFO" | "MEDIUM" | "HIGH" | "CRITICAL";
 
+/**
+ * A system actor carries no identity FK — scheduled jobs, background processors,
+ * and other non-user-initiated writes.
+ */
+export interface SystemActor {
+  readonly type: typeof AUDIT_ACTOR_TYPE.SYSTEM;
+}
+
+/** An admin actor attributed via `userId` → `AdminUser`. */
+export interface AdminActor {
+  readonly type: typeof AUDIT_ACTOR_TYPE.ADMIN;
+  readonly id: string;
+}
+
+/**
+ * A customer actor attributed via `customerUserId` → `CustomerUser`. Carries the
+ * account id (non-nullable on `CustomerUser`) so a customer row is always visible
+ * to its own account trail via `findByAccount`.
+ */
+export interface CustomerActor {
+  readonly type: typeof AUDIT_ACTOR_TYPE.CUSTOMER;
+  readonly id: string;
+  readonly accountId: string;
+}
+
+/**
+ * The audit actor discriminated union. `writeAuditLog` maps it to port fields in
+ * one mapping — the single choke point where an actor becomes columns. Because the
+ * invalid dual-FK combination cannot be constructed, the type layer enforces the
+ * same exclusive arc the database CHECK enforces.
+ */
+export type AuditActor = SystemActor | AdminActor | CustomerActor;
+
+/**
+ * Factory helpers for the audit actor union. The seam is the only place a human
+ * chooses the actor; these helpers make that choice total and the invalid
+ * combination a compile error.
+ */
+export const auditActor = {
+  system: (): SystemActor => ({ type: AUDIT_ACTOR_TYPE.SYSTEM }),
+  admin: (id: string): AdminActor => ({ type: AUDIT_ACTOR_TYPE.ADMIN, id }),
+  customer: (id: string, accountId: string): CustomerActor => ({
+    type: AUDIT_ACTOR_TYPE.CUSTOMER,
+    id,
+    accountId,
+  }),
+} as const;
+
 export interface AuditLogEntry {
   action: AuditAction;
   category: AuditCategory;
   severity: AuditSeverity;
-  userId?: string;
+  actor: AuditActor;
   accountId?: string;
   resourceType?: string;
   resourceId?: string;
@@ -76,7 +130,7 @@ export abstract class AuditableService extends BaseService {
    * Log a user action (authentication, profile changes, etc.)
    *
    * @example
-   * await this.logUserAction(userId, {
+   * await this.logUserAction(auditActor.admin(userId), {
    *   action: 'USER_LOGIN',
    *   category: 'AUTHENTICATION',
    *   severity: 'INFO',
@@ -85,12 +139,12 @@ export abstract class AuditableService extends BaseService {
    *   userAgent: req.headers['user-agent']
    * });
    */
-  protected async logUserAction(userId: string, options: UserActionOptions): Promise<void> {
+  protected async logUserAction(actor: AuditActor, options: UserActionOptions): Promise<void> {
     const entry: AuditLogEntry = {
       action: options.action,
       category: options.category,
       severity: options.severity || "INFO",
-      userId,
+      actor,
       ...(options.details !== undefined && { details: options.details }),
       ...(options.ipAddress !== undefined && { ipAddress: options.ipAddress }),
       ...(options.userAgent !== undefined && { userAgent: options.userAgent }),
@@ -103,24 +157,23 @@ export abstract class AuditableService extends BaseService {
    * Log an account-level action (subscription, billing, settings)
    *
    * @example
-   * await this.logAccountAction(userId, {
+   * await this.logAccountAction(auditActor.admin(userId), {
    *   accountId: account.id,
    *   action: 'SUBSCRIPTION_UPGRADE',
    *   category: 'BILLING',
    *   severity: 'HIGH',
-   *   details: {
-   *     from: 'FREE',
-   *     to: 'PRO',
-   *     billingCycle: 'MONTHLY'
-   *   }
+   *   details: { from: 'FREE', to: 'PRO', billingCycle: 'MONTHLY' }
    * });
    */
-  protected async logAccountAction(userId: string, options: AccountActionOptions): Promise<void> {
+  protected async logAccountAction(
+    actor: AuditActor,
+    options: AccountActionOptions
+  ): Promise<void> {
     const entry: AuditLogEntry = {
       action: options.action,
       category: options.category,
       severity: options.severity || "MEDIUM",
-      userId,
+      actor,
       accountId: options.accountId,
       ...(options.details !== undefined && { details: options.details }),
       ...(options.ipAddress !== undefined && { ipAddress: options.ipAddress }),
@@ -132,10 +185,10 @@ export abstract class AuditableService extends BaseService {
 
   /**
    * Log an account-level action performed by the system itself (auto-renewal,
-   * scheduled jobs) rather than a user. The audit row is written with a null
-   * `userId`: `AuditLog.userId` is nullable with an `onDelete: SetNull` FK to
-   * `AdminUser`, so a sentinel string like `"system"` would violate the foreign
-   * key and the write would be silently swallowed by `writeAuditLog`'s catch.
+   * scheduled jobs) rather than a user. The audit row is written with a SYSTEM
+   * actor (no FK): `AuditLog.userId`/`customerUserId` are nullable with
+   * `onDelete: SetNull`, so a sentinel string would violate the foreign key and
+   * the write would be silently swallowed by `writeAuditLog`'s catch.
    *
    * @example
    * await this.logSystemAction({
@@ -151,6 +204,7 @@ export abstract class AuditableService extends BaseService {
       action: options.action,
       category: options.category,
       severity: options.severity || "MEDIUM",
+      actor: auditActor.system(),
       accountId: options.accountId,
       ...(options.details !== undefined && { details: options.details }),
       ...(options.ipAddress !== undefined && { ipAddress: options.ipAddress }),
@@ -164,25 +218,25 @@ export abstract class AuditableService extends BaseService {
    * Log a resource action (create, update, delete operations)
    *
    * @example
-   * await this.logResourceAction(userId, {
+   * await this.logResourceAction(auditActor.admin(userId), {
    *   accountId: account.id,
    *   action: 'RESOURCE_CREATE',
    *   category: 'DATA',
    *   resourceType: 'Post',
    *   resourceId: post.id,
    *   severity: 'LOW',
-   *   details: {
-   *     title: post.title,
-   *     status: post.status
-   *   }
+   *   details: { title: post.title, status: post.status }
    * });
    */
-  protected async logResourceAction(userId: string, options: ResourceActionOptions): Promise<void> {
+  protected async logResourceAction(
+    actor: AuditActor,
+    options: ResourceActionOptions
+  ): Promise<void> {
     const entry: AuditLogEntry = {
       action: options.action,
       category: options.category,
       severity: options.severity || "LOW",
-      userId,
+      actor,
       accountId: options.accountId,
       resourceType: options.resourceType,
       resourceId: options.resourceId,
@@ -198,19 +252,18 @@ export abstract class AuditableService extends BaseService {
    * Log security-related events (MFA, password changes, permission changes)
    *
    * @example
-   * await this.logSecurityEvent(userId, accountId, {
+   * await this.logSecurityEvent(auditActor.admin(userId), accountId, {
    *   action: 'MFA_ENABLED',
-   *   category: 'SECURITY',
    *   severity: 'HIGH',
    *   details: { method: 'totp' }
    * });
    */
   protected async logSecurityEvent(
-    userId: string,
+    actor: AuditActor,
     accountId: string,
     options: Omit<UserActionOptions, "category">
   ): Promise<void> {
-    await this.logAccountAction(userId, {
+    await this.logAccountAction(actor, {
       accountId,
       category: "SECURITY",
       ...options,
@@ -221,7 +274,7 @@ export abstract class AuditableService extends BaseService {
    * Log data access events (for compliance and privacy)
    *
    * @example
-   * await this.logDataAccess(userId, accountId, {
+   * await this.logDataAccess(auditActor.admin(userId), accountId, {
    *   action: 'DATA_EXPORT',
    *   resourceType: 'Analytics',
    *   resourceId: project.id,
@@ -229,11 +282,11 @@ export abstract class AuditableService extends BaseService {
    * });
    */
   protected async logDataAccess(
-    userId: string,
+    actor: AuditActor,
     accountId: string,
     options: Omit<ResourceActionOptions, "category" | "accountId">
   ): Promise<void> {
-    await this.logResourceAction(userId, {
+    await this.logResourceAction(actor, {
       accountId,
       category: "DATA_ACCESS",
       severity: "MEDIUM",
@@ -245,18 +298,18 @@ export abstract class AuditableService extends BaseService {
    * Log compliance-related events (GDPR, data deletion, consent)
    *
    * @example
-   * await this.logComplianceEvent(userId, accountId, {
+   * await this.logComplianceEvent(auditActor.admin(userId), accountId, {
    *   action: 'DATA_DELETION_REQUEST',
    *   severity: 'CRITICAL',
    *   details: { scope: 'all_personal_data' }
    * });
    */
   protected async logComplianceEvent(
-    userId: string,
+    actor: AuditActor,
     accountId: string,
     options: Omit<AccountActionOptions, "category" | "accountId">
   ): Promise<void> {
-    await this.logAccountAction(userId, {
+    await this.logAccountAction(actor, {
       accountId,
       category: "COMPLIANCE",
       severity: "CRITICAL",
@@ -265,10 +318,12 @@ export abstract class AuditableService extends BaseService {
   }
 
   /**
-   * Write audit log entry to database
-   * Can be overridden for custom audit log storage
+   * Write audit log entry to database. The single choke point that maps the
+   * `AuditActor` union to port columns in ONE mapping: ADMIN → userId, CUSTOMER →
+   * customerUserId (+ accountId from the actor when the entry has none), SYSTEM →
+   * neither; always `actorType`. Can be overridden for custom storage.
    *
-   * Note: Maps AuditableService structure to Prisma AuditLog schema
+   * Note: Maps AuditableService structure to the Prisma AuditLog schema
    * - action: stored as-is
    * - resourceType: stored as 'resource' field
    * - category/severity: stored in details for queryability
@@ -283,14 +338,27 @@ export abstract class AuditableService extends BaseService {
         ...(entry.metadata || {}),
       };
 
+      const actor = entry.actor;
+      const actorFields =
+        actor.type === AUDIT_ACTOR_TYPE.ADMIN
+          ? { userId: actor.id }
+          : actor.type === AUDIT_ACTOR_TYPE.CUSTOMER
+            ? { customerUserId: actor.id }
+            : {};
+      // An explicit entry-level accountId wins; a customer actor otherwise
+      // supplies its own account so the row stays visible to its account trail.
+      const resolvedAccountId =
+        entry.accountId ?? (actor.type === AUDIT_ACTOR_TYPE.CUSTOMER ? actor.accountId : undefined);
+
       await this.auditLog.create({
         action: entry.action,
+        actorType: actor.type,
         details: enrichedDetails,
         success: true, // Default to success for normal audit logs
+        ...actorFields,
         ...(entry.resourceType && { resource: entry.resourceType }),
         ...(entry.resourceId && { resourceId: entry.resourceId }),
-        ...(entry.userId && { userId: entry.userId }),
-        ...(entry.accountId && { accountId: entry.accountId }),
+        ...(resolvedAccountId !== undefined && { accountId: resolvedAccountId }),
         ...(entry.ipAddress && { ipAddress: entry.ipAddress }),
         ...(entry.userAgent && { userAgent: entry.userAgent }),
       });
@@ -310,15 +378,15 @@ export abstract class AuditableService extends BaseService {
    * Execute operation with automatic audit logging
    * Logs both success and failure
    *
+   * The context's `userId` is an admin-scoped identity — `executeWithAudit`
+   * consumers are admin flows — so it maps to `auditActor.admin(...)` internally.
+   * Changing `ServiceContext` to carry a full actor would ripple through
+   * `BaseService` and every service, out of scope for this seam.
+   *
    * @example
    * return this.executeWithAudit(
    *   { operation: 'updateUser', userId, accountId },
-   *   {
-   *     action: 'USER_UPDATE',
-   *     category: 'ACCOUNT',
-   *     resourceType: 'User',
-   *     resourceId: userId
-   *   },
+   *   { action: 'USER_UPDATE', category: 'ACCOUNT', resourceType: 'User', resourceId: userId },
    *   async () => {
    *     const updated = await prisma.user.update({ ... });
    *     return updated;
@@ -349,7 +417,7 @@ export abstract class AuditableService extends BaseService {
           action: auditOptions.action,
           category: auditOptions.category,
           severity: auditOptions.severity || "LOW",
-          userId: context.userId,
+          actor: auditActor.admin(context.userId),
           ...(context.accountId !== undefined && { accountId: context.accountId }),
           ...(auditOptions.resourceType !== undefined && {
             resourceType: auditOptions.resourceType,
@@ -376,7 +444,7 @@ export abstract class AuditableService extends BaseService {
           action: auditOptions.action,
           category: auditOptions.category,
           severity: "HIGH", // Failed operations are high severity
-          userId: context.userId,
+          actor: auditActor.admin(context.userId),
           ...(context.accountId !== undefined && { accountId: context.accountId }),
           ...(auditOptions.resourceType !== undefined && {
             resourceType: auditOptions.resourceType,

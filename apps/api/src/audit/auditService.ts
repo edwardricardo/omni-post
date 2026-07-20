@@ -6,6 +6,10 @@
  */
 import type { PrismaClient } from "@infra/prisma";
 import { type Result, type AdminRole } from "@shared/types";
+import {
+  deriveActorType,
+  type AuditActorType,
+} from "@core/domain/repositories/AuditLogRepository.js";
 import { BaseService } from "../services/BaseService.js";
 
 export interface AuditLogEntry {
@@ -30,6 +34,14 @@ export interface AuditLogEntry {
 
 export interface CreateAuditLogParams {
   userId?: string;
+  /** CUSTOMER actor FK; exclusive with `userId` (DB CHECK). */
+  customerUserId?: string;
+  /**
+   * Actor discriminator. Optional here (this direct writer bypasses the
+   * compiler-forcing port input via its `as Parameters<>` cast); when absent it
+   * is derived from the FKs — the same rule as the migration backfill.
+   */
+  actorType?: AuditActorType;
   action: string;
   resource?: string;
   resourceId?: string;
@@ -70,8 +82,10 @@ export class AuditService extends BaseService {
         const createData: Record<string, unknown> = {
           action: params.action,
           success: params.success ?? true,
+          actorType: deriveActorType(params),
         };
         if (params.userId) createData.userId = params.userId;
+        if (params.customerUserId) createData.customerUserId = params.customerUserId;
         if (params.resource) createData.resource = params.resource;
         if (params.resourceId) createData.resourceId = params.resourceId;
         if (params.details) createData.details = params.details;

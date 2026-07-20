@@ -11,6 +11,7 @@
 import type { PrismaClient } from "@infra/prisma";
 import { ok, err, type Result } from "@shared/types";
 import { MFA_SUBJECT_TYPE, type BruteForceProtectionPort } from "@ports/core";
+import { deriveActorType } from "@core/domain/repositories/AuditLogRepository.js";
 import type {
   AdminUserProfile,
   LoginRequest,
@@ -602,6 +603,13 @@ export class AdminAuthService {
     if (event.userId) {
       auditData.userId = event.userId;
     }
+    // Explicit actor discriminator (this direct writer bypasses the
+    // compiler-forcing port input). userId is set only for identified admins;
+    // an unidentified security event (e.g. a login attempt for an unknown user)
+    // has no FK, so it is SYSTEM — the canonical helper keeps the
+    // reconciliation invariant "actorType='ADMIN' AND userId IS NULL -> 0"
+    // intact and follows any future derivation-policy change automatically.
+    auditData.actorType = deriveActorType({ ...(event.userId && { userId: event.userId }) });
     if (event.details) {
       auditData.details = event.details;
     }

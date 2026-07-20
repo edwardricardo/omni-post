@@ -8,6 +8,10 @@ import type { PrismaClient } from "@infra/prisma";
 import { Redis } from "ioredis";
 import type { FastifyRequest } from "fastify";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+import {
+  deriveActorType,
+  type AuditActorType,
+} from "@core/domain/repositories/AuditLogRepository.js";
 import { logger } from "../lib/logger.js";
 import { resolveClientIp } from "./resolveClientIp.js";
 
@@ -17,6 +21,10 @@ interface AuditEvent {
   resourceId?: string;
   details?: Record<string, unknown>;
   userId?: string;
+  /** CUSTOMER actor FK; exclusive with `userId` (DB CHECK). */
+  customerUserId?: string;
+  /** Actor discriminator; when absent it is derived from the FKs (backfill rule). */
+  actorType?: AuditActorType;
   ipAddress?: string;
   userAgent?: string;
   success?: boolean;
@@ -100,11 +108,13 @@ export class AuditLogger {
       const createData: Record<string, unknown> = {
         action: sanitizedEvent.action,
         success: sanitizedEvent.success ?? true,
+        actorType: deriveActorType(sanitizedEvent),
       };
       if (sanitizedEvent.resource) createData.resource = sanitizedEvent.resource;
       if (sanitizedEvent.resourceId) createData.resourceId = sanitizedEvent.resourceId;
       if (sanitizedEvent.details) createData.details = sanitizedEvent.details;
       if (sanitizedEvent.userId) createData.userId = sanitizedEvent.userId;
+      if (sanitizedEvent.customerUserId) createData.customerUserId = sanitizedEvent.customerUserId;
       if (sanitizedEvent.ipAddress) createData.ipAddress = sanitizedEvent.ipAddress;
       if (sanitizedEvent.userAgent) createData.userAgent = sanitizedEvent.userAgent;
       if (sanitizedEvent.error) createData.error = sanitizedEvent.error;
