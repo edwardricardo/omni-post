@@ -46,6 +46,26 @@ function claimPredicateMatches(
   });
 }
 
+/**
+ * Evaluate the compare-and-swap `mfaBackupUsedAt: { equals }` predicate against a
+ * stored used-map — the JSONB-equality serializer the adapter relies on to make
+ * `markBackupCodeUsed` single-use. Absent filter matches (claim-path updates).
+ */
+function usedAtEqualsMatches(
+  stored: unknown,
+  filter: Record<string, unknown> | undefined
+): boolean {
+  if (!filter || !("equals" in filter)) return true;
+  const equals = filter.equals;
+  // A Prisma null sentinel (DbNull/AnyNull) is a non-plain object — match only a
+  // null/absent stored value. The live unit fixtures always store an object map,
+  // so this branch is unreachable here but keeps the fake honest.
+  if (equals === null || typeof equals !== "object") {
+    return stored === null || stored === undefined;
+  }
+  return JSON.stringify(stored ?? {}) === JSON.stringify(equals);
+}
+
 class PrismaP2025Error extends Error {
   readonly code = "P2025";
   constructor() {
@@ -81,11 +101,21 @@ function makeFakePrisma(seed: FakeAdminUserRow[]): {
       where,
       data,
     }: {
-      where: { id: string; OR?: Array<Record<string, unknown>> };
+      where: {
+        id: string;
+        OR?: Array<Record<string, unknown>>;
+        mfaBackupUsedAt?: Record<string, unknown>;
+      };
       data: Record<string, unknown>;
     }): Promise<{ count: number }> => {
       const existing = rows.get(where.id);
       if (!existing) return { count: 0 };
+      // markBackupCodeUsed CAS predicate: the stored used-map must still equal
+      // the snapshot the adapter read, else a concurrent writer won.
+      if (!usedAtEqualsMatches(existing.mfaBackupUsedAt, where.mfaBackupUsedAt)) {
+        return { count: 0 };
+      }
+      // claimTotpStep predicate.
       if (!claimPredicateMatches(existing.mfaLastUsedTotpStep, where.OR)) return { count: 0 };
       rows.set(where.id, { ...existing, ...data } as FakeAdminUserRow);
       return { count: 1 };
@@ -279,6 +309,47 @@ describe("PrismaAdminMfaUserRepository", () => {
 
     it("returns NOT_FOUND when the user does not exist", async () => {
       const result = await repo.markBackupCodeUsed("ghost", 0, new Date());
+
+      expect(result.ok).toBe(false);
+      expect(!result.ok && result.error).toBe("NOT_FOUND");
+    });
+
+    it("returns ALREADY_USED when a concurrent writer changed the used-map (CAS count 0)", async () => {
+      // A concurrent verification of the same backup code committed first, so the
+      // compare-and-swap `updateMany` matches zero rows. The row still exists, so
+      // the adapter must disambiguate count-0 as ALREADY_USED (not NOT_FOUND) —
+      // the single-use guarantee the read-modify-write version could not give.
+      const present = { id: "admin-1", mfaBackupUsedAt: { "0": "2026-01-01T00:00:00.000Z" } };
+      const raceFake = {
+        adminUser: {
+          findUnique: async (): Promise<typeof present> => present,
+          updateMany: async (): Promise<{ count: number }> => ({ count: 0 }),
+        },
+      } as unknown as PrismaClient;
+      const raceRepo = new PrismaAdminMfaUserRepository(raceFake);
+
+      const result = await raceRepo.markBackupCodeUsed("admin-1", 0, new Date());
+
+      expect(result.ok).toBe(false);
+      expect(!result.ok && result.error).toBe("ALREADY_USED");
+    });
+
+    it("returns NOT_FOUND when the row vanished between the snapshot read and the CAS write", async () => {
+      // The snapshot read sees the row, the CAS matches zero, and the
+      // disambiguation read finds it gone: a deleted user, not a lost race.
+      let call = 0;
+      const raceFake = {
+        adminUser: {
+          findUnique: async (): Promise<{ id: string; mfaBackupUsedAt: unknown } | null> => {
+            call += 1;
+            return call === 1 ? { id: "admin-1", mfaBackupUsedAt: {} } : null;
+          },
+          updateMany: async (): Promise<{ count: number }> => ({ count: 0 }),
+        },
+      } as unknown as PrismaClient;
+      const raceRepo = new PrismaAdminMfaUserRepository(raceFake);
+
+      const result = await raceRepo.markBackupCodeUsed("admin-1", 0, new Date());
 
       expect(result.ok).toBe(false);
       expect(!result.ok && result.error).toBe("NOT_FOUND");

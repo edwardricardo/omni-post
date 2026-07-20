@@ -94,19 +94,27 @@ export interface MfaUserRepositoryPort {
   setMfaEnabled(userId: string, enabled: boolean): Promise<Result<void, "NOT_FOUND">>;
 
   /**
-   * Mark a single backup code (by its array index) consumed at `usedAt`,
-   * merging into the existing used-map so prior single-use marks are retained.
+   * Atomically mark a single backup code (by its array index) consumed at
+   * `usedAt`, merging into the existing used-map so prior single-use marks are
+   * retained. Compare-and-swap on the used-map snapshot: the write commits only
+   * when the stored map still equals the snapshot the adapter read, so two
+   * racing verifications of the same code yield exactly one success — the
+   * single-use serializer that closes the cross-challenge race the per-challenge
+   * `jti` gate cannot (two step-1 logins submitting the same code concurrently).
    *
    * @param userId - Target user primary key.
    * @param codeIndex - Zero-based index into `mfaBackupCodes`.
    * @param usedAt - Consumption timestamp.
-   * @returns Ok(void) when applied, Err("NOT_FOUND") when the user is gone.
+   * @returns Ok(void) when THIS caller marked the code; Err("ALREADY_USED") when
+   *          a concurrent writer won the compare-and-swap (the code is already
+   *          consumed — the caller MUST reject the verification, never retry);
+   *          Err("NOT_FOUND") when the user is gone.
    */
   markBackupCodeUsed(
     userId: string,
     codeIndex: number,
     usedAt: Date
-  ): Promise<Result<void, "NOT_FOUND">>;
+  ): Promise<Result<void, "NOT_FOUND" | "ALREADY_USED">>;
 
   /**
    * Replace all backup codes with a fresh hashed set and reset the used-map to

@@ -230,9 +230,19 @@ export class MfaService extends AuditableService implements MfaVerificationPort 
         if (!hash) continue;
         if (await verifyPassword(hash, token)) {
           const remaining = record.mfaBackupCodes.length - usedIndexes.size - 1;
+          // Atomic single-use mark. A concurrent verification of the SAME code
+          // may have committed first (compare-and-swap lost → ALREADY_USED); the
+          // per-challenge `jti` gate does NOT close that cross-challenge race, so
+          // this mark is the control that makes one backup code mint at most one
+          // session.
+          let markResult: Result<void, "NOT_FOUND" | "ALREADY_USED"> = err("NOT_FOUND");
           await this.runInTransaction(async () => {
-            const marked = await repo.markBackupCodeUsed(subject.id, index, new Date());
-            if (isErr(marked)) throw new Error("USER_NOT_FOUND");
+            markResult = await repo.markBackupCodeUsed(subject.id, index, new Date());
+            // On a lost CAS the update wrote nothing — commit the empty
+            // transaction WITHOUT the audit rather than record a code this
+            // caller never actually consumed. A genuine fault still throws and
+            // is mapped to DATABASE_ERROR by the outer catch.
+            if (isErr(markResult)) return;
             await this.audit(
               subject,
               "MFA_BACKUP_CODE_USED",
@@ -241,7 +251,23 @@ export class MfaService extends AuditableService implements MfaVerificationPort 
               record.accountId
             );
           });
-          return ok({ verified: true, usedBackupCode: true });
+          if (markResult.ok) {
+            return ok({ verified: true, usedBackupCode: true });
+          }
+          // Lost the race (or the row vanished mid-flight): reject as an invalid
+          // token — NEVER success, NEVER an opaque DATABASE_ERROR. Record a
+          // concurrent-reuse loss as a HIGH-severity attack indicator (symmetric
+          // with the TOTP replay signal above).
+          if (markResult.error === "ALREADY_USED") {
+            await this.audit(
+              subject,
+              "MFA_BACKUP_CODE_REUSE_REJECTED",
+              "HIGH",
+              undefined,
+              record.accountId
+            );
+          }
+          return err("INVALID_TOKEN");
         }
       }
 

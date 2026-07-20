@@ -98,9 +98,15 @@ export class InMemoryMfaUserRepository implements MfaUserRepositoryPort {
     userId: string,
     codeIndex: number,
     usedAt: Date
-  ): Promise<Result<void, "NOT_FOUND">> {
+  ): Promise<Result<void, "NOT_FOUND" | "ALREADY_USED">> {
     const row = this.rows.get(userId);
     if (!row) return err("NOT_FOUND");
+    // Mirror the Prisma adapter's compare-and-swap single-use: a code index
+    // already present in the used-map was consumed by a prior verification, so
+    // a re-mark loses the race — the caller must reject, never re-consume it.
+    if (Object.prototype.hasOwnProperty.call(row.mfaBackupUsedAt, String(codeIndex))) {
+      return err("ALREADY_USED");
+    }
     row.mfaBackupUsedAt[String(codeIndex)] = usedAt.toISOString();
     return ok(undefined);
   }

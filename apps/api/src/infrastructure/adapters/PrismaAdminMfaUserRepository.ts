@@ -8,7 +8,7 @@
  * @layer infrastructure
  */
 
-import type { PrismaClient, Prisma } from "@infra/prisma";
+import { Prisma, type PrismaClient } from "@infra/prisma";
 import { ok, err, type Result } from "@shared/types";
 import type { MfaUserRecord, MfaUserRepositoryPort } from "@ports/core";
 import { PrismaUnitOfWork } from "../unitofwork/PrismaUnitOfWork.js";
@@ -81,16 +81,41 @@ export class PrismaAdminMfaUserRepository implements MfaUserRepositoryPort {
     userId: string,
     codeIndex: number,
     usedAt: Date
-  ): Promise<Result<void, "NOT_FOUND">> {
+  ): Promise<Result<void, "NOT_FOUND" | "ALREADY_USED">> {
     const client = this.getClient();
     const row = await client.adminUser.findUnique({
       where: { id: userId },
       select: { mfaBackupUsedAt: true },
     });
     if (!row) return err("NOT_FOUND");
-    const usedMap = normalizeUsedAt(row.mfaBackupUsedAt);
+    const snapshot = row.mfaBackupUsedAt;
+    const usedMap = normalizeUsedAt(snapshot);
     usedMap[String(codeIndex)] = usedAt.toISOString();
-    return this.update(userId, { mfaBackupUsedAt: usedMap });
+    // Compare-and-swap: advance the used-map only if it still equals the snapshot
+    // we just read. A concurrent verification of the same backup code that
+    // committed first leaves a different map, so this update matches zero rows —
+    // the atomic single-use serializer (mirrors `claimTotpStep`). Raw SQL is
+    // banned here (fitness #23); the typed JSONB `equals` filter IS the CAS.
+    const { count } = await client.adminUser.updateMany({
+      where: {
+        id: userId,
+        mfaBackupUsedAt:
+          snapshot === null
+            ? { equals: Prisma.AnyNull }
+            : // Read `JsonValue` fed back as a write-side `InputJsonValue` filter —
+              // the same bytes, distinct Prisma read/write JSON types.
+              { equals: snapshot as Prisma.InputJsonValue },
+      },
+      data: { mfaBackupUsedAt: usedMap },
+    });
+    if (count === 1) return ok(undefined);
+    // Count 0: a concurrent writer won the race, or the row vanished between the
+    // read and the write. Disambiguate so the caller rejects — never retries.
+    const existing = await client.adminUser.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+    return existing ? err("ALREADY_USED") : err("NOT_FOUND");
   }
 
   async replaceBackupCodes(

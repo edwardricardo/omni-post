@@ -1,16 +1,30 @@
 /**
  * @file customerLoginMfa.integration.test.ts
  * @description Integration test for the customer login MFA challenge store against
- *              a REAL Redis (mfa-consolidation PR2b-3). Proves the merge-blocking
- *              single-use guarantee the unit fakes can only approximate: on a real
- *              Redis instance, two concurrent `consume` of one challenge `jti`
- *              yield EXACTLY ONE `CONSUMED` (the `DEL`-count serializer), the
- *              second sequential consume is `NOT_FOUND`, and TTL expiry drops a
- *              pending challenge. The full HTTP enroll→login→challenge→complete
- *              cycle is exercised by the route-level tests + the existing
- *              `mfaCustomer.integration.test.ts` harness (which requires a running
- *              API on 3000); this file isolates the store's atomicity contract,
- *              which needs only Redis.
+ *              a REAL Redis. Proves the merge-blocking single-use guarantee the
+ *              unit fakes can only approximate: on a real Redis instance, two
+ *              concurrent `consume` of one challenge `jti` yield EXACTLY ONE
+ *              `CONSUMED` (the `DEL`-count serializer), the second sequential
+ *              consume is `NOT_FOUND`, and TTL expiry drops a pending challenge.
+ *
+ *              Scope of THIS file: only the store's `issue`/`consume` atomicity
+ *              contract, which needs Redis but no API. The rest of the two-step
+ *              customer login MFA flow is covered by distinct layers, each
+ *              proving a different thing:
+ *                - `tests/unit/customerLoginMfaRoutes.test.ts` — the HTTP error
+ *                  contract (status codes, the byte-identical anti-oracle 401,
+ *                  the fail-closed 503 + WARN, forensic-IP derivation) with the
+ *                  use cases STUBBED (no real DI, no JWT).
+ *                - `tests/integration/mfaCustomer.integration.test.ts` — the five
+ *                  self-service MFA routes (setup / verify-setup / disable /
+ *                  status / regenerate) against a live API; it does NOT drive the
+ *                  `/auth/customer/login` → `/auth/customer/login/mfa` challenge
+ *                  cycle.
+ *                - `tests/integration/customerLoginMfaE2e.integration.test.ts` —
+ *                  the ONLY end-to-end proof of the full enroll → login →
+ *                  challenge → complete cycle through the REAL composition root:
+ *                  real DI wiring, real challenge-token sign/verify (audience +
+ *                  jti), and real jti single-use over live HTTP.
  * @layer infrastructure
  */
 
