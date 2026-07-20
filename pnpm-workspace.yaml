@@ -126,7 +126,7 @@ catalog:
   csv-parse: 6.2.1
   dotenv: 17.2.2
   fastify-type-provider-zod: 6.1.0
-  ioredis: 5.7.0
+  ioredis: 5.11.1
   date-fns: 4.1.0
   lucide-react: 0.544.0
   recharts: 3.8.1
