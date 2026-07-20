@@ -82,7 +82,7 @@ All 8 PR1 tasks checked and matched to code state:
 
 **SUGGESTION**
 
-- **S1 — Audit `accountId` sourcing for PR2.** `MfaService.audit` calls `logSecurityEvent(subject.id, subject.id, …)` — `subject.id` is passed as both `userId` and `accountId`. Benign for admin subjects (not account-scoped) and the force-disable spec is satisfied via `details.actorId`/`subjectId`. When PR2 makes customer subjects real, the `accountId` position should carry the customer's tenant account (and admin-over-customer force-disable should attribute the admin actor) for tenant-correct audit rows.
+- **S1 — Audit `accountId` sourcing for PR2.** `MfaService.audit` calls `logSecurityEvent(subject.id, subject.id, …)` — `subject.id` is passed as both `userId` and `accountId`. Benign for admin subjects (not account-scoped) and the force-disable spec is satisfied via `details.actorId`/`subjectId`. When PR2 makes customer subjects real, the `accountId` position should carry the customer's tenant account (and admin-over-customer force-disable should attribute the admin actor) for tenant-correct audit rows. **RESOLVED by the PR2 slice below:** `resolveAuditActor` carries the customer's real tenant `accountId`, and admin-over-customer force-disable attributes the acting admin via `actorOverride`.
 - **S2 — Negative-path no-secret-logging.** The logger spy test only exercises happy-path ops (the service logs only in `catch`). A test that forces a DB error and asserts the error log carries no secret would harden the disclosure guarantee. Low priority — audit-payload assertions already cover the main surface.
 
 ### Deviations from design/tasks
@@ -94,6 +94,9 @@ None. PR1 implements exactly the design-mandated slice; the customer-subject rep
 ---
 
 ## PR2 — Customer Persistence + Route Correctness
+
+> Label namespace: the W*/S* labels in this section are scoped to this PR2
+> section and are independent of the PR1 section's W1/S1/S2 above.
 
 **Verdict: PASS WITH WARNINGS** (0 CRITICAL, 2 WARNING, 3 SUGGESTION).
 
