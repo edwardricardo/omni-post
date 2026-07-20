@@ -1,5 +1,5 @@
 -- ─────────────────────────────────────────────────────────────────────────────
--- ROLLBACK companion for 20260710000747_add_customer_mfa_backup_codes.
+-- ROLLBACK companion for 20260717000100_add_customer_mfa_backup_codes.
 --
 -- Prisma migrate does NOT auto-apply down.sql files. Operator-driven only:
 --   psql "$DATABASE_URL" < down.sql
