@@ -8,6 +8,15 @@
  *              value). Exposes `runBackfill`, `verifyIntegrity`, and `runCleanup`
  *              as import-safe functions taking an injected PrismaClient; the CLI
  *              runner executes only on direct invocation, never on import.
+ *
+ *              Per-row writes are fault-isolated: a single failing row (e.g. a
+ *              concurrently-deleted or constraint-violating row) is logged by id
+ *              (never by code value — no secret material is logged), counted, and
+ *              skipped, and the run continues. Each pass returns a
+ *              processed/migrated(or cleaned)/failed tally; the CLI exits non-zero
+ *              when any row failed so an operator re-runs after fixing the cause.
+ *              Re-runs are safe because the empty-target and guard checks make the
+ *              migration idempotent.
  * @layer infrastructure
  */
 // canon-exception: migration:2026-07-11
@@ -56,15 +65,22 @@ export function parseLegacyBackupBlob(value: string | null): string[] | null {
  * @description Copy each qualifying legacy blob's hashes into `mfaBackupCodes`.
  *              Only rows whose `mfaBackupCodes` is still empty are written, so a
  *              re-run migrates nothing and pre-existing codes are never
- *              overwritten. The source `passwordResetToken` is retained.
+ *              overwritten. The source `passwordResetToken` is retained. Each
+ *              row's write is fault-isolated: a failing update is logged by id
+ *              (never by code value), counted in `failed`, and the loop continues.
+ *              Keyset pagination advances past every examined row (including
+ *              failed ones), so one poison row can never stall or re-loop the run.
  * @param prisma - Injected PrismaClient (test-owned in suites, CLI-owned in prod).
- * @returns Counts of rows migrated and rows skipped by the content guard.
+ * @returns Tally of rows processed, migrated, skipped by the content guard, and
+ *          failed (per-row write errors).
  */
 export async function runBackfill(
   prisma: PrismaClient
-): Promise<{ migrated: number; skipped: number }> {
+): Promise<{ processed: number; migrated: number; skipped: number; failed: number }> {
+  let processed = 0;
   let migrated = 0;
   let skipped = 0;
+  let failed = 0;
   let lastId = "";
 
   for (;;) {
@@ -82,7 +98,10 @@ export async function runBackfill(
       break;
     }
     for (const row of rows) {
+      // Advance the keyset cursor for EVERY examined row before any write can
+      // throw, so a failed update never re-appears on the next page.
       lastId = row.id;
+      processed += 1;
       const hashes = parseLegacyBackupBlob(row.passwordResetToken);
       if (hashes === null) {
         skipped += 1;
@@ -90,20 +109,30 @@ export async function runBackfill(
       }
       // The empty-target guard lives in the query, so a matching row here always
       // has an empty `mfaBackupCodes`. Copy the hashes across and keep the source
-      // `passwordResetToken`; nulling it is the cleanup step's job.
-      await prisma.adminUser.update({
-        where: { id: row.id },
-        data: { mfaBackupCodes: hashes },
-      });
-      migrated += 1;
+      // `passwordResetToken`; nulling it is the cleanup step's job. One poison row
+      // (e.g. concurrently deleted) is isolated: log its id (never the codes),
+      // count it, and continue — the re-run is safe by the idempotent guard.
+      try {
+        await prisma.adminUser.update({
+          where: { id: row.id },
+          data: { mfaBackupCodes: hashes },
+        });
+        migrated += 1;
+      } catch (error: unknown) {
+        failed += 1;
+        logger.error(
+          { adminUserId: row.id, err: error instanceof Error ? error.message : String(error) },
+          "Admin MFA backup-code backfill: row migrate failed; continuing"
+        );
+      }
     }
     if (rows.length < BATCH_SIZE) {
       break;
     }
   }
 
-  logger.info({ migrated, skipped }, "Admin MFA backup-code backfill complete");
-  return { migrated, skipped };
+  logger.info({ processed, migrated, skipped, failed }, "Admin MFA backup-code backfill complete");
+  return { processed, migrated, skipped, failed };
 }
 
 /**
@@ -165,12 +194,19 @@ export async function verifyIntegrity(
  * @description Null the legacy `passwordResetToken` ONLY on rows where the guard
  *              matched AND the copied codes are already present. A pending reset
  *              token (a UUID) and the `CHANGE_REQUIRED` sentinel never match the
- *              guard, so they are never nulled.
+ *              guard, so they are never nulled. Each row's write is fault-isolated:
+ *              a failing update is logged by id (never by code value), counted in
+ *              `failed`, and the loop continues. Keyset pagination advances past
+ *              every examined row (including failed ones).
  * @param prisma - Injected PrismaClient.
- * @returns The count of legacy sources cleaned.
+ * @returns Tally of rows processed, cleaned, and failed (per-row write errors).
  */
-export async function runCleanup(prisma: PrismaClient): Promise<{ cleaned: number }> {
+export async function runCleanup(
+  prisma: PrismaClient
+): Promise<{ processed: number; cleaned: number; failed: number }> {
+  let processed = 0;
   let cleaned = 0;
+  let failed = 0;
   let lastId = "";
 
   for (;;) {
@@ -188,26 +224,41 @@ export async function runCleanup(prisma: PrismaClient): Promise<{ cleaned: numbe
       break;
     }
     for (const row of rows) {
+      // Advance the keyset cursor for EVERY examined row before any write can
+      // throw, so a failed update never re-appears on the next page.
       lastId = row.id;
+      processed += 1;
       if (parseLegacyBackupBlob(row.passwordResetToken) === null) {
         continue;
       }
       // Only guard-matched rows whose codes are already present reach here, so
       // nulling the legacy source is safe: a pending reset token is a UUID, not a
-      // JSON array of Argon2id hashes, and never satisfies the guard.
-      await prisma.adminUser.update({
-        where: { id: row.id },
-        data: { passwordResetToken: null },
-      });
-      cleaned += 1;
+      // JSON array of Argon2id hashes, and never satisfies the guard. One poison
+      // row is isolated: log its id (never the codes), count it, and continue.
+      try {
+        await prisma.adminUser.update({
+          where: { id: row.id },
+          data: { passwordResetToken: null },
+        });
+        cleaned += 1;
+      } catch (error: unknown) {
+        failed += 1;
+        logger.error(
+          { adminUserId: row.id, err: error instanceof Error ? error.message : String(error) },
+          "Admin MFA backup-code legacy-source cleanup: row cleanup failed; continuing"
+        );
+      }
     }
     if (rows.length < BATCH_SIZE) {
       break;
     }
   }
 
-  logger.info({ cleaned }, "Admin MFA backup-code legacy-source cleanup complete");
-  return { cleaned };
+  logger.info(
+    { processed, cleaned, failed },
+    "Admin MFA backup-code legacy-source cleanup complete"
+  );
+  return { processed, cleaned, failed };
 }
 
 /**
@@ -231,9 +282,11 @@ function isDirectRun(): boolean {
  * @description CLI entry point. Builds a dedicated PrismaClient from
  *              `DATABASE_URL`, runs the backfill and the verification pass, and
  *              runs the legacy-source cleanup only when invoked with `--cleanup`.
- * @returns Resolves after the run completes; disconnects the client either way.
+ * @returns The total count of per-row write failures across the passes that ran,
+ *          so the runner can exit non-zero for an operator re-run; disconnects the
+ *          client either way.
  */
-async function main(): Promise<void> {
+async function main(): Promise<{ failed: number }> {
   const connectionString = process.env.DATABASE_URL;
   if (connectionString === undefined || connectionString === "") {
     throw new Error("DATABASE_URL is required");
@@ -247,15 +300,19 @@ async function main(): Promise<void> {
     const backfill = await runBackfill(prisma);
     const verify = await verifyIntegrity(prisma);
     logger.info({ backfill, verify }, "Backfill and verification complete");
+    let failed = backfill.failed;
 
     if (process.argv.includes("--cleanup")) {
       const cleanup = await runCleanup(prisma);
       logger.info({ cleanup }, "Legacy-source cleanup complete");
+      failed += cleanup.failed;
     } else {
       logger.info(
         "Source passwordResetToken retained. Re-run with --cleanup once counts are reconciled."
       );
     }
+
+    return { failed };
   } finally {
     await prisma.$disconnect();
   }
@@ -263,8 +320,16 @@ async function main(): Promise<void> {
 
 if (isDirectRun()) {
   main()
-    .then(() => {
-      process.exit(0);
+    .then(({ failed }) => {
+      if (failed > 0) {
+        logger.error(
+          { failed },
+          "Admin MFA backup-code backfill completed with per-row failures; re-run after fixing the affected rows"
+        );
+      }
+      // Non-zero exit on any per-row failure: the idempotent guard makes the
+      // operator's re-run safe once the poison rows are fixed.
+      process.exit(failed > 0 ? 1 : 0);
     })
     .catch((error: unknown) => {
       logger.error(

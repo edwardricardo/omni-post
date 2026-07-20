@@ -136,7 +136,10 @@ echo "── Integration tests (node:test) ──"
 # DB-only batches: Prisma against the real DB, no live API server required.
 if run_db_batches; then
 
-# Repository integration tests (Prisma against real DB)
+# Repository + data-migration integration tests (Prisma against real DB, no live API).
+# backfillAdminMfaBackupCodes drives the migration script's injected-Prisma exports
+# against Postgres — DB-only, so it belongs here (not a live-API batch). CONCURRENCY=1
+# keeps its whole-table runBackfill/runCleanup from racing sibling files.
 CONCURRENCY=1 run_batch "integration:repositories" \
   tests/integration/repositories/UserRepository.test.ts \
   tests/integration/repositories/AccountQueryRepository.test.ts \
@@ -145,7 +148,8 @@ CONCURRENCY=1 run_batch "integration:repositories" \
   tests/integration/repositories/AnalyticsRepository.basic.test.ts \
   tests/integration/repositories/AnalyticsRepository.channel.test.ts \
   tests/integration/repositories/AnalyticsRepository.timeseries.test.ts \
-  tests/integration/repositories/ConversionRepository.test.ts
+  tests/integration/repositories/ConversionRepository.test.ts \
+  tests/integration/backfillAdminMfaBackupCodes.integration.test.ts
 
 CONCURRENCY=1 run_batch "integration:sync" \
   tests/integration/syncEngine/syncEngine.init.test.ts \

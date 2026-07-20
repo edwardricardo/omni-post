@@ -1,39 +1,33 @@
 /**
  * @file backfillAdminMfaBackupCodes.integration.test.ts
- * @description RED integration contract for the admin MFA backup-code backfill.
+ * @description Integration contract for the admin MFA backup-code backfill.
  * @layer infrastructure
  *
- *              Drives the future data-migration script
+ *              Drives the data-migration script
  *              `infra/prisma/scripts/backfill-admin-mfa-backup-codes.ts` directly
- *              against a real Postgres (no HTTP) to pin the behavior the script
- *              MUST satisfy before the legacy `apps/api/src/auth/mfaService.ts`
- *              (which stored backup-code hashes in `passwordResetToken`) can be
- *              retired. The unified service reads hashes from `mfaBackupCodes`, so
- *              admins enrolled pre-PR1 need their historical hashes copied across.
+ *              against a real Postgres (no HTTP), exercising its injected-Prisma
+ *              entry points (`runBackfill` / `verifyIntegrity` / `runCleanup`).
+ *              The script copies historical hashes from the legacy
+ *              `passwordResetToken` blob into `mfaBackupCodes` so the unified MFA
+ *              service — which reads hashes from `mfaBackupCodes` — can serve
+ *              admins enrolled before the column existed.
  *
- *              This suite is RED on purpose in the non-sensitive apply pass: the
- *              script does not exist yet, so importing its entry points
- *              (`runBackfill` / `verifyIntegrity` / `runCleanup`) fails to resolve.
- *              The separate sensitive pass makes it GREEN by creating exactly that
- *              script with those three exports, each taking an injected
- *              `PrismaClient` so it stays testable (the CLI `main()` runner must be
- *              guarded so importing the module never connects or exits).
- *
- *              Contract pinned here:
- *                - a legacy row (`passwordResetToken` = a JSON array of
- *                  `$argon2id$` hashes, empty `mfaBackupCodes`) is migrated once
- *                  into `mfaBackupCodes`; a re-run is a no-op (idempotent); the
- *                  source `passwordResetToken` is RETAINED (not nulled) by the
- *                  backfill step
- *                - a genuine reset token (a UUID v4) is SKIPPED, untouched
- *                - the `"CHANGE_REQUIRED"` sentinel is SKIPPED, untouched
- *                - a row that already has non-empty `mfaBackupCodes` is SKIPPED
- *                  (skip-migrated) — its codes are never overwritten
- *                - `verifyIntegrity` reports source-matching vs migrated counts
- *                  while the source is still retained
- *                - the separate cleanup step nulls `passwordResetToken` ONLY where
- *                  the guard matched AND `mfaBackupCodes` is non-empty; a pending
- *                  reset token is never nulled
+ *              This suite GUARDS the behavior a data migration must not regress:
+ *                - IDEMPOTENCY: a legacy row (`passwordResetToken` = a JSON array
+ *                  of `$argon2id$` hashes, empty `mfaBackupCodes`) is migrated once
+ *                  into `mfaBackupCodes`; a re-run is a no-op
+ *                - SOURCE RETENTION: the backfill step leaves `passwordResetToken`
+ *                  intact (nulling it is the separate cleanup step's job)
+ *                - EMPTY-TARGET-ONLY WRITES / NEVER-OVERWRITE: a row that already
+ *                  has non-empty `mfaBackupCodes` is skipped — its codes are never
+ *                  overwritten by the legacy source
+ *                - SENTINEL SAFETY: a genuine reset token (a UUID v4) and the
+ *                  `"CHANGE_REQUIRED"` sentinel are skipped, untouched
+ *                - VERIFICATION: `verifyIntegrity` reports source-matching vs
+ *                  migrated counts while the source is still retained
+ *                - CLEANUP GUARDS: the cleanup step nulls `passwordResetToken` ONLY
+ *                  where the guard matched AND `mfaBackupCodes` is non-empty; a
+ *                  pending reset token and the sentinel are never nulled
  *
  *              Requires Postgres up (`pnpm db:up`); fails loud if `DATABASE_URL`
  *              is unset, per repo canon ("never skip tests because services are
@@ -45,9 +39,9 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createTestPrismaClient } from "@infra/prisma";
 import type { PrismaClient } from "@infra/prisma";
-// The script does not exist yet — this import is the RED (ERR_MODULE_NOT_FOUND).
-// The sensitive pass creates it with exactly these three named exports, each
-// receiving an injected PrismaClient.
+// The three named exports each receive an injected PrismaClient, so the suite
+// drives them against a test-owned client; the module's CLI `main()` runner is
+// guarded to run only on direct invocation, so importing here never connects.
 import {
   runBackfill,
   verifyIntegrity,
