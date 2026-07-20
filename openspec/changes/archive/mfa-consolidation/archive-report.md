@@ -165,3 +165,22 @@ now recorded in living specs. Two mechanical/operational follow-ups remain
 outside SDD's scope: (1) the orchestrator performs the folder move above, and
 (2) a human/reviewer clears the merge-readiness gates before merging
 `workstream/cluster-b-mfa` to `main`.
+
+## Extraction delivery map
+
+The mega-branch was never merged wholesale. Its content landed on `main` as
+five reviewed extraction slices, each adversarially gated (the internal slice
+labels above map as follows):
+
+| Internal slice     | Delivery PR                                        |
+| ------------------ | -------------------------------------------------- |
+| PR1                | #129 (`workstream/mfa-consolidation-pr1`)          |
+| audit-actor (A1)   | #130 (`workstream/audit-actor-foundation`)         |
+| PR2                | #131 (`workstream/customer-mfa-persistence`)       |
+| PR2b-1/2/3         | #132 (`workstream/customer-login-mfa-gate`)        |
+| PR3 + this archive | the `workstream/mfa-legacy-retirement` delivery PR |
+
+The `audit-actor-polymorphism` change is NOT archived with this one: only its
+write-path foundation (A1) has landed; the read path (A2 — `35d44f4` +
+`84c0c7d` + `3c43d8e` on the mega-branch) remains a pending extraction and the
+change stays live under `openspec/changes/` until it lands.
