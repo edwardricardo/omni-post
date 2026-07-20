@@ -114,7 +114,7 @@ catalog:
   form-data: 4.0.6 # CVE floor (MAX over tiktok 4.0.0)
   validator: 13.15.35 # latest stable (taze -l --maturity-period 7), >= CVE floor; was 13.15.22
   uuid: 14.0.0 # latest stable; was 13.0.1 (MAJOR 13->14)
-  ws: 8.21.0 # CVE floor
+  ws: 8.21.1 # CVE floor
 
   # ── Shared direct deps (T1.11 completion — declared in ≥2 manifests; reconcile-UP, structure-only) ──
   "@sentry/node": 10.48.0
