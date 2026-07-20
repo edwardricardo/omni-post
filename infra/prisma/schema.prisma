@@ -343,6 +343,8 @@ model CustomerUser {
   resetTokenExpiry  DateTime? @db.Timestamptz(6)
   mfaEnabled        Boolean   @default(false)
   mfaSecret         String?
+  mfaBackupCodes    String[]  @default([])
+  mfaBackupUsedAt   Json?     @default("{}")
   lastLoginAt       DateTime? @db.Timestamptz(6)
   avatarUrl         String?
   invitedBy         String? // ID of the CustomerUser who sent the invitation

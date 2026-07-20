@@ -274,6 +274,21 @@ describe("AuditableService", () => {
       expect(row.actorType).toBe("CUSTOMER");
     });
 
+    it("CUSTOMER actor with a differing entry accountId → the entry accountId wins", async () => {
+      // The entry-level accountId (the resource being acted on) takes precedence
+      // over the actor's home account, so an admin-over-customer-style flow files
+      // the row under the account it touched, not the actor's own account.
+      await service.logSecurity(auditActor.customer("cust-1", "acc-actor"), "acc-entry", {
+        action: "CUSTOMER_MFA_ENABLED",
+        severity: "HIGH",
+        details: { method: "totp" },
+      });
+      const row = repo.rows[0]!;
+      expect(row.customerUserId).toBe("cust-1");
+      expect(row.actorType).toBe("CUSTOMER");
+      expect(row.accountId).toBe("acc-entry");
+    });
+
     it("SYSTEM actor → both FKs null, actorType SYSTEM", async () => {
       await service.writeRaw({
         action: "SYSTEM_TICK",

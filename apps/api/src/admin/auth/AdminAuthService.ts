@@ -423,15 +423,12 @@ export class AdminAuthService {
   public async setupMfa(userId: string): Promise<Result<MfaSetupResponse, AuthErrorCode>> {
     const user = await this.prisma.adminUser.findUnique({
       where: { id: userId },
-      select: { email: true },
+      select: { id: true },
     });
     if (!user) {
       return err("USER_NOT_FOUND");
     }
-    const result = await this.mfaService.setupMfa(
-      { type: MFA_SUBJECT_TYPE.ADMIN, id: userId },
-      user.email
-    );
+    const result = await this.mfaService.setupMfa({ type: MFA_SUBJECT_TYPE.ADMIN, id: userId });
     if (!result.ok) {
       if (result.error === "USER_NOT_FOUND") return err("USER_NOT_FOUND");
       if (result.error === "MFA_ALREADY_ENABLED") return err("INVALID_REQUEST");

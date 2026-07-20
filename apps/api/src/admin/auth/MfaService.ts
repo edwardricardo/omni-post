@@ -18,7 +18,7 @@ import { ok, err, isErr, type Result } from "@shared/types";
 import { MFA_SUBJECT_TYPE, type MfaSubject, type MfaUserRepositoryPort } from "@ports/core";
 import type { AuditLogRepository } from "@core/domain/repositories/AuditLogRepository.js";
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
-import { AuditableService, auditActor } from "../../services/AuditableService.js";
+import { AuditableService, auditActor, type AuditActor } from "../../services/AuditableService.js";
 import { authLogger } from "../../lib/logger.js";
 import { hashPassword, verifyPassword } from "../../auth/passwordHashing.js";
 import { adminAuthConfig } from "./adminAuthConfig.js";
@@ -99,12 +99,14 @@ export class MfaService extends AuditableService {
    * @method setupMfa
    * @description Issue a TOTP secret plus a fresh set of single-use backup codes
    *              for a subject with no MFA enrolled. Hashes are persisted; the
-   *              plaintext codes are returned exactly once.
+   *              plaintext codes are returned exactly once. The TOTP key URI
+   *              label is derived from the subject's own `MfaUserRecord.email`
+   *              (already loaded via `findById`) — never from a caller-supplied
+   *              value, since `CustomerRequestUser` carries no email field.
    * @param subject - The admin or customer subject to enroll.
-   * @param email - Label used for the TOTP key URI / QR code.
    * @returns Ok(setup) with the plaintext codes, or a typed setup error.
    */
-  async setupMfa(subject: MfaSubject, email: string): Promise<Result<MfaSetupData, SetupError>> {
+  async setupMfa(subject: MfaSubject): Promise<Result<MfaSetupData, SetupError>> {
     try {
       const repo = this.repoFor(subject);
       const found = await repo.findById(subject.id);
@@ -121,10 +123,10 @@ export class MfaService extends AuditableService {
       });
       if (isErr(saved)) return err("USER_NOT_FOUND");
 
-      const otpauthUrl = authenticator.keyuri(email, this.issuer, secret);
+      const otpauthUrl = authenticator.keyuri(found.value.email, this.issuer, secret);
       const qrCodeUrl = await QRCode.toDataURL(otpauthUrl);
 
-      await this.audit(subject, "MFA_SETUP_INITIATED", "MEDIUM");
+      await this.audit(subject, "MFA_SETUP_INITIATED", "MEDIUM", undefined, found.value.accountId);
 
       return ok({ secret, backupCodes, qrCodeUrl, manualEntryKey: secret });
     } catch (error: unknown) {
@@ -154,14 +156,22 @@ export class MfaService extends AuditableService {
       if (!record.mfaSecret) return err("NO_SETUP_IN_PROGRESS");
 
       if (!this.verifyTotp(token, record.mfaSecret)) {
-        await this.audit(subject, "MFA_SETUP_FAILED", "MEDIUM", { reason: "INVALID_TOKEN" });
+        await this.audit(
+          subject,
+          "MFA_SETUP_FAILED",
+          "MEDIUM",
+          {
+            reason: "INVALID_TOKEN",
+          },
+          record.accountId
+        );
         return err("INVALID_TOKEN");
       }
 
       await this.runInTransaction(async () => {
         const enabled = await repo.setMfaEnabled(subject.id, true);
         if (isErr(enabled)) throw new Error("USER_NOT_FOUND");
-        await this.audit(subject, "MFA_ENABLED", "HIGH");
+        await this.audit(subject, "MFA_ENABLED", "HIGH", undefined, record.accountId);
       });
 
       // Backup codes are issued exactly once at setup; do not re-derive them.
@@ -206,15 +216,25 @@ export class MfaService extends AuditableService {
           await this.runInTransaction(async () => {
             const marked = await repo.markBackupCodeUsed(subject.id, index, new Date());
             if (isErr(marked)) throw new Error("USER_NOT_FOUND");
-            await this.audit(subject, "MFA_BACKUP_CODE_USED", "MEDIUM", {
-              remainingCodes: remaining,
-            });
+            await this.audit(
+              subject,
+              "MFA_BACKUP_CODE_USED",
+              "MEDIUM",
+              { remainingCodes: remaining },
+              record.accountId
+            );
           });
           return ok({ verified: true, usedBackupCode: true });
         }
       }
 
-      await this.audit(subject, "MFA_VERIFICATION_FAILED", "MEDIUM", { tokenLength: token.length });
+      await this.audit(
+        subject,
+        "MFA_VERIFICATION_FAILED",
+        "MEDIUM",
+        { tokenLength: token.length },
+        record.accountId
+      );
       return err("INVALID_TOKEN");
     } catch (error: unknown) {
       authLogger.error({ err: error }, "MFA token verification error");
@@ -241,11 +261,22 @@ export class MfaService extends AuditableService {
       const backupCodes = this.generateBackupCodes();
       const hashedBackupCodes = await Promise.all(backupCodes.map((code) => hashPassword(code)));
       const repo = this.repoFor(subject);
+      // Read the account BEFORE the transaction so audit attribution needs no
+      // in-transaction read (a transient attribution read must never roll back
+      // an already-successful MFA mutation — see `audit()`).
+      const found = await repo.findById(subject.id);
+      if (isErr(found)) return err("USER_NOT_FOUND");
 
       await this.runInTransaction(async () => {
         const replaced = await repo.replaceBackupCodes(subject.id, hashedBackupCodes);
         if (isErr(replaced)) throw new Error("USER_NOT_FOUND");
-        await this.audit(subject, "MFA_BACKUP_CODES_REGENERATED", "MEDIUM");
+        await this.audit(
+          subject,
+          "MFA_BACKUP_CODES_REGENERATED",
+          "MEDIUM",
+          undefined,
+          found.value.accountId
+        );
       });
 
       return ok(backupCodes);
@@ -268,11 +299,16 @@ export class MfaService extends AuditableService {
       const verification = await this.verifyMfaToken(subject, token);
       if (isErr(verification)) return err(verification.error);
       const repo = this.repoFor(subject);
+      // Read the account BEFORE the transaction so audit attribution needs no
+      // in-transaction read (a transient attribution read must never roll back
+      // an already-successful MFA mutation — see `audit()`).
+      const found = await repo.findById(subject.id);
+      if (isErr(found)) return err("USER_NOT_FOUND");
 
       await this.runInTransaction(async () => {
         const cleared = await repo.clearMfa(subject.id);
         if (isErr(cleared)) throw new Error("USER_NOT_FOUND");
-        await this.audit(subject, "MFA_DISABLED", "HIGH");
+        await this.audit(subject, "MFA_DISABLED", "HIGH", undefined, found.value.accountId);
       });
 
       return ok(undefined);
@@ -285,31 +321,47 @@ export class MfaService extends AuditableService {
   /**
    * @method adminForceDisable
    * @description Admin emergency recovery: disable a subject's MFA without a token
-   *              (invoked under admin privilege). Audits actor + subject, never any
-   *              secret material.
+   *              (invoked under admin privilege). The acting admin is the audit
+   *              ACTOR (`auditActor.admin(actor.id)`) — the subject is the resource
+   *              being acted on, recorded in `details.subjectId`, never as the
+   *              actor. Never logs any secret material.
    * @param subject - The subject whose MFA is being force-disabled.
    * @param actor - The admin performing the action (recorded in the audit trail).
-   * @returns Ok(void) on success, or a typed force-disable error.
+   * @returns Ok({accountId}) on success — the affected account (the customer's
+   *          tenant account, or the acting admin's id for an admin subject) so a
+   *          caller's own audit row can be scoped to it — or a typed error.
    */
   async adminForceDisable(
     subject: MfaSubject,
     actor: MfaActor
-  ): Promise<Result<void, ForceDisableError>> {
+  ): Promise<Result<{ accountId: string }, ForceDisableError>> {
     try {
       const repo = this.repoFor(subject);
       const found = await repo.findById(subject.id);
       if (isErr(found)) return err("USER_NOT_FOUND");
 
+      // The audit accountId is the affected account for searchability: the
+      // subject's own accountId for a customer, else the acting admin's id
+      // (admin convention — AdminUser is global, no real account scope).
+      const accountId =
+        subject.type === MFA_SUBJECT_TYPE.CUSTOMER && found.value.accountId
+          ? found.value.accountId
+          : actor.id;
+
       await this.runInTransaction(async () => {
         const cleared = await repo.clearMfa(subject.id);
         if (isErr(cleared)) throw new Error("USER_NOT_FOUND");
-        await this.audit(subject, "MFA_ADMIN_FORCE_DISABLED", "HIGH", {
-          actorId: actor.id,
-          subjectId: subject.id,
-        });
+        await this.audit(
+          subject,
+          "MFA_ADMIN_FORCE_DISABLED",
+          "HIGH",
+          { actorId: actor.id, subjectId: subject.id },
+          undefined,
+          { actor: auditActor.admin(actor.id), accountId }
+        );
       });
 
-      return ok(undefined);
+      return ok({ accountId });
     } catch (error: unknown) {
       authLogger.error({ err: error }, "Admin force-disable MFA error");
       return err("DATABASE_ERROR");
@@ -383,22 +435,67 @@ export class MfaService extends AuditableService {
   /**
    * Write a SECURITY-category audit event for the subject. Details never carry
    * the TOTP secret or any backup-code value.
+   *
+   * Actor + account attribution is resolved in priority order:
+   *   1. `actorOverride` — a caller-supplied actor DIFFERENT from the subject
+   *      (used by `adminForceDisable`, where the acting admin, not the disabled
+   *      subject, is the actor).
+   *   2. `knownAccountId` for a CUSTOMER subject — the subject IS the actor and
+   *      the caller already loaded the record, so its `accountId` is threaded in
+   *      directly. This avoids a redundant, in-transaction attribution read: a
+   *      transient failure of that pure-attribution read would otherwise roll
+   *      back an already-successful MFA mutation.
+   *   3. `resolveAuditActor(subject)` — the documented last-resort fallback for
+   *      any future call site without the record at hand. Unreachable from the
+   *      current live flows, which all thread `knownAccountId` for customers;
+   *      admin subjects resolve here with no DB read.
    */
   private async audit(
     subject: MfaSubject,
     action: string,
     severity: "MEDIUM" | "HIGH",
-    details?: Record<string, unknown>
+    details?: Record<string, unknown>,
+    knownAccountId?: string,
+    actorOverride?: { actor: AuditActor; accountId: string }
   ): Promise<void> {
-    // Behavior-preserving: every live subject resolves to the admin adapter
-    // today, so attribution is admin. When customer subjects gain real
-    // persistence, this call site must switch on subject.type and attribute
-    // customers via auditActor.customer(subject.id, accountId) — tracked as
-    // SMELL-62 (acceptance criterion of the customer-wiring slice).
-    await this.logSecurityEvent(auditActor.admin(subject.id), subject.id, {
+    const attribution =
+      actorOverride ??
+      (subject.type === MFA_SUBJECT_TYPE.CUSTOMER && knownAccountId !== undefined
+        ? { actor: auditActor.customer(subject.id, knownAccountId), accountId: knownAccountId }
+        : await this.resolveAuditActor(subject));
+    await this.logSecurityEvent(attribution.actor, attribution.accountId, {
       action,
       severity,
       details: { subjectType: subject.type, ...(details ?? {}) },
     });
+  }
+
+  /**
+   * Resolve the audit actor + accountId for a subject — the documented
+   * last-resort attribution path for any future call site that lacks the
+   * already-loaded record. Admin maps straight to `auditActor.admin` —
+   * `AdminUser` is a global table, so the codebase convention (cf.
+   * `authServiceCore.ts`) uses the admin's own id as the audit `accountId`.
+   * Customer loads the record to read its real `accountId` and maps to
+   * `auditActor.customer` so the row is attributed via `customerUserId`, never
+   * `userId`.
+   *
+   * The live self-service flows never reach the CUSTOMER branch below: they all
+   * thread the record's `accountId` into `audit()` as `knownAccountId`, so this
+   * fallback read stays out of the write transaction.
+   */
+  private async resolveAuditActor(
+    subject: MfaSubject
+  ): Promise<{ actor: AuditActor; accountId: string }> {
+    if (subject.type !== MFA_SUBJECT_TYPE.CUSTOMER) {
+      return { actor: auditActor.admin(subject.id), accountId: subject.id };
+    }
+    const found = await this.customerRepo.findById(subject.id);
+    // Last resort only: if the record vanished, self-scope the accountId to the
+    // subject id rather than DROP the security event — a missing tenant scope
+    // must never silently lose an audited MFA action. Live flows never hit this
+    // (they pass knownAccountId), so this junk-scope path is unreachable there.
+    const accountId = found.ok && found.value.accountId ? found.value.accountId : subject.id;
+    return { actor: auditActor.customer(subject.id, accountId), accountId };
   }
 }

@@ -21,11 +21,15 @@ vi.mock("@infra/prisma", async (importOriginal) => {
   return { ...original, prisma: mockPrisma.prisma };
 });
 
+// Expose `warn` as its own spy so the dual-FK guard's warning is assertable
+// while the other levels stay noop.
+const loggerMock = vi.hoisted(() => ({ warn: vi.fn() }));
+
 vi.mock("../../src/lib/logger.js", () => {
   const noop = vi.fn();
   const noopLogger = {
     info: noop,
-    warn: noop,
+    warn: loggerMock.warn,
     error: noop,
     debug: noop,
     trace: noop,
@@ -814,6 +818,25 @@ describe("AuditLogger Tests", () => {
       expect(log?.actorType).toBe("SYSTEM");
       expect(log?.userId).toBeFalsy();
       expect(log?.customerUserId).toBeFalsy();
+    });
+
+    it("drops customerUserId, keeps the ADMIN userId, and warns when both actor FKs are supplied", async () => {
+      // Both FKs would hit the DB exclusive-arc CHECK and the swallowing catch
+      // would drop the row; normalization keeps userId (ADMIN wins) and warns.
+      await auditLogger.log({
+        action: "ACTOR_DUAL_FK",
+        userId: "admin-dual-1",
+        customerUserId: "cust-dual-1",
+        success: true,
+      });
+      const log = stores.auditLog.all().find((l) => l.action === "ACTOR_DUAL_FK");
+      expect(log?.actorType).toBe("ADMIN");
+      expect(log?.userId).toBe("admin-dual-1");
+      expect(log?.customerUserId).toBeFalsy();
+      expect(loggerMock.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: "admin-dual-1", customerUserId: "cust-dual-1" }),
+        expect.stringContaining("customerUserId")
+      );
     });
   });
 });

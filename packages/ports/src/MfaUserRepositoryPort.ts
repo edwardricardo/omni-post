@@ -35,6 +35,8 @@ export interface MfaSubject {
  * Non-secret-safe projection of a user's MFA state. `mfaBackupCodes` are argon2id
  * hashes (never plaintext); `mfaBackupUsedAt` maps a backup-code array index (as a
  * string key) to the ISO timestamp it was consumed — it carries no secret material.
+ * `accountId` is present only for tenant-scoped subjects (customer); the admin
+ * adapter omits it since `AdminUser` is a global table with no account scope.
  */
 export interface MfaUserRecord {
   readonly id: string;
@@ -43,6 +45,7 @@ export interface MfaUserRecord {
   readonly mfaSecret: string | null;
   readonly mfaBackupCodes: readonly string[];
   readonly mfaBackupUsedAt: Readonly<Record<string, string>>;
+  readonly accountId?: string;
 }
 
 /**

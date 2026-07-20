@@ -655,6 +655,8 @@ export type {
   PostAdminComplianceDsarByIdCompleteResponses,
   PostAdminComplianceDsarByIdRejectData,
   PostAdminComplianceDsarByIdRejectResponses,
+  PostAdminCustomersByUserIdMfaForceDisableData,
+  PostAdminCustomersByUserIdMfaForceDisableResponses,
   PostAdminOidcConfigurationsByAccountIdReplaceClientSecretData,
   PostAdminOidcConfigurationsByAccountIdReplaceClientSecretResponses,
   PostAdminOutboxDeadLetterByIdResolveData,
