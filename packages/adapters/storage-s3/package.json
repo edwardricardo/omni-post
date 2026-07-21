@@ -18,9 +18,9 @@
   },
   "dependencies": {
     "@adapters/external-apis": "workspace:*",
-    "@aws-sdk/client-s3": "3.894.0",
-    "@aws-sdk/s3-presigned-post": "3.894.0",
-    "@aws-sdk/s3-request-presigner": "3.894.0",
+    "@aws-sdk/client-s3": "3.1091.0",
+    "@aws-sdk/s3-presigned-post": "3.1091.0",
+    "@aws-sdk/s3-request-presigner": "3.1091.0",
     "@observability/logger": "workspace:*",
     "@ports/core": "workspace:*",
     "@shared/types": "workspace:*",
