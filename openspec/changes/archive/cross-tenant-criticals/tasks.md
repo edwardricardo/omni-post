@@ -165,8 +165,8 @@ write and read paths, with fail-safe symmetry (no discriminant ⇒ no write, rea
 
 - [x] **C1a-15 [SEQ after C1a-14] [MB]** GREEN — in
       `packages/adapters/external-apis/src/circuitBreaker.ts`: pass `options.cacheKeyDiscriminant`
-      into `cacheSuccessfulResponse` (~:601, write) and onto the `executeFallback` `FallbackContext`
-      (~:645, read, conditional spread for `exactOptionalPropertyTypes`). Reuse the SAME discriminant
+      into `cacheSuccessfulResponse` (~~:601, write) and onto the `executeFallback` `FallbackContext`
+      (~~:645, read, conditional spread for `exactOptionalPropertyTypes`). Reuse the SAME discriminant
       already threaded for L1 + STATE. Add breaker-level wiring tests in
       `tests/unit/circuitBreaker.fallback.test.ts` (discriminant → 5th arg of `cacheSuccessfulResponse`;
       discriminant → `context.discriminant`; no discriminant ⇒ 5th arg undefined). _(Design D1c.)_

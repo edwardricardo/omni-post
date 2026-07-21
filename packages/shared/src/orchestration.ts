@@ -10,25 +10,13 @@ import type { ProviderId } from "./providers/providerConfig.js";
 
 // Core Orchestration Types
 export type OrchestrationStatus =
-  | "pending"
-  | "planning"
-  | "executing"
-  | "completed"
-  | "failed"
-  | "cancelled"
-  | "rollback";
+  "pending" | "planning" | "executing" | "completed" | "failed" | "cancelled" | "rollback";
 
 export type PublishingStrategy =
-  | "SIMULTANEOUS"
-  | "SEQUENTIAL"
-  | "DEPENDENCY_BASED"
-  | "OPTIMIZED_TIMING";
+  "SIMULTANEOUS" | "SEQUENTIAL" | "DEPENDENCY_BASED" | "OPTIMIZED_TIMING";
 
 export type ConflictResolutionStrategy =
-  | "FAIL_FAST"
-  | "BEST_EFFORT"
-  | "ROLLBACK_ON_FAILURE"
-  | "CONTINUE_ON_ERROR";
+  "FAIL_FAST" | "BEST_EFFORT" | "ROLLBACK_ON_FAILURE" | "CONTINUE_ON_ERROR";
 
 export type SyncMode = "REAL_TIME" | "BATCH" | "SCHEDULED" | "ON_DEMAND";
 

@@ -225,8 +225,7 @@ function AccountsPageContent() {
 
   const handleEdit = useCallback((account: AccountSummary) => {
     const trial = account.trial as
-      | { isOnTrial?: boolean; trialEndDate?: string; autoRenewal?: boolean }
-      | undefined;
+      { isOnTrial?: boolean; trialEndDate?: string; autoRenewal?: boolean } | undefined;
     let trialEnd = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
     if (trial?.trialEndDate) {
       trialEnd = trial.trialEndDate.slice(0, 10);

@@ -13,10 +13,7 @@ import { CUSTOMER_REVOKED_SESSION_PREFIX } from "./LogoutCustomerUseCase.js";
 
 /** Error code union */
 export type RefreshCustomerTokenError =
-  | "INVALID_TOKEN"
-  | "USER_NOT_FOUND"
-  | "USER_INACTIVE"
-  | "INTERNAL_ERROR";
+  "INVALID_TOKEN" | "USER_NOT_FOUND" | "USER_INACTIVE" | "INTERNAL_ERROR";
 
 /** Input DTO */
 export interface RefreshCustomerTokenInput {

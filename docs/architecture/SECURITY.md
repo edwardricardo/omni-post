@@ -103,12 +103,8 @@ enum Permission {
 // Role permission mappings
 const RolePermissions: Record<string, Permission[]> = {
   SUPER_ADMIN: [...Object.values(Permission)], // All permissions
-  ADMIN: [
-    /* Selected admin permissions */
-  ],
-  SUPPORT: [
-    /* Limited support permissions */
-  ],
+  ADMIN: [/* Selected admin permissions */],
+  SUPPORT: [/* Limited support permissions */],
 };
 ```
 

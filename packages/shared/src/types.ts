@@ -170,20 +170,12 @@ export type ThreadReceipt = {
 
 // Error types for threading
 export type ThreadError =
-  | "CONTENT_TOO_LONG"
-  | "INVALID_STRATEGY"
-  | "MEDIA_DISTRIBUTION_FAILED"
-  | "THREAD_PLANNING_FAILED";
+  "CONTENT_TOO_LONG" | "INVALID_STRATEGY" | "MEDIA_DISTRIBUTION_FAILED" | "THREAD_PLANNING_FAILED";
 
 export type RenderError = "UNSUPPORTED_MEDIA" | "TEXT_TOO_LONG" | "VALIDATION_ERROR" | ThreadError;
 
 export type PublishError =
-  | "RATE_LIMIT"
-  | "NETWORK"
-  | "AUTH"
-  | "VALIDATION"
-  | "THREAD_INTERRUPTED"
-  | "PARENT_TWEET_FAILED";
+  "RATE_LIMIT" | "NETWORK" | "AUTH" | "VALIDATION" | "THREAD_INTERRUPTED" | "PARENT_TWEET_FAILED";
 
 // Provider and analytics types used across the platform
 

@@ -15,12 +15,7 @@ import type { AccountGatewayProvider } from "./AccountBillingRepository.js";
 
 /** Mirrors `enum SwitchStatus` in the Prisma schema. */
 export type SwitchStatus =
-  | "SCHEDULED"
-  | "PENDING_CHECKOUT"
-  | "COMPLETED"
-  | "CANCELLED"
-  | "SUSPENDED"
-  | "EXPIRED";
+  "SCHEDULED" | "PENDING_CHECKOUT" | "COMPLETED" | "CANCELLED" | "SUSPENDED" | "EXPIRED";
 
 /** Failure modes for switch-event reads + writes. */
 export type SwitchEventStoreError = "NOT_FOUND" | "DATABASE_ERROR";

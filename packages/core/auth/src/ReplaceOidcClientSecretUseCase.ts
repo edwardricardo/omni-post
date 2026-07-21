@@ -25,8 +25,7 @@ import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
  * persists in `partial` but emits an audit-log note.
  */
 export type OidcHandshakeResult =
-  | { validated: "strict" }
-  | { validated: "partial"; reason: string };
+  { validated: "strict" } | { validated: "partial"; reason: string };
 
 /**
  * Adapter for the IdP handshake validation. Per canon

@@ -78,17 +78,9 @@ class MockPrismaClient {
         if (orderField) {
           result.sort((a, b) => {
             const av = (a as Record<string, unknown>)[orderField] as
-              | number
-              | bigint
-              | Date
-              | string
-              | null;
+              number | bigint | Date | string | null;
             const bv = (b as Record<string, unknown>)[orderField] as
-              | number
-              | bigint
-              | Date
-              | string
-              | null;
+              number | bigint | Date | string | null;
             const aNum = av instanceof Date ? av.getTime() : av;
             const bNum = bv instanceof Date ? bv.getTime() : bv;
             const cmp = (aNum ?? 0) < (bNum ?? 0) ? -1 : (aNum ?? 0) > (bNum ?? 0) ? 1 : 0;

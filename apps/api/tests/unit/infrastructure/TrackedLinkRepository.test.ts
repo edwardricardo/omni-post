@@ -227,8 +227,7 @@ describe("PrismaTrackedLinkRepository", () => {
 
       const callRecord = prisma.trackedLink.findFirst.mock.calls[0];
       const args = callRecord?.[0] as
-        | { where: { OR: { shortCode?: string; vanitySlug?: string }[] } }
-        | undefined;
+        { where: { OR: { shortCode?: string; vanitySlug?: string }[] } } | undefined;
       expect(Array.isArray(args?.where.OR)).toBeTruthy();
       expect(args?.where.OR.length).toBe(2);
       const hasShortCode = args?.where.OR.some((c) => "shortCode" in c);
@@ -264,8 +263,7 @@ describe("PrismaTrackedLinkRepository", () => {
 
       const callRecord = prisma.trackedLink.findMany.mock.calls[0];
       const args = callRecord?.[0] as
-        | { where: { projectId: string; isActive?: boolean } }
-        | undefined;
+        { where: { projectId: string; isActive?: boolean } } | undefined;
       expect(args?.where.projectId).toBe(PROJECT_ID);
     });
 
@@ -275,8 +273,7 @@ describe("PrismaTrackedLinkRepository", () => {
 
       const callRecord = prisma.trackedLink.findMany.mock.calls[0];
       const args = callRecord?.[0] as
-        | { where: { projectId: string; isActive?: boolean } }
-        | undefined;
+        { where: { projectId: string; isActive?: boolean } } | undefined;
       expect(args?.where.isActive).toBe(true);
     });
 

@@ -8,7 +8,7 @@
 | ----------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------- | -------------------- | ----------------------- |
 | **L1 Simulated**  | Controlled failures inyectados en steps/handlers — recovery scheduler observable | `vitest` / `node:test` + mock infra + Noop scheduler | Cada PR (CI default) | ✅ saga retry (1 proof) |
 | **L2 Real crash** | Process kill -9 mid-flight + restart + verify invariants persisted               | `child_process.spawn/kill` + real Postgres + Redis   | Nightly (caro)       | 🚧 §4.1.c PENDING       |
-| **L3 Game-day**   | Production chaos (lat injection, DB failover, traffic spikes)                    | Gremlin / LitmusChaos / custom                       | Mensual (post-prod)  | ⏭ deferred (post-prod) |
+| **L3 Game-day**   | Production chaos (lat injection, DB failover, traffic spikes)                    | Gremlin / LitmusChaos / custom                       | Mensual (post-prod)  | ⏭ deferred (post-prod)  |
 
 Phase A1 entrega L1. Phases B/C/D agregan L2 + CI wiring.
 
@@ -40,9 +40,7 @@ describe("Chaos: <scenario>", () => {
 
   it("<invariant>", async () => {
     const failingStep = new TransientFailingStep(2);
-    harness.manager.registerSaga({
-      /* ... steps: [failingStep, ...] */
-    });
+    harness.manager.registerSaga({/* ... steps: [failingStep, ...] */});
     const instance = await harness.manager.startSaga(/* ... */);
 
     // Trigger recovery scheduler iterations as needed.

@@ -752,9 +752,8 @@ export class ExternalApiCircuitBreaker {
       // fallback, preserving the pre-D8 fallback contract.
       if (options.fallback) {
         const callerFallback = options.fallback;
-        breaker.fallback(
-          (_apiCall: BreakerApiCall, ...rest: unknown[]): Promise<R> =>
-            callerFallback(...(rest as T))
+        breaker.fallback((_apiCall: BreakerApiCall, ...rest: unknown[]): Promise<R> =>
+          callerFallback(...(rest as T))
         );
       }
 

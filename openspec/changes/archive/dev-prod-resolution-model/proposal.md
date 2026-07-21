@@ -36,11 +36,11 @@ that covers non-vitest runners.
 
 Three CI surfaces are red on this exact failure (empirically reproduced at HEAD `d6a3be90`):
 
-| #   | Surface                        | Runner                 | Failure                                                                                         |
+| # | Surface | Runner | Failure |
 | --- | ------------------------------ | ---------------------- | ----------------------------------------------------------------------------------------------- | -------------------------- | --------------------------------------------------------------------------- |
-| 1   | Seed (`infra/prisma/seed.ts`)  | `tsx seed.ts`          | `ERR_MODULE_NOT_FOUND .../@observability/logger/dist/index.js`                                  |
-| 2   | Security suites (`tests/auth   | rbac                   | security.test.ts`)                                                                              | `node --import tsx --test` | `ERR_MODULE_NOT_FOUND .../@infra/prisma/dist/src/extensions/tenantGuard.js` |
-| 3   | Next build (`apps/admin` i18n) | Turbopack `next build` | `Module not found: @shared/types/i18n/createRequestConfig` (a **different** mechanism — see §3) |
+| 1 | Seed (`infra/prisma/seed.ts`) | `tsx seed.ts` | `ERR_MODULE_NOT_FOUND .../@observability/logger/dist/index.js` |
+| 2 | Security suites (`tests/auth   | rbac                   | security.test.ts`) | `node --import tsx --test` | `ERR_MODULE_NOT_FOUND .../@infra/prisma/dist/src/extensions/tenantGuard.js` |
+| 3 | Next build (`apps/admin` i18n) | Turbopack `next build` | `Module not found: @shared/types/i18n/createRequestConfig` (a **different** mechanism — see §3) |
 
 Mechanism 2 hits the exact `@infra/prisma/extensions` subpath that the vitest factory had to
 special-case (`vitest.shared.ts:102`) — and `node:test` got no equivalent.

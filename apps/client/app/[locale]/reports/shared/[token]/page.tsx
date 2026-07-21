@@ -22,11 +22,7 @@ interface ReportData {
 }
 
 type ReportErrorKey =
-  | "errorUnavailable"
-  | "errorExpired"
-  | "errorLoad"
-  | "errorLoadData"
-  | "errorNetwork";
+  "errorUnavailable" | "errorExpired" | "errorLoad" | "errorLoadData" | "errorNetwork";
 
 export default function SharedReportPage() {
   const t = useTranslations("reports");

@@ -504,8 +504,7 @@ export abstract class BaseRouteHandler {
    */
   protected getUserContext(request: FastifyRequest): { userId?: string; tenantId?: string } {
     const user = (request as unknown as Record<string, unknown>).user as
-      | { id?: string; tenantId?: string }
-      | undefined;
+      { id?: string; tenantId?: string } | undefined;
     return {
       ...(user?.id !== undefined && { userId: user.id }),
       ...(user?.tenantId !== undefined && { tenantId: user.tenantId }),

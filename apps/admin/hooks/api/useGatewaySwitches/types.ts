@@ -7,12 +7,7 @@
 type GatewayName = "STRIPE" | "PADDLE";
 
 type GatewaySwitchStatus =
-  | "SCHEDULED"
-  | "PENDING_CHECKOUT"
-  | "COMPLETED"
-  | "CANCELLED"
-  | "SUSPENDED"
-  | "EXPIRED";
+  "SCHEDULED" | "PENDING_CHECKOUT" | "COMPLETED" | "CANCELLED" | "SUSPENDED" | "EXPIRED";
 
 interface GatewaySwitchAccount {
   id: string;

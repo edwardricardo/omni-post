@@ -453,8 +453,7 @@ export class TransformHandlers extends BaseRouteHandler {
       content as unknown as CanonicalPost,
       targetProvider as ProviderId,
       userPreferences as
-        | import("./platformContentAdapterTypes.js").UserAdaptationPreferences
-        | undefined
+        import("./platformContentAdapterTypes.js").UserAdaptationPreferences | undefined
     );
 
     if (!result.ok) {

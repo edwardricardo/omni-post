@@ -37,22 +37,18 @@ function createMockPrisma() {
       }
     ),
     outboxEvent: {
-      update: vi.fn(
-        async (args: unknown): Promise<MockTransactionOp> => ({
-          __op: "update",
-          table: "outboxEvent",
-          args,
-        })
-      ),
+      update: vi.fn(async (args: unknown): Promise<MockTransactionOp> => ({
+        __op: "update",
+        table: "outboxEvent",
+        args,
+      })),
     },
     outboxDeadLetter: {
-      create: vi.fn(
-        async (args: unknown): Promise<MockTransactionOp> => ({
-          __op: "create",
-          table: "outboxDeadLetter",
-          args,
-        })
-      ),
+      create: vi.fn(async (args: unknown): Promise<MockTransactionOp> => ({
+        __op: "create",
+        table: "outboxDeadLetter",
+        args,
+      })),
     },
     $transaction: vi.fn(async (ops: Promise<MockTransactionOp>[]) => {
       const resolved = await Promise.all(ops);

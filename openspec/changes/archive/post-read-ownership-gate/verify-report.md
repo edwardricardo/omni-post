@@ -21,17 +21,17 @@ and the full gate is green (unit 8030/8030, tsc 0, integration 10/10, fitness 0)
 
 ## Build / Tests / Fitness evidence
 
-| Check                          | Command                                                                                                   | Result                                              |
+| Check | Command | Result |
 | ------------------------------ | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Unit suite                     | `pnpm --filter @apps/api test`                                                                            | 510 files / **8030 pass / 0 fail**, exit 0          |
-| Typecheck                      | `tsc -p apps/api/tsconfig.json --noEmit` (6144MB)                                                         | **0 errors**, exit 0                                |
-| Integration (10 consecutive)   | `postReadOwnership.test.ts` (node:test, `--conditions development`, real Postgres+Redis @ omnipost-infra) | **10/10 runs, 6/6 subtests each, 0 fail, 0 cancel** |
-| Fitness #3 (`any`)             | grep domain/app/infra                                                                                     | 0 (note: `apps/api/src/domain                       | application`moved to`packages/core`; changed core files independently grep-clean) |
-| Fitness #4 (raw throw)         | grep domain/app                                                                                           | 0                                                   |
-| Fitness #8 (sprint/phase refs) | grep repo                                                                                                 | 0                                                   |
-| Fitness #9 (@file header)      | grep repo                                                                                                 | 0                                                   |
-| Fitness #10 (@layer values)    | grep repo                                                                                                 | 0                                                   |
-| Fitness #23 (raw prisma)       | grep api/workers                                                                                          | 0                                                   |
+| Unit suite | `pnpm --filter @apps/api test` | 510 files / **8030 pass / 0 fail**, exit 0 |
+| Typecheck | `tsc -p apps/api/tsconfig.json --noEmit` (6144MB) | **0 errors**, exit 0 |
+| Integration (10 consecutive) | `postReadOwnership.test.ts` (node:test, `--conditions development`, real Postgres+Redis @ omnipost-infra) | **10/10 runs, 6/6 subtests each, 0 fail, 0 cancel** |
+| Fitness #3 (`any`) | grep domain/app/infra | 0 (note: `apps/api/src/domain                       | application`moved to`packages/core`; changed core files independently grep-clean) |
+| Fitness #4 (raw throw) | grep domain/app | 0 |
+| Fitness #8 (sprint/phase refs) | grep repo | 0 |
+| Fitness #9 (@file header) | grep repo | 0 |
+| Fitness #10 (@layer values) | grep repo | 0 |
+| Fitness #23 (raw prisma) | grep api/workers | 0 |
 
 ## Spec compliance matrix
 

@@ -19,8 +19,7 @@ import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
  * delete by forgetting a parameter.
  */
 export type DeletePostCaller =
-  | { type: "customer"; accountId: string }
-  | { type: "system"; source: string };
+  { type: "customer"; accountId: string } | { type: "system"; source: string };
 
 /**
  * Input DTO for deleting a post
