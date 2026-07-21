@@ -258,8 +258,7 @@ export class LinkedInAdapter implements ProviderAdapter {
 
       // Check for poll in rendered meta
       const pollData = input.post.meta?.poll as
-        | { question: string; options: string[]; duration: LinkedInPollDuration }
-        | undefined;
+        { question: string; options: string[]; duration: LinkedInPollDuration } | undefined;
 
       if (pollData) {
         payload.content = {

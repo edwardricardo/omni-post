@@ -24,10 +24,7 @@ export interface SyncChange {
 export interface SyncConflict {
   id: string;
   type:
-    | "concurrent_modification"
-    | "schema_mismatch"
-    | "validation_failure"
-    | "dependency_violation";
+    "concurrent_modification" | "schema_mismatch" | "validation_failure" | "dependency_violation";
   field: string;
   sourceValue: unknown;
   targetValue: unknown;

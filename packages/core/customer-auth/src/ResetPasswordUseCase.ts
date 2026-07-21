@@ -11,10 +11,7 @@ import type { PasswordHasher } from "@core/domain/repositories/PasswordHasher.js
 
 /** Error code union */
 export type ResetPasswordError =
-  | "INVALID_TOKEN"
-  | "TOKEN_EXPIRED"
-  | "VALIDATION_ERROR"
-  | "INTERNAL_ERROR";
+  "INVALID_TOKEN" | "TOKEN_EXPIRED" | "VALIDATION_ERROR" | "INTERNAL_ERROR";
 
 /** Input DTO */
 export interface ResetPasswordInput {

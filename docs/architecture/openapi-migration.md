@@ -45,9 +45,7 @@ typedApp.setSerializerCompiler(serializerCompiler); // 2️⃣
 
 await typedApp.register(fastifySwagger.default, {
   transform: jsonSchemaTransform, // 3️⃣ — sin esto el spec queda mal
-  openapi: {
-    /* ... */
-  },
+  openapi: {/* ... */},
 });
 ```
 

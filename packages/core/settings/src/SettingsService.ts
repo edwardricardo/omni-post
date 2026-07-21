@@ -15,11 +15,7 @@ import type { AuditEmitterPort } from "@core/domain/repositories/AuditEmitterPor
 import { CREDENTIAL_KEYS, NON_SECRET_KEYS } from "@core/settings/credentialKeys.js";
 
 type SettingsError =
-  | "NOT_FOUND"
-  | "ENCRYPTION_ERROR"
-  | "DATABASE_ERROR"
-  | "VALIDATION_ERROR"
-  | "CONNECTION_FAILED";
+  "NOT_FOUND" | "ENCRYPTION_ERROR" | "DATABASE_ERROR" | "VALIDATION_ERROR" | "CONNECTION_FAILED";
 
 interface ConfigurationStatus {
   groups: Record<string, boolean>;

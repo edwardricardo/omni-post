@@ -9,13 +9,7 @@ export interface PostTemplate {
   name: string;
   description: string;
   category:
-    | "announcement"
-    | "promotion"
-    | "engagement"
-    | "question"
-    | "educational"
-    | "personal"
-    | "event";
+    "announcement" | "promotion" | "engagement" | "question" | "educational" | "personal" | "event";
   content: string;
   tags: string[];
   variables?: string[];

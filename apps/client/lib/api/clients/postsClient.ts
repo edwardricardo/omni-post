@@ -10,13 +10,7 @@ import type { ApiResponse, PaginatedResponse, Post, UpdatePostRequest } from "..
 import { request } from "./request";
 
 export type PostStatus =
-  | "DRAFT"
-  | "PENDING_REVIEW"
-  | "SCHEDULED"
-  | "PUBLISHING"
-  | "PUBLISHED"
-  | "FAILED"
-  | "CANCELLED";
+  "DRAFT" | "PENDING_REVIEW" | "SCHEDULED" | "PUBLISHING" | "PUBLISHED" | "FAILED" | "CANCELLED";
 
 export type PostSortField = "createdAt" | "updatedAt" | "scheduledAt" | "publishedAt" | "status";
 

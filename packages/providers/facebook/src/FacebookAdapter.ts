@@ -255,9 +255,7 @@ export class FacebookAdapter implements ProviderAdapter {
       }
       if (post.meta?.audienceRestriction) {
         storyOptions.audienceRestriction = post.meta.audienceRestriction as
-          | "everyone"
-          | "friends"
-          | "custom";
+          "everyone" | "friends" | "custom";
       }
       if (post.meta?.customAudience) {
         storyOptions.customAudience = post.meta.customAudience as string[];
@@ -320,9 +318,7 @@ export class FacebookAdapter implements ProviderAdapter {
       }
       if (post.meta?.audienceRestriction) {
         reelOptions.audienceRestriction = post.meta.audienceRestriction as
-          | "public"
-          | "friends"
-          | "only_me";
+          "public" | "friends" | "only_me";
       }
       if (post.meta?.allowComments !== undefined) {
         reelOptions.allowComments = post.meta.allowComments as boolean;

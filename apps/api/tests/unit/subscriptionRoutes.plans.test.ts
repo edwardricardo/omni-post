@@ -38,8 +38,7 @@ const origAccountFindMany = mockPrisma.prisma.account.findMany;
 mockPrisma.prisma.account.findMany = vi.fn(async (args?: Record<string, unknown>) => {
   const results = await origAccountFindMany(args);
   const include = (args as Record<string, unknown> | undefined)?.include as
-    | Record<string, unknown>
-    | undefined;
+    Record<string, unknown> | undefined;
   if (include?.projects) {
     for (const r of results) {
       (r as Record<string, unknown>).projects = stores.project

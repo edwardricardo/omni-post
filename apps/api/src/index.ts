@@ -1135,8 +1135,7 @@ async function start() {
 
       // Shutdown saga integration (closes pub/sub subscriber and saga manager)
       const saga = (app as unknown as Record<string, unknown>).sagaIntegration as
-        | import("./saga/SagaIntegration.js").SagaIntegration
-        | undefined;
+        import("./saga/SagaIntegration.js").SagaIntegration | undefined;
       if (saga) {
         await saga.shutdown();
       }

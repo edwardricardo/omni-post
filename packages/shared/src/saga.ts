@@ -26,12 +26,7 @@ import { Command } from "./cqrs.js";
  * violation enforced by the timeout checker in SagaManagerLifecycle.
  */
 export type SagaStatus =
-  | "PENDING"
-  | "RUNNING"
-  | "COMPLETED"
-  | "FAILED"
-  | "COMPENSATING"
-  | "COMPENSATED";
+  "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "COMPENSATING" | "COMPENSATED";
 
 /**
  * Outcome of a single step execution or compensation.
@@ -169,9 +164,7 @@ export interface RetryableStep<TData = unknown> extends BaseSagaStep<TData> {
  * compensate().
  */
 export type SagaStep<TData = unknown, TCompensationData = unknown> =
-  | CompensableStep<TData, TCompensationData>
-  | PivotStep<TData>
-  | RetryableStep<TData>;
+  CompensableStep<TData, TCompensationData> | PivotStep<TData> | RetryableStep<TData>;
 
 // ============================================================================
 // SagaDefinition — pivotStepIndex obligatorio
@@ -689,8 +682,7 @@ export class WaitForPublishingCompletionStep implements RetryableStep {
       }
 
       const schedulingData = context.stepData["schedule-publishing-jobs"] as
-        | ScheduleStepData
-        | undefined;
+        ScheduleStepData | undefined;
       if (!schedulingData) {
         return { success: false, error: "No scheduling data found from scheduling step" };
       }
@@ -770,8 +762,7 @@ export class UpdatePostStatusStep implements RetryableStep {
 
       const createData = context.stepData["create-post"] as CreateStepData | undefined;
       const completionData = context.stepData["wait-publishing-completion"] as
-        | CompletionStepData
-        | undefined;
+        CompletionStepData | undefined;
 
       const postId = createData?.postId;
       const publishingSuccess = completionData?.publishingComplete;

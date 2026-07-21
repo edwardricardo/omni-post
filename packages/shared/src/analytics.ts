@@ -27,15 +27,7 @@ export type MetricType =
 export type ProviderType = ProviderName;
 
 export type ContentType =
-  | "text"
-  | "image"
-  | "video"
-  | "carousel"
-  | "story"
-  | "reel"
-  | "thread"
-  | "poll"
-  | "live";
+  "text" | "image" | "video" | "carousel" | "story" | "reel" | "thread" | "poll" | "live";
 
 export type AudienceSegment =
   | "super_engaged"

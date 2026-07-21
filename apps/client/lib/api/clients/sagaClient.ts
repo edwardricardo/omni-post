@@ -13,12 +13,7 @@ import { request } from "./request";
 export type SagaPostMode = "draft" | "schedule" | "publish-now";
 
 export type SagaStatus =
-  | "PENDING"
-  | "RUNNING"
-  | "COMPLETED"
-  | "FAILED"
-  | "COMPENSATING"
-  | "COMPENSATED";
+  "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "COMPENSATING" | "COMPENSATED";
 
 /**
  * Content fields used when the saga creates a NEW post. For schedule and
@@ -75,9 +70,7 @@ export interface StartPublishNowSagaInput {
 }
 
 export type StartPostPublishingSagaInput =
-  | StartDraftSagaInput
-  | StartScheduleSagaInput
-  | StartPublishNowSagaInput;
+  StartDraftSagaInput | StartScheduleSagaInput | StartPublishNowSagaInput;
 
 export interface StartPostPublishingSagaResponse {
   sagaId: string;

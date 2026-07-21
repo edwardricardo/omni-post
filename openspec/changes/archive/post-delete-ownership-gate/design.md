@@ -70,8 +70,7 @@ Slice 0 of `project-scoped-tenant-guard`; app-level gate superseded by the struc
 
 ```typescript
 export type DeletePostCaller =
-  | { type: "customer"; accountId: string }
-  | { type: "system"; source: string };
+  { type: "customer"; accountId: string } | { type: "system"; source: string };
 
 export interface DeletePostInput {
   postId: string;

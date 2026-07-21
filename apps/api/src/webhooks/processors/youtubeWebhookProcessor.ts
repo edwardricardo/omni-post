@@ -197,9 +197,7 @@ export class YouTubeWebhookProcessor extends AbstractWebhookProcessor {
     const linkAttrs = linkEntry?.$ as Record<string, unknown> | undefined;
     const link = linkAttrs?.href;
     const authorRaw = entry.author as
-      | Record<string, unknown>
-      | Record<string, unknown>[]
-      | undefined;
+      Record<string, unknown> | Record<string, unknown>[] | undefined;
     const authorEntry = Array.isArray(authorRaw)
       ? (authorRaw[0] as Record<string, unknown>)
       : authorRaw;

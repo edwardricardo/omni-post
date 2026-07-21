@@ -46,8 +46,7 @@ export async function auditMiddleware(request: AuditableRequest, reply: FastifyR
   reply.send = function (payload) {
     try {
       const user = (request as unknown as Record<string, unknown>).user as
-        | { id?: string }
-        | undefined;
+        { id?: string } | undefined;
       const auditInfo = request.auditLog || {};
 
       // Determine action based on method and route if not explicitly set

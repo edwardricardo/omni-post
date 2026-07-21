@@ -32,10 +32,7 @@ export interface GlossaryEntryUpsertInput {
 }
 
 export type GlossaryRepositoryError =
-  | "NOT_FOUND"
-  | "PERSISTENCE_ERROR"
-  | "INVALID_LOCALE"
-  | "INVALID_INPUT";
+  "NOT_FOUND" | "PERSISTENCE_ERROR" | "INVALID_LOCALE" | "INVALID_INPUT";
 
 export interface GlossaryRepository {
   upsert(input: GlossaryEntryUpsertInput): Promise<Result<GlossaryEntry, GlossaryRepositoryError>>;

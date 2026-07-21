@@ -70,11 +70,7 @@ export interface LicenseIssue {
 
 export interface OptimizationOpportunity {
   type:
-    | "code-splitting"
-    | "tree-shaking"
-    | "compression"
-    | "lazy-loading"
-    | "dependency-replacement";
+    "code-splitting" | "tree-shaking" | "compression" | "lazy-loading" | "dependency-replacement";
   description: string;
   estimated_savings_mb: number;
   effort_level: "low" | "medium" | "high";

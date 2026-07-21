@@ -802,12 +802,7 @@ export class GatewayBillingService {
     const status =
       filters.status && filters.status !== "ALL"
         ? (filters.status as
-            | "SCHEDULED"
-            | "PENDING_CHECKOUT"
-            | "COMPLETED"
-            | "CANCELLED"
-            | "SUSPENDED"
-            | "EXPIRED")
+            "SCHEDULED" | "PENDING_CHECKOUT" | "COMPLETED" | "CANCELLED" | "SUSPENDED" | "EXPIRED")
         : undefined;
     const result = await this.switchEventRepo.listWithAccount({
       page: filters.page,

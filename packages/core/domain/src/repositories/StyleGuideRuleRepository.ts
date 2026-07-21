@@ -33,10 +33,7 @@ export interface StyleGuideRuleUpsertInput {
 }
 
 export type StyleGuideRuleRepositoryError =
-  | "NOT_FOUND"
-  | "PERSISTENCE_ERROR"
-  | "INVALID_LOCALE"
-  | "INVALID_INPUT";
+  "NOT_FOUND" | "PERSISTENCE_ERROR" | "INVALID_LOCALE" | "INVALID_INPUT";
 
 export interface StyleGuideRuleRepository {
   /**

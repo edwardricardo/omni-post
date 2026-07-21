@@ -331,8 +331,7 @@ class CustomReportRouteHandler extends BaseRouteHandler {
    */
   private getAccountId(request: FastifyRequest): string | undefined {
     const user = (request as unknown as Record<string, unknown>).user as
-      | { accountId?: string }
-      | undefined;
+      { accountId?: string } | undefined;
     return user?.accountId;
   }
 }

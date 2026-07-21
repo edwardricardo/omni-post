@@ -14,12 +14,7 @@ export type TimeRange = "7d" | "30d" | "90d" | "1y" | "custom";
 export type ProviderType = ProviderName;
 export type ContentType = "text" | "image" | "video" | "carousel" | "story" | "reel";
 export type MetricType =
-  | "engagement_rate"
-  | "reach"
-  | "views"
-  | "click_through_rate"
-  | "follower_growth"
-  | "roi";
+  "engagement_rate" | "reach" | "views" | "click_through_rate" | "follower_growth" | "roi";
 
 // ============ GetCrossPlatformAnalytics Types ============
 

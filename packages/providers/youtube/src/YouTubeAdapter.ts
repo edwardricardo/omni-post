@@ -556,10 +556,7 @@ export class YouTubeAdapter implements ProviderAdapter {
       const enableEmbed = post.meta?.enableEmbed as boolean | undefined;
       const recordFromStart = post.meta?.recordFromStart as boolean | undefined;
       const latencyPreference = post.meta?.latencyPreference as
-        | "normal"
-        | "low"
-        | "ultraLow"
-        | undefined;
+        "normal" | "low" | "ultraLow" | undefined;
 
       const liveStream = await liveService.createLiveStream({
         title,

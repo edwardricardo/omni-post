@@ -23,10 +23,7 @@ export interface MfaVerificationResult {
 
 /** Failure modes when verifying a login-time MFA token. */
 export type MfaVerifyTokenError =
-  | "USER_NOT_FOUND"
-  | "MFA_NOT_ENABLED"
-  | "INVALID_TOKEN"
-  | "DATABASE_ERROR";
+  "USER_NOT_FOUND" | "MFA_NOT_ENABLED" | "INVALID_TOKEN" | "DATABASE_ERROR";
 
 /**
  * Port for verifying a TOTP or single-use backup code for a subject at login.

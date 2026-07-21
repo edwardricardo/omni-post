@@ -99,7 +99,7 @@ PR #118).
   BEFORE the backfill) → `UPDATE … FROM "Project"` over the NOT-NULL
   `projectId` FK → in-tx `RAISE EXCEPTION` on residual NULL → `SET NOT
 NULL` → FK `Account` `ON DELETE CASCADE` → `CREATE INDEX
-  (accountId, projectId)`, keeping `@@unique([projectId, memberId])` and
+(accountId, projectId)`, keeping `@@unique([projectId, memberId])` and
   `@@index([memberId])` untouched. RLS migration copies the Slice-4
   single-table shape verbatim (`tenant_isolation` policy, `app.account_id`
   GUC + `__system__` bypass, `DROP POLICY IF EXISTS` idempotence;

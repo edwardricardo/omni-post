@@ -15,11 +15,7 @@ import type { AccountGatewayProvider } from "./AccountBillingRepository.js";
 
 /** Mirrors `enum SubscriptionStatus` in the Prisma schema. */
 export type SubscriptionBillingStatus =
-  | "TRIALING"
-  | "ACTIVE"
-  | "PAST_DUE"
-  | "CANCELED"
-  | "GRANDFATHERED";
+  "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "GRANDFATHERED";
 
 /** Failure modes for subscription billing reads + writes. */
 export type SubscriptionBillingStoreError = "DATABASE_ERROR";

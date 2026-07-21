@@ -132,12 +132,10 @@ describe("secretsRotationRoutes plugin", () => {
 
   it("returns 500 when the query yields an error", async () => {
     const failingQuery = {
-      execute: vi.fn(
-        async (): Promise<Result<GetSecretRotationStatusOutput, UseCaseError>> => ({
-          ok: false,
-          error: new UseCaseError("boom", USE_CASE_ERRORS.INTERNAL_ERROR),
-        })
-      ),
+      execute: vi.fn(async (): Promise<Result<GetSecretRotationStatusOutput, UseCaseError>> => ({
+        ok: false,
+        error: new UseCaseError("boom", USE_CASE_ERRORS.INTERNAL_ERROR),
+      })),
     } as unknown as GetSecretRotationStatusQuery;
     const harness = makeFastifyHarness(failingQuery);
     await secretsRotationRoutes(harness as never, {});
