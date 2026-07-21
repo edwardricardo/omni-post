@@ -44,7 +44,7 @@
     "@storybook/addon-a11y": "catalog:",
     "@storybook/addon-docs": "catalog:",
     "@storybook/nextjs": "catalog:",
-    "@storybook/test-runner": "0.24.0",
+    "@storybook/test-runner": "0.24.4",
     "@stryker-mutator/core": "catalog:",
     "@stryker-mutator/vitest-runner": "catalog:",
     "@tailwindcss/postcss": "catalog:",
