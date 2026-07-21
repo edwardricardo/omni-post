@@ -195,7 +195,7 @@ a dated-debt / remove-when gate or removed only when upstream is ready.
 #### Scenario: absorbed standing items carry a gate or are removed [static]
 
 - **Given** each absorbed standing item (`ESBUILD-OVERRIDE`, `JOI-GHSA-IGNORE`, `SHELL-QUOTE-OVERRIDE`, `UNDOCUMENTED-GHSA-IGNORES`, `CONCURRENTLY-BUMP`)
-- **When** the override/ignore config and `docs/product/PENDING_WORK_INVENTORY.md §7` are inspected
+- **When** the override/ignore config and `docs/security/SECURITY_CANON.md §Audited audit-ignores` (which now carries the build-tool version holds migrated from the frozen `PENDING_WORK_INVENTORY §7`) are inspected
 - **Then** each surviving item carries a dated-debt or remove-when gate (a documented removal condition), and any item whose upstream is ready is removed
 
 ---

@@ -1,17 +1,26 @@
 # OmniPost — Consolidated Pending-Work Inventory
 
-> **Status:** Living document. THE base reference for ongoing work.
-> **Last consolidated:** 2026-06-19.
-> **Owner:** Platform engineering.
+> **⚠️ STATUS: FROZEN 2026-07-21 — HISTORICAL RECORD, DO NOT UPDATE.**
+> **Owner:** Platform engineering. **Last consolidated (as a living doc):** 2026-06-19.
 >
-> **⚠️ Successor note (2026-07-21):** the actionable planning spine is now
-> [`MASTER_PLAN_ES.md`](MASTER_PLAN_ES.md) (consolidated 2026-06-29, which asserts this
-> inventory was retired that day — but it is still referenced and kept as the detailed
-> §2-§7 companion; treat MASTER_PLAN's Nivelación dashboard as newer where they diverge).
-> **Merge campaign 2026-07-19..21** landed several §2 items on `main`: AUTH-REGISTER-PRIVESC
-> (§2C, PR #126), the MFA cluster behind SMELL-37 (§3B, PRs #129-133), and the circuit-breaker
-> cross-tenant cache fix (tracked as N-SEC-1 in MASTER_PLAN §1, PR #124). Full campaign +
-> dependency batch: [`../reports/merge-campaign-2026-07-21.md`](../reports/merge-campaign-2026-07-21.md).
+> This inventory has been **frozen and archived** under `docs/archive/`. Its unique,
+> still-live content was migrated to its canonical homes ("un solo orden" decision) —
+> consult those, not this file:
+>
+> - **§7 build-tool version holds** → [`../security/SECURITY_CANON.md`](../security/SECURITY_CANON.md) §"Audited audit-ignores" → §"Build-tool version holds & dated-debt overrides" (reconciled at migration: the vite-7.3.5 hold is resolved; `concurrently` closed-by-removal). The §7 GHSA-ignores + CVE-floor content was already mirrored in that canon table.
+> - **§3D-G / §4B / §5-5.1 dead-code / forgotten-feature findings (29 `FN-*`)** → [`../reports/roadmap-detected-smells-backlog.md`](../reports/roadmap-detected-smells-backlog.md), verdicts **re-verified against `main`** at migration (6 already-resolved, 1 partial, 22 pending).
+> - **§1 product spine + §2 security cluster** → the actionable spine [`../product/MASTER_PLAN_ES.md`](../product/MASTER_PLAN_ES.md) (§2-4 features, §1 Nivelación), evidence-based on the verified [`../audits/FULL_REPO_ASSESSMENT_2026-06-29.md`](../audits/FULL_REPO_ASSESSMENT_2026-06-29.md).
+> - **§7 "stale re-audit" / "DROP already-closed" trackers** were not new homes: CLIENT-DECIMAL-FIX / CACHING-STUDY / DOCS-RELEVANCE-AUDIT / STORAGE-PROVIDERS-DI live in the engram standing backlog; the DROP items (Item C, pgvector drift, "zero required checks") were already closed.
+>
+> **§8 resolution:** the "finish the paused assessment" work §8 describes is **DONE** — the
+> adversarial verification ran and its report exists as
+> [`../audits/FULL_REPO_ASSESSMENT_2026-06-29.md`](../audits/FULL_REPO_ASSESSMENT_2026-06-29.md)
+> (recovered onto `main` by #148). The never-written `FULL_REPO_ASSESSMENT_2026-06-12.md`
+> artifact that §8 item 5 planned stays **moot** — do not re-open it.
+>
+> Everything below is the **original inventory as of 2026-06-19**, kept verbatim for
+> provenance. Historical merge campaign 2026-07-19..21:
+> [`../reports/merge-campaign-2026-07-21.md`](../reports/merge-campaign-2026-07-21.md).
 
 ## Intro
 

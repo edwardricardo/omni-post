@@ -144,5 +144,6 @@ drifted lockfile becomes a hard failure, not a silent re-resolve).
 - Plan: `~/.claude/plans/revalidation-dep-baseline.md`
 - Inventory + design: workflow `wf_69bb9921`
 - Drift-hydra incident: engram obs 151 (PR #91)
-- Consolidated inventory: `docs/product/PENDING_WORK_INVENTORY.md`
+- Audited audit-ignores + build-tool version holds: `docs/security/SECURITY_CANON.md §Audited audit-ignores`
+- Consolidated inventory (frozen 2026-07-21): `docs/archive/PENDING_WORK_INVENTORY.md`
 - Config-location reversal (pnpm 11): `docs/technical/ADR-0019-pnpm-11-migration.md`
