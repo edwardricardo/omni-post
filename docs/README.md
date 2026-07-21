@@ -56,7 +56,7 @@
 
 | Document                                 | Description                      |
 | ---------------------------------------- | -------------------------------- |
-| [Admin Dashboard](admin/dashboard.md)    | Admin app overview               |
+| [Admin Portal](frontend/admin-portal.md) | Admin app overview               |
 | [Admin Auth](admin/AUTH.md)              | Server Actions, httpOnly cookies |
 | [Admin E2E Tests](admin/e2e/README.md)   | Playwright test suite            |
 | [Client App](client/react-19.md)         | React 19 concurrent features     |
@@ -82,14 +82,16 @@
 
 ### Reports (Historical)
 
-| Directory                       | Content                                  |
-| ------------------------------- | ---------------------------------------- |
-| [Audits](reports/audits/)       | Deep audits, remediation reports         |
-| Sessions                        | Development session reports              |
-| [Mutations](reports/mutations/) | Stryker mutation testing reports         |
-| [Updates](reports/updates/)     | Dependency update session reports        |
-| [Testing](reports/testing/)     | Testing audit and infrastructure reports |
-| [Planning](reports/planning/)   | Master plan, sprint backlogs             |
+| Directory / file                                               | Content                                    |
+| -------------------------------------------------------------- | ------------------------------------------ |
+| [Testing](reports/testing/)                                    | Testing audit and infrastructure reports   |
+| [Smells backlog](reports/roadmap-detected-smells-backlog.md)   | Live backlog of detected smells (SMELL-NN) |
+| [Merge campaign 2026-07](reports/merge-campaign-2026-07-21.md) | Single-main merge-campaign report          |
+| [Code duplications](reports/code-duplications.md)              | Duplication registry                       |
+
+> The former `reports/{audits,mutations,updates,planning}` snapshots were
+> adjudicated by the Pre-Fase cleanup (see `MASTER_PLAN_ES.md §P`) — deleted or
+> archived under `docs/archive/`.
 
 ## Technology Stack
 

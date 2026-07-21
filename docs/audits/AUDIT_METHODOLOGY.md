@@ -7,7 +7,7 @@ auditor: claude-code
 
 # Full-repo audit methodology
 
-> Documento metodológico de la auditoría F5 (full-repo) ejecutada en sesión del 2026-05-10/11. Captura **cómo se hizo** la auditoría — no los resultados, no las decisiones, no el plan de acción. Para resultados: [INVENTORY_SUMMARY.md](INVENTORY_SUMMARY.md). Para hallazgos item-por-item: [\_AUDIT_FINDINGS.md](_AUDIT_FINDINGS.md).
+> Documento metodológico **reutilizable** de auditoría full-repo (plantilla + 6 reglas de veredicto + workflow A-E). Captura **cómo se hace** una auditoría — no los resultados. (Los outputs de la corrida F5 de 2026-05-11 — INVENTORY_SUMMARY, \_AUDIT_FINDINGS, inventory-\* — fueron retirados tras absorción en `docs/product/MASTER_PLAN_ES.md`; este doc queda como la metodología para re-auditar.)
 >
 > Este documento debe permitir a un auditor futuro (humano o agente) repetir el ejercicio sobre una versión posterior del repo y obtener resultados comparables.
 

@@ -1,8 +1,8 @@
 # Application Services Migration Roadmap — `@layer application` fuera de `apps/api/src/application` → `@core`
 
 > **Qué es esto:** la guía **trackeable** para la **frontera siguiente** tras cerrar el @core migration
-> ([CORE_MIGRATION_ROADMAP_ES.md](./CORE_MIGRATION_ROADMAP_ES.md) — dominio, DONE; y
-> [APPLICATION_MIGRATION_ROADMAP_ES.md](./APPLICATION_MIGRATION_ROADMAP_ES.md) — `apps/api/src/application/**`, DONE).
+> (`CORE_MIGRATION_ROADMAP_ES.md` — dominio, DONE; y
+> `APPLICATION_MIGRATION_ROADMAP_ES.md` — `apps/api/src/application/**`, DONE; ambos roadmaps cerrados se **eliminaron** en la limpieza de la Pre-Fase).
 > Aquellos roadmaps tenían **scope de directorio**: migraron lo que vivía físicamente en `apps/api/src/application/**`
 > y `apps/api/src/domain/**`. Pero quedaron **25 archivos `@layer application`** repartidos en **dirs de feature**
 > (`billing/`, `saga/`, `cqrs/`, `auth/`, `compliance/`, `ai/`, `settings/`, `security/`, `webhooks/`) que **nunca
