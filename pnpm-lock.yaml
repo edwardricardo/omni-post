@@ -154,8 +154,8 @@ catalogs:
       specifier: 29.1.1
       version: 29.1.1
     lucide-react:
-      specifier: 0.544.0
-      version: 0.544.0
+      specifier: 1.7.0
+      version: 1.7.0
     msw:
       specifier: 2.14.6
       version: 2.14.6
@@ -473,7 +473,7 @@ importers:
         version: 1.7.0(next@16.2.9(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))
       lucide-react:
         specifier: 'catalog:'
-        version: 0.544.0(react@19.2.7)
+        version: 1.7.0(react@19.2.7)
       next:
         specifier: 'catalog:'
         version: 16.2.9(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -1072,7 +1072,7 @@ importers:
         version: 7.0.0
       lucide-react:
         specifier: 'catalog:'
-        version: 0.544.0(react@19.2.7)
+        version: 1.7.0(react@19.2.7)
       next:
         specifier: 'catalog:'
         version: 16.2.9(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -3726,7 +3726,7 @@ importers:
         version: 4.1.0
       lucide-react:
         specifier: 'catalog:'
-        version: 0.544.0(react@19.2.7)
+        version: 1.7.0(react@19.2.7)
       radix-ui:
         specifier: 1.4.3
         version: 1.4.3(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -13372,8 +13372,8 @@ packages:
     resolution: {integrity: sha512-DqC6n3QQ77zdFpCMASA1a3Jlb64Hv2N2DciFGkO/4L9+q/IpIAuRlKOvCXabtRW6cQf8usbmM6BE/TOPysCdIA==}
     engines: {bun: '>=1.0.0', deno: '>=1.30.0', node: '>=8.0.0'}
 
-  lucide-react@0.544.0:
-    resolution: {integrity: sha512-t5tS44bqd825zAW45UQxpG2CvcC4urOwn2TrwSH8u+MjeE+1NnWl6QqeQ/6NdjMqdOygyiT9p3Ev0p1NJykxjw==}
+  lucide-react@1.7.0:
+    resolution: {integrity: sha512-yI7BeItCLZJTXikmK4KNUGCKoGzSvbKlfCvw44bU4fXAL6v3gYS4uHD1jzsLkfwODYwI6Drw5Tu9Z5ulDe0TSg==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
@@ -28262,7 +28262,7 @@ snapshots:
 
   lru.min@1.1.4: {}
 
-  lucide-react@0.544.0(react@19.2.7):
+  lucide-react@1.7.0(react@19.2.7):
     dependencies:
       react: 19.2.7
 
