@@ -141,6 +141,9 @@ const serverSchema = {
   S3_REGION: z.string().optional(),
   S3_ACCESS_KEY_ID: z.string().optional(),
   S3_SECRET_ACCESS_KEY: z.string().optional(),
+  // Custom S3 endpoint for S3-compatible backends (MinIO, LocalStack).
+  // When set, the adapter switches to path-style addressing. Omit for AWS S3.
+  S3_ENDPOINT: z.string().optional(),
   DO_SPACES_BUCKET: z.string().optional(),
   DO_SPACES_REGION: z.string().optional(),
   DO_SPACES_KEY: z.string().optional(),

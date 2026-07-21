@@ -1,8 +1,10 @@
 /**
  * @file createStorageAdapter.ts
  * @description Factory that selects storage adapter based on STORAGE_PROVIDER env var.
- *              Defaults to S3. DO Spaces reuses S3 adapter with custom endpoint.
- *              Azure and GCS adapters exist as separate packages.
+ *              Defaults to S3. DO Spaces reuses the S3 adapter with a custom
+ *              endpoint; the S3 path honours S3_ENDPOINT for S3-compatible
+ *              backends (MinIO, LocalStack). Azure and GCS adapters exist as
+ *              separate packages.
  * @layer infrastructure
  */
 
@@ -39,6 +41,9 @@ export function createStorageAdapter(): StoragePort {
         region: env.S3_REGION ?? "us-east-1",
         accessKeyId: env.S3_ACCESS_KEY_ID ?? "",
         secretAccessKey: env.S3_SECRET_ACCESS_KEY ?? "",
+        // Presence of an endpoint switches the adapter to path-style
+        // addressing, required by S3-compatible backends (MinIO).
+        ...(env.S3_ENDPOINT ? { endpoint: env.S3_ENDPOINT } : {}),
       });
   }
 }

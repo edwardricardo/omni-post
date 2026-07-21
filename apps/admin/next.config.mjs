@@ -35,5 +35,5 @@ const config = withNextIntl(nextConfig);
 
 export default withSentryConfig(config, {
   silent: true,
-  disableLogger: true,
+  webpack: { treeshake: { removeDebugLogging: true } },
 });
