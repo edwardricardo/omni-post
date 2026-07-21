@@ -6,15 +6,23 @@
  * @description Tests for RealtimeWebhookBroadcaster - Event Broadcasting
  * @layer infrastructure
  */
-import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";
+import { describe, it, beforeAll, afterAll, beforeEach, expect, vi } from "vitest";
 import { type WebhookEventBroadcast } from "../../src/webhooks/realtimeWebhookBroadcaster.js";
 import type { Provider, WebhookEventType } from "@infra/prisma";
+import { duplicateForSubscriber } from "../../src/lib/redis.js";
 import {
   MockWebSocket,
   state,
   setupBroadcaster,
   teardownBroadcaster,
 } from "./realtimeWebhookBroadcaster.test-helpers.js";
+
+// The broadcaster's Redis subscriber is built by the canonical
+// duplicateForSubscriber helper. Stub it to the parent's `.duplicate()` so the
+// MockRedis message-forwarding wiring is preserved and no real socket is opened.
+vi.mock("../../src/lib/redis.js", () => ({
+  duplicateForSubscriber: vi.fn((parent: { duplicate: () => unknown }) => parent.duplicate()),
+}));
 
 describe("RealtimeWebhookBroadcaster - Event Broadcasting", () => {
   beforeAll(async () => {
@@ -258,5 +266,11 @@ describe("RealtimeWebhookBroadcaster - Event Broadcasting", () => {
     const publishCount = state.mockRedis!.getPublishedCount("webhook_events");
     expect(publishCount).toBe(1);
     expect(state.mockRedis!.publishedMessages[0].channel).toBe("webhook_events");
+  });
+
+  it("builds its Redis subscriber via the canonical duplicateForSubscriber helper", () => {
+    // setupBroadcaster() (beforeAll/beforeEach) constructs the broadcaster, whose
+    // constructor calls setupRedisSubscription() → duplicateForSubscriber(redis).
+    expect(duplicateForSubscriber).toHaveBeenCalledWith(state.mockRedis);
   });
 });

@@ -8,6 +8,7 @@
 
 import type { Redis } from "ioredis";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+import { duplicateForSubscriber } from "../lib/redis.js";
 
 const REDIS_CHANNEL_PREFIX = "notifications:";
 const HEARTBEAT_INTERVAL_MS = 30_000;
@@ -52,10 +53,10 @@ export class NotificationBroadcaster {
 
   constructor(redis: Redis, scheduler: BackgroundTaskScheduler) {
     this.publisher = redis;
-    // Override commandTimeout: subscribe() blocks indefinitely waiting for
-    // messages, so any commandTimeout inherited from the parent connection
-    // surfaces as spurious "Command timed out" errors.
-    this.subscriber = redis.duplicate({ commandTimeout: 0 });
+    // Subscribe-mode connection via the canonical helper: it omits commandTimeout
+    // entirely so a blocking psubscribe never arms a spurious "Command timed out"
+    // timer (see duplicateForSubscriber in lib/redis.ts).
+    this.subscriber = duplicateForSubscriber(redis);
     this.subscriber.on("error", () => {});
     this.scheduler = scheduler;
   }

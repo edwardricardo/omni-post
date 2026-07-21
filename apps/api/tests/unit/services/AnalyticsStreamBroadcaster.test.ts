@@ -11,6 +11,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AnalyticsStreamBroadcaster } from "../../../src/services/AnalyticsStreamBroadcaster.js";
 import type { AnalyticsStreamEventPayload } from "../../../src/services/AnalyticsStreamBroadcaster.js";
+import { duplicateForSubscriber } from "../../../src/lib/redis.js";
+
+// The subscriber connection is built by the canonical duplicateForSubscriber
+// helper (which does `new Redis(...)` off the parent's resolved options). Stub
+// it to the parent's own `.duplicate()` so these hermetic unit tests keep their
+// in-memory message wiring and never open a real socket.
+vi.mock("../../../src/lib/redis.js", () => ({
+  duplicateForSubscriber: vi.fn((parent: { duplicate: () => unknown }) => parent.duplicate()),
+}));
 
 interface StubRedis {
   duplicate: ReturnType<typeof vi.fn>;
@@ -142,5 +151,11 @@ describe("AnalyticsStreamBroadcaster", () => {
     await b.broadcast(makeEvent("post-9"), "post-9");
     expect(redis.publish).toHaveBeenCalledTimes(1);
     expect(redis.publish.mock.calls[0]?.[0]).toBe("analytics-stream:post-9");
+  });
+
+  it("builds its subscriber connection via the canonical duplicateForSubscriber helper", () => {
+    const redis = makeRedis();
+    new AnalyticsStreamBroadcaster(redis as never, makeScheduler() as never);
+    expect(duplicateForSubscriber).toHaveBeenCalledWith(redis);
   });
 });

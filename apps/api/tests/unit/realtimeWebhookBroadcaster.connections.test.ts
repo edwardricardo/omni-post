@@ -3,13 +3,20 @@
  * @description Tests for RealtimeWebhookBroadcaster - Connection Management
  * @layer infrastructure
  */
-import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";
+import { describe, it, beforeAll, afterAll, beforeEach, expect, vi } from "vitest";
 import {
   MockWebSocket,
   state,
   setupBroadcaster,
   teardownBroadcaster,
 } from "./realtimeWebhookBroadcaster.test-helpers.js";
+
+// The broadcaster's Redis subscriber is built by the canonical
+// duplicateForSubscriber helper. Stub it to the parent's `.duplicate()` so the
+// MockRedis wiring is preserved and no real socket is opened.
+vi.mock("../../src/lib/redis.js", () => ({
+  duplicateForSubscriber: vi.fn((parent: { duplicate: () => unknown }) => parent.duplicate()),
+}));
 
 describe("RealtimeWebhookBroadcaster - Connection Management", () => {
   beforeAll(async () => {
