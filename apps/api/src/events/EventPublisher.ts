@@ -15,6 +15,7 @@ import {
   deserializeEvent,
 } from "@shared/types/events.js";
 import { logger } from "../lib/logger.js";
+import { duplicateForSubscriber } from "../lib/redis.js";
 
 interface PublisherConfig {
   redis: Redis;
@@ -61,10 +62,11 @@ export class RedisEventPublisher implements IEventPublisher {
   constructor(config: PublisherConfig) {
     this.redis = config.redis;
     this.scheduler = config.scheduler;
-    // Override commandTimeout: subscribe() blocks indefinitely waiting for
-    // messages, so any commandTimeout inherited from the parent connection
-    // surfaces as spurious "Command timed out" errors.
-    this.subscriberRedis = config.subscriberRedis || config.redis.duplicate({ commandTimeout: 0 });
+    // Subscribe-mode connection: built via the canonical helper, which omits
+    // commandTimeout entirely so a blocking SUBSCRIBE never arms a spurious
+    // "Command timed out" timer (see duplicateForSubscriber in lib/redis.ts).
+    // An explicitly injected subscriberRedis still wins for test/DI seams.
+    this.subscriberRedis = config.subscriberRedis || duplicateForSubscriber(config.redis);
     this.deadLetterQueue = config.deadLetterQueue || "events:dead-letter";
     this.maxRetries = config.maxRetries || 3;
     this.retryDelay = config.retryDelay || 5000; // 5 seconds

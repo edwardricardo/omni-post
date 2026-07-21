@@ -64,3 +64,30 @@ export function createRedisConnection(
     ...(isBullMQWorker ? { keepAlive: 30_000 } : { commandTimeout: 5_000 }),
   });
 }
+
+/**
+ * Duplicate a Redis connection for subscribe-mode (pub/sub) use.
+ *
+ * A subscribe-mode connection blocks indefinitely waiting for messages, so it
+ * must carry NO command timeout at all. `parent.duplicate({ commandTimeout: 0 })`
+ * is the WRONG way to express that: `0` is not a "disabled" sentinel — ioredis
+ * guards on `typeof options.commandTimeout === "number"`, so a `0` (a number)
+ * arms a real 0 ms timer that fires the instant SUBSCRIBE/PSUBSCRIBE is issued
+ * and surfaces as a spurious "Command timed out" error. ioredis >=5.11 makes
+ * this a hard failure (previously it was tolerated background noise against a
+ * remote Redis — homelab finding F-1). An assigned `undefined` is equally wrong
+ * under `exactOptionalPropertyTypes`.
+ *
+ * The ONLY correct disable is to OMIT the key entirely. We therefore destructure
+ * `commandTimeout` OUT of the parent's resolved options and rebuild the
+ * connection from the remainder — mirroring `Redis.duplicate()` (which does
+ * `new Redis({ ...this.options })`) so host/port/db/auth/tls/lazyConnect all
+ * carry over unchanged, minus the timeout.
+ *
+ * @param parent - The source connection whose resolved options are cloned.
+ * @returns A new, distinct Redis connection with no `commandTimeout` set.
+ */
+export function duplicateForSubscriber(parent: Redis): Redis {
+  const { commandTimeout: _commandTimeout, ...rest } = parent.options;
+  return new Redis(rest);
+}

@@ -9,6 +9,7 @@ import { Redis } from "ioredis";
 import type { PrismaClient, Provider, WebhookEventType } from "@infra/prisma";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 import { webhookLogger } from "../lib/logger.js";
+import { duplicateForSubscriber } from "../lib/redis.js";
 
 export interface WebhookEventBroadcast {
   eventId: string;
@@ -609,10 +610,10 @@ export class RealtimeWebhookBroadcaster {
    * Set up Redis subscription for cross-server communication
    */
   private setupRedisSubscription(): void {
-    // Override commandTimeout: subscribe() blocks indefinitely waiting for
-    // messages, so any commandTimeout inherited from the parent connection
-    // surfaces as spurious "Command timed out" errors.
-    const subscriber = this.redis.duplicate({ commandTimeout: 0 });
+    // Subscribe-mode connection via the canonical helper: it omits commandTimeout
+    // entirely so a blocking subscribe never arms a spurious "Command timed out"
+    // timer (see duplicateForSubscriber in lib/redis.ts).
+    const subscriber = duplicateForSubscriber(this.redis);
 
     subscriber.subscribe("webhook_events", (err) => {
       if (err) {

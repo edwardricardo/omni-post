@@ -7,7 +7,7 @@
  * @layer infrastructure
  */
 
-import { describe, it, afterEach, beforeEach, expect } from "vitest";
+import { describe, it, afterEach, beforeEach, expect, vi } from "vitest";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import {
   EventStoreEvent,
@@ -15,6 +15,14 @@ import {
   createEventStoreEvent,
   EVENT_TYPES,
 } from "@shared/types/events.js";
+import { duplicateForSubscriber } from "../../src/lib/redis.js";
+
+// The subscriber connection is built by the canonical duplicateForSubscriber
+// helper. Stub it to the parent's own `.duplicate()` so these hermetic unit
+// tests keep the MockRedis and never open a real socket.
+vi.mock("../../src/lib/redis.js", () => ({
+  duplicateForSubscriber: vi.fn((parent: { duplicate: () => unknown }) => parent.duplicate()),
+}));
 
 const scheduler = new NoopBackgroundTaskScheduler();
 
@@ -651,5 +659,35 @@ describe("EventPublisher - Shutdown", () => {
     await publisher.shutdown();
     // After shutdown, Redis connections are disconnected
     // Verify the shutdown itself completed without error
+  });
+});
+
+describe("EventPublisher - Subscriber Connection", () => {
+  let mockRedis: MockRedis;
+
+  beforeEach(() => {
+    vi.mocked(duplicateForSubscriber).mockClear();
+    mockRedis = new MockRedis();
+  });
+
+  it("builds its subscriber via the canonical duplicateForSubscriber helper", async () => {
+    const publisher = new RedisEventPublisher({ redis: mockRedis as never, scheduler });
+
+    expect(duplicateForSubscriber).toHaveBeenCalledWith(mockRedis);
+
+    await publisher.shutdown();
+  });
+
+  it("uses an explicitly injected subscriberRedis without calling the helper", async () => {
+    const injected = new MockRedis();
+    const publisher = new RedisEventPublisher({
+      redis: mockRedis as never,
+      scheduler,
+      subscriberRedis: injected as never,
+    });
+
+    expect(duplicateForSubscriber).not.toHaveBeenCalled();
+
+    await publisher.shutdown();
   });
 });

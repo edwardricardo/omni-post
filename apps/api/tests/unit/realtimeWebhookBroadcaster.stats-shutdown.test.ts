@@ -6,7 +6,7 @@
  * @description Tests for RealtimeWebhookBroadcaster - Broadcast Filtering Logic
  * @layer infrastructure
  */
-import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";
+import { describe, it, beforeAll, afterAll, beforeEach, expect, vi } from "vitest";
 import { type WebhookEventBroadcast } from "../../src/webhooks/realtimeWebhookBroadcaster.js";
 import type { Provider, WebhookEventType } from "@infra/prisma";
 import {
@@ -15,6 +15,13 @@ import {
   setupBroadcaster,
   teardownBroadcaster,
 } from "./realtimeWebhookBroadcaster.test-helpers.js";
+
+// The broadcaster's Redis subscriber is built by the canonical
+// duplicateForSubscriber helper. Stub it to the parent's `.duplicate()` so the
+// MockRedis wiring is preserved and no real socket is opened.
+vi.mock("../../src/lib/redis.js", () => ({
+  duplicateForSubscriber: vi.fn((parent: { duplicate: () => unknown }) => parent.duplicate()),
+}));
 
 describe("RealtimeWebhookBroadcaster - Broadcast Filtering Logic", () => {
   beforeAll(async () => {
