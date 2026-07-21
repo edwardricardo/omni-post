@@ -3,6 +3,15 @@
 > **Status:** Living document. THE base reference for ongoing work.
 > **Last consolidated:** 2026-06-19.
 > **Owner:** Platform engineering.
+>
+> **⚠️ Successor note (2026-07-21):** the actionable planning spine is now
+> [`MASTER_PLAN_ES.md`](MASTER_PLAN_ES.md) (consolidated 2026-06-29, which asserts this
+> inventory was retired that day — but it is still referenced and kept as the detailed
+> §2-§7 companion; treat MASTER_PLAN's Nivelación dashboard as newer where they diverge).
+> **Merge campaign 2026-07-19..21** landed several §2 items on `main`: AUTH-REGISTER-PRIVESC
+> (§2C, PR #126), the MFA cluster behind SMELL-37 (§3B, PRs #129-133), and the circuit-breaker
+> cross-tenant cache fix (tracked as N-SEC-1 in MASTER_PLAN §1, PR #124). Full campaign +
+> dependency batch: [`../reports/merge-campaign-2026-07-21.md`](../reports/merge-campaign-2026-07-21.md).
 
 ## Intro
 
@@ -181,6 +190,14 @@ reviews inbox, per-client dashboards).
 
 > **Blocks:** the core publishing product (Nivel-6 mandatory feature). OAUTH-REFRESH
 > additionally blocks F1-API-4 (Canva OAuth).
+>
+> **⚠️ Scope note (2026-07-21):** §2F is NOT three single-post patches — it is a
+> ~7-slice × 11-provider sub-workstream (engram `2f-write-path-real-scope`). A **v1
+> write-path fix exists but is DO-NOT-SHIP** (classifier-starvation: `statusCode`-vs-`status`
+> means expired tokens never flag reauth on 4 providers); that v1 reference is **preserved on
+> the kept branch `cluster-b-mfa`**, NOT on `main`. The redesign stays **P1 pending** — the
+> canonical items below (WRK-DOUBLE-POST, OAUTH-REFRESH-UNWIRED, WRK-NO-REAUTH, …) are the
+> Nivelación N-COR/N-SEC targets, tracked in `MASTER_PLAN_ES.md §1.B`.
 
 - **WRK-DOUBLE-POST** — crash between provider-OK and OK-log re-posts the tweet (idempotency gap). **Provenance:** WF2 `wrk-publish-double-post-02` (`known_smell`). **Confidence:** `UNVERIFIED-prelim`.
 - **OAUTH-REFRESH-UNWIRED** — no OAuth token refresh in publish flow; `OAuthTokenRefresher` unwired; double-refresh race. **Blocks F1-API-4 (Canva OAuth) confidence.** **Provenance:** WF2 `oauth-refresh-01` (ALTA) + MEDIA. **Confidence:** `UNVERIFIED-prelim`.
@@ -249,7 +266,7 @@ reviews inbox, per-client dashboards).
 - **EVENT-DUAL-SYSTEM** — CQRS integration events published outside the UoW tx; parallel `EventService`/Redis pub-sub vs outbox `EventDispatcher`. The integration-events pipeline is dead in prod. Classify canonical-separation vs drift. = SMELL-10 + WF2 MEDIA + WF2 `api-dead-01`. P1.
 - **PROVIDER-CAPS-DRIFT** — `ProviderCapabilities` shape duplicated in 4 drifted places (`mentions` flag only on port+adapters); plus `ProviderId` declared in 3 places (`"twitter"` vs `"x"`). Unify to single source. = SMELL-23 + F5 FN-042. P1.
 - **ROI-CALC-DUP** — 3 ROI calc sites → delete legacy. = F5 FN-043 (+ SMELL). P2.
-- **SMELL-37 AdminAuthService Control Freak** — PARTIAL (BruteForce injected via ADR-0015); still 3 inline collaborators (`PasswordService`, `SessionManager`, `MfaService`) + off-spine audit write (`this.prisma.auditLog.create`). P1.
+- **SMELL-37 AdminAuthService Control Freak** — PARTIAL (BruteForce injected via ADR-0015); the `MfaService` collaborator was **extracted behind `MfaUserRepositoryPort` + DI** by the MFA consolidation (N-SEC-5, PRs #129-133, 2026-07-19..21) — still 2 inline collaborators (`PasswordService`, `SessionManager`) + off-spine audit write (`this.prisma.auditLog.create`). P1.
 - **SMELL-47** — 14 sites bypass `AuditLogRepository` port (write/read `prisma.auditLog` directly) across 9 files. **DI hygiene, NOT security** (AuditLog is outside RLS by canon). P1.
 - **SMELL-44** — `ChannelAuthFailureRecorder` (workers) overlaps `UpdateChannelAuthStateUseCase` (@core); needs a canonical `ChannelAuthFailed` domain event first. P2. (Related: WRK-NO-REAUTH §2F.)
 - **SMELL-28** — `Account.subscription` column dropped but 2 prod sites still reference it (`updateSubscription` THROWS at runtime; `AccountDto.subscription` always undefined). **Runtime bug.** P1.
@@ -325,7 +342,7 @@ reviews inbox, per-client dashboards).
 
 ### 4A. Backend ready, UI/wiring absent — P1/P2
 
-- **WEBHOOK-INGEST** — 11/13 files form a complete HMAC-verifying inbound pipeline (≈600 tests), no construction site, no inbound route, SSE broadcaster `undefined`. **[security-adjacent]** Close via workstream WEBHOOK-INGEST. = SMELL-38 + WF2 `api-dead-01`. P1. **Maps to inbox/reviews product surface (Fase 2).**
+- **WEBHOOK-INGEST** — 11/13 files form a complete HMAC-verifying inbound pipeline (≈600 tests), no construction site, no inbound route, SSE broadcaster `undefined`. **[security-adjacent]** Close via workstream WEBHOOK-INGEST. = SMELL-38 + WF2 `api-dead-01`. P1. **Maps to inbox/reviews product surface (Fase 2).** **Blueprint preserved on the kept branch `webhook-wiring`** (merge campaign 2026-07-21); the inbound pipeline remains **deliberately unwired on `main`** until the workstream lands.
 - **FN-024 Scheduled Reports cron** — service+use-case exist, no scheduler trigger. WIRE-BACKEND (~2-4h, unblocked now FN-015 resolved). P1. (Related orphan queue: FN-021.)
 - **SMELL-3 Repurpose variant approve/reject** — use-cases in DI, no route consumes them, UI removed. Needs API + UI. P1. **Maps to Fase 0 repurpose track gap.**
 - **SMELL-13/14 Inbox quality** — no `priority` filter (the principal triage output, needs `priority?` through `GetInboxQuery`+repo) + no `isOurReply`/`direction` flag (`MessageBubble` renders all as inbound). P1. **Maps to inbox product quality (Fase 1-3).**
@@ -416,7 +433,7 @@ reviews inbox, per-client dashboards).
 - **ESBUILD-OVERRIDE** — `esbuild:0.28.1` override (`pnpm-workspace.yaml` `overrides`; relocated from root `package.json` per ADR-0019). **Remove-when:** vite's bundled esbuild peer allows `>=0.28.1` AND the 2 JSX frontends move off vite 7.3.5. Still blocked 2026-06-23: vite held at 7.3.5 for the JSX frontends (vite 8 rolldown breaks JSX in vitest SSR — vitejs/vite#21505), so the esbuild pin stays. `verified`.
 - **SHELL-QUOTE-OVERRIDE** — `shell-quote:1.8.4` override (CVE pin, transitive). **Remove-when:** every consumer pulling `shell-quote` declares a range that already resolves `>=1.8.4` on its own (i.e. the override becomes a no-op de-dup) — verify empirically by removing it, `pnpm install`, `pnpm audit`; if no advisory surfaces it was de-dup-only and can be dropped. Kept 2026-06-23 (CVE floor still load-bearing). `verified`.
 - **VITE-HELD-7.3.5** — `vite:7.3.5` override held below latest (8.x). **Remove-when:** vite 8's rolldown parser handles JSX in vitest's SSR transform (tracking vitejs/vite#21505) OR the frontend test stack migrates such that the JSX-in-SSR path is no longer exercised. The ~83 plain-TS backend packages already auto-install vite 8 fine; only the 2 JSX frontends (admin+client) and the `catalog` block force-hold 7.3.5. New 2026-06-23. `verified`.
-- **ESLINT-HELD-9.36.0** — `eslint:9.36.0` (root literal, NOT cataloged) held below eslint 10. **Remove-when:** `eslint-plugin-react` + `eslint-plugin-jsx-a11y` publish an eslint-10 peer range (both currently declare no eslint-10 peer). Bumping eslint to 10 ahead of the plugins crashes `pnpm lint`. New 2026-06-23. `verified`.
+- **ESLINT-HELD-9.36.0** — `eslint:9.36.0` (root literal, NOT cataloged) held below eslint 10. **Remove-when:** `eslint-plugin-react` + `eslint-plugin-jsx-a11y` publish an eslint-10 peer range (both currently declare no eslint-10 peer). Bumping eslint to 10 ahead of the plugins crashes `pnpm lint`. New 2026-06-23. **Re-confirmed 2026-07-21 (PR #138):** the code-quality catalog slice bumped ts-eslint 8.65 + prettier 3.9.5 but **held eslint at 9** for exactly this reason; the boundaries v6→v7 config migration this unblocks is tracked as **SMELL-66**. `verified`.
 - **MINIMATCH+BRACE-EXPANSION-NOT-FORCE-PINNED** — deliberately NOT force-pinned to their latest majors (minimatch 10 / brace-expansion 5). **Reason (drift-hydra, ADR-0018):** those majors dropped the callable-default export that the eslint toolchain (`eslint-plugin-jsx-a11y@6.10.2`, `eslint-plugin-react@7.37.5`, both declaring `minimatch ^3.1.2`) still uses; forcing the major crashed `pnpm lint` while build/test/typecheck passed. Left consumer-governed (multiple versions coexist). **Re-pin-when:** a real CVE floor surfaces under a consumer's range (`pnpm audit`), then pin to the minimal patched version, never the latest major. New 2026-06-23. `verified`.
 - **STORYBOOK-HELD-10.4.6** — Storybook kept at 10.4.6 paired with vite 7. **Remove-when:** Storybook's vite plugin (`@storybook/csf-plugin`) accepts vite 8 AND vite is unheld (see VITE-HELD-7.3.5). New 2026-06-23. `verified`.
 
