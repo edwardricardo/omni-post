@@ -178,7 +178,7 @@ ADR-0018 (dependency-freshness canon) and its dep-baseline change explicitly
 scoped the audit config **out**: it recorded that keeping
 `pnpm.auditConfig.ignoreGhsas` (and the security overrides) in the root
 `package.json` was correct and that **"moving `auditConfig` to YAML is OUT OF
-SCOPE per the change"** (`docs/product/PENDING_WORK_INVENTORY.md §7`). **This ADR
+SCOPE per the change"** (`docs/security/SECURITY_CANON.md §Audited audit-ignores`). **This ADR
 reverses that specific clause.** pnpm 11 makes the `package.json` home
 non-functional, so the relocation is now mandatory, not optional. Everything
 else in ADR-0018 stands unchanged — the single-version invariant, the exact-pin
@@ -261,7 +261,7 @@ ledger is untouched; only its **file location** moved from
 - Root-cause-over-workaround (vite 7/8 collapse via missing `@vitejs/plugin-react`) — engram obs 313
 - vite 8 rolldown JSX-in-SSR tracking — vitejs/vite#21505
 - Audited audit-ignores ledger — `docs/security/SECURITY_CANON.md §Audited audit-ignores`
-- Standing backlog / config-location notes — `docs/product/PENDING_WORK_INVENTORY.md §7`
+- Standing backlog / config-location notes (build-tool version holds) — `docs/security/SECURITY_CANON.md §Audited audit-ignores`; original inventory frozen at `docs/archive/PENDING_WORK_INVENTORY.md`
 - SMELL-52 (GVS/`turbopack.root` sub-item, closed by this ADR) —
   `docs/reports/roadmap-detected-smells-backlog.md`
 - Production build model + `turbopack.root` history —

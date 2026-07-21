@@ -16,7 +16,7 @@
 > item against the CURRENT bar before re-marking `[x]`**:
 >
 > 1. **0-defect** — lint (`--max-warnings 0`) · tsc · the 24 fitness functions · tests, all green.
-> 2. **Security** — the paused assessment's findings for the item's area (`docs/product/PENDING_WORK_INVENTORY.md` §2).
+> 2. **Security** — the verified security cluster for the item's area, now tracked in [`MASTER_PLAN_ES.md`](MASTER_PLAN_ES.md) §1 (Fase N · Nivelación), evidence-based on `docs/audits/FULL_REPO_ASSESSMENT_2026-06-29.md` §2 (which verified the former inventory §2 leads).
 > 3. **Dependency-freshness gate** (ADR-0018) — every shared dep asserted equal to its catalog pin (latest stable, exact, single version); private deps freshened + `pnpm install --frozen-lockfile` + `syncpack lint` green.
 >
 > This plan is THE center; the consolidated inventory + all technical/security debt

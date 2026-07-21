@@ -1,6 +1,6 @@
 # OmniPost — Valoración Completa del Repositorio (2026-06-29)
 
-> **Estado:** informe de auditoría read-only. Junto con `docs/product/IMPLEMENTATION_PLAN_ES.md` y `docs/product/PENDING_WORK_INVENTORY.md`, es fuente de verdad para continuar el desarrollo.
+> **Estado:** informe de auditoría read-only. Es la **base de evidencia** del spine accionable `docs/product/MASTER_PLAN_ES.md` (que consolidó y reemplazó `IMPLEMENTATION_PLAN_ES.md`, retirado 2026-06-29, y `PENDING_WORK_INVENTORY.md`, congelado 2026-07-21 en `docs/archive/PENDING_WORK_INVENTORY.md`). Las referencias `§N` de más abajo a `PENDING_WORK_INVENTORY` son al inventario ya congelado.
 > **Alcance temporal:** HEAD `workstream/impl-revalidation @ 07c1faa5` (2026-06-29).
 > **Owner:** Platform engineering.
 
