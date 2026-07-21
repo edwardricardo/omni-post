@@ -46,7 +46,7 @@ Cada tarea de producto (§2-§4) referencia su **canon de implementación 2026**
 
 ## §P — PRE-FASE · Adjudicación de veredictos (docs + engram)
 
-> **🔄 Mitad docs CERRADA (este slice) · mitad engram PENDIENTE.** Los veredictos de la valoración (WF1) se **adjudicaron 2026-06-29** (cada decisión ajustó el resto del plan; regla §0.3 respetada — ningún DELETE sin OK de Edward). Las **operaciones de docs** (ELIMINAR/ARCHIVAR/RECLASIFICAR + deleciones P.F) se escribieron en `workstream/cluster-b-mfa` (commits authored 2026-07-06/07: `76e92a9b` P.A · `0c5bc998` P.B · `cdfb0f78` P.C · `3d481563`/`e7b712f1` P.F) pero **NUNCA se mergearon a `main`** hasta el slice **docs-cleanup (PR #PENDIENTE)**, que las aterrizó vía cherry-pick (`3d481563` quedó vacío tras el pick — su contenido de MASTER_PLAN ya estaba en `main` por la sync de docs; el resto absorbido igual). La **mitad engram** (P.D 72 ARCHIVE + P.E 8/9 UPDATE) **no se ejecutó en ningún lado** — queda **PENDIENTE como tarea out-of-band** (engram es estado fuera del repo; este slice no lo toca). Las tablas P.A-P.E abajo son el **registro de adjudicación** (histórico).
+> **🔄 Mitad docs CERRADA (este slice) · mitad engram PENDIENTE.** Los veredictos de la valoración (WF1) se **adjudicaron 2026-06-29** (cada decisión ajustó el resto del plan; regla §0.3 respetada — ningún DELETE sin OK de Edward). Las **operaciones de docs** (ELIMINAR/ARCHIVAR/RECLASIFICAR + deleciones P.F) se escribieron en `workstream/cluster-b-mfa` (commits authored 2026-07-06/07: `76e92a9b` P.A · `0c5bc998` P.B · `cdfb0f78` P.C · `3d481563`/`e7b712f1` P.F) pero **NUNCA se mergearon a `main`** hasta el slice **docs-cleanup (PR #148)**, que las aterrizó vía cherry-pick (`3d481563` quedó vacío tras el pick — su contenido de MASTER_PLAN ya estaba en `main` por la sync de docs; el resto absorbido igual). La **mitad engram** (P.D 72 ARCHIVE + P.E 8/9 UPDATE) **no se ejecutó en ningún lado** — queda **PENDIENTE como tarea out-of-band** (engram es estado fuera del repo; este slice no lo toca). Las tablas P.A-P.E abajo son el **registro de adjudicación** (histórico).
 
 ### Dashboard Pre-Fase
 
@@ -287,17 +287,17 @@ Overrides con remove-when datados (esbuild, shell-quote, vite-7.3.5, eslint-9.36
 
 ## §6 — Dashboard de progreso unificado
 
-| Fase                            | Tareas            | Hechas | Estado | Nota                                                                                   |
-| ------------------------------- | ----------------- | ------ | ------ | -------------------------------------------------------------------------------------- |
-| **P — Pre-Fase adjudicación**   | 133               | ~59\*  | 🔄     | Mitad docs landed (slice docs-cleanup, PR #PENDIENTE); mitad engram pendiente — ver §P |
-| **N — Nivelación** (bloqueante) | 17                | 3      | 🔄     | N-SEC-1/1b·2·5 cerrados (campaña 07-19..21, PRs #124/#125/#129-133); ver §1            |
-| Fase 1 — Necesarias             | 4                 | 0      | ⬜     | 🔗 targeting redesign + OAuth-refresh                                                  |
-| Fase 2 — Bueno tenerla          | 21                | 0      | ⬜     | 🔗 N-SEC-3 (tenant guards)                                                             |
-| Fase 3 — Diferenciación         | 14                | 0      | ⬜     | Gated por Fase 1 (§8.5)                                                                |
-| Transversal/continuo            | ~40               | —      | 🔁     | Buckets B/C, background                                                                |
-| **Producto (base ya cerrada)**  | Bloque B + Fase 0 | ✅     | ✅     | B1-B5 + repurpose/triage/trends + multi-idioma + listening + bulk-parser               |
+| Fase                            | Tareas            | Hechas | Estado | Nota                                                                             |
+| ------------------------------- | ----------------- | ------ | ------ | -------------------------------------------------------------------------------- |
+| **P — Pre-Fase adjudicación**   | 133               | ~59\*  | 🔄     | Mitad docs landed (slice docs-cleanup, PR #148); mitad engram pendiente — ver §P |
+| **N — Nivelación** (bloqueante) | 17                | 3      | 🔄     | N-SEC-1/1b·2·5 cerrados (campaña 07-19..21, PRs #124/#125/#129-133); ver §1      |
+| Fase 1 — Necesarias             | 4                 | 0      | ⬜     | 🔗 targeting redesign + OAuth-refresh                                            |
+| Fase 2 — Bueno tenerla          | 21                | 0      | ⬜     | 🔗 N-SEC-3 (tenant guards)                                                       |
+| Fase 3 — Diferenciación         | 14                | 0      | ⬜     | Gated por Fase 1 (§8.5)                                                          |
+| Transversal/continuo            | ~40               | —      | 🔁     | Buckets B/C, background                                                          |
+| **Producto (base ya cerrada)**  | Bloque B + Fase 0 | ✅     | ✅     | B1-B5 + repurpose/triage/trends + multi-idioma + listening + bulk-parser         |
 
-> **\* Desglose de la fila P (post-slice docs-cleanup, PR #PENDIENTE):** ~59 operaciones de docs aterrizaron en `main` vía cherry-pick — **49 borrados** + **9 archivados** (4 guías cloud → `docs/archive/deployment/` + 5 diagramas del prototipo → `docs/archive/prototype-origin/`) + **1 reclasificado** (`security/README.md` → `SECURITY_TESTING_FRAMEWORK.md`), más 4 repunte-de-referencia. **Pendiente:** los **75 ACTUALIZAR** mecánicos (→ `DOCS-INDEX-REBUILD` §5.5) + la **mitad engram** (72 ARCHIVE + ~9 UPDATE, nunca ejecutada — tarea out-of-band, ver §P). El denominador 133 es el roll-up de adjudicación heredado (docs + engram).
+> **\* Desglose de la fila P (post-slice docs-cleanup, PR #148):** ~59 operaciones de docs aterrizaron en `main` vía cherry-pick — **49 borrados** + **9 archivados** (4 guías cloud → `docs/archive/deployment/` + 5 diagramas del prototipo → `docs/archive/prototype-origin/`) + **1 reclasificado** (`security/README.md` → `SECURITY_TESTING_FRAMEWORK.md`), más 4 repunte-de-referencia. **Pendiente:** los **75 ACTUALIZAR** mecánicos (→ `DOCS-INDEX-REBUILD` §5.5) + la **mitad engram** (72 ARCHIVE + ~9 UPDATE, nunca ejecutada — tarea out-of-band, ver §P). El denominador 133 es el roll-up de adjudicación heredado (docs + engram).
 >
 > **Progreso ground-truth del producto (pre-nivelación):** 23/67 tareas cerradas (B + Fase 0 + Fase 1 parcial). La barra §0.2 exige re-confirmar cada `[x]` contra el estado actual.
 
