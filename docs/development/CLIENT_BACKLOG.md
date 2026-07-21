@@ -40,7 +40,7 @@ A customer-scoped publishing queue view showing only the current user's publishi
 
 **Priority:** P1
 **Effort:** M-L
-**Origin:** Surfaced by `docs/audits/CLIENT_LIB_HOOKS_AUDIT.md` §6 P0 (2026-04-17)
+**Origin:** Surfaced by the client-lib-hooks audit §6 P0 (2026-04-17; `CLIENT_LIB_HOOKS_AUDIT.md` borrado en la Pre-Fase, findings absorbidos en `MASTER_PLAN_ES.md` §5)
 **Audit reference:** CLIENT_LIB_HOOKS_AUDIT.md §6 + ENDPOINT_AUDIT.md §5.1
 
 ### Context

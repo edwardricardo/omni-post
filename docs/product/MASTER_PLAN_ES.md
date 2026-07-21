@@ -46,7 +46,7 @@ Cada tarea de producto (§2-§4) referencia su **canon de implementación 2026**
 
 ## §P — PRE-FASE · Adjudicación de veredictos (docs + engram)
 
-> **✅ CERRADA 2026-06-29.** Se adjudicó uno a uno cada veredicto de la valoración (WF1) — cada decisión ajustó el resto del plan. Regla §0.3 respetada (ningún DELETE sin OK de Edward). Las tablas P.A-P.E abajo son el **registro de adjudicación** (histórico). Commits: `76e92a9b` (P.A) · `0c5bc998` (P.B) · `cdfb0f78` (P.C) · P.D/P.E engram (sin `mem_delete` disponible → dejadas; #2 actualizada) · `3d481563`/`e7b712f1` (P.F + deleciones).
+> **🔄 Mitad docs CERRADA (este slice) · mitad engram PENDIENTE.** Los veredictos de la valoración (WF1) se **adjudicaron 2026-06-29** (cada decisión ajustó el resto del plan; regla §0.3 respetada — ningún DELETE sin OK de Edward). Las **operaciones de docs** (ELIMINAR/ARCHIVAR/RECLASIFICAR + deleciones P.F) se escribieron en `workstream/cluster-b-mfa` (commits authored 2026-07-06/07: `76e92a9b` P.A · `0c5bc998` P.B · `cdfb0f78` P.C · `3d481563`/`e7b712f1` P.F) pero **NUNCA se mergearon a `main`** hasta el slice **docs-cleanup (PR #PENDIENTE)**, que las aterrizó vía cherry-pick (`3d481563` quedó vacío tras el pick — su contenido de MASTER_PLAN ya estaba en `main` por la sync de docs; el resto absorbido igual). La **mitad engram** (P.D 72 ARCHIVE + P.E 8/9 UPDATE) **no se ejecutó en ningún lado** — queda **PENDIENTE como tarea out-of-band** (engram es estado fuera del repo; este slice no lo toca). Las tablas P.A-P.E abajo son el **registro de adjudicación** (histórico).
 
 ### Dashboard Pre-Fase
 
@@ -55,8 +55,8 @@ Cada tarea de producto (§2-§4) referencia su **canon de implementación 2026**
 | P.A Docs ELIMINAR                                    | 14 (+5 `_raw`) | ✅ 18 borrados                                                               |
 | P.B Docs ARCHIVAR                                    | 36             | ✅ 18 borrados · 13 gateados→P.F · 2 conservados · 4 archivados · 1 keep     |
 | P.C Docs RECLASIFICAR (1) + ACTUALIZAR (75, ref)     | 1+75           | ✅ 1 (→SECURITY_TESTING_FRAMEWORK); 75 mecánico (DOCS-INDEX-REBUILD §5.5)    |
-| P.D Engram ARCHIVE                                   | 72             | ⚠️ sin `mem_delete` en el build → dejadas (CLI-only)                         |
-| P.E Engram UPDATE (8) + MERGE (1)                    | 9              | ✅ #2 actualizada; resto dejado (superado)                                   |
+| P.D Engram ARCHIVE                                   | 72             | ⬜ PENDIENTE (out-of-band; nunca ejecutada — engram fuera del repo)          |
+| P.E Engram UPDATE (8) + MERGE (1)                    | 9              | ⬜ PENDIENTE (out-of-band; nunca ejecutada)                                  |
 | P.F Ejecución post-adjudicación (2 VERIFY + 2 gates) | 4              | ✅ 0 ciclos · 14 reverse-orphans · 12 gaps rescatados · 13 gateados borrados |
 
 ### P.A — Docs a ELIMINAR (14) · requieren OK explícito (§0.3)
@@ -92,11 +92,11 @@ Cada tarea de producto (§2-§4) referencia su **canon de implementación 2026**
 ### P.C — Reclasificar (1) + Actualizar (75, referencia)
 
 - **RECLASIFICAR:** `docs/security/README.md` → mover junto al código que describe + borrar referencia a `container-security.yml` inexistente.
-- **ACTUALIZAR (75, mecánico, no requiere adjudicación 1-a-1):** dominante = paths rotos por `application-services-to-core` en casi todo `docs/api/` + métricas investor rotadas (11 providers, 124 modelos, 4 LLM). Se corrigen cuando el área se toca. Lista completa en `assessment-work/wf1-result.json`.
+- **ACTUALIZAR (75, mecánico, no requiere adjudicación 1-a-1):** dominante = paths rotos por `application-services-to-core` en casi todo `docs/api/` + métricas investor rotadas (11 providers, 124 modelos, 4 LLM). Se corrigen cuando el área se toca. Lista completa en la valoración WF1 (artefacto de trabajo de la branch, no conservado).
 
 ### P.D — Engram a ARCHIVE (72) · artefactos SDD de changes cerrados + session summaries
 
-> Bajo riesgo (memorias stale de workstreams cerrados). Adjudicar **en lote** salvo excepción. Lista completa por ID en `assessment-work/wf1-result.json`. Ninguna se borra sin tu confirmación (irreversible).
+> Bajo riesgo (memorias stale de workstreams cerrados). Adjudicar **en lote** salvo excepción. Lista completa por ID en la valoración WF1 (artefacto de trabajo de la branch, no conservado). Ninguna se borra sin tu confirmación (irreversible).
 
 ### P.E — Engram a UPDATE (8) + MERGE (1) · ediciones consecuentes
 
@@ -117,13 +117,13 @@ Cada tarea de producto (§2-§4) referencia su **canon de implementación 2026**
 > **Se ejecuta apenas cierra la adjudicación (P.A-P.E), ANTES de la Nivelación.** NO son backlog diferido de §5: son los rescates y gates que la propia adjudicación generó y que deben resolverse para poder borrar con seguridad los docs gateados. Bloquean el cierre de la Pre-Fase.
 
 - [x] **P-VERIFY-1** — **CERRADO 2026-06-29: 0 ciclos** en `apps/client` (madge 8.0.0 + dependency-cruiser; el ciclo del snapshot viejo era artefacto de resolución de paths). Gotcha → **CI-CLIENT-DEPCRUISE** (§5.2).
-- [x] **P-VERIFY-2** — **CERRADO 2026-06-29:** 14 reverse-orphans NUEVOS (FE→endpoint inexistente, 404 runtime) → capturados en §5.3 `FE-BE-CONTRACT-BREAKS`; ~195/495 endpoints huérfanos (baja de 300, clasificados); 3 route files inalcanzables (optimizedPostsRoutes=FN-009, rateLimitingDashboard=FN-010/027, CQRSIntegration=nuevo). Detalle: `assessment-work/pf-verify-results.md`.
-- [x] **P-GATE-1** — **CERRADO 2026-06-29:** absorción ~90% (12/14 críticos escalados resueltos en código); **7 gaps rescatados a §5.7** (L-1 MFA-duality el crítico-de-seguridad). Los 11 docs quedan borrables. Detalle: `assessment-work/pf-gate1-results.md`. Docs gateados (borrables tras el rescate):
+- [x] **P-VERIFY-2** — **CERRADO 2026-06-29:** 14 reverse-orphans NUEVOS (FE→endpoint inexistente, 404 runtime) → capturados en §5.3 `FE-BE-CONTRACT-BREAKS`; ~195/495 endpoints huérfanos (baja de 300, clasificados); 3 route files inalcanzables (optimizedPostsRoutes=FN-009, rateLimitingDashboard=FN-010/027, CQRSIntegration=nuevo). Detalle: los resultados P-VERIFY de la branch (artefacto de trabajo, no conservado; evidencia base: `docs/audits/FULL_REPO_ASSESSMENT_2026-06-29.md`).
+- [x] **P-GATE-1** — **CERRADO 2026-06-29:** absorción ~90% (12/14 críticos escalados resueltos en código); **7 gaps rescatados a §5.7** (L-1 MFA-duality el crítico-de-seguridad). Los 11 docs quedan borrables. Detalle: los resultados P-GATE-1 de la branch (artefacto de trabajo, no conservado; evidencia base: `docs/audits/FULL_REPO_ASSESSMENT_2026-06-29.md`). Docs gateados (borrables tras el rescate):
   - (a) `LATERAL_FINDINGS.md` (647 hallazgos; audit lineage PLAN_MAESTRO/D0-v4).
   - (b) `ESTADO_REPO.md` (1253 líneas: duplicación/huérfanos/mismatches — 2026-05-29, NO en la provenance del inventory) + su plan acoplado `PLAN_REPARACION.md` (35 findings, Status PENDIENTE — registro reparado-vs-abierto, INPUT del gate).
   - (c) **Cluster F5 (audit 2026-05-11):** `INVENTORY_SUMMARY.md` + los 5 `inventory-{api,workers,admin,client,packages}.md` (datos crudos, 1477 archivos) + `_AUDIT_FINDINGS.md` + `AUDIT_REVIEW_TRACKING.md` (hallazgos — listados como provenance del inventory → asertados absorbidos en `FN-*`, **confirmar**).
   - **DoD:** cross-referencia de los tres grupos; usar `PLAN_REPARACION` para saber qué de `ESTADO_REPO` cerró Track 2 vs qué sigue abierto; los no-absorbidos entran a §5 con su ID; recién entonces **todos** son borrables.
-- [x] **P-GATE-2** — **CERRADO 2026-06-29:** 25/28 bloques ejecutados/capturados; **5 gaps rescatados** (§4: employee-advocacy F3-API-9 + full-ad-management en "Nunca"; §5.8: industry-benchmarks + marketplace + dropbox). `feature-decisions.md` + `next-sprint-backlog.md` quedan borrables. Detalle: `assessment-work/pf-gate2-results.md`.
+- [x] **P-GATE-2** — **CERRADO 2026-06-29:** 25/28 bloques ejecutados/capturados; **5 gaps rescatados** (§4: employee-advocacy F3-API-9 + full-ad-management en "Nunca"; §5.8: industry-benchmarks + marketplace + dropbox). `feature-decisions.md` + `next-sprint-backlog.md` quedan borrables. Detalle: los resultados P-GATE-2 de la branch (artefacto de trabajo, no conservado; evidencia base: `docs/audits/FULL_REPO_ASSESSMENT_2026-06-29.md`).
 
 ---
 
@@ -245,7 +245,7 @@ F3-API-1 `[M]` triage multi-tono + self-correction (🔗F0-API-2) · F3-WRK-1 `[
 
 Mapean a producto — valor barato: **WEBHOOK-INGEST** (SMELL-38, pipeline HMAC completo sin cablear, P1) · **FN-024** scheduled-reports cron · **SMELL-3** repurpose approve/reject · **SMELL-13/14** inbox priority/direction · **SMELL-30** admin SSE proxy buffering · **SMELL-45/46** threading/saga UI · **SMELL-9/27/41/51** (clasificar/wire) · **FN-022/023/025** video/predictive/AI-quality (NEEDS_EDWARD). **admin-logs-gitignored-01** (`confirmed-adversarial`, ALTA): la página `/logs` está tapada por `.gitignore:51` → 404 en build limpio; anclar la regla + `git add -f`.
 
-- **FE-BE-CONTRACT-BREAKS** `[M]` **P1** (P-VERIFY-2, 2026-06-29) — **14 reverse-orphans**: frontend llamando endpoints inexistentes/mis-prefijados → 404 en runtime. Detalle en `assessment-work/pf-verify-results.md`. Clusters: analytics-client (4: `/analytics/posts/:id`, `/analytics/channels/:id` inexistentes + `/analytics/posts/best-times` y `/analytics/content/media-performance` con **mismatch de prefijo** — el backend las expone SIN `/analytics`); posts-client media/thread (2); scheduling rules PATCH/toggle (2); referral page (use cases existen, ruta no); template item-level `/templates/:id`; admin mfa `regenerate-backup-codes`, rbac per-permission DELETE, y **todo el CRUD de webhook-subscriptions del admin** (POST/PUT/DELETE a rutas fantasma). **DoD:** por cada uno, o crear el endpoint faltante o corregir la llamada FE (los mismatch de prefijo son fix trivial); test que ejercite el contrato.
+- **FE-BE-CONTRACT-BREAKS** `[M]` **P1** (P-VERIFY-2, 2026-06-29) — **14 reverse-orphans**: frontend llamando endpoints inexistentes/mis-prefijados → 404 en runtime. Detalle en los resultados P-VERIFY de la branch (artefacto de trabajo, no conservado; evidencia base: `docs/audits/FULL_REPO_ASSESSMENT_2026-06-29.md`). Clusters: analytics-client (4: `/analytics/posts/:id`, `/analytics/channels/:id` inexistentes + `/analytics/posts/best-times` y `/analytics/content/media-performance` con **mismatch de prefijo** — el backend las expone SIN `/analytics`); posts-client media/thread (2); scheduling rules PATCH/toggle (2); referral page (use cases existen, ruta no); template item-level `/templates/:id`; admin mfa `regenerate-backup-codes`, rbac per-permission DELETE, y **todo el CRUD de webhook-subscriptions del admin** (POST/PUT/DELETE a rutas fantasma). **DoD:** por cada uno, o crear el endpoint faltante o corregir la llamada FE (los mismatch de prefijo son fix trivial); test que ejercite el contrato.
 - **CQRSIntegration dead-route** `[S]` (P-VERIFY-2 bonus) — **RESUELTO:** `apps/api/src/cqrs/CQRSIntegration.ts` se confirmó DEAD_CODE (nunca cableado en ningún composition root) y se eliminó del repo (branch `workstream/cqrs-integration-purge`; merged a `main` vía **PR #128**, 2026-07-19, +30/−2358); la clasificación pendiente queda cerrada. En el mismo PR se re-baseló el floor de cobertura `statements` 55→54 (autorizado). FN-009 (optimizedPostsRoutes) + FN-010/027 (rateLimitingDashboard) siguen abiertos, sin cambios. ⚠️ **Nota de nomenclatura:** el fact-sheet de la campaña etiquetó #128 como "N-SEC-3", pero en este plan y en los commits del repo `N-SEC-3` es el guard de modelos `projectId`-only (§1.A, **EN CURSO**), NO la purga CQRSIntegration. Son ítems distintos; no confundir.
 
 ### 5.4 Duplicación a consolidar (§5 inventario)
@@ -266,7 +266,7 @@ Overrides con remove-when datados (esbuild, shell-quote, vite-7.3.5, eslint-9.36
 
 ### 5.7 Rescatados por el gate de absorción (P-GATE-1, 2026-06-29)
 
-> 7 hallazgos NO-absorbidos que el gate encontró en los docs de auditoría gateados (LATERAL_FINDINGS/ESTADO_REPO) antes de borrarlos — capturados acá con su ID original para no dejar letra muerta. Detalle: `assessment-work/pf-gate1-results.md`.
+> 7 hallazgos NO-absorbidos que el gate encontró en los docs de auditoría gateados (LATERAL_FINDINGS/ESTADO_REPO) antes de borrarlos — capturados acá con su ID original para no dejar letra muerta. Detalle: los resultados P-GATE-1 de la branch (artefacto de trabajo, no conservado; evidencia base: `docs/audits/FULL_REPO_ASSESSMENT_2026-06-29.md`).
 
 - **L-1 MFA-DUALITY** → **PROMOVIDO a Nivelación `N-SEC-5` (§1.A)** por decisión de Edward (usar el MFA argon2 nuevo cableado por DI, retirar el viejo). Ver §1.A.
 - **L-546 ADMIN-PASSWORD-FALLBACK** `[S]` **[SECURITY, MEDIA]** — `seed.ts:731` `process.env.ADMIN_PASSWORD ?? "Admin123!"` (fallback débil, CWE-798); su plan de fix murió con `REMEDIATION_ROADMAP.md`. **DoD:** fail-fast sin fallback (patrón env.ts Zod); + fix ref muerta de `T0A_SECRETS_ROTATION_RUNBOOK.md`. Cross-ref: `SECRETS-ROTATION-GOLIVE`.
@@ -279,7 +279,7 @@ Overrides con remove-when datados (esbuild, shell-quote, vite-7.3.5, eslint-9.36
 
 ### 5.8 Capacidades de producto diferidas (rescatadas P-GATE-2, 2026-06-29)
 
-> Decisiones DEFER de `feature-decisions.md` (marzo) sin heredero en el spine vivo. Detalle: `assessment-work/pf-gate2-results.md`.
+> Decisiones DEFER de `feature-decisions.md` (marzo) sin heredero en el spine vivo. Detalle: los resultados P-GATE-2 de la branch (artefacto de trabajo, no conservado; evidencia base: `docs/audits/FULL_REPO_ASSESSMENT_2026-06-29.md`).
 
 - **INDUSTRY-BENCHMARKS** (D7) — DEFER: benchmarking contra promedio de industria; requiere base >1000 cuentas O licencia de datos. Trigger de activación, no tarea inmediata. (Distinto de F2-API-6 competitor-benchmarking, que es per-tenant.)
 - **INTEGRATION-MARKETPLACE** (D13) — DEFER: marketplace de integraciones; prematuro hasta 10+ integraciones (hoy ~6). Trigger "10+ integraciones".
@@ -287,16 +287,18 @@ Overrides con remove-when datados (esbuild, shell-quote, vite-7.3.5, eslint-9.36
 
 ## §6 — Dashboard de progreso unificado
 
-| Fase                            | Tareas            | Hechas | Estado | Nota                                                                        |
-| ------------------------------- | ----------------- | ------ | ------ | --------------------------------------------------------------------------- |
-| **P — Pre-Fase adjudicación**   | 133               | 0      | ⬜     | Decisiones ajustan el resto del plan                                        |
-| **N — Nivelación** (bloqueante) | 17                | 3      | 🔄     | N-SEC-1/1b·2·5 cerrados (campaña 07-19..21, PRs #124/#125/#129-133); ver §1 |
-| Fase 1 — Necesarias             | 4                 | 0      | ⬜     | 🔗 targeting redesign + OAuth-refresh                                       |
-| Fase 2 — Bueno tenerla          | 21                | 0      | ⬜     | 🔗 N-SEC-3 (tenant guards)                                                  |
-| Fase 3 — Diferenciación         | 14                | 0      | ⬜     | Gated por Fase 1 (§8.5)                                                     |
-| Transversal/continuo            | ~40               | —      | 🔁     | Buckets B/C, background                                                     |
-| **Producto (base ya cerrada)**  | Bloque B + Fase 0 | ✅     | ✅     | B1-B5 + repurpose/triage/trends + multi-idioma + listening + bulk-parser    |
+| Fase                            | Tareas            | Hechas | Estado | Nota                                                                                   |
+| ------------------------------- | ----------------- | ------ | ------ | -------------------------------------------------------------------------------------- |
+| **P — Pre-Fase adjudicación**   | 133               | ~59\*  | 🔄     | Mitad docs landed (slice docs-cleanup, PR #PENDIENTE); mitad engram pendiente — ver §P |
+| **N — Nivelación** (bloqueante) | 17                | 3      | 🔄     | N-SEC-1/1b·2·5 cerrados (campaña 07-19..21, PRs #124/#125/#129-133); ver §1            |
+| Fase 1 — Necesarias             | 4                 | 0      | ⬜     | 🔗 targeting redesign + OAuth-refresh                                                  |
+| Fase 2 — Bueno tenerla          | 21                | 0      | ⬜     | 🔗 N-SEC-3 (tenant guards)                                                             |
+| Fase 3 — Diferenciación         | 14                | 0      | ⬜     | Gated por Fase 1 (§8.5)                                                                |
+| Transversal/continuo            | ~40               | —      | 🔁     | Buckets B/C, background                                                                |
+| **Producto (base ya cerrada)**  | Bloque B + Fase 0 | ✅     | ✅     | B1-B5 + repurpose/triage/trends + multi-idioma + listening + bulk-parser               |
 
+> **\* Desglose de la fila P (post-slice docs-cleanup, PR #PENDIENTE):** ~59 operaciones de docs aterrizaron en `main` vía cherry-pick — **49 borrados** + **9 archivados** (4 guías cloud → `docs/archive/deployment/` + 5 diagramas del prototipo → `docs/archive/prototype-origin/`) + **1 reclasificado** (`security/README.md` → `SECURITY_TESTING_FRAMEWORK.md`), más 4 repunte-de-referencia. **Pendiente:** los **75 ACTUALIZAR** mecánicos (→ `DOCS-INDEX-REBUILD` §5.5) + la **mitad engram** (72 ARCHIVE + ~9 UPDATE, nunca ejecutada — tarea out-of-band, ver §P). El denominador 133 es el roll-up de adjudicación heredado (docs + engram).
+>
 > **Progreso ground-truth del producto (pre-nivelación):** 23/67 tareas cerradas (B + Fase 0 + Fase 1 parcial). La barra §0.2 exige re-confirmar cada `[x]` contra el estado actual.
 
 ---

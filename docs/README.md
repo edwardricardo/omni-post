@@ -56,7 +56,7 @@
 
 | Document                                 | Description                      |
 | ---------------------------------------- | -------------------------------- |
-| [Admin Dashboard](admin/dashboard.md)    | Admin app overview               |
+| [Admin Portal](frontend/admin-portal.md) | Admin app overview               |
 | [Admin Auth](admin/AUTH.md)              | Server Actions, httpOnly cookies |
 | [Admin E2E Tests](admin/e2e/README.md)   | Playwright test suite            |
 | [Client App](client/react-19.md)         | React 19 concurrent features     |

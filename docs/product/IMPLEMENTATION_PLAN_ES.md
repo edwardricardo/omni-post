@@ -6,7 +6,7 @@
 >
 > **Dependencia bloqueante:** items que crean tablas o datos **tenant-scoped** (reviews, branding, recycling, competitor benchmarking, link-in-bio, content discovery, paid ads) esperan al cierre de `Normalization Roadmap §2.1 Multi-tenant guards` para evitar deuda de seguridad.
 >
-> **Workstreams técnicos relacionados** (en curso, rama `workstream/prisma-di-migration`): migración prisma→DI — [../development/PRISMA_DI_MIGRATION_ES.md](../development/PRISMA_DI_MIGRATION_ES.md); realtime SSE (analytics + notifications) — [../features/REALTIME_SSE_ES.md](../features/REALTIME_SSE_ES.md).
+> **Workstreams técnicos relacionados:** migración prisma→DI (**DONE**; el roadmap `PRISMA_DI_MIGRATION_ES.md` se eliminó al cerrarse); realtime SSE (analytics + notifications) — [../features/REALTIME_SSE_ES.md](../features/REALTIME_SSE_ES.md).
 
 > ## 🔄 RE-VALIDATION PASS — reset 2026-06-19
 >

@@ -10,6 +10,8 @@ generated: 2026-05-10
 > Source: `head -25` of each `.md` + `stat` for mtime + topic pass for overlap detection.
 > NO source docs were modified.
 
+> ⚠️ **STALE (2026-05-10 snapshot).** La limpieza de la Pre-Fase borró/renombró docenas de docs listados aquí (P.A/P.B/P.C/P.F), así que varios enlaces de esta tabla ahora apuntan a archivos inexistentes. Este inventario es **auto-generado** y su reconstrucción contra el árbol actual está trackeada como **`DOCS-INDEX-REBUILD`** (MASTER_PLAN §5.5) — no se parchea a mano enlace por enlace (el rebuild lo sobreescribe).
+
 ## Summary
 
 | Tipo        |   Total | ACTIVE | SUPERSEDED |   STALE | DRAFT | INDEX |

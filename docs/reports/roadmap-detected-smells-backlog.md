@@ -106,7 +106,7 @@ Backlog audit pre-Implementation Roadmap. Cada SMELL fue evaluado con las 3 preg
 | **CANCELED (FALSE-POSITIVE)**              | 1     | SMELL-12                                                                                                                                                     |
 | **TOTAL**                                  | 46    | —                                                                                                                                                            |
 
-**Edward decision (2026-05-29)**: atacar TODO Bucket A en sprint S4 pre-IR. Plan: `docs/audits/PLAN_REPARACION.md §S4` (cuando se agregue) o issue dedicado.
+**Edward decision (2026-05-29)**: atacar TODO Bucket A en sprint S4 pre-IR. Plan: issue dedicado (`PLAN_REPARACION.md` se borró en la Pre-Fase; su registro reparado-vs-abierto quedó absorbido en `MASTER_PLAN_ES.md` §5).
 
 **Bucket B items** se atacarán durante Implementation Roadmap cuando los workstreams correspondientes los toquen — cada workstream IR incluye su(s) SMELL(s) B. **Bucket C** se cierra en post-IR sweep dedicado.
 

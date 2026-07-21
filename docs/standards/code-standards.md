@@ -80,11 +80,8 @@ rg "^export (function|const) (use|[A-Z])" apps/admin/ apps/client/ --type tsx --
 
 Check these living documents before implementing:
 
-- `docs/audits/ENDPOINT_AUDIT.md` — for API surface
-- `docs/audits/D0v4_1_BACKEND_SERVICES_REPORT.md` §2 — full backend inventory with classifications
-- `docs/audits/D1_DECISIONS.md` — prior classification decisions
-- `docs/audits/LATERAL_FINDINGS.md` — known issues + infrastructure-ready components
-- `docs/audits/CLIENT_LIB_HOOKS_AUDIT.md` — client hooks inventory
+- `docs/product/MASTER_PLAN_ES.md` §5 — inventario absorbido (API surface, clasificaciones, known issues, infra-ready). Los antiguos `docs/audits/{ENDPOINT_AUDIT,D1_DECISIONS,LATERAL_FINDINGS,CLIENT_LIB_HOOKS_AUDIT}.md` se **borraron** en la limpieza de la Pre-Fase; sus hallazgos se rescataron a §5 con su ID `FN-*`/`SMELL-*`.
+- `docs/product/FEATURE_TRACE_MATRIX_ES.md` — clasificación por capacidad + canon 2026.
 
 Something classified as `PLANNED`, `INFRASTRUCTURE_READY`, `PARTIALLY_ACTIVE`, or `LEGACY` may already satisfy the need — extend or revive it, don't duplicate.
 

@@ -48,7 +48,7 @@
 
 ## DUP-03 — hooks TanStack de saga vs `runSagaAndAwaitTerminal` (declarativo vs imperativo) · PENDING (KEEP-both)
 
-- **Estado:** **PENDING — veredicto propuesto KEEP-both.** Las dos formas cubren el mismo flow `POST /sagas/post-publishing/start` → `GET /sagas/:sagaId` (polling), pero con semánticas legítimamente distintas: imperativa (resolve-with-Post, sin loading state continuous) vs declarativa (non-blocking, expone status mid-flight para UI progress). Detectado durante S2 cleanup audit del audit `docs/audits/ESTADO_REPO.md` F13+F14.
+- **Estado:** **PENDING — veredicto propuesto KEEP-both.** Las dos formas cubren el mismo flow `POST /sagas/post-publishing/start` → `GET /sagas/:sagaId` (polling), pero con semánticas legítimamente distintas: imperativa (resolve-with-Post, sin loading state continuous) vs declarativa (non-blocking, expone status mid-flight para UI progress). Detectado durante S2 cleanup audit (ESTADO_REPO F13+F14; `ESTADO_REPO.md` borrado en la Pre-Fase, findings absorbidos en `MASTER_PLAN_ES.md` §5).
 - **"Duplicado":** `apps/client/lib/hooks/useSagaStatus.ts` (F13, TanStack `useQuery` con polling 1s hasta terminal) + `apps/client/lib/hooks/useStartPostPublishingSaga.ts` (F14, TanStack `useMutation`)
 - **"Canónico" actual:** `apps/client/lib/api/clients/sagaClient.ts:171-215` → `runSagaAndAwaitTerminal({ start, getStatus })` (helper imperativo). 6 callers reales: `useSchedulePostViaSaga()`, `useCreateDraftViaSaga()`, preview page, editor page, ClientContentEditor publish-now button.
 - **Evidencia:**
