@@ -52,7 +52,7 @@ jobs:
       DATABASE_URL: "postgresql://audit:audit@localhost:5432/audit"
       SHADOW_DATABASE_URL: "postgresql://audit:audit@localhost:5432/audit_shadow"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-node-pnpm-cache
       - name: Cruise apps/api + @core + @shared
         run: pnpm exec depcruise apps/api/src packages/core packages/shared --config .dependency-cruiser.cjs --output-type err
@@ -68,7 +68,7 @@ jobs:
     container:
       image: returntocorp/semgrep:latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Run Semgrep
         # `semgrep ci` is for the AppSec Platform; we have no platform login.
         # `semgrep scan` accepts --error / --severity and exits non-zero
@@ -93,7 +93,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install OSV-Scanner
         run: |
           curl -sSL "https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64" -o /usr/local/bin/osv-scanner
@@ -124,7 +124,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Install gitleaks
@@ -169,7 +169,7 @@ jobs:
       DATABASE_URL: "postgresql://audit:audit@localhost:5432/audit"
       SHADOW_DATABASE_URL: "postgresql://audit:audit@localhost:5432/audit_shadow"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-node-pnpm-cache
       - name: Run secretlint
         run: pnpm secret:scan
@@ -183,7 +183,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 2
       - name: Detect changed migrations
@@ -227,7 +227,7 @@ jobs:
       DATABASE_URL: "postgresql://audit:audit@localhost:5432/audit"
       SHADOW_DATABASE_URL: "postgresql://audit:audit@localhost:5432/audit_shadow"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-node-pnpm-cache
       # Use `turbo run build` (not `pnpm --filter`) so the build task's
       # dependsOn:["^build"] expands @shared/types#build BEFORE the Next apps —
@@ -260,7 +260,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Run lychee on docs + repo markdown
         uses: lycheeverse/lychee-action@v2
@@ -280,7 +280,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Install TruffleHog
