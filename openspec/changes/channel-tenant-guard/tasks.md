@@ -57,7 +57,7 @@ strategy with the user before apply.
 
 ## Phase 0: Spec reconciliation — BEFORE any code (gate finding #1)
 
-- [ ] 0.1 Amend BOTH deltas so the **OAuth-callback** create scenarios assert "error redirect (302) + NO channel persisted" (NOT a literal 404): `handleCallback` is a browser-redirect flow — its catch (`providerOAuthFlow.ts:310-318`) turns every error into a 302, so a literal 404 is UNSATISFIABLE there. Edit `specs/multi-tenant-isolation/spec.md` (Req "Channel — IDOR routes closed" connect scenario; Req "Create paths validate parent ownership" OAuth scenario) + `specs/tenant-context-boundaries/spec.md` ("A8 … foreign projectId rejected" scenario). Keep the **Bluesky JSON route** asserting a literal **404** (it returns JSON via `assertCallerOwnsProject`). Prevents a false-positive CRITICAL at sdd-verify.
+- [x] 0.1 Amend BOTH deltas so the **OAuth-callback** create scenarios assert "error redirect (302) + NO channel persisted" (NOT a literal 404): `handleCallback` is a browser-redirect flow — its catch (`providerOAuthFlow.ts:310-318`) turns every error into a 302, so a literal 404 is UNSATISFIABLE there. Edit `specs/multi-tenant-isolation/spec.md` (Req "Channel — IDOR routes closed" connect scenario; Req "Create paths validate parent ownership" OAuth scenario) + `specs/tenant-context-boundaries/spec.md` ("A8 … foreign projectId rejected" scenario). Keep the **Bluesky JSON route** asserting a literal **404** (it returns JSON via `assertCallerOwnsProject`). Prevents a false-positive CRITICAL at sdd-verify.
 
 ---
 
@@ -65,8 +65,8 @@ strategy with the user before apply.
 
 ## Phase 1: RED — unit guard matrix (vitest, no DB)
 
-- [ ] 1.1 [RED] `apps/api/tests/unit/security/tenantGuard.test.ts`: add `channel` membership + where-injection (find/update/delete) + `create` injection + explicit-mismatch throw + missing-context (`TenantContextMissingError`); bump size assertion **57 → 58** (~`:663`). RED until 3.1.
-- [ ] 1.2 Run VITEST 1.1 → expect RED (size + membership fail pre-flip).
+- [x] 1.1 [RED] `apps/api/tests/unit/security/tenantGuard.test.ts`: add `channel` membership + where-injection (find/update/delete) + `create` injection + explicit-mismatch throw + missing-context (`TenantContextMissingError`); bump size assertion **57 → 58** (~`:663`). RED until 3.1.
+- [x] 1.2 Run VITEST 1.1 → expect RED (size + membership fail pre-flip).
 
 ## Phase 2: Schema + Migration A — [SENSITIVE — token]
 

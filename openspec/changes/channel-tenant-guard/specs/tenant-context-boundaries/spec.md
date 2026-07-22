@@ -34,10 +34,13 @@ the consumed, server-side OAuth-state record (NOT from any client-supplied value
 `Channel` is now enrolled, the persisting `Channel.create` SHALL execute under this bound
 context, so the guard scopes the save to the account that owns the OAuth flow. A
 client-supplied `projectId` carried in the OAuth state that does NOT belong to
-`record.accountId` SHALL resolve to **404 NOT_FOUND** (never 403, never 500) BEFORE any
-channel is persisted — the ownership check SHALL survive both the use-case catch and the
-route status map. This closes the create-path ownership gap (the callback previously
-persisted a client-supplied `projectId` with no ownership check).
+`record.accountId` SHALL be rejected as NOT_FOUND BEFORE any channel is persisted; because
+`handleOAuthCallback` is a browser-redirect flow whose catch converts every error into a
+302 (`providerOAuthFlow.ts:310-318`), this NOT_FOUND surfaces as the standard **error
+redirect (302)**, never a literal 404 status — the ownership check SHALL survive both the
+use-case catch and the redirect, with NO channel persisted. This closes the create-path
+ownership gap (the callback previously persisted a client-supplied `projectId` with no
+ownership check).
 
 #### Scenario: the callback binds context from the OAuth state [static]
 
@@ -49,7 +52,7 @@ persisted a client-supplied `projectId` with no ownership check).
 
 - **GIVEN** the consumed OAuth state binds account A but carries a `projectId` owned by account B
 - **WHEN** the callback completes
-- **THEN** the request resolves to **404 NOT_FOUND** (never 403, never 500) and NO channel is persisted under B's project
+- **THEN** the request resolves to an ERROR REDIRECT (302 — the browser-redirect callback flow surfaces the NOT_FOUND as the standard error redirect via `providerOAuthFlow.ts:310-318`, never a literal 404 status) and NO channel is persisted under B's project
 
 #### Scenario: the callback binds context and persists a consistent channel [integration]
 

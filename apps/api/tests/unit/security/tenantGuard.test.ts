@@ -763,9 +763,172 @@ describe("tenantGuardExtension", () => {
     });
   });
 
+  describe("channel enrollment (Slice 7 — tenant-guard rollout)", () => {
+    it("channel is a member of getTenantScopedModels()", () => {
+      expect(getTenantScopedModels().has("channel")).toBe(true);
+    });
+
+    it("injects accountId into where on Channel findMany (list by projectId)", async () => {
+      const queryFn = vi.fn().mockResolvedValue([]);
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "Channel",
+        operation: "findMany",
+        args: { where: { projectId: "proj-B" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; projectId: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.projectId).toBe("proj-B");
+    });
+
+    it("injects accountId into where on Channel findUnique (get by id)", async () => {
+      const queryFn = vi.fn().mockResolvedValue(null);
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "Channel",
+        operation: "findUnique",
+        args: { where: { id: "chan-1" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; id: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.id).toBe("chan-1");
+    });
+
+    it("injects accountId into where on Channel update", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "Channel",
+        operation: "update",
+        args: { where: { id: "chan-1" }, data: { displayName: "renamed" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; id: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.id).toBe("chan-1");
+    });
+
+    it("injects accountId into where on Channel delete", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "Channel",
+        operation: "delete",
+        args: { where: { id: "chan-1" } },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        where: { accountId: string; id: string };
+      };
+      expect(calledArgs.where.accountId).toBe("acc-A");
+      expect(calledArgs.where.id).toBe("chan-1");
+    });
+
+    it("injects accountId into Channel create data", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "Channel",
+        operation: "create",
+        args: {
+          data: { id: "chan-1", projectId: "proj-1", provider: "X", providerAccountId: "ext-1" },
+        },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as { data: { accountId: string } };
+      expect(calledArgs.data.accountId).toBe("acc-A");
+    });
+
+    it("injects accountId into Channel upsert.create data (repository connect path)", async () => {
+      const queryFn = vi.fn();
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await callGuard({
+        provider,
+        model: "Channel",
+        operation: "upsert",
+        args: {
+          where: { id: "chan-1" },
+          create: {
+            id: "chan-1",
+            accountId: "acc-A",
+            projectId: "proj-1",
+            provider: "X",
+            providerAccountId: "ext-1",
+          },
+          update: { displayName: "renamed" },
+        },
+        query: queryFn,
+      });
+      const calledArgs = queryFn.mock.calls[0]?.[0] as {
+        create: { accountId: string };
+        where: { accountId: string };
+      };
+      expect(calledArgs.create.accountId).toBe("acc-A");
+      expect(calledArgs.where.accountId).toBe("acc-A");
+    });
+
+    it("throws TenantContextMismatchError when Channel create.accountId disagrees with context", async () => {
+      const provider = makeProvider({
+        getTenantContext: () => ({ accountId: "acc-A" }),
+      });
+      await expect(
+        callGuard({
+          provider,
+          model: "Channel",
+          operation: "create",
+          args: {
+            data: {
+              id: "chan-1",
+              accountId: "acc-B",
+              projectId: "proj-1",
+              provider: "X",
+              providerAccountId: "ext-1",
+            },
+          },
+        })
+      ).rejects.toThrow(TenantContextMismatchError);
+    });
+
+    it("throws TenantContextMissingError on Channel findFirst when no context is bound", async () => {
+      await expect(
+        callGuard({
+          provider: makeProvider(),
+          model: "Channel",
+          operation: "findFirst",
+          args: { where: { id: "chan-1" } },
+        })
+      ).rejects.toThrow(TenantContextMissingError);
+    });
+  });
+
   describe("model classification", () => {
-    it("getTenantScopedModels returns 57 entries", () => {
-      expect(getTenantScopedModels().size).toBe(57);
+    it("getTenantScopedModels returns 58 entries", () => {
+      expect(getTenantScopedModels().size).toBe(58);
     });
 
     it("includes well-known tenant tables (project, apiKey, mediaAsset)", () => {
@@ -776,16 +939,16 @@ describe("tenantGuardExtension", () => {
       expect(models.has("socialMessage")).toBe(true);
     });
 
-    it("excludes global tables (account, auditLog, providerBundle, post, channel, linkClick)", () => {
+    it("excludes global tables (account, auditLog, providerBundle, post, linkClick)", () => {
       const models = getTenantScopedModels();
-      // Post and Channel are transitively scoped (via project FK), not in this direct list.
+      // Post is transitively scoped (via project FK), not in this direct list.
+      // Channel moved INTO the guard list in Slice 7 (see its enrollment suite).
       // LinkClick has no accountId column and is gated transitively via the guarded
       // parent trackedLink lookup — same policy as campaignPost.
       expect(models.has("account")).toBe(false);
       expect(models.has("auditLog")).toBe(false);
       expect(models.has("providerBundle")).toBe(false);
       expect(models.has("post")).toBe(false);
-      expect(models.has("channel")).toBe(false);
       expect(models.has("linkClick")).toBe(false);
     });
   });

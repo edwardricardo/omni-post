@@ -36,10 +36,15 @@
 ### Requirement: Channel — the live IDOR routes are closed, and no decrypted provider credential crosses the tenant boundary [MERGE-BLOCKING]
 
 An authenticated tenant A SHALL NOT read, list, connect, update, or delete tenant B's
-`Channel`. Each of B's id-only routes (get / update / delete / provider-connect action)
-SHALL resolve to **NOT_FOUND (404)** for A — never 403 (anti-enumeration) and never a 500
-— and a list carrying a FOREIGN `projectId` SHALL return an EMPTY result (guard-natural,
-no per-route ownership check). Critically, because `Channel` carries FOUR AES-GCM
+`Channel`. Each of B's id-only JSON routes (get / update / delete) SHALL resolve to
+**NOT_FOUND (404)** for A — never 403 (anti-enumeration) and never a 500. The
+provider-connect action resolves the same NOT_FOUND decision, surfaced per its transport:
+the Bluesky connect (JSON route) returns a literal **404** via `assertCallerOwnsProject`,
+while the OAuth callback — a browser-redirect flow whose catch converts every error into a
+302 (`providerOAuthFlow.ts:310-318`) — surfaces the NOT_FOUND as the standard **error
+redirect (302)**, never a literal 404 status. In BOTH transports NO channel is persisted
+under B's project. A list carrying a FOREIGN `projectId` SHALL return an EMPTY result
+(guard-natural, no per-route ownership check). Critically, because `Channel` carries FOUR AES-GCM
 credential columns (`credentialsCiphertext` / `Iv` / `AuthTag` / `KeyVersion`) decrypted
 by the credential-resolution path, NO decrypted provider OAuth token SHALL cross the tenant
 boundary — not in a response body, not in an error message, not in a log, and not through
@@ -63,11 +68,17 @@ an outbound provider API call performed on B's behalf.
 - **WHEN** A calls the update or delete route against B's channel id
 - **THEN** each resolves to NOT_FOUND and B's channel is unchanged in the database
 
-#### Scenario: A cannot connect a provider into B's project [integration]
+#### Scenario: A cannot connect a provider into B's project via the OAuth callback [integration]
 
-- **GIVEN** tenant A is authenticated and the connect flow (OAuth callback or Bluesky connect) carries B's `projectId`
-- **WHEN** A completes the connect action
-- **THEN** the request resolves to **404 NOT_FOUND** (never 403, never 500) and NO channel is persisted under B's project
+- **GIVEN** tenant A is authenticated and the OAuth callback carries B's `projectId` in the consumed OAuth state
+- **WHEN** A completes the OAuth callback
+- **THEN** the request resolves to an ERROR REDIRECT (302 — the browser-redirect flow surfaces the NOT_FOUND as the standard error redirect via `providerOAuthFlow.ts:310-318`, never a literal 404 status) and NO channel is persisted under B's project
+
+#### Scenario: A cannot connect a provider into B's project via the Bluesky connect [integration]
+
+- **GIVEN** tenant A is authenticated and the Bluesky connect (JSON route) carries B's `projectId`
+- **WHEN** A completes the Bluesky connect action
+- **THEN** the request resolves to **404 NOT_FOUND** (never 403, never 500) via the `assertCallerOwnsProject` gate and NO channel is persisted under B's project
 
 #### Scenario: no decrypted credential is ever materialized across the boundary [integration]
 
@@ -213,8 +224,11 @@ inconsistent row and a latent exfiltration channel. Each slice concretizes this 
 for its own model's create path; the invariant is stated once here. `Channel`'s OAuth
 callback SHALL bind `withTenantContext({ accountId: record.accountId })` from the consumed
 OAuth state and thread `accountId` into `Channel.create` (never `update`), so the guard
-scopes the save and a foreign `projectId` resolves to NOT_FOUND; the Bluesky connect SHALL
-thread `accountId` from its already-gated owned project.
+scopes the save and a foreign `projectId` resolves to NOT_FOUND — surfaced as the standard
+**error redirect (302)** by the browser-redirect callback flow (`providerOAuthFlow.ts:310-318`),
+not a literal 404 status, with NO channel persisted; the Bluesky connect (JSON route) SHALL
+thread `accountId` from its already-gated owned project and return a literal **404** via
+`assertCallerOwnsProject`.
 
 **Applied so far (extended by each slice):**
 
@@ -229,11 +243,17 @@ thread `accountId` from its already-gated owned project.
 | `ProjectMember`              | 5     | **N/A — no production create path** (seed-only writer); check becomes MANDATORY when SMELL-59 wires writes                                                  |
 | `Channel`                    | 7     | OAuth callback (`providerOAuthFlow.ts` `handleOAuthCallback`, `projectId` from consumed OAuth state) + Bluesky connect (channel connect route, `projectId`) |
 
-#### Scenario: create against a foreign parent is rejected [integration]
+#### Scenario: create against a foreign parent via the OAuth callback is rejected [integration]
+
+- **GIVEN** tenant A is authenticated and the consumed OAuth state carries a `projectId` belonging to tenant B
+- **WHEN** A completes the OAuth callback create path with B's `projectId`
+- **THEN** the response is an ERROR REDIRECT (302 — the browser-redirect flow surfaces the NOT_FOUND as the standard error redirect via `providerOAuthFlow.ts:310-318`, never a literal 404 status), and NO channel is persisted
+
+#### Scenario: create against a foreign parent via the Bluesky connect is rejected [integration]
 
 - **GIVEN** tenant A is authenticated and the supplied `projectId` belongs to tenant B
-- **WHEN** A completes either Channel create path (OAuth callback or Bluesky connect) with B's `projectId`
-- **THEN** the response is **404 NOT_FOUND** (never 403, never 500), and NO channel is persisted
+- **WHEN** A completes the Bluesky connect create path with B's `projectId`
+- **THEN** the response is **404 NOT_FOUND** (never 403, never 500) via `assertCallerOwnsProject`, and NO channel is persisted
 
 #### Scenario: create against an own parent succeeds and is consistent [integration]
 
