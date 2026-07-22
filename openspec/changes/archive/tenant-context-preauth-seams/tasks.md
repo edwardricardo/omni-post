@@ -3,6 +3,11 @@
 Requirement anchors = proposal surfaces A1–A8 + design D1–D6. No spec.md (child slice).
 Strict TDD: every seam gets its RED test before production code.
 
+> **ARCHIVE RECONCILIATION (2026-07-22).** Task 3.2's DEVIATION narrative was corrected
+> at archive time to describe the SHIPPED two-hook mechanism (verify WARNING-1/2, engram
+> obs 408). The checkmarks (17/17) were already correct and unchanged; only the
+> integration-auth mechanism description was stale.
+
 ## Review Workload Forecast
 
 | Field                   | Value                                                                                      |
@@ -42,7 +47,7 @@ Recommendation: **single atomic PR with `size:exception`** — consistent with p
 ## Phase 3: Integration-auth seam — HIGHEST RISK, gates the slice (A1/A2, D2)
 
 - [x] 3.1 RED unit `tests/unit/auth/integrationAuthMiddleware.test.ts` (mock repo + `getTenantContext`/`getSystemContext`): lookup+verify runs under system ctx; on match tenant ctx bound to key's `accountId`; `markUsed`/`save` runs AFTER entry; key with null `accountId` → 401.
-- [x] 3.2 Modify `auth/integrationAuthMiddleware.ts`: lookup+verify under `withSystemContext("system:integration-key-auth")`; on match bind tenant context to the key's `accountId` THEN reordered `markUsed`/`save`; null `accountId` → 401. DEVIATION (documented): `enterWith` post-`await` does NOT propagate to the Fastify handler, so the seam reserves an empty tenant holder synchronously (before the first await) and populates it after match — preserves the "one seam" property for all 10 integration handlers.
+- [x] 3.2 Modify `auth/integrationAuthMiddleware.ts`: lookup+verify under `withSystemContext("system:integration-key-auth")`; on match bind tenant context to the key's `accountId` THEN reordered `markUsed`/`save`; null `accountId` → 401. DEVIATION (RECONCILED AT ARCHIVE 2026-07-22, verify WARNING-1/2 obs 408): the SHIPPED mechanism is a **two-hook split** — `integrationAuthResolve` (onRequest, `integrationAuthMiddleware.ts:99`: runs the system-scoped key lookup+verify and resolves the matched `accountId`) plus `integrationAuthBind` (preHandler, `integrationAuthMiddleware.ts:206`: calls `enterTenantContext` so the guarded handler observes a fully-populated context). Both hooks are wired PAIRED at all 10 route sites (`zapierRoutes.ts` ×5 + `makeRoutes.ts` ×5). This SUPERSEDES the mutable-holder narrative originally recorded here (reserve-an-empty-tenant-holder-synchronously-before-the-first-await-then-populate-after-match): the code evolved after the apply snapshot during the review/merge campaign, and the two-hook split is functionally SUPERIOR — the guard only ever observes a fully-populated context, with no empty-holder-by-reference window. Verified against main @ 8b0334f9, covered by passing unit + integration tests. The mutable-holder text this replaces was the stale narrative; the 17/17 checkmarks were always correct.
 - [x] 3.3 RED two-tenant `tests/integration/preAuthIntegrationTenantIsolation.test.ts`: valid key A → 200, lists only A's `integrationSubscription`s, no `TENANT_CONTEXT_MISSING`, cannot reach B's data; unknown key → 401. (Null-`accountId` → 401 covered at the unit level: the DB FK forbids seeding a null-account key.)
 
 ## Phase 4: System-context webhook seams (A5 billing, A7 inbound, D3/D4)
