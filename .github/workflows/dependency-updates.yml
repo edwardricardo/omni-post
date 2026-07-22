@@ -141,7 +141,7 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Upload analysis artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dependency-analysis
           path: |
@@ -394,7 +394,7 @@ jobs:
             console.log('Created issue:', issue.data.html_url);
 
       - name: Upload major updates analysis
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: major-updates-analysis
           path: |

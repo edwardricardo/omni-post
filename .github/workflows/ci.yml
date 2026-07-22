@@ -137,7 +137,7 @@ jobs:
 
       - name: Upload coverage blob
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vitest-blob-${{ matrix.shard }}
           path: apps/api/.vitest-reports/
@@ -206,7 +206,7 @@ jobs:
 
       - name: Upload merged coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report-${{ github.run_id }}
           path: apps/api/coverage/

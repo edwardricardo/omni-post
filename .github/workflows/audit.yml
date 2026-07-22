@@ -245,7 +245,7 @@ jobs:
         run: pnpm exec size-limit --json > size-limit.json || true
       - name: Upload size-limit results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: size-limit-results
           path: size-limit.json
@@ -300,7 +300,7 @@ jobs:
             exit 1
           fi
           echo "::notice::TruffleHog scan complete — no verified live credentials found"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: trufflehog-results
