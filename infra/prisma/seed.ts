@@ -106,6 +106,7 @@ async function main() {
     update: {},
     create: {
       id: "dev-x",
+      accountId: account.id,
       projectId: project.id,
       provider: Provider.X,
       handle: "@GolDeAyerDev",
@@ -1155,6 +1156,7 @@ async function seedTestAccounts() {
         update: {},
         create: {
           id: channelId,
+          accountId: account.id,
           projectId: project.id,
           provider,
           handle: `${acct.handle}-${provider.toLowerCase()}`,

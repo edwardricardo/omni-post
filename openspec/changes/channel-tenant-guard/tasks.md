@@ -99,7 +99,7 @@ strategy with the user before apply.
 
 - [x] 7.1 `docs/security/MULTI_TENANT_GUARDS.md`: enroll `Channel` (3-step canon checklist), bump guard **57 → 58**, note RLS lands in PR2 (inert today under superuser).
 - [x] 7.2 Mirror the Phase-0 reconciled deltas into the living `openspec/specs/multi-tenant-isolation/spec.md` + `openspec/specs/tenant-context-boundaries/spec.md`.
-- [ ] 7.3 **0-defect gate (PR1)**: `tsc` (@apps/api, @core/domain, @infra/prisma build) = 0; `eslint --max-warnings 0` on touched files = 0; fitness **#8/#9/#10/#21/#23 = 0**; `prisma validate` + `migrate status` up-to-date + backfill 0-NULL/row-count preserved; `integration:tenant-isolation` batch green; affected unit set green.
+- [x] 7.3 **0-defect gate (PR1)**: `tsc` (@apps/api, @core/domain, @infra/prisma build) = 0; `eslint --max-warnings 0` on touched files = 0; fitness **#8/#9/#10/#21/#23 = 0**; `prisma validate` + `migrate status` up-to-date + backfill 0-NULL/row-count preserved; `integration:tenant-isolation` batch green; affected unit set green.
 
 ---
 
