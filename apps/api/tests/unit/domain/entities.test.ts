@@ -23,10 +23,12 @@ import {
 describe("Domain Entities", () => {
   describe("Channel Entity", () => {
     const projectId = ProjectId.generate();
+    const accountId = AccountId.generate();
 
     it("should create a new channel", () => {
       const result = Channel.create({
         projectId,
+        accountId,
         provider: "X",
         handle: "@testhandle",
         credentials: { accessToken: "token123" },
@@ -43,6 +45,7 @@ describe("Domain Entities", () => {
     it("should reject empty handle", () => {
       const result = Channel.create({
         projectId,
+        accountId,
         provider: "X",
         handle: "",
         credentials: { accessToken: "token123" },
@@ -54,6 +57,7 @@ describe("Domain Entities", () => {
     it("should reject missing access token", () => {
       const result = Channel.create({
         projectId,
+        accountId,
         provider: "X",
         handle: "@test",
         credentials: { accessToken: "" },
@@ -65,6 +69,7 @@ describe("Domain Entities", () => {
     it("should accept Provider object", () => {
       const result = Channel.create({
         projectId,
+        accountId,
         provider: Provider.instagram(),
         handle: "@instahandle",
         credentials: { accessToken: "token" },
@@ -79,6 +84,7 @@ describe("Domain Entities", () => {
     it("should update credentials", () => {
       const result = Channel.create({
         projectId,
+        accountId,
         provider: "X",
         handle: "@test",
         credentials: { accessToken: "old_token" },
@@ -99,6 +105,7 @@ describe("Domain Entities", () => {
     it("should track error count", () => {
       const result = Channel.create({
         projectId,
+        accountId,
         provider: "X",
         handle: "@test",
         credentials: { accessToken: "token" },
@@ -120,6 +127,7 @@ describe("Domain Entities", () => {
     it("should reset errors", () => {
       const result = Channel.create({
         projectId,
+        accountId,
         provider: "X",
         handle: "@test",
         credentials: { accessToken: "token" },
@@ -140,6 +148,7 @@ describe("Domain Entities", () => {
     it("defaults isPrimary to false on creation", () => {
       const result = Channel.create({
         projectId,
+        accountId,
         provider: "X",
         handle: "@test",
         credentials: { accessToken: "token" },
@@ -154,6 +163,7 @@ describe("Domain Entities", () => {
     it("flips isPrimary via markAsPrimary and updates timestamp", async () => {
       const result = Channel.create({
         projectId,
+        accountId,
         provider: "X",
         handle: "@test",
         credentials: { accessToken: "token" },
@@ -172,6 +182,7 @@ describe("Domain Entities", () => {
     it("markAsPrimary is idempotent — does not bump updatedAt when already primary", async () => {
       const result = Channel.create({
         projectId,
+        accountId,
         provider: "X",
         handle: "@test",
         credentials: { accessToken: "token" },
@@ -190,6 +201,7 @@ describe("Domain Entities", () => {
     it("unmarkAsPrimary flips back to false and is idempotent", async () => {
       const result = Channel.create({
         projectId,
+        accountId,
         provider: "X",
         handle: "@test",
         credentials: { accessToken: "token" },
@@ -211,6 +223,7 @@ describe("Domain Entities", () => {
     it("toJSON exposes isPrimary", () => {
       const result = Channel.create({
         projectId,
+        accountId,
         provider: "X",
         handle: "@test",
         credentials: { accessToken: "token" },
@@ -226,6 +239,7 @@ describe("Domain Entities", () => {
     it("starts with needsReauth = false", () => {
       const r = Channel.create({
         projectId: ProjectId.generate(),
+        accountId: AccountId.generate(),
         provider: "X",
         handle: "@test",
         credentials: { accessToken: "token" },
@@ -240,6 +254,7 @@ describe("Domain Entities", () => {
     it("markForReauth sets needsReauth + authFailedAt + reason", () => {
       const r = Channel.create({
         projectId: ProjectId.generate(),
+        accountId: AccountId.generate(),
         provider: "X",
         handle: "@test",
         credentials: { accessToken: "token" },
@@ -257,6 +272,7 @@ describe("Domain Entities", () => {
     it("markForReauth re-stamps authFailedAt on consecutive triggers", async () => {
       const r = Channel.create({
         projectId: ProjectId.generate(),
+        accountId: AccountId.generate(),
         provider: "X",
         handle: "@test",
         credentials: { accessToken: "token" },
@@ -274,6 +290,7 @@ describe("Domain Entities", () => {
     it("clearReauthFlag is idempotent and resets fields", () => {
       const r = Channel.create({
         projectId: ProjectId.generate(),
+        accountId: AccountId.generate(),
         provider: "X",
         handle: "@test",
         credentials: { accessToken: "token" },
@@ -294,6 +311,7 @@ describe("Domain Entities", () => {
     it("markAsExpired stamps expiredAt and flips status to EXPIRED", () => {
       const r = Channel.create({
         projectId: ProjectId.generate(),
+        accountId: AccountId.generate(),
         provider: "X",
         handle: "@test",
         credentials: { accessToken: "token" },
@@ -310,6 +328,7 @@ describe("Domain Entities", () => {
     it("recordReconnection preserves expiredAt as audit history", async () => {
       const r = Channel.create({
         projectId: ProjectId.generate(),
+        accountId: AccountId.generate(),
         provider: "X",
         handle: "@test",
         credentials: { accessToken: "token" },
@@ -336,6 +355,7 @@ describe("Domain Entities", () => {
     it("recordPublish updates lastUsedAt with the supplied timestamp", () => {
       const r = Channel.create({
         projectId: ProjectId.generate(),
+        accountId: AccountId.generate(),
         provider: "X",
         handle: "@test",
         credentials: { accessToken: "token" },
@@ -351,6 +371,7 @@ describe("Domain Entities", () => {
     it("updateProfile partially updates accountName/profileImage and skips no-op calls", () => {
       const r = Channel.create({
         projectId: ProjectId.generate(),
+        accountId: AccountId.generate(),
         provider: "X",
         handle: "@test",
         credentials: { accessToken: "token" },

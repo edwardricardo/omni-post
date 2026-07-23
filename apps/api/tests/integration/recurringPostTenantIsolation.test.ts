@@ -89,6 +89,7 @@ describe("RecurringPost — two-tenant isolation (MERGE-BLOCKING)", () => {
     const channel = await base.channel.create({
       data: {
         projectId: project.id,
+        accountId: account.id,
         provider: "X",
         handle: `${TAG}-${name}-handle`,
         credentialsCiphertext: "placeholder",

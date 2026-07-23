@@ -27,6 +27,7 @@ import type { ChannelCredentialsCrypto } from "../../security/ChannelCredentials
 interface ChannelRow {
   id: string;
   projectId: string;
+  accountId: string;
   provider: string;
   handle: string;
   providerAccountId: string | null;
@@ -83,6 +84,7 @@ export class PrismaChannelRepository implements ChannelRepository {
   private toDomain(row: ChannelRow): Channel {
     const id = ChannelId.fromStringUnsafe(row.id);
     const projectId = ProjectId.fromStringUnsafe(row.projectId);
+    const accountId = AccountId.fromStringUnsafe(row.accountId);
     const providerResult = Provider.fromString(row.provider);
 
     if (!providerResult.ok) {
@@ -107,6 +109,7 @@ export class PrismaChannelRepository implements ChannelRepository {
 
     return Channel.reconstitute(id, {
       projectId,
+      accountId,
       provider: providerResult.value,
       handle: row.handle,
       credentials: parseCredentials(decrypted),
@@ -352,6 +355,9 @@ export class PrismaChannelRepository implements ChannelRepository {
         create: {
           id: channel.id.value,
           projectId: channel.projectId.value,
+          // Tenant scope required by the guard on create (never mutated on
+          // update — a channel does not migrate between accounts).
+          accountId: channel.accountId.value,
           provider: channel.provider.type as import("@infra/prisma").Provider,
           handle: channel.handle,
           providerAccountId: channel.providerAccountId ?? null,

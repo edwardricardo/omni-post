@@ -33,6 +33,7 @@ model Account {
   createdAt                   DateTime                     @default(now()) @db.Timestamptz(6)
   updatedAt                   DateTime                     @updatedAt @db.Timestamptz(6)
   projects                    Project[]
+  channels                    Channel[]
   apiKeys                     ApiKey[]
   contentTemplates            ContentTemplate[]
   instagramStoryProjects      InstagramStoryProject[]
@@ -765,6 +766,7 @@ model PostMedia {
 
 model Channel {
   id                        String                    @id @default(uuid())
+  accountId                 String
   projectId                 String
   provider                  Provider
   handle                    String
@@ -801,6 +803,7 @@ model Channel {
   lastUsedAt                DateTime?                 @db.Timestamptz(6)
   createdAt                 DateTime                  @default(now()) @db.Timestamptz(6)
   updatedAt                 DateTime                  @updatedAt @db.Timestamptz(6)
+  account                   Account                   @relation(fields: [accountId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   project                   Project                   @relation(fields: [projectId], references: [id])
   publishLogs               PublishLog[]
   analytics                 Analytics[]
@@ -827,6 +830,7 @@ model Channel {
   @@index([needsReauth], where: { needsReauth: true }, map: "Channel_needsReauth_idx")
   @@index([credentialsKeyVersion])
   @@index([provider, providerAccountId], where: { deletedAt: null })
+  @@index([accountId, projectId])
 }
 
 model TrackedLink {

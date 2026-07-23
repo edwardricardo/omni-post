@@ -19,9 +19,11 @@ import { AppError } from "../lib/errors/AppError.js";
 import { buildAuthorizationUrl, consumeOAuthFlow } from "./oauth/oauthFlow.js";
 import { env } from "../config/env.js";
 import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
+import type { ProjectRepositoryPort } from "@core/domain/repositories/ProjectRepository.js";
 import { Channel } from "@core/domain/entities/Channel.js";
 import { ProjectId, ChannelId, AccountId } from "@core/domain/value-objects/EntityId.js";
 import { Provider as DomainProvider } from "@core/domain/value-objects/Provider.js";
+import { withTenantContext } from "../security/tenantContext.js";
 
 // ===========================
 // Validation Schemas
@@ -69,7 +71,8 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
 
   constructor(
     private readonly store: OAuthFlowStorePort,
-    private readonly channelRepository: ChannelRepository
+    private readonly channelRepository: ChannelRepository,
+    private readonly projectRepository: ProjectRepositoryPort
   ) {
     super();
   }
@@ -118,13 +121,17 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
    * inside the repository — plaintext never touches `prisma.channel.upsert`
    * directly.
    *
-   * No tenant-context seam is bound here on purpose: this pre-auth callback
-   * persists only via `channelRepository` (the `Channel` model is NOT tenant-
-   * guard enrolled) and its OAuth-flow state lives in the cache port, not
-   * Prisma, so nothing reaches an enrolled model. Trigger to add a seam: if
-   * `Channel` is enrolled or token persistence moves to `accountCredential`,
-   * bind `withTenantContext({ accountId: record.accountId })` from the consumed
-   * OAuth state at this boundary.
+   * Tenant-context seam: `Channel` is now tenant-guard enrolled, so the
+   * whole persistence body runs inside
+   * `withTenantContext({ accountId: record.accountId })` bound from the
+   * consumed OAuth state. This lets the guard inject/validate `accountId` on
+   * every Channel read/write. The `projectId` carried in the OAuth state is
+   * attacker-influenced (see `initiateOAuth`), so before persisting we probe
+   * it through the guarded `projectRepository`: a foreign or stale
+   * `projectId` resolves nothing under the bound account and we throw
+   * `AppError.notFound("Project")` — no Channel is created. Because
+   * `handleCallback` is a browser-redirect flow, the NotFound surfaces as the
+   * standard error redirect (not a JSON 404).
    */
   private async handleOAuthCallback(
     ctx: RouteContext,
@@ -145,94 +152,115 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
       accountId: record.accountId,
     };
 
-    try {
-      const authResult = await provider.validateCode(code, state, record.codeVerifier);
-
-      const expiresAt = authResult.expiresIn
-        ? new Date(Date.now() + authResult.expiresIn * 1000)
-        : undefined;
-
-      const projectIdResult = ProjectId.fromString(record.projectId);
-      if (!projectIdResult.ok) {
-        throw AppError.internal("Invalid projectId in OAuth state");
-      }
-      const projectId = projectIdResult.value;
-
-      const providerVoResult = DomainProvider.fromString(providerId.toUpperCase());
-      if (!providerVoResult.ok) {
-        throw AppError.badRequest(`Unsupported provider: ${providerId}`);
-      }
-      const providerVo = providerVoResult.value;
-
-      const credentials = {
-        accessToken: authResult.accessToken,
-        ...(authResult.refreshToken !== undefined && { refreshToken: authResult.refreshToken }),
-        ...(expiresAt !== undefined && { expiresAt }),
-      };
-
-      const handle = authResult.accountInfo.username || authResult.accountInfo.name || "";
-      const accountName = authResult.accountInfo.username || authResult.accountInfo.name;
-      const profileImage = authResult.accountInfo.profileImage;
-      const providerAccountId = authResult.accountInfo.id;
-      const now = new Date();
-
-      const existing = await this.channelRepository.findByProjectProviderAccount(
-        projectId,
-        providerVo,
-        providerAccountId
-      );
-
-      let channelId: string;
-      if (existing) {
-        // Reconnect path: refresh credentials + display fields, transition
-        // status back to CONNECTED, clear needsReauth, stamp connectedAt.
-        // expiredAt is intentionally NOT cleared (audit history per canon).
-        const updateResult = existing.updateCredentials(credentials);
-        if (!updateResult.ok) {
-          throw AppError.badRequest(updateResult.error.message);
+    await withTenantContext({ accountId: record.accountId }, async () => {
+      try {
+        const projectIdResult = ProjectId.fromString(record.projectId);
+        if (!projectIdResult.ok) {
+          throw AppError.internal("Invalid projectId in OAuth state");
         }
-        existing.recordReconnection();
-        existing.updateProfile({
-          ...(accountName !== undefined && { accountName }),
-          ...(profileImage !== undefined && { profileImage }),
-        });
-        const saveResult = await this.channelRepository.save(existing);
-        if (!saveResult.ok) {
-          throw AppError.internal("Failed to persist Channel reconnection");
+        const projectId = projectIdResult.value;
+
+        // Ownership probe: under the bound tenant context the guarded
+        // repository filters by `accountId`, so a foreign/stale projectId
+        // resolves nothing → NotFound, before any external token exchange or
+        // Channel persistence. Closes the create-path IDOR (CWE-639).
+        //
+        // The `err` branch here is exclusively a genuine not-found:
+        // `PrismaProjectRepository.findById` returns `err` ONLY for
+        // `EntityNotFoundError` (row is null), while a transient DB/infra
+        // failure THROWS out of `findById` and is caught by the outer
+        // `catch` below → the generic OAuth error path (distinct log). So
+        // mapping `!ok` → `notFound` does NOT collapse infrastructure
+        // failures into a misleading NotFound; external behavior stays uniform.
+        const ownedProject = await this.projectRepository.findById(projectId);
+        if (!ownedProject.ok) {
+          throw AppError.notFound("Project");
         }
-        channelId = existing.id.value;
-      } else {
-        // Fresh-grant path: create new Channel via domain factory.
-        const createResult = Channel.create({
+        const accountId = AccountId.fromStringUnsafe(record.accountId);
+
+        const authResult = await provider.validateCode(code, state, record.codeVerifier);
+
+        const expiresAt = authResult.expiresIn
+          ? new Date(Date.now() + authResult.expiresIn * 1000)
+          : undefined;
+
+        const providerVoResult = DomainProvider.fromString(providerId.toUpperCase());
+        if (!providerVoResult.ok) {
+          throw AppError.badRequest(`Unsupported provider: ${providerId}`);
+        }
+        const providerVo = providerVoResult.value;
+
+        const credentials = {
+          accessToken: authResult.accessToken,
+          ...(authResult.refreshToken !== undefined && { refreshToken: authResult.refreshToken }),
+          ...(expiresAt !== undefined && { expiresAt }),
+        };
+
+        const handle = authResult.accountInfo.username || authResult.accountInfo.name || "";
+        const accountName = authResult.accountInfo.username || authResult.accountInfo.name;
+        const profileImage = authResult.accountInfo.profileImage;
+        const providerAccountId = authResult.accountInfo.id;
+        const now = new Date();
+
+        const existing = await this.channelRepository.findByProjectProviderAccount(
           projectId,
-          provider: providerVo,
-          handle,
-          credentials,
-          ...(accountName !== undefined && { accountName }),
-          ...(profileImage !== undefined && { profileImage }),
-          providerAccountId,
-          connectedAt: now,
-        });
-        if (!createResult.ok) {
-          throw AppError.badRequest(createResult.error.message);
-        }
-        const channel = createResult.value;
-        const saveResult = await this.channelRepository.save(channel);
-        if (!saveResult.ok) {
-          throw AppError.internal("Failed to persist new Channel");
-        }
-        channelId = channel.id.value;
-      }
+          providerVo,
+          providerAccountId
+        );
 
-      this.logInfo(ctx, "OAuth connection successful", {
-        provider: providerId,
-        accountId: record.accountId,
-        channelId,
-      });
-    } catch (error) {
-      const oauthError = this.handleOAuthError(ctx, error, oauthContext);
-      throw oauthError;
-    }
+        let channelId: string;
+        if (existing) {
+          // Reconnect path: refresh credentials + display fields, transition
+          // status back to CONNECTED, clear needsReauth, stamp connectedAt.
+          // expiredAt is intentionally NOT cleared (audit history per canon).
+          const updateResult = existing.updateCredentials(credentials);
+          if (!updateResult.ok) {
+            throw AppError.badRequest(updateResult.error.message);
+          }
+          existing.recordReconnection();
+          existing.updateProfile({
+            ...(accountName !== undefined && { accountName }),
+            ...(profileImage !== undefined && { profileImage }),
+          });
+          const saveResult = await this.channelRepository.save(existing);
+          if (!saveResult.ok) {
+            throw AppError.internal("Failed to persist Channel reconnection");
+          }
+          channelId = existing.id.value;
+        } else {
+          // Fresh-grant path: create new Channel via domain factory.
+          const createResult = Channel.create({
+            projectId,
+            accountId,
+            provider: providerVo,
+            handle,
+            credentials,
+            ...(accountName !== undefined && { accountName }),
+            ...(profileImage !== undefined && { profileImage }),
+            providerAccountId,
+            connectedAt: now,
+          });
+          if (!createResult.ok) {
+            throw AppError.badRequest(createResult.error.message);
+          }
+          const channel = createResult.value;
+          const saveResult = await this.channelRepository.save(channel);
+          if (!saveResult.ok) {
+            throw AppError.internal("Failed to persist new Channel");
+          }
+          channelId = channel.id.value;
+        }
+
+        this.logInfo(ctx, "OAuth connection successful", {
+          provider: providerId,
+          accountId: record.accountId,
+          channelId,
+        });
+      } catch (error) {
+        const oauthError = this.handleOAuthError(ctx, error, oauthContext);
+        throw oauthError;
+      }
+    });
   }
 
   /** Route: GET /auth/:provider - Initiate OAuth flow (requires authentication) */

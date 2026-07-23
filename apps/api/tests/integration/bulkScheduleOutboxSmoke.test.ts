@@ -235,6 +235,7 @@ describe("BulkSchedule outbox path — smoke e2e", () => {
     const foreignChannel = await prisma.channel.create({
       data: {
         projectId: foreignProjectId,
+        accountId: tenant.foreignAccountId,
         provider: "X",
         providerAccountId: `x-foreign-${tag}`,
         handle: `foreign-handle-${tag}`,

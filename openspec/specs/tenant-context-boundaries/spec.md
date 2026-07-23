@@ -59,14 +59,14 @@ and its reason string SHALL be one of the fixed, guard-audited constants.
 
 The eight Class A surfaces and their bound context:
 
-| Surface                              | Boundary                                                       | Context            |
-| ------------------------------------ | -------------------------------------------------------------- | ------------------ |
-| A1/A2 Zapier / Make integration auth | `integrationAuthMiddleware` (two-hook: resolve + bind)         | system → tenant    |
-| A3/A4 SSO public (SAML ×3, OIDC ×2)  | shared param preHandler on the 5 public routes                 | tenant (URL param) |
-| A5 billing webhooks (Stripe, Paddle) | handler body `withSystemContext("system:billing-webhook")`     | system (declared)  |
-| A6 tenant health                     | shared param preHandler (`tenantId`)                           | tenant (URL param) |
-| A7 inbound provider webhooks         | worker callbacks `withSystemContext("system:inbound-webhook")` | system (declared)  |
-| A8 OAuth callback                    | none — verified no enrolled model reached                      | n/a                |
+| Surface                              | Boundary                                                                                                                                                                         | Context              |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| A1/A2 Zapier / Make integration auth | `integrationAuthMiddleware` (two-hook: resolve + bind)                                                                                                                           | system → tenant      |
+| A3/A4 SSO public (SAML ×3, OIDC ×2)  | shared param preHandler on the 5 public routes                                                                                                                                   | tenant (URL param)   |
+| A5 billing webhooks (Stripe, Paddle) | handler body `withSystemContext("system:billing-webhook")`                                                                                                                       | system (declared)    |
+| A6 tenant health                     | shared param preHandler (`tenantId`)                                                                                                                                             | tenant (URL param)   |
+| A7 inbound provider webhooks         | worker callbacks `withSystemContext("system:inbound-webhook")`                                                                                                                   | system (declared)    |
+| A8 OAuth callback                    | `handleOAuthCallback` body `withTenantContext({accountId: record.accountId})` + guarded `projectRepository.findById` probe (foreign `projectId` → NotFound → error redirect 302) | tenant (OAuth state) |
 
 #### Scenario: a pre-auth boundary never reaches an enrolled model context-less [integration]
 
@@ -225,20 +225,34 @@ legitimate request, and in no case SHALL it silently return unscoped rows.
 
 ---
 
-### Requirement: A8 OAuth callback is a verified no-op boundary [static]
+### Requirement: A8 OAuth callback binds tenant context from the consumed OAuth state and rejects a foreign projectId [MERGE-BLOCKING]
 
-The provider OAuth callback (`providerOAuthFlow.ts` `handleOAuthCallback`) SHALL require
-NO seam, because it persists ONLY via `channelRepository` (`Channel` is NOT in
-`TENANT_SCOPED_MODELS`) and its flow state lives in `CachePort`, not Prisma. The absence
-of a seam SHALL be documented in-file with a trigger note: if `Channel` becomes enrolled
-or token-persistence moves to `accountCredential`, the boundary SHALL bind
-`withTenantContext({ accountId: record.accountId })` from the consumed OAuth state.
+(Previously a verified no-op boundary because `Channel` was NOT enrolled. Slice 7
+(`channel-tenant-guard`) enrolls `Channel` in `TENANT_SCOPED_MODELS`, activating the
+trigger note, so the boundary is now a real seam.)
 
-#### Scenario: the callback reaches no enrolled model [static]
+The provider OAuth callback (`providerOAuthFlow.ts` `handleOAuthCallback`) persists via
+`channelRepository` on the now-enrolled `Channel` model, so its persistence body SHALL run
+inside `withTenantContext({ accountId: record.accountId })` bound from the consumed OAuth
+state — otherwise the guard would throw `TenantContextMissingError` on the `Channel`
+read/write. Because the `projectId` carried in the OAuth state is attacker-influenced, the
+handler SHALL probe it through the guarded `projectRepository.findById` BEFORE any external
+token exchange or `Channel` persistence: under the bound account a foreign/stale `projectId`
+resolves nothing → `AppError.notFound("Project")`, and NO channel is created. Because
+`handleCallback` is a browser-redirect flow (its catch converts every error into a 302), the
+NOT_FOUND surfaces as the standard **error redirect (302)**, never a literal 404 status.
+
+#### Scenario: the callback binds the account context from the OAuth state [static]
 
 - **GIVEN** `handleOAuthCallback`
 - **WHEN** its persistence paths are inspected
-- **THEN** it writes only via `channelRepository` (unenrolled) and reads flow state from `CachePort`, so no seam is required, and the trigger note is present
+- **THEN** the body runs inside `withTenantContext({ accountId: record.accountId })` and the guarded `projectRepository.findById` probe runs before token exchange / `Channel.create`
+
+#### Scenario: a foreign projectId in the OAuth state is rejected without persisting a channel [integration]
+
+- **GIVEN** tenant A completes an OAuth callback whose consumed state carries a `projectId` belonging to tenant B
+- **WHEN** the callback runs
+- **THEN** the response is an ERROR REDIRECT (302, never a literal 404 status), NO external token exchange occurs, and NO channel is persisted under B's project
 
 ---
 

@@ -10,7 +10,7 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ok, err } from "@shared/types";
-import { Channel, ChannelId, ProjectId, Provider } from "@core/domain/index.js";
+import { Channel, ChannelId, ProjectId, AccountId, Provider } from "@core/domain/index.js";
 import { EntityNotFoundError } from "@core/domain/errors/index.js";
 import { SetPrimaryChannelUseCase } from "@core/channels/SetPrimaryChannelUseCase.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
@@ -22,6 +22,7 @@ function makeChannel(props?: {
 }): Channel {
   const result = Channel.create({
     projectId: props?.projectId ?? ProjectId.generate(),
+    accountId: AccountId.generate(),
     provider: props?.provider ?? Provider.x(),
     handle: `@channel-${Math.random().toString(36).slice(2, 8)}`,
     credentials: { accessToken: "token" },

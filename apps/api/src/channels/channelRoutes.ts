@@ -13,6 +13,7 @@ import {
   Channel,
   ChannelId,
   ProjectId,
+  AccountId,
   Provider,
   EntityNotFoundError,
   CONNECTION_STATUS,
@@ -30,6 +31,7 @@ import type { PrismaClient } from "@infra/prisma";
 import { BlueskyClient } from "@providers/bluesky";
 import { SetPrimaryChannelUseCase } from "@core/channels/index.js";
 import { USE_CASE_ERRORS } from "@core/application/UseCase.js";
+import { withSystemContext } from "../security/tenantContext.js";
 
 // ─── Schemas ────────────────────────────────────────────────────────────────
 
@@ -166,6 +168,13 @@ class ChannelRouteHandler extends BaseRouteHandler {
    * accountId, and returns the project on success. On miss returns null
    * AFTER replying 404 — callers must early-return.
    *
+   * The returned `accountId` is the verified owner's account as a RAW string
+   * (not the `AccountId` value object). It is raw because both consumers feed
+   * it straight into a Prisma write: `createChannel` wraps it with
+   * `AccountId.fromStringUnsafe` at the entity boundary, and `connectBluesky`
+   * passes it directly to `channel.upsert.create.accountId` (a string column).
+   * Keeping the primitive here avoids a VO round-trip the callers would immediately unwrap.
+   *
    * Anti-IDOR canon: 404 (not 403) prevents cross-tenant project-id
    * enumeration; the response shape is identical whether the project
    * does not exist or belongs to another tenant.
@@ -173,7 +182,7 @@ class ChannelRouteHandler extends BaseRouteHandler {
   private async assertCallerOwnsProject(
     ctx: RouteContext,
     projectId: string
-  ): Promise<{ id: ProjectId; name: string } | null> {
+  ): Promise<{ id: ProjectId; name: string; accountId: string } | null> {
     const customer = ctx.request.customerUser;
     if (!customer) {
       this.sendError(ctx, 401, "Authentication required");
@@ -195,7 +204,11 @@ class ChannelRouteHandler extends BaseRouteHandler {
       this.sendError(ctx, 404, "Project not found");
       return null;
     }
-    return { id: projectIdResult.value, name: project.name };
+    return {
+      id: projectIdResult.value,
+      name: project.name,
+      accountId: project.accountId.toString(),
+    };
   }
 
   /**
@@ -262,6 +275,7 @@ class ChannelRouteHandler extends BaseRouteHandler {
     const now = new Date();
     const channel = Channel.reconstitute(ChannelId.generate(), {
       projectId: ProjectId.fromStringUnsafe(projectId),
+      accountId: AccountId.fromStringUnsafe(ownedProject.accountId),
       provider: providerResult.value,
       handle: name.trim(),
       credentials: mapCredentials(credentials ?? {}),
@@ -373,6 +387,7 @@ class ChannelRouteHandler extends BaseRouteHandler {
     // Immutable-entity update pattern: reconstitute with new values, then save.
     const updated = Channel.reconstitute(existing.id, {
       projectId: existing.projectId,
+      accountId: existing.accountId,
       provider: existing.provider,
       handle: name !== undefined ? name.trim() : existing.handle,
       credentials:
@@ -474,6 +489,8 @@ class ChannelRouteHandler extends BaseRouteHandler {
         create: {
           id: channelId,
           projectId,
+          // Tenant scope from the ownership-verified project.
+          accountId: ownedProject.accountId,
           provider: "BLUESKY",
           handle,
           providerAccountId: identifier,
@@ -556,7 +573,15 @@ class ChannelRouteHandler extends BaseRouteHandler {
     if (!paramsResult.ok) return this.sendError(ctx, 400, "Validation failed");
 
     const { channelId } = paramsResult.value;
-    const result = await this.channelRepo.hardDelete(ChannelId.fromStringUnsafe(channelId));
+
+    // Admin auth binds NO tenant context, but `Channel` is tenant-guard
+    // enrolled, so the guarded reads/writes inside hardDelete would throw
+    // TenantContextMissingError. This is a legitimate cross-tenant admin
+    // operation, so run it under the sanctioned `withSystemContext` bypass
+    // (mirrors the admin MFA force-disable path).
+    const result = await withSystemContext(`system:channel-hard-delete:${channelId}`, async () =>
+      this.channelRepo.hardDelete(ChannelId.fromStringUnsafe(channelId))
+    );
 
     if (!result.ok) {
       return result.error instanceof EntityNotFoundError

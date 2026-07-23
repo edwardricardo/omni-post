@@ -90,6 +90,7 @@ describe("Client inbox routes integration (triage exposure)", () => {
     const channel = await prisma.channel.create({
       data: {
         projectId: project.id,
+        accountId: account.id,
         provider: "INSTAGRAM",
         providerAccountId: `provider-acct-${tag}`,
         handle: "test-handle",
