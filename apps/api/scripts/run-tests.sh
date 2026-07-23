@@ -177,6 +177,7 @@ CONCURRENCY=1 run_batch "integration:tenant-isolation" \
   tests/integration/scheduledReportTenantIsolation.test.ts \
   tests/integration/campaignTenantIsolation.test.ts \
   tests/integration/recurringPostTenantIsolation.test.ts \
+  tests/integration/channelTenantIsolation.test.ts \
   tests/integration/trackedLinkTenantIsolation.test.ts \
   tests/integration/generatedImageTenantIsolation.test.ts \
   tests/integration/projectMemberTenantIsolation.test.ts \

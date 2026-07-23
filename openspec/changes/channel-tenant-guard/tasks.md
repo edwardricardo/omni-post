@@ -91,14 +91,14 @@ strategy with the user before apply.
 
 ## Phase 6: RED→GREEN — two-tenant integration (MERGE-BLOCKING)
 
-- [ ] 6.1 [RED] Create `apps/api/tests/integration/channelTenantIsolation.test.ts` (node:test, real DB, two tenants; `@file`/`@description`/`@layer infrastructure` header — fitness #9/#10). Build the production guard in-test (`$extends(tenantGuardExtension)` + real ALS provider + real `PrismaChannelRepository`; seed via superuser). Assert: (a) A-ctx get/update/delete on B's channel id → NOT_FOUND, B unchanged; (b) A-ctx list with B's `projectId` → `[]`; (c) NO decrypted credential of B in body/error/logs on any route; (d) OAuth-callback foreign `projectId` → error redirect + no row persisted; (e) Bluesky foreign project → literal 404; (f) own create → `accountId == Project.accountId`; (g) no-context read → `TenantContextMissingError`.
-- [ ] 6.2 [GREEN] `apps/api/scripts/run-tests.sh`: add `channelTenantIsolation.test.ts` to the `integration:tenant-isolation` batch.
-- [ ] 6.3 Run INT 6.1 via the batch (DBUP first) → GREEN, 0 cancelled.
+- [x] 6.1 [RED] Create `apps/api/tests/integration/channelTenantIsolation.test.ts` (node:test, real DB, two tenants; `@file`/`@description`/`@layer infrastructure` header — fitness #9/#10). Build the production guard in-test (`$extends(tenantGuardExtension)` + real ALS provider + real `PrismaChannelRepository`; seed via superuser). Assert: (a) A-ctx get/update/delete on B's channel id → NOT_FOUND, B unchanged; (b) A-ctx list with B's `projectId` → `[]`; (c) NO decrypted credential of B in body/error/logs on any route; (d) OAuth-callback foreign `projectId` → error redirect + no row persisted; (e) Bluesky foreign project → literal 404; (f) own create → `accountId == Project.accountId`; (g) no-context read → `TenantContextMissingError`.
+- [x] 6.2 [GREEN] `apps/api/scripts/run-tests.sh`: add `channelTenantIsolation.test.ts` to the `integration:tenant-isolation` batch.
+- [x] 6.3 Run INT 6.1 via the batch (DBUP first) → GREEN, 0 cancelled.
 
 ## Phase 7: Docs + spec sync + PR1 0-defect gate
 
-- [ ] 7.1 `docs/security/MULTI_TENANT_GUARDS.md`: enroll `Channel` (3-step canon checklist), bump guard **57 → 58**, note RLS lands in PR2 (inert today under superuser).
-- [ ] 7.2 Mirror the Phase-0 reconciled deltas into the living `openspec/specs/multi-tenant-isolation/spec.md` + `openspec/specs/tenant-context-boundaries/spec.md`.
+- [x] 7.1 `docs/security/MULTI_TENANT_GUARDS.md`: enroll `Channel` (3-step canon checklist), bump guard **57 → 58**, note RLS lands in PR2 (inert today under superuser).
+- [x] 7.2 Mirror the Phase-0 reconciled deltas into the living `openspec/specs/multi-tenant-isolation/spec.md` + `openspec/specs/tenant-context-boundaries/spec.md`.
 - [ ] 7.3 **0-defect gate (PR1)**: `tsc` (@apps/api, @core/domain, @infra/prisma build) = 0; `eslint --max-warnings 0` on touched files = 0; fitness **#8/#9/#10/#21/#23 = 0**; `prisma validate` + `migrate status` up-to-date + backfill 0-NULL/row-count preserved; `integration:tenant-isolation` batch green; affected unit set green.
 
 ---

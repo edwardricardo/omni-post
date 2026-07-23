@@ -74,6 +74,26 @@
 > the RLS policy-count assertion in `rls-tenant-isolation.test.ts` from a
 > literal to a count derived from `getTenantScopedModels().size`.
 >
+> **Extended by Slice 7** — change `channel-tenant-guard`, branch
+> `workstream/channel-tenant-guard`. Enrolls `Channel`, the credential-bearing,
+> max-blast model (Tier 4): it carries FOUR AES-GCM credential columns
+> (`credentialsCiphertext` / `Iv` / `AuthTag` / `KeyVersion`) decrypted by the
+> credential-resolution path, so a cross-tenant read is a decrypted-OAuth-token
+> exfil, not just a metadata leak. `Channel` now carries a non-null `accountId`
+> (denormalized from `Project.accountId`) with a composite
+> `@@index([accountId, projectId])`; Migration A backfills over the NOT-NULL
+> `projectId` FK — soft-deleted rows included — with an in-transaction `RAISE`
+> on residual NULL. It has TWO create paths (a Requirement-3 first): the OAuth
+> callback and the Bluesky connect (plus `POST /channels`). This slice ships as
+> TWO chained PRs on a deliberate seam — **PR1** enrolls `Channel` in the Prisma
+> `$extends` guard (layer 1) + threads the API create-path ownership (workers
+> and publish untouched); **PR2** adds the RLS policy (layer 2, Migration B) and
+> the worker credential/reconciliation tenant-scoping + account GUC binding. Leg
+> 3/RLS is INERT deployment-wide today (the app AND worker role is superuser /
+> BYPASSRLS, verified against the live DB), so layer 1 + the app-layer scoping
+> are the ACTIVE enforcement. The MERGE-BLOCKING isolation proof is
+> `apps/api/tests/integration/channelTenantIsolation.test.ts`.
+>
 > Scope note: this capability covers isolation **by construction at the data layer**.
 > It is distinct from the per-model APP-LEVEL ownership specs archived separately
 > (`trackedlink-tenant-isolation`, `post-tenant-isolation`), which gate at the
@@ -130,6 +150,12 @@ required for read, update, or delete paths.
 | `TrackedLink`                | 3     | Required  | Required               | Required   |
 | `GeneratedImage`             | 4     | Required  | Required               | Required   |
 | `ProjectMember`              | 5     | Required  | Required               | Required   |
+| `Channel`                    | 7     | Required  | Required               | Required   |
+
+`Channel`'s dominant guarded reads are `projectId`-filtered, so its index is
+`@@index([accountId, projectId])`. Its `TENANT_SCOPED_MODELS` membership lands in PR1
+(guard count 57 → 58); its RLS policy (leg 3) lands in the slice's PR2 (Migration B) and
+is INERT deployment-wide today under the superuser role.
 
 #### Scenario: the three legs are present for each enrolled model [static]
 
@@ -459,6 +485,44 @@ this slice.
 
 ---
 
+### Requirement: Channel — the live IDOR routes are closed, and no decrypted provider credential crosses the tenant boundary [MERGE-BLOCKING]
+
+An authenticated tenant A SHALL NOT read, list, connect, update, or delete tenant B's
+`Channel`. Each of B's id-only JSON routes (get / update / delete) SHALL resolve to
+**NOT_FOUND (404)** for A — never 403 (anti-enumeration) and never 500. The
+provider-connect action resolves the same NOT_FOUND decision, surfaced per its transport:
+the Bluesky connect (JSON route) returns a literal **404** via `assertCallerOwnsProject`,
+while the OAuth callback — a browser-redirect flow whose catch converts every error into a
+302 — surfaces the NOT_FOUND as the standard **error redirect (302)**, never a literal 404
+status. In BOTH transports NO channel is persisted under B's project. A list carrying a
+FOREIGN `projectId` SHALL resolve to NOT_FOUND at the route (Channel's list route runs an
+explicit `assertCallerOwnsProject` gate — strictly stronger than the guard-natural empty
+result, which the guarded repository still returns for a foreign `projectId`). Critically,
+because `Channel` carries FOUR AES-GCM credential columns decrypted by the
+credential-resolution path, NO decrypted provider OAuth token SHALL cross the tenant
+boundary — not in a response body, not in an error message, not in a log, and not through
+an outbound provider API call performed on B's behalf.
+
+#### Scenario: A cannot read, update, or delete B's channel by id [integration]
+
+- **GIVEN** tenant A is authenticated and knows the id of B's `Channel`
+- **WHEN** A calls the get / update / delete route with B's channel id
+- **THEN** each resolves to NOT_FOUND, B's channel is unchanged in the database, and no channel data of B — including any decrypted credential — appears in the payload
+
+#### Scenario: A cannot connect a provider into B's project [integration]
+
+- **GIVEN** tenant A is authenticated and B's `projectId` is carried by the connect action (consumed OAuth state for the OAuth callback, request body for the Bluesky connect)
+- **WHEN** A completes the connect action
+- **THEN** the OAuth callback resolves to an ERROR REDIRECT (302, never a literal 404), the Bluesky connect resolves to a literal **404 NOT_FOUND** (never 403, never 500), and in BOTH cases NO channel is persisted under B's project
+
+#### Scenario: no decrypted credential is ever materialized across the boundary [integration]
+
+- **GIVEN** tenant B owns a channel with stored encrypted credentials
+- **WHEN** tenant A exercises ANY Channel route referencing B's channel id
+- **THEN** the response, error body, and logs contain NO decrypted credential of B, and no provider API call is made with B's token
+
+---
+
 ### Requirement: Create paths validate parent ownership per enrolled model [MERGE-BLOCKING]
 
 The guard injects `accountId` from the bound context but does NOT validate parent–child
@@ -475,15 +539,16 @@ one of which SHALL belong to the caller's account before persist.
 
 **Applied so far (extended by each slice):**
 
-| Model                        | Slice | Create path                                                                                                                                                               |
-| ---------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ExternalNotificationConfig` | 1     | `POST /external-notifications` → `ConfigureExternalNotificationUseCase`                                                                                                   |
-| `ScheduledReport`            | 2     | `POST /reports` → `CreateScheduledReportUseCase`                                                                                                                          |
-| `Campaign`                   | 2     | `POST /campaigns` → `CreateCampaignUseCase`                                                                                                                               |
-| `TrackedLink`                | 3     | `POST /links` → `CreateTrackedLinkUseCase` (`projectId`)                                                                                                                  |
-| `RecurringPost`              | 3     | `POST /recurring-posts` → `CreateRecurringPostUseCase` (`projectId` + `templatePostId` + `channels[]`)                                                                    |
-| `GeneratedImage`             | 4     | `POST /ai/generate-image` → `GenerateImageUseCase` (`projectId`; check runs BEFORE the paid AI call)                                                                      |
-| `ProjectMember`              | 5     | **N/A — no production create path** (seed-only writer); check validating `projectId`→`Project` AND `memberId`→`CustomerUser` becomes MANDATORY when SMELL-59 wires writes |
+| Model                        | Slice | Create path                                                                                                                                                                                                                                                                             |
+| ---------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ExternalNotificationConfig` | 1     | `POST /external-notifications` → `ConfigureExternalNotificationUseCase`                                                                                                                                                                                                                 |
+| `ScheduledReport`            | 2     | `POST /reports` → `CreateScheduledReportUseCase`                                                                                                                                                                                                                                        |
+| `Campaign`                   | 2     | `POST /campaigns` → `CreateCampaignUseCase`                                                                                                                                                                                                                                             |
+| `TrackedLink`                | 3     | `POST /links` → `CreateTrackedLinkUseCase` (`projectId`)                                                                                                                                                                                                                                |
+| `RecurringPost`              | 3     | `POST /recurring-posts` → `CreateRecurringPostUseCase` (`projectId` + `templatePostId` + `channels[]`)                                                                                                                                                                                  |
+| `GeneratedImage`             | 4     | `POST /ai/generate-image` → `GenerateImageUseCase` (`projectId`; check runs BEFORE the paid AI call)                                                                                                                                                                                    |
+| `ProjectMember`              | 5     | **N/A — no production create path** (seed-only writer); check validating `projectId`→`Project` AND `memberId`→`CustomerUser` becomes MANDATORY when SMELL-59 wires writes                                                                                                               |
+| `Channel`                    | 7     | OAuth callback (`providerOAuthFlow.ts` `handleOAuthCallback`, `projectId` from consumed OAuth state → error redirect 302 on foreign) + Bluesky connect (`channelRoutes.ts` `connectBluesky`, `projectId` → literal 404) + `POST /channels` (`createChannel`, `projectId` → literal 404) |
 
 #### Scenario: create against a foreign parent is rejected [integration]
 
@@ -496,6 +561,12 @@ one of which SHALL belong to the caller's account before persist.
 - **GIVEN** tenant A is authenticated and any of `projectId`, `templatePostId`, or a `channels[]` entry belongs to tenant B
 - **WHEN** A calls the `RecurringPost` create (or patch-repoint) endpoint
 - **THEN** the response is **404 NOT_FOUND** (never 403, never 500), and NO recurrence is persisted
+
+#### Scenario: Channel's create paths reject a foreign parent per transport [integration]
+
+- **GIVEN** tenant A is authenticated and B's `projectId` is supplied to a `Channel` create path
+- **WHEN** A completes the OAuth callback (browser-redirect flow) OR the Bluesky connect / `POST /channels` (JSON route)
+- **THEN** the OAuth callback resolves to an ERROR REDIRECT (302 — the guarded `projectRepository.findById` probe rejects the foreign `projectId` BEFORE any token exchange; the catch surfaces NOT_FOUND as a 302, never a literal 404), the JSON routes resolve to a literal **404 NOT_FOUND** (never 403, never 500) via `assertCallerOwnsProject`, and in BOTH cases NO channel is persisted
 
 #### Scenario: create against an own parent succeeds and is consistent [integration]
 
