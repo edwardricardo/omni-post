@@ -763,7 +763,7 @@ describe("tenantGuardExtension", () => {
     });
   });
 
-  describe("channel enrollment (Slice 7 — tenant-guard rollout)", () => {
+  describe("channel enrollment", () => {
     it("channel is a member of getTenantScopedModels()", () => {
       expect(getTenantScopedModels().has("channel")).toBe(true);
     });
@@ -942,7 +942,7 @@ describe("tenantGuardExtension", () => {
     it("excludes global tables (account, auditLog, providerBundle, post, linkClick)", () => {
       const models = getTenantScopedModels();
       // Post is transitively scoped (via project FK), not in this direct list.
-      // Channel moved INTO the guard list in Slice 7 (see its enrollment suite).
+      // Channel is enrolled in the guard list (see its enrollment suite).
       // LinkClick has no accountId column and is gated transitively via the guarded
       // parent trackedLink lookup — same policy as campaignPost.
       expect(models.has("account")).toBe(false);

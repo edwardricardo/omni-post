@@ -121,7 +121,7 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
    * inside the repository — plaintext never touches `prisma.channel.upsert`
    * directly.
    *
-   * Tenant-context seam (A8): `Channel` is now tenant-guard enrolled, so the
+   * Tenant-context seam: `Channel` is now tenant-guard enrolled, so the
    * whole persistence body runs inside
    * `withTenantContext({ accountId: record.accountId })` bound from the
    * consumed OAuth state. This lets the guard inject/validate `accountId` on
@@ -164,6 +164,14 @@ export class ProviderOAuthHandler extends BaseRouteHandler {
         // repository filters by `accountId`, so a foreign/stale projectId
         // resolves nothing → NotFound, before any external token exchange or
         // Channel persistence. Closes the create-path IDOR (CWE-639).
+        //
+        // The `err` branch here is exclusively a genuine not-found:
+        // `PrismaProjectRepository.findById` returns `err` ONLY for
+        // `EntityNotFoundError` (row is null), while a transient DB/infra
+        // failure THROWS out of `findById` and is caught by the outer
+        // `catch` below → the generic OAuth error path (distinct log). So
+        // mapping `!ok` → `notFound` does NOT collapse infrastructure
+        // failures into a misleading NotFound; external behavior stays uniform.
         const ownedProject = await this.projectRepository.findById(projectId);
         if (!ownedProject.ok) {
           throw AppError.notFound("Project");

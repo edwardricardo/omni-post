@@ -16,6 +16,7 @@ import { Permission } from "@core/domain/auth/Permission.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import type { UpdateChannelAuthStateUseCase } from "@core/channels/index.js";
 import type { AuditService } from "../audit/auditService.js";
+import { withSystemContext } from "../security/tenantContext.js";
 
 const ParamsSchema = z.object({ id: z.string().min(1) });
 const BodySchema = z.object({
@@ -46,10 +47,19 @@ class ChannelReauthRouteHandler extends BaseRouteHandler {
     }
     const reason = body.data.reason?.trim() || DEFAULT_REASON;
 
-    const result = await this.useCase.execute({
-      channelId: params.data.id,
-      reason,
-    });
+    // Admin auth binds NO tenant context, but the reauth use case reads/writes
+    // the tenant-guard-enrolled Channel (findById + save), which would throw
+    // TenantContextMissingError. This is a legitimate cross-tenant admin
+    // operation, so run it under the sanctioned `withSystemContext` bypass
+    // (mirrors the channel hard-delete path).
+    const result = await withSystemContext(
+      `system:channel-force-reauth:${params.data.id}`,
+      async () =>
+        this.useCase.execute({
+          channelId: params.data.id,
+          reason,
+        })
+    );
 
     const adminUserId =
       (request as FastifyRequest & { adminUser?: { id: string } }).adminUser?.id ?? null;

@@ -1,17 +1,23 @@
 /**
  * @file channelTenantIsolation.test.ts
  * @description MERGE-BLOCKING two-tenant integration test for the `Channel`
- *   tenant-guard enrollment (Slice 7, N-SEC-3). Exercises the live channel
- *   routes THROUGH HTTP (`app.inject`) against a REAL database with two
- *   tenants (A, B), proving every credential-bearing IDOR path is closed:
- *   read / list / update / delete by id resolve to NOT_FOUND for a foreign
- *   caller, and BOTH create paths reject a foreign `projectId` — the Bluesky
- *   connect (JSON route) with a literal 404 via `assertCallerOwnsProject`, the
- *   OAuth callback (browser-redirect flow) with the standard error redirect
- *   (302) before any external token exchange, in each case persisting no
- *   channel under B's project. Because `Channel` carries four AES-GCM
- *   credential columns, the suite also asserts NO decrypted provider
- *   credential of B ever crosses the boundary (body, error, log-free payload).
+ *   tenant-guard enrollment. Exercises the live channel routes THROUGH HTTP
+ *   (`app.inject`) against a REAL database with two tenants (A, B), proving
+ *   every credential-bearing IDOR path is closed: read / list / update / delete
+ *   by id resolve to NOT_FOUND for a foreign caller, and BOTH create paths
+ *   reject a foreign `projectId` — the Bluesky connect (JSON route) with a
+ *   literal 404 via `assertCallerOwnsProject`, the OAuth callback
+ *   (browser-redirect flow) with the standard error redirect (302) BEFORE any
+ *   external token exchange (asserted by a spy on `validateCode`), in each case
+ *   persisting no channel under B's project.
+ *
+ *   The isolation proof is the 404s plus the absence of B's handle on every
+ *   cross-tenant route. The `!tok-B` (decrypted-credential) assertions are
+ *   DEFENSE-IN-DEPTH, NOT the isolation proof: Channel views never serialize
+ *   credentials for ANY caller — the owner's own-read asserts the same `!tok-A`
+ *   — so the token would be absent even without the guard. They are kept
+ *   because `Channel` carries four AES-GCM credential columns and a regressed
+ *   view that leaked them would be caught here.
  *
  *   The guarded client is built exactly like production: a base client
  *   extended with `tenantGuardExtension`, wired into the same DI the routes
@@ -50,8 +56,11 @@ import { EncryptionService } from "../../src/security/EncryptionService.js";
 import { ChannelCredentialsCrypto } from "../../src/security/ChannelCredentialsCrypto.js";
 import { channelRoutes } from "../../src/channels/channelRoutes.js";
 import { registerOAuthRoutes } from "../../src/auth/providerOAuth.js";
+import { oauthProviders } from "../../src/auth/providerOAuthConfigs.js";
 import { OAuthFlowStore } from "../../src/auth/oauth/OAuthFlowStore.js";
 import { signCustomerAccessToken } from "../../src/auth/customerJwt.js";
+import { TokenService } from "../../src/admin/auth/TokenService.js";
+import { generateAdminToken } from "../unit/admin/adminTestHelper.js";
 
 const TAG = `chan-iso-${Date.now()}`;
 
@@ -76,6 +85,17 @@ const bearerFor = (accountId: string): string =>
     roleName: "OWNER",
     permissions: [],
   })}`;
+
+// Admin bearer for the hard-delete route (`requireAdminAuth` +
+// `requirePermission(ACCOUNT_MANAGE)`). Signed with the same admin JWT config
+// the middleware verifies against — no DB row is required because verification
+// is pure JWT (see the AdminAuthService stub wired into the container below).
+const adminBearer = `Bearer ${generateAdminToken({
+  id: "chan-iso-admin",
+  email: "chan-iso-admin@test.local",
+  name: "Chan Iso Admin",
+  role: "SUPER_ADMIN",
+})}`;
 
 describe("Channel — two-tenant isolation (MERGE-BLOCKING)", () => {
   let base: PrismaClient;
@@ -107,7 +127,7 @@ describe("Channel — two-tenant isolation (MERGE-BLOCKING)", () => {
       data: {
         id: channelId,
         projectId: project.id,
-        // Tenant scope — now a NOT-NULL column post-Migration A (Slice 7).
+        // Tenant scope — a NOT-NULL column after Channel enrollment.
         accountId: account.id,
         provider: "X",
         handle: `${TAG}-${name}-handle`,
@@ -144,6 +164,19 @@ describe("Channel — two-tenant isolation (MERGE-BLOCKING)", () => {
     container.registerInstance(TOKENS.ProjectRepository, projectRepo);
     container.registerInstance(TOKENS.SetPrimaryChannelUseCase, setPrimaryUseCase);
     container.registerInstance(TOKENS.ChannelCredentialsCrypto, credentialsCrypto);
+
+    // Admin-route dependencies for the hard-delete path. `requireAdminAuth`
+    // only calls `verifyAccessToken` (which the real AdminAuthService delegates
+    // verbatim to TokenService), so a TokenService-backed verifier is
+    // behaviorally identical for the token path without the heavy service graph.
+    // `requirePermission(ACCOUNT_MANAGE)` only calls `hasAnyPermission`.
+    const adminTokenService = new TokenService();
+    container.registerInstance(TOKENS.AdminAuthService, {
+      verifyAccessToken: (token: string) => adminTokenService.verifyAccessToken(token),
+    });
+    container.registerInstance(TOKENS.RbacService, {
+      hasAnyPermission: async (role: string) => role === "SUPER_ADMIN",
+    });
 
     app = Fastify();
     app.decorate("container", container);
@@ -297,7 +330,7 @@ describe("Channel — two-tenant isolation (MERGE-BLOCKING)", () => {
       assert.strictEqual(after, before, "no channel may be persisted under B's project");
     });
 
-    it("A completing an OAuth callback carrying B's projectId gets an error redirect and persists no channel", async () => {
+    it("A completing an OAuth callback carrying B's projectId is rejected BEFORE token exchange and persists no channel", async () => {
       const state = randomUUID();
       // Seed the in-flight OAuth record: A initiated the flow, but the consumed
       // state carries B's projectId (attacker-influenced, per initiateOAuth).
@@ -312,19 +345,42 @@ describe("Channel — two-tenant isolation (MERGE-BLOCKING)", () => {
         },
         600
       );
-      const before = await base.channel.count({ where: { projectId: tenantB.projectId } });
-      const res = await app.inject({
-        method: "GET",
-        url: `/auth/callback/x?code=fake-code&state=${state}`,
-      });
-      // Browser-redirect flow: the NotFound from the guarded probe surfaces as
-      // the standard error redirect (302), never a literal 404 status.
-      assert.strictEqual(res.statusCode, 302, "callback surfaces NotFound as a 302 redirect");
-      const location = res.headers.location ?? "";
-      assert.ok(location.includes("error="), "the redirect must carry an error param");
-      assert.ok(!location.includes("status=connected"), "must NOT be the success redirect");
-      const after = await base.channel.count({ where: { projectId: tenantB.projectId } });
-      assert.strictEqual(after, before, "no channel may be persisted under B's project");
+
+      // Discriminating instrument: spy on the provider token exchange. The
+      // ownership probe (`projectRepository.findById` under the bound tenant
+      // context) runs BEFORE `provider.validateCode`, so for a FOREIGN projectId
+      // the exchange must never fire. Without the gate, `validateCode` WOULD run
+      // (and fail identically on the fake code), so counting invocations — not
+      // merely observing the 302 — is what proves the gate is load-bearing.
+      const originalValidateCode = oauthProviders.x.validateCode.bind(oauthProviders.x);
+      let exchangeCalls = 0;
+      oauthProviders.x.validateCode = async (code, cbState, codeVerifier) => {
+        exchangeCalls += 1;
+        return originalValidateCode(code, cbState, codeVerifier);
+      };
+
+      try {
+        const before = await base.channel.count({ where: { projectId: tenantB.projectId } });
+        const res = await app.inject({
+          method: "GET",
+          url: `/auth/callback/x?code=fake-code&state=${state}`,
+        });
+        // Browser-redirect flow: the NotFound from the guarded probe surfaces as
+        // the standard error redirect (302), never a literal 404 status.
+        assert.strictEqual(res.statusCode, 302, "callback surfaces NotFound as a 302 redirect");
+        const location = res.headers.location ?? "";
+        assert.ok(location.includes("error="), "the redirect must carry an error param");
+        assert.ok(!location.includes("status=connected"), "must NOT be the success redirect");
+        assert.strictEqual(
+          exchangeCalls,
+          0,
+          "the ownership gate must reject BEFORE any provider token exchange"
+        );
+        const after = await base.channel.count({ where: { projectId: tenantB.projectId } });
+        assert.strictEqual(after, before, "no channel may be persisted under B's project");
+      } finally {
+        oauthProviders.x.validateCode = originalValidateCode;
+      }
     });
 
     it("A creating a channel under its OWN project persists a row whose accountId === Project.accountId", async () => {
@@ -391,6 +447,58 @@ describe("Channel — two-tenant isolation (MERGE-BLOCKING)", () => {
         (error: unknown) => error instanceof TenantContextMissingError,
         "an unscoped read must fail loud, never return unscoped rows"
       );
+    });
+  });
+
+  describe("admin hard-delete runs under system context (post-enrollment regression)", () => {
+    let hd: Seeded;
+
+    before(async () => {
+      hd = await seedTenant("HD");
+      // Seed cascade children so the hard-delete's child-table sweep is exercised.
+      await base.publishLog.create({
+        data: {
+          channelId: hd.channelId,
+          provider: "X",
+          payload: {},
+          dedupeKey: `${TAG}-hd-publishlog`,
+          status: "OK",
+        },
+      });
+      await base.analytics.create({ data: { channelId: hd.channelId, provider: "X" } });
+    });
+
+    after(async () => {
+      // The channel is hard-deleted by the passing test; clean the parents (and
+      // the channel defensively, in case the test failed before deletion).
+      await base.channel.deleteMany({ where: { id: hd.channelId } }).catch(() => undefined);
+      await base.project.deleteMany({ where: { id: hd.projectId } }).catch(() => undefined);
+      await base.account.deleteMany({ where: { id: hd.accountId } }).catch(() => undefined);
+    });
+
+    it("SUPER_ADMIN hard-deletes an enrolled channel (200, no TenantContextMissingError) and cascades children", async () => {
+      // Regression: the admin route binds NO tenant context, so before the fix
+      // the guarded `channel.findFirst` inside hardDelete threw
+      // TenantContextMissingError → 500. The handler now wraps its body in
+      // `withSystemContext`, the sanctioned cross-tenant bypass.
+      const res = await app.inject({
+        method: "DELETE",
+        url: `/channels/${hd.channelId}/hard`,
+        headers: { authorization: adminBearer },
+      });
+      assert.strictEqual(
+        res.statusCode,
+        200,
+        "admin hard-delete must succeed under system context, not 500"
+      );
+      const body = res.json() as { ok: boolean; data: { deleted: boolean } };
+      assert.strictEqual(body.data.deleted, true);
+      const row = await base.channel.findUnique({ where: { id: hd.channelId } });
+      assert.strictEqual(row, null, "the channel row must be permanently deleted");
+      const logs = await base.publishLog.count({ where: { channelId: hd.channelId } });
+      assert.strictEqual(logs, 0, "PublishLog children must be cascade-deleted");
+      const analytics = await base.analytics.count({ where: { channelId: hd.channelId } });
+      assert.strictEqual(analytics, 0, "Analytics children must be cascade-deleted");
     });
   });
 

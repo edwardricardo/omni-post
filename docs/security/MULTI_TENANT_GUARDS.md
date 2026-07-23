@@ -43,7 +43,10 @@ This catches programming mistakes (forgot to filter) AND tampering attempts
 enrolled model (7 as of `20260716000100_add_rls_project_member`). The base migration is never
 edited in place.
 
-Each of the 57 tenant-scoped tables gets:
+Each of the 57 tenant-scoped tables gets the policy below. **57 is the RLS-policy
+count**; the Prisma `$extends` guard membership is **58** — `Channel` was enrolled
+in layer 1 ahead of its RLS policy, which ships with the worker-reconciliation PR
+(see the Slice 7 note near the end of this doc for the full seam rationale):
 
 ```sql
 ALTER TABLE "<Model>" ENABLE ROW LEVEL SECURITY;
@@ -338,6 +341,14 @@ DataBreachReport
 > (the `UPDATE ... FROM Project` covers them naturally) — with an in-transaction `RAISE`
 > that halts on any residual NULL before `SET NOT NULL`.
 >
+> **FK dual-path (documented, benign today):** `Channel` now has TWO parent FKs — the new
+> `Account` relation is `onDelete: Cascade` (deleting an account hard-cascades its channels)
+> while the pre-existing `Project` relation keeps the Prisma default `onDelete: Restrict`
+> (a project cannot be deleted while channels reference it). The two policies never conflict
+> today because every app deletion path pre-deletes channels (soft-delete → hard-delete)
+> before removing the parent project/account; the divergence is nonetheless recorded here and
+> should be revisited at the RLS PR (PR2) if a direct account/project delete path is ever added.
+>
 > **This slice ships as TWO chained PRs on a deliberate seam.** PR1 (this note) enrolls
 > `Channel` in **layer 1 only** (the Prisma `$extends` guard) plus the API-side create-path
 > ownership; workers and RLS are untouched so publishing keeps working byte-identically.
@@ -366,6 +377,16 @@ DataBreachReport
 >    ownership-verified project and a foreign `projectId` returns a literal **404** before
 >    `BlueskyClient.login()`. `POST /channels` (`createChannel`) applies the same
 >    `assertCallerOwnsProject` + `accountId` thread.
+>
+> **Admin channel routes run under `withSystemContext`.** Two admin surfaces read/write the
+> now-enrolled `Channel` without a bound tenant context (admin auth binds none): the hard-delete
+> (`channelRoutes.ts` `hardDeleteChannel`) and the single-channel force-reauth
+> (`channelReauthRoutes.ts` → `UpdateChannelAuthStateUseCase`). Both wrap their guarded work in
+> the sanctioned `withSystemContext` bypass (mirroring the admin MFA force-disable precedent) so
+> the guard bypasses + audits the cross-tenant admin op instead of throwing
+> `TenantContextMissingError`. The provider mass force-reauth (`massReauthRoutes.ts`) does NOT
+> need the wrap today because its bulk ops use `updateManyAndReturn`, which is not yet a guarded
+> operation — a latent isolation gap tracked for PR2 / the backlog sweep, not a live break.
 >
 > **Worker-path tenant-safety + D10 child-table read-confirmation are PR2 obligations.** The
 > three worker paths that read `Channel` on the RAW client with no tenant scope
