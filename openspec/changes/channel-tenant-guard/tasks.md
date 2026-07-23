@@ -107,13 +107,13 @@ strategy with the user before apply.
 
 ## Phase 8: RED — worker unit (fakes, no DB)
 
-- [ ] 8.1 [RED] `apps/workers/tests/**` CredentialResolver + ChannelAuthFailureRecorder unit: own-`accountId` resolve decrypts; foreign `(channelId, accountId)` → `err("AUTH")` / recorder no-op; legacy payload (no `accountId`) → fallback resolves owner. Fake repos. RED until Phase 10–11.
+- [x] 8.1 [RED] `apps/workers/tests/**` CredentialResolver + ChannelAuthFailureRecorder unit: own-`accountId` resolve decrypts; foreign `(channelId, accountId)` → `err("AUTH")` / recorder no-op; legacy payload (no `accountId`) → fallback resolves owner. Fake repos. RED until Phase 10–11. (Authored + verified RED — 4 tests, all fail for the right reason: `CredentialResolver.tenantScope.test.ts` [own+foreign], `ChannelAuthFailureRecorder.tenantScope.test.ts` [own+foreign]. Legacy-payload fallback RED intentionally deferred to the **publishHandler** surface [Phase 11.3] + integration [Phase 12.1]: per design D2 `resolve`/`record` take a REQUIRED `accountId` and the `payload.accountId ?? getChannelOwnerAccountId(channelId)` decision lives in publishHandler — a resolver-internal fallback test would be wrong-reason RED that never turns GREEN.)
 
 ## Phase 9: Migration B (RLS) + GUC helper — [SENSITIVE — token]
 
-- [ ] 9.1 [SENSITIVE] Author **Migration B** `<tsB>_add_rls_channel/{migration,down}.sql` (D5, verbatim `20260716000100` shape): `ENABLE ROW LEVEL SECURITY` → `DROP POLICY IF EXISTS tenant_isolation` → `CREATE POLICY tenant_isolation` on the `app.account_id` GUC + `__system__` bypass; `down.sql` drops policy + disables RLS. Timestamp **> tsA (Migration A)**.
+- [x] 9.1 [SENSITIVE] (SHIPPED IN PR1 `fb0d2361` — the rls-tenant-isolation parity suite requires guard↔RLS parity by construction; design D5 amended) Author **Migration B** `<tsB>_add_rls_channel/{migration,down}.sql` (D5, verbatim `20260716000100` shape): `ENABLE ROW LEVEL SECURITY` → `DROP POLICY IF EXISTS tenant_isolation` → `CREATE POLICY tenant_isolation` on the `app.account_id` GUC + `__system__` bypass; `down.sql` drops policy + disables RLS. Timestamp **> tsA (Migration A)**.
 - [ ] 9.2 [SENSITIVE] Create `infra/prisma/src/extensions/tenantGuc.ts` + package export: `setTenantGuc(tx, accountId)` executes ``tx.$executeRaw`SELECT set_config('app.account_id', ${accountId}, true)` ``. Outside fitness #23's grep scope by design (mirrors the `PrismaUnitOfWork` set_config exception) — document in 13.1.
-- [ ] 9.3 DBUP + MIGRATE apply; assert ordering A < B (B references A's column).
+- [x] 9.3 (SHIPPED IN PR1 — applied clean; parity suite 12/12 green) DBUP + MIGRATE apply; assert ordering A < B (B references A's column).
 
 ## Phase 10: Worker signatures + explicit scoping (D9) → turns 8.1 GREEN
 
