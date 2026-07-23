@@ -100,6 +100,7 @@ describe("Send reply guardrail integration", () => {
     const channel = await prisma.channel.create({
       data: {
         projectId: project.id,
+        accountId: account.id,
         provider: "X",
         handle: `@channel-${tag}`,
         credentialsCiphertext: "test-fixture-credentials",

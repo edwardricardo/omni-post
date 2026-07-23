@@ -114,9 +114,16 @@ export class TestDataFactory {
     projectId: string,
     overrides: Partial<Omit<Channel, "id" | "projectId" | "createdAt" | "updatedAt">> = {}
   ): Promise<Channel> {
+    // Channel is tenant-scoped: derive accountId from the owning project so
+    // the NOT-NULL column is satisfied without threading it through callers.
+    const project = await prisma.project.findUniqueOrThrow({
+      where: { id: projectId },
+      select: { accountId: true },
+    });
     const channel = await prisma.channel.create({
       data: {
         projectId,
+        accountId: project.accountId,
         provider: "x",
         name: this.uniqueName("Channel"),
         accessToken: `test-token-${this.uniqueId()}`,

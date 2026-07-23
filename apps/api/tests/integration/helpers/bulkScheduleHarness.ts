@@ -102,6 +102,7 @@ export async function seedTenant(prisma: PrismaClient, tag: string): Promise<See
   const channel = await prisma.channel.create({
     data: {
       projectId: project.id,
+      accountId: account.id,
       provider: "INSTAGRAM",
       providerAccountId: `ig-${tag}`,
       handle: `handle-${tag}`,

@@ -11,18 +11,20 @@ import assert from "node:assert/strict";
 import { ok, err, type Result } from "@shared/types";
 import { UpdateChannelAuthStateUseCase } from "@core/channels/UpdateChannelAuthStateUseCase.js";
 import { Channel } from "@core/domain/entities/Channel.js";
-import { ChannelId, ProjectId } from "@core/domain/value-objects/EntityId.js";
+import { ChannelId, ProjectId, AccountId } from "@core/domain/value-objects/EntityId.js";
 import { Provider } from "@core/domain/value-objects/Provider.js";
 import { EntityNotFoundError } from "@core/domain/errors/index.js";
 
 const VALID_CHANNEL_ID = "550e8400-e29b-41d4-a716-446655440001";
 const VALID_PROJECT_ID = "550e8400-e29b-41d4-a716-446655440000";
+const VALID_ACCOUNT_ID = "550e8400-e29b-41d4-a716-446655440002";
 
 function makeChannel(): Channel {
   const providerResult = Provider.fromString("X");
   if (!providerResult.ok) throw providerResult.error;
   return Channel.reconstitute(ChannelId.fromStringUnsafe(VALID_CHANNEL_ID), {
     projectId: ProjectId.fromStringUnsafe(VALID_PROJECT_ID),
+    accountId: AccountId.fromStringUnsafe(VALID_ACCOUNT_ID),
     provider: providerResult.value,
     handle: "@test",
     credentials: { accessToken: "tok" },

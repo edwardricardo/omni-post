@@ -10,7 +10,7 @@ import { describe, it, beforeAll, afterEach, afterAll } from "vitest";
 import assert from "node:assert/strict";
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
-import { Channel, ProjectId } from "@core/domain/index.js";
+import { Channel, ProjectId, AccountId } from "@core/domain/index.js";
 import type { ChannelRepository } from "@core/domain/repositories/ChannelRepository.js";
 import {
   OAuthTokenRefresher,
@@ -32,6 +32,7 @@ afterAll(() => server.close());
 function makeChannel(refreshToken: string | undefined) {
   const created = Channel.create({
     projectId: ProjectId.generate(),
+    accountId: AccountId.generate(),
     provider: "X",
     handle: "@acct",
     credentials: {

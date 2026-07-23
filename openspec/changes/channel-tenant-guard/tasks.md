@@ -70,24 +70,24 @@ strategy with the user before apply.
 
 ## Phase 2: Schema + Migration A — [SENSITIVE — token]
 
-- [ ] 2.1 [SENSITIVE] `infra/prisma/schema.prisma` (`:766-830`): add `accountId String` + `account Account @relation(..., onDelete: Cascade)` + `@@index([accountId, projectId])`; KEEP the partial `@@unique([projectId,provider] …)` and all existing indexes; add `channels Channel[]` back-relation on `Account`.
-- [ ] 2.2 [SENSITIVE] Author **Migration A** `<tsA>_add_channel_account_id/migration.sql` (D4, single-parent): `ADD COLUMN "accountId" TEXT` nullable → `UPDATE "Channel" c SET "accountId"=p."accountId" FROM "Project" p WHERE c."projectId"=p."id"` (soft-deleted covered naturally) → in-tx `RAISE EXCEPTION` on residual NULL → `SET NOT NULL` → `Channel_accountId_fkey` → `Account` `ON DELETE CASCADE ON UPDATE CASCADE` → `CREATE INDEX "Channel_accountId_projectId_idx"`. Timestamp **> 20260717000200**.
-- [ ] 2.3 CLIENT-REGEN + `prisma validate`; DBUP + MIGRATE apply — clean, **zero NULL** `accountId` (RAISE holds), row count preserved (soft-deleted included).
+- [x] 2.1 [SENSITIVE] `infra/prisma/schema.prisma` (`:766-830`): add `accountId String` + `account Account @relation(..., onDelete: Cascade)` + `@@index([accountId, projectId])`; KEEP the partial `@@unique([projectId,provider] …)` and all existing indexes; add `channels Channel[]` back-relation on `Account`.
+- [x] 2.2 [SENSITIVE] Author **Migration A** `<tsA>_add_channel_account_id/migration.sql` (D4, single-parent): `ADD COLUMN "accountId" TEXT` nullable → `UPDATE "Channel" c SET "accountId"=p."accountId" FROM "Project" p WHERE c."projectId"=p."id"` (soft-deleted covered naturally) → in-tx `RAISE EXCEPTION` on residual NULL → `SET NOT NULL` → `Channel_accountId_fkey` → `Account` `ON DELETE CASCADE ON UPDATE CASCADE` → `CREATE INDEX "Channel_accountId_projectId_idx"`. Timestamp **> 20260717000200**.
+- [x] 2.3 CLIENT-REGEN + `prisma validate`; DBUP + MIGRATE apply — clean, **zero NULL** `accountId` (RAISE holds), row count preserved (soft-deleted included).
 
 ## Phase 3: Guard flip — [SENSITIVE — token] → turns 1.1 GREEN
 
-- [ ] 3.1 [SENSITIVE][GREEN] `infra/prisma/src/extensions/tenantGuard.ts`: insert `"channel"` between `"campaign"` and `"consentRecord"` (`:104-105`); header JSDoc count **57 → 58** (`:82`). Run VITEST 1.1 → GREEN.
+- [x] 3.1 [SENSITIVE][GREEN] `infra/prisma/src/extensions/tenantGuard.ts`: insert `"channel"` between `"campaign"` and `"consentRecord"` (`:104-105`); header JSDoc count **57 → 58** (`:82`). Run VITEST 1.1 → GREEN.
 
 ## Phase 4: D8 entity + D7 create-path ownership (API)
 
-- [ ] 4.1 [GREEN] `packages/core/domain/src/entities/Channel.ts` (`:40-83,194-220`): `ChannelProps`/`CreateChannelInput`/`reconstitute` gain `accountId` + private field + getter (compile-time thread; no `any`).
-- [ ] 4.2 [GREEN] `apps/api/src/infrastructure/repositories/PrismaChannelRepository.ts` (`:350-392`): pass `accountId: channel.accountId.value` in `upsert.create` ONLY (never `update`); `toDomain` maps it back.
-- [ ] 4.3 [GREEN] `apps/api/src/auth/providerOAuthFlow.ts` (D7): wrap the `handleOAuthCallback` body from after `consumeOAuthFlow` (`:135`) in `withTenantContext({ accountId: record.accountId })`; inject the guarded `ProjectRepository` into `ProviderOAuthHandler` (`:70-75`); probe `record.projectId` BEFORE the existing/create branch → foreign/stale resolves nothing → `AppError.notFound("Project")` (surfaces as the standard error redirect, no channel persisted); `Channel.create` gains `accountId: record.accountId`.
-- [ ] 4.4 [GREEN] `apps/api/src/infrastructure/routes/channelRoutes.ts` (`:474`): Bluesky `upsert.create` threads `accountId` from the already-`assertCallerOwnsProject`-gated project (`:443`).
+- [x] 4.1 [GREEN] `packages/core/domain/src/entities/Channel.ts` (`:40-83,194-220`): `ChannelProps`/`CreateChannelInput`/`reconstitute` gain `accountId` + private field + getter (compile-time thread; no `any`).
+- [x] 4.2 [GREEN] `apps/api/src/infrastructure/repositories/PrismaChannelRepository.ts` (`:350-392`): pass `accountId: channel.accountId.value` in `upsert.create` ONLY (never `update`); `toDomain` maps it back.
+- [x] 4.3 [GREEN] `apps/api/src/auth/providerOAuthFlow.ts` (D7): wrap the `handleOAuthCallback` body from after `consumeOAuthFlow` (`:135`) in `withTenantContext({ accountId: record.accountId })`; inject the guarded `ProjectRepository` into `ProviderOAuthHandler` (`:70-75`); probe `record.projectId` BEFORE the existing/create branch → foreign/stale resolves nothing → `AppError.notFound("Project")` (surfaces as the standard error redirect, no channel persisted); `Channel.create` gains `accountId: record.accountId`.
+- [x] 4.4 [GREEN] `apps/api/src/channels/channelRoutes.ts` (`:474`): Bluesky `upsert.create` threads `accountId` from the already-`assertCallerOwnsProject`-gated project (`:443`). Also threaded the two other Channel-construction sites in the same file — `createChannel` reconstitute (`:263`) and `updateChannel` reconstitute (`:376`) — via `assertCallerOwnsProject` now returning `accountId`.
 
 ## Phase 5: Seeds/factories/suites — thread accountId (tsc compile gate)
 
-- [ ] 5.1 [GREEN] Add `accountId` to EVERY Channel create (D8 inventory): `infra/prisma/seed.ts:104,:1153`, `apps/api/scripts/seed-large-dataset.ts`, `testDataFactory`, `bulkScheduleHarness`, `sagaCustomerFlow`, `sendReplyGuardrail`, `inboxRoutes`, `bulkScheduleOutboxSmoke`, `publish.flow`, `recurringPostTenantIsolation`, `repositories/*.test`. Let `tsc` enumerate any remaining create sites.
+- [x] 5.1 [GREEN] Add `accountId` to EVERY Channel create (D8 inventory): `infra/prisma/seed.ts:104,:1153` (DEFERRED — SENSITIVE `infra/prisma/**`, orchestrator to apply under token), `apps/api/scripts/seed-large-dataset.ts` (no channel create — delete-only, nothing to thread), `testDataFactory` (derives accountId from owning project), `bulkScheduleHarness`, `sagaCustomerFlow` (3 sites), `sendReplyGuardrail`, `inboxRoutes` (test), `bulkScheduleOutboxSmoke` (foreign), `publish.flow`, `recurringPostTenantIsolation`, `repositories/*.test` (ProjectRepository.test + AnalyticsRepository.test-helpers ×2). `tsc` enumerated 4 additional domain-factory unit-test sites (entities.test.ts ×20, oauthTokenRefresher.test, setPrimaryChannelUseCase.test, UpdateChannelAuthStateUseCase.test) — all threaded.
 
 ## Phase 6: RED→GREEN — two-tenant integration (MERGE-BLOCKING)
 

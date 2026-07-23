@@ -57,6 +57,7 @@ async function setupTestData() {
   const channel = await prisma.channel.create({
     data: {
       projectId: testProjectId,
+      accountId: testAccountId,
       provider: "X",
       handle: "@test_handle",
       credentialsCiphertext: "test-ciphertext",

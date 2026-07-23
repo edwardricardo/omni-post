@@ -133,6 +133,7 @@ describe("Saga customer flow integration", () => {
     const channel1 = await prisma.channel.create({
       data: {
         projectId: project.id,
+        accountId: account.id,
         provider: "X",
         providerAccountId: `provider-acct-${tag}-1`,
         ...channelStub,
@@ -141,6 +142,7 @@ describe("Saga customer flow integration", () => {
     const channel2 = await prisma.channel.create({
       data: {
         projectId: project.id,
+        accountId: account.id,
         provider: "FACEBOOK",
         providerAccountId: `provider-acct-${tag}-2`,
         ...channelStub,
@@ -415,6 +417,7 @@ describe("Saga customer flow integration", () => {
     const foreignChannel = await prisma.channel.create({
       data: {
         projectId: foreignProject.id,
+        accountId: foreignAccount.id,
         provider: "X",
         handle: "foreign-handle",
         providerAccountId: `prov-${randomUUID()}`,

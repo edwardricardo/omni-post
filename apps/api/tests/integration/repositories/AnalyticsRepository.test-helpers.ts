@@ -35,6 +35,7 @@ export async function setupTestData() {
   const channelX = await prisma.channel.create({
     data: {
       projectId: testProjectId,
+      accountId: testAccountId,
       provider: "X",
       handle: "@test_x",
       credentialsCiphertext: "test-ciphertext",
@@ -47,6 +48,7 @@ export async function setupTestData() {
   const channelInstagram = await prisma.channel.create({
     data: {
       projectId: testProjectId,
+      accountId: testAccountId,
       provider: "INSTAGRAM",
       handle: "@test_instagram",
       credentialsCiphertext: "test-ciphertext",

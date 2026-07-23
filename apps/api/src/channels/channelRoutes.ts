@@ -13,6 +13,7 @@ import {
   Channel,
   ChannelId,
   ProjectId,
+  AccountId,
   Provider,
   EntityNotFoundError,
   CONNECTION_STATUS,
@@ -173,7 +174,7 @@ class ChannelRouteHandler extends BaseRouteHandler {
   private async assertCallerOwnsProject(
     ctx: RouteContext,
     projectId: string
-  ): Promise<{ id: ProjectId; name: string } | null> {
+  ): Promise<{ id: ProjectId; name: string; accountId: string } | null> {
     const customer = ctx.request.customerUser;
     if (!customer) {
       this.sendError(ctx, 401, "Authentication required");
@@ -195,7 +196,11 @@ class ChannelRouteHandler extends BaseRouteHandler {
       this.sendError(ctx, 404, "Project not found");
       return null;
     }
-    return { id: projectIdResult.value, name: project.name };
+    return {
+      id: projectIdResult.value,
+      name: project.name,
+      accountId: project.accountId.toString(),
+    };
   }
 
   /**
@@ -262,6 +267,7 @@ class ChannelRouteHandler extends BaseRouteHandler {
     const now = new Date();
     const channel = Channel.reconstitute(ChannelId.generate(), {
       projectId: ProjectId.fromStringUnsafe(projectId),
+      accountId: AccountId.fromStringUnsafe(ownedProject.accountId),
       provider: providerResult.value,
       handle: name.trim(),
       credentials: mapCredentials(credentials ?? {}),
@@ -373,6 +379,7 @@ class ChannelRouteHandler extends BaseRouteHandler {
     // Immutable-entity update pattern: reconstitute with new values, then save.
     const updated = Channel.reconstitute(existing.id, {
       projectId: existing.projectId,
+      accountId: existing.accountId,
       provider: existing.provider,
       handle: name !== undefined ? name.trim() : existing.handle,
       credentials:
@@ -474,6 +481,8 @@ class ChannelRouteHandler extends BaseRouteHandler {
         create: {
           id: channelId,
           projectId,
+          // Tenant scope from the ownership-verified project (D7/D8).
+          accountId: ownedProject.accountId,
           provider: "BLUESKY",
           handle,
           providerAccountId: identifier,

@@ -171,6 +171,7 @@ describe("Publish Flow", { concurrency: 1 }, () => {
     const channel = await prisma.channel.create({
       data: {
         projectId,
+        accountId,
         provider: "X",
         handle: `@publish-flow-${ts}`,
         credentialsCiphertext: "test-ciphertext",

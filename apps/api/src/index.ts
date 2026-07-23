@@ -611,7 +611,8 @@ async function createApp(): Promise<FastifyInstance> {
   await registerOAuthRoutes(
     typedApp,
     typedApp.container!.resolve<CachePort>(TOKENS.CachePort),
-    typedApp.container!.resolve(TOKENS.ChannelRepository)
+    typedApp.container!.resolve(TOKENS.ChannelRepository),
+    typedApp.container!.resolve(TOKENS.ProjectRepository)
   );
 
   // Register CRM routes

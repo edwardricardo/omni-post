@@ -6,7 +6,7 @@
 
 import { type Result, ok, err } from "@shared/types";
 import { Entity, type EntityProps } from "./Entity.js";
-import { ChannelId, ProjectId } from "../value-objects/EntityId.js";
+import { ChannelId, ProjectId, AccountId } from "../value-objects/EntityId.js";
 import { Provider, type ProviderType } from "../value-objects/Provider.js";
 import { InvalidValueError, InvariantViolationError } from "../errors/index.js";
 
@@ -39,6 +39,9 @@ export type ConnectionStatusValue = (typeof CONNECTION_STATUS)[keyof typeof CONN
  */
 export interface ChannelProps extends EntityProps {
   projectId: ProjectId;
+  // Tenant scope. Denormalized from the owning Project.accountId so the
+  // Prisma tenant guard (and RLS) can filter Channel rows without a join.
+  accountId: AccountId;
   provider: Provider;
   handle: string;
   credentials: ChannelCredentials;
@@ -71,6 +74,9 @@ export interface ChannelProps extends EntityProps {
  */
 export interface CreateChannelInput {
   projectId: ProjectId;
+  // Tenant scope, denormalized from the owning Project. Callers resolve it
+  // from the already-ownership-verified project (OAuth callback / connect).
+  accountId: AccountId;
   provider: ProviderType | Provider;
   handle: string;
   credentials: ChannelCredentials;
@@ -100,6 +106,7 @@ export interface CreateChannelInput {
  */
 export class Channel extends Entity<ChannelId> {
   private readonly _projectId: ProjectId;
+  private readonly _accountId: AccountId;
   private readonly _provider: Provider;
   private _handle: string;
   private _credentials: ChannelCredentials;
@@ -120,6 +127,7 @@ export class Channel extends Entity<ChannelId> {
   private constructor(id: ChannelId, props: ChannelProps) {
     super(id, props.createdAt);
     this._projectId = props.projectId;
+    this._accountId = props.accountId;
     this._provider = props.provider;
     this._handle = props.handle;
     this._credentials = { ...props.credentials };
@@ -174,6 +182,7 @@ export class Channel extends Entity<ChannelId> {
     return ok(
       new Channel(ChannelId.generate(), {
         projectId: input.projectId,
+        accountId: input.accountId,
         provider,
         handle: input.handle.trim(),
         credentials: input.credentials,
@@ -195,6 +204,7 @@ export class Channel extends Entity<ChannelId> {
     id: ChannelId,
     props: {
       projectId: ProjectId;
+      accountId: AccountId;
       provider: Provider;
       handle: string;
       credentials: ChannelCredentials;
@@ -227,6 +237,15 @@ export class Channel extends Entity<ChannelId> {
 
   get projectId(): ProjectId {
     return this._projectId;
+  }
+
+  /**
+   * Tenant scope for this channel, denormalized from the owning
+   * `Project.accountId`. Used by the persistence adapter to satisfy the
+   * Prisma tenant guard's required `accountId` on create.
+   */
+  get accountId(): AccountId {
+    return this._accountId;
   }
 
   get provider(): Provider {
