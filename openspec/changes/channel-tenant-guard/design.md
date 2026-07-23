@@ -28,6 +28,19 @@ Copy `20260716000000_add_project_member_account_id` step-for-step minus step 1 (
 
 ### D5 — PR seam: Migration B (RLS pair) ships in PR2 with the GUC binding
 
+> **AMENDED AT APPLY (2026-07-23).** The MERGE-BLOCKING parity suite
+> `tests/integration/rls-tenant-isolation.test.ts` asserts guard↔RLS parity by
+> construction (every model in TENANT_SCOPED_MODELS must carry the
+> `tenant_isolation` policy, and the counts must match) — it exists precisely to
+> block enrollment-without-RLS. Weakening the suite to preserve the seam would
+> invert its purpose, so **Migration B moves to PR1**
+> (`20260723000100_add_rls_channel` + `down.sql`). The original layering concern
+> ("enforcement before the code that binds it") is void under the empirically
+> verified role posture: RLS is inert (superuser BYPASSRLS), so the policy in
+> PR1 changes no runtime behavior; the worker GUC code still lands in PR2, and
+> role hardening remains explicitly gated on PR2 completion. Everything else in
+> this decision (worker changes in PR2, PR1 API-only safety) stands.
+
 **Choice**: PR1 = Migration A + guard flip + API work; PR2 = RLS pair (`add_rls_channel` + `down.sql`, verbatim `20260716000100` shape) + all worker changes.
 **Rationale**: Each PR carries only the enforcement its code can honor. PR1 alone is safe: the guard flip touches only the API `$extends` client (`setup.ts:61-64`); workers run the raw singleton (`workerContainer.ts:16`) — byte-identical behavior in the PR1→PR2 window; publish cannot break, and the worker IDOR is unchanged (not widened) while every API-side Channel IDOR closes. RLS in PR1 would be inert today (superuser) but would land enforcement before the code that binds it — wrong layering. A single PR is NOT forced: the NOT NULL migration does not touch workers because workers never CREATE channels (worker surface is findMany/findFirst/update only, exploration §2); seeds/factories are fixed inside PR1. Chain remains the recommendation; the tasks phase decides via the Review Workload Guard.
 
