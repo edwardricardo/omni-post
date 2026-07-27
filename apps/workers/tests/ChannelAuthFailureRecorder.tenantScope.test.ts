@@ -1,14 +1,13 @@
 /**
  * @file ChannelAuthFailureRecorder.tenantScope.test.ts
- * @description RED (strict-TDD) unit tests for tenant-scoped auth-failure
- *   recording (design D9). `record(channelId, provider, reason, accountId)` MUST
- *   scope its channel update by `{ id, accountId }`: an own-scope caller flips
- *   `needsReauth` and emits the `ChannelAuthFailed` outbox event, while a
- *   foreign-scope caller matches no row (Prisma P2025) and the recorder swallows
- *   it as a no-op — a foreign tenant can never flip another tenant's channel
- *   state (404-equivalent semantics). These tests reference the four-argument
- *   `record` form plus the P2025 no-op that do not exist yet — they stay RED
- *   until Phase 10.4. No DB; a fake Prisma transaction stands in for the client.
+ * @description Unit tests for tenant-scoped auth-failure recording.
+ *   `record(channelId, provider, reason, accountId)` MUST scope its channel
+ *   update by `{ id, accountId }`: an own-scope caller flips `needsReauth` and
+ *   emits the `ChannelAuthFailed` outbox event, while a foreign-scope caller
+ *   matches no row (Prisma P2025) and the recorder swallows it as a no-op — a
+ *   foreign tenant can never flip another tenant's channel state
+ *   (404-equivalent semantics). No DB; a fake Prisma transaction stands in for
+ *   the client.
  * @layer infrastructure
  */
 

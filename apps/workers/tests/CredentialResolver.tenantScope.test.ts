@@ -1,15 +1,12 @@
 /**
  * @file CredentialResolver.tenantScope.test.ts
- * @description RED (strict-TDD) unit tests for the tenant-scoped credential
- *   resolver. Pins design D1/D9: `resolve(channelId, accountId)` MUST forward
- *   the caller's `accountId` to the guarded repository so the lookup is scoped
- *   to the caller's tenant. An own-scope caller decrypts and receives the
- *   plaintext credentials; a foreign-scope caller receives `err("AUTH")` with
- *   NOTHING decrypted (the guarded query returns zero rows, so no plaintext is
- *   ever produced). These tests reference the two-argument `resolve` form that
- *   does not exist yet — they stay RED until Phase 10 threads `accountId`
- *   through `CredentialResolver`. No DB; a plain fake repository stands in for
- *   the guarded adapter.
+ * @description Unit tests for the tenant-scoped credential resolver.
+ *   `resolve(channelId, accountId)` MUST forward the caller's `accountId` to the
+ *   guarded repository so the lookup is scoped to the caller's tenant. An
+ *   own-scope caller decrypts and receives the plaintext credentials; a
+ *   foreign-scope caller receives `err("AUTH")` with NOTHING decrypted (the
+ *   scoped query returns zero rows, so no plaintext is ever produced). No DB; a
+ *   plain fake repository stands in for the guarded adapter.
  * @layer infrastructure
  */
 
