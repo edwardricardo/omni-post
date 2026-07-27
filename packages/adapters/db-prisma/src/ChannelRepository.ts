@@ -9,6 +9,7 @@
 import { ok, err, type Result } from "@shared/types";
 import type { Channel } from "@ports/core";
 import type { PrismaClient } from "@infra/prisma";
+import { setTenantGuc } from "@infra/prisma/extensions/tenantGuc.js";
 import { mapProviderFromDB } from "./mappers.js";
 import { createLogger } from "@observability/logger";
 
@@ -41,10 +42,20 @@ export function createChannelRepository(
 ) {
   const { decryptCredentials } = options;
   return {
-    async getChannelsByIds(ids: string[]): Promise<Result<Channel[], "DATABASE_ERROR">> {
+    async getChannelsByIds(
+      ids: string[],
+      accountId: string
+    ): Promise<Result<Channel[], "DATABASE_ERROR">> {
       try {
-        const channels = await prisma.channel.findMany({
-          where: { id: { in: ids } },
+        // Bind the RLS GUC and scope the lookup by the caller's tenant in the
+        // same transaction: the explicit `accountId` predicate is today's active
+        // isolation (the worker role bypasses RLS), and `setTenantGuc` keeps the
+        // path correct under a future NOBYPASSRLS role without a second change.
+        const channels = await prisma.$transaction(async (tx) => {
+          await setTenantGuc(tx, accountId);
+          return tx.channel.findMany({
+            where: { id: { in: ids }, accountId },
+          });
         });
 
         const mapped = channels.map((ch) => ({
@@ -65,6 +76,23 @@ export function createChannelRepository(
         return ok(mapped);
       } catch (error) {
         logger.error({ err: error }, "getChannelsByIds error");
+        return err("DATABASE_ERROR");
+      }
+    },
+
+    async getChannelOwnerAccountId(
+      channelId: string
+    ): Promise<Result<string | null, "DATABASE_ERROR">> {
+      try {
+        // Selects the tenant column ONLY — never the encrypted credential
+        // envelope — so the deploy-compat fallback cannot leak plaintext.
+        const row = await prisma.channel.findUnique({
+          where: { id: channelId },
+          select: { accountId: true },
+        });
+        return ok(row?.accountId ?? null);
+      } catch (error) {
+        logger.error({ err: error }, "getChannelOwnerAccountId error");
         return err("DATABASE_ERROR");
       }
     },

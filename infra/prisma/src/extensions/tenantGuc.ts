@@ -11,7 +11,16 @@
  * @layer infrastructure
  */
 
-import { Prisma } from "../../generated/prisma/client/client.js";
+/**
+ * Minimal structural surface this helper needs from a transaction client.
+ * Structural on purpose: consumers hold transaction clients from different
+ * Prisma type instantiations (the app's client vs this package's generated
+ * client), and the nominal `Prisma.TransactionClient` from one does not
+ * unify with the other. `$executeRaw` is the only member used.
+ */
+interface GucTransactionClient {
+  $executeRaw(query: TemplateStringsArray, ...values: unknown[]): Promise<number>;
+}
 
 /**
  * @method setTenantGuc
@@ -24,6 +33,6 @@ import { Prisma } from "../../generated/prisma/client/client.js";
  *                    canonically authorized via withSystemContext()
  * @returns Promise resolving when the GUC is bound
  */
-export async function setTenantGuc(tx: Prisma.TransactionClient, accountId: string): Promise<void> {
+export async function setTenantGuc(tx: GucTransactionClient, accountId: string): Promise<void> {
   await tx.$executeRaw`SELECT set_config('app.account_id', ${accountId}, true)`;
 }

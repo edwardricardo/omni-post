@@ -25,6 +25,7 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
   const CHANNEL_ID = "channel-x-001";
   const DEDUPE_KEY = `${POST_ID}:${CHANNEL_ID}`;
   const PROVIDER_NAME = "x";
+  const ACCOUNT_ID = "account-test";
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -65,7 +66,8 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
       DEDUPE_KEY,
       plan,
       PROVIDER_NAME,
-      xProvider
+      xProvider,
+      ACCOUNT_ID
     );
 
     assert.deepStrictEqual(result, receipt);
@@ -111,7 +113,8 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
       DEDUPE_KEY,
       plan,
       PROVIDER_NAME,
-      xProvider
+      xProvider,
+      ACCOUNT_ID
     );
 
     assert.deepStrictEqual(createdSequences, [1, 2, 3]);
@@ -153,7 +156,8 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
       DEDUPE_KEY,
       plan,
       PROVIDER_NAME,
-      xProvider
+      xProvider,
+      ACCOUNT_ID
     );
 
     assert.strictEqual(result, undefined);
@@ -170,7 +174,15 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
 
     await assert.rejects(
       () =>
-        handler.publishThreadPost(POST_ID, CHANNEL_ID, DEDUPE_KEY, plan, PROVIDER_NAME, xProvider),
+        handler.publishThreadPost(
+          POST_ID,
+          CHANNEL_ID,
+          DEDUPE_KEY,
+          plan,
+          PROVIDER_NAME,
+          xProvider,
+          ACCOUNT_ID
+        ),
       (err: Error) => {
         assert.ok(err.message.includes("Failed to create thread"));
         assert.ok(err.message.includes("DATABASE_ERROR"));
@@ -193,7 +205,8 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
         DEDUPE_KEY,
         plan,
         PROVIDER_NAME,
-        xProvider
+        xProvider,
+        ACCOUNT_ID
       );
     } catch {
       // expected
@@ -220,7 +233,15 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
 
     await assert.rejects(
       () =>
-        handler.publishThreadPost(POST_ID, CHANNEL_ID, DEDUPE_KEY, plan, PROVIDER_NAME, xProvider),
+        handler.publishThreadPost(
+          POST_ID,
+          CHANNEL_ID,
+          DEDUPE_KEY,
+          plan,
+          PROVIDER_NAME,
+          xProvider,
+          ACCOUNT_ID
+        ),
       (err: Error) => {
         assert.ok(err.message.includes("Failed to create tweet"));
         return true;
@@ -259,7 +280,8 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
       DEDUPE_KEY,
       plan,
       PROVIDER_NAME,
-      xProvider
+      xProvider,
+      ACCOUNT_ID
     );
     assert.strictEqual(createCount, 2);
   });
@@ -289,7 +311,8 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
           DEDUPE_KEY,
           plan,
           PROVIDER_NAME,
-          noThreadProvider
+          noThreadProvider,
+          ACCOUNT_ID
         ),
       (err: Error) => {
         assert.ok(err.message.includes("does not support thread publishing"));
@@ -321,7 +344,15 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
 
     await assert.rejects(
       () =>
-        handler.publishThreadPost(POST_ID, CHANNEL_ID, DEDUPE_KEY, plan, PROVIDER_NAME, xProvider),
+        handler.publishThreadPost(
+          POST_ID,
+          CHANNEL_ID,
+          DEDUPE_KEY,
+          plan,
+          PROVIDER_NAME,
+          xProvider,
+          ACCOUNT_ID
+        ),
       (err: Error) => {
         assert.ok(err.message.includes("RATE_LIMIT"));
         return true;
@@ -353,7 +384,8 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
         DEDUPE_KEY,
         plan,
         PROVIDER_NAME,
-        xProvider
+        xProvider,
+        ACCOUNT_ID
       );
     } catch {
       // expected
@@ -428,7 +460,8 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
       DEDUPE_KEY,
       plan,
       PROVIDER_NAME,
-      xProvider
+      xProvider,
+      ACCOUNT_ID
     );
 
     assert.strictEqual(updatedTweets.length, 2);
@@ -478,7 +511,8 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
       DEDUPE_KEY,
       plan,
       PROVIDER_NAME,
-      xProvider
+      xProvider,
+      ACCOUNT_ID
     );
 
     assert.ok(logStatuses.includes("OK"));
@@ -519,7 +553,8 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
       DEDUPE_KEY,
       plan,
       PROVIDER_NAME,
-      xProvider
+      xProvider,
+      ACCOUNT_ID
     );
 
     const created = await deps.workerMetrics.metrics.threadCreated.get();
@@ -565,7 +600,8 @@ describe("PublishHandler.publishThreadPost", { sequential: true }, () => {
       DEDUPE_KEY,
       plan,
       PROVIDER_NAME,
-      xProvider
+      xProvider,
+      ACCOUNT_ID
     );
 
     const corr = deps.workerMetrics.getCorrelationId(DEDUPE_KEY);

@@ -85,6 +85,35 @@ export class PublishHandler {
   }
 
   /**
+   * @method resolveJobAccountId
+   * @description Determine the tenant scope for a publish job. Prefers the
+   *              `accountId` in the job payload; for legacy jobs enqueued before
+   *              the payload carried it, falls back to the channel's owner
+   *              (accountId column only, never decrypting). Throws `"AUTH"` when
+   *              neither yields a tenant — the job cannot be tenant-scoped and
+   *              fails like a missing-channel credential resolve. Remove this
+   *              fallback and make `payload.accountId` required once no
+   *              pre-deploy jobs remain in the PUBLISH queue (including the
+   *              BullMQ delayed set — scheduled posts can sit for days).
+   * @param channelId - Channel the job publishes to.
+   * @param payloadAccountId - Tenant carried in the job payload, if present.
+   * @returns The effective tenant accountId for this job.
+   */
+  private async resolveJobAccountId(
+    channelId: string,
+    payloadAccountId: string | undefined
+  ): Promise<string> {
+    if (payloadAccountId !== undefined) {
+      return payloadAccountId;
+    }
+    const owner = await this.repo.getChannelOwnerAccountId(channelId);
+    if (owner.ok && owner.value !== null) {
+      return owner.value;
+    }
+    throw new Error("AUTH");
+  }
+
+  /**
    * Notify the saga orchestrator of a job outcome via Redis pub/sub.
    * Best-effort -- failures are logged but do not fail the job.
    */
@@ -122,6 +151,7 @@ export class PublishHandler {
    * @param rendered - Provider-rendered post payload.
    * @param providerName - Provider key matching the registry entry.
    * @param provider - Resolved provider adapter implementation.
+   * @param accountId - Tenant scope for the credential lookup (D2/D9).
    * @param sagaId - Optional saga identifier for orchestration callbacks.
    * @returns The provider's publish receipt.
    */
@@ -132,6 +162,7 @@ export class PublishHandler {
     rendered: RenderedPost,
     providerName: string,
     provider: PublishProvider,
+    accountId: string,
     sagaId?: string
   ): Promise<PublishReceipt> {
     return (await this.instrumentation.instrumentPublishing(
@@ -161,7 +192,7 @@ export class PublishHandler {
         });
 
         try {
-          const credentialResult = await this.credentialResolver.resolve(channelId);
+          const credentialResult = await this.credentialResolver.resolve(channelId, accountId);
           if (!credentialResult.ok) {
             providerTimer({ status: "error" });
             await this.databaseInstrumentation.instrumentQuery("insert", "publish_log", async () =>
@@ -325,6 +356,7 @@ export class PublishHandler {
    * @param threadPlan - Strategy + ordered tweet fragments to publish.
    * @param providerName - Provider key matching the registry entry.
    * @param provider - Resolved provider adapter (must implement `publishThread`).
+   * @param accountId - Tenant scope for the credential lookup (D2/D9).
    * @param sagaId - Optional saga identifier for orchestration callbacks.
    * @returns The thread receipt, or void if the thread was already complete.
    */
@@ -335,6 +367,7 @@ export class PublishHandler {
     threadPlan: ThreadPlan,
     providerName: string,
     provider: PublishProvider,
+    accountId: string,
     sagaId?: string
   ): Promise<ThreadReceipt | void> {
     const correlationId = this.workerMetrics.generateCorrelationId(dedupeKey);
@@ -445,7 +478,7 @@ export class PublishHandler {
       throw new Error(`Provider "${providerName}" does not support thread publishing`);
     }
 
-    const credentialResult = await this.credentialResolver.resolve(channelId);
+    const credentialResult = await this.credentialResolver.resolve(channelId, accountId);
     if (!credentialResult.ok) {
       providerTimer({ status: "error" });
       throw new Error("AUTH");
@@ -643,6 +676,10 @@ export class PublishHandler {
       }
       renderTimer({ content_type: rendered.value.type });
 
+      // Resolve the tenant scope for this job once (D2). Post-deploy jobs carry
+      // it in the payload; legacy jobs fall back to the channel's owner.
+      const accountId = await this.resolveJobAccountId(channelId, job.payload.accountId);
+
       // Log RUNNING with correlation tracking
       const correlationId = this.workerMetrics.generateCorrelationId(dedupeKey);
       await this.repo.logPublish({
@@ -668,6 +705,7 @@ export class PublishHandler {
           threadPlan,
           providerName,
           provider,
+          accountId,
           sagaId
         );
       } else {
@@ -679,6 +717,7 @@ export class PublishHandler {
           singleContent,
           providerName,
           provider,
+          accountId,
           sagaId
         );
       }

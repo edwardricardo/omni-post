@@ -18,7 +18,8 @@ import { ok, err, type Result } from "@shared/types";
  */
 export interface ChannelCredentialsRepository {
   getChannelsByIds(
-    ids: string[]
+    ids: string[],
+    accountId: string
   ): Promise<Result<Array<{ id: string; credentials: unknown }>, "DATABASE_ERROR">>;
 }
 
@@ -33,13 +34,20 @@ export class CredentialResolver {
 
   /**
    * @method resolve
-   * @description Resolve plaintext credentials for the given channel id.
-   *   Returns `err("AUTH")` when the channel does not exist, the repository
-   *   lookup fails, or the credentials field is empty.
+   * @description Resolve plaintext credentials for the given channel id, scoped
+   *   to the caller's tenant. The `accountId` is forwarded to the guarded
+   *   repository so the lookup is tenant-scoped (D1/D9): a channel owned by a
+   *   different tenant returns zero rows and therefore nothing is ever
+   *   decrypted. Returns `err("AUTH")` when the channel does not exist within
+   *   the caller's scope, the repository lookup fails, or the credentials field
+   *   is empty.
+   * @param channelId - Channel whose credentials are requested.
+   * @param accountId - Tenant scope of the caller; the lookup is confined to it.
+   * @returns Plaintext credentials on success, `err("AUTH")` on any failure.
    */
-  async resolve(channelId: string): Promise<Result<unknown, "AUTH">> {
+  async resolve(channelId: string, accountId: string): Promise<Result<unknown, "AUTH">> {
     try {
-      const result = await this.repo.getChannelsByIds([channelId]);
+      const result = await this.repo.getChannelsByIds([channelId], accountId);
       if (!result.ok) {
         return err("AUTH");
       }

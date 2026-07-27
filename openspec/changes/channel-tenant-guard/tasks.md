@@ -112,7 +112,7 @@ strategy with the user before apply.
 ## Phase 9: Migration B (RLS) + GUC helper — [SENSITIVE — token]
 
 - [x] 9.1 [SENSITIVE] (SHIPPED IN PR1 `fb0d2361` — the rls-tenant-isolation parity suite requires guard↔RLS parity by construction; design D5 amended) Author **Migration B** `<tsB>_add_rls_channel/{migration,down}.sql` (D5, verbatim `20260716000100` shape): `ENABLE ROW LEVEL SECURITY` → `DROP POLICY IF EXISTS tenant_isolation` → `CREATE POLICY tenant_isolation` on the `app.account_id` GUC + `__system__` bypass; `down.sql` drops policy + disables RLS. Timestamp **> tsA (Migration A)**.
-- [ ] 9.2 [SENSITIVE] Create `infra/prisma/src/extensions/tenantGuc.ts` + package export: `setTenantGuc(tx, accountId)` executes ``tx.$executeRaw`SELECT set_config('app.account_id', ${accountId}, true)` ``. Outside fitness #23's grep scope by design (mirrors the `PrismaUnitOfWork` set_config exception) — document in 13.1.
+- [x] 9.2 [SENSITIVE] Create `infra/prisma/src/extensions/tenantGuc.ts` + package export: `setTenantGuc(tx, accountId)` executes ``tx.$executeRaw`SELECT set_config('app.account_id', ${accountId}, true)` ``. Outside fitness #23's grep scope by design (mirrors the `PrismaUnitOfWork` set_config exception) — document in 13.1.
 - [x] 9.3 (SHIPPED IN PR1 — applied clean; parity suite 12/12 green) DBUP + MIGRATE apply; assert ordering A < B (B references A's column).
 
 ## Phase 10: Worker signatures + explicit scoping (D9) → turns 8.1 GREEN

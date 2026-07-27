@@ -604,6 +604,15 @@ export class SchedulePublishingJobsStep implements PivotStep<StepExecuteData> {
       const priority =
         (context.metadata.priority as string | undefined) || data?.priority || "NORMAL";
 
+      // Thread the saga's tenant into each publish job so the worker scopes its
+      // credential/channel lookups. metadata.accountId is populated at saga
+      // start; narrow it to a non-empty string here. When absent (legacy/edge
+      // sagas) omit it and let the worker fall back to the channel owner —
+      // never emit a corrupt empty-string scope.
+      const rawAccountId = context.metadata.accountId;
+      const accountId =
+        typeof rawAccountId === "string" && rawAccountId.length > 0 ? rawAccountId : undefined;
+
       const jobIds: string[] = [];
 
       for (const channelId of channelIds) {
@@ -613,6 +622,7 @@ export class SchedulePublishingJobsStep implements PivotStep<StepExecuteData> {
           channelId,
           scheduledAt,
           priority,
+          ...(accountId !== undefined && { accountId }),
           sagaId: context.sagaId,
           correlationId: context.correlationId,
         });

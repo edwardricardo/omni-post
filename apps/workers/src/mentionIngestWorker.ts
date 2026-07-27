@@ -37,6 +37,7 @@ import { createPinterestAdapter } from "@providers/pinterest";
 import { createLinkedInAdapter } from "@providers/linkedin";
 import { createBlueskyAdapter } from "@providers/bluesky";
 import type { Provider, PrismaClient } from "@infra/prisma";
+import { setTenantGuc } from "@infra/prisma/extensions/tenantGuc.js";
 import { verifyDatabaseAuth } from "./container/workerContainer.js";
 import { env } from "./config/env.js";
 import { createPrismaRepoAdapter, PrismaMentionRepository } from "@adapters/db-prisma";
@@ -132,11 +133,19 @@ type MentionJob = SearchJob | FetchJob;
  */
 async function resolveChannelAdapter(
   channelId: string,
+  accountId: string,
   deps: MentionJobDeps
 ): Promise<{ providerEnum: Provider; providerName: string; adapter: ProviderAdapter } | undefined> {
-  const channel = await deps.prisma.channel.findFirst({
-    where: { id: channelId, deletedAt: null },
-    select: { id: true, provider: true },
+  // Bind the RLS GUC and scope the lookup by the job's tenant in one
+  // transaction so a foreign channelId resolves nothing (D3/D9). The explicit
+  // `accountId` predicate is the active isolation; the GUC future-proofs the
+  // path for a hardened NOBYPASSRLS role.
+  const channel = await deps.prisma.$transaction(async (tx) => {
+    await setTenantGuc(tx, accountId);
+    return tx.channel.findFirst({
+      where: { id: channelId, accountId, deletedAt: null },
+      select: { id: true, provider: true },
+    });
   });
   if (!channel) {
     logger.warn({ channelId }, "Channel not found, skipping");
@@ -216,7 +225,7 @@ async function processSearchJob(job: SearchJob, deps: MentionJobDeps): Promise<v
     return;
   }
 
-  const resolved = await resolveChannelAdapter(channelId, deps);
+  const resolved = await resolveChannelAdapter(channelId, accountId, deps);
   if (!resolved) {
     return;
   }
@@ -226,13 +235,14 @@ async function processSearchJob(job: SearchJob, deps: MentionJobDeps): Promise<v
     return;
   }
 
-  const credentialResult = await getCredentialResolver(deps.prisma).resolve(channelId);
+  const credentialResult = await getCredentialResolver(deps.prisma).resolve(channelId, accountId);
   if (!credentialResult.ok) {
     await handleProviderAuthError(
       deps.authFailureRecorder,
       channelId,
       providerName,
-      "Credential lookup failed during mention search"
+      "Credential lookup failed during mention search",
+      accountId
     );
     throw new Error(`Provider ${providerName} returned error: AUTH`);
   }
@@ -260,7 +270,8 @@ async function processSearchJob(job: SearchJob, deps: MentionJobDeps): Promise<v
           deps.authFailureRecorder,
           channelId,
           providerName,
-          "Provider rejected credentials during mention search"
+          "Provider rejected credentials during mention search",
+          accountId
         );
       }
       throw new Error(`Provider ${providerName} returned error: ${result.error}`);
@@ -296,7 +307,7 @@ async function processSearchJob(job: SearchJob, deps: MentionJobDeps): Promise<v
 async function processFetchJob(job: FetchJob, deps: MentionJobDeps): Promise<void> {
   const { channelId, accountId, projectId, providerMentionId } = job;
 
-  const resolved = await resolveChannelAdapter(channelId, deps);
+  const resolved = await resolveChannelAdapter(channelId, accountId, deps);
   if (!resolved) {
     return;
   }
@@ -306,13 +317,14 @@ async function processFetchJob(job: FetchJob, deps: MentionJobDeps): Promise<voi
     return;
   }
 
-  const credentialResult = await getCredentialResolver(deps.prisma).resolve(channelId);
+  const credentialResult = await getCredentialResolver(deps.prisma).resolve(channelId, accountId);
   if (!credentialResult.ok) {
     await handleProviderAuthError(
       deps.authFailureRecorder,
       channelId,
       providerName,
-      "Credential lookup failed during mention fetch"
+      "Credential lookup failed during mention fetch",
+      accountId
     );
     throw new Error(`Provider ${providerName} returned error: AUTH`);
   }
@@ -332,7 +344,8 @@ async function processFetchJob(job: FetchJob, deps: MentionJobDeps): Promise<voi
         deps.authFailureRecorder,
         channelId,
         providerName,
-        "Provider rejected credentials during mention fetch"
+        "Provider rejected credentials during mention fetch",
+        accountId
       );
     }
     throw new Error(`Provider ${providerName} returned error: ${result.error}`);

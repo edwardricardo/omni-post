@@ -34,6 +34,13 @@ export default defineConfig({
       "@core/domain": path.join(root, "packages/core/domain/src"),
       "@core/application": path.join(root, "packages/core/application/src"),
       "@core/listening": path.join(root, "packages/core/listening/src"),
+      // Subpath alias MUST precede the bare one: the bare @infra/prisma alias
+      // targets a FILE (vitest-entry.ts), so a prefix match would resolve
+      // subpath imports to <file>/extensions/... and fail with ENOTDIR.
+      "@infra/prisma/extensions/tenantGuc.js": path.join(
+        root,
+        "infra/prisma/src/extensions/tenantGuc.ts"
+      ),
       "@infra/prisma": path.join(root, "infra/prisma/src/vitest-entry.ts"),
       "@observability/logger": path.join(root, "packages/observability/logger/src/index.ts"),
       "@monitoring/circuit-breaker": path.join(

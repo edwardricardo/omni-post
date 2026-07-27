@@ -423,21 +423,35 @@ export function createCachedRepositoryAdapter(
     },
 
     // Channel operations (read-through cache)
-    async getChannelsByIds(ids: string[]): Promise<Result<Channel[], "DATABASE_ERROR">> {
-      const cacheKey = generateKey("channels", ids.sort());
+    async getChannelsByIds(
+      ids: string[],
+      accountId: string
+    ): Promise<Result<Channel[], "DATABASE_ERROR">> {
+      // Key by (accountId, ids) so tenant A's cached entry can never satisfy
+      // tenant B's tenant-scoped miss (D9 cross-tenant cache poisoning). A copy
+      // is sorted so the original `ids` order is not mutated.
+      const cacheKey = generateKey("channels", [accountId, ...[...ids].sort()]);
       const cached = await getCached<Channel[]>(cacheKey);
 
       if (cached) {
         return { ok: true, value: cached };
       }
 
-      const result = await baseRepo.getChannelsByIds(ids);
+      const result = await baseRepo.getChannelsByIds(ids, accountId);
 
       if (result.ok) {
         await setCached(cacheKey, result.value, cacheConfig.defaultTTL);
       }
 
       return result;
+    },
+
+    async getChannelOwnerAccountId(
+      channelId: string
+    ): Promise<Result<string | null, "DATABASE_ERROR">> {
+      // Not cached: a rare deploy-compat lookup of an immutable column — a
+      // direct pass-through is both correct and negligible in cost.
+      return baseRepo.getChannelOwnerAccountId(channelId);
     },
 
     // Logging operations (write-through, no caching for logs as they're append-only)

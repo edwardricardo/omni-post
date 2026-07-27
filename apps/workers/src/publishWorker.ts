@@ -199,6 +199,7 @@ export async function startPublishWorker(
     const payload = job.payload as {
       postId: string;
       channelId: string;
+      accountId?: string;
       provider?: string;
       sagaId?: string;
     };

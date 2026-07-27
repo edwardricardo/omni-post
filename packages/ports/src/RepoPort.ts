@@ -180,8 +180,20 @@ export interface RepoPort {
 
   /** Load a single canonical post by id. */
   getPostById(id: string): Promise<Result<CanonicalPost, "NOT_FOUND" | "DATABASE_ERROR">>;
-  /** Batch-fetch channels by id. Missing ids are silently dropped from the result. */
-  getChannelsByIds(ids: string[]): Promise<Result<Channel[], "DATABASE_ERROR">>;
+  /**
+   * Batch-fetch channels by id, scoped to the owning tenant. Missing ids and
+   * channels owned by a different `accountId` are silently dropped from the
+   * result — the explicit `accountId` predicate is the worker's active tenant
+   * isolation layer (D9), independent of RLS.
+   */
+  getChannelsByIds(ids: string[], accountId: string): Promise<Result<Channel[], "DATABASE_ERROR">>;
+  /**
+   * Owner lookup for the deploy-compat publish fallback: returns the channel's
+   * `accountId` column ONLY, never decrypting credentials, and `ok(null)` when
+   * the channel does not exist. Remove together with the D2 legacy-payload
+   * fallback once every enqueued publish job carries its `accountId`.
+   */
+  getChannelOwnerAccountId(channelId: string): Promise<Result<string | null, "DATABASE_ERROR">>;
   /**
    * Append a publish-log entry. `dedupeKey` MUST be deterministic so the
    * outbox + saga can rely on idempotent retries.

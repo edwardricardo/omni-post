@@ -130,6 +130,8 @@ export function createMockRepo(): PublishRepo {
       ({ ok: true, value: null }) as Result<{ status: string } | null, string>,
     getPostById: async () =>
       ({ ok: true, value: createTestPost() }) as Result<CanonicalPost, string>,
+    getChannelOwnerAccountId: async () =>
+      ({ ok: true, value: "account-test" }) as Result<string | null, string>,
     createThread: async () => ({ ok: true, value: createTestThread() }) as Result<Thread, string>,
     getThreadByPostId: async () =>
       ({ ok: true, value: createTestThread() }) as Result<Thread | null, string>,
