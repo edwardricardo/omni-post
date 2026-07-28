@@ -411,7 +411,7 @@ DataBreachReport
 > untouched); (2) the `Channel` `tenant_isolation` policy via the forward migration
 > `20260723000100_add_rls_channel` — both **done in PR1**; (3) documented here (promoted to
 > the tenant-scoped list + this note). Enforcement is the MERGE-BLOCKING two-tenant integration
-> suite `apps/api/tests/integration/channelTenantIsolation.test.ts` (15 tests): cross-tenant
+> suite `apps/api/tests/integration/channelTenantIsolation.test.ts` (16 tests): cross-tenant
 > read/list/update/delete → 404 with no decrypted credential crossing the boundary; both
 > create paths reject a foreign `projectId` (Bluesky literal 404, OAuth error redirect) and
 > persist no row; own create is parent-consistent (`accountId == Project.accountId`);
@@ -684,14 +684,15 @@ are NOT enrolled — they are transitively scoped through `Channel`. Enrolling t
 parent only helps if every child read resolves its `channelId` set **within**
 tenant scope, so each such read was inspected:
 
-| Path                                                                  | Verdict                  | Evidence                                                                                                                                                                                                                                                                |
-| --------------------------------------------------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `analyticsRoutes` overview                                            | SAFE                     | explicit `getProjectAccess` gate; channels come from a guarded `findMany({ projectId })`; analytics are keyed by `post:{projectId}`, never a raw channelId                                                                                                              |
-| `analyticsRoutes` export                                              | SAFE                     | same shape; the preceding `project.findUnique` proves a tenant context is bound (that model is already enrolled)                                                                                                                                                        |
-| `PrismaAnalyticsReadRepository.getHistoricalTrends`                   | SAFE                     | resolves its channelIds from a guarded `channel.findMany({ projectId })` first                                                                                                                                                                                          |
-| `AnalyticsDashboardHandlers` admin `channel.groupBy`                  | SAFE (parity)            | runs in the same `Promise.all` as a `project.count` on the same injected client — enrollment cannot introduce a failure mode the already-enrolled `project` does not have                                                                                               |
-| `PrismaChannelRepository.hardDelete` cascades                         | SAFE                     | the child `deleteMany` calls run after a guarded channel resolve, under the caller's context                                                                                                                                                                            |
-| `PrismaAnalyticsReadRepository.getDailySummary` / `getMonthlySummary` | **LATENT GAP, not live** | both accept a raw `channelId` with zero tenant resolution. Their only caller (`GetHistoricalAnalyticsQuery`) ignores its own `projectId` input, and its token is registered but resolved by NO route — dead wiring. Escalated below rather than widened into this slice |
+| Path                                                                  | Verdict                  | Evidence                                                                                                                                                                                                                                                                                          |
+| --------------------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `analyticsRoutes` overview                                            | SAFE                     | explicit `getProjectAccess` gate; channels come from a guarded `findMany({ projectId })`; analytics are keyed by `post:{projectId}`, never a raw channelId                                                                                                                                        |
+| `analyticsRoutes` export                                              | SAFE                     | same shape; the preceding `project.findUnique` proves a tenant context is bound (that model is already enrolled)                                                                                                                                                                                  |
+| `PrismaAnalyticsReadRepository.getHistoricalTrends`                   | SAFE                     | resolves its channelIds from a guarded `channel.findMany({ projectId })` first                                                                                                                                                                                                                    |
+| `PrismaAnalyticsAggregationQuery.findSummaries`                       | SAFE                     | its channelId set comes from `findChannelIdsByAccount(accountId)` (`PrismaAnalyticsAggregationQuery.ts:17-25`), a guarded `channel.findMany({ project: { accountId, deletedAt: null } })` — the parent account filter is explicit, so the summary read can only ever see channels of that account |
+| `AnalyticsDashboardHandlers` admin `channel.groupBy`                  | SAFE (parity)            | runs in the same `Promise.all` as a `project.count` on the same injected client — enrollment cannot introduce a failure mode the already-enrolled `project` does not have                                                                                                                         |
+| `PrismaChannelRepository.hardDelete` cascades                         | SAFE                     | the child `deleteMany` calls run after a guarded channel resolve, under the caller's context                                                                                                                                                                                                      |
+| `PrismaAnalyticsReadRepository.getDailySummary` / `getMonthlySummary` | **LATENT GAP, not live** | both accept a raw `channelId` with zero tenant resolution. Their only caller (`GetHistoricalAnalyticsQuery`) ignores its own `projectId` input, and its token is registered but resolved by NO route — dead wiring. Escalated below rather than widened into this slice                           |
 
 ## Escalated to backlog (open, tracked)
 
@@ -714,6 +715,15 @@ Recorded here so they cannot be lost; none is a live exploit today.
    Widening the regex touches `CLAUDE.md` and `.github/workflows/fitness.yml`
    together and needs a documented baseline for the seven existing — audited
    benign — hits, so it is its own change, not a rider on this one.
+5. **No database constraint ties `Channel.accountId` to `Project.accountId`**
+   (SMELL-69). The two denormalized columns are kept in agreement by the create
+   paths, the backfill assertion, and the per-slice integration suite — nothing
+   structural. A reparenting write or a future bulk path could diverge them
+   silently, and a divergence makes the worker's scoped lookup match no row while
+   the job still reports success. The structural close is a CHECK/trigger, or the
+   composite-FK shape already sketched for `ProjectMember` (SMELL-59): a unique
+   `(id, accountId)` on `Project` plus a composite FK
+   `Channel(projectId, accountId) → Project(id, accountId)`.
 
 ---
 
