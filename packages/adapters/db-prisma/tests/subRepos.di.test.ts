@@ -52,8 +52,20 @@ function makeTrackedMockClient() {
   const postFindUnique = vi.fn().mockResolvedValue(null);
   const postCount = vi.fn().mockResolvedValue(0);
   const postFindMany = vi.fn().mockResolvedValue([]);
-  const postTransaction = vi.fn().mockImplementation(async (fn: (tx: unknown) => unknown) => {
+  const postMediaCreate = vi.fn().mockResolvedValue({ id: "m-1" });
+
+  const channelFindMany = vi.fn().mockResolvedValue([]);
+  const channelFindUnique = vi.fn().mockResolvedValue(null);
+  const transactionExecuteRaw = vi.fn().mockResolvedValue(1);
+
+  // Every repo that runs inside `$transaction` sees the SAME fake transaction
+  // client, so the tracked spies keep working through the transactional path.
+  // `$executeRaw` is what `setTenantGuc` binds the RLS GUC with, and
+  // `channel.findMany` routes back to the tracked `channelFindMany` spy so the
+  // "uses INJECTED client" assertion still observes the real call.
+  const runTransaction = vi.fn().mockImplementation(async (fn: (tx: unknown) => unknown) => {
     const fakeTx = {
+      $executeRaw: transactionExecuteRaw,
       post: {
         create: vi.fn().mockResolvedValue({ id: "post-1", projectId: "proj-1", scheduledAt: null }),
       },
@@ -73,12 +85,10 @@ function makeTrackedMockClient() {
           alt: null,
         }),
       },
+      channel: { findMany: channelFindMany, findUnique: channelFindUnique },
     };
     return fn(fakeTx);
   });
-  const postMediaCreate = vi.fn().mockResolvedValue({ id: "m-1" });
-
-  const channelFindMany = vi.fn().mockResolvedValue([]);
 
   const publishLogUpsert = vi.fn().mockResolvedValue({
     id: "pl-1",
@@ -148,7 +158,7 @@ function makeTrackedMockClient() {
   const client = {
     $queryRaw: vi.fn().mockResolvedValue([{ 1: 1 }]),
     $disconnect: vi.fn().mockResolvedValue(undefined),
-    $transaction: postTransaction,
+    $transaction: runTransaction,
     account: {
       findUnique: accountFindUnique,
       create: accountCreate,
@@ -167,7 +177,7 @@ function makeTrackedMockClient() {
       findMany: postFindMany,
     },
     postMedia: { create: postMediaCreate },
-    channel: { findMany: channelFindMany },
+    channel: { findMany: channelFindMany, findUnique: channelFindUnique },
     publishLog: {
       upsert: publishLogUpsert,
       findUnique: publishLogFindUnique,
@@ -204,8 +214,10 @@ function makeTrackedMockClient() {
       postFindUnique,
       postCount,
       postFindMany,
-      postTransaction,
+      runTransaction,
+      transactionExecuteRaw,
       channelFindMany,
+      channelFindUnique,
       publishLogUpsert,
       publishLogFindUnique,
       publishLogFindMany,
@@ -306,8 +318,61 @@ describe("sub-repo DI contract — injected client threading", () => {
     it("getChannelsByIds — uses INJECTED client, not global", async () => {
       const { client, spies } = makeTrackedMockClient();
       const repo = createChannelRepository({}, client);
-      await repo.getChannelsByIds(["ch-1"]);
+
+      const result = await repo.getChannelsByIds(["ch-1"], "acc-1");
+
+      assert.ok(result.ok, "getChannelsByIds should succeed");
+      expect(spies.runTransaction).toHaveBeenCalledTimes(1);
+      expect(spies.transactionExecuteRaw).toHaveBeenCalledTimes(1);
       expect(spies.channelFindMany).toHaveBeenCalledTimes(1);
+      // The lookup MUST carry the caller's tenant predicate — this is the
+      // worker-side isolation layer, so the DI test locks it too.
+      expect(spies.channelFindMany).toHaveBeenCalledWith({
+        where: { id: { in: ["ch-1"] }, accountId: "acc-1" },
+      });
+    });
+
+    it("getChannelOwnerAccountId — uses INJECTED client, not global", async () => {
+      const { client, spies } = makeTrackedMockClient();
+      spies.channelFindUnique.mockResolvedValueOnce({ accountId: "acc-1" });
+      const repo = createChannelRepository({}, client);
+
+      const result = await repo.getChannelOwnerAccountId("ch-1");
+
+      assert.ok(result.ok, "getChannelOwnerAccountId should succeed");
+      assert.strictEqual(result.value, "acc-1");
+      expect(spies.channelFindUnique).toHaveBeenCalledTimes(1);
+      expect(spies.transactionExecuteRaw).toHaveBeenCalledTimes(1);
+    });
+
+    it("getChannelsByIds — rejects a blank tenant scope without querying", async () => {
+      const { client, spies } = makeTrackedMockClient();
+      const repo = createChannelRepository({}, client);
+
+      // Prisma DROPS an `undefined` from a `where`, so an unvalidated
+      // `accountId` would widen the query to EVERY tenant and decrypt them.
+      // BullMQ payloads are unvalidated JSON, so the guard must be at runtime.
+      const blank = await repo.getChannelsByIds(["ch-1"], "");
+      const missing = await repo.getChannelsByIds(["ch-1"], undefined as unknown as string);
+
+      assert.ok(!blank.ok, "an empty accountId must not reach the database");
+      assert.strictEqual(blank.error, "DATABASE_ERROR");
+      assert.ok(!missing.ok, "a missing accountId must not reach the database");
+      assert.strictEqual(missing.error, "DATABASE_ERROR");
+      expect(spies.channelFindMany).not.toHaveBeenCalled();
+      expect(spies.runTransaction).not.toHaveBeenCalled();
+    });
+
+    it("getChannelOwnerAccountId — resolves no owner for a blank channelId without querying", async () => {
+      const { client, spies } = makeTrackedMockClient();
+      const repo = createChannelRepository({}, client);
+
+      const result = await repo.getChannelOwnerAccountId("");
+
+      assert.ok(result.ok, "a malformed job id is a terminal no-owner outcome, not a DB fault");
+      assert.strictEqual(result.value, null);
+      expect(spies.channelFindUnique).not.toHaveBeenCalled();
+      expect(spies.runTransaction).not.toHaveBeenCalled();
     });
   });
 
@@ -317,7 +382,7 @@ describe("sub-repo DI contract — injected client threading", () => {
       const repo = createPublishLogRepository(client);
       await repo.logPublish({
         postId: "post-1",
-        provider: "TWITTER" as "TWITTER",
+        provider: "x",
         channelId: "ch-1",
         status: "QUEUED",
         payload: {},
@@ -345,7 +410,7 @@ describe("sub-repo DI contract — injected client threading", () => {
     it("addAnalytics — uses INJECTED client, not global", async () => {
       const { client, spies } = makeTrackedMockClient();
       const repo = createAnalyticsRepository(client);
-      await repo.addAnalytics({ channelId: "ch-1", provider: "TWITTER" as "TWITTER" });
+      await repo.addAnalytics({ channelId: "ch-1", provider: "x" });
       expect(spies.analyticsCreate).toHaveBeenCalledTimes(1);
     });
   });

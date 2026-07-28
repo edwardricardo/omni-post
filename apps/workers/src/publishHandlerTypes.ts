@@ -45,6 +45,12 @@ export interface PublishRepo {
 
   getPostById(id: string): Promise<Result<CanonicalPost, string>>;
 
+  /**
+   * Owner lookup for the deploy-compat payload fallback: returns the channel's
+   * `accountId` (never decrypts). `ok(null)` when the channel is unknown.
+   */
+  getChannelOwnerAccountId(channelId: string): Promise<Result<string | null, string>>;
+
   createThread(input: { postId: string; strategy: string }): Promise<Result<Thread, string>>;
 
   getThreadByPostId(postId: string): Promise<Result<Thread | null, string>>;
@@ -101,7 +107,7 @@ export interface PublishProvider {
  * a fake in tests.
  */
 export interface CredentialsLookup {
-  resolve(channelId: string): Promise<Result<unknown, "AUTH">>;
+  resolve(channelId: string, accountId: string): Promise<Result<unknown, "AUTH">>;
 }
 
 /**
@@ -132,11 +138,18 @@ export interface PublishHandlerDeps {
  *
  * - `provider` identifies which adapter to route to (defaults to "x")
  * - `sagaId` is set when the job is part of a saga batch
+ * - `accountId` scopes every credential/channel lookup to the owning tenant.
+ *   Optional only for in-flight compat: jobs enqueued before the payload carried
+ *   it fall back to the channel's owner in `publishHandler`. Make it required and
+ *   drop the fallback once no pre-deploy jobs remain in the PUBLISH queue
+ *   (including the BullMQ delayed set — scheduled posts can sit for days);
+ *   `worker_publish_job_account_id_source_total{source="fallback"}` is the signal.
  */
 export interface PublishJobInput {
   payload: {
     postId: string;
     channelId: string;
+    accountId?: string;
     provider?: string;
     sagaId?: string;
   };

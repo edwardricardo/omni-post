@@ -34,6 +34,13 @@ export default defineConfig({
       "@core/domain": path.join(root, "packages/core/domain/src"),
       "@core/application": path.join(root, "packages/core/application/src"),
       "@core/listening": path.join(root, "packages/core/listening/src"),
+      // Subpath alias MUST precede the bare one: the bare @infra/prisma alias
+      // targets a FILE (vitest-entry.ts), so a prefix match would resolve
+      // subpath imports to <file>/extensions/... and fail with ENOTDIR.
+      "@infra/prisma/extensions/tenantGuc.js": path.join(
+        root,
+        "infra/prisma/src/extensions/tenantGuc.ts"
+      ),
       "@infra/prisma": path.join(root, "infra/prisma/src/vitest-entry.ts"),
       "@observability/logger": path.join(root, "packages/observability/logger/src/index.ts"),
       "@monitoring/circuit-breaker": path.join(
@@ -49,6 +56,9 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
+    // A committed `.only()` silently skips the rest of the suite. Fail the run
+    // instead of shipping a partial suite (canon: "Zero .only() committed").
+    forbidOnly: true,
     include: ["tests/**/*.test.ts"],
     pool: "forks",
     // Loads `.env.test` from repo root before any test's transitive Zod env

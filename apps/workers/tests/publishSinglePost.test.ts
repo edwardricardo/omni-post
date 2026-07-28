@@ -19,6 +19,7 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
   const CHANNEL_ID = "channel-x-001";
   const DEDUPE_KEY = `${POST_ID}:${CHANNEL_ID}`;
   const PROVIDER_NAME = "x";
+  const ACCOUNT_ID = "account-test";
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -49,7 +50,8 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
       DEDUPE_KEY,
       rendered,
       PROVIDER_NAME,
-      xProvider
+      xProvider,
+      ACCOUNT_ID
     );
 
     assert.deepStrictEqual(result, receipt);
@@ -71,7 +73,8 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
       DEDUPE_KEY,
       rendered,
       PROVIDER_NAME,
-      xProvider
+      xProvider,
+      ACCOUNT_ID
     );
 
     const value = await deps.workerMetrics.metrics.publishOk.get();
@@ -103,7 +106,8 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
       DEDUPE_KEY,
       rendered,
       PROVIDER_NAME,
-      xProvider
+      xProvider,
+      ACCOUNT_ID
     );
 
     assert.ok(trackedMetrics);
@@ -134,7 +138,8 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
           DEDUPE_KEY,
           rendered,
           PROVIDER_NAME,
-          xProvider
+          xProvider,
+          ACCOUNT_ID
         ),
       (err: Error) => {
         assert.ok(err.message.includes("RATE_LIMIT"));
@@ -159,7 +164,8 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
         DEDUPE_KEY,
         rendered,
         PROVIDER_NAME,
-        xProvider
+        xProvider,
+        ACCOUNT_ID
       );
     } catch {
       // expected
@@ -190,7 +196,8 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
         DEDUPE_KEY,
         rendered,
         PROVIDER_NAME,
-        xProvider
+        xProvider,
+        ACCOUNT_ID
       );
     } catch {
       // expected
@@ -223,7 +230,8 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
         DEDUPE_KEY,
         rendered,
         PROVIDER_NAME,
-        xProvider
+        xProvider,
+        ACCOUNT_ID
       );
     } catch {
       // expected
@@ -257,7 +265,8 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
       DEDUPE_KEY,
       rendered,
       PROVIDER_NAME,
-      xProvider
+      xProvider,
+      ACCOUNT_ID
     );
 
     assert.ok(capturedCorrelationId);
@@ -280,7 +289,8 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
       DEDUPE_KEY,
       rendered,
       PROVIDER_NAME,
-      xProvider
+      xProvider,
+      ACCOUNT_ID
     );
 
     // After completion, the correlation should be cleaned up
@@ -302,7 +312,8 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
         DEDUPE_KEY,
         rendered,
         PROVIDER_NAME,
-        xProvider
+        xProvider,
+        ACCOUNT_ID
       );
     } catch {
       // expected
@@ -327,7 +338,8 @@ describe("PublishHandler.publishSinglePost", { sequential: true }, () => {
       DEDUPE_KEY,
       rendered,
       PROVIDER_NAME,
-      xProvider
+      xProvider,
+      ACCOUNT_ID
     );
 
     assert.ok(publishInput);

@@ -53,6 +53,11 @@ function createPublishRepoFromCtx(ctx: TestContext): PublishRepo {
     getPostById: async (id: string) => {
       return (await repo.getPostById(id)) as Result<CanonicalPost, string>;
     },
+    // Tenant owner lookup — the handler calls it whenever a job payload omits
+    // `accountId`, so the flow repo must expose the real one.
+    getChannelOwnerAccountId: async (id: string) => {
+      return (await repo.getChannelOwnerAccountId(id)) as Result<string | null, string>;
+    },
     // Thread methods — stubbed for single-post flow
     createThread: async () =>
       ({
@@ -199,7 +204,7 @@ describe("Publish Flow", { concurrency: 1 }, () => {
     const handler = buildHandler(ctx, createMockProvider());
 
     await handler.handleJob({
-      payload: { postId: post.value.id, channelId, provider: "x" },
+      payload: { postId: post.value.id, channelId, accountId, provider: "x" },
       dedupeKey,
     });
 
@@ -244,7 +249,7 @@ describe("Publish Flow", { concurrency: 1 }, () => {
     // policy can take effect (see publishHandler.handleJob catch block).
     await assert.rejects(
       handler.handleJob({
-        payload: { postId: post.value.id, channelId, provider: "x" },
+        payload: { postId: post.value.id, channelId, accountId, provider: "x" },
         dedupeKey,
       })
     );
@@ -298,7 +303,7 @@ describe("Publish Flow", { concurrency: 1 }, () => {
     const handler = buildHandler(ctx, trackingProvider);
 
     await handler.handleJob({
-      payload: { postId: post.value.id, channelId, provider: "x" },
+      payload: { postId: post.value.id, channelId, accountId, provider: "x" },
       dedupeKey,
     });
 

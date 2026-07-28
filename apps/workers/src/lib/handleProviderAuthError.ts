@@ -23,13 +23,15 @@ import type { ChannelAuthFailureRecorder } from "../services/ChannelAuthFailureR
  * @param channelId - Channel whose call returned AUTH.
  * @param provider - Provider key for the failing channel.
  * @param context - Short context label that explains where the auth check fired.
+ * @param accountId - Tenant that owns the channel; scopes the recorder's update.
  */
 export async function handleProviderAuthError(
   recorder: ChannelAuthFailureRecorder,
   channelId: string,
   provider: string,
-  context: string
+  context: string,
+  accountId: string
 ): Promise<never> {
-  await recorder.record(channelId, provider, context);
+  await recorder.record(channelId, provider, context, accountId);
   throw new Error(`AUTH error for channel ${channelId} (${provider}): ${context}`);
 }

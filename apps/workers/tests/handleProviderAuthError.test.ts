@@ -26,26 +26,36 @@ describe("handleProviderAuthError", () => {
     recorder = createMockRecorder();
   });
 
-  it("calls recorder.record with the channelId/provider/context, then throws", async () => {
+  it("calls recorder.record with the channelId/provider/context/accountId, then throws", async () => {
     await expect(
-      handleProviderAuthError(recorder, "ch-1", "x", "Provider rejected during inbox sync")
+      handleProviderAuthError(
+        recorder,
+        "ch-1",
+        "x",
+        "Provider rejected during inbox sync",
+        "acct-1"
+      )
     ).rejects.toThrow(/AUTH error for channel ch-1 \(x\)/);
     expect((recorder.record as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1);
     const args = (recorder.record as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(args?.[0]).toBe("ch-1");
     expect(args?.[1]).toBe("x");
     expect(args?.[2]).toBe("Provider rejected during inbox sync");
+    // Dropping the 4th argument would hand the recorder `accountId: undefined`,
+    // which Prisma treats as "not provided" — an UNSCOPED update, i.e. exactly
+    // the cross-tenant write this parameter exists to prevent.
+    expect(args?.[3]).toBe("acct-1");
   });
 
   it("includes the context in the thrown error message", async () => {
     await expect(
-      handleProviderAuthError(recorder, "ch-2", "instagram", "Token expired")
+      handleProviderAuthError(recorder, "ch-2", "instagram", "Token expired", "acct-1")
     ).rejects.toThrow(/Token expired/);
   });
 
   it("propagates recorder errors without swallowing them", async () => {
     recorder = createMockRecorder({ recordThrows: new Error("DB connection lost") });
-    await expect(handleProviderAuthError(recorder, "ch-3", "x", "ctx")).rejects.toThrow(
+    await expect(handleProviderAuthError(recorder, "ch-3", "x", "ctx", "acct-1")).rejects.toThrow(
       "DB connection lost"
     );
   });
@@ -53,7 +63,7 @@ describe("handleProviderAuthError", () => {
   it("never returns normally — the post-condition is always a throw", async () => {
     let returned = false;
     try {
-      await handleProviderAuthError(recorder, "ch-4", "x", "ctx");
+      await handleProviderAuthError(recorder, "ch-4", "x", "ctx", "acct-1");
       returned = true;
     } catch {
       /* expected */

@@ -23,6 +23,10 @@ import { Redis } from "ioredis";
 import { createLogger } from "@observability/logger";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { registerGracefulShutdown, type ShutdownTarget } from "./lib/gracefulShutdown.js";
+import {
+  mentionChannelUnresolved,
+  MENTION_CHANNEL_UNRESOLVED_REASONS,
+} from "./metrics/mentionIngestMetrics.js";
 import { handleProviderAuthError } from "./lib/handleProviderAuthError.js";
 import { ChannelAuthFailureRecorder } from "./services/ChannelAuthFailureRecorder.js";
 import { CredentialResolver } from "./services/CredentialResolver.js";
@@ -37,6 +41,7 @@ import { createPinterestAdapter } from "@providers/pinterest";
 import { createLinkedInAdapter } from "@providers/linkedin";
 import { createBlueskyAdapter } from "@providers/bluesky";
 import type { Provider, PrismaClient } from "@infra/prisma";
+import { setTenantGuc } from "@infra/prisma/extensions/tenantGuc.js";
 import { verifyDatabaseAuth } from "./container/workerContainer.js";
 import { env } from "./config/env.js";
 import { createPrismaRepoAdapter, PrismaMentionRepository } from "@adapters/db-prisma";
@@ -127,24 +132,57 @@ interface FetchJob {
 type MentionJob = SearchJob | FetchJob;
 
 /**
- * Look up the channel referenced by a job and return its provider enum + adapter.
- * Returns undefined when the channel is gone or the provider has no adapter.
+ * @function resolveChannelAdapter
+ * @description Look up the channel referenced by a job, scoped to the job's
+ *              tenant, and return its provider enum + ingest adapter. Every
+ *              unresolved outcome is a SILENT skip — the job succeeds, nothing
+ *              retries and nothing alerts — so each one is counted by reason and
+ *              logged with the tenant that was searched.
+ * @param channelId - Channel the job refers to.
+ * @param accountId - Tenant scope of the job; the lookup is confined to it.
+ * @param deps - Per-job injected dependencies (Prisma client and collaborators).
+ * @returns The provider enum, lowercase provider key, and adapter, or undefined
+ *          when the channel is not resolvable within the job's tenant scope.
  */
-async function resolveChannelAdapter(
+export async function resolveChannelAdapter(
   channelId: string,
+  accountId: string,
   deps: MentionJobDeps
 ): Promise<{ providerEnum: Provider; providerName: string; adapter: ProviderAdapter } | undefined> {
-  const channel = await deps.prisma.channel.findFirst({
-    where: { id: channelId, deletedAt: null },
-    select: { id: true, provider: true },
+  // Worker job payloads are unvalidated JSON, and Prisma DROPS an `undefined`
+  // from a `where` — so an unguarded scope would widen this lookup to every
+  // tenant's channels instead of failing.
+  if (typeof accountId !== "string" || accountId.length === 0) {
+    mentionChannelUnresolved.inc({ reason: MENTION_CHANNEL_UNRESOLVED_REASONS.invalidScope });
+    logger.warn({ channelId }, "Mention job carries no tenant scope, skipping");
+    return undefined;
+  }
+
+  // Bind the RLS GUC and scope the lookup by the job's tenant in one
+  // transaction so a foreign channelId resolves nothing. The explicit
+  // `accountId` predicate is the active isolation; the GUC future-proofs the
+  // path for a hardened NOBYPASSRLS role.
+  const channel = await deps.prisma.$transaction(async (tx) => {
+    await setTenantGuc(tx, accountId);
+    return tx.channel.findFirst({
+      where: { id: channelId, accountId, deletedAt: null },
+      select: { id: true, provider: true },
+    });
   });
   if (!channel) {
-    logger.warn({ channelId }, "Channel not found, skipping");
+    // Two causes share this branch and the scoped query cannot tell them apart
+    // without an UNSCOPED probe (the very IDOR the predicate closes): the
+    // channel was deleted, or the job's tenant does not own it. `accountId` in
+    // the log is what lets an operator separate them after the fact, and the
+    // counter is what makes a systematic mismatch visible at all.
+    mentionChannelUnresolved.inc({ reason: MENTION_CHANNEL_UNRESOLVED_REASONS.notFoundInScope });
+    logger.warn({ channelId, accountId }, "Channel not found in tenant scope, skipping");
     return undefined;
   }
   const providerName = channel.provider.toLowerCase();
   const adapter = providerAdapters[providerName];
   if (!adapter) {
+    mentionChannelUnresolved.inc({ reason: MENTION_CHANNEL_UNRESOLVED_REASONS.noAdapter });
     logger.debug({ channelId, provider: providerName }, "No adapter for provider");
     return undefined;
   }
@@ -216,7 +254,7 @@ async function processSearchJob(job: SearchJob, deps: MentionJobDeps): Promise<v
     return;
   }
 
-  const resolved = await resolveChannelAdapter(channelId, deps);
+  const resolved = await resolveChannelAdapter(channelId, accountId, deps);
   if (!resolved) {
     return;
   }
@@ -226,13 +264,14 @@ async function processSearchJob(job: SearchJob, deps: MentionJobDeps): Promise<v
     return;
   }
 
-  const credentialResult = await getCredentialResolver(deps.prisma).resolve(channelId);
+  const credentialResult = await getCredentialResolver(deps.prisma).resolve(channelId, accountId);
   if (!credentialResult.ok) {
     await handleProviderAuthError(
       deps.authFailureRecorder,
       channelId,
       providerName,
-      "Credential lookup failed during mention search"
+      "Credential lookup failed during mention search",
+      accountId
     );
     throw new Error(`Provider ${providerName} returned error: AUTH`);
   }
@@ -260,7 +299,8 @@ async function processSearchJob(job: SearchJob, deps: MentionJobDeps): Promise<v
           deps.authFailureRecorder,
           channelId,
           providerName,
-          "Provider rejected credentials during mention search"
+          "Provider rejected credentials during mention search",
+          accountId
         );
       }
       throw new Error(`Provider ${providerName} returned error: ${result.error}`);
@@ -296,7 +336,7 @@ async function processSearchJob(job: SearchJob, deps: MentionJobDeps): Promise<v
 async function processFetchJob(job: FetchJob, deps: MentionJobDeps): Promise<void> {
   const { channelId, accountId, projectId, providerMentionId } = job;
 
-  const resolved = await resolveChannelAdapter(channelId, deps);
+  const resolved = await resolveChannelAdapter(channelId, accountId, deps);
   if (!resolved) {
     return;
   }
@@ -306,13 +346,14 @@ async function processFetchJob(job: FetchJob, deps: MentionJobDeps): Promise<voi
     return;
   }
 
-  const credentialResult = await getCredentialResolver(deps.prisma).resolve(channelId);
+  const credentialResult = await getCredentialResolver(deps.prisma).resolve(channelId, accountId);
   if (!credentialResult.ok) {
     await handleProviderAuthError(
       deps.authFailureRecorder,
       channelId,
       providerName,
-      "Credential lookup failed during mention fetch"
+      "Credential lookup failed during mention fetch",
+      accountId
     );
     throw new Error(`Provider ${providerName} returned error: AUTH`);
   }
@@ -332,7 +373,8 @@ async function processFetchJob(job: FetchJob, deps: MentionJobDeps): Promise<voi
         deps.authFailureRecorder,
         channelId,
         providerName,
-        "Provider rejected credentials during mention fetch"
+        "Provider rejected credentials during mention fetch",
+        accountId
       );
     }
     throw new Error(`Provider ${providerName} returned error: ${result.error}`);
@@ -387,7 +429,7 @@ export async function startMentionIngestWorker(
   // Thread options.prisma through so the resolver uses the injected client.
   getCredentialResolver(options.prisma);
 
-  const authFailureRecorder = new ChannelAuthFailureRecorder({ prisma: options.prisma });
+  const authFailureRecorder = new ChannelAuthFailureRecorder({ prisma: options.prisma, logger });
   const ingestMention = new IngestMentionUseCase(new PrismaMentionRepository(options.prisma));
   const deps: MentionJobDeps = { prisma: options.prisma, authFailureRecorder, ingestMention };
 

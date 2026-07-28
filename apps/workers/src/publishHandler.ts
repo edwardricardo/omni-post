@@ -43,6 +43,24 @@ import type {
 } from "./publishHandlerTypes.js";
 
 /**
+ * Outcome of resolving a publish job's tenant scope. The two failure shapes are
+ * deliberately distinct: a vanished channel can never succeed on retry, while a
+ * failed owner lookup is an infrastructure fault whose retry may well succeed.
+ * Collapsing them (both into `"AUTH"`) reported database blips to operators as
+ * credential failures.
+ */
+type JobTenantScope =
+  | { outcome: "resolved"; accountId: string }
+  | { outcome: "channel-missing" }
+  | { outcome: "lookup-failed" };
+
+/** Error identifiers the tenant-scope failures surface to the queue + audit log. */
+const TENANT_SCOPE_ERRORS = {
+  channelMissing: "CHANNEL_NOT_FOUND",
+  lookupFailed: "TENANT_SCOPE_LOOKUP_FAILED",
+} as const;
+
+/**
  * Core publishing orchestrator. Resolves the correct provider adapter from
  * the registry based on `job.data.provider`, defaulting to "x" when absent.
  */
@@ -85,6 +103,104 @@ export class PublishHandler {
   }
 
   /**
+   * @method resolveJobAccountId
+   * @description Determine the tenant scope for a publish job. Prefers the
+   *              `accountId` in the job payload; for jobs enqueued before the
+   *              payload carried it, falls back to the channel's owner
+   *              (accountId column only, never decrypting). Emits the
+   *              `publishJobAccountIdSource` counter on both paths and a WARN on
+   *              the fallback, so the fallback's removal condition — no
+   *              pre-deploy jobs left in the PUBLISH queue, delayed set included
+   *              (scheduled posts can sit for days) — is observable rather than
+   *              a guess.
+   *              TODO(2026-07-28|platform-engineering): drop the fallback and make
+   *              `payload.accountId` required once the counter reports no
+   *              `source="fallback"` increments for a full scheduling horizon.
+   * @param channelId - Channel the job publishes to.
+   * @param payloadAccountId - Tenant carried in the job payload, if present.
+   * @returns The resolved scope, or which of the two failure causes applied.
+   */
+  private async resolveJobAccountId(
+    channelId: string,
+    payloadAccountId: string | undefined
+  ): Promise<JobTenantScope> {
+    if (payloadAccountId !== undefined) {
+      this.workerMetrics.metrics.publishJobAccountIdSource.inc({ source: "payload" });
+      return { outcome: "resolved", accountId: payloadAccountId };
+    }
+
+    const owner = await this.repo.getChannelOwnerAccountId(channelId);
+    if (!owner.ok) {
+      return { outcome: "lookup-failed" };
+    }
+    if (owner.value === null) {
+      return { outcome: "channel-missing" };
+    }
+
+    this.workerMetrics.metrics.publishJobAccountIdSource.inc({ source: "fallback" });
+    this.logger.warn(
+      { channelId },
+      "Publish job carried no accountId; resolved the channel owner (deploy-compat fallback)"
+    );
+    return { outcome: "resolved", accountId: owner.value };
+  }
+
+  /**
+   * @method recordTenantScopeFailure
+   * @description Leave the same audit trail every other publish failure leaves
+   *              when the job's tenant scope cannot be resolved: an ERR
+   *              `publish_log` row plus a publish-error metric. This runs before
+   *              the RUNNING log, so without it the post silently never
+   *              publishes and the publish error-rate SLO never moves.
+   * @param job - Identity of the job that could not be scoped.
+   * @param failure - Which of the two causes applied.
+   * @returns The error to throw so BullMQ applies its retry policy.
+   */
+  private async recordTenantScopeFailure(
+    job: { postId: string; channelId: string; providerName: string; dedupeKey: string },
+    failure: "channel-missing" | "lookup-failed"
+  ): Promise<Error> {
+    const { postId, channelId, providerName, dedupeKey } = job;
+    const isMissingChannel = failure === "channel-missing";
+    const errorCode = isMissingChannel
+      ? TENANT_SCOPE_ERRORS.channelMissing
+      : TENANT_SCOPE_ERRORS.lookupFailed;
+    // A vanished channel is terminal; a failed lookup is an infrastructure
+    // fault, so it is classified as recoverable and NEVER as an auth error.
+    const errorType = isMissingChannel ? "channel_not_found" : "database_error";
+    const correlationId = this.workerMetrics.generateCorrelationId(dedupeKey);
+
+    try {
+      await this.repo.logPublish({
+        postId,
+        provider: providerName,
+        channelId,
+        status: "ERR",
+        payload: { error: errorCode, correlationId },
+        dedupeKey,
+      });
+
+      this.workerMetrics.metrics.publishErr.inc({
+        provider: providerName,
+        content_type: "unknown",
+        error_type: errorType,
+        channel_id: channelId,
+      });
+      this.workerMetrics.recordError(
+        isMissingChannel ? "publisher" : "database",
+        errorType,
+        !isMissingChannel
+      );
+      this.workerMetrics.recordPostPublishFailed();
+      this.workerMetrics.recordProviderPublishFailure(providerName);
+    } finally {
+      this.workerMetrics.removeCorrelationId(dedupeKey);
+    }
+
+    return new Error(errorCode);
+  }
+
+  /**
    * Notify the saga orchestrator of a job outcome via Redis pub/sub.
    * Best-effort -- failures are logged but do not fail the job.
    */
@@ -122,6 +238,7 @@ export class PublishHandler {
    * @param rendered - Provider-rendered post payload.
    * @param providerName - Provider key matching the registry entry.
    * @param provider - Resolved provider adapter implementation.
+   * @param accountId - Tenant scope for the credential lookup.
    * @param sagaId - Optional saga identifier for orchestration callbacks.
    * @returns The provider's publish receipt.
    */
@@ -132,6 +249,7 @@ export class PublishHandler {
     rendered: RenderedPost,
     providerName: string,
     provider: PublishProvider,
+    accountId: string,
     sagaId?: string
   ): Promise<PublishReceipt> {
     return (await this.instrumentation.instrumentPublishing(
@@ -161,7 +279,7 @@ export class PublishHandler {
         });
 
         try {
-          const credentialResult = await this.credentialResolver.resolve(channelId);
+          const credentialResult = await this.credentialResolver.resolve(channelId, accountId);
           if (!credentialResult.ok) {
             providerTimer({ status: "error" });
             await this.databaseInstrumentation.instrumentQuery("insert", "publish_log", async () =>
@@ -325,6 +443,7 @@ export class PublishHandler {
    * @param threadPlan - Strategy + ordered tweet fragments to publish.
    * @param providerName - Provider key matching the registry entry.
    * @param provider - Resolved provider adapter (must implement `publishThread`).
+   * @param accountId - Tenant scope for the credential lookup.
    * @param sagaId - Optional saga identifier for orchestration callbacks.
    * @returns The thread receipt, or void if the thread was already complete.
    */
@@ -335,6 +454,7 @@ export class PublishHandler {
     threadPlan: ThreadPlan,
     providerName: string,
     provider: PublishProvider,
+    accountId: string,
     sagaId?: string
   ): Promise<ThreadReceipt | void> {
     const correlationId = this.workerMetrics.generateCorrelationId(dedupeKey);
@@ -445,7 +565,7 @@ export class PublishHandler {
       throw new Error(`Provider "${providerName}" does not support thread publishing`);
     }
 
-    const credentialResult = await this.credentialResolver.resolve(channelId);
+    const credentialResult = await this.credentialResolver.resolve(channelId, accountId);
     if (!credentialResult.ok) {
       providerTimer({ status: "error" });
       throw new Error("AUTH");
@@ -643,6 +763,17 @@ export class PublishHandler {
       }
       renderTimer({ content_type: rendered.value.type });
 
+      // Resolve the tenant scope for this job once. Post-deploy jobs carry it in
+      // the payload; jobs enqueued earlier fall back to the channel's owner.
+      const tenantScope = await this.resolveJobAccountId(channelId, job.payload.accountId);
+      if (tenantScope.outcome !== "resolved") {
+        throw await this.recordTenantScopeFailure(
+          { postId, channelId, providerName, dedupeKey },
+          tenantScope.outcome
+        );
+      }
+      const accountId = tenantScope.accountId;
+
       // Log RUNNING with correlation tracking
       const correlationId = this.workerMetrics.generateCorrelationId(dedupeKey);
       await this.repo.logPublish({
@@ -668,6 +799,7 @@ export class PublishHandler {
           threadPlan,
           providerName,
           provider,
+          accountId,
           sagaId
         );
       } else {
@@ -679,6 +811,7 @@ export class PublishHandler {
           singleContent,
           providerName,
           provider,
+          accountId,
           sagaId
         );
       }

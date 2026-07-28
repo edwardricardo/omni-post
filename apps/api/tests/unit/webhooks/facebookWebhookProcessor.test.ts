@@ -65,10 +65,14 @@ function seedChannel(
     id: channelId,
     provider: "FACEBOOK",
     providerAccountId: facebookPageId,
+    // `accountId` is the enrolled tenant column the processor reads; the
+    // parent-project copy is kept only to prove the processor no longer
+    // depends on it.
+    accountId,
     projectId,
     project: {
       id: projectId,
-      accountId,
+      accountId: "acct-facebook-DIVERGED",
       account: { id: accountId },
     },
   });

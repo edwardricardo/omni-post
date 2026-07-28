@@ -40,13 +40,15 @@ This catches programming mistakes (forgot to filter) AND tampering attempts
 
 **Files:** the base migration `infra/prisma/migrations/20260527000000_add_rls_tenant_isolation/migration.sql`
 (applied in S2.1c, 50 tables) plus one `add_rls_<model>` forward migration per subsequently
-enrolled model (7 as of `20260716000100_add_rls_project_member`). The base migration is never
+enrolled model (8 as of `20260723000100_add_rls_channel`). The base migration is never
 edited in place.
 
-Each of the 57 tenant-scoped tables gets the policy below. **57 is the RLS-policy
-count**; the Prisma `$extends` guard membership is **58** — `Channel` was enrolled
-in layer 1 ahead of its RLS policy, which ships with the worker-reconciliation PR
-(see the Slice 7 note near the end of this doc for the full seam rationale):
+**58 is the RLS-policy count AND the Prisma `$extends` guard membership** — the two
+are kept at parity by construction: `tests/integration/rls-tenant-isolation.test.ts`
+fails when any model in `TENANT_SCOPED_MODELS` lacks a `tenant_isolation` policy, or
+when the counts diverge.
+
+Each of the 58 tenant-scoped tables gets this policy:
 
 ```sql
 ALTER TABLE "<Model>" ENABLE ROW LEVEL SECURITY;
@@ -347,15 +349,19 @@ DataBreachReport
 > (a project cannot be deleted while channels reference it). The two policies never conflict
 > today because every app deletion path pre-deletes channels (soft-delete → hard-delete)
 > before removing the parent project/account; the divergence is nonetheless recorded here and
-> should be revisited at the RLS PR (PR2) if a direct account/project delete path is ever added.
+> should be revisited if a direct account/project delete path is ever added.
 >
-> **This slice ships as TWO chained PRs on a deliberate seam.** PR1 (this note) enrolls
-> `Channel` in **layer 1 only** (the Prisma `$extends` guard) plus the API-side create-path
-> ownership; workers and RLS are untouched so publishing keeps working byte-identically.
-> Therefore the **Prisma-guard membership count is 58**, but the **RLS-policy count stays
-> 57** — `Channel`'s RLS policy lands in **PR2** (Migration B, `add_rls_channel`, verbatim
-> `20260527000000` shape, timestamped after Migration A; `down.sql` drops the policy +
-> disables RLS). Leg 3/RLS is in any case **INERT deployment-wide today**: the app AND
+> **This slice ships as TWO chained PRs on a deliberate seam.** PR1 enrolls `Channel` in
+> the Prisma `$extends` guard plus the API-side create-path ownership, and carries the RLS
+> policy; PR2 reconciles the worker paths. Workers were untouched by PR1 so publishing kept
+> working byte-identically across the window. **Guard membership and RLS-policy count are
+> both 58**: the `Channel` policy shipped in PR1 as `20260723000100_add_rls_channel`
+> (verbatim `20260527000000` shape, timestamped after Migration A; `down.sql` drops the
+> policy + disables RLS). It was pulled forward from PR2 because the MERGE-BLOCKING parity
+> suite `tests/integration/rls-tenant-isolation.test.ts` asserts guard↔RLS parity by
+> construction — it exists precisely to block an enrollment without a policy, so honouring
+> the original seam would have required weakening the invariant instead of the plan.
+> Pulling it forward is behaviour-neutral: leg 3/RLS is **INERT deployment-wide today**: the app AND
 > worker connection role is `postgres` (`rolsuper=true` / `rolbypassrls=true`, verified
 > against the live DB), so the Prisma `$extends` guard (leg 1) + the app-layer scoping are
 > the ACTIVE enforcement. PR2 additionally binds the account GUC (`app.account_id`) in the
@@ -386,24 +392,25 @@ DataBreachReport
 > the guard bypasses + audits the cross-tenant admin op instead of throwing
 > `TenantContextMissingError`. The provider mass force-reauth (`massReauthRoutes.ts`) does NOT
 > need the wrap today because its bulk ops use `updateManyAndReturn`, which is not yet a guarded
-> operation — a latent isolation gap tracked for PR2 / the backlog sweep, not a live break.
+> operation — a latent isolation gap carried in the roadmap backlog sweep, not a live break.
 >
-> **Worker-path tenant-safety + D10 child-table read-confirmation are PR2 obligations.** The
-> three worker paths that read `Channel` on the RAW client with no tenant scope
+> **Worker-path tenant-safety + the child-table read confirmation.** The three worker paths
+> that formerly read `Channel` on the RAW client with no tenant scope
 > (`CredentialResolver` → `getChannelsByIds`, `ChannelAuthFailureRecorder`,
-> `mentionIngestWorker`) get explicit `accountId` scoping + GUC binding in PR2; the audit of
-> the analytics/publish-log child tables keyed by `channelId` (`PublishLog`, `Analytics`,
-> `AnalyticsDailySummary`, `AnalyticsMonthlySummary` — NOT enrolled, still transitively
-> scoped) is documented with PR2 (any unresolved path escalated to backlog, never silently
-> dropped).
+> `mentionIngestWorker`) now carry explicit `accountId` scoping + GUC binding (see
+> §"Worker tenant scoping" below); the audit of the analytics/publish-log child tables keyed
+> by `channelId` (`PublishLog`, `Analytics`, `AnalyticsDailySummary`,
+> `AnalyticsMonthlySummary` — NOT enrolled, still transitively scoped) is recorded in
+> §"Child-table reads keyed by `channelId`", with every unresolved path escalated to the
+> backlog rather than silently dropped.
 >
 > **3-step enrollment applied (canon checklist):** (1) appended `channel` to the
 > `TENANT_SCOPED_MODELS` Set in `infra/prisma/src/extensions/tenantGuard.ts` (57 → 58) and
 > added the non-null `accountId` column + `Account` relation (`onDelete: Cascade`) +
 > composite index via Migration A `20260723000000_add_channel_account_id` (`20260527000000`
-> untouched) — **done in PR1**; (2) the `Channel` `tenant_isolation` RLS policy via a new
-> forward migration — **PENDING in PR2** (Migration B); (3) documented here (promoted to the
-> tenant-scoped list + this note). Enforcement is the MERGE-BLOCKING two-tenant integration
+> untouched); (2) the `Channel` `tenant_isolation` policy via the forward migration
+> `20260723000100_add_rls_channel` — both **done in PR1**; (3) documented here (promoted to
+> the tenant-scoped list + this note). Enforcement is the MERGE-BLOCKING two-tenant integration
 > suite `apps/api/tests/integration/channelTenantIsolation.test.ts` (15 tests): cross-tenant
 > read/list/update/delete → 404 with no decrypted credential crossing the boundary; both
 > create paths reject a foreign `projectId` (Bluesky literal 404, OAuth error redirect) and
@@ -550,6 +557,166 @@ The Prisma guard:
 
 ---
 
+## Worker tenant scoping — explicit `accountId` predicates + `setTenantGuc`
+
+`apps/workers` is a separate executable with its own composition root, and it
+runs the **raw** Prisma client: the `$extends` guard is bound to the API client
+only, and the `AsyncLocalStorage` provider lives in `apps/api/src/security/tenantContext.ts`,
+which workers cannot import. Workers therefore enforce tenant scope the way the
+raw-SQL repositories already do — with an **explicit `accountId` predicate on
+every query** — and bind the RLS GUC in the same transaction so the identical
+code stays correct once the connection role stops bypassing RLS.
+
+**`setTenantGuc(tx, accountId)`** (`infra/prisma/src/extensions/tenantGuc.ts`)
+is that binding. It runs ``tx.$executeRaw`SELECT set_config('app.account_id', ${accountId}, true)` ``
+as the FIRST statement of a transaction the caller already owns — the third
+argument `true` scopes the setting to that transaction, so it cannot leak onto a
+pooled connection. It is the worker-side mirror of the `set_config` seam
+`PrismaUnitOfWork.executeInTransaction` owns for API transactions, and it accepts
+the `'__system__'` sentinel only for flows canonically authorized as cross-tenant.
+
+| Worker call site                                        | Scope source                                      | Enforcement                                                                                                                                                                  |
+| ------------------------------------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ChannelRepository.getChannelsByIds(ids, accountId)`    | job payload (see below)                           | `$transaction` → `setTenantGuc` → `findMany({ id: { in: ids }, accountId })`                                                                                                 |
+| `ChannelAuthFailureRecorder.record(..., accountId)`     | job payload                                       | `setTenantGuc` first in the existing `$transaction`; `update({ where: { id, accountId } })` — a foreign tenant matches no row (P2025), swallowed as a no-op (404-equivalent) |
+| `mentionIngestWorker.resolveChannelAdapter`             | `job.accountId` (mention jobs already carried it) | `setTenantGuc` + `accountId` predicate                                                                                                                                       |
+| `ChannelRepository.getChannelOwnerAccountId(channelId)` | none — it RESOLVES the scope                      | `setTenantGuc(tx, SYSTEM_TENANT_SCOPE)` + primary-key lookup selecting the `accountId` column ONLY, never the credential envelope                                            |
+
+**Why the owner lookup binds the system scope.** It is the one worker Channel
+access that cannot pre-scope to a tenant — discovering the tenant is its entire
+job. Leaving the GUC unbound would be worse than binding `'__system__'`: under a
+hardened `NOBYPASSRLS` role, `current_setting('app.account_id', true)` returns
+NULL, the policy hides every row, and EVERY pre-deploy publish job would fail.
+The bypass is safe because the query is a primary-key lookup that projects the
+`accountId` column alone — it can never return credentials, and it cannot be
+steered by a caller-supplied predicate. `SYSTEM_TENANT_SCOPE` is exported from
+`tenantGuc.ts` so the sentinel has one definition.
+
+**Runtime scope guards.** Worker entry points cast unvalidated BullMQ JSON
+(`job.data as MentionJob`, `job.payload as {...}`), so TypeScript cannot
+guarantee a tenant actually arrived. Prisma DROPS an `undefined` from a `where`,
+which would turn `{ id: { in: ids }, accountId: undefined }` into a query across
+every tenant — and then decrypt what it returns. `getChannelsByIds`,
+`getChannelOwnerAccountId` and `resolveChannelAdapter` therefore assert a
+non-empty identifier before querying and return their own error shape.
+
+**Observability of the tenant-scope path.** Three signals, because every failure
+mode here is otherwise silent:
+
+| Signal                                               | What it answers                                                                                                                    |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `worker_publish_job_account_id_source_total{source}` | `payload` vs `fallback` — the ONLY evidence that lets the deploy-compat fallback be removed rather than kept indefinitely          |
+| `worker_mention_channel_unresolved_total{reason}`    | mention jobs that ingested nothing: `not_found_in_scope`, `no_adapter`, `invalid_scope` — the job succeeds, so nothing else alerts |
+| `worker_publish_errors_total{error_type}`            | `channel_not_found` (terminal) vs `database_error` (retryable) — a DB fault is never reported as `auth_error`                      |
+
+The `ChannelAuthFailureRecorder`'s P2025 swallow logs at WARN with
+`{ channelId, accountId, provider }` (never the failure reason, which can carry
+provider error text). Two operationally opposite causes reach it — a foreign
+tenant, and the caller's own channel being gone — and `accountId` is what
+separates them after the fact.
+
+**Where the worker's scope comes from.** The publish job payload carries
+`accountId`, written by the single producer (the saga schedule step, from the
+saga's `metadata.accountId`). That step **fails closed**: if the saga metadata
+carries no tenant, it returns a step failure instead of enqueueing a job without
+the field. That is what keeps the fallback below bounded — a freshly enqueued
+unscoped job would put NEW traffic onto the compat path and make it permanent.
+
+A payload without `accountId` — a job enqueued before the field existed,
+including the BullMQ delayed set where scheduled posts can sit for days — falls
+back to `getChannelOwnerAccountId(channelId)`. The fallback is self-scoping (it
+grants no isolation for those jobs, and takes none away: they were produced by
+tenant-scoped API code) and is **bounded**: delete it and make the payload field
+required once `worker_publish_job_account_id_source_total{source="fallback"}`
+stops incrementing for a full scheduling horizon.
+
+**Where the mention worker's scope comes from.** Mention jobs carry `accountId`
+from two producers: `DispatchMentionSearchUseCase` (scheduled search) and
+`facebookWebhookProcessor.findRelatedEntities` (webhook fetch). Both read
+`Channel.accountId` — the enrolled tenant column. The webhook producer formerly
+read `channel.project.accountId`; nothing at the database level constrains the
+two denormalized columns to agree, so a drift would have made the ingest
+worker's scoped lookup match no row while the job still reported success.
+
+**Explicit predicates are the ACTIVE enforcement; the GUC is depth.** With the
+connection role bypassing RLS, `set_config` changes nothing at runtime — the
+`WHERE accountId` predicate is what closes the worker IDOR, and it holds under
+either role posture. The GUC exists so provisioning a `NOSUPERUSER NOBYPASSRLS`
+role later cannot silently filter worker reads to zero rows and break publishing.
+
+**Fitness #23 scope note.** Check #23 (no raw `$queryRaw`/`$executeRaw` outside
+the sanctioned exceptions) greps `apps/api/src` and `apps/workers/src`.
+`tenantGuc.ts` lives in `infra/prisma/src/extensions/` — the canonical home for
+tenant-isolation primitives, next to the guard and the RLS migrations — so it is
+outside the grep's scope **by placement, not by evasion**, exactly like the
+`PrismaUnitOfWork` `set_config` exception #23 already lists. Its raw statement
+takes no caller-supplied SQL: `accountId` is a template parameter, and the helper
+has no other statement. Any NEW raw query under `apps/api/src` or
+`apps/workers/src` still needs an explicit exception and an ADR.
+
+> **Blind spot found while verifying that scope claim (2026-07-27).** #23's regex
+> requires the CALL form `.$executeRaw(`, so the **tagged-template** form
+> ``prisma.$executeRaw`...` `` — the form Prisma's own docs favour, and the one
+> `tenantGuc.ts` and `PrismaUnitOfWork` use — never matches. Seven live statements
+> in `apps/api/src` are invisible to the check today. All seven were read and are
+> benign: four maintenance statements in `DatabaseOptimizer` (`ANALYZE`, a
+> materialized-view refresh, connection-pool stats — no tenant table, no user
+> input), a `SELECT 1` health probe in `SagaManagerLifecycle`, and the two
+> `PrismaUnitOfWork` `set_config` calls that are already a listed exception. So
+> this is a **false-negative class, not a live gap** — but it means #23 cannot be
+> read as proof that no unguarded raw query exists. Escalated below; the fix is a
+> coordinated edit of the regex in `CLAUDE.md` AND `.github/workflows/fitness.yml`
+> (they must stay byte-identical) plus a documented baseline for the seven hits.
+
+**Enforcement:** the MERGE-BLOCKING two-tenant regression
+`apps/api/tests/integration/publishWorkerTenantIsolation.test.ts` drives the real
+worker collaborators over a real database: an own-tenant job publishes with its
+own credentials; a job pairing a channel with a foreign `accountId` fails AUTH
+with the provider never invoked, **nothing decrypted**, no plaintext in the error
+log and the victim's reauth state untouched; a legacy payload resolves its owner
+and publishes; and the reauth recorder flips nothing for a foreign tenant while
+flipping the flag + emitting the outbox event for the owner.
+
+## Child-table reads keyed by `channelId`
+
+`PublishLog`, `Analytics`, `AnalyticsDailySummary` and `AnalyticsMonthlySummary`
+are NOT enrolled — they are transitively scoped through `Channel`. Enrolling the
+parent only helps if every child read resolves its `channelId` set **within**
+tenant scope, so each such read was inspected:
+
+| Path                                                                  | Verdict                  | Evidence                                                                                                                                                                                                                                                                |
+| --------------------------------------------------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `analyticsRoutes` overview                                            | SAFE                     | explicit `getProjectAccess` gate; channels come from a guarded `findMany({ projectId })`; analytics are keyed by `post:{projectId}`, never a raw channelId                                                                                                              |
+| `analyticsRoutes` export                                              | SAFE                     | same shape; the preceding `project.findUnique` proves a tenant context is bound (that model is already enrolled)                                                                                                                                                        |
+| `PrismaAnalyticsReadRepository.getHistoricalTrends`                   | SAFE                     | resolves its channelIds from a guarded `channel.findMany({ projectId })` first                                                                                                                                                                                          |
+| `AnalyticsDashboardHandlers` admin `channel.groupBy`                  | SAFE (parity)            | runs in the same `Promise.all` as a `project.count` on the same injected client — enrollment cannot introduce a failure mode the already-enrolled `project` does not have                                                                                               |
+| `PrismaChannelRepository.hardDelete` cascades                         | SAFE                     | the child `deleteMany` calls run after a guarded channel resolve, under the caller's context                                                                                                                                                                            |
+| `PrismaAnalyticsReadRepository.getDailySummary` / `getMonthlySummary` | **LATENT GAP, not live** | both accept a raw `channelId` with zero tenant resolution. Their only caller (`GetHistoricalAnalyticsQuery`) ignores its own `projectId` input, and its token is registered but resolved by NO route — dead wiring. Escalated below rather than widened into this slice |
+
+## Escalated to backlog (open, tracked)
+
+Recorded here so they cannot be lost; none is a live exploit today.
+
+1. **Analytics daily/monthly summary tenant resolution.** Before
+   `GetHistoricalAnalyticsQuery` is ever wired to a route, `getDailySummary` /
+   `getMonthlySummary` need a channel-ownership probe at the wiring point plus a
+   port-level JSDoc precondition. Wiring them as-is would turn the latent gap
+   above into a live cross-tenant read.
+2. **Initiate-time project-ownership probe for OAuth.** `initiateOAuth` accepts an
+   unverified `projectId`. It is harmless for persistence — the callback binds the
+   tenant context and probes ownership before anything is written — but probing at
+   initiate time would reject the bad link earlier and is cheap hardening.
+3. **`NOSUPERUSER NOBYPASSRLS` role provisioning**, and with it the remaining
+   `mentionIngestWorker` `Mention` writes, which still run without a GUC binding.
+   That is pre-existing and inert under the current role; it breaks only once the
+   hardened role is provisioned, so the two must land together.
+4. **Fitness #23 misses the tagged-template raw form** (see the note above).
+   Widening the regex touches `CLAUDE.md` and `.github/workflows/fitness.yml`
+   together and needs a documented baseline for the seven existing — audited
+   benign — hits, so it is its own change, not a rider on this one.
+
+---
+
 ## Runbook: `TenantContextMissingError` in production logs
 
 If you see this error in production logs or Sentry:
@@ -562,9 +729,11 @@ If you see this error in production logs or Sentry:
      global table.)
    - Background job / scheduler? → that job should be running inside
      `withSystemContext(...)`. Wrap the entry point.
-   - Worker (apps/workers)? → workers don't go through customer auth;
-     they need their own context binding. **TBD: separate item to wire
-     tenant context in apps/workers composition root.**
+   - Worker (apps/workers)? → workers don't go through customer auth and
+     run the raw client, so this error means guarded API code was reached
+     from a worker path. Workers scope with explicit `accountId`
+     predicates + `setTenantGuc` instead of a bound context — see
+     §"Worker tenant scoping".
 3. **Fix the root cause.** Do NOT silence with a try/catch or by
    adding `withSystemContext` to product code.
 

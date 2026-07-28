@@ -20,6 +20,7 @@ function createMockPrisma(opts: { txThrows?: Error } = {}): {
 } {
   const ops: MockTxOps = { channelUpdates: [], outboxCreates: [] };
   const tx = {
+    $executeRaw: vi.fn(async () => 1),
     channel: {
       update: vi.fn(async (args: { where: unknown; data: unknown }) => {
         ops.channelUpdates.push(args);
@@ -58,7 +59,7 @@ describe("ChannelAuthFailureRecorder", () => {
   });
 
   it("flips needsReauth and emits the outbox event in a single transaction", async () => {
-    await recorder.record("ch-1", "x", "token expired");
+    await recorder.record("ch-1", "x", "token expired", "acct-1");
 
     expect(mock.prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(mock.ops.channelUpdates.length).toBe(1);
@@ -75,7 +76,7 @@ describe("ChannelAuthFailureRecorder", () => {
   });
 
   it("emits ChannelAuthFailed with canonical eventType and aggregate metadata", async () => {
-    await recorder.record("ch-2", "instagram", "scope revoked");
+    await recorder.record("ch-2", "instagram", "scope revoked", "acct-1");
 
     const create = mock.ops.outboxCreates[0] as {
       data: {
@@ -102,14 +103,16 @@ describe("ChannelAuthFailureRecorder", () => {
     mock = createMockPrisma({ txThrows: new Error("constraint violation") });
     recorder = new ChannelAuthFailureRecorder({ prisma: mock.prisma as never });
 
-    await expect(recorder.record("ch-3", "x", "auth")).rejects.toThrow("constraint violation");
+    await expect(recorder.record("ch-3", "x", "auth", "acct-1")).rejects.toThrow(
+      "constraint violation"
+    );
     expect(mock.ops.channelUpdates.length).toBe(0);
     expect(mock.ops.outboxCreates.length).toBe(0);
   });
 
   it("handles repeated calls with the same channelId by re-flipping flags + new event", async () => {
-    await recorder.record("ch-4", "x", "first");
-    await recorder.record("ch-4", "x", "second");
+    await recorder.record("ch-4", "x", "first", "acct-1");
+    await recorder.record("ch-4", "x", "second", "acct-1");
 
     expect(mock.ops.channelUpdates.length).toBe(2);
     expect(mock.ops.outboxCreates.length).toBe(2);
@@ -119,8 +122,8 @@ describe("ChannelAuthFailureRecorder", () => {
   });
 
   it("uses an opaque uuid for the outbox row id (one per call, never colliding)", async () => {
-    await recorder.record("ch-5", "x", "r");
-    await recorder.record("ch-6", "x", "r");
+    await recorder.record("ch-5", "x", "r", "acct-1");
+    await recorder.record("ch-6", "x", "r", "acct-1");
     const ids = mock.ops.outboxCreates.map((c) => (c.data as { id: string }).id);
     expect(ids[0]).not.toBe(ids[1]);
     expect(typeof ids[0]).toBe("string");
