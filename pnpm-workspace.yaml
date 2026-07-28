@@ -94,7 +94,7 @@ catalog:
   msw: 2.14.6 # latest stable (taze -l --maturity-period 7); was 2.14.3
   next: 16.2.11 # CVE floor raised 2026-07-23: closes GHSA-6gpp-xcg3-4w24 (middleware bypass) + App Router DoS + Server Actions SSRF, all patched >=16.2.11; was 16.2.9
   next-intl: 4.13.0 # latest stable; was 4.9.2
-  postcss: 8.5.15 # MAX: tree resolves 8.5.15 transitively (never pin lower)
+  postcss: 8.5.21 # latest stable within the 7-day maturity buffer (taze -l --maturity-period 7; 8.5.22/8.5.23 are younger), >= the 8.5.18 CVE floor for the source-map path traversal; was 8.5.15
   zustand: 5.0.14 # latest stable (taze -l --maturity-period 7); was 5.0.12
   "@tanstack/react-query": 5.101.0 # latest stable; was 5.95.0
 
@@ -104,7 +104,7 @@ catalog:
   prom-client: 15.1.3 # MAX of 15.0.0 / 15.1.3
 
   # ── App/server runtime (DIRECT) ──
-  fastify: 5.8.5 # override forces newer than manifest 5.6.1
+  fastify: 5.10.0 # latest stable (taze -l --maturity-period 7; published 2026-07-05), paired with the find-my-way override — fastify declares find-my-way ^9.0.0, so bumping fastify alone leaves the vulnerable router; was 5.8.5
   pino: 10.3.1
   zod: 4.4.3 # reconcile UP to apps' 4.4.3 (override 4.3.6 is stale)
   "@anthropic-ai/sdk": 0.104.1 # latest stable (taze -l --maturity-period 7); was 0.91.1
@@ -199,11 +199,13 @@ overrides:
   "@opentelemetry/sdk-node": "catalog:otel"
   "@opentelemetry/propagator-jaeger@<2.9.0": 2.9.0
   "brace-expansion@<1.1.16": 1.1.16
+  "brace-expansion@>=2.0.0 <2.1.2": 2.1.2
+  "brace-expansion@>=3.0.0 <5.0.8": 5.0.8
   "fast-uri@>=3.0.0 <3.1.4": 3.1.4
   "sharp@<0.35.0": 0.35.0
-  "brace-expansion@>=2.0.0 <2.1.2": 2.1.2
-  "brace-expansion@>=3.0.0 <5.0.7": 5.0.7
+  "find-my-way@<9.6.1": 9.7.0 # minimal AVAILABLE patched version: the advisory names 9.6.1 but npm never published it (9.6.0 -> 9.7.0)
   "protobufjs@>=7.5.0 <7.6.5": 7.6.5
+  "valibot@<=1.4.1": 1.4.2
   shell-quote: 1.8.4
   esbuild: 0.28.1
   xmlhttprequest-ssl: 4.0.0
@@ -247,6 +249,16 @@ auditConfig:
     - GHSA-p8p7-x288-28g6
     - GHSA-848j-6mx2-7j84
     - GHSA-q7cg-457f-vx79
+    # brace-expansion DoS (added 2026-07-28). The 3.x/5.x line IS patched here (5.0.8, see the
+    # range-scoped override). The advisory's `<=5.0.7` range also covers the
+    # 1.x and 2.x lines in semver terms, and upstream published no backport —
+    # the only patched release is 5.0.8. Forcing every line to 5.0.8 was tried
+    # and REVERTED: brace-expansion 5 dropped the callable default export that
+    # the eslint toolchain still consumes through `minimatch ^3.1.2`, so eslint
+    # dies with `TypeError: expand is not a function`. The residual instances
+    # are dev-only lint/depcheck tooling parsing our own glob patterns, never
+    # request input. Remove when eslint's plugin chain moves off minimatch 3.
+    - GHSA-mh99-v99m-4gvg
 
 # Patched dependency (migrated from package.json `pnpm` field, ADR-0019).
 patchedDependencies:
