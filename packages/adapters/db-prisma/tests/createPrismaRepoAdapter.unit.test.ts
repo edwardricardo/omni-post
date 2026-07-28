@@ -11,6 +11,24 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { createPrismaRepoAdapter } from "../src/index.js";
 import type { PrismaClient } from "@infra/prisma";
+import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
+
+/**
+ * Build a scheduler double covering the WHOLE `BackgroundTaskScheduler` port.
+ * Declared without a laundering cast on purpose: the compiler then rejects the
+ * double whenever the port grows a member, instead of the drift going unnoticed
+ * until runtime.
+ */
+function makeMockScheduler(
+  register: BackgroundTaskScheduler["register"] = vi.fn()
+): BackgroundTaskScheduler {
+  return {
+    register,
+    unregister: vi.fn(),
+    shutdownAll: vi.fn().mockResolvedValue({ timedOut: false }),
+    getActiveTasks: vi.fn().mockReturnValue([]),
+  };
+}
 
 /**
  * Build a minimal PrismaClient stub with spied methods
@@ -69,18 +87,13 @@ describe("createPrismaRepoAdapter — DI contract (PR1)", () => {
       const mockClient = makeMockPrismaClient();
       let registeredCallback: (() => Promise<void>) | undefined;
 
-      const mockScheduler = {
-        register: vi.fn((_id: string, callback: () => Promise<void>) => {
-          registeredCallback = callback;
-        }),
-        unregister: vi.fn(),
-        shutdownAll: vi.fn().mockResolvedValue({ timedOut: false }),
-        shutdown: vi.fn().mockResolvedValue(undefined),
-      };
+      const mockScheduler = makeMockScheduler((_id, callback) => {
+        registeredCallback = callback as () => Promise<void>;
+      });
 
       createPrismaRepoAdapter({
         prisma: mockClient,
-        scheduler: mockScheduler as Parameters<typeof createPrismaRepoAdapter>[0]["scheduler"],
+        scheduler: mockScheduler,
       });
 
       assert.ok(registeredCallback !== undefined, "scheduler.register should have been called");
@@ -104,16 +117,11 @@ describe("createPrismaRepoAdapter — DI contract (PR1)", () => {
 
     it("unregisters the scheduler task on close()", async () => {
       const mockClient = makeMockPrismaClient();
-      const mockScheduler = {
-        register: vi.fn(),
-        unregister: vi.fn(),
-        shutdownAll: vi.fn().mockResolvedValue({ timedOut: false }),
-        shutdown: vi.fn().mockResolvedValue(undefined),
-      };
+      const mockScheduler = makeMockScheduler();
 
       const adapter = createPrismaRepoAdapter({
         prisma: mockClient,
-        scheduler: mockScheduler as Parameters<typeof createPrismaRepoAdapter>[0]["scheduler"],
+        scheduler: mockScheduler,
       });
       await adapter.close();
 

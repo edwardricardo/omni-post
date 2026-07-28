@@ -32,7 +32,7 @@ interface RepoCall {
 
 /**
  * Fake tenant-scoped channel-credentials repository. Models the guarded
- * `getChannelsByIds(ids, accountId)` contract from D9: a row is only returned —
+ * `getChannelsByIds(ids, accountId)` contract: a row is only returned —
  * and therefore only "decrypted" — when the caller's `accountId` matches the
  * row's owner. Records every call so tests can assert the resolver forwards the
  * tenant scope. A fresh instance is built per test, so there is no shared state
@@ -64,7 +64,7 @@ function createFakeScopedRepo(seed: SeededChannel[]) {
   };
 }
 
-describe("CredentialResolver — tenant-scoped resolve (D1/D9)", () => {
+describe("CredentialResolver — tenant-scoped resolve", () => {
   describe("own-scope caller", () => {
     it("forwards the caller accountId to the repository and returns the decrypted credentials", async () => {
       const repo = createFakeScopedRepo([

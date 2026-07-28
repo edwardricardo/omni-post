@@ -16,6 +16,7 @@
  */
 
 import { randomUUID } from "node:crypto";
+import type pino from "pino";
 import type { PrismaClient, Prisma } from "@infra/prisma";
 import { setTenantGuc } from "@infra/prisma/extensions/tenantGuc.js";
 
@@ -43,13 +44,21 @@ function isRecordNotFound(error: unknown): boolean {
 
 export interface ChannelAuthFailureRecorderOptions {
   prisma: PrismaClient;
+  /**
+   * Logger for the swallowed-P2025 no-op. Optional so a test double can omit
+   * it, but the composition root always supplies one — the swallow is otherwise
+   * invisible.
+   */
+  logger?: pino.Logger;
 }
 
 export class ChannelAuthFailureRecorder {
   private readonly prisma: PrismaClient;
+  private readonly logger: pino.Logger | undefined;
 
   constructor(options: ChannelAuthFailureRecorderOptions) {
     this.prisma = options.prisma;
+    this.logger = options.logger;
   }
 
   /**
@@ -77,8 +86,8 @@ export class ChannelAuthFailureRecorder {
     try {
       await this.prisma.$transaction(async (tx) => {
         // Bind the RLS GUC first, then scope the update by { id, accountId } so
-        // a caller in the wrong tenant flips no flag and emits no event (D3/D9,
-        // 404-equivalent semantics via P2025).
+        // a caller in the wrong tenant flips no flag and emits no event
+        // (404-equivalent semantics via P2025).
         await setTenantGuc(tx, accountId);
         await tx.channel.update({
           where: { id: channelId, accountId },
@@ -106,9 +115,21 @@ export class ChannelAuthFailureRecorder {
         });
       });
     } catch (error) {
-      // Foreign-scope update matched no row: swallow as a no-op. Any other
-      // failure (real DB error, transaction rollback) still propagates.
+      // The scoped update matched no row: swallow as a no-op. Any other failure
+      // (real DB error, transaction rollback) still propagates.
+      //
+      // Two operationally OPPOSITE causes land here, so the swallow is never
+      // silent: a FOREIGN tenant (a cross-tenant signal worth alerting on) and
+      // the caller's OWN channel being gone (a real auth failure that will now
+      // never flip `needsReauth`, emit an outbox event, or tell the user to
+      // re-authenticate). `accountId` is what tells them apart downstream. The
+      // failure `reason` is deliberately NOT logged — it can carry provider
+      // error text.
       if (isRecordNotFound(error)) {
+        this.logger?.warn(
+          { channelId, accountId, provider },
+          "Channel auth-failure record matched no row (foreign tenant or channel removed)"
+        );
         return;
       }
       throw error;

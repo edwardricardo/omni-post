@@ -26,7 +26,7 @@ describe("handleProviderAuthError", () => {
     recorder = createMockRecorder();
   });
 
-  it("calls recorder.record with the channelId/provider/context, then throws", async () => {
+  it("calls recorder.record with the channelId/provider/context/accountId, then throws", async () => {
     await expect(
       handleProviderAuthError(
         recorder,
@@ -41,6 +41,10 @@ describe("handleProviderAuthError", () => {
     expect(args?.[0]).toBe("ch-1");
     expect(args?.[1]).toBe("x");
     expect(args?.[2]).toBe("Provider rejected during inbox sync");
+    // Dropping the 4th argument would hand the recorder `accountId: undefined`,
+    // which Prisma treats as "not provided" — an UNSCOPED update, i.e. exactly
+    // the cross-tenant write this parameter exists to prevent.
+    expect(args?.[3]).toBe("acct-1");
   });
 
   it("includes the context in the thrown error message", async () => {

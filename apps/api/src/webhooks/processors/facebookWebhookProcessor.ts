@@ -334,18 +334,18 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
   ) {
     // Find channel by Facebook page ID. The page ID is persisted on the
     // dedicated `providerAccountId` column so we can resolve the channel
-    // without decrypting the credentials envelope.
+    // without decrypting the credentials envelope. Only the channel's own
+    // scalars are needed: `accountId` is the enrolled tenant column, so the
+    // parent-project join it used to read the tenant through is gone.
     const channel = await this.prisma.channel.findFirst({
       where: {
         provider: "FACEBOOK",
         providerAccountId: facebookPageId,
       },
-      include: {
-        project: {
-          include: {
-            account: true,
-          },
-        },
+      select: {
+        id: true,
+        accountId: true,
+        projectId: true,
       },
     });
 
@@ -373,7 +373,13 @@ export class FacebookWebhookProcessor extends AbstractWebhookProcessor {
     }
 
     return {
-      accountId: channel.project.accountId,
+      // `Channel.accountId` — the enrolled tenant column — NOT
+      // `channel.project.accountId`. Both are denormalized and nothing at the
+      // database level constrains them to agree, so the two mention-job
+      // producers must read the same one or a drift silently drops the
+      // webhook-driven fetch (the ingest worker's scoped lookup would match no
+      // row, log a skip, and the job would still succeed).
+      accountId: channel.accountId,
       projectId: channel.projectId,
       channelId: channel.id,
       ...(postId && { postId }),

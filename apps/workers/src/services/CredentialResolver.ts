@@ -36,7 +36,7 @@ export class CredentialResolver {
    * @method resolve
    * @description Resolve plaintext credentials for the given channel id, scoped
    *   to the caller's tenant. The `accountId` is forwarded to the guarded
-   *   repository so the lookup is tenant-scoped (D1/D9): a channel owned by a
+   *   repository so the lookup is tenant-scoped: a channel owned by a
    *   different tenant returns zero rows and therefore nothing is ever
    *   decrypted. Returns `err("AUTH")` when the channel does not exist within
    *   the caller's scope, the repository lookup fails, or the credentials field

@@ -19,11 +19,25 @@ interface ScheduleStepData {
   scheduledAt?: Date;
 }
 
+const TEST_ACCOUNT_ID = "acct-saga-1";
+
+/**
+ * Build a saga context. `accountId` mirrors production: `SagaIntegration` puts
+ * the authenticated customer's account into `metadata.accountId` at saga start,
+ * and it is the ONLY source of the tenant scope every publish job carries. Pass
+ * `accountId: null` to model a saga whose metadata lost it.
+ */
 function makeContext(
-  opts: { mode?: "publish-now" | "schedule" | "draft"; stepData?: Record<string, unknown> } = {}
+  opts: {
+    mode?: "publish-now" | "schedule" | "draft";
+    stepData?: Record<string, unknown>;
+    accountId?: string | null;
+  } = {}
 ) {
+  const accountId = opts.accountId === undefined ? TEST_ACCOUNT_ID : opts.accountId;
   const ctx = createSagaContext("saga-test-1", "corr-1", "user-1", {
     mode: opts.mode ?? "publish-now",
+    ...(accountId !== null && { accountId }),
   });
   if (opts.stepData) {
     Object.assign(ctx.stepData, opts.stepData);
@@ -149,6 +163,72 @@ describe("SchedulePublishingJobsStep — Pivot contract", () => {
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/Queue unreachable/);
     expect((step as unknown as { compensate?: unknown }).compensate).toBeUndefined();
+  });
+
+  it("execute stamps every enqueued job with the saga's tenant scope", async () => {
+    const enqueued: Array<Record<string, unknown>> = [];
+    const queueJob = vi.fn(async (job: Record<string, unknown>) => {
+      enqueued.push(job);
+      return `job-${enqueued.length}`;
+    });
+
+    const step = new SchedulePublishingJobsStep(queueJob);
+    const ctx = makeContext({
+      mode: "publish-now",
+      stepData: {
+        "create-post": { postId: "post-abc" },
+        "validate-post-data": { validatedData: { channelIds: ["ch-1", "ch-2"] } },
+      },
+    });
+
+    const result = await step.execute(ctx);
+
+    // This step is the ONLY producer of publish jobs; if the tenant stops
+    // reaching the payload, every worker lookup silently falls back to the
+    // deploy-compat owner path. Assert it on every emitted job.
+    expect(result.success).toBe(true);
+    expect(enqueued.map((job) => job.accountId)).toStrictEqual([TEST_ACCOUNT_ID, TEST_ACCOUNT_ID]);
+  });
+
+  it("execute FAILS CLOSED (enqueues nothing) when the saga metadata carries no tenant", async () => {
+    const queueJob = vi.fn(async () => "job-1");
+    const step = new SchedulePublishingJobsStep(queueJob);
+    const ctx = makeContext({
+      mode: "publish-now",
+      accountId: null,
+      stepData: {
+        "create-post": { postId: "post-abc" },
+        "validate-post-data": { validatedData: { channelIds: ["ch-1"] } },
+      },
+    });
+
+    const result = await step.execute(ctx);
+
+    // Emitting an unscoped job would put a FRESH job on the deploy-compat
+    // fallback, making that fallback unbounded and permanent. The pivot is the
+    // last place with authoritative tenant knowledge, so it must refuse.
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/accountId/i);
+    expect(queueJob).not.toHaveBeenCalled();
+  });
+
+  it("execute FAILS CLOSED when the saga metadata carries a blank tenant", async () => {
+    const queueJob = vi.fn(async () => "job-1");
+    const step = new SchedulePublishingJobsStep(queueJob);
+    const ctx = makeContext({
+      mode: "publish-now",
+      accountId: "",
+      stepData: {
+        "create-post": { postId: "post-abc" },
+        "validate-post-data": { validatedData: { channelIds: ["ch-1"] } },
+      },
+    });
+
+    const result = await step.execute(ctx);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/accountId/i);
+    expect(queueJob).not.toHaveBeenCalled();
   });
 
   it("execute persists scheduling stepData on success for downstream consumption", async () => {

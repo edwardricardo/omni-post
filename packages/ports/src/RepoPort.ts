@@ -184,14 +184,15 @@ export interface RepoPort {
    * Batch-fetch channels by id, scoped to the owning tenant. Missing ids and
    * channels owned by a different `accountId` are silently dropped from the
    * result — the explicit `accountId` predicate is the worker's active tenant
-   * isolation layer (D9), independent of RLS.
+   * isolation layer, independent of RLS. A blank `accountId` is rejected rather
+   * than dropped from the predicate, which would widen the query to every tenant.
    */
   getChannelsByIds(ids: string[], accountId: string): Promise<Result<Channel[], "DATABASE_ERROR">>;
   /**
    * Owner lookup for the deploy-compat publish fallback: returns the channel's
    * `accountId` column ONLY, never decrypting credentials, and `ok(null)` when
-   * the channel does not exist. Remove together with the D2 legacy-payload
-   * fallback once every enqueued publish job carries its `accountId`.
+   * the channel does not exist. Remove together with the legacy-payload fallback
+   * once every enqueued publish job carries its `accountId`.
    */
   getChannelOwnerAccountId(channelId: string): Promise<Result<string | null, "DATABASE_ERROR">>;
   /**

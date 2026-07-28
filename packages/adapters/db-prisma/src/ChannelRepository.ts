@@ -9,11 +9,25 @@
 import { ok, err, type Result } from "@shared/types";
 import type { Channel } from "@ports/core";
 import type { PrismaClient } from "@infra/prisma";
-import { setTenantGuc } from "@infra/prisma/extensions/tenantGuc.js";
+import { setTenantGuc, SYSTEM_TENANT_SCOPE } from "@infra/prisma/extensions/tenantGuc.js";
 import { mapProviderFromDB } from "./mappers.js";
 import { createLogger } from "@observability/logger";
 
 const logger = createLogger("adapter:db-prisma:channel");
+
+/**
+ * @function isUsableId
+ * @description True when an identifier is a non-empty string. Worker callers
+ *              cast unvalidated BullMQ JSON, and Prisma silently DROPS an
+ *              `undefined` from a `where` clause — so `{ accountId: undefined }`
+ *              would widen a tenant-scoped query to every tenant. This runtime
+ *              guard is what TypeScript cannot enforce across that boundary.
+ * @param value - Candidate identifier from an untyped job payload.
+ * @returns Whether the value is safe to use as a query predicate.
+ */
+function isUsableId(value: string): boolean {
+  return typeof value === "string" && value.length > 0;
+}
 
 /**
  * Shape of the encrypted credentials envelope persisted on the Channel row.
@@ -46,6 +60,10 @@ export function createChannelRepository(
       ids: string[],
       accountId: string
     ): Promise<Result<Channel[], "DATABASE_ERROR">> {
+      if (!isUsableId(accountId)) {
+        logger.error("getChannelsByIds called without a tenant scope");
+        return err("DATABASE_ERROR");
+      }
       try {
         // Bind the RLS GUC and scope the lookup by the caller's tenant in the
         // same transaction: the explicit `accountId` predicate is today's active
@@ -83,12 +101,26 @@ export function createChannelRepository(
     async getChannelOwnerAccountId(
       channelId: string
     ): Promise<Result<string | null, "DATABASE_ERROR">> {
+      if (!isUsableId(channelId)) {
+        // A malformed job can never resolve an owner, so this is terminal (no
+        // owner) rather than a transient DB fault the caller should retry.
+        logger.error("getChannelOwnerAccountId called without a channelId");
+        return ok(null);
+      }
       try {
-        // Selects the tenant column ONLY — never the encrypted credential
-        // envelope — so the deploy-compat fallback cannot leak plaintext.
-        const row = await prisma.channel.findUnique({
-          where: { id: channelId },
-          select: { accountId: true },
+        // Bound under the SYSTEM scope, not a tenant scope: this lookup exists
+        // to DISCOVER the tenant, so it has none to bind yet — and under a
+        // hardened NOBYPASSRLS role an unbound GUC makes the policy hide every
+        // row, which would fail every legacy job. Safe because it is a
+        // primary-key ownership lookup that selects the `accountId` column ONLY
+        // — never the encrypted credential envelope — so it cannot leak
+        // plaintext across tenants.
+        const row = await prisma.$transaction(async (tx) => {
+          await setTenantGuc(tx, SYSTEM_TENANT_SCOPE);
+          return tx.channel.findUnique({
+            where: { id: channelId },
+            select: { accountId: true },
+          });
         });
         return ok(row?.accountId ?? null);
       } catch (error) {

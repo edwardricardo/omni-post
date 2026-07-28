@@ -38,7 +38,7 @@ beforeEach(() => {
 // DEFAULT OPTIONS
 // ---------------------------------------------------------------------------
 
-describe("DEFAULT_DATABASE_RESILIENCE_OPTIONS", { concurrency: 1 }, () => {
+describe("DEFAULT_DATABASE_RESILIENCE_OPTIONS", { concurrent: false }, () => {
   it("has expected timeout value", () => {
     assert.strictEqual(DEFAULT_DATABASE_RESILIENCE_OPTIONS.timeout, 8000);
   });
@@ -64,7 +64,7 @@ describe("DEFAULT_DATABASE_RESILIENCE_OPTIONS", { concurrency: 1 }, () => {
   });
 });
 
-describe("DEFAULT_DATABASE_RETRY_OPTIONS", { concurrency: 1 }, () => {
+describe("DEFAULT_DATABASE_RETRY_OPTIONS", { concurrent: false }, () => {
   it("has expected maxRetries", () => {
     assert.strictEqual(DEFAULT_DATABASE_RETRY_OPTIONS.maxRetries, 3);
   });
@@ -99,7 +99,7 @@ describe("DEFAULT_DATABASE_RETRY_OPTIONS", { concurrency: 1 }, () => {
 // createDatabaseCircuitBreaker
 // ---------------------------------------------------------------------------
 
-describe("createDatabaseCircuitBreaker()", { concurrency: 1 }, () => {
+describe("createDatabaseCircuitBreaker()", { concurrent: false }, () => {
   it("executes the wrapped function and returns its result", async () => {
     const fn = async (x: number) => x * 2;
     const breaker = createDatabaseCircuitBreaker(fn, {
@@ -232,7 +232,7 @@ describe("createDatabaseCircuitBreaker()", { concurrency: 1 }, () => {
 // isDatabaseErrorRetryable
 // ---------------------------------------------------------------------------
 
-describe("isDatabaseErrorRetryable()", { concurrency: 1 }, () => {
+describe("isDatabaseErrorRetryable()", { concurrent: false }, () => {
   it("returns true for Prisma P1001 error code", () => {
     const err = { code: "P1001", message: "Can't reach database server" };
     assert.ok(isDatabaseErrorRetryable(err));
@@ -287,7 +287,7 @@ describe("isDatabaseErrorRetryable()", { concurrency: 1 }, () => {
 // withDatabaseRetry
 // ---------------------------------------------------------------------------
 
-describe("withDatabaseRetry()", { concurrency: 1 }, () => {
+describe("withDatabaseRetry()", { concurrent: false }, () => {
   it("returns result on first success without retrying", async () => {
     let callCount = 0;
     const result = await withDatabaseRetry(
@@ -425,7 +425,7 @@ describe("withDatabaseRetry()", { concurrency: 1 }, () => {
 // DatabaseMetricsCollector
 // ---------------------------------------------------------------------------
 
-describe("DatabaseMetricsCollector", { concurrency: 1 }, () => {
+describe("DatabaseMetricsCollector", { concurrent: false }, () => {
   let collector: DatabaseMetricsCollector;
 
   beforeEach(() => {

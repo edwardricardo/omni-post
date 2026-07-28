@@ -21,6 +21,9 @@ export interface WorkerMetricsCollector {
   threadTweetCount: client.Histogram<string>;
   threadDuration: client.Histogram<string>;
 
+  // Tenant-scope provenance for publish jobs
+  publishJobAccountIdSource: client.Counter<string>;
+
   // Job processing metrics
   jobsActive: client.Gauge<string>;
   jobsCompleted: client.Counter<string>;
@@ -123,6 +126,19 @@ export class WorkerMetrics {
         help: "Total duration for thread processing",
         labelNames: ["strategy", "tweet_count_range"],
         buckets: [1, 5, 10, 30, 60, 120, 300],
+        registers: [registry],
+      }),
+
+      // Where each publish job's tenant scope came from. `payload` is the
+      // steady state; `fallback` counts jobs that had to resolve the channel's
+      // owner because they were enqueued before the payload carried the field.
+      // The deploy-compat fallback can only be removed once this counter shows
+      // no `fallback` increments — without it, "remove when no pre-deploy jobs
+      // remain" is unverifiable and the fallback lives forever.
+      publishJobAccountIdSource: new client.Counter({
+        name: "worker_publish_job_account_id_source_total",
+        help: "Publish jobs by the origin of their tenant scope (payload vs deploy-compat owner fallback)",
+        labelNames: ["source"],
         registers: [registry],
       }),
 

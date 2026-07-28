@@ -186,7 +186,7 @@ describe("Publish worker — two-tenant isolation (MERGE-BLOCKING)", { concurren
     });
 
     it("returns AUTH and decrypts nothing when the tenant does not own the channel", async () => {
-      const before = decryptions;
+      const decryptionsBefore = decryptions;
 
       const foreign = await resolver.resolve(tenantA.channelId, tenantB.accountId);
 
@@ -196,7 +196,7 @@ describe("Publish worker — two-tenant isolation (MERGE-BLOCKING)", { concurren
       }
       assert.strictEqual(
         decryptions,
-        before,
+        decryptionsBefore,
         "the scoped query returns no row, so no envelope may be decrypted"
       );
     });

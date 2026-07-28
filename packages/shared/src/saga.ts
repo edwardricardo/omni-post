@@ -605,13 +605,23 @@ export class SchedulePublishingJobsStep implements PivotStep<StepExecuteData> {
         (context.metadata.priority as string | undefined) || data?.priority || "NORMAL";
 
       // Thread the saga's tenant into each publish job so the worker scopes its
-      // credential/channel lookups. metadata.accountId is populated at saga
-      // start; narrow it to a non-empty string here. When absent (legacy/edge
-      // sagas) omit it and let the worker fall back to the channel owner —
-      // never emit a corrupt empty-string scope.
+      // credential/channel lookups. `metadata.accountId` is populated at saga
+      // start and this step is the ONLY producer of publish jobs, so it is the
+      // last place with authoritative tenant knowledge.
+      //
+      // Fail CLOSED when it is missing: emitting a job without the field would
+      // route a FRESH job onto the worker's deploy-compat owner fallback, which
+      // exists only to drain jobs enqueued before the field existed. Omitting it
+      // here would make that fallback unbounded and permanent — the opposite of
+      // its stated removal condition — so the saga fails instead.
       const rawAccountId = context.metadata.accountId;
-      const accountId =
-        typeof rawAccountId === "string" && rawAccountId.length > 0 ? rawAccountId : undefined;
+      if (typeof rawAccountId !== "string" || rawAccountId.length === 0) {
+        return {
+          success: false,
+          error: "Saga metadata carries no accountId: refusing to enqueue an unscoped publish job",
+        };
+      }
+      const accountId = rawAccountId;
 
       const jobIds: string[] = [];
 
@@ -622,7 +632,7 @@ export class SchedulePublishingJobsStep implements PivotStep<StepExecuteData> {
           channelId,
           scheduledAt,
           priority,
-          ...(accountId !== undefined && { accountId }),
+          accountId,
           sagaId: context.sagaId,
           correlationId: context.correlationId,
         });

@@ -43,10 +43,12 @@ This catches programming mistakes (forgot to filter) AND tampering attempts
 enrolled model (8 as of `20260723000100_add_rls_channel`). The base migration is never
 edited in place.
 
-Each of the 58 tenant-scoped tables gets the policy below. **58 is the RLS-policy
-count AND the Prisma `$extends` guard membership** — the two are kept at parity by
-construction: `tests/integration/rls-tenant-isolation.test.ts` fails when any model in
-`TENANT_SCOPED_MODELS` lacks a `tenant_isolation` policy, or when the counts diverge:
+**58 is the RLS-policy count AND the Prisma `$extends` guard membership** — the two
+are kept at parity by construction: `tests/integration/rls-tenant-isolation.test.ts`
+fails when any model in `TENANT_SCOPED_MODELS` lacks a `tenant_isolation` policy, or
+when the counts diverge.
+
+Each of the 58 tenant-scoped tables gets this policy:
 
 ```sql
 ALTER TABLE "<Model>" ENABLE ROW LEVEL SECURITY;
@@ -392,10 +394,10 @@ DataBreachReport
 > need the wrap today because its bulk ops use `updateManyAndReturn`, which is not yet a guarded
 > operation — a latent isolation gap carried in the roadmap backlog sweep, not a live break.
 >
-> **Worker-path tenant-safety + the child-table read confirmation land in PR2.** The three
-> worker paths that read `Channel` on the RAW client with no tenant scope
+> **Worker-path tenant-safety + the child-table read confirmation.** The three worker paths
+> that formerly read `Channel` on the RAW client with no tenant scope
 > (`CredentialResolver` → `getChannelsByIds`, `ChannelAuthFailureRecorder`,
-> `mentionIngestWorker`) carry explicit `accountId` scoping + GUC binding from PR2 (see
+> `mentionIngestWorker`) now carry explicit `accountId` scoping + GUC binding (see
 > §"Worker tenant scoping" below); the audit of the analytics/publish-log child tables keyed
 > by `channelId` (`PublishLog`, `Analytics`, `AnalyticsDailySummary`,
 > `AnalyticsMonthlySummary` — NOT enrolled, still transitively scoped) is recorded in
@@ -578,17 +580,63 @@ the `'__system__'` sentinel only for flows canonically authorized as cross-tenan
 | `ChannelRepository.getChannelsByIds(ids, accountId)`    | job payload (see below)                           | `$transaction` → `setTenantGuc` → `findMany({ id: { in: ids }, accountId })`                                                                                                 |
 | `ChannelAuthFailureRecorder.record(..., accountId)`     | job payload                                       | `setTenantGuc` first in the existing `$transaction`; `update({ where: { id, accountId } })` — a foreign tenant matches no row (P2025), swallowed as a no-op (404-equivalent) |
 | `mentionIngestWorker.resolveChannelAdapter`             | `job.accountId` (mention jobs already carried it) | `setTenantGuc` + `accountId` predicate                                                                                                                                       |
-| `ChannelRepository.getChannelOwnerAccountId(channelId)` | none — it RESOLVES the scope                      | selects the `accountId` column only, never the credential envelope                                                                                                           |
+| `ChannelRepository.getChannelOwnerAccountId(channelId)` | none — it RESOLVES the scope                      | `setTenantGuc(tx, SYSTEM_TENANT_SCOPE)` + primary-key lookup selecting the `accountId` column ONLY, never the credential envelope                                            |
+
+**Why the owner lookup binds the system scope.** It is the one worker Channel
+access that cannot pre-scope to a tenant — discovering the tenant is its entire
+job. Leaving the GUC unbound would be worse than binding `'__system__'`: under a
+hardened `NOBYPASSRLS` role, `current_setting('app.account_id', true)` returns
+NULL, the policy hides every row, and EVERY pre-deploy publish job would fail.
+The bypass is safe because the query is a primary-key lookup that projects the
+`accountId` column alone — it can never return credentials, and it cannot be
+steered by a caller-supplied predicate. `SYSTEM_TENANT_SCOPE` is exported from
+`tenantGuc.ts` so the sentinel has one definition.
+
+**Runtime scope guards.** Worker entry points cast unvalidated BullMQ JSON
+(`job.data as MentionJob`, `job.payload as {...}`), so TypeScript cannot
+guarantee a tenant actually arrived. Prisma DROPS an `undefined` from a `where`,
+which would turn `{ id: { in: ids }, accountId: undefined }` into a query across
+every tenant — and then decrypt what it returns. `getChannelsByIds`,
+`getChannelOwnerAccountId` and `resolveChannelAdapter` therefore assert a
+non-empty identifier before querying and return their own error shape.
+
+**Observability of the tenant-scope path.** Three signals, because every failure
+mode here is otherwise silent:
+
+| Signal                                               | What it answers                                                                                                                    |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `worker_publish_job_account_id_source_total{source}` | `payload` vs `fallback` — the ONLY evidence that lets the deploy-compat fallback be removed rather than kept indefinitely          |
+| `worker_mention_channel_unresolved_total{reason}`    | mention jobs that ingested nothing: `not_found_in_scope`, `no_adapter`, `invalid_scope` — the job succeeds, so nothing else alerts |
+| `worker_publish_errors_total{error_type}`            | `channel_not_found` (terminal) vs `database_error` (retryable) — a DB fault is never reported as `auth_error`                      |
+
+The `ChannelAuthFailureRecorder`'s P2025 swallow logs at WARN with
+`{ channelId, accountId, provider }` (never the failure reason, which can carry
+provider error text). Two operationally opposite causes reach it — a foreign
+tenant, and the caller's own channel being gone — and `accountId` is what
+separates them after the fact.
 
 **Where the worker's scope comes from.** The publish job payload carries
 `accountId`, written by the single producer (the saga schedule step, from the
-saga's `metadata.accountId`). A payload without it — a job enqueued before the
-field existed, including the BullMQ delayed set where scheduled posts can sit for
-days — falls back to `getChannelOwnerAccountId(channelId)`. The fallback is
-self-scoping (it grants no isolation for those jobs, and takes none away: they
-were produced by tenant-scoped API code) and is **bounded**: delete it and make
-the payload field required once the PUBLISH queue, delayed set included, holds no
-pre-deploy jobs.
+saga's `metadata.accountId`). That step **fails closed**: if the saga metadata
+carries no tenant, it returns a step failure instead of enqueueing a job without
+the field. That is what keeps the fallback below bounded — a freshly enqueued
+unscoped job would put NEW traffic onto the compat path and make it permanent.
+
+A payload without `accountId` — a job enqueued before the field existed,
+including the BullMQ delayed set where scheduled posts can sit for days — falls
+back to `getChannelOwnerAccountId(channelId)`. The fallback is self-scoping (it
+grants no isolation for those jobs, and takes none away: they were produced by
+tenant-scoped API code) and is **bounded**: delete it and make the payload field
+required once `worker_publish_job_account_id_source_total{source="fallback"}`
+stops incrementing for a full scheduling horizon.
+
+**Where the mention worker's scope comes from.** Mention jobs carry `accountId`
+from two producers: `DispatchMentionSearchUseCase` (scheduled search) and
+`facebookWebhookProcessor.findRelatedEntities` (webhook fetch). Both read
+`Channel.accountId` — the enrolled tenant column. The webhook producer formerly
+read `channel.project.accountId`; nothing at the database level constrains the
+two denormalized columns to agree, so a drift would have made the ingest
+worker's scoped lookup match no row while the job still reported success.
 
 **Explicit predicates are the ACTIVE enforcement; the GUC is depth.** With the
 connection role bypassing RLS, `set_config` changes nothing at runtime — the

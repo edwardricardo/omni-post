@@ -428,7 +428,7 @@ export function createCachedRepositoryAdapter(
       accountId: string
     ): Promise<Result<Channel[], "DATABASE_ERROR">> {
       // Key by (accountId, ids) so tenant A's cached entry can never satisfy
-      // tenant B's tenant-scoped miss (D9 cross-tenant cache poisoning). A copy
+      // tenant B's tenant-scoped miss (cross-tenant cache poisoning). A copy
       // is sorted so the original `ids` order is not mutated.
       const cacheKey = generateKey("channels", [accountId, ...[...ids].sort()]);
       const cached = await getCached<Channel[]>(cacheKey);

@@ -23,6 +23,10 @@ import { Redis } from "ioredis";
 import { createLogger } from "@observability/logger";
 import { QUEUE_NAMES } from "@adapters/queue-bullmq";
 import { registerGracefulShutdown, type ShutdownTarget } from "./lib/gracefulShutdown.js";
+import {
+  mentionChannelUnresolved,
+  MENTION_CHANNEL_UNRESOLVED_REASONS,
+} from "./metrics/mentionIngestMetrics.js";
 import { handleProviderAuthError } from "./lib/handleProviderAuthError.js";
 import { ChannelAuthFailureRecorder } from "./services/ChannelAuthFailureRecorder.js";
 import { CredentialResolver } from "./services/CredentialResolver.js";
@@ -128,16 +132,34 @@ interface FetchJob {
 type MentionJob = SearchJob | FetchJob;
 
 /**
- * Look up the channel referenced by a job and return its provider enum + adapter.
- * Returns undefined when the channel is gone or the provider has no adapter.
+ * @function resolveChannelAdapter
+ * @description Look up the channel referenced by a job, scoped to the job's
+ *              tenant, and return its provider enum + ingest adapter. Every
+ *              unresolved outcome is a SILENT skip — the job succeeds, nothing
+ *              retries and nothing alerts — so each one is counted by reason and
+ *              logged with the tenant that was searched.
+ * @param channelId - Channel the job refers to.
+ * @param accountId - Tenant scope of the job; the lookup is confined to it.
+ * @param deps - Per-job injected dependencies (Prisma client and collaborators).
+ * @returns The provider enum, lowercase provider key, and adapter, or undefined
+ *          when the channel is not resolvable within the job's tenant scope.
  */
-async function resolveChannelAdapter(
+export async function resolveChannelAdapter(
   channelId: string,
   accountId: string,
   deps: MentionJobDeps
 ): Promise<{ providerEnum: Provider; providerName: string; adapter: ProviderAdapter } | undefined> {
+  // Worker job payloads are unvalidated JSON, and Prisma DROPS an `undefined`
+  // from a `where` — so an unguarded scope would widen this lookup to every
+  // tenant's channels instead of failing.
+  if (typeof accountId !== "string" || accountId.length === 0) {
+    mentionChannelUnresolved.inc({ reason: MENTION_CHANNEL_UNRESOLVED_REASONS.invalidScope });
+    logger.warn({ channelId }, "Mention job carries no tenant scope, skipping");
+    return undefined;
+  }
+
   // Bind the RLS GUC and scope the lookup by the job's tenant in one
-  // transaction so a foreign channelId resolves nothing (D3/D9). The explicit
+  // transaction so a foreign channelId resolves nothing. The explicit
   // `accountId` predicate is the active isolation; the GUC future-proofs the
   // path for a hardened NOBYPASSRLS role.
   const channel = await deps.prisma.$transaction(async (tx) => {
@@ -148,12 +170,19 @@ async function resolveChannelAdapter(
     });
   });
   if (!channel) {
-    logger.warn({ channelId }, "Channel not found, skipping");
+    // Two causes share this branch and the scoped query cannot tell them apart
+    // without an UNSCOPED probe (the very IDOR the predicate closes): the
+    // channel was deleted, or the job's tenant does not own it. `accountId` in
+    // the log is what lets an operator separate them after the fact, and the
+    // counter is what makes a systematic mismatch visible at all.
+    mentionChannelUnresolved.inc({ reason: MENTION_CHANNEL_UNRESOLVED_REASONS.notFoundInScope });
+    logger.warn({ channelId, accountId }, "Channel not found in tenant scope, skipping");
     return undefined;
   }
   const providerName = channel.provider.toLowerCase();
   const adapter = providerAdapters[providerName];
   if (!adapter) {
+    mentionChannelUnresolved.inc({ reason: MENTION_CHANNEL_UNRESOLVED_REASONS.noAdapter });
     logger.debug({ channelId, provider: providerName }, "No adapter for provider");
     return undefined;
   }
@@ -400,7 +429,7 @@ export async function startMentionIngestWorker(
   // Thread options.prisma through so the resolver uses the injected client.
   getCredentialResolver(options.prisma);
 
-  const authFailureRecorder = new ChannelAuthFailureRecorder({ prisma: options.prisma });
+  const authFailureRecorder = new ChannelAuthFailureRecorder({ prisma: options.prisma, logger });
   const ingestMention = new IngestMentionUseCase(new PrismaMentionRepository(options.prisma));
   const deps: MentionJobDeps = { prisma: options.prisma, authFailureRecorder, ingestMention };
 

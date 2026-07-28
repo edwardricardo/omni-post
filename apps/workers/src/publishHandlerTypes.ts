@@ -46,7 +46,7 @@ export interface PublishRepo {
   getPostById(id: string): Promise<Result<CanonicalPost, string>>;
 
   /**
-   * Owner lookup for the D2 legacy-payload fallback: returns the channel's
+   * Owner lookup for the deploy-compat payload fallback: returns the channel's
    * `accountId` (never decrypts). `ok(null)` when the channel is unknown.
    */
   getChannelOwnerAccountId(channelId: string): Promise<Result<string | null, string>>;
@@ -138,11 +138,12 @@ export interface PublishHandlerDeps {
  *
  * - `provider` identifies which adapter to route to (defaults to "x")
  * - `sagaId` is set when the job is part of a saga batch
- * - `accountId` scopes every credential/channel lookup to the owning tenant
- *   (D2). Optional only for in-flight compat: jobs enqueued before the payload
- *   carried it fall back to the channel's owner in `publishHandler`. Make it
- *   required and drop the fallback once no pre-deploy jobs remain in the PUBLISH
- *   queue (including the BullMQ delayed set — scheduled posts can sit for days).
+ * - `accountId` scopes every credential/channel lookup to the owning tenant.
+ *   Optional only for in-flight compat: jobs enqueued before the payload carried
+ *   it fall back to the channel's owner in `publishHandler`. Make it required and
+ *   drop the fallback once no pre-deploy jobs remain in the PUBLISH queue
+ *   (including the BullMQ delayed set — scheduled posts can sit for days);
+ *   `worker_publish_job_account_id_source_total{source="fallback"}` is the signal.
  */
 export interface PublishJobInput {
   payload: {
