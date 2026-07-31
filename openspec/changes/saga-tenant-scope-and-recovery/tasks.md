@@ -71,15 +71,15 @@ integration proofs). Prefer the D7 two-PR shape; escalate the sub-split only on 
 
 ## Phase 0: Artifact reconciliation — BEFORE any code (gate residuals)
 
-- [ ] 0.1 `design.md` File Changes table (`SagaIntegration.ts` row): the cell still reads
+- [x] 0.1 `design.md` File Changes table (`SagaIntegration.ts` row): the cell still reads
       "D3 admin-route system ctx", contradicting amended D3 row 7 (**NO route-level wrap** —
       a route wrap would enclose the `continueSaga`/`compensateSaga` dispatch at
       `Lifecycle:155`/`:190`, violating C1). Replace with the engine-internal query-scoped
       shape: "D2 first-class accountId; no route-level system wrap (C1)".
-- [ ] 0.2 `design.md` Testing Strategy, row "Integration PR2 (live-API)": still says test 13
+- [x] 0.2 `design.md` Testing Strategy, row "Integration PR2 (live-API)": still says test 13
       "at 60s". The amended W2 horizon is **90s** (design lines 125/160 already say 90s).
       Correct the cell to 90s so the tasks/apply/verify chain reads one number.
-- [ ] 0.3 `specs/tenant-context-boundaries/spec.md` preamble (non-normative prose, ~lines
+- [x] 0.3 `specs/tenant-context-boundaries/spec.md` preamble (non-normative prose, ~lines
       5–13): (a) it claims the process-owned internals "become a DECLARED system-context
       boundary" — the amended requirement is narrower and stronger (system context ONLY for
       tenant-unknown queries; per-saga persistence under **rehydrated tenant context**);
@@ -368,8 +368,8 @@ integration proofs). Prefer the D7 two-PR shape; escalate the sub-split only on 
       (`setupServices.ts:937-958`).
 - [ ] 11.2 Mirror the `saga-crash-recovery` delta into a new living
       `openspec/specs/saga-crash-recovery/spec.md`.
-- [ ] 11.3 **0-defect gate (PR2)**: `tsc` (@apps/api, @shared/types) = 0; `eslint
-    --max-warnings 0` on touched files = 0; prettier clean; fitness
+- [ ] 11.3 **0-defect gate (PR2)**: `tsc` (@apps/api, @shared/types) = 0;
+      `eslint --max-warnings 0` on touched files = 0; prettier clean; fitness
       **#3 / #8 / #9 / #10 / #20 / #21 / #23 = 0**; no `.only` / `.skip` committed; no new
       `@ts-ignore` and no new `canon-exception` marker; the full LXC-safe regression set
       green with 0 failed and 0 cancelled; all CI workflows green.

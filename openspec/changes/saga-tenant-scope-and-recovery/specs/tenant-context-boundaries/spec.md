@@ -1,16 +1,23 @@
 # Delta for tenant-context-boundaries
 
 > Change `saga-tenant-scope-and-recovery` (N-COR-2a root). The saga engine is the
-> raw-bypass class the living spec explicitly deferred. This delta declares it: the
-> engine's REQUEST-scoped persistence inherits the caller's bound tenant context, while
-> its process-owned internals (boot load, retry-recovery scan, timeout checker, background
-> persist) become a DECLARED system-context boundary instead of running context-less with
-> the resulting error swallowed (`SagaManagerLifecycle.ts:338,404`).
+> raw-bypass class the living spec explicitly deferred. This delta declares it, and the
+> declaration is narrower and stronger than a blanket bypass: the engine's REQUEST-scoped
+> persistence inherits the caller's bound tenant context; its process-owned internals use
+> a declared system context ONLY for the tenant-UNKNOWN queries (boot load, retry-recovery
+> scan, by-id instance load), each wrap scoped to the query expression; and every per-saga
+> persistence or resumed execution — the instance and its `accountId` already in hand —
+> runs under the saga's own REHYDRATED `withTenantContext`, so the guard validates those
+> writes instead of skipping them.
 >
-> Today both background loops throw `TenantContextMissingError` on the guarded model and
-> the catch discards it, so the loops are DEAD and indistinguishable from "no work found".
-> Declaring the context is a prerequisite for any recovery behavior; the recovery behavior
-> itself lives in the `saga-crash-recovery` capability.
+> The background loops are NOT dead today: the bootstrap hands the engine the RAW Prisma
+> singleton (`apps/api/src/index.ts:41,:687`), so the guard is not in the engine's query
+> path and neither loop can raise `TenantContextMissingError` — a live run shows both
+> working, and the `sagaCustomerFlow` test-13 failure is horizon arithmetic, not a dead
+> scan (design D6). Dead loops are the POST-fix hazard this declaration prevents once the
+> guarded client lands, not the pre-fix cause. Declaring the context is therefore a
+> prerequisite for any recovery behavior; the recovery behavior itself lives in the
+> `saga-crash-recovery` capability.
 >
 > RFC 2119 keywords are normative. **[MERGE-BLOCKING]** requirements MUST be proven green
 > before merge. **[static]** scenarios are checkable by inspecting source; **[integration]**
