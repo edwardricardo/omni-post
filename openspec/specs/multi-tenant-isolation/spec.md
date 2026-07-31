@@ -74,8 +74,9 @@
 > the RLS policy-count assertion in `rls-tenant-isolation.test.ts` from a
 > literal to a count derived from `getTenantScopedModels().size`.
 >
-> **Extended by Slice 7** — change `channel-tenant-guard`, branch
-> `workstream/channel-tenant-guard`. Enrolls `Channel`, the credential-bearing,
+> **Extended by Slice 7** — change `channel-tenant-guard`, archived 2026-07-28,
+> PR #152 (structural + API + the RLS pair) and PR #164 (worker reconciliation),
+> branch `workstream/channel-tenant-guard`. Enrolled `Channel`, the credential-bearing,
 > max-blast model (Tier 4): it carries FOUR AES-GCM credential columns
 > (`credentialsCiphertext` / `Iv` / `AuthTag` / `KeyVersion`) decrypted by the
 > credential-resolution path, so a cross-tenant read is a decrypted-OAuth-token
@@ -84,15 +85,18 @@
 > `@@index([accountId, projectId])`; Migration A backfills over the NOT-NULL
 > `projectId` FK — soft-deleted rows included — with an in-transaction `RAISE`
 > on residual NULL. It has TWO create paths (a Requirement-3 first): the OAuth
-> callback and the Bluesky connect (plus `POST /channels`). This slice ships as
-> TWO chained PRs on a deliberate seam — **PR1** enrolls `Channel` in the Prisma
-> `$extends` guard (layer 1) + threads the API create-path ownership (workers
-> and publish untouched); **PR2** adds the RLS policy (layer 2, Migration B) and
-> the worker credential/reconciliation tenant-scoping + account GUC binding. Leg
-> 3/RLS is INERT deployment-wide today (the app AND worker role is superuser /
-> BYPASSRLS, verified against the live DB), so layer 1 + the app-layer scoping
-> are the ACTIVE enforcement. The MERGE-BLOCKING isolation proof is
-> `apps/api/tests/integration/channelTenantIsolation.test.ts`.
+> callback and the Bluesky connect (plus `POST /channels`). All three legs are in
+> place: `Channel` is in the Prisma `$extends` guard (layer 1), its
+> `tenant_isolation` RLS policy shipped with Migration B
+> (`20260723000100_add_rls_channel` + `down.sql`), and the API create paths thread
+> the ownership-verified `accountId`. The worker credential/reconciliation paths
+> carry explicit `accountId` predicates plus the account GUC bound in their own
+> transaction. Leg 3/RLS is INERT deployment-wide today (the app AND worker role
+> is superuser / BYPASSRLS, verified against the live DB), so layer 1 and the
+> app-layer scoping are the ACTIVE enforcement. The MERGE-BLOCKING isolation
+> proofs are `apps/api/tests/integration/channelTenantIsolation.test.ts` (API,
+> two tenants) and `apps/api/tests/integration/publishWorkerTenantIsolation.test.ts`
+> (worker publish regression).
 >
 > Scope note: this capability covers isolation **by construction at the data layer**.
 > It is distinct from the per-model APP-LEVEL ownership specs archived separately
@@ -153,9 +157,10 @@ required for read, update, or delete paths.
 | `Channel`                    | 7     | Required  | Required               | Required   |
 
 `Channel`'s dominant guarded reads are `projectId`-filtered, so its index is
-`@@index([accountId, projectId])`. Its `TENANT_SCOPED_MODELS` membership lands in PR1
-(guard count 57 → 58); its RLS policy (leg 3) lands in the slice's PR2 (Migration B) and
-is INERT deployment-wide today under the superuser role.
+`@@index([accountId, projectId])`. Its `TENANT_SCOPED_MODELS` membership took the guard
+count from 57 to 58; its RLS policy (leg 3) is in place via Migration B
+(`20260723000100_add_rls_channel`) and is INERT deployment-wide today under the superuser
+role, so legs 1–2 plus the worker-path app-layer scoping are the ACTIVE enforcement.
 
 #### Scenario: the three legs are present for each enrolled model [static]
 
@@ -520,6 +525,84 @@ an outbound provider API call performed on B's behalf.
 - **GIVEN** tenant B owns a channel with stored encrypted credentials
 - **WHEN** tenant A exercises ANY Channel route referencing B's channel id
 - **THEN** the response, error body, and logs contain NO decrypted credential of B, and no provider API call is made with B's token
+
+---
+
+### Requirement: Channel worker credential and reconciliation paths are tenant-safe under both DB-role postures, with the account GUC bound [MERGE-BLOCKING]
+
+`apps/workers` is a separate executable running the RAW Prisma client — the `$extends`
+guard is bound to the API client only — so the worker paths that reach `Channel` enforce
+tenant scope explicitly. The three such paths — credential resolution (`CredentialResolver`
+→ `getChannelsByIds` → decrypt), the auth-failure recorder (`ChannelAuthFailureRecorder`),
+and the mention channel lookup (`mentionIngestWorker`) — SHALL resolve or mutate ONLY
+channels belonging to the account the job is attributed to. A `channelId` that does not
+belong to the job's account SHALL NOT have its credentials decrypted, its reauth flag
+written, or its row returned. This safety SHALL hold under BOTH postures: (1) the current
+BYPASSRLS role, where RLS is inert and the app-layer `WHERE accountId` predicate is the
+sole guard, and (2) a future NOBYPASSRLS role. To satisfy (2) without silent publish
+breakage, the worker SHALL bind the account GUC (`app.account_id`) in its OWN transaction
+for the job's account (`setTenantGuc`), so RLS permits the job's own rows and denies
+foreign rows once the role is corrected. **The publish flow SHALL remain green —
+credential resolution keeps working for the job's own channel** (the MERGE-BLOCKING
+regression). Binding `withSystemContext` on the raw client alone SHALL NOT be accepted as
+satisfying this requirement, because the raw client has no `$extends` guard and RLS needs
+the GUC bound in-tx.
+
+The job's account SHALL reach the worker through the job payload. The single publish-job
+producer (the saga schedule step) SHALL FAIL CLOSED — refusing to enqueue a job whose saga
+metadata carries no account — rather than emitting an unscoped job. A bounded
+deploy-compat fallback MAY resolve the owner for payloads enqueued before the field
+existed, provided it selects the `accountId` column ONLY (never the credential envelope)
+and is observable (`worker_publish_job_account_id_source_total{source}`) so it can be
+removed on evidence rather than kept indefinitely.
+
+#### Scenario: publish resolves credentials for its own channel [integration]
+
+- **GIVEN** a publish job attributed to account A referencing A's own channel id
+- **WHEN** the worker resolves credentials
+- **THEN** the channel is found, its credentials decrypt, and the publish flow proceeds green
+
+#### Scenario: a foreign channelId decrypts no credentials [integration]
+
+- **GIVEN** a worker path is invoked with a `channelId` belonging to account B while attributed to account A
+- **WHEN** the credential-resolution, auth-failure-recorder, or mention-lookup path runs
+- **THEN** B's channel is NOT resolved, NO credential of B is decrypted, and NO reauth flag is written on B's channel — under both the BYPASSRLS and NOBYPASSRLS role
+
+#### Scenario: the worker binds the account GUC in its own transaction [static]
+
+- **GIVEN** the worker credential/reconciliation path is inspected
+- **THEN** it either scopes each Channel query by the job's `accountId` explicitly OR binds `app.account_id` to the job's account inside the worker transaction — never a bare raw-client read with no scope and no GUC
+
+---
+
+### Requirement: Channel child-table reads resolve channelId within tenant scope; any gap is escalated, not silently dropped [MERGE-BLOCKING]
+
+`Channel`'s child tables keyed by `channelId` — `PublishLog`, `Analytics`,
+`AnalyticsDailySummary`, `AnalyticsMonthlySummary` — are NOT enrolled in
+`TENANT_SCOPED_MODELS`, so the `Channel` guard does NOT protect their reads directly; they
+are transitively scoped through `Channel`. Enrolling those tables is OUT OF SCOPE for
+Slice 7 (confirm-only). Every analytics read/aggregate path that queries by `channelId`
+(`PrismaAnalyticsReadRepository`, `PrismaAnalyticsAggregationQuery`, `analyticsRoutes`,
+`AnalyticsDashboardHandlers`) SHALL be AUDITED and CONFIRMED to resolve the parent
+`channelId` within tenant scope (via a guarded `Channel` lookup or a project-gated read)
+BEFORE the child-table read, so a foreign `channelId` yields NOT_FOUND before any child
+aggregation. "Confirmed" means the audit result is documented in
+`docs/security/MULTI_TENANT_GUARDS.md`. Any path found NOT to resolve `channelId` within
+tenant scope SHALL be ESCALATED to the backlog as a tracked gap (future child-table
+enrollment) — it SHALL NOT be silently dropped. Any FUTURE path that reads one of these
+child tables SHALL be added to that audit table before it is wired to a route.
+
+#### Scenario: a foreign channelId is unresolvable before any child-table read [integration]
+
+- **GIVEN** tenant A is authenticated and B owns a channel with analytics/publish-log rows
+- **WHEN** A calls an analytics read/aggregate route with B's `channelId`
+- **THEN** the request resolves to NOT_FOUND before any child-table read or aggregation, and none of B's analytics or publish-log data appears in the payload
+
+#### Scenario: an unresolved child-table read path is escalated, not dropped [static]
+
+- **GIVEN** the child-table read audit is complete
+- **WHEN** its findings are recorded
+- **THEN** every audited path is documented in `MULTI_TENANT_GUARDS.md`, and any path that does not resolve `channelId` within tenant scope is filed as a tracked backlog gap rather than omitted
 
 ---
 

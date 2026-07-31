@@ -17,6 +17,17 @@
 > verified against main @ 8b0334f9. Source of truth for the bypass inventory:
 > `docs/security/MULTI_TENANT_GUARDS.md` §"Pre-authentication boundary seams (Class A)".
 >
+> **Extended by Slice 7** — change `channel-tenant-guard`, archived 2026-07-28,
+> PR #152 (structural + API) and PR #164 (worker reconciliation). Enrolling `Channel`
+> INVERTED the premise of the A8 boundary: the OAuth callback that Slice 6.1 recorded
+> as a "verified no-op boundary" (because `Channel` was unenrolled) now REACHES an
+> enrolled model, so its in-file trigger note FIRED. That superseded requirement was
+> REMOVED and replaced by "A8 OAuth callback binds tenant context from the consumed
+> OAuth state and rejects a foreign projectId" below, and the A8 row of the pre-auth
+> inventory now names the bound context. Slice 7 also introduced the rollout's FIRST
+> worker-deployable seams reaching an enrolled model, recorded below as "Channel
+> worker seams declare their context (Class D preview)".
+>
 > **Why the capability exists.** Before this change only `customerAuthMiddleware.ts:70`
 > bound a `TenantContext`. Every pre-auth surface reaching an enrolled model ran
 > context-less on the guarded client and threw `TenantContextMissingError` — a LIVE
@@ -36,7 +47,9 @@
 > **`tenant-guard/reachability-blast-radius`).** This spec covers **Class A —
 > pre-authentication surfaces** only. Admin surfaces (Class B), consumers/scheduler
 > ticks, and the workers deployable + saga (raw-bypass class) are separate slices and
-> out of scope here.
+> out of scope here — with ONE recorded exception: the three Channel worker seams that
+> Slice 7 activated the moment `Channel` was enrolled (see the Class D preview
+> requirement below). The FULL workers-deployable audit remains a later slice.
 
 ---
 
@@ -253,6 +266,38 @@ NOT_FOUND surfaces as the standard **error redirect (302)**, never a literal 404
 - **GIVEN** tenant A completes an OAuth callback whose consumed state carries a `projectId` belonging to tenant B
 - **WHEN** the callback runs
 - **THEN** the response is an ERROR REDIRECT (302, never a literal 404 status), NO external token exchange occurs, and NO channel is persisted under B's project
+
+---
+
+### Requirement: Channel worker seams declare their context (Class D preview) [MERGE-BLOCKING]
+
+Slice 7 introduced the rollout's FIRST worker-deployable seams that reach an enrolled
+model on the RAW client — Channel credential resolution, the auth-failure recorder, and
+the mention channel lookup. Per the Class taxonomy, the FULL workers-deployable audit is a
+separate, later slice; however, because these three paths reach `Channel` the moment it is
+enrolled, they SHALL NOT run context-less. Each SHALL declare its context — binding the
+job's `accountId` as an explicit query scope AND the `app.account_id` GUC inside the
+worker transaction — so the access is tenant-attributed rather than an unscoped raw-client
+read. The one worker Channel access that cannot pre-scope to a tenant because discovering
+the tenant is its entire job (the owner lookup behind the bounded deploy-compat fallback)
+SHALL declare the `'__system__'` scope explicitly and SHALL project the `accountId` column
+alone, never the credential envelope. The ENFORCEMENT detail and the publish-flow
+regression live in the `multi-tenant-isolation` capability's "Channel worker credential
+and reconciliation paths are tenant-safe under both DB-role postures" requirement; this
+requirement records the boundary obligation so no Channel worker seam is left as a silent
+context-less reach.
+
+#### Scenario: each Channel worker seam declares its context [static]
+
+- **GIVEN** the change is applied
+- **WHEN** the credential-resolution, auth-failure-recorder, and mention-lookup worker paths are inspected
+- **THEN** each declares a job-scoped account context (explicit `accountId` scope and the `app.account_id` GUC bound in-tx) — never a bare context-less raw-client `Channel` read
+
+#### Scenario: the owner lookup declares the system scope and leaks no credential [static]
+
+- **GIVEN** the deploy-compat owner lookup used when a legacy job payload carries no account
+- **WHEN** it is inspected
+- **THEN** it binds the `'__system__'` scope explicitly, is a primary-key lookup projecting only the `accountId` column, and can never return a credential column
 
 ---
 

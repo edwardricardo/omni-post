@@ -30,6 +30,14 @@
 > publish-flow regression) before merge. **[static]** scenarios are checkable by
 > inspecting schema/migrations/config; **[integration]** scenarios require a real-DB,
 > two-tenant run; **[deploy-time]** scenarios are enforced by a migration-time `RAISE`.
+>
+> **Corrected at archive (2026-07-28, verify SUGGESTION-2).** The list-route wording
+> below originally said the foreign-`projectId` list returns an empty result "with no
+> per-route ownership check". The code is STRICTER than that: `channelRoutes.ts:351`
+> runs `assertCallerOwnsProject` (predating this slice, commit `4730470a`) so a foreign
+> `projectId` resolves to 404 at the route, and the guarded repository independently
+> returns `[]` at the data layer. The requirement text and its scenario are corrected
+> here to match shipped behavior; the living spec already carries the corrected wording.
 
 ## ADDED Requirements
 
@@ -43,8 +51,10 @@ the Bluesky connect (JSON route) returns a literal **404** via `assertCallerOwns
 while the OAuth callback — a browser-redirect flow whose catch converts every error into a
 302 (`providerOAuthFlow.ts:310-318`) — surfaces the NOT_FOUND as the standard **error
 redirect (302)**, never a literal 404 status. In BOTH transports NO channel is persisted
-under B's project. A list carrying a FOREIGN `projectId` SHALL return an EMPTY result
-(guard-natural, no per-route ownership check). Critically, because `Channel` carries FOUR AES-GCM
+under B's project. A list carrying a FOREIGN `projectId` SHALL resolve to NOT_FOUND at the
+route (`channelRoutes.ts:351` `assertCallerOwnsProject`, predating this slice — strictly
+stronger than the guard-natural empty result the guarded repository still returns for a
+foreign `projectId`). Critically, because `Channel` carries FOUR AES-GCM
 credential columns (`credentialsCiphertext` / `Iv` / `AuthTag` / `KeyVersion`) decrypted
 by the credential-resolution path, NO decrypted provider OAuth token SHALL cross the tenant
 boundary — not in a response body, not in an error message, not in a log, and not through
@@ -56,11 +66,11 @@ an outbound provider API call performed on B's behalf.
 - **WHEN** A calls the get-by-id route with B's channel id
 - **THEN** the request resolves to NOT_FOUND and no channel data of B — including any decrypted credential — appears in the payload
 
-#### Scenario: listing with a foreign projectId returns empty [integration]
+#### Scenario: listing with a foreign projectId exposes zero channels [integration]
 
 - **GIVEN** tenant A is authenticated and B owns channels under B's project
 - **WHEN** A calls the list route with `projectId={B's projectId}`
-- **THEN** the response contains ZERO of B's channels, with no per-route ownership check
+- **THEN** the request resolves to NOT_FOUND at the route's `assertCallerOwnsProject` gate and the response contains ZERO of B's channels; independently, the guarded repository returns `[]` for that `projectId` under A's context
 
 #### Scenario: A cannot update or delete B's channel [integration]
 
