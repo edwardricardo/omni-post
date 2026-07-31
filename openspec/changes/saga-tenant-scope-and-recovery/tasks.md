@@ -94,20 +94,20 @@ integration proofs). Prefer the D7 two-PR shape; escalate the sub-split only on 
 
 ## Phase 1: RED — unit + static (vitest, no DB)
 
-- [ ] 1.1 [RED] `apps/api/tests/unit/saga/sagaTenant.test.ts` (new, `@file`/`@description`/
+- [x] 1.1 [RED] `apps/api/tests/unit/saga/sagaTenant.test.ts` (new, `@file`/`@description`/
       `@layer infrastructure`): `resolveSagaAccountId` matrix — `context.accountId` wins →
       valid-string `context.metadata.accountId` fallback → `null` when neither (never
       `userId`, never `""`); `runAsSagaTenant` runs `fn` inside `withTenantContext({accountId})`
       on hit, and on miss logs ERROR + increments `rehydrationFailures` + SKIPS `fn`
       (fail-loud, never a system-context fallback). RED until 3.1.
-- [ ] 1.2 [RED] `apps/api/tests/unit/saga/sagaPersistence.column.test.ts` (new): prisma spy
+- [x] 1.2 [RED] `apps/api/tests/unit/saga/sagaPersistence.column.test.ts` (new): prisma spy
       over `persistSagaInstance` — BOTH upsert branches (`Execution:523` create,
       `:537` update) write `resolveSagaAccountId(context)`; assert the written value equals
       the account and `!== context.userId`; assert the key is OMITTED (not `undefined`,
       `exactOptionalPropertyTypes`) when the resolver returns null. Add the guard-shape
       assertion: `sagaInstance.upsert` `where` carries `{id, accountId}` after injection
       (`tenantGuard.ts:208-242`), exercised through `tenantGuardCheck` as a pure fn.
-- [ ] 1.3 [RED] **[MERGE-BLOCKING]** `apps/api/tests/unit/saga/sagaContextInvariants.static.test.ts`
+- [x] 1.3 [RED] **[MERGE-BLOCKING]** `apps/api/tests/unit/saga/sagaContextInvariants.static.test.ts`
       (new, source-scan over `apps/api/src/saga/**` + the bootstrap): (a) **C1 dispatch
       invariant** — no `executeSagaAsync(` / `compensateSagaAsync(` occurrence lexically
       inside a `withSystemContext(` callback (balance the callback body, do not regex a
@@ -118,7 +118,7 @@ integration proofs). Prefer the D7 two-PR shape; escalate the sub-split only on 
       the raw singleton"** — no saga-engine construction site receives the raw
       `@infra/prisma` import; (e) each of the boot-load / retry-scan / timeout-checker catch
       blocks logs at ERROR and increments a counter (no silent discard). RED until Phase 3–4.
-- [ ] 1.4 Run VITEST on 1.1–1.3 → expect RED for the right reasons (module `sagaTenant.ts`
+- [x] 1.4 Run VITEST on 1.1–1.3 → expect RED for the right reasons (module `sagaTenant.ts`
       absent; column writes `userId`; zero `withSystemContext` in `apps/api/src/saga/**`).
 
 ## Phase 2: D2 — column truth threaded end to end → turns 1.2 GREEN
